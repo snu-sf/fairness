@@ -2,6 +2,8 @@ From sflib Require Import sflib.
 From ITree Require Export ITree.
 From Paco Require Import paco.
 
+Export ITreeNotations.
+
 Require Import Coq.Classes.RelationClasses.
 
 Set Implicit Arguments.
@@ -190,3 +192,71 @@ Section BEHAVES.
   Proof.
   Admitted.
 End BEHAVES.
+
+
+
+Section SIM.
+
+  Inductive _sim
+            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), (bool * (option Ident))  -> (bool * (option Ident)) -> (itree eventE R0) -> (itree eventE R1) -> Prop)
+            {R0 R1} (RR: R0 -> R1 -> Prop) (fi_src fi_tgt: (bool * (option Ident))) : (itree eventE R0) -> (itree eventE R1) -> Prop :=
+  | sim_ret
+      r_src r_tgt
+      (SIM: RR r_src r_tgt)
+    :
+    _sim sim RR fi_src fi_tgt (Ret r_src) (Ret r_tgt)
+  | sim_tauL
+      itr_src0 itr_tgt0
+      (SIM: @_sim sim _ _ RR (true, snd fi_src) fi_tgt itr_src0 itr_tgt0)
+    :
+    _sim sim RR fi_src fi_tgt (Tau itr_src0) itr_tgt0
+  | sim_tauR
+      itr_src0 itr_tgt0
+      (SIM: @_sim sim _ _ RR fi_src (true, snd fi_tgt) itr_src0 itr_tgt0)
+    :
+    _sim sim RR fi_src fi_tgt (Tau itr_src0) itr_tgt0
+  | sim_chooseL
+      X ktr_src0 itr_tgt0
+      (SIM: exists x, _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 x) itr_tgt0)
+    :
+    _sim sim RR fi_src fi_tgt (trigger (Choose X) >>= ktr_src0) itr_tgt0
+  | sim_chooseR
+      X itr_src0 ktr_tgt0
+      (SIM: forall x, _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 x))
+    :
+    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Choose X) >>= ktr_tgt0)
+  | sim_successL_stop
+      id ktr_src0 itr_tgt0
+      (STOP: <<SOME: snd fi_src = Some id>> \/ <<NONE: snd fi_src = None>>)
+      (SIM: _sim sim RR (true, None) fi_tgt (ktr_src0 tt) itr_tgt0)
+    :
+    _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0
+  | sim_successL_pass
+      id id_src ktr_src0 itr_tgt0
+      (PASS: <<SOME: snd fi_src = Some id_src>> /\ <<PASS: id_src <> id>>)
+      (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0)
+    :
+    _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0
+  | sim_successR_stop
+      id itr_src0 ktr_tgt0
+      (STOP: <<SOME: snd fi_tgt = Some id>> \/ <<NONE: snd fi_tgt = None>>)
+      (SIM: _sim sim RR fi_src (true, None) itr_src0 (ktr_tgt0 tt))
+    :
+    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0)
+  | sim_successR_pass
+      id id_tgt itr_src0 ktr_tgt0
+      (PASS: <<SOME: snd fi_tgt = Some id_tgt>> /\ <<PASS: id_tgt <> id>>)
+      (SIM: _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 tt))
+    :
+    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0)
+  | sim_failL_start
+      id ktr_src0 itr_tgt0
+      (START: 
+      (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0)
+    :
+    _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0
+  .
+
+
+
+End SIM.
