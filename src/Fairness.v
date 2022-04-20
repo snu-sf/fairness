@@ -399,6 +399,197 @@ Section SIM.
   Hint Resolve sim_mon: paco.
   Hint Resolve cpn10_wcompat: paco.
 
+
+
+  Definition imap := Ident -> nat.
+  (* Definition imap_emp : imap := fun _ => Flag.emp. *)
+
+  Inductive _isim
+            (isim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> (itree eventE R0) -> (itree eventE R1) -> Prop)
+            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap) (p_tgt: bool) (m_tgt: imap): (itree eventE R0) -> (itree eventE R1) -> Prop :=
+  | isim_ret
+      r_src r_tgt
+      (SIM: RR r_src r_tgt)
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt)
+  | isim_tauL
+      itr_src0 itr_tgt0
+      (SIM: @_isim isim _ _ RR true m_src p_tgt m_tgt itr_src0 itr_tgt0)
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt (Tau itr_src0) itr_tgt0
+  | isim_tauR
+      itr_src0 itr_tgt0
+      (SIM: @_isim isim _ _ RR p_src m_src true m_tgt itr_src0 itr_tgt0)
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt itr_src0 (Tau itr_tgt0)
+  | isim_chooseL
+      X ktr_src0 itr_tgt0
+      (SIM: exists x, _isim isim RR true m_src p_tgt m_tgt (ktr_src0 x) itr_tgt0)
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt (trigger (Choose X) >>= ktr_src0) itr_tgt0
+  | isim_chooseR
+      X itr_src0 ktr_tgt0
+      (SIM: forall x, _isim isim RR p_src m_src true m_tgt itr_src0 (ktr_tgt0 x))
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Choose X) >>= ktr_tgt0)
+
+  | isim_failL
+      id m_src0 ktr_src0 itr_tgt0
+      (SRC: forall j, le (m_src0 j) (m_src j))
+      (FAIL: lt (m_src0 id) (m_src id))
+      (* (FAIL: exists fuel, (<<FUEL0: le (m_src0 id) fuel>>) /\ (<<FUEL1: lt fuel (m_src id)>>)) *)
+      (SIM: _isim isim RR true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0)
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0
+  | isim_failR
+      id m_tgt0 itr_src0 ktr_tgt0
+      (TGT: forall j, le (m_tgt0 j) (m_tgt j))
+      (FAIL: lt (m_tgt0 id) (m_tgt id))
+      (* (FAIL: forall fuel, (<<FUEL0: le (m_tgt0 id) fuel>>) /\ (<<FUEL1: lt fuel (m_tgt id)>>)) *)
+      (SIM: _isim isim RR p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt))
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0)
+
+  | isim_successL
+      id m_src0 ktr_src0 itr_tgt0
+      (SRC: forall j (NEQ: id <> j), le (m_src0 j) (m_src j))
+      (SIM: exists v, (<<FILL: m_src0 id = v>>) -> (<<SIM: _isim isim RR true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0>>))
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0
+  | isim_successR
+      id m_tgt0 itr_src0 ktr_tgt0
+      (TGT: forall j (NEQ: id <> j), le (m_tgt0 j) (m_tgt j))
+      (SIM: forall v, (<<FILL: m_tgt0 id = v>>) -> (<<SIM: _isim isim RR p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt)>>))
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0)
+
+  | isim_progress_strong
+      itr_src0 itr_tgt0
+      (PSRC: p_src = true)
+      (PTGT: p_tgt = true)
+      (IMAP: forall j, le (m_tgt j) (m_src j))
+      (SIM: exists m_src0 m_tgt0, isim _ _ RR false m_src0 false m_tgt0 itr_src0 itr_tgt0)
+    :
+    _isim isim RR p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
+
+  (* | sim_progress_weak *)
+  (*     id m_tgt0 itr_src0 itr_tgt0 *)
+  (*     (PTGT: p_tgt = true) *)
+  (*     (TGT: forall j (NEQ: id <> j), le (m_tgt0 j) (m_tgt j)) *)
+  (*     (IMAP: m_tgt id = 0) *)
+  (*     (IMAP0: m_tgt0 id = Flag.emp) *)
+  (*     (IDX: id = idx) *)
+  (*     (SIM: sim _ _ RR p_src m_src false m_tgt0 idx itr_src0 itr_tgt0) *)
+  (*   : *)
+  (*   _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0 *)
+  .
+
+  Lemma _isim_ind2 (r: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> (itree eventE R0) -> (itree eventE R1) -> Prop)
+        R0 R1 (RR: R0 -> R1 -> Prop)
+        (P: bool -> imap  -> bool -> imap -> (itree eventE R0) -> (itree eventE R1) -> Prop)
+        (RET: forall
+            p_src m_src p_tgt m_tgt
+            r_src r_tgt
+            (SIM: RR r_src r_tgt),
+            P p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt))
+        (TAUL: forall 
+            p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
+            (SIM: _isim r RR true m_src p_tgt m_tgt itr_src0 itr_tgt0)
+            (IH: P true m_src p_tgt m_tgt itr_src0 itr_tgt0),
+            P p_src m_src p_tgt m_tgt (Tau itr_src0) itr_tgt0)
+        (TAUR: forall 
+            p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
+            (SIM: _isim r RR p_src m_src true m_tgt itr_src0 itr_tgt0)
+            (IH: P p_src m_src true m_tgt itr_src0 itr_tgt0),
+            P p_src m_src p_tgt m_tgt itr_src0 (Tau itr_tgt0))
+        (CHOOSEL: forall
+            p_src m_src p_tgt m_tgt X ktr_src0 itr_tgt0
+            (SIM: exists x, <<SIM: _isim r RR true m_src p_tgt m_tgt (ktr_src0 x) itr_tgt0>> /\
+                                <<IH: P true m_src p_tgt m_tgt (ktr_src0 x) itr_tgt0>>),
+            P p_src m_src p_tgt m_tgt (ITree.bind (trigger (Choose X)) ktr_src0) itr_tgt0)
+        (CHOOSER: forall
+            p_src m_src p_tgt m_tgt X itr_src0 ktr_tgt0
+            (SIM: forall x, <<SIM: _isim r RR p_src m_src true m_tgt itr_src0 (ktr_tgt0 x)>> /\
+                                <<IH: P p_src m_src true m_tgt itr_src0 (ktr_tgt0 x)>>),
+            P p_src m_src p_tgt m_tgt itr_src0 (ITree.bind (trigger (Choose X)) ktr_tgt0))
+        (FAILL: forall
+            p_src m_src p_tgt m_tgt ktr_src0 itr_tgt0
+            id m_src0
+            (SRC: forall j, le (m_src0 j) (m_src j))
+            (FAIL: lt (m_src0 id) (m_src id))
+            (SIM: _isim r RR true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0)
+            (IH: P true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0),
+            P p_src m_src p_tgt m_tgt (ITree.bind (trigger (Fail id)) ktr_src0) itr_tgt0)
+        (FAILR: forall
+            p_src m_src p_tgt m_tgt itr_src0 ktr_tgt0
+            id m_tgt0
+            (TGT: forall j, le (m_tgt0 j) (m_tgt j))
+            (FAIL: lt (m_tgt0 id) (m_tgt id))
+            (SIM: _isim r RR p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt))
+            (IH: P p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt)),
+            P p_src m_src p_tgt m_tgt itr_src0 (ITree.bind (trigger (Fail id)) ktr_tgt0))
+
+        (SUCCESSL: forall
+            p_src m_src p_tgt m_tgt ktr_src0 itr_tgt0
+            id m_src0
+            (SRC: forall j (NEQ: id <> j), le (m_src0 j) (m_src j))
+            (SIM: exists v, (<<FILL: m_src0 id = v>>) ->
+                       ((<<SIM: _isim r RR true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0>>) /\
+                          (<<IH: P true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0>>))),
+            P p_src m_src p_tgt m_tgt (ITree.bind (trigger (Success id)) ktr_src0) itr_tgt0)
+        (SUCCESSR: forall
+            p_src m_src p_tgt m_tgt itr_src0 ktr_tgt0
+            id m_tgt0
+            (TGT: forall j (NEQ: id <> j), le (m_tgt0 j) (m_tgt j))
+            (SIM: forall v, (<<FILL: m_tgt0 id = v>>) ->
+                       ((<<SIM: _isim r RR p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt)>>) /\
+                          (<<IH: P p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt)>>))),
+            P p_src m_src p_tgt m_tgt itr_src0 (ITree.bind (trigger (Success id)) ktr_tgt0))
+        (PROGRESSS: forall
+            p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
+            (PSRC: p_src = true)
+            (PTGT: p_tgt = true)
+            (IMAP: forall j, le (m_tgt j) (m_src j))
+            (SIM: exists m_src0 m_tgt0, r _ _ RR false m_src0 false m_tgt0 itr_src0 itr_tgt0),
+            P p_src m_src p_tgt m_tgt itr_src0 itr_tgt0)
+    :
+    forall p_src m_src p_tgt m_tgt itr_src itr_tgt
+      (SIM: _isim r RR p_src m_src p_tgt m_tgt itr_src itr_tgt),
+      P p_src m_src p_tgt m_tgt itr_src itr_tgt.
+  Proof.
+    fix IH 7. i. inv SIM.
+    { eapply RET; eauto. }
+    { eapply TAUL; eauto. }
+    { eapply TAUR; eauto. }
+    { eapply CHOOSEL; eauto. des. esplits; eauto. }
+    { eapply CHOOSER; eauto. }
+    { eapply FAILL; eauto. }
+    { eapply FAILR; eauto. }
+    { eapply SUCCESSL; eauto. des. exists v. i. split; eauto. eapply IH. eapply SIM0. eauto. }
+    { eapply SUCCESSR; eauto. i. split; eauto. eapply IH. eapply SIM0. eauto. }
+    { eapply PROGRESSS; eauto. }
+  Qed.
+
+  Definition isim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> (itree eventE R0) -> (itree eventE R1) -> Prop := paco9 _isim bot9.
+
+  Lemma isim_mon: monotone9 _isim.
+  Proof.
+    ii. induction IN using _isim_ind2.
+    { econs 1; eauto. }
+    { econs 2; eauto. }
+    { econs 3; eauto. }
+    { econs 4; eauto. des. esplits; eauto. }
+    { econs 5; eauto. i. hexploit SIM. i; des. eauto. }
+    { econs 6; eauto. }
+    { econs 7; eauto. }
+    { econs 8; eauto. des. esplits; i; eauto. eapply SIM in H. des; eauto. }
+    { econs 9; eauto. i. eapply SIM in H. des; eauto. }
+    { econs 10; eauto. des. esplits; eauto. }
+  Qed.
+
+  Hint Resolve isim_mon: paco.
+  Hint Resolve cpn9_wcompat: paco.
+
   (* Inductive _sim *)
   (*           (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), (bool * (option Ident))  -> (bool * (option Ident)) -> (itree eventE R0) -> (itree eventE R1) -> Prop) *)
   (*           {R0 R1} (RR: R0 -> R1 -> Prop) (fi_src fi_tgt: (bool * (option Ident))) : (itree eventE R0) -> (itree eventE R1) -> Prop := *)
