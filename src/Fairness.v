@@ -197,209 +197,88 @@ End BEHAVES.
 
 Section SIM.
 
-  (* Inductive _sim *)
-  (*           (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), (bool * bool)  -> (bool * bool) -> (option Ident) -> (itree eventE R0) -> (itree eventE R1) -> Prop) *)
-  (*           {R0 R1} (RR: R0 -> R1 -> Prop) (f_src f_tgt: (bool * bool)) (uf: option Ident) : (itree eventE R0) -> (itree eventE R1) -> Prop := *)
-  (* | sim_ret *)
-  (*     r_src r_tgt *)
-  (*     (SIM: RR r_src r_tgt) *)
-  (*   : *)
-  (*   _sim sim RR f_src f_tgt uf (Ret r_src) (Ret r_tgt) *)
-  (* | sim_tauL *)
-  (*     itr_src0 itr_tgt0 *)
-  (*     (SIM: @_sim sim _ _ RR (true, snd f_src) f_tgt uf itr_src0 itr_tgt0) *)
-  (*   : *)
-  (*   _sim sim RR f_src f_tgt uf (Tau itr_src0) itr_tgt0 *)
-  (* | sim_tauR *)
-  (*     itr_src0 itr_tgt0 *)
-  (*     (SIM: @_sim sim _ _ RR f_src (true, snd f_tgt) uf itr_src0 itr_tgt0) *)
-  (*   : *)
-  (*   _sim sim RR f_src f_tgt uf (Tau itr_src0) itr_tgt0 *)
-  (* | sim_chooseL *)
-  (*     X ktr_src0 itr_tgt0 *)
-  (*     (SIM: exists x, _sim sim RR (true, snd f_src) f_tgt uf (ktr_src0 x) itr_tgt0) *)
-  (*   : *)
-  (*   _sim sim RR f_src f_tgt uf (trigger (Choose X) >>= ktr_src0) itr_tgt0 *)
-  (* | sim_chooseR *)
-  (*     X itr_src0 ktr_tgt0 *)
-  (*     (SIM: forall x, _sim sim RR f_src (true, snd f_tgt) uf itr_src0 (ktr_tgt0 x)) *)
-  (*   : *)
-  (*   _sim sim RR f_src f_tgt uf itr_src0 (trigger (Choose X) >>= ktr_tgt0) *)
-
-  (* | sim_successL *)
-      
-
-  (* (* src: infinite fail *) *)
-  (* | sim_src_fail_init *)
-  (*     id ktr_src0 itr_tgt0 *)
-  (*     (SRC: snd fi_src = None) *)
-  (*     (SIM: _sim sim RR (true, Some id) fi_tgt (ktr_src0 tt) itr_tgt0) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0 *)
-  (* | sim_src_fail *)
-  (*     id ktr_src0 itr_tgt0 *)
-  (*     (SRC: snd fi_src = Some id) *)
-  (*     (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0 *)
-  (* (* | sim_src_fail_end *) *)
-  (* (*     id_src id_tgt ktr_src0 ktr_tgt0 *) *)
-  (* (*     (SRC: snd fi_src = Some id_src) *) *)
-  (* (*     (TGT: snd fi_tgt = Some id_tgt) *) *)
-  (* (*     (SIM: sim _ _ RR (true, snd fi_src) (true, snd fi_tgt) (ktr_src0 tt) (ktr_tgt0 tt)) *) *)
-  (* (*   : *) *)
-  (* (*   _sim sim RR fi_src fi_tgt (trigger (Fail id_src) >>= ktr_src0) (trigger (Fail id_tgt) >>= ktr_tgt0) *) *)
-
-  (* (* src: success *) *)
-  (* | sim_src_success *)
-  (*     id ktr_src0 itr_tgt0 *)
-  (*     (SRC: snd fi_src <> Some id) *)
-  (*     (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0 *)
-  (* | sim_src_success_stop *)
-  (*     id ktr_src0 itr_tgt0 *)
-  (*     (SRC: snd fi_src = Some id) *)
-  (*     (SIM: _sim sim RR (true, None) fi_tgt (ktr_src0 tt) itr_tgt0) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0 *)
-
-  (* (* tgt: infinite fail *) *)
-  (* | sim_tgt_fail_init *)
-  (*     id itr_src0 ktr_tgt0 *)
-  (*     (TGT: snd fi_tgt = None) *)
-  (*     (SIM: _sim sim RR fi_src (true, Some id) itr_src0 (ktr_tgt0 tt)) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0) *)
-  (* | sim_tgt_fail *)
-  (*     id itr_src0 ktr_tgt0 *)
-  (*     (TGT: snd fi_tgt = Some id) *)
-  (*     (SIM: sim _ _ RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 tt)) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0) *)
-
-  (* (* tgt: success *) *)
-  (* | sim_tgt_success *)
-  (*     id itr_src0 ktr_tgt0 *)
-  (*     (TGT: snd fi_tgt <> Some id) *)
-  (*     (SIM: _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 tt)) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0) *)
-  (* | sim_tgt_success_stop *)
-  (*     id itr_src0 ktr_tgt0 *)
-  (*     (TGT: snd fi_tgt = Some id) *)
-  (*     (SIM: _sim sim RR fi_src (true, None) itr_src0 (ktr_tgt0 tt)) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0) *)
-
-  (* (* | sim_tgt_success *) *)
-  (* (*     id_src id_tgt ktr_src0 ktr_tgt0 *) *)
-  (* (*     (SIM: _sim sim RR (true, snd fi_src) (true, snd fi_tgt) (ktr_src0 tt) (ktr_tgt0 tt)) *) *)
-  (* (*   : *) *)
-  (* (*   _sim sim RR fi_src fi_tgt (trigger (Success id_src) >>= ktr_src0) (trigger (Success id_tgt) >>= ktr_tgt0) *) *)
-  (* . *)
+  Definition fmap := Ident -> Flag.t.
+  Definition fmap_emp : fmap := fun _ => Flag.emp.
+  (* Variable fmap_update: fmap -> Ident -> Flag.t -> fmap. *)
 
   Inductive _sim
-            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), (bool * (option Ident))  -> (bool * (option Ident)) -> (itree eventE R0) -> (itree eventE R1) -> Prop)
-            {R0 R1} (RR: R0 -> R1 -> Prop) (fi_src fi_tgt: (bool * (option Ident))) : (itree eventE R0) -> (itree eventE R1) -> Prop :=
+            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> fmap  -> bool -> fmap -> Ident -> (itree eventE R0) -> (itree eventE R1) -> Prop)
+            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: fmap) (p_tgt: bool) (m_tgt: fmap) (idx: Ident) : (itree eventE R0) -> (itree eventE R1) -> Prop :=
   | sim_ret
       r_src r_tgt
       (SIM: RR r_src r_tgt)
     :
-    _sim sim RR fi_src fi_tgt (Ret r_src) (Ret r_tgt)
+    _sim sim RR p_src m_src p_tgt m_tgt idx (Ret r_src) (Ret r_tgt)
   | sim_tauL
       itr_src0 itr_tgt0
-      (SIM: @_sim sim _ _ RR (true, snd fi_src) fi_tgt itr_src0 itr_tgt0)
+      (SIM: @_sim sim _ _ RR true m_src p_tgt m_tgt idx itr_src0 itr_tgt0)
     :
-    _sim sim RR fi_src fi_tgt (Tau itr_src0) itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt idx (Tau itr_src0) itr_tgt0
   | sim_tauR
       itr_src0 itr_tgt0
-      (SIM: @_sim sim _ _ RR fi_src (true, snd fi_tgt) itr_src0 itr_tgt0)
+      (SIM: @_sim sim _ _ RR p_src m_src true m_tgt idx itr_src0 itr_tgt0)
     :
-    _sim sim RR fi_src fi_tgt (Tau itr_src0) itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt idx (Tau itr_src0) itr_tgt0
   | sim_chooseL
       X ktr_src0 itr_tgt0
-      (SIM: exists x, _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 x) itr_tgt0)
+      (SIM: exists x, _sim sim RR true m_src p_tgt m_tgt idx (ktr_src0 x) itr_tgt0)
     :
-    _sim sim RR fi_src fi_tgt (trigger (Choose X) >>= ktr_src0) itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt idx (trigger (Choose X) >>= ktr_src0) itr_tgt0
   | sim_chooseR
       X itr_src0 ktr_tgt0
-      (SIM: forall x, _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 x))
+      (SIM: forall x, _sim sim RR p_src m_src true m_tgt idx itr_src0 (ktr_tgt0 x))
     :
-    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Choose X) >>= ktr_tgt0)
+    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 (trigger (Choose X) >>= ktr_tgt0)
 
-  (* src: fail *)
-  | sim_src_fail
-      id ktr_src0 itr_tgt0
-      (* (SRC: <<NONE: snd fi_src = None>> \/ <<SOME: snd fi_src = Some id>>) *)
-      (SRC: snd fi_src = None)
-      (SIM: _sim sim RR (true, Some id) fi_tgt (ktr_src0 tt) itr_tgt0)
+  | sim_failL
+      id m_src0 ktr_src0 itr_tgt0
+      (SRC: forall j, Flag.le (m_src0 j) (m_src j))
+      (FAIL: (Flag.le (m_src id) Flag.emp) -> (Flag.le (m_src0 id) Flag.fail))
+      (SIM: _sim sim RR true m_src0 p_tgt m_tgt idx (ktr_src0 tt) itr_tgt0)
     :
-    _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0
-  | sim_src_fail_alt
-      id id_orig ktr_src0 itr_tgt0
-      (SRC: snd fi_src = Some id_orig)
-      (ALT: id_orig <> id)
-      (* (COND: to change current ind, need to show it will success?) *)
-      (SIM: _sim sim RR (true, Some id) fi_tgt (ktr_src0 tt) itr_tgt0)
+    _sim sim RR p_src m_src p_tgt m_tgt idx (trigger (Fail id) >>= ktr_src0) itr_tgt0
+  | sim_failR
+      id m_tgt0 itr_src0 ktr_tgt0
+      (TGT: forall j, Flag.le (m_tgt0 j) (m_tgt j))
+      (FAIL: (Flag.le (m_tgt id) Flag.emp) -> (Flag.le (m_tgt0 id) Flag.fail))
+      (SIM: _sim sim RR p_src m_src true m_tgt0 idx itr_src0 (ktr_tgt0 tt))
     :
-    _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0
-  | sim_src_fail_pass
-      id id_orig ktr_src0 itr_tgt0
-      (* (COND: to pass id, need to show it will success?) *)
-      (* (SRC: snd fi_src = Some id_orig) *)
-      (* (PASS: id_orig <> id) *)
-      (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0)
-    :
-    _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 (trigger (Fail id) >>= ktr_tgt0)
 
-  (* src: success *)
-  | sim_src_success
-      id ktr_src0 itr_tgt0
-      (SRC: snd fi_src = Some id)
-      (SIM: _sim sim RR (true, None) fi_tgt (ktr_src0 tt) itr_tgt0)
+  | sim_successL
+      id m_src0 ktr_src0 itr_tgt0
+      (SRC: forall j (NEQ: id <> j), Flag.le (m_src0 j) (m_src j))
+      (SUCCESS: Flag.le Flag.success (m_src0 id))
+      (SIM: _sim sim RR true m_src0 p_tgt m_tgt idx (ktr_src0 tt) itr_tgt0)
     :
-    _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0
-  | sim_src_success_pass
-      id ktr_src0 itr_tgt0
-      (SRC: snd fi_src <> Some id)
-      (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0)
+    _sim sim RR p_src m_src p_tgt m_tgt idx (trigger (Success id) >>= ktr_src0) itr_tgt0
+  | sim_successR
+      id m_tgt0 itr_src0 ktr_tgt0
+      (TGT: forall j (NEQ: id <> j), Flag.le (m_tgt0 j) (m_tgt j))
+      (SUCCESS: Flag.le Flag.success (m_tgt0 id))
+      (SIM: _sim sim RR p_src m_src true m_tgt0 idx itr_src0 (ktr_tgt0 tt))
     :
-    _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 (trigger (Success id) >>= ktr_tgt0)
 
-  (* tgt: fail *)
-  | sim_tgt_fail
-      id itr_src0 ktr_tgt0
-      (TGT: snd fi_tgt = None)
-      (SIM: _sim sim RR fi_src (true, Some id) itr_src0 (ktr_tgt0 tt))
+  | sim_progress_strong
+      itr_src0 itr_tgt0 idx0
+      (PSRC: p_src = true)
+      (PTGT: p_tgt = true)
+      (FMAP: forall j, Flag.le (m_tgt j) (m_src j))
+      (SIM: sim _ _ RR false fmap_emp false fmap_emp idx0 itr_src0 itr_tgt0)
     :
-    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0)
-  | sim_tgt_fail_alt
-      id id_orig itr_src0 ktr_tgt0
-      (TGT: snd fi_tgt = Some id_orig)
-      (ALT: id_orig <> id)
-      (SIM: _sim sim RR fi_src (true, id) itr_src0 (ktr_tgt0 tt))
-    :
-    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0)
-  | sim_tgt_fail_pass
-      id itr_src0 ktr_tgt0
-      (SIM: _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 tt))
-    :
-    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0)
+    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0
 
-  (* tgt: success *)
-  | sim_tgt_success
-      id itr_src0 ktr_tgt0
-      (TGT: snd fi_tgt = Some id)
-      (SIM: _sim sim RR fi_src (true, None) itr_src0 (ktr_tgt0 tt))
+  | sim_progress_weak
+      id m_tgt0 itr_src0 itr_tgt0
+      (PTGT: p_tgt = true)
+      (FLAG: forall j (NEQ: id <> j), Flag.le (m_tgt0 j) (m_tgt j))
+      (FMAP: m_tgt id = Flag.fail)
+      (FMAP0: m_tgt0 id = Flag.emp)
+      (IDX: id = idx)
+      (SIM: sim _ _ RR p_src m_src false m_tgt0 idx itr_src0 itr_tgt0)
     :
-    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0)
-  | sim_tgt_success_pass
-      id itr_src0 ktr_tgt0
-      (TGT: snd fi_tgt <> Some id)
-      (SIM: _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 tt))
-    :
-    _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0)
+    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0
   .
 
 
@@ -432,37 +311,78 @@ Section SIM.
   (*   : *)
   (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Choose X) >>= ktr_tgt0) *)
 
-  (* | sim_successL_stop *)
+  (* (* src: fail *) *)
+  (* | sim_src_fail *)
   (*     id ktr_src0 itr_tgt0 *)
-  (*     (STOP: <<SOME: snd fi_src = Some id>> \/ <<NONE: snd fi_src = None>>) *)
-  (*     (SIM: _sim sim RR (true, None) fi_tgt (ktr_src0 tt) itr_tgt0) *)
+  (*     (* (SRC: <<NONE: snd fi_src = None>> \/ <<SOME: snd fi_src = Some id>>) *) *)
+  (*     (SRC: snd fi_src = None) *)
+  (*     (SIM: _sim sim RR (true, Some id) fi_tgt (ktr_src0 tt) itr_tgt0) *)
   (*   : *)
-  (*   _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0 *)
-  (* | sim_successL_pass *)
-  (*     id id_src ktr_src0 itr_tgt0 *)
-  (*     (PASS: <<SOME: snd fi_src = Some id_src>> /\ <<PASS: id_src <> id>>) *)
-  (*     (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0) *)
+  (*   _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0 *)
+  (* | sim_src_fail_alt *)
+  (*     id id_orig ktr_src0 itr_tgt0 *)
+  (*     (SRC: snd fi_src = Some id_orig) *)
+  (*     (ALT: id_orig <> id) *)
+  (*     (* (COND: to change current ind, need to show it will success?) *) *)
+  (*     (SIM: _sim sim RR (true, Some id) fi_tgt (ktr_src0 tt) itr_tgt0) *)
   (*   : *)
-  (*   _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0 *)
-  (* | sim_successR_stop *)
-  (*     id itr_src0 ktr_tgt0 *)
-  (*     (STOP: <<SOME: snd fi_tgt = Some id>> \/ <<NONE: snd fi_tgt = None>>) *)
-  (*     (SIM: _sim sim RR fi_src (true, None) itr_src0 (ktr_tgt0 tt)) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0) *)
-  (* | sim_successR_pass *)
-  (*     id id_tgt itr_src0 ktr_tgt0 *)
-  (*     (PASS: <<SOME: snd fi_tgt = Some id_tgt>> /\ <<PASS: id_tgt <> id>>) *)
-  (*     (SIM: _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 tt)) *)
-  (*   : *)
-  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0) *)
-
-  (* | sim_failL_start *)
-  (*     id ktr_src0 itr_tgt0 *)
-  (*     (START:  *)
+  (*   _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0 *)
+  (* | sim_src_fail_pass *)
+  (*     id id_orig ktr_src0 itr_tgt0 *)
+  (*     (* (COND: to pass id, need to show it will success?) *) *)
+  (*     (* (SRC: snd fi_src = Some id_orig) *) *)
+  (*     (* (PASS: id_orig <> id) *) *)
   (*     (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0) *)
   (*   : *)
   (*   _sim sim RR fi_src fi_tgt (trigger (Fail id) >>= ktr_src0) itr_tgt0 *)
+
+  (* (* src: success *) *)
+  (* | sim_src_success *)
+  (*     id ktr_src0 itr_tgt0 *)
+  (*     (SRC: snd fi_src = Some id) *)
+  (*     (SIM: _sim sim RR (true, None) fi_tgt (ktr_src0 tt) itr_tgt0) *)
+  (*   : *)
+  (*   _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0 *)
+  (* | sim_src_success_pass *)
+  (*     id ktr_src0 itr_tgt0 *)
+  (*     (SRC: snd fi_src <> Some id) *)
+  (*     (SIM: _sim sim RR (true, snd fi_src) fi_tgt (ktr_src0 tt) itr_tgt0) *)
+  (*   : *)
+  (*   _sim sim RR fi_src fi_tgt (trigger (Success id) >>= ktr_src0) itr_tgt0 *)
+
+  (* (* tgt: fail *) *)
+  (* | sim_tgt_fail *)
+  (*     id itr_src0 ktr_tgt0 *)
+  (*     (TGT: snd fi_tgt = None) *)
+  (*     (SIM: _sim sim RR fi_src (true, Some id) itr_src0 (ktr_tgt0 tt)) *)
+  (*   : *)
+  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0) *)
+  (* | sim_tgt_fail_alt *)
+  (*     id id_orig itr_src0 ktr_tgt0 *)
+  (*     (TGT: snd fi_tgt = Some id_orig) *)
+  (*     (ALT: id_orig <> id) *)
+  (*     (SIM: _sim sim RR fi_src (true, id) itr_src0 (ktr_tgt0 tt)) *)
+  (*   : *)
+  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0) *)
+  (* | sim_tgt_fail_pass *)
+  (*     id itr_src0 ktr_tgt0 *)
+  (*     (SIM: _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 tt)) *)
+  (*   : *)
+  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Fail id) >>= ktr_tgt0) *)
+
+  (* (* tgt: success *) *)
+  (* | sim_tgt_success *)
+  (*     id itr_src0 ktr_tgt0 *)
+  (*     (TGT: snd fi_tgt = Some id) *)
+  (*     (SIM: _sim sim RR fi_src (true, None) itr_src0 (ktr_tgt0 tt)) *)
+  (*   : *)
+  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0) *)
+  (* | sim_tgt_success_pass *)
+  (*     id itr_src0 ktr_tgt0 *)
+  (*     (TGT: snd fi_tgt <> Some id) *)
+  (*     (SIM: _sim sim RR fi_src (true, snd fi_tgt) itr_src0 (ktr_tgt0 tt)) *)
+  (*   : *)
+  (*   _sim sim RR fi_src fi_tgt itr_src0 (trigger (Success id) >>= ktr_tgt0) *)
   (* . *)
 
 
