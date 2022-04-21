@@ -207,6 +207,7 @@ Section SIM.
   | sim_ret
       r_src r_tgt
       (SIM: RR r_src r_tgt)
+      (FMAP: forall j, Flag.le (m_tgt j) (m_src j))
     :
     _sim sim RR p_src m_src p_tgt m_tgt idx (Ret r_src) (Ret r_tgt)
   | sim_tauL
@@ -286,7 +287,8 @@ Section SIM.
         (RET: forall
             p_src m_src p_tgt m_tgt idx
             r_src r_tgt
-            (SIM: RR r_src r_tgt),
+            (SIM: RR r_src r_tgt)
+            (FMAP: forall j, Flag.le (m_tgt j) (m_src j)),
             P p_src m_src p_tgt m_tgt idx (Ret r_src) (Ret r_tgt))
         (TAUL: forall 
             p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0
