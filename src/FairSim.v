@@ -5,6 +5,7 @@ From Paco Require Import paco.
 Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
+Require Import Program.
 
 From Fairness Require Import ITreeLib.
 From Fairness Require Import FairBeh.
@@ -416,8 +417,6 @@ Section EX.
     i. eapply bisim_is_eq. eapply unfold_iter.
   Qed.
 
-  Require Import Program.
-  
   Lemma unfold_while_itree
         itr
     :

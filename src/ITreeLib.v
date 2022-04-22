@@ -382,56 +382,12 @@ Definition idK {E R}: R -> itree E R := fun r => Ret r.
 
 Lemma idK_spec E R (i0: itree E R): i0 = i0 >>= idK. Proof. unfold idK. irw. reflexivity. Qed.
 
-
-
-
-(* Lemma interp_state_resum_l *)
-(*       (E0 E1 F : Type -> Type) (A S: Type) *)
-(*       (f0: forall T, E0 T -> S -> itree F (S * T)) *)
-(*       (f1: forall T, E1 T -> S -> itree F (S * T)) *)
-(*       (t: itree E0 A) *)
-(*       (s: S) *)
-(*   : *)
-(*     interp_state (case_ f0 f1) (resum_itr t) s = interp_state (fun T e s0 => '(s1, t) <- f0 T e s0;; tau;; Ret (s1, t)) t s *)
-(* . *)
-(* Proof. *)
-(*   f. revert t s. ginit. gcofix CIH. i. *)
-(*   unfold resum_itr. *)
-(*   rewrite 2 unfold_interp_state. *)
-(*   ides t. *)
-(*   - cbn. gstep. econs; eauto. *)
-(*   - cbn. gstep. econs; eauto with paco. *)
-(*   - cbn. ired. *)
-(*     unfold resum, ReSum_id, id_, Id_IFun. *)
-(*     guclo eqit_clo_bind. *)
-(*     apply pbc_intro_h with (RU := eq). *)
-(*     + reflexivity. *)
-(*     + intros ? _ []. *)
-(*       ired. des_ifs. ss. clarify. *)
-(*       ired. cbn. gstep. econs; eauto with paco. gstep. econs; eauto with paco. *)
-(* Qed. *)
-
-(* Lemma interp_state_resum_r *)
-(*       (E0 E1 F : Type -> Type) (A S: Type) *)
-(*       (f0: forall T, E0 T -> S -> itree F (S * T)) *)
-(*       (f1: forall T, E1 T -> S -> itree F (S * T)) *)
-(*       (t: itree E1 A) *)
-(*       (s: S) *)
-(*   : *)
-(*     interp_state (case_ f0 f1) (resum_itr t) s = interp_state (fun T e s0 => '(s1, t) <- f1 T e s0;; tau;; Ret (s1, t)) t s *)
-(* . *)
-(* Proof. *)
-(*   f. revert t s. ginit. gcofix CIH. i. *)
-(*   unfold resum_itr. *)
-(*   rewrite 2 unfold_interp_state. *)
-(*   ides t. *)
-(*   - cbn. gstep. econs; eauto. *)
-(*   - cbn. gstep. econs; eauto with paco. *)
-(*   - cbn. ired. *)
-(*     unfold resum, ReSum_id, id_, Id_IFun. *)
-(*     guclo eqit_clo_bind. *)
-(*     apply pbc_intro_h with (RU := eq). *)
-(*     + reflexivity. *)
-(*     + intros ? _ []. ired. des_ifs. ss. clarify. *)
-(*       ired. cbn. gstep. econs; eauto with paco. gstep. econs; eauto with paco. *)
-(* Qed. *)
+Lemma observe_eta E R (itr0 itr1: itree E R)
+      (EQ: _observe itr0 = _observe itr1)
+  :
+    itr0 = itr1.
+Proof.
+  erewrite (itree_eta_ itr0).
+  erewrite (itree_eta_ itr1).
+  f_equal. auto.
+Qed.
