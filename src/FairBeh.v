@@ -8,25 +8,8 @@ Require Import Coq.Classes.RelationClasses.
 
 Set Implicit Arguments.
 
-
-Section EVENT.
-  Variable Ident: Type.
-
-  Variant eventE: Type -> Type :=
-    | Choose (X: Type): eventE X
-    | Success (i: Ident): eventE unit
-    | Fail (i: Ident): eventE unit
-  .
-End EVENT.
-
-Module Tr.
-  CoInductive t: Type :=
-  | done
-  | spin
-  .
-End Tr.
-
 Module Flag.
+
   Variant t: Type :=
   | fail
   | emp
@@ -50,16 +33,40 @@ Module Flag.
   Next Obligation.
     ii. destruct x, y, z; ss.
   Qed.
+
 End Flag.
+
+Class ID : Type := mk { id: Type }.
+
+Section EVENT.
+
+  Context {Ident: ID}.
+
+  Variant eventE: Type -> Type :=
+    | Choose (X: Type): eventE X
+    | Fair (m: Ident.(id) -> Flag.t): eventE unit
+  .
+
+End EVENT.
+
+
+
+Module Tr.
+  CoInductive t: Type :=
+  | done
+  | spin
+  .
+End Tr.
 
 Section BEHAVES.
 
-  Variable Ident: Type.
+  (* Variable Ident: Type. *)
+  Context {Ident: ID}.
 
   Inductive terminate
             (R: Type)
     :
-    forall (itr: itree (eventE Ident) R), Prop :=
+    forall (itr: itree eventE R), Prop :=
   | terminate_ret
       r
     :
@@ -73,24 +80,19 @@ Section BEHAVES.
       X ktr x
       (DIV: terminate (ktr x))
     :
-    terminate (Vis ((Choose Ident) X) ktr)
-  | terminate_success
-      i ktr
+    terminate (Vis (Choose X) ktr)
+  | terminate_fair
+      m ktr
       (DIV: terminate (ktr tt))
     :
-    terminate (Vis (Success i) ktr)
-  | terminate_fail
-      i ktr
-      (DIV: terminate (ktr tt))
-    :
-    terminate (Vis (Fail i) ktr)
+    terminate (Vis (Fair m) ktr)
   .
 
   Variant _diverge_index
-          (diverge_index: forall (R: Type) (idx: Ident -> nat) (itr: itree (eventE Ident) R), Prop)
+          (diverge_index: forall (R: Type) (idx: Ident.(id) -> nat) (itr: itree eventE R), Prop)
           (R: Type)
     :
-    forall (idx: Ident -> nat) (itr: itree (eventE Ident) R), Prop :=
+    forall (idx: Ident.(id) -> nat) (itr: itree eventE R), Prop :=
   | diverge_index_tau
       itr idx0 idx1
       (DIV: diverge_index _ idx1 itr)
@@ -102,20 +104,14 @@ Section BEHAVES.
       (DIV: diverge_index _ idx1 (ktr x))
       (IDX: forall i, idx1 i <= idx0 i)
     :
-    _diverge_index diverge_index idx0 (Vis (Choose _ X) ktr)
-  | diverge_index_success
-      i ktr idx0 idx1
+    _diverge_index diverge_index idx0 (Vis (Choose X) ktr)
+  | diverge_index_fair
+      m ktr idx0 idx1
       (DIV: diverge_index _ idx1 (ktr tt))
-      (IDX: forall j (NEQ: j <> i), idx1 j <= idx0 j)
+      (EMP: forall j (IDX: (m j) = Flag.emp), idx1 j <= idx0 j)
+      (FAIL: forall j (IDX: (m j) = Flag.fail), idx1 j < idx0 j)
     :
-    _diverge_index diverge_index idx0 (Vis (Success i) ktr)
-  | diverge_index_fail
-      i ktr idx0 idx1
-      (DIV: diverge_index _ idx1 (ktr tt))
-      (IDX: forall j (NEQ: j <> i), idx1 j <= idx0 j)
-      (DECR: idx1 i < idx0 i)
-    :
-    _diverge_index diverge_index idx0 (Vis (Fail i) ktr)
+    _diverge_index diverge_index idx0 (Vis (Fair m) ktr)
   .
 
   Lemma diverge_index_mon: monotone3 _diverge_index.
@@ -124,77 +120,11 @@ Section BEHAVES.
     - econs 1; eauto.
     - econs 2; eauto.
     - econs 3; eauto.
-    - econs 4; eauto.
   Qed.
 
-  Definition diverge_index: forall (R: Type) (idx: Ident -> nat) (itr: itree (eventE _) R), Prop := paco3 _diverge_index bot3.
+  Definition diverge_index: forall (R: Type) (idx: Ident.(id) -> nat) (itr: itree eventE R), Prop := paco3 _diverge_index bot3.
 
-  Definition diverge (R: Type) (itr: itree (eventE _) R): Prop :=
+  Definition diverge (R: Type) (itr: itree eventE R): Prop :=
     exists idx, diverge_index idx itr.
 
-  Inductive _diverge_flag
-            (diverge_flag: forall (R: Type) (b: bool) (f: Ident -> Flag.t) (itr: itree (eventE _) R), Prop)
-            (R: Type)
-    :
-    forall (b: bool) (f: Ident -> Flag.t) (itr: itree (eventE Ident) R), Prop :=
-  | diverge_flag_tau
-      itr b f0 f1
-      (DIV: _diverge_flag _ true f1 itr)
-      (FLAG: forall i, Flag.le (f1 i) (f0 i))
-    :
-    _diverge_flag diverge_flag b f0 (Tau itr)
-  | diverge_flag_choose
-      X ktr x b f0 f1
-      (DIV: _diverge_flag _ true f1 (ktr x))
-      (FLAG: forall i, Flag.le (f1 i) (f0 i))
-    :
-    _diverge_flag diverge_flag b f0 (Vis (Choose _ X) ktr)
-  | diverge_flag_success
-      i ktr b f0 f1
-      (DIV: _diverge_flag _ true f1 (ktr tt))
-      (FLAG: forall j (NEQ: j <> i), Flag.le (f1 j) (f0 j))
-    :
-    _diverge_flag diverge_flag b f0 (Vis (Success i) ktr)
-  | diverge_flag_fail
-      i ktr b f0 f1
-      (DIV: _diverge_flag _ true f1 (ktr tt))
-      (FLAG: forall j (NEQ: j <> i), Flag.le (f1 j) (f0 j))
-      (FAIL: Flag.le (f0 i) Flag.emp -> Flag.le (f1 i) Flag.emp)
-    :
-    _diverge_flag diverge_flag b f0 (Vis (Fail i) ktr)
-
-  | diverge_flag_progress
-      itr b f
-      (DIV: diverge_flag _ true (fun _ => Flag.emp) itr)
-      (FLAG: forall i, Flag.le Flag.emp (f i))
-    :
-    _diverge_flag diverge_flag b f itr
-  .
-
-  Lemma diverge_flag_mon: monotone4 _diverge_flag.
-  Proof.
-    ii. induction IN.
-    - econs 1; eauto.
-    - econs 2; eauto.
-    - econs 3; eauto.
-    - econs 4; eauto.
-    - econs 5; eauto.
-  Qed.
-
-  Definition diverge_flag: forall (R: Type) (b: bool) (f: Ident -> Flag.t) (itr: itree (eventE _) R), Prop := paco4 _diverge_flag bot4.
-
-  Definition diverge2 (R: Type) (itr: itree (eventE _) R): Prop :=
-    exists b f, diverge_flag b f itr.
-
-  Lemma diverge_diverge2 R (itr: itree (eventE _) R) (DIV: diverge itr)
-    :
-    diverge2 itr.
-  Proof.
-  Admitted.
-
-  Lemma diverge2_diverge R (itr: itree (eventE _) R) (DIV: diverge2 itr)
-    :
-    diverge itr.
-  Proof.
-  Admitted.
 End BEHAVES.
