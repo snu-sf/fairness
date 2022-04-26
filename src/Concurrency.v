@@ -23,9 +23,9 @@ From Fairness Require Import FairBeh.
 Set Implicit Arguments.
 
 Section YIELD.
-  Variable Tid: Type.
+  Context {Tid: ID}.
   (* Context `{Dec Tid}. *)
-  Hypothesis Tid_eq_dec: forall t1 t2: Tid, {t1 = t2} + {t1 <> t2}.
+  Hypothesis Tid_eq_dec: forall t1 t2: Tid.(id), {t1 = t2} + {t1 <> t2}.
 
   Variable State: Type.
 
@@ -33,16 +33,16 @@ Section YIELD.
     | Yield (st: State): cE State
   .
 
-  Definition Es := cE+'(eventE Tid).
+  Definition Es := cE+'eventE.
 
   Definition thread {R} := stateT State (itree Es) R.
-  Definition threads {R} := Tid -> @thread R.
+  Definition threads {R} := Tid.(id) -> @thread R.
 
-  Definition update_threads {R} (tid: Tid) (k: thread) (ts: threads) : @threads R :=
+  Definition update_threads {R} (tid: Tid.(id)) (k: thread) (ts: threads) : @threads R :=
     fun t => if (Tid_eq_dec tid t) then k else (ts t).
 
   Definition interp_yield {R}:
-    ((@threads R) * ((Tid * itree Es (State * R)) + State)) -> itree (eventE Tid) void.
+    ((@threads R) * ((Tid.(id) * itree Es (State * R)) + State)) -> itree eventE void.
   Proof.
     eapply ITree.iter. intros [threads [[tid itr]|]].
     - destruct (observe itr).
@@ -51,7 +51,7 @@ Section YIELD.
       + destruct e.
         * destruct c. exact (Ret (inl (update_threads tid k threads, inr st))).
         * exact (Vis e (fun x => Ret (inl (threads, inl (tid, k x))))).
-    - exact (Vis (Choose _ Tid) (fun tid => Ret (inl (threads, inl (tid, (threads tid s)))))).
+    - exact (Vis (Choose Tid.(id)) (fun tid => Ret (inl (threads, inl (tid, (threads tid s)))))).
   Defined.
 
   (* Definition interp_yield {R}: *)
@@ -113,7 +113,7 @@ Section YIELD.
     rewrite bind_trigger. apply interp_yield_yield_vis.
   Qed.
 
-  Lemma interp_yield_vis R (threads: @threads R) tid X (e: eventE _ X) k
+  Lemma interp_yield_vis R (threads: @threads R) tid X (e: eventE X) k
     :
     interp_yield (threads, inl (tid, Vis (|e)%sum k))
     =
@@ -124,7 +124,7 @@ Section YIELD.
     rewrite bind_ret_l. reflexivity.
   Qed.
 
-  Lemma interp_yield_trigger R (threads: @threads R) tid X (e: eventE _ X) k
+  Lemma interp_yield_trigger R (threads: @threads R) tid X (e: eventE X) k
     :
     interp_yield (threads, inl (tid, trigger (|e)%sum >>= k))
     =
@@ -137,7 +137,7 @@ Section YIELD.
     :
     interp_yield (threads, inr st)
     =
-      Vis (Choose _ Tid) (fun tid => tau;; interp_yield (threads, inl (tid, (threads tid st)))).
+      Vis (Choose Tid.(id)) (fun tid => tau;; interp_yield (threads, inl (tid, (threads tid st)))).
   (* Vis (Choose _ Tid) (fun tid => *)
   (*                     '(itr, threads) <- unwrapN (alist_pop tid threads);; *)
   (*                     tau;; interp_yield (threads, inl (tid, itr st))). *)
@@ -153,7 +153,7 @@ Section YIELD.
     :
     interp_yield (threads, inr st)
     =
-      tid <- trigger (Choose _ Tid);;
+      tid <- trigger (Choose Tid.(id));;
       tau;; interp_yield (threads, inl (tid, threads tid st)).
   (* '(itr, threads) <- unwrapN (alist_pop tid threads);; *)
   (* tau;; interp_yield (threads, inl (tid, itr st)). *)
