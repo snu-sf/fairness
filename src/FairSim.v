@@ -16,80 +16,81 @@ Section SIM.
 
   Context {Ident: ID}.
 
-  Definition fmap := Ident.(id) -> Flag.t.
-  Definition fmap_emp : fmap := fun _ => Flag.emp.
+  (* Definition imap := Ident.(id) -> Flag.t. *)
+  (* Definition imap_emp : imap := fun _ => Flag.emp. *)
+  Definition imap := id -> nat.
+
+  Definition fair_update (m0 m1: imap) (f: id -> Flag.t) : Prop :=
+    forall j, match f j with
+         | Flag.fail => lt (m1 j) (m0 j)
+         | Flag.emp => le (m1 j) (m0 j)
+         | Flag.success => True
+         end.
+
+  Definition stuck_idx (m: imap) (j: id) := le (m j) 0.
 
   Inductive _sim
             (sim: forall R0 R1 (RR: R0 -> R1 -> Prop),
-                bool -> fmap  -> bool -> fmap -> Ident.(id) -> (itree eventE R0) -> (itree eventE R1) -> Prop)
-            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: fmap) (p_tgt: bool) (m_tgt: fmap) (idx: Ident.(id)) :
+                bool -> imap -> bool  -> imap -> (itree eventE R0) -> (itree eventE R1) -> Prop)
+            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap) (p_tgt: bool) (m_tgt: imap) :
     (itree eventE R0) -> (itree eventE R1) -> Prop :=
   | sim_ret
       r_src r_tgt
       (SIM: RR r_src r_tgt)
-      (FMAP: forall j, Flag.le (m_tgt j) (m_src j))
     :
-    _sim sim RR p_src m_src p_tgt m_tgt idx (Ret r_src) (Ret r_tgt)
+    _sim sim RR p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt)
   | sim_tauL
       itr_src0 itr_tgt0
-      (SIM: @_sim sim _ _ RR true m_src p_tgt m_tgt idx itr_src0 itr_tgt0)
+      (SIM: @_sim sim _ _ RR true m_src p_tgt m_tgt itr_src0 itr_tgt0)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt idx (Tau itr_src0) itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt (Tau itr_src0) itr_tgt0
   | sim_tauR
       itr_src0 itr_tgt0
-      (SIM: @_sim sim _ _ RR p_src m_src true m_tgt idx itr_src0 itr_tgt0)
+      (SIM: @_sim sim _ _ RR p_src m_src true m_tgt itr_src0 itr_tgt0)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 (Tau itr_tgt0)
+    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (Tau itr_tgt0)
   | sim_chooseL
       X ktr_src0 itr_tgt0
-      (SIM: exists x, _sim sim RR true m_src p_tgt m_tgt idx (ktr_src0 x) itr_tgt0)
+      (SIM: exists x, _sim sim RR true m_src p_tgt m_tgt (ktr_src0 x) itr_tgt0)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt idx (trigger (Choose X) >>= ktr_src0) itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt (trigger (Choose X) >>= ktr_src0) itr_tgt0
   | sim_chooseR
       X itr_src0 ktr_tgt0
-      (SIM: forall x, _sim sim RR p_src m_src true m_tgt idx itr_src0 (ktr_tgt0 x))
+      (SIM: forall x, _sim sim RR p_src m_src true m_tgt itr_src0 (ktr_tgt0 x))
     :
-    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 (trigger (Choose X) >>= ktr_tgt0)
+    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Choose X) >>= ktr_tgt0)
 
   | sim_fairL
-      m_src0 ktr_src0 itr_tgt0
-      (SIM: _sim sim RR true m_src0 p_tgt m_tgt idx (ktr_src0 tt) itr_tgt0)
+      f_src ktr_src0 itr_tgt0
+      (SIM: exists m_src0, (<<FAIR: fair_update m_src m_src0 f_src>>) /\
+                        (<<SIM: _sim sim RR true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0>>))
     :
-    _sim sim RR p_src m_src p_tgt m_tgt idx (trigger (Fair m_src0) >>= ktr_src0) itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt (trigger (Fair f_src) >>= ktr_src0) itr_tgt0
   | sim_fairR
-      m_tgt0 itr_src0 ktr_tgt0
-      (SIM: _sim sim RR p_src m_src true m_tgt0 idx itr_src0 (ktr_tgt0 tt))
+      f_tgt itr_src0 ktr_tgt0
+      (SIM: forall m_tgt0 (FAIR: fair_update m_tgt m_tgt0 f_tgt),
+          _sim sim RR p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt))
     :
-    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 (trigger (Fair m_tgt0) >>= ktr_tgt0)
+    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Fair f_tgt) >>= ktr_tgt0)
 
-  | sim_progress_strong
-      itr_src0 itr_tgt0 idx0
+  | sim_progress
+      itr_src0 itr_tgt0 m_src0 m_tgt0
       (PSRC: p_src = true)
       (PTGT: p_tgt = true)
-      (FMAP: forall j, Flag.le (m_tgt j) (m_src j))
-      (SIM: sim _ _ RR false fmap_emp false fmap_emp idx0 itr_src0 itr_tgt0)
+      (IMAP: forall j, (<<SSRC: stuck_idx m_src j>>) -> (<<STGT: stuck_idx m_tgt j>>))
+      (SIM: sim _ _ RR false m_src0 false m_tgt0 itr_src0 itr_tgt0)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0
-
-  | sim_progress_weak
-      m_tgt0 itr_src0 itr_tgt0
-      (PTGT: p_tgt = true)
-      (FLAG: forall j (NEQ: idx <> j), Flag.le (m_tgt0 j) (m_tgt j))
-      (FMAP: m_tgt idx = Flag.fail)
-      (FMAP0: m_tgt0 idx = Flag.emp)
-      (SIM: sim _ _ RR p_src m_src false m_tgt0 idx itr_src0 itr_tgt0)
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0
+    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
   .
 
-  Lemma _sim_ind2 (r: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> fmap  -> bool -> fmap -> Ident.(id) -> (itree eventE R0) -> (itree eventE R1) -> Prop)
+  Lemma _sim_ind2 (r: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> Ident.(id) -> (itree eventE R0) -> (itree eventE R1) -> Prop)
         R0 R1 (RR: R0 -> R1 -> Prop)
-        (P: bool -> fmap  -> bool -> fmap -> Ident.(id) -> (itree eventE R0) -> (itree eventE R1) -> Prop)
+        (P: bool -> imap  -> bool -> imap -> Ident.(id) -> (itree eventE R0) -> (itree eventE R1) -> Prop)
         (RET: forall
             p_src m_src p_tgt m_tgt idx
             r_src r_tgt
             (SIM: RR r_src r_tgt)
-            (FMAP: forall j, Flag.le (m_tgt j) (m_src j)),
+            (IMAP: forall j, Flag.le (m_tgt j) (m_src j)),
             P p_src m_src p_tgt m_tgt idx (Ret r_src) (Ret r_tgt))
         (TAUL: forall 
             p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0
@@ -128,15 +129,15 @@ Section SIM.
             idx0
             (PSRC: p_src = true)
             (PTGT: p_tgt = true)
-            (FMAP: forall j, Flag.le (m_tgt j) (m_src j))
-            (SIM: r _ _ RR false fmap_emp false fmap_emp idx0 itr_src0 itr_tgt0),
+            (IMAP: forall j, Flag.le (m_tgt j) (m_src j))
+            (SIM: r _ _ RR false imap_emp false imap_emp idx0 itr_src0 itr_tgt0),
             P p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0)
         (PROGRESSW: forall
             p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0
             m_tgt0
             (PTGT: p_tgt = true)
             (FLAG: forall j (NEQ: idx <> j), Flag.le (m_tgt0 j) (m_tgt j))
-            (FMAP: m_tgt idx = Flag.fail)
+            (IMAP: m_tgt idx = Flag.fail)
             (FMAP0: m_tgt0 idx = Flag.emp)
             (SIM: r _ _ RR p_src m_src false m_tgt0 idx itr_src0 itr_tgt0),
             P p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0)
@@ -157,7 +158,7 @@ Section SIM.
     { eapply PROGRESSW; eauto. }
   Qed.
 
-  Definition sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> fmap  -> bool -> fmap -> Ident.(id) -> (itree eventE R0) -> (itree eventE R1) -> Prop := paco10 _sim bot10.
+  Definition sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> Ident.(id) -> (itree eventE R0) -> (itree eventE R1) -> Prop := paco10 _sim bot10.
 
   Lemma sim_mon: monotone10 _sim.
   Proof.
@@ -410,7 +411,7 @@ Section EX.
   Definition tgt1 : itree eventE nat :=
     while_itree (fun u => (trigger (Fair (fun id => (if ndec 0 id then Flag.fail else Flag.emp)))) >>= (fun r => Ret (inl r)));; Ret 0.
 
-  Goal sim RR false fmap_emp false fmap_emp 0 src1 tgt1.
+  Goal sim RR false imap_emp false imap_emp 0 src1 tgt1.
   Proof.
     unfold src1, tgt1.
     pcofix CIH. pfold. rewrite unfold_while_itree. ired.
