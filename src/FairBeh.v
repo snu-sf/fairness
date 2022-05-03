@@ -432,170 +432,267 @@ Section BEHAVES.
   (**********************************************************)
 
   Lemma prefix_closed_state
-        st0 pre bh
-        (BEH: of_state st0 bh)
+        R i0 st0 pre bh
+        (BEH: of_state i0 st0 bh)
         (PRE: Tr.prefix pre bh)
     :
-    <<NB: of_state st0 (Tr.app pre Tr.nb)>>
+    <<NB: @of_state R i0 st0 (Tr.app pre Tr.nb)>>
   .
   Proof.
-    revert_until L. pcofix CIH. i. punfold BEH. rr in PRE. des; subst.
+    revert_until Ident. pcofix CIH. i. punfold BEH. rr in PRE. des; subst.
     destruct pre; ss; clarify.
     { pfold. econs; eauto. }
-
-    remember (Tr.cons e (Tr.app pre tl)) as tmp. revert Heqtmp.
+    remember (Tr.cons o (Tr.app pre tl)) as tmp. revert Heqtmp.
     induction BEH using of_state_ind; ii; ss; clarify.
-    - pclearbot. pfold. econs; eauto. right. eapply CIH; et. rr; et.
-    - pfold. econs 5; eauto. rr in STEP. des; clarify. rr. esplits; eauto.
-      exploit IH; et. intro A. punfold A.
-    - pfold. econs 6; eauto. ii. exploit STEP; eauto. clear STEP. i; des; clarify. esplits; eauto.
-      exploit IH; et. intro A. punfold A.
+    - pclearbot. pfold. econs; eauto. right. eapply CIH; eauto. rr; eauto.
+    - pfold. econs 5; eauto. hexploit IHBEH; eauto. intro A. punfold A.
+    - pfold. econs 6; eauto. hexploit IHBEH; eauto. intro A. punfold A.
+    - pfold. econs 7; eauto. hexploit IHBEH; eauto. intro A. punfold A.
   Qed.
 
-  Theorem prefix_closed
-          pre bh
-          (BEH: of_program bh)
-          (PRE: Tr.prefix pre bh)
-    :
-    <<NB: of_program (Tr.app pre Tr.nb)>>
-  .
-  Proof.
-    eapply prefix_closed_state; eauto.
-  Qed.
+  (* Theorem prefix_closed *)
+  (*         pre bh *)
+  (*         (BEH: of_program bh) *)
+  (*         (PRE: Tr.prefix pre bh) *)
+  (*   : *)
+  (*   <<NB: of_program (Tr.app pre Tr.nb)>> *)
+  (* . *)
+  (* Proof. *)
+  (*   eapply prefix_closed_state; eauto. *)
+  (* Qed. *)
 
   Lemma nb_bottom
-        st0
+        R i0 st0
     :
-    <<NB: of_state st0 Tr.nb>>
+    <<NB: @of_state R i0 st0 Tr.nb>>
   .
-  Proof. pfold. econs; et. Qed.
+  Proof. pfold. econs; eauto. Qed.
 
   Lemma ub_top
-        st0
-        (UB: of_state st0 Tr.ub)
+        R i0 st0
+        (UB: @of_state R i0 st0 Tr.ub)
     :
-    forall beh, of_state st0 beh
+    forall beh, of_state i0 st0 beh
   .
   Proof.
-    revert_until L. pfold. i. punfold UB.
+    pfold. i. punfold UB.
     remember Tr.ub as tmp. revert Heqtmp.
     induction UB using of_state_ind; ii; ss; clarify.
-    - rr in STEP. des. clarify. econs; eauto. rr. esplits; eauto.
-    - econs 6; eauto. ii. exploit STEP; eauto. i; des; clarify. esplits; eauto.
+    - econs; eauto.
+    - econs 6; eauto.
+    - econs 7; eauto.
   Qed.
 
-  Lemma _beh_astep
-        r tr st0 ev st1
-        (SRT: L.(state_sort) st0 = angelic)
-        (STEP: _.(step) st0 ev st1)
-        (BEH: paco2 _of_state r st0 tr)
+  (* Lemma _beh_astep *)
+  (*       r tr st0 ev st1 *)
+  (*       (SRT: L.(state_sort) st0 = angelic) *)
+  (*       (STEP: _.(step) st0 ev st1) *)
+  (*       (BEH: paco2 _of_state r st0 tr) *)
+  (*   : *)
+  (*   <<BEH: paco2 _of_state r st1 tr>> *)
+  (* . *)
+  (* Proof. *)
+  (*   exploit wf_angelic; et. i; clarify. *)
+  (*   revert_until L. *)
+  (*   pcofix CIH; i. *)
+  (*   punfold BEH. *)
+  (*   { *)
+  (*     generalize dependent st1. *)
+  (*     induction BEH using of_state_ind; et; try rewrite SRT in *; ii; ss. *)
+  (*     - punfold H. inv H; rewrite SRT in *; ss. *)
+  (*       exploit STEP0; et. i; des. pclearbot. et. *)
+  (*     - rr in STEP. exploit STEP; et. i; des. *)
+  (*       pfold. eapply of_state_mon; et. ii; ss. eapply upaco2_mon; et. *)
+  (*   } *)
+  (* Qed. *)
+
+  (* Lemma beh_astep *)
+  (*       tr st0 ev st1 *)
+  (*       (SRT: L.(state_sort) st0 = angelic) *)
+  (*       (STEP: _.(step) st0 ev st1) *)
+  (*       (BEH: of_state st0 tr) *)
+  (*   : *)
+  (*   <<BEH: of_state st1 tr>> *)
+  (* . *)
+  (* Proof. *)
+  (*   eapply _beh_astep; et. *)
+  (* Qed. *)
+
+  Lemma _beh_tau
+        R r i0 i1 itr tr
+        (IMAP: forall j, le (i1 j) (i0 j))
+        (BEH: paco4 _of_state r R i1 itr tr)
     :
-    <<BEH: paco2 _of_state r st1 tr>>
+    <<BEH: paco4 _of_state r R i0 (Tau itr) tr>>
   .
   Proof.
-    exploit wf_angelic; et. i; clarify.
-    revert_until L.
-    pcofix CIH; i.
-    punfold BEH.
-    {
-      generalize dependent st1.
-      induction BEH using of_state_ind; et; try rewrite SRT in *; ii; ss.
-      - punfold H. inv H; rewrite SRT in *; ss.
-        exploit STEP0; et. i; des. pclearbot. et.
-      - rr in STEP. exploit STEP; et. i; des.
-        pfold. eapply of_state_mon; et. ii; ss. eapply upaco2_mon; et.
-    }
+    pfold. econs 5; eauto. punfold BEH.
   Qed.
 
-  Lemma beh_astep
-        tr st0 ev st1
-        (SRT: L.(state_sort) st0 = angelic)
-        (STEP: _.(step) st0 ev st1)
-        (BEH: of_state st0 tr)
+  Lemma beh_tau
+        R i0 i1 itr tr
+        (IMAP: forall j, le (i1 j) (i0 j))
+        (BEH: @of_state R i1 itr tr)
     :
-    <<BEH: of_state st1 tr>>
+    <<BEH: of_state i0 (Tau itr) tr>>
   .
   Proof.
-    eapply _beh_astep; et.
+    eapply _beh_tau; eauto.
   Qed.
 
-  Lemma _beh_dstep
-        r tr st0 ev st1
-        (SRT: L.(state_sort) st0 = demonic)
-        (STEP: _.(step) st0 ev st1)
-        (BEH: paco2 _of_state r st1 tr)
+  Lemma _beh_choose
+        R r i0 i1 X ktr x tr
+        (IMAP: forall j, le (i1 j) (i0 j))
+        (BEH: paco4 _of_state r R i1 (ktr x) tr)
     :
-    <<BEH: paco2 _of_state r st0 tr>>
+    <<BEH: paco4 _of_state r R i0 (Vis (Choose X) ktr) tr>>
   .
   Proof.
-    exploit wf_demonic; et. i; clarify.
-    pfold. econs 5; et. rr. esplits; et. punfold BEH.
+    pfold. econs 6; eauto. punfold BEH.
   Qed.
 
-  Lemma beh_dstep
-        tr st0 ev st1
-        (SRT: L.(state_sort) st0 = demonic)
-        (STEP: _.(step) st0 ev st1)
-        (BEH: of_state st1 tr)
+  Lemma beh_choose
+        R i0 i1 X ktr x tr
+        (IMAP: forall j, le (i1 j) (i0 j))
+        (BEH: @of_state R i1 (ktr x) tr)
     :
-    <<BEH: of_state st0 tr>>
+    <<BEH: of_state i0 (Vis (Choose X) ktr) tr>>
   .
   Proof.
-    eapply _beh_dstep; et.
+    eapply _beh_choose; eauto.
   Qed.
 
-  Variant dstep_clo (r: L.(state) -> Tr.t -> Prop): L.(state) -> Tr.t -> Prop :=
-    | dstep_clo_intro
-        st0 tr st1 ev
-        (SRT: L.(state_sort) st0 = demonic)
-        (STEP: _.(step) st0 ev st1)
-        (STEP: r st1 tr)
+  Lemma _beh_fair
+        R r i0 i1 f ktr tr
+        (FAIR: fair_update i0 i1 f)
+        (BEH: paco4 _of_state r R i1 (ktr tt) tr)
+    :
+    <<BEH: paco4 _of_state r R i0 (Vis (Fair f) ktr) tr>>
+  .
+  Proof.
+    pfold. econs 7; eauto. punfold BEH.
+  Qed.
+
+  Lemma beh_fair
+        R i0 i1 f ktr tr
+        (FAIR: fair_update i0 i1 f)
+        (BEH: @of_state R i1 (ktr tt) tr)
+    :
+    <<BEH: of_state i0 (Vis (Fair f) ktr) tr>>
+  .
+  Proof.
+    eapply _beh_fair; eauto.
+  Qed.
+
+  Variant silent_clo (r: forall R, imap -> state -> Tr.t -> Prop) (R: Type): imap -> (@state _ R) -> (@Tr.t R) -> Prop :=
+    | silent_clo_tau
+        i0 i1 itr tr
+        (IMAP: forall j, le (i1 j) (i0 j))
+        (STEP: r R i1 itr tr)
       :
-      dstep_clo r st0 tr
-  .
-
-  Lemma dstep_clo_mon: monotone2 dstep_clo.
-  Proof. ii. inv IN. econs; et. Qed.
-
-  Lemma dstep_clo_spec: dstep_clo <3= gupaco2 (_of_state) (cpn2 _of_state).
-  Proof.
-    intros. eapply prespect2_uclo; eauto with paco. econs.
-    { eapply dstep_clo_mon. }
-    i. inv PR0. pfold. econs 5; et.
-    exploit wf_demonic; et. i; clarify.
-    red. esplits; et. eapply of_state_mon; et.
-  Qed.
-
-  Variant astep_clo (r: L.(state) -> Tr.t -> Prop): L.(state) -> Tr.t -> Prop :=
-    | astep_clo_intro
-        st0 tr
-        (SRT: L.(state_sort) st0 = angelic)
-        (STEP: forall st1, _.(step) st0 None st1 -> r st1 tr)
+      silent_clo r i0 (Tau itr) tr
+    | silent_clo_choose
+        i0 i1 X ktr x tr
+        (IMAP: forall j, le (i1 j) (i0 j))
+        (STEP: r R i1 (ktr x) tr)
       :
-      astep_clo r st0 tr
+      silent_clo r i0 (Vis (Choose X) ktr) tr
+    | silent_clo_fair
+        i0 i1 f ktr tr
+        (FAIR: fair_update i0 i1 f)
+        (STEP: r R i1 (ktr tt) tr)
+      :
+      silent_clo r i0 (Vis (Fair f) ktr) tr
   .
 
-  Lemma astep_clo_mon: monotone2 astep_clo.
-  Proof. ii. inv IN. econs; et. Qed.
+  Lemma silent_clo_mon: monotone4 silent_clo.
+  Proof. ii. inv IN. all: econs; eauto. Qed.
 
-  Lemma astep_clo_spec: astep_clo <3= gupaco2 (_of_state) (cpn2 _of_state).
+  Lemma silent_clo_spec: silent_clo <5= gupaco4 (_of_state) (cpn4 _of_state).
   Proof.
-    intros. eapply prespect2_uclo; eauto with paco. econs.
-    { eapply astep_clo_mon. }
-    i. inv PR0. pfold. econs 6; et. ii.
-    exploit wf_angelic; et. i; clarify.
-    red. esplits; et. eapply of_state_mon; et.
+    intros. eapply prespect4_uclo; eauto with paco. econs.
+    { eapply silent_clo_mon. }
+    i. inv PR0.
+    - pfold. econs 5; eauto. eapply of_state_mon; eauto.
+    - pfold. econs 6; eauto. eapply of_state_mon; eauto.
+    - pfold. econs 7; eauto. eapply of_state_mon; eauto.
   Qed.
+
+  (* Lemma _beh_dstep *)
+  (*       r tr st0 ev st1 *)
+  (*       (SRT: L.(state_sort) st0 = demonic) *)
+  (*       (STEP: _.(step) st0 ev st1) *)
+  (*       (BEH: paco2 _of_state r st1 tr) *)
+  (*   : *)
+  (*   <<BEH: paco2 _of_state r st0 tr>> *)
+  (* . *)
+  (* Proof. *)
+  (*   exploit wf_demonic; et. i; clarify. *)
+  (*   pfold. econs 5; et. rr. esplits; et. punfold BEH. *)
+  (* Qed. *)
+
+  (* Lemma beh_dstep *)
+  (*       tr st0 ev st1 *)
+  (*       (SRT: L.(state_sort) st0 = demonic) *)
+  (*       (STEP: _.(step) st0 ev st1) *)
+  (*       (BEH: of_state st1 tr) *)
+  (*   : *)
+  (*   <<BEH: of_state st0 tr>> *)
+  (* . *)
+  (* Proof. *)
+  (*   eapply _beh_dstep; et. *)
+  (* Qed. *)
+
+  (* Variant dstep_clo (r: L.(state) -> Tr.t -> Prop): L.(state) -> Tr.t -> Prop := *)
+  (*   | dstep_clo_intro *)
+  (*       st0 tr st1 ev *)
+  (*       (SRT: L.(state_sort) st0 = demonic) *)
+  (*       (STEP: _.(step) st0 ev st1) *)
+  (*       (STEP: r st1 tr) *)
+  (*     : *)
+  (*     dstep_clo r st0 tr *)
+  (* . *)
+
+  (* Lemma dstep_clo_mon: monotone2 dstep_clo. *)
+  (* Proof. ii. inv IN. econs; et. Qed. *)
+
+  (* Lemma dstep_clo_spec: dstep_clo <3= gupaco2 (_of_state) (cpn2 _of_state). *)
+  (* Proof. *)
+  (*   intros. eapply prespect2_uclo; eauto with paco. econs. *)
+  (*   { eapply dstep_clo_mon. } *)
+  (*   i. inv PR0. pfold. econs 5; et. *)
+  (*   exploit wf_demonic; et. i; clarify. *)
+  (*   red. esplits; et. eapply of_state_mon; et. *)
+  (* Qed. *)
+
+  (* Variant astep_clo (r: L.(state) -> Tr.t -> Prop): L.(state) -> Tr.t -> Prop := *)
+  (*   | astep_clo_intro *)
+  (*       st0 tr *)
+  (*       (SRT: L.(state_sort) st0 = angelic) *)
+  (*       (STEP: forall st1, _.(step) st0 None st1 -> r st1 tr) *)
+  (*     : *)
+  (*     astep_clo r st0 tr *)
+  (* . *)
+
+  (* Lemma astep_clo_mon: monotone2 astep_clo. *)
+  (* Proof. ii. inv IN. econs; et. Qed. *)
+
+  (* Lemma astep_clo_spec: astep_clo <3= gupaco2 (_of_state) (cpn2 _of_state). *)
+  (* Proof. *)
+  (*   intros. eapply prespect2_uclo; eauto with paco. econs. *)
+  (*   { eapply astep_clo_mon. } *)
+  (*   i. inv PR0. pfold. econs 6; et. ii. *)
+  (*   exploit wf_angelic; et. i; clarify. *)
+  (*   red. esplits; et. eapply of_state_mon; et. *)
+  (* Qed. *)
 
 End BEHAVES.
 
 End Beh.
 Hint Unfold Beh.improves.
-Hint Constructors Beh._state_spin.
-Hint Unfold Beh.state_spin.
-Hint Resolve Beh.state_spin_mon: paco.
+Hint Constructors Beh._diverge_index.
+Hint Unfold Beh.diverge_index.
+Hint Resolve Beh.diverge_index_mon: paco.
 Hint Constructors Beh._of_state.
 Hint Unfold Beh.of_state.
 Hint Resolve Beh.of_state_mon: paco.
-
-
