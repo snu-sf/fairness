@@ -16,17 +16,6 @@ Section SIM.
 
   Context {Ident: ID}.
 
-  (* Definition imap := Ident.(id) -> Flag.t. *)
-  (* Definition imap_emp : imap := fun _ => Flag.emp. *)
-  Definition imap := id -> nat.
-
-  Definition fair_update (m0 m1: imap) (f: id -> Flag.t) : Prop :=
-    forall j, match f j with
-         | Flag.fail => lt (m1 j) (m0 j)
-         | Flag.emp => le (m1 j) (m0 j)
-         | Flag.success => True
-         end.
-
   Definition stuck_idx (m: imap) (j: id) := le (m j) 0.
 
   Inductive _sim
