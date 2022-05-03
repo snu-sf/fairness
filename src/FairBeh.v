@@ -699,3 +699,10 @@ Hint Resolve Beh.diverge_index_mon: paco.
 Hint Constructors Beh._of_state.
 Hint Unfold Beh.of_state.
 Hint Resolve Beh.of_state_mon: paco.
+
+
+
+Section AUX.
+
+
+End AUX.
