@@ -85,7 +85,7 @@ Section EVENT.
   Variant eventE: Type -> Type :=
     | Choose (X: Type): eventE X
     | Fair (m: id -> Flag.t): eventE unit
-    | Observe (fn: nat) (args: list nat) (retv: nat): eventE nat
+    | Observe (fn: nat) (args: list nat): eventE nat
     | Undefined: eventE void
   .
 
@@ -244,10 +244,13 @@ Section STS.
   Definition state {R} := itree eventE R.
   Definition imap := id -> nat.
 
-  Definition fair_update (m0 m1: imap) (f: id -> Flag.t) : Prop :=
-    forall j, match f j with
-         | Flag.fail => lt (m1 j) (m0 j)
-         | Flag.emp => le (m1 j) (m0 j)
+  Definition soft_update (m0 m1: imap): Prop :=
+    forall i, le (m1 i) (m0 i).
+
+  Definition fair_update (m0 m1: imap) (f: id -> Flag.t): Prop :=
+    forall i, match f i with
+         | Flag.fail => lt (m1 i) (m0 i)
+         | Flag.emp => le (m1 i) (m0 i)
          | Flag.success => True
          end.
 
@@ -270,13 +273,13 @@ Section BEHAVES.
     | diverge_index_tau
         itr idx0 idx1
         (DIV: diverge_index _ idx1 itr)
-        (IDX: forall i, idx1 i <= idx0 i)
+        (IDX: soft_update idx0 idx1)
       :
       _diverge_index diverge_index idx0 (Tau itr)
     | diverge_index_choose
         X ktr x idx0 idx1
         (DIV: diverge_index _ idx1 (ktr x))
-        (IDX: forall i, idx1 i <= idx0 i)
+        (IDX: soft_update idx0 idx1)
       :
       _diverge_index diverge_index idx0 (Vis (Choose X) ktr)
     | diverge_index_fair
@@ -338,27 +341,27 @@ Section BEHAVES.
     _of_state of_state imap0 st0 (Tr.nb)
   | obs
       imap0 imap1 fn args rv ktr tl
-      (IMAP: forall j, le (imap1 j) (imap0 j))
       (TL: of_state _ imap1 (ktr rv) tl)
+      (IMAP: soft_update imap0 imap1)
     :
-    _of_state of_state imap0 (Vis (Observe fn args rv) ktr) (Tr.cons (obs_syscall fn args rv) tl)
+    _of_state of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)
 
   | tau
       imap0 imap1 itr tr
-      (IMAP: forall j, le (imap1 j) (imap0 j))
       (STEP: _of_state of_state imap1 itr tr)
+      (IMAP: soft_update imap0 imap1)
     :
     _of_state of_state imap0 (Tau itr) tr
   | choose
       imap0 imap1 X ktr x tr
-      (IMAP: forall j, le (imap1 j) (imap0 j))
       (STEP: _of_state of_state imap1 (ktr x) tr)
+      (IMAP: soft_update imap0 imap1)
     :
     _of_state of_state imap0 (Vis (Choose X) ktr) tr
   | fair
       imap0 imap1 fmap ktr tr
-      (FMAP: fair_update imap0 imap1 fmap)
       (STEP: _of_state of_state imap1 (ktr tt) tr)
+      (FMAP: fair_update imap0 imap1 fmap)
       (* (STEP: union st0 (fun e st1 => (<<HD: e = None>>) /\ (<<TL: _of_state of_state st1 evs>>))) *)
     :
     _of_state of_state imap0 (Vis (Fair fmap) ktr) tr
@@ -379,25 +382,25 @@ Section BEHAVES.
       (forall imap0 st0, diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
       (forall imap0 st0, P imap0 st0 Tr.nb) ->
       (forall imap0 imap1 fn args rv ktr tl
-         (IMAP: forall j, le (imap1 j) (imap0 j))
          (TL: r _ imap1 (ktr rv) tl)
+         (IMAP: soft_update imap0 imap1)
         ,
-          P imap0 (Vis (Observe fn args rv) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
+          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
       (forall imap0 imap1 itr tr
-         (IMAP: forall j, le (imap1 j) (imap0 j))
          (STEP: _of_state r imap1 itr tr)
+         (IMAP: soft_update imap0 imap1)
          (IH: P imap1 itr tr)
         ,
           P imap0 (Tau itr) tr) ->
       (forall imap0 imap1 X ktr x tr
-         (IMAP: forall j, le (imap1 j) (imap0 j))
          (STEP: _of_state r imap1 (ktr x) tr)
+         (IMAP: soft_update imap0 imap1)
          (IH: P imap1 (ktr x) tr)
         ,
           P imap0 (Vis (Choose X) ktr) tr) ->
       (forall imap0 imap1 fmap ktr tr
-         (FAIR: fair_update imap0 imap1 fmap)
          (STEP: _of_state r imap1 (ktr tt) tr)
+         (FAIR: fair_update imap0 imap1 fmap)
          (IH: P imap1 (ktr tt) tr)
         ,
           P imap0 (Vis (Fair fmap) ktr) tr) ->
@@ -587,20 +590,20 @@ Section BEHAVES.
   Variant silent_clo (r: forall R, imap -> state -> Tr.t -> Prop) (R: Type): imap -> (@state _ R) -> (@Tr.t R) -> Prop :=
     | silent_clo_tau
         i0 i1 itr tr
-        (IMAP: forall j, le (i1 j) (i0 j))
         (STEP: r R i1 itr tr)
+        (IMAP: soft_update i0 i1)
       :
       silent_clo r i0 (Tau itr) tr
     | silent_clo_choose
         i0 i1 X ktr x tr
-        (IMAP: forall j, le (i1 j) (i0 j))
         (STEP: r R i1 (ktr x) tr)
+        (IMAP: soft_update i0 i1)
       :
       silent_clo r i0 (Vis (Choose X) ktr) tr
     | silent_clo_fair
         i0 i1 f ktr tr
-        (FAIR: fair_update i0 i1 f)
         (STEP: r R i1 (ktr tt) tr)
+        (FAIR: fair_update i0 i1 f)
       :
       silent_clo r i0 (Vis (Fair f) ktr) tr
   .
