@@ -6,6 +6,8 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
+Require Import Lia.
+
 Set Implicit Arguments.
 
 Section OBS.
@@ -103,6 +105,14 @@ Section STS.
   Definition soft_update (m0 m1: imap): Prop :=
     forall i, le (m1 i) (m0 i).
 
+  Global Program Instance soft_update_PreOrder: PreOrder soft_update.
+  Next Obligation.
+    ii. auto.
+  Qed.
+  Next Obligation.
+    ii. unfold soft_update in *. specialize (H i). specialize (H0 i). lia.
+  Qed.
+
   Definition fair_update (m0 m1: imap) (f: id -> Flag.t): Prop :=
     forall i, match f i with
          | Flag.fail => lt (m1 i) (m0 i)
@@ -127,15 +137,13 @@ Section BEHAVES.
     :
     forall (idx: imap) (itr: @state _ R), Prop :=
     | diverge_index_tau
-        itr idx0 idx1
-        (DIV: diverge_index _ idx1 itr)
-        (IDX: soft_update idx0 idx1)
+        itr idx0
+        (DIV: diverge_index _ idx0 itr)
       :
       _diverge_index diverge_index idx0 (Tau itr)
     | diverge_index_choose
-        X ktr x idx0 idx1
-        (DIV: diverge_index _ idx1 (ktr x))
-        (IDX: soft_update idx0 idx1)
+        X ktr x idx0
+        (DIV: diverge_index _ idx0 (ktr x))
       :
       _diverge_index diverge_index idx0 (Vis (Choose X) ktr)
     | diverge_index_fair
@@ -159,9 +167,12 @@ Section BEHAVES.
   Hint Constructors _diverge_index.
   Hint Unfold diverge_index.
   Hint Resolve diverge_index_mon: paco.
+  Hint Resolve cpn3_wcompat: paco.
 
   Definition diverge (R: Type) (itr: @state _ R): Prop :=
     exists idx, diverge_index idx itr.
+
+
 
   Inductive _of_state
             (of_state: forall (R: Type), imap -> (@state _ R) -> (@Tr.t R) -> Prop)
@@ -182,22 +193,19 @@ Section BEHAVES.
     :
     _of_state of_state imap0 st0 (Tr.nb)
   | obs
-      imap0 imap1 fn args rv ktr tl
-      (TL: of_state _ imap1 (ktr rv) tl)
-      (IMAP: soft_update imap0 imap1)
+      imap0 fn args rv ktr tl
+      (TL: of_state _ imap0 (ktr rv) tl)
     :
     _of_state of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)
 
   | tau
-      imap0 imap1 itr tr
-      (STEP: _of_state of_state imap1 itr tr)
-      (IMAP: soft_update imap0 imap1)
+      imap0 itr tr
+      (STEP: _of_state of_state imap0 itr tr)
     :
     _of_state of_state imap0 (Tau itr) tr
   | choose
-      imap0 imap1 X ktr x tr
-      (STEP: _of_state of_state imap1 (ktr x) tr)
-      (IMAP: soft_update imap0 imap1)
+      imap0 X ktr x tr
+      (STEP: _of_state of_state imap0 (ktr x) tr)
     :
     _of_state of_state imap0 (Vis (Choose X) ktr) tr
   | fair
@@ -220,21 +228,18 @@ Section BEHAVES.
       (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
       (forall imap0 st0, diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
       (forall imap0 st0, P imap0 st0 Tr.nb) ->
-      (forall imap0 imap1 fn args rv ktr tl
-         (TL: r _ imap1 (ktr rv) tl)
-         (IMAP: soft_update imap0 imap1)
+      (forall imap0 fn args rv ktr tl
+         (TL: r _ imap0 (ktr rv) tl)
         ,
           P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
-      (forall imap0 imap1 itr tr
-         (STEP: _of_state r imap1 itr tr)
-         (IMAP: soft_update imap0 imap1)
-         (IH: P imap1 itr tr)
+      (forall imap0 itr tr
+         (STEP: _of_state r imap0 itr tr)
+         (IH: P imap0 itr tr)
         ,
           P imap0 (Tau itr) tr) ->
-      (forall imap0 imap1 X ktr x tr
-         (STEP: _of_state r imap1 (ktr x) tr)
-         (IMAP: soft_update imap0 imap1)
-         (IH: P imap1 (ktr x) tr)
+      (forall imap0 X ktr x tr
+         (STEP: _of_state r imap0 (ktr x) tr)
+         (IH: P imap0 (ktr x) tr)
         ,
           P imap0 (Vis (Choose X) ktr) tr) ->
       (forall imap0 imap1 fmap ktr tr
@@ -269,6 +274,146 @@ Section BEHAVES.
   Hint Constructors _of_state.
   Hint Unfold of_state.
   Hint Resolve of_state_mon: paco.
+  Hint Resolve cpn4_wcompat: paco.
+
+  (****************************************************)
+  (*********************** upto ***********************)
+  (****************************************************)
+
+  Variant diverge_imap_le_ctx
+          (diverge_index: forall R, imap -> (@state _ R) -> Prop)
+          R
+    :
+    imap -> (@state _ R) -> Prop :=
+    | diverge_imap_le_ctx_intro
+        imap0 imap1 st
+        (IMAP: soft_update imap0 imap1)
+        (DIV: @diverge_index R imap1 st)
+      :
+      diverge_imap_le_ctx diverge_index imap0 st.
+
+  Lemma diverge_imap_le_ctx_mon: monotone3 diverge_imap_le_ctx.
+  Proof. ii. inv IN. econs 1; eauto. Qed.
+
+  Hint Resolve diverge_imap_le_ctx_mon: paco.
+
+  Lemma diverge_imap_le_ctx_wrespectfule: wrespectful3 _diverge_index diverge_imap_le_ctx.
+  Proof.
+    econs; eauto with paco.
+    i. inv PR. dup DIV. apply GF in DIV. inv DIV; eauto.
+    { econs 1. eapply rclo3_clo_base. econs 1; eauto. }
+    { econs 2. eapply rclo3_clo_base. econs 1; eauto. }
+    { econs 3. eapply rclo3_clo_base. econs 1. 2: eauto. instantiate (1:=idx1). ss.
+      clear - IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
+      des_ifs; nia.
+    }
+  Qed.
+
+  Lemma diverge_imap_le_ctx_spec: diverge_imap_le_ctx <4= gupaco3 _diverge_index (cpn3 _diverge_index).
+  Proof. i. eapply wrespect3_uclo; eauto with paco. eapply diverge_imap_le_ctx_wrespectfule. Qed.
+
+
+
+  Variant imap_le_ctx
+          (of_state: forall R, imap -> (@state _ R) -> (@Tr.t R) -> Prop)
+          R
+    :
+    imap -> (@state _ R) -> (@Tr.t R) -> Prop :=
+    | imap_le_ctx_intro
+        imap0 imap1 st tr
+        (IMAP: soft_update imap0 imap1)
+        (BEH: @of_state R imap1 st tr)
+      :
+      imap_le_ctx of_state imap0 st tr.
+
+  Lemma imap_le_ctx_mon: monotone4 imap_le_ctx.
+  Proof. ii. inv IN. econs 1; eauto. Qed.
+
+  Hint Resolve imap_le_ctx_mon: paco.
+
+  Lemma imap_le_ctx_wrespectful: wrespectful4 _of_state imap_le_ctx.
+  Proof.
+    econs; eauto with paco.
+    i. inv PR. apply GF in BEH. depgen x1. induction BEH; i; eauto.
+    { econs 2. ginit. guclo diverge_imap_le_ctx_spec. econs; eauto. gstep. punfold SPIN.
+      eapply diverge_index_mon; eauto. i. gfinal. pclearbot. auto.
+    }
+    { econs. eapply rclo4_clo_base. econs; eauto. }
+    { econs. eapply IHBEH. reflexivity. clear - IMAP FMAP. unfold fair_update, soft_update in *.
+      i. specialize (FMAP i). specialize (IMAP i). des_ifs; lia.
+    }
+  Qed.
+
+  Lemma imap_le_ctx_spec: imap_le_ctx <5= gupaco4 _of_state (cpn4 _of_state).
+  Proof. i. eapply wrespect4_uclo; eauto with paco. eapply imap_le_ctx_wrespectful. Qed.
+
+
+
+  Variant of_state_indC
+          (of_state: forall R, imap -> (@state _ R) -> (@Tr.t R) -> Prop)
+          R
+    :
+    imap -> (@state _ R) -> (@Tr.t R) -> Prop :=
+  | of_state_indC_done
+      imap0 retv
+    :
+    of_state_indC of_state imap0 (Ret retv) (Tr.done retv)
+  | of_state_indC_spin
+      imap0 st0
+      (SPIN: diverge_index imap0 st0)
+    :
+    of_state_indC of_state imap0 st0 (Tr.spin)
+  | of_state_indC_nb
+      imap0 st0
+    :
+    of_state_indC of_state imap0 st0 (Tr.nb)
+  | of_state_indC_obs
+      imap0 fn args rv ktr tl
+      (TL: of_state _ imap0 (ktr rv) tl)
+    :
+    of_state_indC of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)
+
+  | of_state_indC_tau
+      imap0 itr tr
+      (STEP: of_state _ imap0 itr tr)
+    :
+    of_state_indC of_state imap0 (Tau itr) tr
+  | of_state_indC_choose
+      imap0 X ktr x tr
+      (STEP: of_state _ imap0 (ktr x) tr)
+    :
+    of_state_indC of_state imap0 (Vis (Choose X) ktr) tr
+  | of_state_indC_fair
+      imap0 imap1 fmap ktr tr
+      (STEP: of_state _ imap1 (ktr tt) tr)
+      (FMAP: fair_update imap0 imap1 fmap)
+    :
+    of_state_indC of_state imap0 (Vis (Fair fmap) ktr) tr
+
+  | of_state_indC_ub
+      imap0 ktr tr
+    :
+    of_state_indC of_state imap0 (Vis Undefined ktr) tr
+  .
+
+  Lemma of_state_indC_mon: monotone4 of_state_indC.
+  Proof. ii. inv IN; econs; eauto. Qed.
+
+  Hint Resolve of_state_indC_mon: paco.
+
+  Lemma of_state_indC_wrespectful: wrespectful4 _of_state of_state_indC.
+  Proof.
+    econs; eauto with paco.
+    i. inv PR; eauto.
+    { econs; eauto. eapply rclo4_base. eauto. }
+    { econs; eauto. eapply of_state_mon; eauto. i. eapply rclo4_base. auto. }
+    { econs; eauto. eapply of_state_mon; eauto. i. eapply rclo4_base. auto. }
+    { econs; eauto. eapply of_state_mon; eauto. i. eapply rclo4_base. auto. }
+  Qed.
+
+  Lemma of_state_indC_spec: of_state_indC <5= gupaco4 _of_state (cpn4 _of_state).
+  Proof. i. eapply wrespect4_uclo; eauto with paco. eapply of_state_indC_wrespectful. Qed.
+
 
 
   (**********************************************************)
@@ -328,59 +473,26 @@ Section BEHAVES.
     - econs 7; eauto.
   Qed.
 
-  Lemma _beh_tau
-        R r i0 i1 itr tr
-        (IMAP: forall j, le (i1 j) (i0 j))
-        (BEH: paco4 _of_state r R i1 itr tr)
-    :
-    <<BEH: paco4 _of_state r R i0 (Tau itr) tr>>
-  .
-  Proof.
-    pfold. econs 5; eauto. punfold BEH.
-  Qed.
-
   Lemma beh_tau
         R i0 i1 itr tr
-        (IMAP: forall j, le (i1 j) (i0 j))
+        (IMAP: soft_update i0 i1)
         (BEH: @of_state R i1 itr tr)
     :
     <<BEH: of_state i0 (Tau itr) tr>>
   .
   Proof.
-    eapply _beh_tau; eauto.
-  Qed.
-
-  Lemma _beh_choose
-        R r i0 i1 X ktr x tr
-        (IMAP: forall j, le (i1 j) (i0 j))
-        (BEH: paco4 _of_state r R i1 (ktr x) tr)
-    :
-    <<BEH: paco4 _of_state r R i0 (Vis (Choose X) ktr) tr>>
-  .
-  Proof.
-    pfold. econs 6; eauto. punfold BEH.
+    ginit. guclo imap_le_ctx_spec. econs; eauto. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
   Qed.
 
   Lemma beh_choose
         R i0 i1 X ktr x tr
-        (IMAP: forall j, le (i1 j) (i0 j))
+        (IMAP: soft_update i0 i1)
         (BEH: @of_state R i1 (ktr x) tr)
     :
     <<BEH: of_state i0 (Vis (Choose X) ktr) tr>>
   .
   Proof.
-    eapply _beh_choose; eauto.
-  Qed.
-
-  Lemma _beh_fair
-        R r i0 i1 f ktr tr
-        (FAIR: fair_update i0 i1 f)
-        (BEH: paco4 _of_state r R i1 (ktr tt) tr)
-    :
-    <<BEH: paco4 _of_state r R i0 (Vis (Fair f) ktr) tr>>
-  .
-  Proof.
-    pfold. econs 7; eauto. punfold BEH.
+    ginit. guclo imap_le_ctx_spec. econs; eauto. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
   Qed.
 
   Lemma beh_fair
@@ -391,41 +503,7 @@ Section BEHAVES.
     <<BEH: of_state i0 (Vis (Fair f) ktr) tr>>
   .
   Proof.
-    eapply _beh_fair; eauto.
-  Qed.
-
-  Variant silent_clo (r: forall R, imap -> state -> Tr.t -> Prop) (R: Type): imap -> (@state _ R) -> (@Tr.t R) -> Prop :=
-    | silent_clo_tau
-        i0 i1 itr tr
-        (STEP: r R i1 itr tr)
-        (IMAP: soft_update i0 i1)
-      :
-      silent_clo r i0 (Tau itr) tr
-    | silent_clo_choose
-        i0 i1 X ktr x tr
-        (STEP: r R i1 (ktr x) tr)
-        (IMAP: soft_update i0 i1)
-      :
-      silent_clo r i0 (Vis (Choose X) ktr) tr
-    | silent_clo_fair
-        i0 i1 f ktr tr
-        (STEP: r R i1 (ktr tt) tr)
-        (FAIR: fair_update i0 i1 f)
-      :
-      silent_clo r i0 (Vis (Fair f) ktr) tr
-  .
-
-  Lemma silent_clo_mon: monotone4 silent_clo.
-  Proof. ii. inv IN. all: econs; eauto. Qed.
-
-  Lemma silent_clo_spec: silent_clo <5= gupaco4 (_of_state) (cpn4 _of_state).
-  Proof.
-    intros. eapply prespect4_uclo; eauto with paco. econs.
-    { eapply silent_clo_mon. }
-    i. inv PR0.
-    - pfold. econs 5; eauto. eapply of_state_mon; eauto.
-    - pfold. econs 6; eauto. eapply of_state_mon; eauto.
-    - pfold. econs 7; eauto. eapply of_state_mon; eauto.
+    ginit. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
   Qed.
 
 End BEHAVES.
@@ -450,21 +528,18 @@ Section AUX.
       (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
       (forall imap0 st0, Beh.diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
       (forall imap0 st0, P imap0 st0 Tr.nb) ->
-      (forall imap0 imap1 fn args rv ktr tl
-         (TL: Beh.of_state imap1 (ktr rv) tl)
-         (IMAP: soft_update imap0 imap1)
+      (forall imap0 fn args rv ktr tl
+         (TL: Beh.of_state imap0 (ktr rv) tl)
         ,
           P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
-      (forall imap0 imap1 itr tr
-         (STEP: Beh.of_state imap1 itr tr)
-         (IMAP: soft_update imap0 imap1)
-         (IH: P imap1 itr tr)
+      (forall imap0 itr tr
+         (STEP: Beh.of_state imap0 itr tr)
+         (IH: P imap0 itr tr)
         ,
           P imap0 (Tau itr) tr) ->
-      (forall imap0 imap1 X ktr x tr
-         (STEP: Beh.of_state imap1 (ktr x) tr)
-         (IMAP: soft_update imap0 imap1)
-         (IH: P imap1 (ktr x) tr)
+      (forall imap0 X ktr x tr
+         (STEP: Beh.of_state imap0 (ktr x) tr)
+         (IH: P imap0 (ktr x) tr)
         ,
           P imap0 (Vis (Choose X) ktr) tr) ->
       (forall imap0 imap1 fmap ktr tr
