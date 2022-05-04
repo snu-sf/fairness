@@ -287,8 +287,8 @@ Section BEHAVES.
     imap -> (@state _ R) -> Prop :=
     | diverge_imap_le_ctx_intro
         imap0 imap1 st
-        (IMAP: soft_update imap0 imap1)
         (DIV: @diverge_index R imap1 st)
+        (IMAP: soft_update imap0 imap1)
       :
       diverge_imap_le_ctx diverge_index imap0 st.
 
@@ -297,20 +297,20 @@ Section BEHAVES.
 
   Hint Resolve diverge_imap_le_ctx_mon: paco.
 
-  Lemma diverge_imap_le_ctx_wrespectfule: wrespectful3 _diverge_index diverge_imap_le_ctx.
+  Lemma diverge_imap_le_ctx_wrespectful: wrespectful3 _diverge_index diverge_imap_le_ctx.
   Proof.
     econs; eauto with paco.
     i. inv PR. dup DIV. apply GF in DIV. inv DIV; eauto.
     { econs 1. eapply rclo3_clo_base. econs 1; eauto. }
     { econs 2. eapply rclo3_clo_base. econs 1; eauto. }
-    { econs 3. eapply rclo3_clo_base. econs 1. 2: eauto. instantiate (1:=idx1). ss.
+    { econs 3. eapply rclo3_clo_base. econs 1. eauto. reflexivity.
       clear - IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
       des_ifs; nia.
     }
   Qed.
 
   Lemma diverge_imap_le_ctx_spec: diverge_imap_le_ctx <4= gupaco3 _diverge_index (cpn3 _diverge_index).
-  Proof. i. eapply wrespect3_uclo; eauto with paco. eapply diverge_imap_le_ctx_wrespectfule. Qed.
+  Proof. i. eapply wrespect3_uclo; eauto with paco. eapply diverge_imap_le_ctx_wrespectful. Qed.
 
 
 
@@ -321,8 +321,8 @@ Section BEHAVES.
     imap -> (@state _ R) -> (@Tr.t R) -> Prop :=
     | imap_le_ctx_intro
         imap0 imap1 st tr
-        (IMAP: soft_update imap0 imap1)
         (BEH: @of_state R imap1 st tr)
+        (IMAP: soft_update imap0 imap1)
       :
       imap_le_ctx of_state imap0 st tr.
 
@@ -509,13 +509,13 @@ Section BEHAVES.
 End BEHAVES.
 
 End Beh.
-Hint Unfold Beh.improves.
-Hint Constructors Beh._diverge_index.
-Hint Unfold Beh.diverge_index.
-Hint Resolve Beh.diverge_index_mon: paco.
-Hint Constructors Beh._of_state.
-Hint Unfold Beh.of_state.
-Hint Resolve Beh.of_state_mon: paco.
+#[export] Hint Unfold Beh.improves.
+#[export] Hint Constructors Beh._diverge_index.
+#[export] Hint Unfold Beh.diverge_index.
+#[export] Hint Resolve Beh.diverge_index_mon: paco.
+#[export] Hint Constructors Beh._of_state.
+#[export] Hint Unfold Beh.of_state.
+#[export] Hint Resolve Beh.of_state_mon: paco.
 
 
 
