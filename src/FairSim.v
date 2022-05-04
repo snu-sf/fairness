@@ -16,7 +16,7 @@ Section SIM.
 
   Context {Ident: ID}.
 
-  Definition stuck_idx (m: imap) (j: id) := le (m j) 0.
+  (* Definition stuck_idx (m: imap) (j: id) := le (m j) 0. *)
 
   Inductive _sim
             (sim: forall R0 R1 (RR: R0 -> R1 -> Prop),
@@ -80,19 +80,14 @@ Section SIM.
       (SIM: sim _ _ RR false m_src0 false m_tgt0 itr_src0 itr_tgt0)
       (PSRC: p_src = true)
       (PTGT: p_tgt = true)
-      (IMAP: forall i, (<<SSRC: stuck_idx m_src i>>) -> (<<STGT: stuck_idx m_tgt i>>))
+      (* (IMAP: forall i, (<<SSRC: stuck_idx m_src i>>) -> (<<STGT: stuck_idx m_tgt i>>)) *)
     :
     _sim sim RR p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
-  (* | sim_weak_progress *)
-  (*     itr_src0 itr_tgt0 m_tgt0 idx *)
-  (*     (SIM: sim _ _ RR p_src m_src false m_tgt0 itr_src0 itr_tgt0) *)
-  (*     (* (SIM: forall m_tgt0 (FILL: forall j (NEQ: j <> idx), le (m_tgt0 j) (m_tgt j)), *) *)
-  (*     (*     sim _ _ RR p_src m_src false m_tgt0 itr_src0 itr_tgt0) *) *)
-  (*     (PTGT: p_tgt = true) *)
-  (*     (ITGT: stuck_idx m_tgt idx) *)
-  (*     (FILL: forall j (NEQ: j <> idx), le (m_tgt0 j) (m_tgt j)) *)
-  (*   : *)
-  (*   _sim sim RR p_src m_src p_tgt m_tgt itr_src0 itr_tgt0 *)
+
+  | sim_ub
+      ktr_src0 itr_tgt0
+    :
+    _sim sim RR p_src m_src p_tgt m_tgt (trigger Undefined >>= ktr_src0) itr_tgt0
   .
 
   Lemma _sim_ind2 (r: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
@@ -153,16 +148,12 @@ Section SIM.
             p_src m_src p_tgt m_tgt m_src0 m_tgt0 itr_src0 itr_tgt0
             (SIM: r _ _ RR false m_src0 false m_tgt0 itr_src0 itr_tgt0)
             (PSRC: p_src = true)
-            (PTGT: p_tgt = true)
-            (IMAP: forall i, (<<SSRC: stuck_idx m_src i>>) -> (<<STGT: stuck_idx m_tgt i>>)),
+            (PTGT: p_tgt = true),
+            (* (IMAP: forall i, (<<SSRC: stuck_idx m_src i>>) -> (<<STGT: stuck_idx m_tgt i>>)) *)
             P p_src m_src p_tgt m_tgt itr_src0 itr_tgt0)
-        (* (WPROGRESS: forall *)
-        (*     p_src m_src p_tgt m_tgt idx itr_src0 itr_tgt0 *)
-        (*     (SIM: forall m_tgt0 (FILL: forall j (NEQ: j <> idx), le (m_tgt0 j) (m_tgt j)), *)
-        (*         r _ _ RR p_src m_src false m_tgt0 itr_src0 itr_tgt0) *)
-        (*     (PTGT: p_tgt = true) *)
-        (*     (ITGT: stuck_idx m_tgt idx), *)
-        (*     P p_src m_src p_tgt m_tgt itr_src0 itr_tgt0) *)
+        (UB: forall
+            p_src m_src p_tgt m_tgt ktr_src0 itr_tgt0,
+            P p_src m_src p_tgt m_tgt (ITree.bind (trigger Undefined) ktr_src0) itr_tgt0)
     :
     forall p_src m_src p_tgt m_tgt itr_src itr_tgt
       (SIM: _sim r RR p_src m_src p_tgt m_tgt itr_src itr_tgt),
@@ -178,7 +169,7 @@ Section SIM.
     { eapply FAIRL; eauto. des. esplits; eauto. }
     { eapply FAIRR; eauto. i. esplits; eauto. }
     { eapply PROGRESS; eauto. }
-    (* { eapply WPROGRESS; eauto. } *)
+    { eapply UB; eauto. }
   Qed.
 
   Definition sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop := paco9 _sim bot9.
@@ -195,7 +186,7 @@ Section SIM.
     { econs 7; eauto. des. esplits; eauto. }
     { econs 8; eauto. i. hexploit SIM. eauto. i; des. eauto. }
     { econs 9; eauto. }
-    (* { econs 10; eauto. } *)
+    { econs 10; eauto. }
   Qed.
 
   Hint Resolve sim_mon: paco.

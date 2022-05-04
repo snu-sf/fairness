@@ -93,150 +93,6 @@ End EVENT.
 
 
 
-(* Section STS. *)
-
-(*   Context {Ident: ID}. *)
-
-(*   Definition state {R} := itree eventE R. *)
-
-(*   Inductive step {R}: @state R -> option event -> state -> Prop := *)
-(*   | step_tau *)
-(*       itr *)
-(*     : *)
-(*     step (Tau itr) None itr *)
-(*   | step_choose *)
-(*       X ktr (x: X) *)
-(*     : *)
-(*     step (Vis (Choose X) ktr) None (ktr x) *)
-(*   | step_fair *)
-(*       m ktr *)
-(*     : *)
-(*     step (Vis (Fair m) ktr) None (ktr tt) *)
-(*   | step_syscall *)
-(*       fn args retv ktr *)
-(*     : *)
-(*     step (Vis (Syscall fn args retv) ktr) (Some (event_syscall fn args retv)) (ktr retv) *)
-(*   . *)
-
-(*   Lemma step_trigger_choose_iff X k itr e *)
-(*         (STEP: step (trigger (Choose X) >>= k) e itr) *)
-(*     : *)
-(*       exists x, *)
-(*         e = None /\ itr = k x. *)
-(*   Proof. *)
-(*     inv STEP. *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. *)
-(*       unfold trigger in H0. ss. cbn in H0. *)
-(*       dependent destruction H0. ired. et.  } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*   Qed. *)
-
-(*   Lemma step_trigger_take_iff X k itr e *)
-(*         (STEP: step (trigger (Take X) >>= k) e itr) *)
-(*     : *)
-(*       exists x, *)
-(*         e = None /\ itr = k x. *)
-(*   Proof. *)
-(*     inv STEP. *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. *)
-(*       unfold trigger in H0. ss. cbn in H0. *)
-(*       dependent destruction H0. ired. et.  } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*   Qed. *)
-
-(*   Lemma step_tau_iff itr0 itr1 e *)
-(*         (STEP: step (Tau itr0) e itr1) *)
-(*     : *)
-(*       e = None /\ itr0 = itr1. *)
-(*   Proof. *)
-(*     inv STEP. et. *)
-(*   Qed. *)
-
-(*   Lemma step_ret_iff rv itr e *)
-(*         (STEP: step (Ret rv) e itr) *)
-(*     : *)
-(*       False. *)
-(*   Proof. *)
-(*     inv STEP. *)
-(*   Qed. *)
-
-(*   Lemma step_trigger_syscall_iff fn args rvs k e itr *)
-(*         (STEP: step (trigger (Syscall fn args rvs) >>= k) e itr) *)
-(*     : *)
-(*       exists rv, itr = k rv /\ e = Some (event_sys fn args rv) *)
-(*                  /\ <<RV: rvs rv>> /\ <<SYS: syscall_sem (event_sys fn args rv)>>. *)
-(*   Proof. *)
-(*     inv STEP. *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. } *)
-(*     { eapply f_equal with (f:=observe) in H0. ss. *)
-(*       unfold trigger in H0. ss. cbn in H0. *)
-(*       dependent destruction H0. ired. et. } *)
-(*   Qed. *)
-
-
-(*   Let itree_eta E R (itr0 itr1: itree E R) *)
-(*       (OBSERVE: observe itr0 = observe itr1) *)
-(*     : *)
-(*       itr0 = itr1. *)
-(*   Proof. *)
-(*     rewrite (itree_eta_ itr0). *)
-(*     rewrite (itree_eta_ itr1). *)
-(*     rewrite OBSERVE. auto. *)
-(*   Qed. *)
-
-(*   Lemma step_trigger_choose X k x *)
-(*     : *)
-(*       step (trigger (Choose X) >>= k) None (k x). *)
-(*   Proof. *)
-(*     unfold trigger. ss. *)
-(*     match goal with *)
-(*     | [ |- step ?itr _ _] => *)
-(*       replace itr with (Subevent.vis (Choose X) k) *)
-(*     end; ss. *)
-(*     { econs. } *)
-(*     { eapply itree_eta. ss. cbv. f_equal. *)
-(*       extensionality x0. eapply itree_eta. ss. } *)
-(*   Qed. *)
-
-(*   Lemma step_trigger_take X k x *)
-(*     : *)
-(*       step (trigger (Take X) >>= k) None (k x). *)
-(*   Proof. *)
-(*     unfold trigger. ss. *)
-(*     match goal with *)
-(*     | [ |- step ?itr _ _] => *)
-(*       replace itr with (Subevent.vis (Take X) k) *)
-(*     end; ss. *)
-(*     { econs. } *)
-(*     { eapply itree_eta. ss. cbv. f_equal. *)
-(*       extensionality x0. eapply itree_eta. ss. } *)
-(*   Qed. *)
-
-(*   Lemma step_trigger_syscall fn args (rvs: Any.t -> Prop) k rv *)
-(*         (RV: rvs rv) (SYS: syscall_sem (event_sys fn args rv)) *)
-(*     : *)
-(*       step (trigger (Syscall fn args rvs) >>= k) (Some (event_sys fn args rv)) (k rv). *)
-(*   Proof. *)
-(*     unfold trigger. ss. *)
-(*     match goal with *)
-(*     | [ |- step ?itr _ _] => *)
-(*       replace itr with (Subevent.vis (Syscall fn args rvs) k) *)
-(*     end; ss. *)
-(*     { econs; et. } *)
-(*     { eapply itree_eta. ss. cbv. f_equal. *)
-(*       extensionality x0. eapply itree_eta. ss. } *)
-(*   Qed. *)
-
-
-(* End STS. *)
-
-
 Section STS.
 
   Context {Ident: ID}.
@@ -288,12 +144,6 @@ Section BEHAVES.
         (FAIR: fair_update idx0 idx1 fmap)
       :
       _diverge_index diverge_index idx0 (Vis (Fair fmap) ktr)
-    (* | diverge_index_syscall *)
-    (*     fn args retv ktr idx0 idx1 *)
-    (*     (DIV: diverge_index _ idx1 (ktr retv)) *)
-    (*     (IDX: forall i, idx1 i <= idx0 i) *)
-    (*   : *)
-    (*   _diverge_index diverge_index idx0 (Vis (Observe fn args retv) ktr) *)
   .
 
   Lemma diverge_index_mon: monotone3 _diverge_index.
@@ -302,7 +152,6 @@ Section BEHAVES.
     - econs 1; eauto.
     - econs 2; eauto.
     - econs 3; eauto.
-    (* - econs 4; eauto. *)
   Qed.
 
   Definition diverge_index: forall (R: Type) (idx: imap) (itr: state), Prop := paco3 _diverge_index bot3.
@@ -313,13 +162,6 @@ Section BEHAVES.
 
   Definition diverge (R: Type) (itr: @state _ R): Prop :=
     exists idx, diverge_index idx itr.
-
-
-  (* Definition union {R} (st0: @state R) (P: (option obs) -> (@state R) -> Prop) := *)
-  (*   exists ev st1, (<<STEP: L.(step) st0 ev st1>>) /\ (<<UNION: P ev st1>>). *)
-  (* Definition inter (st0: L.(state)) (P: (option event) -> L.(state) -> Prop) := *)
-  (*   forall ev st1 (STEP: L.(step) st0 ev st1), <<INTER: P ev st1>>. *)
-
 
   Inductive _of_state
             (of_state: forall (R: Type), imap -> (@state _ R) -> (@Tr.t R) -> Prop)
@@ -362,16 +204,13 @@ Section BEHAVES.
       imap0 imap1 fmap ktr tr
       (STEP: _of_state of_state imap1 (ktr tt) tr)
       (FMAP: fair_update imap0 imap1 fmap)
-      (* (STEP: union st0 (fun e st1 => (<<HD: e = None>>) /\ (<<TL: _of_state of_state st1 evs>>))) *)
     :
     _of_state of_state imap0 (Vis (Fair fmap) ktr) tr
-  (* | sb_angelic *)
-  (*     st0 *)
-  (*     evs *)
-  (*     (SRT: L.(state_sort) st0 = angelic) *)
-  (*     (STEP: inter st0 (fun e st1 => (<<HD: e = None>>) /\ (<<TL: _of_state of_state st1 evs>>))) *)
-  (*   : *)
-  (*   _of_state of_state st0 evs *)
+
+  | ub
+      imap0 ktr tr
+    :
+    _of_state of_state imap0 (Vis Undefined ktr) tr
   .
 
   Definition of_state: forall (R: Type),  imap -> state -> Tr.t -> Prop := paco4 _of_state bot4.
@@ -404,10 +243,11 @@ Section BEHAVES.
          (IH: P imap1 (ktr tt) tr)
         ,
           P imap0 (Vis (Fair fmap) ktr) tr) ->
+      (forall imap0 ktr tr, P imap0 (Vis Undefined ktr) tr) ->
       forall i s t, @_of_state r R i s t -> P i s t.
   Proof.
-    fix IH 14. i.
-    inv H6; eauto.
+    fix IH 15. i.
+    inv H7; eauto.
     - eapply H3; eauto. eapply IH; eauto.
     - eapply H4; eauto. eapply IH; eauto.
     - eapply H5; eauto. eapply IH; eauto.
@@ -423,6 +263,7 @@ Section BEHAVES.
     - econs 5; eauto.
     - econs 6; eauto.
     - econs 7; eauto.
+    - econs 8; eauto.
   Qed.
 
   Hint Constructors _of_state.
@@ -451,6 +292,7 @@ Section BEHAVES.
     - pfold. econs 5; eauto. hexploit IHBEH; eauto. intro A. punfold A.
     - pfold. econs 6; eauto. hexploit IHBEH; eauto. intro A. punfold A.
     - pfold. econs 7; eauto. hexploit IHBEH; eauto. intro A. punfold A.
+    - pfold. econs 8; eauto.
   Qed.
 
   (* Theorem prefix_closed *)
@@ -485,41 +327,6 @@ Section BEHAVES.
     - econs 6; eauto.
     - econs 7; eauto.
   Qed.
-
-  (* Lemma _beh_astep *)
-  (*       r tr st0 ev st1 *)
-  (*       (SRT: L.(state_sort) st0 = angelic) *)
-  (*       (STEP: _.(step) st0 ev st1) *)
-  (*       (BEH: paco2 _of_state r st0 tr) *)
-  (*   : *)
-  (*   <<BEH: paco2 _of_state r st1 tr>> *)
-  (* . *)
-  (* Proof. *)
-  (*   exploit wf_angelic; et. i; clarify. *)
-  (*   revert_until L. *)
-  (*   pcofix CIH; i. *)
-  (*   punfold BEH. *)
-  (*   { *)
-  (*     generalize dependent st1. *)
-  (*     induction BEH using of_state_ind; et; try rewrite SRT in *; ii; ss. *)
-  (*     - punfold H. inv H; rewrite SRT in *; ss. *)
-  (*       exploit STEP0; et. i; des. pclearbot. et. *)
-  (*     - rr in STEP. exploit STEP; et. i; des. *)
-  (*       pfold. eapply of_state_mon; et. ii; ss. eapply upaco2_mon; et. *)
-  (*   } *)
-  (* Qed. *)
-
-  (* Lemma beh_astep *)
-  (*       tr st0 ev st1 *)
-  (*       (SRT: L.(state_sort) st0 = angelic) *)
-  (*       (STEP: _.(step) st0 ev st1) *)
-  (*       (BEH: of_state st0 tr) *)
-  (*   : *)
-  (*   <<BEH: of_state st1 tr>> *)
-  (* . *)
-  (* Proof. *)
-  (*   eapply _beh_astep; et. *)
-  (* Qed. *)
 
   Lemma _beh_tau
         R r i0 i1 itr tr
@@ -621,74 +428,6 @@ Section BEHAVES.
     - pfold. econs 7; eauto. eapply of_state_mon; eauto.
   Qed.
 
-  (* Lemma _beh_dstep *)
-  (*       r tr st0 ev st1 *)
-  (*       (SRT: L.(state_sort) st0 = demonic) *)
-  (*       (STEP: _.(step) st0 ev st1) *)
-  (*       (BEH: paco2 _of_state r st1 tr) *)
-  (*   : *)
-  (*   <<BEH: paco2 _of_state r st0 tr>> *)
-  (* . *)
-  (* Proof. *)
-  (*   exploit wf_demonic; et. i; clarify. *)
-  (*   pfold. econs 5; et. rr. esplits; et. punfold BEH. *)
-  (* Qed. *)
-
-  (* Lemma beh_dstep *)
-  (*       tr st0 ev st1 *)
-  (*       (SRT: L.(state_sort) st0 = demonic) *)
-  (*       (STEP: _.(step) st0 ev st1) *)
-  (*       (BEH: of_state st1 tr) *)
-  (*   : *)
-  (*   <<BEH: of_state st0 tr>> *)
-  (* . *)
-  (* Proof. *)
-  (*   eapply _beh_dstep; et. *)
-  (* Qed. *)
-
-  (* Variant dstep_clo (r: L.(state) -> Tr.t -> Prop): L.(state) -> Tr.t -> Prop := *)
-  (*   | dstep_clo_intro *)
-  (*       st0 tr st1 ev *)
-  (*       (SRT: L.(state_sort) st0 = demonic) *)
-  (*       (STEP: _.(step) st0 ev st1) *)
-  (*       (STEP: r st1 tr) *)
-  (*     : *)
-  (*     dstep_clo r st0 tr *)
-  (* . *)
-
-  (* Lemma dstep_clo_mon: monotone2 dstep_clo. *)
-  (* Proof. ii. inv IN. econs; et. Qed. *)
-
-  (* Lemma dstep_clo_spec: dstep_clo <3= gupaco2 (_of_state) (cpn2 _of_state). *)
-  (* Proof. *)
-  (*   intros. eapply prespect2_uclo; eauto with paco. econs. *)
-  (*   { eapply dstep_clo_mon. } *)
-  (*   i. inv PR0. pfold. econs 5; et. *)
-  (*   exploit wf_demonic; et. i; clarify. *)
-  (*   red. esplits; et. eapply of_state_mon; et. *)
-  (* Qed. *)
-
-  (* Variant astep_clo (r: L.(state) -> Tr.t -> Prop): L.(state) -> Tr.t -> Prop := *)
-  (*   | astep_clo_intro *)
-  (*       st0 tr *)
-  (*       (SRT: L.(state_sort) st0 = angelic) *)
-  (*       (STEP: forall st1, _.(step) st0 None st1 -> r st1 tr) *)
-  (*     : *)
-  (*     astep_clo r st0 tr *)
-  (* . *)
-
-  (* Lemma astep_clo_mon: monotone2 astep_clo. *)
-  (* Proof. ii. inv IN. econs; et. Qed. *)
-
-  (* Lemma astep_clo_spec: astep_clo <3= gupaco2 (_of_state) (cpn2 _of_state). *)
-  (* Proof. *)
-  (*   intros. eapply prespect2_uclo; eauto with paco. econs. *)
-  (*   { eapply astep_clo_mon. } *)
-  (*   i. inv PR0. pfold. econs 6; et. ii. *)
-  (*   exploit wf_angelic; et. i; clarify. *)
-  (*   red. esplits; et. eapply of_state_mon; et. *)
-  (* Qed. *)
-
 End BEHAVES.
 
 End Beh.
@@ -704,5 +443,44 @@ Hint Resolve Beh.of_state_mon: paco.
 
 Section AUX.
 
+  Context {Ident: ID}.
+
+  Theorem of_state_ind2:
+    forall R (P: imap -> state -> Tr.t -> Prop),
+      (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
+      (forall imap0 st0, Beh.diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
+      (forall imap0 st0, P imap0 st0 Tr.nb) ->
+      (forall imap0 imap1 fn args rv ktr tl
+         (TL: Beh.of_state imap1 (ktr rv) tl)
+         (IMAP: soft_update imap0 imap1)
+        ,
+          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
+      (forall imap0 imap1 itr tr
+         (STEP: Beh.of_state imap1 itr tr)
+         (IMAP: soft_update imap0 imap1)
+         (IH: P imap1 itr tr)
+        ,
+          P imap0 (Tau itr) tr) ->
+      (forall imap0 imap1 X ktr x tr
+         (STEP: Beh.of_state imap1 (ktr x) tr)
+         (IMAP: soft_update imap0 imap1)
+         (IH: P imap1 (ktr x) tr)
+        ,
+          P imap0 (Vis (Choose X) ktr) tr) ->
+      (forall imap0 imap1 fmap ktr tr
+         (STEP: Beh.of_state imap1 (ktr tt) tr)
+         (FAIR: fair_update imap0 imap1 fmap)
+         (IH: P imap1 (ktr tt) tr)
+        ,
+          P imap0 (Vis (Fair fmap) ktr) tr) ->
+      (forall imap0 ktr tr, P imap0 (Vis Undefined ktr) tr) ->
+      forall i s t, (@Beh.of_state _ R i s t) -> P i s t.
+  Proof.
+    i. eapply Beh.of_state_ind; eauto.
+    { i. eapply H3; eauto. pfold. eapply Beh.of_state_mon; eauto. }
+    { i. eapply H4; eauto. pfold. eapply Beh.of_state_mon; eauto. }
+    { i. eapply H5; eauto. pfold. eapply Beh.of_state_mon; eauto. }
+    { punfold H7. eapply Beh.of_state_mon; eauto. i. pclearbot. eauto. }
+  Qed.
 
 End AUX.
