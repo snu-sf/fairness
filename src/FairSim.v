@@ -482,44 +482,19 @@ Section EX.
   Goal sim RR false imsrc1 false imtgt1 src1 tgt1.
   Proof.
     unfold src1, tgt1.
-    ginit. gcofix CIH. rewrite unfold_while_itree. ired.
-    guclo sim_indC_spec. econs 8. i.
+    unfold imtgt1. remember 100 as t_fuel. clear Heqt_fuel.
+    cut (forall p_src p_tgt,
+            sim RR p_src imsrc1 p_tgt (fun id : id => if ndec 0 id then t_fuel else 0) (Ret 0)
+                (while_itree (fun _ : () => r <- trigger (Fair (fun id : id => if ndec 0 id then Flag.fail else Flag.emp));; Ret (inl r));;
+                 Ret 0)); eauto.
+    induction t_fuel; i.
+    { ginit. rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i. exfalso.
+      unfold fair_update in FAIR. specialize (FAIR 0). des_ifs. lia.
+    }
+    ginit. rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i.
     guclo sim_indC_spec. econs.
-    guclo sim_imap_ctxR_spec. econs.
-    { rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i.
-      instantiate (1:=fun id => 0) in FAIR0.
-      exfalso. unfold fair_update in FAIR0. specialize FAIR0 with 0. ss. lia.
-    }
-    
-    
-
-
-      inv FAIR0.
-      exfalso. unfold update_
-
-    
-    guclo sim_indC_spec. econs 8. i.
-    guclo sim_imap_ctxR_spec. econs.
-    { guclo sim_indC_spec. econs. 
-
-      instantiate (1:= fun id => 0).
-
-    gstep. rewrite unfold_while_itree. ired.
-    econs 8. i. guclo sim_imap_ctxR.
-
-    econs.
-    
-
-
-    
-    pcofix CIH. pfold. rewrite unfold_while_itree. ired.
-    econs 8. i.
-    econs.
-    { rewrite unfold_while_itree. ired. econs 8. i.
-      instantiate (1:= fun id => 0) in FAIR0.
-      exfalso. unfold fair_update in FAIR0. specialize FAIR0 with 0. ss. inv FAIR0.
-    }
-    ii. apply PeanoNat.Nat.le_0_l.
+    guclo sim_imap_ctxR_spec. econs. gfinal. right. eapply IHt_fuel.
+    clear - FAIR. ii. unfold fair_update in FAIR. specialize (FAIR i). des_ifs. lia.
   Qed.
 
 End EX.
