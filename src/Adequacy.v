@@ -77,10 +77,33 @@ Section ADEQ.
     i. revert tr0 REL psrc0 ptgt0 msrc0 ssrc0 SIM.
     induction PR using @of_state_ind2; ii.
     { punfold REL. inv REL. rename r0 into r_src, retv into r_tgt.
-      revert r_src REL0.
-      admit.
-      (* induction SIM using @sim_ind2; i; ss; clarify. *)
-      (* { guclo Beh.of_state_indC_spec. econs 1. *)
+      match goal with
+      | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
+      end.
+      revert r_src REL0. rename imap0 into mtgt0. depgen r_tgt.
+      induction SIM using @sim_ind2; i; ss; clarify; eauto.
+      2:{ guclo Beh.of_state_indC_spec. econs. eauto. }
+      2:{ des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      2:{ rewrite bind_trigger in Heqstgt0. clarify. }
+      2:{ des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      2:{ rewrite bind_trigger in Heqstgt0. clarify. }
+      2:{ remember false in SIM at 1. remember false in SIM at 1.
+        clear Heqb. revert Heqb0. revert_until SIM.
+        match goal with
+        | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as itr_tgt0
+        end.
+        depgen r_tgt.
+        induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+        2:{ guclo Beh.of_state_indC_spec. econs. eauto. }
+        2:{ des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        2:{ rewrite bind_trigger in Heqitr_tgt0. clarify. }
+        2:{ des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        2:{ rewrite bind_trigger in Heqitr_tgt0. clarify. }
+        2:{ gstep. rewrite bind_trigger. econs. }
+        { admit. }
+      }
+      2:{ gstep. rewrite bind_trigger. econs. }
+      { admit. }
     }
 
     { punfold REL. inv REL. gstep. econs 2. eapply adequacy_spin; eauto. }
