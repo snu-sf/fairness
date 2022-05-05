@@ -25,7 +25,7 @@ Set Implicit Arguments.
 Section YIELD.
   Context {Tid: ID}.
   (* Context `{Dec Tid}. *)
-  Hypothesis Tid_eq_dec: forall t1 t2: Tid.(id), {t1 = t2} + {t1 <> t2}.
+  Hypothesis Tid_eq_dec: forall t1 t2: id, {t1 = t2} + {t1 <> t2}.
 
   Variable State: Type.
 
@@ -36,13 +36,13 @@ Section YIELD.
   Definition Es := cE+'eventE.
 
   Definition thread {R} := stateT State (itree Es) R.
-  Definition threads {R} := Tid.(id) -> @thread R.
+  Definition threads {R} := id -> @thread R.
 
-  Definition update_threads {R} (tid: Tid.(id)) (k: thread) (ts: threads) : @threads R :=
+  Definition update_threads {R} (tid: id) (k: thread) (ts: threads) : @threads R :=
     fun t => if (Tid_eq_dec tid t) then k else (ts t).
 
   Definition interp_yield {R}:
-    ((@threads R) * ((Tid.(id) * itree Es (State * R)) + State)) -> itree eventE void.
+    ((@threads R) * ((id * itree Es (State * R)) + State)) -> itree eventE void.
   Proof.
     eapply ITree.iter. intros [threads [[tid itr]|]].
     - destruct (observe itr).
@@ -51,7 +51,7 @@ Section YIELD.
       + destruct e.
         * destruct c. exact (Ret (inl (update_threads tid k threads, inr st))).
         * exact (Vis e (fun x => Ret (inl (threads, inl (tid, k x))))).
-    - exact (Vis (Choose Tid.(id)) (fun tid => Ret (inl (threads, inl (tid, (threads tid s)))))).
+    - exact (Vis (Choose id) (fun tid => Ret (inl (threads, inl (tid, (threads tid s)))))).
   Defined.
 
   (* Definition interp_yield {R}: *)
@@ -137,7 +137,7 @@ Section YIELD.
     :
     interp_yield (threads, inr st)
     =
-      Vis (Choose Tid.(id)) (fun tid => tau;; interp_yield (threads, inl (tid, (threads tid st)))).
+      Vis (Choose id) (fun tid => tau;; interp_yield (threads, inl (tid, (threads tid st)))).
   (* Vis (Choose _ Tid) (fun tid => *)
   (*                     '(itr, threads) <- unwrapN (alist_pop tid threads);; *)
   (*                     tau;; interp_yield (threads, inl (tid, itr st))). *)
@@ -153,7 +153,7 @@ Section YIELD.
     :
     interp_yield (threads, inr st)
     =
-      tid <- trigger (Choose Tid.(id));;
+      tid <- trigger (Choose id);;
       tau;; interp_yield (threads, inl (tid, threads tid st)).
   (* '(itr, threads) <- unwrapN (alist_pop tid threads);; *)
   (* tau;; interp_yield (threads, inl (tid, itr st)). *)
