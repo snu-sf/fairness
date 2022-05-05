@@ -422,6 +422,45 @@ Section SIM.
   Lemma sim_indC_spec: sim_indC <10= gupaco9 _sim (cpn9 _sim).
   Proof. i. eapply wrespect9_uclo; eauto with paco. eapply sim_indC_wrepectful. Qed.
 
+
+
+  Variant sim_progress_ctx
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> imap -> bool -> imap -> state -> state -> Prop)
+          R0 R1 (RR: R0 -> R1 -> Prop)
+    :
+    bool -> imap -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop :=
+    | sim_progress_intro
+        msrc mtgt psrc0 psrc1 ptgt0 ptgt1 st_src st_tgt
+        (SIM: @sim _ _ RR psrc1 msrc ptgt1 mtgt st_src st_tgt)
+        (SRC: psrc1 = true -> psrc0 = true)
+        (TGT: ptgt1 = true -> ptgt0 = true)
+      :
+      sim_progress_ctx sim RR psrc0 msrc ptgt0 mtgt st_src st_tgt.
+
+  Lemma sim_progress_ctx_mon: monotone9 sim_progress_ctx.
+  Proof. ii. inv IN. econs; eauto. Qed.
+
+  Hint Resolve sim_progress_ctx_mon: paco.
+
+  Lemma sim_progress_ctx_wrepectful: wrespectful9 _sim sim_progress_ctx.
+  Proof.
+    econs; eauto with paco.
+    i. inv PR. apply GF in SIM. depgen x3. depgen x5. induction SIM using sim_ind; i; eauto.
+    { econs. i. subst. eapply rclo9_clo_base. econs; eauto. }
+    { des. econs. eexists. eapply IH; eauto. }
+    { econs. i. specialize (SIM x). des. eapply IH; eauto. }
+    { econs. des. esplits.
+      2:{ eapply IH; eauto. }
+      eauto.
+    }
+    { econs. i. specialize (SIM m_tgt0). eapply SIM in FAIR. des. eauto. }
+    { clarify. hexploit TGT; clear TGT; auto; i; clarify. hexploit SRC; clear SRC; auto; i; clarify.
+      eapply sim_mon; eauto. i. eapply rclo9_base. auto. }
+  Qed.
+
+  Lemma sim_progress_ctx_spec: sim_progress_ctx <10= gupaco9 _sim (cpn9 _sim).
+  Proof. i. eapply wrespect9_uclo; eauto with paco. eapply sim_progress_ctx_wrepectful. Qed.
+
 End SIM.
 #[export] Hint Constructors _sim.
 #[export] Hint Unfold sim.
@@ -483,17 +522,17 @@ Section EX.
   Proof.
     unfold src1, tgt1.
     unfold imtgt1. remember 100 as t_fuel. clear Heqt_fuel.
-    cut (forall p_src p_tgt,
-            sim RR p_src imsrc1 p_tgt (fun id : id => if ndec 0 id then t_fuel else 0) (Ret 0)
-                (while_itree (fun _ : () => r <- trigger (Fair (fun id : id => if ndec 0 id then Flag.fail else Flag.emp));; Ret (inl r));;
-                 Ret 0)); eauto.
     induction t_fuel; i.
     { ginit. rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i. exfalso.
       unfold fair_update in FAIR. specialize (FAIR 0). des_ifs. lia.
     }
     ginit. rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i.
     guclo sim_indC_spec. econs.
-    guclo sim_imap_ctxR_spec. econs. gfinal. right. eapply IHt_fuel.
+    guclo sim_imap_ctxR_spec. econs.
+    guclo sim_progress_ctx_spec. econs.
+    { gfinal. right. eapply IHt_fuel. }
+    { i; clarify. }
+    { i; clarify. }
     clear - FAIR. ii. unfold fair_update in FAIR. specialize (FAIR i). des_ifs. lia.
   Qed.
 
