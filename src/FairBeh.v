@@ -517,6 +517,8 @@ End Beh.
 #[export] Hint Unfold Beh.of_state.
 #[export] Hint Resolve Beh.of_state_mon: paco.
 
+#[export] Hint Resolve cpn3_wcompat: paco.
+#[export] Hint Resolve cpn4_wcompat: paco.
 
 
 Section AUX.
