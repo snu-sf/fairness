@@ -70,8 +70,8 @@ Section SIM.
     _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Fair f_tgt) >>= ktr_tgt0)
 
   | sim_progress
-      itr_src0 itr_tgt0 m_src0 m_tgt0
-      (SIM: sim _ _ RR false m_src0 false m_tgt0 itr_src0 itr_tgt0)
+      itr_src0 itr_tgt0
+      (SIM: sim _ _ RR false m_src false m_tgt itr_src0 itr_tgt0)
       (PSRC: p_src = true)
       (PTGT: p_tgt = true)
     :
@@ -132,8 +132,8 @@ Section SIM.
                   (<<IH: P p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt)>>)),
             P p_src m_src p_tgt m_tgt itr_src0 (ITree.bind (trigger (Fair f_tgt)) ktr_tgt0))
         (PROGRESS: forall
-            p_src m_src p_tgt m_tgt m_src0 m_tgt0 itr_src0 itr_tgt0
-            (SIM: r _ _ RR false m_src0 false m_tgt0 itr_src0 itr_tgt0)
+            p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
+            (SIM: r _ _ RR false m_src false m_tgt itr_src0 itr_tgt0)
             (PSRC: p_src = true)
             (PTGT: p_tgt = true),
             P p_src m_src p_tgt m_tgt itr_src0 itr_tgt0)
@@ -228,8 +228,8 @@ Section SIM.
                   (<<IH: P p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt)>>)),
             P p_src m_src p_tgt m_tgt itr_src0 (ITree.bind (trigger (Fair f_tgt)) ktr_tgt0))
         (PROGRESS: forall
-            p_src m_src p_tgt m_tgt m_src0 m_tgt0 itr_src0 itr_tgt0
-            (SIM: sim RR false m_src0 false m_tgt0 itr_src0 itr_tgt0)
+            p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
+            (SIM: sim RR false m_src false m_tgt itr_src0 itr_tgt0)
             (PSRC: p_src = true)
             (PTGT: p_tgt = true),
             P p_src m_src p_tgt m_tgt itr_src0 itr_tgt0)
@@ -284,7 +284,7 @@ Section SIM.
       clear - FAIR IMAP. unfold fair_update, soft_update in *. i. specialize (FAIR i). specialize (IMAP i). des_ifs; lia.
     }
     { econs. i. specialize (SIM m_tgt0). eapply SIM in FAIR. des. eauto. }
-    { clarify. eapply sim_mon; eauto. i. eapply rclo9_base. auto. }
+    { clarify. econs; eauto. eapply rclo9_clo_base. econs; eauto. }
   Qed.
 
   Lemma sim_imap_ctxL_spec: sim_imap_ctxL <10= gupaco9 _sim (cpn9 _sim).
@@ -321,7 +321,7 @@ Section SIM.
       2:{ i; des. eapply IH. reflexivity. }
       clear - IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i). des_ifs; lia.
     }
-    { clarify. eapply sim_mon; eauto. i. eapply rclo9_base. auto. }
+    { clarify. econs; eauto. eapply rclo9_clo_base. econs; eauto. }
   Qed.
 
   Lemma sim_imap_ctxR_spec: sim_imap_ctxR <10= gupaco9 _sim (cpn9 _sim).
@@ -381,8 +381,8 @@ Section SIM.
       sim_indC sim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Fair f_tgt) >>= ktr_tgt0)
 
     | sim_indC_progress
-        itr_src0 itr_tgt0 m_src0 m_tgt0
-        (SIM: sim _ _ RR false m_src0 false m_tgt0 itr_src0 itr_tgt0)
+        itr_src0 itr_tgt0
+        (SIM: sim _ _ RR false m_src false m_tgt itr_src0 itr_tgt0)
         (PSRC: p_src = true)
         (PTGT: p_tgt = true)
       :
@@ -535,5 +535,36 @@ Section EX.
     { i; clarify. }
     clear - FAIR. ii. unfold fair_update in FAIR. specialize (FAIR i). des_ifs. lia.
   Qed.
+
+
+  (** counterexample for progress resetting fair index **)
+
+  (* Definition src2: @state _ nat := *)
+  (*   while_itree (fun u => r <- trigger (Fair (fun id => (if ndec 0 id then Flag.fail else Flag.emp)));; Ret (inl r));; Ret 0. *)
+  (* Definition tgt2: @state _ nat := *)
+  (*   while_itree (fun u => r <- trigger (Fair (fun id => (if ndec 0 id then Flag.success else Flag.emp)));; Ret (inl r));; Ret 0. *)
+
+  (* Definition imsrc2: imap := fun id => (if ndec 0 id then 100 else 0). *)
+  (* Definition imtgt2: imap := fun id => (if ndec 0 id then 100 else 0). *)
+
+  (* Ltac rewrite2 H := *)
+  (*   match goal with *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?a _ => set (temp:=a); rewrite H; subst temp *)
+  (*   end. *)
+
+  (* Goal sim RR false imsrc2 false imtgt2 src2 tgt2. *)
+  (* Proof. *)
+  (*   unfold src2, tgt2. unfold imsrc2, imtgt2. *)
+  (*   ginit. gcofix CIH. *)
+  (*   rewrite unfold_while_itree. rewrite2 unfold_while_itree. *)
+  (*   rewrite bind_bind. rewrite2 bind_bind. *)
+  (*   guclo sim_indC_spec. econs 7. esplits. *)
+  (*   2:{ guclo sim_indC_spec. econs 8. i. rewrite bind_tau. rewrite2 bind_tau. *)
+  (*       guclo sim_indC_spec. econs 3. guclo sim_indC_spec. econs 4. *)
+  (*       gstep. econs 9; eauto. gfinal. left. eauto. *)
+  (*   } *)
+  (*   instantiate (1:= fun id => if ndec 0 id then 0 else 0). clear. *)
+  (*   ii. des_ifs. lia. *)
+  (* Qed. *)
 
 End EX.

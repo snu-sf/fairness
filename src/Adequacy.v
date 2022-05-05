@@ -48,7 +48,8 @@ Section ADEQ.
     { punfold SPIN. rewrite bind_trigger in SPIN. inv SPIN. eapply inj_pair2 in H2. clarify.
       pclearbot. eapply SIM; eauto.
     }
-    { remember false in SIM at 1. remember false in SIM at 1.
+    { (*TODO*)
+      remember false in SIM at 1. remember false in SIM at 1.
       revert Heqb. clear Heqb0. revert SPIN. revert m_src m_tgt.
       induction SIM using @sim_ind2; i; clarify.
       { exfalso. punfold SPIN. inv SPIN. }
