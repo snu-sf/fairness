@@ -16,8 +16,6 @@ Set Implicit Arguments.
 
 Section ADEQ.
 
-  Ltac pc H := rr in H; desH H; ss.
-
   Context {Ident: ID}.
 
   Lemma adequacy_spin
@@ -77,20 +75,154 @@ Section ADEQ.
   Proof.
     ginit. revert_until RR. gcofix CIH.
     i. revert tr0 REL psrc0 ptgt0 msrc0 ssrc0 SIM.
-    induction PR using @of_state_ind2; ii; ss.
+    induction PR using @of_state_ind2; ii.
     { punfold REL. inv REL. rename r0 into r_src, retv into r_tgt.
       revert r_src REL0.
       admit.
       (* induction SIM using @sim_ind2; i; ss; clarify. *)
       (* { guclo Beh.of_state_indC_spec. econs 1. *)
     }
+
     { punfold REL. inv REL. gstep. econs 2. eapply adequacy_spin; eauto. }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
-    { admit. }
+    { punfold REL. inv REL. gstep. econs 3. }
+    { punfold REL. inv REL. pclearbot. depgen t0. depgen rv. depgen tl.
+      match goal with
+      | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
+      end.
+      revert fn args ktr Heqstgt0. rename imap0 into mtgt0.
+      induction SIM using @sim_ind2; ii; ss; clarify.
+      { eapply inj_pair2 in H0. clarify. gstep. econs. gfinal. left; eapply CIH; eauto. }
+      { guclo Beh.of_state_indC_spec. econs 5. eapply IHSIM; eauto. }
+      { des. guclo Beh.of_state_indC_spec. rewrite bind_trigger. econs 6; eauto. }
+      { rewrite bind_trigger in Heqstgt0. inv Heqstgt0. }
+      { des. guclo Beh.of_state_indC_spec. rewrite bind_trigger. econs 7; eauto. }
+      { rewrite bind_trigger in Heqstgt0. inv Heqstgt0. }
+      { remember false in SIM at 1. remember false in SIM at 1.
+        clear Heqb. revert Heqb0. revert_until SIM.
+        match goal with
+        | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as itr_tgt0
+        end.
+        revert fn args ktr Heqitr_tgt0.
+        induction SIM using @sim_ind2; ii; ss; clarify.
+        { eapply inj_pair2 in H0. clarify. gstep. econs. gfinal. left; eapply CIH; eauto. }
+        { guclo Beh.of_state_indC_spec. econs 5. eapply IHSIM; eauto. }
+        { des. guclo Beh.of_state_indC_spec. rewrite bind_trigger. econs 6; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. inv Heqitr_tgt0. }
+        { des. guclo Beh.of_state_indC_spec. rewrite bind_trigger. econs 7; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. inv Heqitr_tgt0. }
+        { rewrite bind_trigger. gstep. econs 8. }
+      }
+      { rewrite bind_trigger. gstep. econs 8. }
+    }
+
+    { rename imap0 into mtgt0.
+      match goal with
+      | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
+      end.
+      depgen itr. revert tr tr0 REL. induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+      { guclo Beh.of_state_indC_spec. econs; eauto. }
+      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { rewrite bind_trigger in Heqstgt0. clarify. }
+      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { rewrite bind_trigger in Heqstgt0. clarify. }
+      { remember false in SIM at 1. remember false in SIM at 1.
+        clear Heqb. revert Heqb0.
+        match goal with
+        | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as itr_tgt0
+        end.
+        depgen itr. revert tr tr0 REL. induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+        { guclo Beh.of_state_indC_spec. econs; eauto. }
+        { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. clarify. }
+        { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. clarify. }
+      }
+    }
+
+    { rename imap0 into mtgt0.
+      match goal with
+      | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
+      end.
+      depgen ktr. revert tr tr0 REL. revert X x.
+      induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+      { guclo Beh.of_state_indC_spec. econs; eauto. }
+      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { rewrite bind_trigger in Heqstgt0. clarify. eapply inj_pair2 in H0. clarify.
+        specialize (SIM x). des. clear IH. eauto. }
+      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { rewrite bind_trigger in Heqstgt0. clarify. }
+      { remember false in SIM at 1. remember false in SIM at 1.
+        clear Heqb. revert Heqb0.
+        match goal with
+        | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as itr_tgt0
+        end.
+        depgen ktr. revert tr tr0 REL. revert X x.
+        induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+        { guclo Beh.of_state_indC_spec. econs; eauto. }
+        { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. clarify. eapply inj_pair2 in H0. clarify.
+          specialize (SIM x). des. clear IH. eauto. }
+        { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. clarify. }
+      }
+    }
+
+    { rename imap0 into mtgt0.
+      match goal with
+      | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
+      end.
+      depgen ktr. revert tr tr0 REL. revert fmap imap1 FAIR.
+      induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+      { guclo Beh.of_state_indC_spec. econs; eauto. }
+      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { rewrite bind_trigger in Heqstgt0. clarify. }
+      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { rewrite bind_trigger in Heqstgt0. clarify. eapply inj_pair2 in H0. clarify.
+        specialize (SIM imap1 FAIR). des. clear IH. eauto. }
+      { remember false in SIM at 1. remember false in SIM at 1.
+        clear Heqb. revert Heqb0.
+        match goal with
+        | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as itr_tgt0
+        end.
+        depgen ktr. revert tr tr0 REL. revert fmap imap1 FAIR.
+        induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+        { guclo Beh.of_state_indC_spec. econs; eauto. }
+        { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. clarify. }
+        { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. clarify. eapply inj_pair2 in H0. clarify.
+          specialize (SIM imap1 FAIR). des. clear IH. eauto. }
+      }
+    }
+
+    { rename imap0 into mtgt0.
+      match goal with
+      | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
+      end.
+      depgen ktr. revert tr tr0 REL.
+      induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+      { guclo Beh.of_state_indC_spec. econs; eauto. }
+      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { rewrite bind_trigger in Heqstgt0. clarify. }
+      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { rewrite bind_trigger in Heqstgt0. inv Heqstgt0. }
+      { remember false in SIM at 1. remember false in SIM at 1.
+        clear Heqb. revert Heqb0.
+        match goal with
+        | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as itr_tgt0
+        end.
+        depgen ktr. revert tr tr0 REL.
+        induction SIM using @sim_ind2; ii; ss; clarify; eauto.
+        { guclo Beh.of_state_indC_spec. econs; eauto. }
+        { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. clarify. }
+        { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+        { rewrite bind_trigger in Heqitr_tgt0. inv Heqitr_tgt0. }
+        { gstep. rewrite bind_trigger. econs. }
+      }
+      gstep. rewrite bind_trigger. econs.
+    }
+    Unshelve. all: exact true.
 
   Admitted.
 
