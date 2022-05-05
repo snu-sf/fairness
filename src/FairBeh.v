@@ -196,6 +196,10 @@ Section BEHAVES.
         (FAIR: fair_update idx0 idx1 fmap)
       :
       _diverge_index diverge_index idx0 (Vis (Fair fmap) ktr)
+    | diverge_index_ub
+        ktr idx0
+      :
+      _diverge_index diverge_index idx0 (Vis Undefined ktr)
   .
 
   Lemma diverge_index_mon: monotone3 _diverge_index.
@@ -204,6 +208,7 @@ Section BEHAVES.
     - econs 1; eauto.
     - econs 2; eauto.
     - econs 3; eauto.
+    - econs 4; eauto.
   Qed.
 
   Definition diverge_index: forall (R: Type) (idx: imap) (itr: state), Prop := paco3 _diverge_index bot3.

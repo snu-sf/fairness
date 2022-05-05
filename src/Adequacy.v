@@ -63,22 +63,35 @@ Section ADEQ.
       { rewrite bind_trigger in SPIN. punfold SPIN. inv SPIN. eapply inj_pair2 in H2. clarify.
         pclearbot. eapply SIM; eauto.
       }
-      { admit. }
+      { rewrite bind_trigger. gstep. econs. }
     }
-    { admit. }
-  Admitted.
+    { rewrite bind_trigger. gstep. econs. }
+  Qed.
 
   Theorem adequacy
-          R (RR: R -> R -> Prop)
+          R0 R1 (RR: R0 -> R1 -> Prop)
           psrc0 ptgt0 msrc0 mtgt0 ssrc0 stgt0
           (SIM: sim RR psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
     :
-    <<IMPR: Beh.improves (Beh.of_state msrc0 ssrc0) (Beh.of_state mtgt0 stgt0)>>.
+    <<IMPR: Beh.improves RR (Beh.of_state msrc0 ssrc0) (Beh.of_state mtgt0 stgt0)>>.
   Proof.
     ginit. revert_until RR. gcofix CIH.
-    i. rename x4 into tr. revert psrc0 ptgt0 msrc0 ssrc0 SIM.
+    i. revert tr0 REL psrc0 ptgt0 msrc0 ssrc0 SIM.
     induction PR using @of_state_ind2; ii; ss.
-    { induction SIM using @sim_ind2; i; ss; clarify.
-      { guclo Beh.of_state_indC_spec. econs 1.
+    { punfold REL. inv REL. rename r0 into r_src, retv into r_tgt.
+      revert r_src REL0.
+      admit.
+      (* induction SIM using @sim_ind2; i; ss; clarify. *)
+      (* { guclo Beh.of_state_indC_spec. econs 1. *)
+    }
+    { punfold REL. inv REL. gstep. econs 2. eapply adequacy_spin; eauto. }
+    { admit. }
+    { admit. }
+    { admit. }
+    { admit. }
+    { admit. }
+    { admit. }
+
+  Admitted.
 
 End ADEQ.
