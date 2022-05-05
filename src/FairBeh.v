@@ -46,7 +46,50 @@ Module Tr.
     exists tl, <<PRE: app pre tl = bh>>
   .
 
+  Variant _rel
+          (rel: forall R0 R1 (RR: R0 -> R1 -> Prop), (@t R0) -> (@t R1) -> Prop)
+          {R0 R1} (RR: R0 -> R1 -> Prop)
+    :
+    (@t R0) -> (@t R1) -> Prop :=
+    | rel_done
+        r0 r1
+        (REL: RR r0 r1)
+      :
+      _rel rel RR (done r0) (done r1)
+    | rel_spin
+      :
+      _rel rel RR spin spin
+    | rel_ub
+      :
+      _rel rel RR ub ub
+    | rel_nb
+      :
+      _rel rel RR nb nb
+    | rel_cons
+        h t0 t1
+        (REL: rel _ _ RR t0 t1)
+      :
+      _rel rel RR (cons h t0) (cons h t1)
+  .
+
+  Definition rel: forall R0 R1 (RR:R0 -> R1 -> Prop), (@t R0) -> (@t R1) -> Prop := paco5 _rel bot5.
+
+  Lemma rel_mon: monotone5 _rel.
+  Proof.
+    ii. inv IN; eauto.
+    { econs; eauto. }
+    { econs; eauto. }
+    { econs; eauto. }
+    { econs; eauto. }
+    { econs; eauto. }
+  Qed.
+
 End Tr.
+#[export] Hint Constructors Tr._rel.
+#[export] Hint Unfold Tr.rel.
+#[export] Hint Resolve Tr.rel_mon: paco.
+#[export] Hint Resolve cpn5_wcompat: paco.
+
 
 
 Module Flag.
@@ -125,7 +168,8 @@ End STS.
 Module Beh.
 
 Definition t {R}: Type := @Tr.t R -> Prop.
-Definition improves {R} (src tgt: @t R): Prop := tgt <1= src.
+Definition improves {R0 R1} (RR: R0 -> R1 -> Prop) (src: @t R0) (tgt: @t R1): Prop :=
+  forall tr0 tr1 (REL: Tr.rel RR tr0 tr1) (PR: tgt tr1), src tr0.
 
 Section BEHAVES.
 

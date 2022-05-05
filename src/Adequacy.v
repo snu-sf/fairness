@@ -48,27 +48,37 @@ Section ADEQ.
     { punfold SPIN. rewrite bind_trigger in SPIN. inv SPIN. eapply inj_pair2 in H2. clarify.
       pclearbot. eapply SIM; eauto.
     }
-    { (*TODO*)
-      remember false in SIM at 1. remember false in SIM at 1.
-      revert Heqb. clear Heqb0. revert SPIN. revert m_src m_tgt.
+    { remember false in SIM at 1. remember false in SIM at 1.
+      revert Heqb. clear Heqb0. revert SPIN.
       induction SIM using @sim_ind2; i; clarify.
       { exfalso. punfold SPIN. inv SPIN. }
       { exfalso. punfold SPIN. inv SPIN. }
-      { clear IHSIM. gstep. econs. gbase. eapply CIH. 2: eauto.
+      { clear IHSIM. gstep. econs. gbase. eapply CIH; eauto. }
+      { punfold SPIN. inv SPIN. pclearbot; eauto. }
+      { des. clear IH. gstep. rewrite bind_trigger. econs. gbase. eapply CIH; eauto. }
+      { rewrite bind_trigger in SPIN. punfold SPIN. inv SPIN. eapply inj_pair2 in H3. clarify.
+        pclearbot. eapply SIM; eauto.
+      }
+      { des. clear IH. gstep. rewrite bind_trigger. econs. gbase. eapply CIH; eauto. auto. }
+      { rewrite bind_trigger in SPIN. punfold SPIN. inv SPIN. eapply inj_pair2 in H2. clarify.
+        pclearbot. eapply SIM; eauto.
+      }
+      { admit. }
+    }
+    { admit. }
+  Admitted.
 
-        eapply gpaco3_mon. eapply IHSIM; eauto. i. inv PR. auto. }
-      { punfold SPIN. inv SPIN. pclearbot. 
-      6:{ 
-
-        gbase. eapply CIH. 
-
-        eapply CIH. eapply SIM. eapply gpaco3_mon. eapply IHSIM; eauto. i. inv PR. auto. }
-      6:{ gfinal.
-
-        gfinal. left. eapply CIH; eauto.
-
-        exfalso. punfold SPIN. inv SPIN. }
-
-      eapply gpaco3_mon; eauto.
+  Theorem adequacy
+          R (RR: R -> R -> Prop)
+          psrc0 ptgt0 msrc0 mtgt0 ssrc0 stgt0
+          (SIM: sim RR psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
+    :
+    <<IMPR: Beh.improves (Beh.of_state msrc0 ssrc0) (Beh.of_state mtgt0 stgt0)>>.
+  Proof.
+    ginit. revert_until RR. gcofix CIH.
+    i. rename x4 into tr. revert psrc0 ptgt0 msrc0 ssrc0 SIM.
+    induction PR using @of_state_ind2; ii; ss.
+    { induction SIM using @sim_ind2; i; ss; clarify.
+      { guclo Beh.of_state_indC_spec. econs 1.
 
 End ADEQ.
