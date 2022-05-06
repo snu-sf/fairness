@@ -85,9 +85,9 @@ Qed.
 Ltac f_equiv := first [eapply eutt_eq_bind|eapply eqit_VisF|Morphisms.f_equiv].
 (* eapply eqit_bind'| *)
 
-Hint Rewrite @bind_trigger : itree.
-Hint Rewrite @tau_eutt : itree.
-Hint Rewrite @bind_tau : itree.
+#[export] Hint Rewrite @bind_trigger : itree.
+#[export] Hint Rewrite @tau_eutt : itree.
+#[export] Hint Rewrite @bind_tau : itree.
 
 (* Tactic Notation "irw" "in" ident(H) := repeat (autorewrite with itree in H; cbn in H). *)
 (* Tactic Notation "irw" := repeat (autorewrite with itree; cbn). *)
@@ -180,13 +180,13 @@ Lemma interp_mrec_bind:
 Proof. ii. f. eapply interp_mrec_bind. Qed.
 
 
-Hint Rewrite unfold_interp_mrec : itree_axiom.
-Hint Rewrite bind_ret_l : itree_axiom.
-Hint Rewrite bind_ret_r : itree_axiom.
-Hint Rewrite bind_tau : itree_axiom.
-Hint Rewrite bind_vis : itree_axiom.
-Hint Rewrite bind_trigger : itree_axiom.
-Hint Rewrite bind_bind : itree_axiom.
+#[export] Hint Rewrite unfold_interp_mrec : itree_axiom.
+#[export] Hint Rewrite bind_ret_l : itree_axiom.
+#[export] Hint Rewrite bind_ret_r : itree_axiom.
+#[export] Hint Rewrite bind_tau : itree_axiom.
+#[export] Hint Rewrite bind_vis : itree_axiom.
+#[export] Hint Rewrite bind_trigger : itree_axiom.
+#[export] Hint Rewrite bind_bind : itree_axiom.
 Tactic Notation "irw" "in" ident(H) := repeat (autorewrite with itree_axiom in H; cbn in H).
 Tactic Notation "irw" := repeat (autorewrite with itree_axiom; cbn).
 
