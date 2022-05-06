@@ -1,4 +1,4 @@
-COQMODULE    := Ordinal
+COQMODULE    := Fairness
 COQTHEORIES  := \
 	src/*.v \
 

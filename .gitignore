@@ -10,6 +10,7 @@ Makefile.coq.conf
 .*.aux
 *.vok
 *.vos
+*.v~
 
 .lia.cache
 .nia.cache
