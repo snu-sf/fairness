@@ -16,10 +16,10 @@ Section FAIR.
   Context {Ident: ID}.
 
   Variant fairE: Type :=
-    | ev_fair (m: id -> Flag.t)
+    | fairE_fair (m: id -> Flag.t)
   .
 
-  Definition fairO := (fairE + obs)%type.
+  Definition fairO := (fairE + obsE)%type.
 
 End FAIR.
 
@@ -53,17 +53,127 @@ Section TR.
     exists tl, <<PRE: app pre tl = bh>>
   .
 
+  Variant _nofail_id
+          (nofail_id: forall (R: Type) (i: id), (@t R) -> Prop)
+          (R: Type) (i: id)
+    :
+    (@t R) -> Prop :=
+    | nofail_id_done
+        retv
+      :
+      _nofail_id nofail_id i (done retv)
+    | nofail_id_spin
+      :
+      _nofail_id nofail_id i spin
+    | nofail_id_ub
+      :
+      _nofail_id nofail_id i ub
+    | nofail_id_nb
+      :
+      _nofail_id nofail_id i nb
+    | nofail_id_obs
+        (obs: obsE) tl
+        (TL: nofail_id R i tl)
+      :
+      _nofail_id nofail_id i (cons (inr obs) tl)
+    | nofail_id_fair
+        fmap tl
+        (NOFAIL: Flag.le Flag.emp (fmap i))
+        (TL: nofail_id R i tl)
+      :
+      _nofail_id nofail_id i (cons (inl (fairE_fair fmap)) tl)
+  .
+
+  Definition nofail_id: forall (R: Type) (i: id), (@t R) -> Prop := paco3 _nofail_id bot3.
+
+  Lemma nofail_id_mon: monotone3 _nofail_id.
+  Proof.
+    ii. inv IN; econs; eauto.
+  Qed.
+
+
+  Inductive _fair_id
+            (fair_id: forall (R: Type) (i: id), (@t R) -> Prop)
+            (R: Type) (i: id)
+    :
+    (@t R) -> Prop :=
+  | fair_id_nofail
+      tr
+      (NOFAIL: nofail_id i tr)
+    :
+    _fair_id fair_id i tr
+  | fair_id_no_success
+      fmap tl
+      (NOSUCCESS: Flag.le (fmap i) Flag.emp)
+      (TL: _fair_id fair_id i tl)
+    :
+    _fair_id fair_id i (cons (inl (fairE_fair fmap)) tl)
+  | fair_id_obs
+      (obs: obsE) tl
+      (TL: _fair_id fair_id i tl)
+    :
+    _fair_id fair_id i (cons (inr obs) tl)
+  | fair_id_success
+      fmap tl
+      (SUCCESS: Flag.le Flag.success (fmap i))
+      (TL: fair_id R i tl)
+    :
+    _fair_id fair_id i (cons (inl (fairE_fair fmap)) tl)
+  .
+
+  Definition fair_id: forall (R: Type) (i: id), (@t R) -> Prop := paco3 _fair_id bot3.
+
+  Lemma fair_id_ind
+        (r: forall (R: Type) (i: id), t -> Prop) R i (P: t -> Prop)
+        (NOFAIL: forall tr (NOFAIL: nofail_id i tr), P tr)
+        (NOSUCCESS: forall fmap tl
+                      (NOSUCCESS: Flag.le (fmap i) Flag.emp)
+                      (FAIRID: _fair_id r i tl)
+                      (IH: P tl),
+            P (cons (inl (fairE_fair fmap)) tl))
+        (OBS: forall obs tl
+                (FAIRID: _fair_id r i tl)
+                (IH: P tl),
+            P (cons (inr obs) tl))
+        (SUCCESS: forall fmap tl
+                    (SUCCESS: Flag.le Flag.success (fmap i))
+                    (FAIRID: r R i tl),
+            P (cons (inl (fairE_fair fmap)) tl))
+    :
+    forall tr, _fair_id r i tr -> P tr.
+  Proof.
+    fix IH 2. i.
+    inv H; eauto.
+  Qed.
+
+  Lemma fair_id_mon: monotone3 _fair_id.
+  Proof.
+    ii. induction IN using fair_id_ind; eauto.
+    - econs 1. eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+  Qed.
+
 End TR.
 End RawTr.
+#[export] Hint Constructors RawTr._nofail_id.
+#[export] Hint Unfold RawTr.nofail_id.
+#[export] Hint Resolve RawTr.nofail_id_mon: paco.
+#[export] Hint Resolve cpn3_wcompat: paco.
+#[export] Hint Constructors RawTr._fair_id.
+#[export] Hint Unfold RawTr.fair_id.
+#[export] Hint Resolve RawTr.fair_id_mon: paco.
 
-Module Beh.
 
-Definition t {R}: Type := @Tr.t R -> Prop.
-Definition improves {R} (src tgt: @t R): Prop := tgt <1= src.
 
+Module RawBeh.
 Section BEHAVES.
 
   Context {Ident: ID}.
+
+  Definition t {R}: Type := @RawTr.t _ R -> Prop.
+  Definition improves {R} (src tgt: @t R): Prop := tgt <1= src.
 
   Variant _diverge_index
           (diverge_index: forall (R: Type) (idx: imap) (itr: @state _ R), Prop)
@@ -446,8 +556,7 @@ Section BEHAVES.
   Qed.
 
 End BEHAVES.
-
-End Beh.
+End RawBeh.
 #[export] Hint Unfold Beh.improves.
 #[export] Hint Constructors Beh._diverge_index.
 #[export] Hint Unfold Beh.diverge_index.

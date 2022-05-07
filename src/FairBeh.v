@@ -12,8 +12,8 @@ Set Implicit Arguments.
 
 Section OBS.
 
-  Variant obs: Type :=
-    | obs_syscall (fn: nat) (args: list nat) (retv: nat)
+  Variant obsE: Type :=
+    | obsE_syscall (fn: nat) (args: list nat) (retv: nat)
   .
 
 End OBS.
@@ -24,11 +24,11 @@ Module Tr.
   | spin
   | ub
   | nb
-  | cons (hd: obs) (tl: t)
+  | cons (hd: obsE) (tl: t)
   .
   Infix "##" := cons (at level 60, right associativity).
 
-  Fixpoint app {R} (pre: list obs) (bh: @t R): t :=
+  Fixpoint app {R} (pre: list obsE) (bh: @t R): t :=
     match pre with
     | [] => bh
     | hd :: tl => cons hd (app tl bh)
@@ -42,7 +42,7 @@ Module Tr.
   .
   Proof. reflexivity. Qed.
 
-  Definition prefix {R} (pre: list obs) (bh: @t R): Prop :=
+  Definition prefix {R} (pre: list obsE) (bh: @t R): Prop :=
     exists tl, <<PRE: app pre tl = bh>>
   .
 
@@ -202,7 +202,7 @@ Section BEHAVES.
       imap0 fn args rv ktr tl
       (TL: of_state _ imap0 (ktr rv) tl)
     :
-    _of_state of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)
+    _of_state of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)
 
   | tau
       imap0 itr tr
@@ -237,7 +237,7 @@ Section BEHAVES.
       (forall imap0 fn args rv ktr tl
          (TL: r _ imap0 (ktr rv) tl)
         ,
-          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
+          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)) ->
       (forall imap0 itr tr
          (STEP: _of_state r imap0 itr tr)
          (IH: P imap0 itr tr)
@@ -377,7 +377,7 @@ Section BEHAVES.
       imap0 fn args rv ktr tl
       (TL: of_state _ imap0 (ktr rv) tl)
     :
-    of_state_indC of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)
+    of_state_indC of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)
 
   | of_state_indC_tau
       imap0 itr tr
@@ -539,7 +539,7 @@ Section AUX.
       (forall imap0 fn args rv ktr tl
          (TL: Beh.of_state imap0 (ktr rv) tl)
         ,
-          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
+          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)) ->
       (forall imap0 itr tr
          (STEP: Beh.of_state imap0 itr tr)
          (IH: P imap0 itr tr)
