@@ -155,6 +155,8 @@ Section TR.
     - econs 4; eauto.
   Qed.
 
+  Definition is_fair {R} (tr: @t R) := forall i, fair_id i tr.
+
 End TR.
 End RawTr.
 #[export] Hint Constructors RawTr._nofail_id.
