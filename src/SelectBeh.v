@@ -314,6 +314,9 @@ Section BEHAVES.
   Hint Resolve of_state_mon: paco.
   Hint Resolve cpn3_wcompat: paco.
 
+  Definition of_state_fair {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
+    (<<BEH: of_state st raw_tr>>) /\ (<<FAIR: RawTr.is_fair raw_tr>>).
+
   (****************************************************)
   (*********************** upto ***********************)
   (****************************************************)
