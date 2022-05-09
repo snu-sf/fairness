@@ -471,7 +471,7 @@ End SIM.
 
 Section EX.
 
-  Instance Ident : ID := mk nat.
+  Instance Ident : ID := mk_id nat.
 
   (* Definition uunit := prod unit unit. *)
 

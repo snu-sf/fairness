@@ -79,7 +79,8 @@ Module Flag.
 End Flag.
 
 
-Class ID : Type := mk { id: Type }.
+Class ID : Type := mk_id { id: Type }.
+Class WFO : Type := mk_wfo { ord: Type; lt: (ord -> ord -> Prop); wf: well_founded lt }.
 
 Section EVENT.
 
@@ -116,7 +117,7 @@ Section STS.
 
   Definition fair_update (m0 m1: imap) (f: id -> Flag.t): Prop :=
     forall i, match f i with
-         | Flag.fail => lt (m1 i) (m0 i)
+         | Flag.fail => Peano.lt (m1 i) (m0 i)
          | Flag.emp => le (m1 i) (m0 i)
          | Flag.success => True
          end.
