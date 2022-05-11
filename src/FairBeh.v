@@ -80,7 +80,30 @@ End Flag.
 
 
 Class ID : Type := mk_id { id: Type }.
-Class WFO : Type := mk_wfo { ord: Type; lt: (ord -> ord -> Prop); wf: well_founded lt }.
+Class WFO : Type :=
+  mk_wfo {
+      ord: Type;
+      lt: (ord -> ord -> Prop);
+      wf: well_founded lt;
+      le: (ord -> ord -> Prop) := fun o1 o2 => (eq o1 o2) \/ (lt o1 o2);
+    }.
+
+Global Program Instance WFO_lt_Transitive {wfo: WFO}: Transitive (@lt wfo).
+Next Obligation.
+  assert (WF: well_founded lt).
+  { destruct wfo. ss. }
+  depgen z. depgen x. induction (WF y); i.
+  eapply H0.
+
+Global Program Instance WFO_le_PreOrder {wfo: WFO}: PreOrder (@le wfo).
+Next Obligation.
+  ii. rr. left; auto.
+Qed.
+Next Obligation.
+  ii. unfold le in *. des; clarify; auto. unfold soft_update in *. specialize (H i). specialize (H0 i). lia.
+Qed.
+
+
 
 Section EVENT.
 
@@ -100,9 +123,10 @@ End EVENT.
 Section STS.
 
   Context {Ident: ID}.
+  Context {WFOrder: WFO}.
 
   Definition state {R} := itree eventE R.
-  Definition imap := id -> nat.
+  Definition imap := id -> ord.
 
   Definition soft_update (m0 m1: imap): Prop :=
     forall i, le (m1 i) (m0 i).
