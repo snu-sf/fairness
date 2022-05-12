@@ -127,6 +127,31 @@ Section ExtractTr.
   Qed.
 
   Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
+    epsilon _ (@inhabited_tr R) (fun tr => forall r (CIH: @r R raw tr), _match_tr (R:=R) (upaco3 _match_tr r) raw tr).
+
+  Lemma raw2tr_match
+        R (raw: @RawTr.t _ R)
+    :
+    match_tr raw (raw2tr raw).
+  Proof.
+    revert_until R. pcofix CIH; i. destruct raw.
+    { unfold raw2tr, epsilon. pfold. clear CIH. revert r.
+      eapply Epsilon.epsilon_spec.
+
+      depgen r.
+      pose Epsilon.epsilon_spec. eapply p.
+
+      
+      eapply (@Epsilon.epsilon_spec _ _ (fun tr : Tr.t => exists r0 : forall R0 : Type, RawTr.t -> Tr.t -> Prop, _match_tr r0 (RawTr.done retv) tr) _).
+
+                                     .
+
+
+
+
+
+
+  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
     epsilon _ (@inhabited_tr R) (match_tr raw).
 
   Definition st2raw {R} (st: state): (RawTr.t (R:=R)) :=
