@@ -126,25 +126,119 @@ Section ExtractTr.
     econs. exact RawTr.ub.
   Qed.
 
+  Lemma match_eq_done
+        R (tr: @Tr.t R) retv
+        (MATCH: match_tr (RawTr.done retv) tr)
+    :
+    tr = Tr.done retv.
+  Proof.
+    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+  Qed.
+
+  Lemma match_eq_ub
+        R (tr: @Tr.t R)
+        (MATCH: match_tr RawTr.ub tr)
+    :
+    tr = Tr.ub.
+  Proof.
+    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+  Qed.
+
+  Lemma match_eq_nb
+        R (tr: @Tr.t R)
+        (MATCH: match_tr RawTr.nb tr)
+    :
+    tr = Tr.nb.
+  Proof.
+    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+  Qed.
+
+  Lemma match_eq_obs
+        R (tr: @Tr.t R) raw tl
+        obs
+        (MATCH0: match_tr raw tl)
+        (MATCH: match_tr (RawTr.cons (inr obs) raw) tr)
+    :
+    tr = Tr.cons obs tl.
+  Proof.
+    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+    f_equal. pclearbot.
+  Qed.
+
+  (* Lemma match_tr_cih *)
+  (*       R (r: forall R, RawTr.t -> Tr.t -> Prop) *)
+  (*       raw tr *)
+  (*       (CIH: @r R raw tr) *)
+  (*       (MATCH: _match_tr (R:=R) (upaco3 _match_tr r) raw tr) *)
+  (*   : *)
+  (*   Prop. *)
+
+  (* CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) := *)
+  (*   epsilon _ (@inhabited_tr R) *)
+  (*           (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop) (CIH: forall raw0, @r R raw0 (raw2tr raw0)), *)
+  (*                _match_tr (R:=R) (upaco3 _match_tr r) raw tr). *)
+
   Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
-    epsilon _ (@inhabited_tr R) (fun tr => forall r (CIH: @r R raw tr), _match_tr (R:=R) (upaco3 _match_tr r) raw tr).
+    epsilon _ (@inhabited_tr R)
+            (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop)
+                      (CIH: forall raw0 tr0 (MATCH: match_tr (R:=R) raw0 tr0), @r R raw tr),
+                 _match_tr (R:=R) (upaco3 _match_tr r) raw tr).
+
+  Lemma match_tr_is_raw2tr
+        R raw tr
+        (MATCH: match_tr (R:=R) raw tr)
+    :
+    tr = raw2tr raw.
+  Proof.
+    punfold MATCH. inv MATCH.
+    { symmetry. eapply match_eq_done.
+      admit.
+    }
+    4:{ 
+
+      
+    5:{ 
+    2:{ 
+
+  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
+    epsilon _ (@inhabited_tr R)
+            (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop) (CIH: @r R raw tr),
+                 _match_tr (R:=R) (upaco3 _match_tr r) raw tr).
 
   Lemma raw2tr_match
         R (raw: @RawTr.t _ R)
     :
     match_tr raw (raw2tr raw).
   Proof.
+    remember (raw2tr raw) as tr.
     revert_until R. pcofix CIH; i. destruct raw.
-    { unfold raw2tr, epsilon. pfold. clear CIH. revert r.
+    { hexploit CIH. eapply Heqtr. intro CIH2.
+      clear CIH. rewrite Heqtr. rewrite Heqtr in CIH2. clear Heqtr.
+      depgen r. unfold raw2tr, epsilon. pfold.
       eapply Epsilon.epsilon_spec.
+      exists (Tr.done retv). i. econs 1.
+    }
+    { hexploit CIH. eapply Heqtr. intro CIH2.
+      clear CIH. rewrite Heqtr. rewrite Heqtr in CIH2. clear Heqtr.
+      depgen r. unfold raw2tr, epsilon. pfold.
+      eapply Epsilon.epsilon_spec.
+      exists (Tr.ub). i. econs 3.
+    }
+    { hexploit CIH. eapply Heqtr. intro CIH2.
+      clear CIH. rewrite Heqtr. rewrite Heqtr in CIH2. clear Heqtr.
+      depgen r. unfold raw2tr, epsilon. pfold.
+      eapply Epsilon.epsilon_spec.
+      exists (Tr.nb). i. econs 4.
+    }
 
-      depgen r.
-      pose Epsilon.epsilon_spec. eapply p.
-
-      
-      eapply (@Epsilon.epsilon_spec _ _ (fun tr : Tr.t => exists r0 : forall R0 : Type, RawTr.t -> Tr.t -> Prop, _match_tr r0 (RawTr.done retv) tr) _).
-
-                                     .
+    { destruct hd as [silent | obs].
+      2:{ hexploit CIH. eapply Heqtr. intro CIH2.
+          clear CIH. rewrite Heqtr. rewrite Heqtr in CIH2. clear Heqtr.
+          depgen r. unfold raw2tr, epsilon. pfold.
+          eapply Epsilon.epsilon_spec.
+          exists (Tr.cons obs (raw2tr raw)). i. econs 5.
+          right.
+      }
 
 
 
