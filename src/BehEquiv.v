@@ -17,6 +17,7 @@ Section MatchTr.
 
   Context {Ident: ID}.
 
+  (** match between raw_tr and tr *)
   Variant _raw_spin
           (raw_spin: forall (R: Type), RawTr.t -> Prop)
           R
@@ -99,11 +100,6 @@ Section MatchTr.
     ii. induction IN using match_tr_ind; econs; eauto.
   Qed.
 
-  Hint Constructors _match_tr.
-  Hint Unfold match_tr.
-  Hint Resolve match_tr_mon: paco.
-  Hint Resolve cpn3_wcompat: paco.
-
 End MatchTr.
 #[export] Hint Constructors _raw_spin.
 #[export] Hint Unfold raw_spin.
@@ -116,7 +112,7 @@ End MatchTr.
 
 
 
-Section ConvertTr.
+Section ExtractTr.
 
   Context {Ident: ID}.
 
@@ -133,21 +129,97 @@ Section ConvertTr.
   Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
     epsilon _ (@inhabited_tr R) (match_tr raw).
 
-  (* Definition Tr2Raw {R} (tr: @Tr.t R): (@RawTr.t _ R) := *)
-  (*   epsilon _ (@inhabited_raw R) (fun raw => match_tr raw tr). *)
+  Lemma raw2tr_cons_obs
+        R (raw: RawTr.t (R:=R))
+        (obs: obsE)
+    :
+    raw2tr (RawTr.cons (inr obs) raw) = Tr.cons obs (raw2tr raw).
+  Proof.
+    unfold raw2tr at 1. unfold epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
+    
+    unfold raw2tr. unfold epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
+    
 
-End ConvertTr.
+  Lemma raw2tr_prop
+        R (raw: RawTr.t (R:=R))
+    :
+    match_tr raw (raw2tr raw).
+  Proof.
+    revert raw. pcofix CIH. i.
+
+
+    unfold raw2tr. eapply Epsilon.epsilon_spec.
+
+    
+    unfold raw2tr. unfold epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
+    rename x into tr, m into EPS.
+    eapply sig_ind. i. eapply EPS. exists x. eapply p.
+    eapply Epsilon.constructive_indefinite_description.
+    econs.
+
+
+    clear Heq.
+    revert_until R. pcofix CIH. i.
+    
+
+    revert raw. pcofix CIH. i.
+    destruct raw.
+    4:{ destruct hd.
+        2:{ 
 
 
 
-Section ExtractRaw.
+    destruct (raw2tr raw) eqn:EQ.
+    5:{ unfold raw2tr in EQ. unfold epsilon in EQ. unfold Epsilon.epsilon in EQ.
+        unfold proj1_sig in EQ. des_ifs. unfold exist in Heq.
 
-  Context {Ident: ID}.
+    unfold raw2tr. unfold epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
+
+
+    unfold raw2tr. eapply Epsilon.epsilon_spec.
+    unfold proj1_sig.
+    match goal with
+    | |- match_tr _ (let (a, _) := ?ep in a) => destruct ep as [x Px]
+    end.
+    
+
+
+    2:{ 
+
+
+
+    destruct raw.
+    - pfold. econs 1.
+
+
+    
+    unfold raw2tr. eapply Epsilon.epsilon_spec.
+
+    unfold epsilon.
+
+    unfold Epsilon.epsilon.
+    
+
+    
+    unfold proj1_sig.
+    match goal with
+    | |- match_tr _ (let (a, _) := ?ep in a) => destruct ep as [x Px]
+    end.
+    
+
+
+    hexploit proj2_sig. in Heq.
+
+    
+    eapply proj2_sig. econs.
+    2:{ unfold proj1_sig. des_ifs.
+
+    eauto.
 
   Definition st2raw {R} (st: state): (RawTr.t (R:=R)) :=
     epsilon _ (@inhabited_raw _ R) (RawBeh.of_state st).
 
-End ExtractRaw.
+End ExtractTr.
 
 
 
@@ -162,6 +234,12 @@ Section EQUIV.
     :
     exists raw, (<<MATCH: match_tr raw tr>>) /\ (<<BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw>>).
   Proof.
+    exists (st2raw st). esplits.
+    { admit. }
+    { eapply proj2_sig.
+
+
+
   Admitted.
 
   Theorem SelectBeh_implies_IndexBeh

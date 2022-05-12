@@ -44,7 +44,64 @@ Module Tr.
     exists tl, <<PRE: app pre tl = bh>>
   .
 
+  (** tr equivalence *)
+  Variant _eq
+          (eq: forall R, (@t R) -> (@t R) -> Prop)
+          R
+    :
+    (@t R) -> (@t R) -> Prop :=
+    | eq_done
+        retv
+      :
+      _eq eq (done retv) (done retv)
+    | eq_spin
+      :
+      _eq eq spin spin
+    | eq_ub
+      :
+      _eq eq ub ub
+    | eq_nb
+      :
+      _eq eq nb nb
+    | eq_obs
+        obs tl1 tl2
+        (TL: eq _ tl1 tl2)
+      :
+      _eq eq (cons obs tl1) (cons obs tl2)
+  .
+
+  Definition eq: forall (R: Type), (@t R) -> (@t R) -> Prop := paco3 _eq bot3.
+
+  Lemma eq_mon: monotone3 _eq.
+  Proof.
+    ii. inv IN. all: econs; eauto.
+  Qed.
+
+  Local Hint Resolve eq_mon: paco.
+
+  Global Program Instance eq_equiv {R}: Equivalence (@eq R).
+  Next Obligation.
+    pcofix CIH. i. destruct x; try (pfold; econs; eauto).
+  Qed.
+  Next Obligation.
+    pcofix CIH. i.
+    unfold eq in H0. punfold H0.
+    inv H0.
+    1,2,3,4: pfold; econs; eauto.
+    - pfold. econs; eauto. right. eapply CIH. pclearbot. auto.
+  Qed.
+  Next Obligation.
+    pcofix CIH. i.
+    unfold eq in H0, H1. punfold H0. punfold H1. inv H0; inv H1.
+    1,2,3,4: pfold; econs; eauto.
+    pclearbot. pfold. econs. right. eapply CIH; eauto.
+  Qed.
+
 End Tr.
+#[export] Hint Constructors Tr._eq.
+#[export] Hint Unfold Tr.eq.
+#[export] Hint Resolve Tr.eq_mon: paco.
+#[export] Hint Resolve cpn3_wcompat: paco.
 
 
 
