@@ -47,7 +47,7 @@ Section TR.
   Lemma fold_app
         R s pre tl
     :
-      (Tr.cons s (Tr.app pre tl)) = @Tr.app R (s :: pre) tl
+      (cons s (app pre tl)) = @app R (s :: pre) tl
   .
   Proof. reflexivity. Qed.
 
