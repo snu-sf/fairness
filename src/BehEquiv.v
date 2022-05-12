@@ -13,7 +13,7 @@ From Fairness Require Import Axioms.
 
 Set Implicit Arguments.
 
-Section MATCHTR.
+Section MatchTR.
 
   Context {Ident: ID}.
 
@@ -104,7 +104,7 @@ Section MATCHTR.
   Hint Resolve match_tr_mon: paco.
   Hint Resolve cpn3_wcompat: paco.
 
-End MATCHTR.
+End MatchTR.
 #[export] Hint Constructors _raw_spin.
 #[export] Hint Unfold raw_spin.
 #[export] Hint Resolve raw_spin_mon: paco.
@@ -113,6 +113,16 @@ End MATCHTR.
 #[export] Hint Unfold match_tr.
 #[export] Hint Resolve match_tr_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
+
+
+
+Section ExtractRAW.
+
+  Context {Ident: ID}.
+
+
+
+End ExtractRAW.
 
 
 
