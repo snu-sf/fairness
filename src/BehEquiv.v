@@ -13,7 +13,7 @@ From Fairness Require Import Axioms.
 
 Set Implicit Arguments.
 
-Section MatchTR.
+Section MatchTr.
 
   Context {Ident: ID}.
 
@@ -104,7 +104,7 @@ Section MatchTR.
   Hint Resolve match_tr_mon: paco.
   Hint Resolve cpn3_wcompat: paco.
 
-End MatchTR.
+End MatchTr.
 #[export] Hint Constructors _raw_spin.
 #[export] Hint Unfold raw_spin.
 #[export] Hint Resolve raw_spin_mon: paco.
@@ -116,17 +116,7 @@ End MatchTR.
 
 
 
-Section ExtractRAW.
-
-  Context {Ident: ID}.
-
-
-
-End ExtractRAW.
-
-
-
-Section ConvertTR.
+Section ConvertTr.
 
   Context {Ident: ID}.
 
@@ -140,10 +130,46 @@ Section ConvertTR.
     econs. exact RawTr.ub.
   Qed.
 
-  Definition Raw2Tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
+  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
     epsilon _ (@inhabited_tr R) (match_tr raw).
 
-  Definition Tr2Raw {R} (tr: @Tr.t R): (@RawTr.t _ R) :=
-    epsilon _ (@inhabited_raw R) (fun raw => match_tr raw tr).
+  (* Definition Tr2Raw {R} (tr: @Tr.t R): (@RawTr.t _ R) := *)
+  (*   epsilon _ (@inhabited_raw R) (fun raw => match_tr raw tr). *)
 
-End ConvertTR.
+End ConvertTr.
+
+
+
+Section ExtractRaw.
+
+  Context {Ident: ID}.
+
+  Definition st2raw {R} (st: state): (RawTr.t (R:=R)) :=
+    epsilon _ (@inhabited_raw _ R) (RawBeh.of_state st).
+
+End ExtractRaw.
+
+
+
+Section EQUIV.
+
+  Context {Ident: ID}.
+  Variable wf: WF.
+
+  Theorem IndexBeh_implies_SelectBeh
+          R (st: state (R:=R)) (tr: Tr.t (R:=R)) (im: imap wf)
+          (BEH: Beh.of_state im st tr)
+    :
+    exists raw, (<<MATCH: match_tr raw tr>>) /\ (<<BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw>>).
+  Proof.
+  Admitted.
+
+  Theorem SelectBeh_implies_IndexBeh
+          R (st: state (R:=R)) (raw: RawTr.t (R:=R))
+          (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
+    :
+    exists (im: imap wf) tr, (<<MATCH: match_tr raw tr>>) /\ (<<BEH: Beh.of_state im st tr>>).
+  Proof.
+  Admitted.
+
+End EQUIV.
