@@ -16,12 +16,13 @@ Set Implicit Arguments.
 Section SIM.
 
   Context {Ident: ID}.
+  Variable wf: WF.
 
   (* Definition stuck_idx (m: imap) (j: id) := le (m j) 0. *)
 
   Inductive _sim
-            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap -> bool  -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
-            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap) (p_tgt: bool) (m_tgt: imap) :
+            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (imap wf) -> bool  -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop)
+            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap wf) (p_tgt: bool) (m_tgt: imap wf) :
     (@state _ R0) -> (@state _ R1) -> Prop :=
   | sim_ret
       r_src r_tgt
@@ -83,9 +84,9 @@ Section SIM.
     _sim sim RR p_src m_src p_tgt m_tgt (trigger Undefined >>= ktr_src0) itr_tgt0
   .
 
-  Lemma sim_ind (r: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
+  Lemma sim_ind (r: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (imap wf)  -> bool -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop)
         R0 R1 (RR: R0 -> R1 -> Prop)
-        (P: bool -> imap  -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
+        (P: bool -> (imap wf)  -> bool -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop)
         (RET: forall
             p_src m_src p_tgt m_tgt
             r_src r_tgt
@@ -158,7 +159,7 @@ Section SIM.
     { eapply UB; eauto. }
   Qed.
 
-  Definition sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap  -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop := paco9 _sim bot9.
+  Definition sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (imap wf)  -> bool -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop := paco9 _sim bot9.
 
   Lemma sim_mon: monotone9 _sim.
   Proof.
@@ -181,7 +182,7 @@ Section SIM.
   Hint Resolve cpn9_wcompat: paco.
 
   Lemma sim_ind2 R0 R1 (RR: R0 -> R1 -> Prop)
-        (P: bool -> imap  -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
+        (P: bool -> (imap wf)  -> bool -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop)
         (RET: forall
             p_src m_src p_tgt m_tgt
             r_src r_tgt
@@ -255,11 +256,13 @@ Section SIM.
   (*********************** upto ***********************)
   (****************************************************)
 
+  Hypothesis WFTR: Transitive wf.(lt).
+
   Variant sim_imap_ctxL
-          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> imap -> bool -> imap -> state -> state -> Prop)
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (imap wf) -> bool -> (imap wf) -> state -> state -> Prop)
           R0 R1 (RR: R0 -> R1 -> Prop)
     :
-    bool -> imap -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop :=
+    bool -> (imap wf) -> bool -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop :=
     | sim_imap_ctxL_intro
         msrc0 msrc1 mtgt psrc ptgt st_src st_tgt
         (SIM: @sim _ _ RR psrc msrc1 ptgt mtgt st_src st_tgt)
@@ -281,7 +284,9 @@ Section SIM.
     { econs. i. specialize (SIM x). des. eapply IH. eauto. }
     { econs. des. esplits.
       2:{ eapply IH. reflexivity. }
-      clear - FAIR IMAP. unfold fair_update, soft_update in *. i. specialize (FAIR i). specialize (IMAP i). des_ifs; lia.
+      clear - WFTR FAIR IMAP. unfold fair_update, soft_update in *. i. specialize (FAIR i). specialize (IMAP i). des_ifs.
+      - unfold le in IMAP. des. rewrite <- IMAP; auto. eapply WFTR; eauto.
+      - eapply WF_le_Trans; eauto.
     }
     { econs. i. specialize (SIM m_tgt0). eapply SIM in FAIR. des. eauto. }
     { clarify. econs; eauto. eapply rclo9_clo_base. econs; eauto. }
@@ -293,10 +298,10 @@ Section SIM.
 
 
   Variant sim_imap_ctxR
-          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> imap -> bool -> imap -> state -> state -> Prop)
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (imap wf) -> bool -> (imap wf) -> state -> state -> Prop)
           R0 R1 (RR: R0 -> R1 -> Prop)
     :
-    bool -> imap -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop :=
+    bool -> (imap wf) -> bool -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop :=
     | sim_imap_ctxR_intro
         msrc mtgt0 mtgt1 psrc ptgt st_src st_tgt
         (SIM: @sim _ _ RR psrc msrc ptgt mtgt1 st_src st_tgt)
@@ -319,7 +324,9 @@ Section SIM.
     { econs. des. esplits; eauto. }
     { econs. i. hexploit SIM.
       2:{ i; des. eapply IH. reflexivity. }
-      clear - IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i). des_ifs; lia.
+      clear - WFTR IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i). des_ifs.
+      - unfold le in IMAP. des. rewrite <- IMAP; auto. eapply WFTR; eauto.
+      - eapply WF_le_Trans; eauto.
     }
     { clarify. econs; eauto. eapply rclo9_clo_base. econs; eauto. }
   Qed.
@@ -330,8 +337,8 @@ Section SIM.
 
 
   Variant sim_indC
-          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> imap -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
-          R0 R1 (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap) (p_tgt: bool) (m_tgt: imap)
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (imap wf) -> bool -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop)
+          R0 R1 (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap wf) (p_tgt: bool) (m_tgt: imap wf)
     :
     (@state _ R0) -> (@state _ R1) -> Prop :=
     | sim_indC_ret
@@ -425,10 +432,10 @@ Section SIM.
 
 
   Variant sim_progress_ctx
-          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> imap -> bool -> imap -> state -> state -> Prop)
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (imap wf) -> bool -> (imap wf) -> state -> state -> Prop)
           R0 R1 (RR: R0 -> R1 -> Prop)
     :
-    bool -> imap -> bool -> imap -> (@state _ R0) -> (@state _ R1) -> Prop :=
+    bool -> (imap wf) -> bool -> (imap wf) -> (@state _ R0) -> (@state _ R1) -> Prop :=
     | sim_progress_intro
         msrc mtgt psrc0 psrc1 ptgt0 ptgt1 st_src st_tgt
         (SIM: @sim _ _ RR psrc1 msrc ptgt1 mtgt st_src st_tgt)
@@ -472,8 +479,11 @@ End SIM.
 Section EX.
 
   Instance Ident : ID := mk_id nat.
-
-  (* Definition uunit := prod unit unit. *)
+  Program Definition nat_wf: WF := @mk_wf nat Peano.lt _.
+  Program Instance nat_wf_Trans: Transitive nat_wf.(lt).
+  Next Obligation.
+    eapply PeanoNat.Nat.lt_strorder; eauto.
+  Qed.
 
   Definition while_itree (step: unit -> itree eventE (unit + unit)) : itree eventE unit :=
     ITree.iter step tt.
@@ -515,8 +525,8 @@ Section EX.
   Definition tgt1: @state _ nat :=
     while_itree (fun u => (trigger (Fair (fun id => (if ndec 0 id then Flag.fail else Flag.emp)))) >>= (fun r => Ret (inl r)));; Ret 0.
 
-  Definition imsrc1: imap := fun id => (if ndec 0 id then 100 else 0).
-  Definition imtgt1: imap := fun id => (if ndec 0 id then 100 else 0).
+  Definition imsrc1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0).
+  Definition imtgt1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0).
 
   Goal sim RR false imsrc1 false imtgt1 src1 tgt1.
   Proof.
@@ -524,16 +534,17 @@ Section EX.
     unfold imtgt1. remember 100 as t_fuel. clear Heqt_fuel.
     induction t_fuel; i.
     { ginit. rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i. exfalso.
-      unfold fair_update in FAIR. specialize (FAIR 0). des_ifs. lia.
+      unfold fair_update in FAIR. specialize (FAIR 0). des_ifs. ss. inv FAIR.
     }
     ginit. rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i.
     guclo sim_indC_spec. econs.
-    guclo sim_imap_ctxR_spec. econs.
+    guclo sim_imap_ctxR_spec. eapply nat_wf_Trans. econs.
     guclo sim_progress_ctx_spec. econs.
     { gfinal. right. eapply IHt_fuel. }
     { i; clarify. }
     { i; clarify. }
-    clear - FAIR. ii. unfold fair_update in FAIR. specialize (FAIR i). des_ifs. lia.
+    clear - FAIR. ii. unfold fair_update in FAIR. specialize (FAIR i). des_ifs. unfold le. ss.
+    rewrite PeanoNat.Nat.lt_succ_r in FAIR. inv FAIR; eauto. right. eapply PeanoNat.Nat.lt_succ_r. auto.
   Qed.
 
 

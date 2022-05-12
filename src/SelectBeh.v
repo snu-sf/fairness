@@ -18,7 +18,7 @@ Section RAWEVENT.
 
   Variant silentE: Type :=
     | silentE_tau
-    | silentE_fair (m: id -> Flag.t)
+    | silentE_fair (fm: fmap)
   .
 
   Definition rawE := (silentE + obsE)%type.
@@ -178,11 +178,11 @@ Section TR.
 
 
   (** select fair trace with well-founded order **)
-  (* Context {WFOrd: WFO}. *)
+  Variable wf: WF.
 
   Variant _fair_ord
-          (fair_ord: forall (R: Type) (m: imap), (@t R) -> Prop)
-          (R: Type) (m: imap)
+          (fair_ord: forall (R: Type) (m: imap wf), (@t R) -> Prop)
+          (R: Type) (m: imap wf)
     :
     (@t R) -> Prop :=
     | fair_ord_done
@@ -216,7 +216,7 @@ Section TR.
       _fair_ord fair_ord m (cons (inl silentE_tau) tl)
   .
 
-  Definition fair_ord: forall (R: Type) (m: imap), (@t R) -> Prop := paco3 _fair_ord bot3.
+  Definition fair_ord: forall (R: Type) (m: imap wf), (@t R) -> Prop := paco3 _fair_ord bot3.
 
   Lemma fair_ord_mon: monotone3 _fair_ord.
   Proof.
@@ -346,8 +346,8 @@ Section BEHAVES.
   Definition of_state_fair_ind {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
     (<<BEH: of_state st raw_tr>>) /\ (<<FAIR: RawTr.is_fair_ind raw_tr>>).
 
-  Definition of_state_fair_ord {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
-    (<<BEH: of_state st raw_tr>>) /\ (<<FAIR: RawTr.is_fair_ord raw_tr>>).
+  Definition of_state_fair_ord {wf: WF} {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
+    (<<BEH: of_state st raw_tr>>) /\ (<<FAIR: RawTr.is_fair_ord wf raw_tr>>).
 
 
 
