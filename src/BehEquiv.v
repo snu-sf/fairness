@@ -43,61 +43,61 @@ Section MatchTr.
   Qed.
 
 
-  Inductive _match_tr
-            (match_tr: forall (R: Type), RawTr.t -> Tr.t -> Prop)
+  Inductive _compress_raw
+            (compress_raw: forall (R: Type), RawTr.t -> Tr.t -> Prop)
             R
     :
     (@RawTr.t _ R) -> Tr.t -> Prop :=
-  | match_tr_done
+  | compress_raw_done
       retv
     :
-    _match_tr match_tr (RawTr.done retv) (Tr.done retv)
-  | match_tr_spin
+    _compress_raw compress_raw (RawTr.done retv) (Tr.done retv)
+  | compress_raw_spin
       raw
       (RSPIN: raw_spin raw)
     :
-    _match_tr match_tr raw (Tr.spin)
-  | match_tr_ub
+    _compress_raw compress_raw raw (Tr.spin)
+  | compress_raw_ub
     :
-    _match_tr match_tr (RawTr.ub) (Tr.ub)
-  | match_tr_nb
+    _compress_raw compress_raw (RawTr.ub) (Tr.ub)
+  | compress_raw_nb
     :
-    _match_tr match_tr (RawTr.nb) (Tr.nb)
-  | match_tr_obs
+    _compress_raw compress_raw (RawTr.nb) (Tr.nb)
+  | compress_raw_obs
       (obs: obsE) raw_tl tr_tl
-      (TL: match_tr _ raw_tl tr_tl)
+      (TL: compress_raw _ raw_tl tr_tl)
     :
-    _match_tr match_tr (RawTr.cons (inr obs) raw_tl) (Tr.cons obs tr_tl)
-  | match_tr_silent
+    _compress_raw compress_raw (RawTr.cons (inr obs) raw_tl) (Tr.cons obs tr_tl)
+  | compress_raw_silent
       (silent: silentE) raw_tl tr_tl
-      (TL: _match_tr match_tr raw_tl tr_tl)
+      (TL: _compress_raw compress_raw raw_tl tr_tl)
     :
-    _match_tr match_tr (RawTr.cons (inl silent) raw_tl) tr_tl
+    _compress_raw compress_raw (RawTr.cons (inl silent) raw_tl) tr_tl
   .
 
-  Definition match_tr: forall (R: Type), RawTr.t -> Tr.t -> Prop := paco3 _match_tr bot3.
+  Definition compress_raw: forall (R: Type), RawTr.t -> Tr.t -> Prop := paco3 _compress_raw bot3.
 
-  Lemma match_tr_ind
-        (match_tr : forall R : Type, RawTr.t -> Tr.t -> Prop) (R : Type) (P: RawTr.t -> Tr.t -> Prop)
+  Lemma compress_raw_ind
+        (compress_raw : forall R : Type, RawTr.t -> Tr.t -> Prop) (R : Type) (P: RawTr.t -> Tr.t -> Prop)
         (DONE: forall retv : R, P (RawTr.done retv) (Tr.done retv))
         (SPIN: forall (raw : RawTr.t) (RSPIN: raw_spin raw), P raw Tr.spin)
         (UB: P RawTr.ub Tr.ub)
         (NB: P RawTr.nb Tr.nb)
-        (OBS: forall (obs : obsE) (raw_tl : RawTr.t) (tr_tl : Tr.t) (TL: match_tr R raw_tl tr_tl),
+        (OBS: forall (obs : obsE) (raw_tl : RawTr.t) (tr_tl : Tr.t) (TL: compress_raw R raw_tl tr_tl),
             P (RawTr.cons (inr obs) raw_tl) (Tr.cons obs tr_tl))
         (SILENT: forall (silent : silentE) (raw_tl : RawTr.t) (tr_tl : Tr.t)
-                   (STEP: _match_tr match_tr raw_tl tr_tl) (IH: P raw_tl tr_tl),
+                   (STEP: _compress_raw compress_raw raw_tl tr_tl) (IH: P raw_tl tr_tl),
             P (RawTr.cons (inl silent) raw_tl) tr_tl)
     :
-    forall raw_tr tr, (_match_tr match_tr raw_tr tr) -> P raw_tr tr.
+    forall raw_tr tr, (_compress_raw compress_raw raw_tr tr) -> P raw_tr tr.
   Proof.
     fix IH 3; i.
     inv H; eauto.
   Qed.
 
-  Lemma match_tr_mon: monotone3 _match_tr.
+  Lemma compress_raw_mon: monotone3 _compress_raw.
   Proof.
-    ii. induction IN using match_tr_ind; econs; eauto.
+    ii. induction IN using compress_raw_ind; econs; eauto.
   Qed.
 
 End MatchTr.
@@ -105,9 +105,9 @@ End MatchTr.
 #[export] Hint Unfold raw_spin.
 #[export] Hint Resolve raw_spin_mon: paco.
 #[export] Hint Resolve cpn2_wcompat: paco.
-#[export] Hint Constructors _match_tr.
-#[export] Hint Unfold match_tr.
-#[export] Hint Resolve match_tr_mon: paco.
+#[export] Hint Constructors _compress_raw.
+#[export] Hint Unfold compress_raw.
+#[export] Hint Resolve compress_raw_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
 
 
@@ -126,71 +126,233 @@ Section ExtractTr.
     econs. exact RawTr.ub.
   Qed.
 
-  Lemma match_eq_done
+  Lemma compress_eq_done
         R (tr: @Tr.t R) retv
-        (MATCH: match_tr (RawTr.done retv) tr)
+        (COMPR: compress_raw (RawTr.done retv) tr)
     :
     tr = Tr.done retv.
   Proof.
-    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+    punfold COMPR. inv COMPR; eauto. punfold RSPIN. inv RSPIN.
   Qed.
 
-  Lemma match_eq_ub
+  Lemma compress_eq_ub
         R (tr: @Tr.t R)
-        (MATCH: match_tr RawTr.ub tr)
+        (COMPR: compress_raw RawTr.ub tr)
     :
     tr = Tr.ub.
   Proof.
-    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+    punfold COMPR. inv COMPR; eauto. punfold RSPIN. inv RSPIN.
   Qed.
 
-  Lemma match_eq_nb
+  Lemma compress_eq_nb
         R (tr: @Tr.t R)
-        (MATCH: match_tr RawTr.nb tr)
+        (COMPR: compress_raw RawTr.nb tr)
     :
     tr = Tr.nb.
   Proof.
-    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+    punfold COMPR. inv COMPR; eauto. punfold RSPIN. inv RSPIN.
   Qed.
 
-  Lemma match_eq_obs
-        R (tr: @Tr.t R) raw tl
-        obs
-        (MATCH0: match_tr raw tl)
-        (MATCH: match_tr (RawTr.cons (inr obs) raw) tr)
+
+
+  (* Fixpoint observe_raw_first {R} (raw: @RawTr.t _ R): option obsE := *)
+  (*   match raw with *)
+  (*   | RawTr.done _ => None *)
+  (*   | RawTr.ub => None *)
+  (*   | RawTr.nb => None *)
+  (*   | RawTr.cons (inr obs) tl => Some obs *)
+  (*   | RawTr.cons (inl silent) tl => observe_raw_first tl *)
+  (*   end. *)
+
+  (* Inductive observe_raw_first *)
+  (*           R (raw: @RawTr.t _ R) *)
+  (*   : *)
+  (*   (option obsE) -> Prop := *)
+  (* | observe_raw_first_done *)
+  (*     retv *)
+  (*     (RAW: raw = RawTr.done retv) *)
+  (*   : *)
+  (*   observe_raw_first raw None *)
+  (* | observe_raw_first_ub *)
+  (*     (RAW: raw = RawTr.ub) *)
+  (*   : *)
+  (*   observe_raw_first raw None *)
+  (* | observe_raw_first_nb *)
+  (*     (RAW: raw = RawTr.nb) *)
+  (*   : *)
+  (*   observe_raw_first raw None *)
+  (* | observe_raw_first_obs *)
+  (*     obs tl *)
+  (*     (RAW: raw = RawTr.cons (inr obs) tl) *)
+  (*   : *)
+  (*   observe_raw_first raw (Some obs) *)
+  (* | observe_raw_first_silent *)
+  (*     silent tl obs *)
+  (*     (STEP: observe_raw_first tl obs) *)
+  (*     (RAW: raw = RawTr.cons (inl silent) tl) *)
+  (*   : *)
+  (*   observe_raw_first raw obs *)
+  (* . *)
+
+  (* raw_spin raw <-> forall e, ~ observe_raw_first raw e. *)
+
+  Inductive observe_raw_first
+          R
     :
-    tr = Tr.cons obs tl.
+    (@RawTr.t _ R) -> (prod (option obsE) RawTr.t) -> Prop :=
+    | observe_raw_first_done
+        retv
+      :
+      observe_raw_first (RawTr.done retv) (None, (RawTr.done retv))
+    | observe_raw_first_ub
+      :
+      observe_raw_first RawTr.ub (None, RawTr.ub)
+    | observe_raw_first_nb
+      :
+      observe_raw_first RawTr.nb (None, RawTr.nb)
+    | observe_raw_first_obs
+        (obs: obsE) tl
+      :
+      observe_raw_first (RawTr.cons (inr obs) tl) (Some obs, tl)
+    | observe_raw_first_silent
+        (silent: silentE) obs tl tl0
+        (STEP: observe_raw_first tl (obs, tl0))
+      :
+      observe_raw_first (RawTr.cons (inl silent) tl) (obs, tl0)
+    (* | observe_raw_prop_silent_diverge *)
+    (*     (silent: silentE) tl *)
+    (*     (SPIN: raw_spin tl) *)
+    (*   : *)
+    (*   observe_raw_prop (RawTr.cons (inl silent) tl) (None, None) *)
+  .
+
+  (* raw_spin raw <-> forall e tl, ~ observe_raw_first raw (e, tl). *)
+
+  Definition observe_raw_prop {R} (raw: @RawTr.t _ R) (obstl: option (prod (option obsE) RawTr.t)): Prop :=
+    match obstl with
+    | None => raw_spin raw
+    | Some obstl0 => observe_raw_first raw obstl0
+    end.
+
+  Lemma inhabited_observe_raw R: inhabited (option (prod (option obsE) (@RawTr.t _ R))).
   Proof.
-    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
-    f_equal. pclearbot.
+    econs. exact None.
   Qed.
 
-  (* Lemma match_tr_cih *)
+  Definition observe_raw {R} (raw: (@RawTr.t _ R)): option (prod (option obsE) RawTr.t) :=
+    epsilon _ (@inhabited_observe_raw R) (observe_raw_prop raw).
+
+  CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
+    match observe_raw raw with
+    | None => Tr.spin
+    | Some (None, RawTr.done retv) => Tr.done retv
+    | Some (None, RawTr.ub) => Tr.ub
+    | Some (None, RawTr.nb) => Tr.nb
+    | Some (Some obs, tl) => Tr.cons obs (raw2tr tl)
+    end.
+  
+
+
+      
+    | (None, Some (RawTr.done retv)) => Tr.done retv
+    | (None, Some RawTr.ub) => Tr.ub
+    | (None, Some RawTr.nb) => Tr.nb
+    | (Some obs, Some tl) => Tr.cons obs (raw2tr tl)
+    | (None, Some tl) => raw2tr tl
+    | (None, None) => Tr.spin
+    | (Some _, None) => Tr.ub
+    end.
+  
+    
+
+
+
+  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
+    epsilon _ (@inhabited_tr R) (compress_raw raw).
+
+  Lemma raw2tr_match
+        R (raw: @RawTr.t _ R)
+    :
+    compress_raw raw (raw2tr raw).
+  Proof.
+    unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
+
+  (* Lemma match_eq_obs *)
+  (*       R (tr: @Tr.t R) raw tl *)
+  (*       obs *)
+  (*       (MATCH0: compress_raw raw tl) *)
+  (*       (COMPR: compress_raw (RawTr.cons (inr obs) raw) tr) *)
+  (*   : *)
+  (*   tr = Tr.cons obs tl. *)
+  (* Proof. *)
+  (*   punfold COMPR. inv COMPR; eauto. punfold RSPIN. inv RSPIN. *)
+  (*   f_equal. pclearbot. *)
+  (* Qed. *)
+
+  (* Lemma compress_raw_cih *)
   (*       R (r: forall R, RawTr.t -> Tr.t -> Prop) *)
   (*       raw tr *)
   (*       (CIH: @r R raw tr) *)
-  (*       (MATCH: _match_tr (R:=R) (upaco3 _match_tr r) raw tr) *)
+  (*       (COMPR: _compress_raw (R:=R) (upaco3 _compress_raw r) raw tr) *)
   (*   : *)
   (*   Prop. *)
 
   (* CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) := *)
   (*   epsilon _ (@inhabited_tr R) *)
   (*           (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop) (CIH: forall raw0, @r R raw0 (raw2tr raw0)), *)
-  (*                _match_tr (R:=R) (upaco3 _match_tr r) raw tr). *)
+  (*                _compress_raw (R:=R) (upaco3 _compress_raw r) raw tr). *)
+
+
+  (* Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) := *)
+  (*   epsilon _ (@inhabited_tr R) (fun tr => forall etr (EQ: Tr.eq etr tr), compress_raw raw etr). *)
+
+  (* Lemma raw2tr_match *)
+  (*       R (raw: @RawTr.t _ R) *)
+  (*   : *)
+  (*   compress_raw raw (raw2tr raw). *)
+  (* Proof. *)
+  (*   remember (raw2tr raw) as tr. assert (EQ: Tr.eq tr (raw2tr raw)). *)
+  (*   { rewrite Heqtr. reflexivity. } *)
+  (*   clear Heqtr. revert_until raw. *)
+  (*   unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. *)
+
+  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
+    epsilon _ (@inhabited_tr R) (compress_raw raw).
+
+  Lemma raw2tr_match
+        R (raw: @RawTr.t _ R)
+    :
+    compress_raw raw (raw2tr raw).
+  Proof.
+    unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
     epsilon _ (@inhabited_tr R)
             (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop)
-                      (CIH: forall raw0 tr0 (MATCH: match_tr (R:=R) raw0 tr0), @r R raw tr),
-                 _match_tr (R:=R) (upaco3 _match_tr r) raw tr).
+                      (CIH: forall raw0 tr0 (COMPR: compress_raw (R:=R) raw0 tr0), @r R raw tr),
+                 _compress_raw (R:=R) (upaco3 _compress_raw r) raw tr).
 
-  Lemma match_tr_is_raw2tr
+  Lemma compress_raw_is_raw2tr
         R raw tr
-        (MATCH: match_tr (R:=R) raw tr)
+        (COMPR: compress_raw (R:=R) raw tr)
     :
     tr = raw2tr raw.
   Proof.
-    punfold MATCH. inv MATCH.
+    punfold COMPR. inv COMPR.
     { symmetry. eapply match_eq_done.
       admit.
     }
@@ -203,12 +365,12 @@ Section ExtractTr.
   Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
     epsilon _ (@inhabited_tr R)
             (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop) (CIH: @r R raw tr),
-                 _match_tr (R:=R) (upaco3 _match_tr r) raw tr).
+                 _compress_raw (R:=R) (upaco3 _compress_raw r) raw tr).
 
   Lemma raw2tr_match
         R (raw: @RawTr.t _ R)
     :
-    match_tr raw (raw2tr raw).
+    compress_raw raw (raw2tr raw).
   Proof.
     remember (raw2tr raw) as tr.
     revert_until R. pcofix CIH; i. destruct raw.
@@ -246,7 +408,7 @@ Section ExtractTr.
 
 
   Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
-    epsilon _ (@inhabited_tr R) (match_tr raw).
+    epsilon _ (@inhabited_tr R) (compress_raw raw).
 
   Definition st2raw {R} (st: state): (RawTr.t (R:=R)) :=
     epsilon _ (@inhabited_raw R) (RawBeh.of_state st).
@@ -255,7 +417,7 @@ Section ExtractTr.
   Lemma raw2tr_match_done
         R (retv: R)
     :
-    match_tr (RawTr.done retv) (raw2tr (RawTr.done retv)).
+    compress_raw (RawTr.done retv) (raw2tr (RawTr.done retv)).
   Proof.
     unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
     pfold. econs 1.
@@ -263,11 +425,11 @@ Section ExtractTr.
 
   Lemma match_eq_done
         R (tr: @Tr.t R) retv
-        (MATCH: match_tr (RawTr.done retv) tr)
+        (COMPR: compress_raw (RawTr.done retv) tr)
     :
     tr = Tr.done retv.
   Proof.
-    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+    punfold COMPR. inv COMPR; eauto. punfold RSPIN. inv RSPIN.
   Qed.
 
   Lemma raw2tr_done
@@ -281,7 +443,7 @@ Section ExtractTr.
   Lemma raw2tr_match_ub
         R
     :
-    @match_tr _ R RawTr.ub (raw2tr RawTr.ub).
+    @compress_raw _ R RawTr.ub (raw2tr RawTr.ub).
   Proof.
     unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
     pfold. econs 3.
@@ -289,11 +451,11 @@ Section ExtractTr.
 
   Lemma match_eq_ub
         R (tr: @Tr.t R)
-        (MATCH: match_tr RawTr.ub tr)
+        (COMPR: compress_raw RawTr.ub tr)
     :
     tr = Tr.ub.
   Proof.
-    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+    punfold COMPR. inv COMPR; eauto. punfold RSPIN. inv RSPIN.
   Qed.
 
   Lemma raw2tr_ub
@@ -307,7 +469,7 @@ Section ExtractTr.
   Lemma raw2tr_match_nb
         R
     :
-    @match_tr _ R RawTr.nb (raw2tr RawTr.nb).
+    @compress_raw _ R RawTr.nb (raw2tr RawTr.nb).
   Proof.
     unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
     pfold. econs 4.
@@ -315,11 +477,11 @@ Section ExtractTr.
 
   Lemma match_eq_nb
         R (tr: @Tr.t R)
-        (MATCH: match_tr RawTr.nb tr)
+        (COMPR: compress_raw RawTr.nb tr)
     :
     tr = Tr.nb.
   Proof.
-    punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN.
+    punfold COMPR. inv COMPR; eauto. punfold RSPIN. inv RSPIN.
   Qed.
 
   Lemma raw2tr_nb
@@ -334,10 +496,10 @@ Section ExtractTr.
   (* Lemma raw2tr_match_obs1 *)
   (*       R obs (raw: @RawTr.t _ R) *)
   (*   : *)
-  (*   @match_tr _ R (RawTr.cons (inr obs) raw) (raw2tr (RawTr.cons (inr obs) raw)). *)
+  (*   @compress_raw _ R (RawTr.cons (inr obs) raw) (raw2tr (RawTr.cons (inr obs) raw)). *)
   (* Proof. *)
   (*   revert_until R. pcofix CIH; i. *)
-  (*   pfold. eapply match_tr_mon. *)
+  (*   pfold. eapply compress_raw_mon. *)
   (*   { instantiate (1:=bot3). *)
 
   (*     unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists. *)
@@ -347,7 +509,7 @@ Section ExtractTr.
   (* Lemma raw2tr_match_obs *)
   (*       R obs (raw: @RawTr.t _ R) *)
   (*   : *)
-  (*   @match_tr _ R (RawTr.cons (inr obs) raw) (Tr.cons obs (raw2tr raw)). *)
+  (*   @compress_raw _ R (RawTr.cons (inr obs) raw) (Tr.cons obs (raw2tr raw)). *)
   (* Proof. *)
   (*   unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists. *)
   (*   pfold. econs 4. *)
@@ -355,11 +517,11 @@ Section ExtractTr.
 
   (* Lemma match_eq_nb *)
   (*       R (tr: @Tr.t R) *)
-  (*       (MATCH: match_tr RawTr.nb tr) *)
+  (*       (COMPR: compress_raw RawTr.nb tr) *)
   (*   : *)
   (*   tr = Tr.nb. *)
   (* Proof. *)
-  (*   punfold MATCH. inv MATCH; eauto. punfold RSPIN. inv RSPIN. *)
+  (*   punfold COMPR. inv COMPR; eauto. punfold RSPIN. inv RSPIN. *)
   (* Qed. *)
 
   (* Lemma raw2tr_nb *)
@@ -416,7 +578,7 @@ Section ExtractTr.
   (* Lemma raw2tr_prop *)
   (*       R (raw: RawTr.t (R:=R)) *)
   (*   : *)
-  (*   match_tr raw (raw2tr raw). *)
+  (*   compress_raw raw (raw2tr raw). *)
   (* Proof. *)
   (*   revert raw. pcofix CIH. i. *)
 
@@ -439,11 +601,11 @@ Section EQUIV.
   Context {Ident: ID}.
   Variable wf: WF.
 
-  Lemma IndexBeh_implies_SelectBeh_match_tr
+  Lemma IndexBeh_implies_SelectBeh_compress_raw
         R (st: state (R:=R)) (tr: Tr.t (R:=R)) (im: imap wf)
         (BEH: Beh.of_state im st tr)
     :
-    (<<MATCH: match_tr (st2raw st) tr>>).
+    (<<COMPR: compress_raw (st2raw st) tr>>).
   Proof.
   Admitted.
 
@@ -451,16 +613,16 @@ Section EQUIV.
           R (st: state (R:=R)) (tr: Tr.t (R:=R)) (im: imap wf)
           (BEH: Beh.of_state im st tr)
     :
-    exists raw, (<<MATCH: match_tr raw tr>>) /\ (<<BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw>>).
+    exists raw, (<<COMPR: compress_raw raw tr>>) /\ (<<BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw>>).
   Proof.
   Admitted.
 
 
-  Lemma SelectBeh_implies_IndexBeh_match_tr
+  Lemma SelectBeh_implies_IndexBeh_compress_raw
         R (st: state (R:=R)) (raw: RawTr.t (R:=R))
         (BEH: RawBeh.of_state st raw)
     :
-    (<<MATCH: match_tr raw (raw2tr raw)>>).
+    (<<COMPR: compress_raw raw (raw2tr raw)>>).
   Proof.
     red. revert_until R. pcofix CIH; i.
     punfold BEH. inv BEH.
@@ -470,7 +632,7 @@ Section EQUIV.
 
       punfold TL.
 
-      eapply match_tr_mon.
+      eapply compress_raw_mon.
 
       pfold. unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec.
 
@@ -486,7 +648,7 @@ Section EQUIV.
           R (st: state (R:=R)) (raw: RawTr.t (R:=R))
           (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
     :
-    exists (im: imap wf) tr, (<<MATCH: match_tr raw tr>>) /\ (<<BEH: Beh.of_state im st tr>>).
+    exists (im: imap wf) tr, (<<COMPR: compress_raw raw tr>>) /\ (<<BEH: Beh.of_state im st tr>>).
   Proof.
   Admitted.
 
