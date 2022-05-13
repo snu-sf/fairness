@@ -55,6 +55,18 @@ Section TR.
     exists tl, <<PRE: app pre tl = bh>>
   .
 
+  Definition ob R (s: @t R) : t :=
+    match s with
+    | done retv => done retv
+    | ub => ub
+    | nb => nb
+    | cons ev tl => cons ev tl
+    end.
+
+  Lemma ob_eq : forall R (s: @t R), s = ob s.
+    destruct s; reflexivity.
+  Qed.
+
 
   (** select fair trace with induction **)
   Variant _nofail_ind

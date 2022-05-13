@@ -195,7 +195,62 @@ Section ExtractTr.
     epsilon _ (@inhabited_observe_raw R) (observe_raw_prop raw).
 
 
-  (* observe_raw properties *)
+  (** properties **)
+  (* helper lemmas *)
+  Lemma spin_no_obs
+        R (raw: @RawTr.t _ R)
+        (SPIN: raw_spin raw)
+    :
+    forall ev tl, ~ observe_raw_first raw (ev, tl).
+  Proof.
+    ii. revert SPIN. induction H; i; ss; clarify.
+    - punfold SPIN. inv SPIN.
+    - punfold SPIN. inv SPIN.
+    - punfold SPIN. inv SPIN.
+    - punfold SPIN. inv SPIN.
+    - eapply IHobserve_raw_first; clear IHobserve_raw_first.
+      punfold SPIN. inv SPIN. pclearbot. auto.
+  Qed.
+
+  Lemma no_obs_spin
+        R (raw: @RawTr.t _ R)
+        (NOOBS: forall ev tl, ~ observe_raw_first raw (ev, tl))
+    :
+    raw_spin raw.
+  Proof.
+    revert_until R. pcofix CIH; i. destruct raw.
+    - exfalso. eapply NOOBS. econs.
+    - exfalso. eapply NOOBS. econs.
+    - exfalso. eapply NOOBS. econs.
+    - destruct hd as [silent | obs].
+      2:{ exfalso. eapply NOOBS. econs. }
+      pfold. econs. right. eapply CIH. ii. eapply NOOBS.
+      econs 5. eauto.
+  Qed.
+
+  Lemma spin_iff_no_obs
+        R (raw: @RawTr.t _ R)
+    :
+    (raw_spin raw) <-> (forall ev tl, ~ observe_raw_first raw (ev, tl)).
+  Proof.
+    esplits. split; i. eapply spin_no_obs; eauto. eapply no_obs_spin; eauto.
+  Qed.
+
+  Lemma observe_raw_first_inj
+        R (raw: @RawTr.t _ R) obstl1 obstl2
+        (ORP1: observe_raw_first raw obstl1)
+        (ORP2: observe_raw_first raw obstl2)
+    :
+    obstl1 = obstl2.
+  Proof.
+    depgen obstl2. induction ORP1; i.
+    - inv ORP2; eauto.
+    - inv ORP2; eauto.
+    - inv ORP2; eauto.
+    - inv ORP2; eauto.
+    - inv ORP2; eauto.
+  Qed.
+
   Lemma observe_raw_inj
         R (raw: @RawTr.t _ R) obstl1 obstl2
         (ORP1: observe_raw_prop raw obstl1)
@@ -205,35 +260,97 @@ Section ExtractTr.
   Proof.
     destruct obstl1 as [(obs1, tl1) | ]; ss.
     2:{ destruct obstl2 as [(obs2, tl2) | ]; ss.
-        - 
+        rewrite spin_iff_no_obs in ORP1. eapply ORP1 in ORP2. clarify.
+    }
+    destruct obstl2 as [(obs2, tl2) | ]; ss.
+    2:{ rewrite spin_iff_no_obs in ORP2. eapply ORP2 in ORP1. clarify. }
+    f_equal. eapply observe_raw_first_inj; eauto.
+  Qed.
 
 
-  Lemma observe_raw_impl
+  Lemma observe_raw_prop_impl_observe_raw
         R (raw: @RawTr.t _ R) obstl
         (ORP: observe_raw_prop raw obstl)
     :
     observe_raw raw = obstl.
   Proof.
+    eapply observe_raw_inj. 2: eauto.
+    unfold observe_raw, epsilon. eapply Epsilon.epsilon_spec. eauto.
+  Qed.
 
-  Lemma observe_raw_impl
-        R (raw: @RawTr.t _ R) obstl
-        (ORP: observe_raw_prop raw obstl)
+  Lemma observe_raw_prop_false
+        R (raw: @RawTr.t _ R) ev tl
     :
-    observe_raw raw = obstl.
+    ~ observe_raw_prop raw (Some (None, RawTr.cons ev tl)).
   Proof.
-    
+    ii. ss. remember (None, RawTr.cons ev tl) as obstl. revert Heqobstl. revert ev tl. rename H into ORF.
+    induction ORF; i; ss. clarify. eapply IHORF. eauto.
+  Qed.
+
+  (* observe_raw reductions *)
+  Lemma observe_raw_spin
+        R (raw: @RawTr.t _ R)
+        (SPIN: raw_spin raw)
+    :
+    observe_raw raw = None.
+  Proof.
+    eapply observe_raw_prop_impl_observe_raw. ss.
+  Qed.
 
   Lemma observe_raw_done
         R (retv: R)
     :
     observe_raw (RawTr.done retv) = Some (None, RawTr.done retv).
   Proof.
-    assert (A: observe_raw_prop (RawTr.done retv) (Some (None, RawTr.done retv))).
-    2:{ 
+    eapply observe_raw_prop_impl_observe_raw. ss. econs.
+  Qed.
 
-    match observe_raw (RawTr.done retv) with
-    | Some (None, RawTr.done retv0) => Tr.done retv0
+  Lemma observe_raw_ub
+        R
+    :
+    observe_raw (R:=R) (RawTr.ub) = Some (None, RawTr.ub).
+  Proof.
+    eapply observe_raw_prop_impl_observe_raw. ss. econs.
+  Qed.
 
+  Lemma observe_raw_nb
+        R
+    :
+    observe_raw (R:=R) (RawTr.nb) = Some (None, RawTr.nb).
+  Proof.
+    eapply observe_raw_prop_impl_observe_raw. ss. econs.
+  Qed.
+
+  Lemma observe_raw_obs
+        R obs (tl: @RawTr.t _ R)
+    :
+    observe_raw (RawTr.cons (inr obs) tl) = Some (Some obs, tl).
+  Proof.
+    eapply observe_raw_prop_impl_observe_raw. ss. econs.
+  Qed.
+
+  Lemma observe_raw_spec
+        R (raw: @RawTr.t _ R)
+    :
+    observe_raw_prop raw (observe_raw raw).
+  Proof.
+    destruct raw.
+    - rewrite observe_raw_done. econs.
+    - rewrite observe_raw_ub. econs.
+    - rewrite observe_raw_nb. econs.
+    - destruct hd as [silent | obs].
+      2:{ rewrite observe_raw_obs. econs. }
+      
+
+  Lemma observe_raw_false
+        R (raw: @RawTr.t _ R) ev tl
+    :
+    observe_raw raw <> Some (None, RawTr.cons ev tl).
+  Proof.
+    ii. eapply observe_raw_prop_false.
+    rewrite <- H. unfold observe_raw, epsilon. eapply Epsilon.epsilon_spec. eauto.
+    eapply observe_raw_prop_impl_observe_raw. ss. econs.
+  Qed.
 
 
   CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
@@ -247,32 +364,6 @@ Section ExtractTr.
     end.
 
   (* reduction lemmas *)
-  Definition trob R (s : @Tr.t R) : Tr.t :=
-    match s with
-    | Tr.done retv => Tr.done retv
-    | Tr.spin => Tr.spin
-    | Tr.ub => Tr.ub
-    | Tr.nb => Tr.nb
-    | Tr.cons obs tl => Tr.cons obs tl
-    end.
-
-  Lemma trob_eq : forall R (s : @Tr.t R), s = trob s.
-    destruct s; reflexivity.
-  Qed.
-
-  Definition rawob R (s : @RawTr.t _ R) : RawTr.t :=
-    match s with
-    | RawTr.done retv => RawTr.done retv
-    | RawTr.ub => RawTr.ub
-    | RawTr.nb => RawTr.nb
-    | RawTr.cons ev tl => RawTr.cons ev tl
-    end.
-
-  Lemma rawob_eq : forall R (s : @RawTr.t _ R), s = rawob s.
-    destruct s; reflexivity.
-  Qed.
-
-
   Lemma raw2tr_red_done
         R (retv: R)
     :
@@ -306,8 +397,6 @@ Section ExtractTr.
     
 
 
-  (* raw_spin raw <-> forall e tl, ~ observe_raw_first raw (e, tl). *)
-  (* ~ (observe_raw_first raw (None, Tr.cons ev tl)) *)
 
 
   Lemma raw2tr_extract

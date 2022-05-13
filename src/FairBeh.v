@@ -44,6 +44,18 @@ Module Tr.
     exists tl, <<PRE: app pre tl = bh>>
   .
 
+  Definition ob R (s: @t R): t :=
+    match s with
+    | done retv => done retv
+    | spin => spin
+    | ub => ub
+    | nb => nb
+    | cons obs tl => cons obs tl
+    end.
+
+  Lemma ob_eq : forall R (s: @t R), s = ob s.
+    destruct s; reflexivity.
+  Qed.
 
 
   (** tr equivalence *)
