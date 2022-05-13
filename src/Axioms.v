@@ -2,7 +2,8 @@ Require ClassicalFacts.
 Require FunctionalExtensionality.
 (* Require ChoiceFacts. *)
 Require Coq.Logic.Epsilon.
-Require Classical_Prop.
+(* Require Classical_Prop. *)
+Require Logic.Classical_Pred_Type.
 
 Lemma func_ext_dep {A} {B: A -> Type} (f g: forall x, B x): (forall x, f x = g x) -> f = g.
 Proof.

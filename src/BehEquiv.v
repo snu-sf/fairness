@@ -342,34 +342,52 @@ Section ExtractTr.
   Qed.
 
 
-  (* Lemma observe_raw_eutt *)
-  (*       R (raw: @RawTr.t _ R) silent *)
-  (*   : *)
-  (*   observe_raw (RawTr.cons (inl silent) raw) = observe_raw raw. *)
-  (* Proof. *)
-  (*   eapply observe_raw_prop_impl_observe_raw. destruct (observe_raw raw) eqn:EQ. *)
-  (*   2:{ ss. eapply raw_spin_observe in EQ. pfold. econs. auto. } *)
-  (*   destruct p as [obs tl]. ss. econs. *)
+  Lemma observe_first_some_inj
+        R (raw: @RawTr.t _ R) obstl1 obstl2
+        (SOME: observe_raw raw = Some obstl1)
+        (ORF: observe_raw_first raw obstl2)
+    :
+    obstl1 = obstl2.
+  Proof.
+    assert (A: observe_raw_prop raw (Some obstl2)). ss.
+    apply observe_raw_prop_impl_observe_raw in A. rewrite SOME in A. clarify.
+  Qed.
 
-  (* Lemma observe_raw_spec *)
-  (*       R (raw: @RawTr.t _ R) *)
-  (*   : *)
-  (*   observe_raw_prop raw (observe_raw raw). *)
-  (* Proof. *)
-  (*   destruct raw. *)
-  (*   - rewrite observe_raw_done. econs. *)
-  (*   - rewrite observe_raw_ub. econs. *)
-  (*   - rewrite observe_raw_nb. econs. *)
-  (*   - destruct hd as [silent | obs]. *)
-  (*     2:{ rewrite observe_raw_obs. econs. } *)
+  Lemma observe_first_some
+        R (raw: @RawTr.t _ R) obstl
+        (SOME: observe_raw raw = Some obstl)
+    :
+    observe_raw_first raw obstl.
+  Proof.
+    assert (NOTSPIN: ~ raw_spin raw).
+    { ii. eapply observe_raw_spin in H. clarify. }
+    rewrite spin_iff_no_obs in NOTSPIN.
+    assert (TEMP: ~ (forall obstl, ~ observe_raw_first raw obstl)).
+    { ii. eapply NOTSPIN. i. eauto. }
+    eapply Classical_Pred_Type.not_all_not_ex in TEMP. des.
+    replace obstl with n; eauto. symmetry. eapply observe_first_some_inj; eauto.
+  Qed.
 
-  (* Lemma observe_raw_false *)
-  (*       R (raw: @RawTr.t _ R) ev tl *)
-  (*   : *)
-  (*   observe_raw raw <> Some (None, RawTr.cons ev tl). *)
-  (* Proof. *)
-  (*   ii. eapply observe_raw_prop_false. *)
-  (*   rewrite <- H. unfold observe_raw, epsilon. eapply Epsilon.epsilon_spec. eauto. *)
+  Theorem observe_raw_spec
+          R (raw: @RawTr.t _ R)
+    :
+    observe_raw_prop raw (observe_raw raw).
+  Proof.
+    destruct (observe_raw raw) eqn:EQ.
+    - ss. eapply observe_first_some; eauto.
+    - ss. eapply raw_spin_observe; eauto.
+  Qed.
+
+  Lemma observe_raw_silent
+        R (tl: @RawTr.t _ R) silent
+    :
+    observe_raw (RawTr.cons (inl silent) tl) = observe_raw tl.
+  Proof.
+    eapply observe_raw_prop_impl_observe_raw. destruct (observe_raw tl) eqn:EQ.
+    2:{ ss. pfold. econs. left. eapply raw_spin_observe; eauto. }
+    ss. destruct p as [obs tl0]. hexploit observe_first_some; eauto. i.
+    econs. auto.
+  Qed.
 
 
   CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
@@ -414,7 +432,7 @@ Section ExtractTr.
   Qed.
 
   Lemma raw2tr_red_obs
-        R (raw: @RawTr.t _ R) obs tl
+        R obs tl
     :
     (raw2tr (RawTr.cons (inr obs) tl)) = (Tr.cons (R:=R) obs (raw2tr tl)).
   Proof.
@@ -435,13 +453,14 @@ Section ExtractTr.
   Qed.
 
   Lemma raw2tr_red_silent
-        R (raw: @RawTr.t _ R) silent tl
+        R silent tl
     :
     (raw2tr (RawTr.cons (inl silent) tl)) = (raw2tr (R:=R) tl).
   Proof.
-    match goal with | |- ?lhs = _ => replace lhs with (Tr.ob lhs) end.
+    match goal with | |- ?lhs = ?rhs => replace lhs with (Tr.ob lhs); [replace rhs with (Tr.ob rhs) |] end.
     2:{ symmetry. apply Tr.ob_eq. }
-    ss. rewrite observe_raw_obs. ss.
+    2:{ symmetry. apply Tr.ob_eq. }
+    ss. rewrite observe_raw_silent. ss.
   Qed.
 
   Lemma raw2tr_extract
@@ -450,328 +469,33 @@ Section ExtractTr.
     extract_tr raw (raw2tr raw).
   Proof.
     revert_until R. pcofix CIH. i.
-
     destruct raw.
-    { 
-
-
-
-    unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
-
-  (* Lemma match_eq_obs *)
-  (*       R (tr: @Tr.t R) raw tl *)
-  (*       obs *)
-  (*       (MATCH0: extract_tr raw tl) *)
-  (*       (EXTRACT: extract_tr (RawTr.cons (inr obs) raw) tr) *)
-  (*   : *)
-  (*   tr = Tr.cons obs tl. *)
-  (* Proof. *)
-  (*   punfold EXTRACT. inv EXTRACT; eauto. punfold RSPIN. inv RSPIN. *)
-  (*   f_equal. pclearbot. *)
-  (* Qed. *)
-
-  (* Lemma extract_tr_cih *)
-  (*       R (r: forall R, RawTr.t -> Tr.t -> Prop) *)
-  (*       raw tr *)
-  (*       (CIH: @r R raw tr) *)
-  (*       (EXTRACT: _extract_tr (R:=R) (upaco3 _extract_tr r) raw tr) *)
-  (*   : *)
-  (*   Prop. *)
-
-  (* CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) := *)
-  (*   epsilon _ (@inhabited_tr R) *)
-  (*           (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop) (CIH: forall raw0, @r R raw0 (raw2tr raw0)), *)
-  (*                _extract_tr (R:=R) (upaco3 _extract_tr r) raw tr). *)
-
-
-  (* Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) := *)
-  (*   epsilon _ (@inhabited_tr R) (fun tr => forall etr (EQ: Tr.eq etr tr), extract_tr raw etr). *)
-
-  (* Lemma raw2tr_match *)
-  (*       R (raw: @RawTr.t _ R) *)
-  (*   : *)
-  (*   extract_tr raw (raw2tr raw). *)
-  (* Proof. *)
-  (*   remember (raw2tr raw) as tr. assert (EQ: Tr.eq tr (raw2tr raw)). *)
-  (*   { rewrite Heqtr. reflexivity. } *)
-  (*   clear Heqtr. revert_until raw. *)
-  (*   unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. *)
-
-  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
-    epsilon _ (@inhabited_tr R) (extract_tr raw).
-
-  Lemma raw2tr_match
-        R (raw: @RawTr.t _ R)
-    :
-    extract_tr raw (raw2tr raw).
-  Proof.
-    unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
-    epsilon _ (@inhabited_tr R)
-            (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop)
-                      (CIH: forall raw0 tr0 (EXTRACT: extract_tr (R:=R) raw0 tr0), @r R raw tr),
-                 _extract_tr (R:=R) (upaco3 _extract_tr r) raw tr).
-
-  Lemma extract_tr_is_raw2tr
-        R raw tr
-        (EXTRACT: extract_tr (R:=R) raw tr)
-    :
-    tr = raw2tr raw.
-  Proof.
-    punfold EXTRACT. inv EXTRACT.
-    { symmetry. eapply match_eq_done.
-      admit.
-    }
-    4:{ 
-
-      
-    5:{ 
-    2:{ 
-
-  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
-    epsilon _ (@inhabited_tr R)
-            (fun tr => forall (r: forall R, RawTr.t -> Tr.t -> Prop) (CIH: @r R raw tr),
-                 _extract_tr (R:=R) (upaco3 _extract_tr r) raw tr).
-
-  Lemma raw2tr_match
-        R (raw: @RawTr.t _ R)
-    :
-    extract_tr raw (raw2tr raw).
-  Proof.
-    remember (raw2tr raw) as tr.
-    revert_until R. pcofix CIH; i. destruct raw.
-    { hexploit CIH. eapply Heqtr. intro CIH2.
-      clear CIH. rewrite Heqtr. rewrite Heqtr in CIH2. clear Heqtr.
-      depgen r. unfold raw2tr, epsilon. pfold.
-      eapply Epsilon.epsilon_spec.
-      exists (Tr.done retv). i. econs 1.
-    }
-    { hexploit CIH. eapply Heqtr. intro CIH2.
-      clear CIH. rewrite Heqtr. rewrite Heqtr in CIH2. clear Heqtr.
-      depgen r. unfold raw2tr, epsilon. pfold.
-      eapply Epsilon.epsilon_spec.
-      exists (Tr.ub). i. econs 3.
-    }
-    { hexploit CIH. eapply Heqtr. intro CIH2.
-      clear CIH. rewrite Heqtr. rewrite Heqtr in CIH2. clear Heqtr.
-      depgen r. unfold raw2tr, epsilon. pfold.
-      eapply Epsilon.epsilon_spec.
-      exists (Tr.nb). i. econs 4.
-    }
-
-    { destruct hd as [silent | obs].
-      2:{ hexploit CIH. eapply Heqtr. intro CIH2.
-          clear CIH. rewrite Heqtr. rewrite Heqtr in CIH2. clear Heqtr.
-          depgen r. unfold raw2tr, epsilon. pfold.
-          eapply Epsilon.epsilon_spec.
-          exists (Tr.cons obs (raw2tr raw)). i. econs 5.
-          right.
-      }
-
-
-
-
-
-
-  Definition raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
-    epsilon _ (@inhabited_tr R) (extract_tr raw).
-
-  Definition st2raw {R} (st: state): (RawTr.t (R:=R)) :=
-    epsilon _ (@inhabited_raw R) (RawBeh.of_state st).
-
-
-  Lemma raw2tr_match_done
-        R (retv: R)
-    :
-    extract_tr (RawTr.done retv) (raw2tr (RawTr.done retv)).
-  Proof.
-    unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
-    pfold. econs 1.
+    { rewrite raw2tr_red_done. pfold. econs. }
+    { rewrite raw2tr_red_ub. pfold. econs. }
+    { rewrite raw2tr_red_nb. pfold. econs. }
+    destruct hd as [silent | obs].
+    2:{ rewrite raw2tr_red_obs. pfold. econs. right. eauto. }
+    destruct (observe_raw (RawTr.cons (inl silent) raw)) eqn:EQ.
+    2:{ eapply raw_spin_observe in EQ. rewrite raw2tr_red_spin; eauto. }
+    rename p into obstl.
+    remember (RawTr.cons (inl silent) raw) as raw0. clear Heqraw0. clear silent raw.
+    pose (observe_raw_spec) as ORS. specialize (ORS R raw0). rewrite EQ in ORS. ss.
+    clear EQ. induction ORS; ss.
+    { rewrite raw2tr_red_done. pfold. econs. }
+    { rewrite raw2tr_red_ub. pfold. econs. }
+    { rewrite raw2tr_red_nb. pfold. econs. }
+    { rewrite raw2tr_red_obs. pfold. econs. right. eauto. }
+    pfold. econs. punfold IHORS. remember (raw2tr tl) as tr. depgen silent. depgen tl0. revert Heqtr. depgen obs.
+    induction IHORS using (@extract_tr_ind); i.
+    { rewrite raw2tr_red_silent. rewrite raw2tr_red_done. econs. }
+    { exfalso. eapply spin_iff_no_obs in RSPIN. eauto. }
+    { rewrite raw2tr_red_silent. rewrite raw2tr_red_ub. econs. }
+    { rewrite raw2tr_red_silent. rewrite raw2tr_red_nb. econs. }
+    { rewrite raw2tr_red_silent. rewrite raw2tr_red_obs. econs. right. auto. }
+    econs 6. rewrite raw2tr_red_silent. eapply IHIHORS; eauto.
+    - rewrite raw2tr_red_silent in Heqtr. auto.
+    - instantiate (1:=tl0). instantiate (1:=obs). inv ORS. auto.
   Qed.
-
-  Lemma match_eq_done
-        R (tr: @Tr.t R) retv
-        (EXTRACT: extract_tr (RawTr.done retv) tr)
-    :
-    tr = Tr.done retv.
-  Proof.
-    punfold EXTRACT. inv EXTRACT; eauto. punfold RSPIN. inv RSPIN.
-  Qed.
-
-  Lemma raw2tr_done
-        R (retv: R)
-    :
-    raw2tr (RawTr.done retv) = Tr.done retv.
-  Proof.
-    eapply match_eq_done. eapply raw2tr_match_done.
-  Qed.
-
-  Lemma raw2tr_match_ub
-        R
-    :
-    @extract_tr _ R RawTr.ub (raw2tr RawTr.ub).
-  Proof.
-    unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
-    pfold. econs 3.
-  Qed.
-
-  Lemma match_eq_ub
-        R (tr: @Tr.t R)
-        (EXTRACT: extract_tr RawTr.ub tr)
-    :
-    tr = Tr.ub.
-  Proof.
-    punfold EXTRACT. inv EXTRACT; eauto. punfold RSPIN. inv RSPIN.
-  Qed.
-
-  Lemma raw2tr_ub
-        R
-    :
-    @raw2tr R RawTr.ub = Tr.ub.
-  Proof.
-    eapply match_eq_ub. eapply raw2tr_match_ub.
-  Qed.
-
-  Lemma raw2tr_match_nb
-        R
-    :
-    @extract_tr _ R RawTr.nb (raw2tr RawTr.nb).
-  Proof.
-    unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists.
-    pfold. econs 4.
-  Qed.
-
-  Lemma match_eq_nb
-        R (tr: @Tr.t R)
-        (EXTRACT: extract_tr RawTr.nb tr)
-    :
-    tr = Tr.nb.
-  Proof.
-    punfold EXTRACT. inv EXTRACT; eauto. punfold RSPIN. inv RSPIN.
-  Qed.
-
-  Lemma raw2tr_nb
-        R
-    :
-    @raw2tr R RawTr.nb = Tr.nb.
-  Proof.
-    eapply match_eq_nb. eapply raw2tr_match_nb.
-  Qed.
-
-
-  (* Lemma raw2tr_match_obs1 *)
-  (*       R obs (raw: @RawTr.t _ R) *)
-  (*   : *)
-  (*   @extract_tr _ R (RawTr.cons (inr obs) raw) (raw2tr (RawTr.cons (inr obs) raw)). *)
-  (* Proof. *)
-  (*   revert_until R. pcofix CIH; i. *)
-  (*   pfold. eapply extract_tr_mon. *)
-  (*   { instantiate (1:=bot3). *)
-
-  (*     unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists. *)
-  (*   pfold. econs 4. *)
-  (* Qed. *)
-
-  (* Lemma raw2tr_match_obs *)
-  (*       R obs (raw: @RawTr.t _ R) *)
-  (*   : *)
-  (*   @extract_tr _ R (RawTr.cons (inr obs) raw) (Tr.cons obs (raw2tr raw)). *)
-  (* Proof. *)
-  (*   unfold raw2tr, epsilon. eapply Epsilon.epsilon_spec. eexists. *)
-  (*   pfold. econs 4. *)
-  (* Qed. *)
-
-  (* Lemma match_eq_nb *)
-  (*       R (tr: @Tr.t R) *)
-  (*       (EXTRACT: extract_tr RawTr.nb tr) *)
-  (*   : *)
-  (*   tr = Tr.nb. *)
-  (* Proof. *)
-  (*   punfold EXTRACT. inv EXTRACT; eauto. punfold RSPIN. inv RSPIN. *)
-  (* Qed. *)
-
-  (* Lemma raw2tr_nb *)
-  (*       R *)
-  (*   : *)
-  (*   @raw2tr R RawTr.nb = Tr.nb. *)
-  (* Proof. *)
-  (*   eapply match_eq_nb. eapply raw2tr_match_nb. *)
-  (* Qed. *)
-
-  (* Lemma raw2tr_app_comm *)
-  (*       R (raw: RawTr.t (R:=R)) *)
-  (*       (obss: list obsE) *)
-  (*   : *)
-  (*   raw2tr (RawTr.app (List.map inr obss) raw) = Tr.app obss (raw2tr raw). *)
-  (* Proof. *)
-  (*   depgen raw. induction obss; i. *)
-  (*   { ss. } *)
-  (*   ss.  *)
-
-  (* Lemma raw2tr_cons_obs *)
-  (*       R (raw: RawTr.t (R:=R)) *)
-  (*       (obs: obsE) *)
-  (*   : *)
-  (*   (raw2tr (RawTr.cons (inr obs) raw)) = (Tr.cons obs (raw2tr raw)). *)
-  (* Proof. *)
-  (*   replace raw with (RawTr.app [] raw) at 1. *)
-  (*   2: ss. *)
-  (*   rewrite RawTr.fold_app. *)
-  (*   replace (raw2tr raw) with (Tr.app [] (raw2tr raw)). *)
-  (*   2: ss. *)
-  (*   rewrite Tr.fold_app. *)
-
-
-    
-  (*   revert_until R. pcofix CIH. i. *)
-  (*   unfold Tr.eq in TR1. punfold TR1. inv TR1; pclearbot. *)
-  (*   5:{ punfold TR2. inv TR2; pclearbot. *)
-
-  (* Lemma raw2tr_cons_obs *)
-  (*       R tr1 tr2 (raw: RawTr.t (R:=R)) *)
-  (*       (obs: obsE) *)
-  (*       (TR1: Tr.eq tr1 (raw2tr (RawTr.cons (inr obs) raw))) *)
-  (*       (TR2: Tr.eq tr2 (Tr.cons obs (raw2tr raw))) *)
-  (*   : *)
-  (*   Tr.eq tr1 tr2. *)
-  (* Proof. *)
-  (*   revert_until R. pcofix CIH. i. *)
-  (*   unfold Tr.eq in TR1. punfold TR1. inv TR1; pclearbot. *)
-  (*   5:{ punfold TR2. inv TR2; pclearbot. *)
-        
-    
-
-  (* Lemma raw2tr_prop *)
-  (*       R (raw: RawTr.t (R:=R)) *)
-  (*   : *)
-  (*   extract_tr raw (raw2tr raw). *)
-  (* Proof. *)
-  (*   revert raw. pcofix CIH. i. *)
-
-
-  (*   unfold raw2tr. eapply Epsilon.epsilon_spec. *)
-
-    
-  (*   unfold raw2tr. unfold epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs. *)
-  (*   rename x into tr, m into EPS. *)
-  (*   eapply sig_ind. i. eapply EPS. exists x. eapply p. *)
-  (*   eapply Epsilon.constructive_indefinite_description. *)
-  (*   econs. *)
 
 End ExtractTr.
 
