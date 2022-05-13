@@ -297,6 +297,18 @@ Section ExtractTr.
     eapply observe_raw_prop_impl_observe_raw. ss.
   Qed.
 
+  Lemma raw_spin_observe
+        R (raw: @RawTr.t _ R)
+        (NONE: observe_raw raw = None)
+    :
+    raw_spin raw.
+  Proof.
+    eapply spin_iff_no_obs. ii.
+    assert (SOME: ~ observe_raw raw = Some (ev, tl)).
+    { ii. clarify. }
+    eapply SOME. eapply observe_raw_prop_impl_observe_raw. ss.
+  Qed.
+
   Lemma observe_raw_done
         R (retv: R)
     :
@@ -329,28 +341,35 @@ Section ExtractTr.
     eapply observe_raw_prop_impl_observe_raw. ss. econs.
   Qed.
 
-  Lemma observe_raw_spec
-        R (raw: @RawTr.t _ R)
-    :
-    observe_raw_prop raw (observe_raw raw).
-  Proof.
-    destruct raw.
-    - rewrite observe_raw_done. econs.
-    - rewrite observe_raw_ub. econs.
-    - rewrite observe_raw_nb. econs.
-    - destruct hd as [silent | obs].
-      2:{ rewrite observe_raw_obs. econs. }
-      
 
-  Lemma observe_raw_false
-        R (raw: @RawTr.t _ R) ev tl
-    :
-    observe_raw raw <> Some (None, RawTr.cons ev tl).
-  Proof.
-    ii. eapply observe_raw_prop_false.
-    rewrite <- H. unfold observe_raw, epsilon. eapply Epsilon.epsilon_spec. eauto.
-    eapply observe_raw_prop_impl_observe_raw. ss. econs.
-  Qed.
+  (* Lemma observe_raw_eutt *)
+  (*       R (raw: @RawTr.t _ R) silent *)
+  (*   : *)
+  (*   observe_raw (RawTr.cons (inl silent) raw) = observe_raw raw. *)
+  (* Proof. *)
+  (*   eapply observe_raw_prop_impl_observe_raw. destruct (observe_raw raw) eqn:EQ. *)
+  (*   2:{ ss. eapply raw_spin_observe in EQ. pfold. econs. auto. } *)
+  (*   destruct p as [obs tl]. ss. econs. *)
+
+  (* Lemma observe_raw_spec *)
+  (*       R (raw: @RawTr.t _ R) *)
+  (*   : *)
+  (*   observe_raw_prop raw (observe_raw raw). *)
+  (* Proof. *)
+  (*   destruct raw. *)
+  (*   - rewrite observe_raw_done. econs. *)
+  (*   - rewrite observe_raw_ub. econs. *)
+  (*   - rewrite observe_raw_nb. econs. *)
+  (*   - destruct hd as [silent | obs]. *)
+  (*     2:{ rewrite observe_raw_obs. econs. } *)
+
+  (* Lemma observe_raw_false *)
+  (*       R (raw: @RawTr.t _ R) ev tl *)
+  (*   : *)
+  (*   observe_raw raw <> Some (None, RawTr.cons ev tl). *)
+  (* Proof. *)
+  (*   ii. eapply observe_raw_prop_false. *)
+  (*   rewrite <- H. unfold observe_raw, epsilon. eapply Epsilon.epsilon_spec. eauto. *)
 
 
   CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
@@ -369,35 +388,61 @@ Section ExtractTr.
     :
     (raw2tr (RawTr.done retv)) = (Tr.done retv).
   Proof.
-    replace (raw2tr (RawTr.done retv)) with (trob (raw2tr (RawTr.done retv))).
-    2:{ symmetry. apply trob_eq. }
-    ss.
-    unfold trob. ss.
+    replace (raw2tr (RawTr.done retv)) with (Tr.ob (raw2tr (RawTr.done retv))).
+    2:{ symmetry. apply Tr.ob_eq. }
+    ss. rewrite observe_raw_done. ss.
+  Qed.
 
-    
-    rewrite trob_eq.
+  Lemma raw2tr_red_ub
+        R
+    :
+    (raw2tr (R:=R) RawTr.ub) = Tr.ub.
+  Proof.
+    replace (raw2tr RawTr.ub) with (Tr.ob (R:=R) (raw2tr RawTr.ub)).
+    2:{ symmetry. apply Tr.ob_eq. }
+    ss. rewrite observe_raw_ub. ss.
+  Qed.
 
+  Lemma raw2tr_red_nb
+        R
+    :
+    (raw2tr (R:=R) RawTr.nb) = Tr.nb.
+  Proof.
+    replace (raw2tr RawTr.nb) with (Tr.ob (R:=R) (raw2tr RawTr.nb)).
+    2:{ symmetry. apply Tr.ob_eq. }
+    ss. rewrite observe_raw_nb. ss.
+  Qed.
 
+  Lemma raw2tr_red_obs
+        R (raw: @RawTr.t _ R) obs tl
+    :
+    (raw2tr (RawTr.cons (inr obs) tl)) = (Tr.cons (R:=R) obs (raw2tr tl)).
+  Proof.
+    match goal with | |- ?lhs = _ => replace lhs with (Tr.ob lhs) end.
+    2:{ symmetry. apply Tr.ob_eq. }
+    ss. rewrite observe_raw_obs. ss.
+  Qed.
 
-    revert_until R. cofix CIH; i.
-    (* pcofix CIH; i. *)
-    replace (raw2tr (RawTr.done retv)) with (trob (raw2tr (RawTr.done retv))).
-    2:{ symmetry. apply trob_eq. }
-    rewrite trob_eq.
+  Lemma raw2tr_red_spin
+        R (raw: @RawTr.t _ R)
+        (SPIN: raw_spin raw)
+    :
+    (raw2tr raw) = Tr.spin.
+  Proof.
+    match goal with | |- ?lhs = _ => replace lhs with (Tr.ob lhs) end.
+    2:{ symmetry. apply Tr.ob_eq. }
+    ss. rewrite observe_raw_spin; eauto.
+  Qed.
 
-
-    unfold trob. des_ifs.
-    - pfold. econs.
-    3:{ rewrite <- Heq. eauto. }
-
-        unfold raw2tr in Heq. 
-    pfold.
-
-    econs 1.
-    
-
-
-
+  Lemma raw2tr_red_silent
+        R (raw: @RawTr.t _ R) silent tl
+    :
+    (raw2tr (RawTr.cons (inl silent) tl)) = (raw2tr (R:=R) tl).
+  Proof.
+    match goal with | |- ?lhs = _ => replace lhs with (Tr.ob lhs) end.
+    2:{ symmetry. apply Tr.ob_eq. }
+    ss. rewrite observe_raw_obs. ss.
+  Qed.
 
   Lemma raw2tr_extract
         R (raw: @RawTr.t _ R)
