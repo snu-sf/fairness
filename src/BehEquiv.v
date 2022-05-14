@@ -499,33 +499,77 @@ Section ExtractRaw.
   Variant observe_state_first
           R
     :
-    (@state _ R) -> option (prod (option rawE) state) -> Prop :=
+    (@state _ R) -> (prod (option rawE) state) -> Prop :=
     | observe_state_first_ret
         retv
       :
-      observe_state_first (Ret retv) (Some (None, Ret retv))
+      observe_state_first (Ret retv) (None, Ret retv)
     | observe_state_first_obs
         fn args ktr rv
       :
       observe_state_first (Vis (Observe fn args) ktr)
-                          (Some (Some (inr (obsE_syscall fn args rv)), ktr rv))
+                          (Some (inr (obsE_syscall fn args rv)), ktr rv)
     | observe_state_first_tau
         itr
       :
-      observe_state_first (Tau itr) (Some (Some (inl silentE_tau), itr))
+      observe_state_first (Tau itr) (Some (inl silentE_tau), itr)
     | observe_state_first_choose
         X ktr x
       :
-      observe_state_first (Vis (Choose X) ktr) (Some (Some (inl silentE_tau), ktr x))
+      observe_state_first (Vis (Choose X) ktr) (Some (inl silentE_tau), ktr x)
     | observe_state_first_fair
-        fmap ktr
+        fm ktr
       :
-      observe_state_first (Vis (Fair fmap) ktr) (Some (Some (inl (silentE_fair fmap)), ktr tt))
-    | observe_state_first_ub
+      observe_state_first (Vis (Fair fm) ktr) (Some (inl (silentE_fair fm)), ktr tt)
+  .
+
+  Variant _state_stuck
+          (state_stuck: forall R, (@state _ R) -> Prop)
+          R
+    :
+    (@state _ R) -> Prop :=
+    | state_stuck_tau
+        (itr: @state _ R)
+        (ST: state_stuck _ itr)
+      :
+      _state_stuck state_stuck (Tau itr)
+    | state_stuck_obs
+        ktr fn args rv
+        (ST: state_stuck _ (ktr rv))
+      :
+      _state_stuck state_stuck (Vis (Observe fn args) ktr)
+    | state_stuck_fair
+        ktr fm
+        (ST: state_stuck _ (ktr tt))
+      :
+      _state_stuck state_stuck (Vis (Fair fm) ktr)
+    | state_stuck_choose
+        X ktr
+        (EMPTY: ~ inhabited X)
+      :
+      _state_stuck state_stuck (Vis (Choose X) ktr)
+    | state_stuck_ub
         ktr
       :
-      observe_state_first (Vis Undefined ktr) None
+      _state_stuck state_stuck (Vis Undefined ktr)
   .
+
+  Definition state_stuck: forall R, (@state _ R) -> Prop := paco2 _state_stuck bot2.
+
+  Lemma state_stuck_mon: monotone2 _state_stuck.
+  Proof.
+    ii. inv IN. all: econs; eauto.
+  Qed.
+
+  Local Hint Resolve state_stuck_mon: paco.
+
+  Definition observe_state_prop
+             R (st: @state _ R)
+             (rawst: option (prod (option rawE) state)): Prop :=
+    match rawst with
+    | None => state_stuck st
+    | Some rawst0 => observe_state_first st rawst0
+    end.
 
   Lemma inhabited_observe_state R: inhabited (option (prod (option rawE) (@state _ R))).
   Proof.
@@ -533,9 +577,22 @@ Section ExtractRaw.
   Qed.
 
   Definition observe_state {R} (st: @state _ R): option (prod (option rawE) state) :=
-    epsilon _ (@inhabited_observe_state R) (observe_state_first st).
+    epsilon _ (@inhabited_observe_state R) (observe_state_prop st).
 
   (** properties **)
+  (** observe_state reduction lemmas **)
+  Lemma observe_state_ret
+        R (retv: R)
+    :
+    observe_state (Ret retv) = Some (None, Ret retv).
+  Proof.
+    
+
+
+
+
+
+
   Theorem observe_raw_prop_impl_observe_raw
           R (raw: @RawTr.t _ R) obstl
           (ORP: observe_raw_prop raw obstl)
@@ -552,7 +609,7 @@ Section ExtractRaw.
   (** state to raw trace **)
   CoFixpoint st2raw {R} (st: @state _ R): (@RawTr.t _ R) :=
     match observe_state st with
-    | None => RawTr.ub
+    | None => RawTr.nb
     | Some (None, Ret retv) => RawTr.done retv
     | Some (Some ev, st0) => RawTr.cons ev (st2raw st0)
     (* impossible case *)
