@@ -501,9 +501,9 @@ Section ExtractRaw.
     :
     (@state _ R) -> (@Tr.t R) -> (prod (option rawE) state) -> Prop :=
     | observe_state_first_ret
-        retv tr
+        retv
       :
-      observe_state_first (Ret retv) tr (None, Ret retv)
+      observe_state_first (Ret retv) (Tr.done retv) (None, Ret retv)
     | observe_state_first_obs
         fn args ktr rv tl
       :
@@ -581,7 +581,66 @@ Section ExtractRaw.
     option (prod (option rawE) state) :=
     epsilon _ (@inhabited_observe_state R) (observe_state_prop st tr).
 
+  (** well formed state-trace relation **)
+  Variant _wf_tr
+          (wf_tr: forall R, (@state _ R) -> (@Tr.t R) -> Prop)
+          R
+    :
+    (@state _ R) -> (@Tr.t R) -> Prop :=
+    | wf_tr_ret
+        retv
+      :
+      _wf_tr wf_tr (Ret retv) (Tr.done retv)
+    | wf_tr_obs
+        fn args rv ktr tr
+        (WF: wf_tr _ (ktr rv) tr)
+      :
+      _wf_tr wf_tr (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tr)
+    | wf_tr_tau
+        itr tr
+        (WF: wf_tr _ itr tr)
+      :
+      _wf_tr wf_tr (Tau itr) tr
+    | wf_tr_choose
+        X ktr x tr
+        (WF: wf_tr _ (ktr x) tr)
+      :
+      _wf_tr wf_tr (Vis (Choose X) ktr) tr
+    | wf_tr_fair
+        fm ktr tr
+        (WF: wf_tr _ (ktr tt) tr)
+      :
+      _wf_tr wf_tr (Vis (Fair fm) ktr) tr
+    | wf_tr_ub
+        ktr tr
+      :
+      _wf_tr wf_tr (Vis Undefined ktr) tr
+  .
+
+  Definition wf_tr: forall R, (@state _ R) -> (@Tr.t R) -> Prop := paco3 _wf_tr bot3.
+
+  Lemma wf_tr_mon: monotone3 _wf_tr.
+  Proof.
+    ii. inv IN. all: econs; eauto.
+  Qed.
+
+  Local Hint Resolve wf_tr_mon: paco.
+
+
   (** properties **)
+  Theorem wf_tr_observe_state_prop
+          R st tr
+          (WF: @wf_tr R st tr)
+    :
+    (<<STUCK: state_stuck st>>) \/
+      (<<FIRST: exists rawst, observe_state_first st tr rawst>>).
+  Proof.
+
+
+  Admitted.
+
+
+
   (** observe_state reduction lemmas **)
   Lemma observe_state_ret
         R (retv: R)
