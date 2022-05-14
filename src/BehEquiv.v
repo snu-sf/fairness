@@ -495,32 +495,33 @@ Section ExtractRaw.
 
   Context {Ident: ID}.
 
-  (** observer of the state **)
+  (** observer of the state, needs trace for obs return value information **)
   Variant observe_state_first
           R
     :
-    (@state _ R) -> (prod (option rawE) state) -> Prop :=
+    (@state _ R) -> (@Tr.t R) -> (prod (option rawE) state) -> Prop :=
     | observe_state_first_ret
-        retv
+        retv tr
       :
-      observe_state_first (Ret retv) (None, Ret retv)
+      observe_state_first (Ret retv) tr (None, Ret retv)
     | observe_state_first_obs
-        fn args ktr rv
+        fn args ktr rv tl
       :
       observe_state_first (Vis (Observe fn args) ktr)
+                          (Tr.cons (obsE_syscall fn args rv) tl)
                           (Some (inr (obsE_syscall fn args rv)), ktr rv)
     | observe_state_first_tau
-        itr
+        itr tr
       :
-      observe_state_first (Tau itr) (Some (inl silentE_tau), itr)
+      observe_state_first (Tau itr) tr (Some (inl silentE_tau), itr)
     | observe_state_first_choose
-        X ktr x
+        X ktr x tr
       :
-      observe_state_first (Vis (Choose X) ktr) (Some (inl silentE_tau), ktr x)
+      observe_state_first (Vis (Choose X) ktr) tr (Some (inl silentE_tau), ktr x)
     | observe_state_first_fair
-        fm ktr
+        fm ktr tr
       :
-      observe_state_first (Vis (Fair fm) ktr) (Some (inl (silentE_fair fm)), ktr tt)
+      observe_state_first (Vis (Fair fm) ktr) tr (Some (inl (silentE_fair fm)), ktr tt)
   .
 
   Variant _state_stuck
@@ -564,11 +565,11 @@ Section ExtractRaw.
   Local Hint Resolve state_stuck_mon: paco.
 
   Definition observe_state_prop
-             R (st: @state _ R)
+             R (st: @state _ R) (tr: @Tr.t R)
              (rawst: option (prod (option rawE) state)): Prop :=
     match rawst with
     | None => state_stuck st
-    | Some rawst0 => observe_state_first st rawst0
+    | Some rawst0 => observe_state_first st tr rawst0
     end.
 
   Lemma inhabited_observe_state R: inhabited (option (prod (option rawE) (@state _ R))).
@@ -576,8 +577,9 @@ Section ExtractRaw.
     econs. exact None.
   Qed.
 
-  Definition observe_state {R} (st: @state _ R): option (prod (option rawE) state) :=
-    epsilon _ (@inhabited_observe_state R) (observe_state_prop st).
+  Definition observe_state {R} (st: @state _ R) (tr: @Tr.t R):
+    option (prod (option rawE) state) :=
+    epsilon _ (@inhabited_observe_state R) (observe_state_prop st tr).
 
   (** properties **)
   (** observe_state reduction lemmas **)
