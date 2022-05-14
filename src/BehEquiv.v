@@ -564,23 +564,6 @@ Section ExtractRaw.
 
   Local Hint Resolve state_stuck_mon: paco.
 
-  Definition observe_state_prop
-             R (st: @state _ R) (tr: @Tr.t R)
-             (rawst: option (prod (option rawE) state)): Prop :=
-    match rawst with
-    | None => state_stuck st
-    | Some rawst0 => observe_state_first st tr rawst0
-    end.
-
-  Lemma inhabited_observe_state R: inhabited (option (prod (option rawE) (@state _ R))).
-  Proof.
-    econs. exact None.
-  Qed.
-
-  Definition observe_state {R} (st: @state _ R) (tr: @Tr.t R):
-    option (prod (option rawE) state) :=
-    epsilon _ (@inhabited_observe_state R) (observe_state_prop st tr).
-
   (** well formed state-trace relation **)
   Variant _wf_tr
           (wf_tr: forall R, (@state _ R) -> (@Tr.t R) -> Prop)
@@ -627,13 +610,33 @@ Section ExtractRaw.
   Local Hint Resolve wf_tr_mon: paco.
 
 
+  Definition observe_state_prop
+             R (st: @state _ R) (tr: @Tr.t R)
+             (rawst: option (prod (option rawE) state)): Prop :=
+    (<<WF: wf_tr st tr>>) ->
+    (match rawst with
+     | None => state_stuck st
+     | Some rawst0 => observe_state_first st tr rawst0
+     end).
+
+  Lemma inhabited_observe_state R: inhabited (option (prod (option rawE) (@state _ R))).
+  Proof.
+    econs. exact None.
+  Qed.
+
+  Definition observe_state {R} (st: @state _ R) (tr: @Tr.t R):
+    option (prod (option rawE) state) :=
+    epsilon _ (@inhabited_observe_state R) (observe_state_prop st tr).
+
+
+
   (** properties **)
-  Theorem wf_tr_observe_state_prop
-          R st tr
-          (WF: @wf_tr R st tr)
+  Lemma wf_tr_not_stuck
+        R st tr
+        (WF: @wf_tr R st tr)
+        (NOTSTUCK: ~ state_stuck st)
     :
-    (<<STUCK: state_stuck st>>) \/
-      (<<FIRST: exists rawst, observe_state_first st tr rawst>>).
+    exists rawst, observe_state_first st tr rawst.
   Proof.
 
 
