@@ -22,6 +22,8 @@ Arguments proof_irr [A].
 Axiom prop_ext: ClassicalFacts.prop_extensionality.
 
 Definition classic := Classical_Prop.classic.
+Definition inj_pair2 := Classical_Prop.EqdepTheory.inj_pair2.
+
 Definition epsilon_on := ChoiceFacts.EpsilonStatement_on.
 Definition epsilon := Epsilon.epsilon.
 Lemma epsilon_spec: forall (A : Type) (i : inhabited A) (P : A -> Prop), (exists x : A, P x) -> P (epsilon _ i P).
