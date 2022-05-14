@@ -28,18 +28,13 @@ Section MatchTr.
         (TL: raw_spin _ tl)
       :
       _raw_spin raw_spin (RawTr.cons (inl silent) tl)
-    (* | raw_spin_ub *)
-    (*   : *)
-    (*   _raw_spin raw_spin (RawTr.ub) *)
   .
 
   Definition raw_spin: forall (R: Type), RawTr.t -> Prop := paco2 _raw_spin bot2.
 
   Lemma raw_spin_mon: monotone2 _raw_spin.
   Proof.
-    ii. inv IN.
-    - econs; eauto.
-      (* - econs; eauto. *)
+    ii. inv IN. econs; eauto.
   Qed.
 
 
@@ -116,16 +111,6 @@ Section ExtractTr.
 
   Context {Ident: ID}.
 
-  (* Lemma inhabited_tr R: inhabited (Tr.t (R:=R)). *)
-  (* Proof. *)
-  (*   econs. exact Tr.ub. *)
-  (* Qed. *)
-
-  (* Lemma inhabited_raw R: inhabited (RawTr.t (R:=R)). *)
-  (* Proof. *)
-  (*   econs. exact RawTr.ub. *)
-  (* Qed. *)
-
   Lemma extract_eq_done
         R (tr: @Tr.t R) retv
         (EXTRACT: extract_tr (RawTr.done retv) tr)
@@ -155,6 +140,7 @@ Section ExtractTr.
 
 
 
+  (** observer of the raw trace **)
   Inductive observe_raw_first
           R
     :
@@ -180,7 +166,9 @@ Section ExtractTr.
       observe_raw_first (RawTr.cons (inl silent) tl) (obs, tl0)
   .
 
-  Definition observe_raw_prop {R} (raw: @RawTr.t _ R) (obstl: option (prod (option obsE) RawTr.t)): Prop :=
+  Definition observe_raw_prop {R}
+             (raw: @RawTr.t _ R)
+             (obstl: option (prod (option obsE) RawTr.t)): Prop :=
     match obstl with
     | None => raw_spin raw
     | Some obstl0 => observe_raw_first raw obstl0
@@ -268,9 +256,9 @@ Section ExtractTr.
   Qed.
 
 
-  Lemma observe_raw_prop_impl_observe_raw
-        R (raw: @RawTr.t _ R) obstl
-        (ORP: observe_raw_prop raw obstl)
+  Theorem observe_raw_prop_impl_observe_raw
+          R (raw: @RawTr.t _ R) obstl
+          (ORP: observe_raw_prop raw obstl)
     :
     observe_raw raw = obstl.
   Proof.
@@ -287,7 +275,7 @@ Section ExtractTr.
     induction ORF; i; ss. clarify. eapply IHORF. eauto.
   Qed.
 
-  (* observe_raw reductions *)
+  (** observe_raw reductions **)
   Lemma observe_raw_spin
         R (raw: @RawTr.t _ R)
         (SPIN: raw_spin raw)
@@ -390,6 +378,8 @@ Section ExtractTr.
   Qed.
 
 
+
+  (** raw trace to normal trace **)
   CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
     match observe_raw raw with
     | None => Tr.spin
@@ -400,7 +390,7 @@ Section ExtractTr.
     | Some (Some obs, tl) => Tr.cons obs (raw2tr tl)
     end.
 
-  (* reduction lemmas *)
+  (** reduction lemmas **)
   Lemma raw2tr_red_done
         R (retv: R)
     :
@@ -463,8 +453,8 @@ Section ExtractTr.
     ss. rewrite observe_raw_silent. ss.
   Qed.
 
-  Lemma raw2tr_extract
-        R (raw: @RawTr.t _ R)
+  Theorem raw2tr_extract
+          R (raw: @RawTr.t _ R)
     :
     extract_tr raw (raw2tr raw).
   Proof.
@@ -498,6 +488,78 @@ Section ExtractTr.
   Qed.
 
 End ExtractTr.
+
+
+
+Section ExtractRaw.
+
+  Context {Ident: ID}.
+
+  (** observer of the state **)
+  Variant observe_state_first
+          R
+    :
+    (@state _ R) -> option (prod (option rawE) state) -> Prop :=
+    | observe_state_first_ret
+        retv
+      :
+      observe_state_first (Ret retv) (Some (None, Ret retv))
+    | observe_state_first_obs
+        fn args ktr rv
+      :
+      observe_state_first (Vis (Observe fn args) ktr)
+                          (Some (Some (inr (obsE_syscall fn args rv)), ktr rv))
+    | observe_state_first_tau
+        itr
+      :
+      observe_state_first (Tau itr) (Some (Some (inl silentE_tau), itr))
+    | observe_state_first_choose
+        X ktr x
+      :
+      observe_state_first (Vis (Choose X) ktr) (Some (Some (inl silentE_tau), ktr x))
+    | observe_state_first_fair
+        fmap ktr
+      :
+      observe_state_first (Vis (Fair fmap) ktr) (Some (Some (inl (silentE_fair fmap)), ktr tt))
+    | observe_state_first_ub
+        ktr
+      :
+      observe_state_first (Vis Undefined ktr) None
+  .
+
+  Lemma inhabited_observe_state R: inhabited (option (prod (option rawE) (@state _ R))).
+  Proof.
+    econs. exact None.
+  Qed.
+
+  Definition observe_state {R} (st: @state _ R): option (prod (option rawE) state) :=
+    epsilon _ (@inhabited_observe_state R) (observe_state_first st).
+
+  (** properties **)
+  Theorem observe_raw_prop_impl_observe_raw
+          R (raw: @RawTr.t _ R) obstl
+          (ORP: observe_raw_prop raw obstl)
+    :
+    observe_raw raw = obstl.
+  Proof.
+    eapply observe_raw_inj. 2: eauto.
+    unfold observe_raw, epsilon. eapply Epsilon.epsilon_spec. eauto.
+  Qed.
+
+
+
+
+  (** state to raw trace **)
+  CoFixpoint st2raw {R} (st: @state _ R): (@RawTr.t _ R) :=
+    match observe_state st with
+    | None => RawTr.ub
+    | Some (None, Ret retv) => RawTr.done retv
+    | Some (Some ev, st0) => RawTr.cons ev (st2raw st0)
+    (* impossible case *)
+    | Some (None, _) => RawTr.ub
+    end.
+
+End ExtractRaw.
 
 
 

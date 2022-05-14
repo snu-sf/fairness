@@ -314,44 +314,6 @@ Section BEHAVES.
   Definition t {R}: Type := @RawTr.t _ R -> Prop.
   Definition improves {R} (src tgt: @t R): Prop := tgt <1= src.
 
-  (* Variant _diverge *)
-  (*         (diverge: forall (R: Type) (itr: @state _ R), Prop) *)
-  (*         (R: Type) *)
-  (*   : *)
-  (*   forall (itr: @state _ R), Prop := *)
-  (*   | diverge_tau *)
-  (*       itr *)
-  (*       (DIV: diverge _ itr) *)
-  (*     : *)
-  (*     _diverge diverge (Tau itr) *)
-  (*   | diverge_choose *)
-  (*       X ktr x *)
-  (*       (DIV: diverge _ (ktr x)) *)
-  (*     : *)
-  (*     _diverge diverge (Vis (Choose X) ktr) *)
-  (*   | diverge_ub *)
-  (*       ktr *)
-  (*     : *)
-  (*     _diverge diverge (Vis Undefined ktr) *)
-  (* . *)
-
-  (* Lemma diverge_mon: monotone2 _diverge. *)
-  (* Proof. *)
-  (*   ii. inv IN. *)
-  (*   - econs 1; eauto. *)
-  (*   - econs 2; eauto. *)
-  (*   - econs 3; eauto. *)
-  (* Qed. *)
-
-  (* Definition diverge: forall (R: Type) (itr: state), Prop := paco2 _diverge bot2. *)
-
-  (* Hint Constructors _diverge. *)
-  (* Hint Unfold diverge. *)
-  (* Hint Resolve diverge_mon: paco. *)
-  (* Hint Resolve cpn2_wcompat: paco. *)
-
-
-
   Variant _of_state
             (of_state: forall (R: Type), (@state _ R) -> (@RawTr.t _ R) -> Prop)
             (R: Type)
@@ -361,11 +323,6 @@ Section BEHAVES.
       retv
     :
     _of_state of_state (Ret retv) (RawTr.done retv)
-  (* | spin *)
-  (*     st0 *)
-  (*     (SPIN: diverge st0) *)
-  (*   : *)
-  (*   _of_state of_state st0 (RawTr.spin) *)
   | nb
       st0
     :
