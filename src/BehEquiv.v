@@ -648,10 +648,29 @@ Section ExtractRaw.
   Lemma observe_state_ret
         R (retv: R)
     :
-    observe_state (Ret retv) = Some (None, Ret retv).
+    observe_state (Ret retv) (Tr.done retv) = Some (None, Ret retv).
   Proof.
-    
+  Admitted.
 
+  Lemma observe_state_choose
+        R tr X ktr
+        (* (EXIST: inhabited X) *)
+        (WF: wf_tr (Vis (Choose X) ktr) tr)
+    :
+    exists (x: X), observe_state (R:=R) (Vis (Choose X) ktr) tr = Some (Some (inl silentE_tau), ktr x).
+  Proof.
+    unfold observe_state, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
+    rename x into rawst.
+    assert (TEMP: exists x, observe_state_prop (Vis (Choose X) ktr) tr x).
+    { admit. }
+    eapply o in TEMP. destruct rawst.
+    2:{ unfold observe_state_prop in TEMP. hexploit TEMP; clear TEMP; eauto. i.
+        admit. }
+    unfold observe_state_prop in TEMP. hexploit TEMP; clear TEMP; eauto. i.
+    inv H. eapply Classical_Prop.EqdepTheory.inj_pair2 in H3. clarify.
+    eauto.
+
+  Admitted.
 
 
 
