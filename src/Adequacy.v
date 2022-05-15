@@ -248,4 +248,15 @@ Section ADEQ.
     Unshelve. all: exact true.
   Qed.
 
+  Theorem adequacy_exists
+          R
+          psrc0 ptgt0 ssrc0 stgt0
+          (SIM: exists msrc mtgt, sim (wf:=wf) (@eq R) psrc0 msrc ptgt0 mtgt ssrc0 stgt0)
+    :
+    forall tr, (exists mtgt, Beh.of_state (wf:=wf) mtgt stgt0 tr) ->
+          (exists msrc, Beh.of_state (wf:=wf) msrc ssrc0 tr).
+  Proof.
+    i. des.
+  Abort.
+
 End ADEQ.

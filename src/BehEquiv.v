@@ -515,16 +515,19 @@ Section ExtractRaw.
                           (Some (Some (inr (obsE_syscall fn args rv)), (ktr rv, tl)))
     | observe_state_first_tau
         itr tr
+        (NNB: tr <> Tr.nb)
       :
       observe_state_first (Tau itr, tr)
                           (Some (Some (inl silentE_tau), (itr, tr)))
     | observe_state_first_choose
         X ktr x tr
+        (NNB: tr <> Tr.nb)
       :
       observe_state_first (Vis (Choose X) ktr, tr)
                           (Some (Some (inl silentE_tau), (ktr x, tr)))
     | observe_state_first_fair
         fm ktr tr
+        (NNB: tr <> Tr.nb)
       :
       observe_state_first (Vis (Fair fm) ktr, tr)
                           (Some (Some (inl (silentE_fair fm)), (ktr tt, tr)))
@@ -532,6 +535,11 @@ Section ExtractRaw.
         ktr tr
       :
       observe_state_first (Vis Undefined ktr, tr)
+                          None
+    | observe_state_first_nb
+        itr
+      :
+      observe_state_first (itr, Tr.nb)
                           None
   .
 
@@ -569,6 +577,10 @@ Section ExtractRaw.
         ktr tr
       :
       _wf_tr wf_tr (Vis Undefined ktr, tr)
+    | wf_tr_nb
+        itr
+      :
+      _wf_tr wf_tr (itr, Tr.nb)
   .
 
   Definition wf_tr: forall R, (@state_tr R) -> Prop := paco2 _wf_tr bot2.
@@ -606,8 +618,15 @@ Section ExtractRaw.
     unfold wf_tr in WF. punfold WF. inv WF.
     - eexists. ii. econs.
     - eexists. ii. econs.
-    - eexists. ii. econs.
-    - eexists. ii. econs.
+    - pose (classic (tr <> Tr.nb)) as NNB. des.
+      + eexists. ii. econs. eauto.
+      + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
+    - pose (classic (tr <> Tr.nb)) as NNB. des.
+      + eexists. ii. econs. eauto.
+      + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
+    - pose (classic (tr <> Tr.nb)) as NNB. des.
+      + eexists. ii. econs. eauto.
+      + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
     - eexists. ii. econs.
     - eexists. ii. econs.
       Unshelve. exact x.
@@ -622,8 +641,15 @@ Section ExtractRaw.
     { unfold wf_tr in WF. punfold WF. inv WF.
       - eexists. ii. econs.
       - eexists. ii. econs.
-      - eexists. ii. econs.
-      - eexists. ii. econs.
+      - pose (classic (tr <> Tr.nb)) as NNB. des.
+        + eexists. ii. econs. eauto.
+        + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
+      - pose (classic (tr <> Tr.nb)) as NNB. des.
+        + eexists. ii. econs. eauto.
+        + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
+      - pose (classic (tr <> Tr.nb)) as NNB. des.
+        + eexists. ii. econs. eauto.
+        + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
       - eexists. ii. econs.
       - eexists. ii. econs.
     }
@@ -663,6 +689,7 @@ Section ExtractRaw.
   Lemma observe_state_tau
         R itr tr
         (WF: wf_tr (itr, tr))
+        (NNB: tr <> Tr.nb)
     :
     observe_state (R:=R) (Tau itr, tr) = Some (Some (inl silentE_tau), (itr, tr)).
   Proof.
@@ -671,12 +698,13 @@ Section ExtractRaw.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
     { red. pfold. econs. eauto. }
-    i. inv H. eauto.
+    i. inv H; eauto. clarify.
   Qed.
 
   Lemma observe_state_choose
         R tr X ktr
         (WF: wf_tr (Vis (Choose X) ktr, tr))
+        (NNB: tr <> Tr.nb)
     :
     exists (x: X), observe_state (R:=R) (Vis (Choose X) ktr, tr) =
                 Some (Some (inl silentE_tau), (ktr x, tr)).
@@ -685,12 +713,13 @@ Section ExtractRaw.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    i. inv H. eapply inj_pair2 in H3. clarify. eauto.
+    i. inv H. eapply inj_pair2 in H3. clarify. eauto. clarify.
   Qed.
 
   Lemma observe_state_fair
         R tr fm ktr
         (WF: wf_tr (ktr tt, tr))
+        (NNB: tr <> Tr.nb)
     :
     observe_state (R:=R) (Vis (Fair fm) ktr, tr) =
                 Some (Some (inl (silentE_fair fm)), (ktr tt, tr)).
@@ -700,7 +729,7 @@ Section ExtractRaw.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
     { red. pfold. econs. eauto. }
-    i. inv H. eapply inj_pair2 in H2. clarify.
+    i. inv H. eapply inj_pair2 in H2. clarify. clarify.
   Qed.
 
   Lemma observe_state_ub
@@ -713,7 +742,20 @@ Section ExtractRaw.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
     { red. pfold. econs. }
-    i. inv H. eapply inj_pair2 in H1. clarify.
+    i. inv H; eauto.
+  Qed.
+
+  Lemma observe_state_nb
+        R itr
+    :
+    observe_state (R:=R) (itr, Tr.nb) = None.
+  Proof.
+    unfold observe_state, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
+    rename x into rawsttr. clear Heq.
+    hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
+    unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
+    { red. pfold. econs. }
+    i. inv H; clarify.
   Qed.
 
   Theorem observe_state_spec
@@ -723,14 +765,26 @@ Section ExtractRaw.
   Proof.
     destruct sttr as [st tr]. ii. rename H into WF.
     ides st.
-    - punfold WF. inv WF. rewrite observe_state_ret. econs.
-    - rewrite observe_state_tau. econs. punfold WF. inv WF. pclearbot. eauto.
+    - punfold WF. inv WF.
+      + rewrite observe_state_ret. econs.
+      + rewrite observe_state_nb. econs.
+    - pose (classic (tr = Tr.nb)) as NB. des.
+      + clarify. rewrite observe_state_nb. econs.
+      + rewrite observe_state_tau; eauto. econs; eauto.
+        punfold WF. inv WF. pclearbot. eauto. clarify.
     - destruct e.
-      + hexploit observe_state_choose; eauto. i. des. setoid_rewrite H; clear H. econs.
-      + rewrite observe_state_fair. econs. punfold WF. inv WF. pclearbot.
-        eapply inj_pair2 in H1. clarify.
-      + punfold WF. inv WF. eapply inj_pair2 in H2. clarify.
-        rewrite observe_state_obs. econs. pclearbot. eauto.
+      + pose (classic (tr = Tr.nb)) as NB. des.
+        * clarify. rewrite observe_state_nb. econs.
+        * hexploit observe_state_choose; eauto. i. des.
+          setoid_rewrite H; clear H. econs. eauto.
+      + pose (classic (tr = Tr.nb)) as NB. des.
+        * clarify. rewrite observe_state_nb. econs.
+        * rewrite observe_state_fair; eauto. econs; eauto.
+          punfold WF. inv WF. pclearbot. eapply inj_pair2 in H1. clarify. clarify.
+      + pose (classic (tr = Tr.nb)) as NB. des.
+        * clarify. rewrite observe_state_nb. econs.
+        * punfold WF. inv WF; clarify. eapply inj_pair2 in H0. clarify.
+          rewrite observe_state_obs. econs. pclearbot. eauto.
       + rewrite observe_state_ub. econs.
   Qed.
 
@@ -738,7 +792,7 @@ Section ExtractRaw.
   (** state to raw trace **)
   CoFixpoint sttr2raw {R} (sttr: @state_tr R): (@RawTr.t _ R) :=
     match observe_state sttr with
-    | None => RawTr.ub
+    | None => RawTr.nb
     | Some (None, (Ret retv, _)) => RawTr.done retv
     | Some (Some ev, sttr0) => RawTr.cons ev (sttr2raw sttr0)
     (* impossible case *)
@@ -771,6 +825,7 @@ Section ExtractRaw.
   Lemma sttr2raw_red_tau
         R itr tr
         (WF: wf_tr (itr, tr))
+        (NNB: tr <> Tr.nb)
     :
     sttr2raw (R:=R) (Tau itr, tr) = RawTr.cons (inl silentE_tau) (sttr2raw (itr, tr)).
   Proof.
@@ -782,6 +837,7 @@ Section ExtractRaw.
   Lemma sttr2raw_red_choose
         R tr X ktr
         (WF: wf_tr (Vis (Choose X) ktr, tr))
+        (NNB: tr <> Tr.nb)
     :
     exists x, sttr2raw (R:=R) (Vis (Choose X) ktr, tr) =
            RawTr.cons (inl silentE_tau) (sttr2raw (ktr x, tr)).
@@ -795,6 +851,7 @@ Section ExtractRaw.
   Lemma sttr2raw_red_fair
         R tr fm ktr
         (WF: wf_tr (ktr tt, tr))
+        (NNB: tr <> Tr.nb)
     :
     sttr2raw (R:=R) (Vis (Fair fm) ktr, tr) =
       RawTr.cons (inl (silentE_fair fm)) (sttr2raw (ktr tt, tr)).
@@ -807,11 +864,21 @@ Section ExtractRaw.
   Lemma sttr2raw_red_ub
         R tr ktr
     :
-    sttr2raw (R:=R) (Vis Undefined ktr, tr) = RawTr.ub.
+    sttr2raw (R:=R) (Vis Undefined ktr, tr) = RawTr.nb.
   Proof.
     match goal with | |- ?lhs = _ => replace lhs with (RawTr.ob lhs) end.
     2:{ symmetry. apply RawTr.ob_eq. }
     ss. rewrite observe_state_ub; eauto.
+  Qed.
+
+  Lemma sttr2raw_red_nb
+        R itr
+    :
+    sttr2raw (R:=R) (itr, Tr.nb) = RawTr.nb.
+  Proof.
+    match goal with | |- ?lhs = _ => replace lhs with (RawTr.ob lhs) end.
+    2:{ symmetry. apply RawTr.ob_eq. }
+    ss. rewrite observe_state_nb; eauto.
   Qed.
 
 
@@ -824,7 +891,21 @@ Section ExtractRaw.
     :
     wf_tr (st, tr).
   Proof.
-  Admitted.
+    revert_until R. pcofix CIH. i. induction BEH using (@of_state_ind2).
+    { pfold. econs. }
+    { punfold H. inv H.
+      - pfold. econs. right. eapply CIH. pclearbot. pfold. econs 2. eauto.
+      - pfold. econs. right. eapply CIH. pclearbot. pfold. econs 2. eauto.
+      - pfold. econs. right. eapply CIH. pclearbot. pfold. econs 2. eauto.
+      - pfold. econs.
+    }
+    { pfold. econs. }
+    { pfold. econs. eauto. }
+    { pfold. econs. eauto. }
+    { pfold. econs. eauto. }
+    { pfold. econs. eauto. }
+    { pfold. econs. }
+  Qed.
 
   Theorem sttr2raw_raw_beh
           R st tr
