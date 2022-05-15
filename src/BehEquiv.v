@@ -913,6 +913,26 @@ Section ExtractRaw.
     :
     RawBeh.of_state (R:=R) st (sttr2raw (st, tr)).
   Proof.
+    revert_until R. pcofix CIH. i. punfold WF. inv WF.
+    { rewrite sttr2raw_red_ret. pfold. econs. }
+    { pclearbot. rewrite sttr2raw_red_obs; eauto.
+      pfold. econs; eauto. }
+    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+      { rewrite sttr2raw_red_nb. pfold. econs. }
+      rewrite sttr2raw_red_tau; eauto. pfold. econs; eauto. }
+    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+      { rewrite sttr2raw_red_nb. pfold. econs. }
+      hexploit sttr2raw_red_choose; eauto.
+      { pfold. econs. left. eapply WF0. }
+      i; des. setoid_rewrite H; clear H. pfold. econs; eauto. right. eapply CIH.
+      admit.
+    }
+    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+      { rewrite sttr2raw_red_nb. pfold. econs. }
+      rewrite sttr2raw_red_fair; eauto. pfold. econs; eauto. }
+    { pfold. econs. }
+    { pfold. rewrite sttr2raw_red_nb. econs. }
+
   Admitted.
 
   Theorem sttr2raw_extract
@@ -921,6 +941,31 @@ Section ExtractRaw.
     :
     extract_tr (sttr2raw (st, tr)) tr.
   Proof.
+    revert_until R. pcofix CIH. i. punfold WF. inv WF.
+    { rewrite sttr2raw_red_ret. pfold. econs. }
+    { pclearbot. rewrite sttr2raw_red_obs; eauto. pfold. econs; eauto. }
+    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+      { rewrite sttr2raw_red_nb. pfold. econs. }
+      rewrite sttr2raw_red_tau; eauto.
+      
+
+
+      pfold. econs; eauto. }
+    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+      { rewrite sttr2raw_red_nb. pfold. econs. }
+      hexploit sttr2raw_red_choose; eauto.
+      { pfold. econs. left. eapply WF0. }
+      i; des. setoid_rewrite H; clear H. pfold. econs; eauto. right. eapply CIH.
+      admit.
+    }
+    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+      { rewrite sttr2raw_red_nb. pfold. econs. }
+      rewrite sttr2raw_red_fair; eauto. pfold. econs; eauto. }
+    { pfold. econs. }
+    { pfold. rewrite sttr2raw_red_nb. econs. }
+
+
+
   Admitted.
 
 End ExtractRaw.
