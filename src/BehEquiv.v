@@ -637,6 +637,9 @@ Section ExtractRaw.
     - punfold H. eapply wf_tr_mon; eauto. i. pclearbot. eauto.
   Qed.
 
+  Definition test (X: Type) (x: X) := Some x.
+  Definition fun_state_tr := forall (R X: Type), X -> (@state_tr R).
+
   (** observer of the state, needs trace for obs return value information **)
   Variant observe_state_first
           R
