@@ -544,53 +544,143 @@ Section ExtractRaw.
   .
 
   (** well formed state-trace relation **)
-  Variant _wf_tr
-          (wf_tr: forall R, (@state_tr R) -> Prop)
+  Variant _wf_spin
+          (wf_spin: forall R, (@state _ R) -> Prop)
           R
     :
-    (@state_tr R) -> Prop :=
-    | wf_tr_ret
-        retv
-      :
-      _wf_tr wf_tr (Ret retv, Tr.done retv)
-    | wf_tr_obs
-        fn args rv ktr tr
-        (WF: wf_tr _ (ktr rv, tr))
-      :
-      _wf_tr wf_tr (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tr)
-    | wf_tr_tau
-        itr tr
-        (WF: wf_tr _ (itr, tr))
-      :
-      _wf_tr wf_tr (Tau itr, tr)
-    | wf_tr_choose
-        X ktr x tr
-        (WF: wf_tr _ (ktr x, tr))
-      :
-      _wf_tr wf_tr (Vis (Choose X) ktr, tr)
-    | wf_tr_fair
-        fm ktr tr
-        (WF: wf_tr _ (ktr tt, tr))
-      :
-      _wf_tr wf_tr (Vis (Fair fm) ktr, tr)
-    | wf_tr_ub
-        ktr tr
-      :
-      _wf_tr wf_tr (Vis Undefined ktr, tr)
-    | wf_tr_nb
+    (@state _ R) -> Prop :=
+    | wf_spin_tau
         itr
+        (WFS: wf_spin R itr)
       :
-      _wf_tr wf_tr (itr, Tr.nb)
+      _wf_spin wf_spin (Tau itr)
+    | wf_spin_choose
+        X ktr x
+        (WFS: wf_spin R (ktr x))
+      :
+      _wf_spin wf_spin (Vis (Choose X) ktr)
+    | wf_spin_fair
+        fm ktr
+        (WFS: wf_spin R (ktr tt))
+      :
+      _wf_spin wf_spin (Vis (Fair fm) ktr)
+    | wf_spin_ub
+        ktr
+      :
+      _wf_spin wf_spin (Vis Undefined ktr)
   .
 
-  Definition wf_tr: forall R, (@state_tr R) -> Prop := paco2 _wf_tr bot2.
+  Definition wf_spin: forall R, (@state _ R) -> Prop := paco2 _wf_spin bot2.
 
-  Lemma wf_tr_mon: monotone2 _wf_tr.
+  Lemma wf_spin_mon: monotone2 _wf_spin.
   Proof.
     ii. inv IN. all: econs; eauto.
   Qed.
 
+  Local Hint Resolve wf_spin_mon: paco.
+
+  Inductive _wf_tr
+            (wf_tr: forall R, (@state_tr R) -> Prop)
+            R
+    :
+    (@state_tr R) -> Prop :=
+  | wf_tr_ret
+      retv
+    :
+    _wf_tr wf_tr (Ret retv, Tr.done retv)
+  | wf_tr_obs
+      fn args rv ktr tr
+      (WF: wf_tr _ (ktr rv, tr))
+    :
+    _wf_tr wf_tr (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tr)
+  | wf_tr_spin
+      itr
+      (WFS: wf_spin itr)
+    :
+    _wf_tr wf_tr (itr, Tr.spin)
+  | wf_tr_tau
+      itr tr
+      (STEP: _wf_tr wf_tr (itr, tr))
+    :
+    _wf_tr wf_tr (Tau itr, tr)
+  | wf_tr_choose
+      X ktr x tr
+      (STEP: _wf_tr wf_tr (ktr x, tr))
+    :
+    _wf_tr wf_tr (Vis (Choose X) ktr, tr)
+  | wf_tr_fair
+      fm ktr tr
+      (STEP: _wf_tr wf_tr (ktr tt, tr))
+    :
+    _wf_tr wf_tr (Vis (Fair fm) ktr, tr)
+  | wf_tr_ub
+      ktr tr
+    :
+    _wf_tr wf_tr (Vis Undefined ktr, tr)
+  | wf_tr_nb
+      itr
+    :
+    _wf_tr wf_tr (itr, Tr.nb)
+  .
+
+  Definition wf_tr: forall R, (@state_tr R) -> Prop := paco2 _wf_tr bot2.
+
+  Lemma wf_tr_ind
+        (r: forall R, (@state_tr R) -> Prop) R (P: (@state_tr R) -> Prop)
+        (RET: forall retv : R, P (Ret retv, Tr.done retv))
+        (OBS: forall (fn : nat) (args : list nat) (rv : nat) (ktr : nat -> state) (tr : Tr.t),
+            r R (ktr rv, tr) -> P (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tr))
+        (SPIN: forall itr : state, wf_spin itr -> P (itr, Tr.spin))
+        (TAU: forall (itr : state) (tr : Tr.t) (STEP: _wf_tr r (itr, tr)) (IH: P (itr, tr)), P (Tau itr, tr))
+        (CHOOSE: forall (X : Type) (ktr : X -> state) (x : X) (tr : Tr.t) (STEP: _wf_tr r (ktr x, tr))
+                   (IH: P (ktr x, tr)), P (Vis (Choose X) ktr, tr))
+        (FAIR: forall (fm : fmap) (ktr : unit -> state) (tr : Tr.t) (STEP: _wf_tr r (ktr tt, tr))
+                 (IH: P (ktr tt, tr)), P (Vis (Fair fm) ktr, tr))
+        (UB: forall (ktr : void -> itree eventE R) (tr : Tr.t), P (Vis Undefined ktr, tr))
+        (NB: forall itr : state, P (itr, Tr.nb))
+    :
+    forall sttr, @_wf_tr r R sttr -> P sttr.
+  Proof.
+    fix IH 2. i. inv H; eauto.
+  Qed.
+
+  Lemma wf_tr_mon: monotone2 _wf_tr.
+  Proof.
+    ii. induction IN using wf_tr_ind; eauto.
+    - econs; eauto.
+    - econs; eauto.
+    - econs; eauto.
+    - econs; eauto.
+    - econs; eauto.
+    - econs; eauto.
+    - econs; eauto.
+    - econs; eauto.
+  Qed.
+
   Local Hint Resolve wf_tr_mon: paco.
+
+  Lemma wf_tr_ind2
+        R (P: (@state_tr R) -> Prop)
+        (RET: forall retv : R, P (Ret retv, Tr.done retv))
+        (OBS: forall (fn : nat) (args : list nat) (rv : nat) (ktr : nat -> state) (tr : Tr.t),
+            wf_tr (ktr rv, tr) -> P (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tr))
+        (SPIN: forall itr : state, wf_spin itr -> P (itr, Tr.spin))
+        (TAU: forall (itr : state) (tr : Tr.t) (STEP: wf_tr (itr, tr)) (IH: P (itr, tr)), P (Tau itr, tr))
+        (CHOOSE: forall (X : Type) (ktr : X -> state) (x : X) (tr : Tr.t) (STEP: wf_tr (ktr x, tr))
+                   (IH: P (ktr x, tr)), P (Vis (Choose X) ktr, tr))
+        (FAIR: forall (fm : fmap) (ktr : unit -> state) (tr : Tr.t) (STEP: wf_tr (ktr tt, tr))
+                 (IH: P (ktr tt, tr)), P (Vis (Fair fm) ktr, tr))
+        (UB: forall (ktr : void -> itree eventE R) (tr : Tr.t), P (Vis Undefined ktr, tr))
+        (NB: forall itr : state, P (itr, Tr.nb))
+    :
+    forall sttr, wf_tr sttr -> P sttr.
+  Proof.
+    i. eapply wf_tr_ind; eauto.
+    - i. eapply TAU; eauto. pfold. eapply wf_tr_mon; eauto.
+    - i. eapply CHOOSE; eauto. pfold. eapply wf_tr_mon; eauto.
+    - i. eapply FAIR; eauto. pfold. eapply wf_tr_mon; eauto.
+    - punfold H. eapply wf_tr_mon; eauto. i. pclearbot. eauto.
+  Qed.
 
 
   Definition observe_state_prop
@@ -615,21 +705,26 @@ Section ExtractRaw.
     :
     exists rawst, observe_state_first sttr rawst.
   Proof.
-    unfold wf_tr in WF. punfold WF. inv WF.
+    induction WF using wf_tr_ind2.
     - eexists. ii. econs.
     - eexists. ii. econs.
+    - punfold H. inv H.
+      + eexists. econs; eauto. ss.
+      + eexists. econs; eauto. ss.
+      + eexists. econs; eauto. ss.
+      + eexists. econs; eauto.
     - pose (classic (tr <> Tr.nb)) as NNB. des.
-      + eexists. ii. econs. eauto.
+      + eexists. econs; eauto.
       + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
     - pose (classic (tr <> Tr.nb)) as NNB. des.
-      + eexists. ii. econs. eauto.
+      + eexists. econs; eauto.
       + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
     - pose (classic (tr <> Tr.nb)) as NNB. des.
-      + eexists. ii. econs. eauto.
+      + eexists. econs; eauto.
       + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
-    - eexists. ii. econs.
-    - eexists. ii. econs.
-      Unshelve. exact x.
+    - eexists. econs.
+    - eexists. econs.
+      Unshelve. exact x. exact x.
   Qed.
 
   Lemma observe_state_prop_exists
@@ -638,23 +733,29 @@ Section ExtractRaw.
     exists rawst, observe_state_prop sttr rawst.
   Proof.
     pose (classic (wf_tr sttr)) as WF. des.
-    { unfold wf_tr in WF. punfold WF. inv WF.
+    { induction WF using wf_tr_ind2.
       - eexists. ii. econs.
       - eexists. ii. econs.
+      - punfold H. inv H.
+        + eexists. econs; eauto. ss.
+        + eexists. econs; eauto. ss.
+        + eexists. econs; eauto. ss.
+        + eexists. econs; eauto.
       - pose (classic (tr <> Tr.nb)) as NNB. des.
-        + eexists. ii. econs. eauto.
+        + eexists. econs; eauto.
         + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
       - pose (classic (tr <> Tr.nb)) as NNB. des.
-        + eexists. ii. econs. eauto.
+        + eexists. econs; eauto.
         + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
       - pose (classic (tr <> Tr.nb)) as NNB. des.
-        + eexists. ii. econs. eauto.
+        + eexists. econs; eauto.
         + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
-      - eexists. ii. econs.
-      - eexists. ii. econs.
+      - eexists. econs.
+      - eexists. econs.
+        Unshelve. exact x. exact x.
     }
     { eexists. ii. clarify. }
-    Unshelve. exact x. exact None.
+    Unshelve. exact None.
   Qed.
 
   (** observe_state reduction lemmas **)
@@ -697,7 +798,7 @@ Section ExtractRaw.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    { red. pfold. econs. eauto. }
+    { punfold WF. pfold. econs. eapply wf_tr_mon; eauto. }
     i. inv H; eauto. clarify.
   Qed.
 
@@ -706,15 +807,22 @@ Section ExtractRaw.
         (WF: wf_tr (Vis (Choose X) ktr, tr))
         (NNB: tr <> Tr.nb)
     :
-    exists (x: X), observe_state (R:=R) (Vis (Choose X) ktr, tr) =
-                Some (Some (inl silentE_tau), (ktr x, tr)).
+    exists (x: X),
+      (wf_tr (ktr x, tr)) /\
+        (observe_state (R:=R) (Vis (Choose X) ktr, tr) = Some (Some (inl silentE_tau), (ktr x, tr))).
   Proof.
     unfold observe_state, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    i. inv H. eapply inj_pair2 in H3. clarify. eauto. clarify.
-  Qed.
+    i. inv H.
+    - eapply inj_pair2 in H3. clarify. punfold WF. inv WF; ss; clarify.
+      2:{ eapply inj_pair2 in H0. clarify.
+          admit. }
+      { punfold WFS. inv WFS. eapply inj_pair2 in H3. clarify. pclearbot.
+        admit. }
+    - clarify.
+  Admitted.
 
   Lemma observe_state_fair
         R tr fm ktr
