@@ -498,51 +498,6 @@ Section ExtractRaw.
 
   Definition state_tr {R} := ((@state _ R) * (@Tr.t R))%type.
 
-  (** observer of the state, needs trace for obs return value information **)
-  Variant observe_state_first
-          R
-    :
-    (@state_tr R) -> option (prod (option rawE) state_tr) -> Prop :=
-    | observe_state_first_ret
-        retv
-      :
-      observe_state_first (Ret retv, Tr.done retv)
-                          (Some (None, (Ret retv, Tr.done retv)))
-    | observe_state_first_obs
-        fn args ktr rv tl
-      :
-      observe_state_first (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tl)
-                          (Some (Some (inr (obsE_syscall fn args rv)), (ktr rv, tl)))
-    | observe_state_first_tau
-        itr tr
-        (NNB: tr <> Tr.nb)
-      :
-      observe_state_first (Tau itr, tr)
-                          (Some (Some (inl silentE_tau), (itr, tr)))
-    | observe_state_first_choose
-        X ktr x tr
-        (NNB: tr <> Tr.nb)
-      :
-      observe_state_first (Vis (Choose X) ktr, tr)
-                          (Some (Some (inl silentE_tau), (ktr x, tr)))
-    | observe_state_first_fair
-        fm ktr tr
-        (NNB: tr <> Tr.nb)
-      :
-      observe_state_first (Vis (Fair fm) ktr, tr)
-                          (Some (Some (inl (silentE_fair fm)), (ktr tt, tr)))
-    | observe_state_first_ub
-        ktr tr
-      :
-      observe_state_first (Vis Undefined ktr, tr)
-                          None
-    | observe_state_first_nb
-        itr
-      :
-      observe_state_first (itr, Tr.nb)
-                          None
-  .
-
   (** well formed state-trace relation **)
   Variant _wf_spin
           (wf_spin: forall R, (@state _ R) -> Prop)
@@ -681,6 +636,51 @@ Section ExtractRaw.
     - i. eapply FAIR; eauto. pfold. eapply wf_tr_mon; eauto.
     - punfold H. eapply wf_tr_mon; eauto. i. pclearbot. eauto.
   Qed.
+
+  (** observer of the state, needs trace for obs return value information **)
+  Variant observe_state_first
+          R
+    :
+    (@state_tr R) -> option (prod (option rawE) state_tr) -> Prop :=
+    | observe_state_first_ret
+        retv
+      :
+      observe_state_first (Ret retv, Tr.done retv)
+                          (Some (None, (Ret retv, Tr.done retv)))
+    | observe_state_first_obs
+        fn args ktr rv tl
+      :
+      observe_state_first (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tl)
+                          (Some (Some (inr (obsE_syscall fn args rv)), (ktr rv, tl)))
+    | observe_state_first_tau
+        itr tr
+        (NNB: tr <> Tr.nb)
+      :
+      observe_state_first (Tau itr, tr)
+                          (Some (Some (inl silentE_tau), (itr, tr)))
+    | observe_state_first_choose
+        X ktr x tr
+        (NNB: tr <> Tr.nb)
+      :
+      observe_state_first (Vis (Choose X) ktr, tr)
+                          (Some (Some (inl silentE_tau), (ktr x, tr)))
+    | observe_state_first_fair
+        fm ktr tr
+        (NNB: tr <> Tr.nb)
+      :
+      observe_state_first (Vis (Fair fm) ktr, tr)
+                          (Some (Some (inl (silentE_fair fm)), (ktr tt, tr)))
+    | observe_state_first_ub
+        ktr tr
+      :
+      observe_state_first (Vis Undefined ktr, tr)
+                          None
+    | observe_state_first_nb
+        itr
+      :
+      observe_state_first (itr, Tr.nb)
+                          None
+  .
 
 
   Definition observe_state_prop
