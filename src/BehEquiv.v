@@ -1337,6 +1337,7 @@ Section ExtractRaw.
     extract_tr (sttr2raw sttr) (snd sttr).
   Proof.
     ginit. revert_until R. gcofix CIH. i.
+    pose proof WF as WF0. revert WF0.
     induction WF using wf_tr_ind2; i; clarify.
     { rewrite sttr2raw_red_ret. gfinal. right. pfold. econs. }
     { rewrite sttr2raw_red_obs; eauto. gfinal; right. pfold. econs; eauto. eapply CIH in WF. ss. right; eauto. }
@@ -1347,8 +1348,12 @@ Section ExtractRaw.
     }
     { pose (classic (tr = Tr.nb)) as NB. des; clarify.
       { rewrite sttr2raw_red_nb. gfinal; right. pfold. econs. }
-      hexploit sttr2raw_red_choose; eauto.
-      2:{ i; des. setoid_rewrite H0; clear H0. ss. guclo extract_tr_indC_spec. econs.
+      hexploit sttr2raw_red_choose.
+      3:{ i; des. setoid_rewrite H0; clear H0. ss. guclo extract_tr_indC_spec. econs.
+          (*TODO*)
+          gfinal. right. 
+
+
           gfinal. right. pfold. econs.
 
 
@@ -1382,9 +1387,9 @@ Section FAIR.
   Theorem extract_preserves_fairness
           R (st: @state _ R) (im: imap wf) tr raw
           (BEH: Beh.of_state im st tr)
-          (EXT: extract_tr raw tr)
+          (* (EXT: extract_tr raw tr) *)
     :
-    RawTr.is_fair_ord wf raw.
+    RawTr.is_fair_ord wf (sttr2raw (st, tr)).
   Proof.
   Admitted.
 
