@@ -612,7 +612,10 @@ Section ExtractRaw.
     - econs; eauto.
   Qed.
 
+  Local Hint Constructors _wf_tr.
+  Local Hint Unfold wf_tr.
   Local Hint Resolve wf_tr_mon: paco.
+  Local Hint Resolve cpn2_wcompat: paco.
 
   Lemma wf_tr_ind2
         R (P: (@state_tr R) -> Prop)
@@ -637,8 +640,69 @@ Section ExtractRaw.
     - punfold H. eapply wf_tr_mon; eauto. i. pclearbot. eauto.
   Qed.
 
-  Definition test (X: Type) (x: X) := Some x.
-  Definition fun_state_tr := forall (R X: Type), X -> (@state_tr R).
+  Variant wf_tr_indC
+            (wf_tr: forall R, (@state_tr R) -> Prop)
+            R
+    :
+    (@state_tr R) -> Prop :=
+  | wf_tr_indC_ret
+      retv
+    :
+    wf_tr_indC wf_tr (Ret retv, Tr.done retv)
+  | wf_tr_indC_obs
+      fn args rv ktr tr
+      (WF: wf_tr _ (ktr rv, tr))
+    :
+    wf_tr_indC wf_tr (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tr)
+  | wf_tr_indC_spin
+      itr
+      (WFS: wf_spin itr)
+    :
+    wf_tr_indC wf_tr (itr, Tr.spin)
+  | wf_tr_indC_tau
+      itr tr
+      (STEP: wf_tr _ (itr, tr))
+    :
+    wf_tr_indC wf_tr (Tau itr, tr)
+  | wf_tr_indC_choose
+      X ktr x tr
+      (STEP: wf_tr _ (ktr x, tr))
+    :
+    wf_tr_indC wf_tr (Vis (Choose X) ktr, tr)
+  | wf_tr_indC_fair
+      fm ktr tr
+      (STEP: wf_tr _ (ktr tt, tr))
+    :
+    wf_tr_indC wf_tr (Vis (Fair fm) ktr, tr)
+  | wf_tr_indC_ub
+      ktr tr
+    :
+    wf_tr_indC wf_tr (Vis Undefined ktr, tr)
+  | wf_tr_indC_nb
+      itr
+    :
+    wf_tr_indC wf_tr (itr, Tr.nb)
+  .
+
+  Lemma wf_tr_indC_mon: monotone2 wf_tr_indC.
+  Proof. ii. inv IN; econs; eauto. Qed.
+
+  Local Hint Resolve wf_tr_indC_mon: paco.
+
+  Lemma wf_tr_indC_wrespectful: wrespectful2 _wf_tr wf_tr_indC.
+  Proof.
+    econs; eauto with paco.
+    i. inv PR; eauto.
+    { econs; eauto. eapply rclo2_base. eauto. }
+    { econs; eauto. eapply wf_tr_mon; eauto. i. eapply rclo2_base. auto. }
+    { econs; eauto. eapply wf_tr_mon; eauto. i. eapply rclo2_base. auto. }
+    { econs; eauto. eapply wf_tr_mon; eauto. i. eapply rclo2_base. auto. }
+  Qed.
+
+  Lemma wf_tr_indC_spec: wf_tr_indC <3= gupaco2 _wf_tr (cpn2 _wf_tr).
+  Proof. i. eapply wrespect2_uclo; eauto with paco. eapply wf_tr_indC_wrespectful. Qed.
+
+
 
   (** observer of the state, needs trace for obs return value information **)
   Variant observe_state_first
@@ -664,6 +728,7 @@ Section ExtractRaw.
     | observe_state_first_choose
         X ktr x tr
         (NNB: tr <> Tr.nb)
+        (WF: wf_tr (ktr x, tr))
       :
       observe_state_first (Vis (Choose X) ktr, tr)
                           (Some (Some (inl silentE_tau), (ktr x, tr)))
@@ -713,7 +778,7 @@ Section ExtractRaw.
     - eexists. ii. econs.
     - punfold H. inv H.
       + eexists. econs; eauto. ss.
-      + eexists. econs; eauto. ss.
+      + pclearbot. eexists. econs; eauto. ss.
       + eexists. econs; eauto. ss.
       + eexists. econs; eauto.
     - pose (classic (tr <> Tr.nb)) as NNB. des.
@@ -727,7 +792,6 @@ Section ExtractRaw.
       + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
     - eexists. econs.
     - eexists. econs.
-      Unshelve. exact x. exact x.
   Qed.
 
   Lemma observe_state_prop_exists
@@ -741,7 +805,7 @@ Section ExtractRaw.
       - eexists. ii. econs.
       - punfold H. inv H.
         + eexists. econs; eauto. ss.
-        + eexists. econs; eauto. ss.
+        + pclearbot. eexists. econs; eauto. ss.
         + eexists. econs; eauto. ss.
         + eexists. econs; eauto.
       - pose (classic (tr <> Tr.nb)) as NNB. des.
@@ -755,7 +819,6 @@ Section ExtractRaw.
         + apply Classical_Prop.NNPP in NNB. clarify. eexists. econs 7.
       - eexists. econs.
       - eexists. econs.
-        Unshelve. exact x. exact x.
     }
     { eexists. ii. clarify. }
     Unshelve. exact None.
@@ -771,7 +834,6 @@ Section ExtractRaw.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    { red. pfold. econs. }
     i. inv H. eauto.
   Qed.
 
@@ -801,7 +863,7 @@ Section ExtractRaw.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    { punfold WF. pfold. econs. eapply wf_tr_mon; eauto. }
+    { punfold WF. }
     i. inv H; eauto. clarify.
   Qed.
 
@@ -818,14 +880,9 @@ Section ExtractRaw.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    i. inv H.
-    - eapply inj_pair2 in H3. clarify. punfold WF. inv WF; ss; clarify.
-      2:{ eapply inj_pair2 in H0. clarify.
-          admit. }
-      { punfold WFS. inv WFS. eapply inj_pair2 in H3. clarify. pclearbot.
-        admit. }
-    - clarify.
-  Admitted.
+    i. inv H; clarify.
+    eapply inj_pair2 in H0. clarify. eauto.
+  Qed.
 
   Lemma observe_state_fair
         R tr fm ktr
@@ -839,7 +896,7 @@ Section ExtractRaw.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    { red. pfold. econs. eauto. }
+    { punfold WF. }
     i. inv H. eapply inj_pair2 in H2. clarify. clarify.
   Qed.
 
@@ -852,7 +909,6 @@ Section ExtractRaw.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    { red. pfold. econs. }
     i. inv H; eauto.
   Qed.
 
@@ -865,8 +921,22 @@ Section ExtractRaw.
     rename x into rawsttr. clear Heq.
     hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    { red. pfold. econs. }
     i. inv H; clarify.
+  Qed.
+
+  Lemma observe_state_spin
+        R itr
+        (WFS: @wf_spin R itr)
+    :
+    observe_state_first (itr, Tr.spin) (observe_state (itr, Tr.spin)).
+  Proof.
+    punfold WFS. inv WFS.
+    - pclearbot. rewrite observe_state_tau; ss; eauto. econs; ss.
+    - pclearbot. hexploit observe_state_choose; eauto.
+      3:{ i. des. setoid_rewrite H0; clear H0. econs; eauto. ss. }
+      2: ss. pfold. econs. pfold. econs. eauto.
+    - pclearbot. rewrite observe_state_fair; ss; eauto. econs; ss.
+    - rewrite observe_state_ub. econs.
   Qed.
 
   Theorem observe_state_spec
@@ -878,24 +948,30 @@ Section ExtractRaw.
     ides st.
     - punfold WF. inv WF.
       + rewrite observe_state_ret. econs.
+      + punfold WFS. inv WFS.
       + rewrite observe_state_nb. econs.
     - pose (classic (tr = Tr.nb)) as NB. des.
       + clarify. rewrite observe_state_nb. econs.
       + rewrite observe_state_tau; eauto. econs; eauto.
-        punfold WF. inv WF. pclearbot. eauto. clarify.
+        punfold WF. inv WF; ss.
+        * pfold. econs. punfold WFS. inv WFS. pclearbot. eauto.
+        * pfold. eapply wf_tr_mon; eauto.
     - destruct e.
       + pose (classic (tr = Tr.nb)) as NB. des.
         * clarify. rewrite observe_state_nb. econs.
         * hexploit observe_state_choose; eauto. i. des.
-          setoid_rewrite H; clear H. econs. eauto.
+          setoid_rewrite H0; clear H0. econs; eauto.
       + pose (classic (tr = Tr.nb)) as NB. des.
         * clarify. rewrite observe_state_nb. econs.
         * rewrite observe_state_fair; eauto. econs; eauto.
-          punfold WF. inv WF. pclearbot. eapply inj_pair2 in H1. clarify. clarify.
+          punfold WF. inv WF; ss.
+          { pfold. econs. punfold WFS. inv WFS. pclearbot. eapply inj_pair2 in H1. clarify. }
+          { eapply inj_pair2 in H1. clarify. pfold. eauto. }
       + pose (classic (tr = Tr.nb)) as NB. des.
         * clarify. rewrite observe_state_nb. econs.
-        * punfold WF. inv WF; clarify. eapply inj_pair2 in H0. clarify.
-          rewrite observe_state_obs. econs. pclearbot. eauto.
+        * punfold WF. inv WF; clarify.
+          { eapply inj_pair2 in H0. clarify. rewrite observe_state_obs. econs. pclearbot. eauto. }
+          { punfold WFS. inv WFS. }
       + rewrite observe_state_ub. econs.
   Qed.
 
@@ -950,13 +1026,14 @@ Section ExtractRaw.
         (WF: wf_tr (Vis (Choose X) ktr, tr))
         (NNB: tr <> Tr.nb)
     :
-    exists x, sttr2raw (R:=R) (Vis (Choose X) ktr, tr) =
-           RawTr.cons (inl silentE_tau) (sttr2raw (ktr x, tr)).
+    exists x,
+      (wf_tr (ktr x, tr)) /\
+        (sttr2raw (R:=R) (Vis (Choose X) ktr, tr) = RawTr.cons (inl silentE_tau) (sttr2raw (ktr x, tr))).
   Proof.
-    hexploit observe_state_choose; eauto. i. des. exists x.
+    hexploit observe_state_choose; eauto. i. des. exists x. split; eauto.
     match goal with | |- ?lhs = _ => replace lhs with (RawTr.ob lhs) end.
     2:{ symmetry. apply RawTr.ob_eq. }
-    ss. rewrite H; eauto.
+    ss. rewrite H0; eauto.
   Qed.
 
   Lemma sttr2raw_red_fair
@@ -996,26 +1073,64 @@ Section ExtractRaw.
 
   Variable wf: WF.
 
+  Lemma beh_diverge_index_wf_spin
+        R im st
+        (BEH: @Beh.diverge_index _ wf _ im st)
+    :
+    @wf_spin R st.
+  Proof.
+    revert_until R. pcofix CIH. i. punfold BEH. inv BEH.
+    - pclearbot. pfold. econs. right. eauto.
+    - pclearbot. pfold. econs. right. eauto.
+    - pclearbot. pfold. econs. right. eauto.
+    - pfold. econs.
+  Qed.
+
   Theorem beh_of_state_wf_tr
           R im st tr
           (BEH: @Beh.of_state _ wf R im st tr)
     :
     wf_tr (st, tr).
   Proof.
-    revert_until R. pcofix CIH. i. induction BEH using (@of_state_ind2).
-    { pfold. econs. }
-    { punfold H. inv H.
-      - pfold. econs. right. eapply CIH. pclearbot. pfold. econs 2. eauto.
-      - pfold. econs. right. eapply CIH. pclearbot. pfold. econs 2. eauto.
-      - pfold. econs. right. eapply CIH. pclearbot. pfold. econs 2. eauto.
-      - pfold. econs.
-    }
-    { pfold. econs. }
-    { pfold. econs. eauto. }
-    { pfold. econs. eauto. }
-    { pfold. econs. eauto. }
-    { pfold. econs. eauto. }
-    { pfold. econs. }
+    ginit. revert_until R. gcofix CIH. i. 
+    induction BEH using (@of_state_ind2).
+    { gstep. econs. }
+    { gstep. econs. eapply beh_diverge_index_wf_spin; eauto. }
+    { gstep. econs. }
+    { gfinal. right. pfold. econs. eauto. }
+    { guclo wf_tr_indC_spec. econs. eauto. }
+    { guclo wf_tr_indC_spec. econs. eauto. }
+    { guclo wf_tr_indC_spec. econs. eauto. }
+    { gfinal. right. pfold. econs. }
+  Qed.
+
+  Lemma wf_tr_spin_wf_spin
+        R itr
+        (WF: wf_tr (R:=R) (itr, Tr.spin))
+    :
+    wf_spin itr.
+  Proof.
+    remember (itr, Tr.spin) as sttr. depgen Heqsttr. depgen itr.
+    induction WF using wf_tr_ind2; i; clarify; ss.
+    - pfold. econs. left. eapply IHWF. eauto.
+    - pfold. econs. left. eapply IHWF. eauto.
+    - pfold. econs. left. eapply IHWF. eauto.
+    - pfold. econs.
+  Qed.
+
+  Lemma sttr2raw_raw_beh_spin
+        R st
+        (WFS: wf_spin st)
+    :
+    RawBeh.of_state (R:=R) st (sttr2raw (st, Tr.spin)).
+  Proof.
+    revert_until R. pcofix CIH. i. punfold WFS. inv WFS.
+    - pclearbot. rewrite sttr2raw_red_tau; eauto; ss. pfold. econs. right. eauto.
+    - pclearbot. hexploit sttr2raw_red_choose; eauto; ss.
+      3:{ i. des. setoid_rewrite H0; clear H0. pfold. econs. right. eapply CIH. eapply wf_tr_spin_wf_spin; eauto. }
+      2: ss. pfold. econs. pfold. econs. eauto.
+    - pclearbot. rewrite sttr2raw_red_fair; eauto; ss. pfold. econs. right. eauto.
+    - pfold. econs.
   Qed.
 
   Theorem sttr2raw_raw_beh
@@ -1024,11 +1139,14 @@ Section ExtractRaw.
     :
     RawBeh.of_state (R:=R) st (sttr2raw (st, tr)).
   Proof.
-    revert_until R. pcofix CIH. i. punfold WF. inv WF.
+    revert_until R. pcofix CIH. i. remember (st, tr) as sttr. depgen st. depgen tr.
+    induction WF using (@wf_tr_ind2); i; clarify.
     { rewrite sttr2raw_red_ret. pfold. econs. }
-    { pclearbot. rewrite sttr2raw_red_obs; eauto.
-      pfold. econs; eauto. }
-    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+    { rewrite sttr2raw_red_obs; eauto. pfold. econs; eauto. }
+    { hexploit sttr2raw_raw_beh_spin; eauto. i. pfold. punfold H0. eapply RawBeh.of_state_mon; eauto.
+      i. pclearbot. 
+
+      pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
       { rewrite sttr2raw_red_nb. pfold. econs. }
       rewrite sttr2raw_red_tau; eauto. pfold. econs; eauto. }
     { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
