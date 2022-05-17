@@ -1143,26 +1143,21 @@ Section ExtractRaw.
     induction WF using (@wf_tr_ind2); i; clarify.
     { rewrite sttr2raw_red_ret. pfold. econs. }
     { rewrite sttr2raw_red_obs; eauto. pfold. econs; eauto. }
-    { hexploit sttr2raw_raw_beh_spin; eauto. i. pfold. punfold H0. eapply RawBeh.of_state_mon; eauto.
-      i. pclearbot. 
-
-      pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+    { hexploit sttr2raw_raw_beh_spin; eauto. i. eapply paco3_mon; eauto. ss. }
+    { pose (classic (tr0 = Tr.nb)) as NB. des; clarify.
       { rewrite sttr2raw_red_nb. pfold. econs. }
       rewrite sttr2raw_red_tau; eauto. pfold. econs; eauto. }
-    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+    { pose (classic (tr0 = Tr.nb)) as NB. des; clarify.
       { rewrite sttr2raw_red_nb. pfold. econs. }
       hexploit sttr2raw_red_choose; eauto.
-      { pfold. econs. left. eapply WF0. }
-      i; des. setoid_rewrite H; clear H. pfold. econs; eauto. right. eapply CIH.
-      admit.
-    }
-    { pclearbot. pose (classic (tr = Tr.nb)) as NB. des; clarify.
+      2:{ i; des. setoid_rewrite H0; clear H0. pfold. econs; eauto. }
+      pfold. econs. punfold WF. }
+    { pose (classic (tr0 = Tr.nb)) as NB. des; clarify.
       { rewrite sttr2raw_red_nb. pfold. econs. }
       rewrite sttr2raw_red_fair; eauto. pfold. econs; eauto. }
     { pfold. econs. }
     { pfold. rewrite sttr2raw_red_nb. econs. }
-
-  Admitted.
+  Qed.
 
   Theorem sttr2raw_extract
           R (st: @state _ R) tr
