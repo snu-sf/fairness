@@ -778,85 +778,87 @@ Section ExtractRaw.
 
 
   (** observer of the state, needs trace for obs return value information **)
-  Variant observe_state_first
-          R
+  Inductive observe_state_taus
+            R
     :
-    (@state_tr R) -> option (prod (option rawE) state_tr) -> Prop :=
-    | observe_state_first_ret
-        retv
-      :
-      observe_state_first (Ret retv, Tr.done retv)
-                          (Some (None, (Ret retv, Tr.done retv)))
-    | observe_state_first_obs
-        fn args ktr rv tl
-      :
-      observe_state_first (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tl)
-                          (Some (Some (inr (obsE_syscall fn args rv)), (ktr rv, tl)))
-    | observe_state_first_tau
-        itr tr
-        (NNB: tr <> Tr.nb)
-      :
-      observe_state_first (Tau itr, tr)
-                          (Some (Some (inl silentE_tau), (itr, tr)))
-    | observe_state_first_choose
-        X ktr x tr
-        (NNB: tr <> Tr.nb)
-        (WF: wf_tr (ktr x, tr))
-      :
-      observe_state_first (Vis (Choose X) ktr, tr)
-                          (Some (Some (inl silentE_tau), (ktr x, tr)))
-    | observe_state_first_fair
-        fm ktr tr
-        (NNB: tr <> Tr.nb)
-      :
-      observe_state_first (Vis (Fair fm) ktr, tr)
-                          (Some (Some (inl (silentE_fair fm)), (ktr tt, tr)))
-    | observe_state_first_ub
-        ktr tr
-        (NSPIN: tr <> Tr.spin)
-      :
-      observe_state_first (Vis Undefined ktr, tr)
-                          None
-    | observe_state_first_nb
-        itr
-      :
-      observe_state_first (itr, Tr.nb)
-                          None
-    | observe_state_first_ub_spin
-        ktr
-      :
-      observe_state_first (Vis Undefined ktr, Tr.spin)
-                          (Some (None, (Vis Undefined ktr, Tr.spin)))
+    (@state_tr R) -> (prod (list rawE) (option state_tr)) -> Prop :=
+  | observe_state_taus_ret
+      retv
+    :
+    observe_state_taus (Ret retv, Tr.done retv)
+                       ([], Some (Ret retv, Tr.done retv))
+  | observe_state_taus_obs
+      fn args ktr rv tl
+    :
+    observe_state_taus (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tl)
+                       ([inr (obsE_syscall fn args rv)], Some (ktr rv, tl))
+  | observe_state_taus_tau
+      itr tr evs sttr
+      (NNB: tr <> Tr.nb)
+      (CONT: observe_state_taus (itr, tr) (evs, sttr))
+    :
+    observe_state_taus (Tau itr, tr)
+                       ((inl silentE_tau) :: evs, sttr)
+  | observe_state_taus_choose
+      X ktr x tr evs sttr
+      (NNB: tr <> Tr.nb)
+      (WF: wf_tr (ktr x, tr))
+      (CONT: observe_state_taus (ktr x, tr) (evs, sttr))
+    :
+    observe_state_taus (Vis (Choose X) ktr, tr)
+                       ((inl silentE_tau) :: evs, sttr)
+  | observe_state_taus_fair
+      fm ktr tr evs sttr
+      (NNB: tr <> Tr.nb)
+      (CONT: observe_state_taus (ktr tt, tr) (evs, sttr))
+    :
+    observe_state_taus (Vis (Fair fm) ktr, tr)
+                       ((inl (silentE_fair fm)) :: evs, sttr)
+  | observe_state_taus_ub
+      ktr tr
+      (NSPIN: tr <> Tr.spin)
+    :
+    observe_state_taus (Vis Undefined ktr, tr)
+                       ([], None)
+  | observe_state_taus_nb
+      itr
+    :
+    observe_state_taus (itr, Tr.nb)
+                       ([], Some (itr, Tr.nb))
+  | observe_state_taus_ub_spin
+      ktr
+    :
+    observe_state_taus (Vis Undefined ktr, Tr.spin)
+                       ([], Some (Vis Undefined ktr, Tr.spin))
   .
 
 
   Definition observe_state_prop
              R (sttr: @state_tr R)
-             (rawst: option (prod (option rawE) state_tr)): Prop :=
-    (<<WF: wf_tr sttr>>) -> (observe_state_first sttr rawst).
+             (rawst: (prod (list rawE) (option state_tr))): Prop :=
+    (<<WF: wf_tr sttr>>) -> (observe_state_taus sttr rawst).
 
-  Lemma inhabited_observe_state R: inhabited (option (prod (option rawE) (@state_tr R))).
+  Lemma inhabited_observe_state R: inhabited (prod (list rawE) (option (@state_tr R))).
   Proof.
-    econs. exact None.
+    econs. exact ([], None).
   Qed.
 
-  Definition observe_state {R} (sttr: @state_tr R):
-    option (prod (option rawE) state_tr) :=
+  Definition observe_state {R} (sttr: @state_tr R): (prod (list rawE) (option state_tr)) :=
     epsilon _ (@inhabited_observe_state R) (observe_state_prop sttr).
 
 
   (** properties **)
-  Lemma observe_state_first_wf_exists
+  Lemma observe_state_taus_wf_exists
         R (sttr: @state_tr R)
         (WF: wf_tr sttr)
     :
-    exists rawst, observe_state_first sttr rawst.
+    exists rawst, observe_state_taus sttr rawst.
   Proof.
     induction WF using wf_tr_ind2.
-    - eexists. ii. econs.
-    - eexists. ii. econs.
+    - eexists. econs.
+    - eexists. econs.
     - punfold H. inv H.
-      + eexists. econs; eauto. ss.
+      + pclearbot. eexists. econs; eauto; ss. 
       + pclearbot. eexists. econs; eauto. ss.
       + eexists. econs; eauto. ss.
       + eexists. econs 8; eauto.
@@ -1025,7 +1027,7 @@ Section ExtractRaw.
         R itr
         (WFS: @wf_spin R itr)
     :
-    observe_state_first (itr, Tr.spin) (observe_state (itr, Tr.spin)).
+    observe_state_taus (itr, Tr.spin) (observe_state (itr, Tr.spin)).
   Proof.
     punfold WFS. inv WFS.
     - pclearbot. rewrite observe_state_tau; ss; eauto. econs; ss.
