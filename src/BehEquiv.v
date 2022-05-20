@@ -832,8 +832,8 @@ Section ExtractRaw.
 
 
   Definition observe_state_prop R (sti: @st_tr_im R) (rawsti: (prod (list rawE) (option st_tr_im))): Prop :=
-    observe_state_taus sti rawsti.
-    (* (<<WF: wf_tr sttr>>) -> (observe_state_taus sttr rawst). *)
+    let '(st, tr, im) := sti in (Beh.of_state im st tr) -> observe_state_taus sti rawsti.
+  (* (<<WF: wf_tr sttr>>) -> (observe_state_taus sttr rawst). *)
 
   Lemma inhabited_observe_state R: inhabited (prod (list rawE) (option (@st_tr_im R))).
   Proof.
@@ -859,11 +859,11 @@ Section ExtractRaw.
     { pfold. econs. right. eauto. eauto. }
   Qed.
 
-  Lemma observe_state_exists_if_beh
+  Lemma observe_state_taus_exists
         R (st: @state _ R) (tr: Tr.t) (im: imap wf)
         (BEH: Beh.of_state im st tr)
     :
-    exists rawsti, observe_state_prop (st, tr, im) rawsti.
+    exists rawsti, observe_state_taus (st, tr, im) rawsti.
   Proof.
     induction BEH using (@of_state_ind2).
     - eexists. econs.
@@ -891,6 +891,17 @@ Section ExtractRaw.
         * des. destruct rawsti. rr in IHBEH. eexists. econs; i; ss; clarify; eauto.
     - eexists. econs; eauto.
       Unshelve. all: try exact None. all: try exact [].
+  Qed.
+
+  Lemma observe_state_exists
+        R (st: @state _ R) (tr: Tr.t) (im: imap wf)
+    :
+    exists rawsti, observe_state_prop (st, tr, im) rawsti.
+  Proof.
+    destruct (classic (Beh.of_state im st tr)) as [BEH | NBEH].
+    - hexploit observe_state_taus_exists; eauto. i. des. eexists. ii. eauto.
+    - eexists. ii. clarify.
+      Unshelve. exact ([], None).
   Qed.
 
   (** (state, trace, imap) to raw trace **)
@@ -947,62 +958,82 @@ Section ExtractRaw.
 
   (** observe_state reduction lemmas **)
   Lemma observe_state_ret
-        R (retv: R)
+        R (im: imap wf) (retv: R)
     :
-    observe_state (Ret retv, Tr.done retv) = Some (None, (Ret retv, Tr.done retv)).
+    observe_state (Ret retv, Tr.done retv, im) = ([], Some (Ret retv, Tr.done retv, im)).
   Proof.
     unfold observe_state, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
-    rename x into rawsttr. clear Heq.
-    hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
+    rename x into rawsti. clear Heq.
+    hexploit (observe_state_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
     i. inv H. eauto.
   Qed.
 
   Lemma observe_state_obs
-        R fn args rv tl ktr
-        (WF: wf_tr (ktr rv, tl))
+        R (im: imap wf) fn args rv tl ktr
+        (BEH: Beh.of_state im (ktr rv) tl)
     :
-    observe_state (R:=R) (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tl) =
-      Some (Some (inr (obsE_syscall fn args rv)), (ktr rv, tl)).
+    observe_state (R:=R) (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tl, im) =
+      ([inr (obsE_syscall fn args rv)], Some (ktr rv, tl, im)).
   Proof.
     unfold observe_state, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
-    rename x into rawsttr. clear Heq.
-    hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
+    rename x into rawsti. clear Heq.
+    hexploit (observe_state_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    { red. pfold. econs. eauto. }
+    { pfold. econs. eauto. }
     i. inv H. eapply inj_pair2 in H3. clarify.
   Qed.
 
   Lemma observe_state_tau
-        R itr tr
-        (WF: wf_tr (itr, tr))
+        R (im: imap wf) itr tr
+        (BEH: Beh.of_state im itr tr)
         (NNB: tr <> Tr.nb)
+        (NSPIN: tr <> Tr.spin)
+    (* (CONT: observe_state_taus (itr, tr, im) (evs, sti)) *)
     :
-    observe_state (R:=R) (Tau itr, tr) = Some (Some (inl silentE_tau), (itr, tr)).
+    exists evs sti, (observe_state_taus (itr, tr, im) (evs, sti)) /\
+                 (observe_state (R:=R) (Tau itr, tr, im) = ((inl silentE_tau) :: evs, sti)).
   Proof.
     unfold observe_state, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
     rename x into rawsttr. clear Heq.
-    hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
+    hexploit (observe_state_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    { punfold WF. }
-    i. inv H; eauto. clarify.
+    { punfold BEH. }
+    i. inv H; ss; eauto.
+  Qed.
+
+  Lemma observe_state_tau_spin
+        R (im: imap wf) itr tr
+        (DIV: Beh.diverge_index im itr)
+        (NNB: tr <> Tr.nb)
+        (SPIN: tr = Tr.spin)
+    (* (CONT: observe_state_taus (itr, tr, im) (evs, sti)) *)
+    :
+    observe_state (R:=R) (Tau itr, tr, im) = ([inl silentE_tau], Some (itr, tr, im)).
+  Proof.
+    unfold observe_state, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
+    rename x into rawsttr. clear Heq.
+    hexploit (observe_state_exists). intros OSP. eapply o in OSP; clear o.
+    unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
+    i. inv H; ss; eauto. hexploit SPIN; ss; i. des; clarify.
   Qed.
 
   Lemma observe_state_choose
-        R tr X ktr
-        (WF: wf_tr (Vis (Choose X) ktr, tr))
+        R (im: imap wf) tr X ktr
+        (BEH: Beh.of_state im (Vis (Choose X) ktr) tr)
         (NNB: tr <> Tr.nb)
+        (NSPIN: tr <> Tr.spin)
     :
-    exists (x: X),
-      (wf_tr (ktr x, tr)) /\
-        (observe_state (R:=R) (Vis (Choose X) ktr, tr) = Some (Some (inl silentE_tau), (ktr x, tr))).
+    exists (x: X) evs sti,
+      (Beh.of_state im (ktr x) tr) /\
+        (observe_state_taus (ktr x, tr, im) (evs, sti)) /\
+        (observe_state (R:=R) (Vis (Choose X) ktr, tr, im) = ((inl silentE_tau) :: evs, sti)).
   Proof.
     unfold observe_state, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
     rename x into rawsttr. clear Heq.
-    hexploit (observe_state_prop_exists). intros OSP. eapply o in OSP; clear o.
+    hexploit (observe_state_exists). intros OSP. eapply o in OSP; clear o.
     unfold observe_state_prop in OSP. hexploit OSP; clear OSP; eauto.
-    i. inv H; clarify.
-    eapply inj_pair2 in H0. clarify. eauto.
+    i. inv H; clarify. eapply inj_pair2 in H0. clarify. hexploit CONT; eauto; i. des. esplits; eauto.
   Qed.
 
   Lemma observe_state_fair
