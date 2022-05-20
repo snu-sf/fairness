@@ -897,16 +897,21 @@ Section ExtractRaw.
   CoFixpoint raw_spin_trace {R}: RawTr.t :=
     @RawTr.cons _ R (inl silentE_tau) raw_spin_trace.
 
-  CoFixpoint sti2raw {R} (sti: @st_tr_im R): (@RawTr.t _ R) :=
-    match observe_state sti with
-    | (evs, Some (Ret _, Tr.done retv, _)) => RawTr.app evs (RawTr.done retv)
-    | (evs, Some (Vis Undefined _, Tr.spin, _)) => RawTr.app evs raw_spin_trace
-    | (evs, Some (Vis Undefined _, _, _)) => RawTr.app evs RawTr.ub
-    | (evs, Some (_, Tr.nb, _)) => RawTr.app evs RawTr.nb
-    (* | ([silent], Some (st, Tr.spin, im) => RawTr.cons silent (sti2raw (st, Tr.spin, im)) *)
-    | (hd :: tl, Some sti0) => (RawTr.cons hd (RawTr.app tl (sti2raw sti0)))
-    | (evs, _) => RawTr.app evs RawTr.ub
+  CoFixpoint _sti2raw {R} (evs: list rawE) (sti: @st_tr_im R): (@RawTr.t _ R) :=
+    match evs with
+    | hd :: tl => RawTr.cons hd (_sti2raw tl sti)
+    | [] =>
+        match observe_state sti with
+        | (evs, Some (Ret _, Tr.done retv, _)) => RawTr.app evs (RawTr.done retv)
+        | (evs, Some (Vis Undefined _, Tr.spin, _)) => RawTr.app evs raw_spin_trace
+        | (evs, Some (Vis Undefined _, _, _)) => RawTr.app evs RawTr.ub
+        | (evs, Some (_, Tr.nb, _)) => RawTr.app evs RawTr.nb
+        | (hd :: tl, Some sti0) => RawTr.cons hd (_sti2raw tl sti0)
+        | (evs, _) => RawTr.app evs RawTr.ub
+        end
     end.
+
+  Definition sti2raw {R} (sti: @st_tr_im R): (@RawTr.t _ R) := _sti2raw [] sti.
 
   (* Lemma observe_state_prop_exists *)
   (*       R (sttr: @st_tr_im R) *)
