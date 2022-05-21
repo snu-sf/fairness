@@ -990,6 +990,37 @@ Section ExtractRaw.
     }
   Qed.
 
+  (* Definition wf_evs (evs: list rawE): Prop := *)
+  (*   (List.Forall is_tau evs) \/ *)
+  (*     (exists taus obs, (evs = taus ++ [inr obs]) /\ (List.Forall is_tau taus)). *)
+
+  Inductive wf_evs: (list rawE) -> Prop :=
+  | wf_evs_nil
+    :
+    wf_evs []
+  | wf_evs_tau
+      ev tl
+      (WF: wf_evs tl)
+    :
+    wf_evs ((inl ev) :: tl)
+  | wf_evs_obs
+      obs
+    :
+    wf_evs [inr obs]
+  .
+
+  Local Hint Constructors wf_evs. 
+
+  Lemma observe_state_trace_wf_evs
+        sti raws sti0
+        (OST: observe_state_trace sti (raws, sti0))
+    :
+    wf_evs raws.
+  Proof.
+    remember (raws, sti0) as rsti. move OST before r0. revert_until OST.
+    induction OST; i; ss; clarify; eauto.
+
+
 
   (** sti2raw reduction lemmas **)
   Lemma _sti2raw_red_evs
@@ -1439,25 +1470,6 @@ Section ExtractRaw.
   (* Proof. *)
   (*   induction evs; ss; clarify; eauto. des_ifs. apply IHevs in NB. des. split; auto. *)
   (* Qed. *)
-
-  Definition wf_evs (evs: list rawE): Prop :=
-    (List.Forall is_tau evs) \/
-      (exists taus obs, (evs = taus ++ [inr obs]) /\ (List.Forall is_tau taus)).
-
-  (* Inductive wf_evs: (list rawE) -> Prop := *)
-  (* | wf_evs_nil *)
-  (*   : *)
-  (*   wf_evs [] *)
-  (* | wf_evs_tau *)
-  (*     ev tl *)
-  (*     (WF: wf_evs tl) *)
-  (*   : *)
-  (*   wf_evs ((inl ev) :: tl) *)
-  (* | wf_evs_obs *)
-  (*     obs *)
-  (*   : *)
-  (*   wf_evs [inr obs] *)
-  (* . *)
 
   Lemma _sti2raw_raw_beh
         evs (im: imap wf) st tr
