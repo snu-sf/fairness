@@ -1285,33 +1285,44 @@ Section ExtractRaw.
 
 
   Lemma sti2raw_raw_beh_spin
-        R st
-        (WFS: wf_spin st)
+        (im: imap wf) st
+        (DIV: Beh.diverge_index im st)
     :
-    RawBeh.of_state (R:=R) st (sti2raw (st, Tr.spin)).
+    RawBeh.of_state (R:=R) st (sti2raw (st, Tr.spin, im)).
   Proof.
-    revert_until R. pcofix CIH. i. punfold WFS. inv WFS.
-    - pclearbot. rewrite sti2raw_red_tau; eauto; ss. pfold. econs. right. eauto.
-    - pclearbot. hexploit sti2raw_red_choose; eauto; ss.
-      3:{ i. des. setoid_rewrite H0; clear H0. pfold. econs. right. eapply CIH. eapply wf_tr_spin_wf_spin; eauto. }
-      2: ss. pfold. econs. pfold. econs. eauto.
-    - pclearbot. rewrite sti2raw_red_fair; eauto; ss. pfold. econs. right. eauto.
-    - pfold. econs.
+    revert_until r0. pcofix CIH. i. punfold DIV. inv DIV.
+    - pclearbot. hexploit sti2raw_red_tau_spin.
+      4:{ i; des. rewrite H0; clear H0. pfold. econs. eauto. }
+      2,3: ss. pfold. econs. pfold. econs. eauto.
+    - pclearbot. hexploit sti2raw_red_choose_spin.
+      4:{ i; des. rewrite H0; clear H0. pfold. econs. eauto. }
+      2,3: ss. pfold. econs. pfold. econs. eauto.
+    - pclearbot. hexploit sti2raw_red_fair_spin.
+      4:{ i; des. rewrite H1; clear H1. pfold. econs. eauto. }
+      2,3: ss. pfold. econs. pfold. econs; eauto.
+    - pclearbot. hexploit sti2raw_red_ub_spin.
+      3:{ i; des. rewrite H; clear H. pfold. econs. }
+      all: ss.
   Qed.
 
   Theorem sti2raw_raw_beh
-          R st tr
-          (WF: wf_tr (st, tr))
+          (im: imap wf) st tr
+          (BEH: Beh.of_state im st tr)
     :
-    RawBeh.of_state (R:=R) st (sti2raw (st, tr)).
+    RawBeh.of_state (R:=R) st (sti2raw (st, tr, im)).
   Proof.
-    revert_until R. pcofix CIH. i. remember (st, tr) as sttr. depgen st. depgen tr.
-    induction WF using (@wf_tr_ind2); i; clarify.
+    revert_until r0. pcofix CIH. i. induction BEH using @of_state_ind2; clarify.
     { rewrite sti2raw_red_ret. pfold. econs. }
+    { eapply paco3_mon. eapply sti2raw_raw_beh_spin; eauto. ss. }
+    { rewrite sti2raw_red_nb. pfold. econs. }
     { rewrite sti2raw_red_obs; eauto. pfold. econs; eauto. }
-    { hexploit sti2raw_raw_beh_spin; eauto. i. eapply paco3_mon; eauto. ss. }
-    { pose (classic (tr0 = Tr.nb)) as NB. des; clarify.
+    { destruct (classic (tr = Tr.nb)) as [NB | NNB]; clarify.
       { rewrite sti2raw_red_nb. pfold. econs. }
+      destruct (classic (tr = Tr.spin)) as [SPIN | NSPIN]; clarify.
+      { hexploit sti2raw_red_tau_spin.
+        4:{ i; des. rewrite H0; clear H0. pfold. econs; eauto. }
+        2,3: ss.
+        (*TODO*)
       rewrite sti2raw_red_tau; eauto. pfold. econs; eauto. }
     { pose (classic (tr0 = Tr.nb)) as NB. des; clarify.
       { rewrite sti2raw_red_nb. pfold. econs. }
@@ -1322,7 +1333,6 @@ Section ExtractRaw.
       { rewrite sti2raw_red_nb. pfold. econs. }
       rewrite sti2raw_red_fair; eauto. pfold. econs; eauto. }
     { pfold. econs. }
-    { pfold. rewrite sti2raw_red_nb. econs. }
   Qed.
 
 
