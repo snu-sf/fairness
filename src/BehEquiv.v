@@ -1308,6 +1308,180 @@ Section ExtractRaw.
       all: ss.
   Qed.
 
+  (* Fixpoint rawEs2tr (evs: list rawE) (tr: @Tr.t R): Tr.t := *)
+  (*   match evs with *)
+  (*   | [] => tr *)
+  (*   | hd :: tl => *)
+  (*       match hd with *)
+  (*       | inl _ => rawEs2tr tl tr *)
+  (*       | inr ev => Tr.cons ev (rawEs2tr tl tr) *)
+  (*       end *)
+  (*   end. *)
+
+  (* Definition is_tau (ev: rawE): bool := *)
+  (*   match ev with | inl _ => true | _ => false end. *)
+
+  (* Lemma rawEs2tr_taus *)
+  (*       evs tr *)
+  (*       (TAUS: List.Forall is_tau evs) *)
+  (*   : *)
+  (*   rawEs2tr evs tr = tr. *)
+  (* Proof. *)
+  (*   revert tr. induction TAUS; i; ss; clarify. destruct x; ss. *)
+  (* Qed. *)
+
+  (* Lemma rawEs2tr_done *)
+  (*       evs tr retv *)
+  (*       (DONE: rawEs2tr evs tr = Tr.done retv) *)
+  (*   : *)
+  (*   (List.Forall is_tau evs) /\ tr = Tr.done retv. *)
+  (* Proof. *)
+  (*   induction evs; ss; clarify; eauto. des_ifs. apply IHevs in DONE. des. split; auto. *)
+  (* Qed. *)
+
+  (* Lemma rawEs2tr_spin *)
+  (*       evs tr *)
+  (*       (SPIN: rawEs2tr evs tr = Tr.spin) *)
+  (*   : *)
+  (*   (List.Forall is_tau evs) /\ tr = Tr.spin. *)
+  (* Proof. *)
+  (*   induction evs; ss; clarify; eauto. des_ifs. apply IHevs in SPIN. des. split; auto. *)
+  (* Qed. *)
+
+  (* Lemma rawEs2tr_ub *)
+  (*       evs tr *)
+  (*       (UB: rawEs2tr evs tr = Tr.ub) *)
+  (*   : *)
+  (*   (List.Forall is_tau evs) /\ tr = Tr.ub. *)
+  (* Proof. *)
+  (*   induction evs; ss; clarify; eauto. des_ifs. apply IHevs in UB. des. split; auto. *)
+  (* Qed. *)
+
+  (* Lemma rawEs2tr_nb *)
+  (*       evs tr *)
+  (*       (NB: rawEs2tr evs tr = Tr.nb) *)
+  (*   : *)
+  (*   (List.Forall is_tau evs) /\ tr = Tr.nb. *)
+  (* Proof. *)
+  (*   induction evs; ss; clarify; eauto. des_ifs. apply IHevs in NB. des. split; auto. *)
+  (* Qed. *)
+
+  (* Lemma rawEs2tr_cons *)
+  (*       evs evs0 tr obs *)
+  (*       (OBS: rawEs2tr evs tr = Tr.cons obs (rawEs2tr evs0 tr)) *)
+  (*   : *)
+  (*   (List.Forall is_tau evs) /\ tr = Tr.nb. *)
+  (* Proof. *)
+  (*   induction evs; ss; clarify; eauto. des_ifs. apply IHevs in NB. des. split; auto. *)
+  (* Qed. *)
+
+  Fixpoint rawEs2st (evs: list rawE) (st: @state _ R): state :=
+    match evs with
+    | [] => st
+    | hd :: tl =>
+        match hd with
+        | inl silentE_tau => Tau (rawEs2st tl tr)
+        | inl (silentE_fair fm) => Vis (Fair fm) (fun _ => (rawEs2st tl tr))
+        | inr (obsE_syscall fn args rv) => Tr.cons ev (rawEs2tr tl tr)
+        end
+    end.
+
+  Definition is_tau (ev: rawE): bool :=
+    match ev with | inl _ => true | _ => false end.
+
+  Lemma rawEs2tr_taus
+        evs tr
+        (TAUS: List.Forall is_tau evs)
+    :
+    rawEs2tr evs tr = tr.
+  Proof.
+    revert tr. induction TAUS; i; ss; clarify. destruct x; ss.
+  Qed.
+
+  Lemma rawEs2tr_done
+        evs tr retv
+        (DONE: rawEs2tr evs tr = Tr.done retv)
+    :
+    (List.Forall is_tau evs) /\ tr = Tr.done retv.
+  Proof.
+    induction evs; ss; clarify; eauto. des_ifs. apply IHevs in DONE. des. split; auto.
+  Qed.
+
+  Lemma rawEs2tr_spin
+        evs tr
+        (SPIN: rawEs2tr evs tr = Tr.spin)
+    :
+    (List.Forall is_tau evs) /\ tr = Tr.spin.
+  Proof.
+    induction evs; ss; clarify; eauto. des_ifs. apply IHevs in SPIN. des. split; auto.
+  Qed.
+
+  Lemma rawEs2tr_ub
+        evs tr
+        (UB: rawEs2tr evs tr = Tr.ub)
+    :
+    (List.Forall is_tau evs) /\ tr = Tr.ub.
+  Proof.
+    induction evs; ss; clarify; eauto. des_ifs. apply IHevs in UB. des. split; auto.
+  Qed.
+
+  Lemma rawEs2tr_nb
+        evs tr
+        (NB: rawEs2tr evs tr = Tr.nb)
+    :
+    (List.Forall is_tau evs) /\ tr = Tr.nb.
+  Proof.
+    induction evs; ss; clarify; eauto. des_ifs. apply IHevs in NB. des. split; auto.
+  Qed.
+
+  (* Lemma rawEs2tr_cons *)
+  (*       evs evs0 tr obs *)
+  (*       (OBS: rawEs2tr evs tr = Tr.cons obs (rawEs2tr evs0 tr)) *)
+  (*   : *)
+  (*   (List.Forall is_tau evs) /\ tr = Tr.nb. *)
+  (* Proof. *)
+  (*   induction evs; ss; clarify; eauto. des_ifs. apply IHevs in NB. des. split; auto. *)
+  (* Qed. *)
+
+  Lemma _sti2raw_raw_beh
+        evs (im: imap wf) st tr
+        (BEH: Beh.of_state im st tr)
+    :
+    RawBeh.of_state (R:=R) st (_sti2raw evs (st, tr, im)).
+  Proof.
+    revert_until r0. pcofix CIH. i. remember (rawEs2tr evs tr) as etr.
+    move BEH before CIH. revert_until BEH.
+    induction BEH using @Beh.of_state_ind2; i; clarify.
+    { symmetry in Heqetr; eapply rawEs2tr_done in Heqetr. des. clarify.
+      rewrite _sti2raw_red_evs. rewrite sti2raw_red_ret. pfold. econs. }
+    { eapply paco3_mon. eapply sti2raw_raw_beh_spin; eauto. ss. }
+    { rewrite sti2raw_red_nb. pfold. econs. }
+    { rewrite sti2raw_red_obs; eauto. pfold. econs; eauto. }
+    { destruct (classic (tr = Tr.nb)) as [NB | NNB]; clarify.
+      { rewrite sti2raw_red_nb. pfold. econs. }
+      destruct (classic (tr = Tr.spin)) as [SPIN | NSPIN]; clarify.
+      { hexploit sti2raw_red_tau_spin.
+        4:{ i; des. rewrite H0; clear H0. pfold. econs; eauto. }
+        2,3: ss. eapply Beh.beh_tau0; eauto. }
+      { hexploit sti2raw_red_tau.
+        4:{ i; des. rewrite H1; clear H1. ss. pfold. econs; eauto. }
+
+
+
+        (*TODO*)
+      rewrite sti2raw_red_tau; eauto. pfold. econs; eauto. }
+    { pose (classic (tr0 = Tr.nb)) as NB. des; clarify.
+      { rewrite sti2raw_red_nb. pfold. econs. }
+      hexploit sti2raw_red_choose; eauto.
+      2:{ i; des. setoid_rewrite H0; clear H0. pfold. econs; eauto. }
+      pfold. econs. punfold WF. }
+    { pose (classic (tr0 = Tr.nb)) as NB. des; clarify.
+      { rewrite sti2raw_red_nb. pfold. econs. }
+      rewrite sti2raw_red_fair; eauto. pfold. econs; eauto. }
+    { pfold. econs. }
+  Qed.
+
+
   Theorem sti2raw_raw_beh
           (im: imap wf) st tr
           (BEH: Beh.of_state im st tr)
