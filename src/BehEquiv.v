@@ -1179,10 +1179,11 @@ Section ExtractRaw.
     :
     (Beh.of_state im itr tr) /\
       exists evs sti,
-        sti2raw (Tau itr, tr, im) =
-          RawTr.app ((inl silentE_tau) :: evs) (sti2raw sti).
+        observe_state_trace (itr, tr, im) (evs, sti) /\
+          (sti2raw (Tau itr, tr, im) =
+             RawTr.app ((inl silentE_tau) :: evs) (sti2raw sti)).
   Proof.
-    hexploit observe_state_tau; eauto. i. des. split; eauto. exists evs. exists sti.
+    hexploit observe_state_tau; eauto. i. des. split; eauto. esplits; eauto.
     match goal with | |- ?lhs = _ => replace lhs with (RawTr.ob lhs) end.
     2:{ symmetry. apply RawTr.ob_eq. }
     ss. rewrite H1; clear H1. destruct sti as [[st0 tr0] im0].
@@ -1215,8 +1216,9 @@ Section ExtractRaw.
     exists x,
       (Beh.of_state im (ktr x) tr) /\
         exists evs sti,
-          sti2raw (Vis (Choose X) ktr, tr, im) =
-            RawTr.app ((inl silentE_tau) :: evs) (sti2raw sti).
+          observe_state_trace (ktr x, tr, im) (evs, sti) /\
+            (sti2raw (Vis (Choose X) ktr, tr, im) =
+               RawTr.app ((inl silentE_tau) :: evs) (sti2raw sti)).
   Proof.
     hexploit observe_state_choose; eauto. i. des. esplits; eauto.
     match goal with | |- ?lhs = _ => replace lhs with (RawTr.ob lhs) end.
@@ -1251,10 +1253,11 @@ Section ExtractRaw.
     :
     exists (im0: imap wf),
       (fair_update im im0 fm) /\
-      (Beh.of_state im0 (ktr tt) tr) /\
+        (Beh.of_state im0 (ktr tt) tr) /\
         exists evs sti,
-          sti2raw (Vis (Fair fm) ktr, tr, im) =
-            RawTr.app ((inl (silentE_fair fm)) :: evs) (sti2raw sti).
+          observe_state_trace (ktr tt, tr, im0) (evs, sti) /\
+            (sti2raw (Vis (Fair fm) ktr, tr, im) =
+               RawTr.app ((inl (silentE_fair fm)) :: evs) (sti2raw sti)).
   Proof.
     hexploit observe_state_fair; eauto. i. des. esplits; eauto.
     match goal with | |- ?lhs = _ => replace lhs with (RawTr.ob lhs) end.
@@ -1323,7 +1326,7 @@ Section ExtractRaw.
         4:{ i; des. rewrite H0; clear H0. pfold. econs; eauto. }
         2,3: ss. eapply Beh.beh_tau0; eauto. }
       { hexploit sti2raw_red_tau.
-        4:{ i; des. rewrite H0; clear H0. ss. pfold. econs; eauto. }
+        4:{ i; des. rewrite H1; clear H1. ss. pfold. econs; eauto. }
 
 
 
