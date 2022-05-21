@@ -638,6 +638,16 @@ Section BEHAVES.
     - econs 7; eauto.
   Qed.
 
+  Lemma beh_tau0
+        R i0 itr tr
+        (BEH: @of_state R i0 itr tr)
+    :
+    <<BEH: of_state i0 (Tau itr) tr>>
+  .
+  Proof.
+    ginit. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
+  Qed.
+
   Lemma beh_tau
         R i0 i1 itr tr
         (IMAP: soft_update i0 i1)
@@ -647,6 +657,16 @@ Section BEHAVES.
   .
   Proof.
     ginit. guclo imap_le_ctx_spec. econs; eauto. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
+  Qed.
+
+  Lemma beh_choose0
+        R i0 X ktr x tr
+        (BEH: @of_state R i0 (ktr x) tr)
+    :
+    <<BEH: of_state i0 (Vis (Choose X) ktr) tr>>
+  .
+  Proof.
+    ginit. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
   Qed.
 
   Lemma beh_choose
@@ -671,6 +691,43 @@ Section BEHAVES.
     ginit. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
   Qed.
 
+
+
+  Theorem of_state_ind2:
+    forall R (P: (imap wf) -> state -> Tr.t -> Prop),
+      (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
+      (forall imap0 st0, diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
+      (forall imap0 st0, P imap0 st0 Tr.nb) ->
+      (forall imap0 fn args rv ktr tl
+         (TL: of_state imap0 (ktr rv) tl)
+        ,
+          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)) ->
+      (forall imap0 itr tr
+         (STEP: of_state imap0 itr tr)
+         (IH: P imap0 itr tr)
+        ,
+          P imap0 (Tau itr) tr) ->
+      (forall imap0 X ktr x tr
+         (STEP: of_state imap0 (ktr x) tr)
+         (IH: P imap0 (ktr x) tr)
+        ,
+          P imap0 (Vis (Choose X) ktr) tr) ->
+      (forall imap0 imap1 fmap ktr tr
+         (STEP: of_state imap1 (ktr tt) tr)
+         (FAIR: fair_update imap0 imap1 fmap)
+         (IH: P imap1 (ktr tt) tr)
+        ,
+          P imap0 (Vis (Fair fmap) ktr) tr) ->
+      (forall imap0 ktr tr, P imap0 (Vis Undefined ktr) tr) ->
+      forall i s t, (@of_state R i s t) -> P i s t.
+  Proof.
+    i. eapply of_state_ind; eauto.
+    { i. eapply H3; eauto. pfold. eapply of_state_mon; eauto. }
+    { i. eapply H4; eauto. pfold. eapply of_state_mon; eauto. }
+    { i. eapply H5; eauto. pfold. eapply of_state_mon; eauto. }
+    { punfold H7. eapply of_state_mon; eauto. i. pclearbot. eauto. }
+  Qed.
+
 End BEHAVES.
 
 End Beh.
@@ -684,46 +741,3 @@ End Beh.
 
 #[export] Hint Resolve cpn3_wcompat: paco.
 #[export] Hint Resolve cpn4_wcompat: paco.
-
-
-Section AUX.
-
-  Context {Ident: ID}.
-  Variable wf: WF.
-
-  Theorem of_state_ind2:
-    forall R (P: (imap wf) -> state -> Tr.t -> Prop),
-      (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
-      (forall imap0 st0, Beh.diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
-      (forall imap0 st0, P imap0 st0 Tr.nb) ->
-      (forall imap0 fn args rv ktr tl
-         (TL: Beh.of_state imap0 (ktr rv) tl)
-        ,
-          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)) ->
-      (forall imap0 itr tr
-         (STEP: Beh.of_state imap0 itr tr)
-         (IH: P imap0 itr tr)
-        ,
-          P imap0 (Tau itr) tr) ->
-      (forall imap0 X ktr x tr
-         (STEP: Beh.of_state imap0 (ktr x) tr)
-         (IH: P imap0 (ktr x) tr)
-        ,
-          P imap0 (Vis (Choose X) ktr) tr) ->
-      (forall imap0 imap1 fmap ktr tr
-         (STEP: Beh.of_state imap1 (ktr tt) tr)
-         (FAIR: fair_update imap0 imap1 fmap)
-         (IH: P imap1 (ktr tt) tr)
-        ,
-          P imap0 (Vis (Fair fmap) ktr) tr) ->
-      (forall imap0 ktr tr, P imap0 (Vis Undefined ktr) tr) ->
-      forall i s t, (@Beh.of_state _ _ R i s t) -> P i s t.
-  Proof.
-    i. eapply Beh.of_state_ind; eauto.
-    { i. eapply H3; eauto. pfold. eapply Beh.of_state_mon; eauto. }
-    { i. eapply H4; eauto. pfold. eapply Beh.of_state_mon; eauto. }
-    { i. eapply H5; eauto. pfold. eapply Beh.of_state_mon; eauto. }
-    { punfold H7. eapply Beh.of_state_mon; eauto. i. pclearbot. eauto. }
-  Qed.
-
-End AUX.

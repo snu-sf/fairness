@@ -76,7 +76,7 @@ Section ADEQ.
   Proof.
     ginit. revert_until R. gcofix CIH.
     i. rename x4 into tr. revert psrc0 ptgt0 msrc0 ssrc0 SIM.
-    induction PR using @of_state_ind2; ii.
+    induction PR using @Beh.of_state_ind2; ii.
     { match goal with
       | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
       end.

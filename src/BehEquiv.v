@@ -654,7 +654,7 @@ Section ExtractRaw.
     Beh.diverge_index im st.
   Proof.
     revert_until R. pcofix CIH; i. remember Tr.spin as tr. revert Heqtr.
-    induction BEH using (@of_state_ind2); i; clarify; ss; eauto.
+    induction BEH using (@Beh.of_state_ind2); i; clarify; ss; eauto.
     { eapply paco3_mon; eauto. ss. }
     { pfold. econs. right. eauto. }
     { pfold. econs. right. eauto. }
@@ -667,7 +667,7 @@ Section ExtractRaw.
     :
     exists rawsti, observe_state_trace (st, tr, im) rawsti.
   Proof.
-    induction BEH using (@of_state_ind2).
+    induction BEH using (@Beh.of_state_ind2).
     - eexists. econs.
     - punfold H. inv H.
       + pclearbot. eexists. econs; i; ss; eauto.
@@ -909,7 +909,7 @@ Section ExtractRaw.
     :
     observe_state_trace (itr, Tr.spin, im) (observe_state (itr, Tr.spin, im)).
   Proof.
-    remember Tr.spin as tr. revert Heqtr. induction BEH using @of_state_ind2; i; ss.
+    remember Tr.spin as tr. revert Heqtr. induction BEH using @Beh.of_state_ind2; i; ss.
     - eapply observe_state_spin_div; eauto.
     - clarify. hexploit observe_state_tau_spin; ss. 2: ss.
       2:{ i. des. setoid_rewrite H0; clear H0. econs; ss. }
@@ -1311,7 +1311,7 @@ Section ExtractRaw.
     :
     RawBeh.of_state (R:=R) st (sti2raw (st, tr, im)).
   Proof.
-    revert_until r0. pcofix CIH. i. induction BEH using @of_state_ind2; clarify.
+    revert_until r0. pcofix CIH. i. induction BEH using @Beh.of_state_ind2; clarify.
     { rewrite sti2raw_red_ret. pfold. econs. }
     { eapply paco3_mon. eapply sti2raw_raw_beh_spin; eauto. ss. }
     { rewrite sti2raw_red_nb. pfold. econs. }
@@ -1321,7 +1321,12 @@ Section ExtractRaw.
       destruct (classic (tr = Tr.spin)) as [SPIN | NSPIN]; clarify.
       { hexploit sti2raw_red_tau_spin.
         4:{ i; des. rewrite H0; clear H0. pfold. econs; eauto. }
-        2,3: ss.
+        2,3: ss. eapply Beh.beh_tau0; eauto. }
+      { hexploit sti2raw_red_tau.
+        4:{ i; des. rewrite H0; clear H0. ss. pfold. econs; eauto. }
+
+
+
         (*TODO*)
       rewrite sti2raw_red_tau; eauto. pfold. econs; eauto. }
     { pose (classic (tr0 = Tr.nb)) as NB. des; clarify.
