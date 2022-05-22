@@ -809,7 +809,6 @@ Section ExtractRaw.
         match observe_state sti with
         | (evs, (Ret _, Tr.done retv, _)) => RawTr.app evs (RawTr.done retv)
         | (evs, (_, Tr.nb, _)) => RawTr.app evs RawTr.nb
-        (* | (evs, (Vis Undefined _, Tr.spin, _)) => RawTr.app evs raw_spin_trace *)
         | (evs, (Vis Undefined _, tr, _)) => RawTr.app evs (tr2raw tr)
         | (hd :: tl, sti0) => RawTr.cons hd (_sti2raw tl sti0)
         | (evs, _) => RawTr.app evs RawTr.ub
@@ -1083,42 +1082,6 @@ Section ExtractRaw.
     }
   Qed.
 
-  (* Inductive wf_evs: (list rawE) -> Prop := *)
-  (* | wf_evs_nil *)
-  (*   : *)
-  (*   wf_evs [] *)
-  (* | wf_evs_tau *)
-  (*     ev tl *)
-  (*     (WF: wf_evs tl) *)
-  (*   : *)
-  (*   wf_evs ((inl ev) :: tl) *)
-  (* | wf_evs_obs *)
-  (*     obs *)
-  (*   : *)
-  (*   wf_evs [inr obs] *)
-  (* . *)
-
-  (* Local Hint Constructors wf_evs.  *)
-
-  (* Lemma observe_state_trace_wf_evs *)
-  (*       sti raws sti0 *)
-  (*       (OST: observe_state_trace sti (raws, sti0)) *)
-  (*   : *)
-  (*   wf_evs raws. *)
-  (* Proof. *)
-  (*   remember (raws, sti0) as rsti. move OST before r0. revert_until OST. *)
-  (*   induction OST; i; ss; clarify; eauto. *)
-  (*   { destruct (classic (tr = Tr.spin)) as [TRS | TRNS]; clarify. *)
-  (*     { hexploit SPIN; ss; i; des. clarify. econs. eauto. } *)
-  (*     econs. eapply H; eauto. } *)
-  (*   { destruct (classic (tr = Tr.spin)) as [TRS | TRNS]; clarify. *)
-  (*     { hexploit SPIN; ss; i; des. clarify. econs. eauto. } *)
-  (*     econs. eapply H; eauto. } *)
-  (*   { destruct (classic (tr = Tr.spin)) as [TRS | TRNS]; clarify. *)
-  (*     { hexploit SPIN; ss; i; des. clarify. econs. eauto. } *)
-  (*     econs. eapply H; eauto. } *)
-  (* Qed. *)
-
 
   (** sti2raw reduction lemmas **)
   Lemma _sti2raw_red_evs
@@ -1165,18 +1128,6 @@ Section ExtractRaw.
     2:{ symmetry. apply RawTr.ob_eq. }
     ss. des_ifs.
   Qed.
-
-  (* Lemma sti2raw_red_ub_spin *)
-  (*       (im: imap wf) ktr tr *)
-  (*       (NNB: tr <> Tr.nb) *)
-  (*       (NSPIN: tr = Tr.spin) *)
-  (*   : *)
-  (*   sti2raw (Vis Undefined ktr, tr, im) = raw_spin_trace. *)
-  (* Proof. *)
-  (*   match goal with | |- ?lhs = _ => replace lhs with (RawTr.ob lhs) end. *)
-  (*   2:{ symmetry. apply RawTr.ob_eq. } *)
-  (*   ss. rewrite observe_state_ub. ss. des_ifs. *)
-  (* Qed. *)
 
   Ltac ireplace H := symmetry in H; apply simpobs in H; apply bisim_is_eq in H; rewrite H; clarify.
 
