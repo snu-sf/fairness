@@ -704,7 +704,7 @@ Section ExtractRaw.
 
   (** (state, trace, imap) to raw trace **)
   CoFixpoint raw_spin_trace: RawTr.t :=
-    @RawTr.cons _ R (inl silentE_tau) raw_spin_trace.
+    RawTr.cons (R:=R) (inl silentE_tau) raw_spin_trace.
 
   Lemma raw_spin_trace_ob
     :
@@ -1586,23 +1586,119 @@ Section FAIR.
 
   Context {Ident: ID}.
   Variable wf: WF.
+  Variable wf0: T wf.
+  Variable R: Type.
+  Variable r0: R.
 
-  Theorem extract_preserves_fairness
-          R (st: @state _ R) (im: imap wf) tr raw
-          (BEH: Beh.of_state im st tr)
-          (* (EXT: extract_tr raw tr) *)
+  Lemma raw_spin_trace_fair
+        im
     :
-    RawTr.is_fair_ord wf (sti2raw (st, tr)).
+    RawTr.fair_ord (wf:=wf) im (raw_spin_trace R).
   Proof.
-  Admitted.
+    revert_until r0. pcofix CIH; i. rewrite raw_spin_trace_red.
+    pfold. econs; eauto.
+  Qed.
+
+  Lemma tr2raw_fair
+        im tr
+    :
+    RawTr.fair_ord (wf:=wf) (R:=R) im (tr2raw tr).
+  Proof.
+    revert_until r0. pcofix CIH; i. replace (tr2raw tr) with (RawTr.ob (tr2raw tr)).
+    2:{ symmetry. apply RawTr.ob_eq. }
+    ss. destruct tr eqn:TR; clarify.
+    { pfold. econs. }
+    { rewrite raw_spin_trace_red. pfold. econs. left.
+      eapply paco3_mon. eapply raw_spin_trace_fair. ss. }
+    { pfold; econs. }
+    { pfold; econs. }
+    { pfold. econs; eauto. }
+  Qed.
+
+  Theorem sti2raw_preserves_fairness
+          (st: @state _ R) (im: imap wf) tr
+          (BEH: Beh.of_state im st tr)
+    :
+    RawTr.is_fair_ord wf (sti2raw wf0 r0 (st, tr, im)).
+  Proof.
+    rr. exists im. revert_until r0. pcofix CIH; i.
+    hexploit sti2raw_exists; eauto. i. des. rewrite H; clear H. rename H0 into OST.
+    remember (st, tr, im) as sti. remember (evs, (st1, tr1, im1)) as esti1.
+    move OST before CIH. revert_until OST. induction OST; i; ss; clarify; ss.
+    { rewrite @sti2raw_red_ret. pfold. econs. }
+    { punfold BEH. inv BEH. eapply inj_pair2 in H3; clarify. pclearbot. pfold. econs; eauto. }
+    { destruct (classic (tr0 = Tr.spin)) as [TRS | TRNS]; clarify.
+      { hexploit SPIN; clear SPIN; eauto. i; des; clarify. ss.
+        pfold. econs. right; eapply CIH. pfold. econs; eauto. }
+      clear SPIN. pfold. econs; eauto.
+    }
+    { destruct (classic (tr0 = Tr.spin)) as [TRS | TRNS]; clarify.
+      { hexploit SPIN; clear SPIN; eauto. i; des; clarify. ss.
+        pfold. econs. right; eapply CIH. pfold. econs; eauto. }
+      clear SPIN. pfold. econs; eauto.
+    }
+    { destruct (classic (tr0 = Tr.spin)) as [TRS | TRNS]; clarify.
+      { hexploit SPIN; clear SPIN; eauto. i; des; clarify. ss.
+        pfold. econs; eauto. right; eapply CIH. pfold. econs; eauto. }
+      clear SPIN. pfold. econs; eauto.
+    }
+    { destruct (classic (tr0 = Tr.nb)) as [NB | NNB]; clarify.
+      { rewrite @sti2raw_red_nb. pfold; econs. }
+      rewrite @sti2raw_red_ub; eauto. eapply paco3_mon. eapply tr2raw_fair. ss.
+    }
+    { rewrite @sti2raw_red_nb. pfold; econs. }
+  Qed.
+
+  Lemma fair_spin_diverge_index
+        st im raw
+        (RSPIN: raw_spin raw)
+        (BEH: RawBeh.of_state st raw)
+        (FAIR: RawTr.fair_ord im raw)
+    :
+    Beh.diverge_index (wf:=wf) (R:=R) im st.
+  Proof.
+    revert_until r0. pcofix CIH; i. punfold BEH. inv BEH.
+    { punfold RSPIN. inv RSPIN. }
+    { punfold RSPIN. inv RSPIN. }
+    { punfold RSPIN. inv RSPIN. }
+    { punfold RSPIN. inv RSPIN. punfold FAIR. inv FAIR. pclearbot. rr in TL1. des; ss.
+      pfold. econs; eauto. }
+    { punfold RSPIN. inv RSPIN. punfold FAIR. inv FAIR. pclearbot. rr in TL1. des; ss.
+      pfold. econs; eauto. }
+    { punfold RSPIN. inv RSPIN. punfold FAIR. inv FAIR. pclearbot. rr in TL1. des; ss.
+      pfold. econs; eauto. }
+    { pfold. econs. }
+  Qed.
 
   Theorem rawbeh_extract_is_beh
-          R (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr
+          (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr
           (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
           (EXT: extract_tr raw tr)
     :
     exists (im: imap wf), Beh.of_state im st tr.
-  Admitted.
+  Proof.
+    rr in BEH. des. rr in FAIR. des. rename m into im. exists im.
+    ginit. revert_until r0. gcofix CIH; i.
+    move EXT before CIH. revert_until EXT. induction EXT using @extract_tr_ind2; i.
+    { punfold BEH0. inv BEH0.
+      { guclo Beh.of_state_indC_spec. econs. }
+      { guclo Beh.of_state_indC_spec. econs. }
+    }
+    { guclo Beh.of_state_indC_spec. econs. eapply fair_spin_diverge_index; eauto. }
+    { punfold BEH0. inv BEH0. guclo Beh.of_state_indC_spec. econs. }
+    { guclo Beh.of_state_indC_spec. econs. }
+    { punfold BEH0. inv BEH0.
+      { pclearbot. gfinal. right. pfold. econs. right. eapply CIH. eauto. all: eauto.
+        punfold FAIR. inv FAIR. pclearbot. eauto. }
+      { guclo Beh.of_state_indC_spec. econs. }
+    }
+    { punfold BEH0. inv BEH0.
+      { punfold FAIR. inv FAIR. pclearbot. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { punfold FAIR. inv FAIR. pclearbot. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { punfold FAIR. inv FAIR. pclearbot. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { guclo Beh.of_state_indC_spec. econs. }
+    }
+  Qed.
 
 End FAIR.
 
@@ -1612,21 +1708,28 @@ Section EQUIV.
 
   Context {Ident: ID}.
   Variable wf: WF.
+  Variable wf0: T wf.
+  Variable R: Type.
+  Variable r0: R.
 
   Theorem IndexBeh_implies_SelectBeh
-          R (st: state (R:=R)) (tr: Tr.t (R:=R)) (im: imap wf)
+          (st: state (R:=R)) (tr: Tr.t (R:=R)) (im: imap wf)
           (BEH: Beh.of_state im st tr)
     :
     exists raw, (<<EXTRACT: extract_tr raw tr>>) /\ (<<BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw>>).
   Proof.
-  Admitted.
+    exists (sti2raw wf0 r0 (st, tr, im)). splits. eapply sti2raw_extract; eauto.
+    rr. splits. eapply sti2raw_raw_beh; eauto. eapply sti2raw_preserves_fairness; eauto.
+  Qed.
 
   Theorem SelectBeh_implies_IndexBeh
-          R (st: state (R:=R)) (raw: RawTr.t (R:=R))
+          (st: state (R:=R)) (raw: RawTr.t (R:=R))
           (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
     :
-    exists (im: imap wf) tr, (<<EXTRACT: extract_tr raw tr>>) /\ (<<BEH: Beh.of_state im st tr>>).
+    exists tr, (<<EXTRACT: extract_tr raw tr>>) /\ (exists (im: imap wf), <<BEH: Beh.of_state im st tr>>).
   Proof.
-  Admitted.
+    exists (raw2tr raw). splits. eapply raw2tr_extract.
+    eapply rawbeh_extract_is_beh; eauto. eapply raw2tr_extract.
+  Qed.
 
 End EQUIV.
