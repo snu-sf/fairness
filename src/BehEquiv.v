@@ -1481,30 +1481,32 @@ Section ExtractRaw.
 
 
 
-
-  (*TODO*)
-
   Lemma sti2raw_raw_spin
-        itr
-        (WFS: @wf_spin R itr)
+        itr im
+        (DIV: @Beh.diverge_index _ wf R im itr)
     :
-    raw_spin (sti2raw (itr, Tr.spin)).
+    raw_spin (sti2raw (itr, Tr.spin, im)).
   Proof.
-    revert_until R. pcofix CIH; i. punfold WFS. inv WFS.
-    - pclearbot. rewrite sti2raw_red_tau; ss; eauto. pfold. econs. eauto.
-    - pclearbot. hexploit sti2raw_red_choose.
-      3:{ i. des. setoid_rewrite H0; clear H0. pfold. econs. right. eapply CIH. eapply wf_tr_spin_wf_spin; eauto. }
-      2: ss. pfold. econs. pfold. econs. eauto.
-    - pclearbot. rewrite sti2raw_red_fair; ss; eauto. pfold. econs. eauto.
-    - rewrite sti2raw_red_ub_spin; ss; eauto. pose raw_spin_trace_spec.
-      eapply paco2_mon. eapply r0. ss.
+    revert_until r0. pcofix CIH; i. punfold DIV. inv DIV.
+    - pclearbot. hexploit sti2raw_red_tau_spin.
+      4:{ i; des. rewrite H0; clear H0. pfold. econs. eauto. }
+      all: ss. pfold. econs. pfold. econs. eauto.
+    - pclearbot. hexploit sti2raw_red_choose_spin.
+      4:{ i; des. rewrite H0; clear H0. pfold. econs. eauto. }
+      all: ss. pfold. econs. pfold. econs. eauto.
+    - pclearbot. hexploit sti2raw_red_fair_spin.
+      4:{ i; des. rewrite H1; clear H1. pfold. econs. eauto. }
+      all: ss. pfold. econs. pfold. econs; eauto.
+    - hexploit sti2raw_red_ub_spin.
+      3:{ i; des. rewrite H; clear H. eapply paco2_mon. eapply raw_spin_trace_spec. ss. }
+      all: ss.
   Qed.
 
   Lemma sti2raw_extract_spin
-        R st
-        (WFS: @wf_spin R st)
+        st im
+        (DIV: @Beh.diverge_index _ wf R im st)
     :
-    extract_tr (sti2raw (st, Tr.spin)) Tr.spin.
+    extract_tr (sti2raw (st, Tr.spin, im)) Tr.spin.
   Proof.
     ginit. revert_until R. gcofix CIH. i.
     punfold WFS. inv WFS.
