@@ -1345,88 +1345,86 @@ Section ExtractRaw.
         st0 tr0 im0
         (BEH: Beh.of_state im0 st0 tr0)
     :
-    exists evs st1 tr1 im1, sti2raw (st0, tr0, im0) = RawTr.app evs (sti2raw (st1, tr1, im1)).
+    exists evs st1 tr1 im1,
+      (sti2raw (st0, tr0, im0) = RawTr.app evs (sti2raw (st1, tr1, im1))) /\
+        (observe_state_trace (st0, tr0, im0) (evs, (st1, tr1, im1))).
   Proof.
     induction BEH using @Beh.of_state_ind2.
-    { exists []. ss. eauto. }
+    { exists []. ss. esplits; eauto. econs. }
     { punfold H. inv H.
       { pclearbot. hexploit sti2raw_red_tau_spin.
         4:{ i; des. rewrite H0; clear H0.
-            match goal with | |- exists _ _ _ _, RawTr.cons ?ev _ = _ => exists [ev] end.
-            ss. eauto. }
+            match goal with | |- exists _ _ _ _, (RawTr.cons ?ev _ = _) /\ _ => exists [ev] end.
+            ss. esplits; eauto. econs; ss. }
         all: ss. pfold. econs. pfold; econs; eauto.
       }
       { pclearbot. hexploit sti2raw_red_choose_spin.
         4:{ i; des. rewrite H0; clear H0.
-            match goal with | |- exists _ _ _ _, RawTr.cons ?ev _ = _ => exists [ev] end.
-            ss. eauto. }
+            match goal with | |- exists _ _ _ _, (RawTr.cons ?ev _ = _) /\ _ => exists [ev] end.
+            ss. esplits; eauto. econs; ss. i; eauto. }
         all: ss. pfold. econs. pfold; econs; eauto.
       }
       { pclearbot. hexploit sti2raw_red_fair_spin.
         4:{ i; des. rewrite H1; clear H1.
-            match goal with | |- exists _ _ _ _, RawTr.cons ?ev _ = _ => exists [ev] end.
-            ss. eauto. }
+            match goal with | |- exists _ _ _ _, (RawTr.cons ?ev _ = _) /\ _ => exists [ev] end.
+            ss. esplits; eauto. econs; ss; eauto. }
         all: ss. pfold. econs. pfold; econs; eauto.
       }
       { hexploit sti2raw_red_ub_spin.
         3:{ i; des. eexists. exists (Vis Undefined ktr), (Tr.spin), (imap0).
-            rewrite ! H. rewrite raw_spin_trace_ob at 1.
-            ss. instantiate (1:=[inl silentE_tau]). ss. }
+            rewrite ! H. instantiate (1:=[]). ss. split; eauto. econs. }
         all: ss. }
     }
-    { exists []. ss. eauto. }
-    { rewrite sti2raw_red_obs; eauto. exists [inr (obsE_syscall fn args rv)]. ss. eauto. }
+    { exists []. ss. esplits; eauto. econs. }
+    { rewrite sti2raw_red_obs; eauto. exists [inr (obsE_syscall fn args rv)]. ss.
+      esplits; eauto. econs. }
     { destruct (classic (tr = Tr.nb)) as [NB | NNB]; clarify.
-      { des. exists []. ss. eauto. }
+      { des. exists []. ss. esplits; eauto. econs. }
       destruct (classic (tr = Tr.spin)) as [TRS | TRNS]; clarify.
       { des. hexploit sti2raw_red_tau_spin.
-        4:{ i; des. rewrite H0; clear H0. exists [inl silentE_tau]. ss. eauto. }
+        4:{ i; des. rewrite H0; clear H0. exists [inl silentE_tau]. ss. esplits; eauto. econs; ss. }
         all: ss. eapply Beh.beh_tau0; eauto. }
       des. hexploit sti2raw_red_tau.
-      4:{ i; des. rewrite H1; clear H1. destruct sti as [[st0 tr0] im0]. eauto. }
+      4:{ i; des. rewrite H1; clear H1. destruct sti as [[st0 tr0] im0]. esplits; eauto.
+          econs; ss. }
       all: ss. eapply Beh.beh_tau0; eauto.
     }
     { destruct (classic (tr = Tr.nb)) as [NB | NNB]; clarify.
-      { des. exists []. ss. eauto. }
+      { des. exists []. ss. esplits; eauto. econs. }
       destruct (classic (tr = Tr.spin)) as [TRS | TRNS]; clarify.
       { des. hexploit sti2raw_red_choose_spin.
-        4:{ i; des. rewrite H0; clear H0. exists [inl silentE_tau]. ss. eauto. }
+        4:{ i; des. rewrite H0; clear H0. exists [inl silentE_tau]. ss. esplits; eauto. econs; ss.
+            i; splits; eauto. }
         all: ss. eapply Beh.beh_choose0; eauto. }
       des. hexploit sti2raw_red_choose.
-      4:{ i; des. rewrite H1; clear H1. destruct sti as [[st0 tr0] im0]. eauto. }
+      4:{ i; des. rewrite H1; clear H1. destruct sti as [[st0 tr0] im0]. esplits; eauto.
+          econs; ss; eauto. }
       all: ss. eapply Beh.beh_choose0; eauto.
     }
     { destruct (classic (tr = Tr.nb)) as [NB | NNB]; clarify.
-      { des. exists []. ss. eauto. }
+      { des. exists []. ss. esplits; eauto. econs. }
       destruct (classic (tr = Tr.spin)) as [TRS | TRNS]; clarify.
       { des. hexploit sti2raw_red_fair_spin.
-        4:{ i; des. rewrite H1; clear H1. exists [inl (silentE_fair fmap)]. ss. eauto. }
+        4:{ i; des. rewrite H1; clear H1. exists [inl (silentE_fair fmap)]. ss. esplits; eauto.
+            econs; ss; eauto. }
         all: ss. eapply Beh.beh_fair; eauto. }
       des. hexploit sti2raw_red_fair.
-      4:{ i; des. rewrite H2; clear H2. destruct sti as [[nst ntr] nim]. eauto. }
+      4:{ i; des. rewrite H2; clear H2. destruct sti as [[nst ntr] nim]. esplits; eauto.
+          econs; ss; eauto. }
       all: ss. eapply Beh.beh_fair; eauto.
     }
     { destruct (classic (tr = Tr.nb)) as [NB | NNB]; clarify.
-      { des. exists []. ss. eauto. }
+      { des. exists []. ss. esplits; eauto. econs. }
       destruct (classic (tr = Tr.spin)) as [TRS | TRNS]; clarify.
       { hexploit sti2raw_red_ub_spin.
         3:{ i; des. eexists. exists (Vis Undefined ktr), (Tr.spin), (imap0).
-            rewrite ! H. rewrite raw_spin_trace_ob at 1.
-            ss. instantiate (1:=[inl silentE_tau]). ss. }
+            rewrite ! H. instantiate (1:=[]). ss. splits; eauto. econs. }
         all: ss. }
       hexploit sti2raw_red_ub.
-      3:{ i; des. exists [], (Vis Undefined ktr), tr, imap0. rewrite ! H. ss. }
+      3:{ i; des. exists [], (Vis Undefined ktr), tr, imap0. rewrite ! H. ss. split; eauto. econs. }
       all: ss.
     }
   Qed.
-
-  Lemma sti2raw_ost
-        evs st0 st1 tr0 tr1 im0 im1
-        (STI: sti2raw (st0, tr0, im0) = RawTr.app evs (sti2raw (st1, tr1, im1)))
-    :
-    observe_state_trace (st0, tr0, im0) (evs, (st1, tr1, im1)).
-  Proof.
-  Admitted.
 
   Lemma sti2raw_raw_beh_spin
         (im: imap wf) st
@@ -1456,8 +1454,7 @@ Section ExtractRaw.
     RawBeh.of_state (R:=R) st0 (sti2raw (st0, tr0, im0)).
   Proof.
     revert_until r0. pcofix CIH; i.
-    hexploit sti2raw_exists; eauto. i. des. rewrite H.
-    eapply sti2raw_ost in H. rename H into OST.
+    hexploit sti2raw_exists; eauto. i. des. rewrite H; clear H. rename H0 into OST.
     remember (st0, tr0, im0) as sti0. remember (evs, (st1, tr1, im1)) as esti1.
     move OST before CIH. revert_until OST. induction OST; i; ss; clarify.
     { ss. rewrite sti2raw_red_ret. pfold. econs. }
@@ -1485,6 +1482,7 @@ Section ExtractRaw.
 
 
 
+  (*TODO*)
 
   Lemma sti2raw_raw_spin
         itr
