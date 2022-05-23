@@ -6,14 +6,12 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
-Require Import Lia.
-
 Set Implicit Arguments.
 
 Section OBS.
 
-  Variant obs: Type :=
-    | obs_syscall (fn: nat) (args: list nat) (retv: nat)
+  Variant obsE: Type :=
+    | obsE_syscall (fn: nat) (args: list nat) (retv: nat)
   .
 
 End OBS.
@@ -24,11 +22,11 @@ Module Tr.
   | spin
   | ub
   | nb
-  | cons (hd: obs) (tl: t)
+  | cons (hd: obsE) (tl: t)
   .
   Infix "##" := cons (at level 60, right associativity).
 
-  Fixpoint app {R} (pre: list obs) (bh: @t R): t :=
+  Fixpoint app {R} (pre: list obsE) (bh: @t R): t :=
     match pre with
     | [] => bh
     | hd :: tl => cons hd (app tl bh)
@@ -38,15 +36,86 @@ Module Tr.
   Lemma fold_app
         R s pre tl
     :
-      (Tr.cons s (Tr.app pre tl)) = @Tr.app R (s :: pre) tl
+      (cons s (app pre tl)) = @app R (s :: pre) tl
   .
   Proof. reflexivity. Qed.
 
-  Definition prefix {R} (pre: list obs) (bh: @t R): Prop :=
+  Definition prefix {R} (pre: list obsE) (bh: @t R): Prop :=
     exists tl, <<PRE: app pre tl = bh>>
   .
 
+  Definition ob R (s: @t R): t :=
+    match s with
+    | done retv => done retv
+    | spin => spin
+    | ub => ub
+    | nb => nb
+    | cons obs tl => cons obs tl
+    end.
+
+  Lemma ob_eq : forall R (s: @t R), s = ob s.
+    destruct s; reflexivity.
+  Qed.
+
+
+  (** tr equivalence *)
+  Variant _eq
+          (eq: forall R, (@t R) -> (@t R) -> Prop)
+          R
+    :
+    (@t R) -> (@t R) -> Prop :=
+    | eq_done
+        retv
+      :
+      _eq eq (done retv) (done retv)
+    | eq_spin
+      :
+      _eq eq spin spin
+    | eq_ub
+      :
+      _eq eq ub ub
+    | eq_nb
+      :
+      _eq eq nb nb
+    | eq_obs
+        obs tl1 tl2
+        (TL: eq _ tl1 tl2)
+      :
+      _eq eq (cons obs tl1) (cons obs tl2)
+  .
+
+  Definition eq: forall (R: Type), (@t R) -> (@t R) -> Prop := paco3 _eq bot3.
+
+  Lemma eq_mon: monotone3 _eq.
+  Proof.
+    ii. inv IN. all: econs; eauto.
+  Qed.
+
+  Local Hint Resolve eq_mon: paco.
+
+  Global Program Instance eq_equiv {R}: Equivalence (@eq R).
+  Next Obligation.
+    pcofix CIH. i. destruct x; try (pfold; econs; eauto).
+  Qed.
+  Next Obligation.
+    pcofix CIH. i.
+    unfold eq in H0. punfold H0.
+    inv H0.
+    1,2,3,4: pfold; econs; eauto.
+    - pfold. econs; eauto. right. eapply CIH. pclearbot. auto.
+  Qed.
+  Next Obligation.
+    pcofix CIH. i.
+    unfold eq in H0, H1. punfold H0. punfold H1. inv H0; inv H1.
+    1,2,3,4: pfold; econs; eauto.
+    pclearbot. pfold. econs. right. eapply CIH; eauto.
+  Qed.
+
 End Tr.
+#[export] Hint Constructors Tr._eq.
+#[export] Hint Unfold Tr.eq.
+#[export] Hint Resolve Tr.eq_mon: paco.
+#[export] Hint Resolve cpn3_wcompat: paco.
 
 
 
@@ -78,16 +147,101 @@ Module Flag.
 
 End Flag.
 
+(* Section INDEX. *)
+(*   Lemma nat_ind *)
+(*         (P: nat -> Prop) *)
+(*         (ZERO: P O) *)
+(*         (SUCC: forall a (IND: P a), P (S a)) *)
+(*     : *)
+(*     forall n, P n. *)
+(*   Proof. *)
+(*     revert_until P. revert P. fix IH 4. i. destruct n; auto. *)
+(*     eapply SUCC. eapply IH. auto. i. eapply SUCC. auto. *)
+(*   Qed. *)
 
-Class ID : Type := mk { id: Type }.
+(*   Lemma nat_strong_ind *)
+(*         (P: nat -> Prop) *)
+(*         (ZERO: P O) *)
+(*         (SUCC: forall a (STR: forall b (LT: lt b (S a)), P b), P (S a)) *)
+(*     : *)
+(*     forall n, P n. *)
+(*   Proof. *)
+(*     cut (forall a b (LT: lt b (S a)), P b). *)
+(*     { i. eapply H. instantiate (1:=n). auto. } *)
+(*     induction a; i; auto. *)
+(*     { inv LT; auto. inv H0. } *)
+(*     unfold lt in LT. inv LT. *)
+(*     { eapply SUCC. auto. } *)
+(*     eapply IHa. lia. *)
+(*   Qed. *)
+
+(*   Lemma aux2: well_founded lt. *)
+(*   Proof. *)
+(*     ii. induction a using nat_strong_ind. *)
+(*     { econs. i. inv H. } *)
+(*     econs. i. eapply STR. auto. *)
+(*   Qed. *)
+
+(* End INDEX. *)
+
+
+Class ID : Type := mk_id { id: Type }.
+
+Section WFTransitive.
+  Record WF: Type :=
+    mk_wf {
+        T: Type;
+        lt: (T -> T -> Prop);
+        wf: well_founded lt;
+        (* Tr: Transitive lt; *)
+        le: (T -> T -> Prop) := eq \2/ lt;
+      }.
+
+  (* Global Program Instance lt_Transitive {wf: WF} {TR: Transitive wf.(lt)}: Transitive wf.(lt). *)
+  (* Next Obligation. *)
+  (*   destruct wf0. ss. eapply TR; eauto. *)
+  (* Qed. *)
+
+  Global Program Instance le_Reflexive {wf: WF}: Reflexive wf.(le).
+  Next Obligation.
+    unfold le. auto.
+  Qed.
+
+  Lemma WF_le_Trans
+        wf
+        (WFTR: Transitive wf.(lt))
+    :
+    Transitive wf.(le).
+  Proof.
+    unfold le. ii. destruct wf; ss. des; clarify; eauto.
+  Qed.
+
+  (* Global Program Instance le_PreOrder {wf: WF} {TR: Transitive wf.(lt)}: PreOrder wf.(le). *)
+  (* Next Obligation. *)
+  (*   unfold le. ii. destruct wf0; ss. des; clarify; eauto. *)
+  (* Qed. *)
+
+End WFTransitive.
+
+(* Class WF : Type := *)
+(*   mk_wf { *)
+(*       ord: Type; *)
+(*       lt: (ord -> ord -> Prop); *)
+(*       wf: well_founded lt; *)
+(*       le: (ord -> ord -> Prop) := fun o1 o2 => (eq o1 o2) \/ (lt o1 o2); *)
+(*     }. *)
+
+
 
 Section EVENT.
 
   Context {Ident: ID}.
 
+  Definition fmap := id -> Flag.t.
+
   Variant eventE: Type -> Type :=
     | Choose (X: Type): eventE X
-    | Fair (m: id -> Flag.t): eventE unit
+    | Fair (m: fmap): eventE unit
     | Observe (fn: nat) (args: list nat): eventE nat
     | Undefined: eventE void
   .
@@ -99,25 +253,23 @@ End EVENT.
 Section STS.
 
   Context {Ident: ID}.
+  Variable wf: WF.
 
   Definition state {R} := itree eventE R.
-  Definition imap := id -> nat.
+  Definition imap := id -> wf.(T).
 
   Definition soft_update (m0 m1: imap): Prop :=
-    forall i, le (m1 i) (m0 i).
+    forall i, wf.(le) (m1 i) (m0 i).
 
-  Global Program Instance soft_update_PreOrder: PreOrder soft_update.
+  Global Program Instance soft_update_Reflexive: Reflexive soft_update.
   Next Obligation.
-    ii. auto.
-  Qed.
-  Next Obligation.
-    ii. unfold soft_update in *. specialize (H i). specialize (H0 i). lia.
+    ii. reflexivity.
   Qed.
 
-  Definition fair_update (m0 m1: imap) (f: id -> Flag.t): Prop :=
+  Definition fair_update (m0 m1: imap) (f: fmap): Prop :=
     forall i, match f i with
-         | Flag.fail => lt (m1 i) (m0 i)
-         | Flag.emp => le (m1 i) (m0 i)
+         | Flag.fail => wf.(lt) (m1 i) (m0 i)
+         | Flag.emp => wf.(le) (m1 i) (m0 i)
          | Flag.success => True
          end.
 
@@ -131,12 +283,13 @@ Definition improves {R} (src tgt: @t R): Prop := tgt <1= src.
 Section BEHAVES.
 
   Context {Ident: ID}.
+  Variable wf: WF.
 
   Variant _diverge_index
-          (diverge_index: forall (R: Type) (idx: imap) (itr: @state _ R), Prop)
+          (diverge_index: forall (R: Type) (idx: imap wf) (itr: @state _ R), Prop)
           (R: Type)
     :
-    forall (idx: imap) (itr: @state _ R), Prop :=
+    forall (idx: imap wf) (itr: @state _ R), Prop :=
     | diverge_index_tau
         itr idx0
         (DIV: diverge_index _ idx0 itr)
@@ -168,7 +321,7 @@ Section BEHAVES.
     - econs 4; eauto.
   Qed.
 
-  Definition diverge_index: forall (R: Type) (idx: imap) (itr: state), Prop := paco3 _diverge_index bot3.
+  Definition diverge_index: forall (R: Type) (idx: imap wf) (itr: state), Prop := paco3 _diverge_index bot3.
 
   Hint Constructors _diverge_index.
   Hint Unfold diverge_index.
@@ -181,10 +334,10 @@ Section BEHAVES.
 
 
   Inductive _of_state
-            (of_state: forall (R: Type), imap -> (@state _ R) -> (@Tr.t R) -> Prop)
+            (of_state: forall (R: Type), (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop)
             (R: Type)
     :
-    imap -> (@state _ R) -> Tr.t -> Prop :=
+    (imap wf) -> (@state _ R) -> Tr.t -> Prop :=
   | done
       imap0 retv
     :
@@ -202,7 +355,7 @@ Section BEHAVES.
       imap0 fn args rv ktr tl
       (TL: of_state _ imap0 (ktr rv) tl)
     :
-    _of_state of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)
+    _of_state of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)
 
   | tau
       imap0 itr tr
@@ -227,17 +380,17 @@ Section BEHAVES.
     _of_state of_state imap0 (Vis Undefined ktr) tr
   .
 
-  Definition of_state: forall (R: Type),  imap -> state -> Tr.t -> Prop := paco4 _of_state bot4.
+  Definition of_state: forall (R: Type),  (imap wf) -> state -> Tr.t -> Prop := paco4 _of_state bot4.
 
   Theorem of_state_ind:
-    forall (r: forall (R: Type), imap -> state -> Tr.t -> Prop) R (P: imap -> state -> Tr.t -> Prop),
+    forall (r: forall (R: Type), (imap wf) -> state -> Tr.t -> Prop) R (P: (imap wf) -> state -> Tr.t -> Prop),
       (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
       (forall imap0 st0, diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
       (forall imap0 st0, P imap0 st0 Tr.nb) ->
       (forall imap0 fn args rv ktr tl
          (TL: r _ imap0 (ktr rv) tl)
         ,
-          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
+          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)) ->
       (forall imap0 itr tr
          (STEP: _of_state r imap0 itr tr)
          (IH: P imap0 itr tr)
@@ -286,11 +439,13 @@ Section BEHAVES.
   (*********************** upto ***********************)
   (****************************************************)
 
+  Hypothesis WFTR: Transitive wf.(lt).
+
   Variant diverge_imap_le_ctx
-          (diverge_index: forall R, imap -> (@state _ R) -> Prop)
+          (diverge_index: forall R, (imap wf) -> (@state _ R) -> Prop)
           R
     :
-    imap -> (@state _ R) -> Prop :=
+    (imap wf) -> (@state _ R) -> Prop :=
     | diverge_imap_le_ctx_intro
         imap0 imap1 st
         (DIV: @diverge_index R imap1 st)
@@ -310,8 +465,10 @@ Section BEHAVES.
     { econs 1. eapply rclo3_clo_base. econs 1; eauto. }
     { econs 2. eapply rclo3_clo_base. econs 1; eauto. }
     { econs 3. eapply rclo3_clo_base. econs 1. eauto. reflexivity.
-      clear - IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
-      des_ifs; nia.
+      clear - WFTR IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
+      des_ifs.
+      - unfold le in IMAP. des. rewrite IMAP in FAIR. auto. eapply WFTR; eauto.
+      - eapply WF_le_Trans; eauto.
     }
   Qed.
 
@@ -321,10 +478,10 @@ Section BEHAVES.
 
 
   Variant imap_le_ctx
-          (of_state: forall R, imap -> (@state _ R) -> (@Tr.t R) -> Prop)
+          (of_state: forall R, (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop)
           R
     :
-    imap -> (@state _ R) -> (@Tr.t R) -> Prop :=
+    (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop :=
     | imap_le_ctx_intro
         imap0 imap1 st tr
         (BEH: @of_state R imap1 st tr)
@@ -345,8 +502,10 @@ Section BEHAVES.
       eapply diverge_index_mon; eauto. i. gfinal. pclearbot. auto.
     }
     { econs. eapply rclo4_clo_base. econs; eauto. }
-    { econs. eapply IHBEH. reflexivity. clear - IMAP FMAP. unfold fair_update, soft_update in *.
-      i. specialize (FMAP i). specialize (IMAP i). des_ifs; lia.
+    { econs. eapply IHBEH. reflexivity. clear - WFTR IMAP FMAP. unfold fair_update, soft_update in *.
+      i. specialize (FMAP i). specialize (IMAP i). des_ifs.
+      - unfold le in IMAP. des. rewrite <- IMAP. auto. eapply WFTR; eauto.
+      - eapply WF_le_Trans; eauto.
     }
   Qed.
 
@@ -356,10 +515,10 @@ Section BEHAVES.
 
 
   Variant of_state_indC
-          (of_state: forall R, imap -> (@state _ R) -> (@Tr.t R) -> Prop)
+          (of_state: forall R, (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop)
           R
     :
-    imap -> (@state _ R) -> (@Tr.t R) -> Prop :=
+    (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop :=
   | of_state_indC_done
       imap0 retv
     :
@@ -377,7 +536,7 @@ Section BEHAVES.
       imap0 fn args rv ktr tl
       (TL: of_state _ imap0 (ktr rv) tl)
     :
-    of_state_indC of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)
+    of_state_indC of_state imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)
 
   | of_state_indC_tau
       imap0 itr tr
@@ -479,6 +638,16 @@ Section BEHAVES.
     - econs 7; eauto.
   Qed.
 
+  Lemma beh_tau0
+        R i0 itr tr
+        (BEH: @of_state R i0 itr tr)
+    :
+    <<BEH: of_state i0 (Tau itr) tr>>
+  .
+  Proof.
+    ginit. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
+  Qed.
+
   Lemma beh_tau
         R i0 i1 itr tr
         (IMAP: soft_update i0 i1)
@@ -488,6 +657,16 @@ Section BEHAVES.
   .
   Proof.
     ginit. guclo imap_le_ctx_spec. econs; eauto. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
+  Qed.
+
+  Lemma beh_choose0
+        R i0 X ktr x tr
+        (BEH: @of_state R i0 (ktr x) tr)
+    :
+    <<BEH: of_state i0 (Vis (Choose X) ktr) tr>>
+  .
+  Proof.
+    ginit. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
   Qed.
 
   Lemma beh_choose
@@ -512,6 +691,43 @@ Section BEHAVES.
     ginit. guclo of_state_indC_spec. econs; eauto. gfinal. eauto.
   Qed.
 
+
+
+  Theorem of_state_ind2:
+    forall R (P: (imap wf) -> state -> Tr.t -> Prop),
+      (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
+      (forall imap0 st0, diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
+      (forall imap0 st0, P imap0 st0 Tr.nb) ->
+      (forall imap0 fn args rv ktr tl
+         (TL: of_state imap0 (ktr rv) tl)
+        ,
+          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obsE_syscall fn args rv) tl)) ->
+      (forall imap0 itr tr
+         (STEP: of_state imap0 itr tr)
+         (IH: P imap0 itr tr)
+        ,
+          P imap0 (Tau itr) tr) ->
+      (forall imap0 X ktr x tr
+         (STEP: of_state imap0 (ktr x) tr)
+         (IH: P imap0 (ktr x) tr)
+        ,
+          P imap0 (Vis (Choose X) ktr) tr) ->
+      (forall imap0 imap1 fmap ktr tr
+         (STEP: of_state imap1 (ktr tt) tr)
+         (FAIR: fair_update imap0 imap1 fmap)
+         (IH: P imap1 (ktr tt) tr)
+        ,
+          P imap0 (Vis (Fair fmap) ktr) tr) ->
+      (forall imap0 ktr tr, P imap0 (Vis Undefined ktr) tr) ->
+      forall i s t, (@of_state R i s t) -> P i s t.
+  Proof.
+    i. eapply of_state_ind; eauto.
+    { i. eapply H3; eauto. pfold. eapply of_state_mon; eauto. }
+    { i. eapply H4; eauto. pfold. eapply of_state_mon; eauto. }
+    { i. eapply H5; eauto. pfold. eapply of_state_mon; eauto. }
+    { punfold H7. eapply of_state_mon; eauto. i. pclearbot. eauto. }
+  Qed.
+
 End BEHAVES.
 
 End Beh.
@@ -525,45 +741,3 @@ End Beh.
 
 #[export] Hint Resolve cpn3_wcompat: paco.
 #[export] Hint Resolve cpn4_wcompat: paco.
-
-
-Section AUX.
-
-  Context {Ident: ID}.
-
-  Theorem of_state_ind2:
-    forall R (P: imap -> state -> Tr.t -> Prop),
-      (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
-      (forall imap0 st0, Beh.diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
-      (forall imap0 st0, P imap0 st0 Tr.nb) ->
-      (forall imap0 fn args rv ktr tl
-         (TL: Beh.of_state imap0 (ktr rv) tl)
-        ,
-          P imap0 (Vis (Observe fn args) ktr) (Tr.cons (obs_syscall fn args rv) tl)) ->
-      (forall imap0 itr tr
-         (STEP: Beh.of_state imap0 itr tr)
-         (IH: P imap0 itr tr)
-        ,
-          P imap0 (Tau itr) tr) ->
-      (forall imap0 X ktr x tr
-         (STEP: Beh.of_state imap0 (ktr x) tr)
-         (IH: P imap0 (ktr x) tr)
-        ,
-          P imap0 (Vis (Choose X) ktr) tr) ->
-      (forall imap0 imap1 fmap ktr tr
-         (STEP: Beh.of_state imap1 (ktr tt) tr)
-         (FAIR: fair_update imap0 imap1 fmap)
-         (IH: P imap1 (ktr tt) tr)
-        ,
-          P imap0 (Vis (Fair fmap) ktr) tr) ->
-      (forall imap0 ktr tr, P imap0 (Vis Undefined ktr) tr) ->
-      forall i s t, (@Beh.of_state _ R i s t) -> P i s t.
-  Proof.
-    i. eapply Beh.of_state_ind; eauto.
-    { i. eapply H3; eauto. pfold. eapply Beh.of_state_mon; eauto. }
-    { i. eapply H4; eauto. pfold. eapply Beh.of_state_mon; eauto. }
-    { i. eapply H5; eauto. pfold. eapply Beh.of_state_mon; eauto. }
-    { punfold H7. eapply Beh.of_state_mon; eauto. i. pclearbot. eauto. }
-  Qed.
-
-End AUX.
