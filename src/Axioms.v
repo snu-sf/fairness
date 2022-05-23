@@ -15,12 +15,6 @@ Proof.
   apply func_ext_dep.
 Qed.
 
-Axiom proof_irr: ClassicalFacts.proof_irrelevance.
-
-Arguments proof_irr [A].
-
-Axiom prop_ext: ClassicalFacts.prop_extensionality.
-
 Definition classic := Classical_Prop.classic.
 Definition inj_pair2 := Classical_Prop.EqdepTheory.inj_pair2.
 
