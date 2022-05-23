@@ -1713,12 +1713,12 @@ Section EQUIV.
   Variable r0: R.
 
   Theorem IndexBeh_implies_SelectBeh
-          (st: state (R:=R)) (tr: Tr.t (R:=R)) (im: imap wf)
-          (BEH: Beh.of_state im st tr)
+          (st: state (R:=R)) (tr: Tr.t (R:=R))
+          (BEH: exists (im: imap wf), Beh.of_state im st tr)
     :
     exists raw, (<<EXTRACT: extract_tr raw tr>>) /\ (<<BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw>>).
   Proof.
-    exists (sti2raw wf0 r0 (st, tr, im)). splits. eapply sti2raw_extract; eauto.
+    des. exists (sti2raw wf0 r0 (st, tr, im)). splits. eapply sti2raw_extract; eauto.
     rr. splits. eapply sti2raw_raw_beh; eauto. eapply sti2raw_preserves_fairness; eauto.
   Qed.
 
