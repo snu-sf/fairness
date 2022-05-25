@@ -13,152 +13,148 @@ Section PRIMIVIESIM.
   Variable ident_src: ID.
   Variable ident_tgt: ID.
 
+  Let tids: ID := mk_id nat.
+
+  Variable wf_src: WF.
+  Variable wf_tgt: WF.
+
   Let srcE := ((@eventE ident_src +' cE) +' stateE state_src).
   Let tgtE := ((@eventE ident_tgt +' cE) +' stateE state_tgt).
 
   Variable world: Type.
-  Variable world_lt: world -> world -> Prop.
-  Hypothesis world_lt_well_founded: well_founded world_lt.
+  Let shared_rel: Type :=
+        @imap ident_src wf_src ->
+        @imap ident_tgt wf_tgt ->
+        @imap tids wf_src ->
+        @imap tids wf_tgt ->
+        wf_src.(T) ->
+        state_src ->
+        state_tgt ->
+        world ->
+        Prop.
 
+  Variable I: shared_rel.
 
-
-  Variant tgt_step
-          itree
-
-
-
-
-          (sim: forall R0 R1 (RR: R0 -> R1 -> Prop),
-              bool -> (ident_src ->  -> bool  -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
-
-
-  Inductive _sim
-            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap -> bool  -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
-            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap) (p_tgt: bool) (m_tgt: imap) :
-    (@state _ R0) -> (@state _ R1) -> Prop :=
+  Inductive _sim (tid: nat)
+            (sim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),
+                bool -> bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+            R_src R_tgt (RR: R_src -> R_tgt -> shared_rel)
+    :
+    bool -> bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
   | sim_ret
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
       r_src r_tgt
-      (SIM: RR r_src r_tgt)
+      (SIM: RR r_src r_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt)
-  | sim_obs
-      ktr_src0 ktr_tgt0 fn args
-      (SIM: forall r_src r_tgt (EQ: r_src = r_tgt),
-          sim _ _ RR true m_src true m_tgt (ktr_src0 r_src) (ktr_tgt0 r_tgt))
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt (Vis (Observe fn args) ktr_src0) (Vis (Observe fn args) ktr_tgt0)
+    _sim tid sim RR sync f_src f_tgt (Ret r_src) (Ret r_tgt) im_src im_tgt th_src th_tgt o st_src st_tgt w
 
   | sim_tauL
-      itr_src0 itr_tgt0
-      (SIM: @_sim sim _ _ RR true m_src p_tgt m_tgt itr_src0 itr_tgt0)
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      itr_src itr_tgt
+      (SIM: sim _ _ RR false true f_tgt itr_src itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt (Tau itr_src0) itr_tgt0
-  | sim_tauR
-      itr_src0 itr_tgt0
-      (SIM: @_sim sim _ _ RR p_src m_src true m_tgt itr_src0 itr_tgt0)
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (Tau itr_tgt0)
+    _sim tid sim RR sync f_src f_tgt (Tau itr_src) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w
   | sim_chooseL
-      X ktr_src0 itr_tgt0
-      (SIM: exists x, _sim sim RR true m_src p_tgt m_tgt (ktr_src0 x) itr_tgt0)
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      X ktr_src itr_tgt
+      (SIM: exists x, sim _ _ RR false true f_tgt (ktr_src x) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt (trigger (Choose X) >>= ktr_src0) itr_tgt0
-  | sim_chooseR
-      X itr_src0 ktr_tgt0
-      (SIM: forall x, _sim sim RR p_src m_src true m_tgt itr_src0 (ktr_tgt0 x))
+    _sim tid sim RR sync f_src f_tgt (trigger (Choose X) >>= ktr_src) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w
+  | sim_putL
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      st ktr_src itr_tgt
+      (SIM: sim _ _ RR false true f_tgt (ktr_src tt) itr_tgt im_src im_tgt th_src th_tgt o st st_tgt w)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Choose X) >>= ktr_tgt0)
-
+    _sim tid sim RR sync f_src f_tgt (trigger (Put st) >>= ktr_src) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w
+  | sim_getL
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      ktr_src itr_tgt
+      (SIM: sim _ _ RR false true f_tgt (ktr_src st_src) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w)
+    :
+    _sim tid sim RR sync f_src f_tgt (trigger (@Get _) >>= ktr_src) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w
+  | sim_tidL
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      ktr_src itr_tgt
+      (SIM: sim _ _ RR false true f_tgt (ktr_src tid) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w)
+    :
+    _sim tid sim RR sync f_src f_tgt (trigger (GetTid) >>= ktr_src) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w
+  | sim_UB
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      ktr_src itr_tgt
+    :
+    _sim tid sim RR sync f_src f_tgt (trigger (Undefined) >>= ktr_src) itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w
   | sim_fairL
-      f_src ktr_src0 itr_tgt0
-      (SIM: exists m_src0, (<<FAIR: fair_update m_src m_src0 f_src>>) /\
-                        (<<SIM: _sim sim RR true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0>>))
+      sync f_src f_tgt
+      im_src0 im_tgt th_src th_tgt o st_src st_tgt w
+      f ktr_src itr_tgt
+      (SIM: exists im_src1,
+          (<<FAIR: fair_update im_src0 im_src1 f>>) /\
+            (<<SIM: sim _ _ RR false true f_tgt (ktr_src tt) itr_tgt im_src1 im_tgt th_src th_tgt o st_src st_tgt w>>))
     :
-    _sim sim RR p_src m_src p_tgt m_tgt (trigger (Fair f_src) >>= ktr_src0) itr_tgt0
-  | sim_fairR
-      f_tgt itr_src0 ktr_tgt0
-      (SIM: forall m_tgt0 (FAIR: fair_update m_tgt m_tgt0 f_tgt),
-          _sim sim RR p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt))
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Fair f_tgt) >>= ktr_tgt0)
+    _sim tid sim RR sync f_src f_tgt (trigger (Fair f) >>= ktr_src) itr_tgt im_src0 im_tgt th_src th_tgt o st_src st_tgt w
 
-  | sim_ub
-      ktr_src0 itr_tgt0
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt (trigger Undefined >>= ktr_src0) itr_tgt0
-  .
-
-
-  Variable interpretation:
-    list nat -> state_src -> state_tgt ->
-
-  option
-
-
-  Variant cE: Type -> Type :=
-  | Yield: cE unit
-  | Spawn (fn: fname) (args: list Val): cE unit
-  | GetTid: cE nat
-  .
-
-  Variant stateE (State: Type): Type -> Type :=
-    | Put (st: State): stateE State unit
-    | Get: stateE State State
-  .
-
-
-  Inductive _sim
-            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> imap -> bool  -> imap -> (@state _ R0) -> (@state _ R1) -> Prop)
-            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap) (p_tgt: bool) (m_tgt: imap) :
-    (@state _ R0) -> (@state _ R1) -> Prop :=
-  | sim_ret
-      r_src r_tgt
-      (SIM: RR r_src r_tgt)
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt)
-  | sim_obs
-      ktr_src0 ktr_tgt0 fn args
-      (SIM: forall r_src r_tgt (EQ: r_src = r_tgt),
-          sim _ _ RR true m_src true m_tgt (ktr_src0 r_src) (ktr_tgt0 r_tgt))
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt (Vis (Observe fn args) ktr_src0) (Vis (Observe fn args) ktr_tgt0)
-
-  | sim_tauL
-      itr_src0 itr_tgt0
-      (SIM: @_sim sim _ _ RR true m_src p_tgt m_tgt itr_src0 itr_tgt0)
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt (Tau itr_src0) itr_tgt0
   | sim_tauR
-      itr_src0 itr_tgt0
-      (SIM: @_sim sim _ _ RR p_src m_src true m_tgt itr_src0 itr_tgt0)
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      itr_src itr_tgt
+      (SIM: sim _ _ RR sync f_src true itr_src itr_tgt im_src im_tgt th_src th_tgt o st_src st_tgt w)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (Tau itr_tgt0)
-  | sim_chooseL
-      X ktr_src0 itr_tgt0
-      (SIM: exists x, _sim sim RR true m_src p_tgt m_tgt (ktr_src0 x) itr_tgt0)
-    :
-    _sim sim RR p_src m_src p_tgt m_tgt (trigger (Choose X) >>= ktr_src0) itr_tgt0
+    _sim tid sim RR sync f_src f_tgt itr_src (Tau itr_tgt) im_src im_tgt th_src th_tgt o st_src st_tgt w
   | sim_chooseR
-      X itr_src0 ktr_tgt0
-      (SIM: forall x, _sim sim RR p_src m_src true m_tgt itr_src0 (ktr_tgt0 x))
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      X itr_src ktr_tgt
+      (SIM: forall x, sim _ _ RR sync f_src true itr_src (ktr_tgt x) im_src im_tgt th_src th_tgt o st_src st_tgt w)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Choose X) >>= ktr_tgt0)
-
-  | sim_fairL
-      f_src ktr_src0 itr_tgt0
-      (SIM: exists m_src0, (<<FAIR: fair_update m_src m_src0 f_src>>) /\
-                        (<<SIM: _sim sim RR true m_src0 p_tgt m_tgt (ktr_src0 tt) itr_tgt0>>))
+    _sim tid sim RR sync f_src f_tgt itr_src (trigger (Choose X) >>= ktr_tgt) im_src im_tgt th_src th_tgt o st_src st_tgt w
+  | sim_putR
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      st itr_src ktr_tgt
+      (SIM: sim _ _ RR sync f_src true itr_src (ktr_tgt tt) im_src im_tgt th_src th_tgt o st_src st w)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt (trigger (Fair f_src) >>= ktr_src0) itr_tgt0
+    _sim tid sim RR sync f_src f_tgt itr_src (trigger (Put st) >>= ktr_tgt) im_src im_tgt th_src th_tgt o st_src st_tgt w
+  | sim_getR
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      itr_src ktr_tgt
+      (SIM: sim _ _ RR sync f_src true itr_src (ktr_tgt st_tgt) im_src im_tgt th_src th_tgt o st_src st_tgt w)
+    :
+    _sim tid sim RR sync f_src f_tgt itr_src (trigger (@Get _) >>= ktr_tgt) im_src im_tgt th_src th_tgt o st_src st_tgt w
+  | sim_tidR
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      itr_src ktr_tgt
+      (SIM: sim _ _ RR sync f_src true itr_src (ktr_tgt tid) im_src im_tgt th_src th_tgt o st_src st_tgt w)
+    :
+    _sim tid sim RR sync f_src f_tgt itr_src (trigger (GetTid) >>= ktr_tgt) im_src im_tgt th_src th_tgt o st_src st_tgt w
   | sim_fairR
-      f_tgt itr_src0 ktr_tgt0
-      (SIM: forall m_tgt0 (FAIR: fair_update m_tgt m_tgt0 f_tgt),
-          _sim sim RR p_src m_src true m_tgt0 itr_src0 (ktr_tgt0 tt))
+      sync f_src f_tgt
+      im_src im_tgt0 th_src th_tgt o st_src st_tgt w
+      f itr_src ktr_tgt
+      (SIM: forall im_tgt1
+                   (FAIR: fair_update im_tgt0 im_tgt1 f),
+          (<<SIM: sim _ _ RR sync f_src true itr_src (ktr_tgt tt) im_src im_tgt1 th_src th_tgt o st_src st_tgt w>>))
     :
-    _sim sim RR p_src m_src p_tgt m_tgt itr_src0 (trigger (Fair f_tgt) >>= ktr_tgt0)
+    _sim tid sim RR sync f_src f_tgt itr_src (trigger (Fair f) >>= ktr_tgt) im_src im_tgt0 th_src th_tgt o st_src st_tgt w
 
-  | sim_ub
-      ktr_src0 itr_tgt0
+  | sim_observe
+      sync f_src f_tgt
+      im_src im_tgt th_src th_tgt o st_src st_tgt w
+      fn args ktr_src ktr_tgt
+      (SIM: forall ret,
+          sim _ _ RR false true true (ktr_src ret) (ktr_tgt ret) im_src im_tgt th_src th_tgt o st_src st_tgt w)
     :
-    _sim sim RR p_src m_src p_tgt m_tgt (trigger Undefined >>= ktr_src0) itr_tgt0
+    _sim tid sim RR sync f_src f_tgt (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) im_src im_tgt th_src th_tgt o st_src st_tgt w
   .
+
+  (* TODO: src yield, tgt yield, both yield *)
+
+End PRIMIVIESIM.
