@@ -112,8 +112,8 @@ Module Tr.
   Qed.
 
 End Tr.
-#[export] Hint Constructors Tr._eq.
-#[export] Hint Unfold Tr.eq.
+#[export] Hint Constructors Tr._eq: core.
+#[export] Hint Unfold Tr.eq: core.
 #[export] Hint Resolve Tr.eq_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
 
@@ -731,12 +731,12 @@ Section BEHAVES.
 End BEHAVES.
 
 End Beh.
-#[export] Hint Unfold Beh.improves.
-#[export] Hint Constructors Beh._diverge_index.
-#[export] Hint Unfold Beh.diverge_index.
+#[export] Hint Unfold Beh.improves: core.
+#[export] Hint Constructors Beh._diverge_index: core.
+#[export] Hint Unfold Beh.diverge_index: core.
 #[export] Hint Resolve Beh.diverge_index_mon: paco.
-#[export] Hint Constructors Beh._of_state.
-#[export] Hint Unfold Beh.of_state.
+#[export] Hint Constructors Beh._of_state: core.
+#[export] Hint Unfold Beh.of_state: core.
 #[export] Hint Resolve Beh.of_state_mon: paco.
 
 #[export] Hint Resolve cpn3_wcompat: paco.

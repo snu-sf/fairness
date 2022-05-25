@@ -96,11 +96,11 @@ Section EXTRACT.
     ii. induction IN using extract_tr_ind; econs; eauto.
   Qed.
 
-  Local Hint Constructors _raw_spin.
-  Local Hint Unfold raw_spin.
+  Local Hint Constructors _raw_spin: core.
+  Local Hint Unfold raw_spin: core.
   Local Hint Resolve raw_spin_mon: paco.
-  Local Hint Constructors _extract_tr.
-  Local Hint Unfold extract_tr.
+  Local Hint Constructors _extract_tr: core.
+  Local Hint Unfold extract_tr: core.
   Local Hint Resolve extract_tr_mon: paco.
 
   Lemma extract_tr_ind2
@@ -170,12 +170,12 @@ Section EXTRACT.
   Proof. i. eapply wrespect3_uclo; eauto with paco. eapply extract_tr_indC_wrespectful. Qed.
 
 End EXTRACT.
-#[export] Hint Constructors _raw_spin.
-#[export] Hint Unfold raw_spin.
+#[export] Hint Constructors _raw_spin: core.
+#[export] Hint Unfold raw_spin: core.
 #[export] Hint Resolve raw_spin_mon: paco.
 #[export] Hint Resolve cpn2_wcompat: paco.
-#[export] Hint Constructors _extract_tr.
-#[export] Hint Unfold extract_tr.
+#[export] Hint Constructors _extract_tr: core.
+#[export] Hint Unfold extract_tr: core.
 #[export] Hint Resolve extract_tr_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
 

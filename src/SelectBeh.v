@@ -291,17 +291,17 @@ Section TR.
 
 End TR.
 End RawTr.
-#[export] Hint Constructors RawTr._nofail_ind.
-#[export] Hint Unfold RawTr.nofail_ind.
+#[export] Hint Constructors RawTr._nofail_ind: core.
+#[export] Hint Unfold RawTr.nofail_ind: core.
 #[export] Hint Resolve RawTr.nofail_ind_mon: paco.
-#[export] Hint Constructors RawTr._fair_ind.
-#[export] Hint Unfold RawTr.fair_ind.
+#[export] Hint Constructors RawTr._fair_ind: core.
+#[export] Hint Unfold RawTr.fair_ind: core.
 #[export] Hint Resolve RawTr.fair_ind_mon: paco.
-#[export] Hint Constructors RawTr._fair_ord.
-#[export] Hint Unfold RawTr.fair_ord.
+#[export] Hint Constructors RawTr._fair_ord: core.
+#[export] Hint Unfold RawTr.fair_ord: core.
 #[export] Hint Resolve RawTr.fair_ord_mon: paco.
-#[export] Hint Constructors RawTr._eq.
-#[export] Hint Unfold RawTr.eq.
+#[export] Hint Constructors RawTr._eq: core.
+#[export] Hint Unfold RawTr.eq: core.
 #[export] Hint Resolve RawTr.eq_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
 
@@ -362,8 +362,8 @@ Section BEHAVES.
     ii. inv IN; econs; eauto.
   Qed.
 
-  Hint Constructors _of_state.
-  Hint Unfold of_state.
+  Hint Constructors _of_state: core.
+  Hint Unfold of_state: core.
   Hint Resolve of_state_mon: paco.
   Hint Resolve cpn3_wcompat: paco.
 
@@ -430,8 +430,8 @@ Section BEHAVES.
 
 End BEHAVES.
 End RawBeh.
-#[export] Hint Unfold RawBeh.improves.
-#[export] Hint Constructors RawBeh._of_state.
-#[export] Hint Unfold RawBeh.of_state.
+#[export] Hint Unfold RawBeh.improves: core.
+#[export] Hint Constructors RawBeh._of_state: core.
+#[export] Hint Unfold RawBeh.of_state: core.
 #[export] Hint Resolve RawBeh.of_state_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
