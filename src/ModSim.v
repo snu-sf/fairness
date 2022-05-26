@@ -265,7 +265,7 @@ Module ModSim.
                      (<<RET: r_src = r_tgt>>))
               true true
               (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args)
-              ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0;
+              ths1 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0;
         }.
   End MODSIM.
 End ModSim.
