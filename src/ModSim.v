@@ -261,7 +261,8 @@ Module ModSim.
                  exists ths3 w2,
                    (<<THS: threads_remove ths2 tid ths3>>) /\
                      (<<WORLD: world_le w1 w2>>) /\
-                     (<<INV: I ths3 im_src1 im_tgt1 th_src1 th_tgt1 o1 st_src1 st_tgt1 w2>>))
+                     (<<INV: I ths3 im_src1 im_tgt1 th_src1 th_tgt1 o1 st_src1 st_tgt1 w2>>) /\
+                     (<<RET: r_src = r_tgt>>))
               true true
               (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args)
               ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0;
