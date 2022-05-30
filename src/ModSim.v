@@ -6,10 +6,34 @@ Require Export Coq.Strings.String.
 
 Set Implicit Arguments.
 
+
+
 Definition nat_wf: WF :=
   mk_wf Wf_nat.lt_wf.
 
-Definition tids: ID := mk_id nat.
+Section THREADS.
+
+  Definition tids: ID := mk_id nat.
+
+  Definition threads: Type := list tids.(id).
+  Variant threads_add (ths0: threads) (tid: tids.(id)) (ths1: threads): Prop :=
+    | threads_add_intro
+        (THS: ths1 = tid :: ths0)
+        (NIN: ~ List.In tid ths0)
+  .
+
+  Variant threads_remove (ths0: threads) (tid: tids.(id)) (ths1: threads): Prop :=
+    | threads_remove_intro
+        l0 l1
+        (THS0: ths0 = l0 ++ tid :: l1)
+        (THS1: ths1 = l0 ++ l1)
+  .
+
+  Definition thread_fmap (tid: tids.(id)): @fmap tids :=
+    fun i => if (PeanoNat.Nat.eq_dec i tid) then Flag.success else Flag.fail.
+
+End THREADS.
+
 
 
 Section PRIMIVIESIM.
@@ -18,7 +42,6 @@ Section PRIMIVIESIM.
 
   Variable ident_src: ID.
   Variable ident_tgt: ID.
-
 
   Variable wf_src: WF.
   Variable wf_tgt: WF.
@@ -29,31 +52,21 @@ Section PRIMIVIESIM.
   Variable world: Type.
   Variable world_le: world -> world -> Prop.
 
+  (* Variable stutter: WF. *)
+
   Let shared_rel: Type :=
-        list nat ->
+        threads ->
         @imap ident_src wf_src ->
         @imap ident_tgt wf_tgt ->
         @imap tids wf_src ->
         @imap tids wf_tgt ->
         wf_src.(T) ->
+        (* stutter.(T) -> *)
         state_src ->
         state_tgt ->
         world ->
         Prop.
 
-  Definition threads: Type := list nat.
-  Variant threads_add (ths0: threads) (tid: nat) (ths1: threads): Prop :=
-  | threads_add_intro
-      (THS: ths1 = tid :: ths0)
-      (NIN: ~ List.In tid ths0)
-  .
-
-  Variant threads_remove (ths0: threads) (tid: nat) (ths1: threads): Prop :=
-  | threads_remove_intro
-      l0 l1
-      (THS0: ths0 = l0 ++ tid :: l1)
-      (THS1: ths1 = l0 ++ l1)
-  .
 
   Definition shared_rel_wf (r: shared_rel): Prop :=
     forall ths im_src im_tgt th_src0 th_tgt0 o st_src st_tgt w0
@@ -65,9 +78,6 @@ Section PRIMIVIESIM.
         (<<WORLD: world_le w0 w1>>).
 
   Variable I: shared_rel.
-
-  Definition single_fmap (tid: nat): @fmap tids :=
-    fun i => if (PeanoNat.Nat.eq_dec i tid) then Flag.success else Flag.fail.
 
   Inductive _sim (tid: nat)
             (sim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),
@@ -198,7 +208,7 @@ Section PRIMIVIESIM.
                    (INV: I ths1 im_src1 im_tgt1 th_src1 th_tgt1 o1 st_src1 st_tgt1 w1)
                    (WORLD: world_le w0 w1)
                    th_tgt2
-                   (TGT: fair_update th_tgt1 th_tgt2 (single_fmap tid)),
+                   (TGT: fair_update th_tgt1 th_tgt2 (thread_fmap tid)),
           sim _ _ RR true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) ths1 im_src1 im_tgt1 th_src1 th_tgt2 o1 st_src1 st_tgt1 w1)
     :
     _sim tid sim RR f_src f_tgt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 th_src0 th_tgt0 o st_src0 st_tgt0 w
@@ -207,7 +217,7 @@ Section PRIMIVIESIM.
       ths im_src im_tgt th_src0 th_tgt o0 st_src st_tgt w
       ktr_src itr_tgt
       (SIM: exists th_src1 o1,
-          (<<FAIR: fair_update th_src0 th_src1 (single_fmap tid)>>) /\
+          (<<FAIR: fair_update th_src0 th_src1 (thread_fmap tid)>>) /\
             (<<SIM: _sim tid sim RR true f_tgt (ktr_src tt) itr_tgt ths im_src im_tgt th_src1 th_tgt o1 st_src st_tgt w>>))
     :
     _sim tid sim RR f_src f_tgt (trigger (Yield) >>= ktr_src) itr_tgt ths im_src im_tgt th_src0 th_tgt o0 st_src st_tgt w
@@ -223,7 +233,10 @@ Section PRIMIVIESIM.
   Definition lsim (tid: nat): forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),
       bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel.
   Admitted.
+
 End PRIMIVIESIM.
+
+
 
 Module ModSim.
   Section MODSIM.
@@ -236,7 +249,7 @@ Module ModSim.
           wf: WF;
           world: Type;
           world_le: world -> world -> Prop;
-          I: list nat ->
+          I: threads ->
              @imap md_src.(Mod.ident) wf ->
              @imap md_tgt.(Mod.ident) nat_wf ->
              @imap tids wf ->
