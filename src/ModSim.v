@@ -376,12 +376,14 @@ Section PRIMIVIESIM.
     fix IH 14. i. inv SIM.
     { eapply RET; eauto. }
     { eapply TAUL; eauto. }
+    (* Guarded. *)
     { eapply CHOOSEL; eauto. des. esplits; eauto. }
     { eapply PUTL; eauto. }
     { eapply GETL; eauto. }
     { eapply TIDL; eauto. }
     { eapply UB; eauto. }
     { eapply FAIRL; eauto. des. esplits; eauto. }
+    (* Guarded. *)
     { eapply TAUR; eauto. }
     { eapply CHOOSER; eauto. }
     { eapply PUTR; eauto. }
