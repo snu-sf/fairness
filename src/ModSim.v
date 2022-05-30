@@ -88,159 +88,311 @@ Section PRIMIVIESIM.
 
   Variable I: shared_rel.
 
-  Inductive _sim (tid: tids.(id))
-            (sim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),
+  Inductive _lsim (tid: tids.(id))
+            (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),
                 bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
             R_src R_tgt (RR: R_src -> R_tgt -> shared_rel)
     :
     bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
-  | sim_ret
+  | lsim_ret
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       r_src r_tgt
-      (SIM: RR r_src r_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: RR r_src r_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt (Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+    _lsim tid lsim RR f_src f_tgt (Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
 
-  | sim_tauL
+  | lsim_tauL
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       itr_src itr_tgt
-      (SIM: _sim tid sim RR true f_tgt itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: _lsim tid lsim RR true f_tgt itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt (Tau itr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_chooseL
+    _lsim tid lsim RR f_src f_tgt (Tau itr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_chooseL
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       X ktr_src itr_tgt
-      (SIM: exists x, _sim tid sim RR true f_tgt (ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: exists x, _lsim tid lsim RR true f_tgt (ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt (trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_putL
+    _lsim tid lsim RR f_src f_tgt (trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_putL
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       st ktr_src itr_tgt
-      (SIM: _sim tid sim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st, st_tgt, w))
+      (LSIM: _lsim tid lsim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt (trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_getL
+    _lsim tid lsim RR f_src f_tgt (trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_getL
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       ktr_src itr_tgt
-      (SIM: _sim tid sim RR true f_tgt (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: _lsim tid lsim RR true f_tgt (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt (trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_tidL
+    _lsim tid lsim RR f_src f_tgt (trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_tidL
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       ktr_src itr_tgt
-      (SIM: _sim tid sim RR true f_tgt (ktr_src tid) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: _lsim tid lsim RR true f_tgt (ktr_src tid) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt (trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_UB
+    _lsim tid lsim RR f_src f_tgt (trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_UB
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       ktr_src itr_tgt
     :
-    _sim tid sim RR f_src f_tgt (trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_fairL
+    _lsim tid lsim RR f_src f_tgt (trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_fairL
       f_src f_tgt
       ths im_src0 im_tgt th_src th_tgt o st_src st_tgt w
       f ktr_src itr_tgt
-      (SIM: exists im_src1,
+      (LSIM: exists im_src1,
           (<<FAIR: fair_update im_src0 im_src1 f>>) /\
-            (<<SIM: _sim tid sim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)>>))
+            (<<LSIM: _lsim tid lsim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)>>))
     :
-    _sim tid sim RR f_src f_tgt (trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+    _lsim tid lsim RR f_src f_tgt (trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
 
-  | sim_tauR
+  | lsim_tauR
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       itr_src itr_tgt
-      (SIM: _sim tid sim RR f_src true itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: _lsim tid lsim RR f_src true itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt itr_src (Tau itr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_chooseR
+    _lsim tid lsim RR f_src f_tgt itr_src (Tau itr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_chooseR
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       X itr_src ktr_tgt
-      (SIM: forall x, _sim tid sim RR f_src true itr_src (ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: forall x, _lsim tid lsim RR f_src true itr_src (ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt itr_src (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_putR
+    _lsim tid lsim RR f_src f_tgt itr_src (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_putR
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       st itr_src ktr_tgt
-      (SIM: _sim tid sim RR f_src true itr_src (ktr_tgt tt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st, w))
+      (LSIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt tt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st, w))
     :
-    _sim tid sim RR f_src f_tgt itr_src (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_getR
+    _lsim tid lsim RR f_src f_tgt itr_src (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_getR
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       itr_src ktr_tgt
-      (SIM: _sim tid sim RR f_src true itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt itr_src (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_tidR
+    _lsim tid lsim RR f_src f_tgt itr_src (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_tidR
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       itr_src ktr_tgt
-      (SIM: _sim tid sim RR f_src true itr_src (ktr_tgt tid) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt tid) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt itr_src (trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
-  | sim_fairR
+    _lsim tid lsim RR f_src f_tgt itr_src (trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+  | lsim_fairR
       f_src f_tgt
       ths im_src im_tgt0 th_src th_tgt o st_src st_tgt w
       f itr_src ktr_tgt
-      (SIM: forall im_tgt1
+      (LSIM: forall im_tgt1
                    (FAIR: fair_update im_tgt0 im_tgt1 f),
-          (<<SIM: _sim tid sim RR f_src true itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, th_src, th_tgt, o, st_src, st_tgt, w)>>))
+          (<<LSIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, th_src, th_tgt, o, st_src, st_tgt, w)>>))
     :
-    _sim tid sim RR f_src f_tgt itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, th_src, th_tgt, o, st_src, st_tgt, w)
+    _lsim tid lsim RR f_src f_tgt itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, th_src, th_tgt, o, st_src, st_tgt, w)
 
-  | sim_observe
+  | lsim_observe
       f_src f_tgt
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       fn args ktr_src ktr_tgt
-      (SIM: forall ret,
-          sim _ _ RR true true (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: forall ret,
+          lsim _ _ RR true true (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR f_src f_tgt (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+    _lsim tid lsim RR f_src f_tgt (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
 
-  | sim_sync
+  | lsim_sync
       f_src f_tgt
       ths0 im_src0 im_tgt0 th_src0 th_tgt0 o st_src0 st_tgt0 w
       o0 w0 ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0))
       (STUTTER: wf_src.(lt) o0 o)
-      (SIM: forall ths1 im_src1 im_tgt1 th_src1 th_tgt1 o1 st_src1 st_tgt1 w1
+      (LSIM: forall ths1 im_src1 im_tgt1 th_src1 th_tgt1 o1 st_src1 st_tgt1 w1
                    (INV: I (ths1, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1))
                    (WORLD: world_le w0 w1)
                    th_tgt2
                    (TGT: fair_update th_tgt1 th_tgt2 (thread_fmap tid)),
-          sim _ _ RR true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt1, th_src1, th_tgt2, o1, st_src1, st_tgt1, w1))
+          lsim _ _ RR true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt1, th_src1, th_tgt2, o1, st_src1, st_tgt1, w1))
     :
-    _sim tid sim RR f_src f_tgt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o, st_src0, st_tgt0, w)
-  | sim_yieldL
+    _lsim tid lsim RR f_src f_tgt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o, st_src0, st_tgt0, w)
+  | lsim_yieldL
       f_src f_tgt
       ths im_src im_tgt th_src0 th_tgt o0 st_src st_tgt w
       ktr_src itr_tgt
-      (SIM: exists th_src1 o1,
+      (LSIM: exists th_src1 o1,
           (<<FAIR: fair_update th_src0 th_src1 (thread_fmap tid)>>) /\
-            (<<SIM: _sim tid sim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, th_src1, th_tgt, o1, st_src, st_tgt, w)>>))
+            (<<LSIM: _lsim tid lsim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, th_src1, th_tgt, o1, st_src, st_tgt, w)>>))
     :
-    _sim tid sim RR f_src f_tgt (trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src0, th_tgt, o0, st_src, st_tgt, w)
+    _lsim tid lsim RR f_src f_tgt (trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, th_src0, th_tgt, o0, st_src, st_tgt, w)
 
-  | sim_progress
+  | lsim_progress
       ths im_src im_tgt th_src th_tgt o st_src st_tgt w
       itr_src itr_tgt
-      (SIM: sim _ _ RR false false itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+      (LSIM: lsim _ _ RR false false itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
-    _sim tid sim RR true true itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
+    _lsim tid lsim RR true true itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)
   .
 
   Definition lsim (tid: nat): forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),
-      bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel := paco8 (_sim tid) bot8.
+      bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel := paco8 (_lsim tid) bot8.
+
+  Lemma lsim_ind
+        (tid : tids.(id))
+        (lsim : forall R_src R_tgt : Type,
+            (R_src -> R_tgt -> shared_rel) -> bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+        (R_src R_tgt : Type) (RR : R_src -> R_tgt -> shared_rel)
+        (P: bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+        (RET: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                (w : world) (r_src : R_src) (r_tgt : R_tgt)
+                (SIM: RR r_src r_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P f_src f_tgt (Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (TAUL: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                 (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                 (w : world) (itr_src : itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                 (SIM: _lsim tid lsim RR true f_tgt itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+                 (IH: P true f_tgt itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P f_src f_tgt (Tau itr_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (CHOOSEL: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                    (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                    (w : world) (X : Type) (ktr_src : X -> itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                    (SIM: exists x : X,
+                        (<<SIM: _lsim tid lsim RR true f_tgt (ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)>>) /\
+                          (<<IH: P true f_tgt (ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)>>)),
+            P f_src f_tgt (x <- trigger (Choose X);; ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (PUTL: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                 (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                 (w : world) (st : state_src) (ktr_src : unit -> itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                 (SIM: _lsim tid lsim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st, st_tgt, w))
+                 (IH: P true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st, st_tgt, w)),
+            P f_src f_tgt (x <- trigger (Put st);; ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (GETL: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt) 
+                 (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                 (w : world) (ktr_src : state_src -> itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                 (SIM: _lsim tid lsim RR true f_tgt (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+                 (IH: P true f_tgt (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P f_src f_tgt (x <- trigger (Get state_src);; ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (TIDL: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                 (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                 (w : world) (ktr_src : id -> itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                 (SIM: _lsim tid lsim RR true f_tgt (ktr_src tid) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+                 (IH: P true f_tgt (ktr_src tid) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P f_src f_tgt (x <- trigger GetTid;; ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (UB: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+               (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+               (w : world) (ktr_src : void -> itree srcE R_src) (itr_tgt : itree tgtE R_tgt),
+            P f_src f_tgt (x <- trigger Undefined;; ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (FAIRL: forall (f_src f_tgt : bool) (ths : threads) (im_src0 : imap wf_src) (im_tgt : imap wf_tgt)
+                  (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                  (w : world) (f : fmap) (ktr_src : unit -> itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                  (SIM: exists im_src1 : imap wf_src,
+                      (<<FAIR: fair_update im_src0 im_src1 f >>) /\
+                        (<<SIM: _lsim tid lsim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w) >>) /\
+                        (<<IH: P true f_tgt (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)>>)),
+            P f_src f_tgt (x <- trigger (Fair f);; ktr_src x) itr_tgt (ths, im_src0, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (TAUR: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                 (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                 (w : world) (itr_src : itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                 (SIM: _lsim tid lsim RR f_src true itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+                 (IH: P f_src true itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P f_src f_tgt itr_src (Tau itr_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (CHOOSER: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                    (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                    (w : world) (X : Type) (itr_src : itree srcE R_src) (ktr_tgt : X -> itree tgtE R_tgt)
+                    (SIM: forall x : X,
+                        (<<SIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)>>) /\
+                          (<<IH: P f_src true itr_src (ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)>>)),
+            P f_src f_tgt itr_src (x <- trigger (Choose X);; ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (PUTR: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                 (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                 (w : world) (st : state_tgt) (itr_src : itree srcE R_src) (ktr_tgt : unit -> itree tgtE R_tgt)
+                 (SIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt tt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st, w))
+                 (IH: P f_src true itr_src (ktr_tgt tt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st, w)),
+            P f_src f_tgt itr_src (x <- trigger (Put st);; ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (GETR: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                 (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                 (w : world) (itr_src : itree srcE R_src) (ktr_tgt : state_tgt -> itree tgtE R_tgt)
+                 (SIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+                 (IH: P f_src true itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P f_src f_tgt itr_src (x <- trigger (Get state_tgt);; ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (TIDR: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                 (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                 (w : world) (itr_src : itree srcE R_src) (ktr_tgt : id -> itree tgtE R_tgt)
+                 (SIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt tid) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+                 (IH: P f_src true itr_src (ktr_tgt tid) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P f_src f_tgt itr_src (x <- trigger GetTid;; ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (FAIRR: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt0 : imap wf_tgt)
+                  (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                  (w : world) (f : fmap) (itr_src : itree srcE R_src) (ktr_tgt : unit -> itree tgtE R_tgt)
+                  (SIM: forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 f),
+                      (<<SIM: _lsim tid lsim RR f_src true itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, th_src, th_tgt, o, st_src, st_tgt, w)>>) /\
+                        (<<IH: P f_src true itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, th_src, th_tgt, o, st_src, st_tgt, w)>>)),
+            P f_src f_tgt itr_src (x <- trigger (Fair f);; ktr_tgt x) (ths, im_src, im_tgt0, th_src, th_tgt, o, st_src, st_tgt, w))
+        (OBS: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                (th_src : imap wf_src) (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt)
+                (w : world) (fn : nat) (args : list nat) (ktr_src : nat -> itree srcE R_src)
+                (ktr_tgt : nat -> itree tgtE R_tgt)
+                (SIM: forall ret : nat,
+                    lsim R_src R_tgt RR true true (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P f_src f_tgt (x <- trigger (Observe fn args);; ktr_src x) (x <- trigger (Observe fn args);; ktr_tgt x) (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+        (SYNC: forall (f_src f_tgt : bool) (ths0 : threads) (im_src0 : imap wf_src) (im_tgt0 : imap wf_tgt)
+                 (th_src0 : imap wf_src) (th_tgt0 : imap wf_tgt) (o : T wf_src) (st_src0 : state_src) (st_tgt0 : state_tgt)
+                 (w : world) (o0 : T wf_src) (w0 : world) (ktr_src : unit -> itree srcE R_src) (ktr_tgt : unit -> itree tgtE R_tgt)
+                 (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0))
+                 (STUTTER: lt wf_src o0 o)
+                 (SIM: forall (ths1 : threads) (im_src1 : imap wf_src) (im_tgt1 : imap wf_tgt) (th_src1 : imap wf_src)
+                         (th_tgt1 : imap wf_tgt) (o1 : T wf_src) (st_src1 : state_src) (st_tgt1 : state_tgt) (w1 : world)
+                         (INV: I (ths1, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1))
+                         (WORLD: world_le w0 w1),
+                   forall th_tgt2 (FAIR: fair_update th_tgt1 th_tgt2 (thread_fmap tid)),
+                     lsim R_src R_tgt RR true true (x <- trigger Yield;; ktr_src x) (ktr_tgt tt) (ths1, im_src1, im_tgt1, th_src1, th_tgt2, o1, st_src1, st_tgt1, w1)),
+            P f_src f_tgt (x <- trigger Yield;; ktr_src x) (x <- trigger Yield;; ktr_tgt x) (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o, st_src0, st_tgt0, w))
+        (YIELDL: forall (f_src f_tgt : bool) (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt)
+                   (th_src0 : imap wf_src) (th_tgt : imap wf_tgt) (o0 : T wf_src) (st_src : state_src)
+                   (st_tgt : state_tgt) (w : world) (ktr_src : unit -> itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                   (SIM: exists (th_src1 : imap wf_src) (o1 : T wf_src),
+                       (<<FAIR: fair_update th_src0 th_src1 (thread_fmap tid) >>) /\
+                         (<<SIM: _lsim tid lsim RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, th_src1, th_tgt, o1, st_src, st_tgt, w)>>) /\
+                         (<<IH: P true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, th_src1, th_tgt, o1, st_src, st_tgt, w)>>)),
+            P f_src f_tgt (x <- trigger Yield;; ktr_src x) itr_tgt (ths, im_src, im_tgt, th_src0, th_tgt, o0, st_src, st_tgt, w))
+        (PROGRESS: forall (ths : threads) (im_src : imap wf_src) (im_tgt : imap wf_tgt) (th_src : imap wf_src)
+                     (th_tgt : imap wf_tgt) (o : T wf_src) (st_src : state_src) (st_tgt : state_tgt) (w : world)
+                     (itr_src : itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+                     (SIM: lsim R_src R_tgt RR false false itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+            P true true itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
+    :
+    forall f_src f_tgt
+      ths im_src im_tgt th_src th_tgt o st_src st_tgt w
+      itr_src itr_tgt
+      (SIM: _lsim tid lsim RR f_src f_tgt itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w)),
+      P f_src f_tgt itr_src itr_tgt (ths, im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w).
+  Proof.
+    fix IH 14. i. inv SIM.
+    { eapply RET; eauto. }
+    { eapply TAUL; eauto. }
+    { eapply CHOOSEL; eauto. des. esplits; eauto. }
+    { eapply PUTL; eauto. }
+    { eapply GETL; eauto. }
+    { eapply TIDL; eauto. }
+    { eapply UB; eauto. }
+    { eapply FAIRL; eauto. des. esplits; eauto. }
+    { eapply TAUR; eauto. }
+    { eapply CHOOSER; eauto. }
+    { eapply PUTR; eauto. }
+    { eapply GETR; eauto. }
+    { eapply TIDR; eauto. }
+    { eapply FAIRR; eauto. i. specialize (LSIM _ FAIR). des. esplits; eauto. }
+    { eapply OBS; eauto. }
+    { eapply SYNC; eauto. }
+    { eapply YIELDL; eauto. des. esplits; eauto. }
+    { eapply PROGRESS; eauto. }
+  Qed.
 
 End PRIMIVIESIM.
 
@@ -252,7 +404,7 @@ Module ModSim.
     Variable md_src: Mod.t.
     Variable md_tgt: Mod.t.
 
-    Record sim: Prop :=
+    Record lsim: Prop :=
       mk {
           wf: WF;
           world: Type;
