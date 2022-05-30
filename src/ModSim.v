@@ -54,12 +54,17 @@ Section PRIMIVIESIM.
 
   (* Variable stutter: WF. *)
 
+  Definition imap_src := ((@imap ident_src wf_src) * (@imap tids wf_src))%type.
+  Definition imap_tgt := ((@imap ident_tgt wf_tgt) * (@imap tids wf_tgt))%type.
+
   Let shared_rel: Type :=
         threads ->
-        @imap ident_src wf_src ->
-        @imap ident_tgt wf_tgt ->
-        @imap tids wf_src ->
-        @imap tids wf_tgt ->
+        (* @imap ident_src wf_src -> *)
+        (* @imap ident_tgt wf_tgt -> *)
+        (* @imap tids wf_src -> *)
+        (* @imap tids wf_tgt -> *)
+        imap_src ->
+        imap_tgt ->
         wf_src.(T) ->
         (* stutter.(T) -> *)
         state_src ->
@@ -67,19 +72,20 @@ Section PRIMIVIESIM.
         world ->
         Prop.
 
-
   Definition shared_rel_wf (r: shared_rel): Prop :=
     forall ths im_src im_tgt th_src0 th_tgt0 o st_src st_tgt w0
-           (INV: r ths im_src im_tgt th_src0 th_tgt0 o st_src st_tgt w0)
+           (INV: r ths (im_src, th_src0) (im_tgt, th_tgt0) o st_src st_tgt w0)
            th_tgt1 (TGT: fair_update th_tgt0 th_tgt1 (fun _ => Flag.fail)),
     exists th_src1 w1,
       (<<SRC: fair_update th_src0 th_src1 (fun _ => Flag.fail)>>) /\
-        (<<INV: r ths im_src im_tgt th_src1 th_tgt1 o st_src st_tgt w1>>) /\
+        (<<INV: r ths (im_src, th_src1) (im_tgt, th_tgt1) o st_src st_tgt w1>>) /\
         (<<WORLD: world_le w0 w1>>).
+
+  Record RRR: Type := mk_rrr { R_src: Type; R_tgt: Type; RR: R_src -> R_tgt -> shared_rel; }.
 
   Variable I: shared_rel.
 
-  Inductive _sim (tid: nat)
+  Inductive _sim (tid: tids.(id))
             (sim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),
                 bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
             R_src R_tgt (RR: R_src -> R_tgt -> shared_rel)
