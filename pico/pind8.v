@@ -234,12 +234,26 @@ Arguments pind8_mult : clear implicits.
 Arguments pind8_fold : clear implicits.
 Arguments pind8_unfold : clear implicits.
 
-(*TODO*)
+(** ** Type Class for acc, mult, fold and unfold
+*)
+Class pind_class (A : Prop) :=
+{ pindacctyp: Type
+; pindacc : pindacctyp
+; pindmulttyp: Type
+; pindmult : pindmulttyp
+; pindfoldtyp: Type
+; pindfold : pindfoldtyp
+; pindunfoldtyp: Type
+; pindunfold : pindunfoldtyp
+}.
+
+Create HintDb pind.
+
 Global Instance pind8_inst (lf : rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> _) r x0 x1 x2 x3 x4 x5 x6 x7 : pind_class (pind8 lf r x0 x1 x2 x3 x4 x5 x6 x7) :=
-{ pacoacc    := pind8_acc lf;
-  pacomult   := pind8_mult lf;
-  pacofold   := pind8_fold lf;
-  pacounfold := pind8_unfold lf }.
+{ pindacc    := pind8_acc lf;
+  pindmult   := pind8_mult lf;
+  pindfold   := pind8_fold lf;
+  pindunfold := pind8_unfold lf }.
 
 End PIND8.
 
