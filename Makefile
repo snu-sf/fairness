@@ -1,6 +1,7 @@
 COQMODULE    := Fairness
 COQTHEORIES  := \
 	src/*.v \
+	pico/*.v \
 
 .PHONY: all theories clean
 
