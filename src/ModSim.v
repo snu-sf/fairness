@@ -3,6 +3,7 @@ From Paco Require Import paco.
 From Ordinal Require Import Ordinal.
 From Fairness Require Export ITreeLib FairBeh Mod.
 Require Export Coq.Strings.String.
+From Fairness Require Import pind8.
 
 Set Implicit Arguments.
 
