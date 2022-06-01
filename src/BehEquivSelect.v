@@ -39,7 +39,8 @@ Section EQUIV.
     (*     { i. left. eauto. } *)
     (*     eauto. *)
     (* } *)
-    depgen tr. induction (wft.(wf) (m i)). rename H into ACC, H0 into IH. i.
+    depgen tr. remember (m i) as idx. move idx before CIH. revert_until idx.
+    induction (wft.(wf) idx). rename H into ACC, H0 into IH. i.
     punfold ORD. inv ORD.
     { eapply pind3_fold. econs. pfold. econs. }
     { eapply pind3_fold. econs. pfold. econs. }
@@ -48,16 +49,20 @@ Section EQUIV.
     { pclearbot. eapply pind3_fold. destruct (fmap i) eqn:FM.
       - econs 2.
         { rewrite FM. ss. }
-        split; ss. eapply IH; eauto. admit. admit.
+        split; ss. eapply IH; eauto.
+        unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. eauto.
       - econs 2.
         { rewrite FM. ss. }
-        split; ss. eapply IH; eauto. admit. admit.
+        split; ss.
+        unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR.
+        destruct FAIR.
+        2:{ eapply IH; eauto. }
+        admit.
       - econs 5.
         { rewrite FM. ss. }
         right. eapply CIH. eauto.
     }
     { pclearbot. eapply pind3_fold. econs 3. split; ss. eapply IH; eauto. admit. }
-    Unshelve. all: exact (m i).
   Admitted.
 
 
