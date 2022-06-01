@@ -140,37 +140,45 @@ Section EQUIV.
   (* Qed. *)
     ii. unfold RawTr.is_fair_ord in ORD. des. revert_until R. pcofix CIH. i.
     eapply paco3_fold.
-    depgen tr. remember (m i) as idx. move idx before CIH. revert_until idx.
-    induction (wft.(wf) idx). rename H into ACC, H0 into IH. i.
-    destruct (classic (exists m1, wft.(lt) (m1 i) (m i))) as [EXIST | BOT].
-    { des. punfold ORD. inv ORD.
+    destruct (classic (exists idx, wft.(lt) idx (m i))) as [EXIST | BOT].
+    (* destruct (classic (exists m1, wft.(lt) (m1 i) (m i))) as [EXIST | BOT]. *)
+    { des.
+      move idx before CIH. revert_until idx.
+      induction (wft.(wf) idx). rename H into ACC, H0 into IH, x into idx. i.
+      (* destruct (classic (exists idx1, wft.(lt) idx1 idx0)) as [EXIST2 | BOT2]. *)
+      (* (* destruct (classic (exists m2, wft.(lt) (m2 i) (m1 i))) as [EXIST2 | BOT2]. *) *)
+      (* { des. punfold ORD. } *)
+      (* (* eapply Classical_Pred_Type.not_ex_all_not in BOT2. *) *)
+      punfold ORD. inv ORD.
       { eapply pind3_fold. econs. pfold. econs. }
       { eapply pind3_fold. econs. pfold. econs. }
       { eapply pind3_fold. econs. pfold. econs. }
-      { pclearbot. eapply pind3_fold. econs 4.
+      { pclearbot. eapply pind3_fold. econs 4. split; ss. eapply IH. all: eauto. }
+      { pclearbot. eapply pind3_fold. unfold fair_update in FAIR. specialize (FAIR i).
+        des_ifs.
+        { econs 2.
+          { rewrite Heq. ss. }
+          split; ss. eapply IH.
+          2:{ ginit. guclo RawTr.fair_ord_imap_le_ctx_spec. econs; eauto.
+              gfinal. right. eauto. instantiate (1:=m). clear - FAIR.
+              unfold soft_update. i.
 
+              2: eauto. 3: eauto. all: eauto.
 
-        split; ss. eapply IH. 1,2: eauto.
-        
-
-        admit. }
-      { pclearbot. eapply pind3_fold. destruct (fmap i) eqn:FM.
-        - econs 2.
-          { rewrite FM. ss. }
-          split; ss. eapply IH; eauto.
-          unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. eauto.
-        - econs 2.
-          { rewrite FM. ss. }
-          split; ss.
-          unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR.
-          destruct FAIR.
-          2:{ eapply IH; eauto. }
-          admit.
-        - econs 5.
-          { rewrite FM. ss. }
-          right. eapply CIH. eauto.
-      }
-      { pclearbot. eapply pind3_fold. econs 3. split; ss. eapply IH; eauto. admit. }
+            all: eauto.
+            unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. eauto.
+          - econs 2.
+            { rewrite FM. ss. }
+            split; ss.
+            unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR.
+            destruct FAIR.
+            2:{ eapply IH; eauto. }
+            admit.
+          - econs 5.
+            { rewrite FM. ss. }
+            right. eapply CIH. eauto.
+        }
+        { pclearbot. eapply pind3_fold. econs 3. split; ss. eapply IH; eauto. admit. }
   Admitted.
 
 
