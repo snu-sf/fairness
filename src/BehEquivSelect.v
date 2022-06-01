@@ -28,18 +28,15 @@ Section EQUIV.
         (CNTF: ~ (exists t, wft.(lt) t (im i)))
         (ORD: RawTr.fair_ord im tr)
     :
-    RawTr.fair_ind i tr.
-    (* RawTr.nofail_ind i tr. *)
+    (* RawTr.fair_ind i tr. *)
+    RawTr.nofail_ind i tr.
   Proof.
-    punfold ORD.
-
-    
     revert_until R. pcofix CIH; i.
     punfold ORD. inv ORD.
     { pfold; eauto. }
     { pfold; eauto. }
     { pfold; eauto. }
-    { pclearbot. pfold. eapply pind3_fold. econs 1. pfold. econs. right. eapply CIH; eauto. }
+    { pclearbot. pfold. econs. right. eapply CIH; eauto. }
     { pclearbot. unfold fair_update in FAIR. specialize (FAIR i).
       pfold. econs 5.
       2:{ right. eapply CIH.

@@ -299,7 +299,50 @@ Section TR.
     ii. inv IN; econs; eauto.
   Qed.
 
+  Local Hint Resolve fair_ord_mon: paco.
+
   Definition is_fair_ord {R} (tr: @t R) := exists m, fair_ord m tr.
+
+  (** fair_ord upto *)
+  Hypothesis WFTR: Transitive wf.(lt).
+
+  Variant fair_ord_imap_le_ctx
+          (fair_ord: forall (R: Type) (m: imap wf), (@t R) -> Prop)
+          R
+    :
+    (imap wf) -> (@t R) -> Prop :=
+    | fair_ord_imap_le_ctx_intro
+        imap0 imap1 tr
+        (ORD: @fair_ord R imap1 tr)
+        (IMAP: soft_update imap0 imap1)
+      :
+      fair_ord_imap_le_ctx fair_ord imap0 tr.
+
+  Lemma fair_ord_imap_le_ctx_mon: monotone3 fair_ord_imap_le_ctx.
+  Proof. ii. inv IN. econs; eauto. Qed.
+
+  Hint Resolve fair_ord_imap_le_ctx_mon: paco.
+
+  Lemma fair_ord_imap_le_ctx_wrespectful: wrespectful3 _fair_ord fair_ord_imap_le_ctx.
+  Proof.
+    econs; eauto with paco.
+    i. inv PR. apply GF in ORD. inv ORD; eauto.
+    { econs 1. }
+    { econs 2. }
+    { econs 3. }
+    { econs 4. eapply rclo3_clo_base. econs; eauto. }
+    { econs 5.
+      2:{ eapply rclo3_clo_base. econs; eauto. reflexivity. }
+      clear - IMAP FAIR WFTR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
+      des_ifs.
+      - unfold le in IMAP. des. rewrite IMAP in FAIR. auto. eapply WFTR; eauto.
+      - eapply WF_le_Trans; eauto.
+    }
+    { econs 6. eapply rclo3_clo_base. econs; eauto. }
+  Qed.
+
+  Lemma fair_ord_imap_le_ctx_spec: fair_ord_imap_le_ctx <4= gupaco3 _fair_ord (cpn3 _fair_ord).
+  Proof. i. eapply wrespect3_uclo; eauto with paco. eapply fair_ord_imap_le_ctx_wrespectful. Qed.
 
 
 
@@ -371,6 +414,7 @@ End RawTr.
 #[export] Hint Unfold RawTr.eq: core.
 #[export] Hint Resolve RawTr.eq_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
+#[export] Hint Resolve RawTr.fair_ord_imap_le_ctx_mon: paco.
 
 
 Module RawBeh.
