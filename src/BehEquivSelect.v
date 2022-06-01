@@ -7,6 +7,7 @@ Require Import Coq.Classes.RelationClasses.
 
 (* Require Import Lia. *)
 
+From Fairness Require Import Axioms.
 From Fairness Require Import FairBeh.
 From Fairness Require Import pind3.
 From Fairness Require Import SelectBeh.
@@ -21,6 +22,37 @@ Section EQUIV.
   Context {Ident: ID}.
   Variable wft: WF.
   Variable R: Type.
+
+  Lemma cannot_fail_nofail
+        i im (tr: @RawTr.t Ident R)
+        (CNTF: ~ (exists t, wft.(lt) t (im i)))
+        (ORD: RawTr.fair_ord im tr)
+    :
+    RawTr.fair_ind i tr.
+    (* RawTr.nofail_ind i tr. *)
+  Proof.
+    punfold ORD.
+
+    
+    revert_until R. pcofix CIH; i.
+    punfold ORD. inv ORD.
+    { pfold; eauto. }
+    { pfold; eauto. }
+    { pfold; eauto. }
+    { pclearbot. pfold. eapply pind3_fold. econs 1. pfold. econs. right. eapply CIH; eauto. }
+    { pclearbot. unfold fair_update in FAIR. specialize (FAIR i).
+      pfold. econs 5.
+      2:{ right. eapply CIH.
+
+          2: eauto. ii. eapply CNTF. des.
+
+          eauto.
+
+
+
+
+
+    eapply Classical_Pred_Type.not_ex_all_not in CNTF.
 
   Theorem Ord_implies_Ind
           (tr: @RawTr.t Ident R)
@@ -45,7 +77,7 @@ Section EQUIV.
     { eapply pind3_fold. econs. pfold. econs. }
     { eapply pind3_fold. econs. pfold. econs. }
     { eapply pind3_fold. econs. pfold. econs. }
-    { pclearbot. eapply pind3_fold. econs 4. split; ss. eapply IH; eauto. admit. }
+    { pclearbot. eapply pind3_fold. econs 4. split; ss. eapply IH. eauto. admit. }
     { pclearbot. eapply pind3_fold. destruct (fmap i) eqn:FM.
       - econs 2.
         { rewrite FM. ss. }
