@@ -2,7 +2,6 @@ Require Export Program.Basics. Open Scope program_scope.
 From Paco Require Import paconotation_internal pacotac_internal.
 From Paco Require Export paconotation.
 From Fairness Require Import pind_internal.
-(* Require Import pind_internal. *)
 Set Implicit Arguments.
 
 Section PIND8.

@@ -1,7 +1,6 @@
 From sflib Require Import sflib.
 From ITree Require Export ITree.
 From Paco Require Import paco.
-(* From Ordinal Require Import Ordinal. *)
 
 Export ITreeNotations.
 
