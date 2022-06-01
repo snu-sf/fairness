@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From ITree Require Export ITree.
+From Fairness Require Import pind3.
 From Paco Require Import paco.
 
 Export ITreeNotations.
@@ -77,9 +78,6 @@ Section TR.
         retv
       :
       _nofail_ind nofail_ind i (done retv)
-    (* | nofail_ind_spin *)
-    (*   : *)
-    (*   _nofail_ind nofail_ind i spin *)
     | nofail_ind_ub
       :
       _nofail_ind nofail_ind i ub
@@ -111,79 +109,146 @@ Section TR.
     ii. inv IN; econs; eauto.
   Qed.
 
+  Local Hint Unfold nofail_ind: core.
+  Local Hint Resolve nofail_ind_mon: paco.
 
-  Inductive _fair_ind
-            (fair_ind: forall (R: Type) (i: id), (@t R) -> Prop)
-            (R: Type) (i: id)
+
+  Variant __fair_ind
+          (fair_ind: forall (R: Type) (i: id), (@t R) -> Prop)
+          (_fair_ind: forall (R: Type) (i: id), (@t R) -> Prop)
+          (R: Type) (i: id)
     :
     (@t R) -> Prop :=
-  | fair_ind_nofail
-      tr
-      (NOFAIL: nofail_ind i tr)
-    :
-    _fair_ind fair_ind i tr
-  | fair_ind_no_success
-      fmap tl
-      (NOSUCCESS: Flag.le (fmap i) Flag.emp)
-      (TL: _fair_ind fair_ind i tl)
-    :
-    _fair_ind fair_ind i (cons (inl (silentE_fair fmap)) tl)
-  | fair_ind_tau
-      tl
-      (TL: _fair_ind fair_ind i tl)
-    :
-    _fair_ind fair_ind i (cons (inl silentE_tau) tl)
-  | fair_ind_obs
-      (obs: obsE) tl
-      (TL: _fair_ind fair_ind i tl)
-    :
-    _fair_ind fair_ind i (cons (inr obs) tl)
-  | fair_ind_success
-      fmap tl
-      (SUCCESS: Flag.le Flag.success (fmap i))
-      (TL: fair_ind R i tl)
-    :
-    _fair_ind fair_ind i (cons (inl (silentE_fair fmap)) tl)
+    | fair_ind_nofail
+        tr
+        (NOFAIL: nofail_ind i tr)
+      :
+      __fair_ind fair_ind _fair_ind i tr
+    | fair_ind_no_success
+        fmap tl
+        (NOSUCCESS: Flag.le (fmap i) Flag.emp)
+        (TL: _fair_ind _ i tl)
+      :
+      __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fmap)) tl)
+    | fair_ind_tau
+        tl
+        (TL: _fair_ind _ i tl)
+      :
+      __fair_ind fair_ind _fair_ind i (cons (inl silentE_tau) tl)
+    | fair_ind_obs
+        (obs: obsE) tl
+        (TL: _fair_ind _ i tl)
+      :
+      __fair_ind fair_ind _fair_ind i (cons (inr obs) tl)
+    | fair_ind_success
+        fmap tl
+        (SUCCESS: Flag.le Flag.success (fmap i))
+        (TL: fair_ind R i tl)
+      :
+      __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fmap)) tl)
   .
 
-  Definition fair_ind: forall (R: Type) (i: id), (@t R) -> Prop := paco3 _fair_ind bot3.
+  Definition fair_ind: forall (R: Type) (i: id), (@t R) -> Prop :=
+    paco3 (fun r => pind3 (__fair_ind r) top3) bot3.
 
-  Lemma fair_ind_ind
-        (r: forall (R: Type) (i: id), t -> Prop) R i (P: t -> Prop)
-        (NOFAIL: forall tr (NOFAIL: nofail_ind i tr), P tr)
-        (NOSUCCESS: forall fmap tl
-                      (NOSUCCESS: Flag.le (fmap i) Flag.emp)
-                      (TL: _fair_ind r i tl)
-                      (IH: P tl),
-            P (cons (inl (silentE_fair fmap)) tl))
-        (TAU: forall tl
-                (TL: _fair_ind r i tl)
-                (IH: P tl),
-            P (cons (inl silentE_tau) tl))
-        (OBS: forall obs tl
-                (TL: _fair_ind r i tl)
-                (IH: P tl),
-            P (cons (inr obs) tl))
-        (SUCCESS: forall fmap tl
-                    (SUCCESS: Flag.le Flag.success (fmap i))
-                    (TL: r R i tl),
-            P (cons (inl (silentE_fair fmap)) tl))
-    :
-    forall tr, _fair_ind r i tr -> P tr.
+  Lemma __fair_ind_mon: forall r r' (LE: r <3= r'), (__fair_ind r) <4= (__fair_ind r').
   Proof.
-    fix IH 2. i.
-    inv H; eauto.
-  Qed.
-
-  Lemma fair_ind_mon: monotone3 _fair_ind.
-  Proof.
-    ii. induction IN using fair_ind_ind; eauto.
-    - econs 1. eauto.
+    ii. inv PR.
+    - econs 1; eauto.
     - econs 2; eauto.
     - econs 3; eauto.
     - econs 4; eauto.
     - econs 5; eauto.
   Qed.
+
+  Lemma _fair_ind_mon: forall r, monotone3 (__fair_ind r).
+  Proof.
+    ii. inv IN.
+    - econs 1; eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+    - econs 5; eauto.
+  Qed.
+
+  Lemma fair_ind_mon: forall q, monotone3 (fun r => pind3 (__fair_ind r) q).
+  Proof.
+    ii. eapply pind3_mon_gen; eauto. ii. eapply __fair_ind_mon; eauto.
+  Qed.
+
+
+  (* Inductive _fair_ind *)
+  (*           (fair_ind: forall (R: Type) (i: id), (@t R) -> Prop) *)
+  (*           (R: Type) (i: id) *)
+  (*   : *)
+  (*   (@t R) -> Prop := *)
+  (* | fair_ind_nofail *)
+  (*     tr *)
+  (*     (NOFAIL: nofail_ind i tr) *)
+  (*   : *)
+  (*   _fair_ind fair_ind i tr *)
+  (* | fair_ind_no_success *)
+  (*     fmap tl *)
+  (*     (NOSUCCESS: Flag.le (fmap i) Flag.emp) *)
+  (*     (TL: _fair_ind fair_ind i tl) *)
+  (*   : *)
+  (*   _fair_ind fair_ind i (cons (inl (silentE_fair fmap)) tl) *)
+  (* | fair_ind_tau *)
+  (*     tl *)
+  (*     (TL: _fair_ind fair_ind i tl) *)
+  (*   : *)
+  (*   _fair_ind fair_ind i (cons (inl silentE_tau) tl) *)
+  (* | fair_ind_obs *)
+  (*     (obs: obsE) tl *)
+  (*     (TL: _fair_ind fair_ind i tl) *)
+  (*   : *)
+  (*   _fair_ind fair_ind i (cons (inr obs) tl) *)
+  (* | fair_ind_success *)
+  (*     fmap tl *)
+  (*     (SUCCESS: Flag.le Flag.success (fmap i)) *)
+  (*     (TL: fair_ind R i tl) *)
+  (*   : *)
+  (*   _fair_ind fair_ind i (cons (inl (silentE_fair fmap)) tl) *)
+  (* . *)
+
+  (* Definition fair_ind: forall (R: Type) (i: id), (@t R) -> Prop := paco3 _fair_ind bot3. *)
+
+  (* Lemma fair_ind_ind *)
+  (*       (r: forall (R: Type) (i: id), t -> Prop) R i (P: t -> Prop) *)
+  (*       (NOFAIL: forall tr (NOFAIL: nofail_ind i tr), P tr) *)
+  (*       (NOSUCCESS: forall fmap tl *)
+  (*                     (NOSUCCESS: Flag.le (fmap i) Flag.emp) *)
+  (*                     (TL: _fair_ind r i tl) *)
+  (*                     (IH: P tl), *)
+  (*           P (cons (inl (silentE_fair fmap)) tl)) *)
+  (*       (TAU: forall tl *)
+  (*               (TL: _fair_ind r i tl) *)
+  (*               (IH: P tl), *)
+  (*           P (cons (inl silentE_tau) tl)) *)
+  (*       (OBS: forall obs tl *)
+  (*               (TL: _fair_ind r i tl) *)
+  (*               (IH: P tl), *)
+  (*           P (cons (inr obs) tl)) *)
+  (*       (SUCCESS: forall fmap tl *)
+  (*                   (SUCCESS: Flag.le Flag.success (fmap i)) *)
+  (*                   (TL: r R i tl), *)
+  (*           P (cons (inl (silentE_fair fmap)) tl)) *)
+  (*   : *)
+  (*   forall tr, _fair_ind r i tr -> P tr. *)
+  (* Proof. *)
+  (*   fix IH 2. i. *)
+  (*   inv H; eauto. *)
+  (* Qed. *)
+
+  (* Lemma fair_ind_mon: monotone3 _fair_ind. *)
+  (* Proof. *)
+  (*   ii. induction IN using fair_ind_ind; eauto. *)
+  (*   - econs 1. eauto. *)
+  (*   - econs 2; eauto. *)
+  (*   - econs 3; eauto. *)
+  (*   - econs 4; eauto. *)
+  (*   - econs 5; eauto. *)
+  (* Qed. *)
 
   Definition is_fair_ind {R} (tr: @t R) := forall i, fair_ind i tr.
 
@@ -293,9 +358,12 @@ End RawTr.
 #[export] Hint Constructors RawTr._nofail_ind: core.
 #[export] Hint Unfold RawTr.nofail_ind: core.
 #[export] Hint Resolve RawTr.nofail_ind_mon: paco.
-#[export] Hint Constructors RawTr._fair_ind: core.
+#[export] Hint Constructors RawTr.__fair_ind: core.
 #[export] Hint Unfold RawTr.fair_ind: core.
 #[export] Hint Resolve RawTr.fair_ind_mon: paco.
+(* #[export] Hint Constructors RawTr._fair_ind: core. *)
+(* #[export] Hint Unfold RawTr.fair_ind: core. *)
+(* #[export] Hint Resolve RawTr.fair_ind_mon: paco. *)
 #[export] Hint Constructors RawTr._fair_ord: core.
 #[export] Hint Unfold RawTr.fair_ord: core.
 #[export] Hint Resolve RawTr.fair_ord_mon: paco.
