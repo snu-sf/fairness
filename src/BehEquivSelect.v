@@ -66,4 +66,12 @@ Section EQUIV.
     { pclearbot. pfold. econs 5. right. eapply CIH2; eauto. }
   Qed.
 
+  Theorem Ind_implies_Ord
+          (tr: @RawTr.t Ident R)
+          (IND: RawTr.is_fair_ind tr)
+    :
+    RawTr.is_fair_ord wft tr.
+  Proof.
+    unfold RawTr.is_fair_ord. unfold RawTr.is_fair_ind in IND.
+
 End EQUIV.
