@@ -99,8 +99,95 @@ Section EQUIV.
   Qed.
 
 
-  Variable S: wft.(T) -> wft.(T).
-  Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
+  (* coinductive-inductive *)
+  Variant __ord_tr (i: id)
+          (ord_tr: forall (R: Type) (t: wft.(T)), (@RawTr.t _ R) -> Prop)
+          (_ord_tr: forall (R: Type) (t: wft.(T)), (@RawTr.t _ R) -> Prop)
+          (R: Type) (o: wft.(T))
+    :
+    (@RawTr.t _ R) -> Prop :=
+    (* base cases *)
+    | ord_tr_done
+        retv
+      :
+      __ord_tr i ord_tr _ord_tr o (RawTr.done retv)
+    | ord_tr_ub
+      :
+      __ord_tr i ord_tr _ord_tr o RawTr.ub
+    | ord_tr_nb
+      :
+      __ord_tr i ord_tr _ord_tr o RawTr.nb
+    | ord_tr_fair_success
+        fmap tl
+        (SUCCESS: Flag.success = (fmap i))
+      :
+      __ord_tr i ord_tr _ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl)
+
+    (* inner coinductive cases: no fair events for i *)
+    | ord_tr_obs
+        (obs: obsE) tl
+        (TL: _ord_tr R o tl)
+      :
+      __ord_tr i ord_tr _ord_tr o (RawTr.cons (inr obs) tl)
+    | ord_tr_tau
+        tl
+        (TL: _ord_tr R o tl)
+      :
+      __ord_tr i ord_tr _ord_tr o (RawTr.cons (inl silentE_tau) tl)
+    | ord_tr_fair_emp
+        fmap tl
+        (EMP: Flag.emp = (fmap i))
+        (TL: _ord_tr R o tl)
+      :
+      __ord_tr i ord_tr _ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl)
+
+    (* outer inductive cases: i fails inductively *)
+    | ord_tr_fair_fail
+        fmap tl o0
+        (FAIL: Flag.fail = (fmap i))
+        (LT: wft.(lt) o0 o)
+        (TL: ord_tr R o0 tl)
+      :
+      __ord_tr i ord_tr _ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl)
+  .
+
+  Definition ord_tr (i: id): forall (R: Type) (o: wft.(T)), (@RawTr.t _ R) -> Prop :=
+    pind3 (fun q => paco3 (__ord_tr i q) bot3) top3.
+
+  Lemma __ord_tr_mon i: forall r r' (LE: r <3= r'), (__ord_tr i r) <4= (__ord_tr i r').
+  Proof.
+    ii. inv PR.
+    - econs 1; eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+    - econs 5; eauto.
+    - econs 6; eauto.
+    - econs 7; eauto.
+    - econs 8; eauto.
+  Qed.
+
+  Lemma _ord_tr_mon i: forall r, monotone3 (__ord_tr i r).
+  Proof.
+    ii. inv IN.
+    - econs 1; eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+    - econs 5; eauto.
+    - econs 6; eauto.
+    - econs 7; eauto.
+    - econs 8; eauto.
+  Qed.
+
+  Lemma ord_tr_mon i: forall p, monotone3 (fun q => (__ord_tr i q) p).
+  Proof.
+    ii. eapply __ord_tr_mon; eauto.
+  Qed.
+
+
+  (* Variable S: wft.(T) -> wft.(T). *)
+  (* Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t). *)
 
   Theorem Ind_implies_Ord
           (tr: @RawTr.t Ident R)
