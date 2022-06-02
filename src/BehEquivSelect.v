@@ -336,7 +336,18 @@ Section EQUIV.
 
   Lemma wf_lt_tr {R}: forall i, well_founded (lt_tr i (R:=R)).
   Proof.
-    ii. econs. i.
+    ii. econs. i. econs. eapply pind3_acc.
+    2:{ eauto. }
+    (* 2:{ eapply pind3_mult_strong in H. eapply H. } *)
+    i. eapply pind3_unfold in PR.
+    2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
+        i. eapply __lt_tr_mon; eauto.
+    } (*make lemma*)
+    punfold PR.
+    2:{ eapply _lt_tr_mon. }
+    (*TODO*)
+    inv PR.
+    { 
 
 
   (* Variable wft0: wft.(T). *)

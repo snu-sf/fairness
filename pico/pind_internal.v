@@ -131,7 +131,7 @@ Proof.
 Qed.
 
 Theorem _pind_acc: forall
-  l r (OBG: forall rr (INC: rr <1== r) (CIH: rr <1== l), pind lf rr <1== l),
+  l r (OBG: forall rr (DEC: rr <1== r) (IH: rr <1== l), pind lf rr <1== l),
   pind lf r <1== l.
 Proof. unfold le1. eapply pind_acc. Qed.
 

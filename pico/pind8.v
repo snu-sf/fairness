@@ -147,14 +147,14 @@ Proof.
 Qed.
 
 Theorem _pind8_acc: forall
-  l r (OBG: forall rr (INC: rr <8== r) (CIH: rr <8== l), pind8 lf rr <8== l),
+  l r (OBG: forall rr (DEC: rr <8== r) (IH: rr <8== l), pind8 lf rr <8== l),
   pind8 lf r <8== l.
 Proof.
   intros. apply curry_adjoint2_8.
   eapply _pind_acc. intros.
-  apply curry_adjoint2_8 in INC. apply curry_adjoint2_8 in CIH.
+  apply curry_adjoint2_8 in DEC. apply curry_adjoint2_8 in IH.
   apply curry_adjoint1_8.
-  eapply le8_trans. 2: eapply (OBG _ INC CIH).
+  eapply le8_trans. 2: eapply (OBG _ DEC IH).
   apply curry_map8.
   apply _pind_mon; try apply le1_refl; apply curry_bij2_8.
 Qed.
@@ -182,7 +182,7 @@ Proof.
 Qed.
 
 Theorem pind8_acc: forall
-  l r (OBG: forall rr (INC: rr <8= r) (CIH: rr <8= l), pind8 lf rr <8= l),
+  l r (OBG: forall rr (DEC: rr <8= r) (IH: rr <8= l), pind8 lf rr <8= l),
   pind8 lf r <8= l.
 Proof.
   apply _pind8_acc.

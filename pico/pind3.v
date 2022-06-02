@@ -139,14 +139,14 @@ Proof.
 Qed.
 
 Theorem _pind3_acc: forall
-  l r (OBG: forall rr (INC: rr <3== r) (CIH: rr <3== l), pind3 lf rr <3== l),
+  l r (OBG: forall rr (DEC: rr <3== r) (IH: rr <3== l), pind3 lf rr <3== l),
   pind3 lf r <3== l.
 Proof.
   intros. apply curry_adjoint2_3.
   eapply _pind_acc. intros.
-  apply curry_adjoint2_3 in INC. apply curry_adjoint2_3 in CIH.
+  apply curry_adjoint2_3 in DEC. apply curry_adjoint2_3 in IH.
   apply curry_adjoint1_3.
-  eapply le3_trans. 2: eapply (OBG _ INC CIH).
+  eapply le3_trans. 2: eapply (OBG _ DEC IH).
   apply curry_map3.
   apply _pind_mon; try apply le1_refl; apply curry_bij2_3.
 Qed.
@@ -174,7 +174,7 @@ Proof.
 Qed.
 
 Theorem pind3_acc: forall
-  l r (OBG: forall rr (INC: rr <3= r) (CIH: rr <3= l), pind3 lf rr <3= l),
+  l r (OBG: forall rr (DEC: rr <3= r) (IH: rr <3= l), pind3 lf rr <3= l),
   pind3 lf r <3= l.
 Proof.
   apply _pind3_acc.
