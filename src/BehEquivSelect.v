@@ -24,121 +24,57 @@ Section EQUIV.
   Hypothesis WFTR: Transitive wft.(lt).
   Variable R: Type.
 
-  (* Lemma cannot_fail_nofail *)
-  (*       i im (tr: @RawTr.t Ident R) *)
-  (*       (CNTF: ~ (exists t, wft.(lt) t (im i))) *)
-  (*       (ORD: RawTr.fair_ord im tr) *)
-  (*   : *)
-  (*   (* RawTr.fair_ind i tr. *) *)
-  (*   RawTr.nofail_ind i tr. *)
-  (* Proof. *)
-  (*   revert_until R. pcofix CIH; i. *)
-  (*   remember (im i) as idx. move idx before CIH. revert_until idx. *)
-  (*   induction (wft.(wf) idx). rename H into ACC, H0 into IH. i. *)
-  (*   punfold ORD. inv ORD. *)
-  (*   { pfold; eauto. } *)
-  (*   { pfold; eauto. } *)
-  (*   { pfold; eauto. } *)
-  (*   { pclearbot. pfold. econs. right. eapply CIH; eauto. } *)
-  (*   { pclearbot. unfold fair_update in FAIR. specialize (FAIR i). des_ifs. *)
-  (*     { exfalso; apply CNTF. eauto. } *)
-  (*     - destruct FAIR. *)
-  (*       + pfold. econs 5. rewrite Heq; ss. right. eapply CIH. 2: eauto. rewrite H; auto. *)
-  (*       + pfold. econs 5. rewrite Heq; ss. left. eapply IH; eauto. *)
-  (*     - pfold. econs 5. rewrite Heq; ss. left. eapply IH. *)
-        
-
-  (*       econs 5. rewrite Heq; ss. left. *)
-  (*       destruct FAIR. *)
-  (*       + eapply IH.  *)
-
-  (*       eapply IH. 4: eauto. 2: eauto. *)
-
-  (*     pfold. econs 5. *)
-  (*     2:{ left. eapply IH. *)
-
-  (*     unfold fair_update in FAIR. specialize (FAIR i). *)
-  (*     pfold. econs 5. *)
-  (*     2:{ right. eapply CIH. *)
-
-  (*         2: eauto. ii. eapply CNTF. des. *)
-
-  (*         eauto. *)
-
-
-
-
-
-  (*   eapply Classical_Pred_Type.not_ex_all_not in CNTF. *)
-
-  (* Lemma Ord_implies_Ind_strong *)
-  (*       (tr: @RawTr.t Ident R) im0 *)
-  (*       (* (ORD: forall im (LE: soft_update im0 im), RawTr.fair_ord (wf:=wft) im tr) *) *)
-  (*       (ORD: forall im (LE: soft_update im im0), RawTr.fair_ord (wf:=wft) im tr) *)
-  (*       (* (ORD: forall im (LT: wft.(lt) (im i) (im0 i)), RawTr.fair_ord im tr) *) *)
-  (*   : *)
-  (*   RawTr.is_fair_ind tr. *)
-  (* Proof. *)
-  (*   ii. revert_until R. pcofix CIH. i. *)
-  (*   eapply paco3_fold. *)
-  (*   (* assert (GE: exists img, soft_update img im0). *) *)
-  (*   (* { admit. } *) *)
-  (*   depgen tr. des. *)
-  (*   remember (im0 i) as idx. move idx before CIH. revert_until idx. *)
-  (*   induction (wft.(wf) idx). rename H into ACC, H0 into IH. i. *)
-  (*   des. *)
-  (*   specialize (ORD im0). hexploit ORD; clear ORD. reflexivity. intro ORD. *)
-  (*   (* specialize (ORD im0). hexploit ORD; clear ORD. reflexivity. intro ORD. *) *)
-  (*   destruct (classic (exists im1, (wft.(lt) (im1 i) (im0 i)))) as [EXIST | BOT]. *)
-  (*   { des. punfold ORD. inv ORD. *)
-  (*     { eapply pind3_fold. econs. pfold. econs. } *)
-  (*     { eapply pind3_fold. econs. pfold. econs. } *)
-  (*     { eapply pind3_fold. econs. pfold. econs. } *)
-  (*     { pclearbot. eapply pind3_fold. econs 4. split; ss. eapply IH. *)
-  (*       3:{ i. instantiate (1:=im0) in LE. *)
-  (*           ginit. guclo RawTr.fair_ord_imap_le_ctx_spec. econs; eauto. *)
-  (*           gfinal. right. eauto. *)
-  (*       } *)
-  (*       2: eauto. *)
-            
-  (*           { clear - EXIST LE. unfold soft_update in *. i. specialize (LE i0). *)
-
-  (*       1,2: eauto. *)
-  (*       i. *)
-        
-
-  (*       admit. } *)
-  (*     { pclearbot. eapply pind3_fold. destruct (fmap i) eqn:FM. *)
-  (*       - econs 2. *)
-  (*         { rewrite FM. ss. } *)
-  (*         split; ss. eapply IH; eauto. *)
-  (*         unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. eauto. *)
-  (*       - econs 2. *)
-  (*         { rewrite FM. ss. } *)
-  (*         split; ss. *)
-  (*         unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. *)
-  (*         destruct FAIR. *)
-  (*         2:{ eapply IH; eauto. } *)
-  (*         admit. *)
-  (*       - econs 5. *)
-  (*         { rewrite FM. ss. } *)
-  (*         right. eapply CIH. eauto. *)
-  (*     } *)
-  (*     { pclearbot. eapply pind3_fold. econs 3. split; ss. eapply IH; eauto. admit. } *)
-  (* Admitted. *)
-
-
   Theorem Ord_implies_Ind
           (tr: @RawTr.t Ident R)
           (ORD: RawTr.is_fair_ord wft tr)
     :
     RawTr.is_fair_ind tr.
   Proof.
-  (*   unfold RawTr.is_fair_ord in ORD. des. eapply Ord_implies_Ind_strong. i. *)
-  (*   ginit. guclo RawTr.fair_ord_imap_le_ctx_spec. econs; eauto. *)
-  (*   gfinal. right. eauto. *)
-  (* Qed. *)
-    ii. unfold RawTr.is_fair_ord in ORD. des. revert_until R. pcofix CIH. i.
+    ii. unfold RawTr.is_fair_ord in ORD. des.
+    revert_until R. pcofix CIH1. i.
+    eapply paco3_fold.
+    remember (m i) as idx. move idx before CIH1. revert_until idx.
+    induction (wft.(wf) idx). rename H into ACC, H0 into IH, x into idx. i.
+    eapply pind3_fold.
+    revert_until IH. pcofix CIH2. i.
+    eapply paco3_fold. eapply paco3_unfold.
+    { eapply RawTr._fair_ind_mon. }
+    punfold ORD. inv ORD.
+    { pfold. econs 1. }
+    { pfold. econs 2. }
+    { pfold. econs 3. }
+    { pclearbot. pfold. econs 4. right. eapply CIH2; eauto. }
+    { pclearbot. destruct (fmap i) eqn:FM.
+      { pfold. econs 7. auto. split; ss. eapply IH. 2: eauto. all: eauto.
+        unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. auto.
+      }
+      { dup FAIR. unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. destruct FAIR as [EQ | LT].
+        - pfold. econs 6. auto. right. eapply CIH2; eauto.
+        - pfold. econs 6. auto. right. eapply CIH2.
+          all: admit. (* construct an imap m1 with (m1 i) = (m i), (m1 i' = m0 i')*)
+      }
+      { pfold. econs 8. auto. right. eapply CIH1; eauto. }
+    }
+    { pclearbot. pfold. econs 5. right. eapply CIH2; eauto. }
+  Qed.
+  
+    
+    
+
+
+    
+    pcofix CIH2.
+
+
+
+
+
+
+
+
+
+
+
     eapply paco3_fold.
     destruct (classic (exists idx, wft.(lt) idx (m i))) as [EXIST | BOT].
     (* destruct (classic (exists m1, wft.(lt) (m1 i) (m i))) as [EXIST | BOT]. *)
