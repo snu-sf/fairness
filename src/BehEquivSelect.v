@@ -199,14 +199,6 @@ Section EQUIV.
           (R: Type)
     :
     (@RawTr.t _ R) -> (@RawTr.t _ R) -> Prop :=
-    (* base cases *)
-    | lt_tr_terminal
-        tr1 tr2
-        (TERM: terminal_tr tr1)
-        (TERM: terminal_tr tr2)
-      :
-      __lt_tr i lt_tr _lt_tr tr1 tr2
-
     (* inner coinductive cases: no fail for i *)
     | lt_tr_obs_r
         tr (obs: obsE) tl
@@ -243,6 +235,15 @@ Section EQUIV.
       __lt_tr i lt_tr _lt_tr (RawTr.cons (inl (silentE_fair fm)) tl) tr
 
     (* outer inductive cases: i fails inductively *)
+    (* base cases *)
+    | lt_tr_terminal
+        tr1 tr2
+        (IND: lt_tr R tr1 tr2)
+        (TERM: terminal_tr tr1)
+        (TERM: terminal_tr tr2)
+      :
+      __lt_tr i lt_tr _lt_tr tr1 tr2
+
     | lt_tr_fair_fail_r
         tr fm tl
         (TL: lt_tr R tr tl)
@@ -336,9 +337,9 @@ Section EQUIV.
 
   Lemma wf_lt_tr {R}: forall i, well_founded (lt_tr i (R:=R)).
   Proof.
-    ii. econs. i. econs. eapply pind3_acc.
-    2:{ eauto. }
-    (* 2:{ eapply pind3_mult_strong in H. eapply H. } *)
+    ii. econs. i. eapply Acc_inv. 2: eauto. unfold lt_tr in H. econs. eapply pind3_acc.
+    (* 2:{ eauto. } *)
+    2:{ eapply pind3_mult_strong in H. eapply H. }
     i. eapply pind3_unfold in PR.
     2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
         i. eapply __lt_tr_mon; eauto.
@@ -347,6 +348,13 @@ Section EQUIV.
     2:{ eapply _lt_tr_mon. }
     (*TODO*)
     inv PR.
+    { pclearbot. punfold TL.
+      2:{ eapply _lt_tr_mon. }
+      econs. i.
+      
+
+
+    }
     { 
 
 
