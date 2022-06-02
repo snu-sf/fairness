@@ -66,6 +66,42 @@ Section EQUIV.
     { pclearbot. pfold. econs 5. right. eapply CIH2; eauto. }
   Qed.
 
+
+
+  (* the other direction *)
+  Lemma fair_ind_fair_red
+        i fm (tr: @RawTr.t Ident R)
+        (IND: RawTr.fair_ind i (RawTr.cons (inl (silentE_fair fm)) tr))
+    :
+    RawTr.fair_ind i tr.
+  Proof.
+    punfold IND.
+    2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
+        i. eapply RawTr.___fair_ind_mon; eauto.
+    } (*make lemma*)
+    eapply pind3_unfold in IND.
+    2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
+        i. eapply RawTr.__fair_ind_mon; eauto.
+    } (*make lemma*)
+    punfold IND.
+    2:{ eapply RawTr._fair_ind_mon. }
+    inv IND.
+    { pclearbot. eapply paco3_mon. eauto. ss. }
+    2:{ pclearbot. eapply paco3_mon. eauto. ss. }
+    unfold upind3 in TL. des.
+
+    eapply pind3_unfold in TL.
+    2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
+        i. eapply RawTr.__fair_ind_mon; eauto.
+    } (*make lemma*)
+    punfold TL.
+    { eapply RawTr._fair_ind_mon. }
+  Qed.
+
+
+  Variable S: wft.(T) -> wft.(T).
+  Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
+
   Theorem Ind_implies_Ord
           (tr: @RawTr.t Ident R)
           (IND: RawTr.is_fair_ind tr)
@@ -73,5 +109,45 @@ Section EQUIV.
     RawTr.is_fair_ord wft tr.
   Proof.
     unfold RawTr.is_fair_ord. unfold RawTr.is_fair_ind in IND.
+    eexists. revert_until lt_succ_diag_r. pcofix CIH. i.
+    destruct tr eqn:TR.
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH. i.
+          specialize (IND i). punfold IND.
+          2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
+              i. eapply RawTr.___fair_ind_mon; eauto.
+          } (*make lemma*)
+          eapply pind3_unfold in IND.
+          2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
+              i. eapply RawTr.__fair_ind_mon; eauto.
+          } (*make lemma*)
+          punfold IND.
+          2:{ eapply RawTr._fair_ind_mon. }
+          inv IND. pclearbot. eapply paco3_mon. eauto. ss.
+      }
+      destruct silent as [ | fm].
+      { pfold. econs. right. eapply CIH. i.
+        specialize (IND i). punfold IND.
+        2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
+            i. eapply RawTr.___fair_ind_mon; eauto.
+        } (*make lemma*)
+        eapply pind3_unfold in IND.
+        2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
+            i. eapply RawTr.__fair_ind_mon; eauto.
+        } (*make lemma*)
+        punfold IND.
+        2:{ eapply RawTr._fair_ind_mon. }
+        inv IND. pclearbot. eapply paco3_mon. eauto. ss.
+      }
+      { pfold. econs.
+        2:{ right. eapply CIH. i.
+            specialize (IND i). eapply fair_ind_fair_red; eauto.
+        }
+        admit.
+      }
+    } 
 
 End EQUIV.
