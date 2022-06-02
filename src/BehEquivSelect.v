@@ -25,9 +25,8 @@ Section EQUIV.
   Variable wft: WF.
   Hypothesis WFTR: Transitive wft.(lt).
 
-  Variable R: Type.
-
   Theorem Ord_implies_Ind
+          R
           (tr: @RawTr.t Ident R)
           (ORD: RawTr.is_fair_ord wft tr)
     :
@@ -70,6 +69,7 @@ Section EQUIV.
 
   (* the other direction *)
   Lemma fair_ind_fair_red
+        R
         i fm (tr: @RawTr.t Ident R)
         (IND: RawTr.fair_ind i (RawTr.cons (inl (silentE_fair fm)) tr))
     :
@@ -184,6 +184,195 @@ Section EQUIV.
   Proof.
     ii. eapply __ord_tr_mon; eauto.
   Qed.
+
+
+  (* coinductive-inductive *)
+  Definition terminal_tr {R} (tr: @RawTr.t _ R) :=
+    match tr with
+    | RawTr.done _ | RawTr.ub | RawTr.nb => True
+    | _ => False
+    end.
+
+  Variant __lt_tr (i: id)
+          (lt_tr: forall (R: Type), (@RawTr.t _ R) -> (@RawTr.t _ R) -> Prop)
+          (_lt_tr: forall (R: Type), (@RawTr.t _ R) -> (@RawTr.t _ R) -> Prop)
+          (R: Type)
+    :
+    (@RawTr.t _ R) -> (@RawTr.t _ R) -> Prop :=
+    (* base cases *)
+    | lt_tr_terminal
+        tr1 tr2
+        (TERM: terminal_tr tr1)
+        (TERM: terminal_tr tr2)
+      :
+      __lt_tr i lt_tr _lt_tr tr1 tr2
+
+    (* inner coinductive cases: no fail for i *)
+    | lt_tr_obs_r
+        tr (obs: obsE) tl
+        (TL: _lt_tr R tr tl)
+      :
+      __lt_tr i lt_tr _lt_tr tr (RawTr.cons (inr obs) tl)
+    | lt_tr_tau_r
+        tr tl
+        (TL: _lt_tr R tr tl)
+      :
+      __lt_tr i lt_tr _lt_tr tr (RawTr.cons (inl silentE_tau) tl)
+    | lt_tr_fair_nofail_r
+        tr fm tl
+        (TL: _lt_tr R tr tl)
+        (NOFAIL: Flag.le Flag.emp (fm i))
+      :
+      __lt_tr i lt_tr _lt_tr tr (RawTr.cons (inl (silentE_fair fm)) tl)
+
+    | lt_tr_obs_l
+        (obs: obsE) tl tr
+        (TL: _lt_tr R tr tl)
+      :
+      __lt_tr i lt_tr _lt_tr (RawTr.cons (inr obs) tl) tr
+    | lt_tr_tau_l
+        tl tr
+        (TL: _lt_tr R tr tl)
+      :
+      __lt_tr i lt_tr _lt_tr (RawTr.cons (inl silentE_tau) tl) tr
+    | lt_tr_fair_nofail_l
+        fm tl tr
+        (TL: _lt_tr R tr tl)
+        (NOFAIL: Flag.le Flag.emp (fm i))
+      :
+      __lt_tr i lt_tr _lt_tr (RawTr.cons (inl (silentE_fair fm)) tl) tr
+
+    (* outer inductive cases: i fails inductively *)
+    | lt_tr_fair_fail_r
+        tr fm tl
+        (TL: lt_tr R tr tl)
+        (FAIL: Flag.fail = (fm i))
+      :
+      __lt_tr i lt_tr _lt_tr tr (RawTr.cons (inl (silentE_fair fm)) tl)
+    | lt_tr_fair_fail_l
+        fm1 tl1 fm2 tl2
+        (TL: lt_tr R tl1 tl2)
+        (FAIL1: Flag.fail = (fm1 i))
+        (FAIL2: Flag.fail = (fm2 i))
+      :
+      __lt_tr i lt_tr _lt_tr
+              (RawTr.cons (inl (silentE_fair fm1)) tl1)
+              (RawTr.cons (inl (silentE_fair fm2)) tl2)
+  .
+
+  Definition lt_tr (i: id): forall (R: Type), (@RawTr.t _ R) -> (@RawTr.t _ R) -> Prop :=
+    pind3 (fun q => paco3 (__lt_tr i q) bot3) top3.
+
+  Lemma __lt_tr_mon i: forall r r' (LE: r <3= r'), (__lt_tr i r) <4= (__lt_tr i r').
+  Proof.
+    ii. inv PR.
+    - econs 1; eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+    - econs 5; eauto.
+    - econs 6; eauto.
+    - econs 7; eauto.
+    - econs 8; eauto.
+    - econs 9; eauto.
+  Qed.
+
+  Lemma _lt_tr_mon i: forall r, monotone3 (__lt_tr i r).
+  Proof.
+    ii. inv IN.
+    - econs 1; eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+    - econs 5; eauto.
+    - econs 6; eauto.
+    - econs 7; eauto.
+    - econs 8; eauto.
+    - econs 9; eauto.
+  Qed.
+
+  Lemma lt_tr_mon i: forall p, monotone3 (fun q => (__lt_tr i q) p).
+  Proof.
+    ii. eapply __lt_tr_mon; eauto.
+  Qed.
+
+(* Section INDEX. *)
+(*   Lemma nat_ind *)
+(*         (P: nat -> Prop) *)
+(*         (ZERO: P O) *)
+(*         (SUCC: forall a (IND: P a), P (S a)) *)
+(*     : *)
+(*     forall n, P n. *)
+(*   Proof. *)
+(*     revert_until P. revert P. fix IH 4. i. destruct n; auto. *)
+(*     eapply SUCC. eapply IH. auto. i. eapply SUCC. auto. *)
+(*   Qed. *)
+
+(*   Lemma nat_strong_ind *)
+(*         (P: nat -> Prop) *)
+(*         (ZERO: P O) *)
+(*         (SUCC: forall a (STR: forall b (LT: lt b (S a)), P b), P (S a)) *)
+(*     : *)
+(*     forall n, P n. *)
+(*   Proof. *)
+(*     cut (forall a b (LT: lt b (S a)), P b). *)
+(*     { i. eapply H. instantiate (1:=n). auto. } *)
+(*     induction a; i; auto. *)
+(*     { inv LT; auto. inv H0. } *)
+(*     unfold lt in LT. inv LT. *)
+(*     { eapply SUCC. auto. } *)
+(*     eapply IHa. lia. *)
+(*   Qed. *)
+
+(*   Lemma aux2: well_founded lt. *)
+(*   Proof. *)
+(*     ii. induction a using nat_strong_ind. *)
+(*     { econs. i. inv H. } *)
+(*     econs. i. eapply STR. auto. *)
+(*   Qed. *)
+
+(* End INDEX. *)
+
+
+  Lemma wf_lt_tr {R}: forall i, well_founded (lt_tr i (R:=R)).
+  Proof.
+    ii. econs. i.
+
+
+  (* Variable wft0: wft.(T). *)
+
+  (* Lemma fair_ind_implies_ord_tr *)
+  (*       (tr: @RawTr.t Ident R) *)
+  (*       (IND: RawTr.is_fair_ind tr) *)
+  (*   : *)
+  (*   forall i, exists o, ord_tr i o tr. *)
+  (* Proof. *)
+  (*   i. specialize (IND i). *)
+  (*   punfold IND. *)
+  (*   2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss. *)
+  (*       i. eapply RawTr.___fair_ind_mon; eauto. *)
+  (*   } (*make lemma*) *)
+
+  (*   (* match goal with *) *)
+  (*   (* | IND: pind3 ?lf _ _ _ _ |- _ => *) *)
+  (*   (*     eapply (pind3_acc (l:= upind3 lf)) *) *)
+  (*   (* end. *) *)
+  (*   (* { i. *) *)
+
+  (*   eapply pind3_acc. *)
+  (*   2:{ eapply pind3_mult_strong in IND. eauto. } *)
+  (*   i. clear IND. *)
+  (*   eapply pind3_unfold in PR. *)
+  (*   2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss. *)
+  (*       i. eapply RawTr.__fair_ind_mon; eauto. *)
+  (*   } (*make lemma*) *)
+  (*   punfold PR. *)
+  (*   2:{ eapply RawTr._fair_ind_mon. } *)
+  (*   rename x0 into R0, x1 into i0, x2 into tr0. *)
+  (*   inv PR. *)
+  (*   7:{ destruct TL. eauto. } *)
+  (*   5:{  *)
+
 
 
   (* Variable S: wft.(T) -> wft.(T). *)

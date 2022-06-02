@@ -147,43 +147,6 @@ Module Flag.
 
 End Flag.
 
-(* Section INDEX. *)
-(*   Lemma nat_ind *)
-(*         (P: nat -> Prop) *)
-(*         (ZERO: P O) *)
-(*         (SUCC: forall a (IND: P a), P (S a)) *)
-(*     : *)
-(*     forall n, P n. *)
-(*   Proof. *)
-(*     revert_until P. revert P. fix IH 4. i. destruct n; auto. *)
-(*     eapply SUCC. eapply IH. auto. i. eapply SUCC. auto. *)
-(*   Qed. *)
-
-(*   Lemma nat_strong_ind *)
-(*         (P: nat -> Prop) *)
-(*         (ZERO: P O) *)
-(*         (SUCC: forall a (STR: forall b (LT: lt b (S a)), P b), P (S a)) *)
-(*     : *)
-(*     forall n, P n. *)
-(*   Proof. *)
-(*     cut (forall a b (LT: lt b (S a)), P b). *)
-(*     { i. eapply H. instantiate (1:=n). auto. } *)
-(*     induction a; i; auto. *)
-(*     { inv LT; auto. inv H0. } *)
-(*     unfold lt in LT. inv LT. *)
-(*     { eapply SUCC. auto. } *)
-(*     eapply IHa. lia. *)
-(*   Qed. *)
-
-(*   Lemma aux2: well_founded lt. *)
-(*   Proof. *)
-(*     ii. induction a using nat_strong_ind. *)
-(*     { econs. i. inv H. } *)
-(*     econs. i. eapply STR. auto. *)
-(*   Qed. *)
-
-(* End INDEX. *)
-
 
 Class ID : Type := mk_id { id: Type }.
 
