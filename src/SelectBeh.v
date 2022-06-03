@@ -370,9 +370,6 @@ Section TR.
         retv
       :
       _fair_ord fair_ord m (done retv)
-    (* | nofail_ind_spin *)
-    (*   : *)
-    (*   _nofail_ind nofail_ind i spin *)
     | fair_ord_ub
       :
       _fair_ord fair_ord m ub
