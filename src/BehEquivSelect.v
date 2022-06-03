@@ -110,103 +110,101 @@ Section EQUIV2.
 
 
 
-  Variant _nofail_tr (i: id)
-          (nofail_tr: forall (R: Type), (@RawTr.t _ R) -> Prop)
-          (R: Type)
-    :
-    (@RawTr.t _ R) -> Prop :=
-    | nofail_tr_done
-        retv
-      :
-      _nofail_tr i nofail_tr (RawTr.done retv)
-    | nofail_tr_ub
-      :
-      _nofail_tr i nofail_tr RawTr.ub
-    | nofail_tr_nb
-      :
-      _nofail_tr i nofail_tr RawTr.nb
-    | nofail_tr_obs
-        (obs: obsE) tl
-        (TL: nofail_tr R tl)
-      :
-      _nofail_tr i nofail_tr (RawTr.cons (inr obs) tl)
-    | nofail_tr_fair_emp
-        fmap tl
-        (EMP: Flag.emp = (fmap i))
-        (TL: nofail_tr R tl)
-      :
-      _nofail_tr i nofail_tr (RawTr.cons (inl (silentE_fair fmap)) tl)
-    | nofail_tr_fair_success
-        fmap tl
-        (SUCCESS: Flag.success = (fmap i))
-      :
-      _nofail_tr i nofail_tr (RawTr.cons (inl (silentE_fair fmap)) tl)
-    | nofail_tr_tau
-        tl
-        (TL: nofail_tr R tl)
-      :
-      _nofail_tr i nofail_tr (RawTr.cons (inl silentE_tau) tl)
-  .
+  (* Variant _nofail_tr (i: id) *)
+  (*         (nofail_tr: forall (R: Type), (@RawTr.t _ R) -> Prop) *)
+  (*         (R: Type) *)
+  (*   : *)
+  (*   (@RawTr.t _ R) -> Prop := *)
+  (*   | nofail_tr_done *)
+  (*       retv *)
+  (*     : *)
+  (*     _nofail_tr i nofail_tr (RawTr.done retv) *)
+  (*   | nofail_tr_ub *)
+  (*     : *)
+  (*     _nofail_tr i nofail_tr RawTr.ub *)
+  (*   | nofail_tr_nb *)
+  (*     : *)
+  (*     _nofail_tr i nofail_tr RawTr.nb *)
+  (*   | nofail_tr_obs *)
+  (*       (obs: obsE) tl *)
+  (*       (TL: nofail_tr R tl) *)
+  (*     : *)
+  (*     _nofail_tr i nofail_tr (RawTr.cons (inr obs) tl) *)
+  (*   | nofail_tr_fair_emp *)
+  (*       fmap tl *)
+  (*       (EMP: Flag.emp = (fmap i)) *)
+  (*       (TL: nofail_tr R tl) *)
+  (*     : *)
+  (*     _nofail_tr i nofail_tr (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (*   | nofail_tr_fair_success *)
+  (*       fmap tl *)
+  (*       (SUCCESS: Flag.success = (fmap i)) *)
+  (*     : *)
+  (*     _nofail_tr i nofail_tr (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (*   | nofail_tr_tau *)
+  (*       tl *)
+  (*       (TL: nofail_tr R tl) *)
+  (*     : *)
+  (*     _nofail_tr i nofail_tr (RawTr.cons (inl silentE_tau) tl) *)
+  (* . *)
 
-  Definition nofail_tr i: forall (R: Type), (@RawTr.t _ R) -> Prop := paco2 (_nofail_tr i) bot2.
+  (* Definition nofail_tr i: forall (R: Type), (@RawTr.t _ R) -> Prop := paco2 (_nofail_tr i) bot2. *)
 
-  Lemma nofail_tr_mon i: monotone2 (_nofail_tr i).
-  Proof.
-    ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5 | econs 6 | econs 7]; eauto.
-  Qed.
+  (* Lemma nofail_tr_mon i: monotone2 (_nofail_tr i). *)
+  (* Proof. *)
+  (*   ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5 | econs 6 | econs 7]; eauto. *)
+  (* Qed. *)
 
-  Local Hint Constructors _nofail_tr: core.
-  Local Hint Unfold nofail_tr: core.
-  Local Hint Resolve nofail_tr_mon: paco.
+  (* Local Hint Constructors _nofail_tr: core. *)
+  (* Local Hint Unfold nofail_tr: core. *)
+  (* Local Hint Resolve nofail_tr_mon: paco. *)
 
 
-  Variant _ord_tr (i: id)
-          (ord_tr: forall (R: Type) (o: wft.(T)), (@RawTr.t _ R) -> Prop)
-          R o
-    :
-    (@RawTr.t _ R) -> Prop :=
-    | ord_tr_obs
-        (obs: obsE) tl
-        (TL: ord_tr R o tl)
-      :
-      _ord_tr i ord_tr o (RawTr.cons (inr obs) tl)
-    | ord_Tr_tau
-        tl
-        (TL: ord_tr R o tl)
-      :
-      _ord_tr i ord_tr o (RawTr.cons (inl silentE_tau) tl)
-    | ord_tr_fair_emp
-        fmap tl
-        (EMP: Flag.emp = (fmap i))
-        (TL: ord_tr R o tl)
-      :
-      _ord_tr i ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl)
-    | ord_tr_fair_fail
-        fmap tl o0
-        (FAIL: Flag.fail = (fmap i))
-        (LT: wft.(lt) o0 o)
-        (TL: ord_tr R o0 tl)
-      :
-      _ord_tr i ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl)
-    | ord_tr_nofail
-        tr
-        (NOFAIL: nofail_tr i tr)
-      :
-      _ord_tr i ord_tr o tr
-  .
+  (* Variant _ord_tr (i: id) *)
+  (*         (ord_tr: forall (R: Type) (o: wft.(T)), (@RawTr.t _ R) -> Prop) *)
+  (*         R o *)
+  (*   : *)
+  (*   (@RawTr.t _ R) -> Prop := *)
+  (*   | ord_tr_obs *)
+  (*       (obs: obsE) tl *)
+  (*       (TL: ord_tr R o tl) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o (RawTr.cons (inr obs) tl) *)
+  (*   | ord_Tr_tau *)
+  (*       tl *)
+  (*       (TL: ord_tr R o tl) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o (RawTr.cons (inl silentE_tau) tl) *)
+  (*   | ord_tr_fair_emp *)
+  (*       fmap tl *)
+  (*       (EMP: Flag.emp = (fmap i)) *)
+  (*       (TL: ord_tr R o tl) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (*   | ord_tr_fair_fail *)
+  (*       fmap tl o0 *)
+  (*       (FAIL: Flag.fail = (fmap i)) *)
+  (*       (LT: wft.(lt) o0 o) *)
+  (*       (TL: ord_tr R o0 tl) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (*   | ord_tr_nofail *)
+  (*       tr *)
+  (*       (NOFAIL: nofail_tr i tr) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o tr *)
+  (* . *)
 
-  Definition ord_tr i: forall (R: Type) o, (@RawTr.t _ R) -> Prop := paco3 (_ord_tr i) bot3.
+  (* Definition ord_tr i: forall (R: Type) o, (@RawTr.t _ R) -> Prop := paco3 (_ord_tr i) bot3. *)
 
-  Lemma ord_tr_mon i: monotone3 (_ord_tr i).
-  Proof.
-    ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5]; eauto.
-  Qed.
+  (* Lemma ord_tr_mon i: monotone3 (_ord_tr i). *)
+  (* Proof. *)
+  (*   ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5]; eauto. *)
+  (* Qed. *)
 
-  Local Hint Constructors _ord_tr: core.
-  Local Hint Unfold ord_tr: core.
-  Local Hint Resolve ord_tr_mon: paco.
-
-  (* TODO? *)
+  (* Local Hint Constructors _ord_tr: core. *)
+  (* Local Hint Unfold ord_tr: core. *)
+  (* Local Hint Resolve ord_tr_mon: paco. *)
 
 
   (* Variant _next_fail (i: id) *)
@@ -252,10 +250,7 @@ Section EQUIV2.
 
 
 
-
-
-
-  (* ??? *)
+  Variable wft0: wft.(T).
 
   (* coinductive-inductive *)
   Variant __tr_ord (i: id)
@@ -346,8 +341,6 @@ Section EQUIV2.
     pind3 (fun q => paco3 (__tr_ord i q) bot3) top3.
 
 
-  Variable wft0: wft.(T).
-
   Lemma inhabited_tr_ord: inhabited (T wft).
   Proof. econs. exact wft0. Qed.
 
@@ -356,6 +349,57 @@ Section EQUIV2.
 
   Definition tr2ord {R} (raw: (@RawTr.t _ R)): imap wft :=
     fun i => tr2ord_i i raw.
+
+  Theorem tr2ord_i_spec
+          R i (tr: @RawTr.t _ R)
+          (IND: RawTr.is_fair_ind tr)
+    :
+    tr_ord i tr (tr2ord_i i tr).
+  Proof.
+    specialize (IND i). punfold IND.
+    2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
+        i. eapply RawTr.___fair_ind_mon; eauto.
+    } (*make lemma*)
+    revert R i tr IND.
+    eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => tr_ord i tr (@tr2ord_i R i tr)))).
+    i. rename x0 into R, x1 into i, x2 into tr.
+    eapply pind3_unfold in PR.
+    2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
+        i. eapply RawTr.__fair_ind_mon; eauto.
+    } (*make lemma*)
+    eapply pind3_fold. revert_until i. pcofix CIH. i.
+    punfold PR.
+    2:{ eapply RawTr._fair_ind_mon. }
+    pfold. inv PR.
+    { econs 1. }
+    { econs 2. }
+    { econs 3. }
+    { pclearbot. eapply pind3_fold in TL.
+
+      econs. right.
+      match goal with
+      | |- r R ?_tl ?rhs => assert (RED: rhs = tr2ord_i i _tl)
+      end.
+      { unfold tr2ord_i, epsilon. unfold Epsilon.epsilon. unfold proj1_sig. des_ifs.
+        clear Heq Heq0. hexploit t0; clear t0.
+        { exists (tr2ord_i i tl). clear t x x0. punfold TL.
+          2:{ eapply RawTr._fair_ind_mon. }
+          inv TL.
+          { eapply pind3_fold. pfold. econs. }
+          { eapply pind3_fold. pfold. econs. }
+          { eapply pind3_fold. pfold. econs. }
+          { eapply pind3_fold. pfold. econs. left. }
+          { 
+
+
+          
+        des. hexploit t0; clear t0; eauto; i. hexploit t.
+
+
+      hexploit tr2ord_i_red_obs. i; des.
+      { pfold. econs. right. rewrite H; clear H. eapply CIH. eauto. }
+      (* ??? *)
+    
 
   Lemma tr2ord_i_red_obs
         R i obs (tr: RawTr.t (R:=R))
