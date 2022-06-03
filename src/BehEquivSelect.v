@@ -354,19 +354,122 @@ Section EQUIV2.
           R i (tr: @RawTr.t _ R)
           (IND: RawTr.is_fair_ind tr)
     :
-    tr_ord i tr (tr2ord_i i tr).
+    exists o, tr_ord i tr o.
   Proof.
     specialize (IND i). punfold IND.
     2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
         i. eapply RawTr.___fair_ind_mon; eauto.
     } (*make lemma*)
     revert R i tr IND.
-    eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => tr_ord i tr (@tr2ord_i R i tr)))).
+    eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => exists o, tr_ord i tr o))).
+    (* eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => tr_ord i tr (@tr2ord_i R i tr)))). *)
     i. rename x0 into R, x1 into i, x2 into tr.
     eapply pind3_unfold in PR.
     2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
         i. eapply RawTr.__fair_ind_mon; eauto.
     } (*make lemma*)
+
+
+    unfold tr_ord.
+
+    assert (A:
+  exists o : T wft,
+    pind3
+      (fun q : rel3 Type (@RawTr.t Ident) (fun (x0 : Type) (_ : RawTr.t) => T wft) =>
+         paco3 (fun p =>
+                   (fun R0 => (fun tr0 => (fun o0 =>
+                     (exists o, (@__tr_ord i q p R0 tr0 o) /\ (wft.(lt) o o0)))))) bot3)
+      top3 R tr o).
+    2:{ des. exists o.
+        eapply pind3_mon_gen. eauto. 2: ss.
+        i. ss. eapply paco3_mon_gen. eauto. 2: ss.
+        i. ss. des.
+        assert (MAYBE: forall R r1 r2 (t: @RawTr.t _ R) o1 o2 (LT: lt wft o1 o2),
+                   __tr_ord i r1 r2 t o1 -> __tr_ord i r1 r2 t o2).
+        { admit. }
+        eapply MAYBE. eauto. eauto.
+    }
+
+    assert (A:
+  exists o : T wft,
+    pind3
+      (fun q : rel3 Type (@RawTr.t Ident) (fun (x0 : Type) (_ : RawTr.t) => T wft) =>
+       upaco3
+         (fun (p : rel3 Type (@RawTr.t Ident) (fun (x0 : Type) (_ : RawTr.t) => T wft))
+            (R0 : Type) (tr0 : RawTr.t) (o0 : T wft) =>
+            exists o1 : T wft, __tr_ord i q p tr0 o1 /\ lt wft o1 o0) bot3) top3 R tr o).
+    2:{ des. exists o. eapply pind3_mon_gen. eauto. 2: ss. i. ss. pclearbot. auto. }
+    assert (A:
+         (fun (p : rel3 Type (@RawTr.t Ident) (fun (x0 : Type) (_ : RawTr.t) => T wft))
+            (R0 : Type) (tr0 : RawTr.t) (o0 : T wft) =>
+            exists o1 : T wft, __tr_ord i top3 p tr0 o1 /\ lt wft o1 o0)
+           (upaco3
+         (fun (p : rel3 Type (@RawTr.t Ident) (fun (x0 : Type) (_ : RawTr.t) => T wft))
+            (R0 : Type) (tr0 : RawTr.t) (o0 : T wft) =>
+            exists o1 : T wft, __tr_ord i top3 p tr0 o1 /\ lt wft o1 o0) bot3) R tr (tr2ord_i i tr)).
+    2:{ ss. des. eexists. eapply pind3_fold. left. eapply paco3_fold. exists o1.
+        
+             
+
+        eapply pind3_unfold in PR1. punfold PR1.
+        2:{ ii. eapply _tr_ord_mon; eauto. }
+        2:{ ii. eapply paco3_mon_gen. eapply IN. 2: ss. i. eapply __tr_ord_mon; eauto. }
+        eapply __tr_ord_mon.
+        2:{ eapply _tr_ord_mon.
+            {
+              assert (MAYBE: forall R r1 r2 (t: @RawTr.t _ R) o1 o2 (LT: lt wft o1 o2),
+                         __tr_ord i r1 r2 t o1 -> __tr_ord i r1 r2 t o2).
+              { admit. }
+              eapply MAYBE. eauto. eauto.
+            }
+            i. destruct PR3. 2:{ auto. }
+
+
+    assert (A:
+  exists o : T wft,
+    pind3
+      (fun q : rel3 Type (@RawTr.t Ident) (fun (x0 : Type) (_ : RawTr.t) => T wft) =>
+         paco3 (fun p =>
+                   (fun R0 => (fun tr0 => (fun o0 =>
+                     (exists o, (pind3 (fun r => paco3 (__tr_ord i r) p) q R0 tr0 o) /\ (wft.(lt) o o0)))))) bot3)
+      top3 R tr o).
+    2:{ des. exists o.
+        eapply pind3_mon_gen. eauto. 2: ss.
+        i. ss. eapply paco3_mon_gen. eauto. 2: ss.
+        i. ss. des. eapply pind3_unfold in PR1. punfold PR1.
+        2:{ ii. eapply _tr_ord_mon; eauto. }
+        2:{ ii. eapply paco3_mon_gen. eapply IN. 2: ss. i. eapply __tr_ord_mon; eauto. }
+        eapply __tr_ord_mon.
+        2:{ eapply _tr_ord_mon.
+            { assert (MAYBE: forall R r1 r2 (t: @RawTr.t _ R) o1 o2 (LT: lt wft o1 o2),
+                         __tr_ord i r1 r2 t o1 -> __tr_ord i r1 r2 t o2).
+              { admit. }
+              eapply MAYBE. eauto. eauto.
+            }
+            i. destruct PR3. 2:{ auto. }
+
+        eapply tr_ord_mon.
+
+        eapply pind3_unfold in A.
+
+
+
+
+    
+    eapply pind3_mon_gen. 3: ss. instantiate (1:=top3).
+    instantiate (1:= fun r => (upaco3 (__tr_ord i r)) bot3).
+    2:{ i. ss. pclearbot. auto. }
+    eapply paco3_unfold.
+
+        instantiate (1:= fun r => (upaco3 (__tr_ord i r))) in PR0.
+
+        eapply paco3_fold. eauto.
+    instantiate (1:= (fun q : rel3 Type (@RawTr.t Ident) (fun (x0 : Type) (_ : RawTr.t) => T wft) =>
+     upaco3 (__tr_ord i q) bot3) top3 R tr (tr2ord_i i tr)).
+    2:{ instantiate (1:= upaco3 (__tr_ord i x0)).
+
+
+    
     eapply pind3_fold. revert_until i. pcofix CIH. i.
     punfold PR.
     2:{ eapply RawTr._fair_ind_mon. }
