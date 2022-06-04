@@ -356,7 +356,7 @@ Section EQUIV2.
     :
     exists o, tr_ord i o tr.
   Proof.
-    exists (tr2ord_i i tr).
+    (* exists (tr2ord_i i tr). *)
     specialize (IND i).
     punfold IND.
     2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
@@ -364,13 +364,16 @@ Section EQUIV2.
     } (*make lemma*)
     revert R i tr IND.
     (* eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => exists o, tr_ord i tr o))). *)
-    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => tr_ord i (@tr2ord_i R i tr) tr)).
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => exists o, tr_ord i o tr)).
+    (* eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => tr_ord i (@tr2ord_i R i tr) tr)). *)
     i. rename x0 into R, x1 into i, x2 into tr.
     eapply pind3_unfold in PR.
     2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
         i. eapply RawTr.__fair_ind_mon; eauto.
     } (*make lemma*)
-    eapply pind3_fold. eapply paco2_acc.
+    eapply pind3_fold.
+
+    eapply paco2_acc.
     2:{ instantiate (1:=
                        fun R (tr: @RawTr.t _ R) =>
                          paco3
@@ -396,11 +399,15 @@ Section EQUIV2.
          i tr).
         ss.
     }
-    i. ss. rename x0 into R0, x1 into tr0.
-    (* revert R tr PR. pcofix CIH. i. *)
+    clear PR.
+    i. ss. rename x0 into R0, x1 into tr0. clear tr.
+    revert R tr PR. pcofix CIH. i.
     punfold PR0.
     2:{ eapply RawTr._fair_ind_mon. }
     inv PR0.
+    (* punfold PR. *)
+    (* 2:{ eapply RawTr._fair_ind_mon. } *)
+    (* inv PR. *)
     { pfold. econs 1. }
     { pfold. econs 2. }
     { pfold. econs 3. }
