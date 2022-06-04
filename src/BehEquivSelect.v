@@ -356,7 +356,9 @@ Section EQUIV2.
     }
     des. exists o.
     eapply pind3_fold. move o before wft0. move i before wft0. revert_until o. pcofix CIH. i.
-    eapply paco2_fold. revert R o tr CIH INV.
+    eapply paco2_fold. revert R o tr INV.
+    eapply pind3_acc.
+    
     eapply (@pind3_acc _ _ _ _ (fun R o (tr: @RawTr.t _ R) =>
   __tr_ord i
     (upind3
