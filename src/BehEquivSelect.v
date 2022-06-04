@@ -251,6 +251,8 @@ Section EQUIV2.
 
 
   Variable wft0: wft.(T).
+  (* Variable S: wft.(T) -> wft.(T). *)
+  (* Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t). *)
 
   (* coinductive2-inductive3 *)
   Variant __tr_ord (i: id)
@@ -340,6 +342,93 @@ Section EQUIV2.
   Definition tr_ord (i: id): forall (R: Type), wft.(T) -> (@RawTr.t _ R) -> Prop :=
     pind3 (fun q R o (tr: @RawTr.t _ R) =>
              paco2 (fun p R tr => @__tr_ord i q p R o tr) bot2 R tr) top3.
+
+  Lemma inhabited_tr_ord: inhabited (T wft).
+  Proof. econs. exact wft0. Qed.
+
+  Definition tr2ord_i {R} i (raw: (@RawTr.t _ R)): wft.(T) :=
+    epsilon _ (inhabited_tr_ord) (fun o => tr_ord i o raw).
+
+
+  Lemma tr_ord_exists
+        i R (tr: @RawTr.t Ident R)
+        (IND: RawTr.is_fair_ind tr)
+    :
+    exists o, tr_ord i o tr.
+  Proof.
+    exists (tr2ord_i i tr).
+    specialize (IND i).
+    punfold IND.
+    2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
+        i. eapply RawTr.___fair_ind_mon; eauto.
+    } (*make lemma*)
+    revert R i tr IND.
+    (* eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => exists o, tr_ord i tr o))). *)
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => tr_ord i (@tr2ord_i R i tr) tr)).
+    i. rename x0 into R, x1 into i, x2 into tr.
+    eapply pind3_unfold in PR.
+    2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
+        i. eapply RawTr.__fair_ind_mon; eauto.
+    } (*make lemma*)
+    eapply pind3_fold. eapply paco2_acc.
+    2:{ instantiate (1:=
+                       fun R (tr: @RawTr.t _ R) =>
+                         paco3
+         (RawTr.___fair_ind
+            (upaco3
+               (fun r : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) =>
+                pind3
+                  (fun q : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t)
+                   => paco3 (RawTr.___fair_ind r q) bot3) top3) bot3)
+            (upind3
+               (fun q : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) =>
+                paco3
+                  (RawTr.___fair_ind
+                     (upaco3
+                        (fun
+                           r : rel3 Type (fun _ : Type => id)
+                                 (fun (x0 : Type) (_ : id) => RawTr.t) =>
+                         pind3
+                           (fun
+                              q0 : rel3 Type (fun _ : Type => id)
+                                     (fun (x0 : Type) (_ : id) => RawTr.t) =>
+                            paco3 (RawTr.___fair_ind r q0) bot3) top3) bot3) q) bot3) rr)) bot3 R
+         i tr).
+        ss.
+    }
+    i. ss. rename x0 into R0, x1 into tr0.
+    (* revert R tr PR. pcofix CIH. i. *)
+    punfold PR0.
+    2:{ eapply RawTr._fair_ind_mon. }
+    inv PR0.
+    { pfold. econs 1. }
+    { pfold. econs 2. }
+    { pfold. econs 3. }
+    { destruct TL; ss. rename H into TL. pfold. econs. right. eapply CIH. eauto. }
+    { destruct TL; ss. rename H into TL. pfold. econs. right. eapply CIH. eauto. }
+    { destruct TL; ss. rename H into TL. pfold. econs 7. auto. right. eapply CIH. eauto. }
+    { destruct TL; ss. rename H into TL. rename H0 into IND.
+      pfold. econs 8. auto.
+      2:{ split; ss. eapply IH in IND. eauto. }
+      admit.
+    }
+    { destruct TL; ss. rename H into TL. pfold. econs 4. auto. }
+  Qed.
+  
+
+
+
+    right. eapply CIH. eauto. }
+    { 
+
+      right. eapply CIH. eauto. }
+    { 
+    
+
+
+      hexploit tr2ord_i_red_obs. i; des.
+      { pfold. econs. right. rewrite H; clear H. eapply CIH. eauto. }
+      (* ??? *)
 
   Definition tr_ord_inv (i: id): forall (R: Type), (@RawTr.t _ R) -> Prop :=
     paco2 (fun p R tr => exists o, pind3 (fun q R o tr => @__tr_ord i q p R o tr) top3 R o tr) bot2.
