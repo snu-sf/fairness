@@ -338,6 +338,11 @@ Section EQUIV2.
 
   Definition coind_fail i: forall R, (@RawTr.t _ R) -> Prop := paco2 (_coind_fail i) bot2.
 
+  Local Hint Constructors _coind_fail: core.
+  Local Hint Unfold coind_fail: core.
+  Local Hint Resolve coind_fail_mon: paco.
+
+
 
   Variable wft0: wft.(T).
   Variable S: wft.(T) -> wft.(T).
@@ -464,19 +469,58 @@ Section EQUIV2.
     }
   Qed.
 
-  (* Lemma ord_tr_exists *)
+
+  (* Inductive ev_nofail (i: id) R: (@RawTr.t _ R) -> Prop := *)
+  (* (* base cases: no more fail *) *)
+  (* | ev_nofail_nofail *)
+  (*     tr *)
+  (*     (NOFAIL: nofail i tr) *)
+  (*   : *)
+  (*   ev_nofail i tr *)
+
+  (* (* inductive cases *) *)
+  (* | ev_nofail_obs *)
+  (*     (obs: obsE) tl next *)
+  (*     (NEXT: next_fail i tl next) *)
+  (*     (ORD: ev_nofail i next) *)
+  (*   : *)
+  (*   ev_nofail i (RawTr.cons (inr obs) tl) *)
+  (* | ev_nofail_tau *)
+  (*     tl next *)
+  (*     (NEXT: next_fail i tl next) *)
+  (*     (ORD: ev_nofail i next) *)
+  (*   : *)
+  (*   ev_nofail i (RawTr.cons (inl silentE_tau) tl) *)
+  (* | ev_nofail_fair_emp *)
+  (*     fmap tl next *)
+  (*     (EMP: Flag.emp = (fmap i)) *)
+  (*     (NEXT: next_fail i tl next) *)
+  (*     (ORD: ev_nofail i next) *)
+  (*   : *)
+  (*   ev_nofail i (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (* | ev_nofail_fair_fail *)
+  (*     fmap tl *)
+  (*     (FAIL: Flag.fail = (fmap i)) *)
+  (*     (TL: ev_nofail i tl) *)
+  (*   : *)
+  (*   ev_nofail i (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (* . *)
+
+  (* Lemma fair_ind_ev_nofail *)
   (*       i R (tr: @RawTr.t Ident R) *)
   (*       (IND: RawTr.is_fair_ind tr) *)
   (*   : *)
-  (*   exists o, ord_tr i o tr. *)
+  (*   ev_nofail i tr. *)
   (* Proof. *)
-  (*   specialize (IND i). punfold IND. *)
+  (*   specialize (IND i). *)
+  (*   punfold IND. *)
   (*   2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss. *)
   (*       i. eapply RawTr.___fair_ind_mon; eauto. *)
   (*   } (*make lemma*) *)
   (*   revert R i tr IND. *)
+  (*   eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => ~ coind_fail i tr)). *)
   (*   (* eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => exists o, tr_ord i tr o))). *) *)
-  (*   eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => exists o, ord_tr i o tr)). *)
+  (*   (* eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => exists o, ord_tr i o tr)). *) *)
   (*   (* eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => tr_ord i (@tr2ord_i R i tr) tr)). *) *)
   (*   i. rename x0 into R, x1 into i, x2 into tr. *)
   (*   eapply pind3_unfold in PR. *)
@@ -485,25 +529,100 @@ Section EQUIV2.
   (*   } (*make lemma*) *)
   (*   punfold PR. *)
   (*   2:{ eapply RawTr._fair_ind_mon. } *)
-  (*   inv PR. *)
-  (*   { eexists. econs 1. } *)
-  (*   { eexists. econs 2. } *)
-  (*   { eexists. econs 3. } *)
-  (*   { pclearbot. *)
-  (*     assert (A: *)
-  (*           upind3 *)
-  (*              (fun q : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) => *)
-  (*               paco3 *)
-  (*                 (RawTr.___fair_ind *)
-  (*                    (upaco3 *)
-  (*                       (fun *)
-  (*                          r : rel3 Type (fun _ : Type => id) *)
-  (*                                (fun (x0 : Type) (_ : id) => RawTr.t) => *)
+  (*   intros CF. inv PR. *)
+  (*   { punfold CF. inv CF. punfold NEXT. inv NEXT. } *)
+  (*   { punfold CF. inv CF. punfold NEXT. inv NEXT. } *)
+  (*   { punfold CF. inv CF. punfold NEXT. inv NEXT. } *)
+  (*   { punfold CF. inv CF. punfold NEXT. inv NEXT. pclearbot. destruct TL0 as [NEXT | NEXT]; ss. *)
+
+
+  (* Lemma inner_fair_ind_next_fail_ind *)
+  (*       (rr: forall x : Type, id -> RawTr.t -> Prop) *)
+  (*       i R tr next *)
+  (*       (IND: paco3 *)
+  (*               (RawTr.___fair_ind *)
+  (*                  (upaco3 *)
+  (*                     (fun r : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) => *)
   (*                        pind3 *)
-  (*                          (fun *)
-  (*                             q0 : rel3 Type (fun _ : Type => id) *)
-  (*                                    (fun (x0 : Type) (_ : id) => RawTr.t) => *)
-  (*                              paco3 (RawTr.___fair_ind r q0) bot3) top3) bot3) q) bot3) rr R i tl). *)
+  (*                          (fun q : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) => *)
+  (*                             paco3 (RawTr.___fair_ind r q) bot3) top3) bot3) *)
+  (*                  (upind3 *)
+  (*                     (fun q : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) => *)
+  (*                        paco3 *)
+  (*                          (RawTr.___fair_ind *)
+  (*                             (upaco3 *)
+  (*                                (fun r : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) => *)
+  (*                                   pind3 *)
+  (*                                     (fun q0 : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) => *)
+  (*                                        paco3 (RawTr.___fair_ind r q0) bot3) top3) bot3) q) bot3) rr)) bot3 R i tr) *)
+  (*       (NEXT: next_fail i tr next) *)
+  (*   : *)
+  (*   rr R i next. *)
+  (* Proof. *)
+  (*   punfold IND. *)
+  (*   2:{ eapply RawTr._fair_ind_mon. } *)
+    
+        
+
+
+
+
+
+
+
+
+
+  Lemma ord_tr_not_coind_fail
+        i R (tr: @RawTr.t Ident R)
+        (IND: RawTr.is_fair_ind tr)
+    :
+    ~ coind_fail i tr.
+  Proof.
+    specialize (IND i).
+    punfold IND.
+    2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
+        i. eapply RawTr.___fair_ind_mon; eauto.
+    } (*make lemma*)
+    revert R i tr IND.
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => ~ coind_fail i tr)).
+    (* eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => exists o, tr_ord i tr o))). *)
+    (* eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => exists o, ord_tr i o tr)). *)
+    (* eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => tr_ord i (@tr2ord_i R i tr) tr)). *)
+    i. rename x0 into R, x1 into i, x2 into tr.
+    eapply pind3_unfold in PR.
+    2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
+        i. eapply RawTr.__fair_ind_mon; eauto.
+    } (*make lemma*)
+    punfold PR.
+    2:{ eapply RawTr._fair_ind_mon. }
+    intros CF. inv PR.
+    { punfold CF. inv CF. punfold NEXT. inv NEXT. }
+    { punfold CF. inv CF. punfold NEXT. inv NEXT. }
+    { punfold CF. inv CF. punfold NEXT. inv NEXT. }
+    { punfold CF. inv CF. punfold NEXT. inv NEXT. pclearbot. destruct TL0 as [NEXT | NEXT]; ss.
+
+      punfold CF. inv CF. punfold NEXT. inv NEXT. }
+
+      eauto.
+
+      eexists. econs 1. }
+    { eexists. econs 2. }
+    { eexists. econs 3. }
+    { pclearbot.
+      assert (A:
+            upind3
+               (fun q : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) =>
+                paco3
+                  (RawTr.___fair_ind
+                     (upaco3
+                        (fun
+                           r : rel3 Type (fun _ : Type => id)
+                                 (fun (x0 : Type) (_ : id) => RawTr.t) =>
+                         pind3
+                           (fun
+                              q0 : rel3 Type (fun _ : Type => id)
+                                     (fun (x0 : Type) (_ : id) => RawTr.t) =>
+                               paco3 (RawTr.___fair_ind r q0) bot3) top3) bot3) q) bot3) rr R i tl).
 
   (*     eapply pind3_fold in TL. *)
 
