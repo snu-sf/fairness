@@ -211,13 +211,16 @@ Section EQUIV2.
     (*   _next_fail i next_fail *)
     (*              (RawTr.cons (inl (silentE_fair fmap)) tl) *)
     (*              (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+    (* | next_fail_fail *)
+    (*     fmap tl *)
+    (*     (FAIL: Flag.fail = (fmap i)) *)
+    (*   : *)
+    (*   _next_fail i next_fail (RawTr.cons (inl (silentE_fair fmap)) tl) (RawTr.cons (inl (silentE_fair fmap)) tl) *)
     | next_fail_fail
         fmap tl
         (FAIL: Flag.fail = (fmap i))
       :
-      _next_fail i next_fail
-                 (RawTr.cons (inl (silentE_fair fmap)) tl)
-                 (RawTr.cons (inl (silentE_fair fmap)) tl)
+      _next_fail i next_fail (RawTr.cons (inl (silentE_fair fmap)) tl) tl
 
     (* coinductive cases *)
     | next_fail_obs
@@ -322,7 +325,8 @@ Section EQUIV2.
       destruct silent as [ | fm].
       { pfold. econs. right. eapply CIH. i. specialize (NOT tl). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
       { destruct (fm i) eqn:FM.
-        { exfalso. eapply (NOT (RawTr.cons (inl (silentE_fair fm)) tr)); clear NOT. pfold. econs 1. auto. }
+        (* { exfalso. eapply (NOT (RawTr.cons (inl (silentE_fair fm)) tr)); clear NOT. pfold. econs 1. auto. } *)
+        { exfalso. eapply (NOT tr); clear NOT. pfold. econs 1. auto. }
         { pfold. econs 7. rewrite FM; ss. right. eapply CIH. i. specialize (NOT tl). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
         { pfold. econs 4. rewrite FM; ss. }
       }
@@ -360,28 +364,26 @@ Section EQUIV2.
   (*   : *)
   (*   ord_tr i wft0 (RawTr.cons (inl (silentE_fair fmap)) tl) *)
 
-  (* inductive cases *)
+  (* inductive cases: actual decreasing *)
   | ord_tr_obs
       o (obs: obsE) tl next
       (NEXT: next_fail i tl next)
       (ORD: ord_tr i o next)
     :
-    ord_tr i o (RawTr.cons (inr obs) tl)
+    ord_tr i (S o) (RawTr.cons (inr obs) tl)
   | ord_tr_tau
       o tl next
       (NEXT: next_fail i tl next)
       (ORD: ord_tr i o next)
     :
-    ord_tr i o (RawTr.cons (inl silentE_tau) tl)
+    ord_tr i (S o) (RawTr.cons (inl silentE_tau) tl)
   | ord_tr_fair_emp
       o fmap tl next
       (EMP: Flag.emp = (fmap i))
       (NEXT: next_fail i tl next)
       (ORD: ord_tr i o next)
     :
-    ord_tr i o (RawTr.cons (inl (silentE_fair fmap)) tl)
-
-  (* actual decreasing *)
+    ord_tr i (S o) (RawTr.cons (inl (silentE_fair fmap)) tl)
   | ord_tr_fair_fail
       o fmap tl
       (FAIL: Flag.fail = (fmap i))
