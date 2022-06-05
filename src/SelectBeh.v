@@ -31,7 +31,6 @@ Section TR.
 
   CoInductive t {R}: Type :=
   | done (retv: R)
-  (* | spin *)
   | ub
   | nb
   | cons (hd: rawE) (tl: t)
@@ -161,6 +160,13 @@ Section TR.
           (R: Type) (i: id)
     :
     (@t R) -> Prop :=
+    (* base cases *)
+    | fair_ind_nofail
+        tr
+        (NOFAIL: nofail i tr)
+      :
+      __fair_ind fair_ind _fair_ind i tr
+
     (* inner inductive cases: i fails inductively *)
     | fair_ind_obs
         (obs: obsE) tl next
@@ -196,13 +202,6 @@ Section TR.
         (TL: fair_ind R i tl)
       :
       __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fmap)) tl)
-
-    (* base cases *)
-    | fair_ind_nofail
-        tr
-        (NOFAIL: nofail i tr)
-      :
-      __fair_ind fair_ind _fair_ind i tr
   .
 
   Definition fair_ind: forall (R: Type) (i: id), (@t R) -> Prop :=

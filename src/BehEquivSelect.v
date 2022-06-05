@@ -18,6 +18,51 @@ From Paco Require Import paco.
 Set Implicit Arguments.
 
 
+
+Section AUX.
+
+  (*TODO: move to Axioms*)
+  Lemma not_ex_all_not_help
+        A (P: A -> Prop)
+        (NOT: ~ (exists a: A, P a))
+    :
+    <<NA: forall a, ~ P a>>.
+  Proof.
+    ii. eapply Classical_Pred_Type.not_ex_all_not in NOT. eauto.
+  Qed.
+
+  Ltac nean H := eapply not_ex_all_not_help in H; red in H.
+
+  Context {Ident: ID}.
+
+  Lemma not_ex_next_fail_nofail
+        i R (tr: @RawTr.t _ R)
+        (NOT: ~ exists tl, RawTr.next_fail i tr tl)
+    :
+    RawTr.nofail i tr.
+  Proof.
+    nean NOT.
+    revert_until i. pcofix CIH. i.
+    destruct tr.
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
+      destruct silent as [ | fm].
+      { pfold. econs. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
+      { destruct (fm i) eqn:FM.
+        { exfalso. eapply (NOT tr); clear NOT. pfold. econs 1. auto. }
+        { pfold. econs 7. rewrite FM; ss. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
+        { pfold. econs 4. rewrite FM; ss. }
+      }
+    }
+  Qed.
+
+End AUX.
+
+
+
 Section EQUIV1.
 
   Context {Ident: ID}.
@@ -25,6 +70,16 @@ Section EQUIV1.
 
   Variable wft: WF.
   Hypothesis WFTR: Transitive wft.(lt).
+
+
+  Lemma fair_ord_next_fail_ex
+        R (tr next: @RawTr.t _ R) m i
+        (ORD: RawTr.fair_ord m tr)
+        (NEXT: RawTr.next_fail i tr next)
+    :
+    exists m0, (lt wft (m0 i) (m i)) /\ (RawTr.fair_ord m0 next).
+  Proof.
+    (*TODO*)
 
   Theorem Ord_implies_Ind
           R
@@ -34,11 +89,40 @@ Section EQUIV1.
     RawTr.is_fair_ind tr.
   Proof.
     ii. unfold RawTr.is_fair_ord in ORD. des.
-    revert_until R. pcofix CIH1. i.
+    revert_until WFTR. pcofix CIH1. i.
     eapply paco3_fold.
     remember (m i) as idx. move idx before CIH1. revert_until idx.
-    induction (wft.(wf) idx). rename H into ACC, H0 into IH, x into idx. i.
+    induction (wft.(wf) idx). rename H0 into IH, x into idx. clear H. i.
     eapply pind3_fold.
+    punfold ORD. inv ORD.
+    { econs 1. pfold. econs. }
+    { econs 1. pfold. econs. }
+    { econs 1. pfold. econs. }
+    { pclearbot. destruct (classic (exists next, RawTr.next_fail i tl next)) as [EX | NOT].
+      { des. econs 2. eauto. split; ss. eapply IH.
+
+
+      econs. right. eapply CIH2; eauto. }
+    { pclearbot. destruct (fmap i) eqn:FM.
+      { pfold. econs 7. auto. split; ss. eapply IH. 2: eauto. all: eauto.
+        unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. auto.
+      }
+      { dup FAIR. unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. destruct FAIR as [EQ | LT].
+        - pfold. econs 6. auto. right. eapply CIH2; eauto.
+        - pfold. econs 6. auto. right. eapply CIH2.
+          instantiate (1:= fun id => if (ID_DEC id i) then (m i) else (m0 id)).
+          + ginit. guclo RawTr.fair_ord_imap_le_ctx_spec. econs. gfinal; eauto.
+            unfold soft_update. i. destruct (ID_DEC i0 i) as [EQ | NEQ].
+            * clarify. right. auto.
+            * left. auto.
+          + ss. des_ifs.
+      }
+      { pfold. econs 8. auto. right. eapply CIH1; eauto. }
+    }
+    { pclearbot. pfold. econs 5. right. eapply CIH2; eauto. }
+  Qed.
+
+
     revert_until IH. pcofix CIH2. i.
     eapply paco3_fold. eapply paco3_unfold.
     { eapply RawTr._fair_ind_mon. }
