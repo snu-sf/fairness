@@ -341,41 +341,16 @@ Section AUX.
     }
   Qed.
 
-  Lemma fair_ind_cases
+  Lemma coind_fail_cases
         i R (tr: @RawTr.t Ident R)
-        (IND: RawTr.is_fair_ind tr)
         (CF: coind_fail i tr)
     :
     (must_fail i tr) \/ (RawTr.nofail i tr).
   Proof.
-    specialize (IND i). punfold IND.
-    revert R i tr IND CF.
-    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => (coind_fail i tr -> (must_fail i tr \/ RawTr.nofail i tr)))).
-    i. rename x0 into R, x1 into i, x2 into tr. rename H into CF.
-    eapply pind3_unfold in PR.
-    2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
-    inv PR.
-    { auto. }
-    { destruct IND as [PIND IND]. punfold CF. inv CF. pclearbot.
-      punfold NEXT0. inv NEXT0. destruct TL as [TL | ]; ss.
-      destruct (classic (must_fail i tl)) as [MUST | NOT].
-      { left. econs. auto. }
-      { right. pfold. econs. left. eapply not_must_fail_nofail; eauto. }
-    }
-    { destruct IND as [PIND IND]. punfold CF. inv CF. pclearbot.
-      punfold NEXT0. inv NEXT0. destruct TL as [TL | ]; ss.
-      destruct (classic (must_fail i tl)) as [MUST | NOT].
-      { left. econs. auto. }
-      { right. pfold. econs. left. eapply not_must_fail_nofail; eauto. }
-    }
-    { destruct IND as [PIND IND]. punfold CF. inv CF. pclearbot.
-      punfold NEXT0. inv NEXT0. rewrite <- EMP in FAIL0; ss. destruct TL as [TL | ]; ss.
-      destruct (classic (must_fail i tl)) as [MUST | NOT].
-      { left. econs 4; auto. }
-      { right. pfold. econs 7; auto. left. eapply not_must_fail_nofail; eauto. }
-    }
-    { left. econs 1. auto. }
-    { pclearbot. right. pfold. econs 4. auto. }
+    destruct (classic (must_fail i tr)) as [MUST | NM]; auto.
+    destruct (classic (exists next, RawTr.next_fail i tr next)) as [NEXT | NONEXT].
+    { hexploit not_must_fail_nofail; eauto. }
+    eapply not_ex_next_fail_nofail in NONEXT. auto.
   Qed.
 
   (* Inductive ind_fail i R: (@RawTr.t _ R) -> Prop := *)
@@ -453,6 +428,17 @@ Section EQUIV1.
   Variable S: wft.(T) -> wft.(T).
   Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
   (* Hypothesis WFTR: Transitive wft.(lt). *)
+
+  Lemma fair_ord_must_fail_ex_ord_tr
+        i m R (tr: @RawTr.t _ R)
+        (ORD: RawTr.fair_ord (wf:=wft) m tr)
+        (MUST: must_fail i tr)
+    :
+    exists o, ord_tr i o tr.
+  Proof.
+    depgen m. induction MUST; i.
+    { 
+
 
 
   Lemma fair_ord_ex_ord_tr
