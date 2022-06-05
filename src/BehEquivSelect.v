@@ -9,6 +9,7 @@ Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Import Axioms.
 From Fairness Require Import FairBeh.
+From Fairness Require Import pind_internal.
 From Fairness Require Import pind3.
 From Fairness Require Import SelectBeh.
 
@@ -69,6 +70,83 @@ End EQUIV1.
 
 
 
+Section TEST.
+
+  Inductive is_even: nat -> Prop :=
+  | is_even_O
+    :
+    is_even O
+  | is_even_S
+      n
+      (EVEN: is_even n)
+    :
+    is_even (S (S n))
+  .
+
+
+  (* Variant ex (A : Type) (P : A -> Prop) : Prop := *)
+  (* | ex_intro *)
+  (*     x (PROP: P x) *)
+  (*   : *)
+  (*   ex P. *)
+
+  Variant _pex
+          (A: Type)
+          (pex: forall (P : A -> Prop), Prop)
+          (P: A -> Prop)
+    :
+    Prop :=
+    | pex_intro
+        x (PROP: P x)
+        (PEX: pex P)
+      :
+      _pex pex P.
+
+  Definition top1 { T0} (x0: T0) := True.
+
+  Definition pex (A: Type): forall (P : A -> Prop), Prop := pind (@_pex A) top1.
+  Definition cpex (A: Type): forall (P : A -> Prop), Prop := paco1 (@_pex A) bot1.
+
+  Lemma pex_mon A: monotone (@_pex A).
+  Proof.
+    ii. inv IN. econs; eauto.
+  Qed.
+
+  Local Hint Resolve pex_mon: core.
+
+  (*   : *)
+  (*   forall  *)
+
+  (*   := *)
+  (* | ex_intro *)
+  (*     x (PROP: P x) *)
+  (*   : *)
+  (*   ex P. *)
+
+  Lemma pex_exists A: forall (P: A -> Prop), pex P -> (exists x, P x).
+  Proof.
+    i. unfold pex in H. eapply pind_unfold in H. 2: eauto. inv H. eauto.
+  Qed.
+
+  (* Lemma exists_pex A: forall (P: A -> Prop), (exists x, P x) -> pex P. *)
+  (* Proof. *)
+  (*   i. inv H. eapply pind_fold. econs. eauto. split; ss.  *)
+  (* Qed. *)
+
+  Lemma cpex_exists A: forall (P: A -> Prop), cpex P -> (exists x, P x).
+  Proof.
+    i. unfold cpex in H. eapply paco1_unfold in H. 2: eapply pex_mon. inv H. eauto.
+  Qed.
+
+  (* Lemma exists_cpex A: forall (P: A -> Prop), (exists x, P x) -> cpex P. *)
+  (* Proof. *)
+  (*   i. inv H. eapply paco1_fold. econs. eauto. *)
+  (* Qed. *)
+
+End TEST.
+
+
+
 Section EQUIV2.
 
   Context {Ident: ID}.
@@ -116,26 +194,26 @@ Section EQUIV2.
     :
     (@RawTr.t _ R) -> (@RawTr.t _ R) -> Prop :=
     (* base cases *)
-    | next_fail_done
-        retv
-      :
-      _next_fail i next_fail (RawTr.done retv) (RawTr.done retv)
-    | next_fail_ub
-      :
-      _next_fail i next_fail RawTr.ub RawTr.ub
-    | next_fail_nb
-      :
-      _next_fail i next_fail RawTr.nb RawTr.nb
-    | next_fail_success
-        fmap tl
-        (SUCCESS: Flag.success = (fmap i))
-      :
-      _next_fail i next_fail
-                 (RawTr.cons (inl (silentE_fair fmap)) tl)
-                 (RawTr.cons (inl (silentE_fair fmap)) tl)
+    (* | next_fail_done *)
+    (*     retv *)
+    (*   : *)
+    (*   _next_fail i next_fail (RawTr.done retv) (RawTr.done retv) *)
+    (* | next_fail_ub *)
+    (*   : *)
+    (*   _next_fail i next_fail RawTr.ub RawTr.ub *)
+    (* | next_fail_nb *)
+    (*   : *)
+    (*   _next_fail i next_fail RawTr.nb RawTr.nb *)
+    (* | next_fail_success *)
+    (*     fmap tl *)
+    (*     (SUCCESS: Flag.success = (fmap i)) *)
+    (*   : *)
+    (*   _next_fail i next_fail *)
+    (*              (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+    (*              (RawTr.cons (inl (silentE_fair fmap)) tl) *)
     | next_fail_fail
         fmap tl
-        (FAIL: Flag.emp = (fmap i))
+        (FAIL: Flag.fail = (fmap i))
       :
       _next_fail i next_fail
                  (RawTr.cons (inl (silentE_fair fmap)) tl)
@@ -165,12 +243,93 @@ Section EQUIV2.
 
   Lemma next_fail_mon i: monotone3 (_next_fail i).
   Proof.
-    ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5 | econs 6 | econs 7 | econs 8]; eauto.
+    ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4]; eauto.
+    (* ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5 | econs 6 | econs 7 | econs 8]; eauto. *)
   Qed.
 
   Local Hint Constructors _next_fail: core.
   Local Hint Unfold next_fail: core.
   Local Hint Resolve next_fail_mon: paco.
+
+
+  Variant _nofail (i: id)
+          (nofail: forall (R: Type), (@RawTr.t _ R) -> Prop)
+          (R: Type)
+    :
+    (@RawTr.t _ R) -> Prop :=
+    | nofail_done
+        retv
+      :
+      _nofail i nofail (RawTr.done retv)
+    | nofail_ub
+      :
+      _nofail i nofail RawTr.ub
+    | nofail_nb
+      :
+      _nofail i nofail RawTr.nb
+    | nofail_fair_success
+        fmap tl
+        (SUCCESS: Flag.success = (fmap i))
+      :
+      _nofail i nofail (RawTr.cons (inl (silentE_fair fmap)) tl)
+    | nofail_obs
+        (obs: obsE) tl
+        (TL: nofail R tl)
+      :
+      _nofail i nofail (RawTr.cons (inr obs) tl)
+    | nofail_tau
+        tl
+        (TL: nofail R tl)
+      :
+      _nofail i nofail (RawTr.cons (inl silentE_tau) tl)
+    | nofail_fair_emp
+        fmap tl
+        (EMP: Flag.emp = (fmap i))
+        (TL: nofail R tl)
+      :
+      _nofail i nofail (RawTr.cons (inl (silentE_fair fmap)) tl)
+  .
+
+  Definition nofail i: forall (R: Type), (@RawTr.t _ R) -> Prop := paco2 (_nofail i) bot2.
+
+  Lemma nofail_mon i: monotone2 (_nofail i).
+  Proof.
+    ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5 | econs 6 | econs 7 ]; eauto.
+  Qed.
+
+  Local Hint Constructors _nofail: core.
+  Local Hint Unfold nofail: core.
+  Local Hint Resolve nofail_mon: paco.
+
+
+
+  Lemma not_ex_next_fail_nofail
+        i R (tr: @RawTr.t _ R)
+        (NOT: ~ exists tl, next_fail i tr tl)
+    :
+    nofail i tr.
+  Proof.
+    assert (forall tl, ~ next_fail i tr tl).
+    { i. eapply Classical_Pred_Type.not_ex_all_not in NOT. eauto. }
+    clear NOT; rename H into NOT.
+    revert_until i. pcofix CIH. i.
+    destruct tr.
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH. i. specialize (NOT tl). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
+      destruct silent as [ | fm].
+      { pfold. econs. right. eapply CIH. i. specialize (NOT tl). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
+      { destruct (fm i) eqn:FM.
+        { exfalso. eapply (NOT (RawTr.cons (inl (silentE_fair fm)) tr)); clear NOT. pfold. econs 1. auto. }
+        { pfold. econs 7. rewrite FM; ss. right. eapply CIH. i. specialize (NOT tl). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
+        { pfold. econs 4. rewrite FM; ss. }
+      }
+    }
+  Qed.
+
+
 
   Variable wft0: wft.(T).
   Variable S: wft.(T) -> wft.(T).
@@ -230,59 +389,59 @@ Section EQUIV2.
   .
 
 
-  Lemma ord_tr_exists
-        i R (tr: @RawTr.t Ident R)
-        (IND: RawTr.is_fair_ind tr)
-    :
-    exists o, ord_tr i o tr.
-  Proof.
-    specialize (IND i). punfold IND.
-    2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss.
-        i. eapply RawTr.___fair_ind_mon; eauto.
-    } (*make lemma*)
-    revert R i tr IND.
-    (* eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => exists o, tr_ord i tr o))). *)
-    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => exists o, ord_tr i o tr)).
-    (* eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => tr_ord i (@tr2ord_i R i tr) tr)). *)
-    i. rename x0 into R, x1 into i, x2 into tr.
-    eapply pind3_unfold in PR.
-    2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
-        i. eapply RawTr.__fair_ind_mon; eauto.
-    } (*make lemma*)
-    punfold PR.
-    2:{ eapply RawTr._fair_ind_mon. }
-    inv PR.
-    { eexists. econs 1. }
-    { eexists. econs 2. }
-    { eexists. econs 3. }
-    { pclearbot.
-      assert (A:
-            upind3
-               (fun q : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) =>
-                paco3
-                  (RawTr.___fair_ind
-                     (upaco3
-                        (fun
-                           r : rel3 Type (fun _ : Type => id)
-                                 (fun (x0 : Type) (_ : id) => RawTr.t) =>
-                         pind3
-                           (fun
-                              q0 : rel3 Type (fun _ : Type => id)
-                                     (fun (x0 : Type) (_ : id) => RawTr.t) =>
-                               paco3 (RawTr.___fair_ind r q0) bot3) top3) bot3) q) bot3) rr R i tl).
+  (* Lemma ord_tr_exists *)
+  (*       i R (tr: @RawTr.t Ident R) *)
+  (*       (IND: RawTr.is_fair_ind tr) *)
+  (*   : *)
+  (*   exists o, ord_tr i o tr. *)
+  (* Proof. *)
+  (*   specialize (IND i). punfold IND. *)
+  (*   2:{ clear. ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen. eapply PR. 2: ss. *)
+  (*       i. eapply RawTr.___fair_ind_mon; eauto. *)
+  (*   } (*make lemma*) *)
+  (*   revert R i tr IND. *)
+  (*   (* eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => exists o, tr_ord i tr o))). *) *)
+  (*   eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => exists o, ord_tr i o tr)). *)
+  (*   (* eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => tr_ord i (@tr2ord_i R i tr) tr)). *) *)
+  (*   i. rename x0 into R, x1 into i, x2 into tr. *)
+  (*   eapply pind3_unfold in PR. *)
+  (*   2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss. *)
+  (*       i. eapply RawTr.__fair_ind_mon; eauto. *)
+  (*   } (*make lemma*) *)
+  (*   punfold PR. *)
+  (*   2:{ eapply RawTr._fair_ind_mon. } *)
+  (*   inv PR. *)
+  (*   { eexists. econs 1. } *)
+  (*   { eexists. econs 2. } *)
+  (*   { eexists. econs 3. } *)
+  (*   { pclearbot. *)
+  (*     assert (A: *)
+  (*           upind3 *)
+  (*              (fun q : rel3 Type (fun _ : Type => id) (fun (x0 : Type) (_ : id) => RawTr.t) => *)
+  (*               paco3 *)
+  (*                 (RawTr.___fair_ind *)
+  (*                    (upaco3 *)
+  (*                       (fun *)
+  (*                          r : rel3 Type (fun _ : Type => id) *)
+  (*                                (fun (x0 : Type) (_ : id) => RawTr.t) => *)
+  (*                        pind3 *)
+  (*                          (fun *)
+  (*                             q0 : rel3 Type (fun _ : Type => id) *)
+  (*                                    (fun (x0 : Type) (_ : id) => RawTr.t) => *)
+  (*                              paco3 (RawTr.___fair_ind r q0) bot3) top3) bot3) q) bot3) rr R i tl). *)
 
-      eapply pind3_fold in TL.
-
-
-      eexists. econs 1. }
-    { eexists. econs 1. }
-    { pfold. econs 2. }
-    { pfold. econs 3. }
+  (*     eapply pind3_fold in TL. *)
 
 
+  (*     eexists. econs 1. } *)
+  (*   { eexists. econs 1. } *)
+  (*   { pfold. econs 2. } *)
+  (*   { pfold. econs 3. } *)
 
-    exists (tr2ord_i i tr).
-    eapply pind3_fold.
+
+
+  (*   exists (tr2ord_i i tr). *)
+  (*   eapply pind3_fold. *)
 
 
 
@@ -336,51 +495,51 @@ Section EQUIV2.
   (* Local Hint Resolve nofail_tr_mon: paco. *)
 
 
-  Variant _ord_tr (i: id)
-          (ord_tr: forall (R: Type) (o: wft.(T)), (@RawTr.t _ R) -> Prop)
-          R o
-    :
-    (@RawTr.t _ R) -> Prop :=
-    | ord_tr_obs
-        (obs: obsE) tl
-        (TL: ord_tr R o tl)
-      :
-      _ord_tr i ord_tr o (RawTr.cons (inr obs) tl)
-    | ord_Tr_tau
-        tl
-        (TL: ord_tr R o tl)
-      :
-      _ord_tr i ord_tr o (RawTr.cons (inl silentE_tau) tl)
-    | ord_tr_fair_emp
-        fmap tl
-        (EMP: Flag.emp = (fmap i))
-        (TL: ord_tr R o tl)
-      :
-      _ord_tr i ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl)
-    | ord_tr_fair_fail
-        fmap tl o0
-        (FAIL: Flag.fail = (fmap i))
-        (LT: wft.(lt) o0 o)
-        (TL: ord_tr R o0 tl)
-      :
-      _ord_tr i ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl)
-    | ord_tr_nofail
-        tr
-        (NOFAIL: nofail_tr i tr)
-      :
-      _ord_tr i ord_tr o tr
-  .
+  (* Variant _ord_tr (i: id) *)
+  (*         (ord_tr: forall (R: Type) (o: wft.(T)), (@RawTr.t _ R) -> Prop) *)
+  (*         R o *)
+  (*   : *)
+  (*   (@RawTr.t _ R) -> Prop := *)
+  (*   | ord_tr_obs *)
+  (*       (obs: obsE) tl *)
+  (*       (TL: ord_tr R o tl) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o (RawTr.cons (inr obs) tl) *)
+  (*   | ord_Tr_tau *)
+  (*       tl *)
+  (*       (TL: ord_tr R o tl) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o (RawTr.cons (inl silentE_tau) tl) *)
+  (*   | ord_tr_fair_emp *)
+  (*       fmap tl *)
+  (*       (EMP: Flag.emp = (fmap i)) *)
+  (*       (TL: ord_tr R o tl) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (*   | ord_tr_fair_fail *)
+  (*       fmap tl o0 *)
+  (*       (FAIL: Flag.fail = (fmap i)) *)
+  (*       (LT: wft.(lt) o0 o) *)
+  (*       (TL: ord_tr R o0 tl) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (*   | ord_tr_nofail *)
+  (*       tr *)
+  (*       (NOFAIL: nofail_tr i tr) *)
+  (*     : *)
+  (*     _ord_tr i ord_tr o tr *)
+  (* . *)
 
-  Definition ord_tr i: forall (R: Type) o, (@RawTr.t _ R) -> Prop := paco3 (_ord_tr i) bot3.
+  (* Definition ord_tr i: forall (R: Type) o, (@RawTr.t _ R) -> Prop := paco3 (_ord_tr i) bot3. *)
 
-  Lemma ord_tr_mon i: monotone3 (_ord_tr i).
-  Proof.
-    ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5]; eauto.
-  Qed.
+  (* Lemma ord_tr_mon i: monotone3 (_ord_tr i). *)
+  (* Proof. *)
+  (*   ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5]; eauto. *)
+  (* Qed. *)
 
-  Local Hint Constructors _ord_tr: core.
-  Local Hint Unfold ord_tr: core.
-  Local Hint Resolve ord_tr_mon: paco.
+  (* Local Hint Constructors _ord_tr: core. *)
+  (* Local Hint Unfold ord_tr: core. *)
+  (* Local Hint Resolve ord_tr_mon: paco. *)
 
 
 
@@ -506,6 +665,7 @@ Section EQUIV2.
     :
     exists o, tr_ord i o tr.
   Proof.
+    eapply cpex_exists. revert_until wft0. pcofix CIH. i.
     (* exists (tr2ord_i i tr). *)
     specialize (IND i).
     punfold IND.
@@ -514,14 +674,36 @@ Section EQUIV2.
     } (*make lemma*)
     revert R i tr IND.
     (* eapply (@pind3_acc _ _ _ _ (fun (R: Type) => (fun (i: id) => fun (tr: @RawTr.t Ident R) => exists o, tr_ord i tr o))). *)
-    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => exists o, tr_ord i o tr)).
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => paco1 (_pex (A:=T wft)) r (fun x : T wft => tr_ord i x tr))).
     (* eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => tr_ord i (@tr2ord_i R i tr) tr)). *)
     i. rename x0 into R, x1 into i, x2 into tr.
     eapply pind3_unfold in PR.
     2:{ clear. ii. eapply paco3_mon_gen. eapply IN. 2: ss.
         i. eapply RawTr.__fair_ind_mon; eauto.
     } (*make lemma*)
-    exists (tr2ord_i i tr).
+
+
+
+    punfold PR.
+    2:{ eapply RawTr._fair_ind_mon. }
+    inv PR.
+    { pfold. econs. eapply pind3_fold. pfold. econs 1. right. eapply CIH. ii. pfold. eapply pind3_fold. pfold. econs 1. }
+    { pfold. econs. eapply pind3_fold. pfold. econs 2. right. eapply CIH. ii. pfold. eapply pind3_fold. pfold. econs 2. }
+    { pfold. econs. eapply pind3_fold. pfold. econs 3. right. eapply CIH. ii. pfold. eapply pind3_fold. pfold. econs 3. }
+    { pfold. econs. eapply pind3_fold. pfold. econs 5. right. left.
+      
+
+
+      destruct TL; ss. rename H into TL. pfold. econs. right. eapply CIH. eauto. }
+    { destruct TL; ss. rename H into TL. pfold. econs. right. eapply CIH. eauto. }
+    { destruct TL; ss. rename H into TL. pfold. econs 7. auto. right. eapply CIH. eauto. }
+    { destruct TL; ss. rename H into TL. rename H0 into IND.
+      pfold. econs 8. auto.
+      2:{ split; ss. eapply IH in IND. eauto. }
+      admit.
+    }
+    { destruct TL; ss. rename H into TL. pfold. econs 4. auto. }
+    (* exists (tr2ord_i i tr). *)
     eapply pind3_fold.
 
     eapply paco2_acc.
