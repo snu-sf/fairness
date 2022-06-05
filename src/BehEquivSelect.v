@@ -57,35 +57,37 @@ Section AUX.
     }
   Qed.
 
-  Variant _cFalse
-          (cFalse: Prop)
+  Inductive must_fail i R: (@RawTr.t _ R) -> Prop :=
+  | must_fail_fail
+      fm tl
+      (FAIL: Flag.fail = fm i)
     :
-    Prop :=
-    | cFalse_intro
-        (CF: cFalse)
-        (FALSE: False)
-      :
-      _cFalse cFalse.
+    must_fail i (RawTr.cons (inl (silentE_fair fm)) tl)
+  | must_fail_obs
+      obs tl
+      (MUST: must_fail i tl)
+    :
+    must_fail i (RawTr.cons (inr obs) tl)
+  | must_fail_tau
+      tl
+      (MUST: must_fail i tl)
+    :
+    must_fail i (RawTr.cons (inl silentE_tau) tl)
+  | must_fail_emp
+      fm tl
+      (EMP: Flag.emp = fm i)
+      (MUST: must_fail i tl)
+    :
+    must_fail i (RawTr.cons (inl (silentE_fair fm)) tl)
+  .
 
-  Definition cFalse: Prop := paco0 _cFalse bot0.
-
-  Lemma cFalse_mon: monotone0 _cFalse.
-  Proof. ii. inv IN. econs; eauto. Qed.
-
-  Local Hint Constructors _cFalse: core.
-  Local Hint Unfold cFalse: core.
-  Local Hint Resolve cFalse_mon: paco.
-
-  Lemma cFalse_False (CF: cFalse): False.
-  Proof. punfold CF. inv CF. ss. Qed.
-
-  CoFixpoint combine_raw R (tr1: @RawTr.t _ R) (tr2: @RawTr.t _ R): (@RawTr.t _ R) :=
-    match tr1 with
-    | RawTr.done retv => RawTr.done retv
-    | RawTr.ub => RawTr.ub
-    | RawTr.nb => RawTr.nb
-    | RawTr.cons hd tl => RawTr.cons hd (combine_raw tl tr2)
-    end.
+  (* CoFixpoint combine_raw R (tr1: @RawTr.t _ R) (tr2: @RawTr.t _ R): (@RawTr.t _ R) := *)
+  (*   match tr1 with *)
+  (*   | RawTr.done retv => RawTr.done retv *)
+  (*   | RawTr.ub => RawTr.ub *)
+  (*   | RawTr.nb => RawTr.nb *)
+  (*   | RawTr.cons hd tl => RawTr.cons hd (combine_raw tl tr2) *)
+  (*   end. *)
 
   (* Lemma next_fail_exists_prefix *)
   (*       i R (tr next: @RawTr.t _ R) *)
@@ -171,6 +173,70 @@ Section AUX.
     { econs 3; eauto. }
     { econs 4; eauto. }
     { econs 5; eauto. }
+  Qed.
+
+  Lemma not_must_fail_all_next_fail
+        i R (tr: @RawTr.t _ R)
+        (NMUST: ~ must_fail i tr)
+        (NEXT: exists next, RawTr.next_fail i tr next)
+    :
+    forall raw, RawTr.next_fail i tr raw.
+  Proof.
+    i. revert_until R. pcofix CIH. i. destruct tr.
+    { punfold NEXT. inv NEXT. }
+    { punfold NEXT. inv NEXT. }
+    { punfold NEXT. inv NEXT. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH.
+          { ii. eapply NMUST. econs. auto. }
+          { punfold NEXT. inv NEXT. pclearbot. eauto. }
+      }
+      destruct silent as [| fm].
+      { pfold. econs. right. eapply CIH.
+        { ii. eapply NMUST. econs. auto. }
+        { punfold NEXT. inv NEXT. pclearbot. eauto. }
+      }
+      { destruct (fm i) eqn:FM.
+        { exfalso. eapply NMUST. econs; eauto. }
+        { pfold. econs. auto. right. eapply CIH.
+          { ii. eapply NMUST. econs 4; auto. }
+          { punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. pclearbot. eauto. }
+        }
+        { exfalso. punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. rewrite FM in EMP; ss. }
+      }
+    }
+  Qed.
+
+  Lemma not_must_fail_nofail
+        i R (tr: @RawTr.t _ R)
+        (NMUST: ~ must_fail i tr)
+        (NEXT: exists next, RawTr.next_fail i tr next)
+    :
+    RawTr.nofail i tr.
+  Proof.
+    i. revert_until R. pcofix CIH. i. destruct tr.
+    { punfold NEXT. }
+    { punfold NEXT. }
+    { punfold NEXT. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH.
+          { ii. eapply NMUST. econs. auto. }
+          { punfold NEXT. inv NEXT. pclearbot. eauto. }
+      }
+      destruct silent as [| fm].
+      { pfold. econs. right. eapply CIH.
+        { ii. eapply NMUST. econs. auto. }
+        { punfold NEXT. inv NEXT. pclearbot. eauto. }
+      }
+      { destruct (fm i) eqn:FM.
+        { exfalso. eapply NMUST. econs; eauto. }
+        { pfold. econs 7. auto. right. eapply CIH.
+          { ii. eapply NMUST. econs 4; auto. }
+          { punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. pclearbot. eauto. }
+        }
+        { exfalso. punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. rewrite FM in EMP; ss. }
+      }
+    }
   Qed.
 
   Lemma nofail_all_ord_tr
