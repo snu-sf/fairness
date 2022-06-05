@@ -337,21 +337,28 @@ Section EQUIV2.
 
   Inductive ord_tr (i: id) R: wft.(T) -> (@RawTr.t _ R) -> Prop :=
   (* base cases *)
-  | ord_tr_done
-      retv
+  (* | ord_tr_done *)
+  (*     retv *)
+  (*   : *)
+  (*   ord_tr i wft0 (RawTr.done retv) *)
+  (* | ord_tr_ub *)
+  (*   : *)
+  (*   ord_tr i wft0 RawTr.ub *)
+  (* | ord_tr_nb *)
+  (*   : *)
+  (*   ord_tr i wft0 RawTr.nb *)
+
+  (* no more fail *)
+  | ord_tr_nofail
+      tr
+      (NOFAIL: nofail i tr)
     :
-    ord_tr i wft0 (RawTr.done retv)
-  | ord_tr_ub
-    :
-    ord_tr i wft0 RawTr.ub
-  | ord_tr_nb
-    :
-    ord_tr i wft0 RawTr.nb
-  | ord_tr_fair_success
-      fmap tl
-      (SUCCESS: Flag.success = (fmap i))
-    :
-    ord_tr i wft0 (RawTr.cons (inl (silentE_fair fmap)) tl)
+    ord_tr i wft0 tr
+  (* | ord_tr_fair_success *)
+  (*     fmap tl *)
+  (*     (SUCCESS: Flag.success = (fmap i)) *)
+  (*   : *)
+  (*   ord_tr i wft0 (RawTr.cons (inl (silentE_fair fmap)) tl) *)
 
   (* inductive cases *)
   | ord_tr_obs
@@ -381,11 +388,6 @@ Section EQUIV2.
       (TL: ord_tr i o tl)
     :
     ord_tr i (S o) (RawTr.cons (inl (silentE_fair fmap)) tl)
-  (* | ord_tr_nofail *)
-  (*     tr *)
-  (*     (NOFAIL: nofail_tr i tr) *)
-  (*   : *)
-  (*   _ord_tr i ord_tr o tr *)
   .
 
 
