@@ -94,24 +94,27 @@ Section AUX.
 
   (* inductive cases *)
   | ord_tr_obs
-      o (obs: obsE) tl next
+      o1 o2 (obs: obsE) tl next
       (NEXT: RawTr.next_fail i tl next)
-      (ORD: ord_tr i o next)
+      (LT: lt wft o2 o1)
+      (ORD: ord_tr i o2 next)
     :
-    ord_tr i o (RawTr.cons (inr obs) tl)
+    ord_tr i o1 (RawTr.cons (inr obs) tl)
   | ord_tr_tau
-      o tl next
+      o1 o2 tl next
       (NEXT: RawTr.next_fail i tl next)
-      (ORD: ord_tr i o next)
+      (LT: lt wft o2 o1)
+      (ORD: ord_tr i o2 next)
     :
-    ord_tr i o (RawTr.cons (inl silentE_tau) tl)
+    ord_tr i o1 (RawTr.cons (inl silentE_tau) tl)
   | ord_tr_fair_emp
-      o fmap tl next
+      o1 o2 fmap tl next
       (EMP: Flag.emp = (fmap i))
       (NEXT: RawTr.next_fail i tl next)
-      (ORD: ord_tr i o next)
+      (LT: lt wft o2 o1)
+      (ORD: ord_tr i o2 next)
     :
-    ord_tr i o (RawTr.cons (inl (silentE_fair fmap)) tl)
+    ord_tr i o1 (RawTr.cons (inl (silentE_fair fmap)) tl)
   | ord_tr_fair_fail
       o1 o2 fmap tl
       (FAIL: Flag.fail = (fmap i))
@@ -373,9 +376,9 @@ Section AUX.
     2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
     inv PR.
     { eexists. econs 1. auto. }
-    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (o). econs 2; eauto. }
-    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (o). econs 3; eauto. }
-    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (o). econs 4; eauto. }
+    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 2; eauto. }
+    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 3; eauto. }
+    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 4; eauto. }
     { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 5; eauto. }
     { eexists. econs. pfold. econs. auto. }
     Unshelve. all: exact wft0.
