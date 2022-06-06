@@ -338,9 +338,8 @@ Section AUX.
     }
   Qed.
 
-  Lemma coind_fail_cases
+  Lemma must_fail_or_nofail
         i R (tr: @RawTr.t Ident R)
-        (CF: coind_fail i tr)
     :
     (must_fail i tr) \/ (RawTr.nofail i tr).
   Proof.
@@ -467,16 +466,27 @@ Section EQUIV1.
     (exists o, ord_tr wft i o tr).
   Proof.
     (* exists (m i).  *)
-    remember (m i) as idx.
     hexploit coind_fail_cases; eauto. i; des.
     2:{ eapply nofail_ex_ord_tr; eauto. }
     rename H into MUST.
-    cut ((le wft idx (m i)) /\ (lt wft wft0 idx)).
+    hexploit fair_ord_ex_lt; eauto. i. clear MUST. des. rename H into LT.
+
+    (* remember (m i) as idx. *)
+    (* (* hexploit coind_fail_cases; eauto. i; des. *) *)
+    (* (* 2:{ eapply nofail_ex_ord_tr; eauto. } *) *)
+    (* (* rename H into MUST. *) *)
+    (* (* cut (exists o, lt wft o idx). *) *)
+    (* (* 2:{ hexploit fair_ord_ex_lt. eauto. eauto. i. clarify. } *) *)
+    (* (* cut ((le wft idx (m i)) /\ (lt wft wft0 idx)). *) *)
     (* cut (le wft idx (m i)). *)
-    2:{ split. left. auto. clarify. admit. }
-    clear Heqidx MUST. intros LE.
-    move idx before R. revert_until idx.
-    induction (wft.(wf) idx). rename H into ACC, H0 into IH, x into idx. i.
+    (* 2:{ left. auto. } *)
+    (* (* 2:{ split. left. auto. clarify. admit. } *) *)
+    (* (* clear Heqidx MUST. intros LT. *) *)
+    (* clear Heqidx. intros LE. *)
+    (* move idx before R. revert_until idx. *)
+    (* induction (wft.(wf) idx). rename H into ACC, H0 into IH, x into idx. i. *)
+    move o before i. revert_until o.
+    induction (wft.(wf) o). rename H into ACC, H0 into IH, x into idx. i.
     punfold ORD. inv ORD.
     { eexists. econs 1. pfold. econs. }
     { eexists. econs 1. pfold. econs. }
@@ -484,6 +494,12 @@ Section EQUIV1.
     { pclearbot. hexploit coind_fail_cases; eauto. i; des.
       2:{ eexists. eapply ord_tr_nofail; eauto. }
       rename H into MUST. inv MUST.
+      hexploit fair_ord_ex_lt; eauto. i.
+
+
+
+
+      
       destruct (classic (exists next, RawTr.next_fail i tl next)) as [EX | NOT].
       { des. destruct LE as [EQ | LT].
         2:{ hexploit IH. eauto.
