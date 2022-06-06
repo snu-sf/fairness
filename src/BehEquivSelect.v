@@ -419,7 +419,47 @@ Section EQUIV1.
   Variable wft0: wft.(T).
   Variable S: wft.(T) -> wft.(T).
   Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
-  (* Hypothesis WFTR: Transitive wft.(lt). *)
+  Hypothesis WFTR: Transitive wft.(lt).
+
+  Theorem Ord_implies_Ind
+          R
+          (tr: @RawTr.t Ident R)
+          (ORD: RawTr.is_fair_ord wft tr)
+    :
+    RawTr.is_fair tr.
+  Proof.
+    ii. unfold RawTr.is_fair_ord in ORD. des.
+    revert_until WFTR. pcofix CIH1. i.
+    eapply paco3_fold.
+    remember (m i) as idx. move idx before CIH1. revert_until idx.
+    induction (wft.(wf) idx). rename H0 into IH, x into idx. clear H. i.
+    eapply pind3_fold. revert_until IH. pcofix CIH2. i.
+    eapply paco3_fold. eapply paco3_unfold.
+    { eapply RawTr._fair_mon. }
+    punfold ORD. inv ORD.
+    { pfold. econs 1. }
+    { pfold. econs 2. }
+    { pfold. econs 3. }
+    { pclearbot. pfold. econs 4. right. eapply CIH2; eauto. }
+    { pclearbot. destruct (fmap i) eqn:FM.
+      { pfold. econs 7. auto. split; ss. eapply IH. 2: eauto. all: eauto.
+        unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. auto.
+      }
+      { dup FAIR. unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. destruct FAIR as [EQ | LT].
+        - pfold. econs 6. auto. right. eapply CIH2; eauto.
+        - pfold. econs 6. auto. right. eapply CIH2.
+          instantiate (1:= fun id => if (ID_DEC id i) then (m i) else (m0 id)).
+          + ginit. guclo RawTr.fair_ord_imap_le_ctx_spec. econs. gfinal; eauto.
+            unfold soft_update. i. destruct (ID_DEC i0 i) as [EQ | NEQ].
+            * clarify. right. auto.
+            * left. auto.
+          + ss. des_ifs.
+      }
+      { pfold. econs 8. auto. right. eapply CIH1; eauto. }
+    }
+    { pclearbot. pfold. econs 5. right. eapply CIH2; eauto. }
+  Qed.
+
 
   (* Lemma fair_ord_must_fail_ex_ord_tr *)
   (*       i m R (tr: @RawTr.t _ R) *)

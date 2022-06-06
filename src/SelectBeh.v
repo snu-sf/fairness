@@ -234,110 +234,114 @@ Section TR.
     ii. eapply pind3_mon_gen; eauto. ii. eapply fair_ind_mon1; eauto.
   Qed.
 
+  Definition is_fair_ind {R} (tr: @t R) := forall i, fair_ind i tr.
 
 
-  (*old2*)
 
-  (* Variant ___fair_ind *)
-  (*         (fair_ind: forall (R: Type) (i: id), (@t R) -> Prop) *)
-  (*         (_fair_ind: forall (R: Type) (i: id), (@t R) -> Prop) *)
-  (*         (__fair_ind: forall (R: Type) (i: id), (@t R) -> Prop) *)
-  (*         (R: Type) (i: id) *)
-  (*   : *)
-  (*   (@t R) -> Prop := *)
-  (*   (* base cases *) *)
-  (*   | fair_ind_done *)
-  (*       retv *)
-  (*     : *)
-  (*     ___fair_ind fair_ind _fair_ind __fair_ind i (done retv) *)
-  (*   | fair_ind_ub *)
-  (*     : *)
-  (*     ___fair_ind fair_ind _fair_ind __fair_ind i ub *)
-  (*   | fair_ind_nb *)
-  (*     : *)
-  (*     ___fair_ind fair_ind _fair_ind __fair_ind i nb *)
+  (** select fair trace with fixpoints **)
+  Variant ___fair
+          (fair: forall (R: Type) (i: id), (@t R) -> Prop)
+          (_fair: forall (R: Type) (i: id), (@t R) -> Prop)
+          (__fair: forall (R: Type) (i: id), (@t R) -> Prop)
+          (R: Type) (i: id)
+    :
+    (@t R) -> Prop :=
+    (* base cases *)
+    | fair_done
+        retv
+      :
+      ___fair fair _fair __fair i (done retv)
+    | fair_ub
+      :
+      ___fair fair _fair __fair i ub
+    | fair_nb
+      :
+      ___fair fair _fair __fair i nb
 
-  (*   (* innermost coinductive cases: no fair events for i *) *)
-  (*   | fair_ind_obs *)
-  (*       (obs: obsE) tl *)
-  (*       (TL: __fair_ind R i tl) *)
-  (*     : *)
-  (*     ___fair_ind fair_ind _fair_ind __fair_ind i (cons (inr obs) tl) *)
-  (*   | fair_ind_tau *)
-  (*       tl *)
-  (*       (TL: __fair_ind R i tl) *)
-  (*     : *)
-  (*     ___fair_ind fair_ind _fair_ind __fair_ind i (cons (inl silentE_tau) tl) *)
-  (*   | fair_ind_fair_emp *)
-  (*       fmap tl *)
-  (*       (EMP: Flag.emp = (fmap i)) *)
-  (*       (TL: __fair_ind R i tl) *)
-  (*     : *)
-  (*     ___fair_ind fair_ind _fair_ind __fair_ind i (cons (inl (silentE_fair fmap)) tl) *)
+    (* innermost coinductive cases: no fair events for i *)
+    | fair_obs
+        (obs: obsE) tl
+        (TL: __fair R i tl)
+      :
+      ___fair fair _fair __fair i (cons (inr obs) tl)
+    | fair_tau
+        tl
+        (TL: __fair R i tl)
+      :
+      ___fair fair _fair __fair i (cons (inl silentE_tau) tl)
+    | fair_fair_emp
+        fmap tl
+        (EMP: Flag.emp = (fmap i))
+        (TL: __fair R i tl)
+      :
+      ___fair fair _fair __fair i (cons (inl (silentE_fair fmap)) tl)
 
-  (*   (* middle inductive cases: i fails inductively *) *)
-  (*   | fair_ind_fair_fail *)
-  (*       fmap tl *)
-  (*       (FAIL: Flag.fail = (fmap i)) *)
-  (*       (TL: _fair_ind R i tl) *)
-  (*     : *)
-  (*     ___fair_ind fair_ind _fair_ind __fair_ind i (cons (inl (silentE_fair fmap)) tl) *)
+    (* middle inductive cases: i fails inductively *)
+    | fair_fair_fail
+        fmap tl
+        (FAIL: Flag.fail = (fmap i))
+        (TL: _fair R i tl)
+      :
+      ___fair fair _fair __fair i (cons (inl (silentE_fair fmap)) tl)
 
-  (*   (* outermost coinductive cases: i successes *) *)
-  (*   | fair_ind_fair_success *)
-  (*       fmap tl *)
-  (*       (SUCCESS: Flag.success = (fmap i)) *)
-  (*       (TL: fair_ind R i tl) *)
-  (*     : *)
-  (*     ___fair_ind fair_ind _fair_ind __fair_ind i (cons (inl (silentE_fair fmap)) tl) *)
-  (* . *)
+    (* outermost coinductive cases: i successes *)
+    | fair_fair_success
+        fmap tl
+        (SUCCESS: Flag.success = (fmap i))
+        (TL: fair R i tl)
+      :
+      ___fair fair _fair __fair i (cons (inl (silentE_fair fmap)) tl)
+  .
 
-  (* Definition fair_ind: forall (R: Type) (i: id), (@t R) -> Prop := *)
-  (*   paco3 (fun r => pind3 (fun q => paco3 (___fair_ind r q) bot3) top3) bot3. *)
+  Definition fair: forall (R: Type) (i: id), (@t R) -> Prop :=
+    paco3 (fun r => pind3 (fun q => paco3 (___fair r q) bot3) top3) bot3.
 
-  (* Lemma ___fair_ind_mon: forall r r' (LE: r <3= r'), (___fair_ind r) <5= (___fair_ind r'). *)
-  (* Proof. *)
-  (*   ii. inv PR. *)
-  (*   - econs 1; eauto. *)
-  (*   - econs 2; eauto. *)
-  (*   - econs 3; eauto. *)
-  (*   - econs 4; eauto. *)
-  (*   - econs 5; eauto. *)
-  (*   - econs 6; eauto. *)
-  (*   - econs 7; eauto. *)
-  (*   - econs 8; eauto. *)
-  (* Qed. *)
+  Lemma ___fair_mon: forall r r' (LE: r <3= r'), (___fair r) <5= (___fair r').
+  Proof.
+    ii. inv PR.
+    - econs 1; eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+    - econs 5; eauto.
+    - econs 6; eauto.
+    - econs 7; eauto.
+    - econs 8; eauto.
+  Qed.
 
-  (* Lemma __fair_ind_mon: forall r q q' (LE: q <3= q'), (___fair_ind r q) <4= (___fair_ind r q'). *)
-  (* Proof. *)
-  (*   ii. inv PR. *)
-  (*   - econs 1; eauto. *)
-  (*   - econs 2; eauto. *)
-  (*   - econs 3; eauto. *)
-  (*   - econs 4; eauto. *)
-  (*   - econs 5; eauto. *)
-  (*   - econs 6; eauto. *)
-  (*   - econs 7; eauto. *)
-  (*   - econs 8; eauto. *)
-  (* Qed. *)
+  Lemma __fair_mon: forall r q q' (LE: q <3= q'), (___fair r q) <4= (___fair r q').
+  Proof.
+    ii. inv PR.
+    - econs 1; eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+    - econs 5; eauto.
+    - econs 6; eauto.
+    - econs 7; eauto.
+    - econs 8; eauto.
+  Qed.
 
-  (* Lemma _fair_ind_mon: forall r q, monotone3 (___fair_ind r q). *)
-  (* Proof. *)
-  (*   ii. inv IN. *)
-  (*   - econs 1; eauto. *)
-  (*   - econs 2; eauto. *)
-  (*   - econs 3; eauto. *)
-  (*   - econs 4; eauto. *)
-  (*   - econs 5; eauto. *)
-  (*   - econs 6; eauto. *)
-  (*   - econs 7; eauto. *)
-  (*   - econs 8; eauto. *)
-  (* Qed. *)
+  Lemma _fair_mon: forall r q, monotone3 (___fair r q).
+  Proof.
+    ii. inv IN.
+    - econs 1; eauto.
+    - econs 2; eauto.
+    - econs 3; eauto.
+    - econs 4; eauto.
+    - econs 5; eauto.
+    - econs 6; eauto.
+    - econs 7; eauto.
+    - econs 8; eauto.
+  Qed.
 
-  (* Lemma fair_ind_mon: forall o p, monotone3 (fun r => pind3 (fun q => (___fair_ind r q) p) o). *)
-  (* Proof. *)
-  (*   ii. eapply pind3_mon_gen; eauto. ii. eapply ___fair_ind_mon; eauto. *)
-  (* Qed. *)
+  Lemma fair_mon: forall o p, monotone3 (fun r => pind3 (fun q => paco3 (___fair r q) p) o).
+  Proof.
+    ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen; eauto. i. eapply ___fair_mon; eauto.
+  Qed.
+
+  Definition is_fair {R} (tr: @t R) := forall i, fair i tr.
+
 
   (* old1 *)
 
@@ -414,7 +418,6 @@ Section TR.
   (*   - econs 5; eauto. *)
   (* Qed. *)
 
-  Definition is_fair_ind {R} (tr: @t R) := forall i, fair_ind i tr.
 
 
   (** select fair trace with well-founded order **)
@@ -571,9 +574,14 @@ End RawTr.
 #[export] Hint Resolve RawTr.fair_ind_mon1: paco.
 #[export] Hint Resolve RawTr.fair_ind_mon2: paco.
 #[export] Hint Resolve RawTr.fair_ind_mon: paco.
-(* #[export] Hint Constructors RawTr.___fair_ind: core. *)
-(* #[export] Hint Unfold RawTr.fair_ind: core. *)
-(* #[export] Hint Resolve RawTr.fair_ind_mon: paco. *)
+
+#[export] Hint Constructors RawTr.___fair: core.
+#[export] Hint Unfold RawTr.fair: core.
+#[export] Hint Resolve RawTr.fair_mon: paco.
+#[export] Hint Resolve RawTr.___fair_mon: paco.
+#[export] Hint Resolve RawTr.__fair_mon: paco.
+#[export] Hint Resolve RawTr._fair_mon: paco.
+#[export] Hint Resolve RawTr.fair_mon: paco.
 
 (* #[export] Hint Constructors RawTr._nofail_ind: core. *)
 (* #[export] Hint Unfold RawTr.nofail_ind: core. *)
@@ -588,11 +596,12 @@ End RawTr.
 #[export] Hint Constructors RawTr._fair_ord: core.
 #[export] Hint Unfold RawTr.fair_ord: core.
 #[export] Hint Resolve RawTr.fair_ord_mon: paco.
+#[export] Hint Resolve RawTr.fair_ord_imap_le_ctx_mon: paco.
+
 #[export] Hint Constructors RawTr._eq: core.
 #[export] Hint Unfold RawTr.eq: core.
 #[export] Hint Resolve RawTr.eq_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
-#[export] Hint Resolve RawTr.fair_ord_imap_le_ctx_mon: paco.
 
 
 Module RawBeh.
@@ -661,6 +670,9 @@ Section BEHAVES.
 
   Definition of_state_fair_ord {wf: WF} {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
     (<<BEH: of_state st raw_tr>>) /\ (<<FAIR: RawTr.is_fair_ord wf raw_tr>>).
+
+  Definition of_state_fair {wf: WF} {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
+    (<<BEH: of_state st raw_tr>>) /\ (<<FAIR: RawTr.is_fair raw_tr>>).
 
 
 
