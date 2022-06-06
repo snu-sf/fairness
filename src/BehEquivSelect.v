@@ -638,14 +638,29 @@ Section EQUIV2.
         { admit. }
         rewrite H0; rewrite <- H; left; auto.
       }
-      { assert (tr2ord_i i tr = o).
+      { assert (tr2ord_i i tr = S o).
         { admit. }
-        rewrite H; right; auto.
+        rewrite H; left; auto.
       }
       { rewrite Heq in FAIL; ss. }
     }
   Qed.
 
+  IND : RawTr.is_fair_ind tr
+  TL : ord_tr wft wft0 S i o tr
+  ============================
+  tr2ord_i i tr = o
+
+  IND : RawTr.is_fair_ind tr
+  TL : paco2 (RawTr._nofail i) bot2 R tr
+  ============================
+  tr2ord_i i tr = wft0
+
+  IND : RawTr.is_fair_ind tr
+  NEXT : RawTr.next_fail i tr next
+  ORD0 : ord_tr wft wft0 S i o next
+  ============================
+  tr2ord_i i tr = S o
 
   Lemma ord_tr_fair_ord
         R (tr: @RawTr.t Ident R) m
