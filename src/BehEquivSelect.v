@@ -551,6 +551,53 @@ End EQUIV.
 
 
 
+Section EQUIV2.
+
+  Context {Ident: ID}.
+  (* Hypothesis ID_DEC: forall (i0 i1: Ident.(id)), {i0 = i1} + {i0 <> i1}. *)
+
+  Variable wft: WF.
+  Variable wft0: wft.(T).
+  Variable S: wft.(T) -> wft.(T).
+  Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
+  (* Hypothesis WFTR: Transitive wft.(lt). *)
+
+  Lemma inhabited_tr_ord: inhabited (T wft).
+  Proof. econs. exact wft0. Qed.
+
+  Definition tr2ord_i {R} i (tr: (@RawTr.t _ R)): wft.(T) :=
+    epsilon _ (inhabited_tr_ord) (fun o => ord_tr wft i o tr).
+
+  Theorem tr2ord_i_spec
+          i R (tr: @RawTr.t _ R)
+          (IND: RawTr.is_fair_ind tr)
+    :
+    ord_tr wft i (tr2ord_i i tr) tr.
+  Proof.
+    unfold tr2ord_i, epsilon. unfold Epsilon.epsilon, proj1_sig. des_ifs. clear Heq.
+    hexploit o; clear o. eapply fair_ind_ex_ord_tr; eauto. intros ORD. rename x into o. auto.
+  Qed.
+
+  Lemma ord_tr_fair_ord
+        R (tr: @RawTr.t Ident R) m
+        (ORD: forall i, ord_tr wft i (m i) tr)
+    :
+    RawTr.fair_ord m tr.
+  Proof.
+    revert_until R. pcofix CIH. i. destruct tr.
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
+          - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
+          - 
+
+
+End EQUIV2.
+
+
+
 
 
 Section EQUIV2.
