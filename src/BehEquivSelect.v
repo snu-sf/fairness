@@ -79,6 +79,12 @@ Section AUX.
       (MUST: must_fail i tl)
     :
     must_fail i (RawTr.cons (inl (silentE_fair fm)) tl)
+  | must_fail_success
+      fm tl
+      (SUCCESS: Flag.success = fm i)
+      (MUST: must_fail i tl)
+    :
+    must_fail i (RawTr.cons (inl (silentE_fair fm)) tl)
   .
 
 
@@ -164,37 +170,37 @@ Section AUX.
   (* . *)
 
 
-  Lemma not_must_fail_all_next_fail
-        i R (tr: @RawTr.t _ R)
-        (NMUST: ~ must_fail i tr)
-        (NEXT: exists next, RawTr.next_fail i tr next)
-    :
-    forall raw, RawTr.next_fail i tr raw.
-  Proof.
-    i. revert_until R. pcofix CIH. i. destruct tr.
-    { punfold NEXT. inv NEXT. }
-    { punfold NEXT. inv NEXT. }
-    { punfold NEXT. inv NEXT. }
-    { destruct hd as [silent | obs].
-      2:{ pfold. econs. right. eapply CIH.
-          { ii. eapply NMUST. econs. auto. }
-          { punfold NEXT. inv NEXT. pclearbot. eauto. }
-      }
-      destruct silent as [| fm].
-      { pfold. econs. right. eapply CIH.
-        { ii. eapply NMUST. econs. auto. }
-        { punfold NEXT. inv NEXT. pclearbot. eauto. }
-      }
-      { destruct (fm i) eqn:FM.
-        { exfalso. eapply NMUST. econs; eauto. }
-        { pfold. econs. auto. right. eapply CIH.
-          { ii. eapply NMUST. econs 4; auto. }
-          { punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. pclearbot. eauto. }
-        }
-        { exfalso. punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. rewrite FM in EMP; ss. }
-      }
-    }
-  Qed.
+  (* Lemma not_must_fail_all_next_fail *)
+  (*       i R (tr: @RawTr.t _ R) *)
+  (*       (NMUST: ~ must_fail i tr) *)
+  (*       (NEXT: exists next, RawTr.next_fail i tr next) *)
+  (*   : *)
+  (*   forall raw, RawTr.next_fail i tr raw. *)
+  (* Proof. *)
+  (*   i. revert_until R. pcofix CIH. i. destruct tr. *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { destruct hd as [silent | obs]. *)
+  (*     2:{ pfold. econs. right. eapply CIH. *)
+  (*         { ii. eapply NMUST. econs. auto. } *)
+  (*         { punfold NEXT. inv NEXT. pclearbot. eauto. } *)
+  (*     } *)
+  (*     destruct silent as [| fm]. *)
+  (*     { pfold. econs. right. eapply CIH. *)
+  (*       { ii. eapply NMUST. econs. auto. } *)
+  (*       { punfold NEXT. inv NEXT. pclearbot. eauto. } *)
+  (*     } *)
+  (*     { destruct (fm i) eqn:FM. *)
+  (*       { exfalso. eapply NMUST. econs; eauto. } *)
+  (*       { pfold. econs. auto. right. eapply CIH. *)
+  (*         { ii. eapply NMUST. econs 4; auto. } *)
+  (*         { punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. pclearbot. eauto. } *)
+  (*       } *)
+  (*       { exfalso. punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. rewrite FM in EMP; ss. } *)
+  (*     } *)
+  (*   } *)
+  (* Qed. *)
 
   Lemma not_must_fail_nofail
         i R (tr: @RawTr.t _ R)
@@ -219,7 +225,7 @@ Section AUX.
         { pfold. econs 7. auto. right. eapply CIH.
           ii. eapply NMUST. econs 4; auto.
         }
-        { pfold. econs 4. ss. right. eapply CIH. ii. eapply NMUST. }
+        { pfold. econs 4. ss. right. eapply CIH. ii. eapply NMUST. econs 5; auto. }
       }
     }
   Qed.
@@ -235,6 +241,9 @@ Section AUX.
     { ii. apply IHMUST; clear IHMUST. punfold H. inv H. pclearbot. auto. }
     { ii. apply IHMUST; clear IHMUST. punfold H. inv H. pclearbot. auto. }
     { ii. apply IHMUST; clear IHMUST. punfold H. inv H. rewrite <- EMP in SUCCESS; ss.
+      pclearbot. auto. }
+    { ii. apply IHMUST; clear IHMUST. punfold H. inv H.
+      2:{ rewrite <- EMP in SUCCESS; ss. }
       pclearbot. auto. }
   Qed.
 
@@ -363,67 +372,65 @@ Section AUX.
     (must_fail i tr) \/ (RawTr.nofail i tr).
   Proof.
     destruct (classic (must_fail i tr)) as [MUST | NM]; auto.
-    destruct (classic (exists next, RawTr.next_fail i tr next)) as [NEXT | NONEXT].
-    { hexploit not_must_fail_nofail; eauto. }
-    eapply not_ex_next_fail_nofail in NONEXT. auto.
+    eapply not_must_fail_nofail in NM. auto.
   Qed.
 
-  Lemma must_fail_ex_next
-        i R (tr: @RawTr.t _ R)
-        (MUST: must_fail i tr)
-    :
-    exists next, RawTr.next_fail i tr next.
-  Proof.
-    induction MUST.
-    { exists tl. pfold. econs 1. auto. }
-    { des. eexists. pfold. econs; eauto. }
-    { des. eexists. pfold. econs; eauto. }
-    { des. eexists. pfold. econs 4; eauto. }
-  Qed.
+  (* Lemma must_fail_ex_next *)
+  (*       i R (tr: @RawTr.t _ R) *)
+  (*       (MUST: must_fail i tr) *)
+  (*   : *)
+  (*   exists next, RawTr.next_fail i tr next. *)
+  (* Proof. *)
+  (*   induction MUST. *)
+  (*   { exists tl. pfold. econs 1. auto. } *)
+  (*   { des. eexists. pfold. econs; eauto. } *)
+  (*   { des. eexists. pfold. econs; eauto. } *)
+  (*   { des. eexists. pfold. econs 4; eauto. } *)
+  (* Qed. *)
 
 
 
-  Lemma fair_ind_ex_ord_tr
-        i R (tr: @RawTr.t _ R)
-        (IND: RawTr.is_fair_ind tr)
-    :
-    exists o, ord_tr i o tr.
-  Proof.
-    specialize (IND i). punfold IND.
-    revert R i tr IND.
-    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => (exists o, ord_tr i o tr))).
-    i. rename x0 into R, x1 into i, x2 into tr.
-    eapply pind3_unfold in PR.
-    2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
-    inv PR.
-    { eexists. econs 1. auto. }
-    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
-      2:{ eexists. econs 1. pfold. econs. eauto. }
-      destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 2; eauto. }
-    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
-      2:{ eexists. econs 1. pfold. econs. eauto. }
-      destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 3; eauto. }
-    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
-      2:{ eexists. econs 1. pfold. econs 7; eauto. }
-      destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 4; eauto. }
-    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 5; eauto. }
-    { eexists. econs. pfold. econs. auto. }
-  Qed.
+  (* Lemma fair_ind_ex_ord_tr *)
+  (*       i R (tr: @RawTr.t _ R) *)
+  (*       (IND: RawTr.is_fair_ind tr) *)
+  (*   : *)
+  (*   exists o, ord_tr i o tr. *)
+  (* Proof. *)
+  (*   specialize (IND i). punfold IND. *)
+  (*   revert R i tr IND. *)
+  (*   eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => (exists o, ord_tr i o tr))). *)
+  (*   i. rename x0 into R, x1 into i, x2 into tr. *)
+  (*   eapply pind3_unfold in PR. *)
+  (*   2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. } *)
+  (*   inv PR. *)
+  (*   { eexists. econs 1. auto. } *)
+  (*   { destruct (must_fail_or_nofail i tl) as [MUST | NF]. *)
+  (*     2:{ eexists. econs 1. pfold. econs. eauto. } *)
+  (*     destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 2; eauto. } *)
+  (*   { destruct (must_fail_or_nofail i tl) as [MUST | NF]. *)
+  (*     2:{ eexists. econs 1. pfold. econs. eauto. } *)
+  (*     destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 3; eauto. } *)
+  (*   { destruct (must_fail_or_nofail i tl) as [MUST | NF]. *)
+  (*     2:{ eexists. econs 1. pfold. econs 7; eauto. } *)
+  (*     destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 4; eauto. } *)
+  (*   { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 5; eauto. } *)
+  (*   { eexists. econs. pfold. econs. auto. } *)
+  (* Qed. *)
 
-  Lemma ex_ord_tr_fair_ind
-        i R (tr: @RawTr.t _ R)
-        (ORD: exists o, ord_tr i o tr)
-    :
-    RawTr.fair_ind i tr.
-  Proof.
-    des. revert_until R. pcofix CIH. i. pfold.
-    induction ORD.
-    { eapply pind3_fold. econs 1; eauto. }
-    { eapply pind3_fold. econs 2. eauto. split; ss. }
-    { eapply pind3_fold. econs 3. eauto. split; ss. }
-    { eapply pind3_fold. econs 4; eauto. split; ss. }
-    { eapply pind3_fold. econs 5. ss. split; ss. }
-  Qed.
+  (* Lemma ex_ord_tr_fair_ind *)
+  (*       i R (tr: @RawTr.t _ R) *)
+  (*       (ORD: exists o, ord_tr i o tr) *)
+  (*   : *)
+  (*   RawTr.fair_ind i tr. *)
+  (* Proof. *)
+  (*   des. revert_until R. pcofix CIH. i. pfold. *)
+  (*   induction ORD. *)
+  (*   { eapply pind3_fold. econs 1; eauto. } *)
+  (*   { eapply pind3_fold. econs 2. eauto. split; ss. } *)
+  (*   { eapply pind3_fold. econs 3. eauto. split; ss. } *)
+  (*   { eapply pind3_fold. econs 4; eauto. split; ss. } *)
+  (*   { eapply pind3_fold. econs 5. ss. split; ss. } *)
+  (* Qed. *)
 
 End AUX.
 (* #[export] Hint Constructors _coind_fail: core. *)
@@ -483,6 +490,7 @@ Section EQUIV.
   Qed.
 
 
+  (*TODO*)
   Lemma must_fail_fair_ind
         i R r (tr: @RawTr.t _ R)
         (MUST: must_fail i tr)
