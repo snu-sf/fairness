@@ -613,6 +613,71 @@ Section EQUIV2.
     }
   Qed.
 
+
+  Lemma ord_tr_fair_case
+        R (tr: @RawTr.t _ R) fm m
+        (IND: RawTr.is_fair_ind tr)
+        (ORD: forall i : id, ord_tr wft wft0 S i (m i) (RawTr.cons (inl (silentE_fair fm)) tr))
+    :
+    exists m0, (fair_update m m0 fm) /\ (forall i : id, ord_tr wft wft0 S i (m0 i) tr).
+  Proof.
+    exists (fun i => tr2ord_i i tr). split.
+    2:{ i. eapply tr2ord_i_spec. eauto. }
+    ii. specialize (ORD i). des_ifs.
+    { inv ORD.
+      { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. rewrite Heq in EMP; ss. }
+      { rewrite Heq in EMP; ss. }
+      { assert (tr2ord_i i tr = o).
+        { admit. }
+        rewrite H; auto.
+      }
+    }
+    { inv ORD.
+      { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. pclearbot.
+        assert (tr2ord_i i tr = wft0).
+        { admit. }
+        rewrite H0; rewrite <- H; left; auto.
+      }
+      { assert (tr2ord_i i tr = o).
+        { admit. }
+        rewrite H; right; auto.
+      }
+      { rewrite Heq in FAIL; ss. }
+    }
+  Qed.
+
+
+  Lemma ord_tr_fair_ord
+        R (tr: @RawTr.t Ident R) m
+        (ORD: forall i, ord_tr wft wft0 S i (m i) tr)
+    :
+    RawTr.fair_ord m tr.
+  Proof.
+    revert_until R. pcofix CIH. i. destruct tr.
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
+          - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
+          - eapply next_ord_tr; eauto.
+      }
+      destruct silent as [| fm].
+      { pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
+        - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
+        - eapply next_ord_tr; eauto.
+      }
+      { pfold. econs. 2:{ right. eapply CIH. i. specialize (ORD i). inv ORD.
+                          { punfold NOFAIL. inv NOFAIL.
+
+        
+      destruct (fm i)
+
+            pose proof (must_fail_or_nofail i tr). destruct H as [MUST | NOF].
+            { 
+
+
+
   (* Lemma next_ord_tr *)
   (*       i R (tr next: @RawTr.t _ R) *)
   (*       o1 o2 *)
