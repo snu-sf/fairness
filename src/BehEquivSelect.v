@@ -491,24 +491,24 @@ Section EQUIV.
 
 
   (*TODO*)
-  Lemma must_fail_fair_ind
-        i R r (tr: @RawTr.t _ R)
-        (MUST: must_fail i tr)
-        (IND: pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i tr)
-    :
-    exists next, (RawTr.next_fail i tr next) /\
-              (pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i next).
-  Proof.
-    eapply pind3_unfold in IND.
-    2:{ ii. eapply RawTr.fair_ind_mon2; eauto. }
-    inv IND.
-    { hexploit must_fail_not_nofail; eauto. i; clarify. }
-    { destruct IND0 as [PI IND]. esplits; eauto. pfold. econs. eauto. }
-    { destruct IND0 as [PI IND]. esplits; eauto. pfold. econs. eauto. }
-    { destruct IND0 as [PI IND]. esplits; eauto. pfold. econs 4; eauto. }
-    { destruct IND0 as [PI IND]. esplits; eauto. }
-    { inv MUST. rewrite <- SUCCESS in FAIL; ss. rewrite <- SUCCESS in EMP; ss. }
-  Qed.
+  (* Lemma must_fail_fair_ind *)
+  (*       i R r (tr: @RawTr.t _ R) *)
+  (*       (MUST: must_fail i tr) *)
+  (*       (IND: pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i tr) *)
+  (*   : *)
+  (*   exists next, (RawTr.next_fail i tr next) /\ *)
+  (*             (pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i next). *)
+  (* Proof. *)
+  (*   eapply pind3_unfold in IND. *)
+  (*   2:{ ii. eapply RawTr.fair_ind_mon2; eauto. } *)
+  (*   inv IND. *)
+  (*   { hexploit must_fail_not_nofail; eauto. i; clarify. } *)
+  (*   { destruct IND0 as [PI IND]. esplits; eauto. pfold. econs. eauto. } *)
+  (*   { destruct IND0 as [PI IND]. esplits; eauto. pfold. econs. eauto. } *)
+  (*   { destruct IND0 as [PI IND]. esplits; eauto. pfold. econs 4; eauto. } *)
+  (*   { destruct IND0 as [PI IND]. esplits; eauto. } *)
+  (*   { inv MUST. rewrite <- SUCCESS in FAIL; ss. rewrite <- SUCCESS in EMP; ss. } *)
+  (* Qed. *)
 
   Theorem Fair_implies_Ind
           R
@@ -535,7 +535,9 @@ Section EQUIV.
       2:{ rewrite <- FAIL in SUCCESS; ss. }
       destruct TL as [PIND IND]. econs 5. auto. split; ss. eapply IH; eauto.
     }
-    { punfold PR. inv PR. pclearbot. eapply IHMUST in TL; clear IHMUST.
+    { punfold PR. inv PR. pclearbot.
+      (*need to destruct tl has success->CIH or not->IH*)
+      eapply IHMUST in TL; clear IHMUST.
       hexploit must_fail_fair_ind; eauto. i; des.
       eapply pind3_fold. econs 2; eauto. split; ss.
     }
