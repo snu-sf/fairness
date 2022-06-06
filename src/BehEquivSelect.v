@@ -99,12 +99,14 @@ Section AUX.
   (* inductive cases *)
   | ord_tr_obs
       o (obs: obsE) tl next
+      (MUST: must_fail i tl)
       (NEXT: RawTr.next_fail i tl next)
       (ORD: ord_tr i o next)
     :
     ord_tr i (S o) (RawTr.cons (inr obs) tl)
   | ord_tr_tau
       o tl next
+      (MUST: must_fail i tl)
       (NEXT: RawTr.next_fail i tl next)
       (ORD: ord_tr i o next)
     :
@@ -112,6 +114,7 @@ Section AUX.
   | ord_tr_fair_emp
       o fmap tl next
       (EMP: Flag.emp = (fmap i))
+      (MUST: must_fail i tl)
       (NEXT: RawTr.next_fail i tl next)
       (ORD: ord_tr i o next)
     :
@@ -123,6 +126,42 @@ Section AUX.
     :
     ord_tr i (S o) (RawTr.cons (inl (silentE_fair fmap)) tl)
   .
+
+  (* Inductive ord_tr (i: id) R: wft.(T) -> (@RawTr.t _ R) -> Prop := *)
+  (* (* base cases: no more fail *) *)
+  (* | ord_tr_nofail *)
+  (*     tr *)
+  (*     (NOFAIL: RawTr.nofail i tr) *)
+  (*   : *)
+  (*   ord_tr i wft0 tr *)
+
+  (* (* inductive cases *) *)
+  (* | ord_tr_obs *)
+  (*     o (obs: obsE) tl next *)
+  (*     (NEXT: RawTr.next_fail i tl next) *)
+  (*     (ORD: ord_tr i o next) *)
+  (*   : *)
+  (*   ord_tr i (S o) (RawTr.cons (inr obs) tl) *)
+  (* | ord_tr_tau *)
+  (*     o tl next *)
+  (*     (NEXT: RawTr.next_fail i tl next) *)
+  (*     (ORD: ord_tr i o next) *)
+  (*   : *)
+  (*   ord_tr i (S o) (RawTr.cons (inl silentE_tau) tl) *)
+  (* | ord_tr_fair_emp *)
+  (*     o fmap tl next *)
+  (*     (EMP: Flag.emp = (fmap i)) *)
+  (*     (NEXT: RawTr.next_fail i tl next) *)
+  (*     (ORD: ord_tr i o next) *)
+  (*   : *)
+  (*   ord_tr i (S o) (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (* | ord_tr_fair_fail *)
+  (*     o fmap tl *)
+  (*     (FAIL: Flag.fail = (fmap i)) *)
+  (*     (TL: ord_tr i o tl) *)
+  (*   : *)
+  (*   ord_tr i (S o) (RawTr.cons (inl (silentE_fair fmap)) tl) *)
+  (* . *)
 
 
   Lemma not_must_fail_all_next_fail
@@ -358,12 +397,17 @@ Section AUX.
     2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
     inv PR.
     { eexists. econs 1. auto. }
-    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 2; eauto. }
-    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 3; eauto. }
-    { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 4; eauto. }
+    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
+      2:{ eexists. econs 1. pfold. econs. eauto. }
+      destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 2; eauto. }
+    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
+      2:{ eexists. econs 1. pfold. econs. eauto. }
+      destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 3; eauto. }
+    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
+      2:{ eexists. econs 1. pfold. econs 7; eauto. }
+      destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 4; eauto. }
     { destruct IND as [PIND IND]. eapply IH in IND. des. exists (S o). econs 5; eauto. }
     { eexists. econs. pfold. econs. auto. }
-    Unshelve. all: exact wft0.
   Qed.
 
   Lemma ex_ord_tr_fair_ind
@@ -375,21 +419,9 @@ Section AUX.
     des. revert_until R. pcofix CIH. i. pfold.
     induction ORD.
     { eapply pind3_fold. econs 1; eauto. }
-    { destruct (classic (must_fail i tl)) as [MUST | NM].
-      2:{ hexploit not_must_fail_nofail; eauto. i. eapply pind3_fold. econs 1; eauto.
-          pfold. econs. left. auto. }
-      eapply pind3_fold. econs 2. eauto. split; ss.
-    }
-    { destruct (classic (must_fail i tl)) as [MUST | NM].
-      2:{ hexploit not_must_fail_nofail; eauto. i. eapply pind3_fold. econs 1; eauto.
-          pfold. econs. left. auto. }
-      eapply pind3_fold. econs 3. eauto. split; ss.
-    }
-    { destruct (classic (must_fail i tl)) as [MUST | NM].
-      2:{ hexploit not_must_fail_nofail; eauto. i. eapply pind3_fold. econs 1; eauto.
-          pfold. econs 7; auto. }
-      eapply pind3_fold. econs 4; eauto. split; ss.
-    }
+    { eapply pind3_fold. econs 2. eauto. split; ss. }
+    { eapply pind3_fold. econs 3. eauto. split; ss. }
+    { eapply pind3_fold. econs 4; eauto. split; ss. }
     { eapply pind3_fold. econs 5. ss. split; ss. }
   Qed.
 
@@ -543,9 +575,18 @@ Section EQUIV2.
 
   Variable wft: WF.
   Variable wft0: wft.(T).
+  (* Hypothesis WFTR: Transitive wft.(lt). *)
+
   Variable S: wft.(T) -> wft.(T).
   Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
-  (* Hypothesis WFTR: Transitive wft.(lt). *)
+  (* Hypothesis S_inj: forall o1 o2, (S o1 = S o2) -> o1 = o2. *)
+
+  Variable P: wft.(T) -> wft.(T).
+  Hypothesis wft0_zero_P: P wft0 = wft0.
+  Hypothesis wft0_zero_S: forall o, S o <> wft0.
+  Hypothesis P_inj_or_zero: forall o1 o2, (P o1 = P o2) -> ((o1 = o2) \/ (o1 = wft0) \/ (o2 = wft0)).
+  Hypothesis SP: forall o, (o <> wft0) -> (S (P o)) = o.
+  Hypothesis PS: forall o, (P (S o)) = o.
 
   Lemma inhabited_tr_ord: inhabited (T wft).
   Proof. econs. exact wft0. Qed.
@@ -565,6 +606,7 @@ Section EQUIV2.
 
   Lemma next_ord_tr
         i R (tr next: @RawTr.t _ R) o
+        (MUST: must_fail i tr)
         (NEXT: RawTr.next_fail i tr next)
         (ORD: ord_tr wft wft0 S i o next)
     :
@@ -575,15 +617,39 @@ Section EQUIV2.
     { punfold NEXT. inv NEXT. }
     { punfold NEXT. inv NEXT. }
     { destruct hd as [sil | obs].
-      2:{ econs 2; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. }
+      2:{ inv MUST. econs 2; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. }
       destruct sil as [| fm].
-      { econs 3; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. }
+      { inv MUST. econs 3; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. }
       punfold NEXT. inv NEXT.
       { econs 5; eauto. }
-      { pclearbot. econs 4; eauto. }
+      { inv MUST. rewrite <- EMP in FAIL; ss. pclearbot. econs 4; eauto. }
     }
   Qed.
 
+
+  Lemma ord_tr_nofail_fix
+        R i o (tr: @RawTr.t _ R)
+        (ORD: ord_tr wft wft0 S i o tr)
+        (NF: RawTr.nofail i tr)
+    :
+    o = wft0.
+  Proof.
+    inv ORD; eauto.
+    { eapply must_fail_not_nofail in MUST. punfold NF. inv NF. pclearbot. clarify. }
+    { eapply must_fail_not_nofail in MUST. punfold NF. inv NF. pclearbot. clarify. }
+    { eapply must_fail_not_nofail in MUST. punfold NF. inv NF. rewrite <- EMP in SUCCESS; ss. pclearbot. clarify. }
+    { punfold NF. inv NF. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. }
+  Qed.
+
+  Lemma must_fail_next_fail_eq
+        R i (tr next1 next2: @RawTr.t _ R)
+        (NEXT1: RawTr.next_fail i tr next1)
+        (NEXT2: RawTr.next_fail i tr next2)
+        (MUST: must_fail i tr)
+    :
+    next1 = next2.
+  Proof.
+    
 
   (*TODO*)
   Lemma ord_tr_eq
@@ -603,7 +669,27 @@ Section EQUIV2.
     eapply pind3_unfold in PR.
     2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
     inv PR.
-    { 
+    { hexploit (ord_tr_nofail_fix ORD1 NOFAIL). i. hexploit (ord_tr_nofail_fix ORD2 NOFAIL). i. clarify. }
+    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
+      { destruct (classic (o1 = wft0)) as [ZERO1 | NZ1].
+        { clarify. inversion ORD1.
+          2:{ exfalso; eapply wft0_zero_S. eauto. }
+          clarify. symmetry. eapply ord_tr_nofail_fix; eauto.
+        }
+        destruct (classic (o2 = wft0)) as [ZERO2 | NZ2].
+        { clarify. inversion ORD2.
+          2:{ exfalso; eapply wft0_zero_S. eauto. }
+          clarify. eapply ord_tr_nofail_fix; eauto.
+        }
+        cut (P o1 = P o2).
+        { i. eapply P_inj_or_zero in H. des; clarify. }
+        destruct IND as [PI IND]. eapply IH. eauto.
+        - inv ORD1. clarify. rewrite PS.
+
+          eapply must_fail_not_nofail in MUST. punfold NOFAIL; inv NOFAIL. pclearbot. clarify.
+          
+          
+          
 
 
 
@@ -662,7 +748,7 @@ Section EQUIV2.
       }
       { rewrite Heq in FAIL; ss. }
     }
-  Qed.
+  Admitted.
 
 
   Lemma ord_tr_fair_ord
