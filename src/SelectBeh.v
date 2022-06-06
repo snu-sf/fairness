@@ -126,6 +126,7 @@ Section TR.
     | nofail_fair_success
         fmap tl
         (SUCCESS: Flag.success = (fmap i))
+        (TL: nofail R tl)
       :
       _nofail i nofail (cons (inl (silentE_fair fmap)) tl)
     | nofail_obs
