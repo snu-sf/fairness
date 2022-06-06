@@ -345,6 +345,19 @@ Section AUX.
     eapply not_ex_next_fail_nofail in NONEXT. auto.
   Qed.
 
+  Lemma must_fail_ex_next
+        i R (tr: @RawTr.t _ R)
+        (MUST: must_fail i tr)
+    :
+    exists next, RawTr.next_fail i tr next.
+  Proof.
+    induction MUST.
+    { exists tl. pfold. econs 1. auto. }
+    { des. eexists. pfold. econs; eauto. }
+    { des. eexists. pfold. econs; eauto. }
+    { des. eexists. pfold. econs 4; eauto. }
+  Qed.
+
   (* Inductive ind_fail i R: (@RawTr.t _ R) -> Prop := *)
   (* | ind_fail_intro *)
   (*     tr next *)
@@ -459,6 +472,140 @@ Section EQUIV1.
     }
     { pclearbot. pfold. econs 5. right. eapply CIH2; eauto. }
   Qed.
+
+
+  Lemma must_fail_fair_ind
+        i R r (tr: @RawTr.t _ R)
+        (MUST: must_fail i tr)
+        (IND: pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i tr)
+    :
+    exists next, (RawTr.next_fail i tr next) /\
+              (pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i next).
+  Proof.
+    revert R i tr IND MUST.
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) =>
+                                  must_fail i tr ->
+                                  exists next : RawTr.t,
+                                    RawTr.next_fail i tr next /\
+                                      pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i next)).
+    i. rename x0 into R, x1 into i, x2 into tr. clear DEC. rename H into MUST.
+    move MUST before tr. revert_until MUST. induction MUST; i.
+    { eapply pind3_unfold in PR.
+      2:{ ii. eapply RawTr.fair_ind_mon2; eauto. }
+      inv PR.
+      { punfold NOFAIL. inv NOFAIL. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. }
+      { rewrite <- FAIL in EMP; ss. }
+      { destruct IND as [PIND IND]. eapply IH in IND.
+
+
+
+
+
+
+
+    revert R i tr IND MUST next NEXT.
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) =>
+                                  must_fail i tr ->
+                                  forall next : RawTr.t,
+                                    RawTr.next_fail i tr next ->
+                                    pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i next)).
+    i. rename x0 into R, x1 into i, x2 into tr. clear DEC. rename H into MUST, H0 into NEXT.
+    move MUST before tr. revert_until MUST. induction MUST; i.
+
+
+
+
+
+
+  (*   hexploit must_fail_ex_next; eauto. i. des. rename H into NEXT. esplits; eauto. *)
+  (*   eapply pind3_fold in IND. eapply pind3_unfold. *)
+  (*   { ii. eapply RawTr.fair_ind_mon2; eauto. } *)
+  (*   revert R i tr IND MUST next NEXT. *)
+  (*   eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => *)
+  (*                                 must_fail i tr -> *)
+  (*                                 forall next : RawTr.t, *)
+  (*                                   RawTr.next_fail i tr next -> *)
+  (*                                   pind3 (RawTr.__fair_ind (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i next)). *)
+  (*   i. rename x0 into R, x1 into i, x2 into tr. clear DEC. rename H into MUST, H0 into NEXT. *)
+  (*   move MUST before tr. revert_until MUST. induction MUST; i. *)
+  (*   { punfold NEXT. inv NEXT. *)
+  (*     2:{ rewrite <- FAIL in EMP. ss. } *)
+      
+    
+    
+
+  (*                        fun R i (tr: @RawTr.t Ident R) => *)
+  (*                                 (forall tr0 : RawTr.t, RawTr.fair i tr0 -> r R i tr0) -> *)
+  (*                                 pind3 *)
+  (*                                   (RawTr.__fair_ind *)
+  (*                                      (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i tr)). *)
+    
+
+    
+  (*   move MUST before R. revert_until MUST. induction MUST; i. *)
+  (*   { inv IND. *)
+  (*     { punfold NOFAIL. inv NOFAIL. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. } *)
+  (*     { rewrite <- FAIL in EMP; ss. } *)
+  (*     { destruct IND0 as [PIND IND]. *)
+
+  Theorem Fair_implies_Ind
+          R
+          (tr: @RawTr.t Ident R)
+          (IND: RawTr.is_fair tr)
+    :
+    RawTr.is_fair_ind tr.
+  Proof.
+    ii. specialize (IND i). depgen tr. pcofix CIH. i.
+    punfold IND. pfold. revert R i tr IND CIH.
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) =>
+                                  (forall tr0 : RawTr.t, RawTr.fair i tr0 -> r R i tr0) ->
+                                  pind3
+                                    (RawTr.__fair_ind
+                                       (upaco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r)) top3 R i tr)).
+    i. rename x0 into R, x1 into i, x2 into tr. rename H into CIH. clear DEC.
+    eapply pind3_unfold in PR.
+    2:{ clear. ii. eapply paco3_mon_gen. eauto. 2: ss. i. eapply RawTr.__fair_mon; eauto. }
+    pose proof (must_fail_or_nofail i tr). destruct H as [MUST | NOFAIL].
+    2:{ eapply pind3_fold. econs 1. auto. }
+    move CIH before i. move MUST before tr. revert_until MUST. induction MUST; i.
+    { eapply pind3_fold. punfold PR. inv PR.
+      { rewrite <- FAIL in EMP; ss. }
+      2:{ rewrite <- FAIL in SUCCESS; ss. }
+      destruct TL as [PIND IND]. econs 5. auto. split; ss. eapply IH; eauto.
+    }
+    { punfold PR. inv PR. pclearbot. eapply IHMUST in TL; clear IHMUST.
+      eapply pind3_fold. econs 2. 2:{ split; ss. eapply pind3_fold.
+                   (*TODO*)
+
+
+
+
+
+
+
+
+                   econs 2.
+      2:{ split; ss.
+
+      hexploit must_fail_ex_next
+               econs 2. 
+
+    punfold PR. inv PR.
+    { econs 1. pfold. econs. }
+    { econs 1. pfold. econs. }
+    { econs 1. pfold. econs. }
+    { pose proof (must_fail_or_nofail i tl). destruct H as [MUST | NOFAIL].
+      2:{ econs 1. pfold. econs. eauto. }
+      pclearbot.
+
+
+
+      econs 1. pfold. econs. }
+
+      eapply pind3_fold.
+
+    
+    inv PR.
 
 
   (* Lemma fair_ord_must_fail_ex_ord_tr *)
