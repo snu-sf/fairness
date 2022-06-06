@@ -124,35 +124,6 @@ Section AUX.
     ord_tr i (S o) (RawTr.cons (inl (silentE_fair fmap)) tl)
   .
 
-  (* Lemma ord_tr_eq *)
-  (*       R i o1 o2 (tr: @RawTr.t _ R) *)
-  (*       (ORD1: ord_tr i o1 tr) *)
-  (*       (ORD2: ord_tr i o2 tr) *)
-  (*   : *)
-  (*   o1 = o2. *)
-  (* Proof. *)
-  (*   depgen o2. induction ORD1; i. *)
-  (*   { inv ORD2; eauto. econs 1; eauto. } *)
-  (*   { econs 2; eauto. } *)
-  (*   { econs 3; eauto. } *)
-  (*   { econs 4; eauto. } *)
-  (*   { econs 5; eauto. } *)
-  (* Qed. *)
-
-  (* Lemma ord_tr_mon *)
-  (*       R i o1 o2 (tr: @RawTr.t _ R) *)
-  (*       (ORD: ord_tr i o1 tr) *)
-  (*       (LT: lt wft o1 o2) *)
-  (*   : *)
-  (*   ord_tr i o2 tr. *)
-  (* Proof. *)
-  (*   depgen o2. induction ORD; i. *)
-  (*   { econs 1; eauto. } *)
-  (*   { econs 2; eauto. } *)
-  (*   { econs 3; eauto. } *)
-  (*   { econs 4; eauto. } *)
-  (*   { econs 5; eauto. } *)
-  (* Qed. *)
 
   Lemma not_must_fail_all_next_fail
         i R (tr: @RawTr.t _ R)
@@ -614,6 +585,53 @@ Section EQUIV2.
   Qed.
 
 
+  (*TODO*)
+  Lemma ord_tr_eq
+        R i o1 o2 (tr: @RawTr.t _ R)
+        (IND: RawTr.is_fair_ind tr)
+        (ORD1: ord_tr wft wft0 S i o1 tr)
+        (ORD2: ord_tr wft wft0 S i o2 tr)
+    :
+    o1 = o2.
+  Proof.
+    specialize (IND i). punfold IND.
+    depgen o2. depgen o1.
+    revert R i tr IND.
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) =>
+                                  forall o1, ord_tr wft wft0 S i o1 tr -> forall o2, ord_tr wft wft0 S i o2 tr -> o1 = o2)).
+    i. rename x0 into R, x1 into i, x2 into tr. rename H into ORD1, H0 into ORD2.
+    eapply pind3_unfold in PR.
+    2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
+    inv PR.
+    { 
+
+
+
+    
+    depgen o2. induction ORD1; i.
+    { inv ORD2; eauto. econs 1; eauto. }
+    { econs 2; eauto. }
+    { econs 3; eauto. }
+    { econs 4; eauto. }
+    { econs 5; eauto. }
+  Qed.
+
+  IND : RawTr.is_fair_ind tr
+  TL : ord_tr wft wft0 S i o tr
+  ============================
+  tr2ord_i i tr = o
+
+  IND : RawTr.is_fair_ind tr
+  TL : paco2 (RawTr._nofail i) bot2 R tr
+  ============================
+  tr2ord_i i tr = wft0
+
+  IND : RawTr.is_fair_ind tr
+  NEXT : RawTr.next_fail i tr next
+  ORD0 : ord_tr wft wft0 S i o next
+  ============================
+  tr2ord_i i tr = S o
+
   Lemma ord_tr_fair_case
         R (tr: @RawTr.t _ R) fm m
         (IND: RawTr.is_fair_ind tr)
@@ -646,21 +664,6 @@ Section EQUIV2.
     }
   Qed.
 
-  IND : RawTr.is_fair_ind tr
-  TL : ord_tr wft wft0 S i o tr
-  ============================
-  tr2ord_i i tr = o
-
-  IND : RawTr.is_fair_ind tr
-  TL : paco2 (RawTr._nofail i) bot2 R tr
-  ============================
-  tr2ord_i i tr = wft0
-
-  IND : RawTr.is_fair_ind tr
-  NEXT : RawTr.next_fail i tr next
-  ORD0 : ord_tr wft wft0 S i o next
-  ============================
-  tr2ord_i i tr = S o
 
   Lemma ord_tr_fair_ord
         R (tr: @RawTr.t Ident R) m
