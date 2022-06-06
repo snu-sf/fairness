@@ -605,13 +605,61 @@ Section EQUIV2.
     }
   Qed.
 
-  Lemma ord_tr_ex_fair_update
-        R (tr: @RawTr.t Ident R) m fm
-        (ORD: forall i : id, ord_tr wft i (m i) (RawTr.cons (inl (silentE_fair fm)) tr))
+  Lemma tr2ord_i_red_obs
+        i R (tr: @RawTr.t _ R) obs
+        (IND : RawTr.is_fair_ind (RawTr.cons (inr obs) tr))
     :
-    exists m0, (fair_update m m0 fm) /\ (forall i, ord_tr wft i (m0 i) tr).
+    tr2ord_i i (RawTr.cons (inr obs) tr) = tr2ord_i i tr.
   Proof.
-    
+    unfold tr2ord_i, epsilon. unfold Epsilon.epsilon, proj1_sig. des_ifs. clear Heq Heq0.
+    hexploit o; clear o. eapply fair_ind_ex_ord_tr; eauto. intros ORD. rename x into o.
+    hexploit o0; clear o0.
+    { inv ORD.
+      { punfold NOFAIL. inv NOFAIL. pclearbot. eexists. econs 1; eauto. }
+      { exists o. eapply next_ord_tr; eauto. }
+    }
+    intros ORD0. rename x0 into o0.
+
+
+    eapply fair_ind_ex_ord_tr; eauto. intros ORD. rename x0 into o0.
+    { exists
+  
+
+  Lemma ord_tr_fair_ord
+        R (tr: @RawTr.t Ident R)
+        (IND: RawTr.is_fair_ind tr)
+    :
+    RawTr.fair_ord (fun i => tr2ord_i i tr) tr.
+  Proof.
+    revert_until R. pcofix CIH. i. destruct tr.
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
+          - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
+          - eapply next_ord_tr; eauto.
+      }
+      destruct silent as [| fm].
+      { pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
+        - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
+        - eapply next_ord_tr; eauto.
+      }
+      { pfold. econs. 2:{ right. eapply CIH. i. specialize (ORD i). inv ORD.
+                          { punfold NOFAIL. inv NOFAIL.
+
+        
+      destruct (fm i)
+
+            pose proof (must_fail_or_nofail i tr). destruct H as [MUST | NOF].
+            { 
+
+  (* Lemma ord_tr_ex_fair_update *)
+  (*       R (tr: @RawTr.t Ident R) m fm *)
+  (*       (ORD: forall i : id, ord_tr wft i (m i) (RawTr.cons (inl (silentE_fair fm)) tr)) *)
+  (*   : *)
+  (*   exists m0, (fair_update m m0 fm) /\ (forall i, ord_tr wft i (m0 i) tr). *)
+  (* Proof. *)
 
   Lemma ord_tr_fair_ord
         R (tr: @RawTr.t Ident R) m
