@@ -789,6 +789,7 @@ Section EQUIV2.
 
   (*TODO*)
   (* IND : RawTr.is_fair_ind tr *)
+  (* MUST : must_fail i tr *)
   (* NEXT : RawTr.next_fail i tr next *)
   (* ORD0 : ord_tr wft wft0 S i o next *)
   (* ============================ *)
@@ -819,16 +820,25 @@ Section EQUIV2.
         rewrite H0; rewrite <- H; left; auto.
       }
       { assert (tr2ord_i i tr = S o).
-        { admit. }
+        { hexploit next_ord_tr; eauto. i. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. }
         rewrite H; left; auto.
       }
       { rewrite Heq in FAIL; ss. }
     }
-  Admitted.
+  Qed.
 
+  Lemma all_ord_tr_is_fair_ind
+        R (tr: @RawTr.t Ident R) m
+        (ORD: forall i, ord_tr wft wft0 S i (m i) tr)
+    :
+    RawTr.is_fair_ind tr.
+  Proof.
+    ii. specialize (ORD i). eapply ex_ord_tr_fair_ind; eauto.
+  Qed.
 
   Lemma ord_tr_fair_ord
         R (tr: @RawTr.t Ident R) m
+        (* (IND: RawTr.is_fair_ind tr) *)
         (ORD: forall i, ord_tr wft wft0 S i (m i) tr)
     :
     RawTr.fair_ord m tr.
@@ -838,7 +848,13 @@ Section EQUIV2.
     { pfold. econs. }
     { pfold. econs. }
     { destruct hd as [silent | obs].
-      2:{ pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
+      2:{ pfold. econs. right. eapply CIH.
+          (* { ii. specialize (IND i). punfold IND. eapply pind3_unfold in IND. *)
+          (*   2:{ ii. eapply RawTr.fair_ind_mon2; eauto. } *)
+          (*   inv IND. *)
+          (*   { pfold. eapply pind3_fold. econs 1. punfold NOFAIL; inv NOFAIL. pclearbot. eauto. } *)
+          (*   { destruct IND0 as [PI TOP]. clear TOP. *)
+          i. specialize (ORD i). inv ORD.
           - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
           - eapply next_ord_tr; eauto.
       }
@@ -847,7 +863,10 @@ Section EQUIV2.
         - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
         - eapply next_ord_tr; eauto.
       }
-      { pfold. econs. 2:{ right. eapply CIH. i. specialize (ORD i). inv ORD.
+      { hexploit ord_tr_fair_case; eauto.
+        { eapply all_ord_tr_is_fair_ind; eauto. i. specialize (ORD i).
+
+        pfold. econs. 2:{ right. eapply CIH. i. specialize (ORD i). inv ORD.
                           { punfold NOFAIL. inv NOFAIL.
 
         
