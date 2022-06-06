@@ -579,7 +579,7 @@ Section EQUIV2.
 
   Variable S: wft.(T) -> wft.(T).
   Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
-  (* Hypothesis S_inj: forall o1 o2, (S o1 = S o2) -> o1 = o2. *)
+  Hypothesis S_inj: forall o1 o2, (S o1 = S o2) -> o1 = o2.
 
   Variable P: wft.(T) -> wft.(T).
   Hypothesis wft0_zero_P: P wft0 = wft0.
@@ -649,9 +649,19 @@ Section EQUIV2.
     :
     next1 = next2.
   Proof.
-    
+    depgen next2. depgen next1. induction MUST; i.
+    { punfold NEXT1. inv NEXT1.
+      2:{ rewrite <- FAIL in EMP; ss. }
+      punfold NEXT2. inv NEXT2.
+      2:{ rewrite <- FAIL in EMP; ss. }
+      ss.
+    }
+    { punfold NEXT1. inv NEXT1. punfold NEXT2. inv NEXT2. pclearbot. eauto. }
+    { punfold NEXT1. inv NEXT1. punfold NEXT2. inv NEXT2. pclearbot. eauto. }
+    { punfold NEXT1. inv NEXT1. rewrite <- EMP in FAIL; ss.
+      punfold NEXT2. inv NEXT2. rewrite <- EMP in FAIL; ss. pclearbot. eauto. }
+  Qed.
 
-  (*TODO*)
   Lemma ord_tr_eq
         R i o1 o2 (tr: @RawTr.t _ R)
         (IND: RawTr.is_fair_ind tr)
@@ -684,39 +694,105 @@ Section EQUIV2.
         cut (P o1 = P o2).
         { i. eapply P_inj_or_zero in H. des; clarify. }
         destruct IND as [PI IND]. eapply IH. eauto.
-        - inv ORD1. clarify. rewrite PS.
-
-          eapply must_fail_not_nofail in MUST. punfold NOFAIL; inv NOFAIL. pclearbot. clarify.
-          
-          
-          
-
-
-
-    
-    depgen o2. induction ORD1; i.
-    { inv ORD2; eauto. econs 1; eauto. }
-    { econs 2; eauto. }
-    { econs 3; eauto. }
-    { econs 4; eauto. }
-    { econs 5; eauto. }
+        - inv ORD1. clarify. rewrite PS. hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+        - inv ORD2. clarify. rewrite PS. hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+      }
+      { inv ORD1.
+        { rename o1 into wft0. inv ORD2; eauto. eapply must_fail_not_nofail in MUST. clarify. }
+        inv ORD2.
+        { rename o2 into wft0. eapply must_fail_not_nofail in MUST. clarify. }
+        destruct IND as [PI IND]. f_equal. eapply IH. eauto.
+        - hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+        - hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT1. auto. i; clarify.
+      }
+    }
+    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
+      { destruct (classic (o1 = wft0)) as [ZERO1 | NZ1].
+        { clarify. inversion ORD1.
+          2:{ exfalso; eapply wft0_zero_S. eauto. }
+          clarify. symmetry. eapply ord_tr_nofail_fix; eauto.
+        }
+        destruct (classic (o2 = wft0)) as [ZERO2 | NZ2].
+        { clarify. inversion ORD2.
+          2:{ exfalso; eapply wft0_zero_S. eauto. }
+          clarify. eapply ord_tr_nofail_fix; eauto.
+        }
+        cut (P o1 = P o2).
+        { i. eapply P_inj_or_zero in H. des; clarify. }
+        destruct IND as [PI IND]. eapply IH. eauto.
+        - inv ORD1. clarify. rewrite PS. hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+        - inv ORD2. clarify. rewrite PS. hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+      }
+      { inv ORD1.
+        { rename o1 into wft0. inv ORD2; eauto. eapply must_fail_not_nofail in MUST. clarify. }
+        inv ORD2.
+        { rename o2 into wft0. eapply must_fail_not_nofail in MUST. clarify. }
+        destruct IND as [PI IND]. f_equal. eapply IH. eauto.
+        - hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+        - hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT1. auto. i; clarify.
+      }
+    }
+    { destruct (must_fail_or_nofail i tl) as [MUST | NF].
+      { destruct (classic (o1 = wft0)) as [ZERO1 | NZ1].
+        { clarify. inversion ORD1.
+          2:{ exfalso; eapply wft0_zero_S. eauto. }
+          2:{ clarify. rewrite <- EMP in FAIL; ss. }
+          clarify. symmetry. eapply ord_tr_nofail_fix; eauto.
+        }
+        destruct (classic (o2 = wft0)) as [ZERO2 | NZ2].
+        { clarify. inversion ORD2.
+          2:{ exfalso; eapply wft0_zero_S. eauto. }
+          2:{ clarify. rewrite <- EMP in FAIL; ss. }
+          clarify. eapply ord_tr_nofail_fix; eauto.
+        }
+        cut (P o1 = P o2).
+        { i. eapply P_inj_or_zero in H. des; clarify. }
+        destruct IND as [PI IND]. eapply IH. eauto.
+        - inv ORD1. clarify.
+          2:{ rewrite <- EMP in FAIL; ss. }
+          rewrite PS. hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+        - inv ORD2. clarify.
+          2:{ rewrite <- EMP in FAIL; ss. }
+          rewrite PS. hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+      }
+      { inv ORD1.
+        { rename o1 into wft0. inv ORD2; eauto.
+          2:{ rewrite <- EMP in FAIL; ss. }
+          eapply must_fail_not_nofail in MUST. clarify. }
+        2:{ rewrite <- EMP in FAIL; ss. }
+        inv ORD2.
+        { rename o2 into wft0. eapply must_fail_not_nofail in MUST. clarify. }
+        2:{ rewrite <- EMP in FAIL; ss. }
+        destruct IND as [PI IND]. f_equal. eapply IH. eauto.
+        - hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT0. auto. i; clarify.
+        - hexploit must_fail_next_fail_eq. eapply NEXT. eapply NEXT1. auto. i; clarify.
+      }
+    }
+    { inv ORD1.
+      2:{ rewrite <- FAIL in EMP; ss. }
+      { punfold NOFAIL; inv NOFAIL. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. }
+      inv ORD2.
+      2:{ rewrite <- FAIL in EMP; ss. }
+      { punfold NOFAIL; inv NOFAIL. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. }
+      destruct IND as [PI IND]. f_equal. eapply IH; eauto.
+    }
+    { inv ORD1.
+      2:{ rewrite <- SUCCESS in EMP; ss. }
+      2:{ rewrite <- SUCCESS in FAIL; ss. }
+      inv ORD2.
+      2:{ rewrite <- SUCCESS in EMP; ss. }
+      2:{ rewrite <- SUCCESS in FAIL; ss. }
+      auto.
+    }
   Qed.
 
-  IND : RawTr.is_fair_ind tr
-  TL : ord_tr wft wft0 S i o tr
-  ============================
-  tr2ord_i i tr = o
 
-  IND : RawTr.is_fair_ind tr
-  TL : paco2 (RawTr._nofail i) bot2 R tr
-  ============================
-  tr2ord_i i tr = wft0
-
-  IND : RawTr.is_fair_ind tr
-  NEXT : RawTr.next_fail i tr next
-  ORD0 : ord_tr wft wft0 S i o next
-  ============================
-  tr2ord_i i tr = S o
+  (*TODO*)
+  (* IND : RawTr.is_fair_ind tr *)
+  (* NEXT : RawTr.next_fail i tr next *)
+  (* ORD0 : ord_tr wft wft0 S i o next *)
+  (* ============================ *)
+  (* tr2ord_i i tr = S o *)
 
   Lemma ord_tr_fair_case
         R (tr: @RawTr.t _ R) fm m
@@ -732,14 +808,14 @@ Section EQUIV2.
       { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. rewrite Heq in EMP; ss. }
       { rewrite Heq in EMP; ss. }
       { assert (tr2ord_i i tr = o).
-        { admit. }
+        { eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. }
         rewrite H; auto.
       }
     }
     { inv ORD.
       { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. pclearbot.
         assert (tr2ord_i i tr = wft0).
-        { admit. }
+        { eapply ord_tr_nofail_fix; eauto. eapply tr2ord_i_spec; eauto. }
         rewrite H0; rewrite <- H; left; auto.
       }
       { assert (tr2ord_i i tr = S o).
