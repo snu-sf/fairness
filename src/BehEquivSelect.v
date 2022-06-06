@@ -171,31 +171,27 @@ Section AUX.
   Lemma not_must_fail_nofail
         i R (tr: @RawTr.t _ R)
         (NMUST: ~ must_fail i tr)
-        (NEXT: exists next, RawTr.next_fail i tr next)
     :
     RawTr.nofail i tr.
   Proof.
     i. revert_until R. pcofix CIH. i. destruct tr.
-    { punfold NEXT. }
-    { punfold NEXT. }
-    { punfold NEXT. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
     { destruct hd as [silent | obs].
       2:{ pfold. econs. right. eapply CIH.
-          { ii. eapply NMUST. econs. auto. }
-          { punfold NEXT. inv NEXT. pclearbot. eauto. }
+          ii. eapply NMUST. econs. auto.
       }
       destruct silent as [| fm].
       { pfold. econs. right. eapply CIH.
-        { ii. eapply NMUST. econs. auto. }
-        { punfold NEXT. inv NEXT. pclearbot. eauto. }
+        ii. eapply NMUST. econs. auto.
       }
       { destruct (fm i) eqn:FM.
         { exfalso. eapply NMUST. econs; eauto. }
         { pfold. econs 7. auto. right. eapply CIH.
-          { ii. eapply NMUST. econs 4; auto. }
-          { punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. pclearbot. eauto. }
+          ii. eapply NMUST. econs 4; auto.
         }
-        { exfalso. punfold NEXT. inv NEXT. rewrite FM in FAIL; ss. rewrite FM in EMP; ss. }
+        { pfold. econs 4. ss. }
       }
     }
   Qed.
