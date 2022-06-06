@@ -581,6 +581,38 @@ Section EQUIV2.
     hexploit o; clear o. eapply fair_ind_ex_ord_tr; eauto. intros ORD. rename x into o. auto.
   Qed.
 
+
+  Lemma next_ord_tr
+        i R (tr next: @RawTr.t _ R)
+        o1 o2
+        (NEXT: RawTr.next_fail i tr next)
+        (LT: lt wft o2 o1)
+        (ORD: ord_tr wft i o2 next)
+    :
+    ord_tr wft i o1 tr.
+  Proof.
+    destruct tr.
+    { punfold NEXT. inv NEXT. }
+    { punfold NEXT. inv NEXT. }
+    { punfold NEXT. inv NEXT. }
+    { destruct hd as [sil | obs].
+      2:{ econs 2; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. }
+      destruct sil as [| fm].
+      { econs 3; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. }
+      punfold NEXT. inv NEXT.
+      { econs 5; eauto. }
+      { pclearbot. econs 4; eauto. }
+    }
+  Qed.
+
+  Lemma ord_tr_ex_fair_update
+        R (tr: @RawTr.t Ident R) m fm
+        (ORD: forall i : id, ord_tr wft i (m i) (RawTr.cons (inl (silentE_fair fm)) tr))
+    :
+    exists m0, (fair_update m m0 fm) /\ (forall i, ord_tr wft i (m0 i) tr).
+  Proof.
+    
+
   Lemma ord_tr_fair_ord
         R (tr: @RawTr.t Ident R) m
         (ORD: forall i, ord_tr wft i (m i) tr)
@@ -594,7 +626,21 @@ Section EQUIV2.
     { destruct hd as [silent | obs].
       2:{ pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
           - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
-          - 
+          - eapply next_ord_tr; eauto.
+      }
+      destruct silent as [| fm].
+      { pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
+        - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
+        - eapply next_ord_tr; eauto.
+      }
+      { pfold. econs. 2:{ right. eapply CIH. i. specialize (ORD i). inv ORD.
+                          { punfold NOFAIL. inv NOFAIL.
+
+        
+      destruct (fm i)
+
+            pose proof (must_fail_or_nofail i tr). destruct H as [MUST | NOF].
+            { 
 
 
 End EQUIV2.
