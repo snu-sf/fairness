@@ -83,61 +83,76 @@ Section AUX.
 
 
   Variable wft: WF.
+  Variable wft0: wft.(T).
+  Variable S: wft.(T) -> wft.(T).
+  Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
 
+  (* unique order *)
   Inductive ord_tr (i: id) R: wft.(T) -> (@RawTr.t _ R) -> Prop :=
   (* base cases: no more fail *)
   | ord_tr_nofail
-      o tr
+      tr
       (NOFAIL: RawTr.nofail i tr)
     :
-    ord_tr i o tr
+    ord_tr i wft0 tr
 
   (* inductive cases *)
   | ord_tr_obs
-      o1 o2 (obs: obsE) tl next
+      o (obs: obsE) tl next
       (NEXT: RawTr.next_fail i tl next)
-      (LT: lt wft o2 o1)
-      (ORD: ord_tr i o2 next)
+      (ORD: ord_tr i o next)
     :
-    ord_tr i o1 (RawTr.cons (inr obs) tl)
+    ord_tr i (S o) (RawTr.cons (inr obs) tl)
   | ord_tr_tau
-      o1 o2 tl next
+      o tl next
       (NEXT: RawTr.next_fail i tl next)
-      (LT: lt wft o2 o1)
-      (ORD: ord_tr i o2 next)
+      (ORD: ord_tr i o next)
     :
-    ord_tr i o1 (RawTr.cons (inl silentE_tau) tl)
+    ord_tr i (S o) (RawTr.cons (inl silentE_tau) tl)
   | ord_tr_fair_emp
-      o1 o2 fmap tl next
+      o fmap tl next
       (EMP: Flag.emp = (fmap i))
       (NEXT: RawTr.next_fail i tl next)
-      (LT: lt wft o2 o1)
-      (ORD: ord_tr i o2 next)
+      (ORD: ord_tr i o next)
     :
-    ord_tr i o1 (RawTr.cons (inl (silentE_fair fmap)) tl)
+    ord_tr i (S o) (RawTr.cons (inl (silentE_fair fmap)) tl)
   | ord_tr_fair_fail
-      o1 o2 fmap tl
+      o fmap tl
       (FAIL: Flag.fail = (fmap i))
-      (LT: lt wft o2 o1)
-      (TL: ord_tr i o2 tl)
+      (TL: ord_tr i o tl)
     :
-    ord_tr i o1 (RawTr.cons (inl (silentE_fair fmap)) tl)
+    ord_tr i (S o) (RawTr.cons (inl (silentE_fair fmap)) tl)
   .
 
-  Lemma ord_tr_mon
-        R i o1 o2 (tr: @RawTr.t _ R)
-        (ORD: ord_tr i o1 tr)
-        (LT: lt wft o1 o2)
-    :
-    ord_tr i o2 tr.
-  Proof.
-    depgen o2. induction ORD; i.
-    { econs 1; eauto. }
-    { econs 2; eauto. }
-    { econs 3; eauto. }
-    { econs 4; eauto. }
-    { econs 5; eauto. }
-  Qed.
+  (* Lemma ord_tr_eq *)
+  (*       R i o1 o2 (tr: @RawTr.t _ R) *)
+  (*       (ORD1: ord_tr i o1 tr) *)
+  (*       (ORD2: ord_tr i o2 tr) *)
+  (*   : *)
+  (*   o1 = o2. *)
+  (* Proof. *)
+  (*   depgen o2. induction ORD1; i. *)
+  (*   { inv ORD2; eauto. econs 1; eauto. } *)
+  (*   { econs 2; eauto. } *)
+  (*   { econs 3; eauto. } *)
+  (*   { econs 4; eauto. } *)
+  (*   { econs 5; eauto. } *)
+  (* Qed. *)
+
+  (* Lemma ord_tr_mon *)
+  (*       R i o1 o2 (tr: @RawTr.t _ R) *)
+  (*       (ORD: ord_tr i o1 tr) *)
+  (*       (LT: lt wft o1 o2) *)
+  (*   : *)
+  (*   ord_tr i o2 tr. *)
+  (* Proof. *)
+  (*   depgen o2. induction ORD; i. *)
+  (*   { econs 1; eauto. } *)
+  (*   { econs 2; eauto. } *)
+  (*   { econs 3; eauto. } *)
+  (*   { econs 4; eauto. } *)
+  (*   { econs 5; eauto. } *)
+  (* Qed. *)
 
   Lemma not_must_fail_all_next_fail
         i R (tr: @RawTr.t _ R)
@@ -214,16 +229,14 @@ Section AUX.
   Qed.
 
 
-  Lemma nofail_all_ord_tr
-        i R (tr: @RawTr.t _ R)
-        (NOFAIL: RawTr.nofail i tr)
-    :
-    forall o, ord_tr i o tr.
-  Proof.
-    i. econs 1. auto.
-  Qed.
-
-  Variable wft0: wft.(T).
+  (* Lemma nofail_all_ord_tr *)
+  (*       i R (tr: @RawTr.t _ R) *)
+  (*       (NOFAIL: RawTr.nofail i tr) *)
+  (*   : *)
+  (*   forall o, ord_tr i o tr. *)
+  (* Proof. *)
+  (*   i. econs 1. auto. *)
+  (* Qed. *)
 
   Lemma nofail_ex_ord_tr
         i R (tr: @RawTr.t _ R)
@@ -359,8 +372,6 @@ Section AUX.
   Qed.
 
 
-  Variable S: wft.(T) -> wft.(T).
-  Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
 
   Lemma fair_ind_ex_ord_tr
         i R (tr: @RawTr.t _ R)
@@ -569,27 +580,24 @@ Section EQUIV2.
   Proof. econs. exact wft0. Qed.
 
   Definition tr2ord_i {R} i (tr: (@RawTr.t _ R)): wft.(T) :=
-    epsilon _ (inhabited_tr_ord) (fun o => ord_tr wft i o tr).
+    epsilon _ (inhabited_tr_ord) (fun o => ord_tr wft wft0 S i o tr).
 
   Theorem tr2ord_i_spec
           i R (tr: @RawTr.t _ R)
           (IND: RawTr.is_fair_ind tr)
     :
-    ord_tr wft i (tr2ord_i i tr) tr.
+    ord_tr wft wft0 S i (tr2ord_i i tr) tr.
   Proof.
     unfold tr2ord_i, epsilon. unfold Epsilon.epsilon, proj1_sig. des_ifs. clear Heq.
-    hexploit o; clear o. eapply fair_ind_ex_ord_tr; eauto. intros ORD. rename x into o. auto.
+    hexploit o; clear o. eapply fair_ind_ex_ord_tr; eauto. intros ORD. auto.
   Qed.
 
-
   Lemma next_ord_tr
-        i R (tr next: @RawTr.t _ R)
-        o1 o2
+        i R (tr next: @RawTr.t _ R) o
         (NEXT: RawTr.next_fail i tr next)
-        (LT: lt wft o2 o1)
-        (ORD: ord_tr wft i o2 next)
+        (ORD: ord_tr wft wft0 S i o next)
     :
-    ord_tr wft i o1 tr.
+    ord_tr wft wft0 S i (S o) tr.
   Proof.
     destruct tr.
     { punfold NEXT. inv NEXT. }
@@ -605,6 +613,29 @@ Section EQUIV2.
     }
   Qed.
 
+  (* Lemma next_ord_tr *)
+  (*       i R (tr next: @RawTr.t _ R) *)
+  (*       o1 o2 *)
+  (*       (NEXT: RawTr.next_fail i tr next) *)
+  (*       (LT: lt wft o2 o1) *)
+  (*       (ORD: ord_tr wft i o2 next) *)
+  (*   : *)
+  (*   ord_tr wft i o1 tr. *)
+  (* Proof. *)
+  (*   destruct tr. *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { destruct hd as [sil | obs]. *)
+  (*     2:{ econs 2; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. } *)
+  (*     destruct sil as [| fm]. *)
+  (*     { econs 3; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. } *)
+  (*     punfold NEXT. inv NEXT. *)
+  (*     { econs 5; eauto. } *)
+  (*     { pclearbot. econs 4; eauto. } *)
+  (*   } *)
+  (* Qed. *)
+
   Lemma tr2ord_i_red_obs
         i R (tr: @RawTr.t _ R) obs
         (IND : RawTr.is_fair_ind (RawTr.cons (inr obs) tr))
@@ -616,14 +647,37 @@ Section EQUIV2.
     hexploit o0; clear o0.
     { inv ORD.
       { punfold NOFAIL. inv NOFAIL. pclearbot. eexists. econs 1; eauto. }
-      { exists o. eapply next_ord_tr; eauto. }
+      { exists (S o0). eapply next_ord_tr; eauto. }
     }
-    intros ORD0. rename x0 into o0.
+    intros ORD0. rename x0 into o0. inv ORD.
+    2:{ hexploit next_ord_tr; eauto. i. admit. }
+    rename o into wft0.
+    punfold NOFAIL. inv NOFAIL. pclearbot. eapply (ord_tr_nofail _ wft0 S) in TL.
+  Admitted.
 
-
-    eapply fair_ind_ex_ord_tr; eauto. intros ORD. rename x0 into o0.
-    { exists
-  
+  Lemma next_fail_fair_ind
+        i R (tr next: @RawTr.t Ident R)
+        (NEXT: RawTr.next_fail i tr next)
+        (IND: pind3 (RawTr.__fair_ind (upaco3 (fun r => pind3 (RawTr.__fair_ind r) top3) bot3)) top3 R i next)
+    :
+    RawTr.fair_ind i tr.
+  Proof.
+    pfold. depgen tr.
+    revert R i next IND.
+    eapply (@pind3_acc _ _ _ _ (fun R i (next: @RawTr.t Ident R) =>
+                                  forall tr : RawTr.t,
+                                    RawTr.next_fail i tr next ->
+                                    pind3
+                                      (RawTr.__fair_ind
+                                         (upaco3 (fun r => pind3 (RawTr.__fair_ind r) top3) bot3)) top3 R i tr)).
+    (* eapply (@pind3_acc _ _ _ _ (fun R i (next: @RawTr.t Ident R) => *)
+    (*                               forall tr : RawTr.t, RawTr.next_fail i tr next -> RawTr.fair_ind i tr)). *)
+    i. rename x0 into R, x1 into i, x2 into next. rename H into NEXT.
+    eapply pind3_unfold in PR.
+    2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
+    inv PR.
+    { admit. }
+    { destruct IND as [PI IND]. hexploit IH. eauto. eauto. i.
 
   Lemma ord_tr_fair_ord
         R (tr: @RawTr.t Ident R)
@@ -636,7 +690,25 @@ Section EQUIV2.
     { pfold. econs. }
     { pfold. econs. }
     { destruct hd as [silent | obs].
-      2:{ pfold. econs. right. eapply CIH. i. specialize (ORD i). inv ORD.
+      2:{ pfold. econs. right.
+          assert ((fun i : id => tr2ord_i i (RawTr.cons (inr obs) tr)) = (fun i : id => tr2ord_i i tr)).
+          { extensionalities i. eapply tr2ord_i_red_obs; eauto. }
+          rewrite H; clear H. eapply CIH.
+          ii. specialize (IND i). punfold IND. eapply pind3_unfold in IND.
+          2:{ admit. }
+          inv IND.
+          { punfold NOFAIL. inv NOFAIL. pclearbot. pfold. eapply pind3_fold. econs 1; eauto. }
+          destruct IND0 as [PI IND]. clear IND.
+
+          punfold IND.
+
+
+          
+          rewrite tr2ord_i_red_obs; eauto.
+
+
+
+          eapply CIH. i. specialize (ORD i). inv ORD.
           - punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; eauto.
           - eapply next_ord_tr; eauto.
       }
