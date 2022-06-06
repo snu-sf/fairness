@@ -33,29 +33,29 @@ Section AUX.
 
   Context {Ident: ID}.
 
-  Lemma not_ex_next_fail_nofail
-        i R (tr: @RawTr.t _ R)
-        (NOT: ~ exists tl, RawTr.next_fail i tr tl)
-    :
-    RawTr.nofail i tr.
-  Proof.
-    nean NOT.
-    revert_until i. pcofix CIH. i.
-    destruct tr.
-    { pfold. econs. }
-    { pfold. econs. }
-    { pfold. econs. }
-    { destruct hd as [silent | obs].
-      2:{ pfold. econs. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
-      destruct silent as [ | fm].
-      { pfold. econs. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
-      { destruct (fm i) eqn:FM.
-        { exfalso. eapply (NOT tr); clear NOT. pfold. econs 1. auto. }
-        { pfold. econs 7. rewrite FM; ss. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. }
-        { pfold. econs 4. rewrite FM; ss. }
-      }
-    }
-  Qed.
+  (* Lemma not_ex_next_fail_nofail *)
+  (*       i R (tr: @RawTr.t _ R) *)
+  (*       (NOT: ~ exists tl, RawTr.next_fail i tr tl) *)
+  (*   : *)
+  (*   RawTr.nofail i tr. *)
+  (* Proof. *)
+  (*   nean NOT. *)
+  (*   revert_until i. pcofix CIH. i. *)
+  (*   destruct tr. *)
+  (*   { pfold. econs. } *)
+  (*   { pfold. econs. } *)
+  (*   { pfold. econs. } *)
+  (*   { destruct hd as [silent | obs]. *)
+  (*     2:{ pfold. econs. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. } *)
+  (*     destruct silent as [ | fm]. *)
+  (*     { pfold. econs. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. } *)
+  (*     { destruct (fm i) eqn:FM. *)
+  (*       { exfalso. eapply (NOT tr); clear NOT. pfold. econs 1. auto. } *)
+  (*       { pfold. econs 7. rewrite FM; ss. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. } *)
+  (*       { pfold. econs 4. rewrite FM; ss. right. eapply CIH. i. specialize (NOT a). ii. eapply NOT; clear NOT. pfold. econs; eauto. } *)
+  (*     } *)
+  (*   } *)
+  (* Qed. *)
 
   Inductive must_fail i R: (@RawTr.t _ R) -> Prop :=
   | must_fail_fail
@@ -219,7 +219,7 @@ Section AUX.
         { pfold. econs 7. auto. right. eapply CIH.
           ii. eapply NMUST. econs 4; auto.
         }
-        { pfold. econs 4. ss. }
+        { pfold. econs 4. ss. right. eapply CIH. ii. eapply NMUST. }
       }
     }
   Qed.
