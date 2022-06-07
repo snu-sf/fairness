@@ -909,29 +909,30 @@ Section EQUIV2.
       rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss.
     }
     { inv ORD2; eauto.
-      all: try (punfold NOFAIL; inv NOFAIL; eapply must_fail_not_nofail in MUST;
-                pclearbot; clarify).
-      hexploit must_fail_next_fail_eq. 3: eauto. eapply NEXT. eapply NEXT0. i; clarify.
-      f_equal. eauto.
+      - inv MS; apply RawTr.must_fail_not_success in MF; clarify.
+      - inv MS. apply RawTr.must_fail_not_success in MF; clarify.
+      - inv MS. rewrite EMP in SUCCESS; ss. apply RawTr.must_fail_not_success in MF; clarify.
+      - inv MS. rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss.
     }
     { inv ORD2; eauto.
-      all: try (punfold NOFAIL; inv NOFAIL; eapply must_fail_not_nofail in MUST;
-                pclearbot; clarify).
-      hexploit must_fail_next_fail_eq. 3: eauto. eapply NEXT. eapply NEXT0. i; clarify.
-      f_equal. eauto.
+      - punfold NOFAIL; inv NOFAIL. pclearbot. eapply RawTr.must_fail_not_nofail in MF. clarify.
+      - inv MS. eapply RawTr.must_fail_not_success in MF. clarify.
     }
     { inv ORD2; eauto.
-      all: try (punfold NOFAIL; inv NOFAIL; eapply must_fail_not_nofail in MUST;
-                pclearbot; clarify).
-      rewrite <- EMP in SUCCESS; ss.
-      2:{ rewrite <- EMP in FAIL; ss. }
-      hexploit must_fail_next_fail_eq. 3: eauto. eapply NEXT. eapply NEXT0. i; clarify.
-      f_equal. eauto.
+      - punfold NOFAIL; inv NOFAIL. pclearbot. eapply RawTr.must_fail_not_nofail in MF. clarify.
+      - inv MS. eapply RawTr.must_fail_not_success in MF. clarify.
     }
     { inv ORD2; eauto.
-      { punfold NOFAIL. inv NOFAIL. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. }
-      rewrite <- FAIL in EMP; ss.
-      f_equal. eauto.
+      - punfold NOFAIL; inv NOFAIL. rewrite EMP in SUCCESS; ss.
+        pclearbot. eapply RawTr.must_fail_not_nofail in MF. clarify.
+      - inv MS. rewrite EMP in SUCCESS; ss. eapply RawTr.must_fail_not_success in MF. clarify.
+      - rewrite EMP in FAIL; ss.
+    }
+    { inv ORD2; eauto.
+      - punfold NOFAIL; inv NOFAIL. rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss.
+      - inv MS. rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss.
+      - rewrite FAIL in EMP; ss.
+      - f_equal. eauto.
     }
   Qed.
 
