@@ -959,49 +959,49 @@ Section EQUIV2.
   (*   exists m0, (fair_update m m0 fm) /\ (forall i : id, ord_tr wft wft0 S i (m0 i) tr). *)
   (* Proof. *)
 
-  Lemma ord_tr_fair_case
-        R (tr: @RawTr.t _ R) fm m
-        (IND: RawTr.is_fair_ind tr)
-        (ORD: forall i : id, ord_tr wft wft0 S i (m i) (RawTr.cons (inl (silentE_fair fm)) tr))
-    :
-    exists m0, (fair_update m m0 fm) /\ (forall i : id, ord_tr wft wft0 S i (m0 i) tr).
-  Proof.
-    exists (fun i => tr2ord_i i tr). split.
-    2:{ i. eapply tr2ord_i_spec. eauto. }
-    ii. specialize (ORD i). des_ifs.
-    { inv ORD.
-      { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. rewrite Heq in EMP; ss. }
-      { rewrite Heq in EMP; ss. }
-      { assert (tr2ord_i i tr = o).
-        { eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. }
-        rewrite H; auto.
-      }
-    }
-    { inv ORD.
-      { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. pclearbot.
-        assert (tr2ord_i i tr = wft0).
-        { eapply ord_tr_nofail_fix; eauto. eapply tr2ord_i_spec; eauto. }
-        rewrite H0; rewrite <- H; left; auto.
-      }
-      { assert (tr2ord_i i tr = S o).
-        { hexploit next_ord_tr; eauto. i. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. }
-        rewrite H; left; auto.
-      }
-      { rewrite Heq in FAIL; ss. }
-    }
-  Qed.
+  (* Lemma ord_tr_fair_case *)
+  (*       R (tr: @RawTr.t _ R) fm m *)
+  (*       (IND: RawTr.is_fair_ind tr) *)
+  (*       (ORD: forall i : id, ord_tr wft wft0 S i (m i) (RawTr.cons (inl (silentE_fair fm)) tr)) *)
+  (*   : *)
+  (*   exists m0, (fair_update m m0 fm) /\ (forall i : id, ord_tr wft wft0 S i (m0 i) tr). *)
+  (* Proof. *)
+  (*   exists (fun i => tr2ord_i i tr). split. *)
+  (*   2:{ i. eapply tr2ord_i_spec. eauto. } *)
+  (*   ii. specialize (ORD i). des_ifs. *)
+  (*   { inv ORD. *)
+  (*     { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. rewrite Heq in EMP; ss. } *)
+  (*     { rewrite Heq in EMP; ss. } *)
+  (*     { assert (tr2ord_i i tr = o). *)
+  (*       { eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. } *)
+  (*       rewrite H; auto. *)
+  (*     } *)
+  (*   } *)
+  (*   { inv ORD. *)
+  (*     { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. pclearbot. *)
+  (*       assert (tr2ord_i i tr = wft0). *)
+  (*       { eapply ord_tr_nofail_fix; eauto. eapply tr2ord_i_spec; eauto. } *)
+  (*       rewrite H0; rewrite <- H; left; auto. *)
+  (*     } *)
+  (*     { assert (tr2ord_i i tr = S o). *)
+  (*       { hexploit next_ord_tr; eauto. i. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. } *)
+  (*       rewrite H; left; auto. *)
+  (*     } *)
+  (*     { rewrite Heq in FAIL; ss. } *)
+  (*   } *)
+  (* Qed. *)
 
-  Lemma all_ord_tr_is_fair_ind
-        R (tr: @RawTr.t Ident R) m
-        (ORD: forall i, ord_tr wft wft0 S i (m i) tr)
-    :
-    RawTr.is_fair_ind tr.
-  Proof.
-    ii. specialize (ORD i). eapply ex_ord_tr_fair_ind; eauto.
-  Qed.
+  (* Lemma all_ord_tr_is_fair_ind *)
+  (*       R (tr: @RawTr.t Ident R) m *)
+  (*       (ORD: forall i, ord_tr wft wft0 S i (m i) tr) *)
+  (*   : *)
+  (*   RawTr.is_fair_ind tr. *)
+  (* Proof. *)
+  (*   ii. specialize (ORD i). eapply ex_ord_tr_fair_ind; eauto. *)
+  (* Qed. *)
 
 
-  Lemma fair_ind_red_cons
+  Lemma fair_ind_red_fair
         R (tr: @RawTr.t _ R) fm
         (IND: RawTr.is_fair_ind (RawTr.cons (inl (silentE_fair fm)) tr))
     :
@@ -1020,10 +1020,37 @@ Section EQUIV2.
     eapply pind3_unfold in PR.
     2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
     inv PR.
-    { punfold NOFAIL. inv NOFAIL.
-      -
-        (*TODO*)
-    
+    { pfold. destruct (fair_ind_cases i tr) as [NF | [MF | MS]]; des.
+      { eapply pind3_fold. econs 1; eauto. }
+      { destruct (fm i) eqn:FM.
+        { punfold NOFAIL. inv NOFAIL. rewrite FM in SUCCESS; ss. rewrite FM in EMP; ss. }
+        { punfold NOFAIL. inv NOFAIL. rewrite FM in SUCCESS; ss. pclearbot. clarify. }
+        { punfold NOFAIL. inv NOFAIL. pclearbot. clarify. rewrite FM in EMP; ss. }
+      }
+      { destruct (fm i) eqn:FM.
+        { punfold NOFAIL. inv NOFAIL. rewrite FM in SUCCESS; ss. rewrite FM in EMP; ss. }
+        { punfold NOFAIL. inv NOFAIL. rewrite FM in SUCCESS; ss. pclearbot. clarify. }
+        { punfold NOFAIL. inv NOFAIL. pclearbot. clarify. rewrite FM in EMP; ss. }
+      }
+    }
+    { destruct (fair_ind_cases i tr) as [NF | [MF | MS]]; des.
+      { clarify. }
+      { hexploit IND; clear IND; eauto. intro IND. destruct IND as [PI IND].
+        pfold. eapply pind3_mon_top. eauto. i. eapply RawTr.fair_ind_mon1. 2: eauto.
+        i. pclearbot. left. eapply paco3_mon. eauto. ss.
+      }
+      { hexploit COI; clear COI; eauto. i. pclearbot. eapply paco3_mon; eauto. ss. }
+    }
+    { destruct (fair_ind_cases i tr) as [NF | [MF | MS]]; des.
+      { pfold. eapply pind3_fold. econs 1. eauto. }
+      { hexploit IND; clear IND; eauto. intro IND. destruct IND as [PI IND].
+        pfold. eapply pind3_mon_top. eauto. i. eapply RawTr.fair_ind_mon1. 2: eauto.
+        i. pclearbot. left. eapply paco3_mon. eauto. ss.
+      }
+      { hexploit COI; clear COI; eauto. i. pclearbot. eapply paco3_mon; eauto. ss. }
+    }
+    { pclearbot. eapply paco3_mon; eauto. ss. }
+  Qed.
 
 
   Lemma fair_ind_fair_ord
