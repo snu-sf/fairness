@@ -571,7 +571,6 @@ Section ExtractRaw.
   Variable wf: WF.
   Variable wf0: T wf.
   Variable R: Type.
-  Variable r0: R.
 
   Definition st_tr_im := ((@state _ R) * (@Tr.t R) * (imap wf))%type.
 
@@ -632,11 +631,13 @@ Section ExtractRaw.
 
   Definition observe_state_prop (sti: st_tr_im) (rawsti: (prod (list rawE) st_tr_im)): Prop :=
     (let '(st, tr, im) := sti in (Beh.of_state im st tr)) -> observe_state_trace sti rawsti.
-  (* (<<WF: wf_tr sttr>>) -> (observe_state_trace sttr rawst). *)
+
+  Definition itree_loop R: (@state _ R) :=
+    @ITree.iter _ R unit (fun x: unit => Ret (inl x)) tt.
 
   Lemma inhabited_observe_state: inhabited (prod (list rawE) st_tr_im).
   Proof.
-    econs. econs. exact []. econs. econs. exact (Ret r0). exact (Tr.done r0). exact (fun _ => wf0).
+    econs. econs. exact []. econs. econs. exact (itree_loop R). exact Tr.ub. exact (fun _ => wf0).
   Qed.
 
   Definition observe_state (sti: st_tr_im): (prod (list rawE) st_tr_im) :=
@@ -699,7 +700,7 @@ Section ExtractRaw.
     destruct (classic (Beh.of_state im st tr)) as [BEH | NBEH].
     - hexploit observe_state_trace_exists; eauto. i. des. eexists. ii. eauto.
     - eexists. ii. clarify.
-      Unshelve. exact ([], (Ret r0, Tr.done r0, fun _ => wf0)).
+      Unshelve. exact ([], (itree_loop R, Tr.ub, fun _ => wf0)).
   Qed.
 
   (** (state, trace, imap) to raw trace **)
@@ -789,7 +790,7 @@ Section ExtractRaw.
     :
     extract_tr (tr2raw tr) tr.
   Proof.
-    revert_until r0. pcofix CIH; i.
+    revert_until wf0. pcofix CIH; i.
     replace (tr2raw tr) with (RawTr.ob (tr2raw tr)).
     2:{ symmetry. apply RawTr.ob_eq. }
     ss. destruct tr eqn:TR; clarify.
@@ -1065,7 +1066,7 @@ Section ExtractRaw.
     Beh.of_state im1 st1 tr1.
   Proof.
     remember (st0, tr0, im0) as sti0. remember (evs, (st1, tr1, im1)) as esti1.
-    move OST before r0. revert_until OST.
+    move OST before wf0. revert_until OST.
     induction OST; i; ss; clarify.
     { punfold BEH. inv BEH. eapply inj_pair2 in H3. clarify. pclearbot. eauto. }
     { destruct (classic (tr0 = Tr.spin)) as [TRS | TRNS]; clarify.
@@ -1455,7 +1456,7 @@ Section ExtractRaw.
     :
     RawBeh.of_state (R:=R) st (sti2raw (st, Tr.spin, im)).
   Proof.
-    revert_until r0. pcofix CIH. i. punfold DIV. inv DIV.
+    revert_until wf0. pcofix CIH. i. punfold DIV. inv DIV.
     - pclearbot. hexploit sti2raw_red_tau_spin.
       4:{ i; des. rewrite H0; clear H0. pfold. econs. eauto. }
       2,3: ss. pfold. econs. pfold. econs. eauto.
@@ -1476,7 +1477,7 @@ Section ExtractRaw.
     :
     RawBeh.of_state (R:=R) st0 (sti2raw (st0, tr0, im0)).
   Proof.
-    revert_until r0. pcofix CIH; i.
+    revert_until wf0. pcofix CIH; i.
     hexploit sti2raw_exists; eauto. i. des. rewrite H; clear H. rename H0 into OST.
     remember (st0, tr0, im0) as sti0. remember (evs, (st1, tr1, im1)) as esti1.
     move OST before CIH. revert_until OST. induction OST; i; ss; clarify.
@@ -1510,7 +1511,7 @@ Section ExtractRaw.
     :
     raw_spin (sti2raw (itr, Tr.spin, im)).
   Proof.
-    revert_until r0. pcofix CIH; i. punfold DIV. inv DIV.
+    revert_until wf0. pcofix CIH; i. punfold DIV. inv DIV.
     - pclearbot. hexploit sti2raw_red_tau_spin.
       4:{ i; des. rewrite H0; clear H0. pfold. econs. eauto. }
       all: ss. pfold. econs. pfold. econs. eauto.
@@ -1557,7 +1558,7 @@ Section ExtractRaw.
     :
     extract_tr (sti2raw (st0, tr0, im0)) tr0.
   Proof.
-    ginit. revert_until r0. gcofix CIH. i.
+    ginit. revert_until wf0. gcofix CIH. i.
     destruct (classic (tr0 = Tr.spin)) as [TRS | TRNS]; clarify.
     { gfinal. right. eapply paco3_mon. eapply sti2raw_extract_spin.
       eapply beh_implies_spin; eauto. ss. }
@@ -1588,14 +1589,13 @@ Section FAIR.
   Variable wf: WF.
   Variable wf0: T wf.
   Variable R: Type.
-  Variable r0: R.
 
   Lemma raw_spin_trace_fair
         im
     :
     RawTr.fair_ord (wf:=wf) im (raw_spin_trace R).
   Proof.
-    revert_until r0. pcofix CIH; i. rewrite raw_spin_trace_red.
+    revert_until R. pcofix CIH; i. rewrite raw_spin_trace_red.
     pfold. econs; eauto.
   Qed.
 
@@ -1604,7 +1604,7 @@ Section FAIR.
     :
     RawTr.fair_ord (wf:=wf) (R:=R) im (tr2raw tr).
   Proof.
-    revert_until r0. pcofix CIH; i. replace (tr2raw tr) with (RawTr.ob (tr2raw tr)).
+    revert_until R. pcofix CIH; i. replace (tr2raw tr) with (RawTr.ob (tr2raw tr)).
     2:{ symmetry. apply RawTr.ob_eq. }
     ss. destruct tr eqn:TR; clarify.
     { pfold. econs. }
@@ -1619,9 +1619,9 @@ Section FAIR.
           (st: @state _ R) (im: imap wf) tr
           (BEH: Beh.of_state im st tr)
     :
-    RawTr.is_fair_ord wf (sti2raw wf0 r0 (st, tr, im)).
+    RawTr.is_fair_ord wf (sti2raw wf0 (st, tr, im)).
   Proof.
-    rr. exists im. revert_until r0. pcofix CIH; i.
+    rr. exists im. revert_until R. pcofix CIH; i.
     hexploit sti2raw_exists; eauto. i. des. rewrite H; clear H. rename H0 into OST.
     remember (st, tr, im) as sti. remember (evs, (st1, tr1, im1)) as esti1.
     move OST before CIH. revert_until OST. induction OST; i; ss; clarify; ss.
@@ -1657,7 +1657,7 @@ Section FAIR.
     :
     Beh.diverge_index (wf:=wf) (R:=R) im st.
   Proof.
-    revert_until r0. pcofix CIH; i. punfold BEH. inv BEH.
+    revert_until R. pcofix CIH; i. punfold BEH. inv BEH.
     { punfold RSPIN. inv RSPIN. }
     { punfold RSPIN. inv RSPIN. }
     { punfold RSPIN. inv RSPIN. }
@@ -1678,7 +1678,7 @@ Section FAIR.
     exists (im: imap wf), Beh.of_state im st tr.
   Proof.
     rr in BEH. des. rr in FAIR. des. rename m into im. exists im.
-    ginit. revert_until r0. gcofix CIH; i.
+    ginit. revert_until R. gcofix CIH; i.
     move EXT before CIH. revert_until EXT. induction EXT using @extract_tr_ind2; i.
     { punfold BEH0. inv BEH0.
       { guclo Beh.of_state_indC_spec. econs. }
@@ -1710,7 +1710,6 @@ Section EQUIV.
   Variable wf: WF.
   Variable wf0: T wf.
   Variable R: Type.
-  Variable r0: R.
 
   Theorem IndexBeh_implies_SelectBeh
           (st: state (R:=R)) (tr: Tr.t (R:=R))
@@ -1718,7 +1717,7 @@ Section EQUIV.
     :
     exists raw, (<<EXTRACT: extract_tr raw tr>>) /\ (<<BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw>>).
   Proof.
-    des. exists (sti2raw wf0 r0 (st, tr, im)). splits. eapply sti2raw_extract; eauto.
+    des. exists (sti2raw wf0 (st, tr, im)). splits. eapply sti2raw_extract; eauto.
     rr. splits. eapply sti2raw_raw_beh; eauto. eapply sti2raw_preserves_fairness; eauto.
   Qed.
 
