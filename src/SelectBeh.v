@@ -68,44 +68,44 @@ Section TR.
 
 
   (** select fair trace with induction **)
-  Variant _next_fail (i: id)
-          (next_fail: forall R, (@t R) -> (@t R) -> Prop)
-          R
-    :
-    (@t R) -> (@t R) -> Prop :=
-    (* base cases *)
-    | next_fail_fail
-        fmap tl
-        (FAIL: Flag.fail = (fmap i))
-      :
-      _next_fail i next_fail (cons (inl (silentE_fair fmap)) tl) tl
+  (* Variant _next_fail (i: id) *)
+  (*         (next_fail: forall R, (@t R) -> (@t R) -> Prop) *)
+  (*         R *)
+  (*   : *)
+  (*   (@t R) -> (@t R) -> Prop := *)
+  (*   (* base cases *) *)
+  (*   | next_fail_fail *)
+  (*       fmap tl *)
+  (*       (FAIL: Flag.fail = (fmap i)) *)
+  (*     : *)
+  (*     _next_fail i next_fail (cons (inl (silentE_fair fmap)) tl) tl *)
 
-    (* coinductive cases *)
-    | next_fail_obs
-        obs tl next
-        (TL: next_fail R tl next)
-      :
-      _next_fail i next_fail (cons (inr obs) tl) next
-    | next_fail_tau
-        tl next
-        (TL: next_fail R tl next)
-      :
-      _next_fail i next_fail (cons (inl silentE_tau) tl) next
-    | next_fail_emp
-        fmap tl next
-        (EMP: Flag.emp = (fmap i))
-        (TL: next_fail R tl next)
-      :
-      _next_fail i next_fail (cons (inl (silentE_fair fmap)) tl) next
-  .
+  (*   (* coinductive cases *) *)
+  (*   | next_fail_obs *)
+  (*       obs tl next *)
+  (*       (TL: next_fail R tl next) *)
+  (*     : *)
+  (*     _next_fail i next_fail (cons (inr obs) tl) next *)
+  (*   | next_fail_tau *)
+  (*       tl next *)
+  (*       (TL: next_fail R tl next) *)
+  (*     : *)
+  (*     _next_fail i next_fail (cons (inl silentE_tau) tl) next *)
+  (*   | next_fail_emp *)
+  (*       fmap tl next *)
+  (*       (EMP: Flag.emp = (fmap i)) *)
+  (*       (TL: next_fail R tl next) *)
+  (*     : *)
+  (*     _next_fail i next_fail (cons (inl (silentE_fair fmap)) tl) next *)
+  (* . *)
 
-  Definition next_fail i: forall (R: Type), (@t R) -> (@t R) -> Prop :=
-    paco3 (_next_fail i) bot3.
+  (* Definition next_fail i: forall (R: Type), (@t R) -> (@t R) -> Prop := *)
+  (*   paco3 (_next_fail i) bot3. *)
 
-  Lemma next_fail_mon i: monotone3 (_next_fail i).
-  Proof.
-    ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4]; eauto.
-  Qed.
+  (* Lemma next_fail_mon i: monotone3 (_next_fail i). *)
+  (* Proof. *)
+  (*   ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4]; eauto. *)
+  (* Qed. *)
 
 
   Variant _nofail (i: id)
@@ -125,7 +125,7 @@ Section TR.
       _nofail i nofail nb
     | nofail_fair_success
         fmap tl
-        (SUCCESS: Flag.success = (fmap i))
+        (SUCCESS: (fmap i) = Flag.success)
         (TL: nofail R tl)
       :
       _nofail i nofail (cons (inl (silentE_fair fmap)) tl)
@@ -141,7 +141,7 @@ Section TR.
       _nofail i nofail (cons (inl silentE_tau) tl)
     | nofail_fair_emp
         fmap tl
-        (EMP: Flag.emp = (fmap i))
+        (EMP: (fmap i) = Flag.emp)
         (TL: nofail R tl)
       :
       _nofail i nofail (cons (inl (silentE_fair fmap)) tl)
@@ -154,7 +154,135 @@ Section TR.
     ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4 | econs 5 | econs 6 | econs 7 ]; eauto.
   Qed.
 
+  Local Hint Constructors _nofail: core.
+  Local Hint Unfold nofail: core.
+  Local Hint Resolve nofail_mon: paco.
 
+
+  Inductive must_fail i R: (@t R) -> Prop :=
+  | must_fail_fail
+      fm tl
+      (FAIL: fm i = Flag.fail)
+    :
+    must_fail i (cons (inl (silentE_fair fm)) tl)
+  | must_fail_obs
+      obs tl
+      (MUSTF: must_fail i tl)
+    :
+    must_fail i (cons (inr obs) tl)
+  | must_fail_tau
+      tl
+      (MUSTF: must_fail i tl)
+    :
+    must_fail i (cons (inl silentE_tau) tl)
+  | must_fail_emp
+      fm tl
+      (EMP: fm i = Flag.emp)
+      (MUSTF: must_fail i tl)
+    :
+    must_fail i (cons (inl (silentE_fair fm)) tl)
+  .
+
+  Inductive must_success i R: (@t R) -> Prop :=
+  | must_success_success
+      fm tl
+      (SUCCESS: fm i = Flag.success)
+    :
+    must_success i (cons (inl (silentE_fair fm)) tl)
+  | must_success_obs
+      obs tl
+      (MUSTS: must_success i tl)
+    :
+    must_success i (cons (inr obs) tl)
+  | must_success_tau
+      tl
+      (MUSTS: must_success i tl)
+    :
+    must_success i (cons (inl silentE_tau) tl)
+  | must_success_emp
+      fm tl
+      (EMP: Flag.emp = fm i)
+      (MUSTS: must_success i tl)
+    :
+    must_success i (cons (inl (silentE_fair fm)) tl)
+  .
+
+  Lemma must_fail_not_success
+        i R (tr: @t R)
+        (MUST: must_fail i tr)
+    :
+    ~ must_success i tr.
+  Proof.
+    induction MUST.
+    { ii. inv H. rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss. }
+    { ii. apply IHMUST; clear IHMUST. inv H. auto. }
+    { ii. apply IHMUST; clear IHMUST. inv H. auto. }
+    { ii. apply IHMUST; clear IHMUST. inv H. rewrite EMP in SUCCESS; ss. auto. }
+  Qed.
+
+  Lemma must_success_not_fail
+        i R (tr: @t R)
+        (MUST: must_success i tr)
+    :
+    ~ must_fail i tr.
+  Proof.
+    induction MUST.
+    { ii. inv H. rewrite SUCCESS in FAIL; ss. rewrite EMP in SUCCESS; ss. }
+    { ii. apply IHMUST; clear IHMUST. inv H. auto. }
+    { ii. apply IHMUST; clear IHMUST. inv H. auto. }
+    { ii. apply IHMUST; clear IHMUST. inv H. rewrite FAIL in EMP; ss. auto. }
+  Qed.
+
+  Lemma must_fail_not_nofail
+        i R (tr: @t R)
+        (MUST: must_fail i tr)
+    :
+    ~ nofail i tr.
+  Proof.
+    induction MUST.
+    { ii. punfold H. inv H. rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss. }
+    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. pclearbot. auto. }
+    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. pclearbot. auto. }
+    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. rewrite EMP in SUCCESS; ss. pclearbot. auto. }
+  Qed.
+
+  Lemma not_musts_nofail
+        i R (tr: @t R)
+        (NMUSTF: ~ must_fail i tr)
+        (NMUSTS: ~ must_success i tr)
+    :
+    nofail i tr.
+  Proof.
+    revert_until R. pcofix CIH. i. destruct tr.
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH.
+          - ii. eapply NMUSTF. econs. auto.
+          - ii. eapply NMUSTS. econs. auto.
+      }
+      destruct silent as [| fm].
+      { pfold. econs. right. eapply CIH.
+        - ii. eapply NMUSTF. econs. auto.
+        - ii. eapply NMUSTS. econs. auto.
+      }
+      { destruct (fm i) eqn:FM.
+        { exfalso. eapply NMUSTF. econs; eauto. }
+        { pfold. econs 7. auto. right. eapply CIH.
+          - ii. eapply NMUSTF. econs 4; auto.
+          - ii. eapply NMUSTS. econs 4; auto.
+        }
+        { exfalso. eapply NMUSTS. econs; eauto. }
+      }
+    }
+  Qed.
+
+  (* cases analysis: *)
+  (* ~mf ms nf *)
+  (* ~mf ~ms nf *)
+  (* mf ~ms ~nf *)
+  (* ~mf ms ~nf *)
   Variant __fair_ind
           (fair_ind: forall (R: Type) (i: id), (@t R) -> Prop)
           (_fair_ind: forall (R: Type) (i: id), (@t R) -> Prop)
@@ -168,41 +296,45 @@ Section TR.
       :
       __fair_ind fair_ind _fair_ind i tr
 
-    (* inner inductive cases: i fails inductively *)
+    (* inner cases: depends on future success / fail *)
     | fair_ind_obs
-        (obs: obsE) tl next
-        (NEXT: next_fail i tl next)
-        (IND: _fair_ind R i next)
+        (obs: obsE) tl
+        (NNF: ~ nofail i tl)
+        (COI: must_success i tl -> fair_ind R i tl)
+        (IND: must_fail i tl -> _fair_ind R i tl)
       :
       __fair_ind fair_ind _fair_ind i (cons (inr obs) tl)
     | fair_ind_tau
-        tl next
-        (NEXT: next_fail i tl next)
-        (IND: _fair_ind R i next)
+        tl
+        (NNF: ~ nofail i tl)
+        (COI: must_success i tl -> fair_ind R i tl)
+        (IND: must_fail i tl -> _fair_ind R i tl)
       :
       __fair_ind fair_ind _fair_ind i (cons (inl silentE_tau) tl)
     | fair_ind_fair_emp
-        fmap tl next
-        (EMP: Flag.emp = (fmap i))
-        (NEXT: next_fail i tl next)
-        (IND: _fair_ind R i next)
+        fm tl
+        (EMP: (fm i) = Flag.emp)
+        (NNF: ~ nofail i tl)
+        (COI: must_success i tl -> fair_ind R i tl)
+        (IND: must_fail i tl -> _fair_ind R i tl)
       :
-      __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fmap)) tl)
+      __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fm)) tl)
 
+    (* inner inductive case: i must fail *)
     | fair_ind_fair_fail
-        fmap tl
-        (FAIL: Flag.fail = (fmap i))
+        fm tl
+        (FAIL: (fm i) = Flag.fail)
         (IND: _fair_ind R i tl)
       :
-      __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fmap)) tl)
+      __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fm)) tl)
 
-    (* outermost coinductive cases: i successes *)
+    (* outermost coinductive case: i must success *)
     | fair_ind_fair_success
-        fmap tl
-        (SUCCESS: Flag.success = (fmap i))
-        (TL: fair_ind R i tl)
+        fm tl
+        (SUCCESS: (fm i) = Flag.success)
+        (COI: fair_ind R i tl)
       :
-      __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fmap)) tl)
+      __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fm)) tl)
   .
 
   Definition fair_ind: forall (R: Type) (i: id), (@t R) -> Prop :=
@@ -564,9 +696,9 @@ Section TR.
 End TR.
 End RawTr.
 
-#[export] Hint Constructors RawTr._next_fail: core.
-#[export] Hint Unfold RawTr.next_fail: core.
-#[export] Hint Resolve RawTr.next_fail_mon: paco.
+(* #[export] Hint Constructors RawTr._next_fail: core. *)
+(* #[export] Hint Unfold RawTr.next_fail: core. *)
+(* #[export] Hint Resolve RawTr.next_fail_mon: paco. *)
 #[export] Hint Constructors RawTr._nofail: core.
 #[export] Hint Unfold RawTr.nofail: core.
 #[export] Hint Resolve RawTr.nofail_mon: paco.

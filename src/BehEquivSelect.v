@@ -33,6 +33,15 @@ Section AUX.
 
   Context {Ident: ID}.
 
+  Lemma ind_cases
+        i R (tr: @t R)
+    :
+    (<<NF: nofail i tr>>) \/ (<<MF: must_fail i tr>> \/ <<MS: must_success i tr>>).
+  Proof.
+    destruct (classic (nofail i tr)) as [NF | NNF]; auto.
+    eapply not_must_fail_nofail in NM. auto.
+  Qed.
+
   (* Lemma not_ex_next_fail_nofail *)
   (*       i R (tr: @RawTr.t _ R) *)
   (*       (NOT: ~ exists tl, RawTr.next_fail i tr tl) *)
@@ -79,13 +88,67 @@ Section AUX.
       (MUST: must_fail i tl)
     :
     must_fail i (RawTr.cons (inl (silentE_fair fm)) tl)
-  | must_fail_success
-      fm tl
-      (SUCCESS: Flag.success = fm i)
-      (MUST: must_fail i tl)
-    :
-    must_fail i (RawTr.cons (inl (silentE_fair fm)) tl)
+  (* | must_fail_success *)
+  (*     fm tl *)
+  (*     (SUCCESS: Flag.success = fm i) *)
+  (*     (MUST: must_fail i tl) *)
+  (*   : *)
+  (*   must_fail i (RawTr.cons (inl (silentE_fair fm)) tl) *)
   .
+
+  Lemma must_fail_not_nofail
+        i R (tr: @RawTr.t _ R)
+        (MUST: must_fail i tr)
+    :
+    ~ RawTr.nofail i tr.
+  Proof.
+    induction MUST.
+    { ii. punfold H. inv H. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. }
+    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. pclearbot. auto. }
+    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. pclearbot. auto. }
+    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. rewrite <- EMP in SUCCESS; ss.
+      pclearbot. auto. }
+    (* { ii. apply IHMUST; clear IHMUST. punfold H. inv H. *)
+    (*   2:{ rewrite <- EMP in SUCCESS; ss. } *)
+    (*   pclearbot. auto. } *)
+  Qed.
+
+  Lemma not_must_fail_nofail
+        i R (tr: @RawTr.t _ R)
+        (NMUST: ~ must_fail i tr)
+    :
+    RawTr.nofail i tr.
+  Proof.
+    revert_until R. pcofix CIH. i. destruct tr.
+    { pfold. econs. }
+    { pfold. econs. }
+    { pfold. econs. }
+    { destruct hd as [silent | obs].
+      2:{ pfold. econs. right. eapply CIH.
+          ii. eapply NMUST. econs. auto.
+      }
+      destruct silent as [| fm].
+      { pfold. econs. right. eapply CIH.
+        ii. eapply NMUST. econs. auto.
+      }
+      { destruct (fm i) eqn:FM.
+        { exfalso. eapply NMUST. econs; eauto. }
+        { pfold. econs 7. auto. right. eapply CIH.
+          ii. eapply NMUST. econs 4; auto.
+        }
+        { pfold. econs 4. ss. right. eapply CIH. ii. eapply NMUST. econs 5; auto. }
+      }
+    }
+  Qed.
+
+  Lemma must_fail_or_nofail
+        i R (tr: @RawTr.t Ident R)
+    :
+    (must_fail i tr) \/ (RawTr.nofail i tr).
+  Proof.
+    destruct (classic (must_fail i tr)) as [MUST | NM]; auto.
+    eapply not_must_fail_nofail in NM. auto.
+  Qed.
 
 
   Variable wft: WF.
@@ -201,52 +264,6 @@ Section AUX.
   (*     } *)
   (*   } *)
   (* Qed. *)
-
-  Lemma not_must_fail_nofail
-        i R (tr: @RawTr.t _ R)
-        (NMUST: ~ must_fail i tr)
-    :
-    RawTr.nofail i tr.
-  Proof.
-    i. revert_until R. pcofix CIH. i. destruct tr.
-    { pfold. econs. }
-    { pfold. econs. }
-    { pfold. econs. }
-    { destruct hd as [silent | obs].
-      2:{ pfold. econs. right. eapply CIH.
-          ii. eapply NMUST. econs. auto.
-      }
-      destruct silent as [| fm].
-      { pfold. econs. right. eapply CIH.
-        ii. eapply NMUST. econs. auto.
-      }
-      { destruct (fm i) eqn:FM.
-        { exfalso. eapply NMUST. econs; eauto. }
-        { pfold. econs 7. auto. right. eapply CIH.
-          ii. eapply NMUST. econs 4; auto.
-        }
-        { pfold. econs 4. ss. right. eapply CIH. ii. eapply NMUST. econs 5; auto. }
-      }
-    }
-  Qed.
-
-  Lemma must_fail_not_nofail
-        i R (tr: @RawTr.t _ R)
-        (MUST: must_fail i tr)
-    :
-    ~ RawTr.nofail i tr.
-  Proof.
-    induction MUST.
-    { ii. punfold H. inv H. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. }
-    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. pclearbot. auto. }
-    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. pclearbot. auto. }
-    { ii. apply IHMUST; clear IHMUST. punfold H. inv H. rewrite <- EMP in SUCCESS; ss.
-      pclearbot. auto. }
-    { ii. apply IHMUST; clear IHMUST. punfold H. inv H.
-      2:{ rewrite <- EMP in SUCCESS; ss. }
-      pclearbot. auto. }
-  Qed.
-
 
   (* Lemma nofail_all_ord_tr *)
   (*       i R (tr: @RawTr.t _ R) *)
@@ -365,15 +382,6 @@ Section AUX.
   (*     } *)
   (*   } *)
   (* Qed. *)
-
-  Lemma must_fail_or_nofail
-        i R (tr: @RawTr.t Ident R)
-    :
-    (must_fail i tr) \/ (RawTr.nofail i tr).
-  Proof.
-    destruct (classic (must_fail i tr)) as [MUST | NM]; auto.
-    eapply not_must_fail_nofail in NM. auto.
-  Qed.
 
   (* Lemma must_fail_ex_next *)
   (*       i R (tr: @RawTr.t _ R) *)
