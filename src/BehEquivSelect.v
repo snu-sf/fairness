@@ -671,35 +671,34 @@ Section EQUIV.
     }
   Qed.
 
-  (*TODO*)
 
-  Lemma fair_ord_ex_lt
-        R i m
-        (tr: @RawTr.t Ident R)
-        (ORD: RawTr.fair_ord (wf:=wft) m tr)
-        (MUST: must_fail i tr)
-    :
-    exists o, (lt wft o (m i)).
-  Proof.
-    depgen m. induction MUST; i.
-    { punfold ORD. inv ORD. specialize (FAIR i). rewrite <- FAIL in FAIR. eauto. }
-    { punfold ORD. inv ORD. pclearbot. eauto. }
-    { punfold ORD. inv ORD. pclearbot. eauto. }
-    { punfold ORD. inv ORD. pclearbot. specialize (FAIR i). rewrite <- EMP in FAIR.
-      destruct FAIR as [EQ | LT].
-      - rewrite <- EQ. eauto.
-      - eauto.
-    }
-  Qed.
+  (* Lemma fair_ord_ex_lt *)
+  (*       R i m *)
+  (*       (tr: @RawTr.t Ident R) *)
+  (*       (ORD: RawTr.fair_ord (wf:=wft) m tr) *)
+  (*       (MUST: must_fail i tr) *)
+  (*   : *)
+  (*   exists o, (lt wft o (m i)). *)
+  (* Proof. *)
+  (*   depgen m. induction MUST; i. *)
+  (*   { punfold ORD. inv ORD. specialize (FAIR i). rewrite <- FAIL in FAIR. eauto. } *)
+  (*   { punfold ORD. inv ORD. pclearbot. eauto. } *)
+  (*   { punfold ORD. inv ORD. pclearbot. eauto. } *)
+  (*   { punfold ORD. inv ORD. pclearbot. specialize (FAIR i). rewrite <- EMP in FAIR. *)
+  (*     destruct FAIR as [EQ | LT]. *)
+  (*     - rewrite <- EQ. eauto. *)
+  (*     - eauto. *)
+  (*   } *)
+  (* Qed. *)
 
 End EQUIV.
 
 
-(*TODO: move to Flag.t*)
-Lemma ff_eq_dec: forall (f1 f2: Flag.t), {f1 = f2} + {f1 <> f2}.
-Proof.
-  i. destruct f1; destruct f2; ss; eauto. all: right; ss.
-Qed.
+(* (*TODO: move to Flag.t*) *)
+(* Lemma ff_eq_dec: forall (f1 f2: Flag.t), {f1 = f2} + {f1 <> f2}. *)
+(* Proof. *)
+(*   i. destruct f1; destruct f2; ss; eauto. all: right; ss. *)
+(* Qed. *)
 
 
 
@@ -723,6 +722,91 @@ Section EQUIV2.
   Hypothesis SP: forall o, (o <> wft0) -> (S (P o)) = o.
   Hypothesis PS: forall o, (P (S o)) = o.
 
+
+  Lemma ord_tr_red_obs
+        R i obs (tr: @RawTr.t Ident R) o
+        (ORD: ord_tr wft wft0 S i o (RawTr.cons (inr obs) tr))
+    :
+    ord_tr wft wft0 S i o tr.
+  Proof.
+    remember (RawTr.cons (inr obs) tr) as otr. move ORD before PS. revert_until ORD. induction ORD; i; ss; clarify.
+    { punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; auto. }
+    { econs 2.
+      - intro NF; apply NNF. pfold. econs. auto.
+      - inv MS. auto.
+    }
+  Qed.
+
+  Lemma ord_tr_red_tau
+        R i (tr: @RawTr.t Ident R) o
+        (ORD: ord_tr wft wft0 S i o (RawTr.cons (inl silentE_tau) tr))
+    :
+    ord_tr wft wft0 S i o tr.
+  Proof.
+    remember (RawTr.cons (inl silentE_tau) tr) as otr. move ORD before PS. revert_until ORD. induction ORD; i; ss; clarify.
+    { punfold NOFAIL. inv NOFAIL. pclearbot. econs 1; auto. }
+    { econs 2.
+      - intro NF; apply NNF. pfold. econs. auto.
+      - inv MS. auto.
+    }
+  Qed.
+
+
+  Definition fair_update_i (o: wft.(T)) (f: Flag.t): wft.(T) :=
+    match f with
+    | Flag.success => wft0
+    | Flag.emp => o
+    | Flag.fail => (P o)
+    end.
+
+  (* Definition update_imap (m: imap wft) (fm: fmap): imap wft := *)
+  (*   fun i => match (fm i) with *)
+  (*         | Flag.success => wft0 *)
+  (*         | Flag.emp => (m i) *)
+  (*         | Flag.fail => (P (m i)) *)
+  (*         end. *)
+
+  (* Lemma ord_tr_red_fair *)
+  (*       R i fm (tr: @RawTr.t Ident R) o *)
+  (*       (ORD: ord_tr wft wft0 S i o (RawTr.cons (inl (silentE_fair fm)) tr)) *)
+  (*   : *)
+  (*   ord_tr wft wft0 S i (fair_update_i o (fm i)) tr. *)
+  (* Proof. *)
+  (*   remember (RawTr.cons (inl (silentE_fair fm)) tr) as otr. move ORD before PS. revert_until ORD. induction ORD; i; ss; clarify. *)
+  (*   { punfold NOFAIL. inv NOFAIL; pclearbot. *)
+  (*     - rewrite SUCCESS. ss. econs 1; eauto. *)
+  (*     - rewrite EMP. ss. econs 1; eauto. *)
+  (*   } *)
+  (*   { remember (RawTr.cons (inl (silentE_fair fm)) tr0) as otr. move MS before PS. revert_until MS. induction MS; i; ss; clarify. *)
+  (*     { rewrite SUCCESS; ss. econs 2. *)
+
+
+
+  (*     econs 2. *)
+  (*     - intro NF; apply NNF. pfold. econs. auto. *)
+  (*     - inv MS. auto. *)
+  (*   } *)
+  (* Qed. *)
+
+
+  (* Lemma fair_ind_fair_ord *)
+  (*       R (tr: @RawTr.t Ident R) m *)
+  (*       (ORD: forall i, ord_tr wft wft0 S i (m i) tr) *)
+  (*   : *)
+  (*   RawTr.fair_ord m tr. *)
+  (* Proof. *)
+  (*   revert_until R. pcofix CIH. i. destruct tr. *)
+  (*   { pfold. econs. } *)
+  (*   { pfold. econs. } *)
+  (*   { pfold. econs. } *)
+  (*   { destruct hd as [silent | obs]. *)
+  (*     2:{ pfold. econs. right. eapply CIH. i. eapply ord_tr_red_obs; eauto. } *)
+  (*     destruct silent as [| fm]. *)
+  (*     { pfold. econs. right. eapply CIH. i. eapply ord_tr_red_tau; eauto. } *)
+  (*     pfold. econs. *)
+  (*     2:{ right. eapply CIH. *)
+
+
   Lemma inhabited_tr_ord: inhabited (T wft).
   Proof. econs. exact wft0. Qed.
 
@@ -739,27 +823,27 @@ Section EQUIV2.
     hexploit o; clear o. eapply fair_ind_ex_ord_tr; eauto. intros ORD. auto.
   Qed.
 
-  Lemma next_ord_tr
-        i R (tr next: @RawTr.t _ R) o
-        (MUST: must_fail i tr)
-        (NEXT: RawTr.next_fail i tr next)
-        (ORD: ord_tr wft wft0 S i o next)
-    :
-    ord_tr wft wft0 S i (S o) tr.
-  Proof.
-    destruct tr.
-    { punfold NEXT. inv NEXT. }
-    { punfold NEXT. inv NEXT. }
-    { punfold NEXT. inv NEXT. }
-    { destruct hd as [sil | obs].
-      2:{ inv MUST. econs 2; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. }
-      destruct sil as [| fm].
-      { inv MUST. econs 3; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. }
-      punfold NEXT. inv NEXT.
-      { econs 5; eauto. }
-      { inv MUST. rewrite <- EMP in FAIL; ss. pclearbot. econs 4; eauto. }
-    }
-  Qed.
+  (* Lemma next_ord_tr *)
+  (*       i R (tr next: @RawTr.t _ R) o *)
+  (*       (MUST: must_fail i tr) *)
+  (*       (NEXT: RawTr.next_fail i tr next) *)
+  (*       (ORD: ord_tr wft wft0 S i o next) *)
+  (*   : *)
+  (*   ord_tr wft wft0 S i (S o) tr. *)
+  (* Proof. *)
+  (*   destruct tr. *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { punfold NEXT. inv NEXT. } *)
+  (*   { destruct hd as [sil | obs]. *)
+  (*     2:{ inv MUST. econs 2; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. } *)
+  (*     destruct sil as [| fm]. *)
+  (*     { inv MUST. econs 3; eauto. punfold NEXT. inv NEXT. pclearbot. eauto. } *)
+  (*     punfold NEXT. inv NEXT. *)
+  (*     { econs 5; eauto. } *)
+  (*     { inv MUST. rewrite <- EMP in FAIL; ss. pclearbot. econs 4; eauto. } *)
+  (*   } *)
+  (* Qed. *)
 
 
   Lemma ord_tr_nofail_fix
@@ -770,32 +854,47 @@ Section EQUIV2.
     o = wft0.
   Proof.
     inv ORD; eauto.
-    { eapply must_fail_not_nofail in MUST. punfold NF. inv NF. pclearbot. clarify. }
-    { eapply must_fail_not_nofail in MUST. punfold NF. inv NF. pclearbot. clarify. }
-    { eapply must_fail_not_nofail in MUST. punfold NF. inv NF. rewrite <- EMP in SUCCESS; ss. pclearbot. clarify. }
-    { punfold NF. inv NF. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss. }
+    { punfold NF. inv NF. pclearbot. clarify. }
+    { punfold NF. inv NF. pclearbot. clarify. }
+    { punfold NF. inv NF. rewrite EMP in SUCCESS; ss. pclearbot. clarify. }
+    { punfold NF. inv NF. rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss. }
   Qed.
 
-  Lemma must_fail_next_fail_eq
-        R i (tr next1 next2: @RawTr.t _ R)
-        (NEXT1: RawTr.next_fail i tr next1)
-        (NEXT2: RawTr.next_fail i tr next2)
-        (MUST: must_fail i tr)
+  Lemma ord_tr_ms_fix
+        R i o (tr: @RawTr.t _ R)
+        (ORD: ord_tr wft wft0 S i o tr)
+        (NNF: ~ RawTr.nofail i tr)
+        (MS: RawTr.must_success i tr)
     :
-    next1 = next2.
+    o = wft0.
   Proof.
-    depgen next2. depgen next1. induction MUST; i.
-    { punfold NEXT1. inv NEXT1.
-      2:{ rewrite <- FAIL in EMP; ss. }
-      punfold NEXT2. inv NEXT2.
-      2:{ rewrite <- FAIL in EMP; ss. }
-      ss.
-    }
-    { punfold NEXT1. inv NEXT1. punfold NEXT2. inv NEXT2. pclearbot. eauto. }
-    { punfold NEXT1. inv NEXT1. punfold NEXT2. inv NEXT2. pclearbot. eauto. }
-    { punfold NEXT1. inv NEXT1. rewrite <- EMP in FAIL; ss.
-      punfold NEXT2. inv NEXT2. rewrite <- EMP in FAIL; ss. pclearbot. eauto. }
+    inv ORD; eauto.
+    { inv MS. apply RawTr.must_fail_not_success in MF. clarify. }
+    { inv MS. apply RawTr.must_fail_not_success in MF. clarify. }
+    { inv MS. rewrite EMP in SUCCESS; ss. apply RawTr.must_fail_not_success in MF. clarify. }
+    { inv MS. rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss. }
   Qed.
+
+  (* Lemma must_fail_next_fail_eq *)
+  (*       R i (tr next1 next2: @RawTr.t _ R) *)
+  (*       (NEXT1: RawTr.next_fail i tr next1) *)
+  (*       (NEXT2: RawTr.next_fail i tr next2) *)
+  (*       (MUST: must_fail i tr) *)
+  (*   : *)
+  (*   next1 = next2. *)
+  (* Proof. *)
+  (*   depgen next2. depgen next1. induction MUST; i. *)
+  (*   { punfold NEXT1. inv NEXT1. *)
+  (*     2:{ rewrite <- FAIL in EMP; ss. } *)
+  (*     punfold NEXT2. inv NEXT2. *)
+  (*     2:{ rewrite <- FAIL in EMP; ss. } *)
+  (*     ss. *)
+  (*   } *)
+  (*   { punfold NEXT1. inv NEXT1. punfold NEXT2. inv NEXT2. pclearbot. eauto. } *)
+  (*   { punfold NEXT1. inv NEXT1. punfold NEXT2. inv NEXT2. pclearbot. eauto. } *)
+  (*   { punfold NEXT1. inv NEXT1. rewrite <- EMP in FAIL; ss. *)
+  (*     punfold NEXT2. inv NEXT2. rewrite <- EMP in FAIL; ss. pclearbot. eauto. } *)
+  (* Qed. *)
 
   Lemma ord_tr_eq
         R i o1 o2 (tr: @RawTr.t _ R)
@@ -806,10 +905,8 @@ Section EQUIV2.
   Proof.
     depgen o2. induction ORD1; i.
     { inv ORD2; eauto.
-      all: try (punfold NOFAIL; inv NOFAIL; eapply must_fail_not_nofail in MUST;
-                pclearbot; clarify).
-      rewrite <- EMP in SUCCESS; ss.
-      punfold NOFAIL. inv NOFAIL. rewrite <- FAIL in SUCCESS; ss. rewrite <- FAIL in EMP; ss.
+      all: punfold NOFAIL; inv NOFAIL; pclearbot; clarify.
+      rewrite FAIL in SUCCESS; ss. rewrite FAIL in EMP; ss.
     }
     { inv ORD2; eauto.
       all: try (punfold NOFAIL; inv NOFAIL; eapply must_fail_not_nofail in MUST;
