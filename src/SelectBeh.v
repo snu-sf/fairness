@@ -201,7 +201,7 @@ Section TR.
     must_success i (cons (inl silentE_tau) tl)
   | must_success_emp
       fm tl
-      (EMP: Flag.emp = fm i)
+      (EMP: fm i = Flag.emp)
       (MUSTS: must_success i tl)
     :
     must_success i (cons (inl (silentE_fair fm)) tl)
@@ -319,12 +319,13 @@ Section TR.
         (IND: must_fail i tl -> _fair_ind R i tl)
       :
       __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fm)) tl)
-
-    (* inner inductive case: i must fail *)
     | fair_ind_fair_fail
         fm tl
         (FAIL: (fm i) = Flag.fail)
-        (IND: _fair_ind R i tl)
+        (* (NNF: ~ nofail i tl) *)
+        (COI: must_success i tl -> fair_ind R i tl)
+        (* (IND: must_fail i tl -> _fair_ind R i tl) *)
+        (IND: (~ must_success i tl) -> _fair_ind R i tl)
       :
       __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fm)) tl)
 
@@ -404,7 +405,7 @@ Section TR.
       ___fair fair _fair __fair i (cons (inl silentE_tau) tl)
     | fair_fair_emp
         fmap tl
-        (EMP: Flag.emp = (fmap i))
+        (EMP: (fmap i) = Flag.emp)
         (TL: __fair R i tl)
       :
       ___fair fair _fair __fair i (cons (inl (silentE_fair fmap)) tl)
@@ -412,7 +413,7 @@ Section TR.
     (* middle inductive cases: i fails inductively *)
     | fair_fair_fail
         fmap tl
-        (FAIL: Flag.fail = (fmap i))
+        (FAIL: (fmap i) = Flag.fail)
         (TL: _fair R i tl)
       :
       ___fair fair _fair __fair i (cons (inl (silentE_fair fmap)) tl)
@@ -420,7 +421,7 @@ Section TR.
     (* outermost coinductive cases: i successes *)
     | fair_fair_success
         fmap tl
-        (SUCCESS: Flag.success = (fmap i))
+        (SUCCESS: (fmap i) = Flag.success)
         (TL: fair R i tl)
       :
       ___fair fair _fair __fair i (cons (inl (silentE_fair fmap)) tl)
