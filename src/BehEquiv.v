@@ -169,22 +169,6 @@ Section EXTRACT.
   Lemma extract_tr_indC_spec: extract_tr_indC <4= gupaco3 _extract_tr (cpn3 _extract_tr).
   Proof. i. eapply wrespect3_uclo; eauto with paco. eapply extract_tr_indC_wrespectful. Qed.
 
-End EXTRACT.
-#[export] Hint Constructors _raw_spin: core.
-#[export] Hint Unfold raw_spin: core.
-#[export] Hint Resolve raw_spin_mon: paco.
-#[export] Hint Resolve cpn2_wcompat: paco.
-#[export] Hint Constructors _extract_tr: core.
-#[export] Hint Unfold extract_tr: core.
-#[export] Hint Resolve extract_tr_mon: paco.
-#[export] Hint Resolve cpn3_wcompat: paco.
-
-
-
-Section ExtractTr.
-
-  Context {Ident: ID}.
-
   Lemma extract_eq_done
         R (tr: @Tr.t R) retv
         (EXTRACT: extract_tr (RawTr.done retv) tr)
@@ -212,7 +196,60 @@ Section ExtractTr.
     punfold EXTRACT. inv EXTRACT; eauto. punfold RSPIN. inv RSPIN.
   Qed.
 
+  Lemma extract_tr_raw_spin
+        R (tr: @Tr.t R) raw
+        (EXT: extract_tr raw tr)
+        (RS: raw_spin raw)
+    :
+    tr = Tr.spin.
+  Proof.
+    revert RS. induction EXT using extract_tr_ind2; i; eauto.
+    { punfold RS; inv RS. }
+    { punfold RS; inv RS. }
+    { punfold RS; inv RS. }
+    { punfold RS; inv RS. }
+    { punfold RS; inv RS. pclearbot. eauto. }
+  Qed.
 
+  Lemma extract_tr_inj_tr
+        R (tr1 tr2: @Tr.t R) raw
+        (EXT1: extract_tr raw tr1)
+        (EXT2: extract_tr raw tr2)
+    :
+    Tr.eq tr1 tr2.
+  Proof.
+    revert_until R. pcofix CIH; i.
+    depgen tr2. induction EXT1 using extract_tr_ind2; i.
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN. }
+    { punfold EXT2. inv EXT2; eauto. all: try (punfold RSPIN; inv RSPIN).
+      pclearbot. eapply paco3_fold in TL. hexploit extract_tr_raw_spin; eauto.
+      i; clarify. eauto using Tr.eq_equiv.
+    }
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN. }
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN. }
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN.
+      pclearbot. pfold. econs. right; eauto.
+    }
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN.
+      pclearbot. eauto.
+    }
+  Qed.
+
+End EXTRACT.
+#[export] Hint Constructors _raw_spin: core.
+#[export] Hint Unfold raw_spin: core.
+#[export] Hint Resolve raw_spin_mon: paco.
+#[export] Hint Resolve cpn2_wcompat: paco.
+#[export] Hint Constructors _extract_tr: core.
+#[export] Hint Unfold extract_tr: core.
+#[export] Hint Resolve extract_tr_mon: paco.
+#[export] Hint Resolve cpn3_wcompat: paco.
+
+
+
+Section ExtractTr.
+
+  Context {Ident: ID}.
 
   (** observer of the raw trace **)
   Inductive observe_raw_first

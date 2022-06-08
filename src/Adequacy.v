@@ -15,6 +15,8 @@ From Fairness Require Import FairSim.
 From Fairness Require Import SelectBeh.
 From Fairness Require Import BehEquiv BehEquivSelect.
 
+Require Import Setoid Morphisms.
+
 Set Implicit Arguments.
 
 Section ADEQ.
@@ -73,13 +75,14 @@ Section ADEQ.
 
   Theorem global_adequacy
           R
-          psrc0 ptgt0 msrc0 mtgt0 ssrc0 stgt0
-          (SIM: sim (wfs:=wfs) (wft:=wft) (@eq R) psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
+          psrc0 ptgt0 ssrc0 stgt0
+          (SIM: gsim wfs wft (@eq R) psrc0 ptgt0 ssrc0 stgt0)
     :
-    <<IMPR: Beh.improves (Beh.of_state msrc0 ssrc0) (Beh.of_state mtgt0 stgt0)>>.
+    <<IMPR: Beh.improves (wfs:=wfs) (wft:=wft) ssrc0 stgt0>>.
   Proof.
+    ii. specialize (SIM mtgt). des. exists ms. rename mtgt into mtgt0, ms into msrc0. intro PR.
     ginit. revert_until R. gcofix CIH.
-    i. rename x4 into tr. revert psrc0 ptgt0 msrc0 ssrc0 SIM.
+    i. revert psrc0 ptgt0 msrc0 ssrc0 SIM.
     induction PR using @Beh.of_state_ind2; ii.
     { match goal with
       | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
@@ -256,31 +259,6 @@ End ADEQ.
 
 
 
-Section AUX.
-
-  Context {Ident: ID}.
-  (* Hypothesis ID_DEC: forall (i0 i1: Ident.(id)), {i0 = i1} + {i0 <> i1}. *)
-
-  Variable wft: WF.
-  Variable wft0: T wft.
-  Variable S: wft.(T) -> wft.(T).
-  Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
-  Hypothesis WFRT: Transitive wft.(lt).
-
-  (* is false in general; need to give fixed index for user OR some ordering relation... *)
-  Lemma tr2ord_i_is_min
-        R (st: @state _ R) tr raw
-        (EXTRACT: extract_tr raw tr)
-        (BEH: Beh.of_state (fun i : id => tr2ord_i wft wft0 S i raw) st tr)
-    :
-    forall (m: imap  wft), Beh.of_state m st tr.
-  Proof.
-  Abort.
-
-End AUX.
-
-
-
 Section ADEQ2.
 
   Context {Ident: ID}.
@@ -310,22 +288,22 @@ Section ADEQ2.
   Theorem adequacy
           R
           psrc ptgt src tgt
-          (SIM: exists msrc mtgt,
-              sim (wfs:=wfs) (wft:=wft) (@eq R) psrc msrc ptgt mtgt src tgt)
+          (SIM: gsim wfs wft (@eq R) psrc ptgt src tgt)
     :
     improves src tgt.
   Proof.
-    des. dup SIM. eapply global_adequacy in SIM0. intros obs TGT. des.
+    des. eapply global_adequacy in SIM. intros obs TGT. des.
     unfold RawBeh.of_state_fair in TGT0. des.
     eapply Fair_implies_Ind in FAIR.
-    eapply (@Ind_implies_Ord_fix _ wft wft0) in FAIR; eauto.
-    hexploit SelectBeh_implies_IndexBeh_fix; eauto. i; des.
-    unfold Beh.improves in SIM0.
+    eapply (@Ind_implies_Ord _ wft wft0) in FAIR; eauto.
+    hexploit SelectBeh_implies_IndexBeh; eauto. split; eauto.
+    i; des. unfold Beh.improves in SIM. specialize (SIM obs im). des.
     hexploit (@IndexBeh_implies_SelectBeh _ wfs). eauto.
-    { eexists. eapply SIM0. admit. }
-    i; des. esplits; eauto. destruct BEH1. des. split; eauto.
+    { eexists. eapply SIM. eauto. hexploit (extract_tr_inj_tr TGT EXTRACT).
+      i. rewrite H; clear H. eauto. }
+    i; des. esplits. eapply EXTRACT0. destruct BEH1. des. split; eauto.
     eapply (@Ord_implies_Fair _ _ wfs); eauto.
     Unshelve. exact ID_DEC.
-  Abort.
+  Qed.
 
 End ADEQ2.

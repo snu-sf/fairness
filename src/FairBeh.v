@@ -91,7 +91,7 @@ Module Tr.
     ii. inv IN. all: econs; eauto.
   Qed.
 
-  Local Hint Resolve eq_mon: paco.
+  Local Hint Resolve Tr.eq_mon: paco.
 
   Global Program Instance eq_equiv {R}: Equivalence (@eq R).
   Next Obligation.
@@ -160,11 +160,6 @@ Section WFTransitive.
         le: (T -> T -> Prop) := eq \2/ lt;
       }.
 
-  (* Global Program Instance lt_Transitive {wf: WF} {TR: Transitive wf.(lt)}: Transitive wf.(lt). *)
-  (* Next Obligation. *)
-  (*   destruct wf0. ss. eapply TR; eauto. *)
-  (* Qed. *)
-
   Global Program Instance le_Reflexive {wf: WF}: Reflexive wf.(le).
   Next Obligation.
     unfold le. auto.
@@ -179,20 +174,7 @@ Section WFTransitive.
     unfold le. ii. destruct wf; ss. des; clarify; eauto.
   Qed.
 
-  (* Global Program Instance le_PreOrder {wf: WF} {TR: Transitive wf.(lt)}: PreOrder wf.(le). *)
-  (* Next Obligation. *)
-  (*   unfold le. ii. destruct wf0; ss. des; clarify; eauto. *)
-  (* Qed. *)
-
 End WFTransitive.
-
-(* Class WF : Type := *)
-(*   mk_wf { *)
-(*       ord: Type; *)
-(*       lt: (ord -> ord -> Prop); *)
-(*       wf: well_founded lt; *)
-(*       le: (ord -> ord -> Prop) := fun o1 o2 => (eq o1 o2) \/ (lt o1 o2); *)
-(*     }. *)
 
 
 
@@ -241,7 +223,7 @@ End STS.
 Module Beh.
 
 Definition t {R}: Type := @Tr.t R -> Prop.
-Definition improves {R} (src tgt: @t R): Prop := tgt <1= src.
+(* Definition improves {R} (src tgt: @t R): Prop := tgt <1= src. *)
 
 Section BEHAVES.
 
@@ -568,17 +550,6 @@ Section BEHAVES.
     - pfold. econs 8; eauto.
   Qed.
 
-  (* Theorem prefix_closed *)
-  (*         pre bh *)
-  (*         (BEH: of_program bh) *)
-  (*         (PRE: Tr.prefix pre bh) *)
-  (*   : *)
-  (*   <<NB: of_program (Tr.app pre Tr.nb)>> *)
-  (* . *)
-  (* Proof. *)
-  (*   eapply prefix_closed_state; eauto. *)
-  (* Qed. *)
-
   Lemma nb_bottom
         R i0 st0
     :
@@ -693,6 +664,10 @@ Section BEHAVES.
 
 End BEHAVES.
 
+Definition improves {Ident: ID} {wfs wft: WF} {R} (src tgt: @state Ident R): Prop :=
+  forall tr, (forall (mtgt: imap wft),
+            (exists (msrc: imap wfs), of_state mtgt tgt tr -> of_state msrc src tr)).
+
 End Beh.
 #[export] Hint Unfold Beh.improves: core.
 #[export] Hint Constructors Beh._diverge_index: core.
@@ -704,3 +679,22 @@ End Beh.
 
 #[export] Hint Resolve cpn3_wcompat: paco.
 #[export] Hint Resolve cpn4_wcompat: paco.
+
+Require Import Setoid Morphisms.
+
+Global Program Instance Proper_Beh_of_state
+       {Id: ID} {wf: WF} {R} (im: imap wf) (st: @state Id R):
+  Proper (Tr.eq (R:=R) ==> flip impl) (Beh.of_state im st).
+Next Obligation.
+  ii. rename H into EQ, H0 into BEH, x into tr1, y into tr2.
+  ginit. revert_until R. gcofix CIH. i.
+  depgen tr1. induction BEH using @Beh.of_state_ind2; i; eauto.
+  { punfold EQ; inv EQ. gfinal; right. pfold. econs. }
+  { punfold EQ; inv EQ. gfinal; right. pfold. econs; eauto. }
+  { punfold EQ; inv EQ. gfinal; right. pfold. econs; eauto. }
+  { punfold EQ; inv EQ. pclearbot. gfinal; right. pfold. econs; eauto. }
+  { guclo Beh.of_state_indC_spec. econs. eauto. }
+  { guclo Beh.of_state_indC_spec. econs. eauto. }
+  { guclo Beh.of_state_indC_spec. econs; eauto. }
+  { guclo Beh.of_state_indC_spec. econs; eauto. }
+Qed.

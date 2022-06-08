@@ -251,6 +251,9 @@ Section SIM.
     { clear - SIM. punfold SIM. eapply sim_mon; eauto. i. pclearbot. eauto. }
   Qed.
 
+  Definition gsim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> bool -> (@state _ R0) -> (@state _ R1) -> Prop :=
+    fun R0 R1 RR ps pt src tgt => forall (mt: imap wft), (exists ms: imap wfs, sim RR ps ms pt mt src tgt).
+
   (****************************************************)
   (*********************** upto ***********************)
   (****************************************************)
@@ -526,25 +529,32 @@ Section EX.
     while_itree (fun u => (trigger (Fair (fun id => (if ndec 0 id then Flag.fail else Flag.emp)))) >>= (fun r => Ret (inl r)));; Ret 0.
 
   Definition imsrc1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0).
-  Definition imtgt1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0).
+  (* Definition imtgt1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0). *)
 
-  Goal sim RR false imsrc1 false imtgt1 src1 tgt1.
+  Goal gsim nat_wf nat_wf RR false false src1 tgt1.
   Proof.
+    ii. exists imsrc1.
     unfold src1, tgt1.
-    unfold imtgt1. remember 100 as t_fuel. clear Heqt_fuel.
+    remember (mt 0) as t_fuel. depgen mt.
+    (* unfold imtgt1. remember 100 as t_fuel. clear Heqt_fuel. *)
     induction t_fuel; i.
     { ginit. rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i. exfalso.
-      unfold fair_update in FAIR. specialize (FAIR 0). des_ifs. ss. inv FAIR.
+      unfold fair_update in FAIR. specialize (FAIR 0). rewrite <- Heqt_fuel in FAIR.
+      ss. inv FAIR.
     }
-    ginit. rewrite unfold_while_itree. ired. guclo sim_indC_spec. econs. i.
+    ginit. rewrite unfold_while_itree. guclo sim_indC_spec. ired. econs 8. i.
+    dup FAIR. specialize (FAIR0 0). rewrite <- Heqt_fuel in FAIR0. ss.
     guclo sim_indC_spec. econs.
     guclo sim_imap_ctxR_spec. eapply nat_wf_Trans. econs.
+    2:{ instantiate (1:= fun id => (if ndec 0 id then t_fuel else (m_tgt0 id))). ii.
+        des_ifs.
+        - inv FAIR0. left; auto. right. ss.
+        - left. auto.
+    }
     guclo sim_progress_ctx_spec. econs.
-    { gfinal. right. eapply IHt_fuel. }
+    { gfinal. right. eapply IHt_fuel. ss. }
     { i; clarify. }
     { i; clarify. }
-    clear - FAIR. ii. unfold fair_update in FAIR. specialize (FAIR i). des_ifs. unfold le. ss.
-    rewrite PeanoNat.Nat.lt_succ_r in FAIR. inv FAIR; eauto. right. eapply PeanoNat.Nat.lt_succ_r. auto.
   Qed.
 
 
