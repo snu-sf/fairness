@@ -1146,7 +1146,6 @@ Section ExtractRaw.
           end
       | VisF Undefined _ =>
           match tr0 with
-          (* | Tr.spin => RawTr.cons ev (RawTr.app evs raw_spin_trace) *)
           | Tr.nb => RawTr.cons ev (RawTr.app evs RawTr.nb)
           | _ => RawTr.cons ev (RawTr.app evs (tr2raw tr0))
           end
@@ -1221,7 +1220,6 @@ Section ExtractRaw.
           end
       | VisF Undefined _ =>
           match tr0 with
-          (* | Tr.spin => RawTr.cons ev raw_spin_trace *)
           | Tr.nb => RawTr.cons ev RawTr.nb
           | _ => RawTr.cons ev (tr2raw tr0)
           end
@@ -1670,14 +1668,14 @@ Section FAIR.
     { pfold. econs. }
   Qed.
 
-  Theorem rawbeh_extract_is_beh
-          (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr
-          (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
-          (EXT: extract_tr raw tr)
+  Lemma rawbeh_extract_is_beh_fix
+        (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr (im: imap wf)
+        (BEH0: RawBeh.of_state st raw)
+        (FAIR: RawTr.fair_ord im raw)
+        (EXT: extract_tr raw tr)
     :
-    exists (im: imap wf), Beh.of_state im st tr.
+    Beh.of_state im st tr.
   Proof.
-    rr in BEH. des. rr in FAIR. des. rename m into im. exists im.
     ginit. revert_until R. gcofix CIH; i.
     move EXT before CIH. revert_until EXT. induction EXT using @extract_tr_ind2; i.
     { punfold BEH0. inv BEH0.
@@ -1700,6 +1698,17 @@ Section FAIR.
     }
   Qed.
 
+  Theorem rawbeh_extract_is_beh
+          (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr
+          (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
+          (EXT: extract_tr raw tr)
+    :
+    exists (im: imap wf), Beh.of_state im st tr.
+  Proof.
+    rr in BEH. des. rr in FAIR. des.
+    hexploit rawbeh_extract_is_beh_fix; eauto.
+  Qed.
+
 End FAIR.
 
 
@@ -1719,6 +1728,17 @@ Section EQUIV.
   Proof.
     des. exists (sti2raw wf0 (st, tr, im)). splits. eapply sti2raw_extract; eauto.
     rr. splits. eapply sti2raw_raw_beh; eauto. eapply sti2raw_preserves_fairness; eauto.
+  Qed.
+
+  Lemma SelectBeh_implies_IndexBeh_fix
+        (st: state (R:=R)) (raw: RawTr.t (R:=R)) (im: imap wf)
+        (BEH: RawBeh.of_state st raw)
+        (FAIR: RawTr.fair_ord im raw)
+    :
+    exists tr, (<<EXTRACT: extract_tr raw tr>>) /\ (<<BEH: Beh.of_state im st tr>>).
+  Proof.
+    exists (raw2tr raw). splits. eapply raw2tr_extract.
+    eapply rawbeh_extract_is_beh_fix; eauto. eapply raw2tr_extract.
   Qed.
 
   Theorem SelectBeh_implies_IndexBeh

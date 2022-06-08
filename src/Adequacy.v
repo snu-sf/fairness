@@ -12,20 +12,24 @@ From Fairness Require Import ITreeLib.
 From Fairness Require Import FairBeh.
 From Fairness Require Import FairSim.
 
+From Fairness Require Import SelectBeh.
+From Fairness Require Import BehEquiv BehEquivSelect.
+
 Set Implicit Arguments.
 
 Section ADEQ.
 
   Context {Ident: ID}.
-  Variable wf: WF.
+  Variable wfs: WF.
+  Variable wft: WF.
 
   Lemma adequacy_spin
         R0 R1 (RR: R0 -> R1 -> Prop)
         psrc0 ptgt0 msrc0 mtgt0 ssrc0 stgt0
-        (SIM: sim RR psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
+        (SIM: sim (wfs:=wfs) (wft:=wft) RR psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
         (SPIN: Beh.diverge_index mtgt0 stgt0)
     :
-    <<SPIN: Beh.diverge_index (wf:=wf) msrc0 ssrc0>>.
+    <<SPIN: Beh.diverge_index msrc0 ssrc0>>.
   Proof.
     ginit. revert_until RR. gcofix CIH. i. revert SPIN.
     induction SIM using @sim_ind2; i; clarify.
@@ -67,12 +71,12 @@ Section ADEQ.
     { rewrite bind_trigger. gstep. econs. }
   Qed.
 
-  Theorem adequacy
+  Theorem global_adequacy
           R
           psrc0 ptgt0 msrc0 mtgt0 ssrc0 stgt0
-          (SIM: sim (@eq R) psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
+          (SIM: sim (wfs:=wfs) (wft:=wft) (@eq R) psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
     :
-    <<IMPR: Beh.improves (Beh.of_state msrc0 ssrc0) (Beh.of_state (wf:=wf) mtgt0 stgt0)>>.
+    <<IMPR: Beh.improves (Beh.of_state msrc0 ssrc0) (Beh.of_state mtgt0 stgt0)>>.
   Proof.
     ginit. revert_until R. gcofix CIH.
     i. rename x4 into tr. revert psrc0 ptgt0 msrc0 ssrc0 SIM.
@@ -248,15 +252,80 @@ Section ADEQ.
     Unshelve. all: exact true.
   Qed.
 
-  Theorem adequacy_exists
-          R
-          psrc0 ptgt0 ssrc0 stgt0
-          (SIM: exists msrc mtgt, sim (wf:=wf) (@eq R) psrc0 msrc ptgt0 mtgt ssrc0 stgt0)
+End ADEQ.
+
+
+
+Section AUX.
+
+  Context {Ident: ID}.
+  (* Hypothesis ID_DEC: forall (i0 i1: Ident.(id)), {i0 = i1} + {i0 <> i1}. *)
+
+  Variable wft: WF.
+  Variable wft0: T wft.
+  Variable S: wft.(T) -> wft.(T).
+  Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
+  Hypothesis WFRT: Transitive wft.(lt).
+
+  (* is false in general; need to give fixed index for user OR some ordering relation... *)
+  Lemma tr2ord_i_is_min
+        R (st: @state _ R) tr raw
+        (EXTRACT: extract_tr raw tr)
+        (BEH: Beh.of_state (fun i : id => tr2ord_i wft wft0 S i raw) st tr)
     :
-    forall tr, (exists mtgt, Beh.of_state (wf:=wf) mtgt stgt0 tr) ->
-          (exists msrc, Beh.of_state (wf:=wf) msrc ssrc0 tr).
+    forall (m: imap  wft), Beh.of_state m st tr.
   Proof.
-    i. des.
   Abort.
 
-End ADEQ.
+End AUX.
+
+
+
+Section ADEQ2.
+
+  Context {Ident: ID}.
+  Hypothesis ID_DEC: forall (i0 i1: Ident.(id)), {i0 = i1} + {i0 <> i1}.
+
+  Variable wfs: WF.
+  Variable wfs0: T wfs.
+  Variable Ss: wfs.(T) -> wfs.(T).
+  Hypothesis lt_succ_diag_r_s: forall (t: wfs.(T)), wfs.(lt) t (Ss t).
+  Hypothesis WFSTR: Transitive wfs.(lt).
+
+  Variable wft: WF.
+  Variable wft0: T wft.
+  Variable St: wft.(T) -> wft.(T).
+  Hypothesis lt_succ_diag_r_t: forall (t: wft.(T)), wft.(lt) t (St t).
+  Hypothesis WFTRT: Transitive wft.(lt).
+
+
+  Definition improves {R} (src tgt: @state _ R) :=
+    forall (obs_tr: @Tr.t R),
+      (exists (raw_tgt: @RawTr.t _ R),
+          (extract_tr raw_tgt obs_tr) /\ (RawBeh.of_state_fair tgt raw_tgt))
+      ->
+        (exists (raw_src: @RawTr.t _ R),
+            (extract_tr raw_src obs_tr) /\ (RawBeh.of_state_fair src raw_src)).
+
+  Theorem adequacy
+          R
+          psrc ptgt src tgt
+          (SIM: exists msrc mtgt,
+              sim (wfs:=wfs) (wft:=wft) (@eq R) psrc msrc ptgt mtgt src tgt)
+    :
+    improves src tgt.
+  Proof.
+    des. dup SIM. eapply global_adequacy in SIM0. intros obs TGT. des.
+    unfold RawBeh.of_state_fair in TGT0. des.
+    eapply Fair_implies_Ind in FAIR.
+    eapply (@Ind_implies_Ord_fix _ wft wft0) in FAIR; eauto.
+    hexploit SelectBeh_implies_IndexBeh_fix; eauto. i; des.
+    unfold Beh.improves in SIM0.
+    hexploit (@IndexBeh_implies_SelectBeh _ wfs). eauto.
+    { eexists. eapply SIM0. admit. }
+    i; des. esplits; eauto. destruct BEH1. des. split; eauto.
+    eapply (@Ord_implies_Fair _ _ wfs); eauto.
+    Unshelve. exact ID_DEC.
+  Abort.
+
+End ADEQ2.
