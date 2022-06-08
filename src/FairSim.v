@@ -97,12 +97,12 @@ Section SIM.
             fn args
             (SIM: forall r_src r_tgt (EQ: r_src = r_tgt), r _ _ RR true m_src true m_tgt (ktr_src0 r_src) (ktr_tgt0 r_tgt)),
             P p_src m_src p_tgt m_tgt (Vis (Observe fn args) ktr_src0) (Vis (Observe fn args) ktr_tgt0))
-        (TAUL: forall 
+        (TAUL: forall
             p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
             (SIM: _sim r RR true m_src p_tgt m_tgt itr_src0 itr_tgt0)
             (IH: P true m_src p_tgt m_tgt itr_src0 itr_tgt0),
             P p_src m_src p_tgt m_tgt (Tau itr_src0) itr_tgt0)
-        (TAUR: forall 
+        (TAUR: forall
             p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
             (SIM: _sim r RR p_src m_src true m_tgt itr_src0 itr_tgt0)
             (IH: P p_src m_src true m_tgt itr_src0 itr_tgt0),
@@ -176,8 +176,8 @@ Section SIM.
     { econs 10; eauto. }
   Qed.
 
-  Hint Constructors _sim.
-  Hint Unfold sim.
+  Hint Constructors _sim: core.
+  Hint Unfold sim: core.
   Hint Resolve sim_mon: paco.
   Hint Resolve cpn9_wcompat: paco.
 
@@ -193,12 +193,12 @@ Section SIM.
             fn args
             (SIM: forall r_src r_tgt (EQ: r_src = r_tgt), sim RR true m_src true m_tgt (ktr_src0 r_src) (ktr_tgt0 r_tgt)),
             P p_src m_src p_tgt m_tgt (Vis (Observe fn args) ktr_src0) (Vis (Observe fn args) ktr_tgt0))
-        (TAUL: forall 
+        (TAUL: forall
             p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
             (SIM: sim RR true m_src p_tgt m_tgt itr_src0 itr_tgt0)
             (IH: P true m_src p_tgt m_tgt itr_src0 itr_tgt0),
             P p_src m_src p_tgt m_tgt (Tau itr_src0) itr_tgt0)
-        (TAUR: forall 
+        (TAUR: forall
             p_src m_src p_tgt m_tgt itr_src0 itr_tgt0
             (SIM: sim RR p_src m_src true m_tgt itr_src0 itr_tgt0)
             (IH: P p_src m_src true m_tgt itr_src0 itr_tgt0),
@@ -469,8 +469,8 @@ Section SIM.
   Proof. i. eapply wrespect9_uclo; eauto with paco. eapply sim_progress_ctx_wrepectful. Qed.
 
 End SIM.
-#[export] Hint Constructors _sim.
-#[export] Hint Unfold sim.
+#[export] Hint Constructors _sim: core.
+#[export] Hint Unfold sim: core.
 #[export] Hint Resolve sim_mon: paco.
 #[export] Hint Resolve cpn9_wcompat: paco.
 

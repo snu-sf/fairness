@@ -112,8 +112,8 @@ Module Tr.
   Qed.
 
 End Tr.
-#[export] Hint Constructors Tr._eq.
-#[export] Hint Unfold Tr.eq.
+#[export] Hint Constructors Tr._eq: core.
+#[export] Hint Unfold Tr.eq: core.
 #[export] Hint Resolve Tr.eq_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
 
@@ -146,43 +146,6 @@ Module Flag.
   Qed.
 
 End Flag.
-
-(* Section INDEX. *)
-(*   Lemma nat_ind *)
-(*         (P: nat -> Prop) *)
-(*         (ZERO: P O) *)
-(*         (SUCC: forall a (IND: P a), P (S a)) *)
-(*     : *)
-(*     forall n, P n. *)
-(*   Proof. *)
-(*     revert_until P. revert P. fix IH 4. i. destruct n; auto. *)
-(*     eapply SUCC. eapply IH. auto. i. eapply SUCC. auto. *)
-(*   Qed. *)
-
-(*   Lemma nat_strong_ind *)
-(*         (P: nat -> Prop) *)
-(*         (ZERO: P O) *)
-(*         (SUCC: forall a (STR: forall b (LT: lt b (S a)), P b), P (S a)) *)
-(*     : *)
-(*     forall n, P n. *)
-(*   Proof. *)
-(*     cut (forall a b (LT: lt b (S a)), P b). *)
-(*     { i. eapply H. instantiate (1:=n). auto. } *)
-(*     induction a; i; auto. *)
-(*     { inv LT; auto. inv H0. } *)
-(*     unfold lt in LT. inv LT. *)
-(*     { eapply SUCC. auto. } *)
-(*     eapply IHa. lia. *)
-(*   Qed. *)
-
-(*   Lemma aux2: well_founded lt. *)
-(*   Proof. *)
-(*     ii. induction a using nat_strong_ind. *)
-(*     { econs. i. inv H. } *)
-(*     econs. i. eapply STR. auto. *)
-(*   Qed. *)
-
-(* End INDEX. *)
 
 
 Class ID : Type := mk_id { id: Type }.
@@ -323,8 +286,8 @@ Section BEHAVES.
 
   Definition diverge_index: forall (R: Type) (idx: imap wf) (itr: state), Prop := paco3 _diverge_index bot3.
 
-  Hint Constructors _diverge_index.
-  Hint Unfold diverge_index.
+  Hint Constructors _diverge_index: core.
+  Hint Unfold diverge_index: core.
   Hint Resolve diverge_index_mon: paco.
   Hint Resolve cpn3_wcompat: paco.
 
@@ -430,8 +393,8 @@ Section BEHAVES.
     - econs 8; eauto.
   Qed.
 
-  Hint Constructors _of_state.
-  Hint Unfold of_state.
+  Hint Constructors _of_state: core.
+  Hint Unfold of_state: core.
   Hint Resolve of_state_mon: paco.
   Hint Resolve cpn4_wcompat: paco.
 
@@ -731,12 +694,12 @@ Section BEHAVES.
 End BEHAVES.
 
 End Beh.
-#[export] Hint Unfold Beh.improves.
-#[export] Hint Constructors Beh._diverge_index.
-#[export] Hint Unfold Beh.diverge_index.
+#[export] Hint Unfold Beh.improves: core.
+#[export] Hint Constructors Beh._diverge_index: core.
+#[export] Hint Unfold Beh.diverge_index: core.
 #[export] Hint Resolve Beh.diverge_index_mon: paco.
-#[export] Hint Constructors Beh._of_state.
-#[export] Hint Unfold Beh.of_state.
+#[export] Hint Constructors Beh._of_state: core.
+#[export] Hint Unfold Beh.of_state: core.
 #[export] Hint Resolve Beh.of_state_mon: paco.
 
 #[export] Hint Resolve cpn3_wcompat: paco.
