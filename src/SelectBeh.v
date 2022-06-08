@@ -68,46 +68,6 @@ Section TR.
 
 
   (** select fair trace with induction **)
-  (* Variant _next_fail (i: id) *)
-  (*         (next_fail: forall R, (@t R) -> (@t R) -> Prop) *)
-  (*         R *)
-  (*   : *)
-  (*   (@t R) -> (@t R) -> Prop := *)
-  (*   (* base cases *) *)
-  (*   | next_fail_fail *)
-  (*       fmap tl *)
-  (*       (FAIL: Flag.fail = (fmap i)) *)
-  (*     : *)
-  (*     _next_fail i next_fail (cons (inl (silentE_fair fmap)) tl) tl *)
-
-  (*   (* coinductive cases *) *)
-  (*   | next_fail_obs *)
-  (*       obs tl next *)
-  (*       (TL: next_fail R tl next) *)
-  (*     : *)
-  (*     _next_fail i next_fail (cons (inr obs) tl) next *)
-  (*   | next_fail_tau *)
-  (*       tl next *)
-  (*       (TL: next_fail R tl next) *)
-  (*     : *)
-  (*     _next_fail i next_fail (cons (inl silentE_tau) tl) next *)
-  (*   | next_fail_emp *)
-  (*       fmap tl next *)
-  (*       (EMP: Flag.emp = (fmap i)) *)
-  (*       (TL: next_fail R tl next) *)
-  (*     : *)
-  (*     _next_fail i next_fail (cons (inl (silentE_fair fmap)) tl) next *)
-  (* . *)
-
-  (* Definition next_fail i: forall (R: Type), (@t R) -> (@t R) -> Prop := *)
-  (*   paco3 (_next_fail i) bot3. *)
-
-  (* Lemma next_fail_mon i: monotone3 (_next_fail i). *)
-  (* Proof. *)
-  (*   ii. inv IN; [econs 1 | econs 2 | econs 3 | econs 4]; eauto. *)
-  (* Qed. *)
-
-
   Variant _nofail (i: id)
           (nofail: forall (R: Type), (@t R) -> Prop)
           (R: Type)
@@ -322,9 +282,7 @@ Section TR.
     | fair_ind_fair_fail
         fm tl
         (FAIL: (fm i) = Flag.fail)
-        (* (NNF: ~ nofail i tl) *)
         (COI: must_success i tl -> fair_ind R i tl)
-        (* (IND: must_fail i tl -> _fair_ind R i tl) *)
         (IND: (~ must_success i tl) -> _fair_ind R i tl)
       :
       __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fm)) tl)
@@ -477,82 +435,6 @@ Section TR.
   Definition is_fair {R} (tr: @t R) := forall i, fair i tr.
 
 
-  (* old1 *)
-
-  (* Inductive _fair_ind *)
-  (*           (fair_ind: forall (R: Type) (i: id), (@t R) -> Prop) *)
-  (*           (R: Type) (i: id) *)
-  (*   : *)
-  (*   (@t R) -> Prop := *)
-  (* | fair_ind_nofail *)
-  (*     tr *)
-  (*     (NOFAIL: nofail_ind i tr) *)
-  (*   : *)
-  (*   _fair_ind fair_ind i tr *)
-  (* | fair_ind_no_success *)
-  (*     fmap tl *)
-  (*     (NOSUCCESS: Flag.le (fmap i) Flag.emp) *)
-  (*     (TL: _fair_ind fair_ind i tl) *)
-  (*   : *)
-  (*   _fair_ind fair_ind i (cons (inl (silentE_fair fmap)) tl) *)
-  (* | fair_ind_tau *)
-  (*     tl *)
-  (*     (TL: _fair_ind fair_ind i tl) *)
-  (*   : *)
-  (*   _fair_ind fair_ind i (cons (inl silentE_tau) tl) *)
-  (* | fair_ind_obs *)
-  (*     (obs: obsE) tl *)
-  (*     (TL: _fair_ind fair_ind i tl) *)
-  (*   : *)
-  (*   _fair_ind fair_ind i (cons (inr obs) tl) *)
-  (* | fair_ind_success *)
-  (*     fmap tl *)
-  (*     (SUCCESS: Flag.le Flag.success (fmap i)) *)
-  (*     (TL: fair_ind R i tl) *)
-  (*   : *)
-  (*   _fair_ind fair_ind i (cons (inl (silentE_fair fmap)) tl) *)
-  (* . *)
-
-  (* Definition fair_ind: forall (R: Type) (i: id), (@t R) -> Prop := paco3 _fair_ind bot3. *)
-
-  (* Lemma fair_ind_ind *)
-  (*       (r: forall (R: Type) (i: id), t -> Prop) R i (P: t -> Prop) *)
-  (*       (NOFAIL: forall tr (NOFAIL: nofail_ind i tr), P tr) *)
-  (*       (NOSUCCESS: forall fmap tl *)
-  (*                     (NOSUCCESS: Flag.le (fmap i) Flag.emp) *)
-  (*                     (TL: _fair_ind r i tl) *)
-  (*                     (IH: P tl), *)
-  (*           P (cons (inl (silentE_fair fmap)) tl)) *)
-  (*       (TAU: forall tl *)
-  (*               (TL: _fair_ind r i tl) *)
-  (*               (IH: P tl), *)
-  (*           P (cons (inl silentE_tau) tl)) *)
-  (*       (OBS: forall obs tl *)
-  (*               (TL: _fair_ind r i tl) *)
-  (*               (IH: P tl), *)
-  (*           P (cons (inr obs) tl)) *)
-  (*       (SUCCESS: forall fmap tl *)
-  (*                   (SUCCESS: Flag.le Flag.success (fmap i)) *)
-  (*                   (TL: r R i tl), *)
-  (*           P (cons (inl (silentE_fair fmap)) tl)) *)
-  (*   : *)
-  (*   forall tr, _fair_ind r i tr -> P tr. *)
-  (* Proof. *)
-  (*   fix IH 2. i. *)
-  (*   inv H; eauto. *)
-  (* Qed. *)
-
-  (* Lemma fair_ind_mon: monotone3 _fair_ind. *)
-  (* Proof. *)
-  (*   ii. induction IN using fair_ind_ind; eauto. *)
-  (*   - econs 1. eauto. *)
-  (*   - econs 2; eauto. *)
-  (*   - econs 3; eauto. *)
-  (*   - econs 4; eauto. *)
-  (*   - econs 5; eauto. *)
-  (* Qed. *)
-
-
 
   (** select fair trace with well-founded order **)
   Variable wf: WF.
@@ -696,10 +578,6 @@ Section TR.
 
 End TR.
 End RawTr.
-
-(* #[export] Hint Constructors RawTr._next_fail: core. *)
-(* #[export] Hint Unfold RawTr.next_fail: core. *)
-(* #[export] Hint Resolve RawTr.next_fail_mon: paco. *)
 #[export] Hint Constructors RawTr._nofail: core.
 #[export] Hint Unfold RawTr.nofail: core.
 #[export] Hint Resolve RawTr.nofail_mon: paco.
@@ -711,21 +589,10 @@ End RawTr.
 
 #[export] Hint Constructors RawTr.___fair: core.
 #[export] Hint Unfold RawTr.fair: core.
-#[export] Hint Resolve RawTr.fair_mon: paco.
 #[export] Hint Resolve RawTr.___fair_mon: paco.
 #[export] Hint Resolve RawTr.__fair_mon: paco.
 #[export] Hint Resolve RawTr._fair_mon: paco.
 #[export] Hint Resolve RawTr.fair_mon: paco.
-
-(* #[export] Hint Constructors RawTr._nofail_ind: core. *)
-(* #[export] Hint Unfold RawTr.nofail_ind: core. *)
-(* #[export] Hint Resolve RawTr.nofail_ind_mon: paco. *)
-(* #[export] Hint Constructors RawTr.__fair_ind: core. *)
-(* #[export] Hint Unfold RawTr.fair_ind: core. *)
-(* #[export] Hint Resolve RawTr.fair_ind_mon: paco. *)
-(* #[export] Hint Constructors RawTr._fair_ind: core. *)
-(* #[export] Hint Unfold RawTr.fair_ind: core. *)
-(* #[export] Hint Resolve RawTr.fair_ind_mon: paco. *)
 
 #[export] Hint Constructors RawTr._fair_ord: core.
 #[export] Hint Unfold RawTr.fair_ord: core.
@@ -833,17 +700,6 @@ Section BEHAVES.
     - pclearbot. pfold. econs 6; eauto. right. eapply CIH; eauto. rr; eauto.
     - pclearbot. pfold. econs 7; eauto.
   Qed.
-
-  (* Theorem prefix_closed *)
-  (*         pre bh *)
-  (*         (BEH: of_program bh) *)
-  (*         (PRE: Tr.prefix pre bh) *)
-  (*   : *)
-  (*   <<NB: of_program (Tr.app pre Tr.nb)>> *)
-  (* . *)
-  (* Proof. *)
-  (*   eapply prefix_closed_state; eauto. *)
-  (* Qed. *)
 
   Lemma nb_bottom
         R st0
