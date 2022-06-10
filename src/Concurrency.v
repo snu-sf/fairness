@@ -1,31 +1,19 @@
-(* Require Export sflib. *)
-(* Require Export ITreelib. *)
-(* Require Export ModSemE. *)
-(* Require Export AList. *)
-(* Require Import Skeleton. *)
-(* Require Import STS Behavior. *)
-(* Require Import Any. *)
-Require Import Permutation.
-(* Require Import ModSem. *)
-(* Require Import AList. *)
-Require Import Program.
-
 From sflib Require Import sflib.
 From ITree Require Export ITree.
 From Paco Require Import paco.
 
+Require Export Coq.Strings.String.
+Require Import Permutation.
+Require Import Program.
+
 Export ITreeNotations.
 
-(* From Fairness Require Import Coqlib. *)
-From Fairness Require Import ITreeLib.
-From Fairness Require Import FairBeh.
+From Fairness Require Export ITreeLib FairBeh.
+From Fairness Require Import Mod.
 
 Set Implicit Arguments.
 
 Section YIELD.
-  Context {Tid: ID}.
-  (* Context `{Dec Tid}. *)
-  Hypothesis Tid_eq_dec: forall t1 t2: id, {t1 = t2} + {t1 <> t2}.
 
   Variable State: Type.
 

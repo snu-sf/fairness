@@ -1,9 +1,39 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Export ITreeLib FairBeh.
 Require Export Coq.Strings.String.
 
+From Fairness Require Export ITreeLib FairBeh.
+
 Set Implicit Arguments.
+
+
+
+Section THREADS.
+
+  Definition nat_wf: WF :=
+    mk_wf Wf_nat.lt_wf.
+
+  Definition tids: ID := mk_id nat.
+
+  Definition threads: Type := list tids.(id).
+  Variant threads_add (ths0: threads) (tid: tids.(id)) (ths1: threads): Prop :=
+    | threads_add_intro
+        (THS: ths1 = tid :: ths0)
+        (NIN: ~ List.In tid ths0)
+  .
+
+  Variant threads_remove (ths0: threads) (tid: tids.(id)) (ths1: threads): Prop :=
+    | threads_remove_intro
+        l0 l1
+        (THS0: ths0 = l0 ++ tid :: l1)
+        (THS1: ths1 = l0 ++ l1)
+  .
+
+  Definition thread_fmap (tid: tids.(id)): @fmap tids :=
+    fun i => if (PeanoNat.Nat.eq_dec i tid) then Flag.success else Flag.fail.
+
+End THREADS.
+
 
 Notation fname := string (only parsing).
 Definition Val := nat.
@@ -11,7 +41,7 @@ Definition Val := nat.
 Variant cE: Type -> Type :=
 | Yield: cE unit
 | Spawn (fn: fname) (args: list Val): cE unit
-| GetTid: cE nat
+| GetTid: cE tids.(id)
 .
 
 Variant stateE (State: Type): Type -> Type :=
@@ -28,7 +58,6 @@ Module Mod.
         funs: fname -> ktree ((eventE +' cE) +' stateE state) (list Val) Val;
       }.
 End Mod.
-
 
 
 
