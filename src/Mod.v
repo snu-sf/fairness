@@ -8,22 +8,23 @@ Set Implicit Arguments.
 
 
 
-Section THREADS.
+Section TID.
 
   Definition nat_wf: WF :=
     mk_wf Wf_nat.lt_wf.
 
   Definition tids: ID := mk_id nat.
+  Definition tid_dec := PeanoNat.Nat.eq_dec.
 
-  Definition threads: Type := list tids.(id).
-  Variant threads_add (ths0: threads) (tid: tids.(id)) (ths1: threads): Prop :=
-    | threads_add_intro
+  Definition tid_list: Type := list tids.(id).
+  Variant tid_list_add (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
+    | tid_list_add_intro
         (THS: ths1 = tid :: ths0)
         (NIN: ~ List.In tid ths0)
   .
 
-  Variant threads_remove (ths0: threads) (tid: tids.(id)) (ths1: threads): Prop :=
-    | threads_remove_intro
+  Variant tid_list_remove (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
+    | tid_list_remove_intro
         l0 l1
         (THS0: ths0 = l0 ++ tid :: l1)
         (THS1: ths1 = l0 ++ l1)
@@ -32,7 +33,7 @@ Section THREADS.
   Definition thread_fmap (tid: tids.(id)): @fmap tids :=
     fun i => if (PeanoNat.Nat.eq_dec i tid) then Flag.success else Flag.fail.
 
-End THREADS.
+End TID.
 
 
 Notation fname := string (only parsing).
@@ -40,8 +41,8 @@ Definition Val := nat.
 
 Variant cE: Type -> Type :=
 | Yield: cE unit
-| Spawn (fn: fname) (args: list Val): cE unit
 | GetTid: cE tids.(id)
+(* | Spawn (fn: fname) (args: list Val): cE unit *)
 .
 
 Variant stateE (State: Type): Type -> Type :=

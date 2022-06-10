@@ -147,8 +147,16 @@ Module Flag.
 
 End Flag.
 
+Section IDENT.
 
-Class ID : Type := mk_id { id: Type }.
+  Class ID : Type := mk_id { id: Type }.
+
+  Definition id_prod (A B: ID): ID := mk_id (prod A.(id) B.(id)).
+  Definition id_sum (A B: ID): ID := mk_id (sum A.(id) B.(id)).
+
+End IDENT.
+
+
 
 Section WFTransitive.
   Record WF: Type :=

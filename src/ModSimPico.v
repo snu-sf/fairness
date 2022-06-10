@@ -29,7 +29,7 @@ Section PRIMIVIESIM.
 
   (* Variable stutter: WF. *)
   Definition shared :=
-    (threads *
+    (tid_list *
        (@imap ident_src wf_src) *
        (@imap ident_tgt wf_tgt) *
        (@imap tids wf_src) *
@@ -178,6 +178,7 @@ Section PRIMIVIESIM.
       ths0 im_src0 im_tgt0 th_src0 th_tgt0 o st_src0 st_tgt0 w
       o0 w0 ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0))
+      (WORLD: world_le w w0)
       (STUTTER: wf_src.(lt) o0 o)
       (LSIM: forall ths1 im_src1 im_tgt1 th_src1 th_tgt1 o1 st_src1 st_tgt1 w1
                    (INV: I (ths1, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1))
@@ -257,14 +258,14 @@ Module ModSim.
           funs: forall ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0
                   (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0))
                   fn args tid ths1
-                  (THS: threads_add ths0 tid ths1),
+                  (THS: tid_list_add ths0 tid ths1),
             lsim
               world_le
               I
               tid
               (fun r_src r_tgt '(ths2, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1) =>
                  exists ths3 w2,
-                   (<<THS: threads_remove ths2 tid ths3>>) /\
+                   (<<THS: tid_list_remove ths2 tid ths3>>) /\
                      (<<WORLD: world_le w1 w2>>) /\
                      (<<INV: I (ths3, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w2)>>) /\
                      (<<RET: r_src = r_tgt>>))
