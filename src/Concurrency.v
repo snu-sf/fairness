@@ -13,6 +13,124 @@ From Fairness Require Import Mod.
 
 Set Implicit Arguments.
 
+
+
+Lemma unfold_iter E A B (f: A -> itree E (A + B)) (x: A)
+  :
+  ITree.iter f x =
+    lr <- f x;;
+    match lr with
+    | inl l => tau;; ITree.iter f l
+    | inr r => Ret r
+    end.
+Proof.
+  apply bisim_is_eq. eapply unfold_iter.
+Qed.
+
+
+
+Section STATE.
+
+  Variable State: Type.
+  Variable E: Type -> Type.
+
+  Let Es := E +' (stateE State).
+
+  Definition interp_state {R}:
+    (State * (itree Es R)) -> itree E R.
+  Proof.
+    eapply ITree.iter. intros [state itr]. destruct (observe itr).
+    - exact (Ret (inr r)).
+    - exact (Ret (inl (state, t))).
+    - destruct e.
+      + exact (Vis e (fun x => Ret (inl (state, k x)))).
+      + destruct s.
+        * exact (Ret (inl (st, k tt))).
+        * exact (Ret (inl (state, k state))).
+  Defined.
+
+  Lemma interp_state_ret
+        R (r: R) (state: State)
+    :
+    interp_state (state, Ret r) = Ret r.
+  Proof.
+    unfold interp_state. rewrite unfold_iter. ss. grind.
+  Qed.
+
+  Lemma interp_state_tau
+        R (state: State) (itr: itree Es R)
+    :
+    interp_state (state, tau;; itr) = tau;; interp_state (state, itr).
+  Proof.
+    unfold interp_state. rewrite unfold_iter. ss. grind.
+  Qed.
+
+  Lemma interp_state_put_vis
+        R (state0 state1: State) (ktr: unit -> itree Es R)
+    :
+    interp_state (state0, Vis (inr1 (Put state1)) ktr)
+    =
+      tau;; interp_state (state1, ktr tt).
+  Proof.
+    unfold interp_state. rewrite unfold_iter. ss. grind.
+  Qed.
+
+  Lemma interp_state_put
+        R (state0 state1: State) (ktr: unit -> itree Es R)
+    :
+    interp_state (state0, trigger (inr1 (Put state1)) >>= ktr)
+    =
+      tau;; interp_state (state1, ktr tt).
+  Proof.
+    rewrite bind_trigger. apply interp_state_put_vis.
+  Qed.
+
+  Lemma interp_state_get_vis
+        R (state: State) (ktr: State -> itree Es R)
+    :
+    interp_state (state, Vis (inr1 (@Get _)) ktr)
+    =
+      tau;; interp_state (state, ktr state).
+  Proof.
+    unfold interp_state. rewrite unfold_iter. ss. grind.
+  Qed.
+
+  Lemma interp_state_get
+        R (state: State) (ktr: State -> itree Es R)
+    :
+    interp_state (state, trigger (inr1 (@Get _)) >>= ktr)
+    =
+      tau;; interp_state (state, ktr state).
+  Proof.
+    rewrite bind_trigger. apply interp_state_get_vis.
+  Qed.
+
+  Lemma interp_state_vis
+        R (state: State) X (e: E X) (ktr: X -> itree Es R)
+    :
+    interp_state (state, Vis (inl1 e) ktr)
+    =
+      Vis e (fun x => tau;; interp_state (state, ktr x)).
+  Proof.
+    unfold interp_state. rewrite unfold_iter. ss. rewrite bind_vis.
+    apply observe_eta. ss. f_equal. extensionality x.
+    rewrite bind_ret_l. reflexivity.
+  Qed.
+
+  Lemma interp_state_trigger
+        R (state: State) X (e: E X) (ktr: X -> itree Es R)
+    :
+    interp_state (state, trigger (inl1 e) >>= ktr)
+    =
+      x <- trigger e;; tau;; interp_state (state, ktr x).
+  Proof.
+    rewrite ! bind_trigger. apply interp_state_vis.
+  Qed.
+
+End STATE.
+
+
+
 Section SCHEDULE.
 
   Context {Ident: ID}.
@@ -23,7 +141,7 @@ Section SCHEDULE.
   (* . *)
 
   (* Definition Es := cE +' eventE. *)
-  Definition Es := (@eventE (id_sum tids Ident)) +' cE.
+  Let Es := (@eventE (id_sum tids Ident)) +' cE.
 
   (* Definition thread {R} := stateT State (itree Es) R. *)
   Definition thread {R} := itree Es R.
@@ -39,19 +157,19 @@ Section SCHEDULE.
     fun sb => match sb with | inl _ => Flag.emp | inr b => (fm b) end.
 
   Definition interp_concurrent {R}:
-    ((@threads R) * (tids.(id) * itree Es R)) -> itree (@eventE (id_sum tids Ident)) unit.
+    ((@threads R) * (tids.(id) * itree Es R)) -> itree (@eventE (id_sum tids Ident)) R.
   Proof.
     eapply ITree.iter. intros [threads [tid itr]].
     destruct (observe itr).
-      - exact (Ret (inl (threads, (tid, Ret r)))).
-      - exact (Ret (inl (threads, (tid, t)))).
-      - destruct e.
-        + exact (Vis e (fun x => Ret (inl (threads, (tid, k x))))).
-        + destruct c.
-          * exact (Vis (Choose tids.(id))
-                       (fun t => Vis (Fair (sum_fmap_l (thread_fmap t)))
-                                  (fun _ => Ret (inl (update_threads t (k tt) threads, (t, k tt)))))).
-          * exact (Ret (inl (threads, (tid, k tid)))).
+    - exact (Ret (inr r)).
+    - exact (Ret (inl (threads, (tid, t)))).
+    - destruct e.
+      + exact (Vis e (fun x => Ret (inl (threads, (tid, k x))))).
+      + destruct c.
+        * exact (Vis (Choose tids.(id))
+                     (fun t => Vis (Fair (sum_fmap_l (thread_fmap t)))
+                                (fun _ => Ret (inl (update_threads t (k tt) threads, (t, k tt)))))).
+        * exact (Ret (inl (threads, (tid, k tid)))).
   Defined.
 
   (* Definition interp_yield {R}: *)
@@ -69,17 +187,6 @@ Section SCHEDULE.
   (*                                Ret (inl (threads, inl (tid, itr s))))). *)
   (* Defined. *)
 
-  Lemma unfold_iter E A B (f: A -> itree E (A + B)) (x: A)
-    :
-    ITree.iter f x =
-      lr <- f x;;
-      match lr with
-      | inl l => tau;; ITree.iter f l
-      | inr r => Ret r
-      end.
-  Proof.
-    apply bisim_is_eq. eapply unfold_iter.
-  Qed.
 
   (*TODO*)
 
