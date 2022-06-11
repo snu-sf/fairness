@@ -368,18 +368,13 @@ End SCHEDULE.
 Section INTERP.
 
   Variable mod: Mod.t.
-  Let State := (Mod.state mod).
+  Let st := (Mod.st_init mod).
   Let Ident := (Mod.ident mod).
-  Let Funs := (Mod.funs mod).
+  Let main := ((Mod.funs mod) "main").
 
-  Definition interp_mod {R}: itree (@eventE (id_sum tids Ident)) R :=
-    
+  Definition tid_main: tids.(id) := 0.
 
-  Definition interp_state {R}:
-    (State * (itree Es R)) -> itree E R.
-  Proof.
-  Definition interp_sched {R}:
-    ((@threads R) * (tids.(id) * itree Es R)) -> itree eventE2 R.
-  Let eventE2 := @eventE (id_sum tids Ident).
+  Definition interp_mod (ths: @threads (Mod._ident mod) Val): itree (@eventE Ident) Val :=
+    interp_sched (ths, (tid_main, interp_state (st, main []))).
 
 End INTERP.
