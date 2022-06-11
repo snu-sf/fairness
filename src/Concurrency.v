@@ -151,13 +151,7 @@ Section SCHEDULE.
   Definition update_threads {R} (tid: tids.(id)) (th: thread) (ths: threads) : @threads R :=
     fun t => if (tid_dec tid t) then th else (ths t).
 
-  Definition sum_fmap_l {A B: ID} (fm: @fmap A): @fmap (id_sum A B) :=
-    fun sa => match sa with | inl a => (fm a) | inr _ => Flag.emp end.
-
-  Definition sum_fmap_r {A B: ID} (fm: @fmap B): @fmap (id_sum A B) :=
-    fun sb => match sb with | inl _ => Flag.emp | inr b => (fm b) end.
-
-  Definition interp_concurrent {R}:
+  Definition interp_sched {R}:
     ((@threads R) * (tids.(id) * itree Es R)) -> itree eventE2 R.
   Proof.
     eapply ITree.iter. intros [threads [tid itr]].
@@ -189,87 +183,87 @@ Section SCHEDULE.
   (* Defined. *)
 
 
-  Lemma interp_concurrent_ret
+  Lemma interp_sched_ret
         R (threads: @threads R) tid r
     :
-    interp_concurrent (threads, (tid, Ret r)) = Ret r.
+    interp_sched (threads, (tid, Ret r)) = Ret r.
   Proof.
-    unfold interp_concurrent. rewrite unfold_iter. ss. grind.
+    unfold interp_sched. rewrite unfold_iter. ss. grind.
   Qed.
 
-  Lemma interp_concurrent_tau
+  Lemma interp_sched_tau
         R (threads: @threads R) tid itr
     :
-    interp_concurrent (threads, (tid, tau;; itr)) = tau;; interp_concurrent (threads, (tid, itr)).
+    interp_sched (threads, (tid, tau;; itr)) = tau;; interp_sched (threads, (tid, itr)).
   Proof.
-    unfold interp_concurrent. rewrite unfold_iter. ss. grind.
+    unfold interp_sched. rewrite unfold_iter. ss. grind.
   Qed.
 
-  Lemma interp_concurrent_vis
+  Lemma interp_sched_vis
         R (threads: @threads R) tid X (e: eventE2 X) ktr
     :
-    interp_concurrent (threads, (tid, Vis (inl1 e) ktr))
+    interp_sched (threads, (tid, Vis (inl1 e) ktr))
     =
-      Vis e (fun x => tau;; interp_concurrent (threads, (tid, ktr x))).
+      Vis e (fun x => tau;; interp_sched (threads, (tid, ktr x))).
   Proof.
-    unfold interp_concurrent. rewrite unfold_iter. ss. rewrite bind_vis.
+    unfold interp_sched. rewrite unfold_iter. ss. rewrite bind_vis.
     apply observe_eta. ss. f_equal. extensionality x.
     rewrite bind_ret_l. reflexivity.
   Qed.
 
-  Lemma interp_concurrent_trigger
+  Lemma interp_sched_trigger
         R (threads: @threads R) tid X (e: eventE2 X) ktr
     :
-    interp_concurrent (threads, (tid, trigger (inl1 e) >>= ktr))
+    interp_sched (threads, (tid, trigger (inl1 e) >>= ktr))
     =
-      x <- trigger e;; tau;; interp_concurrent (threads, (tid, ktr x)).
+      x <- trigger e;; tau;; interp_sched (threads, (tid, ktr x)).
   Proof.
-    rewrite ! bind_trigger. apply interp_concurrent_vis.
+    rewrite ! bind_trigger. apply interp_sched_vis.
   Qed.
 
-  Lemma interp_concurrent_yield_vis
+  Lemma interp_sched_yield_vis
         R (threads: @threads R) tid ktr
     :
-    interp_concurrent (threads, (tid, Vis (inr1 Yield) ktr))
+    interp_sched (threads, (tid, Vis (inr1 Yield) ktr))
     =
       Vis (Choose tids.(id))
           (fun t => Vis (Fair (sum_fmap_l (thread_fmap t)))
-                     (fun _ => tau;; interp_concurrent (update_threads tid (ktr tt) threads, (t, threads t)))).
+                     (fun _ => tau;; interp_sched (update_threads tid (ktr tt) threads, (t, threads t)))).
   Proof.
-    unfold interp_concurrent. rewrite unfold_iter. ss. grind.
+    unfold interp_sched. rewrite unfold_iter. ss. grind.
     eapply observe_eta. ss. f_equal. extensionality t. ss. grind.
   Qed.
 
-  Lemma interp_concurrent_yield
+  Lemma interp_sched_yield
         R (threads: @threads R) tid ktr
     :
-    interp_concurrent (threads, (tid, trigger (inr1 Yield) >>= ktr))
+    interp_sched (threads, (tid, trigger (inr1 Yield) >>= ktr))
     =
       Vis (Choose tids.(id))
           (fun t => Vis (Fair (sum_fmap_l (thread_fmap t)))
-                     (fun _ => tau;; interp_concurrent (update_threads tid (ktr tt) threads, (t, threads t)))).
+                     (fun _ => tau;; interp_sched (update_threads tid (ktr tt) threads, (t, threads t)))).
   Proof.
-    rewrite bind_trigger. apply interp_concurrent_yield_vis.
+    rewrite bind_trigger. apply interp_sched_yield_vis.
   Qed.
 
-  Lemma interp_concurrent_gettid_vis
+  Lemma interp_sched_gettid_vis
         R (threads: @threads R) tid ktr
     :
-    interp_concurrent (threads, (tid, Vis (inr1 GetTid) ktr))
+    interp_sched (threads, (tid, Vis (inr1 GetTid) ktr))
     =
-      tau;; interp_concurrent (threads, (tid, ktr tid)).
+      tau;; interp_sched (threads, (tid, ktr tid)).
   Proof.
-    unfold interp_concurrent. rewrite unfold_iter. ss. grind.
+    unfold interp_sched. rewrite unfold_iter. ss. grind.
   Qed.
 
-  Lemma interp_concurrent_gettid
+  Lemma interp_sched_gettid
         R (threads: @threads R) tid ktr
     :
-    interp_concurrent (threads, (tid, trigger (inr1 GetTid) >>= ktr))
+    interp_sched (threads, (tid, trigger (inr1 GetTid) >>= ktr))
     =
-      tau;; interp_concurrent (threads, (tid, ktr tid)).
+      tau;; interp_sched (threads, (tid, ktr tid)).
   Proof.
-    rewrite bind_trigger. apply interp_concurrent_gettid_vis.
+    rewrite bind_trigger. apply interp_sched_gettid_vis.
   Qed.
 
 
@@ -368,3 +362,24 @@ Section SCHEDULE.
   (* (* . *) *)
 
 End SCHEDULE.
+
+
+
+Section INTERP.
+
+  Variable mod: Mod.t.
+  Let State := (Mod.state mod).
+  Let Ident := (Mod.ident mod).
+  Let Funs := (Mod.funs mod).
+
+  Definition interp_mod {R}: itree (@eventE (id_sum tids Ident)) R :=
+    
+
+  Definition interp_state {R}:
+    (State * (itree Es R)) -> itree E R.
+  Proof.
+  Definition interp_sched {R}:
+    ((@threads R) * (tids.(id) * itree Es R)) -> itree eventE2 R.
+  Let eventE2 := @eventE (id_sum tids Ident).
+
+End INTERP.

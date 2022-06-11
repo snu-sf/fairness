@@ -201,6 +201,12 @@ Section EVENT.
 
 End EVENT.
 
+Definition sum_fmap_l {A B: ID} (fm: @fmap A): @fmap (id_sum A B) :=
+  fun sa => match sa with | inl a => (fm a) | inr _ => Flag.emp end.
+
+Definition sum_fmap_r {A B: ID} (fm: @fmap B): @fmap (id_sum A B) :=
+  fun sb => match sb with | inl _ => Flag.emp | inr b => (fm b) end.
+
 
 
 Section STS.

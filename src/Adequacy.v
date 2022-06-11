@@ -262,12 +262,19 @@ End ADEQ.
 Section ADEQ2.
 
   Context {Ident: ID}.
+
+  Definition FairBeh_of_state {R} (st: @state _ R) (obs: @Tr.t R): Prop :=
+    exists (raw: @RawTr.t _ R), (extract_tr raw obs) /\ (RawBeh.of_state_fair st raw).
+
+  Definition improves {R} (src tgt: @state _ R) :=
+    forall (obs_tr: @Tr.t R),
+      (FairBeh_of_state tgt obs_tr) -> (FairBeh_of_state src obs_tr).
+
+
   Hypothesis ID_DEC: forall (i0 i1: Ident.(id)), {i0 = i1} + {i0 <> i1}.
 
   Variable wfs: WF.
   Variable wfs0: T wfs.
-  Variable Ss: wfs.(T) -> wfs.(T).
-  Hypothesis lt_succ_diag_r_s: forall (t: wfs.(T)), wfs.(lt) t (Ss t).
   Hypothesis WFSTR: Transitive wfs.(lt).
 
   Variable wft: WF.
@@ -277,14 +284,6 @@ Section ADEQ2.
   Hypothesis WFTRT: Transitive wft.(lt).
 
 
-  Definition improves {R} (src tgt: @state _ R) :=
-    forall (obs_tr: @Tr.t R),
-      (exists (raw_tgt: @RawTr.t _ R),
-          (extract_tr raw_tgt obs_tr) /\ (RawBeh.of_state_fair tgt raw_tgt))
-      ->
-        (exists (raw_src: @RawTr.t _ R),
-            (extract_tr raw_src obs_tr) /\ (RawBeh.of_state_fair src raw_src)).
-
   Theorem adequacy
           R
           psrc ptgt src tgt
@@ -292,7 +291,7 @@ Section ADEQ2.
     :
     improves src tgt.
   Proof.
-    des. eapply global_adequacy in SIM. intros obs TGT. des.
+    eapply global_adequacy in SIM. intros obs TGT. unfold FairBeh_of_state in *. des.
     unfold RawBeh.of_state_fair in TGT0. des.
     eapply Fair_implies_Ind in FAIR.
     eapply (@Ind_implies_Ord _ wft wft0) in FAIR; eauto.
