@@ -21,8 +21,8 @@ Section PRIMIVIESIM.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE ident_src +' cE) +' stateE state_src).
-  Let tgtE := ((@eventE ident_tgt +' cE) +' stateE state_tgt).
+  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
+  Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
 
   Variable world: Type.
   Variable world_le: world -> world -> Prop.
@@ -230,6 +230,26 @@ Section PRIMIVIESIM.
     ii. eapply __lsim_mon; eauto.
   Qed.
 
+  Definition local_RR {R} tid :=
+    fun (r_src r_tgt: R) '(ths2, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1) =>
+      exists ths3 w2,
+        (<<THS: tid_list_remove ths2 tid ths3>>) /\
+          (<<WORLD: world_le w1 w2>>) /\
+          (<<INV: I (ths3, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w2)>>) /\
+          (<<RET: r_src = r_tgt>>).
+
+  Definition local_sim {R} src tgt :=
+    forall ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0
+      (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0))
+      tid ths1
+      (THS: tid_list_add ths0 tid ths1),
+      lsim
+        tid
+        (@local_RR R tid)
+        false false
+        src tgt
+        (ths1, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0).
+
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
 #[export] Hint Unfold lsim: core.
@@ -244,7 +264,7 @@ Module ModSim.
     Variable md_src: Mod.t.
     Variable md_tgt: Mod.t.
 
-    Record local_sim: Prop :=
+    Record mod_sim: Prop :=
       mk {
           wf: WF;
           world: Type;
@@ -255,24 +275,38 @@ Module ModSim.
           exists im_src th_src o w,
             I ([], im_src, im_tgt, th_src, th_tgt, o, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
 
-          funs: forall ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0
-                  (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0))
-                  fn args tid ths1
-                  (THS: tid_list_add ths0 tid ths1),
-            lsim
-              world_le
-              I
-              tid
-              (fun r_src r_tgt '(ths2, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1) =>
-                 exists ths3 w2,
-                   (<<THS: tid_list_remove ths2 tid ths3>>) /\
-                     (<<WORLD: world_le w1 w2>>) /\
-                     (<<INV: I (ths3, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w2)>>) /\
-                     (<<RET: r_src = r_tgt>>))
-              false false
-              (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args)
-              (ths1, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0);
+          funs: forall fn args, local_sim world_le I (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args);
         }.
+
+    (* Record local_sim: Prop := *)
+    (*   mk { *)
+    (*       wf: WF; *)
+    (*       world: Type; *)
+    (*       world_le: world -> world -> Prop; *)
+    (*       I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop; *)
+
+    (*       init: forall im_tgt th_tgt, *)
+    (*       exists im_src th_src o w, *)
+    (*         I ([], im_src, im_tgt, th_src, th_tgt, o, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w); *)
+
+    (*       funs: forall ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0 *)
+    (*               (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0)) *)
+    (*               fn args tid ths1 *)
+    (*               (THS: tid_list_add ths0 tid ths1), *)
+    (*         lsim *)
+    (*           world_le *)
+    (*           I *)
+    (*           tid *)
+    (*           (fun r_src r_tgt '(ths2, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1) => *)
+    (*              exists ths3 w2, *)
+    (*                (<<THS: tid_list_remove ths2 tid ths3>>) /\ *)
+    (*                  (<<WORLD: world_le w1 w2>>) /\ *)
+    (*                  (<<INV: I (ths3, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w2)>>) /\ *)
+    (*                  (<<RET: r_src = r_tgt>>)) *)
+    (*           false false *)
+    (*           (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args) *)
+    (*           (ths1, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0); *)
+    (*     }. *)
 
   End MODSIM.
 End ModSim.

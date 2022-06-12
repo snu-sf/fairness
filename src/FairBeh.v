@@ -189,6 +189,7 @@ End WFTransitive.
 Section EVENT.
 
   Context {Ident: ID}.
+  (* Variable Ident: ID. *)
 
   Definition fmap := id -> Flag.t.
 
@@ -241,7 +242,8 @@ Definition t {R}: Type := @Tr.t R -> Prop.
 
 Section BEHAVES.
 
-  Context {Ident: ID}.
+  (* Context {Ident: ID}. *)
+  Variable Ident: ID.
   Variable wf: WF.
 
   Variant _diverge_index
@@ -678,9 +680,9 @@ Section BEHAVES.
 
 End BEHAVES.
 
-Definition improves {Ident: ID} {wfs wft: WF} {R} (src tgt: @state Ident R): Prop :=
-  forall tr, (forall (mtgt: imap wft),
-            (exists (msrc: imap wfs), of_state mtgt tgt tr -> of_state msrc src tr)).
+Definition improves {ids idt: ID} {wfs wft: WF} {R} (src: @state ids R) (tgt: @state idt R): Prop :=
+  forall tr, (forall (mtgt: @imap idt wft),
+            (exists (msrc: @imap ids wfs), of_state mtgt tgt tr -> of_state msrc src tr)).
 
 End Beh.
 #[export] Hint Unfold Beh.improves: core.

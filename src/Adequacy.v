@@ -6,7 +6,6 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
-Require Import Lia.
 
 From Fairness Require Import ITreeLib.
 From Fairness Require Import FairBeh.
@@ -21,14 +20,15 @@ Set Implicit Arguments.
 
 Section ADEQ.
 
-  Context {Ident: ID}.
+  Variable ids: ID.
+  Variable idt: ID.
   Variable wfs: WF.
   Variable wft: WF.
 
   Lemma adequacy_spin
         R0 R1 (RR: R0 -> R1 -> Prop)
         psrc0 ptgt0 msrc0 mtgt0 ssrc0 stgt0
-        (SIM: sim (wfs:=wfs) (wft:=wft) RR psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
+        (SIM: sim (ids:=ids) (idt:=idt) (wfs:=wfs) (wft:=wft) RR psrc0 msrc0 ptgt0 mtgt0 ssrc0 stgt0)
         (SPIN: Beh.diverge_index mtgt0 stgt0)
     :
     <<SPIN: Beh.diverge_index msrc0 ssrc0>>.
@@ -76,9 +76,9 @@ Section ADEQ.
   Theorem global_adequacy
           R
           psrc0 ptgt0 ssrc0 stgt0
-          (SIM: gsim wfs wft (@eq R) psrc0 ptgt0 ssrc0 stgt0)
+          (SIM: gsim (ids:=ids) (idt:=idt) wfs wft (@eq R) psrc0 ptgt0 ssrc0 stgt0)
     :
-    <<IMPR: Beh.improves (wfs:=wfs) (wft:=wft) ssrc0 stgt0>>.
+    <<IMPR: Beh.improves (ids:=ids) (idt:=idt) (wfs:=wfs) (wft:=wft) ssrc0 stgt0>>.
   Proof.
     ii. specialize (SIM mtgt). des. exists ms. rename mtgt into mtgt0, ms into msrc0. intro PR.
     ginit. revert_until R. gcofix CIH.
@@ -90,8 +90,8 @@ Section ADEQ.
       rename imap0 into mtgt0. depgen retv.
       induction SIM using @sim_ind2; i; ss; clarify; eauto.
       { gstep. econs 1. }
-      { guclo Beh.of_state_indC_spec. econs. eauto. }
-      { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
+      { guclo (@Beh.of_state_indC_spec ids). econs. eauto. }
+      { des. rewrite bind_trigger. guclo (@Beh.of_state_indC_spec ids). econs; eauto. }
       { rewrite bind_trigger in Heqstgt0. clarify. }
       { des. rewrite bind_trigger. guclo Beh.of_state_indC_spec. econs; eauto. }
       { rewrite bind_trigger in Heqstgt0. clarify. }

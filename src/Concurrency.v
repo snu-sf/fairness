@@ -3,7 +3,6 @@ From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
-Require Import Permutation.
 Require Import Program.
 
 From ExtLib Require Import FMapAList.
@@ -36,7 +35,7 @@ Section STATE.
   Variable State: Type.
   Variable E: Type -> Type.
 
-  Let Es := E +' (stateE State).
+  Let Es := E +' (sE State).
 
   Definition interp_state {R}:
     (State * (itree Es R)) -> itree E R.
@@ -146,7 +145,7 @@ Section SCHEDULE.
   (* Definition Es := cE +' eventE. *)
   Let eventE2 := @eventE (id_sum tids Ident).
   Let Es := (eventE2 +' cE) +' E.
-  (* Let Es := (eventE2 +' cE) +' (stateE State). *)
+  (* Let Es := (eventE2 +' cE) +' (sE State). *)
 
   (* Definition thread {R} := stateT State (itree Es) R. *)
   Definition thread {R} := itree Es R.
@@ -436,15 +435,29 @@ End SCHEDULE.
 
 Section INTERP.
 
+  Variable State: Type.
+  Variable _Ident: ID.
+
+  Definition interp_all
+             {R}
+             (st: State) (ths: @threads _Ident (sE State) R)
+             tid (itr: itree ((_ +' cE) +' (sE State)) R) :
+    itree (@eventE (id_sum tids _Ident)) R :=
+    interp_state (st, interp_sched (ths, inl (tid, itr))).
+
+End INTERP.
+
+
+Section MOD.
+
   Variable mod: Mod.t.
   Let st := (Mod.st_init mod).
   Let Ident := (Mod.ident mod).
   Let main := ((Mod.funs mod) "main").
 
-  Definition tid_main: tids.(id) := 0.
 
-  Definition interp_mod (ths: @threads (Mod._ident mod) (stateE (Mod.state mod)) Val):
+  Definition interp_mod (ths: @threads (Mod._ident mod) (sE (Mod.state mod)) Val):
     itree (@eventE Ident) Val :=
-    interp_state (st, interp_sched (ths, inl (tid_main, main []))).
+    interp_all st ths tid_main (main []).
 
-End INTERP.
+End MOD.

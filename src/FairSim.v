@@ -15,14 +15,15 @@ Set Implicit Arguments.
 
 Section SIM.
 
-  Context {Ident: ID}.
+  Variable ids: ID.
+  Variable idt: ID.
   Variable wfs: WF.
   Variable wft: WF.
 
   Inductive _sim
-            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (imap wfs) -> bool  -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop)
-            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap wfs) (p_tgt: bool) (m_tgt: imap wft) :
-    (@state _ R0) -> (@state _ R1) -> Prop :=
+            (sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (@imap ids wfs) -> bool  -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
+            {R0 R1} (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: @imap ids wfs) (p_tgt: bool) (m_tgt: @imap idt wft) :
+    (@state ids R0) -> (@state idt R1) -> Prop :=
   | sim_ret
       r_src r_tgt
       (SIM: RR r_src r_tgt)
@@ -83,9 +84,9 @@ Section SIM.
     _sim sim RR p_src m_src p_tgt m_tgt (trigger Undefined >>= ktr_src0) itr_tgt0
   .
 
-  Lemma sim_ind (r: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (imap wfs)  -> bool -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop)
+  Lemma sim_ind (r: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (@imap ids wfs)  -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
         R0 R1 (RR: R0 -> R1 -> Prop)
-        (P: bool -> (imap wfs)  -> bool -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop)
+        (P: bool -> (@imap ids wfs)  -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
         (RET: forall
             p_src m_src p_tgt m_tgt
             r_src r_tgt
@@ -158,7 +159,7 @@ Section SIM.
     { eapply UB; eauto. }
   Qed.
 
-  Definition sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (imap wfs)  -> bool -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop := paco9 _sim bot9.
+  Definition sim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> (@imap ids wfs)  -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop := paco9 _sim bot9.
 
   Lemma sim_mon: monotone9 _sim.
   Proof.
@@ -181,7 +182,7 @@ Section SIM.
   Hint Resolve cpn9_wcompat: paco.
 
   Lemma sim_ind2 R0 R1 (RR: R0 -> R1 -> Prop)
-        (P: bool -> (imap wfs)  -> bool -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop)
+        (P: bool -> (@imap ids wfs)  -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
         (RET: forall
             p_src m_src p_tgt m_tgt
             r_src r_tgt
@@ -251,7 +252,7 @@ Section SIM.
     { clear - SIM. punfold SIM. eapply sim_mon; eauto. i. pclearbot. eauto. }
   Qed.
 
-  Definition gsim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> bool -> (@state _ R0) -> (@state _ R1) -> Prop :=
+  Definition gsim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> bool -> (@state ids R0) -> (@state idt R1) -> Prop :=
     fun R0 R1 RR ps pt src tgt => forall (mt: imap wft), (exists ms: imap wfs, sim RR ps ms pt mt src tgt).
 
   (****************************************************)
@@ -262,10 +263,10 @@ Section SIM.
   Hypothesis WFTTR: Transitive wft.(lt).
 
   Variant sim_imap_ctxL
-          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (imap wfs) -> bool -> (imap wft) -> state -> state -> Prop)
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (@imap ids wfs) -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
           R0 R1 (RR: R0 -> R1 -> Prop)
     :
-    bool -> (imap wfs) -> bool -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop :=
+    bool -> (@imap ids wfs) -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop :=
     | sim_imap_ctxL_intro
         msrc0 msrc1 mtgt psrc ptgt st_src st_tgt
         (SIM: @sim _ _ RR psrc msrc1 ptgt mtgt st_src st_tgt)
@@ -301,10 +302,10 @@ Section SIM.
 
 
   Variant sim_imap_ctxR
-          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (imap wfs) -> bool -> (imap wft) -> state -> state -> Prop)
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (@imap ids wfs) -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
           R0 R1 (RR: R0 -> R1 -> Prop)
     :
-    bool -> (imap wfs) -> bool -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop :=
+    bool -> (@imap ids wfs) -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop :=
     | sim_imap_ctxR_intro
         msrc mtgt0 mtgt1 psrc ptgt st_src st_tgt
         (SIM: @sim _ _ RR psrc msrc ptgt mtgt1 st_src st_tgt)
@@ -340,10 +341,10 @@ Section SIM.
 
 
   Variant sim_indC
-          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (imap wfs) -> bool -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop)
-          R0 R1 (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: imap wfs) (p_tgt: bool) (m_tgt: imap wft)
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (@imap ids wfs) -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
+          R0 R1 (RR: R0 -> R1 -> Prop) (p_src: bool) (m_src: @imap ids wfs) (p_tgt: bool) (m_tgt: @imap idt wft)
     :
-    (@state _ R0) -> (@state _ R1) -> Prop :=
+    (@state ids R0) -> (@state idt R1) -> Prop :=
     | sim_indC_ret
         r_src r_tgt
         (SIM: RR r_src r_tgt)
@@ -435,10 +436,10 @@ Section SIM.
 
 
   Variant sim_progress_ctx
-          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (imap wfs) -> bool -> (imap wft) -> state -> state -> Prop)
+          (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (@imap ids wfs) -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
           R0 R1 (RR: R0 -> R1 -> Prop)
     :
-    bool -> (imap wfs) -> bool -> (imap wft) -> (@state _ R0) -> (@state _ R1) -> Prop :=
+    bool -> (@imap ids wfs) -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop :=
     | sim_progress_intro
         msrc mtgt psrc0 psrc1 ptgt0 ptgt1 st_src st_tgt
         (SIM: @sim _ _ RR psrc1 msrc ptgt1 mtgt st_src st_tgt)

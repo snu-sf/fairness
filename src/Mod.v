@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+
 Require Export Coq.Strings.String.
 
 From Fairness Require Export ITreeLib FairBeh.
@@ -14,6 +15,7 @@ Section TID.
     mk_wf Wf_nat.lt_wf.
 
   Definition tids: ID := mk_id nat.
+  Definition tid_main: tids.(id) := 0.
   Definition tid_dec := PeanoNat.Nat.eq_dec.
 
   Definition tid_list: Type := list tids.(id).
@@ -45,9 +47,9 @@ Variant cE: Type -> Type :=
 (* | Spawn (fn: fname) (args: list Val): cE unit *)
 .
 
-Variant stateE (State: Type): Type -> Type :=
-| Put (st: State): stateE State unit
-| Get: stateE State State
+Variant sE (State: Type): Type -> Type :=
+| Put (st: State): sE State unit
+| Get: sE State State
 .
 
 Module Mod.
@@ -57,7 +59,7 @@ Module Mod.
         _ident: ID;
         ident: ID := id_sum tids _ident;
         st_init: state;
-        funs: fname -> ktree (((@eventE ident) +' cE) +' stateE state) (list Val) Val;
+        funs: fname -> ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val;
       }.
 End Mod.
 
@@ -78,8 +80,8 @@ Section LENS.
   Variable put: S -> V -> S.
 
   Definition embed_itree:
-    forall R (itr: itree (E +' stateE V) R),
-      itree (E +' stateE S) R.
+    forall R (itr: itree (E +' sE V) R),
+      itree (E +' sE S) R.
     cofix embed_itree.
     intros R itr.
     destruct (observe itr) as [r|itr0|? [e|[v|]] ktr].
