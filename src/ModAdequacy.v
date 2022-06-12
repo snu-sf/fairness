@@ -49,11 +49,14 @@ Section ADEQ.
           tid src tgt (st_src: state_src) (st_tgt: state_tgt)
           (SRC: Some src = threads_find tid ths_src)
           (TGT: Some tgt = threads_find tid ths_tgt)
+          (INV: forall im_tgt th_tgt, exists im_src th_src o w,
+              I ([], im_src, im_tgt, th_src, th_tgt, o, st_src, st_tgt, w))
     :
     gsim wf_src wf_tgt (@eq R) false false
          (interp_all st_src ths_src tid src)
          (interp_all st_tgt ths_tgt tid tgt).
   Proof.
+    ii.
 
   Abort.
 
