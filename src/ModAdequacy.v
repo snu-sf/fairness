@@ -107,8 +107,9 @@ Section ADEQ.
     2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
     move LSIM before CIH. revert_until LSIM.
     eapply pind8_acc in LSIM.
+
     { instantiate (1:= (fun R0 R1 (LRR: R0 -> R1 -> tid_list * imap wf_src * imap wf_tgt * state_src * state_tgt * T wf_src * world -> Prop) ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr =>
-                          forall (RR : R0 -> R1 -> Prop) (ths_src : threads (sE state_src)) (st_src : state_src) (st_tgt : state_tgt) 
+                          forall (RR : R0 -> R1 -> Prop) (ths_src : threads (sE state_src)) (st_src : state_src) (st_tgt : state_tgt)
                             (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world) (tlist : list nat),
                             tlist = tid :: alist_proj1 ths_src ->
                             LRR = local_RR world_le I RR tid ->
@@ -123,6 +124,7 @@ Section ADEQ.
                               tid_list_add (alist_proj1 ths_src) tid tlist ->
                               gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt (interp_all st_src ths_src tid src)
                                      (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. }
+
     (* { instantiate (1:= *)
     (*                  (fun R0 R1 (LRR: R0 -> R1 -> tid_list * imap wf_src * imap wf_tgt * state_src * state_tgt * T wf_src * world -> Prop) ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr => *)
     (*                     forall (RR : R0 -> R1 -> Prop) (ths_src : threads (sE state_src)) (tid : nat) (st_src : state_src) (st_tgt : state_tgt) *)
@@ -150,16 +152,19 @@ Section ADEQ.
     2:{ eapply _lsim_mon. }
     inv LSIM.
 
-    { unfold local_RR in LSIM0. des. clarify.
+    { clear IH rr. unfold local_RR in LSIM0. des. clarify.
       unfold interp_all. rewrite ! interp_sched_ret. rewrite ! interp_state_tau.
       guclo sim_indC_spec. econs 3. guclo sim_indC_spec. econs 4.
+      rewrite ! interp_sched_pick_ret.
+      (*TODO: case analysis; all threads done / some other gets the turn -> CIH*)
+
+      
       match goal with
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_interp_src _ => set (interp_src:=_interp_src)
       end.
       rewrite interp_sched_pick. rewrite interp_state_trigger. guclo sim_indC_spec. econs 6. i.
       subst interp_src. rewrite interp_sched_pick. rewrite interp_state_trigger. guclo sim_indC_spec. econs 5. exists x.
       guclo sim_indC_spec. econs 3. guclo sim_indC_spec. econs 4.
-      (*TODO: add retrun case in concurrency yield: there is no more thread*)
       
       rewrite interp_sched_pick.
       gfold. econs 3. econs 4.
