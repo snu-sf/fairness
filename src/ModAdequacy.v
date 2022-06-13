@@ -77,11 +77,16 @@ Section ADEQ.
 
   (*invariant for tid_list & threads: tid_list_add threads.proj1 tid tid_list*)
   Theorem local_adequacy
+          (* (LSIM: forall R0 R1 (RR: R0 -> R1 -> Prop) (src0: itree srcE R0) (tgt0: itree tgtE R1), *)
+          (*     local_sim world_le I RR src0 tgt0) *)
           R0 R1 (RR: R0 -> R1 -> Prop)
-          (LSIM: forall (src0: itree srcE R0) (tgt0: itree tgtE R1),
-              local_sim world_le I RR src0 tgt0)
           (ths_src: @threads _ident_src (sE state_src) R0)
           (ths_tgt: @threads _ident_tgt (sE state_tgt) R1)
+          (LSIM: forall tid0 (src0: itree srcE R0) (tgt0: itree tgtE R1)
+                   (LSRC: threads_find tid0 ths_src = Some src0)
+                   (LTGT: threads_find tid0 ths_tgt = Some tgt0)
+            ,
+              local_sim world_le I RR src0 tgt0)
           tid src tgt (st_src: state_src) (st_tgt: state_tgt)
           (WFTHS: wf_ths ths_src ths_tgt)
           (THSRC: threads_find tid ths_src = None)
