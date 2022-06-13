@@ -73,6 +73,8 @@ Section ADEQ.
 
   Variable I: (@shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt world) -> Prop.
 
+  Ltac gfold := gfinal; right; pfold.
+
   (*invariant for tid_list & threads: tid_list_add threads.proj1 tid tid_list*)
   Theorem local_adequacy
           R0 R1 (RR: R0 -> R1 -> Prop)
@@ -142,7 +144,32 @@ Section ADEQ.
 
     clear R0 R1 LRR ps pt src tgt shr LSIM. i.
     rename x0 into R0, x1 into R1, x2 into LRR, x3 into ps, x4 into pt, x5 into src, x6 into tgt, x7 into shr, PR into LSIM.
-    ss. i. clear DEC.
+    clear DEC. ss. intros RR ths_src st_src st_tgt mt ms o w tlist Etlist ELRR Eshr Eps Ept.
+    intros ths_tgt WFTHS STHS TTHS INV TADD.
+    eapply pind8_unfold in LSIM.
+    2:{ eapply _lsim_mon. }
+    inv LSIM.
+
+    { unfold local_RR in LSIM0. des. clarify.
+      unfold interp_all. rewrite ! interp_sched_ret. rewrite ! interp_state_tau.
+      guclo sim_indC_spec. econs 3. guclo sim_indC_spec. econs 4.
+      match goal with
+      | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_interp_src _ => set (interp_src:=_interp_src)
+      end.
+      rewrite interp_sched_pick. rewrite interp_state_trigger. guclo sim_indC_spec. econs 6. i.
+      subst interp_src. rewrite interp_sched_pick. rewrite interp_state_trigger. guclo sim_indC_spec. econs 5. exists x.
+      guclo sim_indC_spec. econs 3. guclo sim_indC_spec. econs 4.
+      (*TODO: add retrun case in concurrency yield: there is no more thread*)
+      
+      rewrite interp_sched_pick.
+      gfold. econs 3. econs 4.
+
+      gfold.
+
+      econs 1.
+
+      gfinal. right. pfold.
+
 
 
 
