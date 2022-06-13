@@ -17,23 +17,30 @@ Section TID.
   Definition tids: ID := mk_id nat.
   Definition tid_main: tids.(id) := 0.
   Definition tid_dec := PeanoNat.Nat.eq_dec.
+  Definition tid_dec_bool :=
+    fun t1 t2 => if (tid_dec t1 t2) then true else false.
 
   Definition tid_list: Type := list tids.(id).
+
   Variant tid_list_add (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
     | tid_list_add_intro
-        (THS: ths1 = tid :: ths0)
-        (NIN: ~ List.In tid ths0)
+        (THS0: ~ List.In tid ths0)
+        (THS1: ths1 = tid :: ths0)
   .
 
   Variant tid_list_remove (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
     | tid_list_remove_intro
-        l0 l1
-        (THS0: ths0 = l0 ++ tid :: l1)
-        (THS1: ths1 = l0 ++ l1)
+        (THS0: List.In tid ths0)
+        (THS1: ths1 = List.filter (fun t => tid_dec_bool t tid) ths0)
+        (* l0 l1 *)
+        (* (THS0: ths0 = l0 ++ tid :: l1) *)
+        (* (THS1: ths1 = l0 ++ l1) *)
   .
 
   Definition thread_fmap (tid: tids.(id)): @fmap tids :=
     fun i => if (PeanoNat.Nat.eq_dec i tid) then Flag.success else Flag.fail.
+
+  Definition sum_tids (_id: ID) := id_sum tids _id.
 
 End TID.
 
@@ -57,7 +64,7 @@ Module Mod.
     mk {
         state: Type;
         _ident: ID;
-        ident: ID := id_sum tids _ident;
+        ident: ID := sum_tids _ident;
         st_init: state;
         funs: fname -> ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val;
       }.

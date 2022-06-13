@@ -134,7 +134,7 @@ End STATE.
 
 Section SCHEDULE.
 
-  Context {Ident: ID}.
+  Context {_Ident: ID}.
   Variable E: Type -> Type.
   (* Variable State: Type. *)
 
@@ -143,7 +143,7 @@ Section SCHEDULE.
   (* . *)
 
   (* Definition Es := cE +' eventE. *)
-  Let eventE2 := @eventE (id_sum tids Ident).
+  Let eventE2 := @eventE (sum_tids _Ident).
   Let Es := (eventE2 +' cE) +' E.
   (* Let Es := (eventE2 +' cE) +' (sE State). *)
 
@@ -442,7 +442,7 @@ Section INTERP.
              {R}
              (st: State) (ths: @threads _Ident (sE State) R)
              tid (itr: itree ((_ +' cE) +' (sE State)) R) :
-    itree (@eventE (id_sum tids _Ident)) R :=
+    itree (@eventE (sum_tids _Ident)) R :=
     interp_state (st, interp_sched (ths, inl (tid, itr))).
 
 End INTERP.
