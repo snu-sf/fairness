@@ -3,7 +3,8 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind8.
+From Fairness Require Import pind5.
+(* From Fairness Require Import pind8. *)
 
 Set Implicit Arguments.
 
@@ -204,6 +205,30 @@ Section PRIMIVIESIM.
     __lsim RR tid lsim _lsim true true itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
   .
 
+  Definition lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: tids.(id)):
+    bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    paco5 (fun r => pind5 (__lsim RR tid r) top5) bot5.
+
+  Lemma __lsim_mon R0 R1 (RR: R0 -> R1 -> shared_rel) tid:
+    forall r r' (LE: r <5= r'), (__lsim RR tid r) <6= (__lsim RR tid r').
+  Proof.
+    ii. inv PR; econs; eauto.
+  Qed.
+
+  Lemma _lsim_mon R0 R1 (RR: R0 -> R1 -> shared_rel) tid: forall r, monotone5 (__lsim RR tid r).
+  Proof.
+    ii. inv IN; econs; eauto.
+    { des. eauto. }
+    { des. eauto. }
+    { i. eapply LE. eapply LSIM. eauto. }
+    { des. esplits; eauto. }
+  Qed.
+
+  Lemma lsim_mon R0 R1 (RR: R0 -> R1 -> shared_rel) tid: forall q, monotone5 (fun r => pind5 (__lsim RR tid r) q).
+  Proof.
+    ii. eapply pind5_mon_gen; eauto.
+    ii. eapply __lsim_mon; eauto.
+  Qed.
 
 
   (* Variant __lsim (tid: tids.(id)) *)
@@ -360,29 +385,29 @@ Section PRIMIVIESIM.
   (*   __lsim tid lsim _lsim RR true true itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
   (* . *)
 
-  Definition lsim (tid: tids.(id)): forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),
-      bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
-    paco8 (fun r => pind8 (__lsim tid r) top8) bot8.
+  (* Definition lsim (tid: tids.(id)): forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
+  (*     bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel := *)
+  (*   paco8 (fun r => pind8 (__lsim tid r) top8) bot8. *)
 
-  Lemma __lsim_mon tid: forall r r' (LE: r <8= r'), (__lsim tid r) <9= (__lsim tid r').
-  Proof.
-    ii. inv PR; econs; eauto.
-  Qed.
+  (* Lemma __lsim_mon tid: forall r r' (LE: r <8= r'), (__lsim tid r) <9= (__lsim tid r'). *)
+  (* Proof. *)
+  (*   ii. inv PR; econs; eauto. *)
+  (* Qed. *)
 
-  Lemma _lsim_mon tid: forall r, monotone8 (__lsim tid r).
-  Proof.
-    ii. inv IN; econs; eauto.
-    { des. eauto. }
-    { des. eauto. }
-    { i. eapply LE. eapply LSIM. eauto. }
-    { des. esplits; eauto. }
-  Qed.
+  (* Lemma _lsim_mon tid: forall r, monotone8 (__lsim tid r). *)
+  (* Proof. *)
+  (*   ii. inv IN; econs; eauto. *)
+  (*   { des. eauto. } *)
+  (*   { des. eauto. } *)
+  (*   { i. eapply LE. eapply LSIM. eauto. } *)
+  (*   { des. esplits; eauto. } *)
+  (* Qed. *)
 
-  Lemma lsim_mon tid: forall q, monotone8 (fun r => pind8 (__lsim tid r) q).
-  Proof.
-    ii. eapply pind8_mon_gen; eauto.
-    ii. eapply __lsim_mon; eauto.
-  Qed.
+  (* Lemma lsim_mon tid: forall q, monotone8 (fun r => pind8 (__lsim tid r) q). *)
+  (* Proof. *)
+  (*   ii. eapply pind8_mon_gen; eauto. *)
+  (*   ii. eapply __lsim_mon; eauto. *)
+  (* Qed. *)
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid :=
     fun (r_src: R0) (r_tgt: R1) '(ths2, tht2, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1) =>
@@ -400,8 +425,8 @@ Section PRIMIVIESIM.
       (THS: tid_list_add ths0 tid ths1)
       (THT: tid_list_add tht0 tid tht1),
       lsim
-        tid
         (@local_RR R0 R1 RR tid)
+        tid
         false false
         src tgt
         (ths1, tht1, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0).
