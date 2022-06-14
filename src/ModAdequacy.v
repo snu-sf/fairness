@@ -329,7 +329,7 @@ Section ADEQ.
       guclo sim_indC_spec. econs 6. i.
       guclo sim_indC_spec. econs 4.
       clear IH rr.
-      (*destruct cases: UB case / x = tid; LSIM0 / x <> tid; CIH*)
+      (*destruct cases: UB case / x = tid; CIH, LSIM0 / x <> tid; CIH, LOCAL*)
 
       admit. }
 
