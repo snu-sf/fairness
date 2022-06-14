@@ -118,8 +118,8 @@ Section ADEQ.
           (ths_tgt: @threads _ident_tgt (sE state_tgt) R1)
           (WFTHS: wf_ths ths_src ths_tgt)
           (LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1)
-                   (LSRC: threads_find tid ths_src = Some src)
-                   (LTGT: threads_find tid ths_tgt = Some tgt)
+                    (LSRC: threads_find tid ths_src = Some src)
+                    (LTGT: threads_find tid ths_tgt = Some tgt)
             ,
               local_sim world_le I RR src tgt)
           tid
@@ -133,8 +133,9 @@ Section ADEQ.
           (* ths_src0 ths_tgt0 *)
           (* (THSRC: threads_pop tid ths_src = Some (src0, ths_src0)) *)
           (* (THTGT: threads_pop tid ths_tgt = Some (tgt0, ths_tgt0)) *)
+          gps gpt
     :
-    gsim wf_src wf_tgt RR false false
+    gsim wf_src wf_tgt RR gps gpt
          (interp_all st_src ths_src tid src)
          (interp_all st_tgt ths_tgt tid tgt).
   Proof.
@@ -160,10 +161,10 @@ Section ADEQ.
     { instantiate (1:= (fun ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr =>
                           threads_find tid ths_src = None ->
                           threads_find tid ths_tgt = None ->
-                          forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world),
+                          forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world) (gps gpt : bool),
                             LRR = local_RR world_le I RR tid ->
                             shr = (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, ms, mt, st_src, st_tgt, o, w) ->
-                            gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt (interp_all st_src ths_src tid src)
+                            gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt (interp_all st_src ths_src tid src)
                                    (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. }
 
     (* { instantiate (1:= (fun ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr => *)
@@ -179,7 +180,7 @@ Section ADEQ.
 
     ss. clear ps pt src tgt shr LSIM.
     intros rr DEC IH ps pt src tgt shr LSIM. clear DEC.
-    intros THSRC THTGT st_src st_tgt mt ms o w ELRR Eshr.
+    intros THSRC THTGT st_src st_tgt mt ms o w gps gpt ELRR Eshr.
     (* intros THSRC THTGT st_src st_tgt mt ms o w ELRR Eshr Eps Ept. *)
     eapply pind5_unfold in LSIM.
     2:{ eapply _lsim_mon. }
@@ -196,20 +197,20 @@ Section ADEQ.
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       unfold interp_all at 1. rewrite interp_sched_tau. rewrite interp_state_tau.
       guclo sim_indC_spec. econs 3.
-      guclo sim_progress_ctx_spec. econs. do 2 instantiate (1:=false). 2,3: ii; ss.
+      (* guclo sim_progress_ctx_spec. econs. do 2 instantiate (1:=false). 2,3: ii; ss. *)
       eapply IH. eauto. all: eauto.
     }
 
     13:{ clarify. unfold interp_all at 2.
          cut (
-             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt
+             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt
                     (interp_all st_src ths_src tid (x <- trigger (Observe fn args);; ktr_src x))
                     (interp_state (st_tgt, interp_sched (ths_tgt, inl (tid, x <- trigger (inl1 (inl1 (Observe fn args)));; ktr_tgt x))))).
          { clear. auto. }
          rewrite interp_sched_eventE_trigger. rewrite interp_state_trigger.
          unfold interp_all at 1.
          cut (
-  gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt
+  gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt
     (interp_state (st_src, interp_sched (ths_src, inl (tid, x <- trigger (inl1 (inl1 (Observe fn args)));; ktr_src x))))
     (x <- trigger (Observe fn args);; Tau (interp_state (st_tgt, Tau (interp_sched (ths_tgt, inl (tid, ktr_tgt x))))))).
          { clear. auto. }
