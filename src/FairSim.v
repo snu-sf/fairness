@@ -355,7 +355,7 @@ Section SIM.
         (SIM: forall r_src r_tgt (EQ: r_src = r_tgt),
             sim _ _ RR true m_src true m_tgt (ktr_src0 r_src) (ktr_tgt0 r_tgt))
       :
-      sim_indC sim RR p_src m_src p_tgt m_tgt (Vis (Observe fn args) ktr_src0) (Vis (Observe fn args) ktr_tgt0)
+      sim_indC sim RR p_src m_src p_tgt m_tgt (trigger (Observe fn args) >>= ktr_src0) (trigger (Observe fn args) >>= ktr_tgt0)
 
     | sim_indC_tauL
         itr_src0 itr_tgt0
@@ -420,7 +420,7 @@ Section SIM.
   Proof.
     econs; eauto with paco.
     i. inv PR; eauto.
-    { econs; eauto. i. eapply rclo9_base. eauto. }
+    { rewrite ! bind_trigger. econs; eauto. i. eapply rclo9_base. eauto. }
     { econs; eauto. eapply sim_mon; eauto. i. eapply rclo9_base. auto. }
     { econs; eauto. eapply sim_mon; eauto. i. eapply rclo9_base. auto. }
     { econs; eauto. des. eexists. eapply sim_mon; eauto. i. eapply rclo9_base. auto. }
