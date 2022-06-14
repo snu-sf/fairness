@@ -427,11 +427,12 @@ Section PRIMIVIESIM.
       tid
       (THS: tid_list_in tid ths0)
       (THT: tid_list_in tid tht0)
-      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)),
+      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
+      fs ft,
       lsim
         (@local_RR R0 R1 RR tid)
         tid
-        false false
+        fs ft
         src tgt
         (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0).
 

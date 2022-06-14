@@ -144,24 +144,24 @@ Section ADEQ.
     hexploit LSIM; clear LSIM. 3: eauto.
     { instantiate (1:=tid). ss. auto. }
     { ss. auto. }
-    intro LSIM. clear INV.
+    intro LSIM. clear INV. instantiate (1:=gpt) in LSIM. instantiate (1:=gps) in LSIM.
 
     ginit. revert_until RR. gcofix CIH. i.
     match goal with
     | LSIM: lsim _ _ ?_LRR tid _ _ _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr
     end.
-    remember false as ps in LSIM at 1. remember false as pt in LSIM at 1.
-    clear Heqps Heqpt.
+    (* remember false as ps in LSIM at 1. remember false as pt in LSIM at 1. *)
+    (* clear Heqps Heqpt. *)
     (* remember tid as tid0 in LSIM. *)
     punfold LSIM.
     2:{ ii. eapply pind5_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
     move LSIM before LOCAL. revert_until LSIM.
     eapply pind5_acc in LSIM.
 
-    { instantiate (1:= (fun ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr =>
+    { instantiate (1:= (fun gps gpt (src: itree srcE R0) (tgt: itree tgtE R1) shr =>
                           threads_find tid ths_src = None ->
                           threads_find tid ths_tgt = None ->
-                          forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world) (gps gpt : bool),
+                          forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world),
                             LRR = local_RR world_le I RR tid ->
                             shr = (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, ms, mt, st_src, st_tgt, o, w) ->
                             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt (interp_all st_src ths_src tid src)
@@ -178,9 +178,9 @@ Section ADEQ.
     (*                         gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt (interp_all st_src ths_src tid src) *)
     (*                                (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. } *)
 
-    ss. clear ps pt src tgt shr LSIM.
+    ss. clear gps gpt src tgt shr LSIM.
     intros rr DEC IH ps pt src tgt shr LSIM. clear DEC.
-    intros THSRC THTGT st_src st_tgt mt ms o w gps gpt ELRR Eshr.
+    intros THSRC THTGT st_src st_tgt mt ms o w ELRR Eshr.
     (* intros THSRC THTGT st_src st_tgt mt ms o w ELRR Eshr Eps Ept. *)
     eapply pind5_unfold in LSIM.
     2:{ eapply _lsim_mon. }
@@ -203,20 +203,25 @@ Section ADEQ.
 
     13:{ clarify. unfold interp_all at 2.
          cut (
-             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt
+             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
                     (interp_all st_src ths_src tid (x <- trigger (Observe fn args);; ktr_src x))
                     (interp_state (st_tgt, interp_sched (ths_tgt, inl (tid, x <- trigger (inl1 (inl1 (Observe fn args)));; ktr_tgt x))))).
          { clear. auto. }
          rewrite interp_sched_eventE_trigger. rewrite interp_state_trigger.
          unfold interp_all at 1.
          cut (
-  gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt
+  gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
     (interp_state (st_src, interp_sched (ths_src, inl (tid, x <- trigger (inl1 (inl1 (Observe fn args)));; ktr_src x))))
     (x <- trigger (Observe fn args);; Tau (interp_state (st_tgt, Tau (interp_sched (ths_tgt, inl (tid, ktr_tgt x))))))).
          { clear. auto. }
          rewrite interp_sched_eventE_trigger. rewrite interp_state_trigger.
          guclo sim_indC_spec. econs 2. i; clarify. rename r_tgt into retv. specialize (LSIM0 retv). pclearbot.
-         clear rr IH.
+         rewrite ! interp_state_tau. guclo sim_indC_spec. econs 3. guclo sim_indC_spec. econs 4.
+         (*TODO: induction on LSIM0?*)
+
+
+         
+         gfold. econs 3. 
          (*TODO: fix progress flag...*)
          
              
