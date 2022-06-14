@@ -215,9 +215,10 @@ Section ADEQ.
     (x <- trigger (Observe fn args);; Tau (interp_state (st_tgt, Tau (interp_sched (ths_tgt, inl (tid, ktr_tgt x))))))).
          { clear. auto. }
          rewrite interp_sched_eventE_trigger. rewrite interp_state_trigger.
-         guclo sim_indC_spec. econs 2. i; clarify. rename r_tgt into retv. specialize (LSIM0 retv). pclearbot.
-         rewrite ! interp_state_tau. guclo sim_indC_spec. econs 3. guclo sim_indC_spec. econs 4.
-         (*TODO: induction on LSIM0?*)
+         rewrite ! bind_trigger. gfold. econs 2. i; clarify. rename r_tgt into retv. specialize (LSIM0 retv). pclearbot.
+         (*TODO*)
+         rewrite <- ! interp_state_tau. rewrite <- ! interp_sched_tau.
+         clear IH rr. right. eapply CIH; auto. clear LSIM0. eapply LOCAL.
 
 
          
