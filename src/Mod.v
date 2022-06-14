@@ -22,15 +22,18 @@ Section TID.
 
   Definition tid_list: Type := list tids.(id).
 
+  Definition tid_list_wf (ths: tid_list) := List.NoDup ths.
+  Definition tid_list_in (tid: tids.(id)) (ths: tid_list): Prop := List.In tid ths.
+
   Variant tid_list_add (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
     | tid_list_add_intro
-        (THS0: ~ List.In tid ths0)
+        (THS0: ~ tid_list_in tid ths0)
         (THS1: ths1 = tid :: ths0)
   .
 
   Variant tid_list_remove (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
     | tid_list_remove_intro
-        (THS0: List.In tid ths0)
+        (THS0: tid_list_in tid ths0)
         (THS1: ths1 = List.filter (fun t => tid_dec_bool t tid) ths0)
         (* l0 l1 *)
         (* (THS0: ths0 = l0 ++ tid :: l1) *)

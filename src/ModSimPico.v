@@ -411,25 +411,29 @@ Section PRIMIVIESIM.
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid :=
     fun (r_src: R0) (r_tgt: R1) '(ths2, tht2, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1) =>
-      exists ths3 tht3 w2,
-        (<<THS: tid_list_remove ths2 tid ths3>>) /\
-          (<<THT: tid_list_remove tht2 tid tht3>>) /\
-          (<<WORLD: world_le w1 w2>>) /\
-          (<<INV: I (ths3, tht3, im_src1, im_tgt1, st_src1, st_tgt1, o1, w2)>>) /\
-          (<<RET: RR r_src r_tgt>>).
+      (exists ths3 tht3 w2,
+          (<<THSR: tid_list_remove ths2 tid ths3>>) /\
+            (<<THTR: tid_list_remove tht2 tid tht3>>) /\
+            (<<WORLD: world_le w1 w2>>) /\
+            (<<INV: I (ths3, tht3, im_src1, im_tgt1, st_src1, st_tgt1, o1, w2)>>) /\
+            (<<RET: RR r_src r_tgt>>)).
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
-      tid ths1 tht1
-      (THS: tid_list_add ths0 tid ths1)
-      (THT: tid_list_add tht0 tid tht1),
+      (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
+      (* tid ths1 tht1 *)
+      (* (THS: tid_list_add ths0 tid ths1) *)
+      (* (THT: tid_list_add tht0 tid tht1) *)
+      tid
+      (THS: tid_list_in tid ths0)
+      (THT: tid_list_in tid tht0)
+      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)),
       lsim
         (@local_RR R0 R1 RR tid)
         tid
         false false
         src tgt
-        (ths1, tht1, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0).
+        (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0).
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
@@ -455,6 +459,7 @@ Module ModSim.
 
           init_src_tids: tid_list;
           init_tgt_tids: tid_list;
+          (* INV should hold for all current existing tids *)
           init: forall im_tgt, exists im_src o w,
             I (init_src_tids, init_tgt_tids, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w);
 

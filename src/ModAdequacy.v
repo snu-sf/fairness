@@ -107,12 +107,12 @@ Section ADEQ.
                    (LTGT: threads_find tid ths_tgt = Some tgt)
             ,
               local_sim world_le I RR src tgt)
+          (st_src: state_src) (st_tgt: state_tgt)
+          (INV: forall im_tgt, exists im_src o w,
+              I (alist_proj1 ths_src, alist_proj1 ths_tgt, im_src, im_tgt, st_src, st_tgt, o, w))
           tid src0 tgt0 ths_src0 ths_tgt0
           (THSRC: threads_pop tid ths_src = Some (src0, ths_src0))
           (THTGT: threads_pop tid ths_tgt = Some (tgt0, ths_tgt0))
-          (st_src: state_src) (st_tgt: state_tgt)
-          (INV: forall im_tgt, exists im_src o w,
-              I (alist_proj1 ths_src0, alist_proj1 ths_tgt0, im_src, im_tgt, st_src, st_tgt, o, w))
     :
     gsim wf_src wf_tgt RR false false
          (interp_all st_src ths_src0 tid src0)
@@ -125,7 +125,7 @@ Section ADEQ.
     pose proof (ths_find_none_tid_add ths_tgt0 tid NONE2) as TADD2; clear NONE2.
     pose proof (ths_pop_find_some ths_src tid THSRC) as FIND1.
     pose proof (ths_pop_find_some ths_tgt tid THTGT) as FIND2.
-    unfold local_sim in LSIM. specialize (LSIM tid src0 tgt0 FIND1 FIND2 _ _ _ _ _ _ _ _ INV tid _ _ TADD1 TADD2).
+    unfold local_sim in LSIM. specialize (LSIM tid _ _ FIND1 FIND2 _ _ _ _ _ _ _ _ tid _ _ TADD1 TADD2 INV).
     clear TADD1 TADD2 FIND1 FIND2.
 
     ginit. revert_until RR. gcofix CIH. i.
