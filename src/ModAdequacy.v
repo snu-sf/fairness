@@ -9,7 +9,7 @@ From ExtLib Require Import FMapAList.
 
 Export ITreeNotations.
 
-From Fairness Require Import pind8.
+From Fairness Require Import pind5.
 From Fairness Require Export ITreeLib FairBeh FairSim.
 From Fairness Require Export Mod ModSimPico Concurrency.
 
@@ -118,7 +118,7 @@ Section ADEQ.
          (interp_all st_src ths_src0 tid src0)
          (interp_all st_tgt ths_tgt0 tid tgt0).
   Proof.
-    ii. specialize (INV mt). des. rename im_src into ms. exists ms. dup LSIM. move LSIM0 before RR.
+    ii. specialize (INV mt). des. rename im_src into ms. exists ms. dup LSIM. move LSIM0 before RR. rename LSIM0 into LOCAL.
     pose proof (ths_pop_find_none ths_src tid THSRC) as NONE1.
     pose proof (ths_find_none_tid_add ths_src0 tid NONE1) as TADD1; clear NONE1.
     pose proof (ths_pop_find_none ths_tgt tid THTGT) as NONE2.
@@ -128,33 +128,47 @@ Section ADEQ.
     unfold local_sim in LSIM. specialize (LSIM tid src0 tgt0 FIND1 FIND2 _ _ _ _ _ _ _ _ INV tid _ _ TADD1 TADD2).
     clear TADD1 TADD2 FIND1 FIND2.
 
-    ginit. revert_until I. gcofix CIH. i.
+    ginit. revert_until RR. gcofix CIH. i.
     match goal with
-    | LSIM: lsim _ _ tid ?_LRR _ _ _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr
+    | LSIM: lsim _ _ ?_LRR tid _ _ _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr
     end.
     remember false as ps in LSIM at 1. remember false as pt in LSIM at 1.
     (* remember tid as tid0 in LSIM. *)
     punfold LSIM.
-    2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
-    move LSIM before CIH. revert_until LSIM.
-    eapply pind8_acc in LSIM.
+    2:{ ii. eapply pind5_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
+    move LSIM before WFTHS. revert_until LSIM.
+    eapply pind5_acc in LSIM.
 
-    { instantiate (1:= (fun R0 R1 (LRR: R0 -> R1 -> tid_list * imap wf_src * imap wf_tgt * state_src * state_tgt * T wf_src * world -> Prop) ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr =>
-                          forall (RR : R0 -> R1 -> Prop) (ths_src : threads (sE state_src)) (st_src : state_src) (st_tgt : state_tgt)
-                            (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world) (tlist : list nat),
-                            tlist = tid :: alist_proj1 ths_src ->
+    { instantiate (1:= (fun ps pt (src0: itree srcE R0) (tgt0: itree tgtE R1) shr =>
+                          forall (ths_src0 : threads (sE state_src)) (ths_tgt0 : threads (sE state_tgt)) (st_src : state_src) (st_tgt : state_tgt)
+                            (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world),
                             LRR = local_RR world_le I RR tid ->
-                            shr = (tlist, ms, mt, st_src, st_tgt, o, w) ->
+                            shr = (tid :: alist_proj1 ths_src0, tid :: alist_proj1 ths_tgt0, ms, mt, st_src, st_tgt, o, w) ->
                             ps = false ->
                             pt = false ->
-                            forall ths_tgt : threads (sE state_tgt),
-                              wf_ths ths_src ths_tgt ->
-                              threads_find tid ths_src = None ->
-                              threads_find tid ths_tgt = None ->
-                              I (alist_proj1 ths_src, ms, mt, st_src, st_tgt, o, w) ->
-                              tid_list_add (alist_proj1 ths_src) tid tlist ->
-                              gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt (interp_all st_src ths_src tid src)
-                                     (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. }
+                            threads_pop tid ths_src = Some (src0, ths_src0) ->
+                            threads_pop tid ths_tgt = Some (tgt0, ths_tgt0) ->
+                            I (alist_proj1 ths_src0, alist_proj1 ths_tgt0, ms, mt, st_src, st_tgt, o, w) ->
+                            gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt (interp_all st_src ths_src0 tid src0)
+                                   (interp_all st_tgt ths_tgt0 tid tgt0))) in LSIM. auto. }
+
+
+    (* { instantiate (1:= (fun R0 R1 (LRR: R0 -> R1 -> tid_list * imap wf_src * imap wf_tgt * state_src * state_tgt * T wf_src * world -> Prop) ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr => *)
+    (*                       forall (RR : R0 -> R1 -> Prop) (ths_src : threads (sE state_src)) (st_src : state_src) (st_tgt : state_tgt) *)
+    (*                         (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world) (tlist : list nat), *)
+    (*                         tlist = tid :: alist_proj1 ths_src -> *)
+    (*                         LRR = local_RR world_le I RR tid -> *)
+    (*                         shr = (tlist, ms, mt, st_src, st_tgt, o, w) -> *)
+    (*                         ps = false -> *)
+    (*                         pt = false -> *)
+    (*                         forall ths_tgt : threads (sE state_tgt), *)
+    (*                           wf_ths ths_src ths_tgt -> *)
+    (*                           threads_find tid ths_src = None -> *)
+    (*                           threads_find tid ths_tgt = None -> *)
+    (*                           I (alist_proj1 ths_src, ms, mt, st_src, st_tgt, o, w) -> *)
+    (*                           tid_list_add (alist_proj1 ths_src) tid tlist -> *)
+    (*                           gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt (interp_all st_src ths_src tid src) *)
+    (*                                  (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. } *)
 
     (* { instantiate (1:= *)
     (*                  (fun R0 R1 (LRR: R0 -> R1 -> tid_list * imap wf_src * imap wf_tgt * state_src * state_tgt * T wf_src * world -> Prop) ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr => *)
@@ -175,11 +189,12 @@ Section ADEQ.
     (*                         gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt (interp_all st_src ths_src tid src) *)
     (*                                (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. } *)
 
-    clear R0 R1 LRR ps pt src tgt shr LSIM. i.
-    rename x0 into R0, x1 into R1, x2 into LRR, x3 into ps, x4 into pt, x5 into src, x6 into tgt, x7 into shr, PR into LSIM.
-    clear DEC. ss. intros RR ths_src st_src st_tgt mt ms o w tlist Etlist ELRR Eshr Eps Ept.
-    intros ths_tgt WFTHS STHS TTHS INV TADD.
-    eapply pind8_unfold in LSIM.
+    (* clear R0 R1 LRR ps pt src tgt shr LSIM. i. *)
+    (* rename x0 into R0, x1 into R1, x2 into LRR, x3 into ps, x4 into pt, x5 into src, x6 into tgt, x7 into shr, PR into LSIM. *)
+    clear ps pt src0 tgt0 shr LSIM. i. clear DEC. ss.
+    rename x0 into ps, x1 into pt, x2 into src, x3 into tgt, x4 into shr, PR into LSIM.
+    intros ths_src0 ths_tgt0 st_src st_tgt mt ms o w ELRR Eshr Eps Ept POPS POPT INV.
+    eapply pind5_unfold in LSIM.
     2:{ eapply _lsim_mon. }
     inv LSIM.
 

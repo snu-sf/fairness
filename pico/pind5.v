@@ -179,7 +179,7 @@ Proof.
 Qed.
 
 Theorem pind5_acc: forall
-  l r (OBG: forall rr (INC: rr <5= r) (CIH: rr <5= l), pind5 lf rr <5= l),
+  l r (OBG: forall rr (DEC: rr <5= r) (IH: rr <5= l), pind5 lf rr <5= l),
   pind5 lf r <5= l.
 Proof.
   apply _pind5_acc.
