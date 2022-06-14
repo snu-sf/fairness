@@ -331,8 +331,6 @@ Section ADEQ.
       clear IH rr.
       (*destruct cases: UB case / x = tid; LSIM0 / x <> tid; CIH*)
 
-      clear LSIM0.
-
       admit. }
 
     { des. clarify. destruct LSIM as [LSIM IND]. clear LSIM.
@@ -342,7 +340,7 @@ Section ADEQ.
       guclo sim_indC_spec. econs 3.
       guclo sim_indC_spec. econs 5. exists tid.
       guclo sim_indC_spec. econs 3.
-      (* lemma for threads_pop, etc. *)
+      (* lemma for threads_pop, etc., induction *)
       admit.
     }
 
