@@ -48,6 +48,25 @@ Section AUX.
     eapply List.not_in_cons. split; auto.
   Qed.
 
+  Lemma ths_pop_find_none
+        R (ths ths0: @threads _ident_src E1 R) th tid
+        (POP: threads_pop tid ths = Some (th, ths0))
+    :
+    threads_find tid ths0 = None.
+  Proof.
+    unfold threads_pop in POP. des_ifs. unfold threads_find, threads_remove. eapply remove_eq_alist.
+    eapply RelDec.RelDec_Correct_eq_typ.
+  Qed.
+
+  Lemma ths_pop_find_some
+        R (ths ths0: @threads _ident_src E1 R) th tid
+        (POP: threads_pop tid ths = Some (th, ths0))
+    :
+    threads_find tid ths = Some th.
+  Proof.
+    unfold threads_pop in POP. des_ifs.
+  Qed.
+
 End AUX.
 
 
@@ -82,27 +101,34 @@ Section ADEQ.
           R0 R1 (RR: R0 -> R1 -> Prop)
           (ths_src: @threads _ident_src (sE state_src) R0)
           (ths_tgt: @threads _ident_tgt (sE state_tgt) R1)
-          (LSIM: forall tid0 (src0: itree srcE R0) (tgt0: itree tgtE R1)
-                   (LSRC: threads_find tid0 ths_src = Some src0)
-                   (LTGT: threads_find tid0 ths_tgt = Some tgt0)
-            ,
-              local_sim world_le I RR src0 tgt0)
-          tid src tgt (st_src: state_src) (st_tgt: state_tgt)
           (WFTHS: wf_ths ths_src ths_tgt)
-          (THSRC: threads_find tid ths_src = None)
-          (THTGT: threads_find tid ths_tgt = None)
+          (LSIM: forall tid (src: itree srcE R0) (tgt: itree tgtE R1)
+                   (LSRC: threads_find tid ths_src = Some src)
+                   (LTGT: threads_find tid ths_tgt = Some tgt)
+            ,
+              local_sim world_le I RR src tgt)
+          tid src0 tgt0 ths_src0 ths_tgt0
+          (THSRC: threads_pop tid ths_src = Some (src0, ths_src0))
+          (THTGT: threads_pop tid ths_tgt = Some (tgt0, ths_tgt0))
+          (st_src: state_src) (st_tgt: state_tgt)
           (INV: forall im_tgt, exists im_src o w,
-              I (alist_proj1 ths_src, im_src, im_tgt, st_src, st_tgt, o, w))
+              I (alist_proj1 ths_src0, alist_proj1 ths_tgt0, im_src, im_tgt, st_src, st_tgt, o, w))
     :
     gsim wf_src wf_tgt RR false false
-         (interp_all st_src ths_src tid src)
-         (interp_all st_tgt ths_tgt tid tgt).
+         (interp_all st_src ths_src0 tid src0)
+         (interp_all st_tgt ths_tgt0 tid tgt0).
   Proof.
-    ii. specialize (INV mt). des. rename im_src into ms. exists ms.
-    pose proof (ths_find_none_tid_add ths_src tid THSRC) as TADD. 
-    unfold local_sim in LSIM. specialize (LSIM src tgt _ _ _ _ _ _ _ INV tid _ TADD).
+    ii. specialize (INV mt). des. rename im_src into ms. exists ms. dup LSIM. move LSIM0 before RR.
+    pose proof (ths_pop_find_none ths_src tid THSRC) as NONE1.
+    pose proof (ths_find_none_tid_add ths_src0 tid NONE1) as TADD1; clear NONE1.
+    pose proof (ths_pop_find_none ths_tgt tid THTGT) as NONE2.
+    pose proof (ths_find_none_tid_add ths_tgt0 tid NONE2) as TADD2; clear NONE2.
+    pose proof (ths_pop_find_some ths_src tid THSRC) as FIND1.
+    pose proof (ths_pop_find_some ths_tgt tid THTGT) as FIND2.
+    unfold local_sim in LSIM. specialize (LSIM tid src0 tgt0 FIND1 FIND2 _ _ _ _ _ _ _ _ INV tid _ _ TADD1 TADD2).
+    clear TADD1 TADD2 FIND1 FIND2.
+
     ginit. revert_until I. gcofix CIH. i.
-    remember (tid :: alist_proj1 ths_src) as tlist.
     match goal with
     | LSIM: lsim _ _ tid ?_LRR _ _ _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr
     end.
