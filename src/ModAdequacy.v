@@ -22,7 +22,6 @@ Section AUX.
   Definition alist_proj1 {K} {V} (a: alist K V): list K :=
     List.map fst a.
 
-
   Variable E1: Type -> Type.
   Variable E2: Type -> Type.
 
@@ -32,7 +31,7 @@ Section AUX.
   Definition wf_ths {R0 R1}
              (ths_src: @threads _ident_src E1 R0)
              (ths_tgt: @threads _ident_tgt E2 R1) :=
-    (alist_proj1 ths_src) = (alist_proj1 ths_tgt).
+    forall t, (List.In t (alist_proj1 ths_src)) <-> (List.In t (alist_proj1 ths_tgt)).
 
   Lemma reldec_correct_tid_dec: RelDec.RelDec_Correct (RelDec.RelDec_from_dec eq tid_dec).
   Proof. eapply RelDec.RelDec_Correct_eq_typ. Qed.
@@ -178,13 +177,15 @@ Section ADEQ.
     hexploit LSIM; clear LSIM. 3: eauto.
     { instantiate (1:=tid). ss. auto. }
     { ss. auto. }
-    intro LSIM. clear INV. instantiate (1:=gpt) in LSIM. instantiate (1:=gps) in LSIM.
+    intro LSIM. clear INV.
+    instantiate (1:=gpt) in LSIM. instantiate (1:=gps) in LSIM.
+    (* instantiate (1:=true) in LSIM. instantiate (1:=true) in LSIM. *)
 
     ginit. revert_until RR. gcofix CIH. i.
     match goal with
     | LSIM: lsim _ _ ?_LRR tid _ _ _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr
     end.
-    (* remember false as ps in LSIM at 1. remember false as pt in LSIM at 1. *)
+    (* remember true as ps in LSIM at 1. remember true as pt in LSIM at 1. *)
     (* clear Heqps Heqpt. *)
     (* remember tid as tid0 in LSIM. *)
     punfold LSIM.
@@ -204,18 +205,18 @@ Section ADEQ.
     (* { instantiate (1:= (fun ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr => *)
     (*                       threads_find tid ths_src = None -> *)
     (*                       threads_find tid ths_tgt = None -> *)
-    (*                       forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world), *)
+    (*                       forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world) (gps gpt : bool), *)
     (*                         LRR = local_RR world_le I RR tid -> *)
     (*                         shr = (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, ms, mt, st_src, st_tgt, o, w) -> *)
-    (*                         ps = false -> *)
-    (*                         pt = false -> *)
-    (*                         gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR false ms false mt (interp_all st_src ths_src tid src) *)
+    (*                         ps = true -> *)
+    (*                         pt = true -> *)
+    (*                         gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt (interp_all st_src ths_src tid src) *)
     (*                                (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. } *)
 
     ss. clear gps gpt src tgt shr LSIM.
     intros rr DEC IH ps pt src tgt shr LSIM. clear DEC.
     intros THSRC THTGT st_src st_tgt mt ms o w ELRR Eshr.
-    (* intros THSRC THTGT st_src st_tgt mt ms o w ELRR Eshr Eps Ept. *)
+    (* intros THSRC THTGT st_src st_tgt mt ms o w gps gpt ELRR Eshr Eps Ept. clarify. *)
     eapply pind5_unfold in LSIM.
     2:{ eapply _lsim_mon. }
     inv LSIM.
@@ -276,8 +277,7 @@ Section ADEQ.
       eapply IH. eauto. all: eauto.
     }
 
-    { clarify.
-      unfold interp_all at 2. pull_eventE_r.
+    { clarify. unfold interp_all at 2. pull_eventE_r.
       guclo sim_indC_spec. econs 6. i.
       specialize (LSIM0 x). destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       rewrite interp_state_tau. do 2 (guclo sim_indC_spec; econs 4).
@@ -302,8 +302,7 @@ Section ADEQ.
       eapply IH. eauto. all: eauto.
     }
 
-    { clarify.
-      unfold interp_all at 2. pull_eventE_r.
+    { clarify. unfold interp_all at 2. pull_eventE_r.
       guclo sim_indC_spec. econs 8. i.
       specialize (LSIM0 m_tgt0 FAIR). des. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       rewrite interp_state_tau. do 2 (guclo sim_indC_spec; econs 4).
