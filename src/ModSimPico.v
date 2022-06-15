@@ -177,8 +177,13 @@ Section PRIMIVIESIM.
       ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o w
       o0 w0 ktr_src ktr_tgt
       (INV: forall tid0 im_tgt1 (FAIRT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (thread_fmap tid0))),
-        exists im_src1, (<<FAIRS: fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid0))>>) /\
-                     (<<INV: I (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)>>))
+          (<<INVEQ: tid0 = tid -> I (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, w0)>>) /\
+            (<<INVNEQ: tid0 <> tid ->
+             exists im_src1, (<<FAIRS: fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid0))>>) /\
+                          (<<INV: I (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)>>)>>))
+      (* (INV: forall tid0 im_tgt1 (FAIRT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (thread_fmap tid0))), *)
+      (*   exists im_src1, (<<FAIRS: fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid0))>>) /\ *)
+      (*                (<<INV: I (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)>>)) *)
       (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
       (WORLD: world_le w w0)
       (STUTTER: wf_src.(lt) o0 o)

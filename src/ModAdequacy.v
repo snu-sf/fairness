@@ -340,7 +340,9 @@ Section ADEQ.
       guclo sim_indC_spec. econs 6. i.
       guclo sim_indC_spec. econs 4.
       clear IH rr.
-      (*destruct cases: UB case / x = tid; CIH, LSIM0 / x <> tid; CIH, LOCAL*)
+      (*destruct cases: UB case / 
+        x = tid: ind on o1, ind on LSIM0, trivial case: LSIM0, sync: case analysis: IHo1|CIH /
+        x <> tid: CIH, LOCAL*)
       des_ifs.
       { destruct (tid_dec x tid) eqn:TID.
         { clarify. unfold interp_all at 1. rewrite_cE_l.
