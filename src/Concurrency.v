@@ -334,6 +334,24 @@ Section SCHEDULE.
     apply observe_eta. ss. f_equal. extensionality t. grind.
   Qed.
 
+  Lemma interp_sched_pick_yield_vis2
+        R (threads: @threads R)
+    :
+    interp_sched (threads, inr (inl tt))
+    =
+      Vis (inl1 (Choose tids.(id)))
+          (fun t => match threads_pop t threads with
+                 | None => Vis (inl1 Undefined) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
+                 | Some (th, ths) =>
+                     interp_sched (ths, inl (t, Vis (inl1 (inl1 (Fair (sum_fmap_l (thread_fmap t))))) (fun _ => th)))
+                 end).
+  Proof.
+    unfold interp_sched at 1. rewrite unfold_iter. unfold pick_thread. rewrite bind_vis.
+    apply observe_eta. ss. f_equal. extensionality t. des_ifs.
+    2: grind.
+    rewrite interp_sched_eventE_vis. grind.
+  Qed.
+
   Lemma interp_sched_pick_yield
         R (threads: @threads R)
     :
@@ -351,6 +369,23 @@ Section SCHEDULE.
     apply observe_eta. ss. f_equal. extensionality t. des_ifs.
     - rewrite bind_trigger. reflexivity.
     - rewrite bind_trigger. reflexivity.
+  Qed.
+
+  Lemma interp_sched_pick_yield2
+        R (threads: @threads R)
+    :
+    interp_sched (threads, inr (inl tt))
+    =
+      t <- trigger (inl1 (Choose tids.(id)));;
+      match threads_pop t threads with
+      | None => x <- trigger (inl1 Undefined);; tau;; interp_sched (threads, inr (inl tt))
+      | Some (th, ths) =>
+          interp_sched (ths, inl (t, Vis (inl1 (inl1 (Fair (sum_fmap_l (thread_fmap t))))) (fun _ => th)))
+      end.
+  Proof.
+    rewrite interp_sched_pick_yield_vis2 at 1. rewrite bind_trigger.
+    apply observe_eta. ss. f_equal. extensionality t. des_ifs.
+    rewrite bind_trigger. reflexivity.
   Qed.
 
   Lemma interp_sched_pick_ret_vis

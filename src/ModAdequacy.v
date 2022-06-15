@@ -121,6 +121,18 @@ Section ADEQ.
     | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) => replace (trigger EV >>= ktr) with (trigger (inl1 (inl1 EV)) >>= ktr)
     end; auto; rewrite interp_sched_eventE_trigger; rewrite interp_state_trigger.
 
+  (* Ltac push_eventE_l := *)
+  (*   match goal with *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, trigger ?EV >>= Tau (interp_sched ?a))) _ => *)
+  (*       replace (trigger EV >>= Tau (interp_sched a)) with (trigger (inl1 EV);; Tau (interp_sched a)) *)
+  (*   end; auto; rewrite <- interp_sched_eventE_trigger. *)
+
+  (* Ltac push_eventE_r := *)
+  (*   match goal with *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, trigger ?EV >>= Tau (interp_sched ?a))) => *)
+  (*       replace (trigger EV >>= Tau (interp_sched a)) with (trigger (inl1 EV);; Tau (interp_sched a)) *)
+  (*   end; auto; rewrite <- interp_sched_eventE_trigger. *)
+
   Ltac pull_sE_l :=
     match goal with
     | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) _ => replace (trigger EV >>= ktr) with (trigger (inr1 EV) >>= ktr)
@@ -322,13 +334,40 @@ Section ADEQ.
     }
 
     { clarify. unfold interp_all at 2. rewrite_cE_r.
-      rewrite interp_sched_yield. rewrite interp_sched_pick_yield.
+      rewrite interp_sched_yield. rewrite interp_sched_pick_yield2.
       rewrite interp_state_tau. rewrite interp_state_trigger.
       guclo sim_indC_spec. econs 4.
       guclo sim_indC_spec. econs 6. i.
       guclo sim_indC_spec. econs 4.
       clear IH rr.
       (*destruct cases: UB case / x = tid; CIH, LSIM0 / x <> tid; CIH, LOCAL*)
+      des_ifs.
+      { destruct (tid_dec x tid) eqn:TID.
+        { clarify. unfold interp_all at 1. rewrite_cE_l.
+          rewrite interp_sched_yield. rewrite interp_sched_pick_yield2.
+          rewrite interp_state_tau. rewrite interp_state_trigger.
+          guclo sim_indC_spec. econs 3.
+          guclo sim_indC_spec. econs 5. exists tid.
+          guclo sim_indC_spec. econs 3.
+          (* make lemma for threads_pop *)
+          des_ifs.
+          { gfold. econs 9. right. eapply CIH; ss; auto. all: ss.
+            1,2,3,4: admit.
+            
+
+
+          
+        match goal with
+        | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, trigger ?EV >>= Tau (interp_sched ?a))) =>
+            replace (trigger EV >>= Tau (interp_sched a)) with (x <- trigger EV >>= Tau (interp_sched a))
+        end; auto; rewrite <- interp_sched_eventE_trigger.
+
+        push_eventE_r.
+
+        
+        rewrite interp_state_trigger.
+        rewrite bind_trigger. rewrite <- interp_sched_eventE_trigger.
+        rewrite interp_sched_tau.
 
       admit. }
 
