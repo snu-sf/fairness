@@ -165,6 +165,7 @@ Section SCHEDULE.
     | Some th => Some (th, threads_remove tid ths)
     end.
 
+  (* TODO: FIXME: UB is not good here, need NB *)
   Definition pick_thread {R} (ths: @threads R) : 
     itree (eventE2 +' E) ((@threads R) * (tids.(id) * itree Es R + (unit + R)) + R) :=
     Vis (inl1 (Choose tids.(id)))
