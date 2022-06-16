@@ -165,11 +165,11 @@ Section ADEQ.
           (ths_src: @threads _ident_src (sE state_src) R0)
           (ths_tgt: @threads _ident_tgt (sE state_tgt) R1)
           (WFTHS: wf_ths ths_src ths_tgt)
-          (LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1)
-                    (LSRC: threads_find tid ths_src = Some src)
-                    (LTGT: threads_find tid ths_tgt = Some tgt)
-            ,
-              local_sim world_le I RR src tgt)
+          (* (LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1) *)
+          (*           (LSRC: threads_find tid ths_src = Some src) *)
+          (*           (LTGT: threads_find tid ths_tgt = Some tgt) *)
+          (*   , *)
+          (*     local_sim world_le I RR src tgt) *)
           tid
           (THSRC: threads_find tid ths_src = None)
           (THTGT: threads_find tid ths_tgt = None)
@@ -209,7 +209,7 @@ Section ADEQ.
     (* remember tid as tid0 in LSIM. *)
     punfold LSIM.
     2:{ ii. eapply pind5_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
-    move LSIM before LOCAL. revert_until LSIM.
+    move LSIM before WFTHS. revert_until LSIM.
     eapply pind5_acc in LSIM.
 
     { instantiate (1:= (fun gps gpt (src: itree srcE R0) (tgt: itree tgtE R1) shr =>
