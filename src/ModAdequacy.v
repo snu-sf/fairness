@@ -4,6 +4,7 @@ From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
 Require Import Program.
+Require Import Permutation.
 
 From ExtLib Require Import FMapAList.
 
@@ -31,7 +32,9 @@ Section AUX.
   Definition wf_ths {R0 R1}
              (ths_src: @threads _ident_src E1 R0)
              (ths_tgt: @threads _ident_tgt E2 R1) :=
-    forall t, (List.In t (alist_proj1 ths_src)) <-> (List.In t (alist_proj1 ths_tgt)).
+    List.NoDup (alist_proj1 ths_src) /\
+      (* List.NoDup (alist_proj1 ths_tgt) /\ *)
+      Permutation (alist_proj1 ths_src) (alist_proj1 ths_tgt).
 
   Lemma reldec_correct_tid_dec: RelDec.RelDec_Correct (RelDec.RelDec_from_dec eq tid_dec).
   Proof. eapply RelDec.RelDec_Correct_eq_typ. Qed.
@@ -390,5 +393,44 @@ Section ADEQ.
     }
 
   Abort.
+
+  (* Permutation ths_src0 ths_src1 /\ Permutation ths_tgt0 ths_tgt1 /\ I (ths_src0, ths_tgt0, ...) -> I (ths_src1, ths_tgt1, ...). *)
+
+
+  Lemma ths_find_none_ths_pop_some:
+    threads_find tid ths = None /\ threads_pop t ths <> None
+    -> t <> tid.
+  Abort.
+
+  Lemma ths_find_none_tlist_remove:
+    threads_find tid ths = None /\ tid_list_remove (tid :: alist_proj1 ths) tid tl
+    -> tl = alist_proj1 ths.
+  Abort.
+
+  Lemma perm_ths_pop:
+    Permutation (alist_proj1 ths1) (alist_proj1 ths2) /\ threads_pop tid ths1 = Some (th1, ths3)
+    -> exists th1 ths4, threads_pop tid ths2 = Some (th1, ths4) /\
+                    Permutation (alist_proj1 ths3) (alist_proj1 ths4).
+  Abort.
+
+  Lemma ths_pop_cons_perm:
+    threads_pop tid ths = Some (th, ths0) /\ List.NoDup (alist_proj1 ths)
+    -> Permutation (alist_proj1 ths) (tid :: alist_proj1 ths0).
+  Abort.
+
+  Lemma ths_pop_update_ths_eq:
+    List.NoDup (alist_proj1 ths) ->
+    threads_pop tid (update_threads tid itr ths) = Some (itr, ths).
+  Abort.
+
+  Lemma ths_pop_update_ths_perm:
+    List.NoDup (alist_proj1 ths) /\
+      threads_pop t (update_threads tid itr ths) = Some (th, ths0) ->
+    Permutation (tid :: alist_proj1 ths) (t :: alist_proj1 ths0).
+  Abort.
+
+  
+
+
 
 End ADEQ.
