@@ -197,6 +197,10 @@ Section ADEQ.
     (* instantiate (1:=true) in LSIM. instantiate (1:=true) in LSIM. *)
 
     ginit. revert_until RR. gcofix CIH. i.
+    move o before CIH. revert_until o. induction (wf_src.(wf) o). clear H. rename x into o, H0 into IHo. i.
+    (* move o before LOCAL. revert_until o. induction (wf_src.(wf) o). clear H. rename x into o, H0 into IHo. i. *)
+    (* ginit. revert_until IHo. gcofix CIH. i. *)
+
     match goal with
     | LSIM: lsim _ _ ?_LRR tid _ _ _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr
     end.
@@ -211,26 +215,15 @@ Section ADEQ.
     { instantiate (1:= (fun gps gpt (src: itree srcE R0) (tgt: itree tgtE R1) shr =>
                           threads_find tid ths_src = None ->
                           threads_find tid ths_tgt = None ->
-                          forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world),
+                          forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (w : world),
                             LRR = local_RR world_le I RR tid ->
                             shr = (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, ms, mt, st_src, st_tgt, o, w) ->
                             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt (interp_all st_src ths_src tid src)
                                    (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. }
 
-    (* { instantiate (1:= (fun ps pt (src: itree srcE R0) (tgt: itree tgtE R1) shr => *)
-    (*                       threads_find tid ths_src = None -> *)
-    (*                       threads_find tid ths_tgt = None -> *)
-    (*                       forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src) (w : world) (gps gpt : bool), *)
-    (*                         LRR = local_RR world_le I RR tid -> *)
-    (*                         shr = (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, ms, mt, st_src, st_tgt, o, w) -> *)
-    (*                         ps = true -> *)
-    (*                         pt = true -> *)
-    (*                         gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR gps ms gpt mt (interp_all st_src ths_src tid src) *)
-    (*                                (interp_all st_tgt ths_tgt tid tgt))) in LSIM. auto. } *)
-
     ss. clear gps gpt src tgt shr LSIM.
     intros rr DEC IH ps pt src tgt shr LSIM. clear DEC.
-    intros THSRC THTGT st_src st_tgt mt ms o w ELRR Eshr.
+    intros THSRC THTGT st_src st_tgt mt ms w ELRR Eshr.
     (* intros THSRC THTGT st_src st_tgt mt ms o w gps gpt ELRR Eshr Eps Ept. clarify. *)
     eapply pind5_unfold in LSIM.
     2:{ eapply _lsim_mon. }
@@ -336,13 +329,19 @@ Section ADEQ.
       punfold LSIM0. eapply lsim_mon.
     }
 
-    { clarify. unfold interp_all at 2. rewrite_cE_r.
+    { clarify. clear IH rr.
+      eapply IHo. eauto. all: auto. instantiate (1:=w1). dup INV. specialize (INV0 tid).
+      pfold. eapply pind5_fold. econs 16.
+
+
+
+      
+      unfold interp_all at 2. rewrite_cE_r.
       rewrite interp_sched_yield. rewrite interp_sched_pick_yield2.
       rewrite interp_state_tau. rewrite interp_state_trigger.
       guclo sim_indC_spec. econs 4.
       guclo sim_indC_spec. econs 6. i.
       guclo sim_indC_spec. econs 4.
-      clear IH rr.
       (*destruct cases: UB case / 
         x = tid: ind on o1, ind on LSIM0, trivial case: LSIM0, sync: case analysis: IHo1|CIH /
         x <> tid: CIH, LOCAL*)

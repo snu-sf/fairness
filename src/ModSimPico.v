@@ -464,7 +464,7 @@ Section PRIMIVIESIM.
   (*   eapply pind5_acc in LSIM. *)
 
   (*   { instantiate (1:= (fun ps pt (itr_src: itree srcE R0) (itr_tgt: itree tgtE R1) shr => *)
-  (*                         forall (ktr_src : unit -> itree srcE R0) (ths tht : tid_list) (im_src : imap wf_src) (im_tgt : imap wf_tgt)  *)
+  (*                         forall (ktr_src : unit -> itree srcE R0) (ths tht : tid_list) (im_src : imap wf_src) (im_tgt : imap wf_tgt) *)
   (*                           (st_src : state_src) (st_tgt : state_tgt) (w : world), *)
   (*                           LRR = local_RR RR tid -> *)
   (*                           itr_src = x <- trigger Yield;; ktr_src x -> *)
