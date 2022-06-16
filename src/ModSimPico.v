@@ -189,10 +189,11 @@ Section PRIMIVIESIM.
       (STUTTER: wf_src.(lt) o0 o)
       (LSIM: forall ths1 tht1 im_src1 im_tgt1 st_src1 st_tgt1 o1 w1
                    (INV: I (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1))
-                   (WORLD: world_le w0 w1)
-                   im_tgt2
-                   (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (thread_fmap tid))),
-          lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt2, st_src1, st_tgt1, o1, w1))
+                   (WORLD: world_le w0 w1),
+          (*          im_tgt2 *)
+          (*          (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (thread_fmap tid))), *)
+          (* lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt2, st_src1, st_tgt1, o1, w1)) *)
+          lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1))
     :
     __lsim RR tid lsim _lsim f_src f_tgt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o, w)
   | lsim_yieldL
@@ -443,6 +444,66 @@ Section PRIMIVIESIM.
         fs ft
         src tgt
         (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0).
+
+  (* properties *)
+  (* Lemma red_lsim_yield_l *)
+  (*       R0 R1 (RR: R0 -> R1 -> Prop) *)
+  (*       tid ps pt ktr_src itr_tgt *)
+  (*       ths tht im_src im_tgt st_src st_tgt o w *)
+  (*       (LSIM: lsim (local_RR RR tid) tid ps pt (trigger Yield >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
+  (*   : *)
+  (*   local_sim RR (ktr_src tt) itr_tgt. *)
+  (* Proof. *)
+  (*   move o before RR. revert_until o. induction (wf_src.(wf) o). i. clear H. rename H0 into IHo, x into o. *)
+  (*   match goal with *)
+  (*   | LSIM: lsim ?_LRR tid _ _ ?_itr_src _ ?_shr |- _ => remember _LRR as LRR; remember _itr_src as itr_src; remember _shr as shr *)
+  (*   end. *)
+  (*   punfold LSIM. *)
+  (*   2:{ ii. eapply pind5_mon_gen; eauto. i. eapply __lsim_mon; eauto. } *)
+  (*   move LSIM before IHo. revert_until LSIM. *)
+  (*   eapply pind5_acc in LSIM. *)
+
+  (*   { instantiate (1:= (fun ps pt (itr_src: itree srcE R0) (itr_tgt: itree tgtE R1) shr => *)
+  (*                         forall (ktr_src : unit -> itree srcE R0) (ths tht : tid_list) (im_src : imap wf_src) (im_tgt : imap wf_tgt)  *)
+  (*                           (st_src : state_src) (st_tgt : state_tgt) (w : world), *)
+  (*                           LRR = local_RR RR tid -> *)
+  (*                           itr_src = x <- trigger Yield;; ktr_src x -> *)
+  (*                           shr = (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) -> local_sim RR (ktr_src tt) itr_tgt)) in LSIM. *)
+  (*     auto. } *)
+
+  (*   ss. clear ps pt itr_src itr_tgt shr LSIM. *)
+  (*   intros rr DEC IH ps pt src tgt shr LSIM. clear DEC. *)
+  (*   intros ktr_src ths tht im_src im_tgt st_src st_tgt w ELRR Esrc Eshr. *)
+  (*   clarify. eapply pind5_unfold in LSIM. *)
+  (*   2:{ eapply _lsim_mon. } *)
+  (*   inv LSIM. *)
+  (*   all: try (rewrite ! bind_trigger in H2; inv H2). *)
+
+  (*   { destruct LSIM0 as [LSIM0 IND]. hexploit IH. eauto. all: auto. *)
+  (*     intros LOCAL. ii. pfold. eapply pind5_fold. econs 9. split; ss. *)
+  (*     unfold local_sim in LOCAL. hexploit LOCAL. *)
+  (*     4:{ i. punfold H. eapply lsim_mon. } *)
+  (*     all: auto. *)
+  (*   } *)
+
+  (*   { ii. pfold. eapply pind5_fold. econs 10. i. split; ss. *)
+  (*     specialize (LSIM0 x). destruct LSIM0 as [LSIM0 IND]. *)
+  (*     hexploit IH. eauto. all: auto. intros LOCAL. *)
+  (*     unfold local_sim in LOCAL. hexploit LOCAL. *)
+  (*     4:{ i. punfold H. eapply lsim_mon. } *)
+  (*     all: auto. *)
+  (*   } *)
+
+  (*   { ii. pfold. eapply pind5_fold. econs 11. split; ss. *)
+  (*     destruct LSIM0 as [LSIM0 IND]. *)
+  (*     hexploit IH. eauto. all: auto. intros LOCAL. *)
+  (*     unfold local_sim in LOCAL. hexploit LOCAL. *)
+  (*     4:{ i. punfold H. eapply lsim_mon. } *)
+  (*     all: auto. *)
+  (*   } *)
+    
+
+
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
