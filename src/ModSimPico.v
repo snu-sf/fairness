@@ -189,7 +189,7 @@ Section PRIMIVIESIM.
       (STUTTER: wf_src.(lt) o0 o)
       (LSIM: forall ths1 tht1 im_src1 im_tgt1 st_src1 st_tgt1 o1 w1
                    (INV: I (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1))
-                   (WORLD: world_le w0 w1),
+                   (WORLD: world_le w0 w1)
                    im_tgt2
                    (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (thread_fmap tid))),
           lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt2, st_src1, st_tgt1, o1, w1))
