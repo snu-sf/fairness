@@ -342,26 +342,29 @@ Section ADEQ.
       { clarify. eapply IHo. eauto. 1,2,3: admit.
         admit.
       }
-      hexploit LSIM0; clear LSIM0. eauto. admit. admit. intros LSIM. pclearbot.
+      unfold interp_all at 1. rewrite_cE_l.
+      rewrite interp_sched_yield. rewrite interp_sched_pick_yield2.
+      rewrite interp_state_tau. rewrite interp_state_trigger.
+      guclo sim_indC_spec. econs 3.
+      guclo sim_indC_spec. econs 5. exists x.
+      guclo sim_indC_spec. econs 3.
+      (* make lemma for threads_pop *)
+      des_ifs.
+      2:{ admit. }
+      hexploit LOCAL.
+      { instantiate (1:=t1). instantiate (1:=x). admit. }
+      { instantiate (1:=t). admit. }
+      intros LSIM. unfold local_sim in LSIM. hexploit LSIM. 3: eauto.
+      { instantiate (1:=x). admit. }
+      { admit. }
+      clear LSIM; intro LSIM.
+
+
+
       
-
-
-        revert_until o. induction (wf_src.(wf) o). clear H. rename H0 into IHo, x into o. i.
-        eapply IHo. eauto. eauto.
-
-
-        unfold interp_all at 1. rewrite_cE_l.
-        rewrite interp_sched_yield. rewrite interp_sched_pick_yield2.
-        rewrite interp_state_tau. rewrite interp_state_trigger.
-        guclo sim_indC_spec. econs 3.
-        guclo sim_indC_spec. econs 5. exists tid.
-        guclo sim_indC_spec. econs 3.
-        (* make lemma for threads_pop *)
-        des_ifs.
-        2:{ admit. }
-        gfold. econs 9. right. eapply CIH; ss; auto. all: ss.
-        1,2,3: admit.
-          
+      gfold. econs 9. right. eapply CIH; ss; auto. all: ss.
+      1,2,3: admit.
+      
 
 
           
