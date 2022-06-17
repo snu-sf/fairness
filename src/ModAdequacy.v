@@ -170,7 +170,7 @@ Section ADEQ.
           (*           (LTGT: threads_find tid ths_tgt = Some tgt) *)
           (*   , *)
           (*     local_sim world_le I RR src tgt) *)
-          tid
+          tidl tidr
           (THSRC: threads_find tid ths_src = None)
           (THTGT: threads_find tid ths_tgt = None)
           src tgt
@@ -184,8 +184,8 @@ Section ADEQ.
           gps gpt
     :
     gsim wf_src wf_tgt RR gps gpt
-         (interp_all st_src ths_src tid src)
-         (interp_all st_tgt ths_tgt tid tgt).
+         (interp_all st_src ths_src tidl src)
+         (interp_all st_tgt ths_tgt tidr tgt).
   Proof.
     ii. specialize (INV mt). des. rename im_src into ms. exists ms.
     unfold local_sim in LSIM.

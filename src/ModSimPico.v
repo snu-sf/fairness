@@ -176,24 +176,24 @@ Section PRIMIVIESIM.
       f_src f_tgt
       ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o w
       o0 w0 ktr_src ktr_tgt
-      (INV: forall tid0 im_tgt1 (FAIRT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (thread_fmap tid0))),
-          (<<INVEQ: tid0 = tid -> I (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, w0)>>) /\
-            (<<INVNEQ: tid0 <> tid ->
-             exists im_src1, (<<FAIRS: fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid0))>>) /\
-                          (<<INV: I (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)>>)>>))
+      (* (INV: forall tid0 im_tgt1 (FAIRT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (thread_fmap tid0))), *)
+      (*     (<<INVEQ: tid0 = tid -> I (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, w0)>>) /\ *)
+      (*       (<<INVNEQ: tid0 <> tid -> *)
+      (*        exists im_src1, (<<FAIRS: fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid0))>>) /\ *)
+      (*                     (<<INV: I (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)>>)>>)) *)
       (* (INV: forall tid0 im_tgt1 (FAIRT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (thread_fmap tid0))), *)
       (*   exists im_src1, (<<FAIRS: fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid0))>>) /\ *)
       (*                (<<INV: I (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)>>)) *)
-      (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
+      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       (WORLD: world_le w w0)
       (STUTTER: wf_src.(lt) o0 o)
       (LSIM: forall ths1 tht1 im_src1 im_tgt1 st_src1 st_tgt1 o1 w1
                    (INV: I (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1))
                    (WORLD: world_le w0 w1),
-          (*          im_tgt2 *)
-          (*          (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (thread_fmap tid))), *)
-          (* lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt2, st_src1, st_tgt1, o1, w1)) *)
-          lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1))
+                   im_tgt2
+                   (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (thread_fmap tid))),
+          lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt2, st_src1, st_tgt1, o1, w1))
+          (* lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1)) *)
     :
     __lsim RR tid lsim _lsim f_src f_tgt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o, w)
   | lsim_yieldL
