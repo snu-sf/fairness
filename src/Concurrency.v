@@ -155,8 +155,8 @@ Section SCHEDULE.
   Definition threads_find := alist_find (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_remove := alist_remove (RelDec.RelDec_from_dec eq tid_dec).
 
-  Definition update_threads {R} (tid: tids.(id)) (th: thread) (ths: threads): @threads R :=
-    threads_add tid th ths.
+  (* Definition update_threads {R} (tid: tids.(id)) (th: thread) (ths: threads): @threads R := *)
+  (*   threads_add tid th ths. *)
   (* fun t => if (tid_dec tid t) then th else (ths t). *)
 
   Definition threads_pop {R} (tid: tids.(id)) (ths: threads): option (prod (@thread R) threads) :=
@@ -165,12 +165,12 @@ Section SCHEDULE.
     | Some th => Some (th, threads_remove tid ths)
     end.
 
-  (* TODO: FIXME: UB is not good here, need NB *)
+  (* NB for invalid tid *)
   Definition pick_thread {R} (ths: @threads R) : 
     itree (eventE2 +' E) ((@threads R) * (tids.(id) * itree Es R + (unit + R)) + R) :=
     Vis (inl1 (Choose tids.(id)))
         (fun t => match threads_pop t ths with
-               | None => Vis (inl1 Undefined) (fun _ => Ret (inl (ths, inr (inl tt))))
+               | None => Vis (inl1 (Choose void)) (fun _ => Ret (inl (ths, inr (inl tt))))
                | Some (th, ths) =>
                    Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
                        (fun _ => Ret (inl (ths, inl (t, th))))
@@ -187,7 +187,7 @@ Section SCHEDULE.
         * destruct s.
           { exact (Vis (inl1 e) (fun x => Ret (inl (threads, inl (tid, k x))))). }
           { destruct c.
-            { exact (Ret (inl (update_threads tid (k tt) threads, inr (inl tt)))). }
+            { exact (Ret (inl (threads_add tid (k tt) threads, inr (inl tt)))). }
             { exact (Ret (inl (threads, inl (tid, k tid)))). }
           }
         * exact (Vis (inr1 e) (fun x => Ret (inl (threads, inl (tid, k x))))).
@@ -302,7 +302,7 @@ Section SCHEDULE.
     :
     interp_sched (threads, inl (tid, Vis (inl1 (inr1 Yield)) ktr))
     =
-      tau;; interp_sched (update_threads tid (ktr tt) threads, inr (inl tt)).
+      tau;; interp_sched (threads_add tid (ktr tt) threads, inr (inl tt)).
   Proof.
     unfold interp_sched. rewrite unfold_iter. ss. grind.
   Qed.
@@ -312,7 +312,7 @@ Section SCHEDULE.
     :
     interp_sched (threads, inl (tid, trigger (inl1 (inr1 Yield)) >>= ktr))
     =
-      tau;; interp_sched (update_threads tid (ktr tt) threads, inr (inl tt)).
+      tau;; interp_sched (threads_add tid (ktr tt) threads, inr (inl tt)).
   Proof.
     rewrite bind_trigger. apply interp_sched_yield_vis.
   Qed.
@@ -324,7 +324,7 @@ Section SCHEDULE.
     =
       Vis (inl1 (Choose tids.(id)))
           (fun t => match threads_pop t threads with
-                 | None => Vis (inl1 Undefined) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
+                 | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
                  | Some (th, ths) =>
                      Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
                          (fun _ => tau;; interp_sched (ths, inl (t, th)))
@@ -341,7 +341,7 @@ Section SCHEDULE.
     =
       Vis (inl1 (Choose tids.(id)))
           (fun t => match threads_pop t threads with
-                 | None => Vis (inl1 Undefined) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
+                 | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
                  | Some (th, ths) =>
                      interp_sched (ths, inl (t, Vis (inl1 (inl1 (Fair (sum_fmap_l (thread_fmap t))))) (fun _ => th)))
                  end).
@@ -359,7 +359,7 @@ Section SCHEDULE.
     =
       t <- trigger (inl1 (Choose tids.(id)));;
       match threads_pop t threads with
-      | None => x <- trigger (inl1 Undefined);; tau;; interp_sched (threads, inr (inl tt))
+      | None => x <- trigger (inl1 (Choose void));; tau;; interp_sched (threads, inr (inl tt))
       | Some (th, ths) =>
           x <- trigger (inl1 (Fair (sum_fmap_l (thread_fmap t))));;
           tau;; interp_sched (ths, inl (t, th))
@@ -378,7 +378,7 @@ Section SCHEDULE.
     =
       t <- trigger (inl1 (Choose tids.(id)));;
       match threads_pop t threads with
-      | None => x <- trigger (inl1 Undefined);; tau;; interp_sched (threads, inr (inl tt))
+      | None => x <- trigger (inl1 (Choose void));; tau;; interp_sched (threads, inr (inl tt))
       | Some (th, ths) =>
           interp_sched (ths, inl (t, Vis (inl1 (inl1 (Fair (sum_fmap_l (thread_fmap t))))) (fun _ => th)))
       end.
@@ -398,7 +398,7 @@ Section SCHEDULE.
       | _ :: _ =>
           Vis (inl1 (Choose tids.(id)))
               (fun t => match threads_pop t threads with
-                     | None => Vis (inl1 Undefined) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
+                     | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
                      | Some (th, ths) =>
                          Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
                              (fun _ => tau;; interp_sched (ths, inl (t, th)))
@@ -420,7 +420,7 @@ Section SCHEDULE.
       | _ :: _ =>
           t <- trigger (inl1 (Choose tids.(id)));;
           match threads_pop t threads with
-          | None => x <- trigger (inl1 Undefined);; tau;; interp_sched (threads, inr (inl tt))
+          | None => x <- trigger (inl1 (Choose void));; tau;; interp_sched (threads, inr (inl tt))
           | Some (th, ths) =>
               x <- trigger (inl1 (Fair (sum_fmap_l (thread_fmap t))));;
               tau;; interp_sched (ths, inl (t, th))
