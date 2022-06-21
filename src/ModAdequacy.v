@@ -110,6 +110,9 @@ Section ADEQ.
   Variable I: (@shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt world) -> Prop.
 
 
+  Variant 
+
+
   Ltac gfold := gfinal; right; pfold.
 
   Ltac pull_tau := rewrite interp_sched_tau; rewrite interp_state_tau.

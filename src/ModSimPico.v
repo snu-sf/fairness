@@ -113,10 +113,10 @@ Section PRIMIVIESIM.
       ths tht im_src0 im_tgt st_src st_tgt o w
       f ktr_src itr_tgt
       (LSIM: exists im_src1,
-          (<<FAIR: fair_update im_src0 im_src1 f>>) /\
+          (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_r f)>>) /\
             (<<LSIM: _lsim true f_tgt (ktr_src tt) itr_tgt (ths, tht, im_src1, im_tgt, st_src, st_tgt, o, w)>>))
     :
-    __lsim RR tid lsim _lsim f_src f_tgt (trigger (Fair f) >>= ktr_src) itr_tgt (ths, tht, im_src0, im_tgt, st_src, st_tgt, o, w)
+    __lsim RR tid lsim _lsim f_src f_tgt (trigger (Fair (sum_fmap_r f)) >>= ktr_src) itr_tgt (ths, tht, im_src0, im_tgt, st_src, st_tgt, o, w)
 
   | lsim_tauR
       f_src f_tgt
@@ -158,10 +158,10 @@ Section PRIMIVIESIM.
       ths tht im_src im_tgt0 st_src st_tgt o w
       f itr_src ktr_tgt
       (LSIM: forall im_tgt1
-                   (FAIR: fair_update im_tgt0 im_tgt1 f),
+                   (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
           (<<LSIM: _lsim f_src true itr_src (ktr_tgt tt) (ths, tht, im_src, im_tgt1, st_src, st_tgt, o, w)>>))
     :
-    __lsim RR tid lsim _lsim f_src f_tgt itr_src (trigger (Fair f) >>= ktr_tgt) (ths, tht, im_src, im_tgt0, st_src, st_tgt, o, w)
+    __lsim RR tid lsim _lsim f_src f_tgt itr_src (trigger (Fair (sum_fmap_r f)) >>= ktr_tgt) (ths, tht, im_src, im_tgt0, st_src, st_tgt, o, w)
 
   | lsim_observe
       f_src f_tgt
@@ -429,14 +429,14 @@ Section PRIMIVIESIM.
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
-      (* tid ths1 tht1 *)
-      (* (THS: tid_list_add ths0 tid ths1) *)
-      (* (THT: tid_list_add tht0 tid tht1) *)
-      tid
-      (THS: tid_list_in tid ths0)
-      (THT: tid_list_in tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
+      tid ths1 tht1
+      (THS: tid_list_add ths0 tid ths1)
+      (THT: tid_list_add tht0 tid tht1)
+      (* tid *)
+      (* (THS: tid_list_in tid ths0) *)
+      (* (THT: tid_list_in tid tht0) *)
+      (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
       fs ft,
       lsim
         (@local_RR R0 R1 RR tid)
@@ -449,59 +449,79 @@ Section PRIMIVIESIM.
   (* Lemma red_lsim_yield_l *)
   (*       R0 R1 (RR: R0 -> R1 -> Prop) *)
   (*       tid ps pt ktr_src itr_tgt *)
-  (*       ths tht im_src im_tgt st_src st_tgt o w *)
-  (*       (LSIM: lsim (local_RR RR tid) tid ps pt (trigger Yield >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
+  (*       ths tht im_src im_tgt st_src st_tgt o0 o1 w *)
+  (*       (ORD: wf_src.(lt) o1 o0) *)
+  (*       (LSIM: lsim (local_RR RR tid) tid ps pt (trigger Yield;; trigger Yield >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o1, w)) *)
   (*   : *)
-  (*   local_sim RR (ktr_src tt) itr_tgt. *)
+  (*   lsim (local_RR RR tid) tid ps pt (trigger Yield >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o0, w). *)
   (* Proof. *)
-  (*   move o before RR. revert_until o. induction (wf_src.(wf) o). i. clear H. rename H0 into IHo, x into o. *)
+  (*   revert_until tid. pcofix CIH. i. *)
+  (*   (* move o before RR. revert_until o. induction (wf_src.(wf) o). i. clear H. rename H0 into IHo, x into o. *) *)
   (*   match goal with *)
   (*   | LSIM: lsim ?_LRR tid _ _ ?_itr_src _ ?_shr |- _ => remember _LRR as LRR; remember _itr_src as itr_src; remember _shr as shr *)
   (*   end. *)
   (*   punfold LSIM. *)
   (*   2:{ ii. eapply pind5_mon_gen; eauto. i. eapply __lsim_mon; eauto. } *)
-  (*   move LSIM before IHo. revert_until LSIM. *)
+  (*   (* move LSIM before IHo. revert_until LSIM. *) *)
+  (*   move LSIM before CIH. revert_until LSIM. *)
   (*   eapply pind5_acc in LSIM. *)
 
   (*   { instantiate (1:= (fun ps pt (itr_src: itree srcE R0) (itr_tgt: itree tgtE R1) shr => *)
-  (*                         forall (ktr_src : unit -> itree srcE R0) (ths tht : tid_list) (im_src : imap wf_src) (im_tgt : imap wf_tgt) *)
-  (*                           (st_src : state_src) (st_tgt : state_tgt) (w : world), *)
-  (*                           LRR = local_RR RR tid -> *)
-  (*                           itr_src = x <- trigger Yield;; ktr_src x -> *)
-  (*                           shr = (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) -> local_sim RR (ktr_src tt) itr_tgt)) in LSIM. *)
-  (*     auto. } *)
+  (*                         forall (ktr_src : unit -> itree srcE R0) (ths tht : tid_list) (im_src : imap wf_src) (im_tgt : imap wf_tgt)  *)
+  (*                           (st_src : state_src) (st_tgt : state_tgt) (o0 o1 : T wf_src) (w : world), *)
+  (*                           lt wf_src o1 o0 -> *)
+  (*                           itr_src = trigger Yield;; x <- trigger Yield;; ktr_src x -> *)
+  (*                           shr = (ths, tht, im_src, im_tgt, st_src, st_tgt, o1, w) -> *)
+  (*                           paco5 *)
+  (*                             (fun *)
+  (*                                 r0 : rel5 bool (fun _ : bool => bool) (fun _ _ : bool => itree srcE R0) *)
+  (*                                           (fun (_ _ : bool) (_ : itree srcE R0) => itree tgtE R1) *)
+  (*                                           (fun (_ _ : bool) (_ : itree srcE R0) (_ : itree tgtE R1) => shared) => pind5 (__lsim LRR tid r0) top5) r ps pt *)
+  (*                             (x <- trigger Yield;; ktr_src x) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o0, w))) in LSIM. auto. } *)
 
   (*   ss. clear ps pt itr_src itr_tgt shr LSIM. *)
   (*   intros rr DEC IH ps pt src tgt shr LSIM. clear DEC. *)
-  (*   intros ktr_src ths tht im_src im_tgt st_src st_tgt w ELRR Esrc Eshr. *)
+  (*   intros ktr_src ths tht im_src im_tgt st_src st_tgt o0 o1 w LTo Esrc Eshr. *)
   (*   clarify. eapply pind5_unfold in LSIM. *)
   (*   2:{ eapply _lsim_mon. } *)
   (*   inv LSIM. *)
   (*   all: try (rewrite ! bind_trigger in H2; inv H2). *)
 
-  (*   { destruct LSIM0 as [LSIM0 IND]. hexploit IH. eauto. all: auto. *)
-  (*     intros LOCAL. ii. pfold. eapply pind5_fold. econs 9. split; ss. *)
-  (*     unfold local_sim in LOCAL. hexploit LOCAL. *)
-  (*     4:{ i. punfold H. eapply lsim_mon. } *)
-  (*     all: auto. *)
+  (*   { destruct LSIM0 as [LSIM0 IND]. hexploit IH. eauto. eauto. all: auto. *)
+  (*     intros LOCAL. pfold. eapply pind5_fold. econs 9. split; ss. *)
+  (*     punfold LOCAL. eapply lsim_mon. *)
   (*   } *)
 
-  (*   { ii. pfold. eapply pind5_fold. econs 10. i. split; ss. *)
+  (*   { pfold. eapply pind5_fold. econs 10. i. split; ss. *)
   (*     specialize (LSIM0 x). destruct LSIM0 as [LSIM0 IND]. *)
-  (*     hexploit IH. eauto. all: auto. intros LOCAL. *)
-  (*     unfold local_sim in LOCAL. hexploit LOCAL. *)
-  (*     4:{ i. punfold H. eapply lsim_mon. } *)
-  (*     all: auto. *)
+  (*     hexploit IH. eauto. eauto. all: auto. intros LOCAL. *)
+  (*     punfold LOCAL. eapply lsim_mon. *)
   (*   } *)
 
-  (*   { ii. pfold. eapply pind5_fold. econs 11. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. *)
-  (*     hexploit IH. eauto. all: auto. intros LOCAL. *)
-  (*     unfold local_sim in LOCAL. hexploit LOCAL. *)
-  (*     4:{ i. punfold H. eapply lsim_mon. } *)
-  (*     all: auto. *)
+  (*   { pfold. eapply pind5_fold. econs 11. split; ss. *)
+  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH. eauto. eauto. all: auto. intros LOCAL. *)
+  (*     punfold LOCAL. eapply lsim_mon. *)
   (*   } *)
-    
+
+  (*   { pfold. eapply pind5_fold. econs 12. split; ss. *)
+  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH. eauto. eauto. all: auto. intros LOCAL. *)
+  (*     punfold LOCAL. eapply lsim_mon. *)
+  (*   } *)
+
+  (*   { pfold. eapply pind5_fold. econs 13. split; ss. *)
+  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH. eauto. eauto. all: auto. intros LOCAL. *)
+  (*     punfold LOCAL. eapply lsim_mon. *)
+  (*   } *)
+
+  (*   { pfold. eapply pind5_fold. econs 14. i. split; ss. *)
+  (*     specialize (LSIM0 im_tgt1 FAIR). destruct LSIM0 as [LSIM0 IND]. *)
+  (*     hexploit IH. eauto. eauto. all: auto. intros LOCAL. *)
+  (*     punfold LOCAL. eapply lsim_mon. *)
+  (*   } *)
+
+  (*   { eapply Eqdep.EqdepTheory.inj_pair2 in H0. *)
+  (*     pfold. eapply pind5_fold. econs 16. eauto. all: auto. admit. *)
+  (*     i. hexploit LSIM0. *)
 
 
 
