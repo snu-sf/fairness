@@ -24,3 +24,14 @@ Lemma epsilon_spec: forall (A : Type) (i : inhabited A) (P : A -> Prop), (exists
 Proof.
   apply Epsilon.epsilon_spec.
 Qed.
+
+Lemma not_ex_all_not_help
+      A (P: A -> Prop)
+      (NOT: ~ (exists a: A, P a))
+  :
+  forall a, ~ P a.
+Proof.
+  intros. eapply Classical_Pred_Type.not_ex_all_not in NOT. eauto.
+Qed.
+
+Ltac nean H := eapply not_ex_all_not_help in H; red in H.

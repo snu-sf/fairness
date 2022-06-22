@@ -1,34 +1,77 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Export ITreeLib FairBeh.
+
 Require Export Coq.Strings.String.
 
+From Fairness Require Export ITreeLib FairBeh.
+
 Set Implicit Arguments.
+
+
+
+Section TID.
+
+  Definition nat_wf: WF :=
+    mk_wf Wf_nat.lt_wf.
+
+  Definition tids: ID := mk_id nat.
+  Definition tid_main: tids.(id) := 0.
+  Definition tid_dec := PeanoNat.Nat.eq_dec.
+  Definition tid_dec_bool :=
+    fun t1 t2 => if (tid_dec t1 t2) then true else false.
+
+  Definition tid_list: Type := list tids.(id).
+
+  Definition tid_list_wf (ths: tid_list) := List.NoDup ths.
+  Definition tid_list_in (tid: tids.(id)) (ths: tid_list): Prop := List.In tid ths.
+
+  Variant tid_list_add (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
+    | tid_list_add_intro
+        (THS0: ~ tid_list_in tid ths0)
+        (THS1: ths1 = tid :: ths0)
+  .
+
+  Variant tid_list_remove (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
+    | tid_list_remove_intro
+        (THS0: tid_list_in tid ths0)
+        (THS1: ths1 = List.filter (fun t => tid_dec_bool t tid) ths0)
+        (* l0 l1 *)
+        (* (THS0: ths0 = l0 ++ tid :: l1) *)
+        (* (THS1: ths1 = l0 ++ l1) *)
+  .
+
+  Definition thread_fmap (tid: tids.(id)): @fmap tids :=
+    fun i => if (PeanoNat.Nat.eq_dec i tid) then Flag.success else Flag.fail.
+
+  Definition sum_tids (_id: ID) := id_sum tids _id.
+
+End TID.
+
 
 Notation fname := string (only parsing).
 Definition Val := nat.
 
 Variant cE: Type -> Type :=
 | Yield: cE unit
-| Spawn (fn: fname) (args: list Val): cE unit
-| GetTid: cE nat
+| GetTid: cE tids.(id)
+(* | Spawn (fn: fname) (args: list Val): cE unit *)
 .
 
-Variant stateE (State: Type): Type -> Type :=
-| Put (st: State): stateE State unit
-| Get: stateE State State
+Variant sE (State: Type): Type -> Type :=
+| Put (st: State): sE State unit
+| Get: sE State State
 .
 
 Module Mod.
   Record t: Type :=
     mk {
         state: Type;
-        ident: ID;
+        _ident: ID;
+        ident: ID := sum_tids _ident;
         st_init: state;
-        funs: fname -> ktree ((eventE +' cE) +' stateE state) (list Val) Val;
+        funs: fname -> ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val;
       }.
 End Mod.
-
 
 
 
@@ -47,8 +90,8 @@ Section LENS.
   Variable put: S -> V -> S.
 
   Definition embed_itree:
-    forall R (itr: itree (E +' stateE V) R),
-      itree (E +' stateE S) R.
+    forall R (itr: itree (E +' sE V) R),
+      itree (E +' sE S) R.
     cofix embed_itree.
     intros R itr.
     destruct (observe itr) as [r|itr0|? [e|[v|]] ktr].
