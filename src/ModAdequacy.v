@@ -134,6 +134,23 @@ Section ADEQ.
           (thsr: threads_tgt R1)
     :
     tids.(id) -> tids.(id) -> bool -> bool -> itree gsrcE R0 -> itree gtgtE R1 -> shared_rel :=
+    | sim_knot_ret_term
+        tid f_src f_tgt
+        r_src r_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        ths0 tht0 w0
+        (THSR: tid_list_remove ths tid ths0)
+        (THTR: tid_list_remove tht tid tht0)
+        (WORLD: world_le w w0)
+        (INV: I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
+        (RET: RR r_src r_tgt)
+        (NNILS: thsl = [])
+        (NNILT: thsr = [])
+      :
+      __sim_knot RR sim_knot _sim_knot htids thsl thsr tid tid f_src f_tgt
+                 (interp_all st_src thsl tid (Ret r_src))
+                 (interp_all st_tgt thsr tid (Ret r_tgt))
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
     | sim_knot_ret_cont
         tid f_src f_tgt
         r_src r_tgt
