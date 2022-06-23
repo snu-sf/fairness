@@ -103,14 +103,68 @@ Section ADEQ.
 
   Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
+  Let gsrcE := @eventE ident_src.
+  Let gtgtE := @eventE ident_tgt.
 
   Variable world: Type.
   Variable world_le: world -> world -> Prop.
 
-  Variable I: (@shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt world) -> Prop.
+  Let shared := @shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt world.
+  Let shared_rel: Type := shared -> Prop.
+  Variable I: shared_rel.
+
+  Let threads_src R0 := @threads _ident_src (sE state_src) R0.
+  Let threads_tgt R1 := @threads _ident_tgt (sE state_tgt) R1.
+
+  Definition pick_cont {R _id st} (threads: @threads _id (sE st) R):
+    itree ((@eventE (sum_tids _id)) +' (sE st)) R :=
+    Vis (inl1 (Choose tids.(id)))
+        (fun t => match threads_pop t threads with
+               | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
+               | Some (th, ths) =>
+                   Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
+                       (fun _ => tau;; interp_sched (ths, inl (t, th)))
+               end).
+
+  Variant __sim_knot R0 R1 (RR: R0 -> R1 -> Prop)
+          (sim_knot: tid_list -> threads_src R0 -> threads_tgt R1 -> tids.(id) -> tids.(id) -> bool -> bool -> itree gsrcE R0 -> itree gtgtE R1 -> shared_rel)
+          (_sim_knot: tid_list -> threads_src R0 -> threads_tgt R1 -> tids.(id) -> tids.(id) -> bool -> bool -> itree gsrcE R0 -> itree gtgtE R1 -> shared_rel)
+          (htids: tid_list)
+          (thsl: threads_src R0)
+          (thsr: threads_tgt R1)
+    :
+    tids.(id) -> tids.(id) -> bool -> bool -> itree gsrcE R0 -> itree gtgtE R1 -> shared_rel :=
+    | sim_knot_ret_cont
+        tid f_src f_tgt
+        r_src r_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        ths0 tht0 w0
+        (THSR: tid_list_remove ths tid ths0)
+        (THTR: tid_list_remove tht tid tht0)
+        (WORLD: world_le w w0)
+        (INV: I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
+        (RET: RR r_src r_tgt)
+        (NNILS: thsl <> [])
+        (NNILT: thsr <> [])
+        (GSIM: sim_knot htids thsl thsr tid tid f_src f_tgt
+                        (interp_state (st_src, pick_cont thsl))
+                        (interp_state (st_tgt, pick_cont thsr))
+                        (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
+      :
+      __sim_knot RR sim_knot _sim_knot htids thsl thsr tid tid f_src f_tgt
+                 (interp_all st_src thsl tid (Ret r_src))
+                 (interp_all st_tgt thsr tid (Ret r_tgt))
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+  .
 
 
-  Variant 
+
+
+
+
+
+
+
 
 
   Ltac gfold := gfinal; right; pfold.
