@@ -196,7 +196,7 @@ Section SCHEDULE.
       match res with
       | inl t => Vis (inl1 (Choose tids.(id)))
                   (fun tid' =>
-                     match threads_pop tid' (ts ++ [(tid, t)]) with
+                     match threads_pop tid' (threads_add tid t ts) with
                      | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
                      | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
                                           (fun _ => Ret (inl (tid', t', ts')))
@@ -278,8 +278,33 @@ Section SCHEDULE.
       Ret (inl (ktr tt)).
   Proof. rewrite bind_trigger. apply interp_thread_vis_yield. Qed.
 
-  (* Lemma for interp_sched_aux *)
+  (* Lemmas for pick_thread_nondet *)
+  Lemma pick_thread_nondet_yield {R} tid (t : thread R) ts :
+    pick_thread_nondet (tid, (inl t)) ts =
+      Vis (inl1 (Choose tids.(id)))
+        (fun tid' =>
+           match threads_pop tid' (threads_add tid t ts) with
+           | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
+           | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                                (fun _ => Ret (inl (tid', t', ts')))
+           end).
+  Proof. ss. Qed.
 
+  Lemma pick_thread_nondet_terminate {R} tid (r : R) ts :
+    pick_thread_nondet (tid, (inr r)) ts =
+      match ts with
+      | [] => Ret (inr r)
+      | _ => Vis (inl1 (Choose tids.(id)))
+              (fun tid' =>
+                 match threads_pop tid' ts with
+                 | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
+                 | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                                      (fun _ => Ret (inl (tid', t', ts')))
+                 end)
+      end.
+  Proof. ss. Qed.
+
+  (* Lemmas for interp_sched *)
   Lemma unfold_interp_sched_aux {R} pick_thread tid (t : thread R) ts :
     interp_sched_aux pick_thread (tid, t, ts) =
       res <- interp_thread (tid, t);;
@@ -289,7 +314,7 @@ Section SCHEDULE.
       | inr r => Ret r
       end.
   Proof. unfold interp_sched_aux at 1. rewrite unfold_iter. rewrite bind_bind. ss. Qed.
-    
+
   Lemma unfold_interp_sched {R} tid (t : thread R) ts :
     interp_sched (tid, t, ts) =
       res <- interp_thread (tid, t);;
@@ -301,8 +326,6 @@ Section SCHEDULE.
   Proof. eapply unfold_interp_sched_aux. Qed.
 
 End SCHEDULE.
-
-
 
 Section INTERP.
 

@@ -32,7 +32,23 @@ Section SCHEDULE.
       end.
 
   Definition interp_fifosched {R} := @interp_sched_aux _ E (@pick_thread_fifo) R.
-  
+
+  Lemma pick_thread_fifo_yield {R} tid (t : thread E R) ts :
+    pick_thread_fifo (tid, inl t) ts =
+      match (ts ++ [(tid, t)]) with
+      | [] => Vis (inl1 (Choose void)) (Empty_set_rect _)
+      | t' :: ts' => Ret (inl (t', ts'))
+      end.
+  Proof. ss. Qed.
+
+  Lemma pick_thread_fifo_terminate {R} tid (r : R) ts :
+    pick_thread_fifo (tid, inr r) ts =
+      match ts with
+      | [] => Ret (inr r)
+      | t' :: ts' => Ret (inl (t', ts'))
+      end.
+  Proof. ss. Qed.
+
   Lemma unfold_interp_fifosched {R} tid (t : itree Es R) ts :
     interp_fifosched (tid, t, ts) =
       res <- interp_thread (tid, t);;
