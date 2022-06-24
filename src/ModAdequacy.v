@@ -127,11 +127,11 @@ Section ADEQ.
                end).
 
   Variant __sim_knot R0 R1 (RR: R0 -> R1 -> Prop)
-          (sim_knot: threads_src R0 -> threads_tgt R1 -> (prod tids.(id) tids.(id)) -> bool -> bool -> itree gsrcE R0 -> itree gtgtE R1 -> shared_rel)
-          (_sim_knot: threads_src R0 -> threads_tgt R1 -> (prod tids.(id) tids.(id)) -> bool -> bool -> itree gsrcE R0 -> itree gtgtE R1 -> shared_rel)
+          (sim_knot: threads_src R0 -> threads_tgt R1 -> (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel)
+          (_sim_knot: threads_src R0 -> threads_tgt R1 -> (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel)
           (thsl: threads_src R0) (thsr: threads_tgt R1)
     :
-    (prod tids.(id) tids.(id)) -> bool -> bool -> itree gsrcE R0 -> itree gtgtE R1 -> shared_rel :=
+    (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel :=
     | sim_knot_ret_term
         tid f_src f_tgt
         r_src r_tgt
@@ -146,8 +146,8 @@ Section ADEQ.
         (NILT: thsr = [])
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr (tid, tid) f_src f_tgt
-                 (interp_all st_src thsl tid (Ret r_src))
-                 (interp_all st_tgt thsr tid (Ret r_tgt))
+                 (Ret r_src)
+                 (Ret r_tgt)
                  (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
     | sim_knot_ret_cont
         tid f_src f_tgt
@@ -167,8 +167,8 @@ Section ADEQ.
                         (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr (tid, tid) f_src f_tgt
-                 (interp_all st_src thsl tid (Ret r_src))
-                 (interp_all st_tgt thsr tid (Ret r_tgt))
+                 (Ret r_src)
+                 (Ret r_tgt)
                  (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
 
     | sim_knot_sync_open
