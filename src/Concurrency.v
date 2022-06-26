@@ -132,6 +132,13 @@ End STATE.
 
 
 
+Definition alist_pop (K : Type) (R : K -> K -> Prop) (DEC: RelDec.RelDec R) (V: Type)
+  : K -> alist K V -> option (prod V (alist K V)) :=
+  fun k l => match alist_find DEC k l with
+          | None => None
+          | Some v => Some (v, alist_remove DEC k l)
+          end.
+
 Section SCHEDULE.
 
   Context {_Ident: ID}.
@@ -146,12 +153,7 @@ Section SCHEDULE.
   Definition threads_add := alist_add (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_find := alist_find (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_remove := alist_remove (RelDec.RelDec_from_dec eq tid_dec).
-
-  Definition threads_pop {R} (tid: tids.(id)) (ths: threads R): option (prod (@thread R) (threads R)) :=
-    match threads_find tid ths with
-    | None => None
-    | Some th => Some (th, threads_remove tid ths)
-    end.
+  Definition threads_pop := alist_pop (RelDec.RelDec_from_dec eq tid_dec).
 
   Definition interp_thread {R} :
     tids.(id) * thread R -> itree (eventE2 +' E) (thread R + R).
@@ -222,7 +224,7 @@ Section SCHEDULE.
     interp_thread (tid, Ret r) = Ret (inr r).
   Proof. unfold interp_thread. rewrite unfold_iter. ss. rewrite bind_ret_l. ss. Qed.
 
-  Lemma interp_thread_tau R tid (itr : itree Es R) :
+  Lemma interp_thread_tau R tid (itr : thread R) :
     interp_thread (tid, tau;; itr) = tau;; interp_thread (tid, itr).
   Proof. unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_ret_l. ss. Qed.
 
@@ -335,7 +337,7 @@ Section INTERP.
   Definition interp_all
              {R}
              (st: State) (ths: @threads _Ident (sE State) R)
-             tid (itr: itree ((_ +' cE) +' (sE State)) R) :
+             tid (itr: @thread _Ident (sE State) R) :
     itree (@eventE (sum_tids _Ident)) R :=
     interp_state (st, interp_sched (tid, itr, ths)).
 
