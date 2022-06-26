@@ -132,12 +132,32 @@ End STATE.
 
 
 
-Definition alist_pop (K : Type) (R : K -> K -> Prop) (DEC: RelDec.RelDec R) (V: Type)
-  : K -> alist K V -> option (prod V (alist K V)) :=
-  fun k l => match alist_find DEC k l with
-          | None => None
-          | Some v => Some (v, alist_remove DEC k l)
-          end.
+Section ALISTAUX.
+
+  Definition alist_pop (K : Type) (R : K -> K -> Prop) (DEC: RelDec.RelDec R) (V: Type)
+    : K -> alist K V -> option (prod V (alist K V)) :=
+    fun k l => match alist_find DEC k l with
+            | None => None
+            | Some v => Some (v, alist_remove DEC k l)
+            end.
+
+  (* Lemma alist_pop_cons *)
+  (*       K (R: K -> K -> Prop) DEC V x hd tl *)
+  (*       (RD: RelDec.RelDec_Correct DEC) *)
+  (*   : *)
+  (*   ((R x (fst hd)) -> @alist_pop K R DEC V x (hd :: tl) = Some (snd hd, alist_remove DEC x tl)) /\ *)
+  (*     ((~ (R x (fst hd))) -> @alist_pop K R DEC V x (hd :: tl) = alist_pop DEC x tl). *)
+  (* Proof. *)
+  (*   unfold alist_pop. split; i; clarify. *)
+  (*   { destruct hd. ss. rewrite RelDec.rel_dec_eq_true; eauto. } *)
+  (*   { destruct hd. ss. rewrite RelDec.rel_dec_neq_false; eauto. ss. *)
+
+  Definition alist_proj1 K V (a: alist K V): list K := List.map fst a.
+
+  Definition alist_wf (K : Type) (V: Type) : alist K V -> Prop :=
+    fun l => List.NoDup (alist_proj1 l).
+
+End ALISTAUX.
 
 Section SCHEDULE.
 
@@ -154,6 +174,8 @@ Section SCHEDULE.
   Definition threads_find := alist_find (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_remove := alist_remove (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_pop := alist_pop (RelDec.RelDec_from_dec eq tid_dec).
+  Definition threads_ids := @alist_proj1 tids.(id).
+  Definition threads_wf := @alist_wf tids.(id).
 
   Definition interp_thread {R} :
     tids.(id) * thread R -> itree (eventE2 +' E) (thread R + R).
