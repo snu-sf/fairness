@@ -10,7 +10,7 @@ From ExtLib Require Import FMapAList.
 
 Export ITreeNotations.
 
-From Fairness Require Import pind5.
+From Fairness Require Import pind5 pind8.
 From Fairness Require Export ITreeLib FairBeh FairSim.
 From Fairness Require Export Mod ModSimPico Concurrency.
 
@@ -440,13 +440,46 @@ Section ADEQ.
                  (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
   .
 
+  Definition sim_knot R0 R1 (RR: R0 -> R1 -> Prop):
+    threads_src R0 -> threads_tgt R1 -> tids.(id) ->
+    bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop :=
+    paco8 (fun r => pind8 (__sim_knot RR r) top8) bot8.
 
+  Lemma __ksim_mon R0 R1 (RR: R0 -> R1 -> Prop):
+    forall r r' (LE: r <8= r'), (__sim_knot RR r) <9= (__sim_knot RR r').
+  Proof.
+    ii. inv PR; try (econs; eauto; fail).
+    { econs 2; eauto. i. specialize (KSIM tid0). des; eauto. right.
+      esplits; eauto.
+      i. specialize (KSIM1 H). des. esplits; eauto.
+      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
+    }
+    { econs 3; eauto. i. specialize (KSIM tid0). des; eauto. right.
+      esplits; eauto.
+      i. specialize (KSIM1 H). des. esplits; eauto.
+      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
+    }
+  Qed.
 
+  Lemma _ksim_mon R0 R1 (RR: R0 -> R1 -> Prop): forall r, monotone8 (__sim_knot RR r).
+  Proof.
+    ii. inv IN; try (econs; eauto; fail).
+    { des. econs; eauto. }
+    { des. econs; eauto. }
+    { des. econs; eauto. }
+  Qed.
 
+  Lemma ksim_mon R0 R1 (RR: R0 -> R1 -> Prop): forall q, monotone8 (fun r => pind8 (__sim_knot RR r) q).
+  Proof.
+    ii. eapply pind8_mon_gen; eauto.
+    ii. eapply __ksim_mon; eauto.
+  Qed.
 
-
-
-
+  Local Hint Constructors __sim_knot: core.
+  Local Hint Unfold sim_knot: core.
+  Local Hint Resolve __ksim_mon: paco.
+  Local Hint Resolve _ksim_mon: paco.
+  Local Hint Resolve ksim_mon: paco.
 
 
 
@@ -463,18 +496,6 @@ Section ADEQ.
     match goal with
     | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) => replace (trigger EV >>= ktr) with (trigger (inl1 (inl1 EV)) >>= ktr)
     end; auto; rewrite interp_sched_eventE_trigger; rewrite interp_state_trigger.
-
-  (* Ltac push_eventE_l := *)
-  (*   match goal with *)
-  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, trigger ?EV >>= Tau (interp_sched ?a))) _ => *)
-  (*       replace (trigger EV >>= Tau (interp_sched a)) with (trigger (inl1 EV);; Tau (interp_sched a)) *)
-  (*   end; auto; rewrite <- interp_sched_eventE_trigger. *)
-
-  (* Ltac push_eventE_r := *)
-  (*   match goal with *)
-  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, trigger ?EV >>= Tau (interp_sched ?a))) => *)
-  (*       replace (trigger EV >>= Tau (interp_sched a)) with (trigger (inl1 EV);; Tau (interp_sched a)) *)
-  (*   end; auto; rewrite <- interp_sched_eventE_trigger. *)
 
   Ltac pull_sE_l :=
     match goal with
@@ -497,7 +518,8 @@ Section ADEQ.
     end; auto.
 
 
-  (* Variable I: shared_rel. *)
+
+  Variable I: shared -> Prop.
 
   (*invariant for tid_list & threads: tid_list_add threads.proj1 tid tid_list*)
   Theorem local_adequacy
