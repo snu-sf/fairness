@@ -18,6 +18,17 @@ Set Implicit Arguments.
 
 
 
+Definition alist_pop (K : Type) (R : K -> K -> Prop) (DEC: RelDec.RelDec R) (V: Type)
+  : K -> alist K V -> option (prod V (alist K V)) :=
+  fun k l => match alist_find DEC k l with
+          | None => None
+          | Some v => Some (v, alist_remove DEC k l)
+          end.
+
+Definition threads_pop := alist_pop (RelDec.RelDec_from_dec eq tid_dec).
+
+
+
 Section AUX.
 
   Definition alist_proj1 {K} {V} (a: alist K V): list K :=
@@ -59,7 +70,8 @@ Section AUX.
     :
     threads_find tid ths0 = None.
   Proof.
-    unfold threads_pop in POP. des_ifs. unfold threads_find, threads_remove. eapply remove_eq_alist.
+    unfold threads_pop, alist_pop in POP. des_ifs.
+    unfold threads_find, threads_remove. eapply remove_eq_alist.
     eapply reldec_correct_tid_dec.
   Qed.
 
@@ -69,7 +81,7 @@ Section AUX.
     :
     threads_find tid ths = Some th.
   Proof.
-    unfold threads_pop in POP. des_ifs.
+    unfold threads_pop, alist_pop in POP. des_ifs.
   Qed.
 
   Lemma ths_find_some_tid_in
@@ -125,93 +137,96 @@ Section ADEQ.
     tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> shared -> Prop :=
     | sim_knot_ret_term
         tid f_src f_tgt
-        r_src r_tgt
+        sf r_src r_tgt
         ths tht im_src im_tgt st_src st_tgt o w
         ths0 tht0 w0
         (THSR: tid_list_remove ths tid ths0)
         (THTR: tid_list_remove tht tid tht0)
         (WORLD: world_le w w0)
-        (INV: I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
+        (* (INV: I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0)) *)
         (RET: RR r_src r_tgt)
         (NILS: thsl = [])
         (NILT: thsr = [])
       :
-      __sim_knot RR sim_knot _sim_knot thsl thsr (tid, tid) f_src f_tgt
-                 (Ret r_src)
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Ret r_src)
                  (Ret r_tgt)
                  (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
     | sim_knot_ret_cont
         tid f_src f_tgt
-        r_src r_tgt
+        sf r_src r_tgt
         ths tht im_src im_tgt st_src st_tgt o w
         ths0 tht0 w0
         (THSR: tid_list_remove ths tid ths0)
         (THTR: tid_list_remove tht tid tht0)
         (WORLD: world_le w w0)
-        (INV: I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
+        (* (INV: I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0)) *)
         (RET: RR r_src r_tgt)
         (NNILS: thsl <> [])
         (NNILT: thsr <> [])
-        (KSIM: sim_knot thsl thsr (tid, tid) f_src f_tgt
-                        (interp_state (st_src, pick_cont thsl))
-                        (interp_state (st_tgt, pick_cont thsr))
-                        (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
+        (KSIM: forall tid0,
+            ((threads_pop tid0 thsl = None) /\ (threads_pop tid0 thsr = None)) \/
+              (exists b th_src thsl0 th_tgt thsr0,
+                  (threads_pop tid0 thsl = Some ((b, th_src), thsl0)) /\
+                    (threads_pop tid0 thsr = Some (th_tgt, thsr0)) /\
+                    ((b = true) ->
+                     exists o0 w1,
+                       (wf_src.(lt) o0 o) /\ (world_le w0 w1) /\
+                         (forall im_tgt0
+                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                             sim_knot thsl0 thsr0 tid0 true true
+                                      (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
+                                      (th_tgt)
+                                      (ths0, tht0, im_src, im_tgt0, st_src, st_tgt, o0, w1))) /\
+                    ((b = false) ->
+                     (forall im_tgt0
+                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                       exists im_src0,
+                         (fair_update im_src im_src0 (sum_fmap_l (thread_fmap tid0))) /\
+                           (sim_knot thsl0 thsr0 tid0 true true
+                                     (b, th_src)
+                                     th_tgt
+                                     (ths0, tht0, im_src0, im_tgt0, st_src, st_tgt, o, w0))))))
       :
-      __sim_knot RR sim_knot _sim_knot thsl thsr (tid, tid) f_src f_tgt
-                 (Ret r_src)
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Ret r_src)
                  (Ret r_tgt)
                  (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
 
     | sim_knot_sync
         tid f_src f_tgt
-        ktr_src ktr_tgt
+        sf ktr_src ktr_tgt
         ths tht im_src im_tgt st_src st_tgt o w
         thsl0 thsr0
         (THSL: thsl0 = threads_add tid (true, ktr_src tt) thsl)
         (THSR: thsr0 = threads_add tid (ktr_tgt tt) thsr)
-        (GSIM: forall tid0,
-            ((threads2_pop tid0 thsl0 = None) /\ (threads_pop tid0 thsr0 = None)) \/
+        (KSIM: forall tid0,
+            ((threads_pop tid0 thsl0 = None) /\ (threads_pop tid0 thsr0 = None)) \/
               (exists b th_src thsl1 th_tgt thsr1,
-                  (threads2_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
+                  (threads_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
                     (threads_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
                     ((b = true) ->
-                     exists o0,
-                       (wf_src.(lt) o0 o) /\
+                     exists o0 w0,
+                       (wf_src.(lt) o0 o) /\ (world_le w w0) /\
                          (forall im_tgt0
                             (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
                              sim_knot thsl1 thsr1 tid0 true true
-                                      (Vis (inl1 (inr1 Yield)) (fun _ => th_src))
+                                      (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
                                       (th_tgt)
-                                      (ths, tht, im_src, im_tgt0, st_src, st_tgt, o0, w))) /\
+                                      (ths, tht, im_src, im_tgt0, st_src, st_tgt, o0, w0))) /\
                     ((b = false) ->
-                     
-                                                                                                  
-        
-
-        
-        (KSIM: sim_knot (threads_add tid (ktr_src tt) thsl)
-                        (threads_add tid (ktr_tgt tt) thsr)
-                        (tid, tid) f_src f_tgt
-                        (interp_state (st_src, pick_cont thsl))
-                        (interp_state (st_tgt, pick_cont thsr))
-                        (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+                     (forall im_tgt0
+                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                       exists im_src0,
+                         (fair_update im_src im_src0 (sum_fmap_l (thread_fmap tid0))) /\
+                           (sim_knot thsl1 thsr1 tid0 true true
+                                     (b, th_src)
+                                     th_tgt
+                                     (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o, w))))))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
-                 (Vis (inl1 (inr1 Yield)) ktr_src)
+                 (sf, Vis (inl1 (inr1 Yield)) ktr_src)
                  (Vis (inl1 (inr1 Yield)) ktr_tgt)
-                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
-    | sim_knot_sync_close
-        tid f_src f_tgt
-        ktr_src ktr_tgt
-        ths tht im_src im_tgt st_src st_tgt o w
-        (KSIM: sim_knot htids0 thsl thsr tid tid f_src f_tgt
-                        (interp_state (st_src, pick_cont thsl))
-                        (interp_state (st_tgt, pick_cont thsr))
-                        (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
-      :
-      __sim_knot RR sim_knot _sim_knot htids thsl thsr tid tid f_src f_tgt
-                 (interp_state (st_src, pick_cont thsl))
-                 (interp_state (st_tgt, pick_cont thsr))
                  (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
   .
 
