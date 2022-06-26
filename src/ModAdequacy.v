@@ -103,35 +103,26 @@ Section ADEQ.
 
   Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
-  Let gsrcE := @eventE ident_src.
-  Let gtgtE := @eventE ident_tgt.
+  (* Let gsrcE := @eventE ident_src. *)
+  (* Let gtgtE := @eventE ident_tgt. *)
 
   Variable world: Type.
   Variable world_le: world -> world -> Prop.
 
   Let shared := @shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt world.
-  Let shared_rel: Type := shared -> Prop.
-  Variable I: shared_rel.
+  (* Let shared_rel: Type := shared -> Prop. *)
+  (* Variable I: shared_rel. *)
 
-  Let threads_src R0 := @threads _ident_src (sE state_src) R0.
+  Definition threads2 _id ev R := alist tids.(id) (prod bool (@thread _id ev R)).
+  Let threads_src R0 := threads2 _ident_src (sE state_src) R0.
   Let threads_tgt R1 := @threads _ident_tgt (sE state_tgt) R1.
 
-  Definition pick_cont {R _id st} (threads: @threads _id (sE st) R):
-    itree ((@eventE (sum_tids _id)) +' (sE st)) R :=
-    Vis (inl1 (Choose tids.(id)))
-        (fun t => match threads_pop t threads with
-               | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
-               | Some (th, ths) =>
-                   Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
-                       (fun _ => tau;; interp_sched (ths, inl (t, th)))
-               end).
-
   Variant __sim_knot R0 R1 (RR: R0 -> R1 -> Prop)
-          (sim_knot: threads_src R0 -> threads_tgt R1 -> (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel)
-          (_sim_knot: threads_src R0 -> threads_tgt R1 -> (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel)
+          (sim_knot: threads_src R0 -> threads_tgt R1 -> tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
+          (_sim_knot: threads_src R0 -> threads_tgt R1 -> tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
           (thsl: threads_src R0) (thsr: threads_tgt R1)
     :
-    (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel :=
+    tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> shared -> Prop :=
     | sim_knot_ret_term
         tid f_src f_tgt
         r_src r_tgt
@@ -171,10 +162,33 @@ Section ADEQ.
                  (Ret r_tgt)
                  (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
 
-    | sim_knot_sync_open
+    | sim_knot_sync
         tid f_src f_tgt
         ktr_src ktr_tgt
         ths tht im_src im_tgt st_src st_tgt o w
+        thsl0 thsr0
+        (THSL: thsl0 = threads_add tid (true, ktr_src tt) thsl)
+        (THSR: thsr0 = threads_add tid (ktr_tgt tt) thsr)
+        (GSIM: forall tid0,
+            ((threads2_pop tid0 thsl0 = None) /\ (threads_pop tid0 thsr0 = None)) \/
+              (exists b th_src thsl1 th_tgt thsr1,
+                  (threads2_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
+                    (threads_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
+                    ((b = true) ->
+                     exists o0,
+                       (wf_src.(lt) o0 o) /\
+                         (forall im_tgt0
+                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                             sim_knot thsl1 thsr1 tid0 true true
+                                      (Vis (inl1 (inr1 Yield)) (fun _ => th_src))
+                                      (th_tgt)
+                                      (ths, tht, im_src, im_tgt0, st_src, st_tgt, o0, w))) /\
+                    ((b = false) ->
+                     
+                                                                                                  
+        
+
+        
         (KSIM: sim_knot (threads_add tid (ktr_src tt) thsl)
                         (threads_add tid (ktr_tgt tt) thsr)
                         (tid, tid) f_src f_tgt
@@ -182,9 +196,9 @@ Section ADEQ.
                         (interp_state (st_tgt, pick_cont thsr))
                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
       :
-      __sim_knot RR sim_knot _sim_knot thsl thsr (tid, tid) f_src f_tgt
-                 (interp_all st_src thsl tid (Vis (inl1 (inr1 Yield)) ktr_src))
-                 (interp_all st_tgt thsr tid (Vis (inl1 (inr1 Yield)) ktr_tgt))
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (Vis (inl1 (inr1 Yield)) ktr_src)
+                 (Vis (inl1 (inr1 Yield)) ktr_tgt)
                  (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
     | sim_knot_sync_close
         tid f_src f_tgt
