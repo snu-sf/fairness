@@ -519,6 +519,44 @@ Section ADEQ.
 
 
 
+  Lemma sim_perm_l
+        R0 R1 (RR: R0 -> R1 -> Prop)
+        ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt)
+        (st_src: state_src) (st_tgt: state_tgt)
+        tid ths_tgt tgt
+        (ths_src0 ths_src1: @threads _ident_src (sE state_src) R0)
+        (PERM: Permutation ths_src0 ths_src1)
+        (SIM: sim RR ps ms pt mt
+                  (interp_state (st_src, Tau (interp_sched (ths_src1, inr (inl ())))))
+                  (interp_state (st_tgt, interp_sched (ths_tgt, inl (tid, tgt)))))
+    :
+    sim RR ps ms pt mt
+        (interp_state (st_src, Tau (interp_sched (ths_src0, inr (inl ())))))
+        (interp_state (st_tgt, interp_sched (ths_tgt, inl (tid, tgt)))).
+  Proof.
+    unfold thread in *. rewrite interp_sched_pick_yield in *. rewrite interp_state_tau in *.
+    
+
+
+  Lemma sim_yieldL_change
+        R0 R1 (RR: R0 -> R1 -> Prop)
+        ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt)
+        (st_src: state_src) (st_tgt: state_tgt)
+        tid0 tid1 ths_tgt tgt
+        (ths_src0 ths_src1: @threads _ident_src (sE state_src) R0)
+        ktr_src0 src
+        (POP: threads_pop tid1 (threads_add tid0 (ktr_src0 tt) ths_src0) = Some (src, ths_src1))
+        (SIM: sim RR ps ms pt mt
+                  (interp_all st_src ths_src1 tid1 (Vis (inl1 (inr1 Yield)) (fun _ => src)))
+                  (interp_all st_tgt ths_tgt tid1 tgt))
+    :
+    sim RR ps ms pt mt
+        (interp_all st_src ths_src0 tid0 (Vis (inl1 (inr1 Yield)) ktr_src0))
+        (interp_all st_tgt ths_tgt tid1 tgt).
+  Proof.
+    unfold interp_all in *. unfold thread in *. rewrite interp_sched_yield_vis in *.
+
+
   Variable I: shared -> Prop.
 
   (*invariant for tid_list & threads: tid_list_add threads.proj1 tid tid_list*)
