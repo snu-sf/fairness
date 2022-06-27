@@ -143,21 +143,10 @@ End AUX.
 
 
 
-Section ADEQ.
-
-  Variable state_src: Type.
-  Variable state_tgt: Type.
+Ltac gfold := gfinal; right; pfold.
+Section AUX2.
 
   Variable _ident_src: ID.
-  Definition ident_src := sum_tids _ident_src.
-  Variable _ident_tgt: ID.
-  Definition ident_tgt := sum_tids _ident_tgt.
-
-  Variable wf_src: WF.
-  Variable wf_tgt: WF.
-
-  Ltac gfold := gfinal; right; pfold.
-
 
   Lemma interp_all_perm_equiv
         E R tid th (ths0 ths1: @threads _ident_src E R)
@@ -177,16 +166,69 @@ Section ADEQ.
       { eapply Permutation_sym in PERM. hexploit Permutation_nil; eauto. i; clarify. }
       ired. rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
       hexploit (ths_wf_perm_pop_eq E _ident_src PERM WF u2). i; des.
-      { unfold thread in *. rewrite H; rewrite H0.
+      { unfold thread in *. ss. rewrite H, H0. clear H H0. ired.
+        guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
+      unfold thread in *. ss. rewrite H, H0. ired.
+      rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify. destruct u0; ss.
+      gfold. econs 2. right. eapply CIH; eauto.
+    }
+    { pose (@interp_thread_tau _ident_src E R tid t). unfold thread in *. rewrite ! e. clear e.
+      rewrite ! bind_tau. gfold. econs 2. right.
+      pose (@unfold_interp_sched _ident_src E R tid t). unfold thread in *. rewrite <- ! e. clear e.
+      eauto.
+    }
+    { destruct e as [[eev | cev] | ev].
+      { unfold thread. rewrite interp_thread_vis_eventE. rewrite ! bind_vis.
+        rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
+        rewrite ! bind_tau. gfold. econs 2. right.
+        pose (@unfold_interp_sched _ident_src E R tid (k u2)). unfold thread in *. rewrite <- ! e. clear e.
+        eauto.
+      }
+      2:{ unfold thread. rewrite interp_thread_vis. rewrite ! bind_vis.
+          rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
+          rewrite ! bind_tau. gfold. econs 2. right.
+          pose (@unfold_interp_sched _ident_src E R tid (k u2)). unfold thread in *. rewrite <- ! e. clear e.
+          eauto.
+      }
+      destruct cev.
+      { unfold thread. rewrite interp_thread_vis_yield. rewrite ! bind_ret_l.
+        pose (@pick_thread_nondet_yield _ident_src E R).
+        unfold thread in *. rewrite ! e. clear e. rewrite <- ! bind_trigger. rewrite ! bind_bind.
+        guclo eqit_clo_bind. econs. reflexivity. i; clarify.
+        assert (PERM0: Permutation (threads_add tid (k ()) ths0) (threads_add tid (k ()) ths1)).
+        { admit. }
+        assert (WF0: threads_wf (threads_add tid (k ()) ths0)).
+        { admit. }
+        hexploit (ths_wf_perm_pop_eq E _ident_src PERM0 WF0 u2). i; des.
+        { unfold thread in *; ss. rewrite H, H0. clear H H0. ired.
+          guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
+        unfold thread in *. ss. rewrite H, H0. ired.
+        rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify. destruct u0; ss.
+        gfold. econs 2. right. eapply CIH; eauto.
+      }
+      { unfold thread. rewrite interp_thread_vis_gettid.
+        rewrite ! bind_tau. gfold. econs 2. right.
+        pose (@unfold_interp_sched _ident_src E R tid (k tid)). unfold thread in *. rewrite <- ! e. clear e.
+        eauto.
+      }
+    }
+  Admitted.
+
+End AUX2.
 
 
+Section ADEQ.
 
-      (* guclo eqit_clo_bind. econs. reflexivity. i. clarify. destruct u2 as [th | ret]. *)
-      (* { rewrite ! pick_thread_nondet_yield. ired. rewrite <- ! bind_trigger. *)
-      (*   guclo eqit_clo_bind. econs. reflexivity. i. clarify. *)
-      (*   assert (PERM0: Permutation () *)
-      (*   hexploit (ths_wf_perm_pop_eq E _ident_src PERM WF u2). i; des. *)
+  Variable state_src: Type.
+  Variable state_tgt: Type.
 
+  Variable _ident_src: ID.
+  Definition ident_src := sum_tids _ident_src.
+  Variable _ident_tgt: ID.
+  Definition ident_tgt := sum_tids _ident_tgt.
+
+  Variable wf_src: WF.
+  Variable wf_tgt: WF.
 
   Lemma sim_perm_l
         R0 R1 (RR: R0 -> R1 -> Prop)
@@ -349,8 +391,10 @@ Section ADEQ.
     eapply gpaco9_mon_bot; eauto with paco.
     revert SIM PERM WF. clear. i.
     rename x into tid, ths2 into ths0, ths3 into ths1, itr_tgt0 into itr_tgt.
-
-  Admitted.
+    pose (@interp_all_perm_equiv _ident_src _ R0 tid th ths0 ths1 PERM WF).
+    eapply bisim_is_eq in e. unfold threads in e. ss. rewrite e.
+    gfinal. right. eauto.
+  Qed.
 
   Lemma sim_yieldL_change
         R0 R1 (RR: R0 -> R1 -> Prop)
