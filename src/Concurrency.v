@@ -132,399 +132,220 @@ End STATE.
 
 
 
+Section ALISTAUX.
+
+  Definition alist_pop (K : Type) (R : K -> K -> Prop) (DEC: RelDec.RelDec R) (V: Type)
+    : K -> alist K V -> option (prod V (alist K V)) :=
+    fun k l => match alist_find DEC k l with
+            | None => None
+            | Some v => Some (v, alist_remove DEC k l)
+            end.
+
+  Definition alist_proj1 K V (a: alist K V): list K := List.map fst a.
+
+  Definition alist_wf (K : Type) (V: Type) : alist K V -> Prop :=
+    fun l => List.NoDup (alist_proj1 l).
+
+End ALISTAUX.
+
 Section SCHEDULE.
 
   Context {_Ident: ID}.
   Variable E: Type -> Type.
-  (* Variable State: Type. *)
 
-  (* Variant cE: Type -> Type := *)
-  (*   | Yield (st: State): cE State *)
-  (* . *)
-
-  (* Definition Es := cE +' eventE. *)
+  Let eventE1 := @eventE _Ident.
   Let eventE2 := @eventE (sum_tids _Ident).
-  Let Es := (eventE2 +' cE) +' E.
-  (* Let Es := (eventE2 +' cE) +' (sE State). *)
 
-  (* Definition thread {R} := stateT State (itree Es) R. *)
-  Definition thread {R} := itree Es R.
-  Definition threads {R} := alist tids.(id) (@thread R).
+  Definition embed_eventE X (e: eventE1 X): eventE2 X.
+  Proof.
+    destruct e. exact (Choose X). exact (Fair (sum_fmap_r m)). exact (Observe fn args). exact Undefined.
+  Defined.
+
+  Let Es0 := (eventE1 +' cE) +' E.
+
+  Definition thread R := itree Es0 R.
+  Definition threads R := alist tids.(id) (@thread R).
 
   Definition threads_add := alist_add (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_find := alist_find (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_remove := alist_remove (RelDec.RelDec_from_dec eq tid_dec).
+  Definition threads_pop := alist_pop (RelDec.RelDec_from_dec eq tid_dec).
+  Definition threads_ids := @alist_proj1 tids.(id).
+  Definition threads_wf := @alist_wf tids.(id).
 
-  (* Definition update_threads {R} (tid: tids.(id)) (th: thread) (ths: threads): @threads R := *)
-  (*   threads_add tid th ths. *)
-  (* fun t => if (tid_dec tid t) then th else (ths t). *)
-
-  Definition threads_pop {R} (tid: tids.(id)) (ths: threads): option (prod (@thread R) threads) :=
-    match threads_find tid ths with
-    | None => None
-    | Some th => Some (th, threads_remove tid ths)
-    end.
-
-  (* NB for invalid tid *)
-  Definition pick_thread {R} (ths: @threads R) : 
-    itree (eventE2 +' E) ((@threads R) * (tids.(id) * itree Es R + (unit + R)) + R) :=
-    Vis (inl1 (Choose tids.(id)))
-        (fun t => match threads_pop t ths with
-               | None => Vis (inl1 (Choose void)) (fun _ => Ret (inl (ths, inr (inl tt))))
-               | Some (th, ths) =>
-                   Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
-                       (fun _ => Ret (inl (ths, inl (t, th))))
-               end).
-
-  Definition interp_sched {R}:
-    ((@threads R) * ((tids.(id) * itree Es R) + (sum unit R))) -> itree (eventE2 +' E) R.
+  Definition interp_thread {R} :
+    tids.(id) * thread R -> itree (eventE2 +' E) (thread R + R).
   Proof.
-    eapply ITree.iter. intros [threads [[tid itr]|]].
-    - destruct (observe itr).
-      + exact (Ret (inl (threads, inr (inr r)))).
-      + exact (Ret (inl (threads, inl (tid, t)))).
-      + destruct e.
-        * destruct s.
-          { exact (Vis (inl1 e) (fun x => Ret (inl (threads, inl (tid, k x))))). }
-          { destruct c.
-            { exact (Ret (inl (threads_add tid (k tt) threads, inr (inl tt)))). }
-            { exact (Ret (inl (threads, inl (tid, k tid)))). }
-          }
-        * exact (Vis (inr1 e) (fun x => Ret (inl (threads, inl (tid, k x))))).
-    - destruct s.
-      + (* thread has not terminated; yield case *)
-        exact (pick_thread threads).
-      + (* thread has terminated *)
-        exact (match threads with
-               | [] => Ret (inr r)
-               | _ :: _ => (pick_thread threads)
-               end).
+    eapply ITree.iter.
+    intros [tid itr].
+    apply observe in itr; destruct itr as [r | itr | X e k].
+    - (* Ret *)
+      exact (Ret (inr (inr r))).
+    - (* Tau *)
+      exact (Ret (inl (tid, itr))).
+    - (* Vis *)
+      destruct e as [[]|].
+      + (* eventE2 *)
+        exact (Vis (inl1 (embed_eventE e)) (fun x => Ret (inl (tid, k x)))).
+      + (* cE *)
+        destruct c.
+        * (* Yield *)
+          exact (Ret (inr (inl (k tt)))).
+        * (* GetTid *)
+          exact (Ret (inl (tid, k tid))).
+      + (* E *)
+        exact (Vis (inr1 e) (fun x => Ret (inl (tid, k x)))).
   Defined.
 
-  (* Definition interp_yield {R}: *)
-  (*   (alist Tid (stateT State (itree Es) R) * ((Tid * itree Es (State * R)) + State)) -> itree eventE void. *)
-  (* Proof. *)
-  (*   eapply ITree.iter. intros [threads [[tid itr]|]]. *)
-  (*   - destruct (observe itr). *)
-  (*     + exact (Ret (inl (threads, inr (fst r)))). *)
-  (*     + exact (Ret (inl (threads, inl (tid, t)))). *)
-  (*     + destruct e. *)
-  (*       * destruct c. exact (Ret (inl (alist_add tid k threads, inr st))). *)
-  (*       * exact (Vis e (fun x => Ret (inl (threads, inl (tid, k x))))). *)
-  (*   - exact (Vis (Choose Tid) (fun tid => *)
-  (*                                '(itr, threads) <- unwrapN (alist_pop tid threads);; *)
-  (*                                Ret (inl (threads, inl (tid, itr s))))). *)
-  (* Defined. *)
-
-
-  Lemma interp_sched_ret
-        R (threads: @threads R) tid r
+  Definition interp_sched_aux
+    (pick_thread : forall {R}, tids.(id) * (thread R + R) -> threads R ->
+                          itree (eventE2 +' E) (tids.(id) * thread R * threads R + R))
+    {R}
     :
-    interp_sched (threads, inl (tid, Ret r)) = tau;; interp_sched (threads, inr (inr r)).
-  Proof.
-    unfold interp_sched. rewrite unfold_iter. ss. grind.
-  Qed.
+    tids.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
+    ITree.iter (fun '(t, ts) =>
+                  res <- interp_thread t;;
+                  pick_thread (fst t, res) ts
+      ).
 
-  Lemma interp_sched_tau
-        R (threads: @threads R) tid itr
-    :
-    interp_sched (threads, inl (tid, tau;; itr)) = tau;; interp_sched (threads, inl (tid, itr)).
-  Proof.
-    unfold interp_sched. rewrite unfold_iter. ss. grind.
-  Qed.
-
-  Lemma interp_sched_vis
-        R (threads: @threads R) tid X (e: E X) ktr
-    :
-    interp_sched (threads, inl (tid, Vis (inr1 e) ktr))
-    =
-      Vis (inr1 e) (fun x => tau;; interp_sched (threads, inl (tid, ktr x))).
-  Proof.
-    unfold interp_sched. rewrite unfold_iter. ss. rewrite bind_vis.
-    apply observe_eta. ss. f_equal. extensionality x.
-    rewrite bind_ret_l. reflexivity.
-  Qed.
-
-  Lemma interp_sched_trigger
-        R (threads: @threads R) tid X (e: E X) ktr
-    :
-    interp_sched (threads, inl (tid, trigger (inr1 e) >>= ktr))
-    =
-      x <- trigger (inr1 e);; tau;; interp_sched (threads, inl (tid, ktr x)).
-  Proof.
-    rewrite ! bind_trigger. apply interp_sched_vis.
-  Qed.
-
-  Lemma interp_sched_eventE_vis
-        R (threads: @threads R) tid X (e: eventE2 X) ktr
-    :
-    interp_sched (threads, inl (tid, Vis (inl1 (inl1 e)) ktr))
-    =
-      Vis (inl1 e) (fun x => tau;; interp_sched (threads, inl (tid, ktr x))).
-  Proof.
-    unfold interp_sched. rewrite unfold_iter. ss. rewrite bind_vis.
-    apply observe_eta. ss. f_equal. extensionality x.
-    rewrite bind_ret_l. reflexivity.
-  Qed.
-
-  Lemma interp_sched_eventE_trigger
-        R (threads: @threads R) tid X (e: eventE2 X) ktr
-    :
-    interp_sched (threads, inl (tid, trigger (inl1 (inl1 e)) >>= ktr))
-    =
-      x <- trigger (inl1 e);; tau;; interp_sched (threads, inl (tid, ktr x)).
-  Proof.
-    rewrite ! bind_trigger. apply interp_sched_eventE_vis.
-  Qed.
-
-  Lemma interp_sched_gettid_vis
-        R (threads: @threads R) tid ktr
-    :
-    interp_sched (threads, inl (tid, Vis (inl1 (inr1 GetTid)) ktr))
-    =
-      tau;; interp_sched (threads, inl (tid, ktr tid)).
-  Proof.
-    unfold interp_sched. rewrite unfold_iter. ss. grind.
-  Qed.
-
-  Lemma interp_sched_gettid
-        R (threads: @threads R) tid ktr
-    :
-    interp_sched (threads, inl (tid, trigger (inl1 (inr1 GetTid)) >>= ktr))
-    =
-      tau;; interp_sched (threads, inl (tid, ktr tid)).
-  Proof.
-    rewrite bind_trigger. apply interp_sched_gettid_vis.
-  Qed.
-
-  Lemma interp_sched_yield_vis
-        R (threads: @threads R) tid ktr
-    :
-    interp_sched (threads, inl (tid, Vis (inl1 (inr1 Yield)) ktr))
-    =
-      tau;; interp_sched (threads_add tid (ktr tt) threads, inr (inl tt)).
-  Proof.
-    unfold interp_sched. rewrite unfold_iter. ss. grind.
-  Qed.
-
-  Lemma interp_sched_yield
-        R (threads: @threads R) tid ktr
-    :
-    interp_sched (threads, inl (tid, trigger (inl1 (inr1 Yield)) >>= ktr))
-    =
-      tau;; interp_sched (threads_add tid (ktr tt) threads, inr (inl tt)).
-  Proof.
-    rewrite bind_trigger. apply interp_sched_yield_vis.
-  Qed.
-
-  Lemma interp_sched_pick_yield_vis
-        R (threads: @threads R)
-    :
-    interp_sched (threads, inr (inl tt))
-    =
-      Vis (inl1 (Choose tids.(id)))
-          (fun t => match threads_pop t threads with
-                 | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
-                 | Some (th, ths) =>
-                     Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
-                         (fun _ => tau;; interp_sched (ths, inl (t, th)))
-                 end).
-  Proof.
-    unfold interp_sched at 1. rewrite unfold_iter. unfold pick_thread. rewrite bind_vis.
-    apply observe_eta. ss. f_equal. extensionality t. grind.
-  Qed.
-
-  Lemma interp_sched_pick_yield_vis2
-        R (threads: @threads R)
-    :
-    interp_sched (threads, inr (inl tt))
-    =
-      Vis (inl1 (Choose tids.(id)))
-          (fun t => match threads_pop t threads with
-                 | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
-                 | Some (th, ths) =>
-                     interp_sched (ths, inl (t, Vis (inl1 (inl1 (Fair (sum_fmap_l (thread_fmap t))))) (fun _ => th)))
-                 end).
-  Proof.
-    unfold interp_sched at 1. rewrite unfold_iter. unfold pick_thread. rewrite bind_vis.
-    apply observe_eta. ss. f_equal. extensionality t. des_ifs.
-    2: grind.
-    rewrite interp_sched_eventE_vis. grind.
-  Qed.
-
-  Lemma interp_sched_pick_yield
-        R (threads: @threads R)
-    :
-    interp_sched (threads, inr (inl tt))
-    =
-      t <- trigger (inl1 (Choose tids.(id)));;
-      match threads_pop t threads with
-      | None => x <- trigger (inl1 (Choose void));; tau;; interp_sched (threads, inr (inl tt))
-      | Some (th, ths) =>
-          x <- trigger (inl1 (Fair (sum_fmap_l (thread_fmap t))));;
-          tau;; interp_sched (ths, inl (t, th))
-      end.
-  Proof.
-    rewrite interp_sched_pick_yield_vis at 1. rewrite bind_trigger.
-    apply observe_eta. ss. f_equal. extensionality t. des_ifs.
-    - rewrite bind_trigger. reflexivity.
-    - rewrite bind_trigger. reflexivity.
-  Qed.
-
-  Lemma interp_sched_pick_yield2
-        R (threads: @threads R)
-    :
-    interp_sched (threads, inr (inl tt))
-    =
-      t <- trigger (inl1 (Choose tids.(id)));;
-      match threads_pop t threads with
-      | None => x <- trigger (inl1 (Choose void));; tau;; interp_sched (threads, inr (inl tt))
-      | Some (th, ths) =>
-          interp_sched (ths, inl (t, Vis (inl1 (inl1 (Fair (sum_fmap_l (thread_fmap t))))) (fun _ => th)))
-      end.
-  Proof.
-    rewrite interp_sched_pick_yield_vis2 at 1. rewrite bind_trigger.
-    apply observe_eta. ss. f_equal. extensionality t. des_ifs.
-    rewrite bind_trigger. reflexivity.
-  Qed.
-
-  Lemma interp_sched_pick_ret_vis
-        R (threads: @threads R) r
-    :
-    interp_sched (threads, inr (inr r))
-    =
-      match threads with
-      | [] => Ret r
-      | _ :: _ =>
-          Vis (inl1 (Choose tids.(id)))
-              (fun t => match threads_pop t threads with
-                     | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
-                     | Some (th, ths) =>
-                         Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
-                             (fun _ => tau;; interp_sched (ths, inl (t, th)))
+  (* NB for invalid tid *)
+  Definition pick_thread_nondet {R} :
+    tids.(id) * (thread R + R) -> threads R ->
+    itree (eventE2 +' E) (tids.(id) * thread R * threads R + R) :=
+    fun '(tid, res) ts =>
+      match res with
+      | inl t => Vis (inl1 (Choose tids.(id)))
+                  (fun tid' =>
+                     match threads_pop tid' (threads_add tid t ts) with
+                     | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
+                     | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                                          (fun _ => Ret (inl (tid', t', ts')))
                      end)
+      | inr r => match ts with
+                | [] => Ret (inr r)
+                | _ => Vis (inl1 (Choose tids.(id)))
+                        (fun tid' =>
+                           match threads_pop tid' ts with
+                           | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
+                           | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                                                (fun _ => Ret (inl (tid', t', ts')))
+                           end)
+                end
       end.
+
+  Definition interp_sched {R} :
+    tids.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
+    @interp_sched_aux (@pick_thread_nondet) R.
+
+  (* Lemmas for interp_thread *)
+  Lemma interp_thread_ret {R} tid (r : R) :
+    interp_thread (tid, Ret r) = Ret (inr r).
+  Proof. unfold interp_thread. rewrite unfold_iter. ss. rewrite bind_ret_l. ss. Qed.
+
+  Lemma interp_thread_tau R tid (itr : thread R) :
+    interp_thread (tid, tau;; itr) = tau;; interp_thread (tid, itr).
+  Proof. unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_ret_l. ss. Qed.
+
+  Lemma interp_thread_vis R tid X (e : E X) (ktr : ktree Es0 X R) :
+    interp_thread (tid, Vis (inr1 e) ktr) =
+      Vis (inr1 e) (fun x => tau;; interp_thread (tid, ktr x)).
   Proof.
-    unfold interp_sched at 1. rewrite unfold_iter. unfold pick_thread.
-    destruct threads eqn:THS; grind.
-    apply observe_eta. ss. f_equal. extensionality t0. grind.
+    unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_vis.
+    eapply (f_equal (fun x => Vis (inr1 e) x)). extensionality x.
+    rewrite bind_ret_l. ss.
   Qed.
 
-  Lemma interp_sched_pick_ret
-        R (threads: @threads R) r
-    :
-    interp_sched (threads, inr (inr r))
-    =
-      match threads with
-      | [] => Ret r
-      | _ :: _ =>
-          t <- trigger (inl1 (Choose tids.(id)));;
-          match threads_pop t threads with
-          | None => x <- trigger (inl1 (Choose void));; tau;; interp_sched (threads, inr (inl tt))
-          | Some (th, ths) =>
-              x <- trigger (inl1 (Fair (sum_fmap_l (thread_fmap t))));;
-              tau;; interp_sched (ths, inl (t, th))
-          end
-      end.
+  Lemma interp_thread_trigger R tid X (e : E X) (ktr : ktree Es0 X R) :
+    interp_thread (tid, x <- trigger (inr1 e);; ktr x) =
+      x <- trigger (inr1 e);; tau;; interp_thread (tid, ktr x).
+  Proof. rewrite ! bind_trigger. eapply interp_thread_vis. Qed.
+
+  Lemma interp_thread_vis_eventE R tid X (e : eventE1 X) (ktr : ktree Es0 X R) :
+    interp_thread (tid, Vis (inl1 (inl1 e)) ktr) =
+      Vis (inl1 (embed_eventE e)) (fun x => tau;; interp_thread (tid, ktr x)).
   Proof.
-    rewrite interp_sched_pick_ret_vis at 1. des_ifs.
-    rewrite bind_trigger.
-    apply observe_eta. ss. f_equal. extensionality t0. des_ifs.
-    - rewrite bind_trigger. reflexivity.
-    - rewrite bind_trigger. reflexivity.
+    unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_vis.
+    eapply (f_equal (fun x => Vis (inl1 (embed_eventE e)) x)). extensionality x.
+    rewrite bind_ret_l. ss.
   Qed.
 
+  Lemma interp_thread_trigger_eventE R tid X (e : eventE1 X) (ktr : ktree Es0 X R) :
+    interp_thread (tid, x <- trigger (inl1 (inl1 e));; ktr x) =
+      x <- trigger (inl1 (embed_eventE e));; tau;; interp_thread (tid, ktr x).
+  Proof. rewrite ! bind_trigger. eapply interp_thread_vis_eventE. Qed.
 
-  (* Lemma interp_yield_ret R (threads: @threads R) tid st r *)
-  (*   : *)
-  (*   interp_yield (threads, inl (tid, Ret (st, r))) = tau;; interp_yield (threads, inr st). *)
-  (* Proof. *)
-  (*   unfold interp_yield. rewrite unfold_iter. ss. grind. *)
-  (* Qed. *)
+  Lemma interp_thread_vis_gettid R tid (ktr : ktree Es0 tids.(id) R) :
+    interp_thread (tid, Vis (inl1 (inr1 GetTid)) ktr) =
+      tau;; interp_thread (tid, ktr tid).
+  Proof.
+    unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_ret_l. ss.
+  Qed.
 
-  (* Lemma interp_yield_tau R (threads: @threads R) tid itr *)
-  (*   : *)
-  (*   interp_yield (threads, inl (tid, tau;; itr)) = tau;; interp_yield (threads, inl (tid, itr)). *)
-  (* Proof. *)
-  (*   unfold interp_yield. rewrite unfold_iter. ss. grind. *)
-  (* Qed. *)
+  Lemma interp_thread_trigger_gettid R tid (ktr : ktree Es0 tids.(id) R) :
+    interp_thread (tid, x <- trigger (inl1 (inr1 GetTid));; ktr x) =
+      tau;; interp_thread (tid, ktr tid).
+  Proof. rewrite bind_trigger. eapply interp_thread_vis_gettid. Qed.
 
-  (* Lemma interp_yield_yield_vis R (threads: @threads R) tid st k *)
-  (*   : *)
-  (*   interp_yield (threads, inl (tid, Vis (Yield st|)%sum k)) *)
-  (*   = *)
-  (*     tau;; interp_yield (update_threads tid k threads, inr st). *)
-  (* Proof. *)
-  (*   unfold interp_yield. rewrite unfold_iter. ss. grind. *)
-  (* Qed. *)
+  Lemma interp_thread_vis_yield R tid (ktr : ktree Es0 () R) :
+    interp_thread (tid, Vis (inl1 (inr1 Yield)) ktr) =
+      Ret (inl (ktr tt)).
+  Proof.
+    unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_ret_l. ss.
+  Qed.
 
-  (* Lemma interp_yield_yield R (threads: @threads R) tid st k *)
-  (*   : *)
-  (*   interp_yield (threads, inl (tid, trigger (Yield st|)%sum >>= k)) *)
-  (*   = *)
-  (*     tau;; interp_yield (update_threads tid k threads, inr st). *)
-  (* Proof. *)
-  (*   rewrite bind_trigger. apply interp_yield_yield_vis. *)
-  (* Qed. *)
+  Lemma interp_thread_trigger_yield R tid (ktr : ktree Es0 () R) :
+    interp_thread (tid, x <- trigger (inl1 (inr1 Yield));; ktr x) =
+      Ret (inl (ktr tt)).
+  Proof. rewrite bind_trigger. apply interp_thread_vis_yield. Qed.
 
-  (* Lemma interp_yield_vis R (threads: @threads R) tid X (e: eventE X) k *)
-  (*   : *)
-  (*   interp_yield (threads, inl (tid, Vis (|e)%sum k)) *)
-  (*   = *)
-  (*     Vis e (fun x => tau;; interp_yield (threads, inl (tid, k x))). *)
-  (* Proof. *)
-  (*   unfold interp_yield. rewrite unfold_iter. ss. rewrite bind_vis. *)
-  (*   apply observe_eta. ss. f_equal. extensionality x. *)
-  (*   rewrite bind_ret_l. reflexivity. *)
-  (* Qed. *)
+  (* Lemmas for pick_thread_nondet *)
+  Lemma pick_thread_nondet_yield {R} tid (t : thread R) ts :
+    pick_thread_nondet (tid, (inl t)) ts =
+      Vis (inl1 (Choose tids.(id)))
+        (fun tid' =>
+           match threads_pop tid' (threads_add tid t ts) with
+           | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
+           | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                                (fun _ => Ret (inl (tid', t', ts')))
+           end).
+  Proof. ss. Qed.
 
-  (* Lemma interp_yield_trigger R (threads: @threads R) tid X (e: eventE X) k *)
-  (*   : *)
-  (*   interp_yield (threads, inl (tid, trigger (|e)%sum >>= k)) *)
-  (*   = *)
-  (*     x <- trigger e;; tau;; interp_yield (threads, inl (tid, k x)). *)
-  (* Proof. *)
-  (*   rewrite ! bind_trigger. apply interp_yield_vis. *)
-  (* Qed. *)
+  Lemma pick_thread_nondet_terminate {R} tid (r : R) ts :
+    pick_thread_nondet (tid, (inr r)) ts =
+      match ts with
+      | [] => Ret (inr r)
+      | _ => Vis (inl1 (Choose tids.(id)))
+              (fun tid' =>
+                 match threads_pop tid' ts with
+                 | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
+                 | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                                      (fun _ => Ret (inl (tid', t', ts')))
+                 end)
+      end.
+  Proof. ss. Qed.
 
-  (* Lemma interp_yield_pick_vis R (threads: @threads R) st *)
-  (*   : *)
-  (*   interp_yield (threads, inr st) *)
-  (*   = *)
-  (*     Vis (Choose id) (fun tid => tau;; interp_yield (threads, inl (tid, (threads tid st)))). *)
-  (* (* Vis (Choose _ Tid) (fun tid => *) *)
-  (* (*                     '(itr, threads) <- unwrapN (alist_pop tid threads);; *) *)
-  (* (*                     tau;; interp_yield (threads, inl (tid, itr st))). *) *)
-  (* Proof. *)
-  (*   unfold interp_yield. rewrite unfold_iter. rewrite bind_vis. *)
-  (*   apply observe_eta. ss. f_equal. extensionality x. *)
-  (*   grind. *)
-  (*   (* rewrite bind_bind. f_equal. extensionality r. destruct r; ss. *) *)
-  (*   (* rewrite bind_ret_l. refl. *) *)
-  (* Qed. *)
+  (* Lemmas for interp_sched *)
+  Lemma unfold_interp_sched_aux {R} pick_thread tid (t : thread R) ts :
+    interp_sched_aux pick_thread (tid, t, ts) =
+      res <- interp_thread (tid, t);;
+      x <- pick_thread R (tid, res) ts;;
+      match x with
+      | inl tts => tau;; interp_sched_aux pick_thread tts
+      | inr r => Ret r
+      end.
+  Proof. unfold interp_sched_aux at 1. rewrite unfold_iter. rewrite bind_bind. ss. Qed.
 
-  (* Lemma interp_yield_pick R (threads: @threads R) st *)
-  (*   : *)
-  (*   interp_yield (threads, inr st) *)
-  (*   = *)
-  (*     tid <- trigger (Choose id);; *)
-  (*     tau;; interp_yield (threads, inl (tid, threads tid st)). *)
-  (* (* '(itr, threads) <- unwrapN (alist_pop tid threads);; *) *)
-  (* (* tau;; interp_yield (threads, inl (tid, itr st)). *) *)
-  (* Proof. *)
-  (*   rewrite bind_trigger. apply interp_yield_pick_vis. *)
-  (* Qed. *)
-
-  (* (* Lemma interp_yield_bind R (threads: alist Tid (stateT State (itree Es) R)) tid A (itr: itree Es A) ktr *) *)
-  (* (*   : *) *)
-  (* (*     interp_yield (threads, inl (tid, itr >>= ktr)) *) *)
-  (* (*     = *) *)
-  (* (*     ?? *) *)
-  (* (* . *) *)
+  Lemma unfold_interp_sched {R} tid (t : thread R) ts :
+    interp_sched (tid, t, ts) =
+      res <- interp_thread (tid, t);;
+      x <- pick_thread_nondet (tid, res) ts;;
+      match x with
+      | inl tts => tau;; interp_sched tts
+      | inr r => Ret r
+      end.
+  Proof. eapply unfold_interp_sched_aux. Qed.
 
 End SCHEDULE.
-
-
 
 Section INTERP.
 
@@ -534,9 +355,9 @@ Section INTERP.
   Definition interp_all
              {R}
              (st: State) (ths: @threads _Ident (sE State) R)
-             tid (itr: itree ((_ +' cE) +' (sE State)) R) :
+             tid (itr: @thread _Ident (sE State) R) :
     itree (@eventE (sum_tids _Ident)) R :=
-    interp_state (st, interp_sched (ths, inl (tid, itr))).
+    interp_state (st, interp_sched (tid, itr, ths)).
 
 End INTERP.
 
@@ -548,9 +369,8 @@ Section MOD.
   Let Ident := (Mod.ident mod).
   Let main := ((Mod.funs mod) "main").
 
-
-  Definition interp_mod (ths: @threads (Mod._ident mod) (sE (Mod.state mod)) Val):
-    itree (@eventE Ident) Val :=
+  Definition interp_mod (ths: @threads (Mod.ident mod) (sE (Mod.state mod)) Val):
+    itree (@eventE (sum_tids Ident)) Val :=
     interp_all st ths tid_main (main []).
 
 End MOD.

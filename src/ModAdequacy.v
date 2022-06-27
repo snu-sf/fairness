@@ -10,7 +10,8 @@ From ExtLib Require Import FMapAList.
 
 Export ITreeNotations.
 
-From Fairness Require Import pind5.
+From Fairness Require Import pind5 pind8.
+From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim.
 From Fairness Require Export Mod ModSimPico Concurrency.
 
@@ -19,9 +20,6 @@ Set Implicit Arguments.
 
 
 Section AUX.
-
-  Definition alist_proj1 {K} {V} (a: alist K V): list K :=
-    List.map fst a.
 
   Variable E1: Type -> Type.
   Variable E2: Type -> Type.
@@ -59,7 +57,8 @@ Section AUX.
     :
     threads_find tid ths0 = None.
   Proof.
-    unfold threads_pop in POP. des_ifs. unfold threads_find, threads_remove. eapply remove_eq_alist.
+    unfold threads_pop, alist_pop in POP. des_ifs.
+    unfold threads_find, threads_remove. eapply remove_eq_alist.
     eapply reldec_correct_tid_dec.
   Qed.
 
@@ -69,7 +68,7 @@ Section AUX.
     :
     threads_find tid ths = Some th.
   Proof.
-    unfold threads_pop in POP. des_ifs.
+    unfold threads_pop, alist_pop in POP. des_ifs.
   Qed.
 
   Lemma ths_find_some_tid_in
@@ -83,6 +82,55 @@ Section AUX.
     - right. eapply IHths. eauto.
       Unshelve. eapply reldec_correct_tid_dec.
   Qed.
+
+  Lemma ths_wf_perm_pop_eq
+        R (ths0 ths1: @threads _ident_src E1 R)
+        (PERM: Permutation ths0 ths1)
+        (WF0: threads_wf ths0)
+        (* (WF1: threads_wf ths1) *)
+    :
+    forall x, ((threads_pop x ths0 = None) /\ (threads_pop x ths1 = None)) \/
+           (exists th ths2 ths3, (threads_pop x ths0 = Some (th, ths2)) /\
+                              (threads_pop x ths1 = Some (th, ths3)) /\
+                              (Permutation ths2 ths3) /\ (threads_wf ths2)).
+  Proof.
+    i. unfold threads_wf, threads_pop in *. revert_until PERM. induction PERM; i; ss.
+    { left. ss. }
+    { inv WF0. specialize (IHPERM H2 x0). des.
+      { destruct x as [tid th]. destruct (tid_dec x0 tid).
+        { right. clarify. unfold alist_pop. ss. rewrite RelDec.rel_dec_eq_true; auto.
+          2: apply reldec_correct_tid_dec. ss. esplits; eauto.
+          admit.
+          unfold alist_wf. admit.
+        }
+        { left. unfold alist_pop. ss. rewrite RelDec.rel_dec_neq_false; auto.
+          2: apply reldec_correct_tid_dec. ss.
+          unfold alist_pop in *. des_ifs; ss.
+        }
+      }
+      { destruct x as [tid th0]. destruct (tid_dec x0 tid).
+        { right. clarify. unfold alist_pop. ss. rewrite RelDec.rel_dec_eq_true; auto.
+          2: apply reldec_correct_tid_dec. ss. esplits; eauto.
+          admit.
+          unfold alist_wf. admit.
+        }
+        { right. unfold alist_pop. ss. rewrite RelDec.rel_dec_neq_false; auto.
+          2: apply reldec_correct_tid_dec. ss.
+          unfold alist_pop in *. des_ifs; ss.
+          esplits; eauto.
+          unfold alist_wf. ss. eapply List.NoDup_cons.
+          - ii. apply H1; clear H1. admit.
+          - admit.
+        }
+      }
+    }
+    { admit. }
+    { assert (WF1: alist_wf l').
+      { admit. }
+      specialize (IHPERM1 WF0 x). specialize (IHPERM2 WF1 x). des; clarify; eauto.
+      right. esplits; eauto. eapply perm_trans; eauto.
+    }
+  Admitted.
 
 End AUX.
 
@@ -101,6 +149,202 @@ Section ADEQ.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
+  Ltac gfold := gfinal; right; pfold.
+
+  Lemma sim_perm_l
+        R0 R1 (RR: R0 -> R1 -> Prop)
+        ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt)
+        tgt
+        (st_src: state_src)
+        (ths_src0 ths_src1: @threads _ident_src (sE state_src) R0)
+        (WF0: threads_wf ths_src0)
+        (* (WF1: threads_wf ths_src1) *)
+        (PERM: Permutation ths_src0 ths_src1)
+        (SIM: sim RR ps ms pt mt
+                  (interp_state
+                     (st_src,
+                       x <-
+                         Vis (Choose tids.(id)|)%sum
+                             (fun tid' : nat =>
+                                match threads_pop tid' ths_src1 with
+                                | Some (t', ts') =>
+                                    Vis (Fair (sum_fmap_l (thread_fmap tid'))|)%sum
+                                        (fun _ : () => Ret (inl (tid', t', ts')))
+                                | None =>
+                                    Vis (Choose void|)%sum
+                                        (Empty_set_rect
+                                           (fun _ : void =>
+                                              itree (eventE +' sE state_src)
+                                                    (nat * itree ((eventE +' cE) +' sE state_src) R0 *
+                                                       alist nat (itree ((eventE +' cE) +' sE state_src) R0) + R0)))
+                                end);; match x with
+                                       | inl tts => Tau (interp_sched tts)
+                                       | inr r => Ret r
+                                       end)) tgt)
+    :
+    sim RR ps ms pt mt
+        (interp_state
+           (st_src,
+             x <-
+               Vis (Choose tids.(id)|)%sum
+                   (fun tid' : nat =>
+                      match threads_pop tid' ths_src0 with
+                      | Some (t', ts') =>
+                          Vis (Fair (sum_fmap_l (thread_fmap tid'))|)%sum
+                              (fun _ : () => Ret (inl (tid', t', ts')))
+                      | None =>
+                          Vis (Choose void|)%sum
+                              (Empty_set_rect
+                                 (fun _ : void =>
+                                    itree (eventE +' sE state_src)
+                                          (nat * itree ((eventE +' cE) +' sE state_src) R0 *
+                                             alist nat (itree ((eventE +' cE) +' sE state_src) R0) + R0)))
+                      end);; match x with
+                             | inl tts => Tau (interp_sched tts)
+                             | inr r => Ret r
+                             end)) tgt.
+  Proof.
+    revert SIM. ired. i. rewrite interp_state_vis in *.
+    ginit. revert_until RR. gcofix CIH. i.
+    match goal with
+    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
+        remember _itr_src as itr_src
+    end.
+    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
+    { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
+    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
+    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    des. rewrite bind_trigger in Heqitr_src. inv Heqitr_src.
+    guclo sim_indC_spec. rewrite <- bind_trigger. econs 5. exists x.
+    eapply inj_pair2 in H2. hexploit (equal_f H2 x); clear H2. i. rewrite H in SIM0.
+    eapply gpaco9_mon_bot; eauto with paco.
+    revert SIM0 PERM WF0. clear. i. rename SIM0 into SIM.
+    remember true as p_src. clear Heqp_src.
+    revert_until RR. gcofix CIH. i.
+    match goal with
+    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
+        remember _itr_src as itr_src
+    end.
+    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
+    2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
+    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    guclo sim_indC_spec. rewrite <- bind_trigger. econs 3.
+    eapply gpaco9_mon_bot; eauto with paco.
+    revert SIM PERM WF0. clear. i.
+    remember true as p_src. clear Heqp_src.
+    hexploit (ths_wf_perm_pop_eq (sE state_src) (_ident_src) PERM WF0 x). i. des.
+    { rewrite H. rewrite H0 in SIM. revert SIM. ired. clear. i.
+      rewrite bind_trigger. rewrite interp_state_vis in *.
+      revert_until RR. gcofix CIH. i.
+      match goal with
+      | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
+          remember _itr_src as itr_src
+      end.
+      move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
+      { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
+      { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. des. destruct x. }
+      { guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. }
+      { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+      { guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
+      { gfold. econs 9. right. eapply CIH; eauto. all: ss. }
+      { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    }
+    rewrite H. rewrite H0 in SIM. clear H H0 WF0 PERM. rename H1 into PERM, H2 into WF.
+    revert SIM. ired. i. rewrite interp_state_vis in *. revert SIM WF PERM. clear. i.
+    revert_until RR. gcofix CIH. i.
+    match goal with
+    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
+        remember _itr_src as itr_src
+    end.
+    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
+    { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
+    { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    { guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. }
+    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
+    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    rewrite bind_trigger in Heqitr_src. inv Heqitr_src. des.
+    eapply inj_pair2 in H1. hexploit (equal_f H1 tt); clear H1. i. rewrite H in SIM.
+    guclo sim_indC_spec. rewrite <- bind_trigger. econs 7. esplits; eauto.
+    eapply gpaco9_mon_bot; eauto with paco.
+    revert SIM PERM WF. clear. i.
+    remember true as p_src. clear Heqp_src.
+    revert_until RR. gcofix CIH. i.
+    match goal with
+    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
+        remember _itr_src as itr_src
+    end.
+    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
+    2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
+    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    guclo sim_indC_spec. econs 3.
+    eapply gpaco9_mon_bot; eauto with paco.
+    revert SIM PERM WF. clear. i.
+    rewrite interp_state_tau in *.
+    remember true as p_src. clear Heqp_src.
+    revert_until RR. gcofix CIH. i.
+    match goal with
+    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
+        remember _itr_src as itr_src
+    end.
+    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
+    2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
+    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    guclo sim_indC_spec. econs 3.
+    eapply gpaco9_mon_bot; eauto with paco.
+    revert SIM PERM WF. clear. i.
+    rename x into tid, ths2 into ths0, ths3 into ths1, itr_tgt0 into itr_tgt.
+
+  Admitted.
+
+  Lemma sim_yieldL_change
+        R0 R1 (RR: R0 -> R1 -> Prop)
+        ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt)
+        (st_src: state_src) (st_tgt: state_tgt)
+        tid0 tid1 ths_tgt tgt
+        (ths_src0 ths_src1: @threads _ident_src (sE state_src) R0)
+        (ktr_src0: unit -> @thread _ident_src (sE state_src) R0)
+        (src: @thread _ident_src (sE state_src) R0)
+        (WF: threads_wf (threads_add tid0 (ktr_src0 tt) ths_src0))
+        (POP: threads_pop tid1 (threads_add tid0 (ktr_src0 tt) ths_src0) = Some (src, ths_src1))
+        (SIM: sim RR ps ms pt mt
+                  (interp_all st_src ths_src1 tid1 (Vis (inl1 (inr1 Yield)) (fun _ => src)))
+                  (interp_all st_tgt ths_tgt tid1 tgt))
+    :
+    sim RR ps ms pt mt
+        (interp_all st_src ths_src0 tid0 (Vis (inl1 (inr1 Yield)) ktr_src0))
+        (interp_all st_tgt ths_tgt tid1 tgt).
+  Proof.
+    unfold interp_all in *. rewrite unfold_interp_sched in *.
+    unfold thread in *. rewrite interp_thread_vis_yield in *.
+    rewrite bind_ret_l in *.
+    pose (@pick_thread_nondet_yield _ident_src (sE state_src) R0).
+    unfold thread in *. rewrite e. rewrite e in SIM. clear e.
+    eapply sim_perm_l. 3: eauto. auto.
+    revert POP WF. clear. i.
+
+  Admitted.
+
+
+
   Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
   Let gsrcE := @eventE ident_src.
@@ -110,153 +354,69 @@ Section ADEQ.
   Variable world_le: world -> world -> Prop.
 
   Let shared := @shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt world.
-  Let shared_rel: Type := shared -> Prop.
-  Variable I: shared_rel.
 
-  Let threads_src R0 := @threads _ident_src (sE state_src) R0.
+  Definition threads2 _id ev R := alist tids.(id) (prod bool (@thread _id ev R)).
+  Let threads_src R0 := threads2 _ident_src (sE state_src) R0.
   Let threads_tgt R1 := @threads _ident_tgt (sE state_tgt) R1.
 
-  Definition pick_cont {R _id st} (threads: @threads _id (sE st) R):
-    itree ((@eventE (sum_tids _id)) +' (sE st)) R :=
-    Vis (inl1 (Choose tids.(id)))
-        (fun t => match threads_pop t threads with
-               | None => Vis (inl1 (Choose void)) (fun _ => tau;; interp_sched (threads, inr (inl tt)))
-               | Some (th, ths) =>
-                   Vis (inl1 (Fair (sum_fmap_l (thread_fmap t))))
-                       (fun _ => tau;; interp_sched (ths, inl (t, th)))
-               end).
 
-  Variant __sim_knot R0 R1 (RR: R0 -> R1 -> Prop)
-          (sim_knot: threads_src R0 -> threads_tgt R1 -> (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel)
-          (_sim_knot: threads_src R0 -> threads_tgt R1 -> (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel)
-          (thsl: threads_src R0) (thsr: threads_tgt R1)
-    :
-    (prod tids.(id) tids.(id)) -> bool -> bool -> itree srcE R0 -> itree tgtE R1 -> shared_rel :=
-    | sim_knot_ret_term
-        tid f_src f_tgt
-        r_src r_tgt
-        ths tht im_src im_tgt st_src st_tgt o w
-        ths0 tht0 w0
-        (THSR: tid_list_remove ths tid ths0)
-        (THTR: tid_list_remove tht tid tht0)
-        (WORLD: world_le w w0)
-        (INV: I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
-        (RET: RR r_src r_tgt)
-        (NILS: thsl = [])
-        (NILT: thsr = [])
-      :
-      __sim_knot RR sim_knot _sim_knot thsl thsr (tid, tid) f_src f_tgt
-                 (Ret r_src)
-                 (Ret r_tgt)
-                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
-    | sim_knot_ret_cont
-        tid f_src f_tgt
-        r_src r_tgt
-        ths tht im_src im_tgt st_src st_tgt o w
-        ths0 tht0 w0
-        (THSR: tid_list_remove ths tid ths0)
-        (THTR: tid_list_remove tht tid tht0)
-        (WORLD: world_le w w0)
-        (INV: I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
-        (RET: RR r_src r_tgt)
-        (NNILS: thsl <> [])
-        (NNILT: thsr <> [])
-        (KSIM: sim_knot thsl thsr (tid, tid) f_src f_tgt
-                        (interp_state (st_src, pick_cont thsl))
-                        (interp_state (st_tgt, pick_cont thsr))
-                        (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0))
-      :
-      __sim_knot RR sim_knot _sim_knot thsl thsr (tid, tid) f_src f_tgt
-                 (Ret r_src)
-                 (Ret r_tgt)
-                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+  Lemma _ksim_mon R0 R1 (RR: R0 -> R1 -> Prop): forall r, monotone8 (__sim_knot RR r).
+  Proof.
+    ii. inv IN; try (econs; eauto; fail).
+    { des. econs; eauto. }
+    { des. econs; eauto. }
+    { des. econs; eauto. }
+  Qed.
 
-    | sim_knot_sync_open
-        tid f_src f_tgt
-        ktr_src ktr_tgt
-        ths tht im_src im_tgt st_src st_tgt o w
-        (KSIM: sim_knot (threads_add tid (ktr_src tt) thsl)
-                        (threads_add tid (ktr_tgt tt) thsr)
-                        (tid, tid) f_src f_tgt
-                        (interp_state (st_src, pick_cont thsl))
-                        (interp_state (st_tgt, pick_cont thsr))
-                        (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
-      :
-      __sim_knot RR sim_knot _sim_knot thsl thsr (tid, tid) f_src f_tgt
-                 (interp_all st_src thsl tid (Vis (inl1 (inr1 Yield)) ktr_src))
-                 (interp_all st_tgt thsr tid (Vis (inl1 (inr1 Yield)) ktr_tgt))
-                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
-    | sim_knot_sync_close
-        tid f_src f_tgt
-        ktr_src ktr_tgt
-        ths tht im_src im_tgt st_src st_tgt o w
-        (KSIM: sim_knot htids0 thsl thsr tid tid f_src f_tgt
-                        (interp_state (st_src, pick_cont thsl))
-                        (interp_state (st_tgt, pick_cont thsr))
-                        (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
-      :
-      __sim_knot RR sim_knot _sim_knot htids thsl thsr tid tid f_src f_tgt
-                 (interp_state (st_src, pick_cont thsl))
-                 (interp_state (st_tgt, pick_cont thsr))
-                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
-  .
+  Lemma ksim_mon R0 R1 (RR: R0 -> R1 -> Prop): forall q, monotone8 (fun r => pind8 (__sim_knot RR r) q).
+  Proof.
+    ii. eapply pind8_mon_gen; eauto.
+    ii. eapply __ksim_mon; eauto.
+  Qed.
+
+  Local Hint Constructors __sim_knot: core.
+  Local Hint Unfold sim_knot: core.
+  Local Hint Resolve __ksim_mon: paco.
+  Local Hint Resolve _ksim_mon: paco.
+  Local Hint Resolve ksim_mon: paco.
 
 
 
+  (* Ltac pull_tau := rewrite interp_sched_tau; rewrite interp_state_tau. *)
 
-
-
-
-
-
-
-
-  Ltac gfold := gfinal; right; pfold.
-
-  Ltac pull_tau := rewrite interp_sched_tau; rewrite interp_state_tau.
-
-  Ltac pull_eventE_l :=
-    match goal with
-    | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) _ => replace (trigger EV >>= ktr) with (trigger (inl1 (inl1 EV)) >>= ktr)
-    end; auto; rewrite interp_sched_eventE_trigger; rewrite interp_state_trigger.
-
-  Ltac pull_eventE_r :=
-    match goal with
-    | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) => replace (trigger EV >>= ktr) with (trigger (inl1 (inl1 EV)) >>= ktr)
-    end; auto; rewrite interp_sched_eventE_trigger; rewrite interp_state_trigger.
-
-  (* Ltac push_eventE_l := *)
+  (* Ltac pull_eventE_l := *)
   (*   match goal with *)
-  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, trigger ?EV >>= Tau (interp_sched ?a))) _ => *)
-  (*       replace (trigger EV >>= Tau (interp_sched a)) with (trigger (inl1 EV);; Tau (interp_sched a)) *)
-  (*   end; auto; rewrite <- interp_sched_eventE_trigger. *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) _ => replace (trigger EV >>= ktr) with (trigger (inl1 (inl1 EV)) >>= ktr) *)
+  (*   end; auto; rewrite interp_sched_eventE_trigger; rewrite interp_state_trigger. *)
 
-  (* Ltac push_eventE_r := *)
+  (* Ltac pull_eventE_r := *)
   (*   match goal with *)
-  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, trigger ?EV >>= Tau (interp_sched ?a))) => *)
-  (*       replace (trigger EV >>= Tau (interp_sched a)) with (trigger (inl1 EV);; Tau (interp_sched a)) *)
-  (*   end; auto; rewrite <- interp_sched_eventE_trigger. *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) => replace (trigger EV >>= ktr) with (trigger (inl1 (inl1 EV)) >>= ktr) *)
+  (*   end; auto; rewrite interp_sched_eventE_trigger; rewrite interp_state_trigger. *)
 
-  Ltac pull_sE_l :=
-    match goal with
-    | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) _ => replace (trigger EV >>= ktr) with (trigger (inr1 EV) >>= ktr)
-    end; auto; rewrite interp_sched_trigger.
+  (* Ltac pull_sE_l := *)
+  (*   match goal with *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) _ => replace (trigger EV >>= ktr) with (trigger (inr1 EV) >>= ktr) *)
+  (*   end; auto; rewrite interp_sched_trigger. *)
 
-  Ltac pull_sE_r :=
-    match goal with
-    | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) => replace (trigger EV >>= ktr) with (trigger (inr1 EV) >>= ktr)
-    end; auto; rewrite interp_sched_trigger.
+  (* Ltac pull_sE_r := *)
+  (*   match goal with *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) => replace (trigger EV >>= ktr) with (trigger (inr1 EV) >>= ktr) *)
+  (*   end; auto; rewrite interp_sched_trigger. *)
 
-  Ltac rewrite_cE_l :=
-    match goal with
-    | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) _ => replace (trigger EV >>= ktr) with (trigger (inl1 (inr1 EV)) >>= ktr)
-    end; auto.
+  (* Ltac rewrite_cE_l := *)
+  (*   match goal with *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) _ => replace (trigger EV >>= ktr) with (trigger (inl1 (inr1 EV)) >>= ktr) *)
+  (*   end; auto. *)
 
-  Ltac rewrite_cE_r :=
-    match goal with
-    | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) => replace (trigger EV >>= ktr) with (trigger (inl1 (inr1 EV)) >>= ktr)
-    end; auto.
+  (* Ltac rewrite_cE_r := *)
+  (*   match goal with *)
+  (*   | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, interp_sched (_, inl (_, trigger ?EV >>= ?ktr)))) => replace (trigger EV >>= ktr) with (trigger (inl1 (inr1 EV)) >>= ktr) *)
+  (*   end; auto. *)
 
+
+
+  Variable I: shared -> Prop.
 
   (*invariant for tid_list & threads: tid_list_add threads.proj1 tid tid_list*)
   Theorem local_adequacy

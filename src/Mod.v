@@ -66,8 +66,8 @@ Module Mod.
   Record t: Type :=
     mk {
         state: Type;
-        _ident: ID;
-        ident: ID := sum_tids _ident;
+        ident: ID;
+        (* ident: ID := sum_tids _ident; *)
         st_init: state;
         funs: fname -> ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val;
       }.
