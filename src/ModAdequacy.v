@@ -345,10 +345,8 @@ Section ADEQ.
 
 
 
-  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
-  Let gsrcE := @eventE ident_src.
-  Let gtgtE := @eventE ident_tgt.
+  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
+  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
   Variable world: Type.
   Variable world_le: world -> world -> Prop.
@@ -359,6 +357,339 @@ Section ADEQ.
   Let threads_src R0 := threads2 _ident_src (sE state_src) R0.
   Let threads_tgt R1 := @threads _ident_tgt (sE state_tgt) R1.
 
+  Variant __sim_knot R0 R1 (RR: R0 -> R1 -> Prop)
+          (sim_knot: threads_src R0 -> threads_tgt R1 -> tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
+          (_sim_knot: threads_src R0 -> threads_tgt R1 -> tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
+          (thsl: threads_src R0) (thsr: threads_tgt R1)
+    :
+    tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> shared -> Prop :=
+    | ksim_ret_term
+        tid f_src f_tgt
+        sf r_src r_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        ths0 tht0 w0
+        (THSR: tid_list_remove ths tid ths0)
+        (THTR: tid_list_remove tht tid tht0)
+        (WORLD: world_le w w0)
+        (RET: RR r_src r_tgt)
+        (NILS: thsl = [])
+        (NILT: thsr = [])
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Ret r_src)
+                 (Ret r_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_ret_cont
+        tid f_src f_tgt
+        sf r_src r_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        ths0 tht0 w0
+        (THSR: tid_list_remove ths tid ths0)
+        (THTR: tid_list_remove tht tid tht0)
+        (WORLD: world_le w w0)
+        (RET: RR r_src r_tgt)
+        (NNILS: thsl <> [])
+        (NNILT: thsr <> [])
+        (KSIM: forall tid0,
+            ((threads_pop tid0 thsl = None) /\ (threads_pop tid0 thsr = None)) \/
+              (exists b th_src thsl0 th_tgt thsr0,
+                  (threads_pop tid0 thsl = Some ((b, th_src), thsl0)) /\
+                    (threads_pop tid0 thsr = Some (th_tgt, thsr0)) /\
+                    ((b = true) ->
+                     exists o0 w1,
+                       (wf_src.(lt) o0 o) /\ (world_le w0 w1) /\
+                         (forall im_tgt0
+                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                             sim_knot thsl0 thsr0 tid0 true true
+                                      (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
+                                      (th_tgt)
+                                      (ths0, tht0, im_src, im_tgt0, st_src, st_tgt, o0, w1))) /\
+                    ((b = false) ->
+                     (forall im_tgt0
+                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                       exists im_src0,
+                         (fair_update im_src im_src0 (sum_fmap_l (thread_fmap tid0))) /\
+                           (sim_knot thsl0 thsr0 tid0 true true
+                                     (b, th_src)
+                                     th_tgt
+                                     (ths0, tht0, im_src0, im_tgt0, st_src, st_tgt, o, w0))))))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Ret r_src)
+                 (Ret r_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+
+    | ksim_sync
+        tid f_src f_tgt
+        sf ktr_src ktr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        thsl0 thsr0
+        (THSL: thsl0 = threads_add tid (true, ktr_src tt) thsl)
+        (THSR: thsr0 = threads_add tid (ktr_tgt tt) thsr)
+        (KSIM: forall tid0,
+            ((threads_pop tid0 thsl0 = None) /\ (threads_pop tid0 thsr0 = None)) \/
+              (exists b th_src thsl1 th_tgt thsr1,
+                  (threads_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
+                    (threads_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
+                    ((b = true) ->
+                     exists o0 w0,
+                       (wf_src.(lt) o0 o) /\ (world_le w w0) /\
+                         (forall im_tgt0
+                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                             sim_knot thsl1 thsr1 tid0 true true
+                                      (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
+                                      (th_tgt)
+                                      (ths, tht, im_src, im_tgt0, st_src, st_tgt, o0, w0))) /\
+                    ((b = false) ->
+                     (forall im_tgt0
+                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                       exists im_src0,
+                         (fair_update im_src im_src0 (sum_fmap_l (thread_fmap tid0))) /\
+                           (sim_knot thsl1 thsr1 tid0 true true
+                                     (b, th_src)
+                                     th_tgt
+                                     (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o, w))))))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inl1 (inr1 Yield)) ktr_src)
+                 (Vis (inl1 (inr1 Yield)) ktr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+
+    | ksim_yieldL
+        tid f_src f_tgt
+        sf ktr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: exists im_src0 o0,
+            (fair_update im_src im_src0 (sum_fmap_l (thread_fmap tid))) /\
+              (_sim_knot thsl thsr tid true f_tgt
+                         (false, ktr_src tt)
+                         itr_tgt
+                         (ths, tht, im_src0, im_tgt, st_src, st_tgt, o0, w)))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inl1 (inr1 Yield)) ktr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+
+    | ksim_tauL
+        tid f_src f_tgt
+        sf itr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: _sim_knot thsl thsr tid true f_tgt
+                         (sf, itr_src)
+                         itr_tgt
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Tau itr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_ChooseL
+        tid f_src f_tgt
+        sf X ktr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: exists x, _sim_knot thsl thsr tid true f_tgt
+                         (sf, ktr_src x)
+                         itr_tgt
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inl1 (inl1 (Choose X))) ktr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_putL
+        tid f_src f_tgt
+        sf st_src0 ktr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: _sim_knot thsl thsr tid true f_tgt
+                         (sf, ktr_src tt)
+                         itr_tgt
+                         (ths, tht, im_src, im_tgt, st_src0, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inr1 (Mod.Put st_src0)) ktr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_getL
+        tid f_src f_tgt
+        sf ktr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: _sim_knot thsl thsr tid true f_tgt
+                         (sf, ktr_src st_src)
+                         itr_tgt
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inr1 (@Mod.Get _)) ktr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_tidL
+        tid f_src f_tgt
+        sf ktr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: _sim_knot thsl thsr tid true f_tgt
+                         (sf, ktr_src tid)
+                         itr_tgt
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inl1 (inr1 GetTid)) ktr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_UB
+        tid f_src f_tgt
+        sf ktr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inl1 (inl1 Undefined)) ktr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_fairL
+        tid f_src f_tgt
+        sf fm ktr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: exists im_src0,
+            (<<FAIR: fair_update im_src im_src0 (sum_fmap_r fm)>>) /\
+              (_sim_knot thsl thsr tid true f_tgt
+                         (sf, ktr_src tt)
+                         itr_tgt
+                         (ths, tht, im_src0, im_tgt, st_src, st_tgt, o, w)))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inl1 (inl1 (Fair fm))) ktr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+
+    | ksim_tauR
+        tid f_src f_tgt
+        sf itr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: _sim_knot thsl thsr tid f_src true
+                         (sf, itr_src)
+                         itr_tgt
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, itr_src)
+                 (Tau itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_ChooseR
+        tid f_src f_tgt
+        sf itr_src X ktr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: forall x, _sim_knot thsl thsr tid f_src true
+                         (sf, itr_src)
+                         (ktr_tgt x)
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, itr_src)
+                 (Vis (inl1 (inl1 (Choose X))) ktr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_putR
+        tid f_src f_tgt
+        sf itr_src st_tgt0 ktr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: _sim_knot thsl thsr tid f_src true
+                         (sf, itr_src)
+                         (ktr_tgt tt)
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt0, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, itr_src)
+                 (Vis (inr1 (Mod.Put st_tgt0)) ktr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_getR
+        tid f_src f_tgt
+        sf itr_src ktr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: _sim_knot thsl thsr tid f_src true
+                         (sf, itr_src)
+                         (ktr_tgt st_tgt)
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, itr_src)
+                 (Vis (inr1 (@Mod.Get _)) ktr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_tidR
+        tid f_src f_tgt
+        sf itr_src ktr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: _sim_knot thsl thsr tid f_src true
+                         (sf, itr_src)
+                         (ktr_tgt tid)
+                         (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, itr_src)
+                 (Vis (inl1 (inr1 GetTid)) ktr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+    | ksim_fairR
+        tid f_src f_tgt
+        sf itr_src fm ktr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_r fm)),
+            (_sim_knot thsl thsr tid f_src true
+                       (sf, itr_src)
+                       (ktr_tgt tt)
+                       (ths, tht, im_src, im_tgt0, st_src, st_tgt, o, w)))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, itr_src)
+                 (Vis (inl1 (inl1 (Fair fm))) ktr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+
+    | ksim_observe
+        tid f_src f_tgt
+        sf fn args ktr_src ktr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: forall ret, sim_knot thsl thsr tid true true
+                               (sf, ktr_src ret)
+                               (ktr_tgt ret)
+                               (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
+                 (sf, Vis (inl1 (inl1 (Observe fn args))) ktr_src)
+                 (Vis (inl1 (inl1 (Observe fn args))) ktr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+
+    | ksim_progress
+        tid
+        sf itr_src itr_tgt
+        ths tht im_src im_tgt st_src st_tgt o w
+        (KSIM: sim_knot thsl thsr tid false false
+                        (sf, itr_src)
+                        itr_tgt
+                        (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w))
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid true true
+                 (sf, itr_src)
+                 (itr_tgt)
+                 (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
+  .
+
+  Definition sim_knot R0 R1 (RR: R0 -> R1 -> Prop):
+    threads_src R0 -> threads_tgt R1 -> tids.(id) ->
+    bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop :=
+    paco8 (fun r => pind8 (__sim_knot RR r) top8) bot8.
+
+  Lemma __ksim_mon R0 R1 (RR: R0 -> R1 -> Prop):
+    forall r r' (LE: r <8= r'), (__sim_knot RR r) <9= (__sim_knot RR r').
+  Proof.
+    ii. inv PR; try (econs; eauto; fail).
+    { econs 2; eauto. i. specialize (KSIM tid0). des; eauto. right.
+      esplits; eauto.
+      i. specialize (KSIM1 H). des. esplits; eauto.
+      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
+    }
+    { econs 3; eauto. i. specialize (KSIM tid0). des; eauto. right.
+      esplits; eauto.
+      i. specialize (KSIM1 H). des. esplits; eauto.
+      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
+    }
+  Qed.
 
   Lemma _ksim_mon R0 R1 (RR: R0 -> R1 -> Prop): forall r, monotone8 (__sim_knot RR r).
   Proof.

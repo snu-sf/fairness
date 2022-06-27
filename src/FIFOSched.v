@@ -13,8 +13,9 @@ Section SCHEDULE.
   Context {_Ident : ID}.
   Variable E : Type -> Type.
 
+  Let eventE1 := @eventE _Ident.
   Let eventE2 := @eventE (sum_tids _Ident).
-  Let Es := (eventE2 +' cE) +' E.
+  Let Es := (eventE1 +' cE) +' E.
 
   Definition pick_thread_fifo {R} :
     tids.(id) * (thread E R + R) -> threads E R ->
