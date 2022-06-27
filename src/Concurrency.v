@@ -132,26 +132,46 @@ End STATE.
 
 
 
+Section ALISTAUX.
+
+  Definition alist_pop (K : Type) (R : K -> K -> Prop) (DEC: RelDec.RelDec R) (V: Type)
+    : K -> alist K V -> option (prod V (alist K V)) :=
+    fun k l => match alist_find DEC k l with
+            | None => None
+            | Some v => Some (v, alist_remove DEC k l)
+            end.
+
+  Definition alist_proj1 K V (a: alist K V): list K := List.map fst a.
+
+  Definition alist_wf (K : Type) (V: Type) : alist K V -> Prop :=
+    fun l => List.NoDup (alist_proj1 l).
+
+End ALISTAUX.
+
 Section SCHEDULE.
 
   Context {_Ident: ID}.
   Variable E: Type -> Type.
 
+  Let eventE1 := @eventE _Ident.
   Let eventE2 := @eventE (sum_tids _Ident).
-  Let Es := (eventE2 +' cE) +' E.
 
-  Definition thread R := itree Es R.
+  Definition embed_eventE X (e: eventE1 X): eventE2 X.
+  Proof.
+    destruct e. exact (Choose X). exact (Fair (sum_fmap_r m)). exact (Observe fn args). exact Undefined.
+  Defined.
+
+  Let Es0 := (eventE1 +' cE) +' E.
+
+  Definition thread R := itree Es0 R.
   Definition threads R := alist tids.(id) (@thread R).
 
   Definition threads_add := alist_add (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_find := alist_find (RelDec.RelDec_from_dec eq tid_dec).
   Definition threads_remove := alist_remove (RelDec.RelDec_from_dec eq tid_dec).
-
-  Definition threads_pop {R} (tid: tids.(id)) (ths: threads R): option (prod (@thread R) (threads R)) :=
-    match threads_find tid ths with
-    | None => None
-    | Some th => Some (th, threads_remove tid ths)
-    end.
+  Definition threads_pop := alist_pop (RelDec.RelDec_from_dec eq tid_dec).
+  Definition threads_ids := @alist_proj1 tids.(id).
+  Definition threads_wf := @alist_wf tids.(id).
 
   Definition interp_thread {R} :
     tids.(id) * thread R -> itree (eventE2 +' E) (thread R + R).
@@ -166,7 +186,7 @@ Section SCHEDULE.
     - (* Vis *)
       destruct e as [[]|].
       + (* eventE2 *)
-        exact (Vis (inl1 e) (fun x => Ret (inl (tid, k x)))).
+        exact (Vis (inl1 (embed_eventE e)) (fun x => Ret (inl (tid, k x)))).
       + (* cE *)
         destruct c.
         * (* Yield *)
@@ -222,11 +242,11 @@ Section SCHEDULE.
     interp_thread (tid, Ret r) = Ret (inr r).
   Proof. unfold interp_thread. rewrite unfold_iter. ss. rewrite bind_ret_l. ss. Qed.
 
-  Lemma interp_thread_tau R tid (itr : itree Es R) :
+  Lemma interp_thread_tau R tid (itr : thread R) :
     interp_thread (tid, tau;; itr) = tau;; interp_thread (tid, itr).
   Proof. unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_ret_l. ss. Qed.
 
-  Lemma interp_thread_vis R tid X (e : E X) (ktr : ktree Es X R) :
+  Lemma interp_thread_vis R tid X (e : E X) (ktr : ktree Es0 X R) :
     interp_thread (tid, Vis (inr1 e) ktr) =
       Vis (inr1 e) (fun x => tau;; interp_thread (tid, ktr x)).
   Proof.
@@ -235,45 +255,45 @@ Section SCHEDULE.
     rewrite bind_ret_l. ss.
   Qed.
 
-  Lemma interp_thread_trigger R tid X (e : E X) (ktr : ktree Es X R) :
+  Lemma interp_thread_trigger R tid X (e : E X) (ktr : ktree Es0 X R) :
     interp_thread (tid, x <- trigger (inr1 e);; ktr x) =
       x <- trigger (inr1 e);; tau;; interp_thread (tid, ktr x).
   Proof. rewrite ! bind_trigger. eapply interp_thread_vis. Qed.
 
-  Lemma interp_thread_vis_eventE R tid X (e : eventE2 X) (ktr : ktree Es X R) :
+  Lemma interp_thread_vis_eventE R tid X (e : eventE1 X) (ktr : ktree Es0 X R) :
     interp_thread (tid, Vis (inl1 (inl1 e)) ktr) =
-      Vis (inl1 e) (fun x => tau;; interp_thread (tid, ktr x)).
+      Vis (inl1 (embed_eventE e)) (fun x => tau;; interp_thread (tid, ktr x)).
   Proof.
     unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_vis.
-    eapply (f_equal (fun x => Vis (inl1 e) x)). extensionality x.
+    eapply (f_equal (fun x => Vis (inl1 (embed_eventE e)) x)). extensionality x.
     rewrite bind_ret_l. ss.
   Qed.
 
-  Lemma interp_thread_trigger_eventE R tid X (e : eventE2 X) (ktr : ktree Es X R) :
+  Lemma interp_thread_trigger_eventE R tid X (e : eventE1 X) (ktr : ktree Es0 X R) :
     interp_thread (tid, x <- trigger (inl1 (inl1 e));; ktr x) =
-      x <- trigger (inl1 e);; tau;; interp_thread (tid, ktr x).
+      x <- trigger (inl1 (embed_eventE e));; tau;; interp_thread (tid, ktr x).
   Proof. rewrite ! bind_trigger. eapply interp_thread_vis_eventE. Qed.
 
-  Lemma interp_thread_vis_gettid R tid (ktr : ktree Es tids.(id) R) :
+  Lemma interp_thread_vis_gettid R tid (ktr : ktree Es0 tids.(id) R) :
     interp_thread (tid, Vis (inl1 (inr1 GetTid)) ktr) =
       tau;; interp_thread (tid, ktr tid).
   Proof.
     unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_ret_l. ss.
   Qed.
 
-  Lemma interp_thread_trigger_gettid R tid (ktr : ktree Es tids.(id) R) :
+  Lemma interp_thread_trigger_gettid R tid (ktr : ktree Es0 tids.(id) R) :
     interp_thread (tid, x <- trigger (inl1 (inr1 GetTid));; ktr x) =
       tau;; interp_thread (tid, ktr tid).
   Proof. rewrite bind_trigger. eapply interp_thread_vis_gettid. Qed.
 
-  Lemma interp_thread_vis_yield R tid (ktr : ktree Es () R) :
+  Lemma interp_thread_vis_yield R tid (ktr : ktree Es0 () R) :
     interp_thread (tid, Vis (inl1 (inr1 Yield)) ktr) =
       Ret (inl (ktr tt)).
   Proof.
     unfold interp_thread at 1. rewrite unfold_iter. ss. rewrite bind_ret_l. ss.
   Qed.
 
-  Lemma interp_thread_trigger_yield R tid (ktr : ktree Es () R) :
+  Lemma interp_thread_trigger_yield R tid (ktr : ktree Es0 () R) :
     interp_thread (tid, x <- trigger (inl1 (inr1 Yield));; ktr x) =
       Ret (inl (ktr tt)).
   Proof. rewrite bind_trigger. apply interp_thread_vis_yield. Qed.
@@ -335,7 +355,7 @@ Section INTERP.
   Definition interp_all
              {R}
              (st: State) (ths: @threads _Ident (sE State) R)
-             tid (itr: itree ((_ +' cE) +' (sE State)) R) :
+             tid (itr: @thread _Ident (sE State) R) :
     itree (@eventE (sum_tids _Ident)) R :=
     interp_state (st, interp_sched (tid, itr, ths)).
 
@@ -349,9 +369,8 @@ Section MOD.
   Let Ident := (Mod.ident mod).
   Let main := ((Mod.funs mod) "main").
 
-
-  Definition interp_mod (ths: @threads (Mod._ident mod) (sE (Mod.state mod)) Val):
-    itree (@eventE Ident) Val :=
+  Definition interp_mod (ths: @threads (Mod.ident mod) (sE (Mod.state mod)) Val):
+    itree (@eventE (sum_tids Ident)) Val :=
     interp_all st ths tid_main (main []).
 
 End MOD.
