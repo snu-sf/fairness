@@ -93,6 +93,7 @@ Section AUX.
            (exists th ths2 ths3, (threads_pop x ths0 = Some (th, ths2)) /\
                               (threads_pop x ths1 = Some (th, ths3)) /\
                               (Permutation ths2 ths3) /\ (threads_wf ths2)).
+                              (* (Permutation ths2 ths3) /\ (threads_wf (threads_add x th ths2))). *)
   Proof.
     i. unfold threads_wf, threads_pop in *. revert_until PERM. induction PERM; i; ss.
     { left. ss. }
@@ -114,13 +115,19 @@ Section AUX.
           admit.
           unfold alist_wf. admit.
         }
-        { right. unfold alist_pop. ss. rewrite RelDec.rel_dec_neq_false; auto.
+        { right. unfold alist_pop. ss. rewrite ! RelDec.rel_dec_neq_false; auto.
           2: apply reldec_correct_tid_dec. ss.
           unfold alist_pop in *. des_ifs; ss.
-          esplits; eauto.
-          unfold alist_wf. ss. eapply List.NoDup_cons.
+          esplits; eauto. unfold alist_wf. ss.
+          eapply List.NoDup_cons.
           - ii. apply H1; clear H1. admit.
           - admit.
+          (* rewrite RelDec.rel_dec_neq_false; auto. 2: apply reldec_correct_tid_dec. ss. *)
+          (* eapply List.NoDup_cons. *)
+          (* { ii. apply H1; clear H1. inv H; clarify. exfalso. admit. } *)
+          (* eapply List.NoDup_cons. *)
+          (* - ii. apply H1; clear H1. admit. *)
+          (* - admit. *)
         }
       }
     }
@@ -150,6 +157,36 @@ Section ADEQ.
   Variable wf_tgt: WF.
 
   Ltac gfold := gfinal; right; pfold.
+
+
+  Lemma interp_all_perm_equiv
+        E R tid th (ths0 ths1: @threads _ident_src E R)
+        (PERM: Permutation ths0 ths1)
+        (WF: threads_wf ths0)
+    :
+    eq_itree (@eq R) (interp_sched (tid, th, ths0)) (interp_sched (tid, th, ths1)).
+  Proof.
+    ginit. revert_until R. gcofix CIH. i.
+    rewrite ! unfold_interp_sched.
+    destruct (observe th) eqn:T; (symmetry in T; eapply simpobs in T; eapply bisim_is_eq in T); clarify.
+    { unfold thread. rewrite ! interp_thread_ret. rewrite ! bind_ret_l.
+      pose (@pick_thread_nondet_terminate _ident_src E R).
+      unfold thread in *. rewrite ! e. clear e. destruct ths0.
+      { hexploit Permutation_nil; eauto. i; clarify. ired. gfold. econs; eauto. }
+      destruct ths1.
+      { eapply Permutation_sym in PERM. hexploit Permutation_nil; eauto. i; clarify. }
+      ired. rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
+      hexploit (ths_wf_perm_pop_eq E _ident_src PERM WF u2). i; des.
+      { unfold thread in *. rewrite H; rewrite H0.
+
+
+
+      (* guclo eqit_clo_bind. econs. reflexivity. i. clarify. destruct u2 as [th | ret]. *)
+      (* { rewrite ! pick_thread_nondet_yield. ired. rewrite <- ! bind_trigger. *)
+      (*   guclo eqit_clo_bind. econs. reflexivity. i. clarify. *)
+      (*   assert (PERM0: Permutation () *)
+      (*   hexploit (ths_wf_perm_pop_eq E _ident_src PERM WF u2). i; des. *)
+
 
   Lemma sim_perm_l
         R0 R1 (RR: R0 -> R1 -> Prop)
