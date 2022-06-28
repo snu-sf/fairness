@@ -215,7 +215,7 @@ Section ADEQ.
     revert SIM PERM WF. clear. i.
     rename x into tid, ths2 into ths0, ths3 into ths1, itr_tgt0 into itr_tgt.
     pose (@interp_all_perm_equiv _ident_src _ R0 tid th ths0 ths1 PERM WF).
-    eapply bisim_is_eq in e. unfold threads in e. ss. rewrite e.
+    eapply bisim_is_eq in e. ss. rewrite e.
     gfinal. right. eauto.
   Qed.
 
@@ -238,10 +238,8 @@ Section ADEQ.
         (interp_all st_tgt ths_tgt tid1 tgt).
   Proof.
     unfold interp_all in *. rewrite unfold_interp_sched in *.
-    unfold thread in *. rewrite interp_thread_vis_yield in *.
-    rewrite bind_ret_l in *.
-    pose (@pick_thread_nondet_yield _ident_src (sE state_src) R0).
-    unfold thread in *. rewrite e. rewrite e in SIM. clear e.
+    rewrite interp_thread_vis_yield in *. rewrite bind_ret_l in *.
+    rewrite pick_thread_nondet_yield in SIM.
     eapply sim_perm_l. 3: eauto. auto.
     revert POP WF. clear. i.
 
