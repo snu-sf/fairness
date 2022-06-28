@@ -70,7 +70,7 @@ Section ADEQ.
                              (fun tid' : nat =>
                                 match threads_pop tid' ths_src1 with
                                 | Some (t', ts') =>
-                                    Vis (Fair (sum_fmap_l (thread_fmap tid'))|)%sum
+                                    Vis (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))|)%sum
                                         (fun _ : () => Ret (inl (tid', t', ts')))
                                 | None =>
                                     Vis (Choose void|)%sum
@@ -92,7 +92,7 @@ Section ADEQ.
                    (fun tid' : nat =>
                       match threads_pop tid' ths_src0 with
                       | Some (t', ts') =>
-                          Vis (Fair (sum_fmap_l (thread_fmap tid'))|)%sum
+                          Vis (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))|)%sum
                               (fun _ : () => Ret (inl (tid', t', ts')))
                       | None =>
                           Vis (Choose void|)%sum
@@ -176,6 +176,7 @@ Section ADEQ.
     rewrite bind_trigger in Heqitr_src. inv Heqitr_src. des.
     eapply inj_pair2 in H1. hexploit (equal_f H1 tt); clear H1. i. rewrite H in SIM.
     guclo sim_indC_spec. rewrite <- bind_trigger. econs 7. esplits; eauto.
+    erewrite tids_fmap_perm_eq; eauto. eapply alist_proj1_preserves_perm; eauto.
     eapply gpaco9_mon_bot; eauto with paco.
     revert SIM PERM WF. clear. i.
     remember true as p_src. clear Heqp_src.
@@ -301,16 +302,16 @@ Section ADEQ.
                      exists o0 w1,
                        (wf_src.(lt) o0 o) /\ (world_le w0 w1) /\
                          (forall im_tgt0
-                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
                              sim_knot thsl0 thsr0 tid0 true true
                                       (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
                                       (th_tgt)
                                       (ths0, tht0, im_src, im_tgt0, st_src, st_tgt, o0, w1))) /\
                     ((b = false) ->
                      (forall im_tgt0
-                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
                        exists im_src0,
-                         (fair_update im_src im_src0 (sum_fmap_l (thread_fmap tid0))) /\
+                         (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths0))) /\
                            (sim_knot thsl0 thsr0 tid0 true true
                                      (b, th_src)
                                      th_tgt
@@ -337,16 +338,16 @@ Section ADEQ.
                      exists o0 w0,
                        (wf_src.(lt) o0 o) /\ (world_le w w0) /\
                          (forall im_tgt0
-                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht))),
                              sim_knot thsl1 thsr1 tid0 true true
                                       (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
                                       (th_tgt)
                                       (ths, tht, im_src, im_tgt0, st_src, st_tgt, o0, w0))) /\
                     ((b = false) ->
                      (forall im_tgt0
-                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (thread_fmap tid0))),
+                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht))),
                        exists im_src0,
-                         (fair_update im_src im_src0 (sum_fmap_l (thread_fmap tid0))) /\
+                         (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths))) /\
                            (sim_knot thsl1 thsr1 tid0 true true
                                      (b, th_src)
                                      th_tgt
@@ -362,7 +363,7 @@ Section ADEQ.
         sf ktr_src itr_tgt
         ths tht im_src im_tgt st_src st_tgt o w
         (KSIM: exists im_src0 o0,
-            (fair_update im_src im_src0 (sum_fmap_l (thread_fmap tid))) /\
+            (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid ths))) /\
               (_sim_knot thsl thsr tid true f_tgt
                          (false, ktr_src tt)
                          itr_tgt
@@ -658,8 +659,8 @@ Section ADEQ.
       (THT: tid_list_in tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       fs ft,
-    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (thread_fmap tid))),
-    exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid))) /\
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
+    exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
                  (lsim
                     world_le
                     I
@@ -676,7 +677,7 @@ Section ADEQ.
       (THT: tid_list_in tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       fs ft,
-    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (thread_fmap tid))),
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
       (lsim
          world_le
          I
@@ -724,6 +725,7 @@ Section ADEQ.
                (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, im_src, im_tgt, st_src, st_tgt, o, w).
   Proof.
     ii. specialize (LSIM im_tgt). des. exists im_src.
+
     (* unfold local_sim in LSIM. *)
     (* hexploit LSIM; clear LSIM. 3: eauto. *)
     (* { instantiate (1:=tid). ss. auto. } *)
