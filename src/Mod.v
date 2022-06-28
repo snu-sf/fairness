@@ -17,6 +17,10 @@ Section TID.
   Definition tids: ID := mk_id nat.
   Definition tid_main: tids.(id) := 0.
   Definition tid_dec := PeanoNat.Nat.eq_dec.
+
+  Lemma reldec_correct_tid_dec: RelDec.RelDec_Correct (RelDec.RelDec_from_dec eq tid_dec).
+  Proof. eapply RelDec.RelDec_Correct_eq_typ. Qed.
+
   Definition tid_dec_bool :=
     fun t1 t2 => if (tid_dec t1 t2) then true else false.
 
