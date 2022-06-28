@@ -183,7 +183,7 @@ Section PRIMIVIESIM.
                    (INV: I (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1))
                    (WORLD: world_le w0 w1)
                    im_tgt2
-                   (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (thread_fmap tid))),
+                   (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid tht1))),
           lsim true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt2, st_src1, st_tgt1, o1, w1))
     :
     __lsim RR tid lsim _lsim f_src f_tgt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o, w)
@@ -192,7 +192,7 @@ Section PRIMIVIESIM.
       ths tht im_src0 im_tgt st_src st_tgt o0 w
       ktr_src itr_tgt
       (LSIM: exists im_src1 o1,
-          (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid))>>) /\
+          (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
             (<<LSIM: _lsim true f_tgt (ktr_src tt) itr_tgt (ths, tht, im_src1, im_tgt, st_src, st_tgt, o1, w)>>))
     :
     __lsim RR tid lsim _lsim f_src f_tgt (trigger (Yield) >>= ktr_src) itr_tgt (ths, tht, im_src0, im_tgt, st_src, st_tgt, o0, w)

@@ -152,6 +152,17 @@ Section ALISTAUX.
     fun l => List.NoDup (alist_proj1 l).
 
 
+  Lemma alist_proj1_preserves_perm
+        K V (a0 a1: alist K V)
+        (PERM: Permutation a0 a1)
+    :
+    Permutation (alist_proj1 a0) (alist_proj1 a1).
+  Proof.
+    induction PERM; ss; eauto.
+    - econs; eauto.
+    - econs 4; eauto.
+  Qed.
+
   Lemma alist_pop_find_none
         K V R (DEC: RelDec.RelDec R)
         (CORRECT: RelDec.RelDec_Correct DEC)
@@ -311,7 +322,7 @@ Section SCHEDULE.
                   (fun tid' =>
                      match threads_pop tid' (threads_add tid t ts) with
                      | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                     | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                     | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))))
                                           (fun _ => Ret (inl (tid', t', ts')))
                      end)
       | inr r => match ts with
@@ -320,7 +331,7 @@ Section SCHEDULE.
                         (fun tid' =>
                            match threads_pop tid' ts with
                            | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                           | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                           | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))))
                                                 (fun _ => Ret (inl (tid', t', ts')))
                            end)
                 end
@@ -398,7 +409,7 @@ Section SCHEDULE.
         (fun tid' =>
            match threads_pop tid' (threads_add tid t ts) with
            | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-           | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+           | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))))
                                 (fun _ => Ret (inl (tid', t', ts')))
            end).
   Proof. ss. Qed.
@@ -411,7 +422,7 @@ Section SCHEDULE.
               (fun tid' =>
                  match threads_pop tid' ts with
                  | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                 | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (thread_fmap tid'))))
+                 | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))))
                                       (fun _ => Ret (inl (tid', t', ts')))
                  end)
       end.
@@ -499,6 +510,17 @@ Section SCHEDAUX.
   Proof. eapply alist_wf_perm_pop_cases; eauto. eapply reldec_correct_tid_dec. Qed.
 
 
+  Lemma tids_fmap_perm_eq
+        tid ts0 ts1
+        (PERM: Permutation ts0 ts1)
+    :
+    tids_fmap tid ts0 = tids_fmap tid ts1.
+  Proof.
+    extensionality t. unfold tids_fmap. des_ifs.
+    { hexploit Permutation_in; eauto. i. clarify. }
+    { eapply Permutation_sym in PERM. hexploit Permutation_in; eauto. i. clarify. }
+  Qed.
+
   Ltac gfold := gfinal; right; pfold.
 
   Lemma interp_all_perm_equiv
@@ -520,6 +542,7 @@ Section SCHEDAUX.
       hexploit (ths_wf_perm_pop_cases PERM WF u2). i; des.
       { ss. rewrite H, H0. clear H H0. ired. guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
       ss. rewrite H, H0. ired.
+      erewrite tids_fmap_perm_eq. 2: eapply alist_proj1_preserves_perm; eauto.
       rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify. destruct u0; ss.
       gfold. econs 2. right. eapply CIH; eauto.
     }
@@ -548,6 +571,7 @@ Section SCHEDAUX.
         hexploit (ths_wf_perm_pop_cases PERM0 WF0 u2). i; des.
         { ss. rewrite H, H0. clear H H0. ired. guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
         ss. rewrite H, H0. ired.
+        erewrite tids_fmap_perm_eq. 2: eapply alist_proj1_preserves_perm; eauto.
         rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify. destruct u0; ss.
         gfold. econs 2. right. eapply CIH; eauto.
       }

@@ -44,8 +44,10 @@ Section TID.
         (* (THS1: ths1 = l0 ++ l1) *)
   .
 
-  Definition thread_fmap (tid: tids.(id)): @fmap tids :=
-    fun i => if (PeanoNat.Nat.eq_dec i tid) then Flag.success else Flag.fail.
+  Definition tids_fmap (tid: tids.(id)) (tidf: tid_list): @fmap tids :=
+    fun t => if (PeanoNat.Nat.eq_dec t tid) then Flag.success
+          else if (List.in_dec tid_dec t tidf) then Flag.fail
+               else Flag.emp.
 
   Definition sum_tids (_id: ID) := id_sum tids _id.
 
