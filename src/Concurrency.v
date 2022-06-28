@@ -4,6 +4,7 @@ From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
 Require Import Program.
+Require Import Permutation.
 
 From ExtLib Require Import FMapAList.
 
@@ -142,9 +143,86 @@ Section ALISTAUX.
             end.
 
   Definition alist_proj1 K V (a: alist K V): list K := List.map fst a.
+  Definition alist_proj2 K V (a: alist K V): list V := List.map snd a.
+
+  Definition alist_proj_v1 K V1 V2 (a: alist K (prod V1 V2)): alist K V1 := List.map (fun '(k, (v1, v2)) => (k, v1)) a.
+  Definition alist_proj_v2 K V1 V2 (a: alist K (prod V1 V2)): alist K V2 := List.map (fun '(k, (v1, v2)) => (k, v2)) a.
 
   Definition alist_wf (K : Type) (V: Type) : alist K V -> Prop :=
     fun l => List.NoDup (alist_proj1 l).
+
+
+  Lemma alist_pop_find_none
+        K V R (DEC: RelDec.RelDec R)
+        (CORRECT: RelDec.RelDec_Correct DEC)
+        (a a0: alist K V) k v
+        (POP: alist_pop DEC k a = Some (v, a0))
+    :
+    alist_find DEC k a0 = None.
+  Proof.
+    unfold alist_pop in POP. des_ifs. eapply remove_eq_alist. auto.
+  Qed.
+
+  Lemma alist_pop_find_some
+        K V R (DEC: RelDec.RelDec R)
+        (a a0: alist K V) k v
+        (POP: alist_pop DEC k a = Some (v, a0))
+    :
+    alist_find DEC k a = Some v.
+  Proof.
+    unfold alist_pop in POP. des_ifs.
+  Qed.
+
+
+  Lemma alist_wf_perm_pop_cases
+        K V R (DEC: RelDec.RelDec R)
+        (CORRECT: RelDec.RelDec_Correct DEC)
+        (a0 a1: alist K V)
+        (PERM: Permutation a0 a1)
+        (WF0: alist_wf a0)
+    :
+    forall k, ((alist_pop DEC k a0 = None) /\ (alist_pop DEC k a1 = None)) \/
+           (exists v a2 a3, (alist_pop DEC k a0 = Some (v, a2)) /\
+                         (alist_pop DEC k a1 = Some (v, a3)) /\
+                         (Permutation a2 a3) /\ (alist_wf a2)).
+  Proof.
+    i. revert_until PERM. induction PERM; i; ss.
+    { left. ss. }
+    { inv WF0. specialize (IHPERM H2 k). des.
+      { destruct x as [k0 v0]. destruct (RelDec.rel_dec k k0) eqn:EQ.
+        { right. unfold alist_pop. ss. rewrite RelDec.rel_dec_eq_true; auto.
+          2: apply RelDec.rel_dec_correct; auto. ss. esplits; eauto.
+          admit.
+          unfold alist_wf. admit.
+        }
+        { left. unfold alist_pop. ss. rewrite RelDec.rel_dec_neq_false; auto.
+          2: apply RelDec.neg_rel_dec_correct; auto. ss.
+          unfold alist_pop in *. des_ifs; ss.
+        }
+      }
+      { destruct x as [k0 v0]. destruct (RelDec.rel_dec k k0) eqn:EQ.
+        { right. unfold alist_pop. ss. rewrite RelDec.rel_dec_eq_true; auto.
+          2: apply RelDec.rel_dec_correct; auto. ss. esplits; eauto.
+          admit.
+          unfold alist_wf. admit.
+        }
+        { right. unfold alist_pop. ss. rewrite ! RelDec.rel_dec_neq_false; auto.
+          2: apply RelDec.neg_rel_dec_correct; auto. ss.
+          unfold alist_pop in *. des_ifs; ss.
+          esplits; eauto. unfold alist_wf. ss.
+          eapply List.NoDup_cons.
+          - ii. apply H1; clear H1. admit.
+          - admit.
+        }
+      }
+    }
+    { admit. }
+    { assert (WF1: alist_wf l').
+      { admit. }
+      specialize (IHPERM1 WF0 k). specialize (IHPERM2 WF1 k). des; clarify; eauto.
+      right. esplits; eauto. eapply perm_trans; eauto.
+    }
+  Admitted.
 
 End ALISTAUX.
 
@@ -346,6 +424,136 @@ Section SCHEDULE.
   Proof. eapply unfold_interp_sched_aux. Qed.
 
 End SCHEDULE.
+
+
+
+Section SCHEDAUX.
+
+  Variable _ident: ID.
+  Variable E: Type -> Type.
+
+  Lemma ths_find_none_tid_add
+        R (ths: @threads _ident E R) tid
+        (NONE: threads_find tid ths = None)
+    :
+    tid_list_add (alist_proj1 ths) tid (tid :: (alist_proj1 ths)).
+  Proof.
+    revert_until ths. induction ths; i; ss.
+    { econs; ss. }
+    des_ifs. ss. destruct (tid_dec tid n) eqn:TID.
+    { clarify. eapply RelDec.neg_rel_dec_correct in Heq. ss. }
+    eapply IHths in NONE. inv NONE. econs; ss.
+    eapply List.not_in_cons. split; auto.
+  Qed.
+
+  Lemma ths_pop_find_none
+        R (ths ths0: @threads _ident E R) th tid
+        (POP: threads_pop tid ths = Some (th, ths0))
+    :
+    threads_find tid ths0 = None.
+  Proof. eapply alist_pop_find_none; eauto. eapply reldec_correct_tid_dec. Qed.
+
+  Lemma ths_pop_find_some
+        R (ths ths0: @threads _ident E R) th tid
+        (POP: threads_pop tid ths = Some (th, ths0))
+    :
+    threads_find tid ths = Some th.
+  Proof. eapply alist_pop_find_some; eauto. Qed.
+
+  Lemma ths_find_some_tid_in
+        R (ths: @threads _ident E R) tid th
+        (FIND: threads_find tid ths = Some th)
+    :
+    tid_list_in tid (alist_proj1 ths).
+  Proof.
+    revert_until ths. induction ths; i; ss. des_ifs; ss.
+    - left. symmetry. eapply RelDec.rel_dec_correct. eauto.
+    - right. eapply IHths. eauto.
+      Unshelve. eapply reldec_correct_tid_dec.
+  Qed.
+
+  Lemma ths_wf_perm_pop_cases
+        R (ths0 ths1: @threads _ident E R)
+        (PERM: Permutation ths0 ths1)
+        (WF0: threads_wf ths0)
+    :
+    forall x, ((threads_pop x ths0 = None) /\ (threads_pop x ths1 = None)) \/
+           (exists th ths2 ths3, (threads_pop x ths0 = Some (th, ths2)) /\
+                              (threads_pop x ths1 = Some (th, ths3)) /\
+                              (Permutation ths2 ths3) /\ (threads_wf ths2)).
+  Proof. eapply alist_wf_perm_pop_cases; eauto. eapply reldec_correct_tid_dec. Qed.
+
+
+  Ltac gfold := gfinal; right; pfold.
+
+  Lemma interp_all_perm_equiv
+        R tid th (ths0 ths1: @threads _ident E R)
+        (PERM: Permutation ths0 ths1)
+        (WF: threads_wf ths0)
+    :
+    eq_itree (@eq R) (interp_sched (tid, th, ths0)) (interp_sched (tid, th, ths1)).
+  Proof.
+    ginit. revert_until R. gcofix CIH. i.
+    rewrite ! unfold_interp_sched.
+    destruct (observe th) eqn:T; (symmetry in T; eapply simpobs in T; eapply bisim_is_eq in T); clarify.
+    { unfold thread. rewrite ! interp_thread_ret. rewrite ! bind_ret_l.
+      pose (@pick_thread_nondet_terminate _ident E R).
+      unfold thread in *. rewrite ! e. clear e. destruct ths0.
+      { hexploit Permutation_nil; eauto. i; clarify. ired. gfold. econs; eauto. }
+      destruct ths1.
+      { eapply Permutation_sym in PERM. hexploit Permutation_nil; eauto. i; clarify. }
+      ired. rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
+      hexploit (ths_wf_perm_pop_cases PERM WF u2). i; des.
+      { unfold thread in *. ss. rewrite H, H0. clear H H0. ired.
+        guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
+      unfold thread in *. ss. rewrite H, H0. ired.
+      rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify. destruct u0; ss.
+      gfold. econs 2. right. eapply CIH; eauto.
+    }
+    { pose (@interp_thread_tau _ident E R tid t). unfold thread in *. rewrite ! e. clear e.
+      rewrite ! bind_tau. gfold. econs 2. right.
+      pose (@unfold_interp_sched _ident E R tid t). unfold thread in *. rewrite <- ! e. clear e.
+      eauto.
+    }
+    { destruct e as [[eev | cev] | ev].
+      { unfold thread. rewrite interp_thread_vis_eventE. rewrite ! bind_vis.
+        rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
+        rewrite ! bind_tau. gfold. econs 2. right.
+        pose (@unfold_interp_sched _ident E R tid (k u2)). unfold thread in *. rewrite <- ! e. clear e.
+        eauto.
+      }
+      2:{ unfold thread. rewrite interp_thread_vis. rewrite ! bind_vis.
+          rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
+          rewrite ! bind_tau. gfold. econs 2. right.
+          pose (@unfold_interp_sched _ident E R tid (k u2)). unfold thread in *. rewrite <- ! e. clear e.
+          eauto.
+      }
+      destruct cev.
+      { unfold thread. rewrite interp_thread_vis_yield. rewrite ! bind_ret_l.
+        pose (@pick_thread_nondet_yield _ident E R).
+        unfold thread in *. rewrite ! e. clear e. rewrite <- ! bind_trigger. rewrite ! bind_bind.
+        guclo eqit_clo_bind. econs. reflexivity. i; clarify.
+        assert (PERM0: Permutation (threads_add tid (k ()) ths0) (threads_add tid (k ()) ths1)).
+        { admit. }
+        assert (WF0: threads_wf (threads_add tid (k ()) ths0)).
+        { admit. }
+        hexploit (ths_wf_perm_pop_cases PERM0 WF0 u2). i; des.
+        { unfold thread in *; ss. rewrite H, H0. clear H H0. ired.
+          guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
+        unfold thread in *. ss. rewrite H, H0. ired.
+        rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify. destruct u0; ss.
+        gfold. econs 2. right. eapply CIH; eauto.
+      }
+      { unfold thread. rewrite interp_thread_vis_gettid.
+        rewrite ! bind_tau. gfold. econs 2. right.
+        pose (@unfold_interp_sched _ident E R tid (k tid)). unfold thread in *. rewrite <- ! e. clear e.
+        eauto.
+      }
+    }
+  Admitted.
+
+End SCHEDAUX.
+
 
 Section INTERP.
 
