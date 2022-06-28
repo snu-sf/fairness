@@ -18,8 +18,8 @@ Section SCHEDULE.
   Let Es := (eventE1 +' cE) +' E.
 
   Definition pick_thread_fifo {R} :
-    tids.(id) * (thread E R + R) -> threads E R ->
-    itree (eventE2 +' E) (tids.(id) * thread E R * threads E R + R) :=
+    tids.(id) * (thread _Ident E R + R) -> threads _Ident E R ->
+    itree (eventE2 +' E) (tids.(id) * thread _Ident E R * threads _Ident E R + R) :=
     fun '(tid, res) ts =>
       match res with
       | inl t => match (ts ++ [(tid, t)]) with
@@ -34,7 +34,7 @@ Section SCHEDULE.
 
   Definition interp_fifosched {R} := @interp_sched_aux _ E (@pick_thread_fifo) R.
 
-  Lemma pick_thread_fifo_yield {R} tid (t : thread E R) ts :
+  Lemma pick_thread_fifo_yield {R} tid (t : thread _Ident E R) ts :
     pick_thread_fifo (tid, inl t) ts =
       match (ts ++ [(tid, t)]) with
       | [] => Vis (inl1 (Choose void)) (Empty_set_rect _)

@@ -226,6 +226,18 @@ Section ALISTAUX.
 
 End ALISTAUX.
 
+
+Notation thread _Id E R := (itree (((@eventE _Id) +' cE) +' E) R).
+Notation threads _Id E R := ((alist tids.(id) (@thread _Id E R))).
+
+Definition threads_add := alist_add (RelDec.RelDec_from_dec eq tid_dec).
+Definition threads_find := alist_find (RelDec.RelDec_from_dec eq tid_dec).
+Definition threads_remove := alist_remove (RelDec.RelDec_from_dec eq tid_dec).
+Definition threads_pop := alist_pop (RelDec.RelDec_from_dec eq tid_dec).
+Definition threads_ids := @alist_proj1 tids.(id).
+Definition threads_wf := @alist_wf tids.(id).
+
+
 Section SCHEDULE.
 
   Context {_Ident: ID}.
@@ -241,15 +253,18 @@ Section SCHEDULE.
 
   Let Es0 := (eventE1 +' cE) +' E.
 
-  Definition thread R := itree Es0 R.
-  Definition threads R := alist tids.(id) (@thread R).
+  Let thread R := thread _Ident E R.
+  Let threads R := threads _Ident E R.
 
-  Definition threads_add := alist_add (RelDec.RelDec_from_dec eq tid_dec).
-  Definition threads_find := alist_find (RelDec.RelDec_from_dec eq tid_dec).
-  Definition threads_remove := alist_remove (RelDec.RelDec_from_dec eq tid_dec).
-  Definition threads_pop := alist_pop (RelDec.RelDec_from_dec eq tid_dec).
-  Definition threads_ids := @alist_proj1 tids.(id).
-  Definition threads_wf := @alist_wf tids.(id).
+  (* Definition thread R := (itree Es0 R). *)
+  (* Definition threads R := (alist tids.(id) (@thread R)). *)
+
+  (* Definition threads_add := alist_add (RelDec.RelDec_from_dec eq tid_dec). *)
+  (* Definition threads_find := alist_find (RelDec.RelDec_from_dec eq tid_dec). *)
+  (* Definition threads_remove := alist_remove (RelDec.RelDec_from_dec eq tid_dec). *)
+  (* Definition threads_pop := alist_pop (RelDec.RelDec_from_dec eq tid_dec). *)
+  (* Definition threads_ids := @alist_proj1 tids.(id). *)
+  (* Definition threads_wf := @alist_wf tids.(id). *)
 
   Definition interp_thread {R} :
     tids.(id) * thread R -> itree (eventE2 +' E) (thread R + R).
@@ -429,11 +444,11 @@ End SCHEDULE.
 
 Section SCHEDAUX.
 
-  Variable _ident: ID.
+  Context {_Ident: ID}.
   Variable E: Type -> Type.
 
   Lemma ths_find_none_tid_add
-        R (ths: @threads _ident E R) tid
+        R (ths: threads _Ident E R) tid
         (NONE: threads_find tid ths = None)
     :
     tid_list_add (alist_proj1 ths) tid (tid :: (alist_proj1 ths)).
@@ -447,21 +462,21 @@ Section SCHEDAUX.
   Qed.
 
   Lemma ths_pop_find_none
-        R (ths ths0: @threads _ident E R) th tid
+        R (ths ths0: threads _Ident E R) th tid
         (POP: threads_pop tid ths = Some (th, ths0))
     :
     threads_find tid ths0 = None.
   Proof. eapply alist_pop_find_none; eauto. eapply reldec_correct_tid_dec. Qed.
 
   Lemma ths_pop_find_some
-        R (ths ths0: @threads _ident E R) th tid
+        R (ths ths0: threads _Ident E R) th tid
         (POP: threads_pop tid ths = Some (th, ths0))
     :
     threads_find tid ths = Some th.
   Proof. eapply alist_pop_find_some; eauto. Qed.
 
   Lemma ths_find_some_tid_in
-        R (ths: @threads _ident E R) tid th
+        R (ths: threads _Ident E R) tid th
         (FIND: threads_find tid ths = Some th)
     :
     tid_list_in tid (alist_proj1 ths).
@@ -473,7 +488,7 @@ Section SCHEDAUX.
   Qed.
 
   Lemma ths_wf_perm_pop_cases
-        R (ths0 ths1: @threads _ident E R)
+        R (ths0 ths1: threads _Ident E R)
         (PERM: Permutation ths0 ths1)
         (WF0: threads_wf ths0)
     :
@@ -487,7 +502,7 @@ Section SCHEDAUX.
   Ltac gfold := gfinal; right; pfold.
 
   Lemma interp_all_perm_equiv
-        R tid th (ths0 ths1: @threads _ident E R)
+        R tid th (ths0 ths1: @threads _Ident E R)
         (PERM: Permutation ths0 ths1)
         (WF: threads_wf ths0)
     :
@@ -496,58 +511,48 @@ Section SCHEDAUX.
     ginit. revert_until R. gcofix CIH. i.
     rewrite ! unfold_interp_sched.
     destruct (observe th) eqn:T; (symmetry in T; eapply simpobs in T; eapply bisim_is_eq in T); clarify.
-    { unfold thread. rewrite ! interp_thread_ret. rewrite ! bind_ret_l.
-      pose (@pick_thread_nondet_terminate _ident E R).
-      unfold thread in *. rewrite ! e. clear e. destruct ths0.
+    { rewrite ! interp_thread_ret. rewrite ! bind_ret_l.
+      rewrite ! pick_thread_nondet_terminate. destruct ths0.
       { hexploit Permutation_nil; eauto. i; clarify. ired. gfold. econs; eauto. }
       destruct ths1.
       { eapply Permutation_sym in PERM. hexploit Permutation_nil; eauto. i; clarify. }
       ired. rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
       hexploit (ths_wf_perm_pop_cases PERM WF u2). i; des.
-      { unfold thread in *. ss. rewrite H, H0. clear H H0. ired.
-        guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
-      unfold thread in *. ss. rewrite H, H0. ired.
+      { ss. rewrite H, H0. clear H H0. ired. guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
+      ss. rewrite H, H0. ired.
       rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify. destruct u0; ss.
       gfold. econs 2. right. eapply CIH; eauto.
     }
-    { pose (@interp_thread_tau _ident E R tid t). unfold thread in *. rewrite ! e. clear e.
-      rewrite ! bind_tau. gfold. econs 2. right.
-      pose (@unfold_interp_sched _ident E R tid t). unfold thread in *. rewrite <- ! e. clear e.
-      eauto.
+    { rewrite ! interp_thread_tau. rewrite ! bind_tau. gfold. econs 2. right.
+      rewrite <- ! unfold_interp_sched. eauto.
     }
     { destruct e as [[eev | cev] | ev].
-      { unfold thread. rewrite interp_thread_vis_eventE. rewrite ! bind_vis.
+      { rewrite interp_thread_vis_eventE. rewrite ! bind_vis.
         rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
         rewrite ! bind_tau. gfold. econs 2. right.
-        pose (@unfold_interp_sched _ident E R tid (k u2)). unfold thread in *. rewrite <- ! e. clear e.
-        eauto.
+        rewrite <- ! unfold_interp_sched. eauto.
       }
-      2:{ unfold thread. rewrite interp_thread_vis. rewrite ! bind_vis.
+      2:{ rewrite interp_thread_vis. rewrite ! bind_vis.
           rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify.
           rewrite ! bind_tau. gfold. econs 2. right.
-          pose (@unfold_interp_sched _ident E R tid (k u2)). unfold thread in *. rewrite <- ! e. clear e.
-          eauto.
+          rewrite <- ! unfold_interp_sched. eauto.
       }
       destruct cev.
-      { unfold thread. rewrite interp_thread_vis_yield. rewrite ! bind_ret_l.
-        pose (@pick_thread_nondet_yield _ident E R).
-        unfold thread in *. rewrite ! e. clear e. rewrite <- ! bind_trigger. rewrite ! bind_bind.
+      { rewrite interp_thread_vis_yield. rewrite ! bind_ret_l.
+        rewrite ! pick_thread_nondet_yield. rewrite <- ! bind_trigger. rewrite ! bind_bind.
         guclo eqit_clo_bind. econs. reflexivity. i; clarify.
         assert (PERM0: Permutation (threads_add tid (k ()) ths0) (threads_add tid (k ()) ths1)).
         { admit. }
         assert (WF0: threads_wf (threads_add tid (k ()) ths0)).
         { admit. }
         hexploit (ths_wf_perm_pop_cases PERM0 WF0 u2). i; des.
-        { unfold thread in *; ss. rewrite H, H0. clear H H0. ired.
-          guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
-        unfold thread in *. ss. rewrite H, H0. ired.
+        { ss. rewrite H, H0. clear H H0. ired. guclo eqit_clo_bind. econs. reflexivity. i. destruct u1. }
+        ss. rewrite H, H0. ired.
         rewrite <- ! bind_trigger. guclo eqit_clo_bind. econs. reflexivity. i; clarify. destruct u0; ss.
         gfold. econs 2. right. eapply CIH; eauto.
       }
-      { unfold thread. rewrite interp_thread_vis_gettid.
-        rewrite ! bind_tau. gfold. econs 2. right.
-        pose (@unfold_interp_sched _ident E R tid (k tid)). unfold thread in *. rewrite <- ! e. clear e.
-        eauto.
+      { rewrite interp_thread_vis_gettid. rewrite ! bind_tau. gfold. econs 2. right.
+        rewrite <- ! unfold_interp_sched. eauto.
       }
     }
   Admitted.
