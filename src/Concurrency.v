@@ -151,6 +151,9 @@ Section ALISTAUX.
   Definition alist_wf (K : Type) (V: Type) : alist K V -> Prop :=
     fun l => List.NoDup (alist_proj1 l).
 
+  Definition alist_wf_pair (K : Type) (V1 V2: Type) : alist K V1 -> alist K V2 -> Prop :=
+    fun a1 a2 => (<<WF: alist_wf a1>>) /\ (<<PERM: Permutation (alist_proj1 a1) (alist_proj1 a2)>>).
+
 
   Lemma alist_proj1_preserves_perm
         K V (a0 a1: alist K V)
