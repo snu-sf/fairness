@@ -9,13 +9,13 @@ Set Implicit Arguments.
 
 
 
+Notation thread_id := (mk_id nat).
 Section TID.
 
-  Definition nat_wf: WF :=
-    mk_wf Wf_nat.lt_wf.
+  Definition nat_wf: WF := mk_wf Wf_nat.lt_wf.
 
-  Definition tids: ID := mk_id nat.
-  Definition tid_main: tids.(id) := 0.
+  (* Definition thread_id: ID := mk_id nat. *)
+  Definition tid_main: thread_id.(id) := 0.
   Definition tid_dec := PeanoNat.Nat.eq_dec.
 
   Lemma reldec_correct_tid_dec: RelDec.RelDec_Correct (RelDec.RelDec_from_dec eq tid_dec).
@@ -24,18 +24,18 @@ Section TID.
   Definition tid_dec_bool :=
     fun t1 t2 => if (tid_dec t1 t2) then true else false.
 
-  Definition tid_list: Type := list tids.(id).
+  Definition tid_list: Type := list thread_id.(id).
 
   Definition tid_list_wf (ths: tid_list) := List.NoDup ths.
-  Definition tid_list_in (tid: tids.(id)) (ths: tid_list): Prop := List.In tid ths.
+  Definition tid_list_in (tid: thread_id.(id)) (ths: tid_list): Prop := List.In tid ths.
 
-  Variant tid_list_add (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
+  Variant tid_list_add (ths0: tid_list) (tid: thread_id.(id)) (ths1: tid_list): Prop :=
     | tid_list_add_intro
         (THS0: ~ tid_list_in tid ths0)
         (THS1: ths1 = tid :: ths0)
   .
 
-  Variant tid_list_remove (ths0: tid_list) (tid: tids.(id)) (ths1: tid_list): Prop :=
+  Variant tid_list_remove (ths0: tid_list) (tid: thread_id.(id)) (ths1: tid_list): Prop :=
     | tid_list_remove_intro
         (THS0: tid_list_in tid ths0)
         (THS1: ths1 = List.filter (fun t => tid_dec_bool t tid) ths0)
@@ -44,12 +44,12 @@ Section TID.
         (* (THS1: ths1 = l0 ++ l1) *)
   .
 
-  Definition tids_fmap (tid: tids.(id)) (tidf: tid_list): @fmap tids :=
+  Definition tids_fmap (tid: thread_id.(id)) (tidf: tid_list): @fmap thread_id :=
     fun t => if (PeanoNat.Nat.eq_dec t tid) then Flag.success
           else if (List.in_dec tid_dec t tidf) then Flag.fail
                else Flag.emp.
 
-  Definition sum_tids (_id: ID) := id_sum tids _id.
+  Definition sum_tid (_id: ID) := id_sum thread_id _id.
 
 End TID.
 
@@ -59,7 +59,7 @@ Definition Val := nat.
 
 Variant cE: Type -> Type :=
 | Yield: cE unit
-| GetTid: cE tids.(id)
+| GetTid: cE thread_id.(id)
 (* | Spawn (fn: fname) (args: list Val): cE unit *)
 .
 
@@ -73,7 +73,7 @@ Module Mod.
     mk {
         state: Type;
         ident: ID;
-        (* ident: ID := sum_tids _ident; *)
+        (* ident: ID := sum_tid _ident; *)
         st_init: state;
         funs: fname -> ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val;
       }.

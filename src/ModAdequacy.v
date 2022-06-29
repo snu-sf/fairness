@@ -24,211 +24,210 @@ Section ADEQ.
   Ltac gfold := gfinal; right; pfold.
 
   Variable state_src: Type.
-  Variable state_tgt: Type.
 
   Variable _ident_src: ID.
-  Definition ident_src := sum_tids _ident_src.
+  Let ident_src := sum_tid _ident_src.
   Variable _ident_tgt: ID.
-  Definition ident_tgt := sum_tids _ident_tgt.
+  Let ident_tgt := sum_tid _ident_tgt.
 
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Lemma sim_perm_l
-        R0 R1 (RR: R0 -> R1 -> Prop)
-        ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt)
-        tgt
-        (st_src: state_src)
-        (ths_src0 ths_src1: @threads _ident_src (sE state_src) R0)
-        (WF0: threads_wf ths_src0)
-        (* (WF1: threads_wf ths_src1) *)
-        (PERM: Permutation ths_src0 ths_src1)
-        (SIM: sim RR ps ms pt mt
-                  (interp_state
-                     (st_src,
-                       x <-
-                         Vis (Choose tids.(id)|)%sum
-                             (fun tid' : nat =>
-                                match threads_pop tid' ths_src1 with
-                                | Some (t', ts') =>
-                                    Vis (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))|)%sum
-                                        (fun _ : () => Ret (inl (tid', t', ts')))
-                                | None =>
-                                    Vis (Choose void|)%sum
-                                        (Empty_set_rect
-                                           (fun _ : void =>
-                                              itree (eventE +' sE state_src)
-                                                    (nat * itree ((eventE +' cE) +' sE state_src) R0 *
-                                                       alist nat (itree ((eventE +' cE) +' sE state_src) R0) + R0)))
-                                end);; match x with
-                                       | inl tts => Tau (interp_sched tts)
-                                       | inr r => Ret r
-                                       end)) tgt)
-    :
-    sim RR ps ms pt mt
-        (interp_state
-           (st_src,
-             x <-
-               Vis (Choose tids.(id)|)%sum
-                   (fun tid' : nat =>
-                      match threads_pop tid' ths_src0 with
-                      | Some (t', ts') =>
-                          Vis (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))|)%sum
-                              (fun _ : () => Ret (inl (tid', t', ts')))
-                      | None =>
-                          Vis (Choose void|)%sum
-                              (Empty_set_rect
-                                 (fun _ : void =>
-                                    itree (eventE +' sE state_src)
-                                          (nat * itree ((eventE +' cE) +' sE state_src) R0 *
-                                             alist nat (itree ((eventE +' cE) +' sE state_src) R0) + R0)))
-                      end);; match x with
-                             | inl tts => Tau (interp_sched tts)
-                             | inr r => Ret r
-                             end)) tgt.
-  Proof.
-    revert SIM. ired. i. rewrite interp_state_vis in *.
-    ginit. revert_until RR. gcofix CIH. i.
-    match goal with
-    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
-        remember _itr_src as itr_src
-    end.
-    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
-    { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
-    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
-    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    des. rewrite bind_trigger in Heqitr_src. inv Heqitr_src.
-    guclo sim_indC_spec. rewrite <- bind_trigger. econs 5. exists x.
-    eapply inj_pair2 in H2. hexploit (equal_f H2 x); clear H2. i. rewrite H in SIM0.
-    eapply gpaco9_mon_bot; eauto with paco.
-    revert SIM0 PERM WF0. clear. i. rename SIM0 into SIM.
-    remember true as p_src. clear Heqp_src.
-    revert_until RR. gcofix CIH. i.
-    match goal with
-    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
-        remember _itr_src as itr_src
-    end.
-    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
-    2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
-    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    guclo sim_indC_spec. rewrite <- bind_trigger. econs 3.
-    eapply gpaco9_mon_bot; eauto with paco.
-    revert SIM PERM WF0. clear. i.
-    remember true as p_src. clear Heqp_src.
-    hexploit (ths_wf_perm_pop_cases PERM WF0 x). i. des.
-    { rewrite H. rewrite H0 in SIM. revert SIM. ired. clear. i.
-      rewrite bind_trigger. rewrite interp_state_vis in *.
-      revert_until RR. gcofix CIH. i.
-      match goal with
-      | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
-          remember _itr_src as itr_src
-      end.
-      move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
-      { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
-      { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. des. destruct x. }
-      { guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. }
-      { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-      { guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
-      { gfold. econs 9. right. eapply CIH; eauto. all: ss. }
-      { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    }
-    rewrite H. rewrite H0 in SIM. clear H H0 WF0 PERM. rename H1 into PERM, H2 into WF.
-    revert SIM. ired. i. rewrite interp_state_vis in *. revert SIM WF PERM. clear. i.
-    revert_until RR. gcofix CIH. i.
-    match goal with
-    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
-        remember _itr_src as itr_src
-    end.
-    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
-    { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
-    { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    { guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. }
-    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
-    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    rewrite bind_trigger in Heqitr_src. inv Heqitr_src. des.
-    eapply inj_pair2 in H1. hexploit (equal_f H1 tt); clear H1. i. rewrite H in SIM.
-    guclo sim_indC_spec. rewrite <- bind_trigger. econs 7. esplits; eauto.
-    erewrite tids_fmap_perm_eq; eauto. eapply alist_proj1_preserves_perm; eauto.
-    eapply gpaco9_mon_bot; eauto with paco.
-    revert SIM PERM WF. clear. i.
-    remember true as p_src. clear Heqp_src.
-    revert_until RR. gcofix CIH. i.
-    match goal with
-    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
-        remember _itr_src as itr_src
-    end.
-    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
-    2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
-    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    guclo sim_indC_spec. econs 3.
-    eapply gpaco9_mon_bot; eauto with paco.
-    revert SIM PERM WF. clear. i.
-    rewrite interp_state_tau in *.
-    remember true as p_src. clear Heqp_src.
-    revert_until RR. gcofix CIH. i.
-    match goal with
-    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ =>
-        remember _itr_src as itr_src
-    end.
-    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
-    2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
-    2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. }
-    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
-    guclo sim_indC_spec. econs 3.
-    eapply gpaco9_mon_bot; eauto with paco.
-    revert SIM PERM WF. clear. i.
-    rename x into tid, ths2 into ths0, ths3 into ths1, itr_tgt0 into itr_tgt.
-    pose (@interp_all_perm_equiv _ident_src _ R0 tid th ths0 ths1 PERM WF).
-    eapply bisim_is_eq in e. ss. rewrite e.
-    gfinal. right. eauto.
-  Qed.
+  (* Lemma sim_perm_l *)
+  (*       R0 R1 (RR: R0 -> R1 -> Prop) *)
+  (*       ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt) *)
+  (*       tgt *)
+  (*       (st_src: state_src) *)
+  (*       (ths_src0 ths_src1: @threads _ident_src (sE state_src) R0) *)
+  (*       (WF0: threads_wf ths_src0) *)
+  (*       (* (WF1: threads_wf ths_src1) *) *)
+  (*       (PERM: Permutation ths_src0 ths_src1) *)
+  (*       (SIM: sim RR ps ms pt mt *)
+  (*                 (interp_state *)
+  (*                    (st_src, *)
+  (*                      x <- *)
+  (*                        Vis (Choose thread_id.(id)|)%sum *)
+  (*                            (fun tid' : nat => *)
+  (*                               match th_pop tid' ths_src1 with *)
+  (*                               | Some (t', ts') => *)
+  (*                                   Vis (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))|)%sum *)
+  (*                                       (fun _ : () => Ret (inl (tid', t', ts'))) *)
+  (*                               | None => *)
+  (*                                   Vis (Choose void|)%sum *)
+  (*                                       (Empty_set_rect *)
+  (*                                          (fun _ : void => *)
+  (*                                             itree (eventE +' sE state_src) *)
+  (*                                                   (nat * itree ((eventE +' cE) +' sE state_src) R0 * *)
+  (*                                                      alist nat (itree ((eventE +' cE) +' sE state_src) R0) + R0))) *)
+  (*                               end);; match x with *)
+  (*                                      | inl tts => Tau (interp_sched tts) *)
+  (*                                      | inr r => Ret r *)
+  (*                                      end)) tgt) *)
+  (*   : *)
+  (*   sim RR ps ms pt mt *)
+  (*       (interp_state *)
+  (*          (st_src, *)
+  (*            x <- *)
+  (*              Vis (Choose thread_id.(id)|)%sum *)
+  (*                  (fun tid' : nat => *)
+  (*                     match th_pop tid' ths_src0 with *)
+  (*                     | Some (t', ts') => *)
+  (*                         Vis (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))|)%sum *)
+  (*                             (fun _ : () => Ret (inl (tid', t', ts'))) *)
+  (*                     | None => *)
+  (*                         Vis (Choose void|)%sum *)
+  (*                             (Empty_set_rect *)
+  (*                                (fun _ : void => *)
+  (*                                   itree (eventE +' sE state_src) *)
+  (*                                         (nat * itree ((eventE +' cE) +' sE state_src) R0 * *)
+  (*                                            alist nat (itree ((eventE +' cE) +' sE state_src) R0) + R0))) *)
+  (*                     end);; match x with *)
+  (*                            | inl tts => Tau (interp_sched tts) *)
+  (*                            | inr r => Ret r *)
+  (*                            end)) tgt. *)
+  (* Proof. *)
+  (*   revert SIM. ired. i. rewrite interp_state_vis in *. *)
+  (*   ginit. revert_until RR. gcofix CIH. i. *)
+  (*   match goal with *)
+  (*   | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ => *)
+  (*       remember _itr_src as itr_src *)
+  (*   end. *)
+  (*   move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify. *)
+  (*   { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. } *)
+  (*   2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. } *)
+  (*   2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   des. rewrite bind_trigger in Heqitr_src. inv Heqitr_src. *)
+  (*   guclo sim_indC_spec. rewrite <- bind_trigger. econs 5. exists x. *)
+  (*   eapply inj_pair2 in H2. hexploit (equal_f H2 x); clear H2. i. rewrite H in SIM0. *)
+  (*   eapply gpaco9_mon_bot; eauto with paco. *)
+  (*   revert SIM0 PERM WF0. clear. i. rename SIM0 into SIM. *)
+  (*   remember true as p_src. clear Heqp_src. *)
+  (*   revert_until RR. gcofix CIH. i. *)
+  (*   match goal with *)
+  (*   | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ => *)
+  (*       remember _itr_src as itr_src *)
+  (*   end. *)
+  (*   move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify. *)
+  (*   2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. } *)
+  (*   2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   guclo sim_indC_spec. rewrite <- bind_trigger. econs 3. *)
+  (*   eapply gpaco9_mon_bot; eauto with paco. *)
+  (*   revert SIM PERM WF0. clear. i. *)
+  (*   remember true as p_src. clear Heqp_src. *)
+  (*   hexploit (ths_wf_perm_pop_cases PERM WF0 x). i. des. *)
+  (*   { rewrite H. rewrite H0 in SIM. revert SIM. ired. clear. i. *)
+  (*     rewrite bind_trigger. rewrite interp_state_vis in *. *)
+  (*     revert_until RR. gcofix CIH. i. *)
+  (*     match goal with *)
+  (*     | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ => *)
+  (*         remember _itr_src as itr_src *)
+  (*     end. *)
+  (*     move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify. *)
+  (*     { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. } *)
+  (*     { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. des. destruct x. } *)
+  (*     { guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. } *)
+  (*     { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*     { guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. } *)
+  (*     { gfold. econs 9. right. eapply CIH; eauto. all: ss. } *)
+  (*     { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   } *)
+  (*   rewrite H. rewrite H0 in SIM. clear H H0 WF0 PERM. rename H1 into PERM, H2 into WF. *)
+  (*   revert SIM. ired. i. rewrite interp_state_vis in *. revert SIM WF PERM. clear. i. *)
+  (*   revert_until RR. gcofix CIH. i. *)
+  (*   match goal with *)
+  (*   | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ => *)
+  (*       remember _itr_src as itr_src *)
+  (*   end. *)
+  (*   move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify. *)
+  (*   { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. } *)
+  (*   { rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   { guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. } *)
+  (*   2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. } *)
+  (*   2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   rewrite bind_trigger in Heqitr_src. inv Heqitr_src. des. *)
+  (*   eapply inj_pair2 in H1. hexploit (equal_f H1 tt); clear H1. i. rewrite H in SIM. *)
+  (*   guclo sim_indC_spec. rewrite <- bind_trigger. econs 7. esplits; eauto. *)
+  (*   erewrite tids_fmap_perm_eq; eauto. eapply alist_proj1_preserves_perm; eauto. *)
+  (*   eapply gpaco9_mon_bot; eauto with paco. *)
+  (*   revert SIM PERM WF. clear. i. *)
+  (*   remember true as p_src. clear Heqp_src. *)
+  (*   revert_until RR. gcofix CIH. i. *)
+  (*   match goal with *)
+  (*   | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ => *)
+  (*       remember _itr_src as itr_src *)
+  (*   end. *)
+  (*   move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify. *)
+  (*   2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. } *)
+  (*   2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   guclo sim_indC_spec. econs 3. *)
+  (*   eapply gpaco9_mon_bot; eauto with paco. *)
+  (*   revert SIM PERM WF. clear. i. *)
+  (*   rewrite interp_state_tau in *. *)
+  (*   remember true as p_src. clear Heqp_src. *)
+  (*   revert_until RR. gcofix CIH. i. *)
+  (*   match goal with *)
+  (*   | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ => *)
+  (*       remember _itr_src as itr_src *)
+  (*   end. *)
+  (*   move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify. *)
+  (*   2:{ guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x0). des. eapply IH; eauto. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. } *)
+  (*   2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   guclo sim_indC_spec. econs 3. *)
+  (*   eapply gpaco9_mon_bot; eauto with paco. *)
+  (*   revert SIM PERM WF. clear. i. *)
+  (*   rename x into tid, ths2 into ths0, ths3 into ths1, itr_tgt0 into itr_tgt. *)
+  (*   pose (@interp_all_perm_equiv _ident_src _ R0 tid th ths0 ths1 PERM WF). *)
+  (*   eapply bisim_is_eq in e. ss. rewrite e. *)
+  (*   gfinal. right. eauto. *)
+  (* Qed. *)
 
   Lemma sim_yieldL_change
         R0 R1 (RR: R0 -> R1 -> Prop)
         ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt)
-        (st_src: state_src) (st_tgt: state_tgt)
-        tid0 tid1 ths_tgt tgt
+        tgt
+        tid0 tid1
+        (st_src: state_src)
         (ths_src0 ths_src1: @threads _ident_src (sE state_src) R0)
         (ktr_src0: unit -> @thread _ident_src (sE state_src) R0)
         (src: @thread _ident_src (sE state_src) R0)
-        (WF: threads_wf (threads_add tid0 (ktr_src0 tt) ths_src0))
-        (POP: threads_pop tid1 (threads_add tid0 (ktr_src0 tt) ths_src0) = Some (src, ths_src1))
+        (POP: th_pop tid1 (Th.add tid0 (ktr_src0 tt) ths_src0) = Some (src, ths_src1))
         (SIM: sim RR ps ms pt mt
                   (interp_all st_src ths_src1 tid1 (Vis (inl1 (inr1 Yield)) (fun _ => src)))
-                  (interp_all st_tgt ths_tgt tid1 tgt))
+                  tgt)
     :
     sim RR ps ms pt mt
         (interp_all st_src ths_src0 tid0 (Vis (inl1 (inr1 Yield)) ktr_src0))
-        (interp_all st_tgt ths_tgt tid1 tgt).
+        tgt.
   Proof.
     unfold interp_all in *. rewrite unfold_interp_sched in *.
     rewrite interp_thread_vis_yield in *. rewrite bind_ret_l in *.
-    rewrite pick_thread_nondet_yield in SIM.
-    eapply sim_perm_l. 3: eauto. auto.
-    revert POP WF. clear. i.
+    (* rewrite pick_thread_nondet_yield in SIM. *)
+    rewrite pick_thread_nondet_yield in *.
 
   Admitted.
 
 
 
+  Variable state_tgt: Type.
   Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
@@ -237,16 +236,17 @@ Section ADEQ.
 
   Let shared := @shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt world.
 
-  Definition threads2 _id ev R := alist tids.(id) (prod bool (@thread _id ev R)).
-  Let threads_src R0 := threads2 _ident_src (sE state_src) R0.
-  Let threads_tgt R1 := @threads _ident_tgt (sE state_tgt) R1.
+  Definition threads2 _id ev R := Th.t (prod bool (@thread _id ev R)).
+  Let threads_src1 R0 := threads _ident_src (sE state_src) R0.
+  Let threads_src2 R0 := threads2 _ident_src (sE state_src) R0.
+  Let threads_tgt R1 := threads _ident_tgt (sE state_tgt) R1.
 
   Variant __sim_knot R0 R1 (RR: R0 -> R1 -> Prop)
-          (sim_knot: threads_src R0 -> threads_tgt R1 -> tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
-          (_sim_knot: threads_src R0 -> threads_tgt R1 -> tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
-          (thsl: threads_src R0) (thsr: threads_tgt R1)
+          (sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
+          (_sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
+          (thsl: threads_src2 R0) (thsr: threads_tgt R1)
     :
-    tids.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> shared -> Prop :=
+    thread_id.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> shared -> Prop :=
     | ksim_ret_term
         tid f_src f_tgt
         sf r_src r_tgt
@@ -256,8 +256,8 @@ Section ADEQ.
         (THTR: tid_list_remove tht tid tht0)
         (WORLD: world_le w w0)
         (RET: RR r_src r_tgt)
-        (NILS: thsl = [])
-        (NILT: thsr = [])
+        (NILS: Th.is_empty thsl = true)
+        (NILT: Th.is_empty thsr = true)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
                  (sf, Ret r_src)
@@ -272,31 +272,21 @@ Section ADEQ.
         (THTR: tid_list_remove tht tid tht0)
         (WORLD: world_le w w0)
         (RET: RR r_src r_tgt)
-        (NNILS: thsl <> [])
-        (NNILT: thsr <> [])
+        (NNILS: Th.is_empty thsl = false)
+        (NNILT: Th.is_empty thsr = false)
         (KSIM: forall tid0,
-            ((threads_pop tid0 thsl = None) /\ (threads_pop tid0 thsr = None)) \/
+            ((th_pop tid0 thsl = None) /\ (th_pop tid0 thsr = None)) \/
               (exists b th_src thsl0 th_tgt thsr0,
-                  (threads_pop tid0 thsl = Some ((b, th_src), thsl0)) /\
-                    (threads_pop tid0 thsr = Some (th_tgt, thsr0)) /\
-                    ((b = true) ->
-                     exists o0 w1,
-                       (wf_src.(lt) o0 o) /\ (world_le w0 w1) /\
-                         (forall im_tgt0
-                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
-                             sim_knot thsl0 thsr0 tid0 true true
-                                      (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
-                                      (th_tgt)
-                                      (ths0, tht0, im_src, im_tgt0, st_src, st_tgt, o0, w1))) /\
-                    ((b = false) ->
-                     (forall im_tgt0
-                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
-                       exists im_src0,
-                         (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths0))) /\
-                           (sim_knot thsl0 thsr0 tid0 true true
-                                     (b, th_src)
-                                     th_tgt
-                                     (ths0, tht0, im_src0, im_tgt0, st_src, st_tgt, o, w0))))))
+                  (th_pop tid0 thsl = Some ((b, th_src), thsl0)) /\
+                    (th_pop tid0 thsr = Some (th_tgt, thsr0)) /\
+                    (forall im_tgt0
+                       (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
+                      exists im_src0,
+                        (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths0))) /\
+                          (sim_knot thsl0 thsr0 tid0 true true
+                                    (b, th_src)
+                                    th_tgt
+                                    (ths0, tht0, im_src0, im_tgt0, st_src, st_tgt, o, w0)))))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
                  (sf, Ret r_src)
@@ -308,13 +298,13 @@ Section ADEQ.
         sf ktr_src ktr_tgt
         ths tht im_src im_tgt st_src st_tgt o w
         thsl0 thsr0
-        (THSL: thsl0 = threads_add tid (true, ktr_src tt) thsl)
-        (THSR: thsr0 = threads_add tid (ktr_tgt tt) thsr)
+        (THSL: thsl0 = Th.add tid (true, ktr_src tt) thsl)
+        (THSR: thsr0 = Th.add tid (ktr_tgt tt) thsr)
         (KSIM: forall tid0,
-            ((threads_pop tid0 thsl0 = None) /\ (threads_pop tid0 thsr0 = None)) \/
+            ((th_pop tid0 thsl0 = None) /\ (th_pop tid0 thsr0 = None)) \/
               (exists b th_src thsl1 th_tgt thsr1,
-                  (threads_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
-                    (threads_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
+                  (th_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
+                    (th_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
                     ((b = true) ->
                      exists o0 w0,
                        (wf_src.(lt) o0 o) /\ (world_le w w0) /\
@@ -555,7 +545,7 @@ Section ADEQ.
   .
 
   Definition sim_knot R0 R1 (RR: R0 -> R1 -> Prop):
-    threads_src R0 -> threads_tgt R1 -> tids.(id) ->
+    threads_src2 R0 -> threads_tgt R1 -> thread_id.(id) ->
     bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop :=
     paco8 (fun r => pind8 (__sim_knot RR r) top8) bot8.
 
@@ -565,8 +555,7 @@ Section ADEQ.
     ii. inv PR; try (econs; eauto; fail).
     { econs 2; eauto. i. specialize (KSIM tid0). des; eauto. right.
       esplits; eauto.
-      i. specialize (KSIM1 H). des. esplits; eauto.
-      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
+      i. specialize (KSIM1 _ FAIR). des. esplits; eauto.
     }
     { econs 3; eauto. i. specialize (KSIM tid0). des; eauto. right.
       esplits; eauto.
@@ -635,17 +624,20 @@ Section ADEQ.
          tgt
          (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, w0)).
 
+  Definition th_wf_pair {elt1 elt2} (m1: Th.t elt1) (m2: Th.t elt2) :=
+    th_proj1 m1 = th_proj1 m2.
+
   Lemma ths_wf_perm_pop_cases_pair
         R0 R1
-        (ths_src: threads_src R0)
+        (ths_src: threads_src2 R0)
         (ths_tgt: threads_tgt R1)
-        (WF: alist_wf_pair ths_src ths_tgt)
+        (WF: th_wf_pair ths_src ths_tgt)
     :
-    forall x, ((threads_pop x ths_src = None) /\ (threads_pop x ths_tgt = None)) \/
+    forall x, ((th_pop x ths_src = None) /\ (th_pop x ths_tgt = None)) \/
            (exists th_src th_tgt ths_src0 ths_tgt0,
-               (threads_pop x ths_src = Some (th_src, ths_src0)) /\
-                 (threads_pop x ths_tgt = Some (th_tgt, ths_tgt0)) /\
-                 (alist_wf_pair ths_src0 ths_tgt0)).
+               (th_pop x ths_src = Some (th_src, ths_src0)) /\
+                 (th_pop x ths_tgt = Some (th_tgt, ths_tgt0)) /\
+                 (th_wf_pair ths_src0 ths_tgt0)).
   Proof.
 
   Admitted.
@@ -653,39 +645,31 @@ Section ADEQ.
   (*invariant for tid_list & threads: tid_list_add threads.proj1 tid tid_list*)
   Lemma lsim_implies_ksim
         R0 R1 (RR: R0 -> R1 -> Prop)
-        (* (ths_src: @threads _ident_src (sE state_src) R0) *)
-        (ths_src: threads_src R0)
+        (ths_src: threads_src2 R0)
         (ths_tgt: threads_tgt R1)
-        (* (WFTHS: wf_ths ths_src ths_tgt) *)
-        (LOCAL: forall tid sync (src: itree srcE R0) (tgt: itree tgtE R1)
-                  (LSRC: threads_find tid ths_src = Some (sync, src))
-                  (LTGT: threads_find tid ths_tgt = Some tgt),
-            ((sync = true) -> (local_sim_sync RR src tgt)) /\
-              ((sync = false) -> (local_sim_pick RR src tgt)))
+        (LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1)
+                  (LSRC: Th.find tid ths_src = Some (sf, src))
+                  (LTGT: Th.find tid ths_tgt = Some tgt),
+            ((sf = true) -> (local_sim_sync RR src tgt)) /\
+              ((sf = false) -> (local_sim_pick RR src tgt)))
         tid
-        (THSRC: threads_find tid ths_src = None)
-        (THTGT: threads_find tid ths_tgt = None)
+        (THSRC: Th.find tid ths_src = None)
+        (THTGT: Th.find tid ths_tgt = None)
         src tgt
         sf
-        (WF: alist_wf_pair ((tid, (sf, src)) :: ths_src) ((tid, tgt) :: ths_tgt))
-        (* (LSIM: local_sim world_le I RR src tgt) *)
+        (WF: th_wf_pair (Th.add tid (sf, src) ths_src) (Th.add tid tgt ths_tgt))
         (st_src: state_src) (st_tgt: state_tgt)
-        (* (INV: forall im_tgt, exists im_src o w, *)
-        (*     I (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, im_src, im_tgt, st_src, st_tgt, o, w)) *)
         gps gpt
         o w
         (LSIM: forall im_tgt, exists im_src,
             lsim world_le I (local_RR world_le I RR tid) tid gps gpt src tgt
-                 (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, im_src, im_tgt, st_src, st_tgt, o, w))
-    (* (INV: forall im_tgt, exists im_src o w, *)
-    (*     I (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-    (* ths_src0 ths_tgt0 *)
-    (* (THSRC: threads_pop tid ths_src = Some (src0, ths_src0)) *)
-    (* (THTGT: threads_pop tid ths_tgt = Some (tgt0, ths_tgt0)) *)
+                 (th_proj1 (Th.add tid (sf, src) ths_src), th_proj1 (Th.add tid tgt ths_tgt),
+                   im_src, im_tgt, st_src, st_tgt, o, w))
     :
     forall im_tgt, exists im_src,
       sim_knot RR ths_src ths_tgt tid gps gpt (sf, src) tgt
-               (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, im_src, im_tgt, st_src, st_tgt, o, w).
+               (th_proj1 (Th.add tid (sf, src) ths_src), th_proj1 (Th.add tid tgt ths_tgt),
+                 im_src, im_tgt, st_src, st_tgt, o, w).
   Proof.
     ii. specialize (LSIM im_tgt). des. exists im_src.
     revert_until RR. pcofix CIH. i.
@@ -698,13 +682,16 @@ Section ADEQ.
     eapply pind5_acc in LSIM.
 
     { instantiate (1:= (fun gps gpt src tgt shr =>
-                          threads_find tid ths_src = None ->
-                          threads_find tid ths_tgt = None ->
+                          Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
+                          Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           forall sf : bool,
-                            alist_wf_pair ((tid, (sf, src)) :: ths_src) ((tid, tgt) :: ths_tgt) ->
-                            forall (st_src : state_src) (st_tgt : state_tgt) (o : T wf_src) (w : world) (im_tgt : imap wf_tgt) (im_src : imap wf_src),
+                            th_wf_pair (Th.add tid (sf, src) ths_src) (Th.add tid tgt ths_tgt) ->
+                            forall (st_src : state_src) (st_tgt : state_tgt) (o : T wf_src) (w : world)
+                              (im_tgt : imap wf_tgt) (im_src : imap wf_src),
                               LRR = local_RR world_le I RR tid ->
-                              shr = (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, im_src, im_tgt, st_src, st_tgt, o, w) ->
+                              shr =
+                                (th_proj1 (Th.add tid (sf, src) ths_src), th_proj1 (Th.add tid tgt ths_tgt), im_src, im_tgt,
+                                  st_src, st_tgt, o, w) ->
                               paco8
                                 (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid gps gpt (sf, src) tgt shr)) in LSIM; auto. }
 
@@ -881,7 +868,7 @@ Section ADEQ.
       guclo sim_indC_spec. econs 3.
       guclo sim_indC_spec. econs 5. exists x.
       guclo sim_indC_spec. econs 3.
-      (* make lemma for threads_pop *)
+      (* make lemma for th_pop *)
       des_ifs.
       2:{ admit. }
       hexploit LOCAL.
@@ -922,7 +909,7 @@ Section ADEQ.
       guclo sim_indC_spec. econs 3.
       guclo sim_indC_spec. econs 5. exists tid.
       guclo sim_indC_spec. econs 3.
-      (* lemma for threads_pop, etc., induction *)
+      (* lemma for th_pop, etc., induction *)
       admit.
     }
 
@@ -956,8 +943,8 @@ Section ADEQ.
     (* eapply pind5_acc in LSIM. *)
 
     (* { instantiate (1:= (fun gps gpt (src: itree srcE R0) (tgt: itree tgtE R1) shr => *)
-    (*                       threads_find tid ths_src = None -> *)
-    (*                       threads_find tid ths_tgt = None -> *)
+    (*                       Th.find tid ths_src = None -> *)
+    (*                       Th.find tid ths_tgt = None -> *)
     (*                       forall (st_src : state_src) (st_tgt : state_tgt) (mt : imap wf_tgt) (ms : imap wf_src) (w : world), *)
     (*                         LRR = local_RR world_le I RR tid -> *)
     (*                         shr = (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, ms, mt, st_src, st_tgt, o, w) -> *)
@@ -1094,7 +1081,7 @@ Section ADEQ.
     (*   guclo sim_indC_spec. econs 3. *)
     (*   guclo sim_indC_spec. econs 5. exists x. *)
     (*   guclo sim_indC_spec. econs 3. *)
-    (*   (* make lemma for threads_pop *) *)
+    (*   (* make lemma for th_pop *) *)
     (*   des_ifs. *)
     (*   2:{ admit. } *)
     (*   hexploit LOCAL. *)
@@ -1135,7 +1122,7 @@ Section ADEQ.
     (*   guclo sim_indC_spec. econs 3. *)
     (*   guclo sim_indC_spec. econs 5. exists tid. *)
     (*   guclo sim_indC_spec. econs 3. *)
-    (*   (* lemma for threads_pop, etc., induction *) *)
+    (*   (* lemma for th_pop, etc., induction *) *)
     (*   admit. *)
     (* } *)
 
@@ -1187,8 +1174,8 @@ Section ADEQ.
         (ths_tgt: threads_tgt R1)
         (* (WFTHS: wf_ths ths_src ths_tgt) *)
         tid
-        (THSRC: threads_find tid ths_src = None)
-        (THTGT: threads_find tid ths_tgt = None)
+        (THSRC: Th.find tid ths_src = None)
+        (THTGT: Th.find tid ths_tgt = None)
         src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
@@ -1211,34 +1198,34 @@ Section ADEQ.
 
 
   (* Lemma ths_find_none_ths_pop_some: *)
-  (*   threads_find tid ths = None /\ threads_pop t ths <> None *)
+  (*   Th.find tid ths = None /\ th_pop t ths <> None *)
   (*   -> t <> tid. *)
   (* Abort. *)
 
   (* Lemma ths_find_none_tlist_remove: *)
-  (*   threads_find tid ths = None /\ tid_list_remove (tid :: alist_proj1 ths) tid tl *)
+  (*   Th.find tid ths = None /\ tid_list_remove (tid :: alist_proj1 ths) tid tl *)
   (*   -> tl = alist_proj1 ths. *)
   (* Abort. *)
 
   (* Lemma perm_ths_pop: *)
-  (*   Permutation (alist_proj1 ths1) (alist_proj1 ths2) /\ threads_pop tid ths1 = Some (th1, ths3) *)
-  (*   -> exists th1 ths4, threads_pop tid ths2 = Some (th1, ths4) /\ *)
+  (*   Permutation (alist_proj1 ths1) (alist_proj1 ths2) /\ th_pop tid ths1 = Some (th1, ths3) *)
+  (*   -> exists th1 ths4, th_pop tid ths2 = Some (th1, ths4) /\ *)
   (*                   Permutation (alist_proj1 ths3) (alist_proj1 ths4). *)
   (* Abort. *)
 
   (* Lemma ths_pop_cons_perm: *)
-  (*   threads_pop tid ths = Some (th, ths0) /\ List.NoDup (alist_proj1 ths) *)
+  (*   th_pop tid ths = Some (th, ths0) /\ List.NoDup (alist_proj1 ths) *)
   (*   -> Permutation (alist_proj1 ths) (tid :: alist_proj1 ths0). *)
   (* Abort. *)
 
   (* Lemma ths_pop_update_ths_eq: *)
   (*   List.NoDup (alist_proj1 ths) -> *)
-  (*   threads_pop tid (update_threads tid itr ths) = Some (itr, ths). *)
+  (*   th_pop tid (update_threads tid itr ths) = Some (itr, ths). *)
   (* Abort. *)
 
   (* Lemma ths_pop_update_ths_perm: *)
   (*   List.NoDup (alist_proj1 ths) /\ *)
-  (*     threads_pop t (update_threads tid itr ths) = Some (th, ths0) -> *)
+  (*     th_pop t (update_threads tid itr ths) = Some (th, ths0) -> *)
   (*   Permutation (tid :: alist_proj1 ths) (t :: alist_proj1 ths0). *)
   (* Abort. *)
 

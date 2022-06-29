@@ -15,9 +15,9 @@ Section PRIMIVIESIM.
   Variable state_tgt: Type.
 
   Variable _ident_src: ID.
-  Definition ident_src := sum_tids _ident_src.
+  Definition ident_src := sum_tid _ident_src.
   Variable _ident_tgt: ID.
-  Definition ident_tgt := sum_tids _ident_tgt.
+  Definition ident_tgt := sum_tid _ident_tgt.
 
   Variable wf_src: WF.
   Variable wf_tgt: WF.
@@ -34,8 +34,8 @@ Section PRIMIVIESIM.
        tid_list *
        (@imap ident_src wf_src) *
        (@imap ident_tgt wf_tgt) *
-       (* (@imap tids wf_src) * *)
-       (* (@imap tids wf_tgt) * *)
+       (* (@imap thread_id wf_src) * *)
+       (* (@imap thread_id wf_tgt) * *)
        state_src *
        state_tgt *
        wf_src.(T) *
@@ -54,7 +54,7 @@ Section PRIMIVIESIM.
 
   Variable I: shared_rel.
 
-  Variant __lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: tids.(id))
+  Variant __lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: thread_id.(id))
             (lsim: bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
             (_lsim: bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
     :
@@ -205,7 +205,7 @@ Section PRIMIVIESIM.
     __lsim RR tid lsim _lsim true true itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
   .
 
-  Definition lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: tids.(id)):
+  Definition lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: thread_id.(id)):
     bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
     paco5 (fun r => pind5 (__lsim RR tid r) top5) bot5.
 
@@ -231,7 +231,7 @@ Section PRIMIVIESIM.
   Qed.
 
 
-  (* Variant __lsim (tid: tids.(id)) *)
+  (* Variant __lsim (tid: thread_id.(id)) *)
   (*           (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
   (*               bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel) *)
   (*           (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
@@ -385,7 +385,7 @@ Section PRIMIVIESIM.
   (*   __lsim tid lsim _lsim RR true true itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
   (* . *)
 
-  (* Definition lsim (tid: tids.(id)): forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
+  (* Definition lsim (tid: thread_id.(id)): forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
   (*     bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel := *)
   (*   paco8 (fun r => pind8 (__lsim tid r) top8) bot8. *)
 
@@ -458,15 +458,15 @@ Module ModSim.
           world_le: world -> world -> Prop;
           I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop;
 
-          init_src_tids: tid_list;
-          init_tgt_tids: tid_list;
-          (* INV should hold for all current existing tids *)
+          init_src_thread_id: tid_list;
+          init_tgt_thread_id: tid_list;
+          (* INV should hold for all current existing thread_id *)
           init: forall im_tgt, exists im_src o w,
-            I (init_src_tids, init_tgt_tids, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w);
+            I (init_src_thread_id, init_tgt_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w);
 
-          (* init_tids: tid_list; *)
+          (* init_thread_id: tid_list; *)
           (* init: forall im_tgt, exists im_src o w, *)
-          (*   I (init_tids, init_tids, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w); *)
+          (*   I (init_thread_id, init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w); *)
 
           funs: forall fn args, local_sim world_le I (@eq Val) (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args);
         }.

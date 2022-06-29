@@ -14,12 +14,12 @@ Section SCHEDULE.
   Variable E : Type -> Type.
 
   Let eventE1 := @eventE _Ident.
-  Let eventE2 := @eventE (sum_tids _Ident).
+  Let eventE2 := @eventE (sum_tid _Ident).
   Let Es := (eventE1 +' cE) +' E.
 
   Definition pick_thread_fifo {R} :
-    tids.(id) * (thread _Ident E R + R) -> threads _Ident E R ->
-    itree (eventE2 +' E) (tids.(id) * thread _Ident E R * threads _Ident E R + R) :=
+    thread_id.(id) * (thread _Ident E R + R) -> threads _Ident E R ->
+    itree (eventE2 +' E) (thread_id.(id) * thread _Ident E R * threads _Ident E R + R) :=
     fun '(tid, res) ts =>
       match res with
       | inl t => match (ts ++ [(tid, t)]) with
