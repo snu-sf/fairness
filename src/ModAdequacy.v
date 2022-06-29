@@ -279,14 +279,22 @@ Section ADEQ.
               (exists b th_src thsl0 th_tgt thsr0,
                   (th_pop tid0 thsl = Some ((b, th_src), thsl0)) /\
                     (th_pop tid0 thsr = Some (th_tgt, thsr0)) /\
-                    (forall im_tgt0
+                    ((b = true) ->
+                     (forall im_tgt0
+                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
+                         sim_knot thsl0 thsr0 tid0 true true
+                                  (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
+                                  (th_tgt)
+                                  (ths0, tht0, im_src, im_tgt0, st_src, st_tgt, o, w0))) /\
+                    ((b = false) ->
+                     forall im_tgt0
                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
-                      exists im_src0,
-                        (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths0))) /\
-                          (sim_knot thsl0 thsr0 tid0 true true
-                                    (b, th_src)
-                                    th_tgt
-                                    (ths0, tht0, im_src0, im_tgt0, st_src, st_tgt, o, w0)))))
+                     exists im_src0,
+                       (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths0))) /\
+                         (sim_knot thsl0 thsr0 tid0 true true
+                                   (b, th_src)
+                                   th_tgt
+                                   (ths0, tht0, im_src0, im_tgt0, st_src, st_tgt, o, w0)))))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
                  (sf, Ret r_src)
@@ -555,7 +563,7 @@ Section ADEQ.
     ii. inv PR; try (econs; eauto; fail).
     { econs 2; eauto. i. specialize (KSIM tid0). des; eauto. right.
       esplits; eauto.
-      i. specialize (KSIM1 _ FAIR). des. esplits; eauto.
+      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
     }
     { econs 3; eauto. i. specialize (KSIM tid0). des; eauto. right.
       esplits; eauto.
@@ -627,7 +635,7 @@ Section ADEQ.
   Definition th_wf_pair {elt1 elt2} (m1: Th.t elt1) (m2: Th.t elt2) :=
     th_proj1 m1 = th_proj1 m2.
 
-  Lemma ths_wf_perm_pop_cases_pair
+  Lemma th_wf_pair_pop_cases
         R0 R1
         (ths_src: threads_src2 R0)
         (ths_tgt: threads_tgt R1)
@@ -702,59 +710,65 @@ Section ADEQ.
     2:{ eapply _lsim_mon. }
     inv LSIM.
 
-    { clear IH rr. unfold local_RR in LSIM0. des. clarify. unfold alist_wf_pair in WF. des. ss.
-      destruct ths_src as [| th_src0 ths_src0].
-      { ss. destruct ths_tgt as [| th_tgt0 ths_tgt0].
-        { ss. pfold. eapply pind8_fold. econs 1. eapply THSR. eapply THTR. all: eauto. }
-        { exfalso. ss. eapply Permutation_cons_inv in PERM. eapply Permutation_nil_cons; eauto. }
+    { clear IH rr. unfold local_RR in LSIM0. des. clarify. unfold th_wf_pair in WF.
+      destruct (Th.is_empty ths_src) eqn:EMPS.
+      { destruct (Th.is_empty ths_tgt) eqn:EMPT.
+        { pfold. eapply pind8_fold. econs 1. eapply THSR. eapply THTR. all: eauto. }
+        { exfalso. admit. }
       }
-      { destruct ths_tgt as [| th_tgt0 ths_tgt0].
-        { exfalso. ss. eapply Permutation_cons_inv in PERM. eapply Permutation_sym in PERM. eapply Permutation_nil_cons; eauto. }
-        { pfold. eapply pind8_fold. econs 2; eauto. 1,2: ss. i.
-          remember (th_src0 :: ths_src0) as ths_src. clear Heqths_src th_src0 ths_src0.
-          remember (th_tgt0 :: ths_tgt0) as ths_tgt. clear Heqths_tgt th_tgt0 ths_tgt0.
-          assert (WF1: alist_wf ths_src).
-          { inv WF0. auto. }
-          assert (PERM0: Permutation (alist_proj1 ths_src) (alist_proj1 ths_tgt)).
-          { ss. apply Permutation_cons_inv in PERM. auto. }
-          hexploit ths_wf_perm_pop_cases_pair.
-          { split. eapply WF1. eapply PERM0. }
+      { destruct (Th.is_empty ths_tgt) eqn:EMPT.
+        { exfalso. admit. }
+        { pfold. eapply pind8_fold. econs 2; eauto. i.
+          assert (WF0: th_wf_pair ths_src ths_tgt).
+          { unfold th_wf_pair. admit. }
+          hexploit th_wf_pair_pop_cases.
+          { eapply WF0. }
           i. instantiate (1:=tid0) in H. des; auto.
-          right. destruct th_src as [sf0 th_src]. exists sf0, th_src, ths_src0, th_tgt, ths_tgt0. splits; auto.
-          - i; clarify. esplits. 1,2: admit.
-            i. right.
-            assert (ths3 = tid0 :: alist_proj1 ths_src0).
+          right. destruct th_src as [sf0 th_src]. exists sf0, th_src, ths_src0, th_tgt, ths_tgt0.
+          splits; auto.
+          - i; clarify. 
+            assert (FINDS: Th.find tid0 ths_src = Some (true, th_src)).
             { admit. }
-            assert (tht3 = tid0 :: alist_proj1 ths_tgt0).
+            assert (FINDT: Th.find tid0 ths_tgt = Some (th_tgt)).
             { admit. }
-            rewrite H2. rewrite H3. eapply CIH.
-            { i. eapply LOCAL. admit. admit. }
-            1,2: admit.
-            { ss. split; ss. unfold alist_wf in *; ss. 1,2: admit. }
-            eapply alist_pop_find_some in H. eapply ths_pop_find_some in H0.
-            hexploit LOCAL. eapply H. eapply H0. i; des. hexploit H4; ss. i. unfold local_sim_sync in H6.
-            eapply H6; eauto. 1,2: ss; auto. rewrite <- H2. rewrite <- H3. 2: rewrite <- H3; eauto.
-            eauto.
-
-          - i; clarify. dup H. dup H0. rename H2 into POP1, H3 into POP2.
-            eapply alist_pop_find_some in H. eapply ths_pop_find_some in H0.
-            hexploit LOCAL. eapply H. eapply H0. i; des. hexploit H3; ss. i. unfold local_sim_pick in H4.
-            hexploit H4; eauto. 1,2: admit. i; des. esplits; eauto.
-            right.
-            assert (ths3 = tid0 :: alist_proj1 ths_src0).
+            hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
+            hexploit H2; clear H2 H3; ss. i. unfold local_sim_sync in H2.
+            assert (ths3 = th_proj1 (Th.add tid0 (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) ths_src0)).
             { admit. }
-            assert (tht3 = tid0 :: alist_proj1 ths_tgt0).
+            assert (tht3 = th_proj1 (Th.add tid0 (th_tgt) ths_tgt0)).
             { admit. }
-            rewrite H7. rewrite H8. eapply CIH.
+            rewrite H3, H4. right. eapply CIH.
             { i. eapply LOCAL. 1,2: admit. }
             1,2: admit.
-            { ss. split; ss. unfold alist_wf in *; ss. 1,2: admit. }
-            rewrite <- H7. rewrite <- H8. eauto.
+            admit.
+            rewrite <- H3, <- H4. eapply H2; eauto. 1,2: admit.
+
+          - i. clarify.
+            assert (FINDS: Th.find tid0 ths_src = Some (false, th_src)).
+            { admit. }
+            assert (FINDT: Th.find tid0 ths_tgt = Some (th_tgt)).
+            { admit. }
+            hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
+            hexploit H3; clear H2 H3; ss. i. unfold local_sim_pick in H2.
+            hexploit H2; eauto. 1,2: admit. i; des. esplits; eauto.
+            assert (ths3 = th_proj1 (Th.add tid0 (false, th_src) ths_src0)).
+            { admit. }
+            assert (tht3 = th_proj1 (Th.add tid0 (th_tgt) ths_tgt0)).
+            { admit. }
+            rewrite H5, H6. right. eapply CIH.
+            { i. eapply LOCAL. 1,2: admit. }
+            1,2: admit.
+            admit.
+            rewrite <- H5, <- H6. eauto.
         }
       }
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
+      pfold. eapply pind8_fold. eapply ksim_tauL. split; ss.
+      hexploit IH. 2,3,4,5,6: eauto. admit.
+      i. punfold H.
+      eapply IH.
       unfold interp_all at 1. pull_tau.
       guclo sim_indC_spec. econs 3.
       eapply IH. eauto. all: eauto.
