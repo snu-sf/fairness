@@ -32,7 +32,14 @@ Proof.
   apply bisim_is_eq. eapply unfold_iter.
 Qed.
 
-
+Ltac destruct_itree itr :=
+  let E := fresh "E" in
+  destruct (observe itr) eqn: E;
+  let H := fresh "H" in
+  pose proof (H := itree_eta_ itr);
+  rewrite E in H;
+  clear E;
+  subst itr.
 
 Section STATE.
 
@@ -41,11 +48,11 @@ Section STATE.
 
   Let Es := E +' (sE State).
 
-  Definition interp_state {R}:
-    (State * (itree Es R)) -> itree E R.
+  Definition interp_state_aux {R} :
+    (State * (itree Es R)) -> itree E (State * R).
   Proof.
     eapply ITree.iter. intros [state itr]. destruct (observe itr).
-    - exact (Ret (inr r)).
+    - exact (Ret (inr (state, r))).
     - exact (Ret (inl (state, t))).
     - destruct e.
       + exact (Vis e (fun x => Ret (inl (state, k x)))).
@@ -54,12 +61,63 @@ Section STATE.
         * exact (Ret (inl (state, k state))).
   Defined.
 
+  Definition interp_state {R}:
+    (State * (itree Es R)) -> itree E R :=
+    fun x => r <- interp_state_aux x;;
+          Ret (snd r).
+
+  Lemma interp_state_aux_ret R st (r : R) :
+    interp_state_aux (st, Ret r) = Ret (st, r).
+  Proof. unfold interp_state_aux. rewrite unfold_iter. grind. Qed.
+
+  Lemma interp_state_aux_vis R st X (e : E X) (ktr : ktree Es X R) :
+    interp_state_aux (st, Vis (inl1 e) ktr) = Vis e (fun x => tau;; interp_state_aux (st, ktr x)).
+  Proof. unfold interp_state_aux. rewrite unfold_iter. grind.
+         apply observe_eta. ss. f_equal. extensionality x. grind.
+  Qed.
+
+  Lemma interp_state_aux_put R st st' (ktr : ktree Es unit R) :
+    interp_state_aux (st, Vis (inr1 (Put st')) ktr) = tau;; interp_state_aux (st', ktr tt).
+  Proof. unfold interp_state_aux. rewrite unfold_iter. grind. Qed.
+
+  Lemma interp_state_aux_get R st (ktr : ktree Es State R) :
+    interp_state_aux (st, Vis (inr1 (Get _)) ktr) = tau;; interp_state_aux (st, ktr st).
+  Proof. unfold interp_state_aux. rewrite unfold_iter. grind. Qed.
+
+  Lemma interp_state_aux_tau R st (itr : itree Es R) :
+    interp_state_aux (st, Tau itr) = Tau (interp_state_aux (st, itr)).
+  Proof. unfold interp_state_aux. rewrite unfold_iter. grind. Qed.
+
+  Lemma interp_state_bind {R1} {R2} st (itr : itree Es R1) (ktr : ktree Es R1 R2) :
+    interp_state_aux (st, itr >>= ktr) =
+      x <- interp_state_aux (st, itr);;
+      interp_state_aux (fst x, ktr (snd x)).
+  Proof.
+    eapply bisim_is_eq. revert st itr. pcofix CIH. i.
+    destruct_itree itr.
+    - rewrite interp_state_aux_ret. grind.
+      eapply paco2_mon.
+      + eapply eq_is_bisim. ss.
+      + ss.
+    - grind. rewrite 2 interp_state_aux_tau. grind.
+      pfold. econs. right. eapply CIH.
+    - grind. destruct e.
+      + rewrite 2 interp_state_aux_vis. grind.
+        pfold. econs. intros. grind. left.
+        pfold. econs. right. eapply CIH.
+      + destruct s.
+        * rewrite 2 interp_state_aux_put. grind.
+          pfold. econs. right. eapply CIH.
+        * rewrite 2 interp_state_aux_get. grind.
+          pfold. econs. right. eapply CIH.
+  Qed.
+ 
   Lemma interp_state_ret
         R (r: R) (state: State)
     :
     interp_state (state, Ret r) = Ret r.
   Proof.
-    unfold interp_state. rewrite unfold_iter. ss. grind.
+    unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. grind.
   Qed.
 
   Lemma interp_state_tau
@@ -67,7 +125,7 @@ Section STATE.
     :
     interp_state (state, tau;; itr) = tau;; interp_state (state, itr).
   Proof.
-    unfold interp_state. rewrite unfold_iter. ss. grind.
+    unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. grind.
   Qed.
 
   Lemma interp_state_put_vis
@@ -77,7 +135,7 @@ Section STATE.
     =
       tau;; interp_state (state1, ktr tt).
   Proof.
-    unfold interp_state. rewrite unfold_iter. ss. grind.
+    unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. grind.
   Qed.
 
   Lemma interp_state_put
@@ -97,7 +155,7 @@ Section STATE.
     =
       tau;; interp_state (state, ktr state).
   Proof.
-    unfold interp_state. rewrite unfold_iter. ss. grind.
+    unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. grind.
   Qed.
 
   Lemma interp_state_get
@@ -117,9 +175,9 @@ Section STATE.
     =
       Vis e (fun x => tau;; interp_state (state, ktr x)).
   Proof.
-    unfold interp_state. rewrite unfold_iter. ss. rewrite bind_vis.
+    unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. rewrite 2 bind_vis.
     apply observe_eta. ss. f_equal. extensionality x.
-    rewrite bind_ret_l. reflexivity.
+    rewrite bind_ret_l. rewrite bind_tau. reflexivity.
   Qed.
 
   Lemma interp_state_trigger

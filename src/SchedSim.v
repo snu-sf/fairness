@@ -96,11 +96,34 @@ Section SIM.
     
     rewrite unfold_interp_sched.
     rewrite unfold_interp_fifosched.
+
+    match goal with
+    | [ |- paco9 _ _ _ _ _ _ _ _ _ (interp_state (_, _ <- ?itr ;; _)) _ ] => remember itr as itr0
+    end.
+    clear Heqitr0 itr.
+    rename itr0 into itr.
+    
     revert st p_src p_tgt m_src m_tgt itr M_SRC0 M_SRC1 M_SRC2.
     pcofix CIH2.
     intros.
 
+    (* TODO : just destruct whole itree *)
     destruct_itree itr.
+    - clear CIH2.
+      rewrite 2 bind_ret_l.
+      destruct r0.
+      + admit.
+      + admit.
+    - rewrite 2 bind_tau.
+      rewrite 2 interp_state_tau.
+      pfold; do 3 econs; eauto.
+    - rewrite 2 bind_vis.
+      destruct e.
+      + rewrite 2 interp_state_vis.
+        admit.
+      + admit.
+      
+    (*
     - (* Ret case *)
       clear CIH2.
       rewrite interp_thread_ret.
@@ -357,6 +380,7 @@ Section SIM.
           rewrite 2 bind_tau.
           rewrite 2 interp_state_tau.
           pfold; do 5 econs; eauto.
+     *)
   Admitted.
 
 End SIM.
