@@ -490,6 +490,10 @@ Section SCHEDULE.
     @interp_sched_aux (@pick_thread_nondet) R.
 
   (* Lemmas for interp_thread *)
+  Lemma unfold_interp_thread {R} tid (itr : thread R) :
+    interp_thread (tid, itr) = map_event (embed_left embed_eventE) (interp_thread_aux (tid, itr)).
+  Proof. ss. Qed.
+
   Lemma interp_thread_ret {R} tid (r : R) :
     interp_thread (tid, Ret r) = Ret (inr r).
   Proof. unfold interp_thread, interp_thread_aux. rewrite unfold_iter. grind. eapply map_event_ret. Qed.
