@@ -64,12 +64,21 @@ Section SIM.
   Lemma Permutation_remove A k e (m : Th.t A) l : Permutation (elements m) ((k, e) :: l) -> Permutation (elements (remove k m)) l.
   Admitted.
 
+  Lemma Permutation_add A k e (m : Th.t A) l : Permutation (elements m) l -> Permutation (elements (add k e m)) ((k, e) :: l).
+  Admitted.
+
   Lemma setoid_in_in A k (e : A) l : SetoidList.InA (@eq_key_elt A) (k, e) l -> List.In (k, e) l.
   Admitted.
 
   Lemma Permutation_NoDupA A l1 l2 : Permutation l1 l2 -> SetoidList.NoDupA (eq_key (elt:=A)) l1 -> SetoidList.NoDupA (eq_key (elt:=A)) l2.
   Admitted.
-  
+
+  Lemma nth_error_Some' A (l : list A) x i : nth_error l i = Some x -> i < List.length l.
+  Proof.
+    i. enough (~ (i >= List.length l)) by lia. intro.
+    eapply nth_error_None in H0. rewrite H in H0. discriminate.
+  Qed.
+
   Theorem sched_sim
     p_src p_tgt
     st ths_src ths_tgt tid (itr : thread R)
@@ -79,20 +88,22 @@ Section SIM.
   Proof.
     unfold interp_all, interp_all_fifo, gsim. intro m_tgt.
 
+    (* Choose m_src and invariants about it *)
     remember (fun (i : (sum_tid _Ident).(id)) =>
                 match i with
-                | inl x => List.length ths_tgt
+                | inl x => List.length ths_tgt + 1
                 | inr x => m_tgt (inr x)
                 end) as m_src.
-    assert (M_SRC0 : m_src (inl tid) > List.length ths_tgt) by admit.
-    assert (M_SRC1 : forall i tid t, nth_error ths_tgt i = Some (tid, t) -> m_src (inl tid) > i) by admit.
-    assert (M_SRC2 : (forall i, m_src (inr i) = m_tgt (inr i))) by admit.
+    assert (M_SRC0 : m_src (inl tid) > List.length ths_tgt) by (subst; lia).
+    assert (M_SRC1 : forall i tid t, nth_error ths_tgt i = Some (tid, t) -> m_src (inl tid) > i).
+    { subst. i. eapply nth_error_Some' in H. lia. }
+    assert (M_SRC2 : (forall i, m_src (inr i) = m_tgt (inr i))) by (subst; eauto).
     clear Heqm_src.
     exists m_src.
 
+    (* coinduction - outer loop *)
     revert p_src p_tgt st ths_src ths_tgt tid itr m_tgt m_src THREADS TID M_SRC0 M_SRC1 M_SRC2.
-    pcofix CIH1.
-    intros.
+    pcofix CIH1. i.
 
     rewrite unfold_interp_sched.
     rewrite unfold_interp_fifosched.
@@ -103,13 +114,12 @@ Section SIM.
     | [ |- paco9 _ _ _ _ _ _ _ _ _ (ITree.bind (map_event _ ?itr) ?ktr) _ ] => remember itr as itr0
     end.
     clear Heqitr0 itr st.
-    rename itr0 into itr.
 
-    revert p_src p_tgt m_src m_tgt itr M_SRC0 M_SRC1 M_SRC2.
-    pcofix CIH2.
-    intros.
+    (* coinduction - inner loop *)
+    revert p_src p_tgt m_src m_tgt itr0 M_SRC0 M_SRC1 M_SRC2.
+    pcofix CIH2. i.
 
-    destruct_itree itr; cycle 1.
+    destruct_itree itr0; cycle 1.
     - (* Tau *)
       rewrite map_event_tau. grind. pfold; do 3 econs; eauto.
     - (* Vis *)
@@ -153,13 +163,10 @@ Section SIM.
                                                               end;;
                                                           _))] => destruct x as [|[tid' itr'] ths_tgt'] eqn: E_ths_tgt
         end.
-        { eapply app_eq_nil in E_ths_tgt.
-          destruct E_ths_tgt.
-          discriminate.
-        }
+        { eapply app_eq_nil in E_ths_tgt. des. ss. }
         rewrite bind_ret_l.
         rewrite interp_state_tau.
-        pfold. econs. eapply sim_chooseL. exists tid'. econs.
+        pfold. do 2 econs. exists tid'. econs.
         unfold th_pop.
         replace (find tid' (add tid itr_yield ths_src)) with (Some itr').
         2: {
@@ -184,7 +191,7 @@ Section SIM.
         eapply sim_fairL.
         exists (fun i => match i with
                  | inl x => if Nat.eqb x tid'
-                           then List.length ths_tgt'
+                           then List.length ths_tgt' + 1
                            else m_src (inl x) - 1
                  | inr x => m_src (inr x)
                  end).
@@ -195,8 +202,7 @@ Section SIM.
             replace (Nat.eqb i tid') with false
               by (symmetry; eapply Nat.eqb_neq; eauto).
             des_if.
-            +
-              eapply In_th_proj1 in i0.
+            + eapply In_th_proj1 in i0.
               destruct i0.
               eapply remove_3 in H.
               assert (i = tid \/ i <> tid) by lia.
@@ -215,15 +221,45 @@ Section SIM.
                 eauto.
             + unfold le. ss. lia.
           - left. ss.
-          }
-          rewrite bind_ret_l.
-          rewrite interp_state_tau.
-          do 3 econs; eauto. right. eapply CIH1.
-          * admit.
-          * admit.
-          * admit.
-          * admit.
-          * ss.
+        }
+        rewrite bind_ret_l.
+        rewrite interp_state_tau.
+        do 3 econs; eauto. right. unfold key in *; ss. eapply CIH1.
+        * eapply Permutation_remove.
+          transitivity ([(tid, itr_yield)] ++ ths_tgt).
+          { eapply Permutation_add. ss. }
+          transitivity (ths_tgt ++ [(tid, itr_yield)]).
+          { eapply Permutation_app_comm. }
+          rewrite E_ths_tgt. ss.
+        * intros itr0 H.
+          pose proof (elements_3w ths_src).
+          eapply (Permutation_NoDupA _ _ _ THREADS) in H0.
+          inversion H0; subst; inversion E_ths_tgt; subst.
+          -- inversion H.
+          -- eapply H1.
+             eapply SetoidList.InA_eqA; eauto.
+             instantiate (1 := (tid', itr0)); ss.
+             eapply SetoidList.In_InA; eauto.
+             eapply in_app_or in H. 
+             destruct H; eauto. exfalso.
+             assert (tid = tid') by (destruct H; ss; inversion H; ss).
+             eapply TID. left. subst. ss.
+        * replace (tid' =? tid')%nat with true by (symmetry; eapply Nat.eqb_refl). lia.
+        * i. des_if.
+          -- eapply nth_error_Some' in H. lia.
+          -- enough (m_src (inl tid0) > 1 + i) by lia.
+             assert (nth_error (ths_tgt ++ [(tid, itr_yield)]) (1 + i) = Some (tid0, t0))
+               by (rewrite E_ths_tgt; ss).
+             assert (1 + i < List.length ths_tgt \/ 1 + i >= List.length ths_tgt) by lia.
+             destruct H1.
+             ++ rewrite nth_error_app1 in H0 by ss.
+                eapply M_SRC1; eauto.
+             ++ rewrite nth_error_app2 in H0 by ss.
+                assert (1 + i - List.length ths_tgt = 0)
+                  by (destruct (1 + i - List.length ths_tgt) as [|[]] in *; ss).
+                rewrite H2 in H0. inversion H0; subst.
+                lia.
+        * ss.
       + (* Terminate *)
         rewrite pick_thread_nondet_terminate.
         rewrite pick_thread_fifo_terminate.
@@ -319,15 +355,13 @@ Section SIM.
           -- i.
              (* tid0 can not be equal to tid', but it's easy to show [length ths_tgt + 1 > i] *)
              des_if.
-             ++ assert (List.length ths_tgt > i \/ List.length ths_tgt <= i) by lia.
-                destruct H0; [| eapply nth_error_None in H0; rewrite H in H0; ss].
-                lia.
+             ++ eapply nth_error_Some' in H. lia.
              ++ match goal with
                 | [ |- ?x - 1 > i ] => enough (x > 1 + i) by lia
                 end.
                 eapply M_SRC1.
                 eauto.
           -- eauto.
-  Admitted.
+  Qed.
 
 End SIM.
