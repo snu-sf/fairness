@@ -3,6 +3,8 @@ From Paco Require Import paco.
 Require Import Program.
 Require Import Arith.
 Require Import Permutation.
+Require Import SetoidList.
+Require Import SetoidPermutation.
 Require Import Lists.List.
 Require Import Lia.
 From Fairness Require Import
@@ -45,39 +47,92 @@ Section SIM.
   Variable State : Type.
   Variable R : Type.
 
-  Print thread_id.
-  Print Th.
-  Require Import Sorted.
-  Check Sorted.
-  Print Th.add.
-  Print Th.Raw.add.
-  
   Let thread R := thread _Ident (sE State) R.
   Import Th.
 
   Lemma In_MapsTo A k e (m : Th.t A) : List.In (k, e) (elements m) -> MapsTo k e m.
-  Admitted.
-  
+  Proof.
+    unfold MapsTo, Raw.PX.MapsTo, elements, Raw.elements.
+    remember (this m) as l. clear m Heql. intros.
+    induction l; ss. destruct H.
+    - eapply InA_cons_hd. subst. ss.
+    - eapply InA_cons_tl. eauto.
+  Qed.
+
   Lemma In_th_proj1 A k (m : Th.t A) : List.In k (th_proj1 m) -> exists e, MapsTo k e m.
-  Admitted.
+  Proof.
+    unfold th_proj1, MapsTo, Raw.PX.MapsTo, elements, Raw.elements.
+    remember (this m) as l. clear m Heql. intros.
+    induction l; ss. destruct H.
+    - eexists. eapply InA_cons_hd. subst. ss.
+    - eapply IHl in H. destruct H. eexists. eapply InA_cons_tl. eauto.
+  Qed.
 
-  Lemma Permutation_remove A k e (m : Th.t A) l : Permutation (elements m) ((k, e) :: l) -> Permutation (elements (remove k m)) l.
-  Admitted.
+  Lemma Permutation_remove A k e (m : Th.t A) l :
+    Permutation (elements m) ((k, e) :: l) -> Permutation (elements (remove k m)) l.
+  Proof.
+    unfold elements, Raw.elements, remove.
+    destruct m as [m SORTED]. ss.
+    revert l. induction m; i.
+    - eapply Permutation_length in H. ss.
+    - assert (List.In a ((k, e) :: l)) by (rewrite <- H; econs; ss).
+      destruct H0.
+      + inv H0. eapply Permutation_cons_inv in H. ss.
+        Raw.MX.elim_comp_eq k k. eauto.
+    + eapply Add_inv in H0. destruct H0. eapply Permutation_Add in H0.
+      rewrite <- H0 in *. clear l H0.
+      rewrite perm_swap in H. eapply Permutation_cons_inv in H.
+      assert (List.In (k, e) m).
+      { eapply Permutation_in.
+        - symmetry; eauto.
+        - econs; ss.
+      }
+      epose proof (Sorted_extends _ SORTED).
+      eapply Forall_forall in H1; eauto.
+      destruct a. ss. Raw.MX.elim_comp_gt k n.
+      inv SORTED.
+      econs. eapply IHm; eauto.
+    Unshelve. compute. lia.
+  Qed.
 
-  Lemma Permutation_add A k e (m : Th.t A) l : Permutation (elements m) l -> Permutation (elements (add k e m)) ((k, e) :: l).
-  Admitted.
+  Lemma Permutation_add A k e (m : Th.t A) l :
+    ~ In k m -> Permutation (elements m) l -> Permutation (elements (add k e m)) ((k, e) :: l).
+  Proof.
+    unfold elements, Raw.elements, add, In.
+    destruct m as [m SORTED]. ss. revert l. induction m; intros l H1 H2.
+    - rewrite <- H2. ss.
+    - destruct a. ss.
+      assert (k = n \/ k < n \/ k > n) by lia.
+      destruct H as [|[]].
+      + exfalso. eapply H1. exists a. left. ss.
+      + Raw.MX.elim_comp_lt k n. econs; eauto.
+      + Raw.MX.elim_comp_gt k n.
+        rewrite <- H2. rewrite perm_swap. econs.
+        inv SORTED. eapply IHm; eauto.
+        intro. eapply H1. unfold Raw.PX.In in *.
+        destruct H0. eexists. right. eauto.
+  Qed.
 
-  Lemma setoid_in_in A k (e : A) l : SetoidList.InA (@eq_key_elt A) (k, e) l -> List.In (k, e) l.
-  Admitted.
+  Lemma setoid_in_in A k (e : A) l :
+    SetoidList.InA (@eq_key_elt A) (k, e) l -> List.In (k, e) l.
+  Proof.
+    i. induction H.
+    - left. destruct H; ss. subst. destruct y; ss.
+    - right. eauto.
+  Qed.
 
-  Lemma Permutation_NoDupA A l1 l2 : Permutation l1 l2 -> SetoidList.NoDupA (eq_key (elt:=A)) l1 -> SetoidList.NoDupA (eq_key (elt:=A)) l2.
-  Admitted.
+  Lemma Permutation_NoDupA A l1 l2 :
+    Permutation l1 l2 ->
+    SetoidList.NoDupA (eq_key (elt:=A)) l1 ->
+    SetoidList.NoDupA (eq_key (elt:=A)) l2.
+  Proof.
+    i.
+    eapply PermutationA_preserves_NoDupA; eauto.
+    eapply Permutation_PermutationA; eauto.
+  Qed.
 
   Lemma nth_error_Some' A (l : list A) x i : nth_error l i = Some x -> i < List.length l.
-  Proof.
-    i. enough (~ (i >= List.length l)) by lia. intro.
-    eapply nth_error_None in H0. rewrite H in H0. discriminate.
-  Qed.
+  Proof. i. eapply nth_error_Some. intro. rewrite H in H0; ss. Qed.
 
   Theorem sched_sim
     p_src p_tgt
@@ -227,7 +282,11 @@ Section SIM.
         do 3 econs; eauto. right. unfold key in *; ss. eapply CIH1.
         * eapply Permutation_remove.
           transitivity ([(tid, itr_yield)] ++ ths_tgt).
-          { eapply Permutation_add. ss. }
+          { eapply Permutation_add; ss. intro H.
+            unfold In, Raw.PX.In, Raw.PX.MapsTo in H. destruct H.
+            eapply setoid_in_in in H. rewrite THREADS in H.
+            eapply TID; eauto.
+          }
           transitivity (ths_tgt ++ [(tid, itr_yield)]).
           { eapply Permutation_app_comm. }
           rewrite E_ths_tgt. ss.
