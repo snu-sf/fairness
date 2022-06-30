@@ -883,7 +883,7 @@ Section ADEQ.
           { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
           rewrite H3; eauto.
         }
-        right. eapply CIH; eauto.
+        right. eapply CIH.
         { i. destruct (tid_dec tid tid1) eqn:TID2; clarify.
           { rename tid1 into tid.
             assert (sf0 = true).
@@ -894,14 +894,29 @@ Section ADEQ.
             assert (tgt = ktr_tgt ()).
             { admit. }
             clarify. ii.
-            destruct (tid_dec tid tid1).
-            hexploit LSIM0. eapply INV0. auto. eauto.
-            i. pclearbot.
-            match goal with
-            | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
-            end.
-            { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
-            rewrite H3; eauto.
+            destruct (tid_dec tid tid1) eqn:TID3; clarify.
+            2:{ 
+            { rename tid1 into tid.
+              hexploit LSIM0. eapply INV0. auto. eauto.
+              i. pclearbot.
+              match goal with
+              | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
+              end.
+              { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
+              rewrite H3; eauto.
+
+          hexploit LOCAL.
+          3:{ i; des. split. 2: eapply H3. intro SYNC. eapply H2 in SYNC. ii.
+              unfold local_sim_sync in SYNC.
+              assert (WORLD1: world_le w w0).
+              { admit. }
+              specialize (SYNC _ _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
+          }
+          
+              specialize (SYNC
+
+
+
 
 
             exfalso. admit. }
