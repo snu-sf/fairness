@@ -651,6 +651,10 @@ Section ADEQ.
   Admitted.
 
   (*invariant for tid_list & threads: tid_list_add threads.proj1 tid tid_list*)
+
+  Definition src_default {R0}: itree srcE R0 := Vis (inl1 (inl1 Undefined)) (Empty_set_rect _).
+  Definition tgt_default {R1}: itree tgtE R1 := Vis (inl1 (inl1 Undefined)) (Empty_set_rect _).
+
   Lemma lsim_implies_ksim
         R0 R1 (RR: R0 -> R1 -> Prop)
         (ths_src: threads_src2 R0)
@@ -663,20 +667,19 @@ Section ADEQ.
         tid
         (THSRC: Th.find tid ths_src = None)
         (THTGT: Th.find tid ths_tgt = None)
-        src tgt
-        sf
-        (WF: th_wf_pair (Th.add tid (sf, src) ths_src) (Th.add tid tgt ths_tgt))
+        sf src tgt
+        (WF: th_wf_pair (Th.add tid (false, src_default) ths_src) (Th.add tid tgt_default ths_tgt))
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
         o w
         (LSIM: forall im_tgt, exists im_src,
             lsim world_le I (local_RR world_le I RR tid) tid gps gpt src tgt
-                 (th_proj1 (Th.add tid (sf, src) ths_src), th_proj1 (Th.add tid tgt ths_tgt),
+                 (th_proj1 (Th.add tid (false, src_default) ths_src), th_proj1 (Th.add tid tgt_default ths_tgt),
                    im_src, im_tgt, st_src, st_tgt, o, w))
     :
     forall im_tgt, exists im_src,
       sim_knot RR ths_src ths_tgt tid gps gpt (sf, src) tgt
-               (th_proj1 (Th.add tid (sf, src) ths_src), th_proj1 (Th.add tid tgt ths_tgt),
+               (th_proj1 (Th.add tid (false, src_default) ths_src), th_proj1 (Th.add tid tgt_default ths_tgt),
                  im_src, im_tgt, st_src, st_tgt, o, w).
   Proof.
     ii. specialize (LSIM im_tgt). des. exists im_src.
