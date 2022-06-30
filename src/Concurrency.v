@@ -192,7 +192,9 @@ Section STATE.
 
 End STATE.
 
-
+Global Opaque
+  interp_state_aux
+  interp_state.
 
 (* Section ALISTAUX. *)
 
@@ -509,7 +511,11 @@ Section SCHEDULE.
 
 End SCHEDULE.
 
-
+Global Opaque
+  interp_thread
+  pick_thread_nondet
+  interp_sched_aux
+  interp_sched.
 
 (* Section SCHEDAUX. *)
 
