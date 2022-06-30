@@ -51,15 +51,6 @@ Section EMBED_EVENT.
       | VisF e ktr => Vis (embed _ e) (fun x => map_event embed (ktr x))
       end.
 
-  (*
-  Proof.
-    eapply ITree.iter. intros itr. destruct_itree itr.
-    - exact (Ret (inr r)).
-    - exact (Ret (inl t)).
-    - exact (Vis (embed _ e) (fun x => Ret (inl (k x)))).
-  Defined.
-   *)
-
   Lemma map_event_ret E1 E2 (embed : forall X, E1 X -> E2 X) R (r : R) :
     map_event embed (Ret r) = Ret r.
   Proof. eapply observe_eta. ss. Qed.
