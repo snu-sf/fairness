@@ -33,74 +33,67 @@ Section ADEQ.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  (* Lemma sim_perm_l *)
-  (*       R0 R1 (RR: R0 -> R1 -> Prop) *)
-  (*       ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt) *)
-  (*       tgt *)
-  (*       (st_src: state_src) *)
-  (*       (ths_src0 ths_src1: @threads _ident_src (sE state_src) R0) *)
-  (*       (WF0: threads_wf ths_src0) *)
-  (*       (* (WF1: threads_wf ths_src1) *) *)
-  (*       (PERM: Permutation ths_src0 ths_src1) *)
-  (*       (SIM: sim RR ps ms pt mt *)
-  (*                 (interp_state *)
-  (*                    (st_src, *)
-  (*                      x <- *)
-  (*                        Vis (Choose thread_id.(id)|)%sum *)
-  (*                            (fun tid' : nat => *)
-  (*                               match th_pop tid' ths_src1 with *)
-  (*                               | Some (t', ts') => *)
-  (*                                   Vis (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))|)%sum *)
-  (*                                       (fun _ : () => Ret (inl (tid', t', ts'))) *)
-  (*                               | None => *)
-  (*                                   Vis (Choose void|)%sum *)
-  (*                                       (Empty_set_rect *)
-  (*                                          (fun _ : void => *)
-  (*                                             itree (eventE +' sE state_src) *)
-  (*                                                   (nat * itree ((eventE +' cE) +' sE state_src) R0 * *)
-  (*                                                      alist nat (itree ((eventE +' cE) +' sE state_src) R0) + R0))) *)
-  (*                               end);; match x with *)
-  (*                                      | inl tts => Tau (interp_sched tts) *)
-  (*                                      | inr r => Ret r *)
-  (*                                      end)) tgt) *)
-  (*   : *)
-  (*   sim RR ps ms pt mt *)
-  (*       (interp_state *)
-  (*          (st_src, *)
-  (*            x <- *)
-  (*              Vis (Choose thread_id.(id)|)%sum *)
-  (*                  (fun tid' : nat => *)
-  (*                     match th_pop tid' ths_src0 with *)
-  (*                     | Some (t', ts') => *)
-  (*                         Vis (Fair (sum_fmap_l (tids_fmap tid' (alist_proj1 ts')))|)%sum *)
-  (*                             (fun _ : () => Ret (inl (tid', t', ts'))) *)
-  (*                     | None => *)
-  (*                         Vis (Choose void|)%sum *)
-  (*                             (Empty_set_rect *)
-  (*                                (fun _ : void => *)
-  (*                                   itree (eventE +' sE state_src) *)
-  (*                                         (nat * itree ((eventE +' cE) +' sE state_src) R0 * *)
-  (*                                            alist nat (itree ((eventE +' cE) +' sE state_src) R0) + R0))) *)
-  (*                     end);; match x with *)
-  (*                            | inl tts => Tau (interp_sched tts) *)
-  (*                            | inr r => Ret r *)
-  (*                            end)) tgt. *)
-  (* Proof. *)
-  (*   revert SIM. ired. i. rewrite interp_state_vis in *. *)
-  (*   ginit. revert_until RR. gcofix CIH. i. *)
-  (*   match goal with *)
-  (*   | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ => *)
-  (*       remember _itr_src as itr_src *)
-  (*   end. *)
-  (*   move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify. *)
-  (*   { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. } *)
-  (*   2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. } *)
-  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
-  (*   2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. } *)
-  (*   2:{ gfold. econs 9. right. eapply CIH; eauto. all: ss. } *)
-  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
-  (*   des. rewrite bind_trigger in Heqitr_src. inv Heqitr_src. *)
-  (*   guclo sim_indC_spec. rewrite <- bind_trigger. econs 5. exists x. *)
+  Lemma sim_perm_l
+        R0 R1 (RR: R0 -> R1 -> Prop)
+        ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt)
+        tgt
+        (st_src: state_src)
+        (ths_src: @threads _ident_src (sE state_src) R0)
+        (* (WF0: threads_wf ths_src0) *)
+        (* (PERM: Permutation ths_src0 ths_src1) *)
+        (SIM: sim RR true ms pt mt
+                  (interp_state
+                     (st_src,
+                       x <-
+                         Vis (Choose thread_id.(id)|)%sum
+                             (fun tid' : nat =>
+                                match th_pop tid' ths_src with
+                                | Some (t', ts') =>
+                                    Vis (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))|)%sum
+                                        (fun _ : () => Ret (inl (tid', t', ts')))
+                                | None =>
+                                    Vis (Choose void|)%sum (Empty_set_rect _)
+                                end);; match x with
+                                       | inl tts => Tau (interp_sched tts)
+                                       | inr r => Ret r
+                                       end)) tgt)
+    :
+    sim RR ps ms pt mt
+        (interp_state
+           (st_src,
+             x <-
+               Vis (Choose thread_id.(id)|)%sum
+                   (fun tid' : nat =>
+                      match th_pop tid' ths_src with
+                      | Some (t', ts') =>
+                          Vis (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))|)%sum
+                              (fun _ : () => Ret (inl (tid', t', ts')))
+                      | None =>
+                          Vis (Choose void|)%sum
+                              (Empty_set_rect _)
+                      end);; match x with
+                             | inl tts => Tau (interp_sched tts)
+                             | inr r => Ret r
+                             end)) tgt.
+  Proof.
+    revert SIM. ired. i. rewrite interp_state_vis in *.
+    ginit. revert_until RR. gcofix CIH. i.
+    match goal with
+    | SIM: sim RR _ _ _ _ ?_itr_src _ |- _ => remember _itr_src as itr_src
+    end.
+    remember true as ps0 in SIM.
+    move SIM before CIH. revert_until SIM. induction SIM using sim_ind2; i; ss; clarify.
+    { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. }
+    2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. }
+    2:{ guclo sim_progress_ctx_spec. econs. gfinal; right. eapply paco9_mon_bot. eauto. eauto. all: i; ss. }
+    2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. }
+    des. rewrite bind_trigger in Heqitr_src. inv Heqitr_src.
+    guclo sim_indC_spec. econs 5. exists x.
+    gfinal; right. eapply paco9_mon_bot; eauto.
+  Qed.
+
   (*   eapply inj_pair2 in H2. hexploit (equal_f H2 x); clear H2. i. rewrite H in SIM0. *)
   (*   eapply gpaco9_mon_bot; eauto with paco. *)
   (*   revert SIM0 PERM WF0. clear. i. rename SIM0 into SIM. *)
@@ -210,7 +203,7 @@ Section ADEQ.
         (ktr_src0: unit -> @thread _ident_src (sE state_src) R0)
         (src: @thread _ident_src (sE state_src) R0)
         (POP: th_pop tid1 (Th.add tid0 (ktr_src0 tt) ths_src0) = Some (src, ths_src1))
-        (SIM: sim RR ps ms pt mt
+        (SIM: sim RR true ms pt mt
                   (interp_all st_src ths_src1 tid1 (Vis (inl1 (inr1 Yield)) (fun _ => src)))
                   tgt)
     :
@@ -323,14 +316,16 @@ Section ADEQ.
                                       (th_tgt)
                                       (ths, tht, im_src, im_tgt0, st_src, st_tgt, o0, w0))) /\
                     ((b = false) ->
-                     (forall im_tgt0
-                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht))),
-                       exists im_src0,
-                         (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths))) /\
-                           (sim_knot thsl1 thsr1 tid0 true true
-                                     (b, th_src)
-                                     th_tgt
-                                     (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o, w))))))
+                     exists o0 w0,
+                       (wf_src.(lt) o0 o) /\ (world_le w w0) /\
+                         (forall im_tgt0
+                            (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht))),
+                           exists im_src0,
+                             (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths))) /\
+                               (sim_knot thsl1 thsr1 tid0 true true
+                                         (b, th_src)
+                                         th_tgt
+                                         (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o0, w0))))))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid f_src f_tgt
                  (sf, Vis (inl1 (inr1 Yield)) ktr_src)
@@ -568,7 +563,7 @@ Section ADEQ.
     { econs 3; eauto. i. specialize (KSIM tid0). des; eauto. right.
       esplits; eauto.
       i. specialize (KSIM1 H). des. esplits; eauto.
-      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
+      i. specialize (KSIM2 H). des. esplits; eauto. i. specialize (KSIM4 _ FAIR). des; eauto.
     }
   Qed.
 
@@ -596,9 +591,8 @@ Section ADEQ.
 
   Variable I: shared -> Prop.
 
-  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
+  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      tid
       (THS: tid_list_in tid ths0)
       (THT: tid_list_in tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
@@ -614,21 +608,19 @@ Section ADEQ.
                     src tgt
                     (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)).
 
-  Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt w :=
+  Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid w :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      tid
       (THS: tid_list_in tid ths0)
       (THT: tid_list_in tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
-      (WORLD: world_le w w0)
-      fs ft,
+      (WORLD: world_le w w0),
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
       (lsim
          world_le
          I
          (local_RR world_le I RR tid)
          tid
-         fs ft
+         true true
          (Vis (inl1 (inr1 Yield)) (fun _ => src))
          tgt
          (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, w0)).
@@ -665,8 +657,8 @@ Section ADEQ.
         (LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1)
                   (LSRC: Th.find tid ths_src = Some (sf, src))
                   (LTGT: Th.find tid ths_tgt = Some tgt),
-            ((sf = true) -> (local_sim_sync RR src tgt w)) /\
-              ((sf = false) -> (local_sim_pick RR src tgt)))
+            ((sf = true) -> (local_sim_sync RR src tgt tid w)) /\
+              ((sf = false) -> (local_sim_pick RR src tgt tid)))
         tid
         (THSRC: Th.find tid ths_src = None)
         (THTGT: Th.find tid ths_tgt = None)
@@ -742,12 +734,15 @@ Section ADEQ.
             assert (PROJT: tht3 = th_proj1 (Th.add tid0 tgt_default ths_tgt0)).
             { admit. }
             rewrite PROJS, PROJT. right. eapply CIH.
-            { i. hexploit LOCAL. 1,2: admit. i; des. split.
-              2:{ eapply H4. }
-              intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
-              assert (WORLD1: world_le w w0).
-              { admit. }
-              specialize (SYNC _ _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
+            { i. hexploit LOCAL.
+              3:{ i; des. split.
+                  2:{ eapply H4. }
+                  intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
+                  assert (WORLD1: world_le w w0).
+                  { admit. }
+                  specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+              }
+              1,2: admit.
             }
             1,2: admit.
             admit.
@@ -762,12 +757,15 @@ Section ADEQ.
             { admit. }
             hexploit H2; eauto. 1,2: admit. i; des. esplits; eauto.
             rewrite PROJS, PROJT. right. eapply CIH.
-            { i. hexploit LOCAL. 1,2: admit. i; des. split.
-              2:{ eapply H6. }
-              intro SYNC. eapply H5 in SYNC. ii. unfold local_sim_sync in SYNC.
-              assert (WORLD1: world_le w w0).
-              { admit. }
-              specialize (SYNC _ _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
+            { i. hexploit LOCAL.
+              3:{ i; des. split.
+                  2:{ eapply H6. }
+                  intro SYNC. eapply H5 in SYNC. ii. unfold local_sim_sync in SYNC.
+                  assert (WORLD1: world_le w w0).
+                  { admit. }
+                  specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+              }
+              1,2: admit.
             }
             1,2: admit.
             admit.
@@ -873,7 +871,7 @@ Section ADEQ.
             intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
             assert (WORLD1: world_le w w0).
             { admit. }
-            specialize (SYNC _ _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
+            specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
           }
           hexploit LSIM0; eauto. admit.
           i. pclearbot.
@@ -894,129 +892,95 @@ Section ADEQ.
             assert (tgt = ktr_tgt ()).
             { admit. }
             clarify. ii.
-            destruct (tid_dec tid tid1) eqn:TID3; clarify.
-            2:{ 
-            { rename tid1 into tid.
-              hexploit LSIM0. eapply INV0. auto. eauto.
-              i. pclearbot.
-              match goal with
-              | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
-              end.
-              { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
-              rewrite H3; eauto.
-
-          hexploit LOCAL.
-          3:{ i; des. split. 2: eapply H3. intro SYNC. eapply H2 in SYNC. ii.
-              unfold local_sim_sync in SYNC.
-              assert (WORLD1: world_le w w0).
-              { admit. }
-              specialize (SYNC _ _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
+            hexploit LSIM0. eapply INV0. auto. eauto.
+            i. pclearbot.
+            match goal with
+            | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
+            end.
+            { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
+            rewrite H3; eauto.
           }
-          
-              specialize (SYNC
-
-
-
-
-
-            exfalso. admit. }
-          eapply LOCAL.
-          
-
-          eapply LOCAL.
-
-          eapply H2. eauto.
-
-          
-          { eapply LOCAL.
-
-
-        
-        rewrite PROJS, PROJT. right. eapply CIH.
-        { i.
-          - rename tid1 into tid.
-            assert (sf0 = true).
-            { admit. }
-            clarify. split; i; ss. ii. hexploit LSIM0. 3: eauto. 
-
-          i. eapply LOCAL. 
-
-
-        right. eapply CIH.
-
-    { clarify. clear IH rr.
-      unfold interp_all at 2. rewrite_cE_r.
-      rewrite interp_sched_yield. rewrite interp_sched_pick_yield2.
-      rewrite interp_state_tau. rewrite interp_state_trigger.
-      guclo sim_indC_spec. econs 4.
-      guclo sim_indC_spec. econs 6. i.
-      guclo sim_indC_spec. econs 4.
-    (*destruct cases: UB case /  *)
-   (*     x = tid: ind on o1, ind on LSIM0, trivial case: LSIM0, sync: case analysis: IHo1|CIH / *)
-   (*     x <> tid: CIH, LOCAL*)
-      des_ifs.
-      2:{ admit. }
-      destruct (tid_dec x tid) eqn:TID.
-      { clarify. eapply IHo. eauto. 1,2,3: admit.
+          { hexploit LOCAL.
+            3:{ i; des. split.
+                2:{ eapply H3. }
+                intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
+                assert (WORLD1: world_le w w0).
+                { admit. }
+                specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+            }
+            1,2: admit.
+          }
+        }
+        1,2: admit.
         admit.
-      }
-      unfold interp_all at 1. rewrite_cE_l.
-      rewrite interp_sched_yield. rewrite interp_sched_pick_yield2.
-      rewrite interp_state_tau. rewrite interp_state_trigger.
-      guclo sim_indC_spec. econs 3.
-      guclo sim_indC_spec. econs 5. exists x.
-      guclo sim_indC_spec. econs 3.
-      (* make lemma for th_pop *)
-      des_ifs.
-      2:{ admit. }
-      hexploit LOCAL.
-      { instantiate (1:=t1). instantiate (1:=x). admit. }
-      { instantiate (1:=t). admit. }
-      intros LSIM. unfold local_sim in LSIM. hexploit LSIM. 3: eauto.
-      { instantiate (1:=x). admit. }
-      { admit. }
-      clear LSIM; intro LSIM.
+        hexploit LOCAL.
+        3:{ i; des. hexploit H2; ss.
+            intro SYNC. unfold local_sim_sync in SYNC.
+            hexploit SYNC.
+            3,4,5: eauto.
+            1,2: admit.
+            i. rewrite <- PROJS, <- PROJT. eauto.
+        }
+        1,2: admit.
 
-
-
-    
-      gfold. econs 9. right. eapply CIH; ss; auto. all: ss.
-      1,2,3: admit.
-    
-
-
-    
-        match goal with
-        | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ (interp_state (_, trigger ?EV >>= Tau (interp_sched ?a))) =>
-            replace (trigger EV >>= Tau (interp_sched a)) with (x <- trigger EV >>= Tau (interp_sched a))
-        end; auto; rewrite <- interp_sched_eventE_trigger.
-
-        push_eventE_r.
-
-    
-        rewrite interp_state_trigger.
-        rewrite bind_trigger. rewrite <- interp_sched_eventE_trigger.
-        rewrite interp_sched_tau.
-
-      admit. }
-
-    { des. clarify. destruct LSIM as [LSIM IND]. clear LSIM.
-      unfold interp_all at 1. rewrite_cE_l.
-      rewrite interp_sched_yield. rewrite interp_sched_pick_yield.
-      rewrite interp_state_tau. rewrite interp_state_trigger.
-      guclo sim_indC_spec. econs 3.
-      guclo sim_indC_spec. econs 5. exists tid.
-      guclo sim_indC_spec. econs 3.
-      (* lemma for th_pop, etc., induction *)
-      admit.
+      - i; clarify. destruct (tid_dec tid tid0) eqn:TID1.
+        { clarify. exfalso. admit. }
+        esplits; eauto. i.
+        hexploit LOCAL.
+        3:{ i; des. hexploit H3; ss. intro PICK. unfold local_sim_pick in PICK. hexploit PICK.
+            3,4: eauto.
+            1,2: admit.
+            i; des. esplits; eauto.
+            assert (PROJS: th_proj1 (Th.add tid src_default2 ths_src) = th_proj1 (Th.add tid0 src_default2 ths_src0)).
+            { admit. }
+            assert (PROJT: th_proj1 (Th.add tid tgt_default ths_tgt) = th_proj1 (Th.add tid0 tgt_default ths_tgt0)).
+            { admit. }
+            rewrite PROJS, PROJT.
+            right. eapply CIH.
+            { i. destruct (tid_dec tid tid1) eqn:TID2; clarify.
+              { rename tid1 into tid.
+                assert (sf0 = true).
+                { admit. }
+                clarify; split; i; ss. clear H2.
+                assert (src = ktr_src ()).
+                { admit. }
+                assert (tgt = ktr_tgt ()).
+                { admit. }
+                clarify. ii.
+                hexploit LSIM0. eapply INV0. auto. eauto.
+                i. pclearbot.
+                match goal with
+                | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
+                end.
+                { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
+                rewrite H7; eauto.
+              }
+              { hexploit LOCAL.
+                3:{ i; des. split.
+                    2:{ eapply H7. }
+                    intro SYNC. eapply H6 in SYNC. ii. unfold local_sim_sync in SYNC.
+                    assert (WORLD1: world_le w w0).
+                    { admit. }
+                    specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+                }
+                1,2: admit.
+              }
+            }
+            1,2: admit.
+            admit.
+            rewrite <- PROJS, <- PROJT. eauto.
+        }
+        1,2: admit.
     }
 
-    { clarify. pclearbot. gfold. econs 9; auto.
-      clear IH rr.
-      right. eapply CIH; auto. eauto.
+    { des. clarify. destruct LSIM as [LSIM0 IND]. clear LSIM0.
+      pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_yieldL. esplits; eauto. split; ss.
+      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
     }
 
-    Abort.
+    { clarify. pclearbot. pfold. eapply pind8_fold. eapply ksim_progress. right. eapply CIH; eauto. }
+
+  Admitted.
 
     (* unfold local_sim in LSIM. *)
     (* hexploit LSIM; clear LSIM. 3: eauto. *)
@@ -1265,26 +1229,25 @@ Section ADEQ.
 
 
 
-
   Lemma ksim_implies_gsim
         R0 R1 (RR: R0 -> R1 -> Prop)
-        (ths_src: threads_src R0)
+        (ths_src: threads_src2 R0)
         (ths_tgt: threads_tgt R1)
-        (* (WFTHS: wf_ths ths_src ths_tgt) *)
         tid
         (THSRC: Th.find tid ths_src = None)
         (THTGT: Th.find tid ths_tgt = None)
-        src tgt
+        (WF: th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt))
+        sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
-        gps gpt
+        ps pt
         o w
-        sf
         (KSIM: forall im_tgt, exists im_src,
-            sim_knot RR ths_src ths_tgt tid gps gpt (sf, src) tgt
-                     (tid :: alist_proj1 ths_src, tid :: alist_proj1 ths_tgt, im_src, im_tgt, st_src, st_tgt, o, w))
+            sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
+                     (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt),
+                       im_src, im_tgt, st_src, st_tgt, o, w))
     :
-    gsim wf_src wf_tgt RR gps gpt
-         (interp_all st_src (alist_proj_v2 ths_src) tid src)
+    gsim wf_src wf_tgt RR ps pt
+         (interp_all st_src (th_proj_v2 ths_src) tid src)
          (interp_all st_tgt ths_tgt tid tgt).
   Proof.
     ii. specialize (KSIM mt). des. rename im_src into ms. exists ms.
