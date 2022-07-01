@@ -69,6 +69,9 @@ Section SCHEDULE.
 
 End SCHEDULE.
 
+Global Opaque
+  pick_thread_fifo.
+
 Section INTERP.
 
   Variable State : Type.
