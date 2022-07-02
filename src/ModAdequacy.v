@@ -1439,15 +1439,15 @@ Section ADEQ.
   Proof.
     ii. specialize (KSIM mt). des. rename im_src into ms. exists ms.
     ginit. revert_until RR. gcofix CIH. i.
-    (* move o before CIH. revert_until o. induction (wf_src.(wf) o). *)
-    (* clear H; rename x into o, H0 into IHo. i. *)
+    move o before CIH. revert_until o. induction (wf_src.(wf) o).
+    clear H; rename x into o, H0 into IHo. i.
     match goal with
     | KSIM: sim_knot _ _ _ _ _ _ ?_src _ ?_shr |- _ => remember _src as ssrc; remember _shr as shr
     end.
     punfold KSIM.
     2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __ksim_mon; eauto. }
-    (* move KSIM before IHo. revert_until KSIM. *)
-    move KSIM before CIH. revert_until KSIM.
+    move KSIM before IHo. revert_until KSIM.
+    (* move KSIM before CIH. revert_until KSIM. *)
     eapply pind8_acc in KSIM.
 
     { instantiate (1:= (fun ths_src ths_tgt tid ps pt ssrc tgt shr =>
@@ -1455,7 +1455,7 @@ Section ADEQ.
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt) ->
                           forall (sf : bool) (src : itree srcE R0) (st_src : state_src) (st_tgt : state_tgt)
-                            o (w : world) (mt : imap wf_tgt) (ms : imap wf_src),
+                            (w : world) (mt : imap wf_tgt) (ms : imap wf_src),
                             ssrc = (sf, src) ->
                             shr =
                               (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt), ms, mt,
@@ -1465,11 +1465,11 @@ Section ADEQ.
 
     ss. clear ths_src ths_tgt tid ps pt ssrc tgt shr KSIM.
     intros rr DEC IH ths_src ths_tgt tid ps pt ssrc tgt shr KSIM. clear DEC.
-    intros THSRC THTGT WF sf src st_src st_tgt o w mt ms Essrc Eshr.
+    intros THSRC THTGT WF sf src st_src st_tgt w mt ms Essrc Eshr.
 
-    clarify.
-    move o before IH. revert_until o. induction (wf_src.(wf) o).
-    clear H; rename x into o, H0 into IHo. i.
+    (* clarify. *)
+    (* move o before IH. revert_until o. induction (wf_src.(wf) o). *)
+    (* clear H; rename x into o, H0 into IHo. i. *)
 
     eapply pind8_unfold in KSIM.
     2:{ eapply _ksim_mon. }
@@ -1528,9 +1528,9 @@ Section ADEQ.
             assert (PROJT: th_proj1 (Th.add tid0 tgt_default thsr0) = tht0).
             { admit. }
             eapply IHo. eauto.
-            { rewrite PROJS, PROJT. punfold H. eapply pind8_mon; eauto. eauto.
             1,2: admit.
             admit.
+            rewrite PROJS, PROJT. punfold H. eapply ksim_mon.
 
           - hexploit KSIM3; clear KSIM2 KSIM3; ss.
             assert (FMT: tids_fmap tid0 tht0 = tids_fmap tid0 (th_proj1 thsr0)).
@@ -1563,7 +1563,35 @@ Section ADEQ.
       }
     }
 
-    2:{ des; clarify. destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto.
+    2:{ des; clarify. destruct KSIM1 as [KSIM1 IND].
+        assert (KSIM: sim_knot RR ths_src ths_tgt tid true pt
+                               (false, ktr_src ()) tgt
+                               (th_proj1 (Th.add tid src_default2 ths_src),
+                                 th_proj1 (Th.add tid tgt_default ths_tgt), im_src0, mt, st_src, st_tgt, o1, w)).
+        { pfold. eapply pind8_mon_top; eauto. }
+        unfold interp_all. rewrite unfold_interp_sched. rewrite interp_thread_vis_yield.
+        ired. rewrite pick_thread_nondet_yield. ired.
+        rewrite interp_state_vis. rewrite <- bind_trigger.
+        guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid.
+        guclo sim_indC_spec. eapply sim_indC_tauL.
+        assert (POPS: th_pop tid (Th.add tid (ktr_src ()) (th_proj_v2 ths_src)) = Some (ktr_src (), th_proj_v2 ths_src)).
+        { admit. }
+        rewrite POPS; clear POPS. rewrite bind_vis.
+        rewrite interp_state_vis. rewrite <- bind_trigger.
+        guclo sim_indC_spec. eapply sim_indC_fairL.
+        assert (FMS: tids_fmap tid (th_proj1 (th_proj_v2 ths_src)) = tids_fmap tid (th_proj1 (Th.add tid src_default2 ths_src))).
+        { admit. }
+        rewrite FMS; clear FMS. esplits; eauto. ired. rewrite interp_state_tau.
+        do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
+        (*TODO: should make a lemma*)
+        
+
+        exists tid.
+
+        i. eauto.
+
+
+        hexploit IH; eauto.
 
     { clarify.
             
