@@ -37,7 +37,7 @@ Section ADEQ.
   Lemma sim_yield_l_prog
         R0 R1 (RR: R0 -> R1 -> Prop)
         ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt)
-        tgt
+        (tgt: @state ident_tgt R1)
         (st_src: state_src)
         (ths_src: @threads _ident_src (sE state_src) R0)
         (SIM: sim RR true ms pt mt
@@ -92,6 +92,115 @@ Section ADEQ.
     guclo sim_indC_spec. econs 5. exists x.
     gfinal; right. eapply paco9_mon_bot; eauto.
   Qed.
+
+  (* Lemma sim_yield_l_prog2 *)
+  (*       (r: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (@imap ident_src wf_src) -> bool -> (@imap ident_tgt wf_tgt) -> (@state ident_src R0) -> (@state ident_tgt R1) -> Prop) *)
+  (*       R0 R1 (RR: R0 -> R1 -> Prop) *)
+  (*       ps (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt) *)
+  (*       (tgt: @state ident_tgt R1) *)
+  (*       (st_src: state_src) *)
+  (*       (ths_src: @threads _ident_src (sE state_src) R0) *)
+  (*       tid th_src *)
+  (*       (SIM: paco9 (_sim (wft:=wf_tgt)) r R0 R1 RR true ms true mt *)
+  (*                   (interp_state *)
+  (*                      (st_src, *)
+  (*                        interp_sched (tid, Vis ((|Yield)|)%sum (fun _ : () => th_src), ths_src))) tgt) *)
+  (*   : *)
+  (*   gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms true mt *)
+  (*          (interp_state *)
+  (*             (st_src, *)
+  (*               interp_sched (tid, Vis ((|Yield)|)%sum (fun _ : () => th_src), ths_src))) *)
+  (*          tgt. *)
+  (* Proof. *)
+  (*   revert SIM. rewrite unfold_interp_sched. rewrite interp_thread_vis_yield. ired. *)
+  (*   rewrite pick_thread_nondet_yield. ired. i. rewrite interp_state_vis in *. *)
+  (*   revert_until RR. gcofix CIH. i. *)
+  (*   punfold SIM. *)
+  (*   match goal with *)
+  (*   | SIM: _sim _ RR _ _ _ _ ?_itr_src _ |- _ => remember _itr_src as itr_src *)
+  (*   end. *)
+  (*   remember true as ps0 in SIM at 1. remember true as pt0 in SIM at 1. *)
+  (*   move SIM before CIH. revert_until SIM. induction SIM using sim_ind; i; ss; clarify. *)
+  (*   { guclo sim_indC_spec. econs 4. eapply IHSIM; eauto. } *)
+  (*   2:{ guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eapply IH; eauto. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   2:{ guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; eauto. } *)
+  (*   2:{ destruct SIM as [SIM | SIM]. *)
+  (*       - guclo sim_progress_ctx_spec. econs. gfinal; right. eapply paco9_mon. eauto. all: eauto. *)
+  (*       -  *)
+  (*         all: i; ss. } *)
+  (*   2:{ rewrite bind_trigger in Heqitr_src. inv Heqitr_src. } *)
+  (*   des. rewrite bind_trigger in Heqitr_src. inv Heqitr_src. *)
+  (*   guclo sim_indC_spec. econs 5. exists x. *)
+  (*   gfinal; right. eapply paco9_mon_bot; eauto. *)
+  (* Qed. *)
+
+  (* Variant sim_yield_ctxL *)
+  (*         (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (@imap ident_src wf_src) -> bool -> (@imap ident_tgt wf_tgt) -> (@state ident_src R0) -> (@state ident_tgt R1) -> Prop) *)
+  (*         R0 R1 (RR: R0 -> R1 -> Prop) *)
+  (*   : *)
+  (*   bool -> (@imap ident_src wf_src) -> bool -> (@imap ident_tgt wf_tgt) -> (@state ident_src R0) -> (@state ident_tgt R1) -> Prop := *)
+  (*   | sim_yield_ctxL_intro *)
+  (*       ps pt (ms: @imap ident_src wf_src) (mt: @imap ident_tgt wf_tgt) *)
+  (*       (tgt: @state ident_tgt R1) *)
+  (*       (st_src: state_src) *)
+  (*       (ths_src: @threads _ident_src (sE state_src) R0) *)
+  (*       (SIM: sim R0 R1 RR true ms pt mt *)
+  (*                 (interp_state *)
+  (*                    (st_src, *)
+  (*                      x <- *)
+  (*                        Vis (Choose thread_id.(id)|)%sum *)
+  (*                            (fun tid' : nat => *)
+  (*                               match th_pop tid' ths_src with *)
+  (*                               | Some (t', ts') => *)
+  (*                                   Vis (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))|)%sum *)
+  (*                                       (fun _ : () => Ret (inl (tid', t', ts'))) *)
+  (*                               | None => *)
+  (*                                   Vis (Choose void|)%sum (Empty_set_rect _) *)
+  (*                               end);; match x with *)
+  (*                                      | inl tts => Tau (interp_sched tts) *)
+  (*                                      | inr r => Ret r *)
+  (*                                      end)) tgt) *)
+  (*     : *)
+  (*     sim_yield_ctxL sim RR ps ms pt mt *)
+  (*                    (interp_state *)
+  (*                       (st_src, *)
+  (*                         x <- *)
+  (*                           Vis (Choose thread_id.(id)|)%sum *)
+  (*                               (fun tid' : nat => *)
+  (*                                  match th_pop tid' ths_src with *)
+  (*                                  | Some (t', ts') => *)
+  (*                                      Vis (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))|)%sum *)
+  (*                                          (fun _ : () => Ret (inl (tid', t', ts'))) *)
+  (*                                  | None => *)
+  (*                                      Vis (Choose void|)%sum *)
+  (*                                          (Empty_set_rect _) *)
+  (*                                  end);; match x with *)
+  (*                                         | inl tts => Tau (interp_sched tts) *)
+  (*                                         | inr r => Ret r *)
+  (*                                         end)) tgt. *)
+
+  (* Lemma sim_yield_ctxL_mon: monotone9 sim_yield_ctxL. *)
+  (* Proof. ii. inv IN. econs; eauto. Qed. *)
+
+  (* Hint Resolve sim_yield_ctxL_mon: paco. *)
+
+  (* Lemma sim_yield_ctxL_wrepectful: *)
+  (*   wrespectful9 (@_sim ident_src ident_tgt wf_src wf_tgt) sim_yield_ctxL. *)
+  (* Proof. *)
+  (*   econs; eauto with paco. i. inv PR. apply GF in SIM. *)
+  (*   revert SIM. ired. i. rewrite interp_state_vis in *. *)
+  (*   match goal with *)
+  (*   | SIM: _sim _ _ ?_ps _ _ _ ?_src _ |- _ => remember _ps as ps; remember _src as src *)
+  (*   end. *)
+  (*   move SIM before GF. revert_until SIM. induction SIM using sim_ind; i; ss; clarify; eauto. *)
+  (*   { des. econs. eexists. eapply sim_mon. eauto. i. eapply rclo9_base; auto. } *)
+  (*   { eapply sim_chooseR. i. specialize (SIM x). des. eapply IH; auto. } *)
+  (*   { rewrite bind_trigger in Heqsrc. inv Heqsrc. } *)
+  (*   { eapply sim_fairR. i. specialize (SIM m_tgt0 FAIR). des. eapply IH; auto. } *)
+  (*   {  *)
+
+
 
   (*   eapply inj_pair2 in H2. hexploit (equal_f H2 x); clear H2. i. rewrite H in SIM0. *)
   (*   eapply gpaco9_mon_bot; eauto with paco. *)
@@ -1329,26 +1438,9 @@ Section ADEQ.
               grind.
               revert KSIM0. clear; i. admit.
             }
-            rewrite CHANGE; clear CHANGE. gfinal; right.
-            
+            rewrite CHANGE; clear CHANGE.
 
-            }
-              rewrite 
-
-              grind.
-
-
-            
-            match goal with
-            rewrite <- pick_thread_nondet_yield.
-
-            gfinal; right. eapply sim
-          
-
-
-        }
-      }
-      { 
+            gfinal; right.
 
   Abort.
 
