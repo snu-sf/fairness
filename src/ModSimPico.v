@@ -507,11 +507,12 @@ Section PRIMIVIESIM.
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid :=
     fun (r_src: R0) (r_tgt: R1) '(ths2, tht2, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1) =>
-      (exists ths3 tht3 w2,
+      (exists ths3 tht3 o2 w2,
           (<<THSR: tid_list_remove ths2 tid ths3>>) /\
             (<<THTR: tid_list_remove tht2 tid tht3>>) /\
             (<<WORLD: world_le w1 w2>>) /\
-            (<<INV: I (ths3, tht3, im_src1, im_tgt1, st_src1, st_tgt1, o1, w2)>>) /\
+            (<<STUTTER: wf_src.(lt) o2 o1>>) /\
+            (<<INV: I (ths3, tht3, im_src1, im_tgt1, st_src1, st_tgt1, o2, w2)>>) /\
             (<<RET: RR r_src r_tgt>>)).
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
