@@ -1339,6 +1339,73 @@ Section ADEQ.
   (*   end; auto. *)
 
 
+  Lemma ksim_implies_gsim_yieldL
+        R0 R1 (RR: R0 -> R1 -> Prop)
+        (ths_src: threads_src2 R0)
+        (ths_tgt: threads_tgt R1)
+        tid
+        (THSRC: Th.find tid ths_src = None)
+        (THTGT: Th.find tid ths_tgt = None)
+        (WF: th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt))
+        th_src th_tgt
+        (st_src: state_src) (st_tgt: state_tgt)
+        ps ms mt
+        o w
+        (KSIM: sim_knot RR ths_src ths_tgt tid true true
+                        (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
+                        (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt),
+                          ms, mt, st_src, st_tgt, o, w))
+        (* (KSIM: paco8 (fun r => pind8 (__sim_knot RR r) top8) bot8 *)
+        (*              ths_src ths_tgt tid true true *)
+        (*              (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt *)
+        (*              (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt), *)
+        (*                ms, mt, st_src, st_tgt, o, w)) *)
+    :
+    gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 bot9 R0 R1 RR ps ms true mt
+           (interp_state
+              (st_src,
+                interp_sched (tid, Vis ((|Yield)|)%sum (fun _ : () => th_src), th_proj_v2 ths_src)))
+           (interp_state (st_tgt, interp_sched (tid, th_tgt, ths_tgt))).
+  Proof.
+    revert_until RR. gcofix CIH. i.
+    match goal with
+    | KSIM: sim_knot _ _ _ _ _ _ ?_src _ ?_shr |- _ => remember _src as ssrc; remember _shr as shr
+    end.
+    remember true as ps0 in KSIM at 1. remember true as pt0 in KSIM at 1.
+    punfold KSIM.
+    2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __ksim_mon; eauto. }
+    move KSIM before CIH. revert_until KSIM.
+    eapply pind8_acc in KSIM.
+
+    { instantiate (1:= (fun ths_src ths_tgt tid ps0 pt0 ssrc th_tgt shr =>
+                          Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
+                          Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
+                          th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt) ->
+                          forall (th_src : thread _ident_src (sE state_src) R0) (st_src : state_src) 
+                            (st_tgt : state_tgt) (ps : bool) (ms : imap wf_src) (mt : imap wf_tgt) 
+                            (o : T wf_src) (w : world),
+                            ssrc = (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) ->
+                            shr =
+                              (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt), ms, mt,
+                                st_src, st_tgt, o, w) ->
+                            ps0 = true ->
+                            pt0 = true ->
+                            gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms true mt
+                                   (interp_state
+                                      (st_src,
+                                        interp_sched (tid, Vis ((|Yield)|)%sum (fun _ : () => th_src), th_proj_v2 ths_src)))
+                                   (interp_state (st_tgt, interp_sched (tid, th_tgt, ths_tgt))))) in KSIM; auto. }
+
+    ss. clear ths_src ths_tgt tid ps0 pt0 ssrc th_tgt shr KSIM.
+    intros rr DEC IH ths_src ths_tgt tid ps0 pt0 ssrc tgt shr KSIM. clear DEC.
+    intros THSRC THTGT WF th_src st_src st_tgt ps ms mt o w Essrc Eshr Eps0 Ept0.
+    clarify.
+    eapply pind8_unfold in KSIM.
+    2:{ eapply _ksim_mon. }
+    inv KSIM.
+
+    { clear rr IH. eapply inj_pair2 in H4. clarify. ss.
+    
 
   Lemma ksim_implies_gsim
         R0 R1 (RR: R0 -> R1 -> Prop)
@@ -1438,7 +1505,7 @@ Section ADEQ.
               grind.
               revert KSIM0. clear; i. admit.
             }
-            rewrite CHANGE; clear CHANGE.
+            rewrite CHANGE; clear CHANGE. eapply gpaco9_mon_bot; eauto with paco.
 
             gfinal; right.
 
