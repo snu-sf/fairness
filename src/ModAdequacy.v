@@ -723,14 +723,14 @@ Section ADEQ.
       (THS: tid_list_in tid ths0)
       (THT: tid_list_in tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
-      (WORLD: world_le w w0),
+      (WORLD: world_le w w0) fs ft,
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
       (lsim
          world_le
          I
          (local_RR world_le I RR tid)
          tid
-         true true
+         fs ft
          (Vis (inl1 (inr1 Yield)) (fun _ => src))
          tgt
          (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, w0)).
@@ -850,7 +850,7 @@ Section ADEQ.
                   intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
                   assert (WORLD1: world_le w w0).
                   { etransitivity; eauto. }
-                  specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+                  specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
               }
               1,2: admit.
             }
@@ -865,7 +865,7 @@ Section ADEQ.
             { admit. }
             assert (PROJT: tht3 = th_proj1 (Th.add tid0 tgt_default ths_tgt0)).
             { admit. }
-            hexploit H2; eauto. 1,2: admit. i; des. esplits; eauto.
+            hexploit H2; eauto. 1,2: admit. i; des. esplits; eauto. i.
             rewrite PROJS, PROJT. right. eapply CIH.
             { i. hexploit LOCAL.
               3:{ i; des. split.
@@ -873,7 +873,7 @@ Section ADEQ.
                   intro SYNC. eapply H5 in SYNC. ii. unfold local_sim_sync in SYNC.
                   assert (WORLD1: world_le w w0).
                   { etransitivity; eauto. }
-                  specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+                  specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
               }
               1,2: admit.
             }
@@ -982,7 +982,7 @@ Section ADEQ.
             intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
             assert (WORLD1: world_le w w0).
             { etransitivity; eauto. }
-            specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+            specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
           }
           hexploit LSIM0; eauto. reflexivity.
           i. pclearbot.
@@ -1009,7 +1009,7 @@ Section ADEQ.
             | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
             end.
             { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
-            rewrite H3; eauto.
+            rewrite H3. eapply lsim_set_prog. auto.
           }
           { hexploit LOCAL.
             3:{ i; des. split.
@@ -1017,7 +1017,7 @@ Section ADEQ.
                 intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
                 assert (WORLD1: world_le w w0).
                 { etransitivity; eauto. }
-                specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+                specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
             }
             1,2: admit.
           }
@@ -1064,7 +1064,7 @@ Section ADEQ.
                 | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
                 end.
                 { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
-                rewrite H7; eauto.
+                rewrite H7. eapply lsim_set_prog. auto.
               }
               { hexploit LOCAL.
                 3:{ i; des. split.
@@ -1072,7 +1072,7 @@ Section ADEQ.
                     intro SYNC. eapply H6 in SYNC. ii. unfold local_sim_sync in SYNC.
                     assert (WORLD1: world_le w w0).
                     { etransitivity; eauto. }
-                    specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
+                    specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
                 }
                 1,2: admit.
               }
@@ -1339,73 +1339,68 @@ Section ADEQ.
   (*   end; auto. *)
 
 
-  Lemma ksim_implies_gsim_yieldL
-        R0 R1 (RR: R0 -> R1 -> Prop)
-        (ths_src: threads_src2 R0)
-        (ths_tgt: threads_tgt R1)
-        tid
-        (THSRC: Th.find tid ths_src = None)
-        (THTGT: Th.find tid ths_tgt = None)
-        (WF: th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt))
-        th_src th_tgt
-        (st_src: state_src) (st_tgt: state_tgt)
-        ps ms mt
-        o w
-        (KSIM: sim_knot RR ths_src ths_tgt tid true true
-                        (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
-                        (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt),
-                          ms, mt, st_src, st_tgt, o, w))
-        (* (KSIM: paco8 (fun r => pind8 (__sim_knot RR r) top8) bot8 *)
-        (*              ths_src ths_tgt tid true true *)
-        (*              (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt *)
-        (*              (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt), *)
-        (*                ms, mt, st_src, st_tgt, o, w)) *)
-    :
-    gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 bot9 R0 R1 RR ps ms true mt
-           (interp_state
-              (st_src,
-                interp_sched (tid, Vis ((|Yield)|)%sum (fun _ : () => th_src), th_proj_v2 ths_src)))
-           (interp_state (st_tgt, interp_sched (tid, th_tgt, ths_tgt))).
-  Proof.
-    revert_until RR. gcofix CIH. i.
-    match goal with
-    | KSIM: sim_knot _ _ _ _ _ _ ?_src _ ?_shr |- _ => remember _src as ssrc; remember _shr as shr
-    end.
-    remember true as ps0 in KSIM at 1. remember true as pt0 in KSIM at 1.
-    punfold KSIM.
-    2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __ksim_mon; eauto. }
-    move KSIM before CIH. revert_until KSIM.
-    eapply pind8_acc in KSIM.
+  (* Lemma ksim_implies_gsim_yieldL *)
+  (*       R0 R1 (RR: R0 -> R1 -> Prop) *)
+  (*       (ths_src: threads_src2 R0) *)
+  (*       (ths_tgt: threads_tgt R1) *)
+  (*       tid *)
+  (*       (THSRC: Th.find tid ths_src = None) *)
+  (*       (THTGT: Th.find tid ths_tgt = None) *)
+  (*       (WF: th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt)) *)
+  (*       th_src th_tgt *)
+  (*       (st_src: state_src) (st_tgt: state_tgt) *)
+  (*       ps ms mt *)
+  (*       o w *)
+  (*       (KSIM: sim_knot RR ths_src ths_tgt tid true true *)
+  (*                       (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt *)
+  (*                       (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt), *)
+  (*                         ms, mt, st_src, st_tgt, o, w)) *)
+  (*   : *)
+  (*   gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 bot9 R0 R1 RR ps ms true mt *)
+  (*          (interp_state *)
+  (*             (st_src, *)
+  (*               interp_sched (tid, Vis ((|Yield)|)%sum (fun _ : () => th_src), th_proj_v2 ths_src))) *)
+  (*          (interp_state (st_tgt, interp_sched (tid, th_tgt, ths_tgt))). *)
+  (* Proof. *)
+  (*   revert_until RR. gcofix CIH. i. *)
+  (*   match goal with *)
+  (*   | KSIM: sim_knot _ _ _ _ _ _ ?_src _ ?_shr |- _ => remember _src as ssrc; remember _shr as shr *)
+  (*   end. *)
+  (*   remember true as ps0 in KSIM at 1. remember true as pt0 in KSIM at 1. *)
+  (*   punfold KSIM. *)
+  (*   2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __ksim_mon; eauto. } *)
+  (*   move KSIM before CIH. revert_until KSIM. *)
+  (*   eapply pind8_acc in KSIM. *)
 
-    { instantiate (1:= (fun ths_src ths_tgt tid ps0 pt0 ssrc th_tgt shr =>
-                          Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
-                          Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
-                          th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt) ->
-                          forall (th_src : thread _ident_src (sE state_src) R0) (st_src : state_src) 
-                            (st_tgt : state_tgt) (ps : bool) (ms : imap wf_src) (mt : imap wf_tgt) 
-                            (o : T wf_src) (w : world),
-                            ssrc = (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) ->
-                            shr =
-                              (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt), ms, mt,
-                                st_src, st_tgt, o, w) ->
-                            ps0 = true ->
-                            pt0 = true ->
-                            gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms true mt
-                                   (interp_state
-                                      (st_src,
-                                        interp_sched (tid, Vis ((|Yield)|)%sum (fun _ : () => th_src), th_proj_v2 ths_src)))
-                                   (interp_state (st_tgt, interp_sched (tid, th_tgt, ths_tgt))))) in KSIM; auto. }
+  (*   { instantiate (1:= (fun ths_src ths_tgt tid ps0 pt0 ssrc th_tgt shr => *)
+  (*                         Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None -> *)
+  (*                         Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None -> *)
+  (*                         th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt) -> *)
+  (*                         forall (th_src : thread _ident_src (sE state_src) R0) (st_src : state_src)  *)
+  (*                           (st_tgt : state_tgt) (ps : bool) (ms : imap wf_src) (mt : imap wf_tgt)  *)
+  (*                           (o : T wf_src) (w : world), *)
+  (*                           ssrc = (true, Vis ((|Yield)|)%sum (fun _ : () => th_src)) -> *)
+  (*                           shr = *)
+  (*                             (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt), ms, mt, *)
+  (*                               st_src, st_tgt, o, w) -> *)
+  (*                           ps0 = true -> *)
+  (*                           pt0 = true -> *)
+  (*                           gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms true mt *)
+  (*                                  (interp_state *)
+  (*                                     (st_src, *)
+  (*                                       interp_sched (tid, Vis ((|Yield)|)%sum (fun _ : () => th_src), th_proj_v2 ths_src))) *)
+  (*                                  (interp_state (st_tgt, interp_sched (tid, th_tgt, ths_tgt))))) in KSIM; auto. } *)
 
-    ss. clear ths_src ths_tgt tid ps0 pt0 ssrc th_tgt shr KSIM.
-    intros rr DEC IH ths_src ths_tgt tid ps0 pt0 ssrc tgt shr KSIM. clear DEC.
-    intros THSRC THTGT WF th_src st_src st_tgt ps ms mt o w Essrc Eshr Eps0 Ept0.
-    clarify.
-    eapply pind8_unfold in KSIM.
-    2:{ eapply _ksim_mon. }
-    inv KSIM.
+  (*   ss. clear ths_src ths_tgt tid ps0 pt0 ssrc th_tgt shr KSIM. *)
+  (*   intros rr DEC IH ths_src ths_tgt tid ps0 pt0 ssrc tgt shr KSIM. clear DEC. *)
+  (*   intros THSRC THTGT WF th_src st_src st_tgt ps ms mt o w Essrc Eshr Eps0 Ept0. *)
+  (*   clarify. *)
+  (*   eapply pind8_unfold in KSIM. *)
+  (*   2:{ eapply _ksim_mon. } *)
+  (*   inv KSIM. *)
 
-    { clear rr IH. eapply inj_pair2 in H4. clarify. ss.
-    
+  (*   { clear rr IH. eapply inj_pair2 in H4. clarify. ss. *)
+
 
   Lemma ksim_implies_gsim
         R0 R1 (RR: R0 -> R1 -> Prop)
@@ -1505,7 +1500,11 @@ Section ADEQ.
               grind.
               revert KSIM0. clear; i. admit.
             }
-            rewrite CHANGE; clear CHANGE. eapply gpaco9_mon_bot; eauto with paco.
+            rewrite CHANGE; clear CHANGE.
+            (*TODO FIXME*)
+
+
+            eapply gpaco9_mon_bot; eauto with paco.
 
             gfinal; right.
 

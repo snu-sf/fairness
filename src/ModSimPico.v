@@ -231,6 +231,102 @@ Section PRIMIVIESIM.
   Qed.
 
 
+  Lemma lsim_reset_prog
+        R0 R1 (RR: R0 -> R1 -> shared_rel) tid
+        src tgt shr
+        ps0 pt0 ps1 pt1
+        (LSIM: lsim RR tid ps1 pt1 src tgt shr)
+        (SRC: ps1 = true -> ps0 = true)
+        (TGT: pt1 = true -> pt0 = true)
+    :
+    lsim RR tid ps0 pt0 src tgt shr.
+  Proof.
+    revert_until tid. pcofix CIH. i.
+    move LSIM before CIH. revert_until LSIM. punfold LSIM.
+    2:{ eapply lsim_mon. }
+    eapply pind5_acc in LSIM.
+
+    { instantiate (1:= (fun ps1 pt1 src tgt shr =>
+                          forall ps0 pt0 : bool,
+                            (ps1 = true -> ps0 = true) ->
+                            (pt1 = true -> pt0 = true) ->
+                            paco5
+                              (fun
+                                  r0 : rel5 bool (fun _ : bool => bool) (fun _ _ : bool => itree srcE R0)
+                                            (fun (_ _ : bool) (_ : itree srcE R0) => itree tgtE R1)
+                                            (fun (_ _ : bool) (_ : itree srcE R0) (_ : itree tgtE R1) => shared) =>
+                                  pind5 (__lsim RR tid r0) top5) r ps0 pt0 src tgt shr)) in LSIM; auto. }
+
+    ss. clear ps1 pt1 src tgt shr LSIM.
+    intros rr DEC IH ps1 pt1 src tgt shr LSIM. clear DEC.
+    intros ps0 pt0 SRC TGT.
+    eapply pind5_unfold in LSIM.
+    2:{ eapply _lsim_mon. }
+    inv LSIM.
+
+    { pfold. eapply pind5_fold. econs; eauto. }
+
+    { destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
+      pfold. eapply pind5_fold. eapply lsim_tauL. split; ss.
+      hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    13:{ pfold. eapply pind5_fold. eapply lsim_observe. i. eapply upaco5_mon_bot; eauto. }
+
+    13:{ pfold. eapply pind5_fold. eapply lsim_sync; eauto. i. eapply upaco5_mon_bot; eauto. }
+
+    14:{ pclearbot. hexploit SRC; ss; i. hexploit TGT; ss; i. clarify.
+         pfold. eapply pind5_fold. eapply lsim_progress. right. eapply CIH. eauto. all: ss. }
+
+  Admitted.
+
+  Lemma lsim_set_prog
+        R0 R1 (RR: R0 -> R1 -> shared_rel) tid
+        src tgt shr
+        (LSIM: lsim RR tid true true src tgt shr)
+    :
+    forall ps pt, lsim RR tid ps pt src tgt shr.
+  Proof.
+    i. revert_until tid. pcofix CIH. i.
+    remember true as ps0 in LSIM at 1. remember true as pt0 in LSIM at 1.
+    move LSIM before CIH. revert_until LSIM. punfold LSIM.
+    2:{ eapply lsim_mon. }
+    eapply pind5_acc in LSIM.
+
+    { instantiate (1:= (fun ps0 pt0 src tgt shr =>
+                          ps0 = true ->
+                          pt0 = true ->
+                          forall ps pt : bool,
+                            paco5
+                              (fun
+                                  r0 : rel5 bool (fun _ : bool => bool) (fun _ _ : bool => itree srcE R0)
+                                            (fun (_ _ : bool) (_ : itree srcE R0) => itree tgtE R1)
+                                            (fun (_ _ : bool) (_ : itree srcE R0) (_ : itree tgtE R1) => shared) =>
+                                  pind5 (__lsim RR tid r0) top5) r ps pt src tgt shr)) in LSIM; auto. }
+
+    ss. clear ps0 pt0 src tgt shr LSIM.
+    intros rr DEC IH gps gpt src tgt shr LSIM. clear DEC.
+    intros Egps Egpt ps pt.
+    eapply pind5_unfold in LSIM.
+    2:{ eapply _lsim_mon. }
+    inv LSIM.
+
+    { pfold. eapply pind5_fold. econs; eauto. }
+
+    { destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
+      pfold. eapply pind5_fold. eapply lsim_tauL. split; ss.
+      hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    13:{ pfold. eapply pind5_fold. eapply lsim_observe. i. eapply upaco5_mon_bot; eauto. }
+
+    13:{ pfold. eapply pind5_fold. eapply lsim_sync; eauto. i. eapply upaco5_mon_bot; eauto. }
+
+    14:{ pclearbot. eapply paco5_mon_bot. eapply lsim_reset_prog. eauto. all: ss. }
+
+  Admitted.
+
+
   (* Variant __lsim (tid: thread_id.(id)) *)
   (*           (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
   (*               bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel) *)
