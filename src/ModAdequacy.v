@@ -3,10 +3,11 @@ From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
+Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 Require Import Permutation.
 
-From ExtLib Require Import FMapAList.
+(* From ExtLib Require Import FMapAList. *)
 
 Export ITreeNotations.
 
@@ -39,8 +40,6 @@ Section ADEQ.
         tgt
         (st_src: state_src)
         (ths_src: @threads _ident_src (sE state_src) R0)
-        (* (WF0: threads_wf ths_src0) *)
-        (* (PERM: Permutation ths_src0 ths_src1) *)
         (SIM: sim RR true ms pt mt
                   (interp_state
                      (st_src,
@@ -226,6 +225,8 @@ Section ADEQ.
 
   Variable world: Type.
   Variable world_le: world -> world -> Prop.
+  Hypothesis world_le_PreOrder: PreOrder world_le.
+  Program Instance wle_PreOrder: PreOrder world_le.
 
   Let shared := @shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt world.
 
@@ -739,7 +740,7 @@ Section ADEQ.
                   2:{ eapply H4. }
                   intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
                   assert (WORLD1: world_le w w0).
-                  { admit. }
+                  { etransitivity; eauto. }
                   specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
               }
               1,2: admit.
@@ -762,7 +763,7 @@ Section ADEQ.
                   2:{ eapply H6. }
                   intro SYNC. eapply H5 in SYNC. ii. unfold local_sim_sync in SYNC.
                   assert (WORLD1: world_le w w0).
-                  { admit. }
+                  { etransitivity; eauto. }
                   specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
               }
               1,2: admit.
@@ -802,7 +803,8 @@ Section ADEQ.
     { clarify. pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_UB. }
 
     { des. clarify. destruct LSIM as [LSIM IND]. clear LSIM.
-      pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_fairL. exists im_src1. splits; eauto. split; ss.
+      pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_fairL.
+      exists im_src1. splits; eauto. split; ss.
       hexploit IH; eauto. i. punfold H. eapply ksim_mon.
     }
 
@@ -870,10 +872,10 @@ Section ADEQ.
             2:{ eapply H3. }
             intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
             assert (WORLD1: world_le w w0).
-            { admit. }
+            { etransitivity; eauto. }
             specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
           }
-          hexploit LSIM0; eauto. admit.
+          hexploit LSIM0; eauto. reflexivity.
           i. pclearbot.
           match goal with
           | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
@@ -905,7 +907,7 @@ Section ADEQ.
                 2:{ eapply H3. }
                 intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
                 assert (WORLD1: world_le w w0).
-                { admit. }
+                { etransitivity; eauto. }
                 specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
             }
             1,2: admit.
@@ -960,7 +962,7 @@ Section ADEQ.
                     2:{ eapply H7. }
                     intro SYNC. eapply H6 in SYNC. ii. unfold local_sim_sync in SYNC.
                     assert (WORLD1: world_le w w0).
-                    { admit. }
+                    { etransitivity; eauto. }
                     specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 _ FAIR0). auto.
                 }
                 1,2: admit.
