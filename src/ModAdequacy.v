@@ -1425,12 +1425,14 @@ Section ADEQ.
   Proof.
     ii. specialize (KSIM mt). des. rename im_src into ms. exists ms.
     ginit. revert_until RR. gcofix CIH. i.
+    move o before CIH. revert_until o. induction (wf_src.(wf) o).
+    clear H; rename x into o, H0 into IHo. i.
     match goal with
     | KSIM: sim_knot _ _ _ _ _ _ ?_src _ ?_shr |- _ => remember _src as ssrc; remember _shr as shr
     end.
     punfold KSIM.
     2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __ksim_mon; eauto. }
-    move KSIM before CIH. revert_until KSIM.
+    move KSIM before IHo. revert_until KSIM.
     eapply pind8_acc in KSIM.
 
     { instantiate (1:= (fun ths_src ths_tgt tid ps pt ssrc tgt shr =>
@@ -1438,7 +1440,7 @@ Section ADEQ.
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           th_wf_pair (Th.add tid src_default2 ths_src) (Th.add tid tgt_default ths_tgt) ->
                           forall (sf : bool) (src : itree srcE R0) (st_src : state_src) (st_tgt : state_tgt)
-                            (o : T wf_src) (w : world) (mt : imap wf_tgt) (ms : imap wf_src),
+                            (w : world) (mt : imap wf_tgt) (ms : imap wf_src),
                             ssrc = (sf, src) ->
                             shr =
                               (th_proj1 (Th.add tid src_default2 ths_src), th_proj1 (Th.add tid tgt_default ths_tgt), ms, mt,
@@ -1448,7 +1450,7 @@ Section ADEQ.
 
     ss. clear ths_src ths_tgt tid ps pt ssrc tgt shr KSIM.
     intros rr DEC IH ths_src ths_tgt tid ps pt ssrc tgt shr KSIM. clear DEC.
-    intros THSRC THTGT WF sf src st_src st_tgt o w mt ms Essrc Eshr.
+    intros THSRC THTGT WF sf src st_src st_tgt w mt ms Essrc Eshr.
     eapply pind8_unfold in KSIM.
     2:{ eapply _ksim_mon. }
     inv KSIM.
