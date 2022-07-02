@@ -17,9 +17,12 @@ Section SCHEDULE.
   Let eventE2 := @eventE (sum_tid _Ident).
   Let Es := (eventE1 +' cE) +' E.
 
+  Let thread R := thread _Ident E R.
+  Let threads R := list (thread_id.(id) * thread R).
+  
   Definition pick_thread_fifo {R} :
-    thread_id.(id) * (thread _Ident E R + R) -> threads _Ident E R ->
-    itree (eventE2 +' E) (thread_id.(id) * thread _Ident E R * threads _Ident E R + R) :=
+    thread_id.(id) * (thread R + R) -> threads R ->
+    itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R) :=
     fun '(tid, res) ts =>
       match res with
       | inl t => match (ts ++ [(tid, t)]) with
@@ -32,9 +35,13 @@ Section SCHEDULE.
                 end
       end.
 
-  Definition interp_fifosched {R} := @interp_sched_aux _ E (@pick_thread_fifo) R.
+  Definition interp_fifosched {R} : thread_id.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
+    ITree.iter (fun '(t, ts) =>
+                  res <- interp_thread t;;
+                  pick_thread_fifo (fst t, res) ts
+      ).
 
-  Lemma pick_thread_fifo_yield {R} tid (t : thread _Ident E R) ts :
+  Lemma pick_thread_fifo_yield {R} tid (t : thread R) ts :
     pick_thread_fifo (tid, inl t) ts =
       match (ts ++ [(tid, t)]) with
       | [] => Vis (inl1 (Choose void)) (Empty_set_rect _)
@@ -58,6 +65,24 @@ Section SCHEDULE.
       | inl y => tau;; interp_fifosched y
       | inr r => Ret r
       end.
-  Proof. apply unfold_interp_sched_aux. Qed.
+  Proof. unfold interp_fifosched at 1. rewrite unfold_iter, bind_bind. ss. Qed.
 
 End SCHEDULE.
+
+Global Opaque
+  pick_thread_fifo.
+
+Section INTERP.
+
+  Variable State : Type.
+  Variable _Ident : ID.
+  Let eventE2 := @eventE (sum_tid _Ident).
+
+  Definition interp_all_fifo
+    {R}
+    (st : State) (ths : list (thread_id.(id) * thread _Ident (sE State) R))
+    tid (itr : @thread _Ident (sE State) R) :
+    itree eventE2 R :=
+    interp_state (st, interp_fifosched (tid, itr, ths)).
+
+End INTERP.
