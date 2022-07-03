@@ -5,6 +5,9 @@ Require Export Coq.Strings.String.
 
 From Fairness Require Export ITreeLib FairBeh.
 
+Require Import Coq.FSets.FSetList Coq.Structures.OrderedTypeEx.
+Module Ti := FSetList.Make(Nat_as_OT).
+
 Set Implicit Arguments.
 
 
@@ -14,7 +17,6 @@ Section TID.
 
   Definition nat_wf: WF := mk_wf Wf_nat.lt_wf.
 
-  (* Definition thread_id: ID := mk_id nat. *)
   Definition tid_main: thread_id.(id) := 0.
   Definition tid_dec := PeanoNat.Nat.eq_dec.
 
@@ -24,6 +26,7 @@ Section TID.
   Definition tid_dec_bool :=
     fun t1 t2 => if (tid_dec t1 t2) then true else false.
 
+  (*TODO: use finite set*)
   Definition tid_list: Type := list thread_id.(id).
 
   Definition tid_list_wf (ths: tid_list) := List.NoDup ths.

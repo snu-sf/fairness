@@ -1789,4 +1789,53 @@ Section ADEQ.
 
   Admitted.
 
+  Theorem lsim_implies_gsim
+          R0 R1 (RR: R0 -> R1 -> Prop)
+          (ths_src: threads_src1 R0)
+          (ths_tgt: threads_tgt R1)
+          (LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1)
+                    (LSRC: Th.find tid ths_src = Some src)
+                    (LTGT: Th.find tid ths_tgt = Some tgt),
+              (local_sim_pick RR src tgt tid))
+          (WF: th_wf_pair ths_src ths_tgt)
+          tid
+          (FINDS: Th.find tid ths_src = None)
+          (FINDT: Th.find tid ths_tgt = None)
+          src tgt
+          (st_src: state_src) (st_tgt: state_tgt) o w
+          ps pt
+          (LSIM: forall im_tgt, exists im_src,
+              (<<INV: I (th_proj1 (Th.add tid src_default ths_src), th_proj1 (Th.add tid tgt_default ths_tgt),
+                          im_src, im_tgt, st_src, st_tgt, o, w)>>) /\
+                ((I (th_proj1 (Th.add tid src_default ths_src), th_proj1 (Th.add tid tgt_default ths_tgt),
+                     im_src, im_tgt, st_src, st_tgt, o, w)) ->
+              lsim world_le I (local_RR world_le I RR tid) tid ps pt src tgt
+                   (th_proj1 (Th.add tid src_default ths_src), th_proj1 (Th.add tid tgt_default ths_tgt),
+                     im_src, im_tgt, st_src, st_tgt, o, w)))
+    :
+    gsim wf_src wf_tgt RR ps pt
+         (interp_all st_src ths_src tid src)
+         (interp_all st_tgt ths_tgt tid tgt).
+  Proof.
+    remember (Th.map (fun th => (false, th)) ths_src) as ths_src2.
+    assert (FINDS2: Th.find tid ths_src2 = None).
+    { admit. }
+    assert (WF0: th_wf_pair (Th.add tid src_default2 ths_src2) (Th.add tid tgt_default ths_tgt)).
+    { admit. }
+    replace ths_src with (th_proj_v2 ths_src2).
+    2:{ admit. }
+    eapply ksim_implies_gsim; auto.
+    eapply lsim_implies_ksim; auto.
+    { i. assert (SF: sf = false).
+      { clarify. admit. }
+      subst sf. split; i; ss. eapply LOCAL; auto.
+      admit.
+    }
+    { replace (th_proj1 (Th.add tid src_default2 ths_src2)) with (th_proj1 (Th.add tid src_default ths_src)).
+      i. specialize (LSIM im_tgt). des. eexists. eapply LSIM0; eauto.
+      admit. }
+    Unshelve. exact true.
+
+  Abort.
+
 End ADEQ.
