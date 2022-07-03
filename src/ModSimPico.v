@@ -271,14 +271,65 @@ Section PRIMIVIESIM.
       hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
     }
 
-    13:{ pfold. eapply pind5_fold. eapply lsim_observe. i. eapply upaco5_mon_bot; eauto. }
+    { des. pfold. eapply pind5_fold. eapply lsim_chooseL. esplits; eauto. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-    13:{ pfold. eapply pind5_fold. eapply lsim_sync; eauto. i. eapply upaco5_mon_bot; eauto. }
+    { pfold. eapply pind5_fold. eapply lsim_putL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-    14:{ pclearbot. hexploit SRC; ss; i. hexploit TGT; ss; i. clarify.
-         pfold. eapply pind5_fold. eapply lsim_progress. right. eapply CIH. eauto. all: ss. }
+    { pfold. eapply pind5_fold. eapply lsim_getL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  Admitted.
+    { pfold. eapply pind5_fold. eapply lsim_tidL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pfold. eapply pind5_fold. eapply lsim_UB. }
+
+    { des. pfold. eapply pind5_fold. eapply lsim_fairL. esplits; eauto. split; ss.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
+      pfold. eapply pind5_fold. eapply lsim_tauR. split; ss.
+      hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pfold. eapply pind5_fold. eapply lsim_chooseR. i. split; ss. specialize (LSIM0 x).
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pfold. eapply pind5_fold. eapply lsim_putR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pfold. eapply pind5_fold. eapply lsim_getR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pfold. eapply pind5_fold. eapply lsim_tidR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pfold. eapply pind5_fold. eapply lsim_fairR. i. split; ss. specialize (LSIM0 _ FAIR).
+      des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pfold. eapply pind5_fold. eapply lsim_observe. i. eapply upaco5_mon_bot; eauto. }
+
+    { pfold. eapply pind5_fold. eapply lsim_sync; eauto. i. eapply upaco5_mon_bot; eauto. }
+
+    { des. pfold. eapply pind5_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pclearbot. hexploit SRC; ss; i. hexploit TGT; ss; i. clarify.
+      pfold. eapply pind5_fold. eapply lsim_progress. right. eapply CIH. eauto. all: ss. }
+
+  Qed.
 
   Lemma lsim_set_prog
         R0 R1 (RR: R0 -> R1 -> shared_rel) tid
@@ -318,192 +369,64 @@ Section PRIMIVIESIM.
       hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
     }
 
-    13:{ pfold. eapply pind5_fold. eapply lsim_observe. i. eapply upaco5_mon_bot; eauto. }
+    { des. pfold. eapply pind5_fold. eapply lsim_chooseL. esplits; eauto. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-    13:{ pfold. eapply pind5_fold. eapply lsim_sync; eauto. i. eapply upaco5_mon_bot; eauto. }
+    { pfold. eapply pind5_fold. eapply lsim_putL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-    14:{ pclearbot. eapply paco5_mon_bot. eapply lsim_reset_prog. eauto. all: ss. }
+    { pfold. eapply pind5_fold. eapply lsim_getL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  Admitted.
+    { pfold. eapply pind5_fold. eapply lsim_tidL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
+    { pfold. eapply pind5_fold. eapply lsim_UB. }
 
-  (* Variant __lsim (tid: thread_id.(id)) *)
-  (*           (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
-  (*               bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel) *)
-  (*           (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
-  (*               bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel) *)
-  (*           R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) *)
-  (*   : *)
-  (*   bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel := *)
-  (* | lsim_ret *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     r_src r_tgt *)
-  (*     (LSIM: RR r_src r_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (Ret r_src) (Ret r_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
+    { des. pfold. eapply pind5_fold. eapply lsim_fairL. esplits; eauto. split; ss.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (* | lsim_tauL *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     itr_src itr_tgt *)
-  (*     (LSIM: _lsim _ _ RR true f_tgt itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (Tau itr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_chooseL *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     X ktr_src itr_tgt *)
-  (*     (LSIM: exists x, _lsim _ _ RR true f_tgt (ktr_src x) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (Choose X) >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_putL *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     st ktr_src itr_tgt *)
-  (*     (LSIM: _lsim _ _ RR true f_tgt (ktr_src tt) itr_tgt (ths, tht, im_src, im_tgt, st, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (Put st) >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_getL *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     ktr_src itr_tgt *)
-  (*     (LSIM: _lsim _ _ RR true f_tgt (ktr_src st_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (@Get _) >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_tidL *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     ktr_src itr_tgt *)
-  (*     (LSIM: _lsim _ _ RR true f_tgt (ktr_src tid) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (GetTid) >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_UB *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     ktr_src itr_tgt *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (Undefined) >>= ktr_src) itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_fairL *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src0 im_tgt st_src st_tgt o w *)
-  (*     f ktr_src itr_tgt *)
-  (*     (LSIM: exists im_src1, *)
-  (*         (<<FAIR: fair_update im_src0 im_src1 f>>) /\ *)
-  (*           (<<LSIM: _lsim _ _ RR true f_tgt (ktr_src tt) itr_tgt (ths, tht, im_src1, im_tgt, st_src, st_tgt, o, w)>>)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (Fair f) >>= ktr_src) itr_tgt (ths, tht, im_src0, im_tgt, st_src, st_tgt, o, w) *)
+    { destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
+      pfold. eapply pind5_fold. eapply lsim_tauR. split; ss.
+      hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (* | lsim_tauR *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     itr_src itr_tgt *)
-  (*     (LSIM: _lsim _ _ RR f_src true itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt itr_src (Tau itr_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_chooseR *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     X itr_src ktr_tgt *)
-  (*     (LSIM: forall x, _lsim _ _ RR f_src true itr_src (ktr_tgt x) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt itr_src (trigger (Choose X) >>= ktr_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_putR *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     st itr_src ktr_tgt *)
-  (*     (LSIM: _lsim _ _ RR f_src true itr_src (ktr_tgt tt) (ths, tht, im_src, im_tgt, st_src, st, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt itr_src (trigger (Put st) >>= ktr_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_getR *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     itr_src ktr_tgt *)
-  (*     (LSIM: _lsim _ _ RR f_src true itr_src (ktr_tgt st_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt itr_src (trigger (@Get _) >>= ktr_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_tidR *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     itr_src ktr_tgt *)
-  (*     (LSIM: _lsim _ _ RR f_src true itr_src (ktr_tgt tid) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt itr_src (trigger (GetTid) >>= ktr_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* | lsim_fairR *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt0 st_src st_tgt o w *)
-  (*     f itr_src ktr_tgt *)
-  (*     (LSIM: forall im_tgt1 *)
-  (*                  (FAIR: fair_update im_tgt0 im_tgt1 f), *)
-  (*         (<<LSIM: _lsim _ _ RR f_src true itr_src (ktr_tgt tt) (ths, tht, im_src, im_tgt1, st_src, st_tgt, o, w)>>)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt itr_src (trigger (Fair f) >>= ktr_tgt) (ths, tht, im_src, im_tgt0, st_src, st_tgt, o, w) *)
+    { pfold. eapply pind5_fold. eapply lsim_chooseR. i. split; ss. specialize (LSIM0 x).
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (* | lsim_observe *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     fn args ktr_src ktr_tgt *)
-  (*     (LSIM: forall ret, *)
-  (*         lsim _ _ RR true true (ktr_src ret) (ktr_tgt ret) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
+    { pfold. eapply pind5_fold. eapply lsim_putR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (* | lsim_sync *)
-  (*     f_src f_tgt *)
-  (*     ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o w *)
-  (*     o0 w0 ktr_src ktr_tgt *)
-  (*     (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
-  (*     (WORLD: world_le w w0) *)
-  (*     (STUTTER: wf_src.(lt) o0 o) *)
-  (*     (LSIM: forall ths1 tht1 im_src1 im_tgt1 st_src1 st_tgt1 o1 w1 *)
-  (*                  (INV: I (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1)) *)
-  (*                  (WORLD: world_le w0 w1) *)
-  (*                  im_tgt2 *)
-  (*                  (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (thread_fmap tid))), *)
-  (*         lsim _ _ RR true true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, tht1, im_src1, im_tgt2, st_src1, st_tgt1, o1, w1)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o, w) *)
-  (* | lsim_yieldL *)
-  (*     f_src f_tgt *)
-  (*     ths tht im_src0 im_tgt st_src st_tgt o0 w *)
-  (*     ktr_src itr_tgt *)
-  (*     (LSIM: exists im_src1 o1, *)
-  (*         (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (thread_fmap tid))>>) /\ *)
-  (*           (<<LSIM: _lsim _ _ RR true f_tgt (ktr_src tt) itr_tgt (ths, tht, im_src1, im_tgt, st_src, st_tgt, o1, w)>>)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR f_src f_tgt (trigger (Yield) >>= ktr_src) itr_tgt (ths, tht, im_src0, im_tgt, st_src, st_tgt, o0, w) *)
+    { pfold. eapply pind5_fold. eapply lsim_getR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (* | lsim_progress *)
-  (*     ths tht im_src im_tgt st_src st_tgt o w *)
-  (*     itr_src itr_tgt *)
-  (*     (LSIM: lsim _ _ RR false false itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-  (*   : *)
-  (*   __lsim tid lsim _lsim RR true true itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w) *)
-  (* . *)
+    { pfold. eapply pind5_fold. eapply lsim_tidR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (* Definition lsim (tid: thread_id.(id)): forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), *)
-  (*     bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel := *)
-  (*   paco8 (fun r => pind8 (__lsim tid r) top8) bot8. *)
+    { pfold. eapply pind5_fold. eapply lsim_fairR. i. split; ss. specialize (LSIM0 _ FAIR).
+      des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (* Lemma __lsim_mon tid: forall r r' (LE: r <8= r'), (__lsim tid r) <9= (__lsim tid r'). *)
-  (* Proof. *)
-  (*   ii. inv PR; econs; eauto. *)
-  (* Qed. *)
+    { pfold. eapply pind5_fold. eapply lsim_observe. i. eapply upaco5_mon_bot; eauto. }
 
-  (* Lemma _lsim_mon tid: forall r, monotone8 (__lsim tid r). *)
-  (* Proof. *)
-  (*   ii. inv IN; econs; eauto. *)
-  (*   { des. eauto. } *)
-  (*   { des. eauto. } *)
-  (*   { i. eapply LE. eapply LSIM. eauto. } *)
-  (*   { des. esplits; eauto. } *)
-  (* Qed. *)
+    { pfold. eapply pind5_fold. eapply lsim_sync; eauto. i. eapply upaco5_mon_bot; eauto. }
 
-  (* Lemma lsim_mon tid: forall q, monotone8 (fun r => pind8 (__lsim tid r) q). *)
-  (* Proof. *)
-  (*   ii. eapply pind8_mon_gen; eauto. *)
-  (*   ii. eapply __lsim_mon; eauto. *)
-  (* Qed. *)
+    { des. pfold. eapply pind5_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
+
+    { pclearbot. eapply paco5_mon_bot. eapply lsim_reset_prog. eauto. all: ss. }
+
+  Qed.
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid :=
     fun (r_src: R0) (r_tgt: R1) '(ths2, tht2, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1) =>
