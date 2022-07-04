@@ -20,6 +20,22 @@ Section SCHEDULE.
   Let thread R := thread _Ident E R.
   Let threads R := list (thread_id.(id) * thread R).
   
+  Definition schedule_fifo R0 : thread_id.(id) * list thread_id.(id) -> scheduler R0 R0 :=
+    ITree.iter (fun '(tid, q) =>
+                  r <- trigger (Execute _ tid);;
+                  match r with
+                  | None =>
+                      match q ++ [tid] with
+                      | [] => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                      | tid' :: q' => Ret (inl (tid', q'))
+                      end
+                  | Some r =>
+                      match q with
+                      | [] => Ret (inr r)
+                      | tid' :: q' => Ret (inl (tid', q'))
+                      end
+                  end).
+
   Definition pick_thread_fifo {R} :
     thread_id.(id) * (thread R + R) -> threads R ->
     itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R) :=

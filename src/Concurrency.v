@@ -13,12 +13,11 @@ From Fairness Require Import Mod.
 
 (* From ExtLib Require Import FMapAList. *)
 (* Require Import FSets.FMapList. *)
-Require Import Coq.FSets.FMaps Coq.Structures.OrderedTypeEx.
+Require Import Coq.FSets.FSets Coq.FSets.FMaps Coq.Structures.OrderedTypeEx.
 Module Th := FMapList.Make(Nat_as_OT).
+Module IdSet := FSetList.Make(Nat_as_OT).
 
 Set Implicit Arguments.
-
-
 
 Lemma unfold_iter E A B (f: A -> itree E (A + B)) (x: A)
   :
@@ -392,23 +391,39 @@ Definition th_pop (elt: Type) : Th.key -> Th.t elt -> option (prod elt (Th.t elt
           | Some e => Some (e, Th.remove k m)
           end.
 
+Definition id_pop : IdSet.elt -> IdSet.t -> option IdSet.t :=
+  fun x s => if IdSet.mem x s
+          then Some (IdSet.remove x s)
+          else None.
+
 Section SCHEDULE.
+
+  Variant schedulerE (RT : Type) : Type -> Type :=
+  | Execute : thread_id.(id) -> schedulerE RT (option RT)
+  .
+
+  Let eventE0 := @eventE thread_id.
+
+  Definition scheduler RT R := itree (schedulerE RT +' eventE0) R.
 
   Context {_Ident: ID}.
   Variable E: Type -> Type.
 
   Let eventE1 := @eventE _Ident.
   Let eventE2 := @eventE (sum_tid _Ident).
+  Let Es0 := (eventE1 +' cE) +' E.
+  Let thread R := thread _Ident E R.
+  Let threads R := threads _Ident E R.
+
+  Definition embed_eventE0 X (e: eventE0 X) : eventE2 X.
+  Proof.
+    destruct e. exact (Choose X). exact (Fair (sum_fmap_l m)). exact (Observe fn args). exact Undefined.
+  Defined.
 
   Definition embed_eventE X (e: eventE1 X): eventE2 X.
   Proof.
     destruct e. exact (Choose X). exact (Fair (sum_fmap_r m)). exact (Observe fn args). exact Undefined.
   Defined.
-
-  Let Es0 := (eventE1 +' cE) +' E.
-
-  Let thread R := thread _Ident E R.
-  Let threads R := threads _Ident E R.
 
   Definition interp_thread_aux {R} :
     thread_id.(id) * thread R -> itree (eventE1 +' E) (thread R + R).
@@ -438,49 +453,23 @@ Section SCHEDULE.
     thread_id.(id) * thread R -> itree (eventE2 +' E) (thread R + R) :=
     fun x => map_event (embed_left embed_eventE) (interp_thread_aux x).
 
-  Definition interp_sched_aux
-    (pick_thread : forall {R}, thread_id.(id) * (thread R + R) -> threads R ->
-                          itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R))
-    {R}
-    :
-    thread_id.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
-    ITree.iter (fun '(t, ts) =>
-                  res <- interp_thread t;;
-                  pick_thread (fst t, res) ts
-      ).
+  Definition interp_sched R0 R : threads R0 * scheduler R0 R -> itree (eventE2 +' E) R.
+  Proof.
+    eapply ITree.iter. intros [ts sch].
+    destruct (observe sch) as [r | sch' | X [e|e] ktr].
+    - exact (Ret (inr r)).
+    - exact (Ret (inl (ts, sch'))).
+    - destruct e.
+      destruct (Th.find i ts) as [t|].
+      * exact (r <- interp_thread (i, t);;
+               match r with
+               | inl t' => Ret (inl (Th.add i t' ts, ktr None))
+               | inr r => Ret (inl (Th.remove i ts, ktr (Some r)))
+               end).
+      * exact (Vis (inl1 (Choose void)) (Empty_set_rect _)).
+    - exact (Vis (inl1 (embed_eventE0 e)) (fun x => Ret (inl (ts, ktr x)))).
+  Defined.
 
-  (* NB for invalid tid *)
-  Definition pick_thread_nondet {R} :
-    thread_id.(id) * (thread R + R) -> threads R ->
-    itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R) :=
-    fun '(tid, res) ts =>
-      match res with
-      | inl t =>
-          Vis (inl1 (Choose thread_id.(id)))
-              (fun tid' =>
-                 match th_pop tid' (Th.add tid t ts) with
-                 | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                 | Some (t', ts') =>
-                     Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))))
-                         (fun _ => Ret (inl (tid', t', ts')))
-                 end)
-      | inr r =>
-          if Th.is_empty ts then Ret (inr r)
-          else Vis (inl1 (Choose thread_id.(id)))
-                   (fun tid' =>
-                      match th_pop tid' ts with
-                      | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                      | Some (t', ts') =>
-                          Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))))
-                              (fun _ => Ret (inl (tid', t', ts')))
-                      end)
-      end.
-
-  Definition interp_sched {R} :
-    thread_id.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
-    @interp_sched_aux (@pick_thread_nondet) R.
-
-  (* Lemmas for interp_thread *)
   Lemma unfold_interp_thread {R} tid (itr : thread R) :
     interp_thread (tid, itr) = map_event (embed_left embed_eventE) (interp_thread_aux (tid, itr)).
   Proof. ss. Qed.
@@ -543,6 +532,90 @@ Section SCHEDULE.
       Ret (inl (ktr tt)).
   Proof. rewrite bind_trigger. apply interp_thread_vis_yield. Qed.
 
+End SCHEDULE.
+
+Section SCHEDULE_NONDET.
+
+  Definition schedule_nondet R0 : thread_id.(id) * IdSet.t -> scheduler R0 R0 :=
+    ITree.iter (fun '(tid, q) =>
+                  r <- trigger (Execute _ tid);;
+                  match r with
+                  | None =>
+                      tid' <- trigger (Choose thread_id.(id));;
+                      match id_pop tid' (IdSet.add tid q) with
+                      | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                      | Some q' =>
+                          trigger (Fair (tids_fmap tid' (IdSet.elements q')));;
+                          Ret (inl (tid', q'))
+                      end
+                  | Some r =>
+                      if IdSet.is_empty q
+                      then Ret (inr r)
+                      else
+                        tid' <- trigger (Choose thread_id.(id));;
+                        match id_pop tid' q with
+                        | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                        | Some q' =>
+                            trigger (Fair (tids_fmap tid' (IdSet.elements q')));;
+                            Ret (inl (tid', q'))
+                        end
+                  end).
+
+End SCHEDULE_NONDET.
+
+Section SCHEDULE_LEGACY.
+
+  Context {_Ident: ID}.
+  Variable E: Type -> Type.
+
+  Let eventE1 := @eventE _Ident.
+  Let eventE2 := @eventE (sum_tid _Ident).
+  Let Es0 := (eventE1 +' cE) +' E.
+  Let thread R := thread _Ident E R.
+  Let threads R := threads _Ident E R.
+
+  Definition interp_sched_aux
+    (pick_thread : forall {R}, thread_id.(id) * (thread R + R) -> threads R ->
+                          itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R))
+    {R}
+    :
+    thread_id.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
+    ITree.iter (fun '(t, ts) =>
+                  res <- interp_thread t;;
+                  pick_thread (fst t, res) ts
+      ).
+
+  (* NB for invalid tid *)
+  Definition pick_thread_nondet {R} :
+    thread_id.(id) * (thread R + R) -> threads R ->
+    itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R) :=
+    fun '(tid, res) ts =>
+      match res with
+      | inl t =>
+          Vis (inl1 (Choose thread_id.(id)))
+              (fun tid' =>
+                 match th_pop tid' (Th.add tid t ts) with
+                 | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
+                 | Some (t', ts') =>
+                     Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))))
+                         (fun _ => Ret (inl (tid', t', ts')))
+                 end)
+      | inr r =>
+          if Th.is_empty ts then Ret (inr r)
+          else Vis (inl1 (Choose thread_id.(id)))
+                   (fun tid' =>
+                      match th_pop tid' ts with
+                      | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
+                      | Some (t', ts') =>
+                          Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))))
+                              (fun _ => Ret (inl (tid', t', ts')))
+                      end)
+      end.
+
+  Definition interp_sched_nondet {R} :
+    thread_id.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
+    @interp_sched_aux (@pick_thread_nondet) R.
+
   (* Lemmas for pick_thread_nondet *)
   Lemma pick_thread_nondet_yield {R} tid (t : thread R) ts :
     pick_thread_nondet (tid, (inl t)) ts =
@@ -578,23 +651,166 @@ Section SCHEDULE.
       end.
   Proof. unfold interp_sched_aux at 1. rewrite unfold_iter. rewrite bind_bind. ss. Qed.
 
-  Lemma unfold_interp_sched {R} tid (t : thread R) ts :
-    interp_sched (tid, t, ts) =
+  Lemma unfold_interp_sched_nondet {R} tid (t : thread R) ts :
+    interp_sched_nondet (tid, t, ts) =
       res <- interp_thread (tid, t);;
       x <- pick_thread_nondet (tid, res) ts;;
       match x with
-      | inl tts => tau;; interp_sched tts
+      | inl tts => tau;; interp_sched_nondet tts
       | inr r => Ret r
       end.
   Proof. eapply unfold_interp_sched_aux. Qed.
 
-End SCHEDULE.
+End SCHEDULE_LEGACY.
 
 Global Opaque
   interp_thread
   pick_thread_nondet
   interp_sched_aux
   interp_sched.
+
+Section SSIM.
+
+  Variable wf_src : WF.
+  Variable wf_tgt : WF.
+
+  Inductive _ssim
+    (ssim : forall RT R0 R1 (RR : R0 -> R1 -> Prop), bool -> (@imap thread_id wf_src) -> bool -> (@imap thread_id wf_tgt) -> scheduler RT R0 -> scheduler RT R1 -> Prop)
+    {RT R0 R1} (RR : R0 -> R1 -> Prop)
+    (p_src : bool) (m_src : @imap thread_id wf_src) (p_tgt : bool) (m_tgt : @imap thread_id wf_tgt)
+    : scheduler RT R0 -> scheduler RT R1 -> Prop :=
+
+  | ssim_ret
+      r_src r_tgt
+      (SIM : RR r_src r_tgt)
+    : _ssim ssim RR p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt)
+
+  | ssim_tauL
+      itr_src itr_tgt
+      (SIM : _ssim ssim RR true m_src p_tgt m_tgt itr_src itr_tgt)
+    : _ssim ssim RR p_src m_src p_tgt m_tgt (Tau itr_src) itr_tgt
+
+  | ssim_tauR
+      itr_src itr_tgt
+      (SIM : _ssim ssim RR p_src m_src true m_tgt itr_src itr_tgt)
+    : _ssim ssim RR p_src m_src p_tgt m_tgt itr_src (Tau itr_tgt)
+
+  | ssim_exe
+      tid ktr_src ktr_tgt
+      (SIM : forall rt,
+          ssim _ _ _ RR true m_src true m_tgt (ktr_src rt) (ktr_tgt rt))
+    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inl1 (Execute _ tid)) ktr_src) (Vis (inl1 (Execute _ tid)) ktr_tgt)
+
+  | ssim_obs
+      ktr_src ktr_tgt fn args
+      (SIM : forall r,
+          ssim _ _ _ RR true m_src true m_tgt (ktr_src r) (ktr_tgt r))
+    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inr1 (Observe fn args)) ktr_src) (Vis (inr1 (Observe fn args)) ktr_tgt)
+
+  | ssim_chooseL
+      X ktr_src itr_tgt
+      (SIM : exists x, _ssim ssim RR true m_src p_tgt m_tgt (ktr_src x) itr_tgt)
+    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inr1 (Choose X)) ktr_src) itr_tgt
+
+  | ssim_chooseR
+      X itr_src ktr_tgt
+      (SIM : forall x, _ssim ssim RR p_src m_src true m_tgt itr_src (ktr_tgt x))
+    : _ssim ssim RR p_src m_src p_tgt m_tgt itr_src (Vis (inr1 (Choose X)) ktr_tgt)
+
+  | ssim_fairL
+      f_src ktr_src itr_tgt
+      (SIM : exists m_src0, (<<FAIR : fair_update m_src m_src0 f_src>>) /\
+                         (<<SIM : _ssim ssim RR true m_src0 p_tgt m_tgt (ktr_src tt) itr_tgt>>))
+    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inr1 (Fair f_src)) ktr_src) itr_tgt
+
+  | ssim_fairR
+      f_tgt itr_src ktr_tgt
+      (SIM : forall m_tgt0 (FAIR : fair_update m_tgt m_tgt0 f_tgt),
+          _ssim ssim RR p_src m_src true m_tgt0 itr_src (ktr_tgt tt))
+    : _ssim ssim RR p_src m_src p_tgt m_tgt itr_src (Vis (inr1 (Fair f_tgt)) ktr_tgt)
+
+  | ssim_ub
+      ktr_src itr_tgt
+    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inr1 Undefined) ktr_src) itr_tgt
+
+  | ssim_progress
+      itr_src itr_tgt
+      (PSRC : p_src = true) (PTGT : p_tgt = true)
+      (SIM : ssim _ _ _ RR false m_src false m_tgt itr_src itr_tgt)
+    : _ssim ssim RR p_src m_src p_tgt m_tgt itr_src itr_tgt
+  .
+
+  Definition ssim : forall RT R0 R1 (RR : R0 -> R1 -> Prop), bool -> (@imap thread_id wf_src) -> bool -> (@imap thread_id wf_tgt) -> scheduler RT R0 -> scheduler RT R1 -> Prop
+    := paco10 _ssim bot10.
+
+  Fixpoint ssim_ind
+    (ssim : forall RT R0 R1 (RR : R0 -> R1 -> Prop), bool -> imap wf_src -> bool -> imap wf_tgt -> scheduler RT R0 -> scheduler RT R1 -> Prop)
+    (RT R0 R1 : Type) (RR : R0 -> R1 -> Prop)
+    (P : bool -> @imap thread_id wf_src -> bool -> @imap thread_id wf_tgt -> scheduler RT R0 -> scheduler RT R1 -> Prop)
+    (RET : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (r_src : R0) (r_tgt : R1),
+        RR r_src r_tgt -> P p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt))
+    (TAUL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0) (itr_tgt : scheduler RT R1),
+        _ssim ssim RR true m_src p_tgt m_tgt itr_src itr_tgt ->
+        P true m_src p_tgt m_tgt itr_src itr_tgt -> P p_src m_src p_tgt m_tgt (Tau itr_src) itr_tgt)
+    (TAUR : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0)
+              (itr_tgt : scheduler RT R1),
+        _ssim ssim RR p_src m_src true m_tgt itr_src itr_tgt ->
+        P p_src m_src true m_tgt itr_src itr_tgt -> P p_src m_src p_tgt m_tgt itr_src (Tau itr_tgt))
+    (EXE : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (tid : id)
+             (ktr_src : option RT -> scheduler RT R0) (ktr_tgt : option RT -> scheduler RT R1),
+        (forall rt : option RT, ssim RT R0 R1 RR true m_src true m_tgt (ktr_src rt) (ktr_tgt rt)) ->
+        P p_src m_src p_tgt m_tgt (Vis (Execute RT tid|)%sum ktr_src) (Vis (Execute RT tid|)%sum ktr_tgt))
+    (OBS : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt)
+             (ktr_src : nat -> scheduler RT R0) (ktr_tgt : nat -> scheduler RT R1) (fn : nat) (args : list nat),
+        (forall r : nat, ssim RT R0 R1 RR true m_src true m_tgt (ktr_src r) (ktr_tgt r)) ->
+        P p_src m_src p_tgt m_tgt (Vis (|Observe fn args)%sum ktr_src) (Vis (|Observe fn args)%sum ktr_tgt))
+    (CHOOSEL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (X : Type)
+                 (ktr_src : X -> scheduler RT R0) (itr_tgt : scheduler RT R1),
+        (exists x : X, _ssim ssim RR true m_src p_tgt m_tgt (ktr_src x) itr_tgt /\
+                    P true m_src p_tgt m_tgt (ktr_src x) itr_tgt) ->
+        P p_src m_src p_tgt m_tgt (Vis (|Choose X)%sum ktr_src) itr_tgt)
+    (CHOOSER : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (X : Type)
+                 (itr_src : scheduler RT R0) (ktr_tgt : X -> scheduler RT R1),
+        (forall x : X, _ssim ssim RR p_src m_src true m_tgt itr_src (ktr_tgt x)) ->
+        (forall x : X, P p_src m_src true m_tgt itr_src (ktr_tgt x)) ->
+        P p_src m_src p_tgt m_tgt itr_src (Vis (|Choose X)%sum ktr_tgt))
+    (FAIRL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (f_src : fmap)
+               (ktr_src : () -> scheduler RT R0) (itr_tgt : scheduler RT R1),
+        (exists m_src0 : imap wf_src,
+            (<< FAIR : fair_update m_src m_src0 f_src >>) /\
+              (<< SIM : _ssim ssim RR true m_src0 p_tgt m_tgt (ktr_src ()) itr_tgt >>) /\
+              P true m_src0 p_tgt m_tgt (ktr_src ()) itr_tgt) ->
+        P p_src m_src p_tgt m_tgt (Vis (|Fair f_src)%sum ktr_src) itr_tgt)
+    (FAIRR : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (f_tgt : fmap)
+               (itr_src : scheduler RT R0) (ktr_tgt : () -> scheduler RT R1),
+        (forall m_tgt0 : imap wf_tgt,
+            fair_update m_tgt m_tgt0 f_tgt -> _ssim ssim RR p_src m_src true m_tgt0 itr_src (ktr_tgt ())) ->
+        (forall m_tgt0 : imap wf_tgt, fair_update m_tgt m_tgt0 f_tgt -> P p_src m_src true m_tgt0 itr_src (ktr_tgt ())) ->
+        P p_src m_src p_tgt m_tgt itr_src (Vis (|Fair f_tgt)%sum ktr_tgt))
+    (UB : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt)
+            (ktr_src : void -> itree (schedulerE RT +' eventE) R0) (itr_tgt : scheduler RT R1),
+        P p_src m_src p_tgt m_tgt (Vis (|Undefined)%sum ktr_src) itr_tgt)
+    (PROGRESS : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0)
+                  (itr_tgt : scheduler RT R1),
+        p_src = true ->
+        p_tgt = true ->
+        ssim RT R0 R1 RR false m_src false m_tgt itr_src itr_tgt -> P p_src m_src p_tgt m_tgt itr_src itr_tgt)
+    p_src m_src p_tgt m_tgt (sch_src : scheduler RT R0) (sch_tgt : scheduler RT R1)
+    (SIM : _ssim ssim RR p_src m_src p_tgt m_tgt sch_src sch_tgt) : P p_src m_src p_tgt m_tgt sch_src sch_tgt.
+  Proof.
+    inv SIM; eauto.
+    - eapply TAUL. eauto. eapply ssim_ind; eauto.
+    - eapply TAUR. eauto. eapply ssim_ind; eauto.
+    - eapply CHOOSEL. des. esplits. eauto. eapply ssim_ind; eauto.
+    - eapply CHOOSER. eauto. i. eapply ssim_ind; eauto.
+    - eapply FAIRL. des. esplits; eauto. eapply ssim_ind; eauto.
+    - eapply FAIRR. eauto. i. eapply ssim_ind; eauto.
+  Qed.
+
+  Lemma ssim_mon : monotone10 _ssim.
+  Proof. ii. induction IN using ssim_ind; des; econs; eauto. Qed.
+
+End SSIM.
 
 (* Section SCHEDAUX. *)
 
@@ -737,7 +953,7 @@ Section INTERP.
              (st: State) (ths: @threads _Ident (sE State) R)
              tid (itr: @thread _Ident (sE State) R) :
     itree (@eventE (sum_tid _Ident)) R :=
-    interp_state (st, interp_sched (tid, itr, ths)).
+    interp_state (st, interp_sched_nondet (tid, itr, ths)).
 
 End INTERP.
 

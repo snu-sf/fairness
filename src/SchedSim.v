@@ -160,7 +160,7 @@ Section SIM.
     revert p_src p_tgt st ths_src ths_tgt tid itr m_tgt m_src THREADS TID M_SRC0 M_SRC1 M_SRC2.
     pcofix CIH1. i.
 
-    rewrite unfold_interp_sched.
+    rewrite unfold_interp_sched_nondet.
     rewrite unfold_interp_fifosched.
     rewrite 2 interp_state_bind.
     rewrite unfold_interp_thread.
