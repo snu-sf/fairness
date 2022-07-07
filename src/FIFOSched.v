@@ -22,7 +22,7 @@ Section SCHEDULE.
   
   Definition schedule_fifo R0 : thread_id.(id) * list thread_id.(id) -> scheduler R0 R0 :=
     ITree.iter (fun '(tid, q) =>
-                  r <- trigger (Execute _ tid);;
+                  r <- ITree.trigger (inl1 (Execute _ tid));;
                   match r with
                   | None =>
                       match q ++ [tid] with
@@ -35,6 +35,42 @@ Section SCHEDULE.
                       | tid' :: q' => Ret (inl (tid', q'))
                       end
                   end).
+
+  Lemma unfold_schedule_fifo R0 tid q :
+    schedule_fifo _ (tid, q) =
+      r <- ITree.trigger (inl1 (Execute _ tid));;
+      match r with
+      | None =>
+          match q ++ [tid] with
+          | [] => Vis (inr1 (Choose void)) (Empty_set_rect _)
+          | tid' :: q' => tau;; schedule_fifo R0 (tid', q')
+          end
+      | Some r =>
+          match q with
+          | [] => Ret r
+          | tid' :: q' => tau;; schedule_fifo R0 (tid', q')
+          end
+      end.
+  Proof.
+    unfold schedule_fifo at 1.
+    rewrite unfold_iter.
+    grind.
+    eapply observe_eta. ss. f_equal. extensionality x. ss.
+  Qed.
+
+End SCHEDULE.
+
+Section SCHEDULE_LEGACY.
+  
+  Context {_Ident : ID}.
+  Variable E : Type -> Type.
+
+  Let eventE1 := @eventE _Ident.
+  Let eventE2 := @eventE (sum_tid _Ident).
+  Let Es := (eventE1 +' cE) +' E.
+
+  Let thread R := thread _Ident E R.
+  Let threads R := list (thread_id.(id) * thread R).
 
   Definition pick_thread_fifo {R} :
     thread_id.(id) * (thread R + R) -> threads R ->
@@ -83,7 +119,7 @@ Section SCHEDULE.
       end.
   Proof. unfold interp_fifosched at 1. rewrite unfold_iter, bind_bind. ss. Qed.
 
-End SCHEDULE.
+End SCHEDULE_LEGACY.
 
 Global Opaque
   pick_thread_fifo.

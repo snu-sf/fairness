@@ -453,7 +453,7 @@ Section SCHEDULE.
     thread_id.(id) * thread R -> itree (eventE2 +' E) (thread R + R) :=
     fun x => map_event (embed_left embed_eventE) (interp_thread_aux x).
 
-  Definition interp_sched R0 R : threads R0 * scheduler R0 R -> itree (eventE2 +' E) R.
+  Definition interp_sched RT R : threads RT * scheduler RT R -> itree (eventE2 +' E) R.
   Proof.
     eapply ITree.iter. intros [ts sch].
     destruct (observe sch) as [r | sch' | X [e|e] ktr].
@@ -532,34 +532,99 @@ Section SCHEDULE.
       Ret (inl (ktr tt)).
   Proof. rewrite bind_trigger. apply interp_thread_vis_yield. Qed.
 
+  Lemma interp_sched_ret RT R (ths : threads RT) (r : R) :
+    interp_sched (ths, Ret r) = Ret r.
+  Proof. unfold interp_sched. rewrite unfold_iter. grind. Qed.
+
+  Lemma interp_sched_tau RT R ths (itr : scheduler RT R) :
+    interp_sched (ths, Tau itr) = Tau (interp_sched (ths, itr)).
+  Proof. unfold interp_sched. rewrite unfold_iter. grind. Qed.
+
+  Lemma interp_sched_execute_Some RT R ths tid t (ktr : option RT -> scheduler RT R)
+    (SOME : Th.find tid ths = Some t)
+    : interp_sched (ths, Vis (inl1 (Execute _ tid)) ktr) =
+      r <- interp_thread (tid, t);;
+      match r with
+      | inl t' => tau;; interp_sched (Th.add tid t' ths, ktr None)
+      | inr r => tau;; interp_sched (Th.remove tid ths, ktr (Some r))
+      end.
+  Proof. unfold interp_sched. rewrite unfold_iter. grind. Qed.
+  
+  Lemma interp_sched_execute_None RT R ths tid (ktr : option RT -> scheduler RT R)
+    (NONE : Th.find tid ths = None)
+    : interp_sched (ths, Vis (inl1 (Execute _ tid)) ktr) =
+        Vis (inl1 (Choose void)) (Empty_set_rect _).
+  Proof. unfold interp_sched. rewrite unfold_iter. grind.
+         eapply observe_eta. ss. f_equal. extensionality x. ss.
+  Qed.
+
+  Lemma interp_sched_vis RT R ths X (e : eventE0 X) (ktr : X -> scheduler RT R) :
+    interp_sched (ths, Vis (inr1 e) ktr) =
+      Vis (inl1 (embed_eventE0 e)) (fun x => tau;; interp_sched (ths, ktr x)).
+  Proof. unfold interp_sched. rewrite unfold_iter. grind.
+         eapply observe_eta. ss. f_equal. extensionality x. grind.
+  Qed.
+
 End SCHEDULE.
 
 Section SCHEDULE_NONDET.
 
   Definition schedule_nondet R0 : thread_id.(id) * IdSet.t -> scheduler R0 R0 :=
     ITree.iter (fun '(tid, q) =>
-                  r <- trigger (Execute _ tid);;
+                  r <- ITree.trigger (inl1 (Execute _ tid));;
                   match r with
                   | None =>
-                      tid' <- trigger (Choose thread_id.(id));;
+                      tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
                       match id_pop tid' (IdSet.add tid q) with
                       | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                       | Some q' =>
-                          trigger (Fair (tids_fmap tid' (IdSet.elements q')));;
+                          ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
                           Ret (inl (tid', q'))
                       end
                   | Some r =>
                       if IdSet.is_empty q
                       then Ret (inr r)
                       else
-                        tid' <- trigger (Choose thread_id.(id));;
+                        tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
                         match id_pop tid' q with
                         | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                         | Some q' =>
-                            trigger (Fair (tids_fmap tid' (IdSet.elements q')));;
+                            ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
                             Ret (inl (tid', q'))
                         end
                   end).
+
+  Lemma unfold_schedule_nondet R0 tid q :
+    schedule_nondet R0 (tid, q) =
+      r <- ITree.trigger (inl1 (Execute _ tid));;
+      match r with
+      | None =>
+          tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+          match id_pop tid' (IdSet.add tid q) with
+          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+          | Some q' =>
+              ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
+              tau;; schedule_nondet _ (tid', q')
+          end
+      | Some r =>
+          if IdSet.is_empty q
+          then Ret r
+          else
+            tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+            match id_pop tid' q with
+            | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+            | Some q' =>
+                ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
+                tau;; schedule_nondet _ (tid', q')
+            end
+      end.
+  Proof.
+    unfold schedule_nondet at 1.
+    rewrite unfold_iter.
+    grind.
+    - eapply observe_eta. ss. f_equal. extensionality x0. ss.
+    - eapply observe_eta. ss. f_equal. extensionality x0. ss.
+  Qed.
 
 End SCHEDULE_NONDET.
 
@@ -810,9 +875,61 @@ Section SSIM.
   Lemma ssim_mon : monotone10 _ssim.
   Proof. ii. induction IN using ssim_ind; des; econs; eauto. Qed.
 
+  Hint Constructors _ssim : core.
+  Hint Unfold ssim : core.
+  Hint Resolve ssim_mon : paco.
+  Hint Resolve cpn10_wcompat : paco.
+
+  Lemma ssim_deflag RT R0 R1 (RR : R0 -> R1 -> Prop)
+    p_src p_tgt p_src' p_tgt'
+    m_src m_tgt (sched_src : scheduler RT R0) sched_tgt :
+    ssim RR p_src m_src p_tgt m_tgt sched_src sched_tgt ->
+    ssim RR p_src' m_src p_tgt' m_tgt sched_src sched_tgt.
+  Proof.
+    i. revert p_src' p_tgt'. punfold H.
+    induction H using ssim_ind; i.
+    - pfold. econs; eauto.
+    - pfold. econs. specialize (IH_ssim true p_tgt'). punfold IH_ssim.
+    - pfold. econs. specialize (IH_ssim p_src' true). punfold IH_ssim.
+    - pfold. econs; eauto.
+    - pfold. econs; eauto.
+    - pfold. econs. des. eexists. specialize (H0 true p_tgt'). punfold H0.
+    - pfold. econs. i. specialize (H0 x p_src' true). punfold H0.
+    - pfold. econs. des. esplits; eauto. specialize (H1 true p_tgt'). punfold H1.
+    - pfold. econs. i. specialize (H0 m_tgt0 FAIR p_src' true). punfold H0.
+    - pfold. econs.
+    - clarify. pclearbot.
+      
+      revert p_src' p_tgt' itr_src itr_tgt m_src m_tgt H1.
+      pcofix CIH. i.
+      
+      remember false as p_src0 in H1 at 1.
+      remember false as p_tgt0 in H1 at 1.
+      assert (P_SRC : p_src0 = true -> p_src' = true) by (subst; ss).
+      assert (P_TGT : p_tgt0 = true -> p_tgt' = true) by (subst; ss).
+      clear Heqp_src0 Heqp_tgt0.
+      revert p_src' p_tgt' P_SRC P_TGT. punfold H1.
+      induction H1 using ssim_ind; i.
+      + pfold. econs; eauto.
+      + pfold. econs. specialize (IH_ssim true p_tgt' ltac:(ss) P_TGT). punfold IH_ssim.
+      + pfold. econs. specialize (IH_ssim p_src' true P_SRC ltac:(ss)). punfold IH_ssim.
+      + pfold. econs; eauto. i. eapply upaco10_mon; ss.
+      + pfold. econs; eauto. i. eapply upaco10_mon; ss.
+      + pfold. econs. des. eexists. specialize (H0 true p_tgt' ltac:(ss) P_TGT). punfold H0.
+      + pfold. econs. i. specialize (H0 x p_src' true P_SRC ltac:(ss)). punfold H0.
+      + pfold. econs. des. esplits; eauto. specialize (H1 true p_tgt' ltac:(ss) P_TGT). punfold H1.
+      + pfold. econs. i. specialize (H0 m_tgt0 FAIR p_src' true P_SRC ltac:(ss)). punfold H0.
+      + pfold. econs.
+      + pfold. econs; eauto. pclearbot. right. eapply CIH; eauto.
+  Qed.
+
 End SSIM.
 
-(* Section SCHEDAUX. *)
+#[export] Hint Constructors _ssim : core.
+#[export] Hint Unfold ssim : core.
+#[export] Hint Resolve ssim_mon : paco.
+
+(* section SCHEDAUX. *)
 
 (*   Context {_Ident: ID}. *)
 (*   Variable E: Type -> Type. *)
