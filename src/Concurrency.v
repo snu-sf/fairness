@@ -732,30 +732,33 @@ Global Opaque
 
 Section SCHEDULE_NONDET.
 
+  Definition sched_nondet_body {R} q tid r : scheduler R (thread_id.(id) * IdSet.t + R) :=
+    match r with
+    | None =>
+        tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+        match id_pop tid' (IdSet.add tid q) with
+        | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+        | Some q' =>
+            ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
+            Ret (inl (tid', q'))
+        end
+    | Some r =>
+        if IdSet.is_empty q
+        then Ret (inr r)
+        else
+          tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+          match id_pop tid' q with
+          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+          | Some q' =>
+              ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
+              Ret (inl (tid', q'))
+          end
+    end.
+  
   Definition sched_nondet R0 : thread_id.(id) * IdSet.t -> scheduler R0 R0 :=
     ITree.iter (fun '(tid, q) =>
                   r <- ITree.trigger (inl1 (Execute _ tid));;
-                  match r with
-                  | None =>
-                      tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-                      match id_pop tid' (IdSet.add tid q) with
-                      | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
-                      | Some q' =>
-                          ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
-                          Ret (inl (tid', q'))
-                      end
-                  | Some r =>
-                      if IdSet.is_empty q
-                      then Ret (inr r)
-                      else
-                        tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-                        match id_pop tid' q with
-                        | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
-                        | Some q' =>
-                            ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
-                            Ret (inl (tid', q'))
-                        end
-                  end).
+                  sched_nondet_body q tid r).
 
   Lemma unfold_sched_nondet R0 tid q :
     sched_nondet R0 (tid, q) =
@@ -782,16 +785,80 @@ Section SCHEDULE_NONDET.
             end
       end.
   Proof.
-    unfold sched_nondet at 1.
+    unfold sched_nondet at 1, sched_nondet_body.
     rewrite unfold_iter.
     grind.
     - eapply observe_eta. ss. f_equal. extensionality x0. ss.
     - eapply observe_eta. ss. f_equal. extensionality x0. ss.
   Qed.
 
+  (*
+  Lemma unfold_sched_nondet R0 tid q :
+    sched_nondet R0 (tid, q) =
+      r <- ITree.trigger (inl1 (Execute _ tid));;
+      lr <- sched_nondet_body q tid r;;
+      match lr with
+      | inl (tid', q') => tau;; sched_nondet _ (tid', q')
+      | inr r => Ret r
+      end.
+  Proof. unfold sched_nondet at 1. rewrite unfold_iter. grind. Qed.
+   *)
+
+  Context {_Ident : ID}.
+  Variable E: Type -> Type.
+
+  Let eventE1 := @eventE _Ident.
+  Let eventE2 := @eventE (sum_tid _Ident).
+  Let Es0 := (eventE1 +' cE) +' E.
+  Let thread R := thread _Ident E R.
+  Let threads R := threads _Ident E R.
+
+  Lemma unfold_interp_sched_nondet_Some R tid t (ths : threads R) q :
+    Th.find tid ths = Some t ->
+    interp_sched (ths, sched_nondet R (tid, q)) =
+      r <- interp_thread (tid, t);;
+      match r with
+      | inl t' => Tau (interp_sched (Th.add tid t' ths,
+                          tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+                          match id_pop tid' (IdSet.add tid q) with
+                          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                          | Some q' =>
+                              ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
+                              tau;; sched_nondet _ (tid', q')
+                          end))
+      | inr r => Tau (interp_sched (Th.remove tid ths,
+                         if IdSet.is_empty q
+                         then Ret r
+                         else
+                           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+                           match id_pop tid' q with
+                           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                           | Some q' =>
+                               ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
+                               tau;; sched_nondet _ (tid', q')
+                           end))
+      end.
+  Proof.
+    rewrite unfold_sched_nondet at 1.
+    rewrite bind_trigger.
+    eapply interp_sched_execute_Some.
+  Qed.
+
+  Lemma unfold_interp_sched_nondet_None R tid (ths : threads R) q :
+    Th.find tid ths = None ->
+    interp_sched (ths, sched_nondet R (tid, q)) =
+      Vis (inl1 (Choose void)) (Empty_set_rect _).
+  Proof.
+    rewrite unfold_sched_nondet at 1.
+    rewrite bind_trigger.
+    eapply interp_sched_execute_None.
+  Qed.
+
 End SCHEDULE_NONDET.
 
-Global Opaque sched_nondet.
+Global Opaque
+  sched_nondet_body
+  sched_nondet.
 
 (* section SCHEDAUX. *)
 
