@@ -3,8 +3,13 @@ From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
-Require Import Program.
-Require Import Permutation.
+From Coq Require Import
+  Program
+  Permutation
+  SetoidList
+  SetoidPermutation
+  Lists.List
+  Lia.
 
 Export ITreeNotations.
 
@@ -69,6 +74,8 @@ Section EMBED_EVENT.
     end.
 
 End EMBED_EVENT.
+
+Global Opaque map_event.
 
 Section STATE.
 
@@ -396,6 +403,157 @@ Definition id_pop : IdSet.elt -> IdSet.t -> option IdSet.t :=
           then Some (IdSet.remove x s)
           else None.
 
+Section THREADS.
+
+  Import Th.
+  
+  (* IdSet *)
+  Lemma Empty_nil s : IdSet.Empty s -> IdSet.elements s = [].
+  Proof.
+    i. destruct s as [s OK]; ss. destruct s; ss.
+    exfalso. eapply H. econs. ss.
+  Qed.
+
+  Lemma Empty_nil_neg s : ~ IdSet.Empty s -> IdSet.elements s <> [].
+  Proof.
+    destruct s as [s SORTED]; ss.
+    ii. subst. eapply H. ii. eapply InA_nil; eauto.
+  Qed.
+
+  Lemma IdSet_Permutation_remove x s l :
+    Permutation (IdSet.elements s) (x :: l) -> Permutation (IdSet.elements (IdSet.remove x s)) l.
+  Proof.
+    destruct s as [s SORTED]. ss.
+    revert l. induction s; i.
+    - eapply Permutation_length in H. ss.
+    - assert (List.In a (x :: l)) by (rewrite <- H; econs; ss).
+      destruct H0.
+      + subst. eapply Permutation_cons_inv in H. ss.
+        Raw.MX.elim_comp_eq a a. ss.
+      + eapply Add_inv in H0. des. eapply Permutation_Add in H0.
+        rewrite <- H0 in *. clear l H0.
+        rewrite perm_swap in H. eapply Permutation_cons_inv in H.
+        assert (List.In x s).
+        { eapply Permutation_in.
+          - symmetry. eapply H.
+          - econs; ss.
+        }
+        eapply IdSet.MSet.Raw.isok_iff in SORTED.
+        epose proof (Sorted_extends _ SORTED).
+        eapply Forall_forall in H1; eauto.
+        ss. Raw.MX.elim_comp_gt x a.
+        econs. eapply IHs; eauto.
+        eapply IdSet.MSet.Raw.isok_iff.
+        inv SORTED; ss.
+    Unshelve. compute. lia.
+  Qed.
+
+  Lemma IdSet_Permutation_add x s l :
+    ~ IdSet.In x s -> Permutation (IdSet.elements s) l -> Permutation (IdSet.elements (IdSet.add x s)) (x :: l).
+  Proof.
+    destruct s as [s SORTED]. ss. revert l. induction s; intros l H1 H2.
+    - rewrite <- H2. ss.
+    - ss. assert (x = a \/ x < a \/ x > a) by lia. des.
+      + exfalso. eapply H1. econs. ss.
+      + Raw.MX.elim_comp_lt x a. econs. ss.
+      + Raw.MX.elim_comp_gt x a. rewrite <- H2. rewrite perm_swap. econs.
+        eapply IHs; eauto.
+        unfold IdSet.In, IdSet.MSet.In in *. ss.
+        intro. eapply H1. econs 2. eapply H0.
+        Unshelve. clear H1. eapply IdSet.MSet.Raw.isok_iff in SORTED. inv SORTED.
+        eapply IdSet.MSet.Raw.isok_iff. ss.
+  Qed.
+
+  (* Th *)
+  Lemma In_MapsTo A k e (m : Th.t A) : List.In (k, e) (elements m) -> MapsTo k e m.
+  Proof.
+    unfold MapsTo, Raw.PX.MapsTo, elements, Raw.elements.
+    remember (this m) as l. clear m Heql. intros.
+    induction l; ss. destruct H.
+    - eapply InA_cons_hd. subst. ss.
+    - eapply InA_cons_tl. eauto.
+  Qed.
+
+  Lemma In_th_proj1 A k (m : Th.t A) : List.In k (th_proj1 m) -> exists e, MapsTo k e m.
+  Proof.
+    unfold th_proj1, MapsTo, Raw.PX.MapsTo, elements, Raw.elements.
+    remember (this m) as l. clear m Heql. intros.
+    induction l; ss. destruct H.
+    - eexists. eapply InA_cons_hd. subst. ss.
+    - eapply IHl in H. destruct H. eexists. eapply InA_cons_tl. eauto.
+  Qed.
+
+  Lemma Permutation_remove A k e (m : Th.t A) l :
+    Permutation (elements m) ((k, e) :: l) -> Permutation (elements (Th.remove k m)) l.
+  Proof.
+    unfold elements, Raw.elements, remove.
+    destruct m as [m SORTED]. ss.
+    revert l. induction m; i.
+    - eapply Permutation_length in H. ss.
+    - assert (List.In a ((k, e) :: l)) by (rewrite <- H; econs; ss).
+      destruct H0.
+      + inv H0. eapply Permutation_cons_inv in H. ss.
+        Raw.MX.elim_comp_eq k k. eauto.
+    + eapply Add_inv in H0. destruct H0. eapply Permutation_Add in H0.
+      rewrite <- H0 in *. clear l H0.
+      rewrite perm_swap in H. eapply Permutation_cons_inv in H.
+      assert (List.In (k, e) m).
+      { eapply Permutation_in.
+        - symmetry; eauto.
+        - econs; ss.
+      }
+      epose proof (Sorted_extends _ SORTED).
+      eapply Forall_forall in H1; eauto.
+      destruct a. ss. Raw.MX.elim_comp_gt k n.
+      inv SORTED.
+      econs. eapply IHm; eauto.
+    Unshelve. compute. lia.
+  Qed.
+
+  Lemma Permutation_add A k e (m : Th.t A) l :
+    ~ Th.In k m -> Permutation (elements m) l -> Permutation (elements (add k e m)) ((k, e) :: l).
+  Proof.
+    unfold elements, Raw.elements, add, In.
+    destruct m as [m SORTED]. ss. revert l. induction m; intros l H1 H2.
+    - rewrite <- H2. ss.
+    - destruct a. ss.
+      assert (k = n \/ k < n \/ k > n) by lia.
+      destruct H as [|[]].
+      + exfalso. eapply H1. exists a. left. ss.
+      + Raw.MX.elim_comp_lt k n. econs; eauto.
+      + Raw.MX.elim_comp_gt k n.
+        rewrite <- H2. rewrite perm_swap. econs. 
+        inv SORTED. eapply IHm; eauto.
+        intro. eapply H1. unfold Raw.PX.In in *.
+        destruct H0. eexists. right. eauto.
+  Qed.
+
+  Lemma InA_In A x (l : list A) : InA (@eq A) x l -> List.In x l.
+  Proof. i. induction H.
+         - left; eauto.
+         - right; eauto.
+  Qed.
+    
+  Lemma InA_In' A k (e : A) l :
+    SetoidList.InA (@eq_key_elt A) (k, e) l -> List.In (k, e) l.
+  Proof.
+    i. induction H.
+    - left. destruct H; ss. subst. destruct y; ss.
+    - right. eauto.
+  Qed.
+
+  Lemma Permutation_NoDupA A l1 l2 :
+    Permutation l1 l2 ->
+    SetoidList.NoDupA (eq_key (elt:=A)) l1 ->
+    SetoidList.NoDupA (eq_key (elt:=A)) l2.
+  Proof.
+    i.
+    eapply PermutationA_preserves_NoDupA; eauto.
+    eapply Permutation_PermutationA; eauto.
+  Qed.
+  
+End THREADS.
+
 Section SCHEDULE.
 
   Variant schedulerE (RT : Type) : Type -> Type :=
@@ -567,9 +725,14 @@ Section SCHEDULE.
 
 End SCHEDULE.
 
+Global Opaque
+  interp_thread_aux
+  interp_thread
+  interp_sched.
+
 Section SCHEDULE_NONDET.
 
-  Definition schedule_nondet R0 : thread_id.(id) * IdSet.t -> scheduler R0 R0 :=
+  Definition sched_nondet R0 : thread_id.(id) * IdSet.t -> scheduler R0 R0 :=
     ITree.iter (fun '(tid, q) =>
                   r <- ITree.trigger (inl1 (Execute _ tid));;
                   match r with
@@ -594,8 +757,8 @@ Section SCHEDULE_NONDET.
                         end
                   end).
 
-  Lemma unfold_schedule_nondet R0 tid q :
-    schedule_nondet R0 (tid, q) =
+  Lemma unfold_sched_nondet R0 tid q :
+    sched_nondet R0 (tid, q) =
       r <- ITree.trigger (inl1 (Execute _ tid));;
       match r with
       | None =>
@@ -604,7 +767,7 @@ Section SCHEDULE_NONDET.
           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
           | Some q' =>
               ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
-              tau;; schedule_nondet _ (tid', q')
+              tau;; sched_nondet _ (tid', q')
           end
       | Some r =>
           if IdSet.is_empty q
@@ -615,11 +778,11 @@ Section SCHEDULE_NONDET.
             | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
             | Some q' =>
                 ITree.trigger (inr1 (Fair (tids_fmap tid' (IdSet.elements q'))));;
-                tau;; schedule_nondet _ (tid', q')
+                tau;; sched_nondet _ (tid', q')
             end
       end.
   Proof.
-    unfold schedule_nondet at 1.
+    unfold sched_nondet at 1.
     rewrite unfold_iter.
     grind.
     - eapply observe_eta. ss. f_equal. extensionality x0. ss.
@@ -628,306 +791,7 @@ Section SCHEDULE_NONDET.
 
 End SCHEDULE_NONDET.
 
-Section SCHEDULE_LEGACY.
-
-  Context {_Ident: ID}.
-  Variable E: Type -> Type.
-
-  Let eventE1 := @eventE _Ident.
-  Let eventE2 := @eventE (sum_tid _Ident).
-  Let Es0 := (eventE1 +' cE) +' E.
-  Let thread R := thread _Ident E R.
-  Let threads R := threads _Ident E R.
-
-  Definition interp_sched_aux
-    (pick_thread : forall {R}, thread_id.(id) * (thread R + R) -> threads R ->
-                          itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R))
-    {R}
-    :
-    thread_id.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
-    ITree.iter (fun '(t, ts) =>
-                  res <- interp_thread t;;
-                  pick_thread (fst t, res) ts
-      ).
-
-  (* NB for invalid tid *)
-  Definition pick_thread_nondet {R} :
-    thread_id.(id) * (thread R + R) -> threads R ->
-    itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R) :=
-    fun '(tid, res) ts =>
-      match res with
-      | inl t =>
-          Vis (inl1 (Choose thread_id.(id)))
-              (fun tid' =>
-                 match th_pop tid' (Th.add tid t ts) with
-                 | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                 | Some (t', ts') =>
-                     Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))))
-                         (fun _ => Ret (inl (tid', t', ts')))
-                 end)
-      | inr r =>
-          if Th.is_empty ts then Ret (inr r)
-          else Vis (inl1 (Choose thread_id.(id)))
-                   (fun tid' =>
-                      match th_pop tid' ts with
-                      | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                      | Some (t', ts') =>
-                          Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))))
-                              (fun _ => Ret (inl (tid', t', ts')))
-                      end)
-      end.
-
-  Definition interp_sched_nondet {R} :
-    thread_id.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
-    @interp_sched_aux (@pick_thread_nondet) R.
-
-  (* Lemmas for pick_thread_nondet *)
-  Lemma pick_thread_nondet_yield {R} tid (t : thread R) ts :
-    pick_thread_nondet (tid, (inl t)) ts =
-      Vis (inl1 (Choose thread_id.(id)))
-        (fun tid' =>
-           match th_pop tid' (Th.add tid t ts) with
-           | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-           | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))))
-                                (fun _ => Ret (inl (tid', t', ts')))
-           end).
-  Proof. ss. Qed.
-
-  Lemma pick_thread_nondet_terminate {R} tid (r : R) ts :
-    pick_thread_nondet (tid, (inr r)) ts =
-      if Th.is_empty ts then Ret (inr r)
-      else Vis (inl1 (Choose thread_id.(id)))
-               (fun tid' =>
-                  match th_pop tid' ts with
-                  | None => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                  | Some (t', ts') => Vis (inl1 (Fair (sum_fmap_l (tids_fmap tid' (th_proj1 ts')))))
-                                         (fun _ => Ret (inl (tid', t', ts')))
-                  end).
-  Proof. ss. Qed.
-
-  (* Lemmas for interp_sched *)
-  Lemma unfold_interp_sched_aux {R} pick_thread tid (t : thread R) ts :
-    interp_sched_aux pick_thread (tid, t, ts) =
-      res <- interp_thread (tid, t);;
-      x <- pick_thread R (tid, res) ts;;
-      match x with
-      | inl tts => tau;; interp_sched_aux pick_thread tts
-      | inr r => Ret r
-      end.
-  Proof. unfold interp_sched_aux at 1. rewrite unfold_iter. rewrite bind_bind. ss. Qed.
-
-  Lemma unfold_interp_sched_nondet {R} tid (t : thread R) ts :
-    interp_sched_nondet (tid, t, ts) =
-      res <- interp_thread (tid, t);;
-      x <- pick_thread_nondet (tid, res) ts;;
-      match x with
-      | inl tts => tau;; interp_sched_nondet tts
-      | inr r => Ret r
-      end.
-  Proof. eapply unfold_interp_sched_aux. Qed.
-
-End SCHEDULE_LEGACY.
-
-Global Opaque
-  interp_thread
-  pick_thread_nondet
-  interp_sched_aux
-  interp_sched.
-
-Section SSIM.
-
-  Variable wf_src : WF.
-  Variable wf_tgt : WF.
-
-  Inductive _ssim
-    (ssim : forall RT R0 R1 (RR : R0 -> R1 -> Prop), bool -> (@imap thread_id wf_src) -> bool -> (@imap thread_id wf_tgt) -> scheduler RT R0 -> scheduler RT R1 -> Prop)
-    {RT R0 R1} (RR : R0 -> R1 -> Prop)
-    (p_src : bool) (m_src : @imap thread_id wf_src) (p_tgt : bool) (m_tgt : @imap thread_id wf_tgt)
-    : scheduler RT R0 -> scheduler RT R1 -> Prop :=
-
-  | ssim_ret
-      r_src r_tgt
-      (SIM : RR r_src r_tgt)
-    : _ssim ssim RR p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt)
-
-  | ssim_tauL
-      itr_src itr_tgt
-      (SIM : _ssim ssim RR true m_src p_tgt m_tgt itr_src itr_tgt)
-    : _ssim ssim RR p_src m_src p_tgt m_tgt (Tau itr_src) itr_tgt
-
-  | ssim_tauR
-      itr_src itr_tgt
-      (SIM : _ssim ssim RR p_src m_src true m_tgt itr_src itr_tgt)
-    : _ssim ssim RR p_src m_src p_tgt m_tgt itr_src (Tau itr_tgt)
-
-  | ssim_exe
-      tid ktr_src ktr_tgt
-      (SIM : forall rt,
-          ssim _ _ _ RR true m_src true m_tgt (ktr_src rt) (ktr_tgt rt))
-    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inl1 (Execute _ tid)) ktr_src) (Vis (inl1 (Execute _ tid)) ktr_tgt)
-
-  | ssim_obs
-      ktr_src ktr_tgt fn args
-      (SIM : forall r,
-          ssim _ _ _ RR true m_src true m_tgt (ktr_src r) (ktr_tgt r))
-    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inr1 (Observe fn args)) ktr_src) (Vis (inr1 (Observe fn args)) ktr_tgt)
-
-  | ssim_chooseL
-      X ktr_src itr_tgt
-      (SIM : exists x, _ssim ssim RR true m_src p_tgt m_tgt (ktr_src x) itr_tgt)
-    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inr1 (Choose X)) ktr_src) itr_tgt
-
-  | ssim_chooseR
-      X itr_src ktr_tgt
-      (SIM : forall x, _ssim ssim RR p_src m_src true m_tgt itr_src (ktr_tgt x))
-    : _ssim ssim RR p_src m_src p_tgt m_tgt itr_src (Vis (inr1 (Choose X)) ktr_tgt)
-
-  | ssim_fairL
-      f_src ktr_src itr_tgt
-      (SIM : exists m_src0, (<<FAIR : fair_update m_src m_src0 f_src>>) /\
-                         (<<SIM : _ssim ssim RR true m_src0 p_tgt m_tgt (ktr_src tt) itr_tgt>>))
-    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inr1 (Fair f_src)) ktr_src) itr_tgt
-
-  | ssim_fairR
-      f_tgt itr_src ktr_tgt
-      (SIM : forall m_tgt0 (FAIR : fair_update m_tgt m_tgt0 f_tgt),
-          _ssim ssim RR p_src m_src true m_tgt0 itr_src (ktr_tgt tt))
-    : _ssim ssim RR p_src m_src p_tgt m_tgt itr_src (Vis (inr1 (Fair f_tgt)) ktr_tgt)
-
-  | ssim_ub
-      ktr_src itr_tgt
-    : _ssim ssim RR p_src m_src p_tgt m_tgt (Vis (inr1 Undefined) ktr_src) itr_tgt
-
-  | ssim_progress
-      itr_src itr_tgt
-      (PSRC : p_src = true) (PTGT : p_tgt = true)
-      (SIM : ssim _ _ _ RR false m_src false m_tgt itr_src itr_tgt)
-    : _ssim ssim RR p_src m_src p_tgt m_tgt itr_src itr_tgt
-  .
-
-  Definition ssim : forall RT R0 R1 (RR : R0 -> R1 -> Prop), bool -> (@imap thread_id wf_src) -> bool -> (@imap thread_id wf_tgt) -> scheduler RT R0 -> scheduler RT R1 -> Prop
-    := paco10 _ssim bot10.
-
-  Fixpoint ssim_ind
-    (ssim : forall RT R0 R1 (RR : R0 -> R1 -> Prop), bool -> imap wf_src -> bool -> imap wf_tgt -> scheduler RT R0 -> scheduler RT R1 -> Prop)
-    (RT R0 R1 : Type) (RR : R0 -> R1 -> Prop)
-    (P : bool -> @imap thread_id wf_src -> bool -> @imap thread_id wf_tgt -> scheduler RT R0 -> scheduler RT R1 -> Prop)
-    (RET : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (r_src : R0) (r_tgt : R1),
-        RR r_src r_tgt -> P p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt))
-    (TAUL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0) (itr_tgt : scheduler RT R1),
-        _ssim ssim RR true m_src p_tgt m_tgt itr_src itr_tgt ->
-        P true m_src p_tgt m_tgt itr_src itr_tgt -> P p_src m_src p_tgt m_tgt (Tau itr_src) itr_tgt)
-    (TAUR : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0)
-              (itr_tgt : scheduler RT R1),
-        _ssim ssim RR p_src m_src true m_tgt itr_src itr_tgt ->
-        P p_src m_src true m_tgt itr_src itr_tgt -> P p_src m_src p_tgt m_tgt itr_src (Tau itr_tgt))
-    (EXE : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (tid : id)
-             (ktr_src : option RT -> scheduler RT R0) (ktr_tgt : option RT -> scheduler RT R1),
-        (forall rt : option RT, ssim RT R0 R1 RR true m_src true m_tgt (ktr_src rt) (ktr_tgt rt)) ->
-        P p_src m_src p_tgt m_tgt (Vis (Execute RT tid|)%sum ktr_src) (Vis (Execute RT tid|)%sum ktr_tgt))
-    (OBS : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt)
-             (ktr_src : nat -> scheduler RT R0) (ktr_tgt : nat -> scheduler RT R1) (fn : nat) (args : list nat),
-        (forall r : nat, ssim RT R0 R1 RR true m_src true m_tgt (ktr_src r) (ktr_tgt r)) ->
-        P p_src m_src p_tgt m_tgt (Vis (|Observe fn args)%sum ktr_src) (Vis (|Observe fn args)%sum ktr_tgt))
-    (CHOOSEL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (X : Type)
-                 (ktr_src : X -> scheduler RT R0) (itr_tgt : scheduler RT R1),
-        (exists x : X, _ssim ssim RR true m_src p_tgt m_tgt (ktr_src x) itr_tgt /\
-                    P true m_src p_tgt m_tgt (ktr_src x) itr_tgt) ->
-        P p_src m_src p_tgt m_tgt (Vis (|Choose X)%sum ktr_src) itr_tgt)
-    (CHOOSER : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (X : Type)
-                 (itr_src : scheduler RT R0) (ktr_tgt : X -> scheduler RT R1),
-        (forall x : X, _ssim ssim RR p_src m_src true m_tgt itr_src (ktr_tgt x)) ->
-        (forall x : X, P p_src m_src true m_tgt itr_src (ktr_tgt x)) ->
-        P p_src m_src p_tgt m_tgt itr_src (Vis (|Choose X)%sum ktr_tgt))
-    (FAIRL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (f_src : fmap)
-               (ktr_src : () -> scheduler RT R0) (itr_tgt : scheduler RT R1),
-        (exists m_src0 : imap wf_src,
-            (<< FAIR : fair_update m_src m_src0 f_src >>) /\
-              (<< SIM : _ssim ssim RR true m_src0 p_tgt m_tgt (ktr_src ()) itr_tgt >>) /\
-              P true m_src0 p_tgt m_tgt (ktr_src ()) itr_tgt) ->
-        P p_src m_src p_tgt m_tgt (Vis (|Fair f_src)%sum ktr_src) itr_tgt)
-    (FAIRR : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (f_tgt : fmap)
-               (itr_src : scheduler RT R0) (ktr_tgt : () -> scheduler RT R1),
-        (forall m_tgt0 : imap wf_tgt,
-            fair_update m_tgt m_tgt0 f_tgt -> _ssim ssim RR p_src m_src true m_tgt0 itr_src (ktr_tgt ())) ->
-        (forall m_tgt0 : imap wf_tgt, fair_update m_tgt m_tgt0 f_tgt -> P p_src m_src true m_tgt0 itr_src (ktr_tgt ())) ->
-        P p_src m_src p_tgt m_tgt itr_src (Vis (|Fair f_tgt)%sum ktr_tgt))
-    (UB : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt)
-            (ktr_src : void -> itree (schedulerE RT +' eventE) R0) (itr_tgt : scheduler RT R1),
-        P p_src m_src p_tgt m_tgt (Vis (|Undefined)%sum ktr_src) itr_tgt)
-    (PROGRESS : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0)
-                  (itr_tgt : scheduler RT R1),
-        p_src = true ->
-        p_tgt = true ->
-        ssim RT R0 R1 RR false m_src false m_tgt itr_src itr_tgt -> P p_src m_src p_tgt m_tgt itr_src itr_tgt)
-    p_src m_src p_tgt m_tgt (sch_src : scheduler RT R0) (sch_tgt : scheduler RT R1)
-    (SIM : _ssim ssim RR p_src m_src p_tgt m_tgt sch_src sch_tgt) : P p_src m_src p_tgt m_tgt sch_src sch_tgt.
-  Proof.
-    inv SIM; eauto.
-    - eapply TAUL. eauto. eapply ssim_ind; eauto.
-    - eapply TAUR. eauto. eapply ssim_ind; eauto.
-    - eapply CHOOSEL. des. esplits. eauto. eapply ssim_ind; eauto.
-    - eapply CHOOSER. eauto. i. eapply ssim_ind; eauto.
-    - eapply FAIRL. des. esplits; eauto. eapply ssim_ind; eauto.
-    - eapply FAIRR. eauto. i. eapply ssim_ind; eauto.
-  Qed.
-
-  Lemma ssim_mon : monotone10 _ssim.
-  Proof. ii. induction IN using ssim_ind; des; econs; eauto. Qed.
-
-  Hint Constructors _ssim : core.
-  Hint Unfold ssim : core.
-  Hint Resolve ssim_mon : paco.
-  Hint Resolve cpn10_wcompat : paco.
-
-  Lemma ssim_deflag RT R0 R1 (RR : R0 -> R1 -> Prop)
-    p_src p_tgt p_src' p_tgt'
-    m_src m_tgt (sched_src : scheduler RT R0) sched_tgt :
-    ssim RR p_src m_src p_tgt m_tgt sched_src sched_tgt ->
-    ssim RR p_src' m_src p_tgt' m_tgt sched_src sched_tgt.
-  Proof.
-    i. revert p_src' p_tgt'. punfold H.
-    induction H using ssim_ind; i.
-    - pfold. econs; eauto.
-    - pfold. econs. specialize (IH_ssim true p_tgt'). punfold IH_ssim.
-    - pfold. econs. specialize (IH_ssim p_src' true). punfold IH_ssim.
-    - pfold. econs; eauto.
-    - pfold. econs; eauto.
-    - pfold. econs. des. eexists. specialize (H0 true p_tgt'). punfold H0.
-    - pfold. econs. i. specialize (H0 x p_src' true). punfold H0.
-    - pfold. econs. des. esplits; eauto. specialize (H1 true p_tgt'). punfold H1.
-    - pfold. econs. i. specialize (H0 m_tgt0 FAIR p_src' true). punfold H0.
-    - pfold. econs.
-    - clarify. pclearbot.
-      
-      revert p_src' p_tgt' itr_src itr_tgt m_src m_tgt H1.
-      pcofix CIH. i.
-      
-      remember false as p_src0 in H1 at 1.
-      remember false as p_tgt0 in H1 at 1.
-      assert (P_SRC : p_src0 = true -> p_src' = true) by (subst; ss).
-      assert (P_TGT : p_tgt0 = true -> p_tgt' = true) by (subst; ss).
-      clear Heqp_src0 Heqp_tgt0.
-      revert p_src' p_tgt' P_SRC P_TGT. punfold H1.
-      induction H1 using ssim_ind; i.
-      + pfold. econs; eauto.
-      + pfold. econs. specialize (IH_ssim true p_tgt' ltac:(ss) P_TGT). punfold IH_ssim.
-      + pfold. econs. specialize (IH_ssim p_src' true P_SRC ltac:(ss)). punfold IH_ssim.
-      + pfold. econs; eauto. i. eapply upaco10_mon; ss.
-      + pfold. econs; eauto. i. eapply upaco10_mon; ss.
-      + pfold. econs. des. eexists. specialize (H0 true p_tgt' ltac:(ss) P_TGT). punfold H0.
-      + pfold. econs. i. specialize (H0 x p_src' true P_SRC ltac:(ss)). punfold H0.
-      + pfold. econs. des. esplits; eauto. specialize (H1 true p_tgt' ltac:(ss) P_TGT). punfold H1.
-      + pfold. econs. i. specialize (H0 m_tgt0 FAIR p_src' true P_SRC ltac:(ss)). punfold H0.
-      + pfold. econs.
-      + pfold. econs; eauto. pclearbot. right. eapply CIH; eauto.
-  Qed.
-
-End SSIM.
-
-#[export] Hint Constructors _ssim : core.
-#[export] Hint Unfold ssim : core.
-#[export] Hint Resolve ssim_mon : paco.
+Global Opaque sched_nondet.
 
 (* section SCHEDAUX. *)
 
@@ -1065,25 +929,40 @@ Section INTERP.
   Variable State: Type.
   Variable _Ident: ID.
 
+  Definition key_set {elt} : Th.t elt -> IdSet.t.
+  Proof.
+    Import Th.
+    intros [l SORTED]. unfold Raw.t in *.
+    set (l' := List.map fst l).
+    econs. instantiate (1 := l').
+    unfold Raw.PX.ltk in *.
+
+    assert (Sorted (fun x y => x < y) l').
+    { induction SORTED.
+      - subst l'. ss.
+      - subst l'. ss. econs 2; ss.
+        inv H; ss. econs; ss.
+    }
+
+    eapply IdSet.MSet.Raw.isok_iff. ss.
+  Defined.
+
   Definition interp_all
-             {R}
-             (st: State) (ths: @threads _Ident (sE State) R)
-             tid (itr: @thread _Ident (sE State) R) :
-    itree (@eventE (sum_tid _Ident)) R :=
-    interp_state (st, interp_sched_nondet (tid, itr, ths)).
+    {R} st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
+    interp_state (st, interp_sched (ths, sched_nondet _ (tid, IdSet.remove tid (key_set ths)))).
 
 End INTERP.
 
 
 Section MOD.
 
-  Variable mod: Mod.t.
+  Variable mod : Mod.t.
   Let st := (Mod.st_init mod).
   Let Ident := (Mod.ident mod).
   Let main := ((Mod.funs mod) "main").
 
   Definition interp_mod (ths: @threads (Mod.ident mod) (sE (Mod.state mod)) Val):
     itree (@eventE (sum_tid Ident)) Val :=
-    interp_all st ths tid_main (main []).
+    interp_all st ths tid_main.
 
 End MOD.

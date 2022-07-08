@@ -20,7 +20,7 @@ Section SCHEDULE.
   Let thread R := thread _Ident E R.
   Let threads R := list (thread_id.(id) * thread R).
   
-  Definition schedule_fifo R0 : thread_id.(id) * list thread_id.(id) -> scheduler R0 R0 :=
+  Definition sched_fifo R0 : thread_id.(id) * list thread_id.(id) -> scheduler R0 R0 :=
     ITree.iter (fun '(tid, q) =>
                   r <- ITree.trigger (inl1 (Execute _ tid));;
                   match r with
@@ -36,93 +36,29 @@ Section SCHEDULE.
                       end
                   end).
 
-  Lemma unfold_schedule_fifo R0 tid q :
-    schedule_fifo _ (tid, q) =
+  Lemma unfold_sched_fifo R0 tid q :
+    sched_fifo _ (tid, q) =
       r <- ITree.trigger (inl1 (Execute _ tid));;
       match r with
       | None =>
           match q ++ [tid] with
           | [] => Vis (inr1 (Choose void)) (Empty_set_rect _)
-          | tid' :: q' => tau;; schedule_fifo R0 (tid', q')
+          | tid' :: q' => tau;; sched_fifo R0 (tid', q')
           end
       | Some r =>
           match q with
           | [] => Ret r
-          | tid' :: q' => tau;; schedule_fifo R0 (tid', q')
+          | tid' :: q' => tau;; sched_fifo R0 (tid', q')
           end
       end.
   Proof.
-    unfold schedule_fifo at 1.
+    unfold sched_fifo at 1.
     rewrite unfold_iter.
     grind.
     eapply observe_eta. ss. f_equal. extensionality x. ss.
   Qed.
 
 End SCHEDULE.
-
-Section SCHEDULE_LEGACY.
-  
-  Context {_Ident : ID}.
-  Variable E : Type -> Type.
-
-  Let eventE1 := @eventE _Ident.
-  Let eventE2 := @eventE (sum_tid _Ident).
-  Let Es := (eventE1 +' cE) +' E.
-
-  Let thread R := thread _Ident E R.
-  Let threads R := list (thread_id.(id) * thread R).
-
-  Definition pick_thread_fifo {R} :
-    thread_id.(id) * (thread R + R) -> threads R ->
-    itree (eventE2 +' E) (thread_id.(id) * thread R * threads R + R) :=
-    fun '(tid, res) ts =>
-      match res with
-      | inl t => match (ts ++ [(tid, t)]) with
-                | [] => Vis (inl1 (Choose void)) (Empty_set_rect _)
-                | t' :: ts' => Ret (inl (t', ts'))
-                end
-      | inr r => match ts with
-                | [] => Ret (inr r)
-                | t' :: ts' => Ret (inl (t', ts'))
-                end
-      end.
-
-  Definition interp_fifosched {R} : thread_id.(id) * thread R * threads R -> itree (eventE2 +' E) R :=
-    ITree.iter (fun '(t, ts) =>
-                  res <- interp_thread t;;
-                  pick_thread_fifo (fst t, res) ts
-      ).
-
-  Lemma pick_thread_fifo_yield {R} tid (t : thread R) ts :
-    pick_thread_fifo (tid, inl t) ts =
-      match (ts ++ [(tid, t)]) with
-      | [] => Vis (inl1 (Choose void)) (Empty_set_rect _)
-      | t' :: ts' => Ret (inl (t', ts'))
-      end.
-  Proof. ss. Qed.
-
-  Lemma pick_thread_fifo_terminate {R} tid (r : R) ts :
-    pick_thread_fifo (tid, inr r) ts =
-      match ts with
-      | [] => Ret (inr r)
-      | t' :: ts' => Ret (inl (t', ts'))
-      end.
-  Proof. ss. Qed.
-
-  Lemma unfold_interp_fifosched {R} tid (t : itree Es R) ts :
-    interp_fifosched (tid, t, ts) =
-      res <- interp_thread (tid, t);;
-      yr <- pick_thread_fifo (tid, res) ts;;
-      match yr with
-      | inl y => tau;; interp_fifosched y
-      | inr r => Ret r
-      end.
-  Proof. unfold interp_fifosched at 1. rewrite unfold_iter, bind_bind. ss. Qed.
-
-End SCHEDULE_LEGACY.
-
-Global Opaque
-  pick_thread_fifo.
 
 Section INTERP.
 
@@ -131,10 +67,7 @@ Section INTERP.
   Let eventE2 := @eventE (sum_tid _Ident).
 
   Definition interp_all_fifo
-    {R}
-    (st : State) (ths : list (thread_id.(id) * thread _Ident (sE State) R))
-    tid (itr : @thread _Ident (sE State) R) :
-    itree eventE2 R :=
-    interp_state (st, interp_fifosched (tid, itr, ths)).
+    {R} st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
+    interp_state (st, interp_sched (ths, sched_fifo _ (tid, IdSet.elements (IdSet.remove tid (key_set ths))))).
 
 End INTERP.
