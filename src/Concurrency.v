@@ -452,7 +452,7 @@ Section SCHEDULE_NONDET.
     | None =>
         tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
         match set_pop tid' (TIdSet.add tid q) with
-        | None => Vis (inr1 Undefined) (Empty_set_rect _)
+        | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
         | Some q' =>
             ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
             Ret (inl (tid', q'))
@@ -463,7 +463,7 @@ Section SCHEDULE_NONDET.
         else
           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
           match set_pop tid' q with
-          | None => Vis (inr1 Undefined) (Empty_set_rect _)
+          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
           | Some q' =>
               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
               Ret (inl (tid', q'))
@@ -482,7 +482,7 @@ Section SCHEDULE_NONDET.
       | None =>
           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
           match set_pop tid' (TIdSet.add tid q) with
-          | None => Vis (inr1 Undefined) (Empty_set_rect _)
+          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
           | Some q' =>
               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
               tau;; sched_nondet _ (tid', q')
@@ -493,7 +493,7 @@ Section SCHEDULE_NONDET.
           else
             tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
             match set_pop tid' q with
-            | None => Vis (inr1 Undefined) (Empty_set_rect _)
+            | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
             | Some q' =>
                 ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
                 tau;; sched_nondet _ (tid', q')
@@ -525,7 +525,7 @@ Section SCHEDULE_NONDET.
       | inl t' => Tau (interp_sched (Th.add tid t' ths,
                           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
                           match set_pop tid' (TIdSet.add tid q) with
-                          | None => Vis (inr1 Undefined) (Empty_set_rect _)
+                          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                           | Some q' =>
                               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
                               tau;; sched_nondet _ (tid', q')
@@ -536,7 +536,7 @@ Section SCHEDULE_NONDET.
                          else
                            tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
                            match set_pop tid' q with
-                           | None => Vis (inr1 Undefined) (Empty_set_rect _)
+                           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                            | Some q' =>
                                ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
                                tau;; sched_nondet _ (tid', q')
