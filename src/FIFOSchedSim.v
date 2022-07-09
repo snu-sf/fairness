@@ -32,8 +32,8 @@ Section SIM.
 
   Theorem ssim_nondet_fifo
     p_src p_tgt tid ths_src ths_tgt
-    (THREADS : Permutation (IdSet.elements ths_src) ths_tgt)
-    (TID : ~ IdSet.In tid ths_src)
+    (THREADS : Permutation (TIdSet.elements ths_src) ths_tgt)
+    (TID : ~ TIdSet.In tid ths_src)
     : forall m_tgt, exists m_src, @ssim nat_wf nat_wf R R R eq p_src m_src p_tgt m_tgt
                           (sched_nondet R (tid, ths_src))
                           (sched_fifo R (tid, ths_tgt)).
@@ -55,21 +55,21 @@ Section SIM.
     rewrite ! bind_trigger.
     pfold. econs. intros [].
     - left.
-      destruct (IdSet.is_empty ths_src) eqn: H.
-      + eapply IdSet.is_empty_2 in H.
+      destruct (TIdSet.is_empty ths_src) eqn: H.
+      + eapply TIdSet.is_empty_2 in H.
         eapply Empty_nil in H.
         rewrite H in THREADS.
         eapply Permutation_nil in THREADS.
         subst ths_tgt.
         pfold. econs; ss.
-      + assert (~ IdSet.Empty ths_src).
-        { ii. eapply IdSet.is_empty_1 in H0. rewrite H in H0; ss. }
+      + assert (~ TIdSet.Empty ths_src).
+        { ii. eapply TIdSet.is_empty_1 in H0. rewrite H in H0; ss. }
         clear H. eapply Empty_nil_neg in H0.
         destruct ths_tgt as [| tid' ths_tgt' ].
         { symmetry in THREADS. eapply Permutation_nil in THREADS. ss. }
-        pfold. eapply ssim_chooseL. exists tid'. unfold id_pop.
-        replace (IdSet.mem tid' ths_src) with true; cycle 1.
-        { symmetry. eapply IdSet.mem_1. eapply In_InA; eauto.
+        pfold. eapply ssim_chooseL. exists tid'. unfold set_pop.
+        replace (TIdSet.mem tid' ths_src) with true; cycle 1.
+        { symmetry. eapply TIdSet.mem_1. eapply In_InA; eauto.
           rewrite THREADS. econs; ss.
         }
         rewrite bind_trigger.
@@ -81,8 +81,8 @@ Section SIM.
         { ii. unfold tids_fmap. des_if; ss. subst.
           replace (i =? tid')%nat with false by (symmetry; eapply Nat.eqb_neq; eauto).
           des_if.
-          - assert (List.In i (IdSet.elements ths_src)).
-            { eapply InA_In. eapply IdSet.remove_3. eapply In_InA; eauto. eapply i0. }
+          - assert (List.In i (TIdSet.elements ths_src)).
+            { eapply InA_In. eapply TIdSet.remove_3. eapply In_InA; eauto. eapply i0. }
             rewrite THREADS in H.
             eapply In_nth_error in H. destruct H as [i' H].
             enough (m_src i > i') by lia.
@@ -90,8 +90,8 @@ Section SIM.
           - unfold le; ss. lia.
         }
         do 3 econs; eauto. right. eapply CIH.
-        * eapply IdSet_Permutation_remove. eapply THREADS.
-        * eapply IdSet.remove_1; ss.
+        * eapply TIdSet_Permutation_remove. eapply THREADS.
+        * eapply TIdSet.remove_1; ss.
         * subst. replace (tid' =? tid')%nat with true by (symmetry; eapply Nat.eqb_refl). lia.
         * subst. i. des_if.
           -- eapply nth_error_Some' in H. lia.
@@ -105,11 +105,11 @@ Section SIM.
       end.
       { eapply app_eq_nil in E_ths_tgt. des. ss. }
       pfold. eapply ssim_chooseL. exists tid'. unfold id_pop.
-      replace (IdSet.mem tid' (IdSet.add tid ths_src)) with true; cycle 1.
-      { symmetry. eapply IdSet.mem_1.
+      replace (TIdSet.mem tid' (TIdSet.add tid ths_src)) with true; cycle 1.
+      { symmetry. eapply TIdSet.mem_1.
         destruct ths_tgt; ss; inversion E_ths_tgt; subst.
-        - eapply IdSet.add_1; ss.
-        - eapply IdSet.add_2. eapply In_InA; eauto. rewrite THREADS. econs; ss.
+        - eapply TIdSet.add_1; ss.
+        - eapply TIdSet.add_2. eapply In_InA; eauto. rewrite THREADS. econs; ss.
       }
       rewrite bind_trigger. eapply ssim_fairL.
       remember (fun i => if Nat.eqb i tid'
@@ -119,25 +119,25 @@ Section SIM.
       { ii. unfold tids_fmap. des_if; ss. subst.
         replace (i =? tid')%nat with false by (symmetry; eapply Nat.eqb_neq; eauto).
         des_if.
-        - assert (List.In i (IdSet.elements (IdSet.add tid ths_src))).
-          { eapply InA_In. eapply IdSet.remove_3. eapply In_InA; eauto. eapply i0. }
+        - assert (List.In i (TIdSet.elements (TIdSet.add tid ths_src))).
+          { eapply InA_In. eapply TIdSet.remove_3. eapply In_InA; eauto. eapply i0. }
           assert (i = tid \/ i <> tid) by lia.
           destruct H0.
           + subst. lia.
-          + assert (List.In i (IdSet.elements ths_src)).
-            { eapply InA_In. eapply IdSet.add_3; eauto. eapply In_InA; eauto. }
+          + assert (List.In i (TIdSet.elements ths_src)).
+            { eapply InA_In. eapply TIdSet.add_3; eauto. eapply In_InA; eauto. }
             rewrite THREADS in H1. eapply In_nth_error in H1. destruct H1 as [i' H1].
             enough (m_src i > i') by lia.
             eapply M_SRC1; eauto.
         - unfold le; ss. lia.
       }
-      do 3 econs; ss. right. unfold IdSet.elt in *. eapply CIH.
-      + eapply IdSet_Permutation_remove.
-        rewrite IdSet_Permutation_add.
+      do 3 econs; ss. right. unfold TIdSet.elt in *. eapply CIH.
+      + eapply TIdSet_Permutation_remove.
+        rewrite TIdSet_Permutation_add.
         * eapply Permutation_refl' in E_ths_tgt. rewrite Permutation_app_comm in E_ths_tgt. eapply E_ths_tgt.
         * intro H. eapply TID. eapply H.
         * ss.
-      + eapply IdSet.remove_1; ss.
+      + eapply TIdSet.remove_1; ss.
       + subst. replace (tid' =? tid')%nat with true by (symmetry; eapply Nat.eqb_refl). lia.
       + subst. i. des_if.
         * eapply nth_error_Some' in H. lia.
@@ -158,7 +158,7 @@ Section SIM.
         (interp_all_fifo st ths tid).
   Proof. eapply ssim_implies_gsim.
          eapply ssim_nondet_fifo; ss.
-         eapply IdSet.remove_1; ss.
+         eapply TIdSet.remove_1; ss.
   Qed.
 
 End SIM.
