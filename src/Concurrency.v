@@ -341,7 +341,7 @@ Section SCHEDULE.
                | inl t' => Ret (inl (Th.add i t' ts, ktr None))
                | inr r => Ret (inl (Th.remove i ts, ktr (Some r)))
                end).
-      * exact (Vis (inl1 (Choose void)) (Empty_set_rect _)).
+      * exact (Vis (inl1 Undefined) (Empty_set_rect _)).
     - exact (Vis (inl1 (embed_eventE0 e)) (fun x => Ret (inl (ts, ktr x)))).
   Defined.
 
@@ -428,7 +428,7 @@ Section SCHEDULE.
   Lemma interp_sched_execute_None RT R ths tid (ktr : option RT -> scheduler RT R)
     (NONE : Th.find tid ths = None)
     : interp_sched (ths, Vis (inl1 (Execute _ tid)) ktr) =
-        Vis (inl1 (Choose void)) (Empty_set_rect _).
+        Vis (inl1 Undefined) (Empty_set_rect _).
   Proof. unfold interp_sched. rewrite unfold_iter. grind.
          eapply observe_eta. ss. f_equal. extensionality x. ss.
   Qed.
@@ -452,7 +452,7 @@ Section SCHEDULE_NONDET.
     | None =>
         tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
         match set_pop tid' (TIdSet.add tid q) with
-        | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+        | None => Vis (inr1 Undefined) (Empty_set_rect _)
         | Some q' =>
             ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
             Ret (inl (tid', q'))
@@ -463,13 +463,13 @@ Section SCHEDULE_NONDET.
         else
           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
           match set_pop tid' q with
-          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+          | None => Vis (inr1 Undefined) (Empty_set_rect _)
           | Some q' =>
               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
               Ret (inl (tid', q'))
           end
     end.
-  
+
   Definition sched_nondet R0 : thread_id.(id) * TIdSet.t -> scheduler R0 R0 :=
     ITree.iter (fun '(tid, q) =>
                   r <- ITree.trigger (inl1 (Execute _ tid));;
@@ -482,7 +482,7 @@ Section SCHEDULE_NONDET.
       | None =>
           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
           match set_pop tid' (TIdSet.add tid q) with
-          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+          | None => Vis (inr1 Undefined) (Empty_set_rect _)
           | Some q' =>
               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
               tau;; sched_nondet _ (tid', q')
@@ -493,7 +493,7 @@ Section SCHEDULE_NONDET.
           else
             tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
             match set_pop tid' q with
-            | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+            | None => Vis (inr1 Undefined) (Empty_set_rect _)
             | Some q' =>
                 ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
                 tau;; sched_nondet _ (tid', q')
@@ -525,7 +525,7 @@ Section SCHEDULE_NONDET.
       | inl t' => Tau (interp_sched (Th.add tid t' ths,
                           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
                           match set_pop tid' (TIdSet.add tid q) with
-                          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                          | None => Vis (inr1 Undefined) (Empty_set_rect _)
                           | Some q' =>
                               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
                               tau;; sched_nondet _ (tid', q')
@@ -536,7 +536,7 @@ Section SCHEDULE_NONDET.
                          else
                            tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
                            match set_pop tid' q with
-                           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                           | None => Vis (inr1 Undefined) (Empty_set_rect _)
                            | Some q' =>
                                ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
                                tau;; sched_nondet _ (tid', q')
@@ -551,7 +551,7 @@ Section SCHEDULE_NONDET.
   Lemma unfold_interp_sched_nondet_None R tid (ths : threads R) q :
     Th.find tid ths = None ->
     interp_sched (ths, sched_nondet R (tid, q)) =
-      Vis (inl1 (Choose void)) (Empty_set_rect _).
+      Vis (inl1 Undefined) (Empty_set_rect _).
   Proof.
     rewrite unfold_sched_nondet at 1.
     rewrite bind_trigger.

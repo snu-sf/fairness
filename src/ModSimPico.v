@@ -4,7 +4,6 @@ Require Export Coq.Strings.String.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
 From Fairness Require Import pind5.
-(* From Fairness Require Import pind8. *)
 
 Set Implicit Arguments.
 
@@ -30,12 +29,10 @@ Section PRIMIVIESIM.
 
   (* Variable stutter: WF. *)
   Definition shared :=
-    (tid_list *
-       tid_list *
+    (TIdSet.t *
+       TIdSet.t *
        (@imap ident_src wf_src) *
        (@imap ident_tgt wf_tgt) *
-       (* (@imap thread_id wf_src) * *)
-       (* (@imap thread_id wf_tgt) * *)
        state_src *
        state_tgt *
        wf_src.(T) *
@@ -431,8 +428,8 @@ Section PRIMIVIESIM.
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid :=
     fun (r_src: R0) (r_tgt: R1) '(ths2, tht2, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1) =>
       (exists ths3 tht3 o2 w2,
-          (<<THSR: tid_list_remove ths2 tid ths3>>) /\
-            (<<THTR: tid_list_remove tht2 tid tht3>>) /\
+          (<<THSR: TIdSet.remove tid ths2 = ths3>>) /\
+            (<<THTR: TIdSet.remove tid tht2 = tht3>>) /\
             (<<WORLD: world_le w1 w2>>) /\
             (<<STUTTER: wf_src.(lt) o2 o1>>) /\
             (<<INV: I (ths3, tht3, im_src1, im_tgt1, st_src1, st_tgt1, o2, w2)>>) /\
@@ -442,11 +439,11 @@ Section PRIMIVIESIM.
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
       (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
       (* tid ths1 tht1 *)
-      (* (THS: tid_list_add ths0 tid ths1) *)
-      (* (THT: tid_list_add tht0 tid tht1) *)
+      (* (THS: TIdSet.t_add ths0 tid ths1) *)
+      (* (THT: TIdSet.t_add tht0 tid tht1) *)
       tid
-      (THS: tid_list_in tid ths0)
-      (THT: tid_list_in tid tht0)
+      (THS: TIdSet.In tid ths0)
+      (THT: TIdSet.In tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       fs ft,
       lsim
@@ -455,6 +452,21 @@ Section PRIMIVIESIM.
         fs ft
         src tgt
         (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0).
+
+  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid :=
+    forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
+      (THS: TIdSet.In tid ths0)
+      (THT: TIdSet.In tid tht0)
+      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
+      fs ft,
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
+    exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
+                 (lsim
+                    (@local_RR R0 R1 RR tid)
+                    tid
+                    fs ft
+                    src tgt
+                    (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)).
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
@@ -478,13 +490,13 @@ Module ModSim.
           world_le: world -> world -> Prop;
           I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop;
 
-          init_src_thread_id: tid_list;
-          init_tgt_thread_id: tid_list;
+          init_src_thread_id: TIdSet.t;
+          init_tgt_thread_id: TIdSet.t;
           (* INV should hold for all current existing thread_id *)
           init: forall im_tgt, exists im_src o w,
             I (init_src_thread_id, init_tgt_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w);
 
-          (* init_thread_id: tid_list; *)
+          (* init_thread_id: TIdSet.t; *)
           (* init: forall im_tgt, exists im_src o w, *)
           (*   I (init_thread_id, init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w); *)
 
@@ -505,14 +517,14 @@ Module ModSim.
     (*       funs: forall ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0 *)
     (*               (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0)) *)
     (*               fn args tid ths1 *)
-    (*               (THS: tid_list_add ths0 tid ths1), *)
+    (*               (THS: TIdSet.t_add ths0 tid ths1), *)
     (*         lsim *)
     (*           world_le *)
     (*           I *)
     (*           tid *)
     (*           (fun r_src r_tgt '(ths2, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1) => *)
     (*              exists ths3 w2, *)
-    (*                (<<THS: tid_list_remove ths2 tid ths3>>) /\ *)
+    (*                (<<THS: TIdSet.t_remove ths2 tid ths3>>) /\ *)
     (*                  (<<WORLD: world_le w1 w2>>) /\ *)
     (*                  (<<INV: I (ths3, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w2)>>) /\ *)
     (*                  (<<RET: r_src = r_tgt>>)) *)
