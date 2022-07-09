@@ -283,7 +283,7 @@ Section SIM.
       { rewrite 2 interp_sched_execute_None; eauto.
         rewrite 2 interp_state_vis.
         rewrite <- 2 bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_chooseR. ss.
+        guclo sim_indC_spec. eapply sim_indC_ub.
       }
       
       erewrite 2 interp_sched_execute_Some; eauto.
