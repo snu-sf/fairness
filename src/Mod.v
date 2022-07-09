@@ -2,14 +2,13 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
+From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib FairBeh.
-
-Require Import Coq.FSets.FSetList Coq.Structures.OrderedTypeEx.
-Module Ti := FSetList.Make(Nat_as_OT).
+From Fairness Require Export ITreeLib FairBeh NatStructs.
 
 Set Implicit Arguments.
 
+Module TIdSet := NatSet.
 
 
 Notation thread_id := (mk_id nat).
@@ -26,30 +25,30 @@ Section TID.
   Definition tid_dec_bool :=
     fun t1 t2 => if (tid_dec t1 t2) then true else false.
 
-  (*TODO: use finite set*)
-  Definition tid_list: Type := list thread_id.(id).
+  (* (*TODO: use finite set*) *)
+  (* Definition tid_list: Type := list thread_id.(id). *)
 
-  Definition tid_list_wf (ths: tid_list) := List.NoDup ths.
-  Definition tid_list_in (tid: thread_id.(id)) (ths: tid_list): Prop := List.In tid ths.
+  (* Definition tid_list_wf (ths: tid_list) := List.NoDup ths. *)
+  (* Definition tid_list_in (tid: thread_id.(id)) (ths: tid_list): Prop := List.In tid ths. *)
 
-  Variant tid_list_add (ths0: tid_list) (tid: thread_id.(id)) (ths1: tid_list): Prop :=
-    | tid_list_add_intro
-        (THS0: ~ tid_list_in tid ths0)
-        (THS1: ths1 = tid :: ths0)
-  .
+  (* Variant tid_list_add (ths0: tid_list) (tid: thread_id.(id)) (ths1: tid_list): Prop := *)
+  (*   | tid_list_add_intro *)
+  (*       (THS0: ~ tid_list_in tid ths0) *)
+  (*       (THS1: ths1 = tid :: ths0) *)
+  (* . *)
 
-  Variant tid_list_remove (ths0: tid_list) (tid: thread_id.(id)) (ths1: tid_list): Prop :=
-    | tid_list_remove_intro
-        (THS0: tid_list_in tid ths0)
-        (THS1: ths1 = List.filter (fun t => tid_dec_bool t tid) ths0)
-        (* l0 l1 *)
-        (* (THS0: ths0 = l0 ++ tid :: l1) *)
-        (* (THS1: ths1 = l0 ++ l1) *)
-  .
+  (* Variant tid_list_remove (ths0: tid_list) (tid: thread_id.(id)) (ths1: tid_list): Prop := *)
+  (*   | tid_list_remove_intro *)
+  (*       (THS0: tid_list_in tid ths0) *)
+  (*       (THS1: ths1 = List.filter (fun t => tid_dec_bool t tid) ths0) *)
+  (*       (* l0 l1 *) *)
+  (*       (* (THS0: ths0 = l0 ++ tid :: l1) *) *)
+  (*       (* (THS1: ths1 = l0 ++ l1) *) *)
+  (* . *)
 
-  Definition tids_fmap (tid: thread_id.(id)) (tidf: tid_list): @fmap thread_id :=
+  Definition tids_fmap (tid: thread_id.(id)) (tidf: TIdSet.t): @fmap thread_id :=
     fun t => if (PeanoNat.Nat.eq_dec t tid) then Flag.success
-          else if (List.in_dec tid_dec t tidf) then Flag.fail
+          else if (ns_in_dec t tidf) then Flag.fail
                else Flag.emp.
 
   Definition sum_tid (_id: ID) := id_sum thread_id _id.

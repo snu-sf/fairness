@@ -68,6 +68,6 @@ Section INTERP.
 
   Definition interp_all_fifo
     {R} st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
-    interp_state (st, interp_sched (ths, sched_fifo _ (tid, IdSet.elements (IdSet.remove tid (key_set ths))))).
+    interp_state (st, interp_sched (ths, sched_fifo _ (tid, TIdSet.elements (TIdSet.remove tid (key_set ths))))).
 
 End INTERP.
