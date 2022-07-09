@@ -157,6 +157,8 @@ Section SIM.
         (interp_all st ths tid)
         (interp_all_fifo st ths tid).
   Proof. eapply ssim_implies_gsim.
+         { ii; unfold lt in *; ss; lia. }
+         { instantiate (1 := fun x => x). ss. }
          eapply ssim_nondet_fifo; ss.
          eapply IdSet.remove_1; ss.
   Qed.
