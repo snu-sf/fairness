@@ -1766,6 +1766,24 @@ Section ADEQ.
       (*TODO*)
 
       { destruct KSIM0 as [KSIM0 IND].
+        unfold interp_all at 1. erewrite unfold_interp_sched_nondet_Some.
+        2:{ instantiate (1:=(Tau itr_src)). admit. }
+        rewrite interp_thread_tau. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
+        match goal with
+        | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid itr_src (nm_proj_v2 ths_src)) tid)
+        end.
+        2:{ unfold interp_all.
+            erewrite unfold_interp_sched_nondet_Some.
+            2:{ instantiate (1:= itr_src). admit. }
+            replace (Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)).
+            2:{ admit. }
+            replace (TIdSet.remove tid (key_set (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)))) with (TIdSet.remove tid (key_set ths_src)).
+            2:{ admit. }
+            auto.
+        }
+
+
+        
         rewrite unfold_interp_sched. rewrite interp_thread_tau. ired. rewrite interp_state_tau. rewrite <- unfold_interp_sched.
         guclo sim_indC_spec. eapply sim_indC_tauL. eapply IH; eauto.
       }
