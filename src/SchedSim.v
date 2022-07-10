@@ -235,26 +235,35 @@ Section SIM.
   Lemma nth_error_Some' A (l : list A) x i : nth_error l i = Some x -> i < List.length l.
   Proof. i. eapply nth_error_Some. intro. rewrite H in H0; ss. Qed.
 
+  Variable wf_tgt : WF.
+  Variable wf_src : WF.
+  Variable wf_emb : wf_tgt.(T) -> wf_src.(T).
+  Hypothesis WF_TRANS : Transitive (lt wf_tgt).
+  Hypothesis EMB_MON : forall x y, lt wf_tgt x y -> lt wf_src (wf_emb x) (wf_emb y).
+
+  Lemma monotone_weak : forall x y, le wf_tgt x y -> le wf_src (wf_emb x) (wf_emb y).
+  Proof. i. unfold le. destruct H; subst; eauto. Qed.
+
   Theorem ssim_implies_gsim
     RT R0 R1 RR p_src p_tgt sched_src sched_tgt
-    (SSIM : forall m_tgt, exists m_src, @ssim nat_wf nat_wf RT R0 R1 RR p_src m_src p_tgt m_tgt sched_src sched_tgt)
+    (SSIM : forall m_tgt, exists m_src, @ssim wf_src wf_tgt RT R0 R1 RR p_src m_src p_tgt m_tgt sched_src sched_tgt)
     st (ths : @threads _Ident (sE State) RT)
-    : gsim nat_wf nat_wf RR p_src p_tgt
+    : gsim wf_src wf_tgt RR p_src p_tgt
         (interp_state (st, interp_sched (ths, sched_src)))
         (interp_state (st, interp_sched (ths, sched_tgt))).
   Proof.
     unfold gsim. intro gm_tgt.
 
     remember (gm_tgt ∘ inl) as m_tgt.
-    assert (M_TGT : forall i, le nat_wf (gm_tgt (inl i)) (m_tgt i)) by (subst; reflexivity).
+    assert (M_TGT : forall i, m_tgt i = gm_tgt (inl i)) by (subst; ss).
     specialize (SSIM m_tgt). des.
     remember (fun (i : (sum_tid _Ident).(id)) =>
                 match i with
                 | inl i => m_src i
-                | inr i => gm_tgt (inr i)
+                | inr i => wf_emb (gm_tgt (inr i))
                 end) as gm_src.
     assert (M_SRC0 : forall i, gm_src (inl i) = m_src i) by (subst; ss).
-    assert (M_SRC1 : forall i, le nat_wf (gm_tgt (inr i)) (gm_src (inr i))) by (subst; reflexivity).
+    assert (M_SRC1 : forall i, gm_src (inr i) = wf_emb (gm_tgt (inr i))) by (subst; reflexivity).
     clear Heqm_tgt Heqgm_src.
     exists gm_src.
  
@@ -274,7 +283,7 @@ Section SIM.
       { rewrite 2 interp_sched_execute_None; eauto.
         rewrite 2 interp_state_vis.
         rewrite <- 2 bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_chooseR. ss.
+        guclo sim_indC_spec. eapply sim_indC_ub.
       }
       
       erewrite 2 interp_sched_execute_Some; eauto.
@@ -304,17 +313,24 @@ Section SIM.
           gstep. eapply sim_fairR. intros gm_tgt0 FAIR. eapply sim_fairL.
           remember (fun i => match i with
                           | inl i => gm_src (inl i)
-                          | inr i => gm_tgt0 (inr i)
+                          | inr i => wf_emb (gm_tgt0 (inr i))
                           end) as gm_src0.
           exists gm_src0. splits.
           { subst. intros []; ss.
             - reflexivity.
-            - specialize (FAIR (inr i)). specialize (M_SRC1 i). unfold le in *; ss. destruct (m i); lia.
+            - rewrite M_SRC1. specialize (FAIR (inr i)); ss. destruct (m i); eauto using monotone_weak.
           }
-          econs; eauto. gfinal. left. eapply CIH2.
+          econs; eauto.
+          guclo sim_imap_ctxR_spec; ss. econs; cycle 1.
+          instantiate (1 := fun i => match i with
+                                  | inl i => gm_tgt (inl i)
+                                  | inr i => gm_tgt0 (inr i)
+                                  end).
+          { ii. destruct i. specialize (FAIR (inl i)). ss. reflexivity. }
+          gfinal. left. eapply CIH2.
           -- subst; eauto.
           -- subst; reflexivity.
-          -- i. specialize (FAIR (inl i)). specialize (M_TGT i). unfold le in *; ss. lia.
+          -- i. specialize (M_TGT i). ss.
         * gstep. econs. i. subst. gfinal. left. eapply CIH2; eauto.
         * rewrite <- 2 bind_trigger. gstep. eapply sim_ub.
     - rewrite 2 interp_sched_vis, 2 interp_state_vis.
@@ -334,20 +350,30 @@ Section SIM.
       remember (fun (i : (sum_tid _Ident).(id)) =>
                   match i with
                   | inl i => m_src0 i
-                  | inr i => gm_tgt (inr i)
+                  | inr i => wf_emb (gm_tgt (inr i))
                   end) as gm_src0.
       exists gm_src0. splits.
-      { subst. intros []; ss. rewrite M_SRC0. eapply FAIR. }
+      { subst. intros []; ss.
+        - rewrite M_SRC0. eapply FAIR.
+        - rewrite M_SRC1. reflexivity.
+      }
       rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; econs). eapply H1; subst; eauto. reflexivity.
+      do 2 (guclo sim_indC_spec; econs). eapply H1; subst; eauto.
     - rewrite interp_sched_vis, interp_state_vis, <- bind_trigger.
       guclo sim_indC_spec. econs. intros gm_tgt0 FAIR.
       rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; econs). eapply H0. instantiate (1 := fun i => gm_tgt0 (inl i)).
-      + ii. specialize (FAIR (inl i)). specialize (M_TGT i). unfold le in *; ss. destruct (f_tgt i); lia.
+      do 2 (guclo sim_indC_spec; econs).
+      guclo sim_imap_ctxR_spec; ss. econs; cycle 1.
+      instantiate (1 := fun i => match i with
+                              | inl i => gm_tgt0 (inl i)
+                              | inr i => gm_tgt (inr i)
+                              end).
+      { ii. destruct i. reflexivity. specialize (FAIR (inr i)). ss. }
+      eapply H0. instantiate (1 := fun i => gm_tgt0 (inl i)).
+      + ii. rewrite M_TGT. specialize (FAIR (inl i)); ss.
       + reflexivity.
       + eauto.
-      + i. specialize (FAIR (inr i)). specialize (M_SRC1 i). unfold le in *; ss. lia.
+      + i. rewrite M_SRC1. specialize (FAIR (inr i)). ss.
     - rewrite interp_sched_vis, interp_state_vis, <- bind_trigger. ss.
       gstep. eapply sim_ub.
     - gstep. econs; eauto. pclearbot. gfinal. left. eapply CIH; eauto.

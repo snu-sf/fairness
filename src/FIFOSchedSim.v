@@ -82,7 +82,7 @@ Section SIM.
           replace (i =? tid')%nat with false by (symmetry; eapply Nat.eqb_neq; eauto).
           des_if.
           - assert (List.In i (TIdSet.elements ths_src)).
-            { eapply InA_In. eapply TIdSet.remove_3. eapply In_InA; eauto. eapply i0. }
+            { eapply InA_In. eapply TIdSet.remove_3. eapply i0. }
             rewrite THREADS in H.
             eapply In_nth_error in H. destruct H as [i' H].
             enough (m_src i > i') by lia.
@@ -90,7 +90,7 @@ Section SIM.
           - unfold le; ss. lia.
         }
         do 3 econs; eauto. right. eapply CIH.
-        * eapply TIdSet_Permutation_remove. eapply THREADS.
+        * eapply NatSet_Permutation_remove. eapply THREADS.
         * eapply TIdSet.remove_1; ss.
         * subst. replace (tid' =? tid')%nat with true by (symmetry; eapply Nat.eqb_refl). lia.
         * subst. i. des_if.
@@ -104,7 +104,7 @@ Section SIM.
                                           end)] => destruct x as [| tid' ths_tgt'] eqn: E_ths_tgt
       end.
       { eapply app_eq_nil in E_ths_tgt. des. ss. }
-      pfold. eapply ssim_chooseL. exists tid'. unfold id_pop.
+      pfold. eapply ssim_chooseL. exists tid'. unfold set_pop.
       replace (TIdSet.mem tid' (TIdSet.add tid ths_src)) with true; cycle 1.
       { symmetry. eapply TIdSet.mem_1.
         destruct ths_tgt; ss; inversion E_ths_tgt; subst.
@@ -120,7 +120,7 @@ Section SIM.
         replace (i =? tid')%nat with false by (symmetry; eapply Nat.eqb_neq; eauto).
         des_if.
         - assert (List.In i (TIdSet.elements (TIdSet.add tid ths_src))).
-          { eapply InA_In. eapply TIdSet.remove_3. eapply In_InA; eauto. eapply i0. }
+          { eapply InA_In. eapply TIdSet.remove_3. eapply i0. }
           assert (i = tid \/ i <> tid) by lia.
           destruct H0.
           + subst. lia.
@@ -132,8 +132,8 @@ Section SIM.
         - unfold le; ss. lia.
       }
       do 3 econs; ss. right. unfold TIdSet.elt in *. eapply CIH.
-      + eapply TIdSet_Permutation_remove.
-        rewrite TIdSet_Permutation_add.
+      + eapply NatSet_Permutation_remove.
+        rewrite NatSet_Permutation_add.
         * eapply Permutation_refl' in E_ths_tgt. rewrite Permutation_app_comm in E_ths_tgt. eapply E_ths_tgt.
         * intro H. eapply TID. eapply H.
         * ss.
@@ -157,6 +157,8 @@ Section SIM.
         (interp_all st ths tid)
         (interp_all_fifo st ths tid).
   Proof. eapply ssim_implies_gsim.
+         { ii; unfold lt in *; ss; lia. }
+         { instantiate (1 := fun x => x). ss. }
          eapply ssim_nondet_fifo; ss.
          eapply TIdSet.remove_1; ss.
   Qed.
