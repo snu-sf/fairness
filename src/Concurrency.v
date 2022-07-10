@@ -451,7 +451,7 @@ Section SCHEDULE_NONDET.
     match r with
     | None =>
         tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-        match nm_pop tid' (NatMap.add tid tt q) with
+        match nm_pop tid' (NatSet.add tid q) with
         | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
         | Some (_, q') =>
             ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
@@ -481,7 +481,7 @@ Section SCHEDULE_NONDET.
       match r with
       | None =>
           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-          match nm_pop tid' (NatMap.add tid tt q) with
+          match nm_pop tid' (NatSet.add tid q) with
           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
           | Some (_, q') =>
               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
@@ -524,7 +524,7 @@ Section SCHEDULE_NONDET.
       match r with
       | inl t' => Tau (interp_sched (Th.add tid t' ths,
                                      tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-                                     match nm_pop tid' (NatMap.add tid tt q) with
+                                     match nm_pop tid' (NatSet.add tid q) with
                                      | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                                      | Some (_, q') =>
                                          ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
@@ -571,7 +571,7 @@ Section INTERP.
 
   Definition interp_all
     st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
-    interp_state (st, interp_sched (ths, sched_nondet _ (tid, NatMap.remove tid (key_set ths)))).
+    interp_state (st, interp_sched (ths, sched_nondet _ (tid, NatSet.remove tid (key_set ths)))).
 
   Lemma interp_all_tau
         st (ths: @threads _Ident (sE State) R) tid

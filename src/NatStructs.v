@@ -234,6 +234,8 @@ End NATMAP.
 
 Module NatSet.
   Definition t := NatMap.t unit.
+  Definition add x m := @NatMap.add unit x tt m.
+  Definition remove := @NatMap.remove unit.
 End NatSet.
 
 Section NATSET.

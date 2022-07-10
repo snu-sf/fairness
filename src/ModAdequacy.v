@@ -59,8 +59,8 @@ Section ADEQ.
         sf r_src r_tgt
         ths tht im_src im_tgt st_src st_tgt o w
         ths0 tht0 w0
-        (THSR: TIdSet.remove tid ths = ths0)
-        (THTR: TIdSet.remove tid tht = tht0)
+        (THSR: NatSet.remove tid ths = ths0)
+        (THTR: NatSet.remove tid tht = tht0)
         (WORLD: world_le w w0)
         (RET: RR r_src r_tgt)
         (NILS: Th.is_empty thsl = true)
@@ -75,8 +75,8 @@ Section ADEQ.
         sf r_src r_tgt
         ths tht im_src im_tgt st_src st_tgt o w
         ths0 tht0 o0 w0
-        (THSR: TIdSet.remove tid ths = ths0)
-        (THTR: TIdSet.remove tid tht = tht0)
+        (THSR: NatSet.remove tid ths = ths0)
+        (THTR: NatSet.remove tid tht = tht0)
         (WORLD: world_le w w0)
         (STUTTER: wf_src.(lt) o0 o)
         (RET: RR r_src r_tgt)
@@ -628,8 +628,8 @@ Section ADEQ.
 
   Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid w :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 w0 o0
-      (THS: TIdSet.In tid ths0)
-      (THT: TIdSet.In tid tht0)
+      (THS: NatMap.In tid ths0)
+      (THT: NatMap.In tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       (WORLD: world_le w w0)
       fs ft,
@@ -681,12 +681,12 @@ Section ADEQ.
         o
         (LSIM: forall im_tgt, exists im_src,
             lsim world_le I (local_RR world_le I RR tid) tid gps gpt src tgt
-                 (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt),
+                 (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
                    im_src, im_tgt, st_src, st_tgt, o, w))
     :
     forall im_tgt, exists im_src,
       sim_knot RR ths_src ths_tgt tid gps gpt (sf, src) tgt
-               (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt),
+               (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
                  im_src, im_tgt, st_src, st_tgt, o, w).
   Proof.
     ii. specialize (LSIM im_tgt). des. exists im_src.
@@ -706,9 +706,8 @@ Section ADEQ.
                             th_wf_pair ths_src ths_tgt ->
                             forall (st_src : state_src) (st_tgt : state_tgt) (o : T wf_src) (im_tgt : imap wf_tgt) (im_src : imap wf_src),
                               LRR = local_RR world_le I RR tid ->
-                              shr = (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src, st_tgt, o, w) ->
-                              paco8
-                                (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid gps gpt (sf, src) tgt shr)) in LSIM; auto. }
+                              shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src, st_tgt, o, w) ->
+                              paco8 (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid gps gpt (sf, src) tgt shr)) in LSIM; auto. }
 
     ss. clear gps gpt src tgt shr LSIM.
     intros rr DEC IH gps gpt src tgt shr LSIM. clear DEC.
@@ -739,11 +738,11 @@ Section ADEQ.
           - i; clarify. 
             hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
             hexploit H2; clear H2 H3; ss. i. unfold local_sim_sync in H2.
-            assert (PROJS: TIdSet.remove tid (TIdSet.add tid (key_set ths_src)) = TIdSet.add tid0 (key_set ths_src0)).
+            assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)).
             { admit. }
-            assert (PROJT: TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)) = TIdSet.add tid0 (key_set ths_tgt0)).
+            assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)).
             { admit. }
-            rewrite PROJS, PROJT. right. eapply CIH.
+            ss. rewrite PROJS, PROJT. right. eapply CIH.
             { i. hexploit LOCAL.
               3:{ i; des. split.
                   2:{ eapply H4. }
@@ -761,9 +760,9 @@ Section ADEQ.
           - i. clarify.
             hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
             hexploit H3; clear H2 H3; ss. i. unfold local_sim_pick in H2.
-            assert (PROJS: TIdSet.remove tid (TIdSet.add tid (key_set ths_src)) = TIdSet.add tid0 (key_set ths_src0)).
+            assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)).
             { admit. }
-            assert (PROJT: TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)) = TIdSet.add tid0 (key_set ths_tgt0)).
+            assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)).
             { admit. }
             hexploit H2; eauto. 1,2: admit. i; des. esplits; eauto. i.
             rewrite PROJS, PROJT. right. eapply CIH.
@@ -865,9 +864,9 @@ Section ADEQ.
       exists sf0, th_src, ths_src0, th_tgt, ths_tgt0.
       splits; auto.
       - i; clarify. esplits; eauto. i.
-        assert (PROJS: (TIdSet.add tid (key_set ths_src)) = (TIdSet.add tid0 (key_set ths_src0))).
+        assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))).
         { admit. }
-        assert (PROJT: (TIdSet.add tid (key_set ths_tgt)) = (TIdSet.add tid0 (key_set ths_tgt0))).
+        assert (PROJT: (NatSet.add tid (key_set ths_tgt)) = (NatSet.add tid0 (key_set ths_tgt0))).
         { admit. }
         rewrite PROJS, PROJT.
         destruct (tid_dec tid tid0) eqn:TID; subst.
@@ -942,9 +941,9 @@ Section ADEQ.
             3,4: eauto.
             1,2: admit.
             i; des. esplits; eauto.
-            assert (PROJS: (TIdSet.add tid (key_set ths_src)) = (TIdSet.add tid0 (key_set ths_src0))).
+            assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))).
             { admit. }
-            assert (PROJT: (TIdSet.add tid (key_set ths_tgt)) = (TIdSet.add tid0 (key_set ths_tgt0))).
+            assert (PROJT: (NatSet.add tid (key_set ths_tgt)) = (NatSet.add tid0 (key_set ths_tgt0))).
             { admit. }
             rewrite PROJS, PROJT. right. eapply CIH.
             { i. destruct (tid_dec tid tid1) eqn:TID2; subst.
@@ -994,7 +993,7 @@ Section ADEQ.
   Admitted.
 
 
-  Local Opaque Th.add Th.remove set_pop.
+  Local Opaque Th.add Th.remove nm_pop.
 
   Lemma gsim_ret_emp
         R0 R1 (RR: R0 -> R1 -> Prop)
@@ -1022,9 +1021,9 @@ Section ADEQ.
     2:{ instantiate (1:= Ret r_tgt). admit. }
     2:{ instantiate (1:= Ret r_src). admit. }
     rewrite ! interp_thread_ret. rewrite ! bind_ret_l.
-    assert (EMPS: TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = true).
+    assert (EMPS: NatMap.is_empty (NatSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = true).
     { admit. }
-    assert (EMPT: TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = true).
+    assert (EMPT: NatMap.is_empty (NatSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = true).
     { admit. }
     rewrite EMPS, EMPT. rewrite ! interp_sched_ret. rewrite ! interp_state_tau. rewrite ! interp_state_ret.
     guclo sim_indC_spec. eapply sim_indC_tauL. guclo sim_indC_spec. eapply sim_indC_tauR.
@@ -1044,7 +1043,7 @@ Section ADEQ.
               (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world) 
               (mt : imap wf_tgt) (ms : imap wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
-                       (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src,
+                       (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                          st_tgt, o, w) ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
@@ -1061,7 +1060,7 @@ Section ADEQ.
                          (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap wf_tgt) 
                          (ms : imap wf_src),
                          sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
-                                  (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src,
+                                  (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                                     st_tgt, y, w) ->
                          gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
                                 (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
@@ -1090,40 +1089,38 @@ Section ADEQ.
                      forall im_tgt0 : imap wf_tgt,
                        fair_update mt im_tgt0
                                    (sum_fmap_l
-                                      (tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))))) ->
+                                      (tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_tgt))))) ->
                        forall ps pt : bool,
                          upaco8 (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl0 thsr0 tid0 ps pt
                                 (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
-                                (TIdSet.remove tid (TIdSet.add tid (key_set ths_src)),
-                                  TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)), ms, im_tgt0, st_src,
+                                (NatSet.remove tid (NatSet.add tid (key_set ths_src)),
+                                  NatSet.remove tid (NatSet.add tid (key_set ths_tgt)), ms, im_tgt0, st_src,
                                   st_tgt, o1, w1)) /\
                     (b = false ->
                      forall im_tgt0 : imap wf_tgt,
                        fair_update mt im_tgt0
                                    (sum_fmap_l
-                                      (tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))))) ->
+                                      (tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_tgt))))) ->
                        exists im_src0 : imap wf_src,
                          fair_update ms im_src0
                                      (sum_fmap_l
-                                        (tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_src))))) /\
+                                        (tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_src))))) /\
                            (forall ps pt : bool,
                                upaco8 (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl0 thsr0 tid0 ps pt 
                                       (b, th_src) th_tgt
-                                      (TIdSet.remove tid (TIdSet.add tid (key_set ths_src)),
-                                        TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)), im_src0, im_tgt0,
+                                      (NatSet.remove tid (NatSet.add tid (key_set ths_src)),
+                                        NatSet.remove tid (NatSet.add tid (key_set ths_tgt)), im_src0, im_tgt0,
                                         st_src, st_tgt, o1, w1)))))
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
            (interp_all st_src (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)) tid)
            (interp_all st_tgt (Th.add tid (Ret r_tgt) ths_tgt) tid).
   Proof.
-    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some.
-    2:{ instantiate (1:= Ret r_tgt). admit. }
-    2:{ instantiate (1:= Ret r_src). admit. }
+    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
     rewrite ! interp_thread_ret. rewrite ! bind_ret_l.
-    assert (EMPS: TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = false).
+    assert (EMPS: NatMap.is_empty (NatSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = false).
     { admit. }
-    assert (EMPT: TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = false).
+    assert (EMPT: NatMap.is_empty (NatSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = false).
     { admit. }
     rewrite EMPS, EMPT; clear EMPS EMPT.
     match goal with
@@ -1136,12 +1133,12 @@ Section ADEQ.
     rewrite interp_state_tau.
     do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
     specialize (KSIM0 tid0). revert IHo. des; i.
-    { assert (POPT: set_pop tid0 (TIdSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = None).
+    { assert (POPT: nm_pop tid0 (NatSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = None).
       { admit. }
       rewrite POPT; clear POPT.
       rewrite bind_trigger. rewrite interp_sched_vis. ss. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseR. intro x; destruct x. }
-    assert (POPT: set_pop tid0 (TIdSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = Some (key_set thsr0)).
+    assert (POPT: nm_pop tid0 (NatSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = Some (tt, key_set thsr0)).
     { admit. }
     rewrite POPT; clear POPT.
     rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger. ss.
@@ -1150,12 +1147,11 @@ Section ADEQ.
     destruct b.
 
     - hexploit KSIM2; clear KSIM2 KSIM3; ss.
-      assert (FMT: tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))) = tids_fmap tid0 (key_set thsr0)).
+      assert (FMT: tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_tgt))) = tids_fmap tid0 (key_set thsr0)).
       { admit. }
       rewrite FMT. eauto. i; pclearbot.
       assert (CHANGE: src_temp = interp_all st_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0)) tid0).
-      { unfold interp_all. erewrite unfold_interp_sched_nondet_Some.
-        2:{ instantiate (1:= (Vis ((|Yield)|)%sum (fun _ : () => th_src))). admit. }
+      { unfold interp_all. erewrite unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
         rewrite interp_thread_vis_yield. ired. rewrite TEMP.
         assert (RA: Th.remove tid (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)) = nm_proj_v2 ths_src).
         { admit. }
@@ -1163,10 +1159,10 @@ Section ADEQ.
         assert (RA1: Th.add tid0 th_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0)) = nm_proj_v2 ths_src).
         { admit. }
         rewrite ! RA1.
-        assert (RA2: TIdSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src))) = key_set (nm_proj_v2 ths_src)).
+        assert (RA2: NatSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src))) = key_set (nm_proj_v2 ths_src)).
         { admit. }
         rewrite RA2.
-        assert (RA3: (TIdSet.add tid0 (TIdSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0))))) = key_set (nm_proj_v2 ths_src)).
+        assert (RA3: (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0))))) = key_set (nm_proj_v2 ths_src)).
         { admit. }
         rewrite RA3. ss.
       }
@@ -1177,12 +1173,12 @@ Section ADEQ.
       2:{ assert (PROJT: Th.remove tid (Th.add tid (Ret r_tgt) ths_tgt) = Th.add tid0 th_tgt thsr0).
           { admit. }
           rewrite PROJT. unfold interp_all.
-          replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr0))) with (key_set thsr0); auto.
-          admit.
+          replace (NatSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr0))) with (key_set thsr0); auto.
+          { rewrite key_set_pull_add_eq. admit. }
       }
-      assert (PROJS: TIdSet.remove tid (TIdSet.add tid (key_set ths_src)) = TIdSet.add tid0 (key_set thsl0)).
+      assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set thsl0)).
       { admit. }
-      assert (PROJT: TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)) = TIdSet.add tid0 (key_set thsr0)).
+      assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set thsr0)).
       { admit. }
       des.
       + subst. gfold. eapply sim_progress; auto. right. eapply CIH.
@@ -1195,21 +1191,21 @@ Section ADEQ.
         rewrite <- PROJS, <- PROJT. eapply ksim_reset_prog. punfold H. eapply ksim_mon. all: ss.
 
     - hexploit KSIM3; clear KSIM2 KSIM3; ss.
-      assert (RA: (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))) = (key_set ths_tgt)).
+      assert (RA: (NatSet.remove tid (NatSet.add tid (key_set ths_tgt))) = (key_set ths_tgt)).
       { admit. }
-      assert (FMT: tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))) = tids_fmap tid0 (key_set thsr0)).
+      assert (FMT: tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_tgt))) = tids_fmap tid0 (key_set thsr0)).
       { rewrite RA. admit. }
       rewrite FMT. eauto. i. revert IHo. des; i. clarify.
       rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid0.
-      assert (POPS: set_pop tid0 (TIdSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = Some (key_set thsl0)).
+      assert (POPS: nm_pop tid0 (NatSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = Some (tt, key_set thsl0)).
       { admit. }
       rewrite POPS; clear POPS.
       rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL.
-      assert (FMS: tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_src))) = tids_fmap tid0 (key_set thsl0)).
+      assert (FMS: tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_src))) = tids_fmap tid0 (key_set thsl0)).
       { admit. }
       esplits; eauto. rewrite <- FMS; eauto.
       rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
@@ -1220,7 +1216,7 @@ Section ADEQ.
       2:{ assert (PROJT: Th.remove tid (Th.add tid (Ret r_tgt) ths_tgt) = Th.add tid0 th_tgt thsr0).
           { admit. }
           rewrite PROJT. unfold interp_all.
-          replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr0))) with (key_set thsr0); auto.
+          replace (NatSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr0))) with (key_set thsr0); auto.
           admit.
       }
       match goal with
@@ -1229,15 +1225,15 @@ Section ADEQ.
       2:{ assert (PROJS: Th.remove tid (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)) = Th.add tid0 th_src (nm_proj_v2 thsl0)).
           { admit. }
           rewrite PROJS. unfold interp_all.
-          replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_src (nm_proj_v2 thsl0)))) with (key_set thsl0); auto.
+          replace (NatSet.remove tid0 (key_set (Th.add tid0 th_src (nm_proj_v2 thsl0)))) with (key_set thsl0); auto.
           admit.
       }
       gfold. eapply sim_progress. right. eapply CIH.
       1,2: admit.
       admit.
-      assert (PROJS: TIdSet.add tid0 (key_set thsl0) = TIdSet.remove tid (TIdSet.add tid (key_set ths_src))).
+      assert (PROJS: NatSet.add tid0 (key_set thsl0) = NatSet.remove tid (NatSet.add tid (key_set ths_src))).
       { admit. }
-      assert (PROJT: TIdSet.add tid0 (key_set thsr0) = TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))).
+      assert (PROJT: NatSet.add tid0 (key_set thsr0) = NatSet.remove tid (NatSet.add tid (key_set ths_tgt))).
       { admit. }
       rewrite PROJS, PROJT. eauto.
       all: auto.
@@ -1256,7 +1252,7 @@ Section ADEQ.
               (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world) 
               (mt : imap wf_tgt) (ms : imap wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
-                       (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src,
+                       (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                          st_tgt, o, w) ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
@@ -1273,7 +1269,7 @@ Section ADEQ.
                          (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap wf_tgt) 
                          (ms : imap wf_src),
                          sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
-                                  (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src,
+                                  (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                                     st_tgt, y, w) ->
                          gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
                                 (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
@@ -1300,12 +1296,12 @@ Section ADEQ.
                          world_le w w0 /\
                          (forall im_tgt0 : imap wf_tgt,
                              fair_update mt im_tgt0
-                                         (sum_fmap_l (tids_fmap tid0 (TIdSet.add tid (key_set ths_tgt)))) ->
+                                         (sum_fmap_l (tids_fmap tid0 (NatSet.add tid (key_set ths_tgt)))) ->
                              forall ps pt : bool,
                                upaco8
                                  (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl1 thsr1 tid0 ps pt
                                  (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
-                                 (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms,
+                                 (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms,
                                    im_tgt0, st_src, st_tgt, o0, w0))) /\
                     (b = false ->
                      exists (o0 : T wf_src) (w0 : world),
@@ -1313,15 +1309,15 @@ Section ADEQ.
                          world_le w w0 /\
                          (forall im_tgt0 : imap wf_tgt,
                              fair_update mt im_tgt0
-                                         (sum_fmap_l (tids_fmap tid0 (TIdSet.add tid (key_set ths_tgt)))) ->
+                                         (sum_fmap_l (tids_fmap tid0 (NatSet.add tid (key_set ths_tgt)))) ->
                              exists im_src0 : imap wf_src,
                                fair_update ms im_src0
-                                           (sum_fmap_l (tids_fmap tid0 (TIdSet.add tid (key_set ths_src)))) /\
+                                           (sum_fmap_l (tids_fmap tid0 (NatSet.add tid (key_set ths_src)))) /\
                                  (forall ps pt : bool,
                                      upaco8
                                        (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl1 thsr1 tid0 ps pt 
                                        (b, th_src) th_tgt
-                                       (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt),
+                                       (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
                                          im_src0, im_tgt0, st_src, st_tgt, o0, w0))))))
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
@@ -1341,12 +1337,12 @@ Section ADEQ.
     rewrite interp_state_tau.
     do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
     specialize (KSIM0 tid0). revert IHo; des; i.
-    { assert (POPT: set_pop tid0 (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (x <- ITree.trigger ((|Yield)|)%sum;; ktr_tgt x) ths_tgt)))) = None).
+    { assert (POPT: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (x <- ITree.trigger ((|Yield)|)%sum;; ktr_tgt x) ths_tgt)))) = None).
       { admit. }
       rewrite POPT; clear POPT.
       rewrite ! bind_trigger. rewrite interp_sched_vis. ss. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseR. intro x; destruct x. }
-    assert (POPT: set_pop tid0 (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (x <- ITree.trigger ((|Yield)|)%sum;; ktr_tgt x) ths_tgt)))) = Some (key_set thsr1)).
+    assert (POPT: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (x <- ITree.trigger ((|Yield)|)%sum;; ktr_tgt x) ths_tgt)))) = Some (tt, key_set thsr1)).
     { admit. }
     rewrite POPT; clear POPT.
     rewrite ! bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger. ss.
@@ -1364,13 +1360,13 @@ Section ADEQ.
         assert (RA: Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)) = Th.add tid0 th_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1))).
         { admit. }
         rewrite ! RA.
-        assert (RA1: (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = (TIdSet.add tid0 (TIdSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)))))).
+        assert (RA1: (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)))))).
         { admit. }
         rewrite ! RA1.
         auto.
       }
       rewrite CHANGE; clear CHANGE.
-      assert (FMT: tids_fmap tid0 (TIdSet.add tid (key_set ths_tgt)) = tids_fmap tid0 (key_set thsr1)).
+      assert (FMT: tids_fmap tid0 (NatSet.add tid (key_set ths_tgt)) = tids_fmap tid0 (key_set thsr1)).
       { admit. }
       hexploit H1; clear H1. rewrite FMT; eauto. i; pclearbot.
       match goal with
@@ -1379,7 +1375,7 @@ Section ADEQ.
       2:{ unfold interp_all.
           replace (Th.add tid (ktr_tgt ()) (Th.add tid (Vis ((|Yield)|)%sum (fun x : () => ktr_tgt x)) ths_tgt)) with (Th.add tid0 th_tgt thsr1).
           2:{ admit. }
-          replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr1))) with (key_set thsr1).
+          replace (NatSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr1))) with (key_set thsr1).
           2:{ admit. }
           auto.
       }
@@ -1388,17 +1384,17 @@ Section ADEQ.
         gfold. eapply sim_progress; auto. right; eapply CIH.
         1,2: admit.
         admit.
-        replace (TIdSet.add tid0 (key_set thsl1)) with (TIdSet.add tid (key_set ths_src)).
+        replace (NatSet.add tid0 (key_set thsl1)) with (NatSet.add tid (key_set ths_src)).
         2:{ admit. }
-        replace (TIdSet.add tid0 (key_set thsr1)) with (TIdSet.add tid (key_set ths_tgt)).
+        replace (NatSet.add tid0 (key_set thsr1)) with (NatSet.add tid (key_set ths_tgt)).
         2:{ admit. }
         eauto.
       + eapply IHo; eauto.
         1,2: admit.
         admit.
-        replace (TIdSet.add tid0 (key_set thsl1)) with (TIdSet.add tid (key_set ths_src)).
+        replace (NatSet.add tid0 (key_set thsl1)) with (NatSet.add tid (key_set ths_src)).
         2:{ admit. }
-        replace (TIdSet.add tid0 (key_set thsr1)) with (TIdSet.add tid (key_set ths_tgt)).
+        replace (NatSet.add tid0 (key_set thsr1)) with (NatSet.add tid (key_set ths_tgt)).
         2:{ admit. }
         eapply ksim_reset_prog; eauto.
 
@@ -1409,15 +1405,15 @@ Section ADEQ.
       rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis.
       rewrite <- bind_trigger. guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid0.
-      assert (POPS: set_pop tid0 (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = Some (key_set thsl1)).
+      assert (POPS: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = Some (tt, key_set thsl1)).
       { admit. }
       rewrite POPS; clear POPS. rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL.
-      assert (FMT: tids_fmap tid0 (TIdSet.add tid (key_set ths_tgt)) = tids_fmap tid0 (key_set thsr1)).
+      assert (FMT: tids_fmap tid0 (NatSet.add tid (key_set ths_tgt)) = tids_fmap tid0 (key_set thsr1)).
       { admit. }
       hexploit H1; clear H1. rewrite FMT; eauto. i. revert IHo; des; i; pclearbot.
-      assert (FMS: tids_fmap tid0 (key_set thsl1) = tids_fmap tid0 (TIdSet.add tid (key_set ths_src))).
+      assert (FMS: tids_fmap tid0 (key_set thsl1) = tids_fmap tid0 (NatSet.add tid (key_set ths_src))).
       { admit. }
       esplits; eauto. rewrite FMS; eauto.
       rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
@@ -1428,7 +1424,7 @@ Section ADEQ.
       2:{ unfold interp_all.
           replace (Th.add tid (ktr_tgt ()) (Th.add tid (Vis ((|Yield)|)%sum (fun x : () => ktr_tgt x)) ths_tgt)) with (Th.add tid0 th_tgt thsr1).
           2:{ admit. }
-          replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr1))) with (key_set thsr1).
+          replace (NatSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr1))) with (key_set thsr1).
           2:{ admit. }
           auto.
       }
@@ -1438,7 +1434,7 @@ Section ADEQ.
       2:{ unfold interp_all.
           replace (Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid0 th_src (nm_proj_v2 thsl1)).
           2:{ admit. }
-          replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_src (nm_proj_v2 thsl1)))) with (key_set thsl1).
+          replace (NatSet.remove tid0 (key_set (Th.add tid0 th_src (nm_proj_v2 thsl1)))) with (key_set thsl1).
           2:{ admit. }
           auto.
       }
@@ -1447,17 +1443,17 @@ Section ADEQ.
         gfold. eapply sim_progress; auto. right; eapply CIH.
         1,2: admit.
         admit.
-        replace (TIdSet.add tid0 (key_set thsl1)) with (TIdSet.add tid (key_set ths_src)).
+        replace (NatSet.add tid0 (key_set thsl1)) with (NatSet.add tid (key_set ths_src)).
         2:{ admit. }
-        replace (TIdSet.add tid0 (key_set thsr1)) with (TIdSet.add tid (key_set ths_tgt)).
+        replace (NatSet.add tid0 (key_set thsr1)) with (NatSet.add tid (key_set ths_tgt)).
         2:{ admit. }
         eapply ksim_reset_prog; eauto.
       + eapply IHo; eauto.
         1,2: admit.
         admit.
-        replace (TIdSet.add tid0 (key_set thsl1)) with (TIdSet.add tid (key_set ths_src)).
+        replace (NatSet.add tid0 (key_set thsl1)) with (NatSet.add tid (key_set ths_src)).
         2:{ admit. }
-        replace (TIdSet.add tid0 (key_set thsr1)) with (TIdSet.add tid (key_set ths_tgt)).
+        replace (NatSet.add tid0 (key_set thsr1)) with (NatSet.add tid (key_set ths_tgt)).
         2:{ admit. }
         eapply ksim_reset_prog; eauto.
   Admitted.
@@ -1475,7 +1471,7 @@ Section ADEQ.
               (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world) 
               (mt : imap wf_tgt) (ms : imap wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
-                       (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src,
+                       (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                          st_tgt, o, w) ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
@@ -1487,7 +1483,7 @@ Section ADEQ.
         (st_src : state_src) (st_tgt : state_tgt) w mt ms o
         (src : thread _ident_src (sE state_src) R0)
         (KSIM : sim_knot RR ths_src ths_tgt tid true pt (false, src) tgt
-                         (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src,
+                         (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                            st_tgt, o, w))
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR true ms pt mt
@@ -1510,7 +1506,7 @@ Section ADEQ.
                           forall (st_src : state_src) (st_tgt : state_tgt) (w : world) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src)
                             (src : thread _ident_src (sE state_src) R0),
                             ssrc = (false, src) ->
-                            shr = (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src, st_tgt, o, w) ->
+                            shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src, st_tgt, o, w) ->
                             ps = true ->
                             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR true ms pt mt
                                    (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid) (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))) in KSIM; auto. }
@@ -1530,17 +1526,16 @@ Section ADEQ.
     { clarify. clear rr IH. eapply kgsim_sync; eauto. }
 
     { des. destruct KSIM1 as [KSIM1 IND].
-      unfold interp_all at 1. erewrite unfold_interp_sched_nondet_Some.
-      2:{ instantiate (1:=(Vis ((|Yield)|)%sum ktr_src)). admit. }
+      unfold interp_all at 1. erewrite unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
       rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid.
-      replace (set_pop tid (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (TIdSet.remove tid (key_set ths_src))).
+      replace (nm_pop tid (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (tt, NatSet.remove tid (key_set ths_src))).
       2:{ admit. }
       rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL.
-      replace (tids_fmap tid (TIdSet.remove tid (key_set ths_src))) with (tids_fmap tid (TIdSet.add tid (key_set ths_src))).
+      replace (tids_fmap tid (NatSet.remove tid (key_set ths_src))) with (tids_fmap tid (NatSet.add tid (key_set ths_src))).
       2:{ admit. }
       esplits; eauto. rewrite interp_sched_tau. rewrite 2 interp_state_tau.
       do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
@@ -1550,16 +1545,91 @@ Section ADEQ.
       2:{ unfold interp_all.
           replace (Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)).
           2:{ admit. }
-          replace (TIdSet.remove tid (key_set (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)))) with (TIdSet.remove tid (key_set ths_src)).
+          replace (NatSet.remove tid (key_set (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)))) with (NatSet.remove tid (key_set ths_src)).
           2:{ admit. }
           auto.
       }
       eapply IH. eauto. all: auto.
     }
 
-    (*TODO*)
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tau.
+      guclo sim_indC_spec. eapply sim_indC_tauL.
+      eapply IH; eauto.
+    }
 
-    { 
+    { des. destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_vis. rewrite <- bind_trigger.
+      guclo sim_indC_spec. eapply sim_indC_chooseL. eexists.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
+      eapply IH; eauto.
+    }
+
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
+      eapply IH; eauto.
+    }
+
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
+      eapply IH; eauto.
+    }
+
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tid.
+      do 1 (guclo sim_indC_spec; eapply sim_indC_tauL).
+      eapply IH; eauto.
+    }
+
+    { rewrite interp_all_vis.
+      rewrite <- bind_trigger. guclo sim_indC_spec. eapply sim_indC_ub.
+    }
+
+    { des. destruct KSIM1 as [KSIM1 IND]. rewrite interp_all_vis. rewrite <- bind_trigger.
+      guclo sim_indC_spec. eapply sim_indC_fairL. esplits; eauto.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
+      eapply IH; eauto.
+    }
+
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tau.
+      guclo sim_indC_spec. eapply sim_indC_tauR.
+      eapply IH; eauto.
+    }
+
+    { rewrite interp_all_vis. rewrite <- bind_trigger.
+      guclo sim_indC_spec. eapply sim_indC_chooseR. i.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
+      specialize (KSIM0 x). destruct KSIM0 as [KSIM0 IND].
+      eapply IH; eauto.
+    }
+
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
+      eapply IH; eauto.
+    }
+
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
+      eapply IH; eauto.
+    }
+
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tid.
+      do 1 (guclo sim_indC_spec; eapply sim_indC_tauR).
+      eapply IH; eauto.
+    }
+
+    { rewrite interp_all_vis. rewrite <- bind_trigger.
+      guclo sim_indC_spec. eapply sim_indC_fairR. i.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
+      specialize (KSIM0 _ FAIR). destruct KSIM0 as [KSIM0 IND].
+      eapply IH; eauto.
+    }
+
+    { rewrite ! interp_all_vis. ss.
+      rewrite <- ! bind_trigger. guclo sim_indC_spec. eapply sim_indC_obs. i; clarify.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL; guclo sim_indC_spec; eapply sim_indC_tauR).
+      gfold. eapply sim_progress; auto. right. eapply CIH; eauto.
+      specialize (KSIM0 r_tgt). pclearbot. eapply ksim_set_prog. eauto.
+    }
+
+    { clear rr IH. gfold. eapply sim_progress. right; eapply CIH; eauto. pclearbot. eapply KSIM0. all: auto. }
 
   Admitted.
 
@@ -1577,7 +1647,7 @@ Section ADEQ.
         o w
         (KSIM: forall im_tgt, exists im_src,
             sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
-                     (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt),
+                     (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
                        im_src, im_tgt, st_src, st_tgt, o, w))
     :
     gsim wf_src wf_tgt RR ps pt
@@ -1603,7 +1673,7 @@ Section ADEQ.
                           forall (sf : bool) (src : thread _ident_src (sE state_src) R0) (st_src : state_src) (st_tgt : state_tgt) 
                             (w : world) (mt : imap wf_tgt) (ms : imap wf_src),
                             ssrc = (sf, src) ->
-                            shr = (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src, st_tgt, o, w) ->
+                            shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src, st_tgt, o, w) ->
                             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
                                    (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid) (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))) in KSIM; auto. }
 
@@ -1612,37 +1682,38 @@ Section ADEQ.
     intros THSRC THTGT WF sf src st_src st_tgt w mt ms Essrc Eshr.
     eapply pind8_unfold in KSIM.
     2:{ eapply _ksim_mon. }
+    clarify.
     inv KSIM.
 
-    { clarify. clear rr IH IHo. eapply gsim_ret_emp; eauto. }
+    { clear rr IH IHo. eapply gsim_ret_emp; eauto. }
 
-    { clarify. clear rr IH. eapply kgsim_ret_cont; eauto. }
+    { clear rr IH. eapply kgsim_ret_cont; eauto. }
 
-    { clarify. clear rr IH. eapply kgsim_sync; eauto. }
+    { clear rr IH. eapply kgsim_sync; eauto. }
 
     { des; clarify. destruct KSIM1 as [KSIM1 IND].
       assert (KSIM: sim_knot RR ths_src ths_tgt tid true pt
                              (false, ktr_src ()) tgt
-                             (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt),
-                               im_src0, mt, st_src, st_tgt, o1, w)).
+                             (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
+                               im_src0, mt, st_src, st_tgt, o0, w)).
       { pfold. eapply pind8_mon_top; eauto. }
       unfold interp_all. erewrite unfold_interp_sched_nondet_Some.
       2:{ instantiate (1:=(Vis ((|Yield)|)%sum ktr_src)). admit. }
       rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid.
-      replace (set_pop tid (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (key_set ths_src)).
+      replace (nm_pop tid (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (tt, key_set ths_src)).
       2:{ admit. }.
       rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL.
-      assert (FMS: tids_fmap tid (key_set ths_src) = tids_fmap tid (TIdSet.add tid (key_set ths_src))).
+      assert (FMS: tids_fmap tid (key_set ths_src) = tids_fmap tid (NatSet.add tid (key_set ths_src))).
       { admit. }
       rewrite FMS; clear FMS. esplits; eauto.
       rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
 
       clear - ident_src ident_tgt world_le_PreOrder I CIH THSRC THTGT WF KSIM.
-      rename o1 into o.
+      rename o0 into o.
       remember (ktr_src ()) as src. rename im_src0 into ms.
       match goal with
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
@@ -1654,7 +1725,7 @@ Section ADEQ.
       2:{ unfold interp_all.
           replace (Th.add tid src (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid src (nm_proj_v2 ths_src)).
           2:{ admit. }
-          replace (TIdSet.remove tid (key_set (Th.add tid src (nm_proj_v2 ths_src)))) with (key_set ths_src).
+          replace (NatSet.remove tid (key_set (Th.add tid src (nm_proj_v2 ths_src)))) with (key_set ths_src).
           2:{ admit. }
           auto.
       }
@@ -1662,558 +1733,84 @@ Section ADEQ.
       eapply kgsim_true; eauto.
     }
 
-      (*TODO: 1. move these 2. complete rest*)
-
-      match goal with
-      | KSIM: sim_knot _ _ _ _ _ _ ?_src _ ?_shr |- _ => remember _src as ssrc; remember _shr as shr
-      end.
-      remember true as ps in KSIM.
-      punfold KSIM.
-      2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __ksim_mon; eauto. }
-      move KSIM before CIH. revert_until KSIM.
-      eapply pind8_acc in KSIM.
-
-      { instantiate (1:= (fun ths_src ths_tgt tid ps pt ssrc tgt shr =>
-                            Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
-                            Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
-                            th_wf_pair ths_src ths_tgt ->
-                            forall (st_src : state_src) (st_tgt : state_tgt) (w : world) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src)
-                              (src : thread _ident_src (sE state_src) R0),
-                              ssrc = (false, src) ->
-                              shr = (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms, mt, st_src, st_tgt, o, w) ->
-                              ps = true ->
-                              gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR true ms pt mt
-                                     (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid) (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))) in KSIM; auto. }
-
-      ss. clear ths_src ths_tgt tid ps pt ssrc tgt shr KSIM.
-      intros rr DEC IH ths_src ths_tgt tid ps pt ssrc tgt shr KSIM. clear DEC.
-      intros THSRC THTGT WF st_src st_tgt w mt ms o src Essrc Eshr Eps.
-      clarify.
-      eapply pind8_unfold in KSIM.
-      2:{ eapply _ksim_mon. }
-      inv KSIM.
-
-      { clear rr IH.
-        unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some.
-        2:{ instantiate (1:= Ret r_tgt). admit. }
-        2:{ instantiate (1:= Ret r_src). admit. }
-        rewrite ! interp_thread_ret. rewrite ! bind_ret_l.
-        assert (EMPS: TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = true).
-        { admit. }
-        assert (EMPT: TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = true).
-        { admit. }
-        rewrite EMPS, EMPT. rewrite ! interp_sched_ret. rewrite ! interp_state_tau. rewrite ! interp_state_ret.
-        guclo sim_indC_spec. eapply sim_indC_tauL. guclo sim_indC_spec. eapply sim_indC_tauR.
-        guclo sim_indC_spec. eapply sim_indC_ret. auto.
-      }
-
-      { clear rr IH.
-        unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some.
-        2:{ instantiate (1:= Ret r_tgt). admit. }
-        2:{ instantiate (1:= Ret r_src). admit. }
-        rewrite ! interp_thread_ret. rewrite ! bind_ret_l.
-        assert (EMPS: TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = false).
-        { admit. }
-        assert (EMPT: TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = false).
-        { admit. }
-        rewrite EMPS, EMPT; clear EMPS EMPT.
-        match goal with
-        | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src_temp _ => remember _src_temp as src_temp eqn:TEMP
-        end.
-        rewrite ! interp_state_tau. guclo sim_indC_spec. eapply sim_indC_tauR.
-        rewrite bind_trigger. rewrite interp_sched_vis. ss.
-        rewrite interp_state_vis. rewrite <- ! bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_chooseR. intro tid0.
-        rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
-        specialize (KSIM0 tid0). des.
-        { assert (POPT: set_pop tid0 (TIdSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = None).
-          { admit. }
-          rewrite POPT; clear POPT.
-          rewrite bind_trigger. rewrite interp_sched_vis. ss. rewrite interp_state_vis. rewrite <- bind_trigger.
-          guclo sim_indC_spec. eapply sim_indC_chooseR. intro x; destruct x. }
-        assert (POPT: set_pop tid0 (TIdSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = Some (key_set thsr0)).
-        { admit. }
-        rewrite POPT; clear POPT.
-        rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger. ss.
-        guclo sim_indC_spec. eapply sim_indC_fairR. i. rewrite interp_sched_tau. rewrite 2 interp_state_tau.
-        do 3 (guclo sim_indC_spec; eapply sim_indC_tauR).
-        destruct b.
-
-        - hexploit KSIM2; clear KSIM2 KSIM3; ss.
-          assert (FMT: tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))) = tids_fmap tid0 (key_set thsr0)).
-          { admit. }
-          rewrite FMT. eauto. i; pclearbot.
-          assert (CHANGE: src_temp = interp_all st_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0)) tid0).
-          { unfold interp_all. erewrite unfold_interp_sched_nondet_Some.
-            2:{ instantiate (1:= (Vis ((|Yield)|)%sum (fun _ : () => th_src))). admit. }
-            rewrite interp_thread_vis_yield. ired. rewrite TEMP.
-            assert (RA: Th.remove tid (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)) = nm_proj_v2 ths_src).
-            { admit. }
-            rewrite ! RA.
-            assert (RA1: Th.add tid0 th_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0)) = nm_proj_v2 ths_src).
-            { admit. }
-            rewrite ! RA1.
-            assert (RA2: TIdSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src))) = key_set (nm_proj_v2 ths_src)).
-            { admit. }
-            rewrite RA2.
-            assert (RA3: (TIdSet.add tid0 (TIdSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0))))) = key_set (nm_proj_v2 ths_src)).
-            { admit. }
-            rewrite RA3. ss.
-          }
-          rewrite CHANGE; clear CHANGE.
-          match goal with
-          | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid0 th_tgt thsr0) tid0)
-          end.
-          2:{ assert (PROJT: Th.remove tid (Th.add tid (Ret r_tgt) ths_tgt) = Th.add tid0 th_tgt thsr0).
-              { admit. }
-              rewrite PROJT. unfold interp_all.
-              replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr0))) with (key_set thsr0); auto.
-              admit.
-          }
-          assert (PROJS: TIdSet.remove tid (TIdSet.add tid (key_set ths_src)) = TIdSet.add tid0 (key_set thsl0)).
-          { admit. }
-          assert (PROJT: TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)) = TIdSet.add tid0 (key_set thsr0)).
-          { admit. }
-          gfold. eapply sim_progress; auto. right. eapply CIH.
-          1,2: admit.
-          admit.
-          rewrite <- PROJS, <- PROJT. punfold H. eapply ksim_mon.
-
-        - hexploit KSIM3; clear KSIM2 KSIM3; ss.
-          assert (RA: (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))) = (key_set ths_tgt)).
-          { admit. }
-          assert (FMT: tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))) = tids_fmap tid0 (key_set thsr0)).
-          { rewrite RA. admit. }
-          rewrite FMT. eauto. i. des. clarify.
-          rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
-          rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
-          guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid0.
-          assert (POPS: set_pop tid0 (TIdSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = Some (key_set thsl0)).
-          { admit. }
-          rewrite POPS; clear POPS.
-          rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-          (* assert (POPS: nm_pop tid0 (th_proj_v2 ths_src) = Some (th_src, th_proj_v2 thsl0)). *)
-          (* { admit. } *)
-          (* rewrite POPS. *)
-          rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
-          guclo sim_indC_spec. eapply sim_indC_fairL.
-          assert (FMS: tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_src))) = tids_fmap tid0 (key_set thsl0)).
-          { admit. }
-          esplits; eauto. rewrite <- FMS; eauto.
-          rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
-          specialize (H0 false false). pclearbot.
-          match goal with
-          | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid0 th_tgt thsr0) tid0)
-          end.
-          2:{ assert (PROJT: Th.remove tid (Th.add tid (Ret r_tgt) ths_tgt) = Th.add tid0 th_tgt thsr0).
-              { admit. }
-              rewrite PROJT. unfold interp_all.
-              replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr0))) with (key_set thsr0); auto.
-              admit.
-          }
-          match goal with
-          | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid0 th_src (nm_proj_v2 thsl0)) tid0)
-          end.
-          2:{ assert (PROJS: Th.remove tid (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)) = Th.add tid0 th_src (nm_proj_v2 thsl0)).
-              { admit. }
-              rewrite PROJS. unfold interp_all.
-              replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_src (nm_proj_v2 thsl0)))) with (key_set thsl0); auto.
-              admit.
-          }
-          gfold. eapply sim_progress. right. eapply CIH.
-          1,2: admit.
-          admit.
-          assert (PROJS: TIdSet.add tid0 (key_set thsl0) = TIdSet.remove tid (TIdSet.add tid (key_set ths_src))).
-          { admit. }
-          assert (PROJT: TIdSet.add tid0 (key_set thsr0) = TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))).
-          { admit. }
-          rewrite PROJS, PROJT. eauto.
-          all: auto.
-      }
-
-      { clarify. clear rr IH.
-        match goal with
-        | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src_temp _ => remember _src_temp as src_temp eqn:TEMP
-        end.
-        unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some.
-        2:{ instantiate (1:= (Vis ((|Yield)|)%sum ktr_tgt)). admit. }
-        rewrite interp_thread_vis_yield. ired.
-        rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauR.
-        rewrite bind_trigger. rewrite interp_sched_vis. ss.
-        rewrite interp_state_vis. rewrite <- ! bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_chooseR. intro tid0.
-        rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
-        specialize (KSIM0 tid0). des.
-        { assert (POPT: set_pop tid0 (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (x <- ITree.trigger ((|Yield)|)%sum;; ktr_tgt x) ths_tgt)))) = None).
-          { admit. }
-          rewrite POPT; clear POPT.
-          rewrite ! bind_trigger. rewrite interp_sched_vis. ss. rewrite interp_state_vis. rewrite <- bind_trigger.
-          guclo sim_indC_spec. eapply sim_indC_chooseR. intro x; destruct x. }
-        assert (POPT: set_pop tid0 (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (x <- ITree.trigger ((|Yield)|)%sum;; ktr_tgt x) ths_tgt)))) = Some (key_set thsr1)).
-        { admit. }
-        rewrite POPT; clear POPT.
-        rewrite ! bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger. ss.
-        guclo sim_indC_spec. eapply sim_indC_fairR. i. rewrite interp_sched_tau. rewrite 2 interp_state_tau.
-        do 3 (guclo sim_indC_spec; eapply sim_indC_tauR).
-        destruct b.
-
-        - hexploit KSIM2; clear KSIM2 KSIM3; ss.
-          i; des.
-          assert (CHANGE: src_temp = interp_all st_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)) tid0).
-          { rewrite TEMP. unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some.
-            2:{ instantiate (1:= (Vis ((|Yield)|)%sum (fun _ : () => th_src))). admit. }
-            2:{ instantiate (1:= (Vis ((|Yield)|)%sum ktr_src)). admit. }
-            rewrite ! interp_thread_vis_yield. ired.
-            assert (RA: Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)) = Th.add tid0 th_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1))).
-            { admit. }
-            rewrite ! RA.
-            assert (RA1: (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = (TIdSet.add tid0 (TIdSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)))))).
-            { admit. }
-            rewrite ! RA1.
-            auto.
-          }
-          rewrite CHANGE; clear CHANGE.
-          assert (FMT: tids_fmap tid0 (TIdSet.add tid (key_set ths_tgt)) = tids_fmap tid0 (key_set thsr1)).
-          { admit. }
-          hexploit H1; clear H1. rewrite FMT; eauto. i; pclearbot.
-          match goal with
-          | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid0 th_tgt thsr1) tid0)
-          end.
-          2:{ unfold interp_all.
-              replace (Th.add tid (ktr_tgt ()) (Th.add tid (Vis ((|Yield)|)%sum (fun x : () => ktr_tgt x)) ths_tgt)) with (Th.add tid0 th_tgt thsr1).
-              2:{ admit. }
-              replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr1))) with (key_set thsr1).
-              2:{ admit. }
-              auto.
-          }
-          gfold. eapply sim_progress; auto. right; eapply CIH.
-          1,2: admit.
-          admit.
-          replace (TIdSet.add tid0 (key_set thsl1)) with (TIdSet.add tid (key_set ths_src)).
-          2:{ admit. }
-          replace (TIdSet.add tid0 (key_set thsr1)) with (TIdSet.add tid (key_set ths_tgt)).
-          2:{ admit. }
-          eauto.
-
-        - hexploit KSIM3; clear KSIM2 KSIM3; ss.
-          i; des. clarify. unfold interp_all.
-          erewrite unfold_interp_sched_nondet_Some.
-          2:{ instantiate (1:=(Vis ((|Yield)|)%sum ktr_src)). admit. }
-          rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
-          rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis.
-          rewrite <- bind_trigger. guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid0.
-          assert (POPS: set_pop tid0 (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = Some (key_set thsl1)).
-          { admit. }
-          rewrite POPS; clear POPS. rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-          rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
-          guclo sim_indC_spec. eapply sim_indC_fairL.
-          assert (FMT: tids_fmap tid0 (TIdSet.add tid (key_set ths_tgt)) = tids_fmap tid0 (key_set thsr1)).
-          { admit. }
-          hexploit H1; clear H1. rewrite FMT; eauto. i; des; pclearbot.
-          assert (FMS: tids_fmap tid0 (key_set thsl1) = tids_fmap tid0 (TIdSet.add tid (key_set ths_src))).
-          { admit. }
-          esplits; eauto. rewrite FMS; eauto.
-          rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
-          specialize (H2 false false).
-          match goal with
-          | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid0 th_tgt thsr1) tid0)
-          end.
-          2:{ unfold interp_all.
-              replace (Th.add tid (ktr_tgt ()) (Th.add tid (Vis ((|Yield)|)%sum (fun x : () => ktr_tgt x)) ths_tgt)) with (Th.add tid0 th_tgt thsr1).
-              2:{ admit. }
-              replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr1))) with (key_set thsr1).
-              2:{ admit. }
-              auto.
-          }
-          match goal with
-          | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid0 th_src (nm_proj_v2 thsl1)) tid0)
-          end.
-          2:{ unfold interp_all.
-              replace (Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid0 th_src (nm_proj_v2 thsl1)).
-              2:{ admit. }
-              replace (TIdSet.remove tid0 (key_set (Th.add tid0 th_src (nm_proj_v2 thsl1)))) with (key_set thsl1).
-              2:{ admit. }
-              auto.
-          }
-          gfold. eapply sim_progress; auto. right; eapply CIH.
-          1,2: admit.
-          admit.
-          replace (TIdSet.add tid0 (key_set thsl1)) with (TIdSet.add tid (key_set ths_src)).
-          2:{ admit. }
-          replace (TIdSet.add tid0 (key_set thsr1)) with (TIdSet.add tid (key_set ths_tgt)).
-          2:{ admit. }
-          eapply ksim_reset_prog; eauto.
-      }
-
-      { des. destruct KSIM1 as [KSIM1 IND].
-        unfold interp_all at 1. erewrite unfold_interp_sched_nondet_Some.
-        2:{ instantiate (1:=(Vis ((|Yield)|)%sum ktr_src)). admit. }
-        rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
-        rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid.
-        replace (set_pop tid (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (TIdSet.remove tid (key_set ths_src))).
-        2:{ admit. }
-        rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-        rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_fairL.
-        replace (tids_fmap tid (TIdSet.remove tid (key_set ths_src))) with (tids_fmap tid (TIdSet.add tid (key_set ths_src))).
-        2:{ admit. }
-        esplits; eauto. rewrite interp_sched_tau. rewrite 2 interp_state_tau.
-        do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
-        match goal with
-        | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)) tid)
-        end.
-        2:{ unfold interp_all.
-            replace (Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)).
-            2:{ admit. }
-            replace (TIdSet.remove tid (key_set (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)))) with (TIdSet.remove tid (key_set ths_src)).
-            2:{ admit. }
-            auto.
-        }
-        eapply IH. eauto. all: auto.
-      }
-
-      (*TODO*)
-
-      { destruct KSIM0 as [KSIM0 IND].
-        unfold interp_all at 1. erewrite unfold_interp_sched_nondet_Some.
-        2:{ instantiate (1:=(Tau itr_src)). admit. }
-        rewrite interp_thread_tau. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
-        match goal with
-        | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid itr_src (nm_proj_v2 ths_src)) tid)
-        end.
-        2:{ unfold interp_all.
-            erewrite unfold_interp_sched_nondet_Some.
-            2:{ instantiate (1:= itr_src). admit. }
-            replace (Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)).
-            2:{ admit. }
-            replace (TIdSet.remove tid (key_set (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)))) with (TIdSet.remove tid (key_set ths_src)).
-            2:{ admit. }
-            auto.
-        }
-
-
-        
-        rewrite unfold_interp_sched. rewrite interp_thread_tau. ired. rewrite interp_state_tau. rewrite <- unfold_interp_sched.
-        guclo sim_indC_spec. eapply sim_indC_tauL. eapply IH; eauto.
-      }
-
-      { des. destruct KSIM0 as [KSIM0 IND].
-        rewrite unfold_interp_sched. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis. rewrite <- bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_chooseL. eexists.
-        ired. rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
-        eapply IH; eauto.
-      }
-
-      { destruct KSIM0 as [KSIM0 IND].
-        rewrite unfold_interp_sched. rewrite interp_thread_vis. ired.
-        rewrite interp_state_put_vis. ired. rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
-        eapply IH; eauto.
-      }
-
-      { destruct KSIM0 as [KSIM0 IND].
-        rewrite unfold_interp_sched. rewrite interp_thread_vis. ired.
-        rewrite interp_state_get_vis. ired. rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
-        eapply IH; eauto.
-      }
-
-      { destruct KSIM0 as [KSIM0 IND].
-        rewrite unfold_interp_sched. rewrite interp_thread_vis_gettid. ired.
-        rewrite interp_state_tau.
-        do 1 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
-        eapply IH; eauto.
-      }
-
-      { rewrite unfold_interp_sched. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
-        rewrite <- bind_trigger. guclo sim_indC_spec. eapply sim_indC_ub.
-      }
-
-      { des. destruct KSIM1 as [KSIM1 IND].
-        rewrite unfold_interp_sched. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis. rewrite <- bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_fairL. esplits; eauto.
-        ired. rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
-        eapply IH; eauto.
-      }
-
-      { destruct KSIM0 as [KSIM0 IND].
-        rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_tau. ired. rewrite interp_state_tau.
-        rewrite <- unfold_interp_sched.
-        guclo sim_indC_spec. eapply sim_indC_tauR. eapply IH; eauto.
-      }
-
-      { rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
-        rewrite <- bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_chooseR. i.
-        ired. rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
-        specialize (KSIM0 x). destruct KSIM0 as [KSIM0 IND].
-        eapply IH; eauto.
-      }
-
-      { destruct KSIM0 as [KSIM0 IND].
-        rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis. ired.
-        rewrite interp_state_put_vis. ired. rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
-        eapply IH; eauto.
-      }
-
-      { destruct KSIM0 as [KSIM0 IND].
-        rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis. ired.
-        rewrite interp_state_get_vis. ired. rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
-        eapply IH; eauto.
-      }
-
-      { destruct KSIM0 as [KSIM0 IND].
-        rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis_gettid. ired.
-        rewrite interp_state_tau.
-        do 1 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
-        eapply IH; eauto.
-      }
-
-      { rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
-        rewrite <- bind_trigger.
-        guclo sim_indC_spec. eapply sim_indC_fairR. i.
-        ired. rewrite interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
-        specialize (KSIM0 _ FAIR). destruct KSIM0 as [KSIM0 IND].
-        eapply IH; eauto.
-      }
-
-      { rewrite ! unfold_interp_sched. rewrite ! interp_thread_vis_eventE. ired. rewrite ! interp_state_vis.
-        rewrite <- ! bind_trigger. guclo sim_indC_spec. eapply sim_indC_obs. i; clarify.
-        ired. rewrite ! interp_state_tau.
-        do 2 (guclo sim_indC_spec; eapply sim_indC_tauL; guclo sim_indC_spec; eapply sim_indC_tauR).
-        rewrite <- ! unfold_interp_sched.
-        gfold. eapply sim_progress; auto. right. eapply CIH; eauto.
-        specialize (KSIM0 r_tgt). pclearbot. eapply ksim_set_prog. eauto.
-      }
-
-      { clear rr IH. gfold. eapply sim_progress. right; eapply CIH; eauto. pclearbot. eapply KSIM0. all: auto. }
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tau.
+      guclo sim_indC_spec. eapply sim_indC_tauL.
+      eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      destruct KSIM0 as [KSIM0 IND].
-      rewrite unfold_interp_sched. rewrite interp_thread_tau. ired. rewrite interp_state_tau. rewrite <- unfold_interp_sched.
-      guclo sim_indC_spec. eapply sim_indC_tauL. eapply IH; eauto.
-    }
-
-    { clarify. unfold interp_all.
-      des. destruct KSIM0 as [KSIM0 IND].
-      rewrite unfold_interp_sched. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis. rewrite <- bind_trigger.
+    { des. destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseL. eexists.
-      ired. rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      destruct KSIM0 as [KSIM0 IND].
-      rewrite unfold_interp_sched. rewrite interp_thread_vis. ired.
-      rewrite interp_state_put_vis. ired. rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      destruct KSIM0 as [KSIM0 IND].
-      rewrite unfold_interp_sched. rewrite interp_thread_vis. ired.
-      rewrite interp_state_get_vis. ired. rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      destruct KSIM0 as [KSIM0 IND].
-      rewrite unfold_interp_sched. rewrite interp_thread_vis_gettid. ired.
-      rewrite interp_state_tau.
-      do 1 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tid.
+      do 1 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      rewrite unfold_interp_sched. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
+    { rewrite interp_all_vis.
       rewrite <- bind_trigger. guclo sim_indC_spec. eapply sim_indC_ub.
     }
 
-    { clarify. unfold interp_all.
-      des. destruct KSIM1 as [KSIM1 IND].
-      rewrite unfold_interp_sched. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis. rewrite <- bind_trigger.
+    { des. destruct KSIM1 as [KSIM1 IND]. rewrite interp_all_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL. esplits; eauto.
-      ired. rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL). rewrite <- unfold_interp_sched.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      destruct KSIM0 as [KSIM0 IND].
-      rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_tau. ired. rewrite interp_state_tau.
-      rewrite <- unfold_interp_sched.
-      guclo sim_indC_spec. eapply sim_indC_tauR. eapply IH; eauto.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tau.
+      guclo sim_indC_spec. eapply sim_indC_tauR.
+      eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
-      rewrite <- bind_trigger.
+    { rewrite interp_all_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseR. i.
-      ired. rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       specialize (KSIM0 x). destruct KSIM0 as [KSIM0 IND].
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      destruct KSIM0 as [KSIM0 IND].
-      rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis. ired.
-      rewrite interp_state_put_vis. ired. rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      destruct KSIM0 as [KSIM0 IND].
-      rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis. ired.
-      rewrite interp_state_get_vis. ired. rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      destruct KSIM0 as [KSIM0 IND].
-      rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis_gettid. ired.
-      rewrite interp_state_tau.
-      do 1 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tid.
+      do 1 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      rewrite (unfold_interp_sched (R:=R1)). rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
-      rewrite <- bind_trigger.
+    { rewrite interp_all_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairR. i.
-      ired. rewrite interp_state_tau.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR). rewrite <- unfold_interp_sched.
+      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       specialize (KSIM0 _ FAIR). destruct KSIM0 as [KSIM0 IND].
       eapply IH; eauto.
     }
 
-    { clarify. unfold interp_all.
-      rewrite ! unfold_interp_sched. rewrite ! interp_thread_vis_eventE. ired. rewrite ! interp_state_vis.
+    { rewrite ! interp_all_vis. ss.
       rewrite <- ! bind_trigger. guclo sim_indC_spec. eapply sim_indC_obs. i; clarify.
-      ired. rewrite ! interp_state_tau.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL; guclo sim_indC_spec; eapply sim_indC_tauR).
-      rewrite <- ! unfold_interp_sched.
       gfold. eapply sim_progress; auto. right. eapply CIH; eauto.
       specialize (KSIM0 r_tgt). pclearbot. eapply ksim_set_prog. eauto.
     }
 
-    { clarify. unfold interp_all.
-      clear rr IH. gfold. eapply sim_progress. right; eapply CIH; eauto. pclearbot. eapply KSIM0. all: auto. }
+    { clear rr IH. gfold. eapply sim_progress. right; eapply CIH; eauto. pclearbot. eapply KSIM0. all: auto. }
 
   Admitted.
 
