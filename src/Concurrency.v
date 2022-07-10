@@ -451,20 +451,20 @@ Section SCHEDULE_NONDET.
     match r with
     | None =>
         tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-        match set_pop tid' (TIdSet.add tid q) with
+        match nm_pop tid' (NatMap.add tid tt q) with
         | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
-        | Some q' =>
+        | Some (_, q') =>
             ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
             Ret (inl (tid', q'))
         end
     | Some r =>
-        if TIdSet.is_empty q
+        if NatMap.is_empty q
         then Ret (inr r)
         else
           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-          match set_pop tid' q with
+          match nm_pop tid' q with
           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
-          | Some q' =>
+          | Some (_, q') =>
               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
               Ret (inl (tid', q'))
           end
@@ -481,20 +481,20 @@ Section SCHEDULE_NONDET.
       match r with
       | None =>
           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-          match set_pop tid' (TIdSet.add tid q) with
+          match nm_pop tid' (NatMap.add tid tt q) with
           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
-          | Some q' =>
+          | Some (_, q') =>
               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
               tau;; sched_nondet _ (tid', q')
           end
       | Some r =>
-          if TIdSet.is_empty q
+          if NatMap.is_empty q
           then Ret r
           else
             tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-            match set_pop tid' q with
+            match nm_pop tid' q with
             | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
-            | Some q' =>
+            | Some (_, q') =>
                 ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
                 tau;; sched_nondet _ (tid', q')
             end
@@ -523,24 +523,24 @@ Section SCHEDULE_NONDET.
       r <- interp_thread (tid, t);;
       match r with
       | inl t' => Tau (interp_sched (Th.add tid t' ths,
-                          tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-                          match set_pop tid' (TIdSet.add tid q) with
-                          | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
-                          | Some q' =>
-                              ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
-                              tau;; sched_nondet _ (tid', q')
-                          end))
+                                     tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+                                     match nm_pop tid' (NatMap.add tid tt q) with
+                                     | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                                     | Some (_, q') =>
+                                         ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
+                                         tau;; sched_nondet _ (tid', q')
+                                     end))
       | inr r => Tau (interp_sched (Th.remove tid ths,
-                         if TIdSet.is_empty q
-                         then Ret r
-                         else
-                           tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
-                           match set_pop tid' q with
-                           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
-                           | Some q' =>
-                               ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
-                               tau;; sched_nondet _ (tid', q')
-                           end))
+                                    if NatMap.is_empty q
+                                    then Ret r
+                                    else
+                                      tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+                                      match nm_pop tid' q with
+                                      | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
+                                      | Some (_, q') =>
+                                          ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
+                                          tau;; sched_nondet _ (tid', q')
+                                      end))
       end.
   Proof.
     rewrite unfold_sched_nondet at 1.
@@ -562,25 +562,6 @@ End SCHEDULE_NONDET.
 Global Opaque sched_nondet_body sched_nondet.
 
 
-(* Require Import Setoid Morphisms. *)
-
-(* Global Program Instance Proper_interp_sched *)
-(*        {_Id: ID} {E: Type -> Type} {RT R: Type} (sch: scheduler RT R): *)
-(*   Proper ((@Th.Equal (@thread _Id E RT)) ==> flip impl) (fun ths => @interp_sched _Id E RT R (ths, sch)). *)
-(* Next Obligation. *)
-(*   ii. rename H into EQ, H0 into BEH, x into tr1, y into tr2. *)
-(*   ginit. revert_until R. gcofix CIH. i. *)
-(*   depgen tr1. induction BEH using @Beh.of_state_ind2; i; eauto. *)
-(*   { punfold EQ; inv EQ. gfinal; right. pfold. econs. } *)
-(*   { punfold EQ; inv EQ. gfinal; right. pfold. econs; eauto. } *)
-(*   { punfold EQ; inv EQ. gfinal; right. pfold. econs; eauto. } *)
-(*   { punfold EQ; inv EQ. pclearbot. gfinal; right. pfold. econs; eauto. } *)
-(*   { guclo Beh.of_state_indC_spec. econs. eauto. } *)
-(*   { guclo Beh.of_state_indC_spec. econs. eauto. } *)
-(*   { guclo Beh.of_state_indC_spec. econs; eauto. } *)
-(*   { guclo Beh.of_state_indC_spec. econs; eauto. } *)
-(* Qed. *)
-
 
 Section INTERP.
 
@@ -590,7 +571,7 @@ Section INTERP.
 
   Definition interp_all
     st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
-    interp_state (st, interp_sched (ths, sched_nondet _ (tid, TIdSet.remove tid (key_set ths)))).
+    interp_state (st, interp_sched (ths, sched_nondet _ (tid, NatMap.remove tid (key_set ths)))).
 
   Lemma interp_all_tau
         st (ths: @threads _Ident (sE State) R) tid
@@ -598,39 +579,75 @@ Section INTERP.
     :
     (interp_all st (Th.add tid (Tau itr) ths) tid) = (Tau (interp_all st (Th.add tid itr ths) tid)).
   Proof.
-    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some.
-    2:{ instantiate (1:= itr). admit. }
-    2:{ instantiate (1:= Tau itr). admit. }
+    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
     rewrite interp_thread_tau. rewrite bind_tau. rewrite interp_state_tau.
-    
-                (Th.add tid t' (Th.add tid (Tau itr) ths),
-                match set_pop tid' (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths)))) with
-                (Th.remove (elt:=thread _Ident (sE State) R) tid (Th.add tid (Tau itr) ths),
-                if TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths)))
-                 match set_pop tid' (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths))) with
+    do 5 f_equal. extensionality x. destruct x.
+    - rewrite ! nm_add_add_eq. rewrite ! key_set_pull_add_eq. auto.
+    - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
+  Qed.
 
-                   (Th.add tid t' (Th.add tid itr ths),
-                match set_pop tid' (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid itr ths)))) with
-                (Th.remove (elt:=thread _Ident (sE State) R) tid (Th.add tid itr ths),
-                if TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid itr ths)))
-                 match set_pop tid' (TIdSet.remove tid (key_set (Th.add tid itr ths))) with
+  Lemma interp_all_vis
+        st (ths: @threads _Ident (sE State) R) tid
+        X (e: @eventE _Ident X) ktr
+    :
+    (interp_all st (Th.add tid (Vis ((e|)|)%sum ktr) ths) tid) =
+      (Vis (embed_eventE e) (fun x => tau;; tau;; interp_all st (Th.add tid (ktr x) ths) tid)).
+  Proof.
+    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
+    rewrite interp_thread_vis_eventE. rewrite bind_vis. rewrite interp_state_vis.
+    do 2 f_equal. extensionality x. rewrite bind_tau. rewrite interp_state_tau.
+    erewrite 1 unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
+    do 7 f_equal. extensionality r.
+    destruct r.
+    - rewrite ! nm_add_add_eq. rewrite ! key_set_pull_add_eq. auto.
+    - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
+  Qed.
 
-      Th.find (elt:=thread _Ident (sE State) R) tid (Th.add tid itr ths) = Some ?t0
+  Lemma interp_all_put
+        st (ths: @threads _Ident (sE State) R) tid
+        st0 ktr
+    :
+    (interp_all st (Th.add tid (Vis (|Mod.Put st0)%sum ktr) ths) tid) =
+      (tau;; tau;; interp_all st0 (Th.add tid (ktr tt) ths) tid).
+  Proof.
+    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
+    rewrite interp_thread_vis. rewrite bind_vis. rewrite interp_state_put_vis. rewrite bind_tau. rewrite interp_state_tau.
+    repeat f_equal. extensionality x.
+    destruct x.
+    - rewrite ! nm_add_add_eq. rewrite ! key_set_pull_add_eq. auto.
+    - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
+  Qed.
 
-    (interp_all st_src (Th.add tid (Tau itr_src) (nm_proj_v2 ths_src)) tid) (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
+  Lemma interp_all_get
+        st (ths: @threads _Ident (sE State) R) tid
+        ktr
+    :
+    (interp_all st (Th.add tid (Vis (|@Mod.Get State)%sum ktr) ths) tid) =
+      (tau;; tau;; interp_all st (Th.add tid (ktr st) ths) tid).
+  Proof.
+    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
+    rewrite interp_thread_vis. rewrite bind_vis. rewrite interp_state_get_vis. rewrite bind_tau. rewrite interp_state_tau.
+    repeat f_equal. extensionality x.
+    destruct x.
+    - rewrite ! nm_add_add_eq. rewrite ! key_set_pull_add_eq. auto.
+    - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
+  Qed.
 
-   (interp_all st_src (Th.add tid (Vis ((Choose X|)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
-   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
-   (interp_all st_src (Th.add tid (Vis (|Mod.Put st_src0)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
-   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
-   (interp_all st_src (Th.add tid (Vis (|Mod.Get state_src)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
-   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
-   (interp_all st_src (Th.add tid (Vis ((|GetTid)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
-   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
-   (interp_all st_src (Th.add tid (Vis ((Undefined|)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
-   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
-   (interp_all st_src (Th.add tid (Vis ((Fair fm|)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
-   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
+  Lemma interp_all_tid
+        st (ths: @threads _Ident (sE State) R) tid
+        ktr
+    :
+    (interp_all st (Th.add tid (Vis ((|GetTid)|)%sum ktr) ths) tid) =
+      (tau;; interp_all st (Th.add tid (ktr tid) ths) tid).
+  Proof.
+    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
+    rewrite interp_thread_vis_gettid. rewrite bind_tau. rewrite interp_state_tau.
+    repeat f_equal. extensionality x.
+    destruct x.
+    - rewrite ! nm_add_add_eq. rewrite ! key_set_pull_add_eq. auto.
+    - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
+  Qed.
+
 End INTERP.
 
 Section MOD.

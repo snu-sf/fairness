@@ -1,5 +1,7 @@
 From sflib Require Import sflib.
 
+From Fairness Require Import Axioms.
+
 From Coq Require Import
   Permutation
   SetoidList
@@ -8,84 +10,14 @@ From Coq Require Import
   Lia.
 
 Require Import Coq.Structures.OrderedTypeEx.
-Require Import Coq.FSets.FSets.
-Module NatSet := FSetList.Make(Nat_as_OT).
-Module NatSetP := WProperties_fun Nat_as_OT NatSet.
+(* Require Import Coq.FSets.FSets. *)
+(* Module NatSet := FSetList.Make(Nat_as_OT). *)
+(* Module NatSetP := WProperties_fun Nat_as_OT NatSet. *)
 Require Import Coq.FSets.FMaps.
 Module NatMap := FMapList.Make(Nat_as_OT).
 Module NatMapP := WProperties_fun Nat_as_OT NatMap.
 
 Set Implicit Arguments.
-
-Section NATSET.
-
-  Lemma ns_in_dec: forall n s, {NatSet.In n s} + {~ NatSet.In n s}.
-  Proof.
-    i. eapply InA_dec. eapply NatSet.MSet.E.eq_dec.
-  Qed.
-
-  Definition set_pop : NatSet.elt -> NatSet.t -> option NatSet.t :=
-    fun x s => if NatSet.mem x s
-            then Some (NatSet.remove x s)
-            else None.
-
-  Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = [].
-  Proof.
-    i. destruct s as [s OK]; ss. destruct s; ss.
-    exfalso. eapply H. econs. ss.
-  Qed.
-
-  Lemma Empty_nil_neg s : ~ NatSet.Empty s -> NatSet.elements s <> [].
-  Proof.
-    destruct s as [s SORTED]; ss.
-    ii. subst. eapply H. ii. eapply InA_nil; eauto.
-  Qed.
-
-  Lemma NatSet_Permutation_remove x s l :
-    Permutation (NatSet.elements s) (x :: l) -> Permutation (NatSet.elements (NatSet.remove x s)) l.
-  Proof.
-    destruct s as [s SORTED]. ss.
-    revert l. induction s; i.
-    - eapply Permutation_length in H. ss.
-    - assert (List.In a (x :: l)) by (rewrite <- H; econs; ss).
-      destruct H0.
-      + subst. eapply Permutation_cons_inv in H. ss. rewrite NatSet.MSet.Raw.MX.compare_refl. auto.
-      + eapply Add_inv in H0. des. eapply Permutation_Add in H0.
-        rewrite <- H0 in *. clear l H0.
-        rewrite perm_swap in H. eapply Permutation_cons_inv in H.
-        assert (List.In x s).
-        { eapply Permutation_in.
-          - symmetry. eapply H.
-          - econs; ss.
-        }
-        eapply NatSet.MSet.Raw.isok_iff in SORTED.
-        epose proof (Sorted_extends _ SORTED).
-        eapply Forall_forall in H1; eauto.
-        ss. pose (NatSet.MSet.Raw.MX.compare_gt_iff x a) as GT. ss. des. rewrite (GT0 H1).
-        econs. eapply IHs; eauto.
-        eapply NatSet.MSet.Raw.isok_iff.
-        inv SORTED; ss.
-        Unshelve. compute. lia.
-  Qed.
-
-  Lemma NatSet_Permutation_add x s l :
-    ~ NatSet.In x s -> Permutation (NatSet.elements s) l -> Permutation (NatSet.elements (NatSet.add x s)) (x :: l).
-  Proof.
-    destruct s as [s SORTED]. ss. revert l. induction s; intros l H1 H2.
-    - rewrite <- H2. ss.
-    - ss. assert (x = a \/ x < a \/ x > a) by lia. des.
-      + exfalso. eapply H1. econs. ss.
-      + pose (NatSet.MSet.Raw.MX.compare_lt_iff x a). ss. des. rewrite (i0 H). econs. ss.
-      + pose (NatSet.MSet.Raw.MX.compare_gt_iff x a). ss. des. rewrite (i0 H).
-        rewrite <- H2. rewrite perm_swap. econs.
-        eapply IHs; eauto.
-        unfold NatSet.In, NatSet.MSet.In in *. ss.
-        intro. eapply H1. econs 2. eapply H0.
-        Unshelve. clear H1. eapply NatSet.MSet.Raw.isok_iff in SORTED. inv SORTED.
-        eapply NatSet.MSet.Raw.isok_iff. ss.
-  Qed.
-
-End NATSET.
 
 
 
@@ -220,7 +152,49 @@ Section NATMAP.
       pose (find_2 FA1) as MT. pose (add_2 e NEQ MT) as MT1. pose (find_1 MT1) as FA2. clarify.
   Qed.
 
-  Lemma nm_add_add_eq
+  Lemma eqlistA_eq_key_elt_eq
+        (this0 this1 : Raw.t elt)
+        (EQLA: eqlistA (eq_key_elt (elt:=elt)) this0 this1)
+    :
+    this0 = this1.
+  Proof.
+    induction EQLA; ss.
+    destruct x, x'. unfold eq_key_elt, Raw.PX.eqke in *. des; ss; clarify.
+  Qed.
+
+  Lemma nm_equal_is_eq
+        (m1 m2: t elt)
+        (EQ: Equal m1 m2)
+    :
+    m1 = m2.
+  Proof.
+    destruct m1, m2.
+    assert (EQ1: this0 = this1).
+    { match goal with
+      | EQ: Equal ?lhs ?rhs |- _ => cut (forall k e, (MapsTo k e lhs) <-> (MapsTo k e rhs))
+      end.
+      2:{ i. rewrite EQ. auto. }
+      intro MT.
+      cut (eqlistA (@eq_key_elt elt) this0 this1).
+      2:{ eapply SortA_equivlistA_eqlistA; eauto.
+          eapply eqke_equiv. eapply Raw.PX.ltk_strorder.
+          { ii. unfold eq_key_elt, Raw.PX.eqke in *. des. destruct x, y, x0, y0; ss; clarify. }
+          match goal with
+          | EQ: Equal ?_lhs ?_rhs |- _ => remember _lhs as lhs; remember _rhs as rhs
+          end.
+          replace this0 with (elements lhs). replace this1 with (elements rhs).
+          2,3: clarify; ss.
+          split; i.
+          - destruct x. eapply elements_1. eapply MT. eapply elements_2; auto.
+          - destruct x. eapply elements_1. eapply MT. eapply elements_2; auto.
+      }
+      eapply eqlistA_eq_key_elt_eq; eauto.
+    }
+    revert sorted0 sorted1 EQ. rewrite EQ1. i.
+    rewrite (proof_irrelevance _ sorted0 sorted1). auto.
+  Qed.
+
+  Lemma nm_add_add_equal
         (m: t elt) k e1 e2
     :
     Equal (add k e2 (add k e1 m)) (add k e2 m).
@@ -231,8 +205,13 @@ Section NATMAP.
     - eapply F.add_mapsto_iff in H. des; clarify. eapply add_1; auto.
       eapply add_2; eauto. eapply add_2; eauto.
   Qed.
+  Lemma nm_add_add_eq
+        (m: t elt) k e1 e2
+    :
+    (add k e2 (add k e1 m)) = (add k e2 m).
+  Proof. eapply nm_equal_is_eq. eapply nm_add_add_equal. Qed.
 
-  Lemma nm_rm_add_eq
+  Lemma nm_rm_add_equal
         (m: t elt) k e1 e2
     :
     Equal (remove k (add k e1 m)) (remove k (add k e2 m)).
@@ -243,52 +222,133 @@ Section NATMAP.
     - eapply F.remove_mapsto_iff in H. des; clarify.
       eapply remove_2; eauto. eapply add_2; eauto. hexploit add_3; eauto.
   Qed.
+  Lemma nm_rm_add_eq
+        (m: t elt) k e1 e2
+    :
+    (remove k (add k e1 m)) = (remove k (add k e2 m)).
+  Proof. eapply nm_equal_is_eq. eapply nm_rm_add_equal. Qed.
 
 End NATMAP.
+
+
+
+Module NatSet.
+  Definition t := NatMap.t unit.
+End NatSet.
+
+Section NATSET.
+
+  (* Lemma ns_in_dec: forall n s, {NatSet.In n s} + {~ NatSet.In n s}. *)
+  (* Proof. *)
+  (*   i. eapply InA_dec. eapply NatSet.MSet.E.eq_dec. *)
+  (* Qed. *)
+
+  (* Definition set_pop : NatSet.elt -> NatSet.t -> option NatSet.t := *)
+  (*   fun x s => if NatSet.mem x s *)
+  (*           then Some (NatSet.remove x s) *)
+  (*           else None. *)
+
+  (* Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = []. *)
+  (* Proof. *)
+  (*   i. destruct s as [s OK]; ss. destruct s; ss. *)
+  (*   exfalso. eapply H. econs. ss. *)
+  (* Qed. *)
+
+  (* Lemma Empty_nil_neg s : ~ NatSet.Empty s -> NatSet.elements s <> []. *)
+  (* Proof. *)
+  (*   destruct s as [s SORTED]; ss. *)
+  (*   ii. subst. eapply H. ii. eapply InA_nil; eauto. *)
+  (* Qed. *)
+
+  (* Lemma NatSet_Permutation_remove x s l : *)
+  (*   Permutation (NatSet.elements s) (x :: l) -> Permutation (NatSet.elements (NatSet.remove x s)) l. *)
+  (* Proof. *)
+  (*   destruct s as [s SORTED]. ss. *)
+  (*   revert l. induction s; i. *)
+  (*   - eapply Permutation_length in H. ss. *)
+  (*   - assert (List.In a (x :: l)) by (rewrite <- H; econs; ss). *)
+  (*     destruct H0. *)
+  (*     + subst. eapply Permutation_cons_inv in H. ss. rewrite NatSet.MSet.Raw.MX.compare_refl. auto. *)
+  (*     + eapply Add_inv in H0. des. eapply Permutation_Add in H0. *)
+  (*       rewrite <- H0 in *. clear l H0. *)
+  (*       rewrite perm_swap in H. eapply Permutation_cons_inv in H. *)
+  (*       assert (List.In x s). *)
+  (*       { eapply Permutation_in. *)
+  (*         - symmetry. eapply H. *)
+  (*         - econs; ss. *)
+  (*       } *)
+  (*       eapply NatSet.MSet.Raw.isok_iff in SORTED. *)
+  (*       epose proof (Sorted_extends _ SORTED). *)
+  (*       eapply Forall_forall in H1; eauto. *)
+  (*       ss. pose (NatSet.MSet.Raw.MX.compare_gt_iff x a) as GT. ss. des. rewrite (GT0 H1). *)
+  (*       econs. eapply IHs; eauto. *)
+  (*       eapply NatSet.MSet.Raw.isok_iff. *)
+  (*       inv SORTED; ss. *)
+  (*       Unshelve. compute. lia. *)
+  (* Qed. *)
+
+  (* Lemma NatSet_Permutation_add x s l : *)
+  (*   ~ NatSet.In x s -> Permutation (NatSet.elements s) l -> Permutation (NatSet.elements (NatSet.add x s)) (x :: l). *)
+  (* Proof. *)
+  (*   destruct s as [s SORTED]. ss. revert l. induction s; intros l H1 H2. *)
+  (*   - rewrite <- H2. ss. *)
+  (*   - ss. assert (x = a \/ x < a \/ x > a) by lia. des. *)
+  (*     + exfalso. eapply H1. econs. ss. *)
+  (*     + pose (NatSet.MSet.Raw.MX.compare_lt_iff x a). ss. des. rewrite (i0 H). econs. ss. *)
+  (*     + pose (NatSet.MSet.Raw.MX.compare_gt_iff x a). ss. des. rewrite (i0 H). *)
+  (*       rewrite <- H2. rewrite perm_swap. econs. *)
+  (*       eapply IHs; eauto. *)
+  (*       unfold NatSet.In, NatSet.MSet.In in *. ss. *)
+  (*       intro. eapply H1. econs 2. eapply H0. *)
+  (*       Unshelve. clear H1. eapply NatSet.MSet.Raw.isok_iff in SORTED. inv SORTED. *)
+  (*       eapply NatSet.MSet.Raw.isok_iff. ss. *)
+  (* Qed. *)
+
+End NATSET.
 
 
 
 Section AUX.
 
   Import NatMap.
+  Import NatMapP.
 
-  Definition key_set {elt} : NatMap.t elt -> NatSet.t.
-  Proof.
-    intros [l SORTED]. unfold Raw.t in *.
-    set (l' := List.map fst l).
-    econs. instantiate (1 := l').
-    unfold Raw.PX.ltk in *.
-    assert (Sorted (fun x y => x < y) l').
-    { induction SORTED.
-      - subst l'. ss.
-      - subst l'. ss. econs 2; ss.
-        inv H; ss. econs; ss.
-    }
-    eapply NatSet.MSet.Raw.isok_iff. ss.
-  Defined.
+  Definition unit1 {E} : E -> unit := fun _ => tt.
+  Definition key_set {elt} : NatMap.t elt -> NatSet.t :=
+    fun m => NatMap.map unit1 m.
 
-  Lemma key_set_pull_add
-        elt (m: NatMap.t elt) e (s: NatSet.t) k
+  (* Definition key_set {elt} : NatMap.t elt -> NatSet.t. *)
+  (* Proof. *)
+  (*   intros [l SORTED]. unfold Raw.t in *. *)
+  (*   set (l' := List.map fst l). *)
+  (*   econs. instantiate (1 := l'). *)
+  (*   unfold Raw.PX.ltk in *. *)
+  (*   assert (Sorted (fun x y => x < y) l'). *)
+  (*   { induction SORTED. *)
+  (*     - subst l'. ss. *)
+  (*     - subst l'. ss. econs 2; ss. *)
+  (*       inv H; ss. econs; ss. *)
+  (*   } *)
+  (*   eapply NatSet.MSet.Raw.isok_iff. ss. *)
+  (* Defined. *)
+
+  Lemma key_set_pull_add_equal
+        elt (m: NatMap.t elt) e k
     :
-    NatSet.Equal (key_set (NatMap.add k e m)) (NatSet.add k (key_set m)).
+    Equal (key_set (add k e m)) (add k tt (key_set m)).
   Proof.
-    split; i.
-    - 
-
-      destruct m as [m SRT]. revert_until m. induction m; i. ss.
-      
-      destruct (E.eq_dec a k); clarify.
-      + 
-NatSetP.FM.add_iff: forall (s : NatSet.t) (x y : NatSet.elt), NatSet.In y (NatSet.add x s) <-> x = y \/ NatSet.In y s
-E.eq_dec: forall x y : nat, {x = y} + {x <> y}
-    eapply NatSetP.equal_sym. eapply NatSetP.add_equal.
-NatSetP.add_equal: forall [s : NatSet.t] [x : NatSet.elt], NatSet.In x s -> NatSet.Equal (NatSet.add x s) s
-
-                match set_pop tid' (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths)))) with
-                match set_pop tid' (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid itr ths)))) with
-                if TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths)))
-                if TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid itr ths)))
-                 match set_pop tid' (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths))) with
-                 match set_pop tid' (TIdSet.remove tid (key_set (Th.add tid itr ths))) with
+    unfold key_set. eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.map_mapsto_iff in H. des. clarify. eapply F.add_mapsto_iff in H0. des; clarify.
+      + eapply add_1; auto.
+      + eapply add_2; eauto. eapply map_1 in H1. eapply H1.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply (map_1 (m:=add k0 e m) (e:=e) (x:=k0) unit1). eapply add_1; auto.
+      + eapply F.map_mapsto_iff in H0. des; clarify. eapply map_1. eapply add_2; auto.
+  Qed.
+  Lemma key_set_pull_add_eq
+        elt (m: NatMap.t elt) e k
+    :
+    (key_set (add k e m)) = (add k tt (key_set m)).
+  Proof. eapply nm_equal_is_eq. eapply key_set_pull_add_equal. Qed.
 
 End AUX.
