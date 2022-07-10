@@ -428,8 +428,8 @@ Section PRIMIVIESIM.
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid :=
     fun (r_src: R0) (r_tgt: R1) '(ths2, tht2, im_src1, im_tgt1, st_src1, st_tgt1, o1, w1) =>
       (exists ths3 tht3 o2 w2,
-          (<<THSR: TIdSet.remove tid ths2 = ths3>>) /\
-            (<<THTR: TIdSet.remove tid tht2 = tht3>>) /\
+          (<<THSR: NatMap.remove tid ths2 = ths3>>) /\
+            (<<THTR: NatMap.remove tid tht2 = tht3>>) /\
             (<<WORLD: world_le w1 w2>>) /\
             (<<STUTTER: wf_src.(lt) o2 o1>>) /\
             (<<INV: I (ths3, tht3, im_src1, im_tgt1, st_src1, st_tgt1, o2, w2)>>) /\
@@ -442,8 +442,8 @@ Section PRIMIVIESIM.
       (* (THS: TIdSet.t_add ths0 tid ths1) *)
       (* (THT: TIdSet.t_add tht0 tid tht1) *)
       tid
-      (THS: TIdSet.In tid ths0)
-      (THT: TIdSet.In tid tht0)
+      (THS: NatMap.In tid ths0)
+      (THT: NatMap.In tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       fs ft,
       lsim
@@ -455,8 +455,8 @@ Section PRIMIVIESIM.
 
   Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      (THS: TIdSet.In tid ths0)
-      (THT: TIdSet.In tid tht0)
+      (THS: NatMap.In tid ths0)
+      (THT: NatMap.In tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       fs ft,
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
