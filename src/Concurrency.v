@@ -562,16 +562,75 @@ End SCHEDULE_NONDET.
 Global Opaque sched_nondet_body sched_nondet.
 
 
+(* Require Import Setoid Morphisms. *)
+
+(* Global Program Instance Proper_interp_sched *)
+(*        {_Id: ID} {E: Type -> Type} {RT R: Type} (sch: scheduler RT R): *)
+(*   Proper ((@Th.Equal (@thread _Id E RT)) ==> flip impl) (fun ths => @interp_sched _Id E RT R (ths, sch)). *)
+(* Next Obligation. *)
+(*   ii. rename H into EQ, H0 into BEH, x into tr1, y into tr2. *)
+(*   ginit. revert_until R. gcofix CIH. i. *)
+(*   depgen tr1. induction BEH using @Beh.of_state_ind2; i; eauto. *)
+(*   { punfold EQ; inv EQ. gfinal; right. pfold. econs. } *)
+(*   { punfold EQ; inv EQ. gfinal; right. pfold. econs; eauto. } *)
+(*   { punfold EQ; inv EQ. gfinal; right. pfold. econs; eauto. } *)
+(*   { punfold EQ; inv EQ. pclearbot. gfinal; right. pfold. econs; eauto. } *)
+(*   { guclo Beh.of_state_indC_spec. econs. eauto. } *)
+(*   { guclo Beh.of_state_indC_spec. econs. eauto. } *)
+(*   { guclo Beh.of_state_indC_spec. econs; eauto. } *)
+(*   { guclo Beh.of_state_indC_spec. econs; eauto. } *)
+(* Qed. *)
+
 
 Section INTERP.
 
   Variable State: Type.
   Variable _Ident: ID.
+  Variable R: Type.
 
   Definition interp_all
-    {R} st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
+    st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
     interp_state (st, interp_sched (ths, sched_nondet _ (tid, TIdSet.remove tid (key_set ths)))).
 
+  Lemma interp_all_tau
+        st (ths: @threads _Ident (sE State) R) tid
+        itr
+    :
+    (interp_all st (Th.add tid (Tau itr) ths) tid) = (Tau (interp_all st (Th.add tid itr ths) tid)).
+  Proof.
+    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some.
+    2:{ instantiate (1:= itr). admit. }
+    2:{ instantiate (1:= Tau itr). admit. }
+    rewrite interp_thread_tau. rewrite bind_tau. rewrite interp_state_tau.
+    
+                (Th.add tid t' (Th.add tid (Tau itr) ths),
+                match set_pop tid' (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths)))) with
+                (Th.remove (elt:=thread _Ident (sE State) R) tid (Th.add tid (Tau itr) ths),
+                if TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths)))
+                 match set_pop tid' (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths))) with
+
+                   (Th.add tid t' (Th.add tid itr ths),
+                match set_pop tid' (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid itr ths)))) with
+                (Th.remove (elt:=thread _Ident (sE State) R) tid (Th.add tid itr ths),
+                if TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid itr ths)))
+                 match set_pop tid' (TIdSet.remove tid (key_set (Th.add tid itr ths))) with
+
+      Th.find (elt:=thread _Ident (sE State) R) tid (Th.add tid itr ths) = Some ?t0
+
+    (interp_all st_src (Th.add tid (Tau itr_src) (nm_proj_v2 ths_src)) tid) (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
+
+   (interp_all st_src (Th.add tid (Vis ((Choose X|)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
+   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
+   (interp_all st_src (Th.add tid (Vis (|Mod.Put st_src0)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
+   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
+   (interp_all st_src (Th.add tid (Vis (|Mod.Get state_src)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
+   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
+   (interp_all st_src (Th.add tid (Vis ((|GetTid)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
+   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
+   (interp_all st_src (Th.add tid (Vis ((Undefined|)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
+   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
+   (interp_all st_src (Th.add tid (Vis ((Fair fm|)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
+   (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)
 End INTERP.
 
 Section MOD.

@@ -422,19 +422,8 @@ Section ADEQ.
                           forall ps0 pt0 : bool,
                             (ps1 = true -> ps0 = true) ->
                             (pt1 = true -> pt0 = true) ->
-                            paco8
-                              (fun
-                                  r0 : rel8 (threads_src2 R0) (fun _ : threads_src2 R0 => threads_tgt R1)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) => id)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) => bool)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) (_ : bool) => bool)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) (_ _ : bool) =>
-                                               (bool * thread _ident_src (sE state_src) R0)%type)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) (_ _ : bool) (_ : bool * thread _ident_src (sE state_src) R0)
-                                             => thread _ident_tgt (sE state_tgt) R1)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) (_ _ : bool) (_ : bool * thread _ident_src (sE state_src) R0)
-                                               (_ : thread _ident_tgt (sE state_tgt) R1) => shared) => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid ps0
-                              pt0 ssrc tgt shr)) in KSIM; auto. }
+                            paco8 (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid ps0
+                                  pt0 ssrc tgt shr)) in KSIM; auto. }
 
     ss. clear ths_src ths_tgt tid ps1 pt1 ssrc tgt shr KSIM.
     intros rr DEC IH ths_src ths_tgt tid ps1 pt1 ssrc tgt shr KSIM. clear DEC.
@@ -544,17 +533,7 @@ Section ADEQ.
                           pt1 = true ->
                           forall ps pt : bool,
                             paco8
-                              (fun
-                                  r0 : rel8 (threads_src2 R0) (fun _ : threads_src2 R0 => threads_tgt R1)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) => id)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) => bool)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) (_ : bool) => bool)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) (_ _ : bool) =>
-                                               (bool * thread _ident_src (sE state_src) R0)%type)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) (_ _ : bool) (_ : bool * thread _ident_src (sE state_src) R0)
-                                             => thread _ident_tgt (sE state_tgt) R1)
-                                            (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : id) (_ _ : bool) (_ : bool * thread _ident_src (sE state_src) R0)
-                                               (_ : thread _ident_tgt (sE state_tgt) R1) => shared) => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid ps pt
+                              (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid ps pt
                               ssrc tgt shr)) in KSIM; auto. }
 
     ss. clear ths_src ths_tgt tid ps1 pt1 ssrc tgt shr KSIM.
@@ -1021,7 +1000,6 @@ Section ADEQ.
         R0 R1 (RR: R0 -> R1 -> Prop)
         (r : forall x x0 : Type,
             (x -> x0 -> Prop) -> bool -> (@imap ident_src wf_src) -> bool -> (@imap ident_tgt wf_tgt) -> _ -> _ -> Prop)
-        (* (o : T wf_src) *)
         (ths_src : threads_src2 R0) (ths_tgt : threads_tgt R1)
         tid ps pt
         (THSRC : Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None)
@@ -1032,8 +1010,6 @@ Section ADEQ.
         (ms : @imap ident_src wf_src)
         (r_src : R0)
         (r_tgt : R1)
-        (* w w1 *)
-        (* (WORLD : world_le w w1) *)
         (RET : RR r_src r_tgt)
         (NILS : Th.is_empty (elt:=bool * thread _ident_src (sE state_src) R0) ths_src = true)
         (NILT : Th.is_empty (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt = true)
@@ -1116,28 +1092,11 @@ Section ADEQ.
                                    (sum_fmap_l
                                       (tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt))))) ->
                        forall ps pt : bool,
-                         upaco8
-                           (fun
-                               r : rel8 (threads_src2 R0) (fun _ : threads_src2 R0 => threads_tgt R1)
-                                        (fun (_ : threads_src2 R0) (_ : threads_tgt R1) => nat)
-                                        (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : nat) => bool)
-                                        (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : nat) (_ : bool) =>
-                                           bool)
-                                        (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : nat) (_ _ : bool)
-                                         => (bool * thread _ident_src (sE state_src) R0)%type)
-                                        (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                           (_ : nat) (_ _ : bool)
-                                           (_ : bool * thread _ident_src (sE state_src) R0) =>
-                                           thread _ident_tgt (sE state_tgt) R1)
-                                        (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                           (_ : nat) (_ _ : bool)
-                                           (_ : bool * thread _ident_src (sE state_src) R0)
-                                           (_ : thread _ident_tgt (sE state_tgt) R1) => shared) =>
-                               pind8 (__sim_knot RR r) top8) bot8 thsl0 thsr0 tid0 ps pt
-                           (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
-                           (TIdSet.remove tid (TIdSet.add tid (key_set ths_src)),
-                             TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)), ms, im_tgt0, st_src,
-                             st_tgt, o1, w1)) /\
+                         upaco8 (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl0 thsr0 tid0 ps pt
+                                (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
+                                (TIdSet.remove tid (TIdSet.add tid (key_set ths_src)),
+                                  TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)), ms, im_tgt0, st_src,
+                                  st_tgt, o1, w1)) /\
                     (b = false ->
                      forall im_tgt0 : imap wf_tgt,
                        fair_update mt im_tgt0
@@ -1148,29 +1107,11 @@ Section ADEQ.
                                      (sum_fmap_l
                                         (tids_fmap tid0 (TIdSet.remove tid (TIdSet.add tid (key_set ths_src))))) /\
                            (forall ps pt : bool,
-                               upaco8
-                                 (fun
-                                     r : rel8 (threads_src2 R0) (fun _ : threads_src2 R0 => threads_tgt R1)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) => nat)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : nat) => bool)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : nat) (_ : bool)
-                                               => bool)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                 (_ : nat) (_ _ : bool) =>
-                                                 (bool * thread _ident_src (sE state_src) R0)%type)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                 (_ : nat) (_ _ : bool)
-                                                 (_ : bool * thread _ident_src (sE state_src) R0) =>
-                                                 thread _ident_tgt (sE state_tgt) R1)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                 (_ : nat) (_ _ : bool)
-                                                 (_ : bool * thread _ident_src (sE state_src) R0)
-                                                 (_ : thread _ident_tgt (sE state_tgt) R1) => shared) =>
-                                     pind8 (__sim_knot RR r) top8) bot8 thsl0 thsr0 tid0 ps pt 
-                                 (b, th_src) th_tgt
-                                 (TIdSet.remove tid (TIdSet.add tid (key_set ths_src)),
-                                   TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)), im_src0, im_tgt0,
-                                   st_src, st_tgt, o1, w1)))))
+                               upaco8 (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl0 thsr0 tid0 ps pt 
+                                      (b, th_src) th_tgt
+                                      (TIdSet.remove tid (TIdSet.add tid (key_set ths_src)),
+                                        TIdSet.remove tid (TIdSet.add tid (key_set ths_tgt)), im_src0, im_tgt0,
+                                        st_src, st_tgt, o1, w1)))))
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
            (interp_all st_src (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)) tid)
@@ -1362,24 +1303,7 @@ Section ADEQ.
                                          (sum_fmap_l (tids_fmap tid0 (TIdSet.add tid (key_set ths_tgt)))) ->
                              forall ps pt : bool,
                                upaco8
-                                 (fun
-                                     r : rel8 (threads_src2 R0) (fun _ : threads_src2 R0 => threads_tgt R1)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) => nat)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : nat) => bool)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : nat) (_ : bool)
-                                               => bool)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                 (_ : nat) (_ _ : bool) =>
-                                                 (bool * thread _ident_src (sE state_src) R0)%type)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                 (_ : nat) (_ _ : bool)
-                                                 (_ : bool * thread _ident_src (sE state_src) R0) =>
-                                                 thread _ident_tgt (sE state_tgt) R1)
-                                              (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                 (_ : nat) (_ _ : bool)
-                                                 (_ : bool * thread _ident_src (sE state_src) R0)
-                                                 (_ : thread _ident_tgt (sE state_tgt) R1) => shared) =>
-                                     pind8 (__sim_knot RR r) top8) bot8 thsl1 thsr1 tid0 ps pt
+                                 (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl1 thsr1 tid0 ps pt
                                  (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
                                  (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt), ms,
                                    im_tgt0, st_src, st_tgt, o0, w0))) /\
@@ -1395,24 +1319,7 @@ Section ADEQ.
                                            (sum_fmap_l (tids_fmap tid0 (TIdSet.add tid (key_set ths_src)))) /\
                                  (forall ps pt : bool,
                                      upaco8
-                                       (fun
-                                           r : rel8 (threads_src2 R0) (fun _ : threads_src2 R0 => threads_tgt R1)
-                                                    (fun (_ : threads_src2 R0) (_ : threads_tgt R1) => nat)
-                                                    (fun (_ : threads_src2 R0) (_ : threads_tgt R1) (_ : nat) => bool)
-                                                    (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                       (_ : nat) (_ : bool) => bool)
-                                                    (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                       (_ : nat) (_ _ : bool) =>
-                                                       (bool * thread _ident_src (sE state_src) R0)%type)
-                                                    (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                       (_ : nat) (_ _ : bool)
-                                                       (_ : bool * thread _ident_src (sE state_src) R0) =>
-                                                       thread _ident_tgt (sE state_tgt) R1)
-                                                    (fun (_ : threads_src2 R0) (_ : threads_tgt R1) 
-                                                       (_ : nat) (_ _ : bool)
-                                                       (_ : bool * thread _ident_src (sE state_src) R0)
-                                                       (_ : thread _ident_tgt (sE state_tgt) R1) => shared) =>
-                                           pind8 (__sim_knot RR r) top8) bot8 thsl1 thsr1 tid0 ps pt 
+                                       (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl1 thsr1 tid0 ps pt 
                                        (b, th_src) th_tgt
                                        (TIdSet.add tid (key_set ths_src), TIdSet.add tid (key_set ths_tgt),
                                          im_src0, im_tgt0, st_src, st_tgt, o0, w0))))))
@@ -1649,6 +1556,10 @@ Section ADEQ.
       }
       eapply IH. eauto. all: auto.
     }
+
+    (*TODO*)
+
+    { 
 
   Admitted.
 

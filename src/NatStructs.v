@@ -7,9 +7,13 @@ From Coq Require Import
   Lists.List
   Lia.
 
-Require Import Coq.FSets.FSets Coq.FSets.FMaps Coq.Structures.OrderedTypeEx.
+Require Import Coq.Structures.OrderedTypeEx.
+Require Import Coq.FSets.FSets.
 Module NatSet := FSetList.Make(Nat_as_OT).
+Module NatSetP := WProperties_fun Nat_as_OT NatSet.
+Require Import Coq.FSets.FMaps.
 Module NatMap := FMapList.Make(Nat_as_OT).
+Module NatMapP := WProperties_fun Nat_as_OT NatMap.
 
 Set Implicit Arguments.
 
@@ -101,6 +105,7 @@ Section NATMAP.
 
 
 
+  Import FMapFacts.
   Import NatMap.
 
   Lemma In_MapsTo A k e (m : NatMap.t A) : List.In (k, e) (elements m) -> MapsTo k e m.
@@ -190,28 +195,100 @@ Section NATMAP.
     eapply Permutation_PermutationA; eauto.
   Qed.
 
+
+
+  Import NatMapP.
+  Variable elt: Type.
+
+  Lemma nm_find_add_eq
+        (m: t elt) k e
+    :
+    find k (add k e m) = Some e.
+  Proof.
+    eapply find_1. eapply add_1. auto.
+  Qed.
+
+  Lemma nm_find_add_neq
+        (m: t elt) k1 k2 e
+        (NEQ: k2 <> k1)
+    :
+    find k1 (add k2 e m) = find k1 m.
+  Proof.
+    match goal with | |- ?lhs = _ => destruct lhs eqn:FA end.
+    - pose (find_2 FA) as MT. pose (add_3 NEQ MT) as MT0. pose (find_1 MT0) as FA1. auto.
+    - match goal with | |- _ = ?rhs => destruct rhs eqn:FA1 end; auto.
+      pose (find_2 FA1) as MT. pose (add_2 e NEQ MT) as MT1. pose (find_1 MT1) as FA2. clarify.
+  Qed.
+
+  Lemma nm_add_add_eq
+        (m: t elt) k e1 e2
+    :
+    Equal (add k e2 (add k e1 m)) (add k e2 m).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify. eapply add_1; auto.
+      eapply add_2; eauto. eapply add_3 in H0; auto.
+    - eapply F.add_mapsto_iff in H. des; clarify. eapply add_1; auto.
+      eapply add_2; eauto. eapply add_2; eauto.
+  Qed.
+
+  Lemma nm_rm_add_eq
+        (m: t elt) k e1 e2
+    :
+    Equal (remove k (add k e1 m)) (remove k (add k e2 m)).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      eapply remove_2; eauto. eapply add_2; eauto. hexploit add_3; eauto.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      eapply remove_2; eauto. eapply add_2; eauto. hexploit add_3; eauto.
+  Qed.
+
 End NATMAP.
 
 
 
 Section AUX.
 
+  Import NatMap.
+
   Definition key_set {elt} : NatMap.t elt -> NatSet.t.
   Proof.
-    Import NatMap.
     intros [l SORTED]. unfold Raw.t in *.
     set (l' := List.map fst l).
     econs. instantiate (1 := l').
     unfold Raw.PX.ltk in *.
-
     assert (Sorted (fun x y => x < y) l').
     { induction SORTED.
       - subst l'. ss.
       - subst l'. ss. econs 2; ss.
         inv H; ss. econs; ss.
     }
-
     eapply NatSet.MSet.Raw.isok_iff. ss.
   Defined.
+
+  Lemma key_set_pull_add
+        elt (m: NatMap.t elt) e (s: NatSet.t) k
+    :
+    NatSet.Equal (key_set (NatMap.add k e m)) (NatSet.add k (key_set m)).
+  Proof.
+    split; i.
+    - 
+
+      destruct m as [m SRT]. revert_until m. induction m; i. ss.
+      
+      destruct (E.eq_dec a k); clarify.
+      + 
+NatSetP.FM.add_iff: forall (s : NatSet.t) (x y : NatSet.elt), NatSet.In y (NatSet.add x s) <-> x = y \/ NatSet.In y s
+E.eq_dec: forall x y : nat, {x = y} + {x <> y}
+    eapply NatSetP.equal_sym. eapply NatSetP.add_equal.
+NatSetP.add_equal: forall [s : NatSet.t] [x : NatSet.elt], NatSet.In x s -> NatSet.Equal (NatSet.add x s) s
+
+                match set_pop tid' (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths)))) with
+                match set_pop tid' (TIdSet.add tid (TIdSet.remove tid (key_set (Th.add tid itr ths)))) with
+                if TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths)))
+                if TIdSet.is_empty (TIdSet.remove tid (key_set (Th.add tid itr ths)))
+                 match set_pop tid' (TIdSet.remove tid (key_set (Th.add tid (Tau itr) ths))) with
+                 match set_pop tid' (TIdSet.remove tid (key_set (Th.add tid itr ths))) with
 
 End AUX.
