@@ -230,12 +230,13 @@ Section NATMAP.
 
 End NATMAP.
 
-
-
 Module NatSet.
   Definition t := NatMap.t unit.
   Definition add x m := @NatMap.add unit x tt m.
   Definition remove := @NatMap.remove unit.
+  Definition elements := @nm_proj1 unit.
+  Definition Empty := @NatMap.Empty unit.
+  Definition In := @NatMap.In unit.
 End NatSet.
 
 Section NATSET.
@@ -246,65 +247,69 @@ Section NATSET.
   (* Qed. *)
 
   (* Definition set_pop : NatSet.elt -> NatSet.t -> option NatSet.t := *)
+
   (*   fun x s => if NatSet.mem x s *)
   (*           then Some (NatSet.remove x s) *)
   (*           else None. *)
 
-  (* Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = []. *)
-  (* Proof. *)
-  (*   i. destruct s as [s OK]; ss. destruct s; ss. *)
-  (*   exfalso. eapply H. econs. ss. *)
-  (* Qed. *)
+  Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = [].
+  Proof.
+    i. destruct s as [s SORTED]; ss. destruct s; ss. 
+    exfalso. eapply H. econs. ss. 
+  Qed.
 
-  (* Lemma Empty_nil_neg s : ~ NatSet.Empty s -> NatSet.elements s <> []. *)
-  (* Proof. *)
-  (*   destruct s as [s SORTED]; ss. *)
-  (*   ii. subst. eapply H. ii. eapply InA_nil; eauto. *)
-  (* Qed. *)
+  Lemma Empty_nil_neg s : ~ NatSet.Empty s -> NatSet.elements s <> [].
+  Proof.
+    destruct s as [s SORTED]. ii.
+    eapply map_eq_nil in H0. ss. subst.
+    eapply H. ii. eapply InA_nil; eauto.
+  Qed.
 
-  (* Lemma NatSet_Permutation_remove x s l : *)
-  (*   Permutation (NatSet.elements s) (x :: l) -> Permutation (NatSet.elements (NatSet.remove x s)) l. *)
-  (* Proof. *)
-  (*   destruct s as [s SORTED]. ss. *)
-  (*   revert l. induction s; i. *)
-  (*   - eapply Permutation_length in H. ss. *)
-  (*   - assert (List.In a (x :: l)) by (rewrite <- H; econs; ss). *)
-  (*     destruct H0. *)
-  (*     + subst. eapply Permutation_cons_inv in H. ss. rewrite NatSet.MSet.Raw.MX.compare_refl. auto. *)
-  (*     + eapply Add_inv in H0. des. eapply Permutation_Add in H0. *)
-  (*       rewrite <- H0 in *. clear l H0. *)
-  (*       rewrite perm_swap in H. eapply Permutation_cons_inv in H. *)
-  (*       assert (List.In x s). *)
-  (*       { eapply Permutation_in. *)
-  (*         - symmetry. eapply H. *)
-  (*         - econs; ss. *)
-  (*       } *)
-  (*       eapply NatSet.MSet.Raw.isok_iff in SORTED. *)
-  (*       epose proof (Sorted_extends _ SORTED). *)
-  (*       eapply Forall_forall in H1; eauto. *)
-  (*       ss. pose (NatSet.MSet.Raw.MX.compare_gt_iff x a) as GT. ss. des. rewrite (GT0 H1). *)
-  (*       econs. eapply IHs; eauto. *)
-  (*       eapply NatSet.MSet.Raw.isok_iff. *)
-  (*       inv SORTED; ss. *)
-  (*       Unshelve. compute. lia. *)
-  (* Qed. *)
+  Lemma In_NatSetIn x s : In x (NatSet.elements s) -> NatSet.In x s.
+  Proof.
+    i. exists tt. unfold NatSet.elements, nm_proj1 in *. destruct s as [s SORTED]; ss. clear SORTED.
+    induction s; ss. destruct H.
+    - destruct a as [a []]; ss; subst. econs 1. econs; ss.
+    - econs 2. eapply IHs. ss.
+  Qed.
 
-  (* Lemma NatSet_Permutation_add x s l : *)
-  (*   ~ NatSet.In x s -> Permutation (NatSet.elements s) l -> Permutation (NatSet.elements (NatSet.add x s)) (x :: l). *)
-  (* Proof. *)
-  (*   destruct s as [s SORTED]. ss. revert l. induction s; intros l H1 H2. *)
-  (*   - rewrite <- H2. ss. *)
-  (*   - ss. assert (x = a \/ x < a \/ x > a) by lia. des. *)
-  (*     + exfalso. eapply H1. econs. ss. *)
-  (*     + pose (NatSet.MSet.Raw.MX.compare_lt_iff x a). ss. des. rewrite (i0 H). econs. ss. *)
-  (*     + pose (NatSet.MSet.Raw.MX.compare_gt_iff x a). ss. des. rewrite (i0 H). *)
-  (*       rewrite <- H2. rewrite perm_swap. econs. *)
-  (*       eapply IHs; eauto. *)
-  (*       unfold NatSet.In, NatSet.MSet.In in *. ss. *)
-  (*       intro. eapply H1. econs 2. eapply H0. *)
-  (*       Unshelve. clear H1. eapply NatSet.MSet.Raw.isok_iff in SORTED. inv SORTED. *)
-  (*       eapply NatSet.MSet.Raw.isok_iff. ss. *)
-  (* Qed. *)
+  Lemma NatSetIn_In x s : NatSet.In x s -> In x (NatSet.elements s).
+  Proof.
+    i. destruct s as [s SORTED]. destruct H. unfold NatSet.elements, nm_proj1. ss. clear SORTED.
+    induction H.
+    - econs 1. inv H. ss.
+    - econs 2. eapply IHInA.
+  Qed.
+
+  Lemma NatSet_In_MapsTo x s : NatSet.In x s -> NatMap.MapsTo x tt s.
+  Proof. unfold NatSet.In, NatMap.In, NatMap.Raw.PX.In. i. des. destruct e. ss.
+  Qed.
+
+  Lemma NatSet_Permutation_remove x s l :
+    Permutation (NatSet.elements s) (x :: l) -> Permutation (NatSet.elements (NatSet.remove x s)) l.
+  Proof.
+    unfold NatSet.elements, nm_proj1. intro H.
+    eapply Permutation_map with (f := fun x => (x, tt)) in H.
+    rewrite map_map in H. replace (fun x => (fst x, tt)) with (fun x : NatMap.key * unit => x) in H; cycle 1.
+    { extensionalities. destruct H0 as [a []]. ss. }
+    rewrite map_id in H. simpl in H.
+    eapply Permutation_remove in H.
+    eapply Permutation_map with (f := fst) in H.
+    rewrite map_map in H. simpl in H. rewrite map_id in H. ss.
+  Qed.
+
+  Lemma NatSet_Permutation_add x s l :
+    ~ NatSet.In x s -> Permutation (NatSet.elements s) l -> Permutation (NatSet.elements (NatSet.add x s)) (x :: l).
+  Proof.
+    unfold NatSet.elements, nm_proj1. intros H0 H.
+    eapply Permutation_map with (f := fun x => (x, tt)) in H.
+    rewrite map_map in H. replace (fun x => (fst x, tt)) with (fun x : NatMap.key * unit => x) in H; cycle 1.
+    { extensionalities. destruct H1 as [a []]. ss. }
+    rewrite map_id in H. simpl in H.
+    eapply Permutation_add in H; [| eapply H0 ].
+    eapply Permutation_map with (f := fst) in H. simpl in H.
+    rewrite map_map in H. rewrite map_id in H. eapply H.
+  Qed.
 
 End NATSET.
 
