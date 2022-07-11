@@ -644,6 +644,7 @@ Section ADEQ.
          tgt
          (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, w0)).
 
+  (*TODO*)
   Definition th_wf_pair {elt1 elt2} (m1: Th.t elt1) (m2: Th.t elt2) := key_set m1 = key_set m2.
 
   Lemma th_wf_pair_pop_cases

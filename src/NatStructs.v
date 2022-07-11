@@ -10,9 +10,6 @@ From Coq Require Import
   Lia.
 
 Require Import Coq.Structures.OrderedTypeEx.
-(* Require Import Coq.FSets.FSets. *)
-(* Module NatSet := FSetList.Make(Nat_as_OT). *)
-(* Module NatSetP := WProperties_fun Nat_as_OT NatSet. *)
 Require Import Coq.FSets.FMaps.
 Module NatMap := FMapList.Make(Nat_as_OT).
 Module NatMapP := WProperties_fun Nat_as_OT NatMap.
@@ -152,6 +149,23 @@ Section NATMAP.
       pose (find_2 FA1) as MT. pose (add_2 e NEQ MT) as MT1. pose (find_1 MT1) as FA2. clarify.
   Qed.
 
+  Lemma nm_find_rm_eq
+        (m: t elt) k
+    :
+    find k (remove k m) = None.
+  Proof.
+    eapply F.remove_eq_o; auto.
+  Qed.
+
+  Lemma nm_find_rm_neq
+        (m: t elt) k1 k2
+        (NEQ: k2 <> k1)
+    :
+    find k1 (remove k2 m) = find k1 m.
+  Proof.
+    eapply F.remove_neq_o; auto.
+  Qed.
+
   Lemma eqlistA_eq_key_elt_eq
         (this0 this1 : Raw.t elt)
         (EQLA: eqlistA (eq_key_elt (elt:=elt)) this0 this1)
@@ -228,6 +242,65 @@ Section NATMAP.
     (remove k (add k e1 m)) = (remove k (add k e2 m)).
   Proof. eapply nm_equal_is_eq. eapply nm_rm_add_equal. Qed.
 
+  Lemma nm_find_none_rm_add_equal
+        (m: t elt) k e
+        (FIND: find k m = None)
+    :
+    Equal (remove k (add k e m)) m.
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      erewrite F.add_neq_mapsto_iff in H0; eauto.
+    - destruct (F.eq_dec k0 k); clarify.
+      + eapply find_1 in H. clarify.
+      + eapply remove_2; auto. eapply add_2; auto.
+  Qed.
+  Lemma nm_find_none_rm_add_eq
+        (m: t elt) k e
+        (FIND: find k m = None)
+    :
+    (remove k (add k e m)) = m.
+  Proof. eapply nm_equal_is_eq, nm_find_none_rm_add_equal; auto. Qed.
+
+  Lemma nm_find_none_rm_equal
+        (m: t elt) k
+        (FIND: find k m = None)
+    :
+    Equal (remove k m) m.
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+    - destruct (F.eq_dec k0 k); clarify.
+      + eapply find_1 in H. clarify.
+      + eapply remove_2; auto.
+  Qed.
+  Lemma nm_find_none_rm_eq
+        (m: t elt) k
+        (FIND: find k m = None)
+    :
+    (remove k m) = m.
+  Proof. eapply nm_equal_is_eq, nm_find_none_rm_equal; auto. Qed.
+
+  Lemma nm_rm_add_rm_equal
+        (m: t elt) k e
+    :
+    Equal (remove k (add k e m)) (remove k m).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      erewrite F.add_neq_mapsto_iff in H0; eauto. eapply remove_2; eauto.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      eapply remove_2; eauto. eapply add_2; eauto.
+  Qed.
+  Lemma nm_rm_add_rm_eq
+        (m: t elt) k e
+    :
+    (remove k (add k e m)) = remove k m.
+  Proof. eapply nm_equal_is_eq, nm_rm_add_rm_equal; auto. Qed.
+
+
+
+
 End NATMAP.
 
 
@@ -238,7 +311,7 @@ Module NatSet.
   Definition remove := @NatMap.remove unit.
 End NatSet.
 
-Section NATSET.
+(* Section NATSET. *)
 
   (* Lemma ns_in_dec: forall n s, {NatSet.In n s} + {~ NatSet.In n s}. *)
   (* Proof. *)
@@ -306,18 +379,20 @@ Section NATSET.
   (*       eapply NatSet.MSet.Raw.isok_iff. ss. *)
   (* Qed. *)
 
-End NATSET.
+(* End NATSET. *)
 
 
 
 Section AUX.
 
-  Import NatMap.
-  Import NatMapP.
-
   Definition unit1 {E} : E -> unit := fun _ => tt.
   Definition key_set {elt} : NatMap.t elt -> NatSet.t :=
     fun m => NatMap.map unit1 m.
+
+  Definition nm_wf_pair {elt1 elt2} (m1: NatMap.t elt1) (m2: NatMap.t elt2) := key_set m1 = key_set m2.
+
+  Import NatMap.
+  Import NatMapP.
 
   (* Definition key_set {elt} : NatMap.t elt -> NatSet.t. *)
   (* Proof. *)
@@ -352,5 +427,21 @@ Section AUX.
     :
     (key_set (add k e m)) = (add k tt (key_set m)).
   Proof. eapply nm_equal_is_eq. eapply key_set_pull_add_equal. Qed.
+
+
+  Lemma th_wf_pair_pop_cases
+        R0 R1
+        (ths_src: threads_src2 R0)
+        (ths_tgt: threads_tgt R1)
+        (WF: th_wf_pair ths_src ths_tgt)
+    :
+    forall x, ((nm_pop x ths_src = None) /\ (nm_pop x ths_tgt = None)) \/
+           (exists th_src th_tgt ths_src0 ths_tgt0,
+               (nm_pop x ths_src = Some (th_src, ths_src0)) /\
+                 (nm_pop x ths_tgt = Some (th_tgt, ths_tgt0)) /\
+                 (th_wf_pair ths_src0 ths_tgt0)).
+  Proof.
+
+  Admitted.
 
 End AUX.
