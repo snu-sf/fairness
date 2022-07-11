@@ -519,6 +519,32 @@ Section AUX.
   Import NatMap.
   Import NatMapP.
 
+  Lemma nm_wf_pair_implies
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    nm_wf_pair_equal m1 m2.
+  Proof.
+    unfold nm_wf_pair , nm_wf_pair_equal in *. rewrite WF. reflexivity.
+  Qed.
+
+  Lemma nm_wf_pair_equal_sym
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    nm_wf_pair_equal m2 m1.
+  Proof.
+    unfold nm_wf_pair_equal in *. rewrite WF. reflexivity.
+  Qed.
+  Lemma nm_wf_pair_sym
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    nm_wf_pair m2 m1.
+  Proof.
+    unfold nm_wf_pair in *. rewrite WF. reflexivity.
+  Qed.
+
   (* Definition key_set {elt} : NatMap.t elt -> NatSet.t. *)
   (* Proof. *)
   (*   intros [l SORTED]. unfold Raw.t in *. *)
@@ -552,6 +578,42 @@ Section AUX.
     :
     (key_set (add k e m)) = (add k tt (key_set m)).
   Proof. eapply nm_eq_is_equal. eapply key_set_pull_add_equal. Qed.
+
+  Lemma key_set_find_none1
+        elt (m: NatMap.t elt) k
+        (FIND: find k m = None)
+    :
+    find k (key_set m) = None.
+  Proof.
+    unfold key_set. rewrite F.map_o. rewrite FIND. ss.
+  Qed.
+
+  Lemma key_set_find_none2
+        elt (m: NatMap.t elt) k
+        (FIND: find k (key_set m) = None)
+    :
+    find k m = None.
+  Proof.
+    unfold key_set in *. rewrite F.map_o in *. destruct (find k m); ss.
+  Qed.
+
+  Lemma key_set_find_some1
+        elt (m: NatMap.t elt) k e
+        (FIND: find k m = Some e)
+    :
+    find k (key_set m) = Some tt.
+  Proof.
+    unfold key_set. rewrite F.map_o. rewrite FIND. ss.
+  Qed.
+
+  Lemma key_set_find_some2
+        elt (m: NatMap.t elt) k
+        (FIND: find k (key_set m) = Some tt)
+    :
+    exists e, find k m = Some e.
+  Proof.
+    unfold key_set in *. rewrite F.map_o in *. destruct (find k m); ss. eauto.
+  Qed.
 
   Lemma nm_map_equal_equal
         elt (m1 m2: t elt) elt' (f: elt -> elt')
@@ -632,6 +694,24 @@ Section AUX.
     (add k (f e) (map f m1)) = (map f m2).
   Proof. eapply nm_eq_is_equal. eapply nm_map_add_equal. auto. Qed.
 
+  Lemma nm_wf_pair_equal_find_cases
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    forall k, (find k m1 = None -> find k m2 = None) /\ (~ (find k m1 = None) -> ~ (find k m2 = None)).
+  Proof.
+    unfold nm_wf_pair_equal in *. i. split; i.
+    - eapply key_set_find_none1 in H. eapply key_set_find_none2. rewrite <- WF. auto.
+    - ii; apply H; clear H.
+      eapply key_set_find_none1 in H0. eapply key_set_find_none2. rewrite WF. auto.
+  Qed.
+  Lemma nm_wf_pair_find_cases
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    forall k, (find k m1 = None -> find k m2 = None) /\ (~ (find k m1 = None) -> ~ (find k m2 = None)).
+  Proof. eapply nm_wf_pair_equal_find_cases. eapply nm_wf_pair_implies. auto. Qed.
+
   Lemma nm_wf_pair_equal_pop_cases
         elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
         (WF: nm_wf_pair_equal m1 m2)
@@ -642,12 +722,99 @@ Section AUX.
                  (nm_pop k m2 = Some (e2, m4)) /\
                  (nm_wf_pair_equal m3 m4)).
   Proof.
-    i. unfold nm_wf_pair_equal in *. unfold key_set in *. destruct (nm_pop k m1) eqn:POP1.
+    i. hexploit nm_wf_pair_equal_find_cases. eapply nm_wf_pair_equal_sym in WF. eauto.
+    hexploit nm_wf_pair_equal_find_cases; eauto. do 2 instantiate (1:=k). i. des.
+    unfold nm_wf_pair_equal in *. unfold key_set in *. destruct (nm_pop k m1) eqn:POP1.
     { destruct (nm_pop k m2) eqn:POP2.
-      { right. destruct p, p0. esplits; eauto.
+      { right. destruct p, p0. esplits; eauto. eapply nm_pop_res_is_rm_equal in POP1, POP2.
+        rewrite <- POP1, <- POP2. rewrite <- ! nm_map_rm_comm_equal. rewrite WF. reflexivity. }
+      eapply nm_pop_find_none in POP2. destruct p. eapply nm_pop_find_some in POP1.
+      apply H0 in POP2. clarify.
+    }
+    { destruct (nm_pop k m2) eqn:POP2.
+      { eapply nm_pop_find_none in POP1. destruct p. eapply nm_pop_find_some in POP2.
+        apply H in POP1. clarify. }
+      left; auto.
+    }
+  Qed.
+  Lemma nm_wf_pair_pop_cases
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    forall k, ((nm_pop k m1 = None) /\ (nm_pop k m2 = None)) \/
+           (exists e1 e2 m3 m4,
+               (nm_pop k m1 = Some (e1, m3)) /\
+                 (nm_pop k m2 = Some (e2, m4)) /\
+                 (nm_wf_pair m3 m4)).
+  Proof.
+    i. hexploit nm_wf_pair_equal_pop_cases. eapply nm_wf_pair_implies. eauto. i; des; eauto.
+    right. esplits; eauto. unfold nm_wf_pair, nm_wf_pair_equal in *. eapply nm_eq_is_equal. auto.
+  Qed.
 
-        eapply nm_map_equal_equal. rewrite <- nm_pop_res_is_rm_equal; eauto.
 
+  Lemma nm_map_empty1
+        elt1 (m: NatMap.t elt1) elt2 (f: elt1 -> elt2)
+        (EMP: Empty m)
+    :
+    Empty (map f m).
+  Proof.
+    rewrite elements_Empty in *. ss. unfold elements, Raw.elements in *. rewrite EMP. ss.
+  Qed.
 
-  nm_wf_pair_empty
+  Lemma nm_map_empty2
+        elt1 (m: NatMap.t elt1) elt2 (f: elt1 -> elt2)
+        (EMP: Empty (map f m))
+    :
+    Empty m.
+  Proof.
+    rewrite elements_Empty in *. ss. revert EMP. destruct m. induction this0; i; ss.
+    des_ifs.
+  Qed.
+
+  Lemma key_set_empty1
+        elt (m: NatMap.t elt)
+        (EMP: Empty m)
+    :
+    Empty (key_set m).
+  Proof. eapply nm_map_empty1; eauto. Qed.
+
+  Lemma key_set_empty2
+        elt (m: NatMap.t elt)
+        (EMP: Empty (key_set m))
+    :
+    Empty m.
+  Proof. eapply nm_map_empty2; eauto. Qed.
+
+  Lemma nm_wf_pair_equal_empty
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    Empty m1 <-> Empty m2.
+  Proof.
+    unfold nm_wf_pair_equal in *.
+    split; i.
+    - eapply key_set_empty2. rewrite <- WF. eapply key_set_empty1. auto.
+    - eapply key_set_empty2. rewrite WF. eapply key_set_empty1. auto.
+  Qed.
+  Lemma nm_wf_pair_empty
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    Empty m1 <-> Empty m2.
+  Proof. eapply nm_wf_pair_equal_empty. eapply nm_wf_pair_implies. auto. Qed.
+
+  Lemma nm_wf_pair_is_empty
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    is_empty m1 = is_empty m2.
+  Proof.
+    hexploit nm_wf_pair_equal_empty; eauto. i; des.
+    destruct (is_empty m1) eqn:EMP1.
+    - destruct (is_empty m2) eqn:EMP2; auto.
+      apply is_empty_2 in EMP1. apply H in EMP1. apply is_empty_1 in EMP1. clarify.
+    - destruct (is_empty m2) eqn:EMP2; auto.
+      apply is_empty_2 in EMP2. apply H0 in EMP2. apply is_empty_1 in EMP2. clarify.
+  Qed.
+
 End AUX.
