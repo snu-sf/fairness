@@ -127,6 +127,49 @@ Section NATMAP.
 
 
   Import NatMapP.
+
+  Lemma eqlistA_eq_key_elt_eq
+        elt (this0 this1 : Raw.t elt)
+        (EQLA: eqlistA (eq_key_elt (elt:=elt)) this0 this1)
+    :
+    this0 = this1.
+  Proof.
+    induction EQLA; ss.
+    destruct x, x'. unfold eq_key_elt, Raw.PX.eqke in *. des; ss; clarify.
+  Qed.
+
+  Lemma nm_eq_is_equal
+        elt (m1 m2: t elt)
+        (EQ: Equal m1 m2)
+    :
+    m1 = m2.
+  Proof.
+    destruct m1, m2.
+    assert (EQ1: this0 = this1).
+    { match goal with
+      | EQ: Equal ?lhs ?rhs |- _ => cut (forall k e, (MapsTo k e lhs) <-> (MapsTo k e rhs))
+      end.
+      2:{ i. rewrite EQ. auto. }
+      intro MT.
+      cut (eqlistA (@eq_key_elt elt) this0 this1).
+      2:{ eapply SortA_equivlistA_eqlistA; eauto.
+          eapply eqke_equiv. eapply Raw.PX.ltk_strorder.
+          { ii. unfold eq_key_elt, Raw.PX.eqke in *. des. destruct x, y, x0, y0; ss; clarify. }
+          match goal with
+          | EQ: Equal ?_lhs ?_rhs |- _ => remember _lhs as lhs; remember _rhs as rhs
+          end.
+          replace this0 with (elements lhs). replace this1 with (elements rhs).
+          2,3: clarify; ss.
+          split; i.
+          - destruct x. eapply elements_1. eapply MT. eapply elements_2; auto.
+          - destruct x. eapply elements_1. eapply MT. eapply elements_2; auto.
+      }
+      eapply eqlistA_eq_key_elt_eq; eauto.
+    }
+    revert sorted0 sorted1 EQ. rewrite EQ1. i.
+    rewrite (proof_irrelevance _ sorted0 sorted1). auto.
+  Qed.
+
   Variable elt: Type.
 
   Lemma nm_find_add_eq
@@ -166,48 +209,6 @@ Section NATMAP.
     eapply F.remove_neq_o; auto.
   Qed.
 
-  Lemma eqlistA_eq_key_elt_eq
-        (this0 this1 : Raw.t elt)
-        (EQLA: eqlistA (eq_key_elt (elt:=elt)) this0 this1)
-    :
-    this0 = this1.
-  Proof.
-    induction EQLA; ss.
-    destruct x, x'. unfold eq_key_elt, Raw.PX.eqke in *. des; ss; clarify.
-  Qed.
-
-  Lemma nm_equal_is_eq
-        (m1 m2: t elt)
-        (EQ: Equal m1 m2)
-    :
-    m1 = m2.
-  Proof.
-    destruct m1, m2.
-    assert (EQ1: this0 = this1).
-    { match goal with
-      | EQ: Equal ?lhs ?rhs |- _ => cut (forall k e, (MapsTo k e lhs) <-> (MapsTo k e rhs))
-      end.
-      2:{ i. rewrite EQ. auto. }
-      intro MT.
-      cut (eqlistA (@eq_key_elt elt) this0 this1).
-      2:{ eapply SortA_equivlistA_eqlistA; eauto.
-          eapply eqke_equiv. eapply Raw.PX.ltk_strorder.
-          { ii. unfold eq_key_elt, Raw.PX.eqke in *. des. destruct x, y, x0, y0; ss; clarify. }
-          match goal with
-          | EQ: Equal ?_lhs ?_rhs |- _ => remember _lhs as lhs; remember _rhs as rhs
-          end.
-          replace this0 with (elements lhs). replace this1 with (elements rhs).
-          2,3: clarify; ss.
-          split; i.
-          - destruct x. eapply elements_1. eapply MT. eapply elements_2; auto.
-          - destruct x. eapply elements_1. eapply MT. eapply elements_2; auto.
-      }
-      eapply eqlistA_eq_key_elt_eq; eauto.
-    }
-    revert sorted0 sorted1 EQ. rewrite EQ1. i.
-    rewrite (proof_irrelevance _ sorted0 sorted1). auto.
-  Qed.
-
   Lemma nm_add_add_equal
         (m: t elt) k e1 e2
     :
@@ -223,7 +224,7 @@ Section NATMAP.
         (m: t elt) k e1 e2
     :
     (add k e2 (add k e1 m)) = (add k e2 m).
-  Proof. eapply nm_equal_is_eq. eapply nm_add_add_equal. Qed.
+  Proof. eapply nm_eq_is_equal. eapply nm_add_add_equal. Qed.
 
   Lemma nm_rm_add_equal
         (m: t elt) k e1 e2
@@ -240,7 +241,7 @@ Section NATMAP.
         (m: t elt) k e1 e2
     :
     (remove k (add k e1 m)) = (remove k (add k e2 m)).
-  Proof. eapply nm_equal_is_eq. eapply nm_rm_add_equal. Qed.
+  Proof. eapply nm_eq_is_equal. eapply nm_rm_add_equal. Qed.
 
   Lemma nm_find_none_rm_add_equal
         (m: t elt) k e
@@ -260,7 +261,7 @@ Section NATMAP.
         (FIND: find k m = None)
     :
     (remove k (add k e m)) = m.
-  Proof. eapply nm_equal_is_eq, nm_find_none_rm_add_equal; auto. Qed.
+  Proof. eapply nm_eq_is_equal, nm_find_none_rm_add_equal; auto. Qed.
 
   Lemma nm_find_none_rm_equal
         (m: t elt) k
@@ -279,7 +280,26 @@ Section NATMAP.
         (FIND: find k m = None)
     :
     (remove k m) = m.
-  Proof. eapply nm_equal_is_eq, nm_find_none_rm_equal; auto. Qed.
+  Proof. eapply nm_eq_is_equal, nm_find_none_rm_equal; auto. Qed.
+
+  Lemma nm_find_some_add_equal
+        (m: t elt) k e
+        (FIND: find k m = Some e)
+    :
+    Equal (add k e m) m.
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify. eapply find_2; eauto.
+    - destruct (F.eq_dec k0 k); clarify.
+      + eapply find_1 in H. clarify. eapply add_1; auto.
+      + eapply add_2; auto.
+  Qed.
+  Lemma nm_find_some_add_eq
+        (m: t elt) k e
+        (FIND: find k m = Some e)
+    :
+    (add k e m) = m.
+  Proof. eapply nm_eq_is_equal, nm_find_some_add_equal; auto. Qed.
 
   Lemma nm_rm_add_rm_equal
         (m: t elt) k e
@@ -296,10 +316,114 @@ Section NATMAP.
         (m: t elt) k e
     :
     (remove k (add k e m)) = remove k m.
-  Proof. eapply nm_equal_is_eq, nm_rm_add_rm_equal; auto. Qed.
+  Proof. eapply nm_eq_is_equal, nm_rm_add_rm_equal; auto. Qed.
+
+  Lemma nm_rm_rm_equal
+        (m: t elt) k
+    :
+    Equal (remove k (remove k m)) (remove k m).
+  Proof.
+    eapply nm_find_none_rm_equal. eapply nm_find_rm_eq.
+  Qed.
+  Lemma nm_rm_rm_eq
+        (m: t elt) k
+    :
+    (remove k (remove k m)) = (remove k m).
+  Proof. eapply nm_eq_is_equal. eapply nm_rm_rm_equal. Qed.
+
+  Lemma nm_add_rm_equal
+        (m: t elt) k e
+    :
+    Equal (add k e (remove k m)) (add k e m).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply add_1; auto.
+      + eapply F.remove_mapsto_iff in H0. des; clarify. eapply add_2; eauto.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply add_1; eauto.
+      + eapply add_2; auto. eapply remove_2; auto.
+  Qed.
+  Lemma nm_add_rm_eq
+        (m: t elt) k e
+    :
+    (add k e (remove k m)) = add k e m.
+  Proof. eapply nm_eq_is_equal, nm_add_rm_equal; auto. Qed.
+
+  Lemma nm_find_none_add_rm_is_equal
+        (m1 m2: t elt) k e
+        (FIND: find k m1 = None)
+        (ADD: Equal (add k e m1) m2)
+    :
+    Equal m1 (remove k m2).
+  Proof.
+    rewrite <- ADD. rewrite nm_find_none_rm_add_equal; auto. reflexivity.
+  Qed.
+  Lemma nm_find_none_add_rm_is_eq
+        (m1 m2: t elt) k e
+        (FIND: find k m1 = None)
+        (ADD: (add k e m1) = m2)
+    :
+    m1 = (remove k m2).
+  Proof. eapply nm_eq_is_equal, nm_find_none_add_rm_is_equal; eauto. rewrite ADD. reflexivity. Qed.
 
 
+  Lemma nm_pop_find_some
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    find k m1 = Some e.
+  Proof.
+    unfold nm_pop in *. des_ifs.
+  Qed.
 
+  Lemma nm_pop_find_none
+        (m: t elt) k
+        (POP: nm_pop k m = None)
+    :
+    find k m = None.
+  Proof.
+    unfold nm_pop in *. des_ifs.
+  Qed.
+
+  Lemma nm_pop_res_find_none
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    find k m2 = None.
+  Proof.
+    unfold nm_pop in *. des_ifs. eapply nm_find_rm_eq.
+  Qed.
+
+  Lemma nm_pop_res_is_rm_equal
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    Equal (remove k m1) m2.
+  Proof.
+    unfold nm_pop in *. des_ifs.
+  Qed.
+  Lemma nm_pop_res_is_rm_eq
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    (remove k m1) = m2.
+  Proof. eapply nm_eq_is_equal. eapply nm_pop_res_is_rm_equal; eauto. Qed.
+
+  Lemma nm_pop_res_is_add_equal
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    Equal m1 (add k e m2).
+  Proof.
+    unfold nm_pop in *. des_ifs. rewrite nm_add_rm_equal. rewrite nm_find_some_add_equal; eauto. reflexivity.
+  Qed.
+  Lemma nm_pop_res_is_add_eq
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    m1 = (add k e m2).
+  Proof. eapply nm_eq_is_equal, nm_pop_res_is_add_equal; eauto. Qed.
 
 End NATMAP.
 
@@ -389,7 +513,8 @@ Section AUX.
   Definition key_set {elt} : NatMap.t elt -> NatSet.t :=
     fun m => NatMap.map unit1 m.
 
-  Definition nm_wf_pair {elt1 elt2} (m1: NatMap.t elt1) (m2: NatMap.t elt2) := key_set m1 = key_set m2.
+  Definition nm_wf_pair_equal {elt1 elt2} (m1: NatMap.t elt1) (m2: NatMap.t elt2) := NatMap.Equal (key_set m1) (key_set m2).
+  Definition nm_wf_pair {elt1 elt2} (m1: NatMap.t elt1) (m2: NatMap.t elt2) := (key_set m1) = (key_set m2).
 
   Import NatMap.
   Import NatMapP.
@@ -426,22 +551,103 @@ Section AUX.
         elt (m: NatMap.t elt) e k
     :
     (key_set (add k e m)) = (add k tt (key_set m)).
-  Proof. eapply nm_equal_is_eq. eapply key_set_pull_add_equal. Qed.
+  Proof. eapply nm_eq_is_equal. eapply key_set_pull_add_equal. Qed.
 
-
-  Lemma th_wf_pair_pop_cases
-        R0 R1
-        (ths_src: threads_src2 R0)
-        (ths_tgt: threads_tgt R1)
-        (WF: th_wf_pair ths_src ths_tgt)
+  Lemma nm_map_equal_equal
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        (RM: Equal m1 m2)
     :
-    forall x, ((nm_pop x ths_src = None) /\ (nm_pop x ths_tgt = None)) \/
-           (exists th_src th_tgt ths_src0 ths_tgt0,
-               (nm_pop x ths_src = Some (th_src, ths_src0)) /\
-                 (nm_pop x ths_tgt = Some (th_tgt, ths_tgt0)) /\
-                 (th_wf_pair ths_src0 ths_tgt0)).
+    Equal (map f m1) (map f m2).
+  Proof. rewrite RM. reflexivity. Qed.
+  Lemma nm_map_equal_eq
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        (RM: Equal m1 m2)
+    :
+    (map f m1) = (map f m2).
+  Proof. eapply nm_eq_is_equal, nm_map_equal_equal. auto. Qed.
+
+  Lemma nm_map_rm_comm_equal
+        elt (m: t elt) elt' (f: elt -> elt') k
+    :
+    Equal (remove k (map f m)) (map f (remove k m)).
   Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des. eapply F.map_mapsto_iff in H0. des; clarify.
+      eapply map_1. eapply remove_2; eauto.
+    - eapply F.map_mapsto_iff in H. des; clarify. eapply F.remove_mapsto_iff in H0. des.
+      eapply remove_2; auto. eapply map_1; auto.
+  Qed.
+  Lemma nm_map_rm_comm_eq
+        elt (m: t elt) elt' (f: elt -> elt') k
+    :
+    (remove k (map f m)) = (map f (remove k m)).
+  Proof. eapply nm_eq_is_equal, nm_map_rm_comm_equal. Qed.
 
-  Admitted.
+  Lemma nm_map_add_comm_equal
+        elt (m: t elt) elt' (f: elt -> elt') k e
+    :
+    Equal (add k (f e) (map f m)) (map f (add k e m)).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply map_1. eapply add_1; auto.
+      + eapply F.map_mapsto_iff in H0. des; clarify. eapply map_1. eapply add_2; eauto.
+    - eapply F.map_mapsto_iff in H. des; clarify. eapply F.add_mapsto_iff in H0. des; clarify.
+      + eapply add_1; auto.
+      + eapply add_2; auto. eapply map_1; auto.
+  Qed.
+  Lemma nm_map_add_comm_eq
+        elt (m: t elt) elt' (f: elt -> elt') k e
+    :
+    (add k (f e) (map f m)) = (map f (add k e m)).
+  Proof. eapply nm_eq_is_equal, nm_map_add_comm_equal. Qed.
 
+  Lemma nm_map_rm_equal
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        k
+        (RM: Equal (remove k m1) m2)
+    :
+    Equal (remove k (map f m1)) (map f m2).
+  Proof. rewrite nm_map_rm_comm_equal. eapply nm_map_equal_equal. auto. Qed.
+  Lemma nm_map_rm_eq
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        k
+        (RM: Equal (remove k m1) m2)
+    :
+    (remove k (map f m1)) = (map f m2).
+  Proof. eapply nm_eq_is_equal. eapply nm_map_rm_equal. auto. Qed.
+
+  Lemma nm_map_add_equal
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        k e
+        (RM: Equal (add k e m1) m2)
+    :
+    Equal (add k (f e) (map f m1)) (map f m2).
+  Proof. rewrite nm_map_add_comm_equal. eapply nm_map_equal_equal. auto. Qed.
+  Lemma nm_map_add_eq
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        k e
+        (RM: Equal (add k e m1) m2)
+    :
+    (add k (f e) (map f m1)) = (map f m2).
+  Proof. eapply nm_eq_is_equal. eapply nm_map_add_equal. auto. Qed.
+
+  Lemma nm_wf_pair_equal_pop_cases
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    forall k, ((nm_pop k m1 = None) /\ (nm_pop k m2 = None)) \/
+           (exists e1 e2 m3 m4,
+               (nm_pop k m1 = Some (e1, m3)) /\
+                 (nm_pop k m2 = Some (e2, m4)) /\
+                 (nm_wf_pair_equal m3 m4)).
+  Proof.
+    i. unfold nm_wf_pair_equal in *. unfold key_set in *. destruct (nm_pop k m1) eqn:POP1.
+    { destruct (nm_pop k m2) eqn:POP2.
+      { right. destruct p, p0. esplits; eauto.
+
+        eapply nm_map_equal_equal. rewrite <- nm_pop_res_is_rm_equal; eauto.
+
+
+  nm_wf_pair_empty
 End AUX.
