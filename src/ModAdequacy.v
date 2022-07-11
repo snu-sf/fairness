@@ -644,8 +644,8 @@ Section ADEQ.
          tgt
          (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, w0)).
 
-  (*TODO*)
-  Definition th_wf_pair {elt1 elt2} (m1: Th.t elt1) (m2: Th.t elt2) := key_set m1 = key_set m2.
+  (* Definition th_wf_pair {elt1 elt2} (m1: Th.t elt1) (m2: Th.t elt2) := key_set m1 = key_set m2. *)
+  Definition th_wf_pair {elt1 elt2} := @nm_wf_pair elt1 elt2.
 
   Lemma th_wf_pair_pop_cases
         R0 R1
@@ -659,8 +659,8 @@ Section ADEQ.
                  (nm_pop x ths_tgt = Some (th_tgt, ths_tgt0)) /\
                  (th_wf_pair ths_src0 ths_tgt0)).
   Proof.
-
-  Admitted.
+    eapply nm_wf_pair_pop_cases. eauto.
+  Qed.
 
   Lemma lsim_implies_ksim
         R0 R1 (RR: R0 -> R1 -> Prop)
@@ -721,28 +721,34 @@ Section ADEQ.
       destruct (Th.is_empty ths_src) eqn:EMPS.
       { destruct (Th.is_empty ths_tgt) eqn:EMPT.
         { pfold. eapply pind8_fold. econs 1; eauto. }
-        { exfalso. admit. }
+        { exfalso. erewrite nm_wf_pair_is_empty in EMPS; eauto. rewrite EMPT in EMPS. ss. }
       }
       { destruct (Th.is_empty ths_tgt) eqn:EMPT.
-        { exfalso. admit. }
+        { exfalso. erewrite nm_wf_pair_is_empty in EMPS; eauto. rewrite EMPT in EMPS. ss. }
         { pfold. eapply pind8_fold. econs 2; eauto. i.
           hexploit th_wf_pair_pop_cases.
           { eapply WF. }
           i. instantiate (1:=tid0) in H. des; auto.
           right. destruct th_src as [sf0 th_src].
           assert (FINDS: Th.find tid0 ths_src = Some (sf0, th_src)).
-          { admit. }
+          { eapply nm_pop_find_some; eauto. }
           assert (FINDT: Th.find tid0 ths_tgt = Some (th_tgt)).
-          { admit. }
+          { eapply nm_pop_find_some; eauto. }
           exists sf0, th_src, ths_src0, th_tgt, ths_tgt0.
           splits; auto.
           - i; clarify. 
             hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
             hexploit H2; clear H2 H3; ss. i. unfold local_sim_sync in H2.
             assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)).
-            { admit. }
+            { unfold NatSet.add, NatSet.remove in *. erewrite nm_rm_add_rm_eq. rewrite nm_find_none_rm_eq.
+              2:{ eapply key_set_find_none1. auto. }
+              erewrite <- key_set_pull_add_eq. erewrite <- nm_pop_res_is_add_eq; eauto.
+            }
             assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)).
-            { admit. }
+            { unfold NatSet.add, NatSet.remove in *. erewrite nm_rm_add_rm_eq. rewrite nm_find_none_rm_eq.
+              2:{ eapply key_set_find_none1. auto. }
+              erewrite <- key_set_pull_add_eq. erewrite <- nm_pop_res_is_add_eq; eauto.
+            }
             ss. rewrite PROJS, PROJT. right. eapply CIH.
             { i. hexploit LOCAL.
               3:{ i; des. split.
@@ -752,6 +758,7 @@ Section ADEQ.
                   { etransitivity; eauto. }
                   specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
               }
+              { (*TODO*) eapply nm_pop_res_is_add_eq in H. rewrite H. 
               1,2: admit.
             }
             1,2: admit.

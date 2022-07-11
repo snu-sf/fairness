@@ -803,7 +803,7 @@ Section AUX.
     Empty m1 <-> Empty m2.
   Proof. eapply nm_wf_pair_equal_empty. eapply nm_wf_pair_implies. auto. Qed.
 
-  Lemma nm_wf_pair_is_empty
+  Lemma nm_wf_pair_equal_is_empty
         elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
         (WF: nm_wf_pair_equal m1 m2)
     :
@@ -816,5 +816,11 @@ Section AUX.
     - destruct (is_empty m2) eqn:EMP2; auto.
       apply is_empty_2 in EMP2. apply H0 in EMP2. apply is_empty_1 in EMP2. clarify.
   Qed.
+  Lemma nm_wf_pair_is_empty
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    is_empty m1 = is_empty m2.
+  Proof. eapply nm_wf_pair_equal_is_empty. eapply nm_wf_pair_implies. auto. Qed.
 
 End AUX.
