@@ -662,6 +662,99 @@ Section ADEQ.
     eapply nm_wf_pair_pop_cases. eauto.
   Qed.
 
+
+  Lemma proj_aux
+        e tid tid0 elem
+        (ths ths0 : NatMap.t e)
+        (TH : Th.find (elt:=e) tid ths = None)
+        (H : nm_pop tid0 ths = Some (elem, ths0))
+    :
+    NatSet.remove tid (NatSet.add tid (key_set ths)) = NatSet.add tid0 (key_set ths0).
+  Proof.
+    unfold NatSet.add, NatSet.remove in *. erewrite nm_rm_add_rm_eq. rewrite nm_find_none_rm_eq.
+    2:{ eapply key_set_find_none1. auto. }
+    erewrite <- key_set_pull_add_eq. erewrite <- nm_pop_res_is_add_eq; eauto.
+  Qed.
+
+  Lemma find_some_aux
+        e tid0 tid1 elem0 elem1
+        (ths ths0: NatMap.t e)
+        (H : nm_pop tid0 ths = Some (elem0, ths0))
+        (LSRC : Th.find (elt:=e) tid1 ths0 = Some elem1)
+    :
+    Th.find (elt:=e) tid1 ths = Some elem1.
+  Proof.
+    eapply nm_pop_res_is_rm_eq in H. rewrite <- H in LSRC. rewrite NatMapP.F.remove_o in LSRC. des_ifs.
+  Qed.
+
+  Lemma find_none_aux
+        e tid0 elem0
+        (ths ths0: NatMap.t e)
+        (H : nm_pop tid0 ths = Some (elem0, ths0))
+    :
+    Th.find (elt:=e) tid0 ths0 = None.
+  Proof.
+    eapply nm_pop_res_is_rm_eq in H. rewrite <- H. apply nm_find_rm_eq.
+  Qed.
+
+  Lemma in_aux
+        e tid tid0 elem0
+        (ths ths0: NatMap.t e)
+        (H : nm_pop tid0 ths = Some (elem0, ths0))
+        (THSRC : Th.find (elt:=e) tid ths = None)
+    :
+    NatMap.In (elt:=()) tid0 (NatSet.remove tid (NatSet.add tid (key_set ths))).
+  Proof.
+    unfold NatSet.remove, NatSet.add in *. rewrite nm_find_none_rm_add_eq.
+    eapply nm_pop_find_some in H. eapply key_set_find_some1 in H. rewrite NatMapP.F.in_find_iff. ii; clarify.
+    eapply key_set_find_none1 in THSRC. auto.
+  Qed.
+
+  Lemma in_add_aux
+        e tid tid0 elem elem0
+        (ths ths0: NatMap.t e)
+        (H : nm_pop tid0 (Th.add tid elem ths) = Some (elem0, ths0))
+    :
+    NatMap.In tid0 (NatSet.add tid (key_set ths)).
+  Proof.
+    eapply nm_pop_find_some in H. eapply NatMapP.F.in_find_iff. eapply key_set_find_some1 in H.
+    rewrite key_set_pull_add_eq in H. unfold NatSet.add. rewrite H. ss.
+  Qed.
+
+  Lemma proj_add_aux
+        e tid tid0 elem elem0
+        (ths ths0 : NatMap.t e)
+        (H : nm_pop tid0 (Th.add tid elem ths) = Some (elem0, ths0))
+    :
+    NatSet.add tid (key_set ths) = NatSet.add tid0 (key_set ths0).
+  Proof.
+    eapply nm_pop_res_is_add_eq in H. unfold NatSet.add in *. erewrite <- ! key_set_pull_add_eq. erewrite H. eauto.
+  Qed.
+
+  Lemma find_some_neq_aux
+        e tid tid0 tid1 elem0 elem1 elem2
+        (ths ths0: NatMap.t e)
+        (H : nm_pop tid0 (Th.add tid elem0 ths) = Some (elem1, ths0))
+        (n0 : tid <> tid1)
+        (LSRC : Th.find (elt:=e) tid1 ths0 = Some elem2)
+    :
+    Th.find (elt:=e) tid1 ths = Some elem2.
+  Proof.
+    eapply nm_pop_res_is_rm_eq in H. rewrite <- H in LSRC. rewrite NatMapP.F.remove_o in LSRC. des_ifs.
+    rewrite nm_find_add_neq in LSRC; auto.
+  Qed.
+
+  Lemma find_some_neq_simpl_aux
+        e tid tid0 elem elem0
+        (ths ths0 : NatMap.t e)
+        (H : nm_pop tid0 (Th.add tid elem ths) = Some (elem0, ths0))
+        (n : tid <> tid0)
+    :
+    Th.find (elt:=e) tid0 ths = Some elem0.
+  Proof.
+    eapply nm_pop_find_some in H. rewrite nm_find_add_neq in H; auto.
+  Qed.
+
   Lemma lsim_implies_ksim
         R0 R1 (RR: R0 -> R1 -> Prop)
         (ths_src: threads_src2 R0)
@@ -740,15 +833,9 @@ Section ADEQ.
             hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
             hexploit H2; clear H2 H3; ss. i. unfold local_sim_sync in H2.
             assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)).
-            { unfold NatSet.add, NatSet.remove in *. erewrite nm_rm_add_rm_eq. rewrite nm_find_none_rm_eq.
-              2:{ eapply key_set_find_none1. auto. }
-              erewrite <- key_set_pull_add_eq. erewrite <- nm_pop_res_is_add_eq; eauto.
-            }
+            { eapply proj_aux; eauto. }
             assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)).
-            { unfold NatSet.add, NatSet.remove in *. erewrite nm_rm_add_rm_eq. rewrite nm_find_none_rm_eq.
-              2:{ eapply key_set_find_none1. auto. }
-              erewrite <- key_set_pull_add_eq. erewrite <- nm_pop_res_is_add_eq; eauto.
-            }
+            { eapply proj_aux; eauto. }
             ss. rewrite PROJS, PROJT. right. eapply CIH.
             { i. hexploit LOCAL.
               3:{ i; des. split.
@@ -758,21 +845,23 @@ Section ADEQ.
                   { etransitivity; eauto. }
                   specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
               }
-              { (*TODO*) eapply nm_pop_res_is_add_eq in H. rewrite H. 
-              1,2: admit.
+              eapply find_some_aux; eauto. eapply find_some_aux; eauto.
             }
-            1,2: admit.
+            eapply find_none_aux; eauto. eapply find_none_aux; eauto.
             auto.
-            rewrite <- PROJS, <- PROJT. eapply H2; eauto. 1,2: admit.
+            rewrite <- PROJS, <- PROJT. eapply H2; eauto.
+            eapply in_aux; eauto. eapply in_aux; eauto. 
 
           - i. clarify.
             hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
             hexploit H3; clear H2 H3; ss. i. unfold local_sim_pick in H2.
             assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)).
-            { admit. }
+            { eapply proj_aux; eauto. }
             assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)).
-            { admit. }
-            hexploit H2; eauto. 1,2: admit. i; des. esplits; eauto. i.
+            { eapply proj_aux; eauto. }
+            hexploit H2; eauto.
+            eapply in_aux; eauto. eapply in_aux; eauto.
+            i; des. esplits; eauto. i.
             rewrite PROJS, PROJT. right. eapply CIH.
             { i. hexploit LOCAL.
               3:{ i; des. split.
@@ -782,9 +871,9 @@ Section ADEQ.
                   { etransitivity; eauto. }
                   specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
               }
-              1,2: admit.
+              eapply find_some_aux; eauto. eapply find_some_aux; eauto.
             }
-            1,2: admit.
+            eapply find_none_aux; eauto. eapply find_none_aux; eauto.
             auto.
             rewrite <- PROJS, <- PROJT. eapply lsim_set_prog. eauto.
         }
@@ -864,7 +953,7 @@ Section ADEQ.
     { clear IH rr. clarify. rewrite ! bind_trigger.
       pfold. eapply pind8_fold. eapply ksim_sync; eauto. i.
       assert (WF0: th_wf_pair (Th.add tid (true, ktr_src ()) ths_src) (Th.add tid (ktr_tgt ()) ths_tgt)).
-      { admit. }
+      { unfold th_wf_pair, nm_wf_pair in *. rewrite ! key_set_pull_add_eq. rewrite WF. reflexivity. }
       hexploit th_wf_pair_pop_cases.
       { eapply WF0. }
       i. instantiate (1:=tid0) in H. des; auto.
@@ -873,16 +962,16 @@ Section ADEQ.
       splits; auto.
       - i; clarify. esplits; eauto. i.
         assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))).
-        { admit. }
+        { eapply proj_add_aux; eauto. }
         assert (PROJT: (NatSet.add tid (key_set ths_tgt)) = (NatSet.add tid0 (key_set ths_tgt0))).
-        { admit. }
+        { eapply proj_add_aux; eauto. }
         rewrite PROJS, PROJT.
         destruct (tid_dec tid tid0) eqn:TID; subst.
         { rename tid0 into tid.
           assert (ths_tgt0 = ths_tgt /\ th_tgt = (ktr_tgt ())).
-          { admit. }
+          { hexploit nm_pop_find_none_add_same_eq. eapply THTGT. eauto. i; des; clarify. }
           assert (ths_src0 = ths_src /\ th_src = (ktr_src ())).
-          { admit. }
+          { hexploit nm_pop_find_none_add_same_eq. eapply THSRC. eauto. i; des; clarify. }
           des; clarify. right. eapply CIH; eauto.
           { i. hexploit LOCAL. 1,2: eauto. i; des. split.
             2:{ eapply H3. }
@@ -902,15 +991,9 @@ Section ADEQ.
         right. eapply CIH.
         { i. destruct (tid_dec tid tid1) eqn:TID2; subst.
           { rename tid1 into tid.
-            assert (sf0 = true).
-            { admit. }
-            subst; split; i; ss. clear H2.
-            assert (src = ktr_src ()).
-            { admit. }
-            assert (tgt = ktr_tgt ()).
-            { admit. }
-            subst. ii.
-            hexploit LSIM0. eapply INV0. auto. eauto.
+            pose nm_pop_neq_find_some_eq. dup H. eapply e in H2; eauto. dup H0. eapply e in H3; eauto.
+            inv H2. split; i; ss. clear H2.
+            ii. hexploit LSIM0. eapply INV0. auto. eauto.
             i. pclearbot.
             match goal with
             | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
@@ -926,45 +1009,39 @@ Section ADEQ.
                 { etransitivity; eauto. }
                 specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
             }
-            1,2: admit.
+            eapply find_some_neq_aux; eauto. eapply find_some_neq_aux; eauto.
           }
         }
-        1,2: admit.
+        eapply find_none_aux; eauto. eapply find_none_aux; eauto.
         auto.
         hexploit LOCAL.
         3:{ i; des. hexploit H2; ss.
             intro SYNC. unfold local_sim_sync in SYNC.
             hexploit SYNC.
             3,4,5: eauto.
-            1,2: admit.
+            eapply in_add_aux; eauto. eapply in_add_aux; eauto.
             i. rewrite <- PROJS, <- PROJT. eauto.
         }
-        1,2: admit.
+        eapply find_some_neq_simpl_aux; eauto. eapply find_some_neq_simpl_aux; eauto.
 
       - i; clarify. destruct (tid_dec tid tid0) eqn:TID1.
-        { clarify. exfalso. admit. }
+        { clarify. exfalso. hexploit nm_pop_find_none_add_same_equal. eapply THSRC. eauto. i; des; clarify. }
         esplits; eauto. i.
         hexploit LOCAL.
         3:{ i; des. hexploit H3; ss. intro PICK. unfold local_sim_pick in PICK. hexploit PICK.
             3,4: eauto.
-            1,2: admit.
+            eapply in_add_aux; eauto. eapply in_add_aux; eauto.
             i; des. esplits; eauto.
             assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))).
-            { admit. }
+            { eapply proj_add_aux; eauto. }
             assert (PROJT: (NatSet.add tid (key_set ths_tgt)) = (NatSet.add tid0 (key_set ths_tgt0))).
-            { admit. }
+            { eapply proj_add_aux; eauto. }
             rewrite PROJS, PROJT. right. eapply CIH.
             { i. destruct (tid_dec tid tid1) eqn:TID2; subst.
               { rename tid1 into tid.
-                assert (sf0 = true).
-                { admit. }
-                subst; split; i; ss. clear H2.
-                assert (src = ktr_src ()).
-                { admit. }
-                assert (tgt = ktr_tgt ()).
-                { admit. }
-                subst. ii.
-                hexploit LSIM0. eapply INV0. auto. eauto.
+                pose nm_pop_neq_find_some_eq. dup H. eapply e in H6; eauto. dup H0. eapply e in H7; eauto.
+                inv H6. split; i; ss. clear H2.
+                ii. hexploit LSIM0. eapply INV0. auto. eauto.
                 i. pclearbot.
                 match goal with
                 | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
@@ -980,14 +1057,14 @@ Section ADEQ.
                     { etransitivity; eauto. }
                     specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
                 }
-                1,2: admit.
+                eapply find_some_neq_aux; eauto. eapply find_some_neq_aux; eauto.
               }
             }
-            1,2: admit.
+            eapply find_none_aux; eauto. eapply find_none_aux; eauto.
             auto.
             rewrite <- PROJS, <- PROJT. eapply lsim_set_prog. eauto.
         }
-        1,2: admit.
+        eapply find_some_neq_simpl_aux; eauto. eapply find_some_neq_simpl_aux; eauto.
     }
 
     { des. clarify. destruct LSIM as [LSIM0 IND]. clear LSIM0.
@@ -998,8 +1075,7 @@ Section ADEQ.
 
     { clarify. pclearbot. pfold. eapply pind8_fold. eapply ksim_progress. right. eapply CIH; eauto. }
 
-  Admitted.
-
+  Qed.
 
   Local Opaque Th.add Th.remove nm_pop.
 

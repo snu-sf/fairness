@@ -425,6 +425,47 @@ Section NATMAP.
     m1 = (add k e m2).
   Proof. eapply nm_eq_is_equal, nm_pop_res_is_add_equal; eauto. Qed.
 
+  Lemma nm_pop_find_none_add_same_equal
+        (m1 m2: t elt) k e1 e2
+        (FIND: find k m1 = None)
+        (POP: nm_pop k (add k e1 m1) = Some (e2, m2))
+    :
+    e1 = e2 /\ (Equal m1 m2).
+  Proof.
+    hexploit nm_pop_res_is_rm_equal; eauto. intro RM.
+    hexploit nm_pop_find_some; eauto. intro FIND2.
+    rewrite nm_find_add_eq in FIND2. inv FIND2. split; auto.
+    rewrite <- RM. rewrite nm_find_none_rm_add_equal; auto. reflexivity.
+  Qed.
+  Lemma nm_pop_find_none_add_same_eq
+        (m1 m2: t elt) k e1 e2
+        (FIND: find k m1 = None)
+        (POP: nm_pop k (add k e1 m1) = Some (e2, m2))
+    :
+    e1 = e2 /\ (m1 = m2).
+  Proof. hexploit nm_pop_find_none_add_same_equal; eauto. i; des. split; auto. eapply nm_eq_is_equal; auto. Qed.
+
+  Lemma nm_pop_neq_find_some
+        (m1 m2: t elt) k1 k2 e e0
+        (POP : nm_pop k2 (add k1 e m1) = Some (e0, m2))
+        (NEQ: k1 <> k2)
+    :
+    find k1 m2 = Some e.
+  Proof.
+    hexploit nm_pop_res_is_rm_equal; eauto. i. rewrite <- H. rewrite F.remove_neq_o; auto. apply nm_find_add_eq.
+  Qed.
+
+  Lemma nm_pop_neq_find_some_eq
+        (m1 m2: t elt) k1 k2 e e0 e1
+        (POP : nm_pop k2 (add k1 e m1) = Some (e0, m2))
+        (NEQ: k1 <> k2)
+        (FIND: find k1 m2 = Some e1)
+    :
+    e1 = e.
+  Proof.
+    hexploit nm_pop_neq_find_some; eauto. i. clarify.
+  Qed.
+
 End NATMAP.
 
 
