@@ -33,7 +33,7 @@ Section SIM.
   Theorem ssim_nondet_fifo
     p_src p_tgt tid ths_src ths_tgt
     (THREADS : Permutation (TIdSet.elements ths_src) ths_tgt)
-    (TID : ~ TIdSet.In tid ths_src)
+    (TID : ~ NatMap.In tid ths_src)
     : forall m_tgt, exists m_src, @ssim nat_wf nat_wf R R R eq p_src m_src p_tgt m_tgt
                           (sched_nondet R (tid, ths_src))
                           (sched_fifo R (tid, ths_tgt)).
@@ -55,21 +55,21 @@ Section SIM.
     rewrite ! bind_trigger.
     pfold. econs. intros [].
     - left.
-      destruct (TIdSet.is_empty ths_src) eqn: H.
-      + eapply TIdSet.is_empty_2 in H.
+      destruct (NatMap.is_empty ths_src) eqn: H.
+      + eapply NatMap.is_empty_2 in H.
         eapply Empty_nil in H.
         rewrite H in THREADS.
         eapply Permutation_nil in THREADS.
         subst ths_tgt.
         pfold. econs; ss.
       + assert (~ TIdSet.Empty ths_src).
-        { ii. eapply TIdSet.is_empty_1 in H0. rewrite H in H0; ss. }
+        { ii. eapply NatMap.is_empty_1 in H0. rewrite H in H0; ss. }
         clear H. eapply Empty_nil_neg in H0.
         destruct ths_tgt as [| tid' ths_tgt' ].
         { symmetry in THREADS. eapply Permutation_nil in THREADS. ss. }
-        pfold. eapply ssim_chooseL. exists tid'. unfold set_pop.
-        replace (TIdSet.mem tid' ths_src) with true; cycle 1.
-        { symmetry. eapply TIdSet.mem_1. eapply In_InA; eauto.
+        pfold. eapply ssim_chooseL. exists tid'. unfold nm_pop.
+        replace (NatMap.find tid' ths_src) with (Some tt); cycle 1.
+        { symmetry. eapply find_1. eapply NatSet_In_MapsTo. eapply In_NatSetIn.
           rewrite THREADS. econs; ss.
         }
         rewrite bind_trigger.
@@ -82,7 +82,7 @@ Section SIM.
           replace (i =? tid')%nat with false by (symmetry; eapply Nat.eqb_neq; eauto).
           des_if.
           - assert (List.In i (TIdSet.elements ths_src)).
-            { eapply InA_In. eapply TIdSet.remove_3. eapply i0. }
+            { eapply NatSetIn_In. eapply NatMapP.F.remove_neq_in_iff with (x := tid'). eauto. ss. }
             rewrite THREADS in H.
             eapply In_nth_error in H. destruct H as [i' H].
             enough (m_src i > i') by lia.
@@ -91,7 +91,7 @@ Section SIM.
         }
         do 3 econs; eauto. right. eapply CIH.
         * eapply NatSet_Permutation_remove. eapply THREADS.
-        * eapply TIdSet.remove_1; ss.
+        * eapply NatMap.remove_1; ss.
         * subst. replace (tid' =? tid')%nat with true by (symmetry; eapply Nat.eqb_refl). lia.
         * subst. i. des_if.
           -- eapply nth_error_Some' in H. lia.
@@ -104,12 +104,14 @@ Section SIM.
                                           end)] => destruct x as [| tid' ths_tgt'] eqn: E_ths_tgt
       end.
       { eapply app_eq_nil in E_ths_tgt. des. ss. }
-      pfold. eapply ssim_chooseL. exists tid'. unfold set_pop.
-      replace (TIdSet.mem tid' (TIdSet.add tid ths_src)) with true; cycle 1.
-      { symmetry. eapply TIdSet.mem_1.
+      pfold. eapply ssim_chooseL. exists tid'. unfold nm_pop.
+      replace (NatMap.find tid' (TIdSet.add tid ths_src)) with (Some tt); cycle 1.
+      { symmetry. eapply find_1.
         destruct ths_tgt; ss; inversion E_ths_tgt; subst.
-        - eapply TIdSet.add_1; ss.
-        - eapply TIdSet.add_2. eapply In_InA; eauto. rewrite THREADS. econs; ss.
+        - eapply NatMap.add_1; ss.
+        - eapply NatMap.add_2.
+          + intro. subst. eapply TID. eapply In_NatSetIn. rewrite THREADS. econs; ss.
+          + eapply NatSet_In_MapsTo. eapply In_NatSetIn. rewrite THREADS. econs; ss. 
       }
       rewrite bind_trigger. eapply ssim_fairL.
       remember (fun i => if Nat.eqb i tid'
@@ -120,24 +122,24 @@ Section SIM.
         replace (i =? tid')%nat with false by (symmetry; eapply Nat.eqb_neq; eauto).
         des_if.
         - assert (List.In i (TIdSet.elements (TIdSet.add tid ths_src))).
-          { eapply InA_In. eapply TIdSet.remove_3. eapply i0. }
+          { eapply NatSetIn_In. eapply NatSet_In_MapsTo, NatMap.remove_3 in i0. exists tt. ss. }
           assert (i = tid \/ i <> tid) by lia.
           destruct H0.
           + subst. lia.
           + assert (List.In i (TIdSet.elements ths_src)).
-            { eapply InA_In. eapply TIdSet.add_3; eauto. eapply In_InA; eauto. }
+            { eapply NatSetIn_In. exists tt. eapply NatMap.add_3; eauto. eapply NatSet_In_MapsTo, In_NatSetIn, H. }
             rewrite THREADS in H1. eapply In_nth_error in H1. destruct H1 as [i' H1].
             enough (m_src i > i') by lia.
             eapply M_SRC1; eauto.
         - unfold le; ss. lia.
       }
-      do 3 econs; ss. right. unfold TIdSet.elt in *. eapply CIH.
+      do 3 econs; ss. right. unfold NatMap.key in *. eapply CIH.
       + eapply NatSet_Permutation_remove.
         rewrite NatSet_Permutation_add.
         * eapply Permutation_refl' in E_ths_tgt. rewrite Permutation_app_comm in E_ths_tgt. eapply E_ths_tgt.
         * intro H. eapply TID. eapply H.
         * ss.
-      + eapply TIdSet.remove_1; ss.
+      + eapply NatMap.remove_1; ss.
       + subst. replace (tid' =? tid')%nat with true by (symmetry; eapply Nat.eqb_refl). lia.
       + subst. i. des_if.
         * eapply nth_error_Some' in H. lia.
@@ -152,7 +154,7 @@ Section SIM.
              rewrite H2 in H0. inversion H0. subst. lia.
   Qed.
 
-  Theorem sched_sim p_src p_tgt tid st (ths : @threads _Ident (sE State) R)
+  Theorem gsim_nondet_fifo p_src p_tgt tid st (ths : @threads _Ident (sE State) R)
     : gsim nat_wf nat_wf eq p_src p_tgt
         (interp_all st ths tid)
         (interp_all_fifo st ths tid).
@@ -160,7 +162,7 @@ Section SIM.
          { ii; unfold lt in *; ss; lia. }
          { instantiate (1 := fun x => x). ss. }
          eapply ssim_nondet_fifo; ss.
-         eapply TIdSet.remove_1; ss.
+         eapply NatMap.remove_1; ss.
   Qed.
 
 End SIM.

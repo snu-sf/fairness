@@ -10,8 +10,7 @@ Require Import Lia.
 From Fairness Require Import
   Mod
   FairSim
-  Concurrency
-  FIFOSched.
+  Concurrency.
 From ExtLib Require Import FMapAList.
 
 Set Implicit Arguments.
