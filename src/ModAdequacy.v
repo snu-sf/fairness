@@ -1285,7 +1285,7 @@ Section ADEQ.
         assert (RA3: (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0))))) = key_set (nm_proj_v2 ths_src)).
         { rewrite key_set_pull_add_eq. unfold NatSet.add, NatSet.remove, nm_proj_v2, key_set.
           rewrite nm_add_rm_eq. rewrite nm_add_add_eq. apply nm_pop_res_is_add_eq in KSIM0. rewrite KSIM0.
-          rewrite <- 2 nm_map_add_comm_eq. ss.}
+          rewrite <- 2 nm_map_add_comm_eq. ss. }
         rewrite RA3. ss.
       }
       rewrite CHANGE; clear CHANGE.
