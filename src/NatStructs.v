@@ -10,9 +10,6 @@ From Coq Require Import
   Lia.
 
 Require Import Coq.Structures.OrderedTypeEx.
-(* Require Import Coq.FSets.FSets. *)
-(* Module NatSet := FSetList.Make(Nat_as_OT). *)
-(* Module NatSetP := WProperties_fun Nat_as_OT NatSet. *)
 Require Import Coq.FSets.FMaps.
 Module NatMap := FMapList.Make(Nat_as_OT).
 Module NatMapP := WProperties_fun Nat_as_OT NatMap.
@@ -130,30 +127,9 @@ Section NATMAP.
 
 
   Import NatMapP.
-  Variable elt: Type.
-
-  Lemma nm_find_add_eq
-        (m: t elt) k e
-    :
-    find k (add k e m) = Some e.
-  Proof.
-    eapply find_1. eapply add_1. auto.
-  Qed.
-
-  Lemma nm_find_add_neq
-        (m: t elt) k1 k2 e
-        (NEQ: k2 <> k1)
-    :
-    find k1 (add k2 e m) = find k1 m.
-  Proof.
-    match goal with | |- ?lhs = _ => destruct lhs eqn:FA end.
-    - pose (find_2 FA) as MT. pose (add_3 NEQ MT) as MT0. pose (find_1 MT0) as FA1. auto.
-    - match goal with | |- _ = ?rhs => destruct rhs eqn:FA1 end; auto.
-      pose (find_2 FA1) as MT. pose (add_2 e NEQ MT) as MT1. pose (find_1 MT1) as FA2. clarify.
-  Qed.
 
   Lemma eqlistA_eq_key_elt_eq
-        (this0 this1 : Raw.t elt)
+        elt (this0 this1 : Raw.t elt)
         (EQLA: eqlistA (eq_key_elt (elt:=elt)) this0 this1)
     :
     this0 = this1.
@@ -162,8 +138,8 @@ Section NATMAP.
     destruct x, x'. unfold eq_key_elt, Raw.PX.eqke in *. des; ss; clarify.
   Qed.
 
-  Lemma nm_equal_is_eq
-        (m1 m2: t elt)
+  Lemma nm_eq_is_equal
+        elt (m1 m2: t elt)
         (EQ: Equal m1 m2)
     :
     m1 = m2.
@@ -194,6 +170,45 @@ Section NATMAP.
     rewrite (proof_irrelevance _ sorted0 sorted1). auto.
   Qed.
 
+  Variable elt: Type.
+
+  Lemma nm_find_add_eq
+        (m: t elt) k e
+    :
+    find k (add k e m) = Some e.
+  Proof.
+    eapply find_1. eapply add_1. auto.
+  Qed.
+
+  Lemma nm_find_add_neq
+        (m: t elt) k1 k2 e
+        (NEQ: k2 <> k1)
+    :
+    find k1 (add k2 e m) = find k1 m.
+  Proof.
+    match goal with | |- ?lhs = _ => destruct lhs eqn:FA end.
+    - pose (find_2 FA) as MT. pose (add_3 NEQ MT) as MT0. pose (find_1 MT0) as FA1. auto.
+    - match goal with | |- _ = ?rhs => destruct rhs eqn:FA1 end; auto.
+      pose (find_2 FA1) as MT. pose (add_2 e NEQ MT) as MT1. pose (find_1 MT1) as FA2. clarify.
+  Qed.
+
+  Lemma nm_find_rm_eq
+        (m: t elt) k
+    :
+    find k (remove k m) = None.
+  Proof.
+    eapply F.remove_eq_o; auto.
+  Qed.
+
+  Lemma nm_find_rm_neq
+        (m: t elt) k1 k2
+        (NEQ: k2 <> k1)
+    :
+    find k1 (remove k2 m) = find k1 m.
+  Proof.
+    eapply F.remove_neq_o; auto.
+  Qed.
+
   Lemma nm_add_add_equal
         (m: t elt) k e1 e2
     :
@@ -209,7 +224,7 @@ Section NATMAP.
         (m: t elt) k e1 e2
     :
     (add k e2 (add k e1 m)) = (add k e2 m).
-  Proof. eapply nm_equal_is_eq. eapply nm_add_add_equal. Qed.
+  Proof. eapply nm_eq_is_equal. eapply nm_add_add_equal. Qed.
 
   Lemma nm_rm_add_equal
         (m: t elt) k e1 e2
@@ -226,7 +241,238 @@ Section NATMAP.
         (m: t elt) k e1 e2
     :
     (remove k (add k e1 m)) = (remove k (add k e2 m)).
-  Proof. eapply nm_equal_is_eq. eapply nm_rm_add_equal. Qed.
+  Proof. eapply nm_eq_is_equal. eapply nm_rm_add_equal. Qed.
+
+  Lemma nm_find_none_rm_add_equal
+        (m: t elt) k e
+        (FIND: find k m = None)
+    :
+    Equal (remove k (add k e m)) m.
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      erewrite F.add_neq_mapsto_iff in H0; eauto.
+    - destruct (F.eq_dec k0 k); clarify.
+      + eapply find_1 in H. clarify.
+      + eapply remove_2; auto. eapply add_2; auto.
+  Qed.
+  Lemma nm_find_none_rm_add_eq
+        (m: t elt) k e
+        (FIND: find k m = None)
+    :
+    (remove k (add k e m)) = m.
+  Proof. eapply nm_eq_is_equal, nm_find_none_rm_add_equal; auto. Qed.
+
+  Lemma nm_find_none_rm_equal
+        (m: t elt) k
+        (FIND: find k m = None)
+    :
+    Equal (remove k m) m.
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+    - destruct (F.eq_dec k0 k); clarify.
+      + eapply find_1 in H. clarify.
+      + eapply remove_2; auto.
+  Qed.
+  Lemma nm_find_none_rm_eq
+        (m: t elt) k
+        (FIND: find k m = None)
+    :
+    (remove k m) = m.
+  Proof. eapply nm_eq_is_equal, nm_find_none_rm_equal; auto. Qed.
+
+  Lemma nm_find_some_add_equal
+        (m: t elt) k e
+        (FIND: find k m = Some e)
+    :
+    Equal (add k e m) m.
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify. eapply find_2; eauto.
+    - destruct (F.eq_dec k0 k); clarify.
+      + eapply find_1 in H. clarify. eapply add_1; auto.
+      + eapply add_2; auto.
+  Qed.
+  Lemma nm_find_some_add_eq
+        (m: t elt) k e
+        (FIND: find k m = Some e)
+    :
+    (add k e m) = m.
+  Proof. eapply nm_eq_is_equal, nm_find_some_add_equal; auto. Qed.
+
+  Lemma nm_rm_add_rm_equal
+        (m: t elt) k e
+    :
+    Equal (remove k (add k e m)) (remove k m).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      erewrite F.add_neq_mapsto_iff in H0; eauto. eapply remove_2; eauto.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      eapply remove_2; eauto. eapply add_2; eauto.
+  Qed.
+  Lemma nm_rm_add_rm_eq
+        (m: t elt) k e
+    :
+    (remove k (add k e m)) = remove k m.
+  Proof. eapply nm_eq_is_equal, nm_rm_add_rm_equal; auto. Qed.
+
+  Lemma nm_rm_rm_equal
+        (m: t elt) k
+    :
+    Equal (remove k (remove k m)) (remove k m).
+  Proof.
+    eapply nm_find_none_rm_equal. eapply nm_find_rm_eq.
+  Qed.
+  Lemma nm_rm_rm_eq
+        (m: t elt) k
+    :
+    (remove k (remove k m)) = (remove k m).
+  Proof. eapply nm_eq_is_equal. eapply nm_rm_rm_equal. Qed.
+
+  Lemma nm_add_rm_equal
+        (m: t elt) k e
+    :
+    Equal (add k e (remove k m)) (add k e m).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply add_1; auto.
+      + eapply F.remove_mapsto_iff in H0. des; clarify. eapply add_2; eauto.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply add_1; eauto.
+      + eapply add_2; auto. eapply remove_2; auto.
+  Qed.
+  Lemma nm_add_rm_eq
+        (m: t elt) k e
+    :
+    (add k e (remove k m)) = add k e m.
+  Proof. eapply nm_eq_is_equal, nm_add_rm_equal; auto. Qed.
+
+  Lemma nm_find_none_add_rm_is_equal
+        (m1 m2: t elt) k e
+        (FIND: find k m1 = None)
+        (ADD: Equal (add k e m1) m2)
+    :
+    Equal m1 (remove k m2).
+  Proof.
+    rewrite <- ADD. rewrite nm_find_none_rm_add_equal; auto. reflexivity.
+  Qed.
+  Lemma nm_find_none_add_rm_is_eq
+        (m1 m2: t elt) k e
+        (FIND: find k m1 = None)
+        (ADD: (add k e m1) = m2)
+    :
+    m1 = (remove k m2).
+  Proof. eapply nm_eq_is_equal, nm_find_none_add_rm_is_equal; eauto. rewrite ADD. reflexivity. Qed.
+
+
+  Lemma nm_pop_find_some
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    find k m1 = Some e.
+  Proof.
+    unfold nm_pop in *. des_ifs.
+  Qed.
+
+  Lemma nm_pop_find_none
+        (m: t elt) k
+        (POP: nm_pop k m = None)
+    :
+    find k m = None.
+  Proof.
+    unfold nm_pop in *. des_ifs.
+  Qed.
+
+  Lemma nm_pop_res_find_none
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    find k m2 = None.
+  Proof.
+    unfold nm_pop in *. des_ifs. eapply nm_find_rm_eq.
+  Qed.
+
+  Lemma nm_pop_res_is_rm_equal
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    Equal (remove k m1) m2.
+  Proof.
+    unfold nm_pop in *. des_ifs.
+  Qed.
+  Lemma nm_pop_res_is_rm_eq
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    (remove k m1) = m2.
+  Proof. eapply nm_eq_is_equal. eapply nm_pop_res_is_rm_equal; eauto. Qed.
+
+  Lemma nm_pop_res_is_add_equal
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    Equal m1 (add k e m2).
+  Proof.
+    unfold nm_pop in *. des_ifs. rewrite nm_add_rm_equal. rewrite nm_find_some_add_equal; eauto. reflexivity.
+  Qed.
+  Lemma nm_pop_res_is_add_eq
+        (m1 m2: t elt) k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    m1 = (add k e m2).
+  Proof. eapply nm_eq_is_equal, nm_pop_res_is_add_equal; eauto. Qed.
+
+  Lemma nm_pop_find_none_add_same_equal
+        (m1 m2: t elt) k e1 e2
+        (FIND: find k m1 = None)
+        (POP: nm_pop k (add k e1 m1) = Some (e2, m2))
+    :
+    e1 = e2 /\ (Equal m1 m2).
+  Proof.
+    hexploit nm_pop_res_is_rm_equal; eauto. intro RM.
+    hexploit nm_pop_find_some; eauto. intro FIND2.
+    rewrite nm_find_add_eq in FIND2. inv FIND2. split; auto.
+    rewrite <- RM. rewrite nm_find_none_rm_add_equal; auto. reflexivity.
+  Qed.
+  Lemma nm_pop_find_none_add_same_eq
+        (m1 m2: t elt) k e1 e2
+        (FIND: find k m1 = None)
+        (POP: nm_pop k (add k e1 m1) = Some (e2, m2))
+    :
+    e1 = e2 /\ (m1 = m2).
+  Proof. hexploit nm_pop_find_none_add_same_equal; eauto. i; des. split; auto. eapply nm_eq_is_equal; auto. Qed.
+
+  Lemma nm_pop_neq_find_some
+        (m1 m2: t elt) k1 k2 e e0
+        (POP : nm_pop k2 (add k1 e m1) = Some (e0, m2))
+        (NEQ: k1 <> k2)
+    :
+    find k1 m2 = Some e.
+  Proof.
+    hexploit nm_pop_res_is_rm_equal; eauto. i. rewrite <- H. rewrite F.remove_neq_o; auto. apply nm_find_add_eq.
+  Qed.
+
+  Lemma nm_pop_neq_find_some_eq
+        (m1 m2: t elt) k1 k2 e e0 e1
+        (POP : nm_pop k2 (add k1 e m1) = Some (e0, m2))
+        (NEQ: k1 <> k2)
+        (FIND: find k1 m2 = Some e1)
+    :
+    e1 = e.
+  Proof.
+    hexploit nm_pop_neq_find_some; eauto. i. clarify.
+  Qed.
+
+  Lemma nm_pop_add_eq
+        (m: t elt) k e
+    :
+    nm_pop k (add k e m) = Some (e, remove k m).
+  Proof.
+    unfold nm_pop. rewrite nm_find_add_eq. rewrite nm_rm_add_rm_eq. auto.
+  Qed.
 
 End NATMAP.
 
@@ -239,7 +485,7 @@ Module NatSet.
   Definition In := @NatMap.In unit.
 End NatSet.
 
-Section NATSET.
+(* Section NATSET. *)
 
   (* Lemma ns_in_dec: forall n s, {NatSet.In n s} + {~ NatSet.In n s}. *)
   (* Proof. *)
@@ -311,18 +557,47 @@ Section NATSET.
     rewrite map_map in H. rewrite map_id in H. eapply H.
   Qed.
 
-End NATSET.
+(* End NATSET. *)
 
 
 
 Section AUX.
 
-  Import NatMap.
-  Import NatMapP.
-
   Definition unit1 {E} : E -> unit := fun _ => tt.
   Definition key_set {elt} : NatMap.t elt -> NatSet.t :=
     fun m => NatMap.map unit1 m.
+
+  Definition nm_wf_pair_equal {elt1 elt2} (m1: NatMap.t elt1) (m2: NatMap.t elt2) := NatMap.Equal (key_set m1) (key_set m2).
+  Definition nm_wf_pair {elt1 elt2} (m1: NatMap.t elt1) (m2: NatMap.t elt2) := (key_set m1) = (key_set m2).
+
+  Import NatMap.
+  Import NatMapP.
+
+  Lemma nm_wf_pair_implies
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    nm_wf_pair_equal m1 m2.
+  Proof.
+    unfold nm_wf_pair , nm_wf_pair_equal in *. rewrite WF. reflexivity.
+  Qed.
+
+  Lemma nm_wf_pair_equal_sym
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    nm_wf_pair_equal m2 m1.
+  Proof.
+    unfold nm_wf_pair_equal in *. rewrite WF. reflexivity.
+  Qed.
+  Lemma nm_wf_pair_sym
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    nm_wf_pair m2 m1.
+  Proof.
+    unfold nm_wf_pair in *. rewrite WF. reflexivity.
+  Qed.
 
   (* Definition key_set {elt} : NatMap.t elt -> NatSet.t. *)
   (* Proof. *)
@@ -339,23 +614,368 @@ Section AUX.
   (*   eapply NatSet.MSet.Raw.isok_iff. ss. *)
   (* Defined. *)
 
+  Lemma key_set_find_none1
+        elt (m: NatMap.t elt) k
+        (FIND: find k m = None)
+    :
+    find k (key_set m) = None.
+  Proof.
+    unfold key_set. rewrite F.map_o. rewrite FIND. ss.
+  Qed.
+
+  Lemma key_set_find_none2
+        elt (m: NatMap.t elt) k
+        (FIND: find k (key_set m) = None)
+    :
+    find k m = None.
+  Proof.
+    unfold key_set in *. rewrite F.map_o in *. destruct (find k m); ss.
+  Qed.
+
+  Lemma key_set_find_some1
+        elt (m: NatMap.t elt) k e
+        (FIND: find k m = Some e)
+    :
+    find k (key_set m) = Some tt.
+  Proof.
+    unfold key_set. rewrite F.map_o. rewrite FIND. ss.
+  Qed.
+
+  Lemma key_set_find_some2
+        elt (m: NatMap.t elt) k
+        (FIND: find k (key_set m) = Some tt)
+    :
+    exists e, find k m = Some e.
+  Proof.
+    unfold key_set in *. rewrite F.map_o in *. destruct (find k m); ss. eauto.
+  Qed.
+
+  Lemma nm_map_equal_equal
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        (RM: Equal m1 m2)
+    :
+    Equal (map f m1) (map f m2).
+  Proof. rewrite RM. reflexivity. Qed.
+  Lemma nm_map_equal_eq
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        (RM: Equal m1 m2)
+    :
+    (map f m1) = (map f m2).
+  Proof. eapply nm_eq_is_equal, nm_map_equal_equal. auto. Qed.
+
+  Lemma nm_map_rm_comm_equal
+        elt (m: t elt) elt' (f: elt -> elt') k
+    :
+    Equal (remove k (map f m)) (map f (remove k m)).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.remove_mapsto_iff in H. des. eapply F.map_mapsto_iff in H0. des; clarify.
+      eapply map_1. eapply remove_2; eauto.
+    - eapply F.map_mapsto_iff in H. des; clarify. eapply F.remove_mapsto_iff in H0. des.
+      eapply remove_2; auto. eapply map_1; auto.
+  Qed.
+  Lemma nm_map_rm_comm_eq
+        elt (m: t elt) elt' (f: elt -> elt') k
+    :
+    (remove k (map f m)) = (map f (remove k m)).
+  Proof. eapply nm_eq_is_equal, nm_map_rm_comm_equal. Qed.
+
+  Lemma key_set_pull_rm_equal
+        elt (m: NatMap.t elt) k
+    :
+    Equal (key_set (remove k m)) (remove k (key_set m)).
+  Proof. unfold key_set. rewrite <- nm_map_rm_comm_equal. ss. Qed.
+  Lemma key_set_pull_rm_eq
+        elt (m: NatMap.t elt) k
+    :
+    (key_set (remove k m)) = (remove k (key_set m)).
+  Proof. eapply nm_eq_is_equal. eapply key_set_pull_rm_equal. Qed.
+
+  Lemma nm_map_add_comm_equal
+        elt (m: t elt) elt' (f: elt -> elt') k e
+    :
+    Equal (add k (f e) (map f m)) (map f (add k e m)).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply map_1. eapply add_1; auto.
+      + eapply F.map_mapsto_iff in H0. des; clarify. eapply map_1. eapply add_2; eauto.
+    - eapply F.map_mapsto_iff in H. des; clarify. eapply F.add_mapsto_iff in H0. des; clarify.
+      + eapply add_1; auto.
+      + eapply add_2; auto. eapply map_1; auto.
+  Qed.
+  Lemma nm_map_add_comm_eq
+        elt (m: t elt) elt' (f: elt -> elt') k e
+    :
+    (add k (f e) (map f m)) = (map f (add k e m)).
+  Proof. eapply nm_eq_is_equal, nm_map_add_comm_equal. Qed.
+
   Lemma key_set_pull_add_equal
         elt (m: NatMap.t elt) e k
     :
     Equal (key_set (add k e m)) (add k tt (key_set m)).
-  Proof.
-    unfold key_set. eapply F.Equal_mapsto_iff. i. split; i.
-    - eapply F.map_mapsto_iff in H. des. clarify. eapply F.add_mapsto_iff in H0. des; clarify.
-      + eapply add_1; auto.
-      + eapply add_2; eauto. eapply map_1 in H1. eapply H1.
-    - eapply F.add_mapsto_iff in H. des; clarify.
-      + eapply (map_1 (m:=add k0 e m) (e:=e) (x:=k0) unit1). eapply add_1; auto.
-      + eapply F.map_mapsto_iff in H0. des; clarify. eapply map_1. eapply add_2; auto.
-  Qed.
+  Proof. unfold key_set. rewrite <- nm_map_add_comm_equal. ss. Qed.
   Lemma key_set_pull_add_eq
         elt (m: NatMap.t elt) e k
     :
     (key_set (add k e m)) = (add k tt (key_set m)).
-  Proof. eapply nm_equal_is_eq. eapply key_set_pull_add_equal. Qed.
+  Proof. eapply nm_eq_is_equal. eapply key_set_pull_add_equal. Qed.
+
+
+  Lemma nm_map_rm_equal
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        k
+        (RM: Equal (remove k m1) m2)
+    :
+    Equal (remove k (map f m1)) (map f m2).
+  Proof. rewrite nm_map_rm_comm_equal. eapply nm_map_equal_equal. auto. Qed.
+  Lemma nm_map_rm_eq
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        k
+        (RM: Equal (remove k m1) m2)
+    :
+    (remove k (map f m1)) = (map f m2).
+  Proof. eapply nm_eq_is_equal. eapply nm_map_rm_equal. auto. Qed.
+
+  Lemma nm_map_add_equal
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        k e
+        (RM: Equal (add k e m1) m2)
+    :
+    Equal (add k (f e) (map f m1)) (map f m2).
+  Proof. rewrite nm_map_add_comm_equal. eapply nm_map_equal_equal. auto. Qed.
+  Lemma nm_map_add_eq
+        elt (m1 m2: t elt) elt' (f: elt -> elt')
+        k e
+        (RM: Equal (add k e m1) m2)
+    :
+    (add k (f e) (map f m1)) = (map f m2).
+  Proof. eapply nm_eq_is_equal. eapply nm_map_add_equal. auto. Qed.
+
+  Lemma nm_wf_pair_equal_find_cases
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    forall k, (find k m1 = None -> find k m2 = None) /\ (~ (find k m1 = None) -> ~ (find k m2 = None)).
+  Proof.
+    unfold nm_wf_pair_equal in *. i. split; i.
+    - eapply key_set_find_none1 in H. eapply key_set_find_none2. rewrite <- WF. auto.
+    - ii; apply H; clear H.
+      eapply key_set_find_none1 in H0. eapply key_set_find_none2. rewrite WF. auto.
+  Qed.
+  Lemma nm_wf_pair_find_cases
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    forall k, (find k m1 = None -> find k m2 = None) /\ (~ (find k m1 = None) -> ~ (find k m2 = None)).
+  Proof. eapply nm_wf_pair_equal_find_cases. eapply nm_wf_pair_implies. auto. Qed.
+
+  Lemma nm_wf_pair_equal_pop_cases
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    forall k, ((nm_pop k m1 = None) /\ (nm_pop k m2 = None)) \/
+           (exists e1 e2 m3 m4,
+               (nm_pop k m1 = Some (e1, m3)) /\
+                 (nm_pop k m2 = Some (e2, m4)) /\
+                 (nm_wf_pair_equal m3 m4)).
+  Proof.
+    i. hexploit nm_wf_pair_equal_find_cases. eapply nm_wf_pair_equal_sym in WF. eauto.
+    hexploit nm_wf_pair_equal_find_cases; eauto. do 2 instantiate (1:=k). i. des.
+    unfold nm_wf_pair_equal in *. unfold key_set in *. destruct (nm_pop k m1) eqn:POP1.
+    { destruct (nm_pop k m2) eqn:POP2.
+      { right. destruct p, p0. esplits; eauto. eapply nm_pop_res_is_rm_equal in POP1, POP2.
+        rewrite <- POP1, <- POP2. rewrite <- ! nm_map_rm_comm_equal. rewrite WF. reflexivity. }
+      eapply nm_pop_find_none in POP2. destruct p. eapply nm_pop_find_some in POP1.
+      apply H0 in POP2. clarify.
+    }
+    { destruct (nm_pop k m2) eqn:POP2.
+      { eapply nm_pop_find_none in POP1. destruct p. eapply nm_pop_find_some in POP2.
+        apply H in POP1. clarify. }
+      left; auto.
+    }
+  Qed.
+  Lemma nm_wf_pair_pop_cases
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    forall k, ((nm_pop k m1 = None) /\ (nm_pop k m2 = None)) \/
+           (exists e1 e2 m3 m4,
+               (nm_pop k m1 = Some (e1, m3)) /\
+                 (nm_pop k m2 = Some (e2, m4)) /\
+                 (nm_wf_pair m3 m4)).
+  Proof.
+    i. hexploit nm_wf_pair_equal_pop_cases. eapply nm_wf_pair_implies. eauto. i; des; eauto.
+    right. esplits; eauto. unfold nm_wf_pair, nm_wf_pair_equal in *. eapply nm_eq_is_equal. auto.
+  Qed.
+
+
+  Lemma nm_map_empty1
+        elt1 (m: NatMap.t elt1) elt2 (f: elt1 -> elt2)
+        (EMP: Empty m)
+    :
+    Empty (map f m).
+  Proof.
+    rewrite elements_Empty in *. ss. unfold elements, Raw.elements in *. rewrite EMP. ss.
+  Qed.
+
+  Lemma nm_map_empty2
+        elt1 (m: NatMap.t elt1) elt2 (f: elt1 -> elt2)
+        (EMP: Empty (map f m))
+    :
+    Empty m.
+  Proof.
+    rewrite elements_Empty in *. ss. revert EMP. destruct m. induction this0; i; ss.
+    des_ifs.
+  Qed.
+
+  Lemma nm_pop_none_map1
+        elt1 (m: NatMap.t elt1) elt2 (f: elt1 -> elt2)
+        k
+        (POP: nm_pop k m = None)
+    :
+    nm_pop k (map f m) = None.
+  Proof.
+    unfold nm_pop in *. rewrite F.map_o. des_ifs.
+  Qed.
+
+  Lemma nm_pop_none_map2
+        elt1 (m: NatMap.t elt1) elt2 (f: elt1 -> elt2)
+        k
+        (POP: nm_pop k (map f m) = None)
+    :
+    nm_pop k m = None.
+  Proof.
+    unfold nm_pop in *. rewrite F.map_o in POP. des_ifs.
+  Qed.
+
+  Lemma nm_pop_some_map1
+        elt1 (m1 m2: NatMap.t elt1) elt2 (f: elt1 -> elt2)
+        k e
+        (POP: nm_pop k m1 = Some (e, m2))
+    :
+    nm_pop k (map f m1) = Some (f e, map f m2).
+  Proof.
+    unfold nm_pop in *. rewrite F.map_o. des_ifs. ss. inv Heq. do 2 f_equal.
+    rewrite nm_map_rm_comm_eq. reflexivity.
+  Qed.
+
+  Lemma key_set_empty1
+        elt (m: NatMap.t elt)
+        (EMP: Empty m)
+    :
+    Empty (key_set m).
+  Proof. eapply nm_map_empty1; eauto. Qed.
+
+  Lemma key_set_empty2
+        elt (m: NatMap.t elt)
+        (EMP: Empty (key_set m))
+    :
+    Empty m.
+  Proof. eapply nm_map_empty2; eauto. Qed.
+
+
+  Lemma nm_wf_pair_equal_empty
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    Empty m1 <-> Empty m2.
+  Proof.
+    unfold nm_wf_pair_equal in *.
+    split; i.
+    - eapply key_set_empty2. rewrite <- WF. eapply key_set_empty1. auto.
+    - eapply key_set_empty2. rewrite WF. eapply key_set_empty1. auto.
+  Qed.
+  Lemma nm_wf_pair_empty
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    Empty m1 <-> Empty m2.
+  Proof. eapply nm_wf_pair_equal_empty. eapply nm_wf_pair_implies. auto. Qed.
+
+  Lemma nm_wf_pair_equal_is_empty
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair_equal m1 m2)
+    :
+    is_empty m1 = is_empty m2.
+  Proof.
+    hexploit nm_wf_pair_equal_empty; eauto. i; des.
+    destruct (is_empty m1) eqn:EMP1.
+    - destruct (is_empty m2) eqn:EMP2; auto.
+      apply is_empty_2 in EMP1. apply H in EMP1. apply is_empty_1 in EMP1. clarify.
+    - destruct (is_empty m2) eqn:EMP2; auto.
+      apply is_empty_2 in EMP2. apply H0 in EMP2. apply is_empty_1 in EMP2. clarify.
+  Qed.
+  Lemma nm_wf_pair_is_empty
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+    :
+    is_empty m1 = is_empty m2.
+  Proof. eapply nm_wf_pair_equal_is_empty. eapply nm_wf_pair_implies. auto. Qed.
+
+
+  Lemma nm_map_map_equal
+        elt (m: t elt) elt1 (f: elt -> elt1) elt2 (g: elt1 -> elt2)
+    :
+    Equal (map g (map f m)) (map (fun e => (g (f e))) m).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - rewrite F.map_mapsto_iff in H. des; clarify.
+      rewrite F.map_mapsto_iff in H0. des; clarify.
+      eapply map_1 in H1. instantiate (1:= (fun e => g (f e))) in H1. ss.
+    - rewrite F.map_mapsto_iff in H. des; clarify.
+      do 2 eapply map_1. auto.
+  Qed.
+  Lemma nm_map_map_eq
+        elt (m: t elt) elt1 (f: elt -> elt1) elt2 (g: elt1 -> elt2)
+    :
+    (map g (map f m)) = (map (fun e => (g (f e))) m).
+  Proof. eapply nm_eq_is_equal, nm_map_map_equal. Qed.
+
+  Lemma nm_map_unit1_map_equal
+        elt (m: t elt) elt' (f: elt -> elt')
+    :
+    Equal (map unit1 (map f m)) (map unit1 m).
+  Proof. rewrite nm_map_map_equal. ss. Qed.
+  Lemma nm_map_unit1_map_eq
+        elt (m: t elt) elt' (f: elt -> elt')
+    :
+    (map unit1 (map f m)) = (map unit1 m).
+  Proof. eapply nm_eq_is_equal, nm_map_unit1_map_equal. Qed.
+
+  Lemma nm_map_self_equal
+        elt (m: t elt)
+    :
+    Equal (map (fun e => e) m) m.
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - rewrite F.map_mapsto_iff in H. des; clarify.
+    - rewrite F.map_mapsto_iff. eauto.
+  Qed.
+  Lemma nm_map_self_eq
+        elt (m: t elt)
+    :
+    (map (fun e => e) m) = m.
+  Proof. eapply nm_eq_is_equal, nm_map_self_equal. Qed.
+
+  Lemma nm_wf_pair_add
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+        k e1 e2
+    :
+    nm_wf_pair (add k e1 m1) (add k e2 m2).
+  Proof.
+    unfold nm_wf_pair in *. rewrite !key_set_pull_add_eq. rewrite WF. auto.
+  Qed.
+
+  Lemma nm_wf_pair_rm
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (WF: nm_wf_pair m1 m2)
+        k
+    :
+    nm_wf_pair (remove k m1) (remove k m2).
+  Proof.
+    unfold nm_wf_pair in *. rewrite !key_set_pull_rm_eq. rewrite WF. auto.
+  Qed.
 
 End AUX.
