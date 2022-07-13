@@ -77,11 +77,9 @@ Module Mod.
         ident: ID;
         (* ident: ID := sum_tid _ident; *)
         st_init: state;
-        funs: fname -> ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val;
+        funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val);
       }.
 End Mod.
-
-
 
 Definition update_fst {A B}: A * B -> A -> A * B :=
   fun '(_, b) a => (a, b).
@@ -97,7 +95,7 @@ Section LENS.
   Variable get: S -> V.
   Variable put: S -> V -> S.
 
-  Definition embed_itree:
+  Definition embed_state:
     forall R (itr: itree (E +' sE V) R),
       itree (E +' sE S) R.
     cofix embed_itree.
@@ -111,19 +109,37 @@ Section LENS.
   Defined.
 End LENS.
 
-(* Section ADD. *)
-(*   Variable state0 state1: Type. *)
+Section ADD.
 
-(*   Definition add_state: Type := *)
-(*     (state0 * state1)%type. *)
+  Import Mod.
+  Variable M1 M2 : Mod.t.
 
-(*   Definition add_st_init: state0 -> state1 -> add_state := *)
-(*     fun st_init0 st_init1 => (st_init0, st_init1). *)
+  Definition embed_l (fn_body : ktree ((eventE +' cE) +' sE _) (list Val) Val) args :=
+    map_event (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident))))
+      (embed_state (@fst M1.(state) M2.(state)) update_fst (fn_body args)).
 
-(*   Definition add_fun_left *)
-(*              (ktr: ktree (BehE +' cE state0) (Val * state0) (Val * state0)): *)
-(*     ktree (BehE +' cE add_state) (Val * add_state) (Val * add_state) := *)
-(*     embed_fun fst update_fst ktr. *)
+  Definition embed_r (fn_body : ktree ((eventE +' cE) +' sE _) (list Val) Val) args :=
+    map_event (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident))))
+      (embed_state (@snd M1.(state) M2.(state)) update_snd (fn_body args)).
+
+  Definition add_funs : fname -> option (ktree _ (list Val) Val) :=
+    fun fn =>
+      match M1.(funs) fn, M2.(funs) fn with
+      | Some fn_body, None => Some (embed_l fn_body)
+      | None, Some fn_body => Some (embed_r fn_body)
+      | Some _, Some _ => Some (fun args => Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
+      | None , None => None
+      end.
+
+  Definition ModAdd : Mod.t :=
+    {|
+      state := state M1 * state M2;
+      ident := id_sum (ident M1) (ident M2);
+      st_init := (st_init M1, st_init M2);
+      funs := add_funs;
+    |}.
+
+End ADD.
 
 (*   Definition add_fun_right *)
 (*              (ktr: ktree (BehE +' cE state1) (Val * state1) (Val * state1)): *)

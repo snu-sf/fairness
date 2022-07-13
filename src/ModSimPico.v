@@ -500,7 +500,11 @@ Module ModSim.
           (* init: forall im_tgt, exists im_src o w, *)
           (*   I (init_thread_id, init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w); *)
 
-          funs: forall fn args, local_sim world_le I (@eq Val) (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args);
+          funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
+                           | None, _ => True
+                           | _, None => False
+                           | Some ktr_src, Some ktr_tgt => local_sim world_le I (@eq Val) (ktr_src args) (ktr_tgt args)
+                           end;
         }.
 
     (* Record local_sim: Prop := *)
