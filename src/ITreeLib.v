@@ -391,3 +391,35 @@ Proof.
   erewrite (itree_eta_ itr1).
   f_equal. auto.
 Qed.
+
+Section EMBED_EVENT.
+
+  CoFixpoint map_event {E1 E2} (embed : forall X, E1 X -> E2 X) R : itree E1 R -> itree E2 R :=
+    fun itr =>
+      match observe itr with
+      | RetF r => Ret r
+      | TauF itr => Tau (map_event embed itr)
+      | VisF e ktr => Vis (embed _ e) (fun x => map_event embed (ktr x))
+      end.
+
+  Lemma map_event_ret E1 E2 (embed : forall X, E1 X -> E2 X) R (r : R) :
+    map_event embed (Ret r) = Ret r.
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma map_event_tau E1 E2 (embed : forall X, E1 X -> E2 X) R (itr : itree E1 R) :
+    map_event embed (Tau itr) = Tau (map_event embed itr).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma map_event_vis E1 E2 (embed : forall X, E1 X -> E2 X) R X (e : E1 X) (ktr : ktree E1 X R) :
+    map_event embed (Vis e ktr) = Vis (embed _ e) (fun x => map_event embed (ktr x)).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Definition embed_left {E1 E2} (embed : forall X, E1 X -> E2 X) {E} X (e : (E1 +' E) X) : (E2 +' E) X :=
+    match e with
+    | inl1 e => inl1 (embed _ e)
+    | inr1 e => inr1 e
+    end.
+
+End EMBED_EVENT.
+
+Global Opaque map_event.
