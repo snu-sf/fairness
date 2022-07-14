@@ -1,6 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Export Coq.Strings.String.
+Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
 From Fairness Require Import pind5.
@@ -485,11 +486,15 @@ Module ModSim.
 
     Record mod_sim: Prop :=
       mk {
-          wf: WF;
+          wf_src : WF;
+          wf_tgt : WF;
+          WFS_TRANS : Transitive wf_src.(lt);
+          S : wf_tgt.(T) -> wf_tgt.(T);
+          lt_succ_diag_r_t : forall t, lt wf_tgt t (S t);
+
           world: Type;
           world_le: world -> world -> Prop;
-          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop;
-
+          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt world) -> Prop;
           (* INV should hold for all current existing thread_id *)
           init: forall ths_tgt im_tgt, exists ths_src im_src o w,
             I (ths_src, ths_tgt, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w);
