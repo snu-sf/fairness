@@ -108,10 +108,34 @@ Section LENS.
     { exact (Ret r). }
     { exact (Tau (embed_itree _ itr0)). }
     { exact (Vis (inl1 e) (fun x => embed_itree _ (ktr x))). }
-    { exact (Vis (inr1 (@Get _)) (fun s => Vis (inr1 (Put (put s v))) (fun x => embed_itree _ (ktr x)))). }
+    { exact (Vis (inr1 (@Get _)) (fun s => Vis (inr1 (Put (put s v))) (fun _ => embed_itree _ (ktr tt)))). }
     { exact (Vis (inr1 (@Get _)) (fun s => embed_itree _ (ktr (get s)))). }
   Defined.
+
+  Lemma embed_state_ret R (r : R) :
+    embed_state (Ret r) = Ret r.
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_state_tau R (itr : itree (E +'sE V) R) :
+    embed_state (Tau itr) = Tau (embed_state itr).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_state_vis R X e (ktr : ktree (E +' sE V) X R) :
+    embed_state (Vis (inl1 e) ktr) = Vis (inl1 e) (fun x => embed_state (ktr x)).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_state_get R (ktr : ktree (E +' sE V) V R) :
+    embed_state (Vis (inr1 (Get _)) ktr) = Vis (inr1 (Get _)) (fun s => embed_state (ktr (get s))).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_state_put R v (ktr : ktree (E +' sE V) unit R) :
+    embed_state (Vis (inr1 (Put v)) ktr) =
+      Vis (inr1 (Get _)) (fun s => Vis (inr1 (Put (put s v))) (fun _ => embed_state (ktr tt))).
+  Proof. eapply observe_eta. ss. Qed.
+
 End LENS.
+
+Global Opaque embed_state.
 
 Section ADD.
 

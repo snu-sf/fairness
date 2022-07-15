@@ -493,8 +493,8 @@ Module ModSim.
           I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt world) -> Prop;
 
           (* INV should hold for all current existing thread_id *)
-          init: forall init_thread_id im_tgt, exists im_src w,
-            I (init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
+          init: forall im_tgt, exists im_src w,
+            I (NatMap.empty _, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
 
           (* init_thread_id: TIdSet.t; *)
           (* init: forall im_tgt, exists im_src w, *)
