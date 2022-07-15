@@ -27,7 +27,6 @@ Section PRIMIVIESIM.
   Variable world: Type.
   Variable world_le: world -> world -> Prop.
 
-  (* Variable stutter: WF. *)
   Definition shared :=
     (TIdSet.t *
        (@imap ident_src wf_src) *
