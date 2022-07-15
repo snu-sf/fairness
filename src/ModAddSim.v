@@ -4,7 +4,7 @@ From ITree Require Import ITree.
 From Fairness Require Import
   ITreeLib
   Mod
-  ModSimPico.
+  ModSim.
 
 Import Lia.
 Import Mod.
@@ -30,7 +30,7 @@ Section ADD_MODSIM.
     constructor 1 with nat_wf nat_wf S unit world_le I.
     - unfold Transitive. ss. lia.
     - ss. lia.
-    - i. exists ths_tgt. exists (fun _ => 0). exists 0. exists tt. ss.
+    - i. exists (fun _ => 0). exists tt. ss.
     - i.
       destruct M1 as [state1 ident1 st_init1 funs1].
       destruct M2 as [state2 ident2 st_init2 funs2].
