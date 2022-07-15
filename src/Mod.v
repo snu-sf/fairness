@@ -33,6 +33,10 @@ Section TID.
           else if (NatMapP.F.In_dec tidf t) then Flag.fail
                else Flag.emp.
 
+  Definition tids_fmap_all (tidf: TIdSet.t): @fmap thread_id :=
+    fun t => if (NatMapP.F.In_dec tidf t) then Flag.fail
+             else Flag.emp.
+
   Lemma tids_fmap_rm_same_eq
         tid tset
     :
