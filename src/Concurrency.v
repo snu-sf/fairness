@@ -26,19 +26,6 @@ Proof.
   apply bisim_is_eq. eapply unfold_iter.
 Qed.
 
-Ltac destruct_itree itr :=
-  let E := fresh "E" in
-  destruct (observe itr) eqn: E;
-  let H := fresh "H" in
-  pose proof (H := itree_eta_ itr);
-  rewrite E in H;
-  clear E;
-  subst itr.
-
-
-
-
-
 Section STATE.
 
   Variable State: Type.

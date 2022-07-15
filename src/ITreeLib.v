@@ -392,6 +392,14 @@ Proof.
   f_equal. auto.
 Qed.
 
+Ltac destruct_itree itr :=
+  let E := fresh "E" in
+  destruct (observe itr) eqn: E;
+  symmetry in E;
+  apply simpobs in E;
+  apply bisim_is_eq in E;
+  subst itr.
+
 Section EMBED_EVENT.
 
   CoFixpoint map_event {E1 E2} (embed : forall X, E1 X -> E2 X) R : itree E1 R -> itree E2 R :=

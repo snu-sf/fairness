@@ -15,14 +15,6 @@ From ExtLib Require Import FMapAList.
 
 Set Implicit Arguments.
 
-Ltac destruct_itree itr :=
-  let E := fresh "E" in
-  destruct (observe itr) eqn: E;
-  symmetry in E;
-  apply simpobs in E;
-  apply bisim_is_eq in E;
-  subst itr.
-
 Section SSIM.
 
   Variable wf_src : WF.
