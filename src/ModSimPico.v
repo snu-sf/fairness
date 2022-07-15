@@ -489,8 +489,8 @@ Module ModSim.
           wf_src : WF;
           wf_tgt : WF;
           WFS_TRANS : Transitive wf_src.(lt);
-          S : wf_tgt.(T) -> wf_tgt.(T);
-          lt_succ_diag_r_t : forall t, lt wf_tgt t (S t);
+          succ : wf_tgt.(T) -> wf_tgt.(T);
+          lt_succ_diag_r_t : forall t, lt wf_tgt t (succ t);
 
           world: Type;
           world_le: world -> world -> Prop;
