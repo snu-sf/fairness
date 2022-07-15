@@ -169,22 +169,6 @@ Section EXTRACT.
   Lemma extract_tr_indC_spec: extract_tr_indC <4= gupaco3 _extract_tr (cpn3 _extract_tr).
   Proof. i. eapply wrespect3_uclo; eauto with paco. eapply extract_tr_indC_wrespectful. Qed.
 
-End EXTRACT.
-#[export] Hint Constructors _raw_spin: core.
-#[export] Hint Unfold raw_spin: core.
-#[export] Hint Resolve raw_spin_mon: paco.
-#[export] Hint Resolve cpn2_wcompat: paco.
-#[export] Hint Constructors _extract_tr: core.
-#[export] Hint Unfold extract_tr: core.
-#[export] Hint Resolve extract_tr_mon: paco.
-#[export] Hint Resolve cpn3_wcompat: paco.
-
-
-
-Section ExtractTr.
-
-  Context {Ident: ID}.
-
   Lemma extract_eq_done
         R (tr: @Tr.t R) retv
         (EXTRACT: extract_tr (RawTr.done retv) tr)
@@ -212,7 +196,60 @@ Section ExtractTr.
     punfold EXTRACT. inv EXTRACT; eauto. punfold RSPIN. inv RSPIN.
   Qed.
 
+  Lemma extract_tr_raw_spin
+        R (tr: @Tr.t R) raw
+        (EXT: extract_tr raw tr)
+        (RS: raw_spin raw)
+    :
+    tr = Tr.spin.
+  Proof.
+    revert RS. induction EXT using extract_tr_ind2; i; eauto.
+    { punfold RS; inv RS. }
+    { punfold RS; inv RS. }
+    { punfold RS; inv RS. }
+    { punfold RS; inv RS. }
+    { punfold RS; inv RS. pclearbot. eauto. }
+  Qed.
 
+  Lemma extract_tr_inj_tr
+        R (tr1 tr2: @Tr.t R) raw
+        (EXT1: extract_tr raw tr1)
+        (EXT2: extract_tr raw tr2)
+    :
+    Tr.eq tr1 tr2.
+  Proof.
+    revert_until R. pcofix CIH; i.
+    depgen tr2. induction EXT1 using extract_tr_ind2; i.
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN. }
+    { punfold EXT2. inv EXT2; eauto. all: try (punfold RSPIN; inv RSPIN).
+      pclearbot. eapply paco3_fold in TL. hexploit extract_tr_raw_spin; eauto.
+      i; clarify. eauto using Tr.eq_equiv.
+    }
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN. }
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN. }
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN.
+      pclearbot. pfold. econs. right; eauto.
+    }
+    { punfold EXT2. inv EXT2; eauto. punfold RSPIN. inv RSPIN.
+      pclearbot. eauto.
+    }
+  Qed.
+
+End EXTRACT.
+#[export] Hint Constructors _raw_spin: core.
+#[export] Hint Unfold raw_spin: core.
+#[export] Hint Resolve raw_spin_mon: paco.
+#[export] Hint Resolve cpn2_wcompat: paco.
+#[export] Hint Constructors _extract_tr: core.
+#[export] Hint Unfold extract_tr: core.
+#[export] Hint Resolve extract_tr_mon: paco.
+#[export] Hint Resolve cpn3_wcompat: paco.
+
+
+
+Section ExtractTr.
+
+  Context {Ident: ID}.
 
   (** observer of the raw trace **)
   Inductive observe_raw_first
@@ -1146,7 +1183,6 @@ Section ExtractRaw.
           end
       | VisF Undefined _ =>
           match tr0 with
-          (* | Tr.spin => RawTr.cons ev (RawTr.app evs raw_spin_trace) *)
           | Tr.nb => RawTr.cons ev (RawTr.app evs RawTr.nb)
           | _ => RawTr.cons ev (RawTr.app evs (tr2raw tr0))
           end
@@ -1221,7 +1257,6 @@ Section ExtractRaw.
           end
       | VisF Undefined _ =>
           match tr0 with
-          (* | Tr.spin => RawTr.cons ev raw_spin_trace *)
           | Tr.nb => RawTr.cons ev RawTr.nb
           | _ => RawTr.cons ev (tr2raw tr0)
           end
@@ -1670,14 +1705,14 @@ Section FAIR.
     { pfold. econs. }
   Qed.
 
-  Theorem rawbeh_extract_is_beh
-          (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr
-          (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
-          (EXT: extract_tr raw tr)
+  Lemma rawbeh_extract_is_beh_fix
+        (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr (im: imap wf)
+        (BEH0: RawBeh.of_state st raw)
+        (FAIR: RawTr.fair_ord im raw)
+        (EXT: extract_tr raw tr)
     :
-    exists (im: imap wf), Beh.of_state im st tr.
+    Beh.of_state im st tr.
   Proof.
-    rr in BEH. des. rr in FAIR. des. rename m into im. exists im.
     ginit. revert_until R. gcofix CIH; i.
     move EXT before CIH. revert_until EXT. induction EXT using @extract_tr_ind2; i.
     { punfold BEH0. inv BEH0.
@@ -1700,6 +1735,17 @@ Section FAIR.
     }
   Qed.
 
+  Theorem rawbeh_extract_is_beh
+          (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr
+          (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
+          (EXT: extract_tr raw tr)
+    :
+    exists (im: imap wf), Beh.of_state im st tr.
+  Proof.
+    rr in BEH. des. rr in FAIR. des.
+    hexploit rawbeh_extract_is_beh_fix; eauto.
+  Qed.
+
 End FAIR.
 
 
@@ -1719,6 +1765,17 @@ Section EQUIV.
   Proof.
     des. exists (sti2raw wf0 (st, tr, im)). splits. eapply sti2raw_extract; eauto.
     rr. splits. eapply sti2raw_raw_beh; eauto. eapply sti2raw_preserves_fairness; eauto.
+  Qed.
+
+  Lemma SelectBeh_implies_IndexBeh_fix
+        (st: state (R:=R)) (raw: RawTr.t (R:=R)) (im: imap wf)
+        (BEH: RawBeh.of_state st raw)
+        (FAIR: RawTr.fair_ord im raw)
+    :
+    exists tr, (<<EXTRACT: extract_tr raw tr>>) /\ (<<BEH: Beh.of_state im st tr>>).
+  Proof.
+    exists (raw2tr raw). splits. eapply raw2tr_extract.
+    eapply rawbeh_extract_is_beh_fix; eauto. eapply raw2tr_extract.
   Qed.
 
   Theorem SelectBeh_implies_IndexBeh

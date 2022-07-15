@@ -7,8 +7,6 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
-Require Import Lia.
-
 From Fairness Require Import FairBeh.
 
 Set Implicit Arguments.
@@ -611,7 +609,6 @@ Section BEHAVES.
   Context {Ident: ID}.
 
   Definition t {R}: Type := @RawTr.t _ R -> Prop.
-  Definition improves {R} (src tgt: @t R): Prop := tgt <1= src.
 
   Variant _of_state
             (of_state: forall (R: Type), (@state _ R) -> (@RawTr.t _ R) -> Prop)
@@ -672,7 +669,7 @@ Section BEHAVES.
   Definition of_state_fair_ord {wf: WF} {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
     (<<BEH: of_state st raw_tr>>) /\ (<<FAIR: RawTr.is_fair_ord wf raw_tr>>).
 
-  Definition of_state_fair {wf: WF} {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
+  Definition of_state_fair {R} (st: @state _ R) (raw_tr: @RawTr.t _ R) :=
     (<<BEH: of_state st raw_tr>>) /\ (<<FAIR: RawTr.is_fair raw_tr>>).
 
 
@@ -721,7 +718,6 @@ Section BEHAVES.
 
 End BEHAVES.
 End RawBeh.
-#[export] Hint Unfold RawBeh.improves: core.
 #[export] Hint Constructors RawBeh._of_state: core.
 #[export] Hint Unfold RawBeh.of_state: core.
 #[export] Hint Resolve RawBeh.of_state_mon: paco.

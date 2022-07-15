@@ -170,7 +170,7 @@ Section EQUIV.
   Hypothesis lt_succ_diag_r: forall (t: wft.(T)), wft.(lt) t (S t).
   Hypothesis WFTR: Transitive wft.(lt).
 
-  Theorem Ord_implies_Ind
+  Theorem Ord_implies_Fair
           R
           (tr: @RawTr.t Ident R)
           (ORD: RawTr.is_fair_ord wft tr)
@@ -620,6 +620,16 @@ Section EQUIV2.
     }
   Qed.
 
+  Lemma Ind_implies_Ord_fix
+        R
+        (tr: @RawTr.t Ident R)
+        (IND: RawTr.is_fair_ind tr)
+    :
+    RawTr.fair_ord (fun i => tr2ord_i i tr) tr.
+  Proof.
+    eapply fair_ind_fair_ord; eauto. i. eapply tr2ord_i_spec; auto.
+  Qed.
+
   Theorem Ind_implies_Ord
           R
           (tr: @RawTr.t Ident R)
@@ -627,7 +637,7 @@ Section EQUIV2.
     :
     RawTr.is_fair_ord wft tr.
   Proof.
-    exists (fun i => tr2ord_i i tr). eapply fair_ind_fair_ord; eauto. i. eapply tr2ord_i_spec; auto.
+    eapply Ind_implies_Ord_fix in IND. eexists; eauto.
   Qed.
 
 End EQUIV2.

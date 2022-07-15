@@ -1,22 +1,73 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Export ITreeLib FairBeh.
+
 Require Export Coq.Strings.String.
+From Coq Require Import Program.
+
+From Fairness Require Export ITreeLib FairBeh NatStructs.
 
 Set Implicit Arguments.
+
+Module TIdSet := NatSet.
+
+
+Notation thread_id := (mk_id nat).
+Section TID.
+
+  Definition nat_wf: WF := mk_wf Wf_nat.lt_wf.
+
+  Definition tid_main: thread_id.(id) := 0.
+  Definition tid_dec := PeanoNat.Nat.eq_dec.
+
+  Lemma reldec_correct_tid_dec: RelDec.RelDec_Correct (RelDec.RelDec_from_dec eq tid_dec).
+  Proof. eapply RelDec.RelDec_Correct_eq_typ. Qed.
+
+  Definition tid_dec_bool :=
+    fun t1 t2 => if (tid_dec t1 t2) then true else false.
+
+
+  Definition sum_tid (_id: ID) := id_sum thread_id _id.
+
+  Definition tids_fmap (tid: thread_id.(id)) (tidf: TIdSet.t): @fmap thread_id :=
+    fun t => if (PeanoNat.Nat.eq_dec t tid) then Flag.success
+          else if (NatMapP.F.In_dec tidf t) then Flag.fail
+               else Flag.emp.
+
+  Lemma tids_fmap_rm_same_eq
+        tid tset
+    :
+    tids_fmap tid tset = tids_fmap tid (NatMap.remove tid tset).
+  Proof.
+    extensionality t. unfold tids_fmap. des_ifs.
+    - exfalso. apply n0; clear n0. rewrite NatMapP.F.remove_neq_in_iff; eauto.
+    - exfalso. apply n0; clear n0. rewrite <- NatMapP.F.remove_neq_in_iff; eauto.
+  Qed.
+
+  Lemma tids_fmap_add_same_eq
+        tid tset
+    :
+    tids_fmap tid tset = tids_fmap tid (NatMap.add tid () tset).
+  Proof.
+    extensionality t. unfold tids_fmap. des_ifs.
+    - exfalso. apply n0; clear n0. rewrite NatMapP.F.add_neq_in_iff; eauto.
+    - exfalso. apply n0; clear n0. rewrite <- NatMapP.F.add_neq_in_iff; eauto.
+  Qed.
+
+End TID.
+
 
 Notation fname := string (only parsing).
 Definition Val := nat.
 
 Variant cE: Type -> Type :=
 | Yield: cE unit
-| Spawn (fn: fname) (args: list Val): cE unit
-| GetTid: cE nat
+| GetTid: cE thread_id.(id)
+(* | Spawn (fn: fname) (args: list Val): cE unit *)
 .
 
-Variant stateE (State: Type): Type -> Type :=
-| Put (st: State): stateE State unit
-| Get: stateE State State
+Variant sE (State: Type): Type -> Type :=
+| Put (st: State): sE State unit
+| Get: sE State State
 .
 
 Module Mod.
@@ -24,11 +75,11 @@ Module Mod.
     mk {
         state: Type;
         ident: ID;
+        (* ident: ID := sum_tid _ident; *)
         st_init: state;
-        funs: fname -> ktree ((eventE +' cE) +' stateE state) (list Val) Val;
+        funs: fname -> ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val;
       }.
 End Mod.
-
 
 
 
@@ -47,8 +98,8 @@ Section LENS.
   Variable put: S -> V -> S.
 
   Definition embed_itree:
-    forall R (itr: itree (E +' stateE V) R),
-      itree (E +' stateE S) R.
+    forall R (itr: itree (E +' sE V) R),
+      itree (E +' sE S) R.
     cofix embed_itree.
     intros R itr.
     destruct (observe itr) as [r|itr0|? [e|[v|]] ktr].
