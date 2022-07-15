@@ -1,6 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Export Coq.Strings.String.
+Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
 From Fairness Require Import pind5.
@@ -482,21 +483,28 @@ Module ModSim.
 
     Record mod_sim: Prop :=
       mk {
-          wf: WF;
+          wf_src : WF;
+          wf_tgt : WF;
+          WFS_TRANS : Transitive wf_src.(lt);
+          succ : wf_tgt.(T) -> wf_tgt.(T);
+          lt_succ_diag_r_t : forall t, lt wf_tgt t (succ t);
           world: Type;
           world_le: world -> world -> Prop;
-          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop;
+          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt world) -> Prop;
 
-          init_thread_id: TIdSet.t;
           (* INV should hold for all current existing thread_id *)
           init: forall im_tgt, exists im_src w,
-            I (init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
+            I (NatMap.empty _, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
 
           (* init_thread_id: TIdSet.t; *)
           (* init: forall im_tgt, exists im_src w, *)
           (*   I (init_thread_id, init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w); *)
 
-          funs: forall fn args, local_sim world_le I (@eq Val) (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args);
+          funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
+                           | None, _ => True
+                           | _, None => False
+                           | Some ktr_src, Some ktr_tgt => local_sim world_le I (@eq Val) (ktr_src args) (ktr_tgt args)
+                           end;
         }.
 
     (* Record local_sim: Prop := *)
