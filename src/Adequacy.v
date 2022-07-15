@@ -281,8 +281,6 @@ Section ADEQ2.
   Variable wft0: T wft.
   Variable St: wft.(T) -> wft.(T).
   Hypothesis lt_succ_diag_r_t: forall (t: wft.(T)), wft.(lt) t (St t).
-  Hypothesis WFTRT: Transitive wft.(lt).
-
 
   Theorem adequacy
           R

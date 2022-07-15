@@ -208,7 +208,21 @@ Definition sum_fmap_l {A B: ID} (fm: @fmap A): @fmap (id_sum A B) :=
 Definition sum_fmap_r {A B: ID} (fm: @fmap B): @fmap (id_sum A B) :=
   fun sb => match sb with | inl _ => Flag.emp | inr b => (fm b) end.
 
+Definition embed_event_l {A B : ID} X : @eventE A X -> @eventE (id_sum A B) X :=
+  fun e => match e with
+        | Choose X => Choose X
+        | Fair m => Fair (sum_fmap_l m)
+        | Observe fn args => Observe fn args
+        | Undefined => Undefined
+        end.
 
+Definition embed_event_r {A B : ID} X : @eventE B X -> @eventE (id_sum A B) X :=
+  fun e => match e with
+        | Choose X => Choose X
+        | Fair m => Fair (sum_fmap_r m)
+        | Observe fn args => Observe fn args
+        | Undefined => Undefined
+        end.
 
 Section STS.
 
