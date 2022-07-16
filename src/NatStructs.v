@@ -32,6 +32,13 @@ Section NATMAP.
             | Some e => Some (e, NatMap.remove k m)
             end.
 
+  Variant nm_add_new {elt}: NatMap.key -> elt -> (NatMap.t elt) -> (NatMap.t elt) -> Prop :=
+    | nm_add_new_intro
+        k e m1 m2
+        (NEW: NatMap.find k m1 = None)
+        (ADD: m2 = NatMap.add k e m1)
+      :
+      nm_add_new k e m1 m2.
 
 
   Import FMapFacts.
@@ -478,25 +485,16 @@ End NATMAP.
 
 Module NatSet.
   Definition t := NatMap.t unit.
+  Definition empty: t := @NatMap.empty unit.
   Definition add x m := @NatMap.add unit x tt m.
   Definition remove := @NatMap.remove unit.
   Definition elements := @nm_proj1 unit.
   Definition Empty := @NatMap.Empty unit.
   Definition In := @NatMap.In unit.
+  Definition add_new k m1 m2 := @nm_add_new unit k tt m1 m2.
 End NatSet.
 
-(* Section NATSET. *)
-
-  (* Lemma ns_in_dec: forall n s, {NatSet.In n s} + {~ NatSet.In n s}. *)
-  (* Proof. *)
-  (*   i. eapply InA_dec. eapply NatSet.MSet.E.eq_dec. *)
-  (* Qed. *)
-
-  (* Definition set_pop : NatSet.elt -> NatSet.t -> option NatSet.t := *)
-
-  (*   fun x s => if NatSet.mem x s *)
-  (*           then Some (NatSet.remove x s) *)
-  (*           else None. *)
+Section NATSET.
 
   Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = [].
   Proof.
@@ -557,7 +555,7 @@ End NatSet.
     rewrite map_map in H. rewrite map_id in H. eapply H.
   Qed.
 
-(* End NATSET. *)
+End NATSET.
 
 
 
@@ -599,20 +597,6 @@ Section AUX.
     unfold nm_wf_pair in *. rewrite WF. reflexivity.
   Qed.
 
-  (* Definition key_set {elt} : NatMap.t elt -> NatSet.t. *)
-  (* Proof. *)
-  (*   intros [l SORTED]. unfold Raw.t in *. *)
-  (*   set (l' := List.map fst l). *)
-  (*   econs. instantiate (1 := l'). *)
-  (*   unfold Raw.PX.ltk in *. *)
-  (*   assert (Sorted (fun x y => x < y) l'). *)
-  (*   { induction SORTED. *)
-  (*     - subst l'. ss. *)
-  (*     - subst l'. ss. econs 2; ss. *)
-  (*       inv H; ss. econs; ss. *)
-  (*   } *)
-  (*   eapply NatSet.MSet.Raw.isok_iff. ss. *)
-  (* Defined. *)
 
   Lemma key_set_find_none1
         elt (m: NatMap.t elt) k
