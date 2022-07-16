@@ -865,8 +865,8 @@ Section ADEQ.
             rewrite PROJS, PROJT. right. eapply CIH.
             { i. hexploit LOCAL.
               3:{ i; des. split.
-                  2:{ eapply H6. }
-                  intro SYNC. eapply H5 in SYNC. ii. unfold local_sim_sync in SYNC.
+                  2:{ eapply H7. }
+                  intro SYNC. eapply H6 in SYNC. ii. unfold local_sim_sync in SYNC.
                   assert (WORLD1: world_le w w0).
                   { etransitivity; eauto. }
                   specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
