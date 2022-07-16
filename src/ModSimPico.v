@@ -428,37 +428,23 @@ Section PRIMIVIESIM.
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
-      (* tid ths1 tht1 *)
-      (* (THS: TIdSet.add_new tid ths0 ths1) *)
-      (* (THT: TIdSet.add_new tid tht0 tht1) *)
-      tid
-      (THS: NatMap.In tid ths0)
-      (THT: NatMap.In tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
-      fs ft,
-      lsim
-        (@local_RR R0 R1 RR tid)
-        tid
-        fs ft
-        src tgt
-        (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0).
-
-  (* Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid := *)
-  (*   forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0 *)
-  (*     (THS: NatMap.In tid ths0) *)
-  (*     (THT: NatMap.In tid tht0) *)
-  (*     (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
-  (*     fs ft, *)
-  (*   forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))), *)
-  (*   exists im_src1 w1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\ *)
-  (*                   (lsim *)
-  (*                      (@local_RR R0 R1 RR tid) *)
-  (*                      tid *)
-  (*                      fs ft *)
-  (*                      src tgt *)
-  (*                      (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w1)) /\ *)
-  (*                   (world_le w0 w1). *)
+      tid ths1 tht1
+      (THS: TIdSet.add_new tid ths0 ths1)
+      (THT: TIdSet.add_new tid tht0 tht1),
+    exists w1, (<<INV: I (ths1, tht1, im_src0, im_tgt0, st_src0, st_tgt0, o0, w1)>>) /\
+            (<<WORLD: world_le w0 w1>>) /\
+            (forall ths tht im_src im_tgt st_src st_tgt o w2
+               (INV: I (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w2))
+               (WORLD: world_le w1 w2),
+                (<<LSIM: forall fs ft,
+                    lsim
+                      (@local_RR R0 R1 RR tid)
+                      tid
+                      fs ft
+                      src tgt
+                      (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w2)
+                      >>)).
 
 
   Definition shared_rel_wf (r: shared_rel): Prop :=
