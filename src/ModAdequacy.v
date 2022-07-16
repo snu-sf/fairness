@@ -633,8 +633,6 @@ Section ADEQ.
 
   Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid w :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      (* (THS: NatMap.In tid ths0) *)
-      (* (THT: NatMap.In tid tht0) *)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       (WORLD: world_le w w0)
       fs ft,
@@ -652,8 +650,6 @@ Section ADEQ.
 
   Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid w :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 w0 o0
-      (* (THS: NatMap.In tid ths0) *)
-      (* (THT: NatMap.In tid tht0) *)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       (WORLD: world_le w w0)
       fs ft,

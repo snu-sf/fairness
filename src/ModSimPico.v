@@ -467,16 +467,6 @@ Section PRIMIVIESIM.
         (<<INV: r (ths, tht, im_src1, im_tgt1, st_src, st_tgt, o, w1)>>) /\
         (<<WORLD: world_le w0 w1>>).
 
-  (* Definition shared_rel_new_tid (r: shared_rel): Prop := *)
-  (*   forall ths0 tht0 im_src im_tgt st_src st_tgt o w0 *)
-  (*     (INV: r (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w0)), *)
-  (*   forall tid ths1 tht1 *)
-  (*     (SRC: NatSet.add_new tid ths0 ths1) (TGT: NatSet.add_new tid tht0 tht1), *)
-  (*   exists w1, *)
-  (*     (<<INV: r (ths1, tht1, im_src, im_tgt, st_src, st_tgt, o, w1)>>) /\ *)
-  (*       (<<WORLD: world_le w0 w1>>). *)
-
-
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
 #[export] Hint Unfold lsim: core.
