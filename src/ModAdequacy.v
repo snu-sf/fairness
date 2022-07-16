@@ -631,10 +631,29 @@ Section ADEQ.
 
   Variable I: shared -> Prop.
 
+  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid w :=
+    forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
+      (* (THS: NatMap.In tid ths0) *)
+      (* (THT: NatMap.In tid tht0) *)
+      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
+      (WORLD: world_le w w0)
+      fs ft,
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
+    exists im_src1 w1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
+                    (lsim
+                       world_le
+                       I
+                       (local_RR world_le I RR tid)
+                       tid
+                       fs ft
+                       src tgt
+                       (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w1)) /\
+                    (world_le w0 w1).
+
   Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid w :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 w0 o0
-      (THS: NatMap.In tid ths0)
-      (THT: NatMap.In tid tht0)
+      (* (THS: NatMap.In tid ths0) *)
+      (* (THT: NatMap.In tid tht0) *)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       (WORLD: world_le w w0)
       fs ft,
@@ -768,7 +787,7 @@ Section ADEQ.
                   (LSRC: Th.find tid ths_src = Some (sf, src))
                   (LTGT: Th.find tid ths_tgt = Some tgt),
             ((sf = true) -> (local_sim_sync RR src tgt tid w)) /\
-              ((sf = false) -> (local_sim_pick world_le I RR src tgt tid)))
+              ((sf = false) -> (local_sim_pick RR src tgt tid w)))
         tid
         (THSRC: Th.find tid ths_src = None)
         (THTGT: Th.find tid ths_tgt = None)
@@ -802,9 +821,12 @@ Section ADEQ.
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           forall sf : bool,
                             th_wf_pair ths_src ths_tgt ->
-                            forall (st_src : state_src) (st_tgt : state_tgt) (o : T wf_src) (im_tgt : imap wf_tgt) (im_src : imap wf_src),
+                            forall (st_src : state_src) (st_tgt : state_tgt) (o : T wf_src) (im_tgt : imap wf_tgt)
+                              (im_src : imap wf_src),
                               LRR = local_RR world_le I RR tid ->
-                              shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src, st_tgt, o, w) ->
+                              shr =
+                                (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src,
+                                  st_tgt, o, w) ->
                               paco8 (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid gps gpt (sf, src) tgt shr)) in LSIM; auto. }
 
     ss. clear gps gpt src tgt shr LSIM.
@@ -842,19 +864,20 @@ Section ADEQ.
             { eapply proj_aux; eauto. }
             ss. rewrite PROJS, PROJT. right. eapply CIH.
             { i. hexploit LOCAL.
-              3:{ i; des. split.
-                  2:{ eapply H4. }
-                  intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
-                  assert (WORLD1: world_le w w0).
-                  { etransitivity; eauto. }
-                  specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
-              }
               eapply find_some_aux; eauto. eapply find_some_aux; eauto.
+              i; des. split.
+              - intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
+                assert (WORLD1: world_le w w0).
+                { etransitivity; eauto. }
+                specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+              - intro PICK. eapply H4 in PICK. ii. unfold local_sim_pick in PICK.
+                assert (WORLD1: world_le w w0).
+                { etransitivity; eauto. }
+                specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
             }
             eapply find_none_aux; eauto. eapply find_none_aux; eauto.
             auto.
             rewrite <- PROJS, <- PROJT. eapply H2; eauto.
-            eapply in_aux; eauto. eapply in_aux; eauto. 
 
           - i. clarify.
             hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
@@ -864,18 +887,19 @@ Section ADEQ.
             assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)).
             { eapply proj_aux; eauto. }
             hexploit H2; eauto.
-            eapply in_aux; eauto. eapply in_aux; eauto.
             i; des. esplits; eauto. i.
             rewrite PROJS, PROJT. right. eapply CIH.
             { i. hexploit LOCAL.
-              3:{ i; des. split.
-                  2:{ eapply H7. }
-                  intro SYNC. eapply H6 in SYNC. ii. unfold local_sim_sync in SYNC.
-                  assert (WORLD1: world_le w w0).
-                  { do 2 (etransitivity; eauto). }
-                  specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
-              }
               eapply find_some_aux; eauto. eapply find_some_aux; eauto.
+              i; des. split.
+              - intro SYNC. eapply H6 in SYNC. ii. unfold local_sim_sync in SYNC.
+                assert (WORLD1: world_le w w0).
+                { do 2 (etransitivity; eauto). }
+                specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+              - intro PICK. eapply H7 in PICK. ii. unfold local_sim_pick in PICK.
+                assert (WORLD1: world_le w w0).
+                { do 2 (etransitivity; eauto). }
+                specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
             }
             eapply find_none_aux; eauto. eapply find_none_aux; eauto.
             auto.
@@ -978,11 +1002,14 @@ Section ADEQ.
           { hexploit nm_pop_find_none_add_same_eq. eapply THSRC. eauto. i; des; clarify. }
           des; clarify. right. eapply CIH; eauto.
           { i. hexploit LOCAL. 1,2: eauto. i; des. split.
-            2:{ eapply H3. }
-            intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
-            assert (WORLD1: world_le w w0).
-            { etransitivity; eauto. }
-            specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
+            - intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
+              assert (WORLD1: world_le w w0).
+              { etransitivity; eauto. }
+              specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+            - intro PICK. eapply H3 in PICK. ii. unfold local_sim_pick in PICK.
+              assert (WORLD1: world_le w w0).
+              { etransitivity; eauto. }
+              specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
           }
           hexploit LSIM0; eauto. reflexivity.
           i. pclearbot.
@@ -1006,71 +1033,71 @@ Section ADEQ.
             rewrite H3. eapply lsim_set_prog. auto.
           }
           { hexploit LOCAL.
-            3:{ i; des. split.
-                2:{ eapply H3. }
-                intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
-                assert (WORLD1: world_le w w0).
-                { etransitivity; eauto. }
-                specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
-            }
             eapply find_some_neq_aux; eauto. eapply find_some_neq_aux; eauto.
+            i; des. split.
+            - intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
+              assert (WORLD1: world_le w w0).
+              { etransitivity; eauto. }
+              specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+            - intro PICK. eapply H3 in PICK. ii. unfold local_sim_pick in PICK.
+              assert (WORLD1: world_le w w0).
+              { etransitivity; eauto. }
+              specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
           }
         }
         eapply find_none_aux; eauto. eapply find_none_aux; eauto.
         auto.
         hexploit LOCAL.
-        3:{ i; des. hexploit H2; ss.
-            intro SYNC. unfold local_sim_sync in SYNC.
-            hexploit SYNC.
-            3,4,5: eauto.
-            eapply in_add_aux; eauto. eapply in_add_aux; eauto.
-            i. rewrite <- PROJS, <- PROJT. eauto.
-        }
         eapply find_some_neq_simpl_aux; eauto. eapply find_some_neq_simpl_aux; eauto.
+        i; des. hexploit H2; ss.
+        intro SYNC. unfold local_sim_sync in SYNC.
+        hexploit SYNC.
+        1,2,3: eauto.
+        i. rewrite <- PROJS, <- PROJT. eauto.
 
       - i; clarify. destruct (tid_dec tid tid0) eqn:TID1.
         { clarify. exfalso. hexploit nm_pop_find_none_add_same_equal. eapply THSRC. eauto. i; des; clarify. }
         esplits; eauto. i.
         hexploit LOCAL.
-        3:{ i; des. hexploit H3; ss. intro PICK. unfold local_sim_pick in PICK. hexploit PICK.
-            3,4: eauto.
-            eapply in_add_aux; eauto. eapply in_add_aux; eauto.
-            i; des. esplits; eauto.
-            assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))).
-            { eapply proj_add_aux; eauto. }
-            assert (PROJT: (NatSet.add tid (key_set ths_tgt)) = (NatSet.add tid0 (key_set ths_tgt0))).
-            { eapply proj_add_aux; eauto. }
-            rewrite PROJS, PROJT. right. eapply CIH.
-            { i. destruct (tid_dec tid tid1) eqn:TID2; subst.
-              { rename tid1 into tid.
-                pose nm_pop_neq_find_some_eq. dup H. eapply e in H7; eauto. dup H0. eapply e in H8; eauto.
-                inv H7. split; i; ss. clear H2.
-                ii. hexploit LSIM0. eapply INV0.
-                { etransitivity; eauto. }
-                eauto.
-                i. pclearbot.
-                match goal with
-                | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
-                end.
-                { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
-                rewrite H8. eapply lsim_set_prog. auto.
-              }
-              { hexploit LOCAL.
-                3:{ i; des. split.
-                    2:{ eapply H8. }
-                    intro SYNC. eapply H7 in SYNC. ii. unfold local_sim_sync in SYNC.
-                    assert (WORLD1: world_le w w2).
-                    { etransitivity. 2:eauto. etransitivity; eauto. }
-                    specialize (SYNC _ _ _ _ _ _ _ _ THS THT INV0 WORLD1 fs ft _ FAIR0). auto.
-                }
-                eapply find_some_neq_aux; eauto. eapply find_some_neq_aux; eauto.
-              }
-            }
-            eapply find_none_aux; eauto. eapply find_none_aux; eauto.
-            auto.
-            rewrite <- PROJS, <- PROJT. eapply lsim_set_prog. eauto.
-        }
         eapply find_some_neq_simpl_aux; eauto. eapply find_some_neq_simpl_aux; eauto.
+        i; des. hexploit H3; ss. intro PICK. unfold local_sim_pick in PICK. hexploit PICK.
+        1,3: eauto. auto.
+        i; des. esplits; eauto.
+        assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))).
+        { eapply proj_add_aux; eauto. }
+        assert (PROJT: (NatSet.add tid (key_set ths_tgt)) = (NatSet.add tid0 (key_set ths_tgt0))).
+        { eapply proj_add_aux; eauto. }
+        rewrite PROJS, PROJT. right. eapply CIH.
+        { i. destruct (tid_dec tid tid1) eqn:TID2; subst.
+          { rename tid1 into tid.
+            pose nm_pop_neq_find_some_eq. dup H. eapply e in H7; eauto. dup H0. eapply e in H8; eauto.
+            inv H7. split; i; ss. clear H2.
+            ii. hexploit LSIM0. eapply INV0.
+            { etransitivity; eauto. }
+            eauto.
+            i. pclearbot.
+            match goal with
+            | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
+            end.
+            { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
+            rewrite H8. eapply lsim_set_prog. auto.
+          }
+          { hexploit LOCAL.
+            eapply find_some_neq_aux; eauto. eapply find_some_neq_aux; eauto.
+            i; des. split.
+            - intro SYNC. eapply H7 in SYNC. ii. unfold local_sim_sync in SYNC.
+              assert (WORLD1: world_le w w2).
+              { etransitivity. 2:eauto. etransitivity; eauto. }
+              specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+            - clear PICK; intro PICK. eapply H8 in PICK. ii. unfold local_sim_pick in PICK.
+              assert (WORLD1: world_le w w2).
+              { etransitivity. 2:eauto. etransitivity; eauto. }
+              specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+          }
+        }
+        eapply find_none_aux; eauto. eapply find_none_aux; eauto.
+        auto.
+        rewrite <- PROJS, <- PROJT. eapply lsim_set_prog. eauto.
     }
 
     { des. clarify. destruct LSIM as [LSIM0 IND]. clear LSIM0.
@@ -1993,16 +2020,17 @@ Section ADEQ.
           R0 R1 (RR: R0 -> R1 -> Prop)
           (ths_src: threads_src1 R0)
           (ths_tgt: threads_tgt R1)
+          w
           (LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1)
                     (LSRC: Th.find tid ths_src = Some src)
                     (LTGT: Th.find tid ths_tgt = Some tgt),
-              (local_sim_pick world_le I RR src tgt tid))
+              (local_sim_pick RR src tgt tid w))
           (WF: th_wf_pair ths_src ths_tgt)
           tid
           (FINDS: Th.find tid ths_src = None)
           (FINDT: Th.find tid ths_tgt = None)
           src tgt
-          (st_src: state_src) (st_tgt: state_tgt) o w
+          (st_src: state_src) (st_tgt: state_tgt) o
           ps pt
           (LSIM: forall im_tgt, exists im_src,
               (<<INV: I (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
