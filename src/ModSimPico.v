@@ -426,7 +426,7 @@ Section PRIMIVIESIM.
             (<<INV: I (ths3, tht3, im_src1, im_tgt1, st_src1, st_tgt1, o2, w2)>>) /\
             (<<RET: RR r_src r_tgt>>)).
 
-  Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
+  Definition local_sim_init {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
       tid ths1 tht1
@@ -446,6 +446,30 @@ Section PRIMIVIESIM.
                       (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w2)
                       >>)).
 
+  Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
+    forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
+      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
+      tid ths1 tht1
+      (THS: TIdSet.add_new tid ths0 ths1)
+      (THT: TIdSet.add_new tid tht0 tht1),
+    exists w1, (<<INV: I (ths1, tht1, im_src0, im_tgt0, st_src0, st_tgt0, o0, w1)>>) /\
+            (<<WORLD: world_le w0 w1>>) /\
+            (forall ths tht im_src1 im_tgt1 st_src st_tgt o w2
+               (INV: I (ths, tht, im_src1, im_tgt1, st_src, st_tgt, o, w2))
+               (WORLD: world_le w1 w2),
+              forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid tht))),
+              exists im_src2 w3,
+                (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
+                  (<<WORLD: world_le w2 w3>>) /\
+                  (<<LSIM: forall fs ft,
+                      lsim
+                        (@local_RR R0 R1 RR tid)
+                        tid
+                        fs ft
+                        src tgt
+                        (ths, tht, im_src2, im_tgt2, st_src, st_tgt, o, w3)
+                        >>)).
+
 
   Definition shared_rel_wf (r: shared_rel): Prop :=
     forall ths tht im_src0 im_tgt0 st_src st_tgt o w0
@@ -457,15 +481,15 @@ Section PRIMIVIESIM.
         (<<INV: r (ths, tht, im_src1, im_tgt1, st_src, st_tgt, o, w1)>>) /\
         (<<WORLD: world_le w0 w1>>).
 
-  Definition shared_rel_pick (r: shared_rel): Prop :=
-    forall ths tht im_src0 im_tgt0 st_src st_tgt o w0
-      (INV: r (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o, w0)),
-    forall tid im_tgt1
-      (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht))),
-    exists im_src1 w1,
-      (<<SRC: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
-        (<<INV: r (ths, tht, im_src1, im_tgt1, st_src, st_tgt, o, w1)>>) /\
-        (<<WORLD: world_le w0 w1>>).
+  (* Definition shared_rel_pick (r: shared_rel): Prop := *)
+  (*   forall ths tht im_src0 im_tgt0 st_src st_tgt o w0 *)
+  (*     (INV: r (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o, w0)), *)
+  (*   forall tid im_tgt1 *)
+  (*     (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht))), *)
+  (*   exists im_src1 w1, *)
+  (*     (<<SRC: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\ *)
+  (*       (<<INV: r (ths, tht, im_src1, im_tgt1, st_src, st_tgt, o, w1)>>) /\ *)
+  (*       (<<WORLD: world_le w0 w1>>). *)
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
