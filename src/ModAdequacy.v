@@ -2151,7 +2151,10 @@ Section ADEQ.
               (List.Forall2 (fun '(t1, src) '(t2, tgt) => t1 = t2 /\ local_sim_pick RR src tgt t1 w0)
                             (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src)
                             (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt))).
-    { intro FA. admit. }
+    { intro FA. i. specialize (FA im_tgt). des. esplits; eauto.
+      (*TODO*)
+
+      admit. }
 
     clear tid src0 ths_src0 tgt0 ths_tgt0 FINDS FINDT ps pt.
 
