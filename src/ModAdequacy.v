@@ -666,6 +666,16 @@ Section ADEQ.
 
   Definition th_wf_pair {elt1 elt2} := @nm_wf_pair elt1 elt2.
 
+  Lemma local_sim_pick_mon_world
+        R0 R1 (RR: R0 -> R1 -> Prop) src tgt tid w0 w1
+        (WORLD: world_le w0 w1)
+        (LSIMP: local_sim_pick RR src tgt tid w0)
+    :
+    local_sim_pick RR src tgt tid w1.
+  Proof.
+    unfold local_sim_pick in *. i. hexploit LSIMP; eauto. etransitivity; eauto.
+  Qed.
+
   Lemma th_wf_pair_pop_cases
         R0 R1
         (ths_src: threads_src2 R0)
@@ -2152,11 +2162,47 @@ Section ADEQ.
                             (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src)
                             (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt))).
     { intro FA. i. specialize (FA im_tgt). des. esplits; eauto.
-      (*TODO*)
-
-      admit. }
+      i. eapply nm_forall2_implies_find_some in FA0; eauto.
+    }
 
     clear tid src0 ths_src0 tgt0 ths_tgt0 FINDS FINDT ps pt.
+    match goal with
+    | FA: List.Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt
+    end.
+    move LOCAL before RR. revert_until LOCAL. induction LOCAL; i.
+    { specialize (INV im_tgt). des.
+      symmetry in Heqtl_src; apply NatMapP.elements_Empty in Heqtl_src.
+      symmetry in Heqtl_tgt; apply NatMapP.elements_Empty in Heqtl_tgt.
+      apply nm_empty_eq in Heqtl_src, Heqtl_tgt. subst.
+      admit.
+    }
+
+    des_ifs. des; clarify. rename k0 into tid1, i into src1, i0 into tgt1.
+    hexploit nm_elements_cons_rm. eapply Heqtl_src. intro RESS.
+    hexploit nm_elements_cons_rm. eapply Heqtl_tgt. intro REST.
+    hexploit IHLOCAL; clear IHLOCAL; eauto. intro IND.
+    des.
+    unfold local_sim in H0.
+    specialize (H0 _ _ _ _ _ _ _ _ IND tid1 (key_set ths_src) (key_set ths_tgt)).
+    hexploit H0.
+    { admit. }
+    { admit. }
+    instantiate (1:=im_tgt). i; des. esplits; eauto.
+    econs; auto.
+    { split; ss. ii.
+      specialize (H2 _ _ _ _ _ _ _ _ INV1 WORLD0 im_tgt1 FAIR). des. esplits; eauto.
+    }
+    
+    (*TODO*)
+
+
+    
+      unfold NatSet.empty in INV.
+
+      rewrite F.empty_o in FIND1; ss.
+
+      esplits; eauto. admit.
+    clear ths_src ths_tgt Heqtl_src Heqtl_tgt.
 
 
 

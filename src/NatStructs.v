@@ -1070,10 +1070,10 @@ Section AUX.
   Lemma nm_forall2_implies_find_some
         elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
         P
-        (FA: List.Forall2 (fun '(k1, e1) '(k2, e2) => (k1 = k2) /\ (P e1 e2)) (elements m1) (elements m2))
+        (FA: List.Forall2 (fun '(k1, e1) '(k2, e2) => (k1 = k2) /\ (P e1 e2 k1)) (elements m1) (elements m2))
     :
     forall k e1 e2 (FIND1: find k m1 = Some e1) (FIND2: find k m2 = Some e2),
-      P e1 e2.
+      P e1 e2 k.
   Proof.
     match goal with
     | FA: Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as ml1; remember _ml2 as ml2
@@ -1087,9 +1087,7 @@ Section AUX.
     { eapply nm_elements_cons_find_some in Heqml1, Heqml2. clarify. }
     hexploit nm_elements_cons_rm. eapply Heqml1. intro RM1.
     hexploit nm_elements_cons_rm. eapply Heqml2. intro RM2.
-    eapply IHFA; eauto. instantiate (1:=k).
-    rewrite nm_find_rm_neq; auto.
-    rewrite nm_find_rm_neq; auto.
+    eapply IHFA; eauto. rewrite nm_find_rm_neq; auto. rewrite nm_find_rm_neq; auto.
   Qed.
 
 End AUX.
