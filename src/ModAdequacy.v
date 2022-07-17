@@ -774,6 +774,10 @@ Section ADEQ.
     eapply nm_pop_find_some in H. rewrite nm_find_add_neq in H; auto.
   Qed.
 
+
+  Variable St: wf_tgt.(T) -> wf_tgt.(T).
+  Hypothesis lt_succ_diag_r_t: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
+
   Lemma lsim_implies_ksim
         R0 R1 (RR: R0 -> R1 -> Prop)
         (ths_src: threads_src2 R0)
@@ -786,9 +790,15 @@ Section ADEQ.
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
         (LSIM: forall im_tgt, exists im_src o w,
-            (<<LSIM: lsim world_le I (local_RR world_le I RR tid) tid gps gpt src tgt
-                          (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
-                            im_src, im_tgt, st_src, st_tgt, o, w)>>) /\
+            (<<LSIM:
+              forall im_tgt0
+                (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
+              exists im_src0 w0,
+                (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
+                  (lsim world_le I (local_RR world_le I RR tid) tid gps gpt src tgt
+                        (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
+                          im_src0, im_tgt0, st_src, st_tgt, o, w0)) /\
+                  (world_le w w0)>>) /\
               (<<LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1)
                           (LSRC: Th.find tid ths_src = Some (sf, src))
                           (LTGT: Th.find tid ths_tgt = Some tgt),
@@ -800,12 +810,31 @@ Section ADEQ.
                (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
                  im_src, im_tgt, st_src, st_tgt, o, w).
   Proof.
-    ii. specialize (LSIM im_tgt). des. exists im_src, o, w.
-    rename LSIM0 into LSIM. move LOCAL before RR.
+    ii. remember (fun i => St (im_tgt i)) as im_tgt1. specialize (LSIM im_tgt1). des.
+    assert (FAIR: fair_update im_tgt1 im_tgt (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))).
+    { rewrite Heqim_tgt1. unfold fair_update. i. des_ifs. right; auto. }
+    specialize (LSIM0 im_tgt FAIR). des. clear LSIM0 Heqim_tgt1 FAIR im_tgt1.
+    clear im_src; rename im_src0 into im_src.
+    rename LOCAL into LOCAL0.
+    assert (LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1)
+                     (LSRC: Th.find tid ths_src = Some (sf, src))
+                     (LTGT: Th.find tid ths_tgt = Some tgt),
+               ((sf = true) -> (local_sim_sync RR src tgt tid w0)) /\
+                 ((sf = false) -> (local_sim_pick RR src tgt tid w0))).
+    { i. specialize (LOCAL0 tid0 sf0 src0 tgt0 LSRC LTGT). des. split; i.
+      - apply LOCAL0 in H; clear LOCAL0 LOCAL1. unfold local_sim_sync in *.
+        i. eapply H; eauto. etransitivity; eauto.
+      - apply LOCAL1 in H; clear LOCAL0 LOCAL1. unfold local_sim_pick in *.
+        i. eapply H; eauto. etransitivity; eauto.
+    }
+    clear LSIM2 LOCAL0. clear w; rename w0 into w. rename LSIM1 into LSIM. move LOCAL before RR.
+    exists im_src, o, w.
+
     revert_until RR. pcofix CIH. i.
     match goal with
     | LSIM: lsim _ _ ?_LRR tid _ _ _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr
     end.
+    setoid_rewrite <- Heqshr.
     punfold LSIM.
     2:{ ii. eapply pind5_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
     move LSIM before LOCAL. revert_until LSIM.
@@ -815,8 +844,8 @@ Section ADEQ.
                           Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           th_wf_pair ths_src ths_tgt ->
-                          forall sf (st_src : state_src) (st_tgt : state_tgt) (im_tgt : imap wf_tgt)
-                            (im_src : imap wf_src) o,
+                          forall sf (st_src : state_src) (st_tgt : state_tgt) o (im_tgt : imap wf_tgt)
+                            (im_src : imap wf_src),
                             LRR = local_RR world_le I RR tid ->
                             shr =
                               (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src,
@@ -825,7 +854,7 @@ Section ADEQ.
 
     ss. clear gps gpt src tgt shr LSIM.
     intros rr DEC IH gps gpt src tgt shr LSIM. clear DEC.
-    intros THSRC THTGT WF sf st_src st_tgt im_tgt im_src o ELRR Eshr.
+    intros THSRC THTGT WF sf st_src st_tgt o im_tgt im_src ELRR Eshr.
     eapply pind5_unfold in LSIM.
     2:{ eapply _lsim_mon. }
     inv LSIM.
@@ -2021,9 +2050,15 @@ Section ADEQ.
           (st_src: state_src) (st_tgt: state_tgt)
           ps pt
           (LSIM: forall im_tgt, exists im_src o w,
-              (<<LSIM: lsim world_le I (local_RR world_le I RR tid) tid ps pt src tgt
-                            (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
-                              im_src, im_tgt, st_src, st_tgt, o, w)>>) /\
+              (<<LSIM:
+                forall im_tgt0
+                  (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
+                exists im_src0 w0,
+                  (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
+                    (lsim world_le I (local_RR world_le I RR tid) tid ps pt src tgt
+                          (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
+                            im_src0, im_tgt0, st_src, st_tgt, o, w0)) /\
+                    (world_le w w0)>>) /\
                 (<<LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1)
                             (LSRC: Th.find tid ths_src = Some src)
                             (LTGT: Th.find tid ths_tgt = Some tgt),
@@ -2063,8 +2098,8 @@ Section ADEQ.
           (LOCAL: List.Forall2
                     (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim world_le I RR src tgt))
                     (Th.elements ths_src) (Th.elements ths_tgt))
-          src tgt
-          (INIT: local_sim_init world_le I RR src tgt)
+          src0 tgt0
+          (INIT: local_sim_init world_le I RR src0 tgt0)
           ths0 tht0
           (st_src: state_src) (st_tgt: state_tgt)
           (INV: forall im_tgt, exists im_src o w, I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w))
@@ -2075,13 +2110,14 @@ Section ADEQ.
           (NODUPT: forall k, (NatSet.In k (NatSet.add tid (key_set ths_tgt))) -> (~ NatSet.In k tht0))
     :
     forall ps pt, gsim wf_src wf_tgt RR ps pt
-                  (interp_all st_src (Th.add tid src ths_src) tid)
-                  (interp_all st_tgt (Th.add tid tgt ths_tgt) tid).
+                  (interp_all st_src (Th.add tid src0 ths_src) tid)
+                  (interp_all st_tgt (Th.add tid tgt0 ths_tgt) tid).
   Proof.
     i. eapply lsim_implies_gsim; auto.
     { admit. }
     i. specialize (INV im_tgt). des. exists im_src, o.
-    
+    match goal with
+      | LOCAL: List.Forall2 _ ?_
 
 
 
