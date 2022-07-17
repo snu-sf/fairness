@@ -778,20 +778,13 @@ Section ADEQ.
         R0 R1 (RR: R0 -> R1 -> Prop)
         (ths_src: threads_src2 R0)
         (ths_tgt: threads_tgt R1)
-        (* w *)
-        (* (LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1) *)
-        (*           (LSRC: Th.find tid ths_src = Some (sf, src)) *)
-        (*           (LTGT: Th.find tid ths_tgt = Some tgt), *)
-        (*     ((sf = true) -> (local_sim_sync RR src tgt tid w)) /\ *)
-        (*       ((sf = false) -> (local_sim_pick RR src tgt tid w))) *)
         tid
         (THSRC: Th.find tid ths_src = None)
         (THTGT: Th.find tid ths_tgt = None)
-        sf src tgt
         (WF: th_wf_pair ths_src ths_tgt)
+        sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
-        (* o *)
         (LSIM: forall im_tgt, exists im_src o w,
             (<<LSIM: lsim world_le I (local_RR world_le I RR tid) tid gps gpt src tgt
                           (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
@@ -821,19 +814,18 @@ Section ADEQ.
     { instantiate (1:= (fun gps gpt src tgt shr =>
                           Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
-                          forall sf : bool,
-                            th_wf_pair ths_src ths_tgt ->
-                            forall (st_src : state_src) (st_tgt : state_tgt) (im_tgt : imap wf_tgt)
-                              (im_src : imap wf_src) o,
-                              LRR = local_RR world_le I RR tid ->
-                              shr =
-                                (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src,
-                                  st_tgt, o, w) ->
-                              paco8 (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid gps gpt (sf, src) tgt shr)) in LSIM; auto. }
+                          th_wf_pair ths_src ths_tgt ->
+                          forall sf (st_src : state_src) (st_tgt : state_tgt) (im_tgt : imap wf_tgt)
+                            (im_src : imap wf_src) o,
+                            LRR = local_RR world_le I RR tid ->
+                            shr =
+                              (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src,
+                                st_tgt, o, w) ->
+                            paco8 (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid gps gpt (sf, src) tgt shr)) in LSIM; auto. }
 
     ss. clear gps gpt src tgt shr LSIM.
     intros rr DEC IH gps gpt src tgt shr LSIM. clear DEC.
-    intros THSRC THTGT sf WF st_src st_tgt im_tgt im_src o ELRR Eshr.
+    intros THSRC THTGT WF sf st_src st_tgt im_tgt im_src o ELRR Eshr.
     eapply pind5_unfold in LSIM.
     2:{ eapply _lsim_mon. }
     inv LSIM.
@@ -1845,7 +1837,6 @@ Section ADEQ.
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         ps pt
-        (* o w *)
         (KSIM: forall im_tgt, exists im_src o w,
             sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                      (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
@@ -2022,18 +2013,12 @@ Section ADEQ.
           R0 R1 (RR: R0 -> R1 -> Prop)
           (ths_src: threads_src1 R0)
           (ths_tgt: threads_tgt R1)
-          (* w *)
-          (* (LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1) *)
-          (*           (LSRC: Th.find tid ths_src = Some src) *)
-          (*           (LTGT: Th.find tid ths_tgt = Some tgt), *)
-          (*     (local_sim_pick RR src tgt tid w)) *)
           (WF: th_wf_pair ths_src ths_tgt)
           tid
           (FINDS: Th.find tid ths_src = None)
           (FINDT: Th.find tid ths_tgt = None)
           src tgt
           (st_src: state_src) (st_tgt: state_tgt)
-          (* o *)
           ps pt
           (LSIM: forall im_tgt, exists im_src o w,
               (<<LSIM: lsim world_le I (local_RR world_le I RR tid) tid ps pt src tgt
@@ -2069,5 +2054,38 @@ Section ADEQ.
     destruct (NatMap.find (elt:=thread _ident_src (sE state_src) R0) tid0 ths_src); ss. clarify.
     Unshelve. exact true.
   Qed.
+
+
+  Theorem local_sim_implies_gsim
+          R0 R1 (RR: R0 -> R1 -> Prop)
+          (ths_src: threads_src1 R0)
+          (ths_tgt: threads_tgt R1)
+          (LOCAL: List.Forall2
+                    (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim world_le I RR src tgt))
+                    (Th.elements ths_src) (Th.elements ths_tgt))
+          src tgt
+          (INIT: local_sim_init world_le I RR src tgt)
+          ths0 tht0
+          (st_src: state_src) (st_tgt: state_tgt)
+          (INV: forall im_tgt, exists im_src o w, I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w))
+          tid
+          (FINDS: Th.find tid ths_src = None)
+          (FINDT: Th.find tid ths_tgt = None)
+          (NODUPS: forall k, (NatSet.In k (NatSet.add tid (key_set ths_src))) -> (~ NatSet.In k ths0))
+          (NODUPT: forall k, (NatSet.In k (NatSet.add tid (key_set ths_tgt))) -> (~ NatSet.In k tht0))
+    :
+    forall ps pt, gsim wf_src wf_tgt RR ps pt
+                  (interp_all st_src (Th.add tid src ths_src) tid)
+                  (interp_all st_tgt (Th.add tid tgt ths_tgt) tid).
+  Proof.
+    i. eapply lsim_implies_gsim; auto.
+    { admit. }
+    i. specialize (INV im_tgt). des. exists im_src, o.
+    
+
+
+
+
+
 
 End ADEQ.
