@@ -2122,20 +2122,28 @@ Section ADEQ.
           (st_src: state_src) (st_tgt: state_tgt)
           (INV: forall im_tgt, exists im_src o w,
               I (NatSet.empty, NatSet.empty, im_src, im_tgt, st_src, st_tgt, o, w))
-          tid src0 ths_src0 tgt0 ths_tgt0
-          (FINDS: nm_pop tid ths_src = Some (src0, ths_src0))
-          (FINDT: nm_pop tid ths_tgt = Some (tgt0, ths_tgt0))
+          tid src0 tgt0
+          (FINDS: Th.find tid ths_src = Some src0)
+          (FINDT: Th.find tid ths_tgt = Some tgt0)
     :
     forall ps pt, gsim wf_src wf_tgt RR ps pt
                   (interp_all st_src ths_src tid)
                   (interp_all st_tgt ths_tgt tid).
   Proof.
+    remember (Th.remove tid ths_src) as ths_src0.
+    remember (Th.remove tid ths_tgt) as ths_tgt0.
+    assert (POPS: nm_pop tid ths_src = Some (src0, ths_src0)).
+    { unfold nm_pop. rewrite FINDS. rewrite Heqths_src0. auto. }
+    assert (POPT: nm_pop tid ths_tgt = Some (tgt0, ths_tgt0)).
+    { unfold nm_pop. rewrite FINDT. rewrite Heqths_tgt0. auto. }
     i. replace ths_src with (Th.add tid src0 ths_src0).
     2:{ symmetry; eapply nm_pop_res_is_add_eq; eauto. }
     replace ths_tgt with (Th.add tid tgt0 ths_tgt0).
     2:{ symmetry; eapply nm_pop_res_is_add_eq; eauto. }
     eapply lsim_implies_gsim; auto.
-    { admit. }
+    { subst. eapply nm_wf_pair_rm. eapply nm_forall2_wf_pair.
+      eapply list_forall2_implies; eauto. i. des_ifs. des; auto.
+    }
     { eapply nm_pop_res_find_none; eauto. }
     { eapply nm_pop_res_find_none; eauto. }
 
@@ -2152,15 +2160,19 @@ Section ADEQ.
         { eapply nm_pop_find_some; eauto. }
         i. unfold local_sim_pick in H0.
         assert (SETS: NatSet.add tid (key_set ths_src0) = key_set ths_src).
-        { admit. }
+        { subst. rewrite key_set_pull_rm_eq. unfold NatSet.add.
+          rewrite <- nm_find_some_rm_add_eq; auto. eapply key_set_find_some1; eauto.
+        }
         assert (SETT: NatSet.add tid (key_set ths_tgt0) = key_set ths_tgt).
-        { admit. }
+        { subst. rewrite key_set_pull_rm_eq. unfold NatSet.add.
+          rewrite <- nm_find_some_rm_add_eq; auto. eapply key_set_find_some1; eauto.
+        }
         hexploit H0; clear H0.
         eapply H. reflexivity.
         rewrite <- SETT; eauto.
         rewrite !SETS, !SETT. eauto.
       - red. intros. eapply H0.
-        1,2: admit.
+        eapply find_some_aux; eauto. eapply find_some_aux; eauto.
     }
 
     cut (forall im_tgt, exists (im_src0 : imap wf_src) (o0 : T wf_src) (w0 : world),
@@ -2172,7 +2184,7 @@ Section ADEQ.
       i. eapply nm_forall2_implies_find_some in FA0; eauto.
     }
 
-    clear tid src0 ths_src0 tgt0 ths_tgt0 FINDS FINDT ps pt.
+    clear tid src0 ths_src0 tgt0 ths_tgt0 FINDS FINDT ps pt Heqths_src0 Heqths_tgt0 POPS POPT .
     match goal with
     | FA: List.Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt
     end.
@@ -2180,8 +2192,8 @@ Section ADEQ.
     { specialize (INV im_tgt). des.
       symmetry in Heqtl_src; apply NatMapP.elements_Empty in Heqtl_src.
       symmetry in Heqtl_tgt; apply NatMapP.elements_Empty in Heqtl_tgt.
-      apply nm_empty_eq in Heqtl_src, Heqtl_tgt. subst.
-      admit.
+      apply nm_empty_eq in Heqtl_src, Heqtl_tgt. subst. esplits; ss.
+      unfold NatSet.empty in *. rewrite !key_set_empty_empty_eq. eauto.
     }
 
     des_ifs. des; clarify. rename k0 into tid1, i into src1, i0 into tgt1.
@@ -2192,8 +2204,14 @@ Section ADEQ.
     unfold local_sim in H0.
     specialize (H0 _ _ _ _ _ _ _ _ IND tid1 (key_set ths_src) (key_set ths_tgt)).
     hexploit H0.
-    { admit. }
-    { admit. }
+    { econs. rewrite key_set_pull_rm_eq. eapply nm_find_rm_eq.
+      erewrite <- key_set_pull_add_eq. instantiate (1:=src1).
+      rewrite <- nm_find_some_rm_add_eq; auto. eapply nm_elements_cons_find_some; eauto.
+    }
+    { econs. rewrite key_set_pull_rm_eq. eapply nm_find_rm_eq.
+      erewrite <- key_set_pull_add_eq. instantiate (1:=tgt1).
+      rewrite <- nm_find_some_rm_add_eq; auto. eapply nm_elements_cons_find_some; eauto.
+    }
     instantiate (1:=im_tgt). i; des. esplits; eauto.
     econs; auto.
     { split; ss. ii.

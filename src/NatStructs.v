@@ -1090,4 +1090,18 @@ Section AUX.
     eapply IHFA; eauto. rewrite nm_find_rm_neq; auto. rewrite nm_find_rm_neq; auto.
   Qed.
 
+
+  Lemma key_set_empty_empty_equal
+        elt
+    :
+    Equal (key_set (@empty elt)) (@empty unit).
+  Proof.
+    eapply nm_empty_equal. eapply key_set_empty1. apply empty_1.
+  Qed.
+  Lemma key_set_empty_empty_eq
+        elt
+    :
+    (key_set (@empty elt)) = (@empty unit).
+  Proof. eapply nm_eq_is_equal. eapply key_set_empty_empty_equal. Qed.
+
 End AUX.
