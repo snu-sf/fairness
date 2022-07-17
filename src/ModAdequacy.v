@@ -2122,14 +2122,20 @@ Section ADEQ.
           (st_src: state_src) (st_tgt: state_tgt)
           (INV: forall im_tgt, exists im_src o w,
               I (NatSet.empty, NatSet.empty, im_src, im_tgt, st_src, st_tgt, o, w))
-          tid src0 tgt0
-          (FINDS: Th.find tid ths_src = Some src0)
-          (FINDT: Th.find tid ths_tgt = Some tgt0)
+          tid
+          (INS: Th.In tid ths_src)
+          (INT: Th.In tid ths_tgt)
     :
     forall ps pt, gsim wf_src wf_tgt RR ps pt
                   (interp_all st_src ths_src tid)
                   (interp_all st_tgt ths_tgt tid).
   Proof.
+    eapply NatMapP.F.in_find_iff in INS, INT.
+    destruct (Th.find tid ths_src) eqn:FINDS.
+    2:{ clarify. }
+    destruct (Th.find tid ths_tgt) eqn:FINDT.
+    2:{ clarify. }
+    clear INS INT. rename i into src0, i0 into tgt0.
     remember (Th.remove tid ths_src) as ths_src0.
     remember (Th.remove tid ths_tgt) as ths_tgt0.
     assert (POPS: nm_pop tid ths_src = Some (src0, ths_src0)).
