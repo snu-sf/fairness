@@ -2101,6 +2101,17 @@ Section ADEQ.
   Qed.
 
 
+  Lemma list_forall2_implies
+        A B (f1 f2: A -> B -> Prop) la lb
+        (FA: List.Forall2 f1 la lb)
+        (IMP: forall a b, (f1 a b) -> (f2 a b))
+    :
+    List.Forall2 f2 la lb.
+  Proof.
+    depgen f1. clear. i. move FA before B. revert_until FA. induction FA; i; ss.
+    econs; eauto.
+  Qed.
+
   Theorem local_sim_implies_gsim
           R0 R1 (RR: R0 -> R1 -> Prop)
           (ths_src: threads_src1 R0)
@@ -2108,12 +2119,9 @@ Section ADEQ.
           (LOCAL: List.Forall2
                     (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim world_le I RR src tgt))
                     (Th.elements ths_src) (Th.elements ths_tgt))
-          (* ths0 tht0 *)
-          (* (EMPS: forall k, (NatMap.In k ths_src) -> (NatMap.find k ths0 = None)) *)
-          (* (EMPT: forall k, (NatMap.In k ths_tgt) -> (NatMap.find k tht0 = None)) *)
           (st_src: state_src) (st_tgt: state_tgt)
-          (* (INV: forall im_tgt, exists im_src o w, I (ths0, tht0, im_src, im_tgt, st_src, st_tgt, o, w)) *)
-          (INV: forall im_tgt, exists im_src o w, I (NatSet.empty, NatSet.empty, im_src, im_tgt, st_src, st_tgt, o, w))
+          (INV: forall im_tgt, exists im_src o w,
+              I (NatSet.empty, NatSet.empty, im_src, im_tgt, st_src, st_tgt, o, w))
           tid src0 ths_src0 tgt0 ths_tgt0
           (FINDS: nm_pop tid ths_src = Some (src0, ths_src0))
           (FINDT: nm_pop tid ths_tgt = Some (tgt0, ths_tgt0))
@@ -2130,7 +2138,6 @@ Section ADEQ.
     { admit. }
     { eapply nm_pop_res_find_none; eauto. }
     { eapply nm_pop_res_find_none; eauto. }
-    (* i. specialize (INV im_tgt). des. *)
 
     cut (forall im_tgt, exists im_src0 o0 w0,
             (I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, w0)) /\
@@ -2192,61 +2199,9 @@ Section ADEQ.
     { split; ss. ii.
       specialize (H2 _ _ _ _ _ _ _ _ INV1 WORLD0 im_tgt1 FAIR). des. esplits; eauto.
     }
-    
-    (*TODO*)
+    eapply list_forall2_implies; eauto. i. des_ifs. des; clarify. split; auto.
+    eapply local_sim_pick_mon_world; eauto.
 
-
-    
-      unfold NatSet.empty in INV.
-
-      rewrite F.empty_o in FIND1; ss.
-
-      esplits; eauto. admit.
-    clear ths_src ths_tgt Heqtl_src Heqtl_tgt.
-
-
-
-
-    
-    rename LOCAL into LOCAL0.
-    assert (LOCAL: List.Forall2
-                     (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim world_le I RR src tgt))
-                     (Th.elements ths_src0) (Th.elements ths_tgt0)).
-    { admit. }
-    assert (INIT: local_sim world_le I RR src0 tgt0).
-    { admit. }
-    clear LOCAL0.
-    match goal with
-    | LOCAL: List.Forall2 _ ?_srcs ?_tgts |- _ => remember _srcs as srcs; remember _tgts as tgts
-    end.
-    move LOCAL before RR. revert_until LOCAL. induction LOCAL; i.
-
-    { symmetry in Heqsrcs; apply NatMapP.elements_Empty in Heqsrcs.
-      symmetry in Heqtgts; apply NatMapP.elements_Empty in Heqtgts.
-      unfold local_sim in INIT.
-      specialize (INIT _ _ _ _ _ _ _ _ INV tid (TIdSet.add tid NatSet.empty) (TIdSet.add tid NatSet.empty)).
-      hexploit INIT; clear INIT.
-      { econs; ss. }
-      { econs; ss. }
-      i. des. exists im_src, o1, w1. split; ii.
-      - hexploit H1; clear H1; eauto. reflexivity.
-        instantiate (1:=im_tgt0). admit.
-        i; des.
-        esplits; eauto.
-        1,2: admit.
-      - exfalso. admit.
-    }
-
-    des_ifs. des; clarify. rename k0 into tid0.
-    assert (NEQ: tid <> tid0).
-    { admit. }
-    rename i into src1, i0 into tgt1, l into ths_src1, l' into ths_tgt1.
-    
-
-
-
-
-
-
+  Qed.
 
 End ADEQ.
