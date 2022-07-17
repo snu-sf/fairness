@@ -2120,7 +2120,45 @@ Section ADEQ.
     { admit. }
     { eapply nm_pop_res_find_none; eauto. }
     { eapply nm_pop_res_find_none; eauto. }
-    i. specialize (INV im_tgt). des.
+    (* i. specialize (INV im_tgt). des. *)
+
+    cut (forall im_tgt, exists im_src0 o0 w0,
+            (I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, w0)) /\
+              (forall (tid0 : Th.key) (src : thread _ident_src (sE state_src) R0)
+                 (tgt : thread _ident_tgt (sE state_tgt) R1),
+                  Th.find (elt:=thread _ident_src (sE state_src) R0) tid0 ths_src = Some src ->
+                  Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid0 ths_tgt = Some tgt ->
+                  local_sim_pick RR src tgt tid0 w0)).
+    { i. specialize (H im_tgt). des. exists im_src0, o0, w0. split.
+      - ii. specialize (H0 tid src0 tgt0). hexploit H0; clear H0.
+        { eapply nm_pop_find_some; eauto. }
+        { eapply nm_pop_find_some; eauto. }
+        i. unfold local_sim_pick in H0.
+        assert (SETS: NatSet.add tid (key_set ths_src0) = key_set ths_src).
+        { admit. }
+        assert (SETT: NatSet.add tid (key_set ths_tgt0) = key_set ths_tgt).
+        { admit. }
+        hexploit H0; clear H0.
+        eapply H. reflexivity.
+        rewrite <- SETT; eauto.
+        rewrite !SETS, !SETT. eauto.
+      - red. intros. eapply H0.
+        1,2: admit.
+    }
+
+    cut (forall im_tgt, exists (im_src0 : imap wf_src) (o0 : T wf_src) (w0 : world),
+            I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, w0) /\
+              (List.Forall2 (fun '(t1, src) '(t2, tgt) => t1 = t2 /\ local_sim_pick RR src tgt t1 w0)
+                            (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src)
+                            (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt))).
+    { intro FA. admit. }
+
+    clear tid src0 ths_src0 tgt0 ths_tgt0 FINDS FINDT ps pt.
+
+
+
+
+    
     rename LOCAL into LOCAL0.
     assert (LOCAL: List.Forall2
                      (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim world_le I RR src tgt))
