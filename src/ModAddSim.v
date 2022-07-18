@@ -39,17 +39,57 @@ Section ADD_MODSIM.
         
         ginit.
         { i. eapply lsim_mon. }
-        { admit. }
+        { i. eapply cpn5_wcompat, lsim_mon. }
         
         gcofix CIH.
         { i. eapply lsim_mon. }
         i.
 
         destruct_itree itr.
-        * gstep. { i. eapply lsim_mon. }
-          admit.
-        * admit.
-        * admit.
+        * rewrite 2 embed_state_ret.
+          rewrite 2 map_event_ret.
+          gstep. { i. eapply lsim_mon. }
+          eapply pind5.pind5_fold.
+          econs. inv INV. ss. esplits; ss.
+        * rewrite 2 embed_state_tau.
+          rewrite 2 map_event_tau.
+          gstep. { i. eapply lsim_mon. }
+          eapply pind5.pind5_fold. eapply lsim_tauL. esplit; ss.
+          eapply pind5.pind5_fold. eapply lsim_tauR. esplit; ss.
+          eapply pind5.pind5_fold. eapply lsim_progress.
+          gfinal. { i. eapply lsim_mon. } left. eapply CIH; ss.
+        * { destruct e as [[|] | ].
+            - admit.
+            - rewrite 2 embed_state_vis.
+              rewrite 2 map_event_vis. ss.
+              destruct c.
+              + admit.
+              + admit.
+            - destruct s.
+              + rewrite 2 embed_state_put. ss.
+                rewrite 2 map_event_vis. ss.
+                rewrite <- 2 bind_trigger.
+                gstep. { i. eapply lsim_mon. }
+                eapply pind5.pind5_fold. eapply lsim_getL. esplit; ss.
+                eapply pind5.pind5_fold. eapply lsim_getR. esplit; ss.
+                rewrite 2 map_event_vis. ss.
+                rewrite <- 2 bind_trigger.
+                eapply pind5.pind5_fold. eapply lsim_putL. esplit; ss.
+                eapply pind5.pind5_fold. eapply lsim_putR. esplit; ss.
+                eapply pind5.pind5_fold. eapply lsim_progress.
+                gfinal. { i. eapply lsim_mon. } left. eapply CIH; ss.
+                inv INV. destruct st_src0, st_tgt0. ss.
+              + rewrite 2 embed_state_get. ss.
+                rewrite 2 map_event_vis. ss.
+                rewrite <- 2 bind_trigger.
+                gstep. { i. eapply lsim_mon. }
+                eapply pind5.pind5_fold. eapply lsim_getL. esplit; ss.
+                eapply pind5.pind5_fold. eapply lsim_getR. esplit; ss.
+                eapply pind5.pind5_fold. eapply lsim_progress.
+                gfinal. { i. eapply lsim_mon. } left.
+                destruct st_src0, st_tgt0. des. ss. subst.
+                eapply CIH; ss.
+          }
       + unfold embed_l, embed_r. ii. admit.
       + ss.
   Admitted.
