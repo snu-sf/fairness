@@ -3,12 +3,21 @@ From Paco Require Import paco.
 From ITree Require Import ITree.
 From Fairness Require Import
   ITreeLib
+  WFLib
   Mod
   ModSim.
 
 Import Lia.
 Import Mod.
 Import RelationClasses.
+
+Section WF.
+
+  (* TODO : move to WFLib *)
+  Definition double_wf (wf1 wf2 : WF) : WF :=
+    {| wf := double_rel_well_founded wf1.(wf) wf2.(wf) |}.
+
+End WF.
 
 Section ADD_MODSIM.
 
@@ -225,11 +234,28 @@ Section ADD_MODSIM.
         Unshelve. all: eauto.
   Qed.
 
+  Definition imap_proj
+    {id1 id2 wf}
+    (im : @imap (ident_src (id_sum id1 id2)) wf)
+    : @imap (ident_src id2) wf :=
+    fun i => match i with
+          | inl i => im (inl i)
+          | inr i => im (inr (inr i))
+          end.
+
   Lemma ModAdd_right_cong M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
-    i. inv H. econs.
+    i. inv H.
+    pose (I' := fun x : @shared
+                       (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
+                       (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
+                       (double_wf nat_wf wf_src) (double_wf nat_wf wf_tgt) world
+                => let '(ths, m_src, m_tgt, st_src, st_tgt, w) := x in
+                  fst st_src = fst st_tgt
+                  /\ I (ths, imap_proj m_src, imap_proj m_tgt, snd st_src, snd st_tgt, w)
+         ).
   Admitted.
 
 End ADD_MODSIM.
