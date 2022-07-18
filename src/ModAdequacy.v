@@ -789,7 +789,6 @@ Section ADEQ.
     | LSIM: lsim _ _ ?_LRR tid _ _ _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr
     end.
     punfold LSIM.
-    2:{ ii. eapply pind5_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
     move LSIM before LOCAL. revert_until LSIM.
     eapply pind5_acc in LSIM.
 

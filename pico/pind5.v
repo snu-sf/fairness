@@ -1,4 +1,5 @@
 Require Export Program.Basics. Open Scope program_scope.
+From Paco Require Import paco.
 From Paco Require Import paconotation_internal pacotac_internal.
 From Paco Require Export paconotation.
 From Fairness Require Import pind_internal.
@@ -22,42 +23,6 @@ Definition upind5(lf : rel5 T0 T1 T2 T3 T4 -> rel5 T0 T1 T2 T3 T4)(r: rel5 T0 T1
 Arguments pind5 : clear implicits.
 Arguments upind5 : clear implicits.
 #[local] Hint Unfold upind5 : core.
-
-Definition monotone5 (lf: rel5 T0 T1 T2 T3 T4 -> rel5 T0 T1 T2 T3 T4) :=
-  forall x0 x1 x2 x3 x4 r r' (IN: lf r x0 x1 x2 x3 x4) (LE: r <5= r'), lf r' x0 x1 x2 x3 x4.
-
-Definition _monotone5 (lf: rel5 T0 T1 T2 T3 T4 -> rel5 T0 T1 T2 T3 T4) :=
-  forall r r'(LE: r <5= r'), lf r <5== lf r'.
-
-Lemma monotone5_eq (lf: rel5 T0 T1 T2 T3 T4 -> rel5 T0 T1 T2 T3 T4) :
-  monotone5 lf <-> _monotone5 lf.
-Proof. unfold monotone5, _monotone5, le5. split; intros; eapply H; eassumption. Qed.
-
-Lemma monotone5_map (lf: rel5 T0 T1 T2 T3 T4 -> rel5 T0 T1 T2 T3 T4)
-      (MON: _monotone5 lf) :
-  _monotone (fun R0 => @uncurry5 T0 T1 T2 T3 T4 (lf (@curry5 T0 T1 T2 T3 T4 R0))).
-Proof.
-  red; intros. apply uncurry_map5. apply MON; apply curry_map5; assumption.
-Qed.
-
-Lemma monotone5_compose (lf lf': rel5 T0 T1 T2 T3 T4 -> rel5 T0 T1 T2 T3 T4)
-      (MON1: monotone5 lf)
-      (MON2: monotone5 lf'):
-  monotone5 (compose lf lf').
-Proof.
-  red; intros. eapply MON1. apply IN.
-  intros. eapply MON2. apply PR. apply LE.
-Qed.
-
-Lemma monotone5_union (lf lf': rel5 T0 T1 T2 T3 T4 -> rel5 T0 T1 T2 T3 T4)
-      (MON1: monotone5 lf)
-      (MON2: monotone5 lf'):
-  monotone5 (lf \6/ lf').
-Proof.
-  red; intros. destruct IN.
-  - left. eapply MON1. apply H. apply LE.
-  - right. eapply MON2. apply H. apply LE.
-Qed.
 
 Lemma monotone5_inter (lf lf': rel5 T0 T1 T2 T3 T4 -> rel5 T0 T1 T2 T3 T4)
       (MON1: monotone5 lf)
