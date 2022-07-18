@@ -248,6 +248,7 @@ Section ADD_MODSIM.
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
     i. inv H.
+    (*
     pose (I' := fun x : @shared
                        (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
                        (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
@@ -256,6 +257,7 @@ Section ADD_MODSIM.
                   fst st_src = fst st_tgt
                   /\ I (ths, imap_proj m_src, imap_proj m_tgt, snd st_src, snd st_tgt, w)
          ).
+     *)
   Admitted.
 
 End ADD_MODSIM.
