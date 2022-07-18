@@ -418,7 +418,6 @@ Section ADEQ.
   Proof.
     revert_until RR. pcofix CIH. i.
     move KSIM before CIH. revert_until KSIM. punfold KSIM.
-    2:{ eapply ksim_mon. }
     eapply pind8_acc in KSIM.
 
     { instantiate (1:= (fun ths_src ths_tgt tid ps1 pt1 ssrc tgt shr =>
@@ -454,57 +453,57 @@ Section ADEQ.
     }
 
     { des. pfold. eapply pind8_fold. eapply ksim_yieldL. esplits; eauto. split; ss.
-      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_tauL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { des. pfold. eapply pind8_fold. eapply ksim_chooseL. esplits. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_putL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_getL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_tidL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_UB. }
 
     { des. pfold. eapply pind8_fold. eapply ksim_fairL. esplits; eauto. split; ss.
-      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_tauR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_chooseR. i. split; ss. specialize (KSIM0 x).
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_putR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_getR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_tidR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_fairR. i. split; ss. specialize (KSIM0 _ FAIR).
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_observe. i. specialize (KSIM0 ret). pclearbot.
@@ -529,7 +528,6 @@ Section ADEQ.
     revert_until RR. pcofix CIH. i.
     remember true as ps1 in KSIM at 1. remember true as pt1 in KSIM at 1.
     move KSIM before CIH. revert_until KSIM. punfold KSIM.
-    2:{ eapply ksim_mon. }
     eapply pind8_acc in KSIM.
 
     { instantiate (1:= (fun ths_src ths_tgt tid ps1 pt1 ssrc tgt shr =>
@@ -566,57 +564,57 @@ Section ADEQ.
     }
 
     { des. pfold. eapply pind8_fold. eapply ksim_yieldL. esplits; eauto. split; ss.
-      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_tauL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { des. pfold. eapply pind8_fold. eapply ksim_chooseL. esplits. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_putL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_getL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_tidL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_UB. }
 
     { des. pfold. eapply pind8_fold. eapply ksim_fairL. esplits; eauto. split; ss.
-      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_tauR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_chooseR. i. split; ss. specialize (KSIM0 x).
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_putR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_getR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_tidR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_fairR. i. split; ss. specialize (KSIM0 _ FAIR).
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind8_fold. eapply ksim_observe. i. specialize (KSIM0 ret). pclearbot.
@@ -846,7 +844,6 @@ Section ADEQ.
     end.
     setoid_rewrite <- Heqshr.
     punfold LSIM.
-    2:{ ii. eapply pind5_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
     move LSIM before LOCAL. revert_until LSIM.
     eapply pind5_acc in LSIM.
 
@@ -943,27 +940,27 @@ Section ADEQ.
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. eapply ksim_tauL. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { des. clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_chooseL. exists x. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_putL. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_getL. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_tidL. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_UB. }
@@ -971,39 +968,39 @@ Section ADEQ.
     { des. clarify. destruct LSIM as [LSIM IND]. clear LSIM.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_fairL.
       exists im_src1. splits; eauto. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. eapply ksim_tauR. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_chooseR. split; ss.
       specialize (LSIM0 x). destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_putR. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_getR. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_tidR. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_fairR. split; ss.
       specialize (LSIM0 im_tgt0 FAIR). des. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clear IH rr. clarify. rewrite ! bind_trigger.
@@ -1136,7 +1133,7 @@ Section ADEQ.
     { des. clarify. destruct LSIM as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind8_fold. rewrite bind_trigger. eapply ksim_yieldL.
       esplits; eauto. split; ss.
-      hexploit IH; eauto. i. punfold H. eapply ksim_mon.
+      hexploit IH; eauto. i. punfold H.
     }
 
     { clarify. pclearbot. pfold. eapply pind8_fold. eapply ksim_progress. right. eapply CIH; eauto. }
@@ -1374,11 +1371,11 @@ Section ADEQ.
       + subst. gfold. eapply sim_progress; auto. right. eapply CIH.
         eapply find_none_aux; eauto. eapply find_none_aux; eauto.
         { hexploit nm_wf_pair_pop_cases; eauto. instantiate (1:=tid0). i; des; clarify. }
-        rewrite <- PROJS, <- PROJT. punfold H. eapply ksim_mon.
+        rewrite <- PROJS, <- PROJT. punfold H.
       + eapply IHo. eauto.
         eapply find_none_aux; eauto. eapply find_none_aux; eauto.
         { hexploit nm_wf_pair_pop_cases; eauto. instantiate (1:=tid0). i; des; clarify. }
-        rewrite <- PROJS, <- PROJT. eapply ksim_reset_prog. punfold H. eapply ksim_mon. all: ss.
+        rewrite <- PROJS, <- PROJT. eapply ksim_reset_prog. punfold H. all: ss.
 
     - hexploit KSIM3; clear KSIM2 KSIM3; ss.
       assert (RA: (NatSet.remove tid (NatSet.add tid (key_set ths_tgt))) = (key_set ths_tgt)).
@@ -1725,7 +1722,6 @@ Section ADEQ.
     end.
     remember true as ps in KSIM.
     punfold KSIM.
-    2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __ksim_mon; eauto. }
     move KSIM before CIH. revert_until KSIM.
     eapply pind8_acc in KSIM.
 
@@ -1893,7 +1889,6 @@ Section ADEQ.
     | KSIM: sim_knot _ _ _ _ _ _ ?_src _ ?_shr |- _ => remember _src as ssrc; remember _shr as shr
     end.
     punfold KSIM.
-    2:{ ii. eapply pind8_mon_gen; eauto. i. eapply __ksim_mon; eauto. }
     move KSIM before IHo. revert_until KSIM.
     eapply pind8_acc in KSIM.
 
