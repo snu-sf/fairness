@@ -38,15 +38,11 @@ Section ADD_MODSIM.
         revert fs ft itr ths0 im_src0 im_tgt0 st_src0 st_tgt0 w0 tid THS INV.
         
         ginit.
-        { i. eapply lsim_mon. }
-        { admit. }
-        
         gcofix CIH.
-        { i. eapply lsim_mon. }
         i.
 
         destruct_itree itr.
-        * gstep. { i. eapply lsim_mon. }
+        * gstep.
           admit.
         * admit.
         * admit.

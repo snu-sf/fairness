@@ -1,4 +1,5 @@
 Require Export Program.Basics. Open Scope program_scope.
+From Paco Require Import paco.
 From Paco Require Import paconotation_internal paco_internal pacotac_internal.
 From Paco Require Export paconotation.
 From Fairness Require Import pind_internal.
@@ -20,42 +21,6 @@ Definition upind3(lf : rel3 T0 T1 T2 -> rel3 T0 T1 T2)(r: rel3 T0 T1 T2) := pind
 Arguments pind3 : clear implicits.
 Arguments upind3 : clear implicits.
 #[local] Hint Unfold upind3 : core.
-
-Definition monotone3 (lf: rel3 T0 T1 T2 -> rel3 T0 T1 T2) :=
-  forall x0 x1 x2 r r' (IN: lf r x0 x1 x2) (LE: r <3= r'), lf r' x0 x1 x2.
-
-Definition _monotone3 (lf: rel3 T0 T1 T2 -> rel3 T0 T1 T2) :=
-  forall r r'(LE: r <3= r'), lf r <3== lf r'.
-
-Lemma monotone3_eq (lf: rel3 T0 T1 T2 -> rel3 T0 T1 T2) :
-  monotone3 lf <-> _monotone3 lf.
-Proof. unfold monotone3, _monotone3, le3. split; intros; eapply H; eassumption. Qed.
-
-Lemma monotone3_map (lf: rel3 T0 T1 T2 -> rel3 T0 T1 T2)
-      (MON: _monotone3 lf) :
-  _monotone (fun R0 => @uncurry3 T0 T1 T2 (lf (@curry3 T0 T1 T2 R0))).
-Proof.
-  red; intros. apply uncurry_map3. apply MON; apply curry_map3; assumption.
-Qed.
-
-Lemma monotone3_compose (lf lf': rel3 T0 T1 T2 -> rel3 T0 T1 T2)
-      (MON1: monotone3 lf)
-      (MON2: monotone3 lf'):
-  monotone3 (compose lf lf').
-Proof.
-  red; intros. eapply MON1. apply IN.
-  intros. eapply MON2. apply PR. apply LE.
-Qed.
-
-Lemma monotone3_union (lf lf': rel3 T0 T1 T2 -> rel3 T0 T1 T2)
-      (MON1: monotone3 lf)
-      (MON2: monotone3 lf'):
-  monotone3 (lf \4/ lf').
-Proof.
-  red; intros. destruct IN.
-  - left. eapply MON1. apply H. apply LE.
-  - right. eapply MON2. apply H. apply LE.
-Qed.
 
 Lemma monotone3_inter (lf lf': rel3 T0 T1 T2 -> rel3 T0 T1 T2)
       (MON1: monotone3 lf)

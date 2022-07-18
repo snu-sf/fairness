@@ -1,4 +1,5 @@
 Require Export Program.Basics. Open Scope program_scope.
+From Paco Require Import paco.
 From Paco Require Import paconotation_internal pacotac_internal.
 From Paco Require Export paconotation.
 From Fairness Require Import pind_internal.
@@ -25,42 +26,6 @@ Definition upind8(lf : rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> rel8 T0 T1 T2 T3 T4 T5 T6
 Arguments pind8 : clear implicits.
 Arguments upind8 : clear implicits.
 #[local] Hint Unfold upind8 : core.
-
-Definition monotone8 (lf: rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> rel8 T0 T1 T2 T3 T4 T5 T6 T7) :=
-  forall x0 x1 x2 x3 x4 x5 x6 x7 r r' (IN: lf r x0 x1 x2 x3 x4 x5 x6 x7) (LE: r <8= r'), lf r' x0 x1 x2 x3 x4 x5 x6 x7.
-
-Definition _monotone8 (lf: rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> rel8 T0 T1 T2 T3 T4 T5 T6 T7) :=
-  forall r r'(LE: r <8= r'), lf r <8== lf r'.
-
-Lemma monotone8_eq (lf: rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> rel8 T0 T1 T2 T3 T4 T5 T6 T7) :
-  monotone8 lf <-> _monotone8 lf.
-Proof. unfold monotone8, _monotone8, le8. split; intros; eapply H; eassumption. Qed.
-
-Lemma monotone8_map (lf: rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> rel8 T0 T1 T2 T3 T4 T5 T6 T7)
-      (MON: _monotone8 lf) :
-  _monotone (fun R0 => @uncurry8 T0 T1 T2 T3 T4 T5 T6 T7 (lf (@curry8 T0 T1 T2 T3 T4 T5 T6 T7 R0))).
-Proof.
-  red; intros. apply uncurry_map8. apply MON; apply curry_map8; assumption.
-Qed.
-
-Lemma monotone8_compose (lf lf': rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> rel8 T0 T1 T2 T3 T4 T5 T6 T7)
-      (MON1: monotone8 lf)
-      (MON2: monotone8 lf'):
-  monotone8 (compose lf lf').
-Proof.
-  red; intros. eapply MON1. apply IN.
-  intros. eapply MON2. apply PR. apply LE.
-Qed.
-
-Lemma monotone8_union (lf lf': rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> rel8 T0 T1 T2 T3 T4 T5 T6 T7)
-      (MON1: monotone8 lf)
-      (MON2: monotone8 lf'):
-  monotone8 (lf \9/ lf').
-Proof.
-  red; intros. destruct IN.
-  - left. eapply MON1. apply H. apply LE.
-  - right. eapply MON2. apply H. apply LE.
-Qed.
 
 Lemma monotone8_inter (lf lf': rel8 T0 T1 T2 T3 T4 T5 T6 T7 -> rel8 T0 T1 T2 T3 T4 T5 T6 T7)
       (MON1: monotone8 lf)
