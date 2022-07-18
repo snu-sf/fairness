@@ -28,7 +28,6 @@ Section PRIMIVIESIM.
   Variable world: Type.
   Variable world_le: world -> world -> Prop.
 
-  (* Variable stutter: WF. *)
   Definition shared :=
     (TIdSet.t *
        TIdSet.t *
@@ -40,15 +39,6 @@ Section PRIMIVIESIM.
        world)%type.
 
   Let shared_rel: Type := shared -> Prop.
-
-  Definition shared_rel_wf (r: shared_rel): Prop :=
-    forall ths tht im_src0 im_tgt0 st_src st_tgt o w0
-      (INV: r (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o, w0))
-      im_tgt1 (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (fun _ => Flag.fail))),
-    exists im_src1 w1,
-      (<<SRC: fair_update im_src0 im_src1 (sum_fmap_l (fun _ => Flag.fail))>>) /\
-        (<<INV: r (ths, tht, im_src1, im_tgt1, st_src, st_tgt, o, w1)>>) /\
-        (<<WORLD: world_le w0 w1>>).
 
   Variable I: shared_rel.
 
@@ -438,36 +428,37 @@ Section PRIMIVIESIM.
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
-      (* tid ths1 tht1 *)
-      (* (THS: TIdSet.t_add ths0 tid ths1) *)
-      (* (THT: TIdSet.t_add tht0 tid tht1) *)
-      tid
-      (THS: NatMap.In tid ths0)
-      (THT: NatMap.In tid tht0)
       (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
-      fs ft,
-      lsim
-        (@local_RR R0 R1 RR tid)
-        tid
-        fs ft
-        src tgt
-        (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0).
+      tid ths1 tht1
+      (THS: TIdSet.add_new tid ths0 ths1)
+      (THT: TIdSet.add_new tid tht0 tht1),
+    exists w1 o1, (<<INV: I (ths1, tht1, im_src0, im_tgt0, st_src0, st_tgt0, o1, w1)>>) /\
+               (<<WORLD: world_le w0 w1>>) /\
+               (forall ths tht im_src1 im_tgt1 st_src st_tgt o w2
+                  (INV: I (ths, tht, im_src1, im_tgt1, st_src, st_tgt, o, w2))
+                  (WORLD: world_le w1 w2),
+                 forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid tht))),
+                 exists im_src2 w3,
+                   (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
+                     (<<WORLD: world_le w2 w3>>) /\
+                     (<<LSIM: forall fs ft,
+                         lsim
+                           (@local_RR R0 R1 RR tid)
+                           tid
+                           fs ft
+                           src tgt
+                           (ths, tht, im_src2, im_tgt2, st_src, st_tgt, o, w3)
+                           >>)).
 
-  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid :=
-    forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 w0
-      (THS: NatMap.In tid ths0)
-      (THT: NatMap.In tid tht0)
-      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0))
-      fs ft,
-    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
-    exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
-                 (lsim
-                    (@local_RR R0 R1 RR tid)
-                    tid
-                    fs ft
-                    src tgt
-                    (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, w0)).
+  Definition shared_rel_wf (r: shared_rel): Prop :=
+    forall ths tht im_src0 im_tgt0 st_src st_tgt o w0
+      (INV: r (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o, w0)),
+    forall im_tgt1
+      (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap_all ths))),
+    exists im_src1 w1,
+      (<<SRC: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap_all tht))>>) /\
+        (<<INV: r (ths, tht, im_src1, im_tgt1, st_src, st_tgt, o, w1)>>) /\
+        (<<WORLD: world_le w0 w1>>).
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
@@ -495,13 +486,8 @@ Module ModSim.
           world: Type;
           world_le: world -> world -> Prop;
           I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt world) -> Prop;
-          (* INV should hold for all current existing thread_id *)
-          init: forall ths_tgt im_tgt, exists ths_src im_src o w,
-            I (ths_src, ths_tgt, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w);
-
-          (* init_thread_id: TIdSet.t; *)
-          (* init: forall im_tgt, exists im_src o w, *)
-          (*   I (init_thread_id, init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w); *)
+          init: forall im_tgt, exists im_src o w,
+            I (NatSet.empty, NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                            | None, _ => True

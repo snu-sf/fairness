@@ -32,6 +32,13 @@ Section NATMAP.
             | Some e => Some (e, NatMap.remove k m)
             end.
 
+  Variant nm_add_new {elt}: NatMap.key -> elt -> (NatMap.t elt) -> (NatMap.t elt) -> Prop :=
+    | nm_add_new_intro
+        k e m1 m2
+        (NEW: NatMap.find k m1 = None)
+        (ADD: m2 = NatMap.add k e m1)
+      :
+      nm_add_new k e m1 m2.
 
 
   Import FMapFacts.
@@ -478,25 +485,16 @@ End NATMAP.
 
 Module NatSet.
   Definition t := NatMap.t unit.
+  Definition empty: t := @NatMap.empty unit.
   Definition add x m := @NatMap.add unit x tt m.
   Definition remove := @NatMap.remove unit.
   Definition elements := @nm_proj1 unit.
   Definition Empty := @NatMap.Empty unit.
   Definition In := @NatMap.In unit.
+  Definition add_new k m1 m2 := @nm_add_new unit k tt m1 m2.
 End NatSet.
 
-(* Section NATSET. *)
-
-  (* Lemma ns_in_dec: forall n s, {NatSet.In n s} + {~ NatSet.In n s}. *)
-  (* Proof. *)
-  (*   i. eapply InA_dec. eapply NatSet.MSet.E.eq_dec. *)
-  (* Qed. *)
-
-  (* Definition set_pop : NatSet.elt -> NatSet.t -> option NatSet.t := *)
-
-  (*   fun x s => if NatSet.mem x s *)
-  (*           then Some (NatSet.remove x s) *)
-  (*           else None. *)
+Section NATSET.
 
   Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = [].
   Proof.
@@ -557,7 +555,7 @@ End NatSet.
     rewrite map_map in H. rewrite map_id in H. eapply H.
   Qed.
 
-(* End NATSET. *)
+End NATSET.
 
 
 
@@ -599,20 +597,6 @@ Section AUX.
     unfold nm_wf_pair in *. rewrite WF. reflexivity.
   Qed.
 
-  (* Definition key_set {elt} : NatMap.t elt -> NatSet.t. *)
-  (* Proof. *)
-  (*   intros [l SORTED]. unfold Raw.t in *. *)
-  (*   set (l' := List.map fst l). *)
-  (*   econs. instantiate (1 := l'). *)
-  (*   unfold Raw.PX.ltk in *. *)
-  (*   assert (Sorted (fun x y => x < y) l'). *)
-  (*   { induction SORTED. *)
-  (*     - subst l'. ss. *)
-  (*     - subst l'. ss. econs 2; ss. *)
-  (*       inv H; ss. econs; ss. *)
-  (*   } *)
-  (*   eapply NatSet.MSet.Raw.isok_iff. ss. *)
-  (* Defined. *)
 
   Lemma key_set_find_none1
         elt (m: NatMap.t elt) k
@@ -977,5 +961,147 @@ Section AUX.
   Proof.
     unfold nm_wf_pair in *. rewrite !key_set_pull_rm_eq. rewrite WF. auto.
   Qed.
+
+
+  Lemma nm_empty_equal
+        elt (m: NatMap.t elt)
+        (EMP: Empty m)
+    :
+    Equal m (@empty elt).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - unfold Empty, MapsTo in *. unfold Raw.Empty in *. exfalso. eapply EMP; eauto.
+    - exfalso. eapply F.empty_mapsto_iff in H. auto.
+  Qed.
+  Lemma nm_empty_eq
+        elt (m: NatMap.t elt)
+        (EMP: Empty m)
+    :
+    m = (@empty elt).
+  Proof. eapply nm_eq_is_equal, nm_empty_equal; auto. Qed.
+
+  Lemma nm_wf_pair_empty_empty_equal
+        elt1 elt2
+    :
+    nm_wf_pair_equal (@empty elt1) (@empty elt2).
+  Proof.
+    eapply nm_empty_equal. eapply key_set_empty1. eapply empty_1.
+  Qed.
+  Lemma nm_wf_pair_empty_empty_eq
+        elt1 elt2
+    :
+    nm_wf_pair (@empty elt1) (@empty elt2).
+  Proof. eapply nm_eq_is_equal, nm_wf_pair_empty_empty_equal. Qed.
+
+  Lemma nm_elements_cons_rm
+        elt (m: NatMap.t elt)
+        k e l
+        (ELEM: (k, e) :: l = elements m)
+    :
+    l = elements (remove k m).
+  Proof.
+    destruct m. unfold elements in *. ss. unfold Raw.elements in *.
+    destruct this0 as [| [k0 e0] l0]; ss.
+    inv ELEM. Raw.MX.elim_comp_eq k0 k0. auto.
+  Qed.
+
+  Lemma nm_elements_cons_find_some
+        elt (m: NatMap.t elt)
+        k e l
+        (ELEM: (k, e) :: l = elements m)
+    :
+    find k m = Some e.
+  Proof.
+    rewrite F.elements_o. rewrite <- ELEM. ss. unfold F.eqb. des_ifs.
+  Qed.
+
+  Lemma nm_find_some_rm_add_equal
+        elt (m: NatMap.t elt)
+        k e
+        (FIND: find k m = Some e)
+    :
+    Equal m (add k e (remove k m)).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - apply find_2 in FIND. destruct (F.eq_dec k0 k); clarify.
+      + pose F.MapsTo_fun. specialize (e1 _ _ _ _ _ FIND H). clarify. eapply add_1; auto.
+      + eapply add_2; auto. eapply remove_2; auto.
+    - apply find_2 in FIND. eapply F.add_mapsto_iff in H. des; clarify.
+      eapply F.remove_mapsto_iff in H0. des; auto.
+  Qed.
+  Lemma nm_find_some_rm_add_eq
+        elt (m: NatMap.t elt)
+        k e
+        (FIND: find k m = Some e)
+    :
+    m = (add k e (remove k m)).
+  Proof. eapply nm_eq_is_equal, nm_find_some_rm_add_equal; eauto. Qed.
+
+  Lemma nm_forall2_wf_pair_equal
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (FA: List.Forall2 (fun '(k1, e1) '(k2, e2) => k1 = k2) (elements m1) (elements m2))
+    :
+    nm_wf_pair_equal m1 m2.
+  Proof.
+    match goal with
+    | FA: Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as ml1; remember _ml2 as ml2
+    end.
+    move FA before elt2. revert_until FA. induction FA; i.
+    { symmetry in Heqml1; apply elements_Empty in Heqml1.
+      symmetry in Heqml2; apply elements_Empty in Heqml2.
+      rewrite nm_empty_eq; auto. rewrite nm_empty_eq at 1; auto.
+      apply nm_wf_pair_empty_empty_equal.
+    }
+    des_ifs. 
+    unfold nm_wf_pair_equal in *. dup Heqml1. dup Heqml2.
+    eapply nm_elements_cons_rm in Heqml1, Heqml2.
+    eapply nm_elements_cons_find_some in Heqml0, Heqml3.
+    eapply nm_find_some_rm_add_eq in Heqml0, Heqml3.
+    hexploit IHFA; clear IHFA; eauto. i.
+    rewrite Heqml0, Heqml3. rewrite !key_set_pull_add_equal. rewrite H. reflexivity.
+  Qed.
+  Lemma nm_forall2_wf_pair
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (FA: List.Forall2 (fun '(k1, e1) '(k2, e2) => k1 = k2) (elements m1) (elements m2))
+    :
+    nm_wf_pair m1 m2.
+  Proof. eapply nm_eq_is_equal. eapply nm_forall2_wf_pair_equal; auto. Qed.
+
+  Lemma nm_forall2_implies_find_some
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        P
+        (FA: List.Forall2 (fun '(k1, e1) '(k2, e2) => (k1 = k2) /\ (P e1 e2 k1)) (elements m1) (elements m2))
+    :
+    forall k e1 e2 (FIND1: find k m1 = Some e1) (FIND2: find k m2 = Some e2),
+      P e1 e2 k.
+  Proof.
+    match goal with
+    | FA: Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as ml1; remember _ml2 as ml2
+    end.
+    move FA before elt2. revert_until FA. induction FA; i.
+    { symmetry in Heqml1; apply elements_Empty in Heqml1.
+      symmetry in Heqml2; apply elements_Empty in Heqml2.
+      apply nm_empty_eq in Heqml1, Heqml2. subst. rewrite F.empty_o in FIND1; ss.
+    }
+    des_ifs. des; clarify. destruct (F.eq_dec k k1); clarify.
+    { eapply nm_elements_cons_find_some in Heqml1, Heqml2. clarify. }
+    hexploit nm_elements_cons_rm. eapply Heqml1. intro RM1.
+    hexploit nm_elements_cons_rm. eapply Heqml2. intro RM2.
+    eapply IHFA; eauto. rewrite nm_find_rm_neq; auto. rewrite nm_find_rm_neq; auto.
+  Qed.
+
+
+  Lemma key_set_empty_empty_equal
+        elt
+    :
+    Equal (key_set (@empty elt)) (@empty unit).
+  Proof.
+    eapply nm_empty_equal. eapply key_set_empty1. apply empty_1.
+  Qed.
+  Lemma key_set_empty_empty_eq
+        elt
+    :
+    (key_set (@empty elt)) = (@empty unit).
+  Proof. eapply nm_eq_is_equal. eapply key_set_empty_empty_equal. Qed.
 
 End AUX.
