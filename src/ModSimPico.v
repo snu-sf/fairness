@@ -479,12 +479,13 @@ Module ModSim.
       mk {
           wf_src : WF;
           wf_tgt : WF;
-          WFS_TRANS : Transitive wf_src.(lt);
-          succ : wf_tgt.(T) -> wf_tgt.(T);
-          lt_succ_diag_r_t : forall t, lt wf_tgt t (succ t);
+          wf_tgt_inhabited: inhabited wf_tgt.(T);
+          wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
 
           world: Type;
           world_le: world -> world -> Prop;
+          world_le_PreOrder: PreOrder world_le;
+
           I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt world) -> Prop;
           init: forall im_tgt, exists im_src o w,
             I (NatSet.empty, NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, w);

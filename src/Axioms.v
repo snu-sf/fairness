@@ -5,6 +5,7 @@ Require Coq.Logic.Epsilon.
 (* Require Classical_Prop. *)
 Require Logic.Classical_Pred_Type.
 Require Import Coq.Logic.ProofIrrelevance.
+Require Import Coq.Logic.ClassicalEpsilon.
 
 Lemma func_ext_dep {A} {B: A -> Type} (f g: forall x, B x): (forall x, f x = g x) -> f = g.
 Proof.
@@ -38,3 +39,4 @@ Qed.
 Ltac nean H := eapply not_ex_all_not_help in H; red in H.
 
 Definition proof_irrelevance := proof_irrelevance.
+Definition excluded_middle_informative := excluded_middle_informative.

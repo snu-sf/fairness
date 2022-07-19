@@ -885,7 +885,7 @@ Section ADEQ.
           { eapply nm_pop_find_some; eauto. }
           exists sf0, th_src, ths_src0, th_tgt, ths_tgt0.
           splits; auto.
-          - i; clarify. 
+          - i; clarify.
             hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
             hexploit H2; clear H2 H3; ss. i. unfold local_sim_sync in H2.
             assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)).
@@ -1202,8 +1202,8 @@ Section ADEQ.
             Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
-              (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src) 
-              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world) 
+              (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
+              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world)
               (mt : imap wf_tgt) (ms : imap wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                        (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
@@ -1219,8 +1219,8 @@ Section ADEQ.
                        Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                        th_wf_pair ths_src ths_tgt ->
                        forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
-                         (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src) 
-                         (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap wf_tgt) 
+                         (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
+                         (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap wf_tgt)
                          (ms : imap wf_src),
                          sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                                   (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
@@ -1243,8 +1243,8 @@ Section ADEQ.
         (KSIM0 : forall tid0 : NatMap.key,
             nm_pop tid0 ths_src = None /\ nm_pop tid0 ths_tgt = None \/
               (exists
-                  (b : bool) (th_src : thread _ident_src (sE state_src) R0) 
-                  (thsl0 : NatMap.t (bool * thread _ident_src (sE state_src) R0)) 
+                  (b : bool) (th_src : thread _ident_src (sE state_src) R0)
+                  (thsl0 : NatMap.t (bool * thread _ident_src (sE state_src) R0))
                   (th_tgt : thread _ident_tgt (sE state_tgt) R1) (thsr0 : threads_tgt R1),
                   nm_pop tid0 ths_src = Some (b, th_src, thsl0) /\
                     nm_pop tid0 ths_tgt = Some (th_tgt, thsr0) /\
@@ -1270,7 +1270,7 @@ Section ADEQ.
                                         (tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_src))))) /\
                            (world_le w1 w2) /\
                            (forall ps pt : bool,
-                               upaco8 (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl0 thsr0 tid0 ps pt 
+                               upaco8 (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl0 thsr0 tid0 ps pt
                                       (b, th_src) th_tgt
                                       (NatSet.remove tid (NatSet.add tid (key_set ths_src)),
                                         NatSet.remove tid (NatSet.add tid (key_set ths_tgt)), im_src0, im_tgt0,
@@ -1447,8 +1447,8 @@ Section ADEQ.
             Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
-              (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src) 
-              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world) 
+              (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
+              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world)
               (mt : imap wf_tgt) (ms : imap wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                        (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
@@ -1464,8 +1464,8 @@ Section ADEQ.
                        Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                        th_wf_pair ths_src ths_tgt ->
                        forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
-                         (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src) 
-                         (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap wf_tgt) 
+                         (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
+                         (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap wf_tgt)
                          (ms : imap wf_src),
                          sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                                   (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
@@ -1484,8 +1484,8 @@ Section ADEQ.
             nm_pop tid0 (Th.add tid (true, ktr_src ()) ths_src) = None /\
               nm_pop tid0 (Th.add tid (ktr_tgt ()) ths_tgt) = None \/
               (exists
-                  (b : bool) (th_src : thread _ident_src (sE state_src) R0) 
-                  (thsl1 : NatMap.t (bool * thread _ident_src (sE state_src) R0)) 
+                  (b : bool) (th_src : thread _ident_src (sE state_src) R0)
+                  (thsl1 : NatMap.t (bool * thread _ident_src (sE state_src) R0))
                   (th_tgt : thread _ident_tgt (sE state_tgt) R1) (thsr1 : threads_tgt R1),
                   nm_pop tid0 (Th.add tid (true, ktr_src ()) ths_src) = Some (b, th_src, thsl1) /\
                     nm_pop tid0 (Th.add tid (ktr_tgt ()) ths_tgt) = Some (th_tgt, thsr1) /\
@@ -1515,7 +1515,7 @@ Section ADEQ.
                                  (world_le w0 w1) /\
                                  (forall ps pt : bool,
                                      upaco8
-                                       (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl1 thsr1 tid0 ps pt 
+                                       (fun r => pind8 (__sim_knot RR r) top8) bot8 thsl1 thsr1 tid0 ps pt
                                        (b, th_src) th_tgt
                                        (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
                                          im_src0, im_tgt0, st_src, st_tgt, o0, w1))))))
@@ -1694,8 +1694,8 @@ Section ADEQ.
             Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
-              (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src) 
-              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world) 
+              (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
+              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world)
               (mt : imap wf_tgt) (ms : imap wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                        (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
@@ -1877,12 +1877,12 @@ Section ADEQ.
                      (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
                        im_src, im_tgt, st_src, st_tgt, o, w))
     :
-    gsim wf_src wf_tgt RR ps pt
+    gsim wf_src wf_tgt RR
          (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
          (interp_all st_tgt (Th.add tid tgt ths_tgt) tid).
   Proof.
-    ii. specialize (KSIM mt). des. rename im_src into ms. exists ms.
-    ginit. revert_until RR. gcofix CIH. i.
+    ii. specialize (KSIM mt). des. rename im_src into ms. exists ms, ps, pt.
+    revert_until RR. ginit. gcofix CIH. i.
     move o before CIH. revert_until o. induction (wf_src.(wf) o).
     clear H; rename x into o, H0 into IHo. i.
     match goal with
@@ -1896,7 +1896,7 @@ Section ADEQ.
                           Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           th_wf_pair ths_src ths_tgt ->
-                          forall (sf : bool) (src : thread _ident_src (sE state_src) R0) (st_src : state_src) (st_tgt : state_tgt) 
+                          forall (sf : bool) (src : thread _ident_src (sE state_src) R0) (st_src : state_src) (st_tgt : state_tgt)
                             (mt : imap wf_tgt) (ms : imap wf_src) w,
                             ssrc = (sf, src) ->
                             shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src, st_tgt, o, w) ->
@@ -2069,7 +2069,7 @@ Section ADEQ.
                             (LTGT: Th.find tid ths_tgt = Some tgt),
                     (local_sim_pick RR src tgt tid w)>>))
     :
-    gsim wf_src wf_tgt RR ps pt
+    gsim wf_src wf_tgt RR
          (interp_all st_src (Th.add tid src ths_src) tid)
          (interp_all st_tgt (Th.add tid tgt ths_tgt) tid).
   Proof.
@@ -2121,9 +2121,9 @@ Section ADEQ.
           (INS: Th.In tid ths_src)
           (INT: Th.In tid ths_tgt)
     :
-    forall ps pt, gsim wf_src wf_tgt RR ps pt
-                  (interp_all st_src ths_src tid)
-                  (interp_all st_tgt ths_tgt tid).
+    gsim wf_src wf_tgt RR
+         (interp_all st_src ths_src tid)
+         (interp_all st_tgt ths_tgt tid).
   Proof.
     eapply NatMapP.F.in_find_iff in INS, INT.
     destruct (Th.find tid ths_src) eqn:FINDS.
@@ -2185,7 +2185,7 @@ Section ADEQ.
       i. eapply nm_forall2_implies_find_some in FA0; eauto.
     }
 
-    clear tid src0 ths_src0 tgt0 ths_tgt0 FINDS FINDT ps pt Heqths_src0 Heqths_tgt0 POPS POPT .
+    clear tid src0 ths_src0 tgt0 ths_tgt0 FINDS FINDT Heqths_src0 Heqths_tgt0 POPS POPT .
     match goal with
     | FA: List.Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt
     end.
@@ -2220,7 +2220,7 @@ Section ADEQ.
     }
     eapply list_forall2_implies; eauto. i. des_ifs. des; clarify. split; auto.
     eapply local_sim_pick_mon_world; eauto.
-
+    Unshelve. all: exact true.
   Qed.
 
 End ADEQ.

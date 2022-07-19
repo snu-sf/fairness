@@ -16,7 +16,7 @@ From Fairness Require Import
 From ExtLib Require Import FMapAList.
 
 Section SIM.
-  
+
   Context {_Ident : ID}.
   Variable E : Type -> Type.
 
@@ -111,7 +111,7 @@ Section SIM.
         - eapply NatMap.add_1; ss.
         - eapply NatMap.add_2.
           + intro. subst. eapply TID. eapply In_NatSetIn. rewrite THREADS. econs; ss.
-          + eapply NatSet_In_MapsTo. eapply In_NatSetIn. rewrite THREADS. econs; ss. 
+          + eapply NatSet_In_MapsTo. eapply In_NatSetIn. rewrite THREADS. econs; ss.
       }
       rewrite bind_trigger. eapply ssim_fairL.
       remember (fun i => if Nat.eqb i tid'
@@ -154,15 +154,17 @@ Section SIM.
              rewrite H2 in H0. inversion H0. subst. lia.
   Qed.
 
-  Theorem gsim_nondet_fifo p_src p_tgt tid st (ths : @threads _Ident (sE State) R)
-    : gsim nat_wf nat_wf eq p_src p_tgt
-        (interp_all st ths tid)
-        (interp_all_fifo st ths tid).
-  Proof. eapply ssim_implies_gsim.
-         { ii; unfold lt in *; ss; lia. }
-         { instantiate (1 := fun x => x). ss. }
-         eapply ssim_nondet_fifo; ss.
-         eapply NatMap.remove_1; ss.
+  Theorem gsim_nondet_fifo tid st (ths : @threads _Ident (sE State) R)
+    : gsim nat_wf nat_wf eq
+           (interp_all st ths tid)
+           (interp_all_fifo st ths tid).
+  Proof. 
+    eapply ssim_implies_gsim.
+    { ii; unfold lt in *; ss; lia. }
+    { instantiate (1 := fun x => x). ss. }
+    eapply ssim_nondet_fifo; ss.
+    eapply NatMap.remove_1; ss.
+    Unshelve. all: exact true.
   Qed.
 
 End SIM.

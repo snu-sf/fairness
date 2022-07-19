@@ -43,3 +43,23 @@ Proof.
   { i. eapply (H (a0, b)). econstructor 1. auto. }
   { i. eapply (H (a, b0)). econstructor 2. auto. }
 Qed.
+
+Require Export Coq.Relations.Relation_Operators.
+Lemma clos_trans_well_founded
+      A (R: A -> A -> Prop) (WF: well_founded R)
+  :
+    well_founded (clos_trans_n1 _ R).
+Proof.
+  ii. hexploit (well_founded_induction WF (fun a1 => forall a0 (LT: clos_trans_n1 A R a0 a1 \/ a0 = a1), Acc (clos_trans_n1 A R) a0)).
+  { clear a. intros a1 IH. i. econs. i. des.
+    - inv LT.
+      + eapply IH; eauto.
+      + eapply IH; eauto. left.
+        eapply Operators_Properties.clos_trans_tn1. econs 2.
+        * eapply Operators_Properties.clos_tn1_trans; eauto.
+        * eapply Operators_Properties.clos_tn1_trans; eauto.
+    - subst. inv H; eauto.
+  }
+  { right. reflexivity. }
+  { eauto. }
+Qed.

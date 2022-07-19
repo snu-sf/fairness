@@ -1,7 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Export Coq.Strings.String.
-Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
 From Fairness Require Import pind8.
@@ -51,69 +50,69 @@ Section PRIMIVIESIM.
 
   Variant __lsim
           (tid: thread_id.(id))
-          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), bool -> bool -> (wf_src.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
+          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),bool -> bool -> (wf_src.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
           R_src R_tgt (RR: R_src -> R_tgt -> shared_rel)
     :
-    bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> (wf_src.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
   | lsim_ret
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src im_tgt st_src st_tgt w
       r_src r_tgt
       (LSIM: RR r_src r_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt, w)
 
   | lsim_tauL
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src im_tgt st_src st_tgt w
       itr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
+      (LSIM: _lsim _ _ RR true f_tgt (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (Tau itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, Tau itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
   | lsim_chooseL
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src im_tgt st_src st_tgt w
       X ktr_src itr_tgt
-      (LSIM: exists x, _lsim _ _ RR true f_tgt (ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
+      (LSIM: exists x, _lsim _ _ RR true f_tgt (o, ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
   | lsim_putL
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src im_tgt st_src st_tgt w
       st ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt, w))
+      (LSIM: _lsim _ _ RR true f_tgt (o, ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt, w))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
   | lsim_getL
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src im_tgt st_src st_tgt w
       ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
+      (LSIM: _lsim _ _ RR true f_tgt (o, ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
   | lsim_tidL
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src im_tgt st_src st_tgt w
       ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt (ktr_src tid) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
+      (LSIM: _lsim _ _ RR true f_tgt (o, ktr_src tid) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
   | lsim_UB
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src im_tgt st_src st_tgt w
       ktr_src itr_tgt
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
   | lsim_fairL
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src0 im_tgt st_src st_tgt w
       f ktr_src itr_tgt
       (LSIM: exists im_src1,
           (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_r f)>>) /\
-            (<<LSIM: _lsim _ _ RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, w)>>))
+            (<<LSIM: _lsim _ _ RR true f_tgt (o, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, w)>>))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, w)
 
   | lsim_tauR
       f_src f_tgt
@@ -161,49 +160,51 @@ Section PRIMIVIESIM.
     __lsim tid lsim _lsim RR f_src f_tgt itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt, w)
 
   | lsim_observe
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src im_tgt st_src st_tgt w
       fn args ktr_src ktr_tgt
       (LSIM: forall ret,
-          lsim _ _ RR true true (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, w))
+          lsim _ _ RR true true (o, ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, w))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, w)
 
   | lsim_sync
-      f_src f_tgt
+      f_src f_tgt o o0
       ths0 im_src0 im_tgt0 st_src0 st_tgt0 w
       w0 ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0))
       (WORLD: world_le w w0)
+      (STUTTER: wf_src.(lt) o0 o)
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 w1
                    (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, w1))
                    (WORLD: world_le w0 w1)
                    im_tgt2
                    (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          _lsim _ _ RR f_src true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, w1))
+          _lsim _ _ RR f_src true (o0, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, w1))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w)
   | lsim_yieldL
-      f_src f_tgt
+      f_src f_tgt o
       ths im_src0 im_tgt st_src st_tgt w
       ktr_src itr_tgt
-      (LSIM: exists im_src1,
+      (LSIM: exists im_src1 o1,
           (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
-            (<<LSIM: _lsim _ _ RR true f_tgt (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, w)>>))
+            (<<LSIM: _lsim _ _ RR true f_tgt (o1, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, w)>>))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt (trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR f_src f_tgt (o, trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, w)
 
   | lsim_progress
+      o
       ths im_src im_tgt st_src st_tgt w
       itr_src itr_tgt
-      (LSIM: lsim _ _ RR false false itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
+      (LSIM: lsim _ _ RR false false (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w))
     :
-    __lsim tid lsim _lsim RR true true itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
+    __lsim tid lsim _lsim RR true true (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
   .
 
   Definition lsim (tid: thread_id.(id))
              R_src R_tgt (RR: R_src -> R_tgt -> shared_rel):
-    bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> (wf_src.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
     paco8 (fun r => pind8 (__lsim tid r) top8) bot8 R_src R_tgt RR.
 
   Lemma __lsim_mon tid:
@@ -228,10 +229,10 @@ Section PRIMIVIESIM.
   Qed.
 
   Variant lsim_resetC
-          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), bool -> bool -> (wf_src.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
           R_src R_tgt (RR: R_src -> R_tgt -> shared_rel)
     :
-    bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> (wf_src.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
     | lsim_resetC_intro
         src tgt shr
         ps0 pt0 ps1 pt1
@@ -459,26 +460,35 @@ Section PRIMIVIESIM.
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 w0
-           (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0))
-           tid ths1
-           (THS: TIdSet.add_new tid ths0 ths1),
-    exists w1, (<<INV: I (ths1, im_src0, im_tgt0, st_src0, st_tgt0, w1)>>) /\
-                 (<<WORLD: world_le w0 w1>>) /\
-                 (forall ths im_src1 im_tgt1 st_src st_tgt w2
-                         (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, w2))
-                         (WORLD: world_le w1 w2),
-                   forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
-                   exists im_src2 w3,
-                     (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
-                       (<<WORLD: world_le w2 w3>>) /\
-                       (<<LSIM: forall fs ft,
-                           lsim
-                             tid
-                             (@local_RR R0 R1 RR tid)
-                             fs ft
-                             src tgt
-                             (ths, im_src2, im_tgt2, st_src, st_tgt, w3)
-                             >>)).
+      (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
+      (* tid ths1 tht1 *)
+      (* (THS: TIdSet.t_add ths0 tid ths1) *)
+      (* (THT: TIdSet.t_add tht0 tid tht1) *)
+      tid
+      (THS: NatMap.In tid ths0)
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0))
+      fs ft,
+    exists o,
+      lsim
+        tid
+        (@local_RR R0 R1 RR tid)
+        fs ft
+        (o, src) tgt
+        (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0).
+
+  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid :=
+    forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 w0
+      (THS: NatMap.In tid ths0)
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0))
+      fs ft,
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
+    exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
+                 (lsim
+                    tid
+                    (@local_RR R0 R1 RR tid)
+                    fs ft
+                    src tgt
+                    (ths0, im_src1, im_tgt1, st_src0, st_tgt0, w0)).
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
@@ -486,7 +496,7 @@ End PRIMIVIESIM.
 #[export] Hint Resolve __lsim_mon: paco.
 #[export] Hint Resolve _lsim_mon: paco.
 #[export] Hint Resolve lsim_mon: paco.
-#[export] Hint Resolve cpn5_wcompat: paco.
+
 
 
 Module ModSim.
@@ -495,28 +505,54 @@ Module ModSim.
     Variable md_src: Mod.t.
     Variable md_tgt: Mod.t.
 
-    Record mod_sim: Prop :=
-      mk {
-          wf_src : WF;
-          wf_tgt : WF;
-          wf_tgt_inhabited: inhabited wf_tgt.(T);
-          wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
+    (* Record mod_sim: Prop := *)
+    (*   mk { *)
+    (*       wf: WF; *)
+    (*       world: Type; *)
+    (*       world_le: world -> world -> Prop; *)
+    (*       I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop; *)
 
-          world: Type;
-          world_le: world -> world -> Prop;
-          world_le_PreOrder: PreOrder world_le;
+    (*       init_thread_id: TIdSet.t; *)
+    (*       (* INV should hold for all current existing thread_id *) *)
+    (*       init: forall im_tgt, exists im_src w, *)
+    (*         I (init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w); *)
 
-          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt world) -> Prop;
+    (*       (* init_thread_id: TIdSet.t; *) *)
+    (*       (* init: forall im_tgt, exists im_src w, *) *)
+    (*       (*   I (init_thread_id, init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w); *) *)
 
-          init: forall im_tgt, exists im_src w,
-            I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
+    (*       funs: forall fn args, local_sim world_le I (@eq Val) (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args); *)
+    (*     }. *)
 
-          funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                           | None, _ => True
-                           | _, None => False
-                           | Some ktr_src, Some ktr_tgt => local_sim world_le I (@eq Val) (ktr_src args) (ktr_tgt args)
-                           end;
-        }.
+    (* Record local_sim: Prop := *)
+    (*   mk { *)
+    (*       wf: WF; *)
+    (*       world: Type; *)
+    (*       world_le: world -> world -> Prop; *)
+    (*       I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop; *)
+
+    (*       init: forall im_tgt th_tgt, *)
+    (*       exists im_src th_src w, *)
+    (*         I ([], im_src, im_tgt, th_src, th_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w); *)
+
+    (*       funs: forall ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0 *)
+    (*               (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0)) *)
+    (*               fn args tid ths1 *)
+    (*               (THS: TIdSet.t_add ths0 tid ths1), *)
+    (*         lsim *)
+    (*           world_le *)
+    (*           I *)
+    (*           tid *)
+    (*           (fun r_src r_tgt '(ths2, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1) => *)
+    (*              exists ths3 w2, *)
+    (*                (<<THS: TIdSet.t_remove ths2 tid ths3>>) /\ *)
+    (*                  (<<WORLD: world_le w1 w2>>) /\ *)
+    (*                  (<<INV: I (ths3, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w2)>>) /\ *)
+    (*                  (<<RET: r_src = r_tgt>>)) *)
+    (*           false false *)
+    (*           (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args) *)
+    (*           (ths1, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0); *)
+    (*     }. *)
 
   End MODSIM.
 End ModSim.

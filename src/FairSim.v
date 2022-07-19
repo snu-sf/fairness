@@ -252,8 +252,8 @@ Section SIM.
     { clear - SIM. punfold SIM. eapply sim_mon; eauto. i. pclearbot. eauto. }
   Qed.
 
-  Definition gsim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> bool -> (@state ids R0) -> (@state idt R1) -> Prop :=
-    fun R0 R1 RR ps pt src tgt => forall (mt: imap wft), (exists ms: imap wfs, sim RR ps ms pt mt src tgt).
+  Definition gsim: forall R0 R1 (RR: R0 -> R1 -> Prop), (@state ids R0) -> (@state idt R1) -> Prop :=
+    fun R0 R1 RR src tgt => forall (mt: imap wft), (exists (ms: imap wfs) ps pt, sim RR ps ms pt mt src tgt).
 
   (****************************************************)
   (*********************** upto ***********************)
@@ -479,6 +479,55 @@ End SIM.
 #[export] Hint Resolve cpn9_wcompat: paco.
 
 
+Section EMBEDSIM.
+  Lemma sim_embedded_src_ord (ids idt: ID)
+        (wfs wft: WF)
+        (wfs_lift: WF)
+        (wfs_embed: wfs.(T) -> wfs_lift.(T))
+        (wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1))
+    :
+    forall
+      (R0 R1: Type) (RR: R0 -> R1 -> Prop)
+      (ps pt: bool) (src: @state ids R0) (tgt: @state idt R1)
+      (mt: @imap idt wft) (ms: @imap ids wfs)
+      (SIM: sim RR ps ms pt mt src tgt),
+      sim RR ps (fun id => wfs_embed (ms id)) pt mt src tgt.
+  Proof.
+    ginit. gcofix CIH. i. punfold SIM. revert ps ms pt mt src tgt SIM. eapply sim_ind; i.
+    { guclo sim_indC_spec. econs 1. eauto. }
+    { gstep. econs 2; eauto. i. hexploit SIM; eauto. i. pclearbot. gbase. auto. }
+    { guclo sim_indC_spec. econs 3. eauto. }
+    { guclo sim_indC_spec. econs 4. eauto. }
+    { des. guclo sim_indC_spec. econs 5. eexists x. eauto. }
+    { guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eauto. }
+    { des. guclo sim_indC_spec. econs 7. eexists (fun id => wfs_embed (m_src0 id)).
+      splits; eauto. ii. specialize (FAIR i). des_ifs; ss; eauto.
+      inv FAIR; eauto.
+      { left. rewrite H. eauto. }
+      { right. eauto. }
+    }
+    { guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eauto. }
+    { gstep. econs 9; eauto. pclearbot. gbase. eauto. }
+    { gstep. econs 10; eauto. }
+  Qed.
+
+  Lemma gsim_embedded_src_ord (ids idt: ID)
+        (wfs wft: WF)
+        (wfs_lift: WF)
+        (wfs_embed: wfs.(T) -> wfs_lift.(T))
+        (wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1))
+    :
+    forall
+      (R0 R1: Type) (RR: R0 -> R1 -> Prop)
+      (src: @state ids R0) (tgt: @state idt R1)
+      (SIM: gsim wfs wft RR src tgt),
+      gsim wfs_lift wft RR src tgt.
+  Proof.
+    unfold gsim. i. specialize (SIM mt). des.
+    esplits. eapply sim_embedded_src_ord; eauto.
+  Qed.
+End EMBEDSIM.
+
 
 Section EX.
 
@@ -532,9 +581,9 @@ Section EX.
   Definition imsrc1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0).
   (* Definition imtgt1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0). *)
 
-  Goal gsim nat_wf nat_wf RR false false src1 tgt1.
+  Goal gsim nat_wf nat_wf RR src1 tgt1.
   Proof.
-    ii. exists imsrc1.
+    ii. exists imsrc1, false, false.
     unfold src1, tgt1.
     remember (mt 0) as t_fuel. depgen mt.
     (* unfold imtgt1. remember 100 as t_fuel. clear Heqt_fuel. *)
