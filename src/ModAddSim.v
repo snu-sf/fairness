@@ -13,6 +13,29 @@ Import RelationClasses.
 
 Section WF.
 
+  Inductive sum_rel {A B} (RA : A -> A -> Prop) (RB : B -> B -> Prop) : A + B -> A + B -> Prop :=
+  | sum_rel_l a0 a1 (R : RA a0 a1) : sum_rel RA RB (inl a0) (inl a1)
+  | sum_rel_r b0 b1 (R : RB b0 b1) : sum_rel RA RB (inr b0) (inr b1)
+  .
+
+  Lemma sum_rel_well_founded A B (RA : A -> A -> Prop) (RB : B -> B -> Prop)
+    (WFA : well_founded RA)
+    (WFB : well_founded RB)
+    : well_founded (sum_rel RA RB).
+  Proof.
+    ii. destruct a.
+    - specialize (WFA a). induction WFA.
+      econs. i. inv H1. eauto.
+    - specialize (WFB b). induction WFB.
+      econs. i. inv H1. eauto.
+  Qed.
+
+  Program Definition sum_wf (wf1 wf2 : WF) : WF :=
+    {| lt := sum_rel wf1.(lt) wf2.(lt) |}.
+  Next Obligation.
+    destruct wf1, wf2. eapply sum_rel_well_founded; ss.
+  Qed.    
+
   (* TODO : move to WFLib *)
   Definition double_wf (wf1 wf2 : WF) : WF :=
     {| wf := double_rel_well_founded wf1.(wf) wf2.(wf) |}.
@@ -252,11 +275,29 @@ Section ADD_MODSIM.
     pose (I' := fun x : @shared
                        (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
                        (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
-                       (double_wf nat_wf wf_src) (double_wf nat_wf wf_tgt) world
+                       (sum_wf wf_src wf_tgt) wf_tgt world
                 => let '(ths, m_src, m_tgt, st_src, st_tgt, w) := x in
                   fst st_src = fst st_tgt
                   /\ I (ths, imap_proj m_src, imap_proj m_tgt, snd st_src, snd st_tgt, w)
          ).
+    constructor 1 with wf_src wf_tgt succ world world_le I'; eauto.
+    { i. specialize (init (imap_proj im_tgt)). des.
+      exists (fun i => match i with
+               | inl i => im_src (inl i)
+               | inr (inl i) => im_src (inl 0)
+               | inr (inr i) => im_src (inr i)
+               end).
+      exists w. ss. split; ss. unfold imap_proj at 1.
+      match goal with
+      | [ |- I (_, ?IM_SRC, _, _, _, _) ] => replace IM_SRC with im_src; cycle 1
+      end.
+      { extensionalities i. destruct i; ss. }
+      ss.
+    }
+    i. specialize (funs0 fn args).
+    destruct M1 as [state1 ident1 st_init1 funs1].
+    destruct M2 as [state2 ident2 st_init2 funs2].
+    destruct M1.
      *)
   Admitted.
 
