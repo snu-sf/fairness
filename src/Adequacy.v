@@ -15,6 +15,7 @@ From Fairness Require Import SelectBeh.
 From Fairness Require Import BehEquiv BehEquivSelect.
 
 Require Import Setoid Morphisms.
+From Fairness Require Import Axioms.
 
 Set Implicit Arguments.
 
@@ -75,14 +76,14 @@ Section ADEQ.
 
   Theorem global_adequacy
           R
-          psrc0 ptgt0 ssrc0 stgt0
-          (SIM: gsim (ids:=ids) (idt:=idt) wfs wft (@eq R) psrc0 ptgt0 ssrc0 stgt0)
+          ssrc0 stgt0
+          (SIM: gsim (ids:=ids) (idt:=idt) wfs wft (@eq R) ssrc0 stgt0)
     :
     <<IMPR: Beh.improves (ids:=ids) (idt:=idt) (wfs:=wfs) (wft:=wft) ssrc0 stgt0>>.
   Proof.
     ii. specialize (SIM mtgt). des. exists ms. rename mtgt into mtgt0, ms into msrc0. intro PR.
-    ginit. revert_until R. gcofix CIH.
-    i. revert psrc0 ptgt0 msrc0 ssrc0 SIM.
+    revert SIM. ginit. revert_until R. gcofix CIH.
+    i. revert ps pt msrc0 ssrc0 SIM.
     induction PR using @Beh.of_state_ind2; ii.
     { match goal with
       | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
@@ -259,48 +260,152 @@ End ADEQ.
 
 
 
+(* TODO: copied from Ordinal library *)
+Require Import Coq.Relations.Relation_Operators.
+Lemma clos_trans_well_founded
+      A (R: A -> A -> Prop) (WF: well_founded R)
+  :
+    well_founded (clos_trans_n1 _ R).
+Proof.
+  ii. hexploit (well_founded_induction WF (fun a1 => forall a0 (LT: clos_trans_n1 A R a0 a1 \/ a0 = a1), Acc (clos_trans_n1 A R) a0)).
+  { clear a. intros a1 IH. i. econs. i. des.
+    - inv LT.
+      + eapply IH; eauto.
+      + eapply IH; eauto. left.
+        eapply Operators_Properties.clos_trans_tn1. econs 2.
+        * eapply Operators_Properties.clos_tn1_trans; eauto.
+        * eapply Operators_Properties.clos_tn1_trans; eauto.
+    - subst. inv H; eauto.
+  }
+  { right. reflexivity. }
+  { eauto. }
+Qed.
+
+Section EMBEDSIM.
+  Lemma sim_embedded_src_ord (ids idt: ID)
+        (wfs wft: WF)
+        (wfs_lift: WF)
+        (wfs_embed: wfs.(T) -> wfs_lift.(T))
+        (wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1))
+    :
+    forall
+      (R0 R1: Type) (RR: R0 -> R1 -> Prop)
+      (ps pt: bool) (src: @state ids R0) (tgt: @state idt R1)
+      (mt: @imap idt wft) (ms: @imap ids wfs)
+      (SIM: sim RR ps ms pt mt src tgt),
+      sim RR ps (fun id => wfs_embed (ms id)) pt mt src tgt.
+  Proof.
+    ginit. gcofix CIH. i. punfold SIM. revert ps ms pt mt src tgt SIM. eapply sim_ind; i.
+    { guclo sim_indC_spec. econs 1. eauto. }
+    { gstep. econs 2; eauto. i. hexploit SIM; eauto. i. pclearbot. gbase. auto. }
+    { guclo sim_indC_spec. econs 3. eauto. }
+    { guclo sim_indC_spec. econs 4. eauto. }
+    { des. guclo sim_indC_spec. econs 5. eexists x. eauto. }
+    { guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eauto. }
+    { des. guclo sim_indC_spec. econs 7. eexists (fun id => wfs_embed (m_src0 id)).
+      splits; eauto. ii. specialize (FAIR i). des_ifs; ss; eauto.
+      inv FAIR; eauto.
+      { left. rewrite H. eauto. }
+      { right. eauto. }
+    }
+    { guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eauto. }
+    { gstep. econs 9; eauto. pclearbot. gbase. eauto. }
+    { gstep. econs 10; eauto. }
+  Qed.
+
+  Lemma gsim_embedded_src_ord (ids idt: ID)
+        (wfs wft: WF)
+        (wfs_lift: WF)
+        (wfs_embed: wfs.(T) -> wfs_lift.(T))
+        (wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1))
+    :
+    forall
+      (R0 R1: Type) (RR: R0 -> R1 -> Prop)
+      (src: @state ids R0) (tgt: @state idt R1)
+      (SIM: gsim wfs wft RR src tgt),
+      gsim wfs_lift wft RR src tgt.
+  Proof.
+    unfold gsim. i. specialize (SIM mt). des.
+    esplits. eapply sim_embedded_src_ord; eauto.
+  Qed.
+End EMBEDSIM.
+
 Section ADEQ2.
-
-  Context {Ident: ID}.
-
-  Definition FairBeh_of_state {R} (st: @state _ R) (obs: @Tr.t R): Prop :=
+  Definition FairBeh_of_state {Ident: ID} {R} (st: @state _ R) (obs: @Tr.t R): Prop :=
     exists (raw: @RawTr.t _ R), (extract_tr raw obs) /\ (RawBeh.of_state_fair st raw).
 
-  Definition improves {R} (src tgt: @state _ R) :=
+  Definition improves (ids idt: ID) {R}
+             (src: @state ids R) (tgt: @state idt R) :=
     forall (obs_tr: @Tr.t R),
       (FairBeh_of_state tgt obs_tr) -> (FairBeh_of_state src obs_tr).
 
-
-  Hypothesis ID_DEC: forall (i0 i1: Ident.(id)), {i0 = i1} + {i0 <> i1}.
-
+  Variable ids: ID.
+  Variable idt: ID.
   Variable wfs: WF.
-  Variable wfs0: T wfs.
-  Hypothesis WFSTR: Transitive wfs.(lt).
-
   Variable wft: WF.
-  Variable wft0: T wft.
-  Variable St: wft.(T) -> wft.(T).
-  Hypothesis lt_succ_diag_r_t: forall (t: wft.(T)), wft.(lt) t (St t).
+
+  Hypothesis wft_inhabited: inhabited wft.(T).
+  Hypothesis wft_open: forall (o0: wft.(T)), exists o1, wft.(lt) o0 o1.
+
+
+  (* Auxilary Definitions *)
+  Let wfs_lift_T := option wfs.(T).
+  Let wfs_lift_lt: wfs_lift_T -> wfs_lift_T -> Prop :=
+        fun o0 o1 =>
+          match o0, o1 with
+          | Some o0, Some o1 => (clos_trans_n1 _ wfs.(lt)) o0 o1
+          | _, _ => False
+          end.
+  Program Let wfs_lift: WF := @mk_wf wfs_lift_T wfs_lift_lt _.
+  Next Obligation.
+  Proof.
+    ii. destruct a.
+    2:{ econs. ii. destruct y; ss. }
+    induction (clos_trans_well_founded wfs.(wf) t).
+    econs. i. destruct y; ss. eauto.
+  Qed.
+  Let wfs_embed: wfs.(T) -> wfs_lift.(T) := fun o => Some o.
+  Let wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1).
+  Proof.
+    i. ss. econs 1. eauto.
+  Qed.
+  Let wfs0: wfs_lift.(T) := None.
+  Let WFSTR: Transitive wfs_lift.(lt).
+  Proof.
+    ii. destruct x, y, z; ss.
+    eapply Operators_Properties.clos_tn1_trans in H.
+    eapply Operators_Properties.clos_tn1_trans in H0.
+    eapply Operators_Properties.clos_trans_tn1_iff. econs 2; eauto.
+  Qed.
+  Let wft0: wft.(T) := @epsilon _ wft_inhabited (fun _ => True).
+  Let St: wft.(T) -> wft.(T) := fun o0 => @epsilon _ wft_inhabited (fun o1 => wft.(lt) o0 o1).
+  Let lt_succ_diag_r_t: forall (t: wft.(T)), wft.(lt) t (St t).
+  Proof.
+    i. unfold St.
+    hexploit (@epsilon_spec _ wft_inhabited (fun o1 => wft.(lt) t o1)); eauto.
+  Qed.
 
   Theorem adequacy
           R
-          psrc ptgt src tgt
-          (SIM: gsim wfs wft (@eq R) psrc ptgt src tgt)
+          (src: @state ids R) (tgt: @state idt R)
+          (SIM: gsim wfs wft (@eq R) src tgt)
     :
     improves src tgt.
   Proof.
+    eapply gsim_embedded_src_ord in SIM.
+    2:{ eapply wfs_embed_lt. }
     eapply global_adequacy in SIM. intros obs TGT. unfold FairBeh_of_state in *. des.
     unfold RawBeh.of_state_fair in TGT0. des.
     eapply Fair_implies_Ind in FAIR.
     eapply (@Ind_implies_Ord _ wft wft0) in FAIR; eauto.
     hexploit SelectBeh_implies_IndexBeh; eauto. split; eauto.
     i; des. unfold Beh.improves in SIM. specialize (SIM obs im). des.
-    hexploit (@IndexBeh_implies_SelectBeh _ wfs). eauto.
+    hexploit (@IndexBeh_implies_SelectBeh ids wfs_lift).
+    { eauto. }
     { eexists. eapply SIM. eauto. hexploit (extract_tr_inj_tr TGT EXTRACT).
       i. rewrite H; clear H. eauto. }
     i; des. esplits. eapply EXTRACT0. destruct BEH1. des. split; eauto.
-    eapply (@Ord_implies_Fair _ _ wfs); eauto.
-    Unshelve. exact ID_DEC.
+    eapply (@Ord_implies_Fair _ _ wfs_lift); eauto.
+    Unshelve. intros. eapply excluded_middle_informative.
   Qed.
-
 End ADEQ2.

@@ -36,3 +36,4 @@ Section PRIMIVIESIM.
        world)%type.
 
   Let shared_rel: Type := shared -> Prop.
+End PRIMIVIESIM.

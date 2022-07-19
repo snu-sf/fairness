@@ -459,34 +459,26 @@ Section PRIMIVIESIM.
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 w0
-      (* (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, w0)) *)
-      (* tid ths1 tht1 *)
-      (* (THS: TIdSet.t_add ths0 tid ths1) *)
-      (* (THT: TIdSet.t_add tht0 tid tht1) *)
-      tid
-      (THS: NatMap.In tid ths0)
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0))
-      fs ft,
-      lsim
-        tid
-        (@local_RR R0 R1 RR tid)
-        fs ft
-        src tgt
-        (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0).
-
-  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid :=
-    forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 w0
-      (THS: NatMap.In tid ths0)
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0))
-      fs ft,
-    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
-    exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
-                 (lsim
-                    tid
-                    (@local_RR R0 R1 RR tid)
-                    fs ft
-                    src tgt
-                    (ths0, im_src1, im_tgt1, st_src0, st_tgt0, w0)).
+           (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, w0))
+           tid ths1
+           (THS: TIdSet.add_new tid ths0 ths1),
+    exists w1, (<<INV: I (ths1, im_src0, im_tgt0, st_src0, st_tgt0, w1)>>) /\
+                 (<<WORLD: world_le w0 w1>>) /\
+                 (forall ths im_src1 im_tgt1 st_src st_tgt w2
+                         (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, w2))
+                         (WORLD: world_le w1 w2),
+                   forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
+                   exists im_src2 w3,
+                     (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
+                       (<<WORLD: world_le w2 w3>>) /\
+                       (<<LSIM: forall fs ft,
+                           lsim
+                             tid
+                             (@local_RR R0 R1 RR tid)
+                             fs ft
+                             src tgt
+                             (ths, im_src2, im_tgt2, st_src, st_tgt, w3)
+                             >>)).
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
@@ -507,20 +499,17 @@ Module ModSim.
       mk {
           wf_src : WF;
           wf_tgt : WF;
-          WFS_TRANS : Transitive wf_src.(lt);
-          succ : wf_tgt.(T) -> wf_tgt.(T);
-          lt_succ_diag_r_t : forall t, lt wf_tgt t (succ t);
+          wf_tgt_inhabited: inhabited wf_tgt.(T);
+          wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
+
           world: Type;
           world_le: world -> world -> Prop;
+          world_le_PreOrder: PreOrder world_le;
+
           I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt world) -> Prop;
 
-          (* INV should hold for all current existing thread_id *)
           init: forall im_tgt, exists im_src w,
-            I (NatMap.empty _, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
-
-          (* init_thread_id: TIdSet.t; *)
-          (* init: forall im_tgt, exists im_src w, *)
-          (*   I (init_thread_id, init_thread_id, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w); *)
+            I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                            | None, _ => True
@@ -528,36 +517,6 @@ Module ModSim.
                            | Some ktr_src, Some ktr_tgt => local_sim world_le I (@eq Val) (ktr_src args) (ktr_tgt args)
                            end;
         }.
-
-    (* Record local_sim: Prop := *)
-    (*   mk { *)
-    (*       wf: WF; *)
-    (*       world: Type; *)
-    (*       world_le: world -> world -> Prop; *)
-    (*       I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop; *)
-
-    (*       init: forall im_tgt th_tgt, *)
-    (*       exists im_src th_src w, *)
-    (*         I ([], im_src, im_tgt, th_src, th_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w); *)
-
-    (*       funs: forall ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0 *)
-    (*               (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0)) *)
-    (*               fn args tid ths1 *)
-    (*               (THS: TIdSet.t_add ths0 tid ths1), *)
-    (*         lsim *)
-    (*           world_le *)
-    (*           I *)
-    (*           tid *)
-    (*           (fun r_src r_tgt '(ths2, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1) => *)
-    (*              exists ths3 w2, *)
-    (*                (<<THS: TIdSet.t_remove ths2 tid ths3>>) /\ *)
-    (*                  (<<WORLD: world_le w1 w2>>) /\ *)
-    (*                  (<<INV: I (ths3, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w2)>>) /\ *)
-    (*                  (<<RET: r_src = r_tgt>>)) *)
-    (*           false false *)
-    (*           (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args) *)
-    (*           (ths1, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0); *)
-    (*     }. *)
 
   End MODSIM.
 End ModSim.

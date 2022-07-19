@@ -180,10 +180,10 @@ Section SSIM.
     - pfold. econs. i. specialize (H0 m_tgt0 FAIR p_src' true). punfold H0.
     - pfold. econs.
     - clarify. pclearbot.
-      
+
       revert p_src' p_tgt' itr_src itr_tgt m_src m_tgt H1.
       pcofix CIH. i.
-      
+
       remember false as p_src0 in H1 at 1.
       remember false as p_tgt0 in H1 at 1.
       assert (P_SRC : p_src0 = true -> p_src' = true) by (subst; ss).
@@ -239,7 +239,7 @@ Section SIM.
     RT R0 R1 RR p_src p_tgt sched_src sched_tgt
     (SSIM : forall m_tgt, exists m_src, @ssim wf_src wf_tgt RT R0 R1 RR p_src m_src p_tgt m_tgt sched_src sched_tgt)
     st (ths : @threads _Ident (sE State) RT)
-    : gsim wf_src wf_tgt RR p_src p_tgt
+    : gsim wf_src wf_tgt RR
         (interp_state (st, interp_sched (ths, sched_src)))
         (interp_state (st, interp_sched (ths, sched_tgt))).
   Proof.
@@ -256,10 +256,9 @@ Section SIM.
     assert (M_SRC0 : forall i, gm_src (inl i) = m_src i) by (subst; ss).
     assert (M_SRC1 : forall i, gm_src (inr i) = wf_emb (gm_tgt (inr i))) by (subst; reflexivity).
     clear Heqm_tgt Heqgm_src.
-    exists gm_src.
- 
+    exists gm_src. exists p_src, p_tgt. ginit.
     revert p_src p_tgt gm_src gm_tgt st ths m_src m_tgt sched_src sched_tgt SSIM M_TGT M_SRC0 M_SRC1.
-    ginit. gcofix CIH. i.
+    gcofix CIH. i.
 
     revert gm_src gm_tgt M_TGT M_SRC0 M_SRC1.
     punfold SSIM. induction SSIM using ssim_ind; i.
@@ -276,7 +275,7 @@ Section SIM.
         rewrite <- 2 bind_trigger.
         guclo sim_indC_spec. eapply sim_indC_ub.
       }
-      
+
       erewrite 2 interp_sched_execute_Some; eauto.
       rewrite 2 interp_state_bind.
       rewrite unfold_interp_thread.
@@ -287,7 +286,7 @@ Section SIM.
 
       revert p_src p_tgt gm_src gm_tgt itr M_SRC0 M_SRC1 M_TGT.
       gcofix CIH2; i.
-      
+
       destruct_itree itr.
       + destruct r0 as [st' lr]. rewrite map_event_ret, 2 bind_ret_l. destruct lr; ss.
         * rewrite 2 interp_state_tau.

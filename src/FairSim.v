@@ -252,8 +252,8 @@ Section SIM.
     { clear - SIM. punfold SIM. eapply sim_mon; eauto. i. pclearbot. eauto. }
   Qed.
 
-  Definition gsim: forall R0 R1 (RR: R0 -> R1 -> Prop), bool -> bool -> (@state ids R0) -> (@state idt R1) -> Prop :=
-    fun R0 R1 RR ps pt src tgt => forall (mt: imap wft), (exists ms: imap wfs, sim RR ps ms pt mt src tgt).
+  Definition gsim: forall R0 R1 (RR: R0 -> R1 -> Prop), (@state ids R0) -> (@state idt R1) -> Prop :=
+    fun R0 R1 RR src tgt => forall (mt: imap wft), (exists (ms: imap wfs) ps pt, sim RR ps ms pt mt src tgt).
 
   (****************************************************)
   (*********************** upto ***********************)
@@ -532,9 +532,9 @@ Section EX.
   Definition imsrc1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0).
   (* Definition imtgt1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0). *)
 
-  Goal gsim nat_wf nat_wf RR false false src1 tgt1.
+  Goal gsim nat_wf nat_wf RR src1 tgt1.
   Proof.
-    ii. exists imsrc1.
+    ii. exists imsrc1, false, false.
     unfold src1, tgt1.
     remember (mt 0) as t_fuel. depgen mt.
     (* unfold imtgt1. remember 100 as t_fuel. clear Heqt_fuel. *)

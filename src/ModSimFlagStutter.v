@@ -46,55 +46,56 @@ Section PRIMIVIESIM.
   Hint Resolve ModSimStutter.lsim_mon: paco.
   Hint Resolve cpn8_wcompat: paco.
 
-  Lemma yield_flag_to_stutter R_src R_tgt (RR: R_src -> R_tgt -> shared_rel)
-        tid
-    :
-    forall
-      f_src f_tgt src tgt ths im_src im_tgt st_src st_tgt w
-      (SIM: ModSim.lsim world_le I tid RR f_src f_tgt src tgt (ths, im_src, im_tgt, st_src, st_tgt, w)),
-      ModSimStutter.lsim world_le I tid RR f_src f_tgt (get_ord RR tid f_src f_tgt src tgt (ths, im_src, im_tgt, st_src, st_tgt, w), src) tgt (ths, im_src, im_tgt, st_src, st_tgt, w).
-  Proof.
-    ginit.
-    { i. eapply ModSimStutter.lsim_mon. }
-    { i. eapply cpn8_wcompat. eapply ModSimStutter.lsim_mon. }
-    i.
+(*   Lemma yield_flag_to_stutter R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) *)
+(*         tid *)
+(*     : *)
+(*     forall *)
+(*       f_src f_tgt src tgt ths im_src im_tgt st_src st_tgt w *)
+(*       (SIM: ModSim.lsim world_le I tid RR f_src f_tgt src tgt (ths, im_src, im_tgt, st_src, st_tgt, w)), *)
+(*       ModSimStutter.lsim world_le I tid RR f_src f_tgt (get_ord RR tid f_src f_tgt src tgt (ths, im_src, im_tgt, st_src, st_tgt, w), src) tgt (ths, im_src, im_tgt, st_src, st_tgt, w). *)
+(*   Proof. *)
+(*     ginit. *)
+(*     { i. eapply ModSimStutter.lsim_mon. } *)
+(*     { i. eapply cpn8_wcompat. eapply ModSimStutter.lsim_mon. } *)
+(*     i. *)
 
 
 
-eauto with paco. }
+(* eauto with paco. } *)
 
- "". eapply _lsim_mon.
+(*  "". eapply _lsim_mon. *)
 
-gcofix CIH. i. ss.
-    intros tid . pcofix CIH.f_src f_tgt src tgt ths im_src im_tgt st_src st_tgt w SIM.
-    . pcofix CIH.
+(* gcofix CIH. i. ss. *)
+(*     intros tid . pcofix CIH.f_src f_tgt src tgt ths im_src im_tgt st_src st_tgt w SIM. *)
+(*     . pcofix CIH. *)
 
-    pcofix CIH.
-    i. pcofix CIH.
-    pcofix CIH.
-
-
-
-                 (lsim
-                    tid
-                    (@local_RR R0 R1 RR tid)
-                    fs ft
-                    src tgt
-                    (ths0, im_src1, im_tgt1, st_src0, st_tgt0, w0)).
-
-    :
-    forall R_
-
-  Variant __lsim
-          (tid: thread_id.(id))
-          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          R_src R_tgt (RR: R_src -> R_tgt -> shared_rel)
-    :
-    bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+(*     pcofix CIH. *)
+(*     i. pcofix CIH. *)
+(*     pcofix CIH. *)
 
 
 
-  Definition
+(*                  (lsim *)
+(*                     tid *)
+(*                     (@local_RR R0 R1 RR tid) *)
+(*                     fs ft *)
+(*                     src tgt *)
+(*                     (ths0, im_src1, im_tgt1, st_src0, st_tgt0, w0)). *)
 
-  Let shared_rel: Type := shared -> Prop.
+(*     : *)
+(*     forall R_ *)
+
+(*   Variant __lsim *)
+(*           (tid: thread_id.(id)) *)
+(*           (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel) *)
+(*           (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel) *)
+(*           R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) *)
+(*     : *)
+(*     bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel := *)
+
+
+
+(*   Definition *)
+
+(*   Let shared_rel: Type := shared -> Prop. *)
+End PRIMIVIESIM.
