@@ -603,8 +603,11 @@ Section MOD.
   Let Ident := (Mod.ident mod).
   Let main := ((Mod.funs mod) "main").
 
-  Definition interp_mod (ths: @threads (Mod.ident mod) (sE (Mod.state mod)) Val):
+  Definition interp_mod
+             (tid: thread_id)
+             (ths: @threads (Mod.ident mod) (sE (Mod.state mod)) Val)
+             (sched: forall R, (thread_id * TIdSet.t)%type -> (scheduler R R)):
     itree (@eventE (sum_tid Ident)) Val :=
-    interp_all st ths tid_main.
+    interp_state (st, interp_sched (ths, sched _ (tid, NatSet.remove tid (key_set ths)))).
 
 End MOD.
