@@ -90,53 +90,53 @@ Section SSIM.
     := paco10 _ssim bot10.
 
   Fixpoint ssim_ind
-    (ssim : forall RT R0 R1 (RR : R0 -> R1 -> Prop), bool -> imap wf_src -> bool -> imap wf_tgt -> scheduler RT R0 -> scheduler RT R1 -> Prop)
+    (ssim : forall RT R0 R1 (RR : R0 -> R1 -> Prop), bool -> imap thread_id wf_src -> bool -> imap thread_id wf_tgt -> scheduler RT R0 -> scheduler RT R1 -> Prop)
     (RT R0 R1 : Type) (RR : R0 -> R1 -> Prop)
     (P : bool -> @imap thread_id wf_src -> bool -> @imap thread_id wf_tgt -> scheduler RT R0 -> scheduler RT R1 -> Prop)
-    (RET : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (r_src : R0) (r_tgt : R1),
+    (RET : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (r_src : R0) (r_tgt : R1),
         RR r_src r_tgt -> P p_src m_src p_tgt m_tgt (Ret r_src) (Ret r_tgt))
-    (TAUL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0) (itr_tgt : scheduler RT R1),
+    (TAUL : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (itr_src : scheduler RT R0) (itr_tgt : scheduler RT R1),
         _ssim ssim RR true m_src p_tgt m_tgt itr_src itr_tgt ->
         P true m_src p_tgt m_tgt itr_src itr_tgt -> P p_src m_src p_tgt m_tgt (Tau itr_src) itr_tgt)
-    (TAUR : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0)
+    (TAUR : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (itr_src : scheduler RT R0)
               (itr_tgt : scheduler RT R1),
         _ssim ssim RR p_src m_src true m_tgt itr_src itr_tgt ->
         P p_src m_src true m_tgt itr_src itr_tgt -> P p_src m_src p_tgt m_tgt itr_src (Tau itr_tgt))
-    (EXE : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (tid : id)
+    (EXE : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (tid : thread_id)
              (ktr_src : option RT -> scheduler RT R0) (ktr_tgt : option RT -> scheduler RT R1),
         (forall rt : option RT, ssim RT R0 R1 RR true m_src true m_tgt (ktr_src rt) (ktr_tgt rt)) ->
         P p_src m_src p_tgt m_tgt (Vis (Execute RT tid|)%sum ktr_src) (Vis (Execute RT tid|)%sum ktr_tgt))
-    (OBS : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt)
+    (OBS : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt)
              (ktr_src : nat -> scheduler RT R0) (ktr_tgt : nat -> scheduler RT R1) (fn : nat) (args : list nat),
         (forall r : nat, ssim RT R0 R1 RR true m_src true m_tgt (ktr_src r) (ktr_tgt r)) ->
         P p_src m_src p_tgt m_tgt (Vis (|Observe fn args)%sum ktr_src) (Vis (|Observe fn args)%sum ktr_tgt))
-    (CHOOSEL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (X : Type)
+    (CHOOSEL : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (X : Type)
                  (ktr_src : X -> scheduler RT R0) (itr_tgt : scheduler RT R1),
         (exists x : X, _ssim ssim RR true m_src p_tgt m_tgt (ktr_src x) itr_tgt /\
                     P true m_src p_tgt m_tgt (ktr_src x) itr_tgt) ->
         P p_src m_src p_tgt m_tgt (Vis (|Choose X)%sum ktr_src) itr_tgt)
-    (CHOOSER : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (X : Type)
+    (CHOOSER : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (X : Type)
                  (itr_src : scheduler RT R0) (ktr_tgt : X -> scheduler RT R1),
         (forall x : X, _ssim ssim RR p_src m_src true m_tgt itr_src (ktr_tgt x)) ->
         (forall x : X, P p_src m_src true m_tgt itr_src (ktr_tgt x)) ->
         P p_src m_src p_tgt m_tgt itr_src (Vis (|Choose X)%sum ktr_tgt))
-    (FAIRL : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (f_src : fmap)
+    (FAIRL : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (f_src : fmap)
                (ktr_src : () -> scheduler RT R0) (itr_tgt : scheduler RT R1),
-        (exists m_src0 : imap wf_src,
+        (exists m_src0 : imap thread_id wf_src,
             (<< FAIR : fair_update m_src m_src0 f_src >>) /\
               (<< SIM : _ssim ssim RR true m_src0 p_tgt m_tgt (ktr_src ()) itr_tgt >>) /\
               P true m_src0 p_tgt m_tgt (ktr_src ()) itr_tgt) ->
         P p_src m_src p_tgt m_tgt (Vis (|Fair f_src)%sum ktr_src) itr_tgt)
-    (FAIRR : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (f_tgt : fmap)
+    (FAIRR : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (f_tgt : fmap)
                (itr_src : scheduler RT R0) (ktr_tgt : () -> scheduler RT R1),
-        (forall m_tgt0 : imap wf_tgt,
+        (forall m_tgt0 : imap thread_id wf_tgt,
             fair_update m_tgt m_tgt0 f_tgt -> _ssim ssim RR p_src m_src true m_tgt0 itr_src (ktr_tgt ())) ->
-        (forall m_tgt0 : imap wf_tgt, fair_update m_tgt m_tgt0 f_tgt -> P p_src m_src true m_tgt0 itr_src (ktr_tgt ())) ->
+        (forall m_tgt0 : imap thread_id wf_tgt, fair_update m_tgt m_tgt0 f_tgt -> P p_src m_src true m_tgt0 itr_src (ktr_tgt ())) ->
         P p_src m_src p_tgt m_tgt itr_src (Vis (|Fair f_tgt)%sum ktr_tgt))
-    (UB : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt)
+    (UB : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt)
             (ktr_src : void -> itree (schedulerE RT +' eventE) R0) (itr_tgt : scheduler RT R1),
         P p_src m_src p_tgt m_tgt (Vis (|Undefined)%sum ktr_src) itr_tgt)
-    (PROGRESS : forall (p_src : bool) (m_src : imap wf_src) (p_tgt : bool) (m_tgt : imap wf_tgt) (itr_src : scheduler RT R0)
+    (PROGRESS : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (itr_src : scheduler RT R0)
                   (itr_tgt : scheduler RT R1),
         p_src = true ->
         p_tgt = true ->
@@ -248,7 +248,7 @@ Section SIM.
     remember (gm_tgt ∘ inl) as m_tgt.
     assert (M_TGT : forall i, m_tgt i = gm_tgt (inl i)) by (subst; ss).
     specialize (SSIM m_tgt). des.
-    remember (fun (i : (sum_tid _Ident).(id)) =>
+    remember (fun (i : (sum_tid _Ident)) =>
                 match i with
                 | inl i => m_src i
                 | inr i => wf_emb (gm_tgt (inr i))
@@ -308,7 +308,7 @@ Section SIM.
           exists gm_src0. splits.
           { subst. intros []; ss.
             - reflexivity.
-            - rewrite M_SRC1. specialize (FAIR (inr i)); ss. destruct (m i); eauto using monotone_weak.
+            - rewrite M_SRC1. specialize (FAIR (inr _i)); ss. destruct (m _i); eauto using monotone_weak.
           }
           econs; eauto.
           guclo sim_imap_ctxR_spec; ss. econs; cycle 1.
@@ -316,7 +316,7 @@ Section SIM.
                                   | inl i => gm_tgt (inl i)
                                   | inr i => gm_tgt0 (inr i)
                                   end).
-          { ii. destruct i. specialize (FAIR (inl i)). ss. reflexivity. }
+          { ii. destruct i. specialize (FAIR (inl n)). ss. reflexivity. }
           gfinal. left. eapply CIH2.
           -- subst; eauto.
           -- subst; reflexivity.
@@ -337,7 +337,7 @@ Section SIM.
       do 2 (guclo sim_indC_spec; econs). eapply H0; eauto.
     - des. rewrite interp_sched_vis, interp_state_vis, <- bind_trigger.
       guclo sim_indC_spec. econs.
-      remember (fun (i : (sum_tid _Ident).(id)) =>
+      remember (fun (i : (sum_tid _Ident)) =>
                   match i with
                   | inl i => m_src0 i
                   | inr i => wf_emb (gm_tgt (inr i))
@@ -358,7 +358,7 @@ Section SIM.
                               | inl i => gm_tgt0 (inl i)
                               | inr i => gm_tgt (inr i)
                               end).
-      { ii. destruct i. reflexivity. specialize (FAIR (inr i)). ss. }
+      { ii. destruct i. reflexivity. specialize (FAIR (inr _i)). ss. }
       eapply H0. instantiate (1 := fun i => gm_tgt0 (inl i)).
       + ii. rewrite M_TGT. specialize (FAIR (inl i)); ss.
       + reflexivity.

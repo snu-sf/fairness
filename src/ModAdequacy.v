@@ -49,11 +49,11 @@ Section ADEQ.
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
   Variant __sim_knot R0 R1 (RR: R0 -> R1 -> Prop)
-          (sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
-          (_sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
+          (sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
+          (_sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop)
           (thsl: threads_src2 R0) (thsr: threads_tgt R1)
     :
-    thread_id.(id) -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> shared -> Prop :=
+    thread_id -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> shared -> Prop :=
     | ksim_ret_term
         tid f_src f_tgt
         sf r_src r_tgt
@@ -365,7 +365,7 @@ Section ADEQ.
   .
 
   Definition sim_knot R0 R1 (RR: R0 -> R1 -> Prop):
-    threads_src2 R0 -> threads_tgt R1 -> thread_id.(id) ->
+    threads_src2 R0 -> threads_tgt R1 -> thread_id ->
     bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> shared -> Prop :=
     paco8 (fun r => pind8 (__sim_knot RR r) top8) bot8.
 
@@ -851,12 +851,10 @@ Section ADEQ.
                           Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           th_wf_pair ths_src ths_tgt ->
-                          forall sf (st_src : state_src) (st_tgt : state_tgt) o (im_tgt : imap wf_tgt)
-                            (im_src : imap wf_src),
+                          forall (sf : bool) (st_src : state_src) (st_tgt : state_tgt) (o : T wf_src)
+                            (im_tgt : imap (ModSimPico.ident_tgt _ident_tgt) wf_tgt) (im_src : imap (id_sum thread_id _ident_src) wf_src),
                             LRR = local_RR world_le I RR tid ->
-                            shr =
-                              (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src,
-                                st_tgt, o, w) ->
+                            shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src, st_tgt, o, w) ->
                             paco8 (fun r0 => pind8 (__sim_knot RR r0) top8) r ths_src ths_tgt tid gps gpt (sf, src) tgt shr)) in LSIM; auto. }
 
     ss. clear gps gpt src tgt shr LSIM.
@@ -1204,7 +1202,7 @@ Section ADEQ.
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
               (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world)
-              (mt : imap wf_tgt) (ms : imap wf_src),
+              (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                        (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                          st_tgt, o, w) ->
@@ -1220,8 +1218,8 @@ Section ADEQ.
                        th_wf_pair ths_src ths_tgt ->
                        forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
                          (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-                         (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap wf_tgt)
-                         (ms : imap wf_src),
+                         (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap ident_tgt wf_tgt)
+                         (ms : imap ident_src wf_src),
                          sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                                   (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                                     st_tgt, y, w) ->
@@ -1249,7 +1247,7 @@ Section ADEQ.
                   nm_pop tid0 ths_src = Some (b, th_src, thsl0) /\
                     nm_pop tid0 ths_tgt = Some (th_tgt, thsr0) /\
                     (b = true ->
-                     forall im_tgt0 : imap wf_tgt,
+                     forall im_tgt0 : imap ident_tgt wf_tgt,
                        fair_update mt im_tgt0
                                    (sum_fmap_l
                                       (tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_tgt))))) ->
@@ -1260,11 +1258,11 @@ Section ADEQ.
                                   NatSet.remove tid (NatSet.add tid (key_set ths_tgt)), ms, im_tgt0, st_src,
                                   st_tgt, o1, w1)) /\
                     (b = false ->
-                     forall im_tgt0 : imap wf_tgt,
+                     forall im_tgt0 : imap ident_tgt wf_tgt,
                        fair_update mt im_tgt0
                                    (sum_fmap_l
                                       (tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_tgt))))) ->
-                       exists (im_src0 : imap wf_src) w2,
+                       exists (im_src0 : imap ident_src wf_src) w2,
                          fair_update ms im_src0
                                      (sum_fmap_l
                                         (tids_fmap tid0 (NatSet.remove tid (NatSet.add tid (key_set ths_src))))) /\
@@ -1449,7 +1447,7 @@ Section ADEQ.
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
               (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world)
-              (mt : imap wf_tgt) (ms : imap wf_src),
+              (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                        (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                          st_tgt, o, w) ->
@@ -1465,8 +1463,8 @@ Section ADEQ.
                        th_wf_pair ths_src ths_tgt ->
                        forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
                          (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-                         (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap wf_tgt)
-                         (ms : imap wf_src),
+                         (st_tgt : state_tgt) (ps pt : bool) (w : world) (mt : imap ident_tgt wf_tgt)
+                         (ms : imap ident_src wf_src),
                          sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                                   (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                                     st_tgt, y, w) ->
@@ -1493,7 +1491,7 @@ Section ADEQ.
                      exists (o0 : T wf_src) (w0 : world),
                        lt wf_src o0 o /\
                          world_le w w0 /\
-                         (forall im_tgt0 : imap wf_tgt,
+                         (forall im_tgt0 : imap ident_tgt wf_tgt,
                              fair_update mt im_tgt0
                                          (sum_fmap_l (tids_fmap tid0 (NatSet.add tid (key_set ths_tgt)))) ->
                              forall ps pt : bool,
@@ -1506,10 +1504,10 @@ Section ADEQ.
                      exists (o0 : T wf_src) (w0 : world),
                        lt wf_src o0 o /\
                          world_le w w0 /\
-                         (forall im_tgt0 : imap wf_tgt,
+                         (forall im_tgt0 : imap ident_tgt wf_tgt,
                              fair_update mt im_tgt0
                                          (sum_fmap_l (tids_fmap tid0 (NatSet.add tid (key_set ths_tgt)))) ->
-                             exists (im_src0 : imap wf_src) w1,
+                             exists (im_src0 : imap ident_src wf_src) w1,
                                fair_update ms im_src0
                                            (sum_fmap_l (tids_fmap tid0 (NatSet.add tid (key_set ths_src)))) /\
                                  (world_le w0 w1) /\
@@ -1696,7 +1694,7 @@ Section ADEQ.
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
               (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) (w : world)
-              (mt : imap wf_tgt) (ms : imap wf_src),
+              (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot RR ths_src ths_tgt tid ps pt (sf, src) tgt
                        (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src,
                          st_tgt, o, w) ->
@@ -1729,7 +1727,7 @@ Section ADEQ.
                           Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           th_wf_pair ths_src ths_tgt ->
-                          forall (st_src : state_src) (st_tgt : state_tgt) (w : world) (mt : imap wf_tgt) (ms : imap wf_src) (o : T wf_src)
+                          forall (st_src : state_src) (st_tgt : state_tgt) (w : world) (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src) (o : T wf_src)
                             (src : thread _ident_src (sE state_src) R0),
                             ssrc = (false, src) ->
                             shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src, st_tgt, o, w) ->
@@ -1897,7 +1895,7 @@ Section ADEQ.
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           th_wf_pair ths_src ths_tgt ->
                           forall (sf : bool) (src : thread _ident_src (sE state_src) R0) (st_src : state_src) (st_tgt : state_tgt)
-                            (mt : imap wf_tgt) (ms : imap wf_src) w,
+                            (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src) w,
                             ssrc = (sf, src) ->
                             shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), ms, mt, st_src, st_tgt, o, w) ->
                             gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
@@ -2176,7 +2174,7 @@ Section ADEQ.
         eapply find_some_aux; eauto. eapply find_some_aux; eauto.
     }
 
-    cut (forall im_tgt, exists (im_src0 : imap wf_src) (o0 : T wf_src) (w0 : world),
+    cut (forall im_tgt, exists (im_src0 : imap ident_src wf_src) (o0 : T wf_src) (w0 : world),
             I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, w0) /\
               (List.Forall2 (fun '(t1, src) '(t2, tgt) => t1 = t2 /\ local_sim_pick RR src tgt t1 w0)
                             (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src)

@@ -40,7 +40,7 @@ Section PRIMIVIESIM.
   Variable I: shared_rel.
 
   Variable get_ord:
-    forall {R_src R_tgt} (RR: R_src -> R_tgt -> shared_rel), @id thread_id -> bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared -> wf_src.(T).
+    forall {R_src R_tgt} (RR: R_src -> R_tgt -> shared_rel), thread_id -> bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared -> wf_src.(T).
 
   (* TODO: Do not work *)
   Hint Resolve ModSimStutter.lsim_mon: paco.
