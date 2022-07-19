@@ -7,7 +7,7 @@ Export ITreeNotations.
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
-From Fairness Require Import ITreeLib.
+From Fairness Require Import ITreeLib WFLib.
 From Fairness Require Import FairBeh.
 From Fairness Require Import FairSim.
 
@@ -15,6 +15,7 @@ From Fairness Require Import SelectBeh.
 From Fairness Require Import BehEquiv BehEquivSelect.
 
 Require Import Setoid Morphisms.
+From Fairness Require Import Axioms.
 
 Set Implicit Arguments.
 
@@ -75,14 +76,14 @@ Section ADEQ.
 
   Theorem global_adequacy
           R
-          psrc0 ptgt0 ssrc0 stgt0
-          (SIM: gsim (ids:=ids) (idt:=idt) wfs wft (@eq R) psrc0 ptgt0 ssrc0 stgt0)
+          ssrc0 stgt0
+          (SIM: gsim (ids:=ids) (idt:=idt) wfs wft (@eq R) ssrc0 stgt0)
     :
     <<IMPR: Beh.improves (ids:=ids) (idt:=idt) (wfs:=wfs) (wft:=wft) ssrc0 stgt0>>.
   Proof.
     ii. specialize (SIM mtgt). des. exists ms. rename mtgt into mtgt0, ms into msrc0. intro PR.
-    ginit. revert_until R. gcofix CIH.
-    i. revert psrc0 ptgt0 msrc0 ssrc0 SIM.
+    revert SIM. ginit. revert_until R. gcofix CIH.
+    i. revert ps pt msrc0 ssrc0 SIM.
     induction PR using @Beh.of_state_ind2; ii.
     { match goal with
       | SIM: sim _ _ _ _ _ _ ?a |- _ => remember a as stgt0
@@ -258,49 +259,82 @@ Section ADEQ.
 End ADEQ.
 
 
-
 Section ADEQ2.
-
-  Context {Ident: ID}.
-
-  Definition FairBeh_of_state {R} (st: @state _ R) (obs: @Tr.t R): Prop :=
+  Definition FairBeh_of_state {Ident: ID} {R} (st: @state _ R) (obs: @Tr.t R): Prop :=
     exists (raw: @RawTr.t _ R), (extract_tr raw obs) /\ (RawBeh.of_state_fair st raw).
 
-  Definition improves {R} (src tgt: @state _ R) :=
+  Definition improves (ids idt: ID) {R}
+             (src: @state ids R) (tgt: @state idt R) :=
     forall (obs_tr: @Tr.t R),
       (FairBeh_of_state tgt obs_tr) -> (FairBeh_of_state src obs_tr).
 
-
-  Hypothesis ID_DEC: forall (i0 i1: Ident.(id)), {i0 = i1} + {i0 <> i1}.
-
+  Variable ids: ID.
+  Variable idt: ID.
   Variable wfs: WF.
-  Variable wfs0: T wfs.
-  Hypothesis WFSTR: Transitive wfs.(lt).
-
   Variable wft: WF.
-  Variable wft0: T wft.
-  Variable St: wft.(T) -> wft.(T).
-  Hypothesis lt_succ_diag_r_t: forall (t: wft.(T)), wft.(lt) t (St t).
+
+  Hypothesis wft_inhabited: inhabited wft.(T).
+  Hypothesis wft_open: forall (o0: wft.(T)), exists o1, wft.(lt) o0 o1.
+
+
+  (* Auxilary Definitions *)
+  Let wfs_lift_T := option wfs.(T).
+  Let wfs_lift_lt: wfs_lift_T -> wfs_lift_T -> Prop :=
+        fun o0 o1 =>
+          match o0, o1 with
+          | Some o0, Some o1 => (clos_trans_n1 _ wfs.(lt)) o0 o1
+          | _, _ => False
+          end.
+  Program Let wfs_lift: WF := @mk_wf wfs_lift_T wfs_lift_lt _.
+  Next Obligation.
+  Proof.
+    ii. destruct a.
+    2:{ econs. ii. destruct y; ss. }
+    induction (clos_trans_well_founded wfs.(wf) t).
+    econs. i. destruct y; ss. eauto.
+  Qed.
+  Let wfs_embed: wfs.(T) -> wfs_lift.(T) := fun o => Some o.
+  Let wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1).
+  Proof.
+    i. ss. econs 1. eauto.
+  Qed.
+  Let wfs0: wfs_lift.(T) := None.
+  Let WFSTR: Transitive wfs_lift.(lt).
+  Proof.
+    ii. destruct x, y, z; ss.
+    eapply Operators_Properties.clos_tn1_trans in H.
+    eapply Operators_Properties.clos_tn1_trans in H0.
+    eapply Operators_Properties.clos_trans_tn1_iff. econs 2; eauto.
+  Qed.
+  Let wft0: wft.(T) := @epsilon _ wft_inhabited (fun _ => True).
+  Let St: wft.(T) -> wft.(T) := fun o0 => @epsilon _ wft_inhabited (fun o1 => wft.(lt) o0 o1).
+  Let lt_succ_diag_r_t: forall (t: wft.(T)), wft.(lt) t (St t).
+  Proof.
+    i. unfold St.
+    hexploit (@epsilon_spec _ wft_inhabited (fun o1 => wft.(lt) t o1)); eauto.
+  Qed.
 
   Theorem adequacy
           R
-          psrc ptgt src tgt
-          (SIM: gsim wfs wft (@eq R) psrc ptgt src tgt)
+          (src: @state ids R) (tgt: @state idt R)
+          (SIM: gsim wfs wft (@eq R) src tgt)
     :
     improves src tgt.
   Proof.
+    eapply gsim_embedded_src_ord in SIM.
+    2:{ eapply wfs_embed_lt. }
     eapply global_adequacy in SIM. intros obs TGT. unfold FairBeh_of_state in *. des.
     unfold RawBeh.of_state_fair in TGT0. des.
     eapply Fair_implies_Ind in FAIR.
     eapply (@Ind_implies_Ord _ wft wft0) in FAIR; eauto.
     hexploit SelectBeh_implies_IndexBeh; eauto. split; eauto.
     i; des. unfold Beh.improves in SIM. specialize (SIM obs im). des.
-    hexploit (@IndexBeh_implies_SelectBeh _ wfs). eauto.
+    hexploit (@IndexBeh_implies_SelectBeh ids wfs_lift).
+    { eauto. }
     { eexists. eapply SIM. eauto. hexploit (extract_tr_inj_tr TGT EXTRACT).
       i. rewrite H; clear H. eauto. }
     i; des. esplits. eapply EXTRACT0. destruct BEH1. des. split; eauto.
-    eapply (@Ord_implies_Fair _ _ wfs); eauto.
-    Unshelve. exact ID_DEC.
+    eapply (@Ord_implies_Fair _ _ wfs_lift); eauto.
+    Unshelve. intros. eapply excluded_middle_informative.
   Qed.
-
 End ADEQ2.
