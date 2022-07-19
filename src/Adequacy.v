@@ -7,7 +7,7 @@ Export ITreeNotations.
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
-From Fairness Require Import ITreeLib.
+From Fairness Require Import ITreeLib WFLib.
 From Fairness Require Import FairBeh.
 From Fairness Require Import FairSim.
 
@@ -258,77 +258,6 @@ Section ADEQ.
 
 End ADEQ.
 
-
-
-(* TODO: copied from Ordinal library *)
-Require Import Coq.Relations.Relation_Operators.
-Lemma clos_trans_well_founded
-      A (R: A -> A -> Prop) (WF: well_founded R)
-  :
-    well_founded (clos_trans_n1 _ R).
-Proof.
-  ii. hexploit (well_founded_induction WF (fun a1 => forall a0 (LT: clos_trans_n1 A R a0 a1 \/ a0 = a1), Acc (clos_trans_n1 A R) a0)).
-  { clear a. intros a1 IH. i. econs. i. des.
-    - inv LT.
-      + eapply IH; eauto.
-      + eapply IH; eauto. left.
-        eapply Operators_Properties.clos_trans_tn1. econs 2.
-        * eapply Operators_Properties.clos_tn1_trans; eauto.
-        * eapply Operators_Properties.clos_tn1_trans; eauto.
-    - subst. inv H; eauto.
-  }
-  { right. reflexivity. }
-  { eauto. }
-Qed.
-
-Section EMBEDSIM.
-  Lemma sim_embedded_src_ord (ids idt: ID)
-        (wfs wft: WF)
-        (wfs_lift: WF)
-        (wfs_embed: wfs.(T) -> wfs_lift.(T))
-        (wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1))
-    :
-    forall
-      (R0 R1: Type) (RR: R0 -> R1 -> Prop)
-      (ps pt: bool) (src: @state ids R0) (tgt: @state idt R1)
-      (mt: @imap idt wft) (ms: @imap ids wfs)
-      (SIM: sim RR ps ms pt mt src tgt),
-      sim RR ps (fun id => wfs_embed (ms id)) pt mt src tgt.
-  Proof.
-    ginit. gcofix CIH. i. punfold SIM. revert ps ms pt mt src tgt SIM. eapply sim_ind; i.
-    { guclo sim_indC_spec. econs 1. eauto. }
-    { gstep. econs 2; eauto. i. hexploit SIM; eauto. i. pclearbot. gbase. auto. }
-    { guclo sim_indC_spec. econs 3. eauto. }
-    { guclo sim_indC_spec. econs 4. eauto. }
-    { des. guclo sim_indC_spec. econs 5. eexists x. eauto. }
-    { guclo sim_indC_spec. econs 6. i. specialize (SIM x). des. eauto. }
-    { des. guclo sim_indC_spec. econs 7. eexists (fun id => wfs_embed (m_src0 id)).
-      splits; eauto. ii. specialize (FAIR i). des_ifs; ss; eauto.
-      inv FAIR; eauto.
-      { left. rewrite H. eauto. }
-      { right. eauto. }
-    }
-    { guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eauto. }
-    { gstep. econs 9; eauto. pclearbot. gbase. eauto. }
-    { gstep. econs 10; eauto. }
-  Qed.
-
-  Lemma gsim_embedded_src_ord (ids idt: ID)
-        (wfs wft: WF)
-        (wfs_lift: WF)
-        (wfs_embed: wfs.(T) -> wfs_lift.(T))
-        (wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1))
-    :
-    forall
-      (R0 R1: Type) (RR: R0 -> R1 -> Prop)
-      (src: @state ids R0) (tgt: @state idt R1)
-      (SIM: gsim wfs wft RR src tgt),
-      gsim wfs_lift wft RR src tgt.
-  Proof.
-    unfold gsim. i. specialize (SIM mt). des.
-    esplits. eapply sim_embedded_src_ord; eauto.
-  Qed.
-End EMBEDSIM.
 
 Section ADEQ2.
   Definition FairBeh_of_state {Ident: ID} {R} (st: @state _ R) (obs: @Tr.t R): Prop :=
