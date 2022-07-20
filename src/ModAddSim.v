@@ -87,7 +87,7 @@ Section ADD_MODSIM.
       + ii. esplits; ss. i. exists (m_conv im_tgt2). esplits; ss.
         { unfold m_eq in INV0; des. ii.
           destruct i as [|[]]; ss.
-          - specialize (TGT (inl i)). rewrite INV2. ss.
+          - specialize (TGT (inl n)). rewrite INV2. ss.
           - specialize (TGT (inr (inr i))). rewrite INV3. ss.
           - specialize (TGT (inr (inl i))). rewrite INV4. ss.
         }
@@ -95,7 +95,7 @@ Section ADD_MODSIM.
       + ii. exists tt. splits; ss. i. exists (m_conv im_tgt2). exists tt. splits; ss.
         { unfold m_eq in INV0; des. ii.
           destruct i as [|[]]; ss.
-          - specialize (TGT (inl i)). rewrite INV2. ss.
+          - specialize (TGT (inl n)). rewrite INV2. ss.
           - specialize (TGT (inr (inr i))). rewrite INV3. ss.
           - specialize (TGT (inr (inl i))). rewrite INV4. ss.
         }
@@ -130,7 +130,7 @@ Section ADD_MODSIM.
                 eapply pind8_fold. eapply lsim_fairL. exists (m_conv im_tgt1). esplit.
                 { unfold m_eq in INV; des. ii.
                   destruct i as [|[]]; ss.
-                  - specialize (FAIR (inl i)). rewrite INV1. ss.
+                  - specialize (FAIR (inl n)). rewrite INV1. ss.
                   - specialize (FAIR (inr (inr i))). rewrite INV2. ss.
                   - specialize (FAIR (inr (inl i))). rewrite INV3. ss.
                 }
@@ -148,7 +148,7 @@ Section ADD_MODSIM.
                 eapply pind8_fold. eapply lsim_yieldL. exists (m_conv im_tgt2). esplit.
                 { unfold m_eq in INV0; des. ii.
                   destruct i as [|[]]; ss.
-                  - specialize (TGT (inl i)). rewrite INV2. ss.
+                  - specialize (TGT (inl n)). rewrite INV2. ss.
                   - specialize (TGT (inr (inr i))). rewrite INV3. ss.
                   - specialize (TGT (inr (inl i))). rewrite INV4. ss.
                 }
@@ -187,7 +187,7 @@ Section ADD_MODSIM.
       + ii. exists tt. splits; ss. i. exists (m_conv im_tgt2). exists tt. splits; ss.
         { unfold m_eq in INV0; des. ii.
           destruct i as [|[]]; ss.
-          - specialize (TGT (inl i)). rewrite INV2. ss.
+          - specialize (TGT (inl n)). rewrite INV2. ss.
           - specialize (TGT (inr (inr i))). rewrite INV3. ss.
           - specialize (TGT (inr (inl i))). rewrite INV4. ss.
         }
@@ -222,7 +222,7 @@ Section ADD_MODSIM.
                 eapply pind8_fold. eapply lsim_fairL. exists (m_conv im_tgt1). esplit.
                 { unfold m_eq in INV; des. ii.
                   destruct i as [|[]]; ss.
-                  - specialize (FAIR (inl i)). rewrite INV1. ss.
+                  - specialize (FAIR (inl n)). rewrite INV1. ss.
                   - specialize (FAIR (inr (inr i))). rewrite INV2. ss.
                   - specialize (FAIR (inr (inl i))). rewrite INV3. ss.
                 }
@@ -240,7 +240,7 @@ Section ADD_MODSIM.
                 eapply pind8_fold. eapply lsim_yieldL. exists (m_conv im_tgt2). esplit.
                 { unfold m_eq in INV0; des. ii.
                   destruct i as [|[]]; ss.
-                  - specialize (TGT (inl i)). rewrite INV2. ss.
+                  - specialize (TGT (inl n)). rewrite INV2. ss.
                   - specialize (TGT (inr (inr i))). rewrite INV3. ss.
                   - specialize (TGT (inr (inl i))). rewrite INV4. ss.
                 }
