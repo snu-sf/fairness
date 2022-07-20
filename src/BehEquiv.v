@@ -16,14 +16,14 @@ Set Implicit Arguments.
 
 Section EXTRACT.
 
-  Context {Ident: ID}.
+  Variable id: ID.
 
   (** match between raw_tr and tr *)
   Variant _raw_spin
-          (raw_spin: forall (R: Type), RawTr.t -> Prop)
+          (raw_spin: forall (R: Type), (@RawTr.t id R) -> Prop)
           R
     :
-    (@RawTr.t _ R) -> Prop :=
+    (@RawTr.t id R) -> Prop :=
     | raw_spin_silent
         (silent: silentE) tl
         (TL: raw_spin _ tl)
@@ -43,7 +43,7 @@ Section EXTRACT.
             (extract_tr: forall (R: Type), RawTr.t -> Tr.t -> Prop)
             R
     :
-    (@RawTr.t _ R) -> Tr.t -> Prop :=
+    (@RawTr.t id R) -> Tr.t -> Prop :=
   | extract_tr_done
       retv
     :
@@ -125,7 +125,7 @@ Section EXTRACT.
           (extract_tr: forall (R: Type), RawTr.t -> Tr.t -> Prop)
           R
     :
-    (@RawTr.t _ R) -> Tr.t -> Prop :=
+    (@RawTr.t id R) -> Tr.t -> Prop :=
     | extract_tr_indC_done
         retv
       :
@@ -249,13 +249,13 @@ End EXTRACT.
 
 Section ExtractTr.
 
-  Context {Ident: ID}.
+  Variable id: ID.
 
   (** observer of the raw trace **)
   Inductive observe_raw_first
           R
     :
-    (@RawTr.t _ R) -> (prod (option obsE) RawTr.t) -> Prop :=
+    (@RawTr.t id R) -> (prod (option obsE) RawTr.t) -> Prop :=
     | observe_raw_first_done
         retv
       :
@@ -278,26 +278,26 @@ Section ExtractTr.
   .
 
   Definition observe_raw_prop {R}
-             (raw: @RawTr.t _ R)
+             (raw: @RawTr.t id R)
              (obstl: option (prod (option obsE) RawTr.t)): Prop :=
     match obstl with
     | None => raw_spin raw
     | Some obstl0 => observe_raw_first raw obstl0
     end.
 
-  Lemma inhabited_observe_raw R: inhabited (option (prod (option obsE) (@RawTr.t _ R))).
+  Lemma inhabited_observe_raw R: inhabited (option (prod (option obsE) (@RawTr.t id R))).
   Proof.
     econs. exact None.
   Qed.
 
-  Definition observe_raw {R} (raw: (@RawTr.t _ R)): option (prod (option obsE) RawTr.t) :=
+  Definition observe_raw {R} (raw: (@RawTr.t id R)): option (prod (option obsE) RawTr.t) :=
     epsilon _ (@inhabited_observe_raw R) (observe_raw_prop raw).
 
 
   (** properties **)
   (* helper lemmas *)
   Lemma spin_no_obs
-        R (raw: @RawTr.t _ R)
+        R (raw: @RawTr.t id R)
         (SPIN: raw_spin raw)
     :
     forall ev tl, ~ observe_raw_first raw (ev, tl).
@@ -312,7 +312,7 @@ Section ExtractTr.
   Qed.
 
   Lemma no_obs_spin
-        R (raw: @RawTr.t _ R)
+        R (raw: @RawTr.t id R)
         (NOOBS: forall ev tl, ~ observe_raw_first raw (ev, tl))
     :
     raw_spin raw.
@@ -328,7 +328,7 @@ Section ExtractTr.
   Qed.
 
   Lemma spin_iff_no_obs
-        R (raw: @RawTr.t _ R)
+        R (raw: @RawTr.t id R)
     :
     (raw_spin raw) <-> (forall ev tl, ~ observe_raw_first raw (ev, tl)).
   Proof.
@@ -336,7 +336,7 @@ Section ExtractTr.
   Qed.
 
   Lemma observe_raw_first_inj
-        R (raw: @RawTr.t _ R) obstl1 obstl2
+        R (raw: @RawTr.t id R) obstl1 obstl2
         (ORP1: observe_raw_first raw obstl1)
         (ORP2: observe_raw_first raw obstl2)
     :
@@ -351,7 +351,7 @@ Section ExtractTr.
   Qed.
 
   Lemma observe_raw_inj
-        R (raw: @RawTr.t _ R) obstl1 obstl2
+        R (raw: @RawTr.t id R) obstl1 obstl2
         (ORP1: observe_raw_prop raw obstl1)
         (ORP2: observe_raw_prop raw obstl2)
     :
@@ -368,7 +368,7 @@ Section ExtractTr.
 
 
   Theorem observe_raw_prop_impl_observe_raw
-          R (raw: @RawTr.t _ R) obstl
+          R (raw: @RawTr.t id R) obstl
           (ORP: observe_raw_prop raw obstl)
     :
     observe_raw raw = obstl.
@@ -378,7 +378,7 @@ Section ExtractTr.
   Qed.
 
   Lemma observe_raw_prop_false
-        R (raw: @RawTr.t _ R) ev tl
+        R (raw: @RawTr.t id R) ev tl
     :
     ~ observe_raw_prop raw (Some (None, RawTr.cons ev tl)).
   Proof.
@@ -388,7 +388,7 @@ Section ExtractTr.
 
   (** observe_raw reductions **)
   Lemma observe_raw_spin
-        R (raw: @RawTr.t _ R)
+        R (raw: @RawTr.t id R)
         (SPIN: raw_spin raw)
     :
     observe_raw raw = None.
@@ -397,7 +397,7 @@ Section ExtractTr.
   Qed.
 
   Lemma raw_spin_observe
-        R (raw: @RawTr.t _ R)
+        R (raw: @RawTr.t id R)
         (NONE: observe_raw raw = None)
     :
     raw_spin raw.
@@ -433,7 +433,7 @@ Section ExtractTr.
   Qed.
 
   Lemma observe_raw_obs
-        R obs (tl: @RawTr.t _ R)
+        R obs (tl: @RawTr.t id R)
     :
     observe_raw (RawTr.cons (inr obs) tl) = Some (Some obs, tl).
   Proof.
@@ -442,7 +442,7 @@ Section ExtractTr.
 
 
   Lemma observe_first_some_inj
-        R (raw: @RawTr.t _ R) obstl1 obstl2
+        R (raw: @RawTr.t id R) obstl1 obstl2
         (SOME: observe_raw raw = Some obstl1)
         (ORF: observe_raw_first raw obstl2)
     :
@@ -453,7 +453,7 @@ Section ExtractTr.
   Qed.
 
   Lemma observe_first_some
-        R (raw: @RawTr.t _ R) obstl
+        R (raw: @RawTr.t id R) obstl
         (SOME: observe_raw raw = Some obstl)
     :
     observe_raw_first raw obstl.
@@ -468,7 +468,7 @@ Section ExtractTr.
   Qed.
 
   Theorem observe_raw_spec
-          R (raw: @RawTr.t _ R)
+          R (raw: @RawTr.t id R)
     :
     observe_raw_prop raw (observe_raw raw).
   Proof.
@@ -478,7 +478,7 @@ Section ExtractTr.
   Qed.
 
   Lemma observe_raw_silent
-        R (tl: @RawTr.t _ R) silent
+        R (tl: @RawTr.t id R) silent
     :
     observe_raw (RawTr.cons (inl silent) tl) = observe_raw tl.
   Proof.
@@ -491,7 +491,7 @@ Section ExtractTr.
 
 
   (** raw trace to normal trace **)
-  CoFixpoint raw2tr {R} (raw: @RawTr.t _ R): (@Tr.t R) :=
+  CoFixpoint raw2tr {R} (raw: @RawTr.t id R): (@Tr.t R) :=
     match observe_raw raw with
     | None => Tr.spin
     | Some (None, RawTr.done retv) => Tr.done retv
@@ -543,7 +543,7 @@ Section ExtractTr.
   Qed.
 
   Lemma raw2tr_red_spin
-        R (raw: @RawTr.t _ R)
+        R (raw: @RawTr.t id R)
         (SPIN: raw_spin raw)
     :
     (raw2tr raw) = Tr.spin.
@@ -565,7 +565,7 @@ Section ExtractTr.
   Qed.
 
   Theorem raw2tr_extract
-          R (raw: @RawTr.t _ R)
+          R (raw: @RawTr.t id R)
     :
     extract_tr raw (raw2tr raw).
   Proof.
@@ -604,12 +604,12 @@ End ExtractTr.
 
 Section ExtractRaw.
 
-  Context {Ident: ID}.
+  Variable id: ID.
   Variable wf: WF.
   Variable wf0: T wf.
   Variable R: Type.
 
-  Definition st_tr_im := ((@state _ R) * (@Tr.t R) * (imap wf))%type.
+  Definition st_tr_im := ((@state id R) * (@Tr.t R) * (imap id wf))%type.
 
   (** observer of the state, needs trace for obs return value information **)
   Inductive observe_state_trace
@@ -669,10 +669,10 @@ Section ExtractRaw.
   Definition observe_state_prop (sti: st_tr_im) (rawsti: (prod (list rawE) st_tr_im)): Prop :=
     (let '(st, tr, im) := sti in (Beh.of_state im st tr)) -> observe_state_trace sti rawsti.
 
-  Definition itree_loop R: (@state _ R) :=
+  Definition itree_loop R: (@state id R) :=
     @ITree.iter _ R unit (fun x: unit => Ret (inl x)) tt.
 
-  Lemma inhabited_observe_state: inhabited (prod (list rawE) st_tr_im).
+  Lemma inhabited_observe_state: inhabited (prod (list (@rawE id)) st_tr_im).
   Proof.
     econs. econs. exact []. econs. econs. exact (itree_loop R). exact Tr.ub. exact (fun _ => wf0).
   Qed.
@@ -683,7 +683,7 @@ Section ExtractRaw.
 
   (** properties **)
   Lemma beh_implies_spin
-        (im: imap wf) (st: @state _ R)
+        (im: imap id wf) (st: @state _ R)
         (BEH: Beh.of_state im st Tr.spin)
     :
     Beh.diverge_index im st.
@@ -697,7 +697,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_trace_exists
-        (st: @state _ R) (tr: Tr.t) (im: imap wf)
+        (st: @state _ R) (tr: Tr.t) (im: imap id wf)
         (BEH: Beh.of_state im st tr)
     :
     exists rawsti, observe_state_trace (st, tr, im) rawsti.
@@ -730,7 +730,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_exists
-        (st: @state _ R) (tr: Tr.t) (im: imap wf)
+        (st: @state _ R) (tr: Tr.t) (im: imap id wf)
     :
     exists rawsti, observe_state_prop (st, tr, im) rawsti.
   Proof.
@@ -741,7 +741,7 @@ Section ExtractRaw.
   Qed.
 
   (** (state, trace, imap) to raw trace **)
-  CoFixpoint raw_spin_trace: RawTr.t :=
+  CoFixpoint raw_spin_trace: @RawTr.t id R :=
     RawTr.cons (R:=R) (inl silentE_tau) raw_spin_trace.
 
   Lemma raw_spin_trace_ob
@@ -840,7 +840,7 @@ Section ExtractRaw.
   Qed.
 
 
-  CoFixpoint _sti2raw (evs: list rawE) (sti: st_tr_im): (@RawTr.t _ R) :=
+  CoFixpoint _sti2raw (evs: list rawE) (sti: st_tr_im): (@RawTr.t id R) :=
     match evs with
     | hd :: tl => RawTr.cons hd (_sti2raw tl sti)
     | [] =>
@@ -853,12 +853,12 @@ Section ExtractRaw.
         end
     end.
 
-  Definition sti2raw (sti: st_tr_im): (@RawTr.t _ R) := _sti2raw [] sti.
+  Definition sti2raw (sti: st_tr_im): (@RawTr.t id R) := _sti2raw [] sti.
 
 
   (** observe_state reduction lemmas **)
   Lemma observe_state_ret
-        (im: imap wf) (retv: R)
+        (im: imap id wf) (retv: R)
     :
     observe_state (Ret retv, Tr.done retv, im) = ([], (Ret retv, Tr.done retv, im)).
   Proof.
@@ -870,7 +870,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_obs
-        (im: imap wf) fn args rv tl ktr
+        (im: imap id wf) fn args rv tl ktr
         (BEH: Beh.of_state im (ktr rv) tl)
     :
     observe_state (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tl, im) =
@@ -885,7 +885,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_tau
-        (im: imap wf) itr tr
+        (im: imap id wf) itr tr
         (BEH: Beh.of_state im (Tau itr) tr)
         (NNB: tr <> Tr.nb)
         (NSPIN: tr <> Tr.spin)
@@ -902,7 +902,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_tau_spin
-        (im: imap wf) itr tr
+        (im: imap id wf) itr tr
         (BEH: Beh.of_state im (Tau itr) tr)
         (NNB: tr <> Tr.nb)
         (SPIN: tr = Tr.spin)
@@ -918,7 +918,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_choose
-        (im: imap wf) tr X ktr
+        (im: imap id wf) tr X ktr
         (BEH: Beh.of_state im (Vis (Choose X) ktr) tr)
         (NNB: tr <> Tr.nb)
         (NSPIN: tr <> Tr.spin)
@@ -937,7 +937,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_choose_spin
-        (im: imap wf) tr X ktr
+        (im: imap id wf) tr X ktr
         (BEH: Beh.of_state im (Vis (Choose X) ktr) tr)
         (NNB: tr <> Tr.nb)
         (SPIN: tr = Tr.spin)
@@ -954,12 +954,12 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_fair
-        (im: imap wf) tr fm ktr
+        (im: imap id wf) tr fm ktr
         (BEH: Beh.of_state im (Vis (Fair fm) ktr) tr)
         (NNB: tr <> Tr.nb)
         (NSPIN: tr <> Tr.spin)
     :
-    exists (im0: imap wf),
+    exists (im0: imap id wf),
       (fair_update im im0 fm) /\ (Beh.of_state im0 (ktr tt) tr) /\
         (exists evs sti,
             (observe_state_trace (ktr tt, tr, im0) (evs, sti)) /\
@@ -973,12 +973,12 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_fair_spin
-        (im: imap wf) tr fm ktr
+        (im: imap id wf) tr fm ktr
         (BEH: Beh.of_state im (Vis (Fair fm) ktr) tr)
         (NNB: tr <> Tr.nb)
         (NSPIN: tr = Tr.spin)
     :
-    exists (im0: imap wf),
+    exists (im0: imap id wf),
       (fair_update im im0 fm) /\
         (Beh.diverge_index im0 (ktr tt)) /\
         (observe_state (Vis (Fair fm) ktr, tr, im) = ([inl (silentE_fair fm)], (ktr tt, tr, im0))).
@@ -991,7 +991,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_ub
-        (im: imap wf) tr ktr
+        (im: imap id wf) tr ktr
     :
     observe_state (Vis Undefined ktr, tr, im) = ([], (Vis Undefined ktr, tr, im)).
   Proof.
@@ -1003,7 +1003,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_nb
-        (im: imap wf) itr
+        (im: imap id wf) itr
     :
     observe_state (itr, Tr.nb, im) = ([], (itr, Tr.nb, im)).
   Proof.
@@ -1015,7 +1015,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_spin_div
-        (im: imap wf) itr
+        (im: imap id wf) itr
         (DIV: @Beh.diverge_index _ _ R im itr)
     :
     observe_state_trace (itr, Tr.spin, im) (observe_state (itr, Tr.spin, im)).
@@ -1034,7 +1034,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma observe_state_spin
-        (im: imap wf) itr
+        (im: imap id wf) itr
         (BEH: @Beh.of_state _ _ R im itr Tr.spin)
     :
     observe_state_trace (itr, Tr.spin, im) (observe_state (itr, Tr.spin, im)).
@@ -1134,7 +1134,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_ret
-        (im: imap wf) (retv: R)
+        (im: imap id wf) (retv: R)
     :
     sti2raw (Ret retv, Tr.done retv, im) = RawTr.done retv.
   Proof.
@@ -1144,7 +1144,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_nb
-        (im: imap wf) (st: @state _ R)
+        (im: imap id wf) (st: @state _ R)
     :
     sti2raw (st, Tr.nb, im) = RawTr.nb.
   Proof.
@@ -1154,7 +1154,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_ub
-        (im: imap wf) ktr tr
+        (im: imap id wf) ktr tr
         (NNB: tr <> Tr.nb)
     :
     sti2raw (Vis Undefined ktr, tr, im) = tr2raw tr.
@@ -1277,7 +1277,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_obs
-        (im: imap wf) fn args rv tl ktr
+        (im: imap id wf) fn args rv tl ktr
         (BEH: Beh.of_state im (ktr rv) tl)
     :
     sti2raw (Vis (Observe fn args) ktr, Tr.cons (obsE_syscall fn args rv) tl, im) =
@@ -1290,7 +1290,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_tau
-        (im: imap wf) itr tr
+        (im: imap id wf) itr tr
         (BEH: Beh.of_state im (Tau itr) tr)
         (NNB: tr <> Tr.nb)
         (NSPIN: tr <> Tr.spin)
@@ -1309,7 +1309,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_tau_spin
-        (im: imap wf) itr tr
+        (im: imap id wf) itr tr
         (BEH: Beh.of_state im (Tau itr) tr)
         (NNB: tr <> Tr.nb)
         (SPIN: tr = Tr.spin)
@@ -1326,7 +1326,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_choose
-        (im: imap wf) tr X ktr
+        (im: imap id wf) tr X ktr
         (BEH: Beh.of_state im (Vis (Choose X) ktr) tr)
         (NNB: tr <> Tr.nb)
         (NSPIN: tr <> Tr.spin)
@@ -1346,7 +1346,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_choose_spin
-        (im: imap wf) tr X ktr
+        (im: imap id wf) tr X ktr
         (BEH: Beh.of_state im (Vis (Choose X) ktr) tr)
         (NNB: tr <> Tr.nb)
         (SPIN: tr = Tr.spin)
@@ -1364,12 +1364,12 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_fair
-        (im: imap wf) tr fm ktr
+        (im: imap id wf) tr fm ktr
         (BEH: Beh.of_state im (Vis (Fair fm) ktr) tr)
         (NNB: tr <> Tr.nb)
         (NSPIN: tr <> Tr.spin)
     :
-    exists (im0: imap wf),
+    exists (im0: imap id wf),
       (fair_update im im0 fm) /\
         (Beh.of_state im0 (ktr tt) tr) /\
         exists evs sti,
@@ -1385,12 +1385,12 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_red_fair_spin
-        (im: imap wf) tr fm ktr
+        (im: imap id wf) tr fm ktr
         (BEH: Beh.of_state im (Vis (Fair fm) ktr) tr)
         (NNB: tr <> Tr.nb)
         (SPIN: tr = Tr.spin)
     :
-    exists (im0: imap wf),
+    exists (im0: imap id wf),
       (fair_update im im0 fm) /\
         (Beh.diverge_index im0 (ktr tt)) /\
         (sti2raw (Vis (Fair fm) ktr, tr, im) =
@@ -1486,7 +1486,7 @@ Section ExtractRaw.
   Qed.
 
   Lemma sti2raw_raw_beh_spin
-        (im: imap wf) st
+        (im: imap id wf) st
         (DIV: Beh.diverge_index im st)
     :
     RawBeh.of_state (R:=R) st (sti2raw (st, Tr.spin, im)).
@@ -1507,7 +1507,7 @@ Section ExtractRaw.
   Qed.
 
   Theorem sti2raw_raw_beh
-          (im0: imap wf) st0 tr0
+          (im0: imap id wf) st0 tr0
           (BEH: Beh.of_state im0 st0 tr0)
     :
     RawBeh.of_state (R:=R) st0 (sti2raw (st0, tr0, im0)).
@@ -1620,7 +1620,7 @@ End ExtractRaw.
 
 Section FAIR.
 
-  Context {Ident: ID}.
+  Variable id: ID.
   Variable wf: WF.
   Variable wf0: T wf.
   Variable R: Type.
@@ -1628,7 +1628,7 @@ Section FAIR.
   Lemma raw_spin_trace_fair
         im
     :
-    RawTr.fair_ord (wf:=wf) im (raw_spin_trace R).
+    RawTr.fair_ord (id:=id) (wf:=wf) im (raw_spin_trace id R).
   Proof.
     revert_until R. pcofix CIH; i. rewrite raw_spin_trace_red.
     pfold. econs; eauto.
@@ -1637,9 +1637,9 @@ Section FAIR.
   Lemma tr2raw_fair
         im tr
     :
-    RawTr.fair_ord (wf:=wf) (R:=R) im (tr2raw tr).
+    RawTr.fair_ord (wf:=wf) (R:=R) im (tr2raw id tr).
   Proof.
-    revert_until R. pcofix CIH; i. replace (tr2raw tr) with (RawTr.ob (tr2raw tr)).
+    revert_until R. pcofix CIH; i. replace (tr2raw id tr) with (RawTr.ob (tr2raw id tr)).
     2:{ symmetry. apply RawTr.ob_eq. }
     ss. destruct tr eqn:TR; clarify.
     { pfold. econs. }
@@ -1651,7 +1651,7 @@ Section FAIR.
   Qed.
 
   Theorem sti2raw_preserves_fairness
-          (st: @state _ R) (im: imap wf) tr
+          (st: @state _ R) (im: imap id wf) tr
           (BEH: Beh.of_state im st tr)
     :
     RawTr.is_fair_ord wf (sti2raw wf0 (st, tr, im)).
@@ -1690,7 +1690,7 @@ Section FAIR.
         (BEH: RawBeh.of_state st raw)
         (FAIR: RawTr.fair_ord im raw)
     :
-    Beh.diverge_index (wf:=wf) (R:=R) im st.
+    Beh.diverge_index (id:=id) (wf:=wf) (R:=R) im st.
   Proof.
     revert_until R. pcofix CIH; i. punfold BEH. inv BEH.
     { punfold RSPIN. inv RSPIN. }
@@ -1706,7 +1706,7 @@ Section FAIR.
   Qed.
 
   Lemma rawbeh_extract_is_beh_fix
-        (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr (im: imap wf)
+        (st: state (R:=R)) (raw: RawTr.t (R:=R)) tr (im: imap id wf)
         (BEH0: RawBeh.of_state st raw)
         (FAIR: RawTr.fair_ord im raw)
         (EXT: extract_tr raw tr)
@@ -1740,7 +1740,7 @@ Section FAIR.
           (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
           (EXT: extract_tr raw tr)
     :
-    exists (im: imap wf), Beh.of_state im st tr.
+    exists (im: imap id wf), Beh.of_state im st tr.
   Proof.
     rr in BEH. des. rr in FAIR. des.
     hexploit rawbeh_extract_is_beh_fix; eauto.
@@ -1752,14 +1752,14 @@ End FAIR.
 
 Section EQUIV.
 
-  Context {Ident: ID}.
+  Variable id: ID.
   Variable wf: WF.
   Variable wf0: T wf.
   Variable R: Type.
 
   Theorem IndexBeh_implies_SelectBeh
           (st: state (R:=R)) (tr: Tr.t (R:=R))
-          (BEH: exists (im: imap wf), Beh.of_state im st tr)
+          (BEH: exists (im: imap id wf), Beh.of_state im st tr)
     :
     exists raw, (<<EXTRACT: extract_tr raw tr>>) /\ (<<BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw>>).
   Proof.
@@ -1768,7 +1768,7 @@ Section EQUIV.
   Qed.
 
   Lemma SelectBeh_implies_IndexBeh_fix
-        (st: state (R:=R)) (raw: RawTr.t (R:=R)) (im: imap wf)
+        (st: state (R:=R)) (raw: RawTr.t (R:=R)) (im: imap id wf)
         (BEH: RawBeh.of_state st raw)
         (FAIR: RawTr.fair_ord im raw)
     :
@@ -1782,7 +1782,7 @@ Section EQUIV.
           (st: state (R:=R)) (raw: RawTr.t (R:=R))
           (BEH: RawBeh.of_state_fair_ord (wf:=wf) st raw)
     :
-    exists tr, (<<EXTRACT: extract_tr raw tr>>) /\ (exists (im: imap wf), <<BEH: Beh.of_state im st tr>>).
+    exists tr, (<<EXTRACT: extract_tr raw tr>>) /\ (exists (im: imap id wf), <<BEH: Beh.of_state im st tr>>).
   Proof.
     exists (raw2tr raw). splits. eapply raw2tr_extract.
     eapply rawbeh_extract_is_beh; eauto. eapply raw2tr_extract.

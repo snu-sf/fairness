@@ -18,9 +18,9 @@ Section SCHEDULE.
   Let Es := (eventE1 +' cE) +' E.
 
   Let thread R := thread _Ident E R.
-  Let threads R := list (thread_id.(id) * thread R).
+  Let threads R := list (thread_id * thread R).
   
-  Definition sched_fifo R0 : thread_id.(id) * list thread_id.(id) -> scheduler R0 R0 :=
+  Definition sched_fifo R0 : thread_id * list thread_id -> scheduler R0 R0 :=
     ITree.iter (fun '(tid, q) =>
                   r <- ITree.trigger (inl1 (Execute _ tid));;
                   match r with

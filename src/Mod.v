@@ -11,12 +11,12 @@ Set Implicit Arguments.
 Module TIdSet := NatSet.
 
 
-Notation thread_id := (mk_id nat).
+Notation thread_id := nat.
 Section TID.
 
   Definition nat_wf: WF := mk_wf Wf_nat.lt_wf.
 
-  Definition tid_main: thread_id.(id) := 0.
+  Definition tid_main: thread_id := 0.
   Definition tid_dec := PeanoNat.Nat.eq_dec.
 
   Lemma reldec_correct_tid_dec: RelDec.RelDec_Correct (RelDec.RelDec_from_dec eq tid_dec).
@@ -28,7 +28,7 @@ Section TID.
 
   Definition sum_tid (_id: ID) := id_sum thread_id _id.
 
-  Definition tids_fmap (tid: thread_id.(id)) (tidf: TIdSet.t): @fmap thread_id :=
+  Definition tids_fmap (tid: thread_id) (tidf: TIdSet.t): @fmap thread_id :=
     fun t => if (PeanoNat.Nat.eq_dec t tid) then Flag.success
           else if (NatMapP.F.In_dec tidf t) then Flag.fail
                else Flag.emp.
@@ -65,7 +65,7 @@ Definition Val := nat.
 
 Variant cE: Type -> Type :=
 | Yield: cE unit
-| GetTid: cE thread_id.(id)
+| GetTid: cE thread_id
 (* | Spawn (fn: fname) (args: list Val): cE unit *)
 .
 

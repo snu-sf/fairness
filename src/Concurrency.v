@@ -230,7 +230,7 @@ Notation threads _Id E R := (Th.t (@thread _Id E R)).
 Section SCHEDULE.
 
   Variant schedulerE (RT : Type) : Type -> Type :=
-  | Execute : thread_id.(id) -> schedulerE RT (option RT)
+  | Execute : thread_id -> schedulerE RT (option RT)
   .
 
   Let eventE0 := @eventE thread_id.
@@ -247,7 +247,7 @@ Section SCHEDULE.
   Let threads R := threads _Ident E R.
 
   Definition interp_thread_aux {R} :
-    thread_id.(id) * thread R -> itree (eventE1 +' E) (thread R + R).
+    thread_id * thread R -> itree (eventE1 +' E) (thread R + R).
   Proof.
     eapply ITree.iter.
     intros [tid itr].
@@ -271,7 +271,7 @@ Section SCHEDULE.
   Defined.
 
   Definition interp_thread {R} :
-    thread_id.(id) * thread R -> itree (eventE2 +' E) (thread R + R) :=
+    thread_id * thread R -> itree (eventE2 +' E) (thread R + R) :=
     fun x => map_event (embed_left embed_event_r) (interp_thread_aux x).
 
   Definition interp_sched RT R : threads RT * scheduler RT R -> itree (eventE2 +' E) R.
@@ -281,11 +281,11 @@ Section SCHEDULE.
     - exact (Ret (inr r)).
     - exact (Ret (inl (ts, sch'))).
     - destruct e.
-      destruct (Th.find i ts) as [t|].
-      * exact (r <- interp_thread (i, t);;
+      destruct (Th.find n ts) as [t|].
+      * exact (r <- interp_thread (n, t);;
                match r with
-               | inl t' => Ret (inl (Th.add i t' ts, ktr None))
-               | inr r => Ret (inl (Th.remove i ts, ktr (Some r)))
+               | inl t' => Ret (inl (Th.add n t' ts, ktr None))
+               | inr r => Ret (inl (Th.remove n ts, ktr (Some r)))
                end).
       * exact (Vis (inl1 Undefined) (Empty_set_rect _)).
     - exact (Vis (inl1 (embed_event_l e)) (fun x => Ret (inl (ts, ktr x)))).
@@ -329,14 +329,14 @@ Section SCHEDULE.
       x <- trigger (inl1 (embed_event_r e));; tau;; interp_thread (tid, ktr x).
   Proof. rewrite ! bind_trigger. eapply interp_thread_vis_eventE. Qed.
 
-  Lemma interp_thread_vis_gettid R tid (ktr : ktree Es0 thread_id.(id) R) :
+  Lemma interp_thread_vis_gettid R tid (ktr : ktree Es0 thread_id R) :
     interp_thread (tid, Vis (inl1 (inr1 GetTid)) ktr) =
       tau;; interp_thread (tid, ktr tid).
   Proof.
     unfold interp_thread at 1, interp_thread_aux. rewrite unfold_iter. grind. rewrite map_event_tau. grind.
   Qed.
 
-  Lemma interp_thread_trigger_gettid R tid (ktr : ktree Es0 thread_id.(id) R) :
+  Lemma interp_thread_trigger_gettid R tid (ktr : ktree Es0 thread_id R) :
     interp_thread (tid, x <- trigger (inl1 (inr1 GetTid));; ktr x) =
       tau;; interp_thread (tid, ktr tid).
   Proof. rewrite bind_trigger. eapply interp_thread_vis_gettid. Qed.
@@ -393,10 +393,10 @@ Global Opaque interp_thread_aux interp_thread interp_sched.
 
 Section SCHEDULE_NONDET.
 
-  Definition sched_nondet_body {R} q tid r : scheduler R (thread_id.(id) * TIdSet.t + R) :=
+  Definition sched_nondet_body {R} q tid r : scheduler R (thread_id * TIdSet.t + R) :=
     match r with
     | None =>
-        tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+        tid' <- ITree.trigger (inr1 (Choose thread_id));;
         match nm_pop tid' (NatSet.add tid q) with
         | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
         | Some (_, q') =>
@@ -407,7 +407,7 @@ Section SCHEDULE_NONDET.
         if NatMap.is_empty q
         then Ret (inr r)
         else
-          tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+          tid' <- ITree.trigger (inr1 (Choose thread_id));;
           match nm_pop tid' q with
           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
           | Some (_, q') =>
@@ -416,7 +416,7 @@ Section SCHEDULE_NONDET.
           end
     end.
 
-  Definition sched_nondet R0 : thread_id.(id) * TIdSet.t -> scheduler R0 R0 :=
+  Definition sched_nondet R0 : thread_id * TIdSet.t -> scheduler R0 R0 :=
     ITree.iter (fun '(tid, q) =>
                   r <- ITree.trigger (inl1 (Execute _ tid));;
                   sched_nondet_body q tid r).
@@ -426,7 +426,7 @@ Section SCHEDULE_NONDET.
       r <- ITree.trigger (inl1 (Execute _ tid));;
       match r with
       | None =>
-          tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+          tid' <- ITree.trigger (inr1 (Choose thread_id));;
           match nm_pop tid' (NatSet.add tid q) with
           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
           | Some (_, q') =>
@@ -437,7 +437,7 @@ Section SCHEDULE_NONDET.
           if NatMap.is_empty q
           then Ret r
           else
-            tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+            tid' <- ITree.trigger (inr1 (Choose thread_id));;
             match nm_pop tid' q with
             | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
             | Some (_, q') =>
@@ -469,7 +469,7 @@ Section SCHEDULE_NONDET.
       r <- interp_thread (tid, t);;
       match r with
       | inl t' => Tau (interp_sched (Th.add tid t' ths,
-                                     tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+                                     tid' <- ITree.trigger (inr1 (Choose thread_id));;
                                      match nm_pop tid' (NatSet.add tid q) with
                                      | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                                      | Some (_, q') =>
@@ -480,7 +480,7 @@ Section SCHEDULE_NONDET.
                                     if NatMap.is_empty q
                                     then Ret r
                                     else
-                                      tid' <- ITree.trigger (inr1 (Choose thread_id.(id)));;
+                                      tid' <- ITree.trigger (inr1 (Choose thread_id));;
                                       match nm_pop tid' q with
                                       | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                                       | Some (_, q') =>
@@ -603,8 +603,11 @@ Section MOD.
   Let Ident := (Mod.ident mod).
   Let main := ((Mod.funs mod) "main").
 
-  Definition interp_mod (ths: @threads (Mod.ident mod) (sE (Mod.state mod)) Val):
+  Definition interp_mod
+             (tid: thread_id)
+             (ths: @threads (Mod.ident mod) (sE (Mod.state mod)) Val)
+             (sched: forall R, (thread_id * TIdSet.t)%type -> (scheduler R R)):
     itree (@eventE (sum_tid Ident)) Val :=
-    interp_all st ths tid_main.
+    interp_state (st, interp_sched (ths, sched _ (tid, NatSet.remove tid (key_set ths)))).
 
 End MOD.

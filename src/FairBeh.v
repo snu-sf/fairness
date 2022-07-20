@@ -149,22 +149,27 @@ End Flag.
 
 Section IDENT.
 
-  Class ID : Type := mk_id { id: Type }.
+  Definition ID := Type.
 
-  Definition id_prod (A B: ID): ID := mk_id (prod A.(id) B.(id)).
-  Definition id_sum (A B: ID): ID := mk_id (sum A.(id) B.(id)).
+  Definition id_prod (A B: ID): ID := (prod A B).
+  Definition id_sum (A B: ID): ID := (sum A B).
+
+  (* Class ID : Type := mk_id { id: Type }. *)
+
+  (* Definition id_prod (A B: ID): ID := mk_id (prod A.(id) B.(id)). *)
+  (* Definition id_sum (A B: ID): ID := mk_id (sum A.(id) B.(id)). *)
 
 End IDENT.
+Global Opaque ID.
 
 
 
-Section WFTransitive.
+Section WFTYPE.
   Record WF: Type :=
     mk_wf {
         T: Type;
         lt: (T -> T -> Prop);
         wf: well_founded lt;
-        (* Tr: Transitive lt; *)
         le: (T -> T -> Prop) := eq \2/ lt;
       }.
 
@@ -182,54 +187,57 @@ Section WFTransitive.
     unfold le. ii. destruct wf; ss. des; clarify; eauto.
   Qed.
 
-End WFTransitive.
+End WFTYPE.
 
 
 
 Section EVENT.
 
-  Context {Ident: ID}.
-  (* Variable Ident: ID. *)
+  (* Context {Ident: ID}. *)
 
-  Definition fmap := id -> Flag.t.
+  Definition fmap {id: ID} := id -> Flag.t.
 
-  Variant eventE: Type -> Type :=
+  Variant eventE {id: ID}: Type -> Type :=
     | Choose (X: Type): eventE X
-    | Fair (m: fmap): eventE unit
+    | Fair (m: @fmap id): eventE unit
     | Observe (fn: nat) (args: list nat): eventE nat
     | Undefined: eventE void
   .
 
+  Definition sum_fmap_l {A B: ID} (fm: @fmap A): @fmap (id_sum A B) :=
+    fun sa => match sa with | inl a => (fm a) | inr _ => Flag.emp end.
+
+  Definition sum_fmap_r {A B: ID} (fm: @fmap B): @fmap (id_sum A B) :=
+    fun sb => match sb with | inl _ => Flag.emp | inr b => (fm b) end.
+
+  Definition embed_event_l {A B : ID} X : @eventE A X -> @eventE (id_sum A B) X :=
+    fun e => match e with
+          | Choose X => Choose X
+          | Fair m => Fair (sum_fmap_l m)
+          | Observe fn args => Observe fn args
+          | Undefined => Undefined
+          end.
+
+  Definition embed_event_r {A B : ID} X : @eventE B X -> @eventE (id_sum A B) X :=
+    fun e => match e with
+          | Choose X => Choose X
+          | Fair m => Fair (sum_fmap_r m)
+          | Observe fn args => Observe fn args
+          | Undefined => Undefined
+          end.
+
 End EVENT.
 
-Definition sum_fmap_l {A B: ID} (fm: @fmap A): @fmap (id_sum A B) :=
-  fun sa => match sa with | inl a => (fm a) | inr _ => Flag.emp end.
 
-Definition sum_fmap_r {A B: ID} (fm: @fmap B): @fmap (id_sum A B) :=
-  fun sb => match sb with | inl _ => Flag.emp | inr b => (fm b) end.
-
-Definition embed_event_l {A B : ID} X : @eventE A X -> @eventE (id_sum A B) X :=
-  fun e => match e with
-        | Choose X => Choose X
-        | Fair m => Fair (sum_fmap_l m)
-        | Observe fn args => Observe fn args
-        | Undefined => Undefined
-        end.
-
-Definition embed_event_r {A B : ID} X : @eventE B X -> @eventE (id_sum A B) X :=
-  fun e => match e with
-        | Choose X => Choose X
-        | Fair m => Fair (sum_fmap_r m)
-        | Observe fn args => Observe fn args
-        | Undefined => Undefined
-        end.
 
 Section STS.
 
-  Context {Ident: ID}.
+  Definition state {id} {R} := itree (@eventE id) R.
+
+  (* Context {Ident: ID}. *)
+  Variable id: ID.
   Variable wf: WF.
 
-  Definition state {R} := itree eventE R.
   Definition imap := id -> wf.(T).
 
   Definition soft_update (m0 m1: imap): Prop :=
@@ -257,14 +265,14 @@ Definition t {R}: Type := @Tr.t R -> Prop.
 Section BEHAVES.
 
   (* Context {Ident: ID}. *)
-  Variable Ident: ID.
+  Variable id: ID.
   Variable wf: WF.
 
   Variant _diverge_index
-          (diverge_index: forall (R: Type) (idx: imap wf) (itr: @state _ R), Prop)
+          (diverge_index: forall (R: Type) (idx: imap id wf) (itr: @state _ R), Prop)
           (R: Type)
     :
-    forall (idx: imap wf) (itr: @state _ R), Prop :=
+    forall (idx: imap id wf) (itr: @state _ R), Prop :=
     | diverge_index_tau
         itr idx0
         (DIV: diverge_index _ idx0 itr)
@@ -296,7 +304,7 @@ Section BEHAVES.
     - econs 4; eauto.
   Qed.
 
-  Definition diverge_index: forall (R: Type) (idx: imap wf) (itr: state), Prop := paco3 _diverge_index bot3.
+  Definition diverge_index: forall (R: Type) (idx: imap id wf) (itr: state), Prop := paco3 _diverge_index bot3.
 
   Hint Constructors _diverge_index: core.
   Hint Unfold diverge_index: core.
@@ -309,10 +317,10 @@ Section BEHAVES.
 
 
   Inductive _of_state
-            (of_state: forall (R: Type), (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop)
+            (of_state: forall (R: Type), (imap id wf) -> (@state _ R) -> (@Tr.t R) -> Prop)
             (R: Type)
     :
-    (imap wf) -> (@state _ R) -> Tr.t -> Prop :=
+    (imap id wf) -> (@state _ R) -> Tr.t -> Prop :=
   | done
       imap0 retv
     :
@@ -355,10 +363,10 @@ Section BEHAVES.
     _of_state of_state imap0 (Vis Undefined ktr) tr
   .
 
-  Definition of_state: forall (R: Type),  (imap wf) -> state -> Tr.t -> Prop := paco4 _of_state bot4.
+  Definition of_state: forall (R: Type),  (imap id wf) -> state -> Tr.t -> Prop := paco4 _of_state bot4.
 
   Theorem of_state_ind:
-    forall (r: forall (R: Type), (imap wf) -> state -> Tr.t -> Prop) R (P: (imap wf) -> state -> Tr.t -> Prop),
+    forall (r: forall (R: Type), (imap id wf) -> state -> Tr.t -> Prop) R (P: (imap id wf) -> state -> Tr.t -> Prop),
       (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
       (forall imap0 st0, diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
       (forall imap0 st0, P imap0 st0 Tr.nb) ->
@@ -417,10 +425,10 @@ Section BEHAVES.
   Hypothesis WFTR: Transitive wf.(lt).
 
   Variant diverge_imap_le_ctx
-          (diverge_index: forall R, (imap wf) -> (@state _ R) -> Prop)
+          (diverge_index: forall R, (imap id wf) -> (@state id R) -> Prop)
           R
     :
-    (imap wf) -> (@state _ R) -> Prop :=
+    (imap id wf) -> (@state id R) -> Prop :=
     | diverge_imap_le_ctx_intro
         imap0 imap1 st
         (DIV: @diverge_index R imap1 st)
@@ -453,10 +461,10 @@ Section BEHAVES.
 
 
   Variant imap_le_ctx
-          (of_state: forall R, (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop)
+          (of_state: forall R, (imap id wf) -> (@state id R) -> (@Tr.t R) -> Prop)
           R
     :
-    (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop :=
+    (imap id wf) -> (@state id R) -> (@Tr.t R) -> Prop :=
     | imap_le_ctx_intro
         imap0 imap1 st tr
         (BEH: @of_state R imap1 st tr)
@@ -490,10 +498,10 @@ Section BEHAVES.
 
 
   Variant of_state_indC
-          (of_state: forall R, (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop)
+          (of_state: forall R, (imap id wf) -> (@state _ R) -> (@Tr.t R) -> Prop)
           R
     :
-    (imap wf) -> (@state _ R) -> (@Tr.t R) -> Prop :=
+    (imap id wf) -> (@state _ R) -> (@Tr.t R) -> Prop :=
   | of_state_indC_done
       imap0 retv
     :
@@ -658,7 +666,7 @@ Section BEHAVES.
 
 
   Theorem of_state_ind2:
-    forall R (P: (imap wf) -> state -> Tr.t -> Prop),
+    forall R (P: (imap id wf) -> state -> Tr.t -> Prop),
       (forall imap0 retv, P imap0 (Ret retv) (Tr.done retv)) ->
       (forall imap0 st0, diverge_index imap0 st0 -> P imap0 st0 Tr.spin) ->
       (forall imap0 st0, P imap0 st0 Tr.nb) ->
@@ -713,7 +721,7 @@ End Beh.
 Require Import Setoid Morphisms.
 
 Global Program Instance Proper_Beh_of_state
-       {Id: ID} {wf: WF} {R} (im: imap wf) (st: @state Id R):
+       {id: ID} {wf: WF} {R} (im: imap id wf) (st: @state id R):
   Proper (Tr.eq (R:=R) ==> flip impl) (Beh.of_state im st).
 Next Obligation.
   ii. rename H into EQ, H0 into BEH, x into tr1, y into tr2.

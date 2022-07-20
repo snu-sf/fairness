@@ -12,29 +12,27 @@ From Fairness Require Import FairBeh.
 Set Implicit Arguments.
 
 Section RAWEVENT.
-  Context {Ident: ID}.
 
-  Variant silentE: Type :=
+  Variant silentE {id:ID}: Type :=
     | silentE_tau
-    | silentE_fair (fm: fmap)
+    | silentE_fair (fm: @fmap id)
   .
 
-  Definition rawE := (silentE + obsE)%type.
+  Definition rawE {id:ID} := ((@silentE id) + obsE)%type.
 
 End RAWEVENT.
 
 Module RawTr.
 Section TR.
-  Context {Ident: ID}.
 
-  CoInductive t {R}: Type :=
+  CoInductive t {id} {R}: Type :=
   | done (retv: R)
   | ub
   | nb
-  | cons (hd: rawE) (tl: t)
+  | cons (hd: (@rawE id)) (tl: t)
   .
 
-  Fixpoint app {R} (pre: list rawE) (bh: @t R): t :=
+  Fixpoint app {id} {R} (pre: list rawE) (bh: @t id R): t :=
     match pre with
     | [] => bh
     | hd :: tl => cons hd (app tl bh)
@@ -42,17 +40,17 @@ Section TR.
   .
 
   Lemma fold_app
-        R s pre tl
+        id R s pre tl
     :
-      (cons s (app pre tl)) = @app R (s :: pre) tl
+      (cons s (app pre tl)) = @app id R (s :: pre) tl
   .
   Proof. reflexivity. Qed.
 
-  Definition prefix {R} (pre: list rawE) (bh: @t R): Prop :=
+  Definition prefix {id} {R} (pre: list rawE) (bh: @t id R): Prop :=
     exists tl, <<PRE: app pre tl = bh>>
   .
 
-  Definition ob R (s: @t R) : t :=
+  Definition ob id R (s: @t id R) : t :=
     match s with
     | done retv => done retv
     | ub => ub
@@ -60,17 +58,18 @@ Section TR.
     | cons ev tl => cons ev tl
     end.
 
-  Lemma ob_eq : forall R (s: @t R), s = ob s.
+  Lemma ob_eq : forall id R (s: @t id R), s = ob s.
     destruct s; reflexivity.
   Qed.
 
 
+  Variable id: ID.
   (** select fair trace with induction **)
   Variant _nofail (i: id)
-          (nofail: forall (R: Type), (@t R) -> Prop)
+          (nofail: forall (R: Type), (@t id R) -> Prop)
           (R: Type)
     :
-    (@t R) -> Prop :=
+    (@t id R) -> Prop :=
     | nofail_done
         retv
       :
@@ -105,7 +104,7 @@ Section TR.
       _nofail i nofail (cons (inl (silentE_fair fmap)) tl)
   .
 
-  Definition nofail i: forall (R: Type), (@t R) -> Prop := paco2 (_nofail i) bot2.
+  Definition nofail i: forall (R: Type), (@t id R) -> Prop := paco2 (_nofail i) bot2.
 
   Lemma nofail_mon i: monotone2 (_nofail i).
   Proof.
@@ -117,7 +116,7 @@ Section TR.
   Local Hint Resolve nofail_mon: paco.
 
 
-  Inductive must_fail i R: (@t R) -> Prop :=
+  Inductive must_fail i R: (@t id R) -> Prop :=
   | must_fail_fail
       fm tl
       (FAIL: fm i = Flag.fail)
@@ -141,7 +140,7 @@ Section TR.
     must_fail i (cons (inl (silentE_fair fm)) tl)
   .
 
-  Inductive must_success i R: (@t R) -> Prop :=
+  Inductive must_success i R: (@t id R) -> Prop :=
   | must_success_success
       fm tl
       (SUCCESS: fm i = Flag.success)
@@ -166,7 +165,7 @@ Section TR.
   .
 
   Lemma must_fail_not_success
-        i R (tr: @t R)
+        i R (tr: @t id R)
         (MUST: must_fail i tr)
     :
     ~ must_success i tr.
@@ -179,7 +178,7 @@ Section TR.
   Qed.
 
   Lemma must_success_not_fail
-        i R (tr: @t R)
+        i R (tr: @t id R)
         (MUST: must_success i tr)
     :
     ~ must_fail i tr.
@@ -192,7 +191,7 @@ Section TR.
   Qed.
 
   Lemma must_fail_not_nofail
-        i R (tr: @t R)
+        i R (tr: @t id R)
         (MUST: must_fail i tr)
     :
     ~ nofail i tr.
@@ -205,7 +204,7 @@ Section TR.
   Qed.
 
   Lemma not_musts_nofail
-        i R (tr: @t R)
+        i R (tr: @t id R)
         (NMUSTF: ~ must_fail i tr)
         (NMUSTS: ~ must_success i tr)
     :
@@ -242,11 +241,11 @@ Section TR.
   (* mf ~ms ~nf *)
   (* ~mf ms ~nf *)
   Variant __fair_ind
-          (fair_ind: forall (R: Type) (i: id), (@t R) -> Prop)
-          (_fair_ind: forall (R: Type) (i: id), (@t R) -> Prop)
+          (fair_ind: forall (R: Type) (i: id), (@t id R) -> Prop)
+          (_fair_ind: forall (R: Type) (i: id), (@t id R) -> Prop)
           (R: Type) (i: id)
     :
-    (@t R) -> Prop :=
+    (@t id R) -> Prop :=
     (* base cases *)
     | fair_ind_nofail
         tr
@@ -294,7 +293,7 @@ Section TR.
       __fair_ind fair_ind _fair_ind i (cons (inl (silentE_fair fm)) tl)
   .
 
-  Definition fair_ind: forall (R: Type) (i: id), (@t R) -> Prop :=
+  Definition fair_ind: forall (R: Type) (i: id), (@t id R) -> Prop :=
     paco3 (fun r => pind3 (__fair_ind r) top3) bot3.
 
   Lemma fair_ind_mon1: forall r r' (LE: r <3= r'), (__fair_ind r) <4= (__fair_ind r').
@@ -324,18 +323,18 @@ Section TR.
     ii. eapply pind3_mon_gen; eauto. ii. eapply fair_ind_mon1; eauto.
   Qed.
 
-  Definition is_fair_ind {R} (tr: @t R) := forall i, fair_ind i tr.
+  Definition is_fair_ind {R} (tr: @t id R) := forall i, fair_ind i tr.
 
 
 
   (** select fair trace with fixpoints **)
   Variant ___fair
-          (fair: forall (R: Type) (i: id), (@t R) -> Prop)
-          (_fair: forall (R: Type) (i: id), (@t R) -> Prop)
-          (__fair: forall (R: Type) (i: id), (@t R) -> Prop)
+          (fair: forall (R: Type) (i: id), (@t id R) -> Prop)
+          (_fair: forall (R: Type) (i: id), (@t id R) -> Prop)
+          (__fair: forall (R: Type) (i: id), (@t id R) -> Prop)
           (R: Type) (i: id)
     :
-    (@t R) -> Prop :=
+    (@t id R) -> Prop :=
     (* base cases *)
     | fair_done
         retv
@@ -383,7 +382,7 @@ Section TR.
       ___fair fair _fair __fair i (cons (inl (silentE_fair fmap)) tl)
   .
 
-  Definition fair: forall (R: Type) (i: id), (@t R) -> Prop :=
+  Definition fair: forall (R: Type) (i: id), (@t id R) -> Prop :=
     paco3 (fun r => pind3 (fun q => paco3 (___fair r q) bot3) top3) bot3.
 
   Lemma ___fair_mon: forall r r' (LE: r <3= r'), (___fair r) <5= (___fair r').
@@ -430,7 +429,7 @@ Section TR.
     ii. eapply pind3_mon_gen; eauto. ii. ss. eapply paco3_mon_gen; eauto. i. eapply ___fair_mon; eauto.
   Qed.
 
-  Definition is_fair {R} (tr: @t R) := forall i, fair i tr.
+  Definition is_fair {R} (tr: @t id R) := forall i, fair i tr.
 
 
 
@@ -438,10 +437,10 @@ Section TR.
   Variable wf: WF.
 
   Variant _fair_ord
-          (fair_ord: forall (R: Type) (m: imap wf), (@t R) -> Prop)
-          (R: Type) (m: imap wf)
+          (fair_ord: forall (R: Type) (m: imap id wf), (@t id R) -> Prop)
+          (R: Type) (m: imap id wf)
     :
-    (@t R) -> Prop :=
+    (@t id R) -> Prop :=
     | fair_ord_done
         retv
       :
@@ -470,7 +469,7 @@ Section TR.
       _fair_ord fair_ord m (cons (inl silentE_tau) tl)
   .
 
-  Definition fair_ord: forall (R: Type) (m: imap wf), (@t R) -> Prop := paco3 _fair_ord bot3.
+  Definition fair_ord: forall (R: Type) (m: imap id wf), (@t id R) -> Prop := paco3 _fair_ord bot3.
 
   Lemma fair_ord_mon: monotone3 _fair_ord.
   Proof.
@@ -479,16 +478,16 @@ Section TR.
 
   Local Hint Resolve fair_ord_mon: paco.
 
-  Definition is_fair_ord {R} (tr: @t R) := exists m, fair_ord m tr.
+  Definition is_fair_ord {R} (tr: @t id R) := exists m, fair_ord m tr.
 
   (** fair_ord upto *)
   Hypothesis WFTR: Transitive wf.(lt).
 
   Variant fair_ord_imap_le_ctx
-          (fair_ord: forall (R: Type) (m: imap wf), (@t R) -> Prop)
+          (fair_ord: forall (R: Type) (m: imap id wf), (@t id R) -> Prop)
           R
     :
-    (imap wf) -> (@t R) -> Prop :=
+    (imap id wf) -> (@t id R) -> Prop :=
     | fair_ord_imap_le_ctx_intro
         imap0 imap1 tr
         (ORD: @fair_ord R imap1 tr)
@@ -526,10 +525,10 @@ Section TR.
 
   (** raw tr equivalence *)
   Variant _eq
-          (eq: forall R, (@t R) -> (@t R) -> Prop)
+          (eq: forall R, (@t id R) -> (@t id R) -> Prop)
           R
     :
-    (@t R) -> (@t R) -> Prop :=
+    (@t id R) -> (@t id R) -> Prop :=
     | eq_done
         retv
       :
@@ -547,7 +546,7 @@ Section TR.
       _eq eq (cons ev tl1) (cons ev tl2)
   .
 
-  Definition eq: forall (R: Type), (@t R) -> (@t R) -> Prop := paco3 _eq bot3.
+  Definition eq: forall (R: Type), (@t id R) -> (@t id R) -> Prop := paco3 _eq bot3.
 
   Lemma eq_mon: monotone3 _eq.
   Proof.
@@ -606,15 +605,15 @@ End RawTr.
 Module RawBeh.
 Section BEHAVES.
 
-  Context {Ident: ID}.
+  Variable id: ID.
 
-  Definition t {R}: Type := @RawTr.t _ R -> Prop.
+  Definition t {R}: Type := @RawTr.t id R -> Prop.
 
   Variant _of_state
             (of_state: forall (R: Type), (@state _ R) -> (@RawTr.t _ R) -> Prop)
             (R: Type)
     :
-    (@state _ R) -> RawTr.t -> Prop :=
+    (@state _ R) -> (@RawTr.t id R) -> Prop :=
   | done
       retv
     :
