@@ -24,28 +24,18 @@ Module OMod.
         funs: fname -> option (ktree ((((@eventE ident) +' cE) +' (sE state)) +' callE) (list Val) Val);
       }.
 
-  Section LINK.
-    Variable omd: t.
-    Variable md: Mod.t.
+  (* Section LINK. *)
+  (*   Variable omd: t. *)
+  (*   Variable md: Mod.t. *)
 
-    Definition link_state: Type := omd.(state) * md.(Mod.state).
+  (*   Definition link_state: Type := omd.(state) * md.(Mod.state). *)
 
-    Definition link_st_init: link_state := (omd.(st_init), md.(Mod.st_init)).
+  (*   Definition link_st_init: link_state := (omd.(st_init), md.(Mod.st_init)). *)
 
-    Definition link_itree:
-      forall (s: link_state) R,
-        itree (BehE +' callE omd.(state) +' cE omd.(state)) R -> itree (BehE +' callE link_state +' cE link_state) (link_state * R).
-    Proof.
-    Admitted.
-  End LINK.
+  (*   Definition link_itree: *)
+  (*     forall (s: link_state) R, *)
+  (*       itree (BehE +' callE omd.(state) +' cE omd.(state)) R -> itree (BehE +' callE link_state +' cE link_state) (link_state * R). *)
+  (*   Proof. *)
+  (*   Admitted. *)
+  (* End LINK. *)
 End OMod.
-
-
-Section CALL.
-
-  Variant callE
-
-
-End CALL.
-
-
