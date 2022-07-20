@@ -253,7 +253,7 @@ Section SIM.
   Qed.
 
   Definition gsim: forall R0 R1 (RR: R0 -> R1 -> Prop), (@state ids R0) -> (@state idt R1) -> Prop :=
-    fun R0 R1 RR src tgt => forall (mt: imap wft), (exists (ms: imap wfs) ps pt, sim RR ps ms pt mt src tgt).
+    fun R0 R1 RR src tgt => forall (mt: imap idt wft), (exists (ms: imap ids wfs) ps pt, sim RR ps ms pt mt src tgt).
 
   (****************************************************)
   (*********************** upto ***********************)
@@ -531,14 +531,14 @@ End EMBEDSIM.
 
 Section EX.
 
-  Instance Ident : ID := mk_id nat.
+  Let Ident : ID := nat.
   Program Definition nat_wf: WF := @mk_wf nat Peano.lt _.
   Program Instance nat_wf_Trans: Transitive nat_wf.(lt).
   Next Obligation.
     eapply PeanoNat.Nat.lt_strorder; eauto.
   Qed.
 
-  Definition while_itree (step: unit -> itree eventE (unit + unit)) : itree eventE unit :=
+  Definition while_itree (step: unit -> itree (@eventE Ident) (unit + unit)) : itree (@eventE Ident) unit :=
     ITree.iter step tt.
 
   Lemma unfold_iter_eq A E B
@@ -574,11 +574,11 @@ Section EX.
   Definition RR := @eq nat.
   Definition ndec := PeanoNat.Nat.eq_dec.
 
-  Definition src1: @state _ nat := Ret 0.
+  Definition src1: @state Ident nat := Ret 0.
   Definition tgt1: @state _ nat :=
     while_itree (fun u => (trigger (Fair (fun id => (if ndec 0 id then Flag.fail else Flag.emp)))) >>= (fun r => Ret (inl r)));; Ret 0.
 
-  Definition imsrc1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0).
+  Definition imsrc1: imap Ident nat_wf := fun id => (if ndec 0 id then 100 else 0).
   (* Definition imtgt1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0). *)
 
   Goal gsim nat_wf nat_wf RR src1 tgt1.

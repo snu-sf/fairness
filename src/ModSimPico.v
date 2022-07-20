@@ -42,7 +42,7 @@ Section PRIMIVIESIM.
 
   Variable I: shared_rel.
 
-  Variant __lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: thread_id.(id))
+  Variant __lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: thread_id)
             (lsim: bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
             (_lsim: bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
     :
@@ -193,7 +193,7 @@ Section PRIMIVIESIM.
     __lsim RR tid lsim _lsim true true itr_src itr_tgt (ths, tht, im_src, im_tgt, st_src, st_tgt, o, w)
   .
 
-  Definition lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: thread_id.(id)):
+  Definition lsim R_src R_tgt (RR: R_src -> R_tgt -> shared_rel) (tid: thread_id):
     bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
     paco5 (fun r => pind5 (__lsim RR tid r) top5) bot5.
 
@@ -496,36 +496,6 @@ Module ModSim.
                            | Some ktr_src, Some ktr_tgt => local_sim world_le I (@eq Val) (ktr_src args) (ktr_tgt args)
                            end;
         }.
-
-    (* Record local_sim: Prop := *)
-    (*   mk { *)
-    (*       wf: WF; *)
-    (*       world: Type; *)
-    (*       world_le: world -> world -> Prop; *)
-    (*       I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf nat_wf world) -> Prop; *)
-
-    (*       init: forall im_tgt th_tgt, *)
-    (*       exists im_src th_src o w, *)
-    (*         I ([], im_src, im_tgt, th_src, th_tgt, o, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w); *)
-
-    (*       funs: forall ths0 im_src0 im_tgt0 th_src0 th_tgt0 o0 st_src0 st_tgt0 w0 *)
-    (*               (INV: I (ths0, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0)) *)
-    (*               fn args tid ths1 *)
-    (*               (THS: TIdSet.t_add ths0 tid ths1), *)
-    (*         lsim *)
-    (*           world_le *)
-    (*           I *)
-    (*           tid *)
-    (*           (fun r_src r_tgt '(ths2, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w1) => *)
-    (*              exists ths3 w2, *)
-    (*                (<<THS: TIdSet.t_remove ths2 tid ths3>>) /\ *)
-    (*                  (<<WORLD: world_le w1 w2>>) /\ *)
-    (*                  (<<INV: I (ths3, im_src1, im_tgt1, th_src1, th_tgt1, o1, st_src1, st_tgt1, w2)>>) /\ *)
-    (*                  (<<RET: r_src = r_tgt>>)) *)
-    (*           false false *)
-    (*           (md_src.(Mod.funs) fn args) (md_tgt.(Mod.funs) fn args) *)
-    (*           (ths1, im_src0, im_tgt0, th_src0, th_tgt0, o0, st_src0, st_tgt0, w0); *)
-    (*     }. *)
 
   End MODSIM.
 End ModSim.

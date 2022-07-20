@@ -40,7 +40,7 @@ Section SIM.
   Proof.
     i.
 
-    remember (fun (i : thread_id.(id)) => List.length ths_tgt + 1) as m_src.
+    remember (fun (i : thread_id) => List.length ths_tgt + 1) as m_src.
     assert (M_SRC0 : m_src tid > List.length ths_tgt) by (subst; lia).
     assert (M_SRC1 : forall i tid, nth_error ths_tgt i = Some tid -> m_src tid > i).
     { subst. i. eapply nth_error_Some' in H. lia. }

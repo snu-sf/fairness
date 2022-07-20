@@ -260,7 +260,7 @@ End ADEQ.
 
 
 Section ADEQ2.
-  Definition FairBeh_of_state {Ident: ID} {R} (st: @state _ R) (obs: @Tr.t R): Prop :=
+  Definition FairBeh_of_state {id: ID} {R} (st: @state id R) (obs: @Tr.t R): Prop :=
     exists (raw: @RawTr.t _ R), (extract_tr raw obs) /\ (RawBeh.of_state_fair st raw).
 
   Definition improves (ids idt: ID) {R}

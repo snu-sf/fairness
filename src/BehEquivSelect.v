@@ -17,10 +17,10 @@ Set Implicit Arguments.
 
 Section AUX.
 
-  Context {Ident: ID}.
+  Variable id: ID.
 
   Lemma fair_ind_cases
-        i R (tr: @RawTr.t _ R)
+        i R (tr: @RawTr.t id R)
     :
     (<<NF: (RawTr.nofail i tr) /\ (~ RawTr.must_fail i tr)>>) \/
       (<<MF: (RawTr.must_fail i tr) /\ (~ RawTr.must_success i tr) /\ (~ RawTr.nofail i tr)>>) \/
@@ -45,7 +45,7 @@ Section AUX.
   Variable S: wft.(T) -> wft.(T).
 
   (* fix an unique ordering for the first list of fail *)
-  Inductive ord_tr (i: id) R: wft.(T) -> (@RawTr.t _ R) -> Prop :=
+  Inductive ord_tr (i: id) R: wft.(T) -> (@RawTr.t id R) -> Prop :=
   (* base case1: no more fail *)
   | ord_tr_nofail
       tr
@@ -93,7 +93,7 @@ Section AUX.
 
 
   Lemma nofail_ex_ord_tr
-        i R (tr: @RawTr.t _ R)
+        i R (tr: @RawTr.t id R)
         (NOFAIL: RawTr.nofail i tr)
     :
     exists o, ord_tr i o tr.
@@ -102,14 +102,14 @@ Section AUX.
   Qed.
 
   Lemma fair_ind_ex_ord_tr
-        i R (tr: @RawTr.t _ R)
+        i R (tr: @RawTr.t id R)
         (IND: RawTr.is_fair_ind tr)
     :
     exists o, ord_tr i o tr.
   Proof.
     specialize (IND i). punfold IND.
     revert R i tr IND.
-    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) => (exists o, ord_tr i o tr))).
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t id R) => (exists o, ord_tr i o tr))).
     i. rename x0 into R, x1 into i, x2 into tr.
     eapply pind3_unfold in PR.
     2:{ clear. ii. eapply RawTr.fair_ind_mon2; eauto. }
@@ -161,8 +161,8 @@ End AUX.
 
 Section EQUIV.
 
-  Context {Ident: ID}.
-  Hypothesis ID_DEC: forall (i0 i1: Ident.(id)), {i0 = i1} + {i0 <> i1}.
+  Variable id: ID.
+  Hypothesis ID_DEC: forall (i0 i1: id), {i0 = i1} + {i0 <> i1}.
 
   Variable wft: WF.
   Variable wft0: wft.(T).
@@ -172,7 +172,7 @@ Section EQUIV.
 
   Theorem Ord_implies_Fair
           R
-          (tr: @RawTr.t Ident R)
+          (tr: @RawTr.t id R)
           (ORD: RawTr.is_fair_ord wft tr)
     :
     RawTr.is_fair tr.
@@ -211,14 +211,14 @@ Section EQUIV.
 
   Theorem Fair_implies_Ind
           R
-          (tr: @RawTr.t Ident R)
+          (tr: @RawTr.t id R)
           (IND: RawTr.is_fair tr)
     :
     RawTr.is_fair_ind tr.
   Proof.
     ii. specialize (IND i). depgen tr. pcofix CIH. i.
     punfold IND. pfold. revert R i tr IND CIH.
-    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t Ident R) =>
+    eapply (@pind3_acc _ _ _ _ (fun R i (tr: @RawTr.t id R) =>
                                   (forall tr0 : RawTr.t, RawTr.fair i tr0 -> r R i tr0) ->
                                   pind3
                                     (RawTr.__fair_ind
@@ -305,7 +305,7 @@ End EQUIV.
 
 Section EQUIV2.
 
-  Context {Ident: ID}.
+  Context {id: ID}.
 
   Variable wft: WF.
   Variable wft0: wft.(T).
@@ -314,7 +314,7 @@ Section EQUIV2.
 
 
   Lemma ord_tr_red_obs
-        R i obs (tr: @RawTr.t Ident R) o
+        R i obs (tr: @RawTr.t id R) o
         (ORD: ord_tr wft wft0 S i o (RawTr.cons (inr obs) tr))
     :
     ord_tr wft wft0 S i o tr.
@@ -328,7 +328,7 @@ Section EQUIV2.
   Qed.
 
   Lemma ord_tr_red_tau
-        R i (tr: @RawTr.t Ident R) o
+        R i (tr: @RawTr.t id R) o
         (ORD: ord_tr wft wft0 S i o (RawTr.cons (inl silentE_tau) tr))
     :
     ord_tr wft wft0 S i o tr.
@@ -346,11 +346,11 @@ Section EQUIV2.
   Lemma inhabited_tr_ord: inhabited (T wft).
   Proof. econs. exact wft0. Qed.
 
-  Definition tr2ord_i {R} i (tr: (@RawTr.t _ R)): wft.(T) :=
+  Definition tr2ord_i {R} i (tr: (@RawTr.t id R)): wft.(T) :=
     epsilon _ (inhabited_tr_ord) (fun o => ord_tr wft wft0 S i o tr).
 
   Theorem tr2ord_i_spec
-          i R (tr: @RawTr.t _ R)
+          i R (tr: @RawTr.t id R)
           (IND: RawTr.is_fair_ind tr)
     :
     ord_tr wft wft0 S i (tr2ord_i i tr) tr.
@@ -361,7 +361,7 @@ Section EQUIV2.
 
 
   Lemma ord_tr_nofail_fix
-        R i o (tr: @RawTr.t _ R)
+        R i o (tr: @RawTr.t id R)
         (ORD: ord_tr wft wft0 S i o tr)
         (NF: RawTr.nofail i tr)
     :
@@ -375,7 +375,7 @@ Section EQUIV2.
   Qed.
 
   Lemma ord_tr_ms_fix
-        R i o (tr: @RawTr.t _ R)
+        R i o (tr: @RawTr.t id R)
         (ORD: ord_tr wft wft0 S i o tr)
         (NNF: ~ RawTr.nofail i tr)
         (MS: RawTr.must_success i tr)
@@ -390,7 +390,7 @@ Section EQUIV2.
   Qed.
 
   Lemma ord_tr_eq
-        R i o1 o2 (tr: @RawTr.t _ R)
+        R i o1 o2 (tr: @RawTr.t id R)
         (ORD1: ord_tr wft wft0 S i o1 tr)
         (ORD2: ord_tr wft wft0 S i o2 tr)
     :
@@ -431,7 +431,7 @@ Section EQUIV2.
 
 
   Lemma ord_tr_fair_case
-        R (tr: @RawTr.t _ R) fm m
+        R (tr: @RawTr.t id R) fm m
         (IND: RawTr.is_fair_ind tr)
         (ORD: forall i : id, ord_tr wft wft0 S i (m i) (RawTr.cons (inl (silentE_fair fm)) tr))
     :
@@ -493,7 +493,7 @@ Section EQUIV2.
 
 
   Lemma fair_ind_red_fair
-        R (tr: @RawTr.t _ R) fm
+        R (tr: @RawTr.t id R) fm
         (IND: RawTr.is_fair_ind (RawTr.cons (inl (silentE_fair fm)) tr))
     :
     RawTr.is_fair_ind tr.
@@ -501,7 +501,7 @@ Section EQUIV2.
     ii. specialize (IND i). revert_until lt_succ_diag_r. pcofix CIH. i.
     remember (RawTr.cons (inl (silentE_fair fm)) tr) as ftr.
     punfold IND. revert R i ftr IND fm tr Heqftr.
-    eapply (@pind3_acc _ _ _ _ (fun R i (ftr: @RawTr.t Ident R) =>
+    eapply (@pind3_acc _ _ _ _ (fun R i (ftr: @RawTr.t id R) =>
                                   forall (fm : fmap) (tr : RawTr.t),
                                     ftr = RawTr.cons (inl (silentE_fair fm)) tr ->
                                     paco3
@@ -544,7 +544,7 @@ Section EQUIV2.
   Qed.
 
   Lemma fair_ind_red_obs
-        R (tr: @RawTr.t _ R) obs
+        R (tr: @RawTr.t id R) obs
         (IND: RawTr.is_fair_ind (RawTr.cons (inr obs) tr))
     :
     RawTr.is_fair_ind tr.
@@ -552,7 +552,7 @@ Section EQUIV2.
     ii. specialize (IND i). revert_until lt_succ_diag_r. pcofix CIH. i.
     remember (RawTr.cons (inr obs) tr) as ftr.
     punfold IND. revert R i ftr IND obs tr Heqftr.
-    eapply (@pind3_acc _ _ _ _ (fun R i (ftr: @RawTr.t Ident R) =>
+    eapply (@pind3_acc _ _ _ _ (fun R i (ftr: @RawTr.t id R) =>
                                   forall (obs : obsE) (tr : RawTr.t),
                                     ftr = RawTr.cons (inr obs) tr ->
                                     paco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r R i tr)).
@@ -572,7 +572,7 @@ Section EQUIV2.
   Qed.
 
   Lemma fair_ind_red_tau
-        R (tr: @RawTr.t _ R)
+        R (tr: @RawTr.t id R)
         (IND: RawTr.is_fair_ind (RawTr.cons (inl silentE_tau) tr))
     :
     RawTr.is_fair_ind tr.
@@ -580,7 +580,7 @@ Section EQUIV2.
     ii. specialize (IND i). revert_until lt_succ_diag_r. pcofix CIH. i.
     remember (RawTr.cons (inl silentE_tau) tr) as ftr.
     punfold IND. revert R i ftr IND tr Heqftr.
-    eapply (@pind3_acc _ _ _ _ (fun R i (ftr: @RawTr.t Ident R) =>
+    eapply (@pind3_acc _ _ _ _ (fun R i (ftr: @RawTr.t id R) =>
                                   forall tr : RawTr.t,
                                     ftr = RawTr.cons (inl silentE_tau) tr ->
                                     paco3 (fun r0 => pind3 (RawTr.__fair_ind r0) top3) r R i tr)).
@@ -601,7 +601,7 @@ Section EQUIV2.
 
 
   Lemma fair_ind_fair_ord
-        R (tr: @RawTr.t Ident R) m
+        R (tr: @RawTr.t id R) m
         (IND: RawTr.is_fair_ind tr)
         (ORD: forall i, ord_tr wft wft0 S i (m i) tr)
     :
@@ -622,7 +622,7 @@ Section EQUIV2.
 
   Lemma Ind_implies_Ord_fix
         R
-        (tr: @RawTr.t Ident R)
+        (tr: @RawTr.t id R)
         (IND: RawTr.is_fair_ind tr)
     :
     RawTr.fair_ord (fun i => tr2ord_i i tr) tr.
@@ -632,7 +632,7 @@ Section EQUIV2.
 
   Theorem Ind_implies_Ord
           R
-          (tr: @RawTr.t Ident R)
+          (tr: @RawTr.t id R)
           (IND: RawTr.is_fair_ind tr)
     :
     RawTr.is_fair_ord wft tr.

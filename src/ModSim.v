@@ -50,7 +50,7 @@ Section PRIMIVIESIM.
   Variable I: shared_rel.
 
   Variant __lsim
-          (tid: thread_id.(id))
+          (tid: thread_id)
           (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
           (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> shared_rel),bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
           R_src R_tgt (RR: R_src -> R_tgt -> shared_rel)
@@ -201,7 +201,7 @@ Section PRIMIVIESIM.
     __lsim tid lsim _lsim RR true true itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, w)
   .
 
-  Definition lsim (tid: thread_id.(id))
+  Definition lsim (tid: thread_id)
              R_src R_tgt (RR: R_src -> R_tgt -> shared_rel):
     bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
     paco8 (fun r => pind8 (__lsim tid r) top8) bot8 R_src R_tgt RR.
