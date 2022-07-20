@@ -280,9 +280,9 @@ Section ADD_MODSIM.
         Unshelve. all: exact tt.
   Qed.
 
-  Definition imap_proj
+  Definition m_proj
     {id1 id2 wf}
-    (im : @imap (ident_src (id_sum id1 id2)) wf)
+    (im : @imap (ident_tgt (id_sum id1 id2)) wf)
     : @imap (ident_src id2) wf :=
     fun i => match i with
           | inl i => im (inl i)
@@ -294,34 +294,38 @@ Section ADD_MODSIM.
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
     i. inv H.
-    (*
     pose (I' := fun x : @shared
                        (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
                        (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
                        (sum_wf wf_src wf_tgt) wf_tgt world
                 => let '(ths, m_src, m_tgt, st_src, st_tgt, w) := x in
-                  fst st_src = fst st_tgt
-                  /\ I (ths, imap_proj m_src, imap_proj m_tgt, snd st_src, snd st_tgt, w)
-         ).
-    constructor 1 with wf_src wf_tgt succ world world_le I'; eauto.
-    { i. specialize (init (imap_proj im_tgt)). des.
+                  exists M2_m_src M2_m_tgt,
+                    fst st_src = fst st_tgt
+                    /\ (forall i, m_tgt (inl i)       = M2_m_tgt (inl i))
+                    /\ (forall i, m_tgt (inr (inr i)) = M2_m_tgt (inr i))
+                    /\ (forall i, m_src (inl i)       = inl (M2_m_src (inl i)))
+                    /\ (forall i, m_src (inr (inr i)) = inl (M2_m_src (inr i)))
+                    /\ (forall i, m_src (inr (inl i)) = inr (m_tgt (inr (inl i)))) 
+                    /\ I (ths, M2_m_src, M2_m_tgt, snd st_src, snd st_tgt, w)).
+    constructor 1 with _ _ world world_le I'; eauto.
+    { i. specialize (init (m_proj im_tgt)). des.
       exists (fun i => match i with
-               | inl i => im_src (inl i)
-               | inr (inl i) => im_src (inl 0)
-               | inr (inr i) => im_src (inr i)
+               | inl i => inl (im_src (inl i))
+               | inr (inr i) => inl (im_src (inr i))
+               | inr (inl i) => inr (im_tgt (inr (inl i)))
                end).
-      exists w. ss. split; ss. unfold imap_proj at 1.
-      match goal with
-      | [ |- I (_, ?IM_SRC, _, _, _, _) ] => replace IM_SRC with im_src; cycle 1
-      end.
-      { extensionalities i. destruct i; ss. }
-      ss.
+      exists w. ss. exists im_src. exists (m_proj im_tgt). esplits; ss.
     }
     i. specialize (funs0 fn args).
     destruct M1 as [state1 ident1 st_init1 funs1].
-    destruct M2 as [state2 ident2 st_init2 funs2].
-    destruct M1.
-     *)
+    destruct M2_src as [state2_src ident2_src st_init2_src funs2_src].
+    destruct M2_tgt as [state2_tgt ident2_tgt st_init2_tgt funs2_tgt].
+    ss. unfold add_funs. ss.
+    destruct (funs1 fn), (funs2_src fn), (funs2_tgt fn); ss.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
   Admitted.
 
 End ADD_MODSIM.
