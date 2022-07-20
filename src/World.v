@@ -1,6 +1,8 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
 From Fairness Require Import Axioms NatStructs.
+From Fairness Require Import PCM.
+Require Import String.
 
 Set Implicit Arguments.
 
@@ -48,6 +50,15 @@ Module World.
       hexploit UPDATE0; eauto. i. des. splits; eauto.
       i. hexploit CTX; eauto. i. des.
       hexploit CTX0; eauto.
+    Qed.
+
+    Lemma update_compatible g0 l0 g1 l1
+          (UPDATE: update (g0, l0) (g1, l1))
+          (COMPAT: compatible g0 l0)
+      :
+      compatible g1 l1.
+    Proof.
+      inv UPDATE. hexploit UPDATE0; eauto. i. des. auto.
     Qed.
   End WORLD.
 
@@ -152,3 +163,45 @@ Section INVARIANT.
     }
   Qed.
 End INVARIANT.
+
+Section PCM.
+  Context `{M: URA.t}.
+
+  Definition pcm_disjoint: URA.car -> URA.car -> Prop :=
+    fun r0 r1 => forall (WF0: URA.wf r0) (WF1: URA.wf r1), URA.wf (r0 ⋅ r1).
+
+  (* Definition pcm_disjoint: URA.car -> URA.car -> Prop := *)
+  (*   fun r0 r1 => URA.wf (r0 ⋅ r1). *)
+
+  (* Definition pcm_compatible: URA.car -> URA.car -> Prop := *)
+  (*   fun g r => forall (WF: URA.wf g), URA.wf (g ⋅ r). *)
+
+  Global Program Instance pcm_world: World.t :=
+    @World.mk URA.car URA.car URA.unit pcm_disjoint pcm_disjoint _ _ _.
+  Next Obligation.
+    ii. rewrite URA.unit_id. auto.
+  Qed.
+  Next Obligation.
+    ii. rewrite URA.unit_idl. auto.
+  Qed.
+  Next Obligation.
+    ii. rewrite URA.add_comm. eapply DISJ; eauto.
+  Qed.
+
+  Lemma updatable_update g0 r0 g1 r1
+        (COMPAT: World.compatible g0 r0)
+        (UPDATABLE: URA.updatable (g0 ⋅ r0) (g1 ⋅ r1))
+        (WF0: URA.wf g0)
+        (WF1: URA.wf r0)
+    :
+    (<<UPDATE: World.update (g0, r0) (g1, r1)>>) /\ (<<WF0: URA.wf g1>>) /\ (<<WF1: URA.wf r1>>).
+  Proof.
+    pose proof (UPDATABLE URA.unit) as UNIT.
+    hexploit UNIT.
+    { rewrite URA.unit_id. eapply COMPAT; eauto. }
+    i. rewrite URA.unit_id in H. splits.
+    { econs. i. splits.
+      { ii. eauto. }
+      { i. split.
+  Abort.
+End PCM.

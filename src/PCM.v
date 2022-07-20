@@ -14,7 +14,7 @@ Set Implicit Arguments.
 
 
 
-Require Import String.
+Require Export String.
 Module Type SEAL.
   Parameter sealing: string -> forall X: Type, X -> X.
   Parameter sealing_eq: forall key X (x: X), sealing key x = x.
