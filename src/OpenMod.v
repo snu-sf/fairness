@@ -217,15 +217,160 @@ Section RED.
     rewrite ! bind_trigger. setoid_rewrite embed_itree_vis_get. ss.
   Qed.
 
+  Local Opaque embed_itree.
 
   Lemma close_itree_ret
         omd md
-        R (r: R)
+        R r
     :
-    close_itree omd md (Ret r) = Ret r.
-  Proof.
-    unfold close_itree. rewrite unfold_iter.
-    eapply observe_eta. ss.
+    @close_itree omd md R (Ret r) = Ret r.
+  Proof. unfold close_itree. rewrite unfold_iter. grind. Qed.
 
+  Lemma close_itree_vis_eventE
+        omd md
+        R
+        X (ee: @eventE _ X) ktr
+    :
+    @close_itree omd md R (Vis (((ee|)|)|)%sum ktr) =
+      Vis ((embed_event_l ee|)|)%sum (fun x => tau;; close_itree omd md (ktr x)).
+  Proof.
+    unfold close_itree at 1. rewrite unfold_iter. grind.
+    apply observe_eta. ss. f_equal. extensionality x. grind.
+  Qed.
+
+  Lemma close_itree_trigger_eventE
+        omd md
+        R
+        X (ee: @eventE _ X) ktr
+    :
+    @close_itree omd md R (trigger (((ee|)|)|)%sum >>= ktr) =
+      x <- trigger ((embed_event_l ee|)|)%sum;; tau;; (close_itree omd md (ktr x)).
+  Proof. rewrite ! bind_trigger. apply close_itree_vis_eventE. Qed.
+
+  Lemma close_itree_vis_cE
+        omd md
+        R
+        X (ce: @cE X) ktr
+    :
+    @close_itree omd md R (Vis (((|ce)|)|)%sum ktr) =
+      Vis ((|ce)|)%sum (fun x => tau;; close_itree omd md (ktr x)).
+  Proof.
+    unfold close_itree at 1. rewrite unfold_iter. grind.
+    apply observe_eta. ss. f_equal. extensionality x. grind.
+  Qed.
+
+  Lemma close_itree_trigger_cE
+        omd md
+        R
+        X (ce: @cE X) ktr
+    :
+    @close_itree omd md R (trigger (((|ce)|)|)%sum >>= ktr) =
+      x <- trigger ((|ce)|)%sum;; tau;; (close_itree omd md (ktr x)).
+  Proof. rewrite ! bind_trigger. apply close_itree_vis_cE. Qed.
+
+  Lemma close_itree_vis_sE
+        omd md
+        R
+        X (se: @sE omd.(OMod.state) X) ktr
+    :
+    @close_itree omd md R (Vis ((|se)|)%sum ktr) =
+      lr <- embed_state fst update_fst (Vis (|se)%sum (fun x => Ret (inl (ktr x))));;
+      match lr with
+      | inl l => tau;; close_itree omd md l
+      | inr r0 => Ret r0
+      end.
+  Proof.
+    unfold close_itree at 1. rewrite unfold_iter. grind.
+  Qed.
+
+  Lemma close_itree_vis_put
+        omd md
+        R
+        st ktr
+    :
+    @close_itree omd md R (Vis ((|Put st)|)%sum ktr) =
+      Vis (inr1 (Get _)) (fun s => Vis (inr1 (Put (update_fst s st))) (fun _ => tau;; close_itree omd md (ktr tt))).
+  Proof.
+    rewrite close_itree_vis_sE. rewrite embed_state_put. grind.
+    apply observe_eta. ss. f_equal. extensionality x. grind.
+    apply observe_eta. ss. f_equal. extensionality u.
+    rewrite embed_state_ret. grind.
+  Qed.
+
+  Lemma close_itree_trigger_put
+        omd md
+        R
+        st ktr
+    :
+    @close_itree omd md R (trigger ((|Put st)|)%sum >>= ktr) =
+      s <- trigger (inr1 (Get _));; u <- trigger (inr1 (Put (update_fst s st)));; tau;; close_itree omd md (ktr tt).
+  Proof.
+    rewrite ! bind_trigger. setoid_rewrite close_itree_vis_put.
+    apply observe_eta. ss. f_equal. extensionality x.
+    rewrite ! bind_trigger. ss.
+  Qed.
+
+  Lemma close_itree_vis_get
+        omd md
+        R
+        ktr
+    :
+    @close_itree omd md R (Vis ((|Get _)|)%sum ktr) =
+      Vis (inr1 (Get _)) (fun s => tau;; close_itree omd md (ktr (fst s))).
+  Proof.
+    rewrite close_itree_vis_sE. rewrite embed_state_get. grind.
+    apply observe_eta. ss. f_equal. extensionality x.
+    rewrite embed_state_ret. grind.
+  Qed.
+
+  Lemma close_itree_trigger_get
+        omd md
+        R
+        ktr
+    :
+    @close_itree omd md R (trigger ((|Get _)|)%sum >>= ktr) =
+      s <- trigger (inr1 (Get _));; tau;; close_itree omd md (ktr (fst s)).
+  Proof.
+    rewrite ! bind_trigger. setoid_rewrite close_itree_vis_get. ss.
+  Qed.
+
+  Lemma close_itree_vis_call
+        omd md
+        R
+        fn args ktr
+    :
+    @close_itree omd md R (Vis (|Call fn args)%sum ktr) =
+      match (md.(Mod.funs) fn) with
+      | Some body =>
+          lr <- embed_itree omd md ktr (body args);;
+          match lr with
+          | inl l => tau;; close_itree omd md l
+          | inr r0 => Ret r0
+          end
+      | None => Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)
+      end.
+  Proof.
+    unfold close_itree. rewrite unfold_iter. grind.
+    eapply observe_eta. ss. f_equal. extensionality x. destruct x.
+  Qed.
+
+  Lemma close_itree_trigger_call
+        omd md
+        R
+        fn args ktr
+    :
+    @close_itree omd md R (trigger (|Call fn args)%sum >>= ktr) =
+      match (md.(Mod.funs) fn) with
+      | Some body =>
+          lr <- embed_itree omd md ktr (body args);;
+          match lr with
+          | inl l => tau;; close_itree omd md l
+          | inr r0 => Ret r0
+          end
+      | None => Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)
+      end.
+  Proof. rewrite bind_trigger. eapply close_itree_vis_call. Qed.
 
 End RED.
+Global Opaque OMod.embed_itree.
+Global Opaque OMod.close_itree.
