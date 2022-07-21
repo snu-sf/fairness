@@ -120,14 +120,14 @@ Section SSIM.
         (forall x : X, _ssim ssim RR p_src m_src true m_tgt itr_src (ktr_tgt x)) ->
         (forall x : X, P p_src m_src true m_tgt itr_src (ktr_tgt x)) ->
         P p_src m_src p_tgt m_tgt itr_src (Vis (|Choose X)%sum ktr_tgt))
-    (FAIRL : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (f_src : fmap)
+    (FAIRL : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (f_src : fmap thread_id)
                (ktr_src : () -> scheduler RT R0) (itr_tgt : scheduler RT R1),
         (exists m_src0 : imap thread_id wf_src,
             (<< FAIR : fair_update m_src m_src0 f_src >>) /\
               (<< SIM : _ssim ssim RR true m_src0 p_tgt m_tgt (ktr_src ()) itr_tgt >>) /\
               P true m_src0 p_tgt m_tgt (ktr_src ()) itr_tgt) ->
         P p_src m_src p_tgt m_tgt (Vis (|Fair f_src)%sum ktr_src) itr_tgt)
-    (FAIRR : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (f_tgt : fmap)
+    (FAIRR : forall (p_src : bool) (m_src : imap thread_id wf_src) (p_tgt : bool) (m_tgt : imap thread_id wf_tgt) (f_tgt : fmap thread_id)
                (itr_src : scheduler RT R0) (ktr_tgt : () -> scheduler RT R1),
         (forall m_tgt0 : imap thread_id wf_tgt,
             fair_update m_tgt m_tgt0 f_tgt -> _ssim ssim RR p_src m_src true m_tgt0 itr_src (ktr_tgt ())) ->
