@@ -93,7 +93,7 @@ Section INVARIANT.
   .
 
   Definition get_resource
-             (tid: thread_id.(id))
+             (tid: thread_id)
              (rs: local_resources)
     : (URA.car * local_resources) :=
     match nm_pop tid rs with
