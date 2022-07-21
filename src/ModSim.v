@@ -486,6 +486,25 @@ Section PRIMIVIESIM.
         (<<INV: r (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared1)>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_ctx)>>).
 
+  Definition kernel_tid: thread_id := 0.
+
+  Definition kernel_success_fmap: @fmap thread_id :=
+    fun t => if (PeanoNat.Nat.eq_dec t kernel_tid)
+             then Flag.success else Flag.emp.
+
+  Definition shared_rel_wf_kernel (r: shared_rel): Prop :=
+    forall ths im_src0 im_tgt0 st_src st_tgt r_shared0 r_ctx
+           (INV: r (ths, im_src0, im_tgt0, st_src, st_tgt, r_shared0))
+           (VALID: URA.wf (r_shared0 ⋅ r_ctx)),
+    forall im_tgt1
+           (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (kernel_success_fmap))),
+    exists im_src1 r_shared1,
+      (<<SRC: fair_update im_src0 im_src1 (sum_fmap_l (kernel_success_fmap))>>) /\
+        (<<INV: r (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared1)>>) /\
+        (<<VALID: URA.wf (r_shared1 ⋅ r_ctx)>>).
+
+  (* TODO: kernel list wf *)
+
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
 #[export] Hint Unfold lsim: core.
