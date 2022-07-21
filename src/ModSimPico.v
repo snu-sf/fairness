@@ -177,13 +177,13 @@ Section PRIMIVIESIM.
     __lsim RR tid lsim _lsim f_src f_tgt r_own0 r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o, r_shared0)
   | lsim_yieldL
       f_src f_tgt r_own r_ctx
-      ths tht im_src0 im_tgt st_src st_tgt o0 w
+      ths tht im_src0 im_tgt st_src st_tgt o0 r_shared
       ktr_src itr_tgt
       (LSIM: exists im_src1 o1,
           (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
-            (<<LSIM: _lsim true f_tgt r_own r_ctx (ktr_src tt) itr_tgt (ths, tht, im_src1, im_tgt, st_src, st_tgt, o1, w)>>))
+            (<<LSIM: _lsim true f_tgt r_own r_ctx (ktr_src tt) itr_tgt (ths, tht, im_src1, im_tgt, st_src, st_tgt, o1, r_shared)>>))
     :
-    __lsim RR tid lsim _lsim f_src f_tgt r_own r_ctx (trigger (Yield) >>= ktr_src) itr_tgt (ths, tht, im_src0, im_tgt, st_src, st_tgt, o0, w)
+    __lsim RR tid lsim _lsim f_src f_tgt r_own r_ctx (trigger (Yield) >>= ktr_src) itr_tgt (ths, tht, im_src0, im_tgt, st_src, st_tgt, o0, r_shared)
 
   | lsim_progress
       r_own r_ctx
