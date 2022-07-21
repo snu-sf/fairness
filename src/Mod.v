@@ -79,7 +79,6 @@ Module Mod.
     mk {
         state: Type;
         ident: ID;
-        (* ident: ID := sum_tid _ident; *)
         st_init: state;
         funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val);
       }.
