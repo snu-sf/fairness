@@ -3,6 +3,9 @@ Set Implicit Arguments.
 
 (* TODO: definitions copied from Ordinal library *)
 
+Lemma well_founded_irrefl A (R : A -> A -> Prop) (WF : well_founded R) : forall x, ~ R x x.
+Proof. ii. specialize (WF x). induction WF; eauto. Qed.
+
 Variant double_rel A B (RA: A -> A -> Prop) (RB: B -> B -> Prop)
   : A * B -> A * B -> Prop :=
 | double_rel_left a0 a1 b (LT: RA a0 a1): double_rel RA RB (a0, b) (a1, b)
