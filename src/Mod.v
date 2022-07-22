@@ -16,7 +16,6 @@ Section TID.
 
   Definition nat_wf: WF := mk_wf Wf_nat.lt_wf.
 
-  Definition tid_main: thread_id := 0.
   Definition tid_dec := PeanoNat.Nat.eq_dec.
 
   Lemma reldec_correct_tid_dec: RelDec.RelDec_Correct (RelDec.RelDec_from_dec eq tid_dec).
