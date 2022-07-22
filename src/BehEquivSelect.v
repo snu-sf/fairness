@@ -502,7 +502,7 @@ Section EQUIV2.
     remember (RawTr.cons (inl (silentE_fair fm)) tr) as ftr.
     punfold IND. revert R i ftr IND fm tr Heqftr.
     eapply (@pind3_acc _ _ _ _ (fun R i (ftr: @RawTr.t id R) =>
-                                  forall (fm : fmap) (tr : RawTr.t),
+                                  forall (fm : fmap id) (tr : RawTr.t),
                                     ftr = RawTr.cons (inl (silentE_fair fm)) tr ->
                                     paco3
                                       (fun r0 =>
