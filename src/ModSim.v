@@ -486,12 +486,6 @@ Section PRIMIVIESIM.
         (<<INV: r (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared1)>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_ctx)>>).
 
-  Definition kernel_tid: thread_id := 0.
-
-  Definition kernel_success_fmap: @fmap thread_id :=
-    fun t => if (PeanoNat.Nat.eq_dec t kernel_tid)
-             then Flag.success else Flag.emp.
-
   Definition shared_rel_wf_kernel (r: shared_rel): Prop :=
     forall ths im_src0 im_tgt0 st_src st_tgt r_shared0 r_ctx
            (INV: r (ths, im_src0, im_tgt0, st_src, st_tgt, r_shared0))
@@ -531,7 +525,7 @@ Module ModSim.
 
           I: (@shared world md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> Prop;
           init: forall im_tgt, exists im_src r_shared,
-            I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), r_shared);
+            I (initial_threads, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), r_shared);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                                 | None, _ => True

@@ -57,6 +57,13 @@ Section TID.
     - exfalso. apply n0; clear n0. rewrite <- NatMapP.F.add_neq_in_iff; eauto.
   Qed.
 
+  Definition kernel_tid: thread_id := 0.
+
+  Definition kernel_success_fmap: @fmap thread_id :=
+    fun t => if (tid_dec t kernel_tid)
+             then Flag.success else Flag.emp.
+
+  Definition initial_threads := TIdSet.add kernel_tid NatSet.empty.
 End TID.
 
 
