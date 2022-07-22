@@ -5,44 +5,48 @@ From Fairness Require Import
   ITreeLib
   WFLib
   Mod
-  ModSim.
+  ModSim
+  pind8.
 
 Import Lia.
 Import Mod.
 Import RelationClasses.
 
-Section WF.
+Section WF_SUM.
 
-  Inductive sum_rel {A B} (RA : A -> A -> Prop) (RB : B -> B -> Prop) : A + B -> A + B -> Prop :=
-  | sum_rel_l a0 a1 (R : RA a0 a1) : sum_rel RA RB (inl a0) (inl a1)
-  | sum_rel_r b0 b1 (R : RB b0 b1) : sum_rel RA RB (inr b0) (inr b1)
+  Context {Id : ID}.
+  Context (wfs : Id -> WF).
+
+  Definition union : Type := {i : Id & (wfs i).(T)}.
+
+  Inductive union_rel (ix1 ix2 : union) : Prop :=
+    intro_union_rel
+      (p : projT1 ix1 = projT1 ix2)
+      (LT : lt (wfs (projT1 ix2)) (eq_rect _ _ (projT2 ix1) _ p) (projT2 ix2))
+      : union_rel ix1 ix2
   .
 
-  Lemma sum_rel_well_founded A B (RA : A -> A -> Prop) (RB : B -> B -> Prop)
-    (WFA : well_founded RA)
-    (WFB : well_founded RB)
-    : well_founded (sum_rel RA RB).
+  Lemma union_rel_well_founded : well_founded union_rel.
   Proof.
-    ii. destruct a.
-    - specialize (WFA a). induction WFA.
-      econs. i. inv H1. eauto.
-    - specialize (WFB b). induction WFB.
-      econs. i. inv H1. eauto.
+    intros [i x]. pose proof (wf (wfs i) x). induction H as [x H IH].
+    econs. intros [i' y] [p LT]; ss. destruct p; ss. eauto.
   Qed.
 
-  Program Definition sum_wf (wf1 wf2 : WF) : WF :=
-    {| lt := sum_rel wf1.(lt) wf2.(lt) |}.
-  Next Obligation.
-    destruct wf1, wf2. eapply sum_rel_well_founded; ss.
-  Qed.    
+  Definition union_wf := {| wf := union_rel_well_founded |}.
 
-  (* TODO : move to WFLib *)
-  Definition double_wf (wf1 wf2 : WF) : WF :=
-    {| wf := double_rel_well_founded wf1.(wf) wf2.(wf) |}.
+  Lemma sig_eq A (B : A -> Type) (x y : sigT B) (p : x = y)
+    : (eq_rect _ _ (projT2 x) _ (f_equal (@projT1 A B) p)) = projT2 y.
+  Proof. destruct p. ss. Qed.
 
-End WF.
+  Definition from_dep (m_dep : forall i, (wfs i).(T)) : imap Id union_wf :=
+    fun i => existT _ i (m_dep i).
 
-Section ADD_MODSIM.
+  Definition imap_eqdep (m : imap Id union_wf) (m_dep : forall i, (wfs i).(T)) : Prop :=
+    forall i, m i = existT _ i (m_dep i).
+
+End WF_SUM.
+
+Section ADD_COMM.
 
   Definition m_conv {id1 id2 wf} (m_tgt : @imap (ident_tgt (id_sum id2 id1)) wf) :
     @imap (ident_src (id_sum id1 id2)) wf :=
@@ -61,7 +65,6 @@ Section ADD_MODSIM.
     /\ (forall i, m_src (inr (inl i)) = m_tgt (inr (inr i)))
     /\ (forall i, m_src (inr (inr i)) = m_tgt (inr (inl i))).
 
-  Import pind8.
   Lemma ModAdd_comm M1 M2 : ModSim.mod_sim (ModAdd M1 M2) (ModAdd M2 M1).
   Proof.
     pose (world_le := fun (_ _ : unit) => True).
@@ -280,14 +283,37 @@ Section ADD_MODSIM.
         Unshelve. all: exact tt.
   Qed.
 
-  Definition m_proj
-    {id1 id2 wf}
-    (im : @imap (ident_tgt (id_sum id1 id2)) wf)
-    : @imap (ident_src id2) wf :=
+End ADD_COMM.
+
+Section ADD_RIGHT_CONG.
+
+  Definition mk_m2_tgt
+    {id1 id2 wf_tgt}
+    (m : @imap (ident_tgt (id_sum id1 id2)) wf_tgt)
+    : @imap (ident_src id2) wf_tgt :=
     fun i => match i with
-          | inl i => im (inl i)
-          | inr i => im (inr (inr i))
+          | inl i => m (inl i)
+          | inr i => m (inr (inr i))
           end.
+
+  Definition wfs_src
+    {id1 id2 wf_src wf_tgt} (i : ident_src (id_sum id1 id2)) : WF :=
+    match i with
+    | inl _ => wf_src
+    | inr (inl _) => wf_tgt
+    | inr (inr _) => wf_src
+    end.
+
+  Definition mk_m_src
+    {id1 id2_src id2_tgt wf_src wf_tgt}
+    (m2_src : imap (ident_src id2_src) wf_src)
+    (m_tgt : imap (ident_tgt (id_sum id1 id2_tgt)) wf_tgt)
+    : forall i, (@wfs_src id1 id2_src wf_src wf_tgt i).(T)
+    := fun i => match i with
+             | inl i => m2_src (inl i)
+             | inr (inl i) => m_tgt (inr (inl i))
+             | inr (inr i) => m2_src (inr i)
+             end.
 
   Lemma ModAdd_right_cong M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
@@ -297,35 +323,26 @@ Section ADD_MODSIM.
     pose (I' := fun x : @shared
                        (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
                        (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
-                       (sum_wf wf_src wf_tgt) wf_tgt world
+                       (union_wf wfs_src) wf_tgt world
                 => let '(ths, m_src, m_tgt, st_src, st_tgt, w) := x in
-                  exists M2_m_src M2_m_tgt,
-                    fst st_src = fst st_tgt
-                    /\ (forall i, m_tgt (inl i)       = M2_m_tgt (inl i))
-                    /\ (forall i, m_tgt (inr (inr i)) = M2_m_tgt (inr i))
-                    /\ (forall i, m_src (inl i)       = inl (M2_m_src (inl i)))
-                    /\ (forall i, m_src (inr (inr i)) = inl (M2_m_src (inr i)))
-                    /\ (forall i, m_src (inr (inl i)) = inr (m_tgt (inr (inl i)))) 
-                    /\ I (ths, M2_m_src, M2_m_tgt, snd st_src, snd st_tgt, w)).
+                  exists M2_m_src,
+                    I (ths, M2_m_src, mk_m2_tgt m_tgt, snd st_src, snd st_tgt, w)
+                    /\ imap_eqdep wfs_src m_src (mk_m_src M2_m_src m_tgt)
+         ).
     constructor 1 with _ _ world world_le I'; eauto.
-    { i. specialize (init (m_proj im_tgt)). des.
-      exists (fun i => match i with
-               | inl i => inl (im_src (inl i))
-               | inr (inr i) => inl (im_src (inr i))
-               | inr (inl i) => inr (im_tgt (inr (inl i)))
-               end).
-      exists w. ss. exists im_src. exists (m_proj im_tgt). esplits; ss.
+    { i. specialize (init (mk_m2_tgt im_tgt)). des.
+      exists (from_dep wfs_src (mk_m_src im_src im_tgt)), w. ss.
+      esplits; [eauto | ss].
     }
     i. specialize (funs0 fn args).
     destruct M1 as [state1 ident1 st_init1 funs1].
     destruct M2_src as [state2_src ident2_src st_init2_src funs2_src].
     destruct M2_tgt as [state2_tgt ident2_tgt st_init2_tgt funs2_tgt].
     ss. unfold add_funs. ss.
-    destruct (funs1 fn), (funs2_src fn), (funs2_tgt fn); ss.
+    destruct (funs1 fn) eqn: E1, (funs2_src fn) eqn: E2, (funs2_tgt fn) eqn: E3; ss.
     - admit.
     - admit.
-    - admit.
-    - admit.
+    - (* here *) admit.
   Admitted.
 
-End ADD_MODSIM.
+End ADD_RIGHT_CONG.

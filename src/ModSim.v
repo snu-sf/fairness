@@ -512,9 +512,9 @@ Module ModSim.
             I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), w);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                           | None, _ => True
-                           | _, None => False
                            | Some ktr_src, Some ktr_tgt => local_sim world_le I (@eq Val) (ktr_src args) (ktr_tgt args)
+                           | None        , None         => True
+                           | _           , _            => False
                            end;
         }.
 
