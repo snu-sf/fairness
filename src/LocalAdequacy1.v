@@ -133,7 +133,7 @@ Section PROOF.
     { clear IH rr. unfold local_RR in LSIM0. des. clarify.
       destruct (Th.is_empty ths_src) eqn:EMPS.
       { destruct (Th.is_empty ths_tgt) eqn:EMPT.
-        { pfold. eapply pind10_fold. econs 1; eauto. }
+        { pfold. eapply pind9_fold. econs 1; eauto. }
         { exfalso. erewrite nm_wf_pair_is_empty in EMPS; eauto. rewrite EMPT in EMPS. ss. }
       }
       { destruct (Th.is_empty ths_tgt) eqn:EMPT.
