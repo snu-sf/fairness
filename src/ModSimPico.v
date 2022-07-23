@@ -161,11 +161,12 @@ Section PRIMIVIESIM.
     __lsim RR tid lsim _lsim f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, tht, im_src, im_tgt, st_src, st_tgt, o, r_shared)
 
   | lsim_sync
-      f_src f_tgt r_own r_ctx0
+      f_src f_tgt r_ctx0
       ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o r_shared0
+      r_own r_shared
       o0 ktr_src ktr_tgt
-      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, r_shared0))
-      (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0))
+      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, r_shared))
+      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (STUTTER: wf_src.(lt) o0 o)
       (LSIM: forall ths1 tht1 im_src1 im_tgt1 st_src1 st_tgt1 o1 r_shared1 r_ctx1
                     (INV: I (ths1, tht1, im_src1, im_tgt1, st_src1, st_tgt1, o1, r_shared1))
