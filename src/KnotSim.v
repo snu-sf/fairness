@@ -2,18 +2,14 @@ From sflib Require Import sflib.
 From ITree Require Export ITree.
 From Paco Require Import paco.
 
-(* Require Export Coq.Strings.String. *)
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
-(* Require Import Permutation. *)
 
 Export ITreeNotations.
 
 From Fairness Require Export ITreeLib FairBeh NatStructs.
-(* From Fairness Require Export ITreeLib FairBeh FairSim NatStructs. *)
 From Fairness Require Export Mod ModSimPico Concurrency.
-From Fairness Require Import pind.
-From Fairness Require Import PCM World.
+From Fairness Require Import pind PCM World.
 
 Set Implicit Arguments.
 

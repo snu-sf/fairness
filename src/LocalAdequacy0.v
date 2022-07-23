@@ -11,9 +11,9 @@ Export ITreeNotations.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
+From Fairness Require Import pind PCM.
 From Fairness Require Export Mod ModSimPico Concurrency.
-From Fairness Require Import pind.
-From Fairness Require Import PCM KnotSim.
+From Fairness Require Import KnotSim.
 
 Set Implicit Arguments.
 
