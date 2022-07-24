@@ -152,20 +152,29 @@ Section PROOF.
           assert (FINDT: Th.find tid0 ths_tgt = Some (th_tgt)).
           { eapply nm_pop_find_some; eauto. }
           exists sf0, th_src, ths_src0, th_tgt, ths_tgt0.
-          (*TODO*)
           splits; auto.
           - i; clarify.
-            hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
+            hexploit LOCAL. eauto. eapply FINDS. eapply FINDT. i; des.
             hexploit H2; clear H2 H3; ss. i. unfold local_sim_sync in H2.
             assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)).
             { eapply proj_aux; eauto. }
             assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)).
             { eapply proj_aux; eauto. }
             ss. rewrite PROJS, PROJT. right. eapply CIH.
-            { i. hexploit LOCAL.
+            { i. hexploit LOCAL. eauto.
               eapply find_some_aux; eauto. eapply find_some_aux; eauto.
               i; des. split.
               - intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
+                assert (URAWF: URA.wf (r_shared0 ⋅ fst (get_resource tid1 rs_ctx) ⋅ r_ctx0)).
+                { replace (fst (get_resource tid1 rs_ctx)) with r_own0; auto. rewrite OWN.
+                  (*TODO*)
+
+                  
+                  unfold get_resource.
+                  replace (nm_pop tid0 (NatMap.add tid r_own rs_ctx)) with (Some 
+                    
+
+                  des_ifs.
                 assert (WORLD1: world_le w w0).
                 { etransitivity; eauto. }
                 specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
