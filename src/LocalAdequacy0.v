@@ -217,13 +217,4 @@ Section AUX.
     econs; eauto.
   Qed.
 
-  Definition local_sim_threads
-             R0 R1 (RR: R0 -> R1 -> Prop)
-             (ths_src: threads_src1 R0)
-             (ths_tgt: threads_tgt R1)
-    :=
-    List.Forall2
-      (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim I RR src tgt))
-      (Th.elements ths_src) (Th.elements ths_tgt).
-
 End AUX.

@@ -56,13 +56,14 @@ Section PROOF.
         (THSRC: Th.find tid ths_src = None)
         (THTGT: Th.find tid ths_tgt = None)
         (WF: th_wf_pair ths_src ths_tgt)
-        r_own rs_ctx
+        (* r_own *)
+        rs_ctx
         (RSWF: Th.find tid rs_ctx = None)
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
         (LSIM: forall im_tgt, exists im_src o r_shared,
-            (<<RSWF: resources_wf r_shared (Th.add tid r_own rs_ctx)>>) /\
+            (* (<<RSWF: resources_wf r_shared (Th.add tid r_own rs_ctx)>>) /\ *)
               (<<LSIM:
                 forall im_tgt0
                   (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
@@ -79,7 +80,7 @@ Section PROOF.
                     ((sf = false) -> (local_sim_pick I RR src tgt tid r_own))>>))
     :
     forall im_tgt, exists im_src o r_shared,
-      (resources_wf r_shared (Th.add tid r_own rs_ctx)) /\
+      (* (resources_wf r_shared (Th.add tid r_own rs_ctx)) /\ *)
         (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
                   (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
                     im_src, im_tgt, st_src, st_tgt, o, r_shared)).
@@ -87,7 +88,7 @@ Section PROOF.
     ii. remember (fun i => St (im_tgt i)) as im_tgt1. specialize (LSIM im_tgt1). des.
     assert (FAIR: fair_update im_tgt1 im_tgt (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))).
     { rewrite Heqim_tgt1. unfold fair_update. i. des_ifs. right; auto. }
-    specialize (LSIM im_tgt FAIR). des. clear LSIM Heqim_tgt1 FAIR im_tgt1.
+    specialize (LSIM0 im_tgt FAIR). des. clear LSIM0 Heqim_tgt1 FAIR im_tgt1.
     clear im_src; rename im_src0 into im_src.
     (* rename LSIM0 into LSIM. rename LOCAL into LOCAL0. *)
     (* assert (LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1) r_own *)
@@ -114,8 +115,8 @@ Section PROOF.
     (* } *)
     (* clear LOCAL0. *)
 
-    move LOCAL before RR. rename LSIM0 into LSIM.
-    exists im_src, o, r_shared. split; auto. clear r_own RSWF0.
+    move LOCAL before RR. rename LSIM1 into LSIM.
+    exists im_src, o, r_shared.
 
     revert_until RR. pcofix CIH. i.
     match goal with

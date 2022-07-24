@@ -489,13 +489,14 @@ Module ModSim.
 
           I: (@shared world md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> Prop;
           init: forall im_tgt, exists im_src o r_shared,
-            I (initial_threads, initial_threads, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, r_shared);
+            (I (initial_threads, initial_threads, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), o, r_shared)) /\
+              (URA.wf r_shared);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                                | None, _ => True
-                                | _, None => False
-                                | Some ktr_src, Some ktr_tgt => local_sim I (@eq Val) (ktr_src args) (ktr_tgt args)
-                                end;
+                           | None, _ => True
+                           | _, None => False
+                           | Some ktr_src, Some ktr_tgt => local_sim I (@eq Val) (ktr_src args) (ktr_tgt args)
+                           end;
         }.
 
   End MODSIM.

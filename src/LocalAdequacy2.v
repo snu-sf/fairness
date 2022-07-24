@@ -748,8 +748,8 @@ Section PROOF.
         (WF: th_wf_pair ths_src ths_tgt)
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
-        ps pt
-        (KSIM: forall im_tgt, exists im_src o r_shared rs_ctx,
+        ps pt rs_ctx
+        (KSIM: forall im_tgt, exists im_src o r_shared,
             sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt)
                      RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
                      (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
