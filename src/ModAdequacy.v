@@ -158,7 +158,9 @@ Section LADEQ.
     { instantiate (1:= Th.remove tid rs_init). apply nm_find_rm_eq. }
 
     cut (forall im_tgt0, exists im_src0 o0 r_shared0,
-            (I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt0, st_src, st_tgt, o0, r_shared0)) /\ (URA.wf r_shared0) /\
+            (I (Th.add kernel_tid tt (key_set ths_src),
+                 Th.add kernel_tid tt (key_set ths_tgt),
+                 im_src0, im_tgt0, st_src, st_tgt, o0, r_shared0)) /\ (URA.wf r_shared0) /\
               (forall (tid0 : Th.key) (src : thread _ident_src (sE state_src) R0)
                  (tgt : thread _ident_tgt (sE state_tgt) R1) r_own,
                   (r_own = fst (get_resource tid0 rs_init)) ->
@@ -189,7 +191,9 @@ Section LADEQ.
     }
 
     cut (forall im_tgt, exists (im_src0 : imap ident_src wf_src) (o0 : T wf_src) r_shared0,
-            I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, r_shared0) /\
+            I (Th.add kernel_tid tt (key_set ths_src),
+                Th.add kernel_tid tt (key_set ths_tgt),
+                im_src0, im_tgt, st_src, st_tgt, o0, r_shared0) /\
               (URA.wf r_shared0) /\
               (List.Forall2 (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (t1 <> kernel_tid) /\ local_sim_pick I RR src tgt t1 ε)
                             (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src)
