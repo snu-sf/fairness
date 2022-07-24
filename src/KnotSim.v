@@ -80,14 +80,15 @@ Section KSIM.
         (NNILT: Th.is_empty thsr = false)
         (KSIM: forall tid0,
             ((nm_pop tid0 thsl = None) /\ (nm_pop tid0 thsr = None)) \/
-              (exists b th_src thsl0 th_tgt thsr0 r_own0 rs_local1,
+              (exists b th_src thsl0 th_tgt thsr0,
                   (nm_pop tid0 thsl = Some ((b, th_src), thsl0)) /\
                     (nm_pop tid0 thsr = Some (th_tgt, thsr0)) /\
-                    (get_resource tid0 rs_local0 = (r_own0, rs_local1)) /\
                     ((b = true) ->
                      (forall im_tgt0
                         (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
-                         (forall ps pt, sim_knot thsl0 thsr0 tid0 rs_local1 ps pt
+                         (forall ps pt, sim_knot thsl0 thsr0 tid0
+                                            (snd (get_resource tid0 rs_local0))
+                                            ps pt
                                             (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
                                             (th_tgt)
                                             (ths0, tht0, im_src, im_tgt0, st_src, st_tgt, o0, r_shared0)))) /\
@@ -96,7 +97,9 @@ Section KSIM.
                         (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht0))),
                        exists im_src0,
                          (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths0))) /\
-                           (forall ps pt, sim_knot thsl0 thsr0 tid0 rs_local1 ps pt
+                           (forall ps pt, sim_knot thsl0 thsr0 tid0
+                                              (snd (get_resource tid0 rs_local0))
+                                              ps pt
                                               (b, th_src)
                                               th_tgt
                                               (ths0, tht0, im_src0, im_tgt0, st_src, st_tgt, o0, r_shared0))))))
@@ -119,15 +122,16 @@ Section KSIM.
         (THSR: thsr0 = Th.add tid (ktr_tgt tt) thsr)
         (KSIM: forall tid0,
             ((nm_pop tid0 thsl0 = None) /\ (nm_pop tid0 thsr0 = None)) \/
-              (exists b th_src thsl1 th_tgt thsr1 r_own0 rs_local1,
+              (exists b th_src thsl1 th_tgt thsr1,
                   (nm_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
                     (nm_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
-                    (get_resource tid0 rs_local0 = (r_own0, rs_local1)) /\
                     ((b = true) ->
                      exists o0, (wf_src.(lt) o0 o) /\
                              (forall im_tgt0
                                 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht))),
-                               forall ps pt, sim_knot thsl1 thsr1 tid0 rs_local1 ps pt
+                               forall ps pt, sim_knot thsl1 thsr1 tid0
+                                                 (snd (get_resource tid0 rs_local0))
+                                                 ps pt
                                                  (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
                                                  (th_tgt)
                                                  (ths, tht, im_src, im_tgt0, st_src, st_tgt, o0, r_shared0))) /\
@@ -137,7 +141,9 @@ Section KSIM.
                                 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 tht))),
                                exists im_src0,
                                  (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 ths))) /\
-                                   (forall ps pt, sim_knot thsl1 thsr1 tid0 rs_local1 ps pt
+                                   (forall ps pt, sim_knot thsl1 thsr1 tid0
+                                                      (snd (get_resource tid0 rs_local0))
+                                                      ps pt
                                                       (b, th_src)
                                                       th_tgt
                                                       (ths, tht, im_src0, im_tgt0, st_src, st_tgt, o0, r_shared0))))))
@@ -389,12 +395,12 @@ Section KSIM.
     ii. inv PR; try (econs; eauto; fail).
     { econs 2; eauto. i. specialize (KSIM tid0). des; eauto. right.
       esplits; eauto.
-      i. specialize (KSIM3 H _ FAIR). des. esplits; eauto.
+      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
     }
     { econs 3; eauto. i. specialize (KSIM tid0). des; eauto. right.
       esplits; eauto.
-      i. specialize (KSIM2 H). des. esplits; eauto.
-      i. specialize (KSIM3 H). des. esplits; eauto. i. specialize (KSIM4 _ FAIR).
+      i. specialize (KSIM1 H). des. esplits; eauto.
+      i. specialize (KSIM2 H). des. esplits; eauto. i. specialize (KSIM3 _ FAIR).
       des. esplits; eauto.
     }
   Qed.
@@ -446,15 +452,15 @@ Section KSIM.
     { clear rr IH. pfold. eapply pind9_fold. eapply ksim_ret_cont; eauto. i.
       specialize (KSIM0 tid0). des; eauto. right.
       esplits; eauto.
-      - i; hexploit KSIM3; clear KSIM3 KSIM4; eauto. i. eapply upaco9_mon_bot; eauto.
-      - i; hexploit KSIM4; clear KSIM3 KSIM4; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
+      - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. eapply upaco9_mon_bot; eauto.
+      - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
     }
 
     { clear rr IH. pfold. eapply pind9_fold. eapply ksim_sync; eauto. i.
       specialize (KSIM0 tid0). des; eauto. right.
       esplits; eauto.
-      - i; hexploit KSIM3; clear KSIM3 KSIM4; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
-      - i; hexploit KSIM4; clear KSIM3 KSIM4; eauto. i. des. esplits; eauto. i. specialize (H1 _ FAIR); des.
+      - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
+      - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. specialize (H1 _ FAIR); des.
         esplits; eauto. i. eapply upaco9_mon_bot; eauto.
     }
 
@@ -548,16 +554,16 @@ Section KSIM.
     { clear rr IH. pfold. eapply pind9_fold. eapply ksim_ret_cont; eauto. i.
       specialize (KSIM0 tid0). des; eauto. right.
       esplits; eauto.
-      - i; hexploit KSIM3; clear KSIM3 KSIM4; eauto. i. eapply upaco9_mon_bot; eauto.
-      - i; hexploit KSIM4; clear KSIM3 KSIM4; eauto. i. des. esplits; eauto.
+      - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. eapply upaco9_mon_bot; eauto.
+      - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto.
         i. eapply upaco9_mon_bot; eauto.
     }
 
     { clear rr IH. pfold. eapply pind9_fold. eapply ksim_sync; eauto. i.
       specialize (KSIM0 tid0). des; eauto. right.
       esplits; eauto.
-      - i; hexploit KSIM3; clear KSIM3 KSIM4; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
-      - i; hexploit KSIM4; clear KSIM3 KSIM4; eauto. i. des. esplits; eauto. i. specialize (H1 _ FAIR); des.
+      - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
+      - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. specialize (H1 _ FAIR); des.
         esplits; eauto. i. eapply upaco9_mon_bot; eauto.
     }
 
