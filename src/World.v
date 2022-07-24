@@ -127,3 +127,80 @@ Section INVARIANT.
     }
   Qed.
 End INVARIANT.
+
+Section AUX.
+
+  Context `{M: URA.t}.
+
+  Lemma get_resource_find_some_snd
+        (rs: local_resources)
+        tid
+        r
+        (SOME: NatMap.find tid rs = Some r)
+    :
+    snd (get_resource tid rs) = NatMap.remove tid rs.
+  Proof.
+    unfold get_resource. hexploit nm_pop_res_is_rm_eq; eauto. unfold nm_pop. des_ifs.
+  Qed.
+
+  Lemma get_resource_find_none_snd
+        (rs: local_resources)
+        tid
+        (NONE: NatMap.find tid rs = None)
+    :
+    snd (get_resource tid rs) = rs.
+  Proof.
+    unfold get_resource. unfold nm_pop. rewrite NONE. ss.
+  Qed.
+
+  Lemma get_resource_remove_eq
+        (rs: local_resources)
+        tid
+    :
+    get_resource tid (NatMap.remove tid rs) = (ε, NatMap.remove tid rs).
+  Proof.
+    unfold get_resource. unfold nm_pop. rewrite nm_find_rm_eq. ss.
+  Qed.
+
+  Lemma get_resource_remove_neq_fst
+        (rs: local_resources)
+        tid0 tid1
+        (NEQ: tid0 <> tid1)
+    :
+    fst (get_resource tid1 (NatMap.remove tid0 rs)) = fst (get_resource tid1 rs).
+  Proof.
+    unfold get_resource. unfold nm_pop. rewrite nm_find_rm_neq; auto. des_ifs.
+  Qed.
+
+  Lemma get_resource_add_eq
+        (rs: local_resources)
+        tid r
+    :
+    get_resource tid (NatMap.add tid r rs) = (r, NatMap.remove tid rs).
+  Proof.
+    unfold get_resource. rewrite nm_pop_add_eq. ss.
+  Qed.
+
+  Lemma get_resource_add_neq_fst
+        (rs: local_resources)
+        tid0 tid1 r
+        (NEQ: tid0 <> tid1)
+    :
+    fst (get_resource tid1 (NatMap.add tid0 r rs)) = fst (get_resource tid1 rs).
+  Proof.
+    unfold get_resource. unfold nm_pop. rewrite nm_find_add_neq; auto. des_ifs.
+  Qed.
+
+  Lemma get_resource_rs_neq
+        rs
+        tid0 tid1
+        (NEQ: tid0 <> tid1)
+    :
+    fst (get_resource tid1 (snd (get_resource tid0 rs))) = fst (get_resource tid1 rs).
+  Proof.
+    destruct (NatMap.find tid0 rs) eqn:FIND.
+    { erewrite get_resource_find_some_snd; eauto. rewrite get_resource_remove_neq_fst; auto. }
+    { erewrite get_resource_find_none_snd; eauto. }
+  Qed.
+
+End AUX.
