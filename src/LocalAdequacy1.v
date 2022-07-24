@@ -153,6 +153,7 @@ Section PROOF.
           { eapply nm_pop_find_some; eauto. }
           exists sf0, th_src, ths_src0, th_tgt, ths_tgt0.
           splits; auto.
+
           - i; clarify.
             hexploit LOCAL. eauto. eapply FINDS. eapply FINDT. i; des.
             hexploit H2; clear H2 H3; ss. i. unfold local_sim_sync in H2.
@@ -167,50 +168,102 @@ Section PROOF.
               - intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
                 assert (URAWF: URA.wf (r_shared0 ⋅ fst (get_resource tid1 rs_ctx) ⋅ r_ctx0)).
                 { replace (fst (get_resource tid1 rs_ctx)) with r_own0; auto. rewrite OWN.
-                  (*TODO*)
-
-                  
-                  unfold get_resource.
-                  replace (nm_pop tid0 (NatMap.add tid r_own rs_ctx)) with (Some 
-                    
-
-                  des_ifs.
-                assert (WORLD1: world_le w w0).
-                { etransitivity; eauto. }
-                specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+                  rewrite get_resource_rs_neq. rewrite get_resource_add_neq_fst. auto.
+                  - destruct (tid_dec tid tid1); auto. clarify.
+                    exfalso. revert THTGT H0 LTGT. clear; i.
+                    hexploit nm_pop_res_is_rm_eq. eapply H0. i. clarify.
+                    destruct (tid_dec tid0 tid1); clarify.
+                    + rewrite nm_find_rm_eq in LTGT. ss.
+                    + rewrite nm_find_rm_neq in LTGT; clarify.
+                  - destruct (tid_dec tid0 tid1); auto. clarify.
+                    exfalso. revert H0 FINDT LTGT. clear; i.
+                    hexploit nm_pop_res_is_rm_eq. eapply H0. i. clarify.
+                    rewrite nm_find_rm_eq in LTGT. ss.
+                }
+                specialize (SYNC _ _ _ _ _ _ _ _ _ INV0 URAWF fs ft _ FAIR0). auto.
               - intro PICK. eapply H4 in PICK. ii. unfold local_sim_pick in PICK.
-                assert (WORLD1: world_le w w0).
-                { etransitivity; eauto. }
-                specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+                assert (URAWF: URA.wf (r_shared0 ⋅ fst (get_resource tid1 rs_ctx) ⋅ r_ctx0)).
+                { replace (fst (get_resource tid1 rs_ctx)) with r_own0; auto. rewrite OWN.
+                  rewrite get_resource_rs_neq. rewrite get_resource_add_neq_fst. auto.
+                  - destruct (tid_dec tid tid1); auto. clarify.
+                    exfalso. revert THTGT H0 LTGT. clear; i.
+                    hexploit nm_pop_res_is_rm_eq. eapply H0. i. clarify.
+                    destruct (tid_dec tid0 tid1); clarify.
+                    + rewrite nm_find_rm_eq in LTGT. ss.
+                    + rewrite nm_find_rm_neq in LTGT; clarify.
+                  - destruct (tid_dec tid0 tid1); auto. clarify.
+                    exfalso. revert H0 FINDT LTGT. clear; i.
+                    hexploit nm_pop_res_is_rm_eq. eapply H0. i. clarify.
+                    rewrite nm_find_rm_eq in LTGT. ss.
+                }
+                specialize (PICK _ _ _ _ _ _ _ _ _ INV0 URAWF fs ft _ FAIR0). auto.
             }
-            eapply find_none_aux; eauto. eapply find_none_aux; eauto.
-            auto.
+            eapply find_none_aux; eauto. eapply find_none_aux; eauto. auto.
+            { assert (NEQ: tid <> tid0).
+              { destruct (tid_dec tid tid0); auto. clarify. }
+              destruct (NatMap.find tid0 (NatMap.add tid r_own rs_ctx)) eqn:FIND0.
+              { erewrite get_resource_find_some_snd; eauto. apply nm_find_rm_eq. }
+              { rewrite get_resource_find_none_snd; auto. }
+            }
             rewrite <- PROJS, <- PROJT. eapply H2; eauto.
+            { revert VALID. assert (NEQ: tid <> tid0).
+              { destruct (tid_dec tid tid0); auto. clarify. }
+              eapply ura_wf_get_resource_neq; auto.
+            }
 
           - i. clarify.
-            hexploit LOCAL. eapply FINDS. eapply FINDT. i; des.
+            hexploit LOCAL. eauto. eapply FINDS. eapply FINDT. i; des.
             hexploit H3; clear H2 H3; ss. i. unfold local_sim_pick in H2.
             assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)).
             { eapply proj_aux; eauto. }
             assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)).
             { eapply proj_aux; eauto. }
-            hexploit H2; eauto.
+            hexploit H2; clear H2; eauto.
+            { instantiate (1:= sum_of_resources (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx)))).
+              revert VALID. eapply ura_wf_get_resource_neq; auto.
+              destruct (tid_dec tid tid0); auto. clarify.
+            }
             i; des. esplits; eauto. i.
             rewrite PROJS, PROJT. right. eapply CIH.
-            { i. hexploit LOCAL.
+            { i. hexploit LOCAL. eauto.
               eapply find_some_aux; eauto. eapply find_some_aux; eauto.
               i; des. split.
-              - intro SYNC. eapply H6 in SYNC. ii. unfold local_sim_sync in SYNC.
-                assert (WORLD1: world_le w w0).
-                { do 2 (etransitivity; eauto). }
-                specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
-              - intro PICK. eapply H7 in PICK. ii. unfold local_sim_pick in PICK.
-                assert (WORLD1: world_le w w0).
-                { do 2 (etransitivity; eauto). }
-                specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+              - intro SYNC. eapply H4 in SYNC. clear H4 H5. ii. unfold local_sim_sync in SYNC.
+                eapply SYNC; eauto. rewrite OWN in VALID0.
+                replace (fst (get_resource tid1 rs_ctx)) with (fst (get_resource tid1 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))))). auto.
+                rewrite get_resource_rs_neq. rewrite get_resource_add_neq_fst. auto.
+                + destruct (tid_dec tid tid1); auto. clarify.
+                  exfalso. revert THTGT H0 LTGT. clear; i.
+                  hexploit nm_pop_res_is_rm_eq. eapply H0. i. clarify.
+                  destruct (tid_dec tid0 tid1); clarify.
+                  * rewrite nm_find_rm_eq in LTGT. ss.
+                  * rewrite nm_find_rm_neq in LTGT; clarify.
+                + destruct (tid_dec tid0 tid1); auto. clarify.
+                  exfalso. revert H0 FINDT LTGT. clear; i.
+                  hexploit nm_pop_res_is_rm_eq. eapply H0. i. clarify.
+                  rewrite nm_find_rm_eq in LTGT. ss.
+              - intro PICK. eapply H5 in PICK. clear H4 H5. ii. unfold local_sim_pick in PICK.
+                eapply PICK; eauto. rewrite OWN in VALID0.
+                replace (fst (get_resource tid1 rs_ctx)) with (fst (get_resource tid1 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))))). auto.
+                rewrite get_resource_rs_neq. rewrite get_resource_add_neq_fst. auto.
+                + destruct (tid_dec tid tid1); auto. clarify.
+                  exfalso. revert THTGT H0 LTGT. clear; i.
+                  hexploit nm_pop_res_is_rm_eq. eapply H0. i. clarify.
+                  destruct (tid_dec tid0 tid1); clarify.
+                  * rewrite nm_find_rm_eq in LTGT. ss.
+                  * rewrite nm_find_rm_neq in LTGT; clarify.
+                + destruct (tid_dec tid0 tid1); auto. clarify.
+                  exfalso. revert H0 FINDT LTGT. clear; i.
+                  hexploit nm_pop_res_is_rm_eq. eapply H0. i. clarify.
+                  rewrite nm_find_rm_eq in LTGT. ss.
             }
-            eapply find_none_aux; eauto. eapply find_none_aux; eauto.
-            auto.
+            eapply find_none_aux; eauto. eapply find_none_aux; eauto. auto.
+            { assert (NEQ: tid <> tid0).
+              { destruct (tid_dec tid tid0); auto. clarify. }
+              destruct (NatMap.find tid0 (NatMap.add tid r_own rs_ctx)) eqn:FIND0.
+              { erewrite get_resource_find_some_snd; eauto. apply nm_find_rm_eq. }
+              { rewrite get_resource_find_none_snd; auto. }
+            }
             rewrite <- PROJS, <- PROJT. eapply lsim_set_prog. eauto.
         }
       }
@@ -287,7 +340,10 @@ Section PROOF.
     }
 
     { clear IH rr. clarify. rewrite ! bind_trigger.
-      pfold. eapply pind9_fold. eapply ksim_sync; eauto. i.
+      pfold. eapply pind9_fold. eapply ksim_sync; eauto.
+      { instantiate (1:=r_own). instantiate (1:=r_shared1). unfold resources_wf.
+        rewrite sum_of_resources_add; auto. r_wf VALID. }
+      i.
       assert (WF0: th_wf_pair (Th.add tid (true, ktr_src ()) ths_src) (Th.add tid (ktr_tgt ()) ths_tgt)).
       { unfold th_wf_pair, nm_wf_pair in *. rewrite ! key_set_pull_add_eq. rewrite WF. reflexivity. }
       hexploit th_wf_pair_pop_cases.
@@ -296,6 +352,7 @@ Section PROOF.
       right. destruct th_src as [sf0 th_src].
       exists sf0, th_src, ths_src0, th_tgt, ths_tgt0.
       splits; auto.
+
       - i; clarify. esplits; eauto. i.
         assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))).
         { eapply proj_add_aux; eauto. }
@@ -309,102 +366,135 @@ Section PROOF.
           assert (ths_src0 = ths_src /\ th_src = (ktr_src ())).
           { hexploit nm_pop_find_none_add_same_eq. eapply THSRC. eauto. i; des; clarify. }
           des; clarify. right. eapply CIH; eauto.
-          { i. hexploit LOCAL. 1,2: eauto. i; des. split.
-            - intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
-              assert (WORLD1: world_le w w0).
-              { etransitivity; eauto. }
-              specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
-            - intro PICK. eapply H3 in PICK. ii. unfold local_sim_pick in PICK.
-              assert (WORLD1: world_le w w0).
-              { etransitivity; eauto. }
-              specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+          { i. hexploit LOCAL. eauto. 1,2: eauto. i; des. split.
+            - intro SYNC. eapply H2 in SYNC. clear H2 H3. ii. unfold local_sim_sync in SYNC.
+              eapply SYNC; eauto. rewrite OWN in VALID0.
+              replace (fst (get_resource tid0 rs_ctx)) with (fst (get_resource tid0 (snd (get_resource tid (NatMap.add tid r_own rs_ctx))))). auto.
+              destruct (tid_dec tid tid0); clarify.
+              rewrite get_resource_rs_neq; auto. rewrite get_resource_add_neq_fst; auto.
+            - intro PICK. eapply H3 in PICK. clear H2 H3. ii. unfold local_sim_pick in PICK.
+              eapply PICK; eauto. rewrite OWN in VALID0.
+              replace (fst (get_resource tid0 rs_ctx)) with (fst (get_resource tid0 (snd (get_resource tid (NatMap.add tid r_own rs_ctx))))). auto.
+              destruct (tid_dec tid tid0); clarify.
+              rewrite get_resource_rs_neq; auto. rewrite get_resource_add_neq_fst; auto.
           }
-          hexploit LSIM0; eauto. reflexivity.
-          i. pclearbot.
+          { rewrite get_resource_add_eq. ss. apply nm_find_rm_eq. }
+          hexploit LSIM0; eauto. i. pclearbot.
           match goal with
-          | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
+          | |- lsim _ _ tid _ _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
           end.
           { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
-          rewrite H3. eapply lsim_set_prog. auto.
+          rewrite H3; clear H3. eapply lsim_set_prog.
+          replace (sum_of_resources (snd (get_resource tid (NatMap.add tid r_own rs_ctx)))) with
+            (sum_of_resources rs_ctx); auto.
+          rewrite get_resource_add_eq. ss. rewrite nm_find_none_rm_eq; auto.
         }
+
         right. eapply CIH.
         { i. destruct (tid_dec tid tid1) eqn:TID2; subst.
           { rename tid1 into tid.
             pose nm_pop_neq_find_some_eq. dup H. eapply e in H2; eauto. dup H0. eapply e in H3; eauto.
             inv H2. split; i; ss. clear H2.
-            ii. hexploit LSIM0. eapply INV0. auto. eauto.
+            ii. hexploit LSIM0. eapply INV0.
+            { rewrite get_resource_rs_neq in VALID0; auto.
+              rewrite get_resource_add_eq in VALID0. ss. eauto.
+            }
+            eauto.
             i. pclearbot.
             match goal with
-            | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
+            | |- lsim _ _ tid _ _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
             end.
             { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
             rewrite H3. eapply lsim_set_prog. auto.
           }
-          { hexploit LOCAL.
+          { hexploit LOCAL. eauto.
             eapply find_some_neq_aux; eauto. eapply find_some_neq_aux; eauto.
             i; des. split.
-            - intro SYNC. eapply H2 in SYNC. ii. unfold local_sim_sync in SYNC.
-              assert (WORLD1: world_le w w0).
-              { etransitivity; eauto. }
-              specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
-            - intro PICK. eapply H3 in PICK. ii. unfold local_sim_pick in PICK.
-              assert (WORLD1: world_le w w0).
-              { etransitivity; eauto. }
-              specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+            - intro SYNC. eapply H2 in SYNC. clear H2 H3. ii. unfold local_sim_sync in SYNC.
+              eapply SYNC; eauto.
+              rewrite get_resource_rs_neq in VALID0. rewrite get_resource_add_neq_fst in VALID0; auto.
+              destruct (tid_dec tid0 tid1); auto; subst.
+              exfalso. revert LTGT H0. clear; i.
+              hexploit nm_pop_res_is_rm_eq; eauto. i. rewrite <- H in LTGT.
+              rewrite nm_find_rm_eq in LTGT. ss.
+            - intro PICK. eapply H3 in PICK. clear H2 H3. ii. unfold local_sim_pick in PICK.
+              eapply PICK; eauto.
+              rewrite get_resource_rs_neq in VALID0. rewrite get_resource_add_neq_fst in VALID0; auto.
+              destruct (tid_dec tid0 tid1); auto; subst.
+              exfalso. revert LTGT H0. clear; i.
+              hexploit nm_pop_res_is_rm_eq; eauto. i. rewrite <- H in LTGT.
+              rewrite nm_find_rm_eq in LTGT. ss.
           }
         }
-        eapply find_none_aux; eauto. eapply find_none_aux; eauto.
-        auto.
-        hexploit LOCAL.
+        eapply find_none_aux; eauto. eapply find_none_aux; eauto. auto.
+        { destruct (NatMap.find tid0 (NatMap.add tid r_own rs_ctx)) eqn:FIND0.
+          { erewrite get_resource_find_some_snd; eauto. apply nm_find_rm_eq. }
+          { rewrite get_resource_find_none_snd; auto. }
+        }
+        hexploit LOCAL. eauto.
         eapply find_some_neq_simpl_aux; eauto. eapply find_some_neq_simpl_aux; eauto.
-        i; des. hexploit H2; ss.
+        i; des. hexploit H2; ss. clear H2 H3.
         intro SYNC. unfold local_sim_sync in SYNC.
-        hexploit SYNC.
-        1,2,3: eauto.
-        i. rewrite <- PROJS, <- PROJT. eauto.
+        rewrite <- PROJS, <- PROJT. eapply SYNC; eauto. clear SYNC.
+        eapply ura_wf_get_resource_neq; eauto.
 
       - i; clarify. destruct (tid_dec tid tid0) eqn:TID1.
         { clarify. exfalso. hexploit nm_pop_find_none_add_same_equal. eapply THSRC. eauto. i; des; clarify. }
         esplits; eauto. i.
-        hexploit LOCAL.
+        hexploit LOCAL. eauto.
         eapply find_some_neq_simpl_aux; eauto. eapply find_some_neq_simpl_aux; eauto.
-        i; des. hexploit H3; ss. intro PICK. unfold local_sim_pick in PICK. hexploit PICK.
-        1,3: eauto. auto.
+        i; des. hexploit H3; ss. clear H2 H3. intro PICK.
+        unfold local_sim_pick in PICK. hexploit PICK; clear PICK.
+        1,3: eauto.
+        { instantiate (1:= sum_of_resources (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx)))).
+          revert VALID. eapply ura_wf_get_resource_neq; auto.
+        }
         i; des. esplits; eauto.
         assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))).
         { eapply proj_add_aux; eauto. }
         assert (PROJT: (NatSet.add tid (key_set ths_tgt)) = (NatSet.add tid0 (key_set ths_tgt0))).
         { eapply proj_add_aux; eauto. }
         rewrite PROJS, PROJT. right. eapply CIH.
+
         { i. destruct (tid_dec tid tid1) eqn:TID2; subst.
           { rename tid1 into tid.
-            pose nm_pop_neq_find_some_eq. dup H. eapply e in H7; eauto. dup H0. eapply e in H8; eauto.
-            inv H7. split; i; ss. clear H2.
+            pose nm_pop_neq_find_some_eq. dup H. eapply e in H4; eauto. dup H0. eapply e in H5; eauto.
+            inv H4. split; i; ss. clear H4.
             ii. hexploit LSIM0. eapply INV0.
-            { etransitivity; eauto. }
-            eauto.
-            i. pclearbot.
+            { instantiate (1:=r_ctx0). rewrite get_resource_rs_neq in VALID0; auto.
+              rewrite get_resource_add_eq in VALID0. ss.
+            }
+            eauto. i. pclearbot.
             match goal with
-            | |- lsim _ _ _ tid _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
+            | |- lsim _ _ tid _ _ _ ?_itr _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
             end.
             { rewrite bind_trigger. f_equal. f_equal. extensionality x. destruct x. ss. }
-            rewrite H8. eapply lsim_set_prog. auto.
+            rewrite H5. eapply lsim_set_prog. auto.
           }
-          { hexploit LOCAL.
+          { hexploit LOCAL. eauto.
             eapply find_some_neq_aux; eauto. eapply find_some_neq_aux; eauto.
             i; des. split.
-            - intro SYNC. eapply H7 in SYNC. ii. unfold local_sim_sync in SYNC.
-              assert (WORLD1: world_le w w2).
-              { etransitivity. 2:eauto. etransitivity; eauto. }
-              specialize (SYNC _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
-            - clear PICK; intro PICK. eapply H8 in PICK. ii. unfold local_sim_pick in PICK.
-              assert (WORLD1: world_le w w2).
-              { etransitivity. 2:eauto. etransitivity; eauto. }
-              specialize (PICK _ _ _ _ _ _ _ _ INV0 WORLD1 fs ft _ FAIR0). auto.
+            - intro SYNC. eapply H4 in SYNC. clear H4 H5. ii. unfold local_sim_sync in SYNC.
+              eapply SYNC; eauto.
+              rewrite get_resource_rs_neq in VALID0. rewrite get_resource_add_neq_fst in VALID0; auto.
+              destruct (tid_dec tid0 tid1); auto; subst.
+              exfalso. revert LTGT H0. clear; i.
+              hexploit nm_pop_res_is_rm_eq; eauto. i. rewrite <- H in LTGT.
+              rewrite nm_find_rm_eq in LTGT. ss.
+            - intro PICK. eapply H5 in PICK. clear H4 H5. ii. unfold local_sim_pick in PICK.
+              eapply PICK; eauto.
+              rewrite get_resource_rs_neq in VALID0. rewrite get_resource_add_neq_fst in VALID0; auto.
+              destruct (tid_dec tid0 tid1); auto; subst.
+              exfalso. revert LTGT H0. clear; i.
+              hexploit nm_pop_res_is_rm_eq; eauto. i. rewrite <- H in LTGT.
+              rewrite nm_find_rm_eq in LTGT. ss.
           }
         }
-        eapply find_none_aux; eauto. eapply find_none_aux; eauto.
-        auto.
+        eapply find_none_aux; eauto. eapply find_none_aux; eauto. auto.
+        { destruct (NatMap.find tid0 (NatMap.add tid r_own rs_ctx)) eqn:FIND0.
+          { erewrite get_resource_find_some_snd; eauto. apply nm_find_rm_eq. }
+          { rewrite get_resource_find_none_snd; auto. }
+        }
         rewrite <- PROJS, <- PROJT. eapply lsim_set_prog. eauto.
     }
 
@@ -417,6 +507,5 @@ Section PROOF.
     { clarify. pclearbot. pfold. eapply pind9_fold. eapply ksim_progress. right. eapply CIH; eauto. }
 
   Qed.
-
 
 End PROOF.

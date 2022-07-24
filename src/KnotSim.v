@@ -630,3 +630,8 @@ Section KSIM.
   Qed.
 
 End KSIM.
+#[export] Hint Constructors __sim_knot: core.
+#[export] Hint Unfold sim_knot: core.
+#[export] Hint Resolve __ksim_mon: paco.
+#[export] Hint Resolve _ksim_mon: paco.
+#[export] Hint Resolve ksim_mon: paco.

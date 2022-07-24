@@ -132,6 +132,26 @@ Section AUX.
 
   Context `{M: URA.t}.
 
+  Lemma get_resource_find_some
+        (rs: local_resources)
+        tid
+        r
+        (SOME: NatMap.find tid rs = Some r)
+    :
+    get_resource tid rs = (r, NatMap.remove tid rs).
+  Proof.
+    unfold get_resource, nm_pop. rewrite SOME. ss.
+  Qed.
+
+  Lemma get_resource_find_some_fst
+        (rs: local_resources)
+        tid
+        r
+        (SOME: NatMap.find tid rs = Some r)
+    :
+    fst (get_resource tid rs) = r.
+  Proof. hexploit get_resource_find_some; eauto. i. rewrite H. ss. Qed.
+
   Lemma get_resource_find_some_snd
         (rs: local_resources)
         tid
@@ -139,9 +159,25 @@ Section AUX.
         (SOME: NatMap.find tid rs = Some r)
     :
     snd (get_resource tid rs) = NatMap.remove tid rs.
+  Proof. hexploit get_resource_find_some; eauto. i. rewrite H. ss. Qed.
+
+  Lemma get_resource_find_none
+        (rs: local_resources)
+        tid
+        (NONE: NatMap.find tid rs = None)
+    :
+    get_resource tid rs = (ε, rs).
   Proof.
-    unfold get_resource. hexploit nm_pop_res_is_rm_eq; eauto. unfold nm_pop. des_ifs.
+    unfold get_resource. unfold nm_pop. rewrite NONE. ss.
   Qed.
+
+  Lemma get_resource_find_none_fst
+        (rs: local_resources)
+        tid
+        (NONE: NatMap.find tid rs = None)
+    :
+    fst (get_resource tid rs) = ε.
+  Proof. hexploit get_resource_find_none; eauto. i. rewrite H. ss. Qed.
 
   Lemma get_resource_find_none_snd
         (rs: local_resources)
@@ -149,9 +185,7 @@ Section AUX.
         (NONE: NatMap.find tid rs = None)
     :
     snd (get_resource tid rs) = rs.
-  Proof.
-    unfold get_resource. unfold nm_pop. rewrite NONE. ss.
-  Qed.
+  Proof. hexploit get_resource_find_none; eauto. i. rewrite H. ss. Qed.
 
   Lemma get_resource_remove_eq
         (rs: local_resources)
@@ -170,6 +204,28 @@ Section AUX.
     fst (get_resource tid1 (NatMap.remove tid0 rs)) = fst (get_resource tid1 rs).
   Proof.
     unfold get_resource. unfold nm_pop. rewrite nm_find_rm_neq; auto. des_ifs.
+  Qed.
+
+  Lemma get_resource_remove_neq_find_some
+        (rs: local_resources)
+        tid0 tid1 r
+        (NEQ: tid0 <> tid1)
+        (SOME: NatMap.find tid1 rs = Some r)
+    :
+    get_resource tid1 (NatMap.remove tid0 rs) = (r, NatMap.remove tid1 (NatMap.remove tid0 rs)).
+  Proof.
+    unfold get_resource. unfold nm_pop. rewrite nm_find_rm_neq; auto. rewrite SOME. ss.
+  Qed.
+
+  Lemma get_resource_remove_neq_find_none
+        (rs: local_resources)
+        tid0 tid1
+        (NEQ: tid0 <> tid1)
+        (NONE: NatMap.find tid1 rs = None)
+    :
+    get_resource tid1 (NatMap.remove tid0 rs) = (ε, NatMap.remove tid0 rs).
+  Proof.
+    unfold get_resource. unfold nm_pop. rewrite nm_find_rm_neq; auto. rewrite NONE. ss.
   Qed.
 
   Lemma get_resource_add_eq
@@ -191,6 +247,28 @@ Section AUX.
     unfold get_resource. unfold nm_pop. rewrite nm_find_add_neq; auto. des_ifs.
   Qed.
 
+  Lemma get_resource_add_neq_find_some
+        (rs: local_resources)
+        tid0 tid1 r r0
+        (NEQ: tid0 <> tid1)
+        (SOME: NatMap.find tid1 rs = Some r0)
+    :
+    get_resource tid1 (NatMap.add tid0 r rs) = (r0, NatMap.remove tid1 (NatMap.add tid0 r rs)).
+  Proof.
+    unfold get_resource. unfold nm_pop. rewrite nm_find_add_neq; auto. rewrite SOME. ss.
+  Qed.
+
+  Lemma get_resource_add_neq_find_none
+        (rs: local_resources)
+        tid0 tid1 r
+        (NEQ: tid0 <> tid1)
+        (NONE: NatMap.find tid1 rs = None)
+    :
+    get_resource tid1 (NatMap.add tid0 r rs) = (ε, (NatMap.add tid0 r rs)).
+  Proof.
+    unfold get_resource. unfold nm_pop. rewrite nm_find_add_neq; auto. rewrite NONE. ss.
+  Qed.
+
   Lemma get_resource_rs_neq
         rs
         tid0 tid1
@@ -201,6 +279,35 @@ Section AUX.
     destruct (NatMap.find tid0 rs) eqn:FIND.
     { erewrite get_resource_find_some_snd; eauto. rewrite get_resource_remove_neq_fst; auto. }
     { erewrite get_resource_find_none_snd; eauto. }
+  Qed.
+
+  Lemma ura_wf_get_resource_neq
+        g r_own rs_ctx
+        tid tid0
+        (NEQ: tid <> tid0)
+        (RSWF: NatMap.find tid rs_ctx = None)
+        (URAWF: URA.wf (g ⋅ r_own ⋅ sum_of_resources rs_ctx))
+    :
+    URA.wf (g ⋅ fst (get_resource tid0 rs_ctx)
+              ⋅ sum_of_resources (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx)))).
+  Proof.
+    destruct (NatMap.find tid0 rs_ctx) eqn:FIND.
+    { erewrite get_resource_add_neq_find_some; eauto. ss.
+      erewrite get_resource_find_some_fst; eauto.
+      assert (FIND2: NatMap.find tid0 (NatMap.add tid r_own rs_ctx) = Some c).
+      { rewrite nm_find_add_neq; auto. }
+      hexploit sum_of_resources_remove. eapply FIND2. i.
+      rewrite URA.add_comm in H.
+      replace (g ⋅ c ⋅ sum_of_resources (NatMap.remove (elt:=M) tid0 (NatMap.add tid r_own rs_ctx))) with (g ⋅ sum_of_resources (NatMap.add tid r_own rs_ctx)).
+      2:{ rewrite H. r_solve. }
+      hexploit sum_of_resources_add; eauto. instantiate (1:=r_own). i.
+      rewrite H0. r_wf URAWF.
+    }
+    { erewrite get_resource_add_neq_find_none; eauto. ss.
+      erewrite get_resource_find_none_fst; eauto.
+      hexploit sum_of_resources_add. eapply RSWF. instantiate (1:=r_own). i.
+      rewrite H. r_wf URAWF.
+    }
   Qed.
 
 End AUX.
