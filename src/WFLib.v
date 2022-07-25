@@ -1,7 +1,28 @@
 From sflib Require Import sflib.
+From Coq Require Import Relations.Relation_Operators.
 Set Implicit Arguments.
 
 (* TODO: definitions copied from Ordinal library *)
+
+Variant succ_rel (n : nat) : nat -> Prop := succ_rel_intro : succ_rel n (S n).
+
+Lemma succ_rel_well_founded : well_founded succ_rel.
+Proof. ii. induction a; econs; i; inversion H. ss. Qed.
+
+Lemma succ_clos_trans : forall m n, clos_trans_n1 nat succ_rel m n <-> m < n.
+Proof.
+  split.
+  - revert m. induction n.
+    + i. exfalso. inversion H; inversion H0.
+    + i. inversion H.
+      * inversion H0. ss.
+      * inversion H0. subst. econs. eapply IHn, H1.
+  - revert m. induction n.
+    + i. inversion H.
+    + i. inversion H.
+      * econs 1. econs.
+      * econs 2. econs. eapply IHn. ss.
+Qed.
 
 Variant double_rel A B (RA: A -> A -> Prop) (RB: B -> B -> Prop)
   : A * B -> A * B -> Prop :=
