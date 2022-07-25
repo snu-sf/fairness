@@ -581,20 +581,29 @@ Section NAT.
   Variable wf_tgt_inhabited: inhabited wf_tgt.(T).
   Variable wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1.
 
-  Let wf_tgt_0: wf_tgt.(T) := epsilon _ wf_tgt_inhabited (fun _ => True).
-  Let wf_tgt_S: wf_tgt.(T) -> wf_tgt.(T) :=
-        fun o0 => epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
+  Definition wf_tgt_0: wf_tgt.(T) := epsilon _ wf_tgt_inhabited (fun _ => True).
+  Definition wf_tgt_S: wf_tgt.(T) -> wf_tgt.(T) :=
+    fun o0 => epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
 
   Let wf_tgt_S_lt o: wf_tgt.(lt) o (wf_tgt_S o).
-  Proof.
-    eapply epsilon_spec. eauto.
-  Qed.
+  Proof. unfold wf_tgt_S. eapply epsilon_spec; ss. Qed.
 
-  Let Fixpoint nat_to_wf_tgt (n: nat): wf_tgt.(T) :=
-        match n with
-        | 0 => wf_tgt_0
-        | S n => wf_tgt_S (nat_to_wf_tgt n)
-        end.
+  Fixpoint nat_to_wf_tgt (n: nat): wf_tgt.(T) :=
+    match n with
+    | 0 => wf_tgt_0
+    | S n => wf_tgt_S (nat_to_wf_tgt n)
+    end.
+
+  (*
+  Lemma nat_to_wf_tgt_mono : forall m n, m < n -> lt wf_tgt (nat_to_wf_tgt m) (nat_to_wf_tgt n).
+  Proof.
+    i. revert H. induction n; try lia. i.
+    assert (m = n \/ m < n) by lia.
+    destruct H0.
+    - subst. ss.
+    - specialize (IHn H0). admit.
+  Admitted.
+   *)
 
   Context `{M: URA.t}.
 
@@ -609,21 +618,45 @@ Section NAT.
   Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Let shared_rel: Type := @shared M state_src state_tgt (ident_src _ident_src) (ident_tgt _ident_tgt) wf_src wf_tgt  -> Prop.
+  Let shared_rel: Type := @shared M state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt  -> Prop.
 
   Variable I: shared_rel.
 
-  Let shared_rel_nat: Type := @shared M state_src state_tgt (ident_src _ident_src) (ident_tgt _ident_tgt) wf_src nat_wf  -> Prop.
+  Let shared_rel_nat: Type := @shared M state_src state_tgt _ident_src _ident_tgt wf_src nat_wf  -> Prop.
+
+  Definition to_shared_rel_nat : shared_rel_nat := 
+    fun '(ths, m_src, m_tgt, st_src, st_tgt, w) =>
+      exists m_tgt',
+        (forall i, m_tgt i <= m_tgt' i)
+        /\ I (ths, m_src, nat_to_wf_tgt ∘ m_tgt', st_src, st_tgt, w).
+
 End NAT.
 
-
 Section MODSIMNAT.
-  Variable md_src: Mod.t.
-  Variable md_tgt: Mod.t.
+  Import Mod.
+
+  Variable M_src M_tgt: Mod.t.
 
   Lemma modsim_nat_modsim_exist
-        (SIM: ModSim.mod_sim md_src md_tgt)
-    :
-    ModSimN.mod_sim md_src md_tgt.
+    (SIM: ModSim.mod_sim M_src M_tgt)
+    : ModSimN.mod_sim M_src M_tgt.
+  Proof.
+    (*
+    destruct SIM.
+    pose (nat_to_wf_tgt wf_tgt wf_tgt_inhabited) as wf_emb.
+    pose (to_shared_rel_nat wf_tgt_inhabited I) as I'.
+    constructor 1 with wf_src world I'.
+    { i. specialize (init (wf_emb ∘ im_tgt)). des. exists im_src, r_shared. ss. exists im_tgt. ss. }
+    i. specialize (funs0 fn args). des_ifs. rename funs0 into SIM.
+    ii. ss. des.
+    specialize (SIM ths0 im_src0 (wf_emb ∘ m_tgt') st_src0 st_tgt0 r_shared0 r_ctx0 INV0 tid ths1 THS VALID). des.
+    exists r_shared1, r_own1. splits; ss. { exists m_tgt'. splits; ss. }
+    i. specialize (SIM1 ths im_src1 (wf_emb ∘ m_tgt') st_src st_tgt r_shared2 r_ctx2 INV1 VALID1 (wf_emb ∘ im_tgt2)).
+    hexploit SIM1; clear SIM1.
+    { ii. specialize (TGT i). des_ifs.
+      - ss.
+      admit. }
+    intro SIM. des.
+    *)
   Admitted.
 End MODSIMNAT.
