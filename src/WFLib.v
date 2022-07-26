@@ -63,3 +63,90 @@ Proof.
   { right. reflexivity. }
   { eauto. }
 Qed.
+
+Variant option_lt A (R: A -> A -> Prop): option A -> option A -> Prop :=
+  | optoin_lt_top
+      a
+    :
+    option_lt R (Some a) None
+  | optoin_lt_normal
+      a0 a1
+      (LT: R a0 a1)
+    :
+    option_lt R (Some a0) (Some a1)
+.
+
+Lemma option_lt_well_founded A (R: A -> A -> Prop)
+      (WF: well_founded R)
+  :
+  well_founded (option_lt R).
+Proof.
+  cut (forall a, Acc (option_lt R) (Some a)).
+  { ii. destruct a; ss. econs. i. inv H0; ss. }
+  i. induction (WF a). econs.
+  i. inv H1. eauto.
+Qed.
+
+Variant sum_lt
+        A B (RA: A -> A -> Prop) (RB: B -> B -> Prop):
+  A + B -> A + B -> Prop :=
+  | sum_lt_left
+      a0 a1
+      (LT: RA a0 a1)
+    :
+    sum_lt RA RB (inl a0) (inl a1)
+  | sum_lt_right
+      b0 b1
+      (LT: RB b0 b1)
+    :
+    sum_lt RA RB (inr b0) (inr b1)
+  | sum_lt_cross
+      a b
+    :
+    sum_lt RA RB (inl a) (inr b)
+.
+
+Lemma sum_lt_well_founded
+      A B (RA: A -> A -> Prop) (RB: B -> B -> Prop)
+      (WFA: well_founded RA)
+      (WFB: well_founded RB)
+  :
+  well_founded (sum_lt RA RB).
+Proof.
+  assert (ACCA: forall a, Acc (sum_lt RA RB) (inl a)).
+  { i. induction (WFA a). econs.
+    i. inv H1. eauto.
+  }
+  ii. destruct a as [a|b]; eauto.
+  induction (WFB b). econs.
+  i. inv H1; eauto.
+Qed.
+
+Variant prod_lt
+        A B (RA: A -> A -> Prop) (RB: B -> B -> Prop):
+  A * B -> A * B -> Prop :=
+  | prod_lt_left
+      a0 a1 b0 b1
+      (ALT: RA a0 a1)
+    :
+    prod_lt RA RB (a0, b0) (a1, b1)
+  | prod_lt_right
+      a0 a1 b0 b1
+      (ALE: a0 = a1 \/ RA a0 a1)
+      (BLT: RB b0 b1)
+    :
+    prod_lt RA RB (a0, b0) (a1, b1)
+.
+
+Lemma prod_lt_well_founded
+      A B (RA: A -> A -> Prop) (RB: B -> B -> Prop)
+      (WFA: well_founded RA)
+      (WFB: well_founded RB)
+  :
+  well_founded (prod_lt RA RB).
+Proof.
+  ii. destruct a as [a b]. revert b.
+  induction (WFA a). rename x into a. clear H. rename H0 into IHA.
+  intros b. induction (WFB b). rename x into b. clear H. rename H0 into IHB.
+  econs. i. inv H; eauto. des; subst; eauto.
+Qed.
