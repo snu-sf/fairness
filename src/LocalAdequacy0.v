@@ -35,7 +35,9 @@ Section AUX.
   Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
+  Variable wf_stt: WF.
+
+  Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt wf_stt.
 
   Notation threads_src1 R0 := (threads _ident_src (sE state_src) R0).
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
@@ -76,16 +78,6 @@ Section AUX.
          (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, r_shared0)).
 
   Definition th_wf_pair {elt1 elt2} := @nm_wf_pair elt1 elt2.
-
-  (* Lemma local_sim_pick_mon_world *)
-  (*       R0 R1 (RR: R0 -> R1 -> Prop) src tgt tid w0 w1 *)
-  (*       (WORLD: world_le w0 w1) *)
-  (*       (LSIMP: local_sim_pick RR src tgt tid w0) *)
-  (*   : *)
-  (*   local_sim_pick RR src tgt tid w1. *)
-  (* Proof. *)
-  (*   unfold local_sim_pick in *. i. hexploit LSIMP; eauto. etransitivity; eauto. *)
-  (* Qed. *)
 
   Lemma th_wf_pair_pop_cases
         R0 R1

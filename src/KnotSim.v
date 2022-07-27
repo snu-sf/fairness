@@ -33,15 +33,17 @@ Section KSIM.
   Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
+  Variable wf_stt: WF.
+
   Definition kshared :=
     ((@imap ident_src wf_src) *
        (@imap ident_tgt wf_tgt) *
        state_src *
        state_tgt *
-       wf_src.(T) *
+       wf_stt.(T) *
        URA.car)%type.
 
-  Definition to_kshared (shr: shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt): kshared :=
+  Definition to_kshared (shr: shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt wf_stt): kshared :=
     let '(ths, tht, im_src, im_tgt, st_src, st_tgt, o, r_shared) := shr in
     (im_src, im_tgt, st_src, st_tgt, o, r_shared).
 
@@ -79,7 +81,7 @@ Section KSIM.
         rs_local0 r_own r_shared0
         (UPDRS: rs_local0 = NatMap.add tid r_own rs_local)
         (WF: resources_wf r_shared0 rs_local0)
-        (STUTTER: wf_src.(lt) o0 o)
+        (STUTTER: wf_stt.(lt) o0 o)
         (RET: RR r_src r_tgt)
         (NNILS: Th.is_empty thsl = false)
         (NNILT: Th.is_empty thsr = false)
@@ -131,7 +133,7 @@ Section KSIM.
                   (nm_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
                     (nm_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
                     ((b = true) ->
-                     exists o0, (wf_src.(lt) o0 o) /\
+                     exists o0, (wf_stt.(lt) o0 o) /\
                              (forall im_tgt0
                                 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
                                forall ps pt, sim_knot thsl1 thsr1 tid0
@@ -141,7 +143,7 @@ Section KSIM.
                                                  (th_tgt)
                                                  (im_src, im_tgt0, st_src, st_tgt, o0, r_shared0))) /\
                     ((b = false) ->
-                     exists o0, (wf_src.(lt) o0 o) /\
+                     exists o0, (wf_stt.(lt) o0 o) /\
                              (forall im_tgt0
                                 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
                                exists im_src0,

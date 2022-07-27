@@ -37,7 +37,9 @@ Section PROOF.
   Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Let kshared := kshared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
+  Variable wf_stt: WF.
+
+  Let kshared := kshared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt wf_stt.
 
   Notation threads_src1 R0 := (threads _ident_src (sE state_src) R0).
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
@@ -92,16 +94,16 @@ Section PROOF.
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) r_shared rs_ctx
+              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_stt) r_shared rs_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
                        (ms, mt, st_src, st_tgt, o, r_shared) ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
-        (o : T wf_src) ps
+        (o : T wf_stt) ps
         (IHo : (ps = true) \/
-                 (forall y : T wf_src,
-                     lt wf_src y o ->
+                 (forall y : T wf_stt,
+                     lt wf_stt y o ->
                      forall (ths_src : threads_src2 R0) (ths_tgt : threads_tgt R1) (tid : Th.key),
                        Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
                        Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
@@ -124,7 +126,7 @@ Section PROOF.
         mt ms (r_src : R0) (r_tgt : R1) o1
         r_own r_shared0 rs_local
         (RSWF: resources_wf r_shared0 (NatMap.add tid r_own rs_local))
-        (STUTTER : lt wf_src o1 o)
+        (STUTTER : lt wf_stt o1 o)
         (RET : RR r_src r_tgt)
         (NNILS : Th.is_empty (elt:=bool * thread _ident_src (sE state_src) R0) ths_src = false)
         (NNILT : Th.is_empty (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt = false)
@@ -301,16 +303,16 @@ Section PROOF.
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) r_shared r_ctx
+              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_stt) r_shared r_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot RR ths_src ths_tgt tid r_ctx ps pt (sf, src) tgt
                        (ms, mt, st_src, st_tgt, o, r_shared) ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
-        (o : T wf_src) ps
+        (o : T wf_stt) ps
         (IHo : (ps = true) \/
-                 (forall y : T wf_src,
-                     lt wf_src y o ->
+                 (forall y : T wf_stt,
+                     lt wf_stt y o ->
                      forall (ths_src : threads_src2 R0) (ths_tgt : threads_tgt R1) (tid : Th.key),
                        Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None ->
                        Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
@@ -342,8 +344,8 @@ Section PROOF.
                   nm_pop tid0 (Th.add tid (true, ktr_src ()) ths_src) = Some (b, th_src, thsl1) /\
                     nm_pop tid0 (Th.add tid (ktr_tgt ()) ths_tgt) = Some (th_tgt, thsr1) /\
                     (b = true ->
-                     exists (o0 : T wf_src),
-                       lt wf_src o0 o /\
+                     exists (o0 : T wf_stt),
+                       lt wf_stt o0 o /\
                          (forall im_tgt0 : imap ident_tgt wf_tgt,
                              fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1))) ->
                              forall ps pt : bool,
@@ -352,8 +354,8 @@ Section PROOF.
                                  (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
                                  (ms, im_tgt0, st_src, st_tgt, o0, r_shared0))) /\
                     (b = false ->
-                     exists (o0 : T wf_src),
-                       lt wf_src o0 o /\
+                     exists (o0 : T wf_stt),
+                       lt wf_stt o0 o /\
                          (forall im_tgt0 : imap ident_tgt wf_tgt,
                              fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1))) ->
                              exists (im_src0 : imap ident_src wf_src),
@@ -464,15 +466,7 @@ Section PROOF.
       rewrite POPS; clear POPS. rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL.
-      (* assert (FMT: tids_fmap tid0 (NatSet.add tid (key_set ths_tgt)) = tids_fmap tid0 (key_set thsr1)). *)
-      (* { apply nm_pop_res_is_add_eq in KSIM1. unfold NatSet.add. erewrite <- key_set_pull_add_eq. erewrite KSIM1. *)
-      (*   rewrite key_set_pull_add_eq. symmetry; apply tids_fmap_add_same_eq. *)
-      (* } *)
       hexploit H0; clear H0. eauto. i. revert IHo; des; i; pclearbot.
-      (* assert (FMS: tids_fmap tid0 (key_set thsl1) = tids_fmap tid0 (NatSet.add tid (key_set ths_src))). *)
-      (* { apply nm_pop_res_is_add_eq in KSIM0. unfold NatSet.add. erewrite <- key_set_pull_add_eq. erewrite KSIM0. *)
-      (*   rewrite key_set_pull_add_eq. apply tids_fmap_add_same_eq. *)
-      (* } *)
       esplits; eauto. eauto.
       rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
       specialize (H1 false false).
@@ -535,7 +529,7 @@ Section PROOF.
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_src) r_shared rs_ctx
+              (st_tgt : state_tgt) (ps pt : bool) (o : T wf_stt) r_shared rs_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
                        (ms, mt, st_src, st_tgt, o, r_shared) ->
@@ -546,7 +540,7 @@ Section PROOF.
         (THSRC : Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None)
         (THTGT : Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None)
         (WF : th_wf_pair ths_src ths_tgt)
-        (st_src : state_src) (st_tgt : state_tgt) rs_local r_shared mt ms o
+        (st_src : state_src) (st_tgt : state_tgt) rs_local r_shared mt ms (o : T wf_stt)
         (src : thread _ident_src (sE state_src) R0)
         (KSIM : sim_knot RR ths_src ths_tgt tid rs_local true pt (false, src) tgt
                          (ms, mt, st_src, st_tgt, o, r_shared))
@@ -698,7 +692,7 @@ Section PROOF.
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         ps pt rs_ctx
-        (KSIM: forall im_tgt, exists im_src o r_shared,
+        (KSIM: forall im_tgt, exists im_src (o: T wf_stt) r_shared,
             sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt)
                      RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
                      (im_src, im_tgt, st_src, st_tgt, o, r_shared))
@@ -709,7 +703,7 @@ Section PROOF.
   Proof.
     ii. specialize (KSIM mt). des. rename im_src into ms. exists ms, ps, pt.
     revert_until RR. ginit. gcofix CIH. i.
-    move o before CIH. revert_until o. induction (wf_src.(wf) o).
+    move o before CIH. revert_until o. induction (wf_stt.(wf) o).
     clear H; rename x into o, H0 into IHo. i.
     match goal with
     | KSIM: sim_knot _ _ _ _ _ _ _ ?_src _ ?_shr |- _ => remember _src as ssrc; remember _shr as shr

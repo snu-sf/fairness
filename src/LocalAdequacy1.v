@@ -37,8 +37,10 @@ Section PROOF.
   Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
-  Let kshared := kshared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
+  Variable wf_stt: WF.
+
+  Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt wf_stt.
+  Let kshared := kshared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt wf_stt.
 
   Notation threads_src1 R0 := (threads _ident_src (sE state_src) R0).
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
@@ -79,8 +81,9 @@ Section PROOF.
                     ((sf = false) -> (local_sim_pick I RR src tgt tid r_own))>>))
     :
     forall im_tgt, exists im_src o r_shared,
-        (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
-                  (im_src, im_tgt, st_src, st_tgt, o, r_shared)).
+      (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (wf_stt:=wf_stt)
+                RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
+                (im_src, im_tgt, st_src, st_tgt, o, r_shared)).
   Proof.
     ii. remember (fun i => St (im_tgt i)) as im_tgt1. specialize (LSIM im_tgt1). des.
     assert (FAIR: fair_update im_tgt1 im_tgt (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))).
@@ -132,11 +135,6 @@ Section PROOF.
           - i; clarify.
             hexploit LOCAL. eauto. eapply FINDS. eapply FINDT. i; des.
             hexploit H2; clear H2 H3; ss. i. unfold local_sim_sync in H2.
-            (* assert (PROJS: NatSet.remove tid (NatSet.add tid (key_set ths_src)) = NatSet.add tid0 (key_set ths_src0)). *)
-            (* { eapply proj_aux; eauto. } *)
-            (* assert (PROJT: NatSet.remove tid (NatSet.add tid (key_set ths_tgt)) = NatSet.add tid0 (key_set ths_tgt0)). *)
-            (* { eapply proj_aux; eauto. } *)
-            (* ss. rewrite PROJS, PROJT. *)
             right. eapply CIH.
             { i. hexploit LOCAL. eauto.
               eapply find_some_aux; eauto. eapply find_some_aux; eauto.
@@ -208,7 +206,6 @@ Section PROOF.
             i; des. esplits; eauto.
             { unfold NatSet.remove, NatSet.add in *. rewrite PROJS in H2. rewrite <- tids_fmap_add_same_eq in H2. eauto. }
             i.
-            (* rewrite PROJS, PROJT. *)
             right. eapply CIH.
             { i. hexploit LOCAL. eauto.
               eapply find_some_aux; eauto. eapply find_some_aux; eauto.
@@ -339,11 +336,6 @@ Section PROOF.
       splits; auto.
 
       - i; clarify. esplits; eauto. i.
-        (* assert (PROJS: (NatSet.add tid (key_set ths_src)) = (NatSet.add tid0 (key_set ths_src0))). *)
-        (* { eapply proj_add_aux; eauto. } *)
-        (* assert (PROJT: (NatSet.add tid (key_set ths_tgt)) = (NatSet.add tid0 (key_set ths_tgt0))). *)
-        (* { eapply proj_add_aux; eauto. } *)
-        (* rewrite PROJS, PROJT. *)
         destruct (tid_dec tid tid0) eqn:TID; subst.
         { rename tid0 into tid.
           assert (ths_tgt0 = ths_tgt /\ th_tgt = (ktr_tgt ())).
@@ -449,7 +441,6 @@ Section PROOF.
         { rewrite PROJT. unfold NatSet.add. rewrite <- tids_fmap_add_same_eq. eauto. }
         i; des. esplits; eauto.
         { rewrite PROJS in H2. unfold NatSet.add in H2. rewrite <- tids_fmap_add_same_eq in H2. eauto. }
-        (* rewrite PROJS, PROJT. *)
         right. eapply CIH.
 
         { i. destruct (tid_dec tid tid1) eqn:TID2; subst.
