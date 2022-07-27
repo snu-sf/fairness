@@ -1104,4 +1104,37 @@ Section AUX.
     (key_set (@empty elt)) = (@empty unit).
   Proof. eapply nm_eq_is_equal. eapply key_set_empty_empty_equal. Qed.
 
+
+  Lemma key_set_elements_cons_rm
+        elt (m: NatMap.t elt)
+        k e
+        (REF: (k, tt) :: (elements (remove k (key_set m))) = elements (key_set m))
+        (FIND: find k m = Some e)
+    :
+    (k, e) :: (elements (remove k m)) = elements m.
+  Proof.
+    
+
+  Lemma wf_pair_elements_cons_rm_add
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        k e1 e2
+        (WFP: nm_wf_pair (remove k m1) (remove k m2))
+        (REF: (k, e1) :: (elements (remove k m1)) = elements m1)
+        (FIND: find k m2 = Some e2)
+    :
+    (k, e2) :: (elements (remove k m2)) = elements m2.
+  Proof.
+
+
+  Lemma wf_pair_elements_cons_rm_add
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        k e1 e2
+        (WFP: nm_wf_pair (remove k m1) (remove k m2))
+        (REF: (k, e1) :: (elements (remove k m1)) = elements m1)
+        (MEM: m2 = add k e2 (remove k m2))
+    :
+    (k, e2) :: (elements (remove k m2)) = elements m2.
+  Proof.
+    
+
 End AUX.

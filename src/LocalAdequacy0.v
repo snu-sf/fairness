@@ -198,15 +198,4 @@ Section AUX.
     rewrite nm_rm_add_rm_eq. rewrite nm_find_none_rm_eq; auto. apply nm_pop_res_is_add_eq in H. auto.
   Qed.
 
-  Lemma list_forall2_implies
-        A B (f1 f2: A -> B -> Prop) la lb
-        (FA: List.Forall2 f1 la lb)
-        (IMP: forall a b, (f1 a b) -> (f2 a b))
-    :
-    List.Forall2 f2 la lb.
-  Proof.
-    depgen f1. clear. i. move FA before B. revert_until FA. induction FA; i; ss.
-    econs; eauto.
-  Qed.
-
 End AUX.

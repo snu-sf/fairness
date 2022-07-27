@@ -20,13 +20,33 @@ Set Implicit Arguments.
 
 Section AUX.
 
+  Lemma list_forall2_implies
+        A B (f1 f2: A -> B -> Prop) la lb
+        (FA: List.Forall2 f1 la lb)
+        (IMP: forall a b, (f1 a b) -> (f2 a b))
+    :
+    List.Forall2 f2 la lb.
+  Proof.
+    move FA before B. revert_until FA. induction FA; i; ss.
+    econs; eauto.
+  Qed.
+
   Inductive Forall3 (A B C : Type) (R : A -> B -> C -> Prop) : list A -> list B -> list C -> Prop :=
     Forall3_nil : Forall3 R [] [] []
   | Forall3_cons : forall (x : A) (y : B) (z : C) (l1 : list A) (l2 : list B) (l3: list C),
       R x y z -> Forall3 R l1 l2 l3 -> Forall3 R (x :: l1) (y :: l2) (z :: l3).
 
-  Import NatMap.
-  Import NatMapP.
+  Lemma list_forall3_implies_forall2_3
+        A B C (f1: A -> B -> C -> Prop) (f2: A -> C -> Prop)
+        la lb lc
+        (FA: Forall3 f1 la lb lc)
+        (IMP: forall a b c, (f1 a b c) -> (f2 a c))
+    :
+    List.Forall2 f2 la lc.
+  Proof.
+    move FA before C. revert_until FA. induction FA; i; ss.
+    econs; eauto.
+  Qed.
 
 End AUX.
 
@@ -179,16 +199,26 @@ Section LADEQ.
     }
     { r_wf IND0. }
     instantiate (1:=im_tgt). i; des.
+    assert (WFPAIR: nm_wf_pair (NatMap.remove (elt:=thread _ident_src (sE state_src) R0) tid1 ths_src) rs_local).
+    { hexploit list_forall3_implies_forall2_3. eauto.
+      { i. instantiate (1:=fun '(t1, src) '(t3, r_own) => t1 = t3). ss. des_ifs. des; auto. }
+      intros FA2. rewrite RESS in FA2. apply nm_forall2_wf_pair in FA2. auto.
+    }
     assert (RSL: NatMap.find (elt:=M) tid1 rs_local = None).
-    { admit. }
+    { eapply nm_wf_pair_find_cases in WFPAIR. des. eapply WFPAIR. apply nm_find_rm_eq. }
     esplits; eauto.
     { instantiate (1:=Th.add tid1 r_own rs_local). unfold resources_wf. rewrite sum_of_resources_add. r_wf VALID. auto. }
     replace (Th.elements (Th.add tid1 r_own rs_local)) with ((tid1, r_own) :: (Th.elements rs_local)).
     { econs; auto. splits; ss. ii.
       specialize (H1 _ _ _ _ _ _ _ _ _ INV0 VALID0 im_tgt1 FAIR). des. esplits; eauto.
     }
+    { remember (Th.add tid1 r_own rs_local) as rs_local1.
+      assert (REP: rs_local = (NatMap.remove tid1 rs_local1)).
+      { rewrite Heqrs_local1. rewrite nm_find_none_rm_add_eq; auto. }
+      rewrite REP. rewrite REP in WFPAIR. rewrite RESS in Heqtl_src.
     admit.
   Admitted.
+
 
   Theorem local_sim_implies_gsim
           R0 R1 (RR: R0 -> R1 -> Prop)
