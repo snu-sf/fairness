@@ -150,3 +150,41 @@ Proof.
   intros b. induction (WFB b). rename x into b. clear H. rename H0 into IHB.
   econs. i. inv H; eauto. des; subst; eauto.
 Qed.
+
+Inductive ord_tree (A: Type): Type :=
+| ord_tree_base
+| ord_tree_cons (childs: A -> ord_tree A)
+.
+
+Variant ord_tree_lt A: ord_tree A -> ord_tree A -> Prop :=
+  | ord_tree_lt_intro
+      childs a
+    :
+    ord_tree_lt (childs a) (ord_tree_cons childs)
+.
+
+Lemma ord_tree_lt_well_founded A
+  :
+  well_founded (@ord_tree_lt A).
+Proof.
+  ii. induction a.
+  { econs; i. inv H. }
+  { econs; i. inv H0. eauto. }
+Qed.
+
+From Fairness Require Import Axioms.
+
+Lemma ord_tree_join A (P: A -> Prop) (R: A -> ord_tree A -> Prop)
+      (ORD: forall a (SAT: P a), exists o, R a o)
+  :
+  exists o1, forall (a: A) (SAT: P a),
+  exists o0, R a o0 /\ ord_tree_lt o0 o1.
+Proof.
+  hexploit (choice (fun a o => P a -> R a o)).
+  { i. destruct (classic (P x)).
+    { hexploit ORD; eauto. i. des. eauto. }
+    { eexists (ord_tree_base _). ss. }
+  }
+  i. des. exists (ord_tree_cons f). i.
+  exists (f a). splits; eauto. econs; eauto.
+Qed.
