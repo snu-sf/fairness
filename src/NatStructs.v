@@ -40,6 +40,18 @@ Section NATMAP.
       :
       nm_add_new k e m1 m2.
 
+  Definition tfind elt (def: elt) (k: NatMap.key) (m: NatMap.t elt): elt :=
+    match NatMap.find k m with
+    | Some e => e
+    | None => def
+    end.
+
+  Definition tfind_l elt (def: elt) (k: NatMap.key) (l: list (NatMap.key * elt)%type): elt :=
+    match findA (NatMapP.F.eqb k) l with
+    | Some e => e
+    | None => def
+    end.
+
 
   Import FMapFacts.
   Import NatMap.
@@ -479,6 +491,34 @@ Section NATMAP.
     nm_pop k (add k e m) = Some (e, remove k m).
   Proof.
     unfold nm_pop. rewrite nm_find_add_eq. rewrite nm_rm_add_rm_eq. auto.
+  Qed.
+
+
+  Lemma nm_find_some_tfind
+        (m: t elt) k e
+        (SOME: find k m = Some e)
+    :
+    forall d, tfind d k m = e.
+  Proof.
+    i. unfold tfind. rewrite SOME. auto.
+  Qed.
+
+  Lemma nm_find_none_tfind
+        (m: t elt) k
+        (NONE: find k m = None)
+    :
+    forall d, tfind d k m = d.
+  Proof.
+    i. unfold tfind. rewrite NONE. auto.
+  Qed.
+
+
+  Lemma tfind_to_tfind_l
+        (m: t elt) d
+    :
+    forall k, tfind d k m = tfind_l d k (elements m).
+  Proof.
+    i. unfold tfind, tfind_l. rewrite F.elements_o. auto.
   Qed.
 
 End NATMAP.
@@ -1105,6 +1145,100 @@ Section AUX.
   Proof. eapply nm_eq_is_equal. eapply key_set_empty_empty_equal. Qed.
 
 
+  Lemma elements_inj_equal
+        elt (m1 m2: t elt)
+        (EQ: elements m1 = elements m2)
+    :
+    Equal m1 m2.
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply elements_2. rewrite <- EQ. apply elements_1. auto.
+    - eapply elements_2. rewrite EQ. apply elements_1. auto.
+  Qed.
+  Lemma elements_inj_eq
+        elt (m1 m2: t elt)
+        (EQ: elements m1 = elements m2)
+    :
+    m1 = m2.
+  Proof. eapply nm_eq_is_equal. apply elements_inj_equal; auto. Qed.
+
+
+  Lemma list_map_elements_nm_map
+        elt (m: t elt) elt1 (f: elt -> elt1)
+    :
+    List.map (fun '(k, e) => (k, f e)) (elements m) = elements (map f m).
+  Proof.
+    ss. unfold elements. unfold Raw.elements. destruct m. ss. clear sorted0.
+    rename this0 into l. induction l; ss. des_ifs. f_equal; auto.
+  Qed.
+
+  Lemma nm_wf_pair_elements_forall2
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WFP: nm_wf_pair m1 m2)
+    :
+    Forall2 (fun '(k1, e1) '(k2, e2) => k1 = k2) (elements m1) (elements m2).
+  Proof.
+    cut (Forall2 (fun '(k1, e1) '(k2, e2) => k1 = k2) (elements (key_set m1)) (elements (key_set m2))).
+    { intro FA. clear WFP. unfold key_set in FA. rewrite <- !list_map_elements_nm_map in FA.
+      remember (elements m1) as l1. remember (elements m2) as l2.
+      clear m1 Heql1 m2 Heql2.
+      match goal with
+      | FA: Forall2 _ ?_l1 ?_l2 |- _ => remember _l1 as kl1; remember _l2 as kl2
+      end.
+      move FA before elt2. revert_until FA. induction FA; i.
+      { symmetry in Heqkl1, Heqkl2. apply map_eq_nil in Heqkl1, Heqkl2. subst. econs. }
+      destruct x, y. clarify. rename k0 into k. destruct u, u0.
+      symmetry in Heqkl1, Heqkl2. apply map_eq_cons in Heqkl1, Heqkl2. des.
+      des_ifs. econs; auto.
+    }
+    rewrite WFP. remember (elements (key_set m2)) as l. clear m1 m2 WFP Heql.
+    induction l; ss. econs; auto. des_ifs.
+  Qed.
+
+  Lemma nm_wf_pair_tfind_elements_eq
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WFP: nm_wf_pair m1 m2)
+    :
+    forall d, List.map (fun '(k, _) => (k, tfind d k m2)) (elements m1) = elements m2.
+  Proof.
+    hexploit nm_wf_pair_elements_forall2. eauto. intro FA. i.
+    match goal with
+    | |- List.map ?_f _ = _ => assert (EQF: _f = (fun '(k, _) => (k, tfind_l d k (elements m2))))
+    end.
+    { extensionalities x. des_ifs. rewrite tfind_to_tfind_l. auto. }
+    rewrite EQF; clear EQF. clear WFP.
+    hexploit (elements_3w m1). intro ND1. hexploit (elements_3w m2). intro ND2.
+    remember (elements m1) as l1; remember (elements m2) as l2.
+    clear m1 m2 Heql1 Heql2.
+    revert_until FA. induction FA; i; ss. des_ifs. f_equal.
+    { f_equal. unfold tfind_l. ss. unfold F.eqb. unfold F.eq_dec. des_ifs. }
+    hexploit (IHFA d); clear IHFA.
+    { inv ND1. auto. }
+    { inv ND2. auto. }
+    intro LM. symmetry. rewrite <- LM at 1.
+    clear LM ND2 FA.
+    revert_until l. induction l; i; ss. des_ifs. f_equal.
+    { f_equal. inv ND1. destruct (F.eqb k0 k) eqn:EQ.
+      { unfold F.eqb in EQ. des_ifs. exfalso. apply H1. econs. ss. }
+      unfold tfind_l. ss. unfold F.eqb in *. des_ifs.
+    }
+    inv ND1. inv H2.
+    eapply IHl. econs. instantiate (1:=e).
+    { ii. apply H1. econs 2. auto. }
+    auto.
+  Qed.
+
+  Lemma nm_wf_pair_tfind_elements_cons_eq
+        elt1 elt2 (m1: t elt1) (m2: t elt2)
+        (WFP: nm_wf_pair m1 m2)
+        k e1
+    :
+    forall d, List.map (fun '(k, _) => (k, tfind d k m2)) ((k, e1) :: elements m1) =
+           (k, tfind d k m2) :: elements m2.
+  Proof.
+    i. ss. rewrite nm_wf_pair_tfind_elements_eq; auto.
+  Qed.
+
   Lemma key_set_elements_cons_rm
         elt (m: NatMap.t elt)
         k e
@@ -1113,7 +1247,16 @@ Section AUX.
     :
     (k, e) :: (elements (remove k m)) = elements m.
   Proof.
-    
+    assert (EQ: List.map (fun '(k0, _) => (k0, tfind e k0 (remove k m))) ((k, tt) :: elements (remove k (key_set m))) = List.map (fun '(k0, _) => (k0, tfind e k0 m)) (elements (key_set m))).
+    { rewrite <- REF. ss. admit. }
+    clear REF.
+    rewrite nm_wf_pair_tfind_elements_cons_eq in EQ.
+    2:{ admit. }
+    rewrite nm_wf_pair_tfind_elements_eq in EQ.
+    2:{ admit. }
+    rewrite <- EQ. f_equal. f_equal. unfold tfind. rewrite nm_find_rm_eq. auto.
+    (*TODO*)
+
 
   Lemma wf_pair_elements_cons_rm_add
         elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
