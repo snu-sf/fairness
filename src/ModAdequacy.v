@@ -25,6 +25,9 @@ Section AUX.
   | Forall3_cons : forall (x : A) (y : B) (z : C) (l1 : list A) (l2 : list B) (l3: list C),
       R x y z -> Forall3 R l1 l2 l3 -> Forall3 R (x :: l1) (y :: l2) (z :: l3).
 
+  Import NatMap.
+  Import NatMapP.
+
 End AUX.
 
 
@@ -154,7 +157,7 @@ Section LADEQ.
       apply nm_empty_eq in Heqtl_src, Heqtl_tgt. clarify.
       esplits; ss; eauto.
       - unfold NatSet.empty in *. rewrite !key_set_empty_empty_eq. eauto.
-      - instantiate (1:=@NatMap.empty _). unfold resources_wf. r_wf INV0. admit.
+      - instantiate (1:=@NatMap.empty _). unfold resources_wf. r_wf INV0. rewrite sum_of_resources_empty. r_solve.
       - econs.
     }
 
@@ -239,7 +242,7 @@ Section LADEQ.
                   (Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid0 ths_tgt = Some tgt) ->
                   local_sim_pick I RR src tgt tid0 r_own)).
     { i. specialize (H im_tgt). des. exists im_src0, o0, r_shared0, (snd (get_resource tid rs_ctx0)). splits.
-      - admit.
+      - eapply get_resource_snd_find_eq_none.
       - ii. specialize (H1 tid src0 tgt0 (fst (get_resource tid rs_ctx0))). hexploit H1; clear H1; auto.
         i. unfold local_sim_pick in H1.
         assert (SETS: NatSet.add tid (key_set ths_src0) = key_set ths_src).
@@ -259,7 +262,8 @@ Section LADEQ.
         { rewrite <- SETT; eauto. }
         rewrite !SETS, !SETT. eauto.
       - i. eapply H1.
-        { rewrite OWN. admit. }
+        { rewrite OWN. eapply get_resource_rs_neq. destruct (tid_dec tid tid0); auto. clarify.
+          rewrite nm_find_rm_eq in LSRC. ss. }
         eapply find_some_aux; eauto. eapply find_some_aux; eauto.
     }
 

@@ -310,4 +310,21 @@ Section AUX.
     }
   Qed.
 
+  Lemma sum_of_resources_empty
+    :
+    sum_of_resources (NatMap.empty M) = ε.
+  Proof.
+    eapply NatMapP.fold_Empty; auto. apply NatMap.empty_1.
+  Qed.
+
+  Lemma get_resource_snd_find_eq_none
+        tid rs
+    :
+    NatMap.find (elt:=M) tid (snd (get_resource tid rs)) = None.
+  Proof.
+    unfold get_resource. des_ifs; ss.
+    - eapply nm_pop_res_find_none; eauto.
+    - eapply nm_pop_find_none; eauto.
+  Qed.
+
 End AUX.
