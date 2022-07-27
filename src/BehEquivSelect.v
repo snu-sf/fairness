@@ -347,7 +347,7 @@ Section EQUIV2.
   Proof. econs. exact wft0. Qed.
 
   Definition tr2ord_i {R} i (tr: (@RawTr.t id R)): wft.(T) :=
-    epsilon _ (inhabited_tr_ord) (fun o => ord_tr wft wft0 S i o tr).
+    epsilon (inhabited_tr_ord) (fun o => ord_tr wft wft0 S i o tr).
 
   Theorem tr2ord_i_spec
           i R (tr: @RawTr.t id R)
