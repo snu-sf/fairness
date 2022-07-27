@@ -581,9 +581,9 @@ Section NAT.
   Variable wf_tgt_inhabited: inhabited wf_tgt.(T).
   Variable wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1.
 
-  Let wf_tgt_0: wf_tgt.(T) := epsilon _ wf_tgt_inhabited (fun _ => True).
+  Let wf_tgt_0: wf_tgt.(T) := epsilon wf_tgt_inhabited (fun _ => True).
   Let wf_tgt_S: wf_tgt.(T) -> wf_tgt.(T) :=
-        fun o0 => epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
+        fun o0 => epsilon wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
 
   Let wf_tgt_S_lt o: wf_tgt.(lt) o (wf_tgt_S o).
   Proof.
