@@ -516,7 +516,123 @@ End PRIMIVIESIM.
 #[export] Hint Resolve __lsim_mon: paco.
 #[export] Hint Resolve _lsim_mon: paco.
 #[export] Hint Resolve lsim_mon: paco.
+#[export] Hint Resolve cpn10_wcompat: paco.
 
+
+From Coq Require Import Relations.Relation_Operators.
+From Coq Require Import Relations.Operators_Properties.
+From Fairness Require Import WFLib Axioms.
+
+Section TRANS_CLOS.
+
+  Context `{M: URA.t}.
+
+  Variable state_src: Type.
+  Variable state_tgt: Type.
+
+  Variable _ident_src: ID.
+  Variable _ident_tgt: ID.
+
+  Variable wf_src: WF.
+  Variable wf_tgt: WF.
+
+  Hypothesis (inh : inhabited wf_tgt.(T)).
+
+  Let wf_tgt' := {| wf := clos_trans_well_founded wf_tgt.(wf) |}.
+
+  Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> Prop.
+  Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> Prop.
+  Variable I: shared_rel.
+  Let I' : shared_rel' :=
+        fun '(ths, im_src, im_tgt, st_src, st_tgt, w) =>
+          exists im_tgt'0, << INV_LE : (forall i, le wf_tgt' (im_tgt i) (im_tgt'0 i)) >>
+                    /\ << INV : I (ths, im_src, im_tgt'0, st_src, st_tgt, w) >>.
+
+  Lemma fair_break Id m_tgt m_tgt'' fm
+    (FAIR : @fair_update Id wf_tgt' m_tgt m_tgt'' fm)
+    : exists im_tgt'0, << FAIR : @fair_update Id wf_tgt m_tgt im_tgt'0 fm >> /\ << LE : forall i, le wf_tgt' (m_tgt'' i) (im_tgt'0 i) >>.
+  Proof.
+    exists (fun i => match fm i with
+             | Flag.fail    => epsilon _ inh (fun z => lt wf_tgt z (m_tgt i)
+                                                   /\ (m_tgt'' i = z \/ clos_trans_n1 _ (lt wf_tgt) (m_tgt'' i) z))
+             | Flag.emp     => m_tgt i
+             | Flag.success => m_tgt'' i
+             end).
+    split.
+    - ii. specialize (FAIR i). des_ifs.
+      + eapply clos_trans_step in FAIR.
+        eapply epsilon_spec in FAIR.
+        destruct FAIR. eapply H.
+      + reflexivity.
+    - ii. specialize (FAIR i). des_ifs.
+      + eapply clos_trans_step in FAIR.
+        eapply epsilon_spec in FAIR.
+        destruct FAIR. eapply H0.
+      + reflexivity.
+  Qed.
+
+  Lemma fair_trans_l {Id im_tgt im_tgt' im_tgt'' fm}
+    (LE : (forall i, le wf_tgt' (im_tgt' i) (im_tgt i)))
+    (FAIR : @fair_update Id wf_tgt' im_tgt' im_tgt'' fm)
+    : @fair_update Id wf_tgt' im_tgt  im_tgt'' fm.
+  Proof.
+    ii. specialize (LE i). specialize (FAIR i). des_ifs.
+    - destruct LE.
+      + rewrite <- H. ss.
+      + ss. eapply clos_trans_n1_trans; eauto.
+    - destruct LE.
+      + rewrite <- H. ss.
+      + destruct FAIR.
+        * rewrite H0. right. ss.
+        * right. eapply clos_trans_n1_trans; eauto.
+  Qed.
+
+  Variable R0 R1 : Type.
+  Variable RR : R0 -> R1 -> Prop.
+
+  Lemma local_sim_clos_trans src tgt (SIM : local_sim I RR src tgt)
+    : local_sim I' RR src tgt.
+  Proof.
+    ii. ss. des. move SIM at bottom.
+    specialize (SIM ths0 im_src0 im_tgt'0 st_src0 st_tgt0 r_shared0 r_ctx0 INV0 tid ths1 THS VALID).
+    des. exists r_shared1, r_own1. splits; ss. { exists im_tgt'0. ss. }
+    i. des. pose proof (fair_break (fair_trans_l INV1 TGT)). des. move SIM1 at bottom.
+    specialize (SIM1 ths im_src1 im_tgt'1 st_src st_tgt r_shared2 r_ctx2 INV2 VALID1 im_tgt'2 FAIR).
+    des. exists im_src2. split; ss. i. specialize (LSIM fs ft).
+    clear - inh LSIM LE. revert_until I'. ginit. gcofix CIH. i. gstep.
+    remember (local_RR I RR tid) as RR'.
+    remember (ths, im_src2, im_tgt'2, st_src, st_tgt, r_shared2) as sha.
+    revert ths im_src2 im_tgt2 im_tgt'2 st_src st_tgt r_shared2 LE Heqsha RR HeqRR'.
+    unfold lsim in LSIM. punfold LSIM.
+    pattern R0, R1, RR', fs, ft, r_own1, r_ctx2, src, tgt, sha.
+    revert R0 R1 RR' fs ft r_own1 r_ctx2 src tgt sha LSIM.
+    eapply pind10_acc. intros rr DEC IH R0 R1 RR' fs ft r_own r_ctx src tgt sha. i. clear DEC. subst.
+    eapply pind10_unfold in PR; eauto with paco. eapply pind10_fold. inv PR.
+    - econs. ss. des. exists ths3, r_own2, r_shared0. splits; ss. exists im_tgt'2. split; ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs.
+    - econs. des. exists im_src1. splits; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. specialize (LSIM x). split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. pose proof (fair_break (fair_trans_l LE FAIR)). des.
+      specialize (LSIM im_tgt'0 FAIR0). split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
+    - econs; ss. { exists im_tgt'2. split; ss. } i. des.
+      pose proof (fair_break (fair_trans_l INV_LE TGT)). des. move LSIM at bottom.
+      specialize (LSIM ths1 im_src1 im_tgt'0 st_src1 st_tgt1 r_shared1 r_ctx1 INV1 VALID0 im_tgt'1 FAIR).
+      split; ss. eapply IH; ss. destruct LSIM. eapply H0.
+    - econs. des. exists im_src1. split; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
+    - econs. gfinal. left. pclearbot. eapply CIH; ss.
+  Qed.
+
+End TRANS_CLOS.
 
 
 Module ModSim.

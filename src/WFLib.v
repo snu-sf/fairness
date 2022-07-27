@@ -1,5 +1,9 @@
 From sflib Require Import sflib.
-From Coq Require Import Relations.Relation_Operators.
+From Coq Require Export
+  Relations.Relation_Operators.
+From Coq Require Import
+  RelationClasses
+  Relations.Operators_Properties.
 Set Implicit Arguments.
 
 (* TODO: definitions copied from Ordinal library *)
@@ -65,7 +69,6 @@ Proof.
   { i. eapply (H (a, b0)). econstructor 2. auto. }
 Qed.
 
-Require Export Coq.Relations.Relation_Operators.
 Lemma clos_trans_well_founded
       A (R: A -> A -> Prop) (WF: well_founded R)
   :
@@ -83,4 +86,14 @@ Proof.
   }
   { right. reflexivity. }
   { eauto. }
+Qed.
+
+Lemma clos_trans_step A (R : A -> A -> Prop) x y : clos_trans_n1 _ R x y -> exists z, R z y /\ (x = z \/ clos_trans_n1 _ R x z).
+Proof. i. destruct H; eauto. Qed.
+
+Lemma clos_trans_n1_trans A (R : A -> A -> Prop) : Transitive (clos_trans_n1 _ R).
+Proof.
+  unfold Transitive. i.
+  eapply clos_trans_tn1_iff.
+  econs 2; eapply clos_trans_tn1_iff; eauto.
 Qed.
