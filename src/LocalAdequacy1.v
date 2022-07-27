@@ -59,12 +59,11 @@ Section PROOF.
         (THSRC: Th.find tid ths_src = None)
         (THTGT: Th.find tid ths_tgt = None)
         (WF: th_wf_pair ths_src ths_tgt)
-        rs_ctx
-        (RSWF: Th.find tid rs_ctx = None)
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
-        (LSIM: forall im_tgt, exists im_src o r_shared,
+        (LSIM: forall im_tgt, exists im_src o r_shared rs_ctx,
+            (<<RSWF: Th.find tid rs_ctx = None>>) /\
               (<<LSIM:
                 forall im_tgt0
                   (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
@@ -80,7 +79,7 @@ Section PROOF.
                   ((sf = true) -> (local_sim_sync I RR src tgt tid r_own)) /\
                     ((sf = false) -> (local_sim_pick I RR src tgt tid r_own))>>))
     :
-    forall im_tgt, exists im_src o r_shared,
+    forall im_tgt, exists im_src o r_shared rs_ctx,
       (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (wf_stt:=wf_stt)
                 RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
                 (im_src, im_tgt, st_src, st_tgt, o, r_shared)).
@@ -88,10 +87,10 @@ Section PROOF.
     ii. remember (fun i => St (im_tgt i)) as im_tgt1. specialize (LSIM im_tgt1). des.
     assert (FAIR: fair_update im_tgt1 im_tgt (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))).
     { rewrite Heqim_tgt1. unfold fair_update. i. des_ifs. right; auto. }
-    specialize (LSIM0 im_tgt FAIR). des. clear LSIM0 Heqim_tgt1 FAIR im_tgt1.
+    specialize (LSIM im_tgt FAIR). des. clear LSIM Heqim_tgt1 FAIR im_tgt1.
     clear im_src; rename im_src0 into im_src.
-    move LOCAL before RR. rename LSIM1 into LSIM.
-    exists im_src, o, r_shared.
+    move LOCAL before RR. rename LSIM0 into LSIM.
+    exists im_src, o, r_shared, rs_ctx.
 
     revert_until RR. pcofix CIH. i.
     match goal with
@@ -105,7 +104,7 @@ Section PROOF.
     revert gps gpt rs src tgt shr LSIM.
     eapply pind6_acc.
     intros rr DEC IH gps gpt rs src tgt shr LSIM. clear DEC.
-    intros THSRC THTGT WF RSWF sf st_src st_tgt o r_shared im_tgt im_src ELRR Eshr Ers.
+    intros THSRC THTGT WF sf st_src st_tgt o r_shared RSWF im_tgt im_src ELRR Eshr Ers.
     eapply pind6_unfold in LSIM.
     2:{ eapply _lsim_mon. }
     inv LSIM.

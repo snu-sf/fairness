@@ -18,6 +18,17 @@ From Fairness Require Import KnotSim LocalAdequacy0 LocalAdequacy1 LocalAdequacy
 
 Set Implicit Arguments.
 
+Section AUX.
+
+  Inductive Forall3 (A B C : Type) (R : A -> B -> C -> Prop) : list A -> list B -> list C -> Prop :=
+    Forall3_nil : Forall3 R [] [] []
+  | Forall3_cons : forall (x : A) (y : B) (z : C) (l1 : list A) (l2 : list B) (l3: list C),
+      R x y z -> Forall3 R l1 l2 l3 -> Forall3 R (x :: l1) (y :: l2) (z :: l3).
+
+End AUX.
+
+
+
 Section LADEQ.
 
   Context `{M: URA.t}.
@@ -57,12 +68,11 @@ Section LADEQ.
         tid
         (FINDS: Th.find tid ths_src = None)
         (FINDT: Th.find tid ths_tgt = None)
-        rs_ctx
-        (RSWF: Th.find tid rs_ctx = None)
         src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         ps pt
-        (LSIM: forall im_tgt, exists im_src o r_shared,
+        (LSIM: forall im_tgt, exists im_src o r_shared rs_ctx,
+            (<<RSWF: Th.find tid rs_ctx = None>>) /\
               (<<LSIM:
                 forall im_tgt0
                   (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
@@ -113,7 +123,6 @@ Section LADEQ.
       (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim I RR src tgt))
       (Th.elements ths_src) (Th.elements ths_tgt).
 
-  (*use forall3*)
   Lemma local_sim_threads_local_sim_pick
         R0 R1 (RR: R0 -> R1 -> Prop)
         (ths_src: threads_src1 R0)
@@ -125,16 +134,14 @@ Section LADEQ.
               (URA.wf r_shared))
     :
     forall im_tgt,
-    exists (im_src0 : imap ident_src wf_src) (o0 : T wf_stt) r_shared0 rs_local,
+    exists (im_src0 : imap ident_src wf_src) (o0 : T wf_stt) r_shared0 (rs_local: local_resources),
       (I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, r_shared0)) /\
-        (* (resources_wf r_shared0 rs_local) /\ *)
-        (List.Forall2 (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\
-                                                   (exists r_own,
-                                                       (local_sim_pick I RR src tgt t1 r_own) /\
-                                                         ()
-                      ))
-                      (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src)
-                      (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt)).
+        (resources_wf r_shared0 rs_local) /\
+        (Forall3 (fun '(t1, src) '(t2, tgt) '(t3, r_own) =>
+                    (t1 = t2) /\ (t1 = t3) /\ (local_sim_pick I RR src tgt t1 r_own))
+                 (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src)
+                 (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt)
+                 (Th.elements rs_local)).
   Proof.
     unfold local_sim_threads in LOCAL.
     match goal with
@@ -145,10 +152,10 @@ Section LADEQ.
       symmetry in Heqtl_src; apply NatMapP.elements_Empty in Heqtl_src.
       symmetry in Heqtl_tgt; apply NatMapP.elements_Empty in Heqtl_tgt.
       apply nm_empty_eq in Heqtl_src, Heqtl_tgt. clarify.
-      (* remember (Th.map (fun _ => ε) (key_set ths_src)) as rs_init. *)
       esplits; ss; eauto.
       - unfold NatSet.empty in *. rewrite !key_set_empty_empty_eq. eauto.
-      - unfold resources_wf. admit.
+      - instantiate (1:=@NatMap.empty _). unfold resources_wf. r_wf INV0. admit.
+      - econs.
     }
 
     des_ifs. des; clarify. rename k0 into tid1, i into src1, i0 into tgt1.
@@ -168,17 +175,17 @@ Section LADEQ.
       rewrite <- nm_find_some_rm_add_eq; auto. eapply nm_elements_cons_find_some; eauto.
     }
     { r_wf IND0. }
-    instantiate (1:=im_tgt). i; des. esplits; eauto.
-    (*TODO*)
-    { instantiate (1:= Th.add  unfold resources_wf. r_wf VALID.
-    econs; auto.
-    { split; ss. ii.
-      specialize (H2 _ _ _ _ _ _ _ _ INV1 WORLD0 im_tgt1 FAIR). des. esplits; eauto.
+    instantiate (1:=im_tgt). i; des.
+    assert (RSL: NatMap.find (elt:=M) tid1 rs_local = None).
+    { admit. }
+    esplits; eauto.
+    { instantiate (1:=Th.add tid1 r_own rs_local). unfold resources_wf. rewrite sum_of_resources_add. r_wf VALID. auto. }
+    replace (Th.elements (Th.add tid1 r_own rs_local)) with ((tid1, r_own) :: (Th.elements rs_local)).
+    { econs; auto. splits; ss. ii.
+      specialize (H1 _ _ _ _ _ _ _ _ _ INV0 VALID0 im_tgt1 FAIR). des. esplits; eauto.
     }
-    eapply list_forall2_implies; eauto. i. des_ifs. des; clarify. split; auto.
-    eapply local_sim_pick_mon_world; eauto.
-    
-
+    admit.
+  Admitted.
 
   Theorem local_sim_implies_gsim
           R0 R1 (RR: R0 -> R1 -> Prop)
@@ -214,32 +221,6 @@ Section LADEQ.
     2:{ symmetry; eapply nm_pop_res_is_add_eq; eauto. }
     replace ths_tgt with (Th.add tid tgt0 ths_tgt0).
     2:{ symmetry; eapply nm_pop_res_is_add_eq; eauto. }
-    (* remember (Th.map (fun _ => ε) (key_set ths_src)) as rs_init. *)
-
-    (* match goal with *)
-    (* | FA: List.Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt *)
-    (* end. *)
-    (* move LOCAL before RR. revert_until LOCAL. induction LOCAL; i. *)
-    (* { remember (Th.map (fun _ => ε) (key_set ths_src)) as rs_init. *)
-    (*   eapply lsim_implies_gsim; auto. *)
-    (*   { subst. eapply nm_wf_pair_rm.  *)
-    (*     symmetry in Heqtl_src; apply NatMapP.elements_Empty in Heqtl_src. *)
-    (*     symmetry in Heqtl_tgt; apply NatMapP.elements_Empty in Heqtl_tgt. *)
-    (*     apply nm_empty_eq in Heqtl_src, Heqtl_tgt. subst. eapply nm_wf_pair_empty_empty_eq. *)
-    (*   } *)
-    (*   { eapply nm_pop_res_find_none; eauto. } *)
-    (*   { eapply nm_pop_res_find_none; eauto. } *)
-    (*   { instantiate (1:= Th.remove tid rs_init). apply nm_find_rm_eq. } *)
-    (*   exfalso.  *)
-    (*   symmetry in Heqtl_src; apply NatMapP.elements_Empty in Heqtl_src. *)
-    (*   symmetry in Heqtl_tgt; apply NatMapP.elements_Empty in Heqtl_tgt. *)
-    (*   apply nm_empty_eq in Heqtl_src, Heqtl_tgt. subst. *)
-    (*   unfold nm_pop in POPT. rewrite NatMapP.F.empty_o in POPT. ss. *)
-    (* } *)
-
-    (* des_ifs. des; clarify. rename k0 into tid1, i into src1, i0 into tgt1. *)
-    (* hexploit nm_elements_cons_rm. eapply Heqtl_src. intro RESS. *)
-    (* hexploit nm_elements_cons_rm. eapply Heqtl_tgt. intro REST. *)
 
     eapply lsim_implies_gsim; auto.
     { subst. eapply nm_wf_pair_rm. eapply nm_forall2_wf_pair.
@@ -247,21 +228,19 @@ Section LADEQ.
     }
     { eapply nm_pop_res_find_none; eauto. }
     { eapply nm_pop_res_find_none; eauto. }
-    { instantiate (1:= Th.remove tid rs_init). apply nm_find_rm_eq. }
 
-    cut (forall im_tgt0, exists im_src0 o0 r_shared0,
-            (I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt0, st_src, st_tgt, o0, r_shared0)) /\ (URA.wf r_shared0) /\
+    cut (forall im_tgt0, exists im_src0 o0 r_shared0 rs_ctx0,
+            (I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt0, st_src, st_tgt, o0, r_shared0)) /\
+              (resources_wf r_shared0 rs_ctx0) /\
               (forall (tid0 : Th.key) (src : thread _ident_src (sE state_src) R0)
                  (tgt : thread _ident_tgt (sE state_tgt) R1) r_own,
-                  (r_own = fst (get_resource tid0 rs_init)) ->
+                  (r_own = fst (get_resource tid0 rs_ctx0)) ->
                   (Th.find (elt:=thread _ident_src (sE state_src) R0) tid0 ths_src = Some src) ->
                   (Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid0 ths_tgt = Some tgt) ->
                   local_sim_pick I RR src tgt tid0 r_own)).
-    { i. specialize (H im_tgt). des. exists im_src0, o0, r_shared0. split.
-      - ii. specialize (H1 tid src0 tgt0 ε). hexploit H1; clear H1.
-        { admit. }
-        { eapply nm_pop_find_some; eauto. }
-        { eapply nm_pop_find_some; eauto. }
+    { i. specialize (H im_tgt). des. exists im_src0, o0, r_shared0, (snd (get_resource tid rs_ctx0)). splits.
+      - admit.
+      - ii. specialize (H1 tid src0 tgt0 (fst (get_resource tid rs_ctx0))). hexploit H1; clear H1; auto.
         i. unfold local_sim_pick in H1.
         assert (SETS: NatSet.add tid (key_set ths_src0) = key_set ths_src).
         { subst. rewrite key_set_pull_rm_eq. unfold NatSet.add.
@@ -272,72 +251,33 @@ Section LADEQ.
           rewrite <- nm_find_some_rm_add_eq; auto. eapply key_set_find_some1; eauto.
         }
         hexploit H1; clear H1. eapply H.
-        { instantiate (1:=sum_of_resources (Th.remove tid rs_init)). r_solve. admit. }
-        rewrite <- SETT; eauto.
+        { instantiate (1:=sum_of_resources (snd (get_resource tid rs_ctx0))).
+          hexploit resources_wf_get_wf. eapply H0.
+          2:{ i. des. eapply WF. }
+          instantiate (1:=tid). destruct (get_resource tid rs_ctx0); ss.
+        }
+        { rewrite <- SETT; eauto. }
         rewrite !SETS, !SETT. eauto.
-      - red. intros. eapply H1.
+      - i. eapply H1.
         { rewrite OWN. admit. }
         eapply find_some_aux; eauto. eapply find_some_aux; eauto.
     }
 
-    cut (forall im_tgt, exists (im_src0 : imap ident_src wf_src) (o0 : T wf_stt) r_shared0,
-            I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, r_shared0) /\ (URA.wf r_shared0) /\
-              (List.Forall2 (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ local_sim_pick I RR src tgt t1 ε)
+    cut (forall im_tgt, exists (im_src0 : imap ident_src wf_src) (o0 : T wf_stt) r_shared0 rs_ctx0,
+            I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, r_shared0) /\
+              (resources_wf r_shared0 rs_ctx0) /\
+              (List.Forall2 (fun '(t1, src) '(t2, tgt) =>
+                               (t1 = t2) /\ local_sim_pick I RR src tgt t1 (fst (get_resource t1 rs_ctx0)))
                             (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src)
                             (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt))).
-    { intro FA. i. specialize (FA im_tgt0). des. esplits; eauto. i.
-      eapply nm_forall2_implies_find_some in FA1; eauto. des. replace r_own with ε; auto.
-      subst. unfold get_resource. des_ifs; ss. unfold nm_pop in Heq. des_ifs.
-      rewrite NatMapP.F.map_o in Heq0. unfold option_map in Heq0. des_ifs.
+    { intro FA. i. specialize (FA im_tgt0). des. esplits; eauto. i. subst.
+      eapply nm_forall2_implies_find_some in FA1; eauto.
     }
 
-    (* cut (forall im_tgt, exists (im_src0 : imap ident_src wf_src) (o0 : T wf_stt) r_shared0, *)
-    (*         I (key_set ths_src, key_set ths_tgt, im_src0, im_tgt, st_src, st_tgt, o0, r_shared0) /\ *)
-    (*           (URA.wf r_shared0) /\ *)
-    (*           (List.Forall2 (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (t1 <> kernel_tid) /\ local_sim_pick I RR src tgt t1 (fst (get_resource t1 rs_init))) *)
-    (*                         (Th.elements (elt:=thread _ident_src (sE state_src) R0) ths_src) *)
-    (*                         (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt))). *)
-    (* { intro FA. i. specialize (FA im_tgt0). des. esplits; eauto. i. *)
-    (*   eapply nm_forall2_implies_find_some in FA1; eauto. des. rewrite H. auto. *)
-    (* } *)
-
-    clear tid src0 ths_src0 tgt0 ths_tgt0 FINDS FINDT Heqths_src0 Heqths_tgt0 POPS POPT.
-    clear rs_init Heqrs_init.
-    match goal with
-    | FA: List.Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt
-    end.
-    move LOCAL before RR. revert_until LOCAL. induction LOCAL; i.
-    { specialize (INV im_tgt). des.
-      symmetry in Heqtl_src; apply NatMapP.elements_Empty in Heqtl_src.
-      symmetry in Heqtl_tgt; apply NatMapP.elements_Empty in Heqtl_tgt.
-      apply nm_empty_eq in Heqtl_src, Heqtl_tgt. subst. esplits; ss; eauto.
-      unfold NatSet.empty in *. rewrite !key_set_empty_empty_eq. eauto.
-    }
-
-    des_ifs. des; clarify. rename k0 into tid1, i into src1, i0 into tgt1.
-    hexploit nm_elements_cons_rm. eapply Heqtl_src. intro RESS.
-    hexploit nm_elements_cons_rm. eapply Heqtl_tgt. intro REST.
-    hexploit IHLOCAL; clear IHLOCAL; eauto. intro IND.
-    des.
-    unfold local_sim in H0.
-    specialize (H0 _ _ _ _ _ _ _ _ ε IND tid1 (key_set ths_src) (key_set ths_tgt)).
-    hexploit H0.
-    { econs. rewrite key_set_pull_rm_eq. eapply nm_find_rm_eq.
-      erewrite <- key_set_pull_add_eq. instantiate (1:=src1).
-      rewrite <- nm_find_some_rm_add_eq; auto. eapply nm_elements_cons_find_some; eauto.
-    }
-    { econs. rewrite key_set_pull_rm_eq. eapply nm_find_rm_eq.
-      erewrite <- key_set_pull_add_eq. instantiate (1:=tgt1).
-      rewrite <- nm_find_some_rm_add_eq; auto. eapply nm_elements_cons_find_some; eauto.
-    }
-    { r_wf IND0. }
-    instantiate (1:=im_tgt). i; des. esplits; eauto.
-    econs; auto.
-    { split; ss. ii.
-      specialize (H2 _ _ _ _ _ _ _ _ INV1 WORLD0 im_tgt1 FAIR). des. esplits; eauto.
-    }
-    eapply list_forall2_implies; eauto. i. des_ifs. des; clarify. split; auto.
-    eapply local_sim_pick_mon_world; eauto.
+    i. hexploit local_sim_threads_local_sim_pick; eauto. intros FAALL. instantiate (1:=im_tgt) in FAALL.
+    clear LOCAL. des.
+    exists im_src0, o0, r_shared0, rs_local. splits; auto.
+    admit.
     Unshelve. all: exact true.
   Qed.
 
