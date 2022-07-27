@@ -634,6 +634,85 @@ Section TRANS_CLOS.
 
 End TRANS_CLOS.
 
+Section WFT_MONO.
+
+  Context `{M: URA.t}.
+
+  Variable state_src: Type.
+  Variable state_tgt: Type.
+
+  Variable _ident_src: ID.
+  Variable _ident_tgt: ID.
+
+  Variable wf_src  : WF.
+  Variable wft_T : Type.
+  Variable wft_lt : wft_T -> wft_T -> Prop.
+  Variable wft_lt' : wft_T -> wft_T -> Prop.
+  Hypothesis wft_wf : well_founded wft_lt.
+  Hypothesis wft_wf' : well_founded wft_lt'.
+  Hypothesis wft_LE : forall x y, wft_lt' x y -> wft_lt x y.
+  Let wf_tgt  := {| wf := wft_wf |}.
+  Let wf_tgt' := {| wf := wft_wf' |}.
+
+  Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> Prop.
+  Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> Prop.
+  Variable I: shared_rel.
+  Let I' : shared_rel' := I.
+
+  Variable R0 R1 : Type.
+  Variable RR : R0 -> R1 -> Prop.
+
+  Lemma fair_mono Id m_tgt1 m_tgt2 fm
+    (FAIR : @fair_update Id wf_tgt' m_tgt1 m_tgt2 fm)
+    : @fair_update Id wf_tgt m_tgt1 m_tgt2 fm.
+  Proof.
+    ii. specialize (FAIR i). des_ifs.
+    - eapply wft_LE. ss.
+    - destruct FAIR.
+      + left. ss.
+      + right. eapply wft_LE. ss.
+  Qed.
+
+  Lemma local_sim_wft_mono src tgt (SIM : local_sim I RR src tgt)
+    : local_sim I' RR src tgt.
+  Proof.
+    ii. ss. move SIM at bottom.
+    specialize (SIM ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID).
+    des. exists r_shared1, r_own1. splits; ss. i. move SIM1 at bottom.
+    specialize (SIM1 ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2 INV1 VALID1 im_tgt2 (fair_mono TGT)).
+    des. exists im_src2. split; ss. i. specialize (LSIM fs ft).
+    clear - LSIM wft_LE. revert_until I'. ginit. gcofix CIH. i. gstep.
+    remember (local_RR I RR tid) as RR'.
+    match goal with [ LSIM : lsim _ _ _ _ _ _ _ _ _ ?SHA |- _ ] => remember SHA as sha end.
+    revert ths im_src2 im_tgt2 st_src st_tgt r_shared2 Heqsha RR HeqRR'.
+    unfold lsim in LSIM. punfold LSIM.
+    pattern R0, R1, RR', fs, ft, r_own1, r_ctx2, src, tgt, sha.
+    revert R0 R1 RR' fs ft r_own1 r_ctx2 src tgt sha LSIM.
+    eapply pind10_acc. intros rr DEC IH R0 R1 RR' fs ft r_own r_ctx src tgt sha. i. clear DEC. subst.
+    eapply pind10_unfold in PR; eauto with paco. eapply pind10_fold. inv PR.
+    - econs. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs.
+    - econs. des. exists im_src1. splits; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. specialize (LSIM x). split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. specialize (LSIM im_tgt1 (fair_mono FAIR)). split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
+    - econs; ss. i. move LSIM at bottom.
+      specialize (LSIM ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 im_tgt0 (fair_mono TGT)).
+      split; ss. eapply IH; ss. destruct LSIM. eapply H0.
+    - econs. des. exists im_src1. split; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
+    - econs. gfinal. left. pclearbot. eapply CIH; ss.
+  Qed.
+
+End WFT_MONO.
 
 Module ModSim.
   Section MODSIM.
@@ -697,6 +776,7 @@ Section NAT.
   Variable wf_tgt_inhabited: inhabited wf_tgt.(T).
   Variable wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1.
 
+  Definition succ_wf := {| wf := succ_rel_well_founded |}.
   Definition wf_tgt_0: wf_tgt.(T) := epsilon _ wf_tgt_inhabited (fun _ => True).
   Definition wf_tgt_S: wf_tgt.(T) -> wf_tgt.(T) :=
     fun o0 => epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
@@ -738,13 +818,11 @@ Section NAT.
 
   Variable I: shared_rel.
 
-  Let shared_rel_nat: Type := @shared M state_src state_tgt _ident_src _ident_tgt wf_src nat_wf  -> Prop.
+  Let shared_rel_nat: Type := @shared M state_src state_tgt _ident_src _ident_tgt wf_src succ_wf  -> Prop.
 
   Definition to_shared_rel_nat : shared_rel_nat := 
     fun '(ths, m_src, m_tgt, st_src, st_tgt, w) =>
-      exists m_tgt',
-        (forall i, m_tgt i <= m_tgt' i)
-        /\ I (ths, m_src, nat_to_wf_tgt ∘ m_tgt', st_src, st_tgt, w).
+      I (ths, m_src, nat_to_wf_tgt ∘ m_tgt, st_src, st_tgt, w).
 
 End NAT.
 
