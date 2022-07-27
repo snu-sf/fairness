@@ -101,7 +101,7 @@ Section NATMAP.
       + exfalso. eapply H1. exists a. left. ss.
       + Raw.MX.elim_comp_lt k n. econs; eauto.
       + Raw.MX.elim_comp_gt k n.
-        rewrite <- H2. rewrite perm_swap. econs. 
+        rewrite <- H2. rewrite perm_swap. econs.
         inv SORTED. eapply IHm; eauto.
         intro. eapply H1. unfold Raw.PX.In in *.
         destruct H0. eexists. right. eauto.
@@ -174,7 +174,7 @@ Section NATMAP.
       eapply eqlistA_eq_key_elt_eq; eauto.
     }
     revert sorted0 sorted1 EQ. rewrite EQ1. i.
-    rewrite (proof_irrelevance _ sorted0 sorted1). auto.
+    rewrite (proof_irrelevance sorted0 sorted1). auto.
   Qed.
 
   Variable elt: Type.
@@ -498,8 +498,8 @@ Section NATSET.
 
   Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = [].
   Proof.
-    i. destruct s as [s SORTED]; ss. destruct s; ss. 
-    exfalso. eapply H. econs. ss. 
+    i. destruct s as [s SORTED]; ss. destruct s; ss.
+    exfalso. eapply H. econs. ss.
   Qed.
 
   Lemma Empty_nil_neg s : ~ NatSet.Empty s -> NatSet.elements s <> [].
@@ -1052,7 +1052,7 @@ Section AUX.
       rewrite nm_empty_eq; auto. rewrite nm_empty_eq at 1; auto.
       apply nm_wf_pair_empty_empty_equal.
     }
-    des_ifs. 
+    des_ifs.
     unfold nm_wf_pair_equal in *. dup Heqml1. dup Heqml2.
     eapply nm_elements_cons_rm in Heqml1, Heqml2.
     eapply nm_elements_cons_find_some in Heqml0, Heqml3.
