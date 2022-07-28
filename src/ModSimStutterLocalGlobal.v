@@ -7,7 +7,7 @@ From Fairness Require Import pind8.
 
 Set Implicit Arguments.
 
-From Fairness Require Import ModSimPico ModSimStutter.
+From Fairness Require Import ModSimGStutter ModSimStutter.
 
 Section PRIMIVIESIM.
   Variable state_src: Type.

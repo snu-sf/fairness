@@ -195,7 +195,7 @@ Section EVENT.
 
   (* Context {Ident: ID}. *)
 
-  Definition fmap {id: ID} := id -> Flag.t.
+  Definition fmap (id: ID) := id -> Flag.t.
 
   Variant eventE {id: ID}: Type -> Type :=
     | Choose (X: Type): eventE X
@@ -248,7 +248,7 @@ Section STS.
     ii. reflexivity.
   Qed.
 
-  Definition fair_update (m0 m1: imap) (f: fmap): Prop :=
+  Definition fair_update (m0 m1: imap) (f: fmap id): Prop :=
     forall i, match f i with
          | Flag.fail => wf.(lt) (m1 i) (m0 i)
          | Flag.emp => wf.(le) (m1 i) (m0 i)
