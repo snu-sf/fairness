@@ -216,9 +216,15 @@ Section LADEQ.
       assert (REP: rs_local = (NatMap.remove tid1 rs_local1)).
       { rewrite Heqrs_local1. rewrite nm_find_none_rm_add_eq; auto. }
       rewrite REP. rewrite REP in WFPAIR. rewrite RESS in Heqtl_src.
-    admit.
-  Admitted.
-
+      eapply wf_pair_elements_cons_rm; eauto.
+      { eapply nm_wf_pair_rm_inv; eauto.
+        - unfold NatMap.In, NatMap.Raw.PX.In. exists src1. unfold NatMap.Raw.PX.MapsTo. ss.
+          unfold Th.elements, Th.Raw.elements in Heqtl_src. rewrite <- Heqtl_src. econs 1. ss.
+        - rewrite Heqrs_local1. apply NatMapP.F.add_in_iff. auto.
+      }
+      { rewrite Heqrs_local1. rewrite nm_find_add_eq; auto. }
+    }
+  Qed.
 
   Theorem local_sim_implies_gsim
           R0 R1 (RR: R0 -> R1 -> Prop)
@@ -311,6 +317,22 @@ Section LADEQ.
     i. hexploit local_sim_threads_local_sim_pick; eauto. intros FAALL. instantiate (1:=im_tgt) in FAALL.
     clear LOCAL. des.
     exists im_src0, o0, r_shared0, rs_local. splits; auto.
+    clear - FAALL1.
+    (*TODO*)
+    match goal with
+    | FA: Forall3 _ ?_ml1 ?_ml2 ?_rs |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt; remember _rs as rs
+    end.
+    clear ths_src Heqtl_src ths_tgt Heqtl_tgt. move FAALL1 before RR. revert_until FAALL1. induction FAALL1; i; ss.
+    des_ifs. des; clarify. rename i into src1, i0 into tgt1, n1 into tid1, c into r_own1.
+    hexploit nm_elements_cons_rm. eapply Heqrs. intro RS.
+    econs.
+    { split; auto. 
+
+    induction FAALL1.
+    
+
+
+
     admit.
     Unshelve. all: exact true.
   Qed.

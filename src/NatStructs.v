@@ -992,6 +992,7 @@ Section AUX.
     unfold nm_wf_pair in *. rewrite !key_set_pull_add_eq. rewrite WF. auto.
   Qed.
 
+
   Lemma nm_wf_pair_rm
         elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
         (WF: nm_wf_pair m1 m2)
@@ -1000,6 +1001,48 @@ Section AUX.
     nm_wf_pair (remove k m1) (remove k m2).
   Proof.
     unfold nm_wf_pair in *. rewrite !key_set_pull_rm_eq. rewrite WF. auto.
+  Qed.
+
+  Lemma nm_rm_add_mapsto_equal
+        elt (m: NatMap.t elt)
+        k e
+        (MT: MapsTo k e m)
+    :
+    Equal m (add k e (remove k m)).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - destruct (F.eq_dec k0 k); clarify.
+      + pose (F.MapsTo_fun MT H). rewrite e1. apply add_1; auto.
+      + apply add_2; auto. apply remove_2; auto.
+    - apply F.add_mapsto_iff in H. des; clarify. apply F.remove_mapsto_iff in H0. des; auto.
+  Qed.
+  Lemma nm_rm_add_mapsto_eq
+        elt (m: NatMap.t elt)
+        k e
+        (MT: MapsTo k e m)
+    :
+    m = (add k e (remove k m)).
+  Proof. apply nm_eq_is_equal. apply nm_rm_add_mapsto_equal; auto. Qed.
+
+  Lemma nm_wf_pair_rm_inv
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        k
+        (IN1: In k m1)
+        (IN2: In k m2)
+        (WF: nm_wf_pair (remove k m1) (remove k m2))
+    :
+    nm_wf_pair m1 m2.
+  Proof.
+    assert (MT1: MapsTo k tt (key_set m1)).
+    { rewrite <- F.map_in_iff in IN1. instantiate (1:=unit1) in IN1. unfold In, Raw.PX.In in IN1. des. destruct e.
+      unfold MapsTo. unfold key_set. eapply IN1.
+    }
+    assert (MT2: MapsTo k tt (key_set m2)).
+    { rewrite <- F.map_in_iff in IN2. instantiate (1:=unit1) in IN2. unfold In, Raw.PX.In in IN2. des. destruct e.
+      unfold MapsTo. unfold key_set. eapply IN2.
+    }
+    unfold nm_wf_pair. rewrite (nm_rm_add_mapsto_eq MT1). rewrite (nm_rm_add_mapsto_eq MT2).
+    rewrite <- !key_set_pull_rm_eq. rewrite WF. auto.
   Qed.
 
 
@@ -1239,6 +1282,45 @@ Section AUX.
     i. ss. rewrite nm_wf_pair_tfind_elements_eq; auto.
   Qed.
 
+  Lemma tfind_l_remove_not_in
+        elt1 (l: list (key * elt1)%type) elt2 (m: t elt2)
+        k
+        (NOTIN: ~ Raw.PX.In k l)
+        e
+    :
+    List.map (fun '(k0, _) => (k0, tfind_l e k0 (elements (remove k m)))) l =
+      List.map (fun '(k0, _) => (k0, tfind_l e k0 (elements m))) l.
+  Proof.
+    revert_until l. induction l; i. ss. Local Opaque remove. ss. Local Transparent remove.
+    des_ifs. hexploit IHl; clear IHl.
+    { instantiate (1:=k). ii. apply NOTIN. apply Raw.PX.In_alt in H. apply Raw.PX.In_alt. des.
+      destruct (F.eqb k k0) eqn:EQ; clarify.
+      - unfold F.eqb in EQ. des_ifs. eexists. econs. unfold Raw.PX.eqk. eauto.
+      - eexists. econs 2. eauto.
+    }
+    i. f_equal.
+    { f_equal. rewrite <- !tfind_to_tfind_l. unfold tfind. rewrite nm_find_rm_neq; auto. ii.
+      apply NOTIN. clarify. econs. econs. econs; eauto.
+    }
+    eauto.
+  Qed.
+
+  Lemma key_set_idempotent
+        elt (m: t elt)
+    :
+    (key_set (key_set m)) = key_set m.
+  Proof.
+    unfold key_set. rewrite nm_map_map_eq. f_equal.
+  Qed.
+
+  Lemma nm_wf_pair_key_set
+        elt (m: t elt)
+    :
+    nm_wf_pair (key_set m) m.
+  Proof.
+    unfold nm_wf_pair. rewrite key_set_idempotent. auto.
+  Qed.
+
   Lemma key_set_elements_cons_rm
         elt (m: NatMap.t elt)
         k e
@@ -1248,36 +1330,68 @@ Section AUX.
     (k, e) :: (elements (remove k m)) = elements m.
   Proof.
     assert (EQ: List.map (fun '(k0, _) => (k0, tfind e k0 (remove k m))) ((k, tt) :: elements (remove k (key_set m))) = List.map (fun '(k0, _) => (k0, tfind e k0 m)) (elements (key_set m))).
-    { rewrite <- REF. ss. admit. }
+    { rewrite <- REF. ss. f_equal. f_equal. unfold tfind. rewrite nm_find_rm_eq. rewrite FIND. auto.
+      match goal with
+      | |- List.map ?_f _ = _ => assert (EQF: _f = (fun '(k0, _) => (k0, tfind_l e k0 (elements (remove k m)))))
+      end.
+      { extensionalities x. des_ifs. rewrite tfind_to_tfind_l. auto. }
+      rewrite EQF; clear EQF.
+      match goal with
+      | |- _ = List.map ?_f _ => assert (EQF: _f = (fun '(k0, _) => (k0, tfind_l e k0 (elements m))))
+      end.
+      { extensionalities x. des_ifs. rewrite tfind_to_tfind_l. auto. }
+      rewrite EQF; clear EQF.
+      eapply tfind_l_remove_not_in. apply Raw.remove_1; auto. apply Raw.map_sorted. apply sorted.
+    }
     clear REF.
     rewrite nm_wf_pair_tfind_elements_cons_eq in EQ.
-    2:{ admit. }
+    2:{ apply nm_wf_pair_rm. apply nm_wf_pair_key_set. }
     rewrite nm_wf_pair_tfind_elements_eq in EQ.
-    2:{ admit. }
+    2:{ apply nm_wf_pair_key_set. }
     rewrite <- EQ. f_equal. f_equal. unfold tfind. rewrite nm_find_rm_eq. auto.
-    (*TODO*)
+  Qed.
 
+  Lemma elements_key_set_cons_rm
+        elt (m: NatMap.t elt)
+        k e
+        (REF: (k, e) :: (elements (remove k m)) = elements m)
+        (FIND: find k (key_set m) = Some tt)
+    :
+    (k, tt) :: (elements (remove k (key_set m))) = elements (key_set m).
+  Proof.
+    assert (EQ: List.map (fun '(k0, _) => (k0, tfind tt k0 (remove k (key_set m)))) ((k, e) :: elements (remove k m)) = List.map (fun '(k0, _) => (k0, tfind tt k0 (key_set m))) (elements m)).
+    { rewrite <- REF. ss. f_equal. f_equal. unfold tfind. rewrite nm_find_rm_eq. rewrite FIND. auto.
+      match goal with
+      | |- List.map ?_f _ = _ => assert (EQF: _f = (fun '(k0, _) => (k0, tfind_l tt k0 (elements (remove k (key_set m))))))
+      end.
+      { extensionalities x. des_ifs. rewrite tfind_to_tfind_l. auto. }
+      rewrite EQF; clear EQF.
+      match goal with
+      | |- _ = List.map ?_f _ => assert (EQF: _f = (fun '(k0, _) => (k0, tfind_l tt k0 (elements (key_set m)))))
+      end.
+      { extensionalities x. des_ifs. rewrite tfind_to_tfind_l. auto. }
+      rewrite EQF; clear EQF.
+      eapply tfind_l_remove_not_in. apply Raw.remove_1; auto. apply sorted.
+    }
+    clear REF.
+    rewrite nm_wf_pair_tfind_elements_cons_eq in EQ.
+    2:{ apply nm_wf_pair_rm. apply nm_wf_pair_sym. apply nm_wf_pair_key_set. }
+    rewrite nm_wf_pair_tfind_elements_eq in EQ.
+    2:{ apply nm_wf_pair_sym. apply nm_wf_pair_key_set. }
+    rewrite <- EQ. f_equal. f_equal. unfold tfind. rewrite nm_find_rm_eq. auto.
+  Qed.
 
-  Lemma wf_pair_elements_cons_rm_add
+  Lemma wf_pair_elements_cons_rm
         elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
         k e1 e2
-        (WFP: nm_wf_pair (remove k m1) (remove k m2))
+        (WFP: nm_wf_pair m1 m2)
         (REF: (k, e1) :: (elements (remove k m1)) = elements m1)
         (FIND: find k m2 = Some e2)
     :
     (k, e2) :: (elements (remove k m2)) = elements m2.
   Proof.
-
-
-  Lemma wf_pair_elements_cons_rm_add
-        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
-        k e1 e2
-        (WFP: nm_wf_pair (remove k m1) (remove k m2))
-        (REF: (k, e1) :: (elements (remove k m1)) = elements m1)
-        (MEM: m2 = add k e2 (remove k m2))
-    :
-    (k, e2) :: (elements (remove k m2)) = elements m2.
-  Proof.
-    
+    eapply key_set_elements_cons_rm; auto. rewrite <- WFP. eapply elements_key_set_cons_rm; eauto.
+    rewrite WFP. unfold key_set. rewrite F.map_o. rewrite FIND. ss.
+  Qed.
 
 End AUX.
