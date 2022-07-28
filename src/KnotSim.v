@@ -8,7 +8,7 @@ Require Import Program.
 Export ITreeNotations.
 
 From Fairness Require Export ITreeLib FairBeh NatStructs.
-From Fairness Require Export Mod ModSimPico Concurrency.
+From Fairness Require Export Mod ModSimGStutter Concurrency.
 From Fairness Require Import pind PCM World.
 
 Set Implicit Arguments.

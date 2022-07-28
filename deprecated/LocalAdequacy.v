@@ -11,7 +11,7 @@ Export ITreeNotations.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
-From Fairness Require Export Mod ModSimPico Concurrency.
+From Fairness Require Export Mod ModSimStutter Concurrency.
 From Fairness Require Import pind.
 From Fairness Require Import PCM.
 
@@ -864,7 +864,7 @@ Section ADEQ.
                           Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None ->
                           th_wf_pair ths_src ths_tgt ->
                           forall (sf : bool) (st_src : state_src) (st_tgt : state_tgt) (o : T wf_src)
-                            (im_tgt : imap (ModSimPico.ident_tgt _ident_tgt) wf_tgt) (im_src : imap (id_sum thread_id _ident_src) wf_src),
+                            (im_tgt : imap (ModSimStutter.ident_tgt _ident_tgt) wf_tgt) (im_src : imap (id_sum thread_id _ident_src) wf_src),
                             LRR = local_RR world_le I RR tid ->
                             shr = (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), im_src, im_tgt, st_src, st_tgt, o, w) ->
                             paco10 (fun r0 => pind10 (__sim_knot RR r0) top8) r ths_src ths_tgt tid gps gpt (sf, src) tgt shr)) in LSIM; auto. }
