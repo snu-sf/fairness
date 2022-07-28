@@ -48,6 +48,47 @@ Section AUX.
     econs; eauto.
   Qed.
 
+  Lemma list_forall3_implies_forall2_2
+        A B C (f1: A -> B -> C -> Prop) (f2: A -> B -> Prop)
+        la lb lc
+        (FA: Forall3 f1 la lb lc)
+        (IMP: forall a b c, (f1 a b c) -> (f2 a b))
+    :
+    List.Forall2 f2 la lb.
+  Proof.
+    move FA before C. revert_until FA. induction FA; i; ss.
+    econs; eauto.
+  Qed.
+
+  Import NatMap.
+  Import NatMapP.
+
+  Lemma nm_forall3_implies_find_some
+        elt1 elt2 elt3 (m1: NatMap.t elt1) (m2: NatMap.t elt2) (m3: NatMap.t elt3)
+        P
+        (FA: Forall3 (fun '(k1, e1) '(k2, e2) '(k3, e3) => (k1 = k2) /\ (k1 = k3) /\ (P e1 e2 e3 k1))
+                     (elements m1) (elements m2) (elements m3))
+    :
+    forall k e1 e2 e3 (FIND1: find k m1 = Some e1) (FIND2: find k m2 = Some e2) (FIND3: find k m3 = Some e3),
+      P e1 e2 e3 k.
+  Proof.
+    match goal with
+    | FA: Forall3 _ ?_ml1 ?_ml2 ?_ml3 |- _ => remember _ml1 as ml1; remember _ml2 as ml2; remember _ml3 as ml3
+    end.
+    move FA before elt3. revert_until FA. induction FA; i.
+    { symmetry in Heqml1; apply elements_Empty in Heqml1.
+      symmetry in Heqml2; apply elements_Empty in Heqml2.
+      symmetry in Heqml3; apply elements_Empty in Heqml3.
+      apply nm_empty_eq in Heqml1, Heqml2, Heqml3. subst. rewrite F.empty_o in FIND1; ss.
+    }
+    des_ifs. des; clarify. destruct (F.eq_dec k k2); clarify.
+    { eapply nm_elements_cons_find_some in Heqml1, Heqml2, Heqml3. clarify. }
+    hexploit nm_elements_cons_rm. eapply Heqml1. intro RM1.
+    hexploit nm_elements_cons_rm. eapply Heqml2. intro RM2.
+    hexploit nm_elements_cons_rm. eapply Heqml3. intro RM3.
+    eapply IHFA; eauto. rewrite nm_find_rm_neq; auto. rewrite nm_find_rm_neq; auto. rewrite nm_find_rm_neq; auto.
+  Qed.
+
 End AUX.
 
 
@@ -318,25 +359,24 @@ Section LADEQ.
     clear LOCAL. des.
     exists im_src0, o0, r_shared0, rs_local. splits; auto.
     clear - FAALL1.
-    (*TODO*)
-    match goal with
-    | FA: Forall3 _ ?_ml1 ?_ml2 ?_rs |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt; remember _rs as rs
-    end.
-    clear ths_src Heqtl_src ths_tgt Heqtl_tgt. move FAALL1 before RR. revert_until FAALL1. induction FAALL1; i; ss.
-    des_ifs. des; clarify. rename i into src1, i0 into tgt1, n1 into tid1, c into r_own1.
-    hexploit nm_elements_cons_rm. eapply Heqrs. intro RS.
-    econs.
-    { split; auto. 
-
-    induction FAALL1.
-    
-
-
-
-    admit.
+    eapply nm_find_some_implies_forall2.
+    { hexploit list_forall3_implies_forall2_2. eauto.
+      { i. instantiate (1:=fun '(t1, src) '(t2, tgt) => t1 = t2). ss. des_ifs. des; auto. }
+      intros FA2. apply nm_forall2_wf_pair; auto.
+    }
+    { i. hexploit nm_forall3_implies_find_some. eapply FAALL1. all: eauto.
+      2:{ ss. eauto. }
+      assert (WFPAIR: nm_wf_pair ths_src rs_local).
+      { hexploit list_forall3_implies_forall2_3. eauto.
+        { i. instantiate (1:=fun '(t1, src) '(t3, r_own) => t1 = t3). ss. des_ifs. des; auto. }
+        intros FA2. apply nm_forall2_wf_pair in FA2. auto.
+      }
+      hexploit nm_wf_pair_find_cases. eapply WFPAIR. i. des. clear H. hexploit H0.
+      { ii. rewrite FIND1 in H. ss. }
+      i. destruct (NatMap.find k rs_local) eqn:FRS; ss. erewrite get_resource_find_some_fst; eauto.
+    }
     Unshelve. all: exact true.
   Qed.
-
 
 End LADEQ.
 
@@ -422,8 +462,6 @@ Section ADEQ.
   (*     end. *)
 
   (* Theorem  *)
-
-
 
 
 End ADEQ.

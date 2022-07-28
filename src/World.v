@@ -327,4 +327,41 @@ Section AUX.
     - eapply nm_pop_find_none; eauto.
   Qed.
 
+  Definition get_resource_l
+             (tid: thread_id)
+             (rs: list (thread_id * M)%type)
+    : (URA.car * (list (thread_id * M)%type)) :=
+    match nm_pop_l tid rs with
+    | Some (r, rs) => (r, rs)
+    | _ => (ε, rs)
+    end.
+
+  Lemma get_resource_l_eq
+        tid rs
+        r rs'
+        (GET: get_resource tid rs = (r, rs'))
+    :
+    get_resource_l tid (NatMap.elements rs) = (r, NatMap.elements rs').
+  Proof.
+    unfold get_resource, get_resource_l in *. destruct (nm_pop tid rs) eqn:POP.
+    - destruct p as [r0 rs0]. inv GET. apply nm_pop_l_eq_some in POP. rewrite POP. ss.
+    - inv GET. apply nm_pop_l_eq_none in POP. rewrite POP. ss.
+  Qed.
+
+  Lemma get_resource_l_eq_fst
+        tid rs
+    :
+    fst (get_resource tid rs) = fst (get_resource_l tid (NatMap.elements rs)).
+  Proof.
+    destruct (get_resource tid rs) eqn:GET. apply get_resource_l_eq in GET. rewrite GET. ss.
+  Qed.
+
+  Lemma get_resource_l_eq_snd
+        tid rs
+    :
+    NatMap.elements (snd (get_resource tid rs)) = snd (get_resource_l tid (NatMap.elements rs)).
+  Proof.
+    destruct (get_resource tid rs) eqn:GET. apply get_resource_l_eq in GET. rewrite GET. ss.
+  Qed.
+
 End AUX.

@@ -32,6 +32,12 @@ Section NATMAP.
             | Some e => Some (e, NatMap.remove k m)
             end.
 
+  Definition nm_pop_l elt: NatMap.key -> list (NatMap.key * elt)%type -> option (prod elt (list (NatMap.key * elt)%type)) :=
+    fun k l => match findA (NatMapP.F.eqb k) l with
+            | None => None
+            | Some e => Some (e, NatMap.Raw.remove k l)
+            end.
+
   Variant nm_add_new {elt}: NatMap.key -> elt -> (NatMap.t elt) -> (NatMap.t elt) -> Prop :=
     | nm_add_new_intro
         k e m1 m2
@@ -519,6 +525,27 @@ Section NATMAP.
     forall k, tfind d k m = tfind_l d k (elements m).
   Proof.
     i. unfold tfind, tfind_l. rewrite F.elements_o. auto.
+  Qed.
+
+
+  Lemma nm_pop_l_eq_none
+        (m: t elt)
+        k
+        (POP: nm_pop k m = None)
+    :
+    nm_pop_l k (elements m) = None.
+  Proof.
+    unfold nm_pop, nm_pop_l in *. rewrite <- F.elements_o. des_ifs.
+  Qed.
+
+  Lemma nm_pop_l_eq_some
+        (m: t elt)
+        k e m'
+        (POP: nm_pop k m = Some (e, m'))
+    :
+    nm_pop_l k (elements m) = Some (e, elements m').
+  Proof.
+    unfold nm_pop, nm_pop_l in *. rewrite <- F.elements_o. des_ifs.
   Qed.
 
 End NATMAP.
@@ -1392,6 +1419,33 @@ Section AUX.
   Proof.
     eapply key_set_elements_cons_rm; auto. rewrite <- WFP. eapply elements_key_set_cons_rm; eauto.
     rewrite WFP. unfold key_set. rewrite F.map_o. rewrite FIND. ss.
+  Qed.
+
+
+  Lemma nm_find_some_implies_forall2
+        elt1 elt2 (m1: NatMap.t elt1) (m2: NatMap.t elt2)
+        (P: elt1 -> elt2 -> key -> Prop)
+        (WFP: nm_wf_pair m1 m2)
+        (PROP: forall k e1 e2 (FIND1: find k m1 = Some e1) (FIND2: find k m2 = Some e2), P e1 e2 k)
+    :
+    List.Forall2 (fun '(k1, e1) '(k2, e2) => (k1 = k2) /\ (P e1 e2 k1)) (elements m1) (elements m2).
+  Proof.
+    remember (elements m1) as l1. move l1 before elt2. revert_until l1. induction l1; i; ss.
+    { symmetry in Heql1. apply elements_Empty in Heql1. hexploit nm_wf_pair_empty; eauto. i. apply H in Heql1.
+      apply nm_empty_eq in Heql1. subst. rewrite elements_empty. ss. }
+    destruct a as [k e1]. hexploit nm_elements_cons_rm. eauto. intros ELEM1. rewrite ELEM1 in Heql1.
+    destruct (elements m2) eqn:Heql2.
+    { apply elements_Empty in Heql2. hexploit nm_wf_pair_empty; eauto. i. apply H in Heql2.
+      apply nm_empty_eq in Heql2. subst. rewrite elements_empty in Heql1. inv Heql1. }
+    destruct p as [k0 e2]. rename l into l2. symmetry in Heql2.
+    hexploit nm_elements_cons_rm. eapply Heql2. intro ELEM2. rewrite ELEM2 in Heql2.
+    assert (k = k0).
+    { hexploit nm_wf_pair_elements_forall2. eauto. rewrite <- Heql1, <- Heql2. i. inv H. auto. }
+    replace k0 with k in *. clear H. econs.
+    2:{ rewrite ELEM2. eapply IHl1; eauto. apply nm_wf_pair_rm; auto.
+        i. eapply PROP. rewrite F.remove_o in FIND1. des_ifs. rewrite F.remove_o in FIND2. des_ifs.
+    }
+    split; auto. eapply PROP. eapply nm_elements_cons_find_some; eauto. eapply nm_elements_cons_find_some; eauto.
   Qed.
 
 End AUX.
