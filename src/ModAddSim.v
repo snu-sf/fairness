@@ -48,6 +48,7 @@ End WF_SUM.
 
 Section ADD_COMM.
 
+  (*
   Definition m_conv {id1 id2 wf} (m_tgt : @imap (ident_tgt (id_sum id2 id1)) wf) :
     @imap (ident_src (id_sum id1 id2)) wf :=
     fun i =>
@@ -282,11 +283,12 @@ Section ADD_COMM.
       + ss.
         Unshelve. all: exact tt.
   Qed.
-
+   *)
 End ADD_COMM.
 
 Section ADD_RIGHT_CONG.
 
+  (*
   Definition mk_m2_tgt
     {id1 id2 wf_tgt}
     (m : @imap (ident_tgt (id_sum id1 id2)) wf_tgt)
@@ -344,5 +346,5 @@ Section ADD_RIGHT_CONG.
     - admit.
     - (* here *) admit.
   Admitted.
-
+   *)
 End ADD_RIGHT_CONG.

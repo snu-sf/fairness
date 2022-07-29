@@ -5,11 +5,8 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
-From Fairness Require Import Axioms.
-From Fairness Require Import FairBeh.
-From Fairness Require Import pind_internal.
-From Fairness Require Import pind3.
-From Fairness Require Import SelectBeh.
+From Fairness Require Import
+  Axioms WFLib FairBeh pind_internal pind3 SelectBeh.
 
 From Paco Require Import paco.
 
@@ -347,7 +344,7 @@ Section EQUIV2.
   Proof. econs. exact wft0. Qed.
 
   Definition tr2ord_i {R} i (tr: (@RawTr.t id R)): wft.(T) :=
-    epsilon _ (inhabited_tr_ord) (fun o => ord_tr wft wft0 S i o tr).
+    epsilon (inhabited_tr_ord) (fun o => ord_tr wft wft0 S i o tr).
 
   Theorem tr2ord_i_spec
           i R (tr: @RawTr.t id R)
