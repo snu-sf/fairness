@@ -17,14 +17,15 @@ Section PRIMIVIESIM.
   Variable state_src: Type.
   Variable state_tgt: Type.
 
-  Variable ident_src: ID.
+  Variable _ident_src: ID.
+  Definition ident_src := sum_tid _ident_src.
   Variable _ident_tgt: ID.
   Definition ident_tgt := sum_tid _ident_tgt.
 
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
+  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
   Definition shared :=
@@ -100,7 +101,7 @@ Section PRIMIVIESIM.
       ths im_src0 im_tgt st_src st_tgt r_shared
       f ktr_src itr_tgt
       (LSIM: exists im_src1,
-          (<<FAIR: fair_update im_src0 im_src1 f>>) /\
+          (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_r f)>>) /\
             (<<LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
@@ -161,11 +162,13 @@ Section PRIMIVIESIM.
 
   | lsim_yieldL
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src0 im_tgt st_src st_tgt r_shared
       ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) (trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: exists im_src1,
+          (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
+            (<<LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) (trigger (Yield) >>= itr_tgt) (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= itr_tgt) (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
   | lsim_yieldR
       f_src f_tgt r_ctx0
       ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
@@ -193,7 +196,9 @@ Section PRIMIVIESIM.
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          (<<LSIM: lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
+          (exists im_src2,
+              (<<FAIR: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths1))>>) /\
+                (<<LSIM: lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src2, im_tgt2, st_src1, st_tgt1, r_shared1)>>)))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
 
@@ -215,7 +220,7 @@ Section PRIMIVIESIM.
     forall r r' (LE: r <9= r'), (__lsim tid r) <10= (__lsim tid r').
   Proof.
     ii. inv PR; try (econs; eauto; fail).
-    eapply lsim_sync; eauto. i. hexploit LSIM. eapply INV0. eapply VALID0. all: eauto.
+    eapply lsim_sync; eauto. i. hexploit LSIM. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
   Qed.
 
   Lemma _lsim_mon tid: forall r, monotone9 (__lsim tid r).
@@ -224,6 +229,7 @@ Section PRIMIVIESIM.
     { des. econs; eauto. }
     { des. econs; eauto. }
     { econs. i. eapply LE. eapply LSIM. eauto. }
+    { des. econs; esplits; eauto. }
   Qed.
 
   Lemma lsim_mon tid: forall q, monotone9 (fun r => pind9 (__lsim tid r) q).
@@ -322,8 +328,8 @@ Section PRIMIVIESIM.
 
     { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_base. auto. }
 
-    { des. eapply pind9_fold. eapply lsim_yieldL. split; ss.
-      destruct LSIM0 as [LSIM IND]. hexploit IH; eauto.
+    { des. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto.
     }
 
     { eapply pind9_fold. eapply lsim_yieldR; eauto. i.
@@ -447,7 +453,7 @@ Section PRIMIVIESIM.
     { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
 
     { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
-      destruct LSIM0 as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i.
@@ -486,15 +492,17 @@ Section PRIMIVIESIM.
                 (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared2))
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
           forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
-            (<<LSIM: forall fs ft,
-                lsim
-                  tid
-                  (@local_RR R0 R1 RR tid)
-                  fs ft
-                  r_ctx2
-                  src tgt
-                  (ths, im_src1, im_tgt2, st_src, st_tgt, r_shared2)
-                  >>)).
+          exists im_src2,
+            (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
+              (<<LSIM: forall fs ft,
+                  lsim
+                    tid
+                    (@local_RR R0 R1 RR tid)
+                    fs ft
+                    r_ctx2
+                    src tgt
+                    (ths, im_src2, im_tgt2, st_src, st_tgt, r_shared2)
+                    >>)).
 
   Definition shared_rel_wf: Prop :=
     forall ths im_src0 im_tgt0 st_src st_tgt r_shared0 r_ctx
@@ -502,8 +510,9 @@ Section PRIMIVIESIM.
            (VALID: URA.wf (r_shared0 ⋅ r_ctx)),
     forall im_tgt1
            (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap_all ths))),
-    exists r_shared1,
-      (<<INV: I (ths, im_src0, im_tgt1, st_src, st_tgt, r_shared1)>>) /\
+    exists im_src1 r_shared1,
+      (<<SRC: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap_all ths))>>) /\
+        (<<INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared1)>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_ctx)>>).
 
 End PRIMIVIESIM.
@@ -512,208 +521,8 @@ End PRIMIVIESIM.
 #[export] Hint Resolve __lsim_mon: paco.
 #[export] Hint Resolve _lsim_mon: paco.
 #[export] Hint Resolve lsim_mon: paco.
-#[export] Hint Resolve cpn9_wcompat: paco.
 
 
-From Coq Require Import Relations.Relation_Operators.
-From Coq Require Import Relations.Operators_Properties.
-From Fairness Require Import WFLib Axioms.
-
-Section TRANS_CLOS.
-
-  Context `{M: URA.t}.
-
-  Variable state_src: Type.
-  Variable state_tgt: Type.
-
-  Variable _ident_src: ID.
-  Variable _ident_tgt: ID.
-
-  Variable wf_src: WF.
-  Variable wf_tgt: WF.
-
-  Hypothesis (inh : inhabited wf_tgt.(T)).
-
-  Let wf_tgt' := {| wf := clos_trans_well_founded wf_tgt.(wf) |}.
-
-  Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> Prop.
-  Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> Prop.
-  Variable I: shared_rel.
-  Let I' : shared_rel' :=
-        fun '(ths, im_src, im_tgt, st_src, st_tgt, w) =>
-          exists im_tgt'0, << INV_LE : (forall i, le wf_tgt' (im_tgt i) (im_tgt'0 i)) >>
-                    /\ << INV : I (ths, im_src, im_tgt'0, st_src, st_tgt, w) >>.
-
-  Lemma fair_break Id m_tgt m_tgt'' fm
-    (FAIR : @fair_update Id wf_tgt' m_tgt m_tgt'' fm)
-    : exists im_tgt'0, << FAIR : @fair_update Id wf_tgt m_tgt im_tgt'0 fm >> /\ << LE : forall i, le wf_tgt' (m_tgt'' i) (im_tgt'0 i) >>.
-  Proof.
-    exists (fun i => match fm i with
-             | Flag.fail    => epsilon inh (fun z => lt wf_tgt z (m_tgt i)
-                                                   /\ (m_tgt'' i = z \/ clos_trans_n1 _ (lt wf_tgt) (m_tgt'' i) z))
-             | Flag.emp     => m_tgt i
-             | Flag.success => m_tgt'' i
-             end).
-    split.
-    - ii. specialize (FAIR i). des_ifs.
-      + eapply clos_trans_step in FAIR.
-        eapply epsilon_spec in FAIR.
-        destruct FAIR. eapply H.
-      + reflexivity.
-    - ii. specialize (FAIR i). des_ifs.
-      + eapply clos_trans_step in FAIR.
-        eapply epsilon_spec in FAIR.
-        destruct FAIR. eapply H0.
-      + reflexivity.
-  Qed.
-
-  Lemma fair_trans_l {Id im_tgt im_tgt' im_tgt'' fm}
-    (LE : (forall i, le wf_tgt' (im_tgt' i) (im_tgt i)))
-    (FAIR : @fair_update Id wf_tgt' im_tgt' im_tgt'' fm)
-    : @fair_update Id wf_tgt' im_tgt  im_tgt'' fm.
-  Proof.
-    ii. specialize (LE i). specialize (FAIR i). des_ifs.
-    - destruct LE.
-      + rewrite <- H. ss.
-      + ss. eapply clos_trans_n1_trans; eauto.
-    - destruct LE.
-      + rewrite <- H. ss.
-      + destruct FAIR.
-        * rewrite H0. right. ss.
-        * right. eapply clos_trans_n1_trans; eauto.
-  Qed.
-
-  Variable R0 R1 : Type.
-  Variable RR : R0 -> R1 -> Prop.
-
-  Lemma local_sim_clos_trans src tgt (SIM : local_sim I RR src tgt)
-    : local_sim I' RR src tgt.
-  Proof.
-    ii. ss. des. move SIM at bottom.
-    specialize (SIM ths0 im_src0 im_tgt'0 st_src0 st_tgt0 r_shared0 r_ctx0 INV0 tid ths1 THS VALID).
-    des. exists r_shared1, r_own. splits; ss. { exists im_tgt'0. ss. }
-    i. des. pose proof (fair_break (fair_trans_l INV1 TGT)). des. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 im_tgt'1 st_src st_tgt r_shared2 r_ctx2 INV2 VALID1 im_tgt'2 FAIR fs ft).
-    rename SIM1 into LSIM. clear - inh LSIM LE. revert_until I'. ginit. gcofix CIH. i. gstep.
-    remember (local_RR I RR tid) as RR'.
-    remember (ths, im_src1, im_tgt'2, st_src, st_tgt, r_shared2) as sha.
-    revert ths im_src1 im_tgt2 im_tgt'2 st_src st_tgt r_shared2 LE Heqsha RR HeqRR'.
-    unfold lsim in LSIM. punfold LSIM.
-    pattern R0, R1, RR', fs, ft, r_ctx2, src, tgt, sha.
-    revert R0 R1 RR' fs ft r_ctx2 src tgt sha LSIM.
-    eapply pind9_acc. intros rr DEC IH R0 R1 RR' fs ft r_ctx src tgt sha. i. clear DEC. subst.
-    eapply pind9_unfold in PR; eauto with paco. eapply pind9_fold. inv PR.
-    - econs. ss. des. exists ths3, r_own, r_shared0. splits; ss. exists im_tgt'2. split; ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs.
-    - econs. des. exists im_src0. splits; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. specialize (LSIM x). split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. pose proof (fair_break (fair_trans_l LE FAIR)). des.
-      specialize (LSIM im_tgt'0 FAIR0). split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
-    - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - eapply lsim_yieldR; eauto. { exists im_tgt'2. split; eauto. } i. ss. des.
-      pose proof (fair_break (fair_trans_l INV_LE TGT)). des. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 im_tgt'0 st_src1 st_tgt1 r_shared1 r_ctx1 INV1 VALID0 im_tgt'1 FAIR).
-      split; ss. eapply IH; ss. destruct LSIM. eapply H0.
-    - eapply lsim_sync; eauto. { exists im_tgt'2. split; eauto. } i. ss. des.
-      pose proof (fair_break (fair_trans_l INV_LE TGT)). des. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 im_tgt'0 st_src1 st_tgt1 r_shared1 r_ctx1 INV1 VALID0 im_tgt'1 FAIR).
-      pclearbot. gfinal. left. eapply CIH; ss.
-    - econs. gfinal. left. pclearbot. eapply CIH; ss.
-  Qed.
-
-End TRANS_CLOS.
-
-Section WFT_MONO.
-
-  Context `{M: URA.t}.
-
-  Variable state_src: Type.
-  Variable state_tgt: Type.
-
-  Variable _ident_src: ID.
-  Variable _ident_tgt: ID.
-
-  Variable wf_src  : WF.
-  Variable wft_T : Type.
-  Variable wft_lt : wft_T -> wft_T -> Prop.
-  Variable wft_lt' : wft_T -> wft_T -> Prop.
-  Hypothesis wft_wf : well_founded wft_lt.
-  Hypothesis wft_wf' : well_founded wft_lt'.
-  Hypothesis wft_LE : forall x y, wft_lt' x y -> wft_lt x y.
-  Let wf_tgt  := {| wf := wft_wf |}.
-  Let wf_tgt' := {| wf := wft_wf' |}.
-
-  Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> Prop.
-  Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> Prop.
-  Variable I: shared_rel.
-  Let I' : shared_rel' := I.
-
-  Variable R0 R1 : Type.
-  Variable RR : R0 -> R1 -> Prop.
-
-  Lemma fair_mono Id m_tgt1 m_tgt2 fm
-    (FAIR : @fair_update Id wf_tgt' m_tgt1 m_tgt2 fm)
-    : @fair_update Id wf_tgt m_tgt1 m_tgt2 fm.
-  Proof.
-    ii. specialize (FAIR i). des_ifs.
-    - eapply wft_LE. ss.
-    - destruct FAIR.
-      + left. ss.
-      + right. eapply wft_LE. ss.
-  Qed.
-
-  Lemma local_sim_wft_mono src tgt (SIM : local_sim I RR src tgt)
-    : local_sim I' RR src tgt.
-  Proof.
-    ii. ss. move SIM at bottom.
-    specialize (SIM ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID).
-    des. exists r_shared1, r_own. splits; ss. i. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2 INV1 VALID1 im_tgt2 (fair_mono TGT) fs ft).
-    rename SIM1 into LSIM. clear - LSIM wft_LE. revert_until I'. ginit. gcofix CIH. i. gstep.
-    remember (local_RR I RR tid) as RR'.
-    match goal with [ LSIM : lsim _ _ _ _ _ _ _ _ ?SHA |- _ ] => remember SHA as sha end.
-    revert ths im_src1 im_tgt2 st_src st_tgt r_shared2 Heqsha RR HeqRR'.
-    unfold lsim in LSIM. punfold LSIM.
-    pattern R0, R1, RR', fs, ft, r_ctx2, src, tgt, sha.
-    revert R0 R1 RR' fs ft r_ctx2 src tgt sha LSIM.
-    eapply pind9_acc. intros rr DEC IH R0 R1 RR' fs ft r_ctx src tgt sha. i. clear DEC. subst.
-    eapply pind9_unfold in PR; eauto with paco. eapply pind9_fold. inv PR.
-    - econs. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs.
-    - econs. des. exists im_src0. splits; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. specialize (LSIM x). split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. specialize (LSIM im_tgt1 (fair_mono FAIR)). split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
-    - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - eapply lsim_yieldR; eauto. i. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 im_tgt0 (fair_mono TGT)).
-      split; ss. eapply IH; ss. destruct LSIM. ss.
-    - eapply lsim_sync; eauto. i. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 im_tgt0 (fair_mono TGT)).
-      pclearbot. gfinal. left. eapply CIH; ss.
-    - econs. gfinal. left. pclearbot. eapply CIH; ss.
-  Qed.
-
-End WFT_MONO.
 
 Module ModSim.
   Section MODSIM.
@@ -743,160 +552,3 @@ Module ModSim.
         }.
   End MODSIM.
 End ModSim.
-
-Module ModSimN.
-  Section MODSIMNAT.
-
-    Variable md_src: Mod.t.
-    Variable md_tgt: Mod.t.
-
-    Record mod_sim: Prop :=
-      mk {
-          wf_src : WF;
-
-          world: URA.t;
-
-          I: (@shared world md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src nat_wf) -> Prop;
-          init: forall im_tgt, exists im_src r_shared,
-            I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), r_shared)
-            /\ (URA.wf r_shared);
-
-          funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                                | None, _ => True
-                                | _, None => False
-                                | Some ktr_src, Some ktr_tgt => local_sim I (@eq Val) (ktr_src args) (ktr_tgt args)
-                                end;
-        }.
-  End MODSIMNAT.
-End ModSimN.
-
-From Fairness Require Import Axioms.
-Section NAT.
-
-  Definition succ_wf := {| wf := succ_rel_well_founded |}.
-  Definition succ_wf' := {| wf := clos_trans_well_founded succ_rel_well_founded |}.
-
-  Variable wf_tgt : WF.
-  Hypothesis wf_tgt_inhabited: inhabited wf_tgt.(T).
-  Hypothesis wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1.
-
-  Let zero: wf_tgt.(T) := epsilon wf_tgt_inhabited (fun _ => True).
-  Let succ: wf_tgt.(T) -> wf_tgt.(T) :=
-        fun o0 => epsilon wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
-
-  Lemma wf_tgt_succ_lt o: lt wf_tgt o (succ o).
-  Proof. unfold succ. eapply epsilon_spec; ss. Qed.
-
-  Fixpoint wfemb (n: nat): wf_tgt.(T) :=
-    match n with
-    | 0 => zero
-    | S n => succ (wfemb n)
-    end.
-
-  Lemma wfemb_mono Id im_tgt0 im_tgt1 fm
-    (FAIR : @fair_update Id succ_wf im_tgt0 im_tgt1 fm)
-    : @fair_update Id wf_tgt (wfemb ∘ im_tgt0) (wfemb ∘ im_tgt1) fm.
-  Proof.
-    ii. unfold compose. specialize (FAIR i). des_ifs.
-    - inv FAIR. eapply wf_tgt_succ_lt.
-    - destruct FAIR.
-      + left. eauto.
-      + right. inv H. eapply wf_tgt_succ_lt.
-  Qed.
-
-  Context `{M: URA.t}.
-
-  Variable state_src: Type.
-  Variable state_tgt: Type.
-
-  Variable _ident_src: ID.
-  Variable _ident_tgt: ID.
-
-  Variable wf_src: WF.
-
-  Let shared_rel: Type := @shared M state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt  -> Prop.
-  Let shared_rel_nat: Type := @shared M state_src state_tgt _ident_src _ident_tgt wf_src succ_wf -> Prop.
-  Variable I: shared_rel.
-
-  Definition to_shared_rel_nat : shared_rel_nat := 
-    fun '(ths, m_src, m_tgt, st_src, st_tgt, w) =>
-      I (ths, m_src, wfemb ∘ m_tgt, st_src, st_tgt, w).
-
-  Variable R0 R1 : Type.
-  Variable RR : R0 -> R1 -> Prop.
-
-  Lemma local_sim_wft_nat src tgt (SIM : local_sim I RR src tgt)
-    : local_sim to_shared_rel_nat RR src tgt.
-  Proof.
-    ii. move SIM at bottom.
-    specialize (SIM ths0 im_src0 (wfemb ∘ im_tgt0) st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID).
-    des. exists r_shared1, r_own. splits; ss. i. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 (wfemb ∘ im_tgt1) st_src st_tgt r_shared2 r_ctx2 INV1 VALID1 (wfemb ∘ im_tgt2)
-                  ltac:(eapply wfemb_mono; ss) fs ft).
-    rename SIM1 into LSIM. clear - LSIM wf_tgt_inhabited wf_tgt_open. revert_until I. ginit. gcofix CIH. i. gstep.
-    remember (local_RR I RR tid) as RR' in LSIM.
-    match goal with [ LSIM : lsim _ _ _ _ _ _ _ _ ?SHA |- _ ] => remember SHA as sha end.
-    revert ths im_src1 im_tgt2 st_src st_tgt r_shared2 RR Heqsha HeqRR'.
-    unfold lsim in LSIM. punfold LSIM.
-    pattern R0, R1, RR', fs, ft, r_ctx2, src, tgt, sha.
-    revert R0 R1 RR' fs ft r_ctx2 src tgt sha LSIM.
-    eapply pind9_acc. intros rr DEC IH R0 R1 RR' fs ft r_ctx src tgt sha. i. clear DEC. subst.
-    eapply pind9_unfold in PR; eauto with paco. eapply pind9_fold. inv PR.
-    - econs. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs.
-    - econs. des. exists im_src0. splits; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. specialize (LSIM x). split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. specialize (LSIM (wfemb ∘ im_tgt1) (wfemb_mono FAIR)). split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
-    - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - eapply lsim_yieldR; eauto. i. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt0) (wfemb_mono TGT)).
-      split; ss. eapply IH; ss. destruct LSIM. ss.
-    - eapply lsim_sync; eauto. i. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt0) (wfemb_mono TGT)).
-      pclearbot. gfinal. left. eapply CIH; ss.
-    - econs. gfinal. left. pclearbot. eapply CIH; ss.
-  Qed.
-
-End NAT.
-
-Section MODSIMNAT.
-  Import Mod.
-
-  Variable M_src M_tgt: Mod.t.
-
-  Lemma modsim_nat_modsim_exist
-    (SIM: ModSim.mod_sim M_src M_tgt)
-    : ModSimN.mod_sim M_src M_tgt.
-  Proof.
-    destruct SIM.
-    pose (wfemb wf_tgt wf_tgt_inhabited) as wf_emb.
-    pose (I' := to_shared_rel_nat wf_tgt_inhabited I).
-    pose (fun '(ths, im_src0, im_tgt0, st_src, st_tgt, w) =>
-            exists im_tgt'0,
-              << LE : forall i, le succ_wf' (im_tgt0 i) (im_tgt'0 i) >>
-            /\ << INV : I' (ths, im_src0, im_tgt'0, st_src, st_tgt, w) >>
-         ) as I''.
-    constructor 1 with wf_src world I''.
-    { i. specialize (init (wf_emb ∘ im_tgt)). des. esplits; eauto. ss. esplits; [reflexivity|eauto]. }
-    i. specialize (funs0 fn args). des_ifs. rename funs0 into SIM.
-    eapply local_sim_wft_mono with (wft_lt' := Peano.lt) (wft_lt := clos_trans_n1 _ succ_rel).
-    { eapply succ_clos_trans. }
-    eapply local_sim_clos_trans with (wf_tgt := succ_wf) (I := I').
-    { econs. exact 0. }
-    remember (k args) as src.
-    remember (k0 args) as tgt.
-    clear - SIM wf_tgt_inhabited wf_tgt_open wf_emb.
-    eapply local_sim_wft_nat; ss.
-  Qed.
-
-End MODSIMNAT.
