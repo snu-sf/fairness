@@ -7,10 +7,7 @@ Export ITreeNotations.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Import
-  ITreeLib
-  WFLib
-  FairBeh
-  SelectBeh.
+  ITreeLib WFLib FairBeh SelectBeh.
 
 From Fairness Require Import Axioms.
 
