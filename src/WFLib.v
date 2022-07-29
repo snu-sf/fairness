@@ -9,6 +9,9 @@ Set Implicit Arguments.
 
 (* TODO: definitions copied from Ordinal library *)
 
+Lemma well_founded_irrefl A (R : A -> A -> Prop) (WF : well_founded R) : forall x, ~ R x x.
+Proof. ii. specialize (WF x). induction WF; eauto. Qed.
+
 Variant succ_rel (n : nat) : nat -> Prop := succ_rel_intro : succ_rel n (S n).
 
 Lemma succ_rel_well_founded : well_founded succ_rel.
