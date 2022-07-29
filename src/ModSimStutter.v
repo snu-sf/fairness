@@ -165,17 +165,18 @@ Section PRIMIVIESIM.
   | lsim_yieldR
       f_src f_tgt r_ctx0 o0
       ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
-      r_own r_shared o1
+      r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
-      (STUTTER: wf_stt.(lt) o1 o0)
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                     (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
                     (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                     im_tgt2
                     (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          lsim _ _ RR true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))
+          exists o1,
+            (<<LSIM: lsim _ _ RR true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>) /\
+              (<<STUTTER: wf_stt.(lt) o1 o0>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
   | lsim_yieldL
@@ -206,6 +207,7 @@ Section PRIMIVIESIM.
     forall r r' (LE: r <9= r'), (__lsim tid r) <10= (__lsim tid r').
   Proof.
     ii. inv PR; try (econs; eauto; fail).
+    eapply lsim_yieldR; eauto. i. hexploit LSIM; eauto. i. des. esplits; eauto.
   Qed.
 
   Lemma _lsim_mon tid: forall r, monotone9 (__lsim tid r).
@@ -314,8 +316,8 @@ Section PRIMIVIESIM.
     { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_base. auto. }
 
     { eapply pind9_fold. eapply lsim_yieldR; eauto. i.
-      hexploit LSIM0; eauto. clear LSIM0. intros LSIM0.
-      eapply rclo9_base. apply LSIM0.
+      hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. des. esplits; eauto.
+      eapply rclo9_base. apply LSIM.
     }
 
     { des. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
@@ -433,7 +435,8 @@ Section PRIMIVIESIM.
     { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
 
     { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i.
-      hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. eapply upaco9_mon_bot; eauto.
+      hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. des. esplits; eauto.
+      eapply upaco9_mon_bot; eauto.
     }
 
     { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
@@ -459,14 +462,14 @@ Section PRIMIVIESIM.
            tid ths1
            (THS: TIdSet.add_new tid ths0 ths1)
            (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
-    exists r_shared1 r_own o,
+    exists r_shared1 r_own,
       (<<INV: I (ths1, im_src0, im_tgt0, st_src0, st_tgt0, r_shared1)>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
         (forall ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2
                 (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared2))
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
           forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
-          exists im_src2,
+          exists im_src2 o,
             (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
               (<<LSIM: forall fs ft,
                   lsim

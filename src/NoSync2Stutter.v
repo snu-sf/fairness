@@ -173,18 +173,18 @@ Section PROOF.
   | match_ord_yieldR
       tid r_ctx0 o0
       ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
-      r_own r_shared o1
+      r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
-      (STUTTER: (@ord_tree_WF A).(lt) o1 o0)
       (MO: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
              (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
              (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
              im_tgt2
              (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          match_ord RR tid r_ctx1 ((trigger (Yield) >>= ktr_src)) (ktr_tgt tt)
-                    (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1) o1)
+        exists o1,
+          (<<MO: match_ord RR tid r_ctx1 ((trigger (Yield) >>= ktr_src)) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1) o1>>) /\
+            (<<STUTTER: (@ord_tree_WF A).(lt) o1 o0>>))
     :
     match_ord RR tid r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0) o0
 
