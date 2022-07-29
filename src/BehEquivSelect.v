@@ -5,11 +5,8 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
-From Fairness Require Import Axioms.
-From Fairness Require Import FairBeh.
-From Fairness Require Import pind_internal.
-From Fairness Require Import pind3.
-From Fairness Require Import SelectBeh.
+From Fairness Require Import
+  Axioms WFLib FairBeh pind_internal pind3 SelectBeh.
 
 From Paco Require Import paco.
 

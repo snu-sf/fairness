@@ -4,7 +4,7 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib FairBeh NatStructs.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs.
 
 Set Implicit Arguments.
 
