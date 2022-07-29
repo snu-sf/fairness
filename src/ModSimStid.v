@@ -17,14 +17,15 @@ Section PRIMIVIESIM.
   Variable state_src: Type.
   Variable state_tgt: Type.
 
-  Variable ident_src: ID.
+  Variable _ident_src: ID.
+  Definition ident_src := sum_tid _ident_src.
   Variable _ident_tgt: ID.
   Definition ident_tgt := sum_tid _ident_tgt.
 
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
+  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
   Definition shared :=
@@ -100,7 +101,7 @@ Section PRIMIVIESIM.
       ths im_src0 im_tgt st_src st_tgt r_shared
       f ktr_src itr_tgt
       (LSIM: exists im_src1,
-          (<<FAIR: fair_update im_src0 im_src1 f>>) /\
+          (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_r f)>>) /\
             (<<LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
@@ -161,11 +162,13 @@ Section PRIMIVIESIM.
 
   | lsim_yieldL
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src0 im_tgt st_src st_tgt r_shared
       ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) (trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: exists im_src1,
+          (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
+            (<<LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) (trigger (Yield) >>= itr_tgt) (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= itr_tgt) (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
   | lsim_yieldR
       f_src f_tgt r_ctx0
       ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
@@ -193,7 +196,9 @@ Section PRIMIVIESIM.
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          (<<LSIM: lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
+          (exists im_src2,
+              (<<FAIR: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths1))>>) /\
+                (<<LSIM: lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src2, im_tgt2, st_src1, st_tgt1, r_shared1)>>)))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
 
@@ -215,7 +220,7 @@ Section PRIMIVIESIM.
     forall r r' (LE: r <9= r'), (__lsim tid r) <10= (__lsim tid r').
   Proof.
     ii. inv PR; try (econs; eauto; fail).
-    eapply lsim_sync; eauto. i. hexploit LSIM. eapply INV0. eapply VALID0. all: eauto.
+    eapply lsim_sync; eauto. i. hexploit LSIM. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
   Qed.
 
   Lemma _lsim_mon tid: forall r, monotone9 (__lsim tid r).
@@ -224,6 +229,7 @@ Section PRIMIVIESIM.
     { des. econs; eauto. }
     { des. econs; eauto. }
     { econs. i. eapply LE. eapply LSIM. eauto. }
+    { des. econs; esplits; eauto. }
   Qed.
 
   Lemma lsim_mon tid: forall q, monotone9 (fun r => pind9 (__lsim tid r) q).
@@ -322,8 +328,8 @@ Section PRIMIVIESIM.
 
     { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_base. auto. }
 
-    { des. eapply pind9_fold. eapply lsim_yieldL. split; ss.
-      destruct LSIM0 as [LSIM IND]. hexploit IH; eauto.
+    { des. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto.
     }
 
     { eapply pind9_fold. eapply lsim_yieldR; eauto. i.
@@ -447,7 +453,7 @@ Section PRIMIVIESIM.
     { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
 
     { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
-      destruct LSIM0 as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i.
@@ -486,15 +492,17 @@ Section PRIMIVIESIM.
                 (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared2))
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
           forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
-            (<<LSIM: forall fs ft,
-                lsim
-                  tid
-                  (@local_RR R0 R1 RR tid)
-                  fs ft
-                  r_ctx2
-                  src tgt
-                  (ths, im_src1, im_tgt2, st_src, st_tgt, r_shared2)
-                  >>)).
+          exists im_src2,
+            (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
+              (<<LSIM: forall fs ft,
+                  lsim
+                    tid
+                    (@local_RR R0 R1 RR tid)
+                    fs ft
+                    r_ctx2
+                    src tgt
+                    (ths, im_src2, im_tgt2, st_src, st_tgt, r_shared2)
+                    >>)).
 
   Definition shared_rel_wf: Prop :=
     forall ths im_src0 im_tgt0 st_src st_tgt r_shared0 r_ctx
@@ -502,8 +510,9 @@ Section PRIMIVIESIM.
            (VALID: URA.wf (r_shared0 ⋅ r_ctx)),
     forall im_tgt1
            (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap_all ths))),
-    exists r_shared1,
-      (<<INV: I (ths, im_src0, im_tgt1, st_src, st_tgt, r_shared1)>>) /\
+    exists im_src1 r_shared1,
+      (<<SRC: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap_all ths))>>) /\
+        (<<INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared1)>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_ctx)>>).
 
 End PRIMIVIESIM.
@@ -512,7 +521,7 @@ End PRIMIVIESIM.
 #[export] Hint Resolve __lsim_mon: paco.
 #[export] Hint Resolve _lsim_mon: paco.
 #[export] Hint Resolve lsim_mon: paco.
-#[export] Hint Resolve cpn9_wcompat: paco.
+
 
 
 Module ModSim.

@@ -7,6 +7,8 @@ Require Logic.Classical_Pred_Type.
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.ClassicalEpsilon.
 
+Set Implicit Arguments.
+
 Lemma func_ext_dep {A} {B: A -> Type} (f g: forall x, B x): (forall x, f x = g x) -> f = g.
 Proof.
   apply @FunctionalExtensionality.functional_extensionality_dep.
@@ -22,7 +24,7 @@ Definition inj_pair2 := Classical_Prop.EqdepTheory.inj_pair2.
 
 Definition epsilon_on := ChoiceFacts.EpsilonStatement_on.
 Definition epsilon := Epsilon.epsilon.
-Lemma epsilon_spec: forall (A : Type) (i : inhabited A) (P : A -> Prop), (exists x : A, P x) -> P (epsilon _ i P).
+Lemma epsilon_spec: forall (A : Type) (i : inhabited A) (P : A -> Prop), (exists x : A, P x) -> P (epsilon i P).
 Proof.
   apply Epsilon.epsilon_spec.
 Qed.
@@ -40,3 +42,4 @@ Ltac nean H := eapply not_ex_all_not_help in H; red in H.
 
 Definition proof_irrelevance := proof_irrelevance.
 Definition excluded_middle_informative := excluded_middle_informative.
+Definition choice := choice.

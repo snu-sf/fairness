@@ -8,10 +8,7 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 Require Import Lia.
 
-From Fairness Require Import
-  Axioms
-  ITreeLib
-  FairBeh.
+From Fairness Require Import Axioms ITreeLib WFLib FairBeh.
 
 Set Implicit Arguments.
 
