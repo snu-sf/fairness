@@ -10,8 +10,8 @@ Export ITreeNotations.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
-From Fairness Require Import pind PCM World.
-From Fairness Require Import Mod ModSimStid ModSimNoSync.
+From Fairness Require Import pind PCM World WFLib.
+From Fairness Require Export Mod ModSimNoSync ModSimStutter.
 
 Set Implicit Arguments.
 
@@ -45,14 +45,14 @@ Section PROOF.
 
   Variable I: shared_rel.
 
-  Theorem stid_implies_nosync
+  Theorem nosync_implies_stutter
           tid
           R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
           ps pt r_ctx src tgt
           (shr: shared)
-          (LSIM: ModSimStid.lsim I tid RR ps pt r_ctx src tgt shr)
+          (LSIM: ModSimNoSync.lsim I tid RR ps pt r_ctx src tgt shr)
     :
-    ModSimNoSync.lsim I tid RR ps pt r_ctx src tgt shr.
+    ModSimStutter.lsim I tid RR ps pt r_ctx src tgt shr.
   Proof.
     revert_until tid. pcofix CIH; i.
     punfold LSIM.
@@ -135,3 +135,4 @@ Section PROOF.
   Qed.
 
 End PROOF.
+
