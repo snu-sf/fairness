@@ -45,17 +45,26 @@ Section PROOF.
 
   Variable I: shared_rel.
 
-  Variable A: Type.
-  Let ota := (@ord_tree_base A).
+  Let RR_rel (R0 R1: Type): Type := R0 -> R1 -> URA.car -> shared_rel.
+
+  Let A (R0 R1: Type) :=
+        (shared_rel * thread_id * (RR_rel R0 R1) * bool * bool * M * (itree srcE R0) * (itree tgtE R1) * shared)%type.
+
+  (*TODO: define A -> ord_tree A -> Prop*)
+
+
+
+
+
 
   Theorem nosync_implies_stutter
           tid
-          R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+          R0 R1 (RR: RR_rel R0 R1)
           ps pt r_ctx src tgt
           (shr: shared)
           (LSIM: ModSimNoSync.lsim I tid RR ps pt r_ctx src tgt shr)
     :
-    ModSimStutter.lsim (@ord_tree_WF A) I tid RR ps pt r_ctx (ota, src) tgt shr.
+    exists o, ModSimStutter.lsim (@ord_tree_WF (A R0 R1)) I tid RR ps pt r_ctx (o, src) tgt shr.
   Proof.
     revert_until tid. pcofix CIH; i.
     punfold LSIM.
