@@ -47,62 +47,62 @@ Section PROOF.
 
   Let RR_rel (R0 R1: Type): Type := R0 -> R1 -> URA.car -> shared_rel.
 
-  (* Let A (R0 R1: Type) := *)
-  (*       (shared_rel * thread_id * (RR_rel R0 R1) * bool * bool * M * (itree srcE R0) * (itree tgtE R1) * shared)%type. *)
-  Let A (R0 R1: Type) (RR: RR_rel R0 R1) :=
-        (thread_id * M * (itree srcE R0) * (itree tgtE R1) * shared)%type.
+  (* Let A (R0 R1: Type) (RR: RR_rel R0 R1) := (thread_id * M * (itree srcE R0) * (itree tgtE R1) * shared)%type. *)
+  Let A := (URA.car * shared)%type.
 
-  Inductive match_ord (R0 R1: Type) (RR: RR_rel R0 R1): (A RR) -> (@ord_tree_WF (A RR)).(T) -> Prop :=
+  Inductive match_ord (R0 R1: Type) (RR: RR_rel R0 R1):
+    thread_id -> URA.car -> (itree srcE R0) -> (itree tgtE R1) -> shared ->
+    (@ord_tree_WF A).(T) -> Prop :=
   | match_ord_ret
       tid r_ctx shr
       o
       r0 r1
       (LSIM: RR r0 r1 r_ctx shr)
     :
-    match_ord (tid, r_ctx, (Ret r0), (Ret r1), shr) o
+    match_ord RR tid r_ctx (Ret r0) (Ret r1) shr o
   | match_ord_tauL
       tid r_ctx shr
       o
       itr_src itr_tgt
-      (MO: match_ord (tid, r_ctx, itr_src, itr_tgt, shr) o)
+      (MO: match_ord RR tid r_ctx itr_src itr_tgt shr o)
     :
-    match_ord (tid, r_ctx, Tau itr_src, itr_tgt, shr) o
+    match_ord RR tid r_ctx (Tau itr_src) itr_tgt shr o
   | match_ord_chooseL
       tid r_ctx shr
       o
       X ktr_src itr_tgt
-      (MO: exists x, match_ord (tid, r_ctx, ktr_src x, itr_tgt, shr) o)
+      (MO: exists x, match_ord RR tid r_ctx (ktr_src x) itr_tgt shr o)
     :
-    match_ord (tid, r_ctx, trigger (Choose X) >>= ktr_src, itr_tgt, shr) o
+    match_ord RR tid r_ctx (trigger (Choose X) >>= ktr_src) itr_tgt shr o
   | match_ord_putL
       tid r_ctx
       ths im_src im_tgt st_src st_tgt r_shared
       o
       st ktr_src itr_tgt
-      (MO: match_ord (tid, r_ctx, ktr_src tt, itr_tgt, (ths, im_src, im_tgt, st, st_tgt, r_shared)) o)
+      (MO: match_ord RR tid r_ctx (ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt, r_shared) o)
     :
-    match_ord (tid, r_ctx, trigger (Put st) >>= ktr_src, itr_tgt, (ths, im_src, im_tgt, st_src, st_tgt, r_shared)) o
+    match_ord RR tid r_ctx (trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared) o
   | match_ord_getL
       tid r_ctx
       ths im_src im_tgt st_src st_tgt r_shared
       o
       ktr_src itr_tgt
-      (MO: match_ord (tid, r_ctx, ktr_src st_src, itr_tgt, (ths, im_src, im_tgt, st_src, st_tgt, r_shared)) o)
+      (MO: match_ord RR tid r_ctx (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared) o)
     :
-    match_ord (tid, r_ctx, trigger (@Get _) >>= ktr_src, itr_tgt, (ths, im_src, im_tgt, st_src, st_tgt, r_shared)) o
+    match_ord RR tid r_ctx (trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared) o
   | match_ord_tidL
       tid r_ctx shr
       o
       ktr_src itr_tgt
-      (MO: match_ord (tid, r_ctx, ktr_src tid, itr_tgt, shr) o)
+      (MO: match_ord RR tid r_ctx (ktr_src tid) itr_tgt shr o)
     :
-    match_ord (tid, r_ctx, trigger (GetTid) >>= ktr_src, itr_tgt, shr) o
+    match_ord RR tid r_ctx (trigger (GetTid) >>= ktr_src) itr_tgt shr o
   | match_ord_UB
       tid r_ctx shr
       o
       ktr_src itr_tgt
     :
-    match_ord (tid, r_ctx, trigger (Undefined) >>= ktr_src, itr_tgt, shr) o
+    match_ord RR tid r_ctx (trigger (Undefined) >>= ktr_src) itr_tgt shr o
   | match_ord_fairL
       tid r_ctx
       ths im_src0 im_tgt st_src st_tgt r_shared
@@ -110,113 +110,95 @@ Section PROOF.
       f ktr_src itr_tgt
       (MO: exists im_src1,
           (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_r f)>>) /\
-          (<<MO: match_ord (tid, r_ctx, ktr_src tt, itr_tgt, (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)) o>>))
+            (<<MO: match_ord RR tid r_ctx (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared) o>>))
     :
-    match_ord (tid, r_ctx, trigger (Fair f) >>= ktr_src, itr_tgt, (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)) o
+    match_ord RR tid r_ctx (trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared) o
 
   | match_ord_tauR
       tid r_ctx shr
       o
       itr_src itr_tgt
-      (MO: match_ord (tid, r_ctx, itr_src, itr_tgt, shr) o)
+      (MO: match_ord RR tid r_ctx itr_src itr_tgt shr o)
     :
-    match_ord (tid, r_ctx, itr_src, Tau itr_tgt, shr) o
+    match_ord RR tid r_ctx itr_src (Tau itr_tgt) shr o
   | match_ord_chooseR
       tid r_ctx shr
       o
       X itr_src ktr_tgt
-      (MO: forall x, match_ord (tid, r_ctx, itr_src, ktr_tgt x, shr) o)
+      (MO: forall x, match_ord RR tid r_ctx itr_src (ktr_tgt x) shr o)
     :
-    match_ord (tid, r_ctx, itr_src, trigger (Choose X) >>= ktr_tgt, shr) o
+    match_ord RR tid r_ctx itr_src (trigger (Choose X) >>= ktr_tgt) shr o
   | match_ord_putR
       tid r_ctx
       ths im_src im_tgt st_src st_tgt r_shared
       o
       st itr_src ktr_tgt
-      (MO: match_ord (tid, r_ctx, itr_src, ktr_tgt tt, (ths, im_src, im_tgt, st_src, st, r_shared)) o)
+      (MO: match_ord RR tid r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st, r_shared) o)
     :
-    match_ord (tid, r_ctx, itr_src, trigger (Put st) >>= ktr_tgt, (ths, im_src, im_tgt, st_src, st_tgt, r_shared)) o
+    match_ord RR tid r_ctx itr_src (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared) o
   | match_ord_getR
       tid r_ctx
       ths im_src im_tgt st_src st_tgt r_shared
       o
       itr_src ktr_tgt
-      (MO: match_ord (tid, r_ctx, itr_src, ktr_tgt st_tgt, (ths, im_src, im_tgt, st_src, st_tgt, r_shared)) o)
+      (MO: match_ord RR tid r_ctx itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared) o)
     :
-    match_ord (tid, r_ctx, itr_src, trigger (@Get _) >>= ktr_tgt, (ths, im_src, im_tgt, st_src, st_tgt, r_shared)) o
+    match_ord RR tid r_ctx itr_src (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared) o
   | match_ord_tidR
       tid r_ctx shr
       o
       itr_src ktr_tgt
-      (MO: match_ord (tid, r_ctx, itr_src, ktr_tgt tid, shr) o)
+      (MO: match_ord RR tid r_ctx itr_src (ktr_tgt tid) shr o)
     :
-    match_ord (tid, r_ctx, itr_src, trigger (GetTid) >>= ktr_tgt, shr) o
+    match_ord RR tid r_ctx itr_src (trigger (GetTid) >>= ktr_tgt) shr o
   | match_ord_fairR
       tid r_ctx
       ths im_src im_tgt0 st_src st_tgt r_shared
       o
       f itr_src ktr_tgt
       (MO: forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
-        match_ord (tid, r_ctx, itr_src, ktr_tgt tt, (ths, im_src, im_tgt1, st_src, st_tgt, r_shared)) o)
+          match_ord RR tid r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt, r_shared) o)
     :
-    match_ord (tid, r_ctx, itr_src, trigger (Fair f) >>= ktr_tgt, (ths, im_src, im_tgt0, st_src, st_tgt, r_shared)) o
+    match_ord RR tid r_ctx itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt, r_shared) o
 
-              (*TODO*)
   | match_ord_observe
       tid r_ctx shr
       o
       fn args
-      ret ktr_src ktr_tgt
-      (MO: match_ord (tid, r_ctx, ktr_src ret, ktr_tgt ret, shr) o)
+      ktr_src ktr_tgt
+      (MO: forall ret, match_ord RR tid r_ctx (ktr_src ret) (ktr_tgt ret) shr o)
     :
-    match_ord (tid, r_ctx, trigger (Observe fn args) >>= ktr_src, trigger (Observe fn args) >>= ktr_tgt, shr) o
-
-
-      f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
-      fn args ktr_src ktr_tgt
-      (LSIM: forall ret,
-          lsim _ _ RR true true r_ctx (o, ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
-    :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    match_ord RR tid r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) shr o
 
   | match_ord_yieldR
-      f_src f_tgt r_ctx0 o0
+      tid r_ctx0 o0
       ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
       r_own r_shared o1
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
-      (STUTTER: wf_stt.(lt) o1 o0)
-      (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-                    (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
-                    (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
-                    im_tgt2
-                    (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          lsim _ _ RR true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))
+      (STUTTER: (@ord_tree_WF A).(lt) o1 o0)
+      (MO: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
+             (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
+             (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+             im_tgt2
+             (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+          match_ord RR tid r_ctx1 ((trigger (Yield) >>= ktr_src)) (ktr_tgt tt)
+                    (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1) o1)
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
+    match_ord RR tid r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0) o0
+
   | match_ord_yieldL
-      f_src f_tgt r_ctx o0
+      tid r_ctx
       ths im_src0 im_tgt st_src st_tgt r_shared
+      o0
       ktr_src itr_tgt
-      (LSIM: exists im_src1 o1,
+      (MO: exists im_src1 o1,
           (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
-            (<<LSIM: _lsim _ _ RR true f_tgt r_ctx (o1, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
+            (<<MO: match_ord RR tid r_ctx (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared) o1>>))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (o0, trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
-
-  | match_ord_progress
-      r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
-      itr_src itr_tgt
-      (LSIM: lsim _ _ RR false false r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
-    :
-    __lsim tid lsim _lsim RR true true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    match_ord RR tid r_ctx (trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared) o0
   .
-
-
-
 
 
   Theorem nosync_implies_stutter
