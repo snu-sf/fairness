@@ -45,6 +45,9 @@ Section PROOF.
 
   Variable I: shared_rel.
 
+  Variable A: Type.
+  Let ota := (@ord_tree_base A).
+
   Theorem nosync_implies_stutter
           tid
           R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
@@ -52,7 +55,7 @@ Section PROOF.
           (shr: shared)
           (LSIM: ModSimNoSync.lsim I tid RR ps pt r_ctx src tgt shr)
     :
-    ModSimStutter.lsim I tid RR ps pt r_ctx src tgt shr.
+    ModSimStutter.lsim (@ord_tree_WF A) I tid RR ps pt r_ctx (ota, src) tgt shr.
   Proof.
     revert_until tid. pcofix CIH; i.
     punfold LSIM.
@@ -60,7 +63,7 @@ Section PROOF.
     revert R0 R1 RR ps pt r_ctx src tgt shr LSIM. apply pind9_acc.
     intros rr DEC IH. clear DEC. intros R0 R1 RR ps pt r_ctx src tgt shr LSIM.
     eapply pind9_unfold in LSIM.
-    2:{ eapply ModSimStid._lsim_mon. }
+    2:{ eapply ModSimNoSync._lsim_mon. }
     inv LSIM.
 
     { pfold. eapply pind9_fold. econs 1; eauto. }
