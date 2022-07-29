@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From ITree Require Export ITree.
 From Paco Require Import paco.
-
+From Fairness Require Import WFLib.
 Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
@@ -161,34 +161,6 @@ Section IDENT.
 
 End IDENT.
 Global Opaque ID.
-
-
-
-Section WFTYPE.
-  Record WF: Type :=
-    mk_wf {
-        T: Type;
-        lt: (T -> T -> Prop);
-        wf: well_founded lt;
-        le: (T -> T -> Prop) := eq \2/ lt;
-      }.
-
-  Global Program Instance le_Reflexive {wf: WF}: Reflexive wf.(le).
-  Next Obligation.
-    unfold le. auto.
-  Qed.
-
-  Lemma WF_le_Trans
-        wf
-        (WFTR: Transitive wf.(lt))
-    :
-    Transitive wf.(le).
-  Proof.
-    unfold le. ii. destruct wf; ss. des; clarify; eauto.
-  Qed.
-
-End WFTYPE.
-
 
 
 Section EVENT.

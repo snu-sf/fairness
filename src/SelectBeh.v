@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From ITree Require Export ITree.
-From Fairness Require Import pind3.
+From Fairness Require Import pind3 WFLib.
 From Paco Require Import paco.
 
 Export ITreeNotations.
