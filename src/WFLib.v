@@ -1,7 +1,33 @@
 From sflib Require Import sflib.
+From Paco Require Import paco.
+From Coq Require Export
+  Relations.Relation_Operators.
+From Coq Require Import
+  RelationClasses
+  Relations.Operators_Properties.
 Set Implicit Arguments.
 
 (* TODO: definitions copied from Ordinal library *)
+
+Variant succ_rel (n : nat) : nat -> Prop := succ_rel_intro : succ_rel n (S n).
+
+Lemma succ_rel_well_founded : well_founded succ_rel.
+Proof. ii. induction a; econs; i; inversion H. ss. Qed.
+
+Lemma succ_clos_trans : forall m n, clos_trans_n1 nat succ_rel m n <-> m < n.
+Proof.
+  split.
+  - revert m. induction n.
+    + i. exfalso. inversion H; inversion H0.
+    + i. inversion H.
+      * inversion H0. ss.
+      * inversion H0. subst. econs. eapply IHn, H1.
+  - revert m. induction n.
+    + i. inversion H.
+    + i. inversion H.
+      * econs 1. econs.
+      * econs 2. econs. eapply IHn. ss.
+Qed.
 
 Variant double_rel A B (RA: A -> A -> Prop) (RB: B -> B -> Prop)
   : A * B -> A * B -> Prop :=
@@ -44,7 +70,6 @@ Proof.
   { i. eapply (H (a, b0)). econstructor 2. auto. }
 Qed.
 
-Require Export Coq.Relations.Relation_Operators.
 Lemma clos_trans_well_founded
       A (R: A -> A -> Prop) (WF: well_founded R)
   :
@@ -62,6 +87,16 @@ Proof.
   }
   { right. reflexivity. }
   { eauto. }
+Qed.
+
+Lemma clos_trans_step A (R : A -> A -> Prop) x y : clos_trans_n1 _ R x y -> exists z, R z y /\ (x = z \/ clos_trans_n1 _ R x z).
+Proof. i. destruct H; eauto. Qed.
+
+Lemma clos_trans_n1_trans A (R : A -> A -> Prop) : Transitive (clos_trans_n1 _ R).
+Proof.
+  unfold Transitive. i.
+  eapply clos_trans_tn1_iff.
+  econs 2; eapply clos_trans_tn1_iff; eauto.
 Qed.
 
 Variant option_lt A (R: A -> A -> Prop): option A -> option A -> Prop :=
@@ -188,3 +223,29 @@ Proof.
   i. des. exists (ord_tree_cons f). i.
   exists (f a). splits; eauto. econs; eauto.
 Qed.
+
+
+Section WFTYPE.
+  Record WF: Type :=
+    mk_wf {
+        T: Type;
+        lt: (T -> T -> Prop);
+        wf: well_founded lt;
+        le: (T -> T -> Prop) := eq \2/ lt;
+      }.
+
+  Global Program Instance le_Reflexive {wf: WF}: Reflexive wf.(le).
+  Next Obligation.
+    unfold le. auto.
+  Qed.
+
+  Lemma WF_le_Trans
+        wf
+        (WFTR: Transitive wf.(lt))
+    :
+    Transitive wf.(le).
+  Proof.
+    unfold le. ii. destruct wf; ss. des; clarify; eauto.
+  Qed.
+
+End WFTYPE.

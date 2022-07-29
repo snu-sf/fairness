@@ -512,7 +512,7 @@ End PRIMIVIESIM.
 #[export] Hint Resolve __lsim_mon: paco.
 #[export] Hint Resolve _lsim_mon: paco.
 #[export] Hint Resolve lsim_mon: paco.
-
+#[export] Hint Resolve cpn9_wcompat: paco.
 
 
 Module ModSim.
