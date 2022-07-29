@@ -160,7 +160,6 @@ Section SIM.
            (interp_all_fifo st ths tid).
   Proof. 
     eapply ssim_implies_gsim.
-    { ii; unfold lt in *; ss; lia. }
     { instantiate (1 := fun x => x). ss. }
     eapply ssim_nondet_fifo; ss.
     eapply NatMap.remove_1; ss.

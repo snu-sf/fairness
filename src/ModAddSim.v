@@ -12,6 +12,7 @@ Import RelationClasses.
 
 Section ADD_MODSIM.
 
+  (*
   Lemma ModAdd_comm M1 M2 : ModSim.mod_sim (ModAdd M1 M2) (ModAdd M2 M1).
   Proof.
     pose (world_le := fun (_ _ : unit) => True).
@@ -56,5 +57,5 @@ Section ADD_MODSIM.
   Proof.
     i. inv H. econs.
   Admitted.
-
+   *)
 End ADD_MODSIM.

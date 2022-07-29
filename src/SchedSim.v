@@ -229,7 +229,6 @@ Section SIM.
   Variable wf_tgt : WF.
   Variable wf_src : WF.
   Variable wf_emb : wf_tgt.(T) -> wf_src.(T).
-  Hypothesis WF_TRANS : Transitive (lt wf_tgt).
   Hypothesis EMB_MON : forall x y, lt wf_tgt x y -> lt wf_src (wf_emb x) (wf_emb y).
 
   Lemma monotone_weak : forall x y, le wf_tgt x y -> le wf_src (wf_emb x) (wf_emb y).
