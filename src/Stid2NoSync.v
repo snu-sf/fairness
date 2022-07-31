@@ -105,9 +105,11 @@ Section PROOF.
       i. specialize (LSIM0 _ FAIR).
       split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
     }
+
     { pfold. eapply pind9_fold. econs 15; eauto.
       i. specialize (LSIM0 ret). pclearbot.
-      right. eapply CIH; eauto.
+      split; ss. eapply pind9_fold. eapply ModSimNoSync.lsim_progress.
+      right. eapply CIH; eauto. eapply ModSimStid.lsim_set_prog. auto.
     }
 
     { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL.

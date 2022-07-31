@@ -156,7 +156,7 @@ Section PRIMIVIESIM.
       ths im_src im_tgt st_src st_tgt r_shared
       fn args ktr_src ktr_tgt
       (LSIM: forall ret,
-          lsim _ _ RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+          _lsim _ _ RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
 
@@ -308,7 +308,9 @@ Section PRIMIVIESIM.
       des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_base. auto. }
+    { eapply pind9_fold. eapply lsim_observe. i. split; ss. specialize (LSIM0 ret).
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
+    }
 
     { eapply pind9_fold. eapply lsim_yieldR; eauto. i.
       hexploit LSIM0; eauto. clear LSIM0. intros LSIM0.
@@ -427,7 +429,9 @@ Section PRIMIVIESIM.
       des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
 
-    { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
+    { pfold. eapply pind9_fold. eapply lsim_observe. i. split; ss. specialize (LSIM0 ret).
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
     { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i.
       hexploit LSIM0; eauto. clear LSIM0. intros LSIM0.
@@ -554,7 +558,8 @@ Section PRIMIVIESIM.
       ths im_src im_tgt st_src st_tgt r_shared
       fn args ktr_src ktr_tgt
       (LSIM: forall ret,
-          lsim tid RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)),
+          (<<LSIM: lsim tid RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)>>) /\
+          (<<IH: P R0 R1 RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)>>)),
     P R0 R1 RR f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
 
   (YIELDR: forall R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
@@ -656,7 +661,9 @@ Section PRIMIVIESIM.
       pfold. eapply pind9_mon_top; eauto.
     }
 
-    { eapply OBSERVE. i. specialize (LSIM0 ret). pclearbot. auto. }
+    { eapply OBSERVE. i. specialize (LSIM0 ret). destruct LSIM0 as [LSIM IND]. splits; eauto.
+      pfold. eapply pind9_mon_top; eauto.
+    }
 
     { eapply YIELDR; eauto. i. hexploit LSIM0; clear LSIM0. eapply INV0. eapply VALID0. all: eauto.
       intros [LSIM IND]. splits; eauto. pfold. eapply pind9_mon_top; eauto.
