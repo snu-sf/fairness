@@ -144,18 +144,18 @@ Section PROOF.
   Qed.
 
 
-  (* Let A X := ((URA.car * shared * (@imap ident_tgt wf_tgt)) + X)%type. *)
-  (* Let wf_stt {X} := (@ord_tree_WF (A X)). *)
-  Let wf_stt {A} := (@ord_tree_WF A).
+  Let RR_rel R0 R1 := R0 -> R1 -> URA.car -> shared_rel.
+  Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
+  Let wf_stt {R0 R1} := (@ord_tree_WF (A R0 R1)).
 
   Lemma nosync_implies_stutter
-          tid
-          R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
-          ps pt r_ctx src tgt
-          (shr: shared)
-          (LSIM: ModSimNoSync.lsim I tid LRR ps pt r_ctx src tgt shr)
+        tid
+        R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
+        ps pt r_ctx src tgt
+        (shr: shared)
+        (LSIM: ModSimNoSync.lsim I tid LRR ps pt r_ctx src tgt shr)
     :
-    exists A (o: (@wf_stt A).(T)),
+    exists (o: (@wf_stt R0 R1).(T)),
       ModSimStutter.lsim wf_stt I tid (embed_lrr wf_stt LRR) ps pt r_ctx (o, src) tgt shr.
   Proof.
     punfold LSIM.
@@ -166,38 +166,45 @@ Section PROOF.
     2:{ eapply ModSimNoSync._lsim_mon. }
     inv LSIM.
 
-    (* { remember (fun _: (A unit) => @ord_tree_base (A unit)) as ao. exists unit, (ord_tree_cons ao). *)
-    (*   pfold. eapply pind9_fold. econs 1; eauto. *)
-    (*   unfold embed_lrr. splits; auto. ss. *)
-    (*   exists (ao (inr tt)). *)
-    (*   (* (r_ctx, (ths, im_src, im_tgt, st_src, st_tgt, r_shared), im_tgt)). *) *)
-    (*   eapply ord_tree_lt_intro. *)
-    (* } *)
-    { remember (fun _: unit => @ord_tree_base (unit)) as ao. exists unit, (ord_tree_cons ao).
+    { remember (fun _: (A R0 R1) => @ord_tree_base (A R0 R1)) as ao. exists (ord_tree_cons ao).
       pfold. eapply pind9_fold. econs 1; eauto.
       unfold embed_lrr. splits; auto. ss.
-      exists (ao (tt)).
-      (* (r_ctx, (ths, im_src, im_tgt, st_src, st_tgt, r_shared), im_tgt)). *)
+      exists (ao (ps, pt, r_ctx, Ret r_src, Ret r_tgt, (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
       eapply ord_tree_lt_intro.
     }
 
-    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists A, o.
+    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
       pfold. eapply pind9_fold. econs 2; eauto.
       split; ss. punfold IND.
     }
-    { des. destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists A, o.
+    { des. destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
       pfold. eapply pind9_fold. econs 3; eauto. exists x.
       split; ss. punfold IND.
     }
 
     7:{ hexploit ord_tree_join.
-        { instantiate (2:=X).
-          instantiate (2:= fun x =>
+        { instantiate (2:=A R0 R1).
+          instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 LRR ps pt rs src tgt shr).
+          i. ss. des_ifs. eapply IH in SAT.
+          instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o => lsim wf_stt I tid (embed_lrr wf_stt LRR) ps pt rs (o, src) tgt shr).
+          eauto.
+        }
+        intro JOIN. des. exists o1. pfold. eapply pind9_fold. econs 10. i. specialize (LSIM0 x).
+        destruct LSIM0 as [LSIM IND].
+        specialize (JOIN (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))). des_ifs.
+        eapply JOIN in IND; clear JOIN. des.
+        split; ss.
+        (*TODO*)
+
+        hexploit JOIN. des_ifs. eapply IND.
+
+          eapply SAT.
                              upind9 (ModSimNoSync.__lsim I tid
                                                          (upaco9 (fun r => pind9 (ModSimNoSync.__lsim I tid r) top9) bot9)) rr R0
                                     R1 LRR ps true r_ctx src (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)). ss.
           clear LSIM0. i. destruct SAT as [SAT IND]. eapply IH in IND.
 
+  IND : rr R0 R1 LRR true pt r_ctx (ktr_src x) tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
 
 
           match goal with
