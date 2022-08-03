@@ -170,11 +170,11 @@ Section PRIMIVIESIM.
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-                    (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
-                    (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
-                    im_tgt2
-                    (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          exists o1,
+               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
+               (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+               im_tgt2
+               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+        exists o1,
             (<<LSIM: lsim _ _ RR true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>) /\
               (<<STUTTER: wf_stt.(lt) o1 o0>>))
     :
@@ -473,8 +473,9 @@ Section PRIMIVIESIM.
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
         (forall ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2
            (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared2))
-           (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
-          forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
+           (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2))
+           im_tgt2
+           (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
           exists o,
           exists im_src2, (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
                        (<<LSIM: forall fs ft,
