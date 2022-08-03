@@ -74,28 +74,25 @@ Section SIM.
         }
         rewrite bind_trigger.
         eapply ssim_fairL.
-        remember (fun i => if Nat.eqb i tid'
+        remember (fun i => if Nat.eq_dec i tid'
                         then List.length ths_tgt' + 1
-                        else m_src i - 1) as m_src'.
+                        else if NatMapP.F.In_dec (NatMap.remove tid' ths_src) i
+                             then m_src i - 1
+                             else m_src i) as m_src'.
         exists m_src'. splits.
-        { ii. unfold tids_fmap. des_if; ss. subst.
-          replace (i =? tid')%nat with false by (symmetry; eapply Nat.eqb_neq; eauto).
-          des_if.
-          - assert (List.In i (TIdSet.elements ths_src)).
-            { eapply NatSetIn_In. eapply NatMapP.F.remove_neq_in_iff with (x := tid'). eauto. ss. }
-            rewrite THREADS in H.
-            eapply In_nth_error in H. destruct H as [i' H].
-            enough (m_src i > i') by lia.
-            eapply M_SRC1; eauto.
-          - lia.
+        { ii. unfold tids_fmap; ss. des_ifs.
+          assert (List.In i (TIdSet.elements ths_src)).
+          { eapply NatSetIn_In. eapply NatMapP.F.remove_neq_in_iff with (x := tid'). eauto. ss. }
+          rewrite THREADS in H. eapply In_nth_error in H. destruct H as [i' H].
+          enough (m_src i > i') by lia. eapply M_SRC1; eauto.
         }
         do 3 econs; eauto. right. eapply CIH.
         * eapply NatSet_Permutation_remove. eapply THREADS.
         * eapply NatMap.remove_1; ss.
-        * subst. replace (tid' =? tid')%nat with true by (symmetry; eapply Nat.eqb_refl). lia.
+        * subst. des_if; ss. lia.
         * subst. i. des_if.
           -- eapply nth_error_Some' in H. lia.
-          -- enough (m_src tid0 > 1 + i) by lia. eapply M_SRC1. eauto.
+          -- enough (m_src tid0 > 1 + i) by (des_if; lia). eapply M_SRC1. eauto.
     - left.
       match goal with
       | [ |- paco10 _ _ _ _ _ _ _ _ _ _ _ (match ?x with
@@ -114,24 +111,18 @@ Section SIM.
           + eapply NatSet_In_MapsTo. eapply In_NatSetIn. rewrite THREADS. econs; ss.
       }
       rewrite bind_trigger. eapply ssim_fairL.
-      remember (fun i => if Nat.eqb i tid'
+      remember (fun i => if Nat.eq_dec i tid'
                       then List.length ths_tgt' + 1
-                      else m_src i - 1) as m_src'.
+                      else if NatMapP.F.In_dec (NatMap.remove tid' (NatSet.add tid ths_src)) i
+                           then m_src i - 1
+                           else m_src i) as m_src'.
       exists m_src'. splits.
-      { ii. unfold tids_fmap. des_if; ss. subst.
-        replace (i =? tid')%nat with false by (symmetry; eapply Nat.eqb_neq; eauto).
-        des_if.
-        - assert (List.In i (TIdSet.elements (TIdSet.add tid ths_src))).
-          { eapply NatSetIn_In. eapply NatSet_In_MapsTo, NatMap.remove_3 in i0. exists tt. ss. }
-          assert (i = tid \/ i <> tid) by lia.
-          destruct H0.
-          + subst. lia.
-          + assert (List.In i (TIdSet.elements ths_src)).
-            { eapply NatSetIn_In. exists tt. eapply NatMap.add_3; eauto. eapply NatSet_In_MapsTo, In_NatSetIn, H. }
-            rewrite THREADS in H1. eapply In_nth_error in H1. destruct H1 as [i' H1].
-            enough (m_src i > i') by lia.
-            eapply M_SRC1; eauto.
-        - unfold le; ss. lia.
+      { ii. unfold tids_fmap; ss. des_ifs.
+        assert (i = tid \/ i <> tid) by lia. destruct H; try (subst; lia).
+        assert (List.In i (TIdSet.elements ths_src)).
+        { eapply NatSetIn_In. exists tt. eapply NatSet_In_MapsTo, NatMap.remove_3, NatMap.add_3 in i0; eauto. }
+        rewrite THREADS in H0. eapply In_nth_error in H0. destruct H0 as [i' H0].
+        enough (m_src i > i') by lia. eapply M_SRC1; eauto.
       }
       do 3 econs; ss. right. unfold NatMap.key in *. eapply CIH.
       + eapply NatSet_Permutation_remove.
@@ -140,10 +131,10 @@ Section SIM.
         * intro H. eapply TID. eapply H.
         * ss.
       + eapply NatMap.remove_1; ss.
-      + subst. replace (tid' =? tid')%nat with true by (symmetry; eapply Nat.eqb_refl). lia.
+      + subst. des_if; ss. lia.
       + subst. i. des_if.
         * eapply nth_error_Some' in H. lia.
-        * enough (m_src tid0 > 1 + i) by lia.
+        * enough (m_src tid0 > 1 + i) by (des_if; lia).
           assert (nth_error (ths_tgt ++ [tid]) (1 + i) = Some tid0) by (rewrite E_ths_tgt; ss).
           assert (1 + i < List.length ths_tgt \/ 1 + i >= List.length ths_tgt) by lia.
           destruct H1.
