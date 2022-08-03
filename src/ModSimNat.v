@@ -42,44 +42,34 @@ Section TRANS_CLOS.
           exists im_tgt'0, << INV_LE : (forall i, le wf_tgt' (im_tgt i) (im_tgt'0 i)) >>
                     /\ << INV : I (ths, im_src, im_tgt'0, st_src, st_tgt, w) >>.
 
-  Lemma fair_break Id m_tgt m_tgt'' fm
-        (FAIR : @fair_update Id wf_tgt' m_tgt m_tgt'' fm)
-    : exists im_tgt'0, << FAIR : @fair_update Id wf_tgt m_tgt im_tgt'0 fm >> /\
-                              << LE : forall i, le wf_tgt' (m_tgt'' i) (im_tgt'0 i) >>.
-  Proof.
-    exists (fun i => match fm i with
-             | Flag.fail    => epsilon inh (fun z => lt wf_tgt z (m_tgt i)
-                                                 /\ (m_tgt'' i = z \/ clos_trans_n1 _ (lt wf_tgt) (m_tgt'' i) z))
-             | Flag.emp     => m_tgt i
-             | Flag.success => m_tgt'' i
-             end).
-    split.
-    - ii. specialize (FAIR i). des_ifs.
-      + eapply clos_trans_step in FAIR.
-        eapply epsilon_spec in FAIR.
-        destruct FAIR. eapply H.
-    - ii. specialize (FAIR i). des_ifs.
-      + eapply clos_trans_step in FAIR.
-        eapply epsilon_spec in FAIR.
-        destruct FAIR. eapply H0.
-      + rewrite FAIR. left; auto.
-      + left; auto.
-  Qed.
-
-  Lemma fair_trans_l {Id im_tgt im_tgt' im_tgt'' fm}
+  Lemma fair_break {Id im_tgt im_tgt' im_tgt'' fm}
     (LE : (forall i, le wf_tgt' (im_tgt' i) (im_tgt i)))
     (FAIR : @fair_update Id wf_tgt' im_tgt' im_tgt'' fm)
-    : @fair_update Id wf_tgt' im_tgt  im_tgt'' fm.
+    : exists im_tgt'0, <<FAIR : @fair_update Id wf_tgt im_tgt im_tgt'0 fm >> /\
+                  << LE : forall i, le wf_tgt' (im_tgt'' i) (im_tgt'0 i) >>.
   Proof.
-    ii. specialize (LE i). specialize (FAIR i). des_ifs.
-    - destruct LE.
-      + rewrite <- H. ss.
-      + ss. eapply clos_trans_n1_trans; eauto.
-    - destruct LE.
-      + rewrite <- H. ss.
-      + destruct FAIR.
-        * rewrite H0. right. ss.
-        * right. eapply clos_trans_n1_trans; eauto.
+    pose (fun i x => lt wf_tgt x (im_tgt i) /\ le wf_tgt' (im_tgt'' i) x) as P.
+    exists (fun i => match fm i with
+             | Flag.fail => epsilon inh (P i)
+             | Flag.emp => im_tgt i
+             | Flag.success => im_tgt'' i
+             end).
+    assert (forall i, fm i = Flag.fail -> exists x, P i x).
+    { i. specialize (LE i). specialize (FAIR i). rewrite H in FAIR.
+      destruct LE as [EQ | LT].
+      - rewrite EQ in *. eapply clos_trans_step in FAIR; ss.
+      - eapply clos_trans_step in LT. destruct LT as [x [LT LE]].
+        exists x. subst P; ss. split; eauto. right. des.
+        + rewrite LE in *. eauto.
+        + eapply clos_trans_n1_trans; eauto.
+    }
+    split.
+    - ii. specialize (H i). des_ifs. hexploit H; ss.
+      i. eapply epsilon_spec in H0. destruct H0; eauto.
+    - ii. specialize (H i). specialize (LE i). specialize (FAIR i). des_ifs.
+      + hexploit H; ss. i. eapply epsilon_spec in H0. destruct H0; eauto.
+      + rewrite FAIR. eauto.
+      + left. reflexivity.
   Qed.
 
   Variable R0 R1 : Type.
@@ -91,7 +81,7 @@ Section TRANS_CLOS.
     ii. ss. des. move SIM at bottom.
     specialize (SIM ths0 im_src0 im_tgt'0 st_src0 st_tgt0 r_shared0 r_ctx0 INV0 tid ths1 THS VALID).
     des. exists r_shared1, r_own. splits; ss. { exists im_tgt'0. ss. }
-    i. des. pose proof (fair_break (fair_trans_l INV1 TGT)). des. move SIM1 at bottom.
+    i. des. pose proof (fair_break INV1 TGT). des. move SIM1 at bottom.
     specialize (SIM1 ths im_src1 im_tgt'1 st_src st_tgt r_shared2 r_ctx2 INV2 VALID1 im_tgt'2 FAIR fs ft).
     rename SIM1 into LSIM. clear - inh LSIM LE. revert_until I'. ginit. gcofix CIH. i. gstep.
     remember (local_RR I RR tid) as RR'.
@@ -115,16 +105,16 @@ Section TRANS_CLOS.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. i. pose proof (fair_break (fair_trans_l LE FAIR)). des.
+    - econs. i. pose proof (fair_break LE FAIR). des.
       specialize (LSIM im_tgt'0 FAIR0). split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_yieldR; eauto. { exists im_tgt'2. split; eauto. } i. ss. des.
-      pose proof (fair_break (fair_trans_l INV_LE TGT)). des. move LSIM at bottom.
+      pose proof (fair_break INV_LE TGT). des. move LSIM at bottom.
       specialize (LSIM ths1 im_src0 im_tgt'0 st_src1 st_tgt1 r_shared1 r_ctx1 INV1 VALID0 im_tgt'1 FAIR).
       split; ss. eapply IH; ss. destruct LSIM. eapply H0.
     - eapply lsim_sync; eauto. { exists im_tgt'2. split; eauto. } i. ss. des.
-      pose proof (fair_break (fair_trans_l INV_LE TGT)). des. move LSIM at bottom.
+      pose proof (fair_break INV_LE TGT). des. move LSIM at bottom.
       specialize (LSIM ths1 im_src0 im_tgt'0 st_src1 st_tgt1 r_shared1 r_ctx1 INV1 VALID0 im_tgt'1 FAIR).
       pclearbot. gfinal. left. eapply CIH; ss.
     - econs. gfinal. left. pclearbot. eapply CIH; ss.
@@ -163,13 +153,7 @@ Section WFT_MONO.
   Lemma fair_mono Id m_tgt1 m_tgt2 fm
     (FAIR : @fair_update Id wf_tgt' m_tgt1 m_tgt2 fm)
     : @fair_update Id wf_tgt m_tgt1 m_tgt2 fm.
-  Proof.
-    ii. specialize (FAIR i). des_ifs.
-    - eapply wft_LE. ss.
-    - destruct FAIR.
-      + left. ss.
-      + right. eapply wft_LE. ss.
-  Qed.
+  Proof. ii. specialize (FAIR i). des_ifs. eapply wft_LE. ss. Qed.
 
   Lemma local_sim_wft_mono src tgt (SIM : local_sim I RR src tgt)
     : local_sim I' RR src tgt.
@@ -269,9 +253,7 @@ Section NAT.
   Proof.
     ii. unfold compose. specialize (FAIR i). des_ifs.
     - inv FAIR. eapply wf_tgt_succ_lt.
-    - destruct FAIR.
-      + left. eauto.
-      + right. inv H. eapply wf_tgt_succ_lt.
+    - eauto.
   Qed.
 
   Context `{M: URA.t}.
