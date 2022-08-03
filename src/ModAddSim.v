@@ -6,7 +6,8 @@ From Fairness Require Import
   WFLib
   Mod
   ModSim
-  pind8.
+  pind
+  PCM.
 
 Import Lia.
 Import Mod.
@@ -47,95 +48,97 @@ Section WF_SUM.
 End WF_SUM.
 
 Section ADD_COMM.
-
-  (*
-  Definition m_conv {id1 id2 wf} (m_tgt : @imap (ident_tgt (id_sum id2 id1)) wf) :
-    @imap (ident_src (id_sum id1 id2)) wf :=
+  
+  Definition conv {id1 id2 wf} (m_tgt : @imap (ident_tgt (id_sum id2 id1)) wf) :
+    @imap (id_sum id1 id2) wf :=
     fun i =>
       match i with
-      | inl i => m_tgt (inl i)
-      | inr (inl i) => m_tgt (inr (inr i))
-      | inr (inr i) => m_tgt (inr (inl i))
+      | inl i => m_tgt (inr (inr i))
+      | inr i => m_tgt (inr (inl i))
       end.
 
-  Definition m_eq
-    {id1 id2 wf}
-    (m_src : @imap (ident_src (id_sum id1 id2)) wf)
-    (m_tgt : @imap (ident_tgt (id_sum id2 id1)) wf) : Prop :=
-    (forall i, m_src (inl i) = m_tgt (inl i))
-    /\ (forall i, m_src (inr (inl i)) = m_tgt (inr (inr i)))
-    /\ (forall i, m_src (inr (inr i)) = m_tgt (inr (inl i))).
+  Program Definition Unit : URA.t := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True |}.
+  Next Obligation. unseal "ra". destruct a. ss. Qed.
+  Next Obligation. unseal "ra". ss. Qed.
+  Next Obligation. unseal "ra". ss. Qed.
+  Next Obligation. unseal "ra". destruct a. ss. Qed.
+  Next Obligation. unseal "ra". ss. Qed.
 
+  Lemma Unit_wf : forall x, @URA.wf Unit x.
+  Proof. unfold URA.wf. unseal "ra". ss. Qed.
+  
   Lemma ModAdd_comm M1 M2 : ModSim.mod_sim (ModAdd M1 M2) (ModAdd M2 M1).
   Proof.
-    pose (world_le := fun (_ _ : unit) => True).
-    pose (I := fun x : @shared
+    Local Opaque Unit.
+    pose proof Unit_wf.
+    pose (I := fun x : @shared Unit
                        (ModAdd M1 M2).(state) (ModAdd M2 M1).(state)
                        (ModAdd M1 M2).(ident) (ModAdd M2 M1).(ident)
-                       nat_wf nat_wf unit
+                       nat_wf nat_wf
                => let '(ths, m_src, m_tgt, st_src, st_tgt, w) := x in
                  fst st_src = snd st_tgt
                  /\ snd st_src = fst st_tgt
-                 /\ m_eq m_src m_tgt
+                 /\ (forall i, m_src (inl i) >= m_tgt (inr (inr i)))
+                 /\ (forall i, m_src (inr i) >= m_tgt (inr (inl i)))
          ).
-    constructor 1 with nat_wf nat_wf unit world_le I.
+    constructor 1 with nat_wf nat_wf Unit I.
     - econs. exact 0.
     - i. exists (S o0). ss.
-    - econs; ss.
-    - i. exists (m_conv im_tgt). exists tt. ss.
+    - i. exists (conv im_tgt). exists tt. ss. splits; ss; lia.
     - i.
       destruct M1 as [state1 ident1 st_init1 funs1].
       destruct M2 as [state2 ident2 st_init2 funs2].
       ss. unfold add_funs. ss.
       destruct (funs1 fn), (funs2 fn).
-      + ii. esplits; ss. i. exists (m_conv im_tgt2). esplits; ss.
+      + ii. esplits; ss. i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
+      + ii. exists tt, tt. splits; ss. i.
+
+        (*
+        exists (m_conv im_tgt2). exists tt. splits; ss.
         { unfold m_eq in INV0; des. ii.
           destruct i as [|[]]; ss.
           - specialize (TGT (inl n)). rewrite INV2. ss.
           - specialize (TGT (inr (inr i))). rewrite INV3. ss.
           - specialize (TGT (inr (inl i))). rewrite INV4. ss.
         }
-        i. pfold. eapply pind8_fold. rewrite <- bind_trigger. eapply lsim_UB.
-      + ii. exists tt. splits; ss. i. exists (m_conv im_tgt2). exists tt. splits; ss.
-        { unfold m_eq in INV0; des. ii.
-          destruct i as [|[]]; ss.
-          - specialize (TGT (inl n)). rewrite INV2. ss.
-          - specialize (TGT (inr (inr i))). rewrite INV3. ss.
-          - specialize (TGT (inr (inl i))). rewrite INV4. ss.
+        i.
+         *)
+        unfold embed_l, embed_r. remember (k args) as itr.
+        assert (INV_CIH : I (ths, im_src1, im_tgt2, st_src, st_tgt, tt)).
+        { des. ss. splits; ss.
+          - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. destruct TGT; ss; lia.
+          - ii. specialize (TGT (inr (inl i))). specialize (INV3 i). ss. destruct TGT; ss; lia.
         }
-        i. unfold embed_l, embed_r. remember (k args) as itr. remember (m_conv im_tgt2) as im_src2.
-        assert (INV_CIH : I (ths, im_src2, im_tgt2, st_src, st_tgt, tt)) by (subst; des; ss).
-        clear - INV_CIH.
-        rename INV_CIH into INV, im_src2 into im_src0, im_tgt2 into im_tgt0.
+          
+        clear - INV_CIH VALID0.
+        rename INV_CIH into INV, VALID0 into VALID, im_src1 into im_src0, im_tgt2 into im_tgt0.
         revert_until tid. ginit. gcofix CIH. i.
 
         destruct_itree itr.
         * rewrite 2 embed_state_ret.
           rewrite 2 map_event_ret.
-          gstep. eapply pind8_fold.
-          econs. inv INV. des. ss. esplits; ss.
+          gstep. eapply pind9_fold.
+          econs. inv INV. des. ss. esplits; eauto.
         * rewrite 2 embed_state_tau.
           rewrite 2 map_event_tau.
           gstep.
-          eapply pind8_fold. eapply lsim_tauL. esplit; ss.
-          eapply pind8_fold. eapply lsim_tauR. esplit; ss.
-          eapply pind8_fold. eapply lsim_progress.
+          eapply pind9_fold. econs. split; ss.
+          eapply pind9_fold. econs. split; ss.
+          eapply pind9_fold. econs.
           gfinal. left. eapply CIH; ss.
         * { destruct e as [[|] | ].
             - rewrite 2 embed_state_vis.
               rewrite 2 map_event_vis.
               rewrite <- 2 bind_trigger.
               gstep. destruct e; ss.
-              + eapply pind8_fold. eapply lsim_chooseR. i. esplit; ss.
-                eapply pind8_fold. eapply lsim_chooseL. exists x. esplit; ss.
-                eapply pind8_fold. eapply lsim_progress.
+              + eapply pind9_fold. eapply lsim_chooseR. i. esplit; ss.
+                eapply pind9_fold. eapply lsim_chooseL. exists x. esplit; ss.
+                eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; ss.
-              + eapply pind8_fold. eapply lsim_fairR. i. esplit; ss.
-                eapply pind8_fold. eapply lsim_fairL. exists (m_conv im_tgt1). esplit.
-                { unfold m_eq in INV; des. ii.
-                  destruct i as [|[]]; ss.
-                  - specialize (FAIR (inl n)). rewrite INV1. ss.
-                  - specialize (FAIR (inr (inr i))). rewrite INV2. ss.
+              + eapply pind9_fold. eapply lsim_fairR. i. esplit; ss.
+                eapply pind9_fold. eapply lsim_fairL. exists (conv im_tgt1). esplit.
+                { des. ii. destruct i; ss.
+                  - specialize (FAIR (inr (inr i))). specialize (INV1 i). ss. rewrite INV2. ss.
                   - specialize (FAIR (inr (inl i))). rewrite INV3. ss.
                 }
                 esplit; ss.
