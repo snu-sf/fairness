@@ -61,7 +61,8 @@ Module OMod.
           exact (Vis (|stE)%sum (fun x => Ret (inl (k x)))).
         + destruct caE.
           destruct (md.(Mod.funs) fn) eqn:FUN.
-          { clear FUN. specialize (k0 arg). eapply ITree.bind. exact (embed_itree k0).
+          { clear FUN. specialize (k0 arg). eapply ITree.bind.
+            exact (Vis ((|Yield)|)%sum (fun _ => embed_itree k0)).
             intros rv. exact (Ret (inl (k rv))). }
           { exact (Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)). }
     Defined.
@@ -341,11 +342,12 @@ Section RED.
     @close_itree omd md R (Vis (|Call fn args)%sum ktr) =
       match (md.(Mod.funs) fn) with
       | Some body =>
-          rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv)
+          Vis ((|Yield)|)%sum (fun _ => rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv))
       | None => Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)
       end.
   Proof.
     unfold close_itree. rewrite unfold_iter. grind.
+    eapply observe_eta. ss. f_equal. extensionality x. grind.
     eapply observe_eta. ss. f_equal. extensionality x. destruct x.
   Qed.
 
@@ -357,10 +359,13 @@ Section RED.
     @close_itree omd md R (trigger (|Call fn args)%sum >>= ktr) =
       match (md.(Mod.funs) fn) with
       | Some body =>
-          rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv)
+          trigger ((|Yield)|)%sum;; rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv)
       | None => Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)
       end.
-  Proof. rewrite bind_trigger. eapply close_itree_vis_call. Qed.
+  Proof.
+    rewrite bind_trigger. setoid_rewrite close_itree_vis_call. des_ifs.
+    rewrite bind_trigger. auto.
+  Qed.
 
 End RED.
 Global Opaque OMod.embed_itree.

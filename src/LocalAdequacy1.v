@@ -84,9 +84,14 @@ Section PROOF.
                 RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
                 (im_src, im_tgt, st_src, st_tgt, o, r_shared)).
   Proof.
-    ii. remember (fun i => St (im_tgt i)) as im_tgt1. specialize (LSIM im_tgt1). des.
+    ii. remember (fun i => match sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))) i with
+                        | Flag.fail => St (im_tgt i)
+                        | Flag.emp => im_tgt i
+                        | Flag.success => im_tgt i
+                        end) as im_tgt1.
+    specialize (LSIM im_tgt1). des.
     assert (FAIR: fair_update im_tgt1 im_tgt (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))).
-    { rewrite Heqim_tgt1. unfold fair_update. i. des_ifs. right; auto. }
+    { rewrite Heqim_tgt1. unfold fair_update. i. des_ifs. }
     specialize (LSIM im_tgt FAIR). des. clear LSIM Heqim_tgt1 FAIR im_tgt1.
     clear im_src; rename im_src0 into im_src.
     move LOCAL before RR. rename LSIM0 into LSIM.
