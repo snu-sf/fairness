@@ -334,7 +334,7 @@ Section ADEQ2.
     { eexists. eapply SIM. eauto. hexploit (extract_tr_inj_tr TGT EXTRACT).
       i. rewrite H; clear H. eauto. }
     i; des. esplits. eapply EXTRACT0. destruct BEH1. des. split; eauto.
-    eapply (@Ord_implies_Fair _ _ wfs_lift); eauto.
-    Unshelve. intros. eapply excluded_middle_informative.
+    eapply (@Ord_implies_Fair _ wfs_lift); eauto.
   Qed.
+
 End ADEQ2.

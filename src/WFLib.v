@@ -252,3 +252,5 @@ Section WFTYPE.
   Qed.
 
 End WFTYPE.
+
+Definition ord_tree_WF {A}: WF := mk_wf (@ord_tree_lt_well_founded A).

@@ -87,7 +87,7 @@ Section SIM.
             eapply In_nth_error in H. destruct H as [i' H].
             enough (m_src i > i') by lia.
             eapply M_SRC1; eauto.
-          - unfold le; ss. lia.
+          - lia.
         }
         do 3 econs; eauto. right. eapply CIH.
         * eapply NatSet_Permutation_remove. eapply THREADS.
