@@ -288,7 +288,7 @@ Section SIM.
                                           | left _ => m_src' i
                                           | right _ => m_src i
                                           end
-                            | Flag.emp => m_src i
+                            | Flag.emp => M_SRC i
                             | Flag.success => m_src' i
                             end).
       exists M_SRC'. splits.
@@ -299,6 +299,7 @@ Section SIM.
         des_ifs; try reflexivity. destruct IMAP.
         + exfalso. eauto.
         + right. eauto.
+        + rewrite FAIR. auto.
     }
     { econs. i. specialize (SIM m_tgt0). eapply SIM in FAIR. des. eauto. }
     { clarify. econs; eauto. eapply rclo9_clo_base. econs; eauto. }
@@ -340,7 +341,7 @@ Section SIM.
                                           | left _ => m_tgt' i
                                           | right _ => m_tgt i
                                           end
-                            | Flag.emp => m_tgt i
+                            | Flag.emp => M_TGT i
                             | Flag.success => m_tgt' i
                             end).
       hexploit SIM. instantiate (1 := M_TGT').
@@ -351,6 +352,7 @@ Section SIM.
         des_ifs; try reflexivity. destruct IMAP.
         + exfalso. eauto.
         + right. eauto.
+        + rewrite FAIR; auto.
     }
     { clarify. econs; eauto. eapply rclo9_clo_base. econs; eauto. }
   Qed.
@@ -523,8 +525,6 @@ Section EMBEDSIM.
     { des. guclo sim_indC_spec. econs 7. eexists (fun id => wfs_embed (m_src0 id)).
       splits; eauto. ii. specialize (FAIR i). des_ifs; ss; eauto.
       inv FAIR; eauto.
-      { left. rewrite H. eauto. }
-      { right. eauto. }
     }
     { guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eauto. }
     { gstep. econs 9; eauto. pclearbot. gbase. eauto. }

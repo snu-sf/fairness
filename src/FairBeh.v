@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From ITree Require Export ITree.
 From Paco Require Import paco.
-From Fairness Require Import WFLib.
+From Fairness Require Import Axioms WFLib.
 Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
@@ -223,7 +223,7 @@ Section STS.
   Definition fair_update (m0 m1: imap) (f: fmap id): Prop :=
     forall i, match f i with
          | Flag.fail => wf.(lt) (m1 i) (m0 i)
-         | Flag.emp => wf.(le) (m1 i) (m0 i)
+         | Flag.emp => (m1 i) = (m0 i)
          | Flag.success => True
          end.
 
@@ -394,8 +394,6 @@ Section BEHAVES.
   (*********************** upto ***********************)
   (****************************************************)
 
-  Hypothesis WFTR: Transitive wf.(lt).
-
   Variant diverge_imap_le_ctx
           (diverge_index: forall R, (imap id wf) -> (@state id R) -> Prop)
           R
@@ -419,11 +417,19 @@ Section BEHAVES.
     i. inv PR. dup DIV. apply GF in DIV. inv DIV; eauto.
     { econs 1. eapply rclo3_clo_base. econs 1; eauto. }
     { econs 2. eapply rclo3_clo_base. econs 1; eauto. }
-    { econs 3. eapply rclo3_clo_base. econs 1. eauto. reflexivity.
-      clear - WFTR IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
-      des_ifs.
-      - unfold le in IMAP. des. rewrite IMAP in FAIR. auto. eapply WFTR; eauto.
-      - eapply WF_le_Trans; eauto.
+    { econs 3. eapply rclo3_clo_base. econs 1. eauto.
+      instantiate (1:=fun i => match fmap0 i with
+                            | Flag.fail => match excluded_middle_informative (x1 i = imap1 i) with
+                                          | left _ => idx1 i
+                                          | right _ => imap1 i
+                                          end
+                            | Flag.emp => x1 i
+                            | Flag.success => idx1 i
+                            end).
+      - unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
+        des_ifs; ss. left; auto. right; auto. rewrite FAIR. auto. left; auto.
+      - unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
+        des_ifs. rewrite e. auto. unfold le in IMAP. des; auto. rewrite IMAP in n; ss.
     }
   Qed.
 
@@ -457,10 +463,19 @@ Section BEHAVES.
       eapply diverge_index_mon; eauto. i. gfinal. pclearbot. auto.
     }
     { econs. eapply rclo4_clo_base. econs; eauto. }
-    { econs. eapply IHBEH. reflexivity. clear - WFTR IMAP FMAP. unfold fair_update, soft_update in *.
-      i. specialize (FMAP i). specialize (IMAP i). des_ifs.
-      - unfold le in IMAP. des. rewrite <- IMAP. auto. eapply WFTR; eauto.
-      - eapply WF_le_Trans; eauto.
+    { econs. eapply IHBEH.
+      instantiate (1:=fun i => match fmap0 i with
+                            | Flag.fail => match excluded_middle_informative (x1 i = imap0 i) with
+                                          | left _ => imap1 i
+                                          | right _ => imap0 i
+                                          end
+                            | Flag.emp => x1 i
+                            | Flag.success => imap1 i
+                            end).
+      - unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FMAP i).
+        des_ifs; ss. left; auto. right; auto. rewrite FMAP. auto. left; auto.
+      - unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FMAP i).
+        des_ifs. rewrite e. auto. unfold le in IMAP. des; auto. rewrite IMAP in n; ss.
     }
   Qed.
 

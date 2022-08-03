@@ -7,7 +7,7 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
-From Fairness Require Import FairBeh.
+From Fairness Require Import Axioms FairBeh.
 
 Set Implicit Arguments.
 
@@ -481,7 +481,6 @@ Section TR.
   Definition is_fair_ord {R} (tr: @t id R) := exists m, fair_ord m tr.
 
   (** fair_ord upto *)
-  Hypothesis WFTR: Transitive wf.(lt).
 
   Variant fair_ord_imap_le_ctx
           (fair_ord: forall (R: Type) (m: imap id wf), (@t id R) -> Prop)
@@ -509,11 +508,19 @@ Section TR.
     { econs 3. }
     { econs 4. eapply rclo3_clo_base. econs; eauto. }
     { econs 5.
-      2:{ eapply rclo3_clo_base. econs; eauto. reflexivity. }
-      clear - IMAP FAIR WFTR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
-      des_ifs.
-      - unfold le in IMAP. des. rewrite IMAP in FAIR. auto. eapply WFTR; eauto.
-      - eapply WF_le_Trans; eauto.
+      instantiate (1:=fun i => match fmap i with
+                            | Flag.fail => match excluded_middle_informative (x1 i = imap1 i) with
+                                          | left _ => m0 i
+                                          | right _ => imap1 i
+                                          end
+                            | Flag.emp => x1 i
+                            | Flag.success => m0 i
+                            end).
+      - unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
+        des_ifs. rewrite e. auto. unfold le in IMAP. des; auto. rewrite IMAP in n; ss.
+      - eapply rclo3_clo_base. econs; eauto.
+        unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i).
+        des_ifs; ss. left; auto. right; auto. rewrite FAIR. auto. left; auto.
     }
     { econs 6. eapply rclo3_clo_base. econs; eauto. }
   Qed.

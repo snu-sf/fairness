@@ -43,12 +43,13 @@ Section TRANS_CLOS.
                     /\ << INV : I (ths, im_src, im_tgt'0, st_src, st_tgt, w) >>.
 
   Lemma fair_break Id m_tgt m_tgt'' fm
-    (FAIR : @fair_update Id wf_tgt' m_tgt m_tgt'' fm)
-    : exists im_tgt'0, << FAIR : @fair_update Id wf_tgt m_tgt im_tgt'0 fm >> /\ << LE : forall i, le wf_tgt' (m_tgt'' i) (im_tgt'0 i) >>.
+        (FAIR : @fair_update Id wf_tgt' m_tgt m_tgt'' fm)
+    : exists im_tgt'0, << FAIR : @fair_update Id wf_tgt m_tgt im_tgt'0 fm >> /\
+                              << LE : forall i, le wf_tgt' (m_tgt'' i) (im_tgt'0 i) >>.
   Proof.
     exists (fun i => match fm i with
              | Flag.fail    => epsilon inh (fun z => lt wf_tgt z (m_tgt i)
-                                                   /\ (m_tgt'' i = z \/ clos_trans_n1 _ (lt wf_tgt) (m_tgt'' i) z))
+                                                 /\ (m_tgt'' i = z \/ clos_trans_n1 _ (lt wf_tgt) (m_tgt'' i) z))
              | Flag.emp     => m_tgt i
              | Flag.success => m_tgt'' i
              end).
@@ -57,12 +58,12 @@ Section TRANS_CLOS.
       + eapply clos_trans_step in FAIR.
         eapply epsilon_spec in FAIR.
         destruct FAIR. eapply H.
-      + reflexivity.
     - ii. specialize (FAIR i). des_ifs.
       + eapply clos_trans_step in FAIR.
         eapply epsilon_spec in FAIR.
         destruct FAIR. eapply H0.
-      + reflexivity.
+      + rewrite FAIR. left; auto.
+      + left; auto.
   Qed.
 
   Lemma fair_trans_l {Id im_tgt im_tgt' im_tgt'' fm}

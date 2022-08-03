@@ -181,195 +181,197 @@ Section PROOF.
       pfold. eapply pind9_fold. econs 3; eauto. exists x.
       split; ss. punfold IND.
     }
+    all: admit.
+  Abort.
 
-    7:{ hexploit ord_tree_join.
-        { instantiate (2:=A R0 R1).
-          instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 LRR ps pt rs src tgt shr).
-          i. ss. des_ifs. eapply IH in SAT.
-          instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o => lsim wf_stt I tid (embed_lrr wf_stt LRR) ps pt rs (o, src) tgt shr).
-          eauto.
-        }
-        intro JOIN. des. exists o1. pfold. eapply pind9_fold. econs 10. i. specialize (LSIM0 x).
-        destruct LSIM0 as [LSIM IND].
-        specialize (JOIN (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))). des_ifs.
-        eapply JOIN in IND; clear JOIN. des.
-        split; ss.
-        (*TODO*)
+  (*   7:{ hexploit ord_tree_join. *)
+  (*       { instantiate (2:=A R0 R1). *)
+  (*         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 LRR ps pt rs src tgt shr). *)
+  (*         i. ss. des_ifs. eapply IH in SAT. *)
+  (*         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o => lsim wf_stt I tid (embed_lrr wf_stt LRR) ps pt rs (o, src) tgt shr). *)
+  (*         eauto. *)
+  (*       } *)
+  (*       intro JOIN. des. exists o1. pfold. eapply pind9_fold. econs 10. i. specialize (LSIM0 x). *)
+  (*       destruct LSIM0 as [LSIM IND]. *)
+  (*       specialize (JOIN (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))). des_ifs. *)
+  (*       eapply JOIN in IND; clear JOIN. des. *)
+  (*       split; ss. *)
+  (*       (*TODO*) *)
 
-        hexploit JOIN. des_ifs. eapply IND.
+  (*       hexploit JOIN. des_ifs. eapply IND. *)
 
-          eapply SAT.
-                             upind9 (ModSimNoSync.__lsim I tid
-                                                         (upaco9 (fun r => pind9 (ModSimNoSync.__lsim I tid r) top9) bot9)) rr R0
-                                    R1 LRR ps true r_ctx src (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)). ss.
-          clear LSIM0. i. destruct SAT as [SAT IND]. eapply IH in IND.
+  (*         eapply SAT. *)
+  (*                            upind9 (ModSimNoSync.__lsim I tid *)
+  (*                                                        (upaco9 (fun r => pind9 (ModSimNoSync.__lsim I tid r) top9) bot9)) rr R0 *)
+  (*                                   R1 LRR ps true r_ctx src (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)). ss. *)
+  (*         clear LSIM0. i. destruct SAT as [SAT IND]. eapply IH in IND. *)
 
-  IND : rr R0 R1 LRR true pt r_ctx (ktr_src x) tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+  (* IND : rr R0 R1 LRR true pt r_ctx (ktr_src x) tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared) *)
 
 
-          match goal with
-          | LSIM0: forall x: X, ?_P x |- _ => instantiate (2:=_P)
-          end.
+  (*         match goal with *)
+  (*         | LSIM0: forall x: X, ?_P x |- _ => instantiate (2:=_P) *)
+  (*         end. *)
           
 
-      exists X. 
+  (*     exists X.  *)
 
-      pfold. eapply pind9_fold. econs 10; eauto.
-         i. specialize (LSIM0 x).
-         split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 4; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 5; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 6; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 7; eauto. }
-    { pfold. eapply pind9_fold. econs 8; eauto.
-      des. esplits; eauto.
-      split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 9; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 10; eauto.
-      i. specialize (LSIM0 x).
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 11; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 12; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 13; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 14; eauto.
-      i. specialize (LSIM0 _ FAIR).
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 15; eauto.
-      i. specialize (LSIM0 ret). pclearbot.
-      right. eapply CIH; eauto.
-    }
+  (*     pfold. eapply pind9_fold. econs 10; eauto. *)
+  (*        i. specialize (LSIM0 x). *)
+  (*        split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 4; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 5; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 6; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 7; eauto. } *)
+  (*   { pfold. eapply pind9_fold. econs 8; eauto. *)
+  (*     des. esplits; eauto. *)
+  (*     split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 9; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 10; eauto. *)
+  (*     i. specialize (LSIM0 x). *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 11; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 12; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 13; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 14; eauto. *)
+  (*     i. specialize (LSIM0 _ FAIR). *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 15; eauto. *)
+  (*     i. specialize (LSIM0 ret). pclearbot. *)
+  (*     right. eapply CIH; eauto. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL.
-      des. esplits; eauto.
-      split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL. *)
+  (*     des. esplits; eauto. *)
+  (*     split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto.
-      i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto. *)
+  (*     i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto.
-      i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
-      split; ss. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL.
-      des. esplits. eapply FAIR. split; ss. pclearbot.
-      eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right.
-      eapply CIH. apply ModSimStid.lsim_set_prog; auto.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto. *)
+  (*     i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). *)
+  (*     split; ss. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL. *)
+  (*     des. esplits. eapply FAIR. split; ss. pclearbot. *)
+  (*     eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right. *)
+  (*     eapply CIH. apply ModSimStid.lsim_set_prog; auto. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right.
-      eapply CIH. pclearbot. auto.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right. *)
+  (*     eapply CIH. pclearbot. auto. *)
+  (*   } *)
 
-  Qed.
+  (* Qed. *)
 
 
-  Theorem nosync_implies_stutter
-          tid
-          R0 R1 (RR: RR_rel R0 R1)
-          ps pt r_ctx src tgt
-          (shr: shared)
-          (LSIM: ModSimNoSync.lsim I tid RR ps pt r_ctx src tgt shr)
-    :
-    exists o, ModSimStutter.lsim (@ord_tree_WF (A R0 R1)) I tid RR ps pt r_ctx (o, src) tgt shr.
-  Proof.
-    revert_until tid. pcofix CIH; i.
-    punfold LSIM.
-    pattern R0, R1, RR, ps, pt, r_ctx, src, tgt, shr.
-    revert R0 R1 RR ps pt r_ctx src tgt shr LSIM. apply pind9_acc.
-    intros rr DEC IH. clear DEC. intros R0 R1 RR ps pt r_ctx src tgt shr LSIM.
-    eapply pind9_unfold in LSIM.
-    2:{ eapply ModSimNoSync._lsim_mon. }
-    inv LSIM.
+  (* Theorem nosync_implies_stutter *)
+  (*         tid *)
+  (*         R0 R1 (RR: RR_rel R0 R1) *)
+  (*         ps pt r_ctx src tgt *)
+  (*         (shr: shared) *)
+  (*         (LSIM: ModSimNoSync.lsim I tid RR ps pt r_ctx src tgt shr) *)
+  (*   : *)
+  (*   exists o, ModSimStutter.lsim (@ord_tree_WF (A R0 R1)) I tid RR ps pt r_ctx (o, src) tgt shr. *)
+  (* Proof. *)
+  (*   revert_until tid. pcofix CIH; i. *)
+  (*   punfold LSIM. *)
+  (*   pattern R0, R1, RR, ps, pt, r_ctx, src, tgt, shr. *)
+  (*   revert R0 R1 RR ps pt r_ctx src tgt shr LSIM. apply pind9_acc. *)
+  (*   intros rr DEC IH. clear DEC. intros R0 R1 RR ps pt r_ctx src tgt shr LSIM. *)
+  (*   eapply pind9_unfold in LSIM. *)
+  (*   2:{ eapply ModSimNoSync._lsim_mon. } *)
+  (*   inv LSIM. *)
 
-    { pfold. eapply pind9_fold. econs 1; eauto. }
-    { pfold. eapply pind9_fold. econs 2; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 3; eauto.
-      des. exists x.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 4; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 5; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 6; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 7; eauto. }
-    { pfold. eapply pind9_fold. econs 8; eauto.
-      des. esplits; eauto.
-      split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 9; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 10; eauto.
-      i. specialize (LSIM0 x).
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 11; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 12; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 13; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 14; eauto.
-      i. specialize (LSIM0 _ FAIR).
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 15; eauto.
-      i. specialize (LSIM0 ret). pclearbot.
-      right. eapply CIH; eauto.
-    }
+  (*   { pfold. eapply pind9_fold. econs 1; eauto. } *)
+  (*   { pfold. eapply pind9_fold. econs 2; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 3; eauto. *)
+  (*     des. exists x. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 4; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 5; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 6; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 7; eauto. } *)
+  (*   { pfold. eapply pind9_fold. econs 8; eauto. *)
+  (*     des. esplits; eauto. *)
+  (*     split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 9; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 10; eauto. *)
+  (*     i. specialize (LSIM0 x). *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 11; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 12; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 13; eauto. *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 14; eauto. *)
+  (*     i. specialize (LSIM0 _ FAIR). *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
+  (*   { pfold. eapply pind9_fold. econs 15; eauto. *)
+  (*     i. specialize (LSIM0 ret). pclearbot. *)
+  (*     right. eapply CIH; eauto. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL.
-      des. esplits; eauto.
-      split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL. *)
+  (*     des. esplits; eauto. *)
+  (*     split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto.
-      i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto. *)
+  (*     i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). *)
+  (*     split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto.
-      i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
-      split; ss. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL.
-      des. esplits. eapply FAIR. split; ss. pclearbot.
-      eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right.
-      eapply CIH. apply ModSimStid.lsim_set_prog; auto.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto. *)
+  (*     i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). *)
+  (*     split; ss. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL. *)
+  (*     des. esplits. eapply FAIR. split; ss. pclearbot. *)
+  (*     eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right. *)
+  (*     eapply CIH. apply ModSimStid.lsim_set_prog; auto. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right.
-      eapply CIH. pclearbot. auto.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right. *)
+  (*     eapply CIH. pclearbot. auto. *)
+  (*   } *)
 
-  Qed.
+  (* Qed. *)
 
 End PROOF.
 
