@@ -110,6 +110,8 @@ Section PROOF.
     eapply pind6_acc.
     intros rr DEC IH gps gpt rs src tgt shr LSIM. clear DEC.
     intros THSRC THTGT WF sf st_src st_tgt o r_shared RSWF im_tgt im_src ELRR Eshr Ers.
+    assert (LBASE: lsim I LRR tid gps gpt rs src tgt shr).
+    { clarify. pfold. eapply pind6_mon_top; eauto. }
     eapply pind6_unfold in LSIM.
     2:{ eapply _lsim_mon. }
     inv LSIM.
@@ -497,7 +499,9 @@ Section PROOF.
       hexploit IH; eauto. i. punfold H.
     }
 
-    { clarify. pclearbot. pfold. eapply pind9_fold. eapply ksim_progress. right. eapply CIH; eauto. }
+    { clarify. clear rr IH. pclearbot. clear LSIM0. pfold. eapply pind9_fold. eapply ksim_progress. right. eapply CIH; eauto.
+      eapply lsim_set_prog; eauto.
+    }
 
   Qed.
 

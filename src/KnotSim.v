@@ -133,9 +133,8 @@ Section KSIM.
                   (nm_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
                     (nm_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
                     ((b = true) ->
-                     exists o0, (wf_stt.(lt) o0 o) /\
-                             (forall im_tgt0
-                                (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
+                     (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
+                       exists o0, (wf_stt.(lt) o0 o) /\
                                forall ps pt, sim_knot thsl1 thsr1 tid0
                                                  (snd (get_resource tid0 rs_local0))
                                                  ps pt
@@ -143,17 +142,16 @@ Section KSIM.
                                                  (th_tgt)
                                                  (im_src, im_tgt0, st_src, st_tgt, o0, r_shared0))) /\
                     ((b = false) ->
-                     exists o0, (wf_stt.(lt) o0 o) /\
-                             (forall im_tgt0
-                                (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
-                               exists im_src0,
-                                 (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl1)))) /\
-                                   (forall ps pt, sim_knot thsl1 thsr1 tid0
-                                                      (snd (get_resource tid0 rs_local0))
-                                                      ps pt
-                                                      (b, th_src)
-                                                      th_tgt
-                                                      (im_src0, im_tgt0, st_src, st_tgt, o0, r_shared0))))))
+                     (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
+                       exists im_src0 o0,
+                         (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl1)))) /\
+                           (wf_stt.(lt) o0 o) /\
+                           (forall ps pt, sim_knot thsl1 thsr1 tid0
+                                              (snd (get_resource tid0 rs_local0))
+                                              ps pt
+                                              (b, th_src)
+                                              th_tgt
+                                              (im_src0, im_tgt0, st_src, st_tgt, o0, r_shared0))))))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inr1 Yield)) ktr_src)
@@ -181,11 +179,11 @@ Section KSIM.
         tid f_src f_tgt
         sf itr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o
+        im_src im_tgt st_src st_tgt o o0
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, itr_src)
                          itr_tgt
-                         (im_src, im_tgt, st_src, st_tgt, o, r_kshared))
+                         (im_src, im_tgt, st_src, st_tgt, o0, r_kshared))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Tau itr_src)
@@ -195,11 +193,11 @@ Section KSIM.
         tid f_src f_tgt
         sf X ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o
+        im_src im_tgt st_src st_tgt o o0
         (KSIM: exists x, _sim_knot thsl thsr tid rs_local true f_tgt
                               (sf, ktr_src x)
                               itr_tgt
-                              (im_src, im_tgt, st_src, st_tgt, o, r_kshared))
+                              (im_src, im_tgt, st_src, st_tgt, o0, r_kshared))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inl1 (Choose X))) ktr_src)
@@ -209,11 +207,11 @@ Section KSIM.
         tid f_src f_tgt
         sf st_src0 ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o
+        im_src im_tgt st_src st_tgt o o0
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src tt)
                          itr_tgt
-                         (im_src, im_tgt, st_src0, st_tgt, o, r_kshared))
+                         (im_src, im_tgt, st_src0, st_tgt, o0, r_kshared))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inr1 (Mod.Put st_src0)) ktr_src)
@@ -223,11 +221,11 @@ Section KSIM.
         tid f_src f_tgt
         sf ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o
+        im_src im_tgt st_src st_tgt o o0
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src st_src)
                          itr_tgt
-                         (im_src, im_tgt, st_src, st_tgt, o, r_kshared))
+                         (im_src, im_tgt, st_src, st_tgt, o0, r_kshared))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inr1 (@Mod.Get _)) ktr_src)
@@ -237,11 +235,11 @@ Section KSIM.
         tid f_src f_tgt
         sf ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o
+        im_src im_tgt st_src st_tgt o o0
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src tid)
                          itr_tgt
-                         (im_src, im_tgt, st_src, st_tgt, o, r_kshared))
+                         (im_src, im_tgt, st_src, st_tgt, o0, r_kshared))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inr1 GetTid)) ktr_src)
@@ -261,13 +259,13 @@ Section KSIM.
         tid f_src f_tgt
         sf fm ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o
+        im_src im_tgt st_src st_tgt o o0
         (KSIM: exists im_src0,
             (<<FAIR: fair_update im_src im_src0 (sum_fmap_r fm)>>) /\
               (_sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src tt)
                          itr_tgt
-                         (im_src0, im_tgt, st_src, st_tgt, o, r_kshared)))
+                         (im_src0, im_tgt, st_src, st_tgt, o0, r_kshared)))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inl1 (Fair fm))) ktr_src)
@@ -364,11 +362,11 @@ Section KSIM.
         tid f_src f_tgt
         sf fn args ktr_src ktr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o
+        im_src im_tgt st_src st_tgt o o0
         (KSIM: forall ret, sim_knot thsl thsr tid rs_local true true
                                (sf, ktr_src ret)
                                (ktr_tgt ret)
-                               (im_src, im_tgt, st_src, st_tgt, o, r_kshared))
+                               (im_src, im_tgt, st_src, st_tgt, o0, r_kshared))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inl1 (Observe fn args))) ktr_src)
@@ -379,11 +377,11 @@ Section KSIM.
         tid
         sf itr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o
+        im_src im_tgt st_src st_tgt o o0
         (KSIM: sim_knot thsl thsr tid rs_local false false
                         (sf, itr_src)
                         itr_tgt
-                        (im_src, im_tgt, st_src, st_tgt, o, r_kshared))
+                        (im_src, im_tgt, st_src, st_tgt, o0, r_kshared))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local true true
                  (sf, itr_src)
@@ -406,9 +404,8 @@ Section KSIM.
     }
     { econs 3; eauto. i. specialize (KSIM tid0). des; eauto. right.
       esplits; eauto.
-      i. specialize (KSIM1 H). des. esplits; eauto.
-      i. specialize (KSIM2 H). des. esplits; eauto. i. specialize (KSIM3 _ FAIR).
-      des. esplits; eauto.
+      i. specialize (KSIM1 H _ FAIR). des. esplits; eauto.
+      i. specialize (KSIM2 H _ FAIR). des. esplits; eauto.
     }
   Qed.
 
@@ -467,8 +464,7 @@ Section KSIM.
       specialize (KSIM0 tid0). des; eauto. right.
       esplits; eauto.
       - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
-      - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. specialize (H1 _ FAIR); des.
-        esplits; eauto. i. eapply upaco9_mon_bot; eauto.
+      - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
     }
 
     { des. pfold. eapply pind9_fold. eapply ksim_yieldL. esplits; eauto. split; ss.
@@ -536,105 +532,106 @@ Section KSIM.
 
   Qed.
 
-  Lemma ksim_set_prog
-        R0 R1 (RR: R0 -> R1 -> Prop)
-        ths_src ths_tgt tid rs_local
-        ssrc tgt shr
-        (KSIM: sim_knot RR ths_src ths_tgt tid rs_local true true ssrc tgt shr)
-    :
-    forall ps pt, sim_knot RR ths_src ths_tgt tid rs_local ps pt ssrc tgt shr.
-  Proof.
-    revert_until RR. pcofix CIH. i.
-    remember true as ps1 in KSIM at 1. remember true as pt1 in KSIM at 1.
-    move KSIM before CIH. revert_until KSIM. punfold KSIM.
-    pattern ths_src, ths_tgt, tid, rs_local, ps1, pt1, ssrc, tgt, shr.
-    revert ths_src ths_tgt tid rs_local ps1 pt1 ssrc tgt shr KSIM.
-    eapply pind9_acc.
-    intros rr DEC IH ths_src ths_tgt tid rs_local ps1 pt1 ssrc tgt shr KSIM. clear DEC.
-    intros Eps1 Ept1 ps pt. clarify.
-    eapply pind9_unfold in KSIM.
-    2:{ eapply _ksim_mon. }
-    inv KSIM.
+  (* Lemma ksim_set_prog *)
+  (*       R0 R1 (RR: R0 -> R1 -> Prop) *)
+  (*       ths_src ths_tgt tid rs_local *)
+  (*       ssrc tgt shr *)
+  (*       (KSIM: sim_knot RR ths_src ths_tgt tid rs_local true true ssrc tgt shr) *)
+  (*   : *)
+  (*   forall ps pt, sim_knot RR ths_src ths_tgt tid rs_local ps pt ssrc tgt shr. *)
+  (* Proof. *)
+  (*   revert_until RR. pcofix CIH. i. *)
+  (*   remember true as ps1 in KSIM at 1. remember true as pt1 in KSIM at 1. *)
+  (*   move KSIM before CIH. revert_until KSIM. punfold KSIM. *)
+  (*   pattern ths_src, ths_tgt, tid, rs_local, ps1, pt1, ssrc, tgt, shr. *)
+  (*   revert ths_src ths_tgt tid rs_local ps1 pt1 ssrc tgt shr KSIM. *)
+  (*   eapply pind9_acc. *)
+  (*   intros rr DEC IH ths_src ths_tgt tid rs_local ps1 pt1 ssrc tgt shr KSIM. clear DEC. *)
+  (*   intros Eps1 Ept1 ps pt. clarify. *)
+  (*   eapply pind9_unfold in KSIM. *)
+  (*   2:{ eapply _ksim_mon. } *)
+  (*   inv KSIM. *)
 
-    { pfold. eapply pind9_fold. econs; eauto. }
+  (*   { pfold. eapply pind9_fold. econs; eauto. } *)
 
-    { clear rr IH. pfold. eapply pind9_fold. eapply ksim_ret_cont; eauto. i.
-      specialize (KSIM0 tid0). des; eauto. right.
-      esplits; eauto.
-      - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. eapply upaco9_mon_bot; eauto.
-      - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto.
-        i. eapply upaco9_mon_bot; eauto.
-    }
+  (*   { clear rr IH. pfold. eapply pind9_fold. eapply ksim_ret_cont; eauto. i. *)
+  (*     specialize (KSIM0 tid0). des; eauto. right. *)
+  (*     esplits; eauto. *)
+  (*     - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. eapply upaco9_mon_bot; eauto. *)
+  (*     - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. *)
+  (*       i. eapply upaco9_mon_bot; eauto. *)
+  (*   } *)
 
-    { clear rr IH. pfold. eapply pind9_fold. eapply ksim_sync; eauto. i.
-      specialize (KSIM0 tid0). des; eauto. right.
-      esplits; eauto.
-      - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto.
-      - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. specialize (H1 _ FAIR); des.
-        esplits; eauto. i. eapply upaco9_mon_bot; eauto.
-    }
+  (*   { clear rr IH. pfold. eapply pind9_fold. eapply ksim_sync; eauto. i. *)
+  (*     specialize (KSIM0 tid0). des; eauto. right. *)
+  (*     esplits; eauto. *)
+  (*     - i; hexploit KSIM2; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto. *)
+  (*     - i; hexploit KSIM3; clear KSIM2 KSIM3; eauto. i. des. esplits; eauto. i. eapply upaco9_mon_bot; eauto. *)
+  (*   } *)
 
-    { des. pfold. eapply pind9_fold. eapply ksim_yieldL. esplits; eauto. split; ss.
-      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { des. pfold. eapply pind9_fold. eapply ksim_yieldL. esplits; eauto. split; ss. *)
+  (*     destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_tauL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_tauL. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { des. pfold. eapply pind9_fold. eapply ksim_chooseL. esplits. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { des. pfold. eapply pind9_fold. eapply ksim_chooseL. esplits. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_putL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_putL. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_getL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_getL. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_tidL. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_tidL. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_UB. }
+  (*   { pfold. eapply pind9_fold. eapply ksim_UB. } *)
 
-    { des. pfold. eapply pind9_fold. eapply ksim_fairL. esplits; eauto. split; ss.
-      destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { des. pfold. eapply pind9_fold. eapply ksim_fairL. esplits; eauto. split; ss. *)
+  (*     destruct KSIM1 as [KSIM1 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_tauR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_tauR. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_chooseR. i. split; ss. specialize (KSIM0 x).
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_chooseR. i. split; ss. specialize (KSIM0 x). *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_putR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_putR. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_getR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_getR. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_tidR. split; ss.
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_tidR. split; ss. *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_fairR. i. split; ss. specialize (KSIM0 _ FAIR).
-      destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_fairR. i. split; ss. specialize (KSIM0 _ FAIR). *)
+  (*     destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H. *)
+  (*   } *)
 
-    { pfold. eapply pind9_fold. eapply ksim_observe. i. specialize (KSIM0 ret). pclearbot.
-      right; eapply CIH; eauto.
-    }
+  (*   { pfold. eapply pind9_fold. eapply ksim_observe. i. specialize (KSIM0 ret). pclearbot. *)
+  (*     right; eapply CIH; eauto. *)
+  (*   } *)
 
-    { pclearbot. eapply paco9_mon_bot; eauto. eapply ksim_reset_prog. eauto. all: auto. }
+  (*   { pclearbot. pfold. eapply pind9_fold. eapply ksim_progress.  *)
 
-  Qed.
+  (*     eapply paco9_mon_bot; eauto. eapply ksim_reset_prog. eauto. all: auto. } *)
+
+  (* Qed. *)
 
 End KSIM.
 #[export] Hint Constructors __sim_knot: core.
