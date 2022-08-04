@@ -190,21 +190,21 @@ Section PRIMIVIESIM.
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (o0, trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
 
-  | lsim_progress
-      r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
-      itr_src itr_tgt
-      (LSIM: ModSimNoSync.lsim I tid RR false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
-    :
-    __lsim tid lsim _lsim RR true true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
-
   (* | lsim_progress *)
   (*     r_ctx o *)
   (*     ths im_src im_tgt st_src st_tgt r_shared *)
   (*     itr_src itr_tgt *)
-  (*     (LSIM: lsim _ _ RR false false r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)) *)
+  (*     (LSIM: ModSimNoSync.lsim I tid RR false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)) *)
   (*   : *)
   (*   __lsim tid lsim _lsim RR true true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared) *)
+
+  | lsim_progress
+      r_ctx o
+      ths im_src im_tgt st_src st_tgt r_shared
+      itr_src itr_tgt
+      (LSIM: lsim _ _ RR false false r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+    :
+    __lsim tid lsim _lsim RR true true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
   .
 
   Definition lsim (tid: thread_id)
@@ -225,6 +225,7 @@ Section PRIMIVIESIM.
     { des. econs; eauto. }
     { des. econs; eauto. }
     { econs. i. eapply LE. eapply LSIM. eauto. }
+    (* { econs; eauto. i. specialize (LSIM _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des. esplits; eauto. } *)
     { des. econs; esplits; eauto. }
   Qed.
 
@@ -326,7 +327,7 @@ Section PRIMIVIESIM.
 
     { eapply pind9_fold. eapply lsim_yieldR; eauto. i.
       hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. des. esplits; eauto.
-      eapply rclo9_base. apply LSIM.
+      eapply rclo9_base. auto.
     }
 
     { des. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
@@ -334,7 +335,7 @@ Section PRIMIVIESIM.
     }
 
     { hexploit H; ss; i. hexploit H0; ss; i. clarify.
-      eapply pind9_fold. eapply lsim_progress. auto. }
+      eapply pind9_fold. eapply lsim_progress. eapply rclo9_base; auto. }
   Qed.
 
   Lemma lsim_reset_prog
@@ -358,103 +359,103 @@ Section PRIMIVIESIM.
     right. auto.
   Qed.
 
-  (* Lemma lsim_set_prog *)
-  (*       tid *)
-  (*       R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) *)
-  (*       r_ctx src tgt shr *)
-  (*       (LSIM: lsim tid RR true true r_ctx src tgt shr) *)
-  (*   : *)
-  (*   forall ps pt, lsim tid RR ps pt r_ctx src tgt shr. *)
-  (* Proof. *)
-  (*   i. revert_until tid. pcofix CIH. i. *)
-  (*   remember true as ps0 in LSIM at 1. remember true as pt0 in LSIM at 1. *)
-  (*   move LSIM before CIH. revert_until LSIM. punfold LSIM. *)
-  (*   2:{ eapply lsim_mon. } *)
-  (*   eapply pind9_acc in LSIM. *)
+  Lemma lsim_set_prog
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_ctx src tgt shr
+        (LSIM: lsim tid RR true true r_ctx src tgt shr)
+    :
+    forall ps pt, lsim tid RR ps pt r_ctx src tgt shr.
+  Proof.
+    i. revert_until tid. pcofix CIH. i.
+    remember true as ps0 in LSIM at 1. remember true as pt0 in LSIM at 1.
+    move LSIM before CIH. revert_until LSIM. punfold LSIM.
+    2:{ eapply lsim_mon. }
+    eapply pind9_acc in LSIM.
 
-  (*   { instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) ps0 pt0 r_ctx src tgt shr => *)
-  (*                         ps0 = true -> *)
-  (*                         pt0 = true -> *)
-  (*                         forall ps pt, *)
-  (*                           paco9 *)
-  (*                             (fun r0 => *)
-  (*                                pind9 (__lsim tid r0) top9) r R0 R1 RR ps pt r_ctx src tgt shr)) in LSIM; auto. } *)
+    { instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) ps0 pt0 r_ctx src tgt shr =>
+                          ps0 = true ->
+                          pt0 = true ->
+                          forall ps pt,
+                            paco9
+                              (fun r0 =>
+                                 pind9 (__lsim tid r0) top9) r R0 R1 RR ps pt r_ctx src tgt shr)) in LSIM; auto. }
 
-  (*   ss. clear ps0 pt0 r_ctx src tgt shr LSIM. *)
-  (*   intros rr DEC IH R0' R1' RR' gps gpt r_ctx src tgt shr LSIM. clear DEC. *)
-  (*   intros Egps Egpt ps pt. *)
-  (*   eapply pind9_unfold in LSIM. *)
-  (*   2:{ eapply _lsim_mon. } *)
-  (*   inv LSIM. *)
+    ss. clear ps0 pt0 r_ctx src tgt shr LSIM.
+    intros rr DEC IH R0' R1' RR' gps gpt r_ctx src tgt shr LSIM. clear DEC.
+    intros Egps Egpt ps pt.
+    eapply pind9_unfold in LSIM.
+    2:{ eapply _lsim_mon. }
+    inv LSIM.
 
-  (*   { pfold. eapply pind9_fold. econs; eauto. } *)
+    { pfold. eapply pind9_fold. econs; eauto. }
 
-  (*   { destruct LSIM0 as [LSIM0 IND]. clear LSIM0. *)
-  (*     pfold. eapply pind9_fold. eapply lsim_tauL. split; ss. *)
-  (*     hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
+      pfold. eapply pind9_fold. eapply lsim_tauL. split; ss.
+      hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { des. pfold. eapply pind9_fold. eapply lsim_chooseL. esplits; eauto. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { des. pfold. eapply pind9_fold. eapply lsim_chooseL. esplits; eauto. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_putL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_putL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_getL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_getL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_tidL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_tidL. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_UB. } *)
+    { pfold. eapply pind9_fold. eapply lsim_UB. }
 
-  (*   { des. pfold. eapply pind9_fold. eapply lsim_fairL. esplits; eauto. split; ss. *)
-  (*     destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { des. pfold. eapply pind9_fold. eapply lsim_fairL. esplits; eauto. split; ss.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { destruct LSIM0 as [LSIM0 IND]. clear LSIM0. *)
-  (*     pfold. eapply pind9_fold. eapply lsim_tauR. split; ss. *)
-  (*     hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
+      pfold. eapply pind9_fold. eapply lsim_tauR. split; ss.
+      hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_chooseR. i. split; ss. specialize (LSIM0 x). *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_chooseR. i. split; ss. specialize (LSIM0 x).
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_putR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_putR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_getR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_getR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_tidR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_tidR. split; ss.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_fairR. i. split; ss. specialize (LSIM0 _ FAIR). *)
-  (*     des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_fairR. i. split; ss. specialize (LSIM0 _ FAIR).
+      des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. } *)
+    { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i. *)
-  (*     hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. des. esplits; eauto. *)
-  (*     eapply upaco9_mon_bot; eauto. *)
-  (*   } *)
+    { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i.
+      hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. des. esplits; eauto.
+      eapply upaco9_mon_bot; eauto.
+    }
 
-  (*   { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss. *)
-  (*     destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
+    { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+    }
 
-  (*   { pfold. eapply pind9_fold. eapply lsim_progress. pclearbot. eapply paco9_mon_bot. eapply lsim_reset_prog. eauto. all: ss. } *)
+    { pclearbot. eapply paco9_mon_bot. eapply lsim_reset_prog. eauto. all: ss. }
 
-  (* Qed. *)
+  Qed.
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid:
     R0 -> R1 -> URA.car -> shared_rel :=

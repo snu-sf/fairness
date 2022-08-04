@@ -131,7 +131,7 @@ Section PROOF.
 
     { pfold. eapply pind9_fold. eapply ModSimStutter.lsim_yieldR; eauto.
       i. hexploit LSIM0; clear LSIM0; eauto; intro LSIM. des. esplits; eauto.
-      pclearbot. right. eapply CIH; eauto.
+      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND; eauto. punfold IND.
     }
 
     { pfold. eapply pind9_fold. eapply ModSimStutter.lsim_yieldL; eauto.
@@ -275,7 +275,7 @@ Section PROOF.
       destruct LSIM0 as [LSIM IND].
       specialize (JOIN (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt (), (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))). des_ifs.
       eapply JOIN in IND; clear JOIN. des. esplits; eauto.
-      left. eapply lsim_reset_prog. eauto. all: ss.
+      split; ss. punfold IND.
     }
 
     { des. destruct LSIM as [LSIM IND]. eapply IH in IND. des. exists o.
