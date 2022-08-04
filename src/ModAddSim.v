@@ -227,6 +227,7 @@ Section ADD_COMM.
 
 End ADD_COMM.
 
+
 Section ADD_RIGHT_CONG.
 
   Definition sum_wf wf1 wf2 := {| wf := sum_lt_well_founded (wf wf1) (wf wf2) |}.
@@ -267,9 +268,9 @@ Section ADD_RIGHT_CONG.
                 => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt, w) := x in
                   let im_ctx := pick_ctx IM_TGT in
                   let im_tgt := chop_ctx IM_TGT in
-                  exists im_src,
+                  exists im_src ths_mod,
                     IM_SRC = add_ctx im_ctx im_src
-                    /\ I (ths, im_src, im_tgt, snd st_src, snd st_tgt, w)
+                    /\ I (ths_mod, im_src, im_tgt, snd st_src, snd st_tgt, w)
          ).
     constructor 1 with (sum_wf wf_src wf_tgt) wf_tgt world I'; eauto.
     { i. specialize (init (chop_ctx im_tgt)). des.
@@ -281,9 +282,25 @@ Section ADD_RIGHT_CONG.
     destruct M2_tgt as [state2_tgt ident2_tgt st_init2_tgt funs2_tgt].
     ss. unfold add_funs. ss.
     destruct (funs1 fn) eqn: E1, (funs2_src fn) eqn: E2, (funs2_tgt fn) eqn: E3; ss.
-    - admit.
-    - admit.
-    - admit.
+    - ii. exists r_shared0, URA.unit. splits; eauto. rewrite URA.unit_id. eauto. i.
+      pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
+    - ii. exists r_shared0, URA.unit. splits; eauto. rewrite URA.unit_id. eauto. i.
+      unfold embed_l, embed_r. remember (k args) as itr.
+      rename im_src1 into IM_SRC, im_tgt2 into IM_TGT.
+      assert (INV_CIH : I' (ths, IM_SRC, IM_TGT, st_src, st_tgt, r_shared2)).
+      { ss. des. exists im_src, ths_mod.
+        assert (pick_ctx IM_TGT = pick_ctx im_tgt1).
+        { extensionalities i. specialize (TGT (inr (inl i))). ss. }
+        rewrite H. split. eauto. admit.
+      }
+
+      clear - INV0 VALID0.
+      rename INV0 into INV, VALID0 into VALID, r_shared2 into r_shared0, r_ctx2 into r_ctx0.
+      revert_until tid. ginit. gcofix CIH. i.
+      destruct_itree itr.
+      + rewrite 2 embed_state_ret. rewrite 2 map_event_ret.
+        gstep. eapply pind9_fold. econs. ss. eexists. exists URA.unit, r_shared0. splits; ss.
+        des. esplits; ss.
   Admitted.
 
 End ADD_RIGHT_CONG.

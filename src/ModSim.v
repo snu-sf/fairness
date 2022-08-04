@@ -496,16 +496,6 @@ Section PRIMIVIESIM.
                   (ths, im_src1, im_tgt2, st_src, st_tgt, r_shared2)
                   >>)).
 
-  Definition shared_rel_wf: Prop :=
-    forall ths im_src0 im_tgt0 st_src st_tgt r_shared0 r_ctx
-           (INV: I (ths, im_src0, im_tgt0, st_src, st_tgt, r_shared0))
-           (VALID: URA.wf (r_shared0 ⋅ r_ctx)),
-    forall im_tgt1
-           (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap_all ths))),
-    exists r_shared1,
-      (<<INV: I (ths, im_src0, im_tgt1, st_src, st_tgt, r_shared1)>>) /\
-        (<<VALID: URA.wf (r_shared1 ⋅ r_ctx)>>).
-
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
 #[export] Hint Unfold lsim: core.
