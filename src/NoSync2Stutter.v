@@ -45,25 +45,9 @@ Section PROOF.
 
   Variable I: shared_rel.
 
-  (* Lemma embed_lrr_iff *)
-  (*       wf_stt *)
-  (*       R0 R1 (RR: R0 -> R1 -> Prop) tid *)
-  (*       r0 r1 r_ctx o *)
-  (*       (shr: shared) *)
-  (*   : *)
-  (*   ModSimStutter.local_RR wf_stt I RR tid r0 r1 r_ctx o shr <-> *)
-  (*     embed_lrr wf_stt (ModSimNoSync.local_RR I RR tid) r0 r1 r_ctx o shr. *)
-  (* Proof. *)
-  (*   unfold embed_lrr, ModSimStutter.local_RR, ModSimNoSync.local_RR. des_ifs. split; i; des. *)
-  (*   - esplits; eauto. *)
-  (*   - esplits; eauto. *)
-  (* Qed. *)
-
   Lemma stutter_ord_weak
           wf_stt tid
           R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
-          (* (IMPL: forall r0 r1 m o0 o1 shr (LE: wf_stt.(le) o0 o1), *)
-          (*     LRR1 r0 r1 m o0 shr -> LRR2 r0 r1 m o1 shr) *)
           ps pt r_ctx src tgt (shr: shared) o0 o1
           (LT: wf_stt.(lt) o0 o1)
           (LSIM: ModSimStutter.lsim wf_stt I tid LRR ps pt r_ctx (o0, src) tgt shr)
@@ -131,7 +115,7 @@ Section PROOF.
 
     { pfold. eapply pind9_fold. eapply ModSimStutter.lsim_yieldR; eauto.
       i. hexploit LSIM0; clear LSIM0; eauto; intro LSIM. des. esplits; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND; eauto. punfold IND.
+      pclearbot. right. eapply CIH; eauto.
     }
 
     { pfold. eapply pind9_fold. eapply ModSimStutter.lsim_yieldL; eauto.
@@ -141,7 +125,9 @@ Section PROOF.
       - ss.
     }
 
-    { pfold. eapply pind9_fold. eapply ModSimStutter.lsim_progress. auto. }
+    { pfold. eapply pind9_fold. eapply ModSimStutter.lsim_progress.
+      pclearbot. right. eapply CIH; eauto.
+    }
 
   Qed.
 
