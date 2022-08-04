@@ -13,40 +13,6 @@ Import Lia.
 Import Mod.
 Import RelationClasses.
 
-Section WF_SUM.
-
-  Context {Id : ID}.
-  Context (wfs : Id -> WF).
-
-  Definition union : Type := {i : Id & (wfs i).(T)}.
-
-  Inductive union_rel (ix1 ix2 : union) : Prop :=
-    intro_union_rel
-      (p : projT1 ix1 = projT1 ix2)
-      (LT : lt (wfs (projT1 ix2)) (eq_rect _ _ (projT2 ix1) _ p) (projT2 ix2))
-      : union_rel ix1 ix2
-  .
-
-  Lemma union_rel_well_founded : well_founded union_rel.
-  Proof.
-    intros [i x]. pose proof (wf (wfs i) x). induction H as [x H IH].
-    econs. intros [i' y] [p LT]; ss. destruct p; ss. eauto.
-  Qed.
-
-  Definition union_wf := {| wf := union_rel_well_founded |}.
-
-  Lemma sig_eq A (B : A -> Type) (x y : sigT B) (p : x = y)
-    : (eq_rect _ _ (projT2 x) _ (f_equal (@projT1 A B) p)) = projT2 y.
-  Proof. destruct p. ss. Qed.
-
-  Definition from_dep (m_dep : forall i, (wfs i).(T)) : imap Id union_wf :=
-    fun i => existT _ i (m_dep i).
-
-  Definition imap_eqdep (m : imap Id union_wf) (m_dep : forall i, (wfs i).(T)) : Prop :=
-    forall i, m i = existT _ i (m_dep i).
-
-End WF_SUM.
-
 Section ADD_COMM.
   
   Definition conv {id1 id2 wf} (m_tgt : @imap (ident_tgt (id_sum id2 id1)) wf) :
@@ -263,33 +229,30 @@ End ADD_COMM.
 
 Section ADD_RIGHT_CONG.
 
-  (*
-  Definition mk_m2_tgt
-    {id1 id2 wf_tgt}
-    (m : @imap (ident_tgt (id_sum id1 id2)) wf_tgt)
-    : @imap (ident_src id2) wf_tgt :=
+  Definition sum_wf wf1 wf2 := {| wf := sum_lt_well_founded (wf wf1) (wf wf2) |}.
+
+  Definition pick_ctx
+    {id_ctx id_tgt wf_tgt}
+    (IM_TGT : @imap (ident_tgt (id_sum id_ctx id_tgt)) wf_tgt)
+    : @imap id_ctx wf_tgt := fun i => IM_TGT (inr (inl i)).
+
+  Definition chop_ctx
+    {id_ctx id_tgt wf_tgt}
+    (IM_TGT : @imap (ident_tgt (id_sum id_ctx id_tgt)) wf_tgt)
+    : @imap (ident_tgt id_tgt) wf_tgt :=
     fun i => match i with
-          | inl i => m (inl i)
-          | inr i => m (inr (inr i))
+          | inl i => IM_TGT (inl i)
+          | inr i => IM_TGT (inr (inr i))
           end.
 
-  Definition wfs_src
-    {id1 id2 wf_src wf_tgt} (i : ident_src (id_sum id1 id2)) : WF :=
-    match i with
-    | inl _ => wf_src
-    | inr (inl _) => wf_tgt
-    | inr (inr _) => wf_src
-    end.
-
-  Definition mk_m_src
-    {id1 id2_src id2_tgt wf_src wf_tgt}
-    (m2_src : imap (ident_src id2_src) wf_src)
-    (m_tgt : imap (ident_tgt (id_sum id1 id2_tgt)) wf_tgt)
-    : forall i, (@wfs_src id1 id2_src wf_src wf_tgt i).(T)
+  Definition add_ctx
+    {id_ctx id_src wf_src wf_tgt}
+    (im_ctx : imap id_ctx wf_tgt)
+    (im_src : imap id_src wf_src)
+    : forall i, (sum_wf wf_src wf_tgt).(T)
     := fun i => match i with
-             | inl i => m2_src (inl i)
-             | inr (inl i) => m_tgt (inr (inl i))
-             | inr (inr i) => m2_src (inr i)
+             | inl i => inr (im_ctx i)
+             | inr i => inl (im_src i)
              end.
 
   Lemma ModAdd_right_cong M1 M2_src M2_tgt :
@@ -297,19 +260,20 @@ Section ADD_RIGHT_CONG.
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
     i. inv H.
-    pose (I' := fun x : @shared
+    pose (I' := fun x : @shared world
                        (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
                        (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
-                       (union_wf wfs_src) wf_tgt world
-                => let '(ths, m_src, m_tgt, st_src, st_tgt, w) := x in
-                  exists M2_m_src,
-                    I (ths, M2_m_src, mk_m2_tgt m_tgt, snd st_src, snd st_tgt, w)
-                    /\ imap_eqdep wfs_src m_src (mk_m_src M2_m_src m_tgt)
+                       (sum_wf wf_src wf_tgt) wf_tgt
+                => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt, w) := x in
+                  let im_ctx := pick_ctx IM_TGT in
+                  let im_tgt := chop_ctx IM_TGT in
+                  exists im_src,
+                    IM_SRC = add_ctx im_ctx im_src
+                    /\ I (ths, im_src, im_tgt, snd st_src, snd st_tgt, w)
          ).
-    constructor 1 with _ _ world world_le I'; eauto.
-    { i. specialize (init (mk_m2_tgt im_tgt)). des.
-      exists (from_dep wfs_src (mk_m_src im_src im_tgt)), w. ss.
-      esplits; [eauto | ss].
+    constructor 1 with (sum_wf wf_src wf_tgt) wf_tgt world I'; eauto.
+    { i. specialize (init (chop_ctx im_tgt)). des.
+      pose (pick_ctx im_tgt) as im_ctx. exists (add_ctx im_ctx im_src). exists r_shared. ss. eauto.
     }
     i. specialize (funs0 fn args).
     destruct M1 as [state1 ident1 st_init1 funs1].
@@ -319,7 +283,7 @@ Section ADD_RIGHT_CONG.
     destruct (funs1 fn) eqn: E1, (funs2_src fn) eqn: E2, (funs2_tgt fn) eqn: E3; ss.
     - admit.
     - admit.
-    - (* here *) admit.
+    - admit.
   Admitted.
-   *)
+
 End ADD_RIGHT_CONG.
