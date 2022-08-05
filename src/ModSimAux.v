@@ -39,13 +39,13 @@ Section SHARED_REL_WF.
       (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap_all ths))),
       (<<INV: I (ths, im_src0, im_tgt1, st_src, st_tgt, r_shared)>>).
 
-  Let wf_tgt' : WF := {| wf := clos_trans_well_founded (wf wf_tgt) |}.
+  Definition wf_clos_trans : WF := {| wf := clos_trans_well_founded (wf wf_tgt) |}.
 
   Variable I : shared_rel.
 
   Definition lifted : shared_rel :=
     fun '(ths, im_src, im_tgt, st_src, st_tgt, r_shared) =>
-      exists im_tgt'0, << INV_LE : (forall i, le wf_tgt' (im_tgt i) (im_tgt'0 i)) >>
+      exists im_tgt'0, << INV_LE : (forall i, le wf_clos_trans (im_tgt i) (im_tgt'0 i)) >>
                     /\ << INV : I (ths, im_src, im_tgt'0, st_src, st_tgt, r_shared) >>.
 
   Lemma shared_rel_wf_lifted : shared_rel_wf lifted.
@@ -77,7 +77,7 @@ Section TRANS_CLOS.
 
   Hypothesis (inh : inhabited wf_tgt.(T)).
 
-  Let wf_tgt' := {| wf := clos_trans_well_founded wf_tgt.(wf) |}.
+  Let wf_tgt' := wf_clos_trans wf_tgt.
 
   Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> Prop.
   Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> Prop.

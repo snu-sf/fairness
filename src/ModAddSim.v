@@ -2,12 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.
 From Fairness Require Import
-  ITreeLib
-  WFLib
-  Mod
-  ModSim
-  pind
-  PCM.
+  ITreeLib WFLib Axioms pind PCM Mod ModSim ModSimAux.
 
 Import Lia.
 Import Mod.
@@ -227,22 +222,26 @@ Section ADD_COMM.
 
 End ADD_COMM.
 
+Section IMAP_OPERATIONS.
 
-Section ADD_RIGHT_CONG.
+  Context {id_ctx id_src id_tgt : ID}.
+  Context {wf_src wf_tgt : WF}.
+  Context (wf_tgt_inhabited : inhabited wf_tgt.(T)).
+
+  Let zero: wf_tgt.(T) := epsilon wf_tgt_inhabited (fun _ => True).
 
   Definition sum_wf wf1 wf2 := {| wf := sum_lt_well_founded (wf wf1) (wf wf2) |}.
 
   Definition pick_ctx
-    {id_ctx id_tgt wf_tgt}
     (IM_TGT : @imap (ident_tgt (id_sum id_ctx id_tgt)) wf_tgt)
     : @imap id_ctx wf_tgt := fun i => IM_TGT (inr (inl i)).
 
   Definition chop_ctx
-    {id_ctx id_tgt wf_tgt}
+    (ths : TIdSet.t)
     (IM_TGT : @imap (ident_tgt (id_sum id_ctx id_tgt)) wf_tgt)
     : @imap (ident_tgt id_tgt) wf_tgt :=
     fun i => match i with
-          | inl i => IM_TGT (inl i)
+          | inl i => if NatMapP.F.In_dec ths i then IM_TGT (inl i) else zero
           | inr i => IM_TGT (inr (inr i))
           end.
 
@@ -256,25 +255,32 @@ Section ADD_RIGHT_CONG.
              | inr i => inl (im_src i)
              end.
 
+End IMAP_OPERATIONS.
+
+Section ADD_RIGHT_CONG.
+
   Lemma ModAdd_right_cong M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
-    i. inv H.
+    Opaque lifted.
+    i. inv H. rename wf_tgt_inhabited into inh.
     pose (I' := fun x : @shared world
                        (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
                        (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
                        (sum_wf wf_src wf_tgt) wf_tgt
                 => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt, w) := x in
-                  let im_ctx := pick_ctx IM_TGT in
-                  let im_tgt := chop_ctx IM_TGT in
-                  exists im_src ths_mod,
+                  exists im_src ths_ctx ths_mod,
+                    let im_ctx := pick_ctx IM_TGT in
+                    let im_tgt := chop_ctx inh ths_mod IM_TGT in
                     IM_SRC = add_ctx im_ctx im_src
-                    /\ I (ths_mod, im_src, im_tgt, snd st_src, snd st_tgt, w)
+                    /\ NatMapP.Partition ths ths_ctx ths_mod
+                    /\ lifted I (ths_mod, im_src, im_tgt, snd st_src, snd st_tgt, w)
          ).
     constructor 1 with (sum_wf wf_src wf_tgt) wf_tgt world I'; eauto.
-    { i. specialize (init (chop_ctx im_tgt)). des.
-      pose (pick_ctx im_tgt) as im_ctx. exists (add_ctx im_ctx im_src). exists r_shared. ss. eauto.
+    { i. specialize (init (chop_ctx inh NatSet.empty im_tgt)). des.
+      pose (pick_ctx im_tgt) as im_ctx. exists (add_ctx im_ctx im_src). exists r_shared. ss. split; ss.      
+      exists im_src. exists NatSet.empty, NatSet.empty. splits; ss. admit. exists (chop_ctx inh NatSet.empty im_tgt). split; ss. ii. reflexivity.
     }
     i. specialize (funs0 fn args).
     destruct M1 as [state1 ident1 st_init1 funs1].
@@ -282,25 +288,48 @@ Section ADD_RIGHT_CONG.
     destruct M2_tgt as [state2_tgt ident2_tgt st_init2_tgt funs2_tgt].
     ss. unfold add_funs. ss.
     destruct (funs1 fn) eqn: E1, (funs2_src fn) eqn: E2, (funs2_tgt fn) eqn: E3; ss.
-    - ii. exists r_shared0, URA.unit. splits; eauto. rewrite URA.unit_id. eauto. i.
-      pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
-    - ii. exists r_shared0, URA.unit. splits; eauto. rewrite URA.unit_id. eauto. i.
-      unfold embed_l, embed_r. remember (k args) as itr.
+    - ii. exists r_shared0, URA.unit. splits.
+      { ss. des. exists im_src, (NatSet.add tid ths_ctx), ths_mod. splits; ss.
+        inv THS. admit.
+      }
+      { rewrite URA.unit_id. eauto. }
+      i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
+    - (* tid ∈ ths_ctx *)
+      ii. exists r_shared0, URA.unit. splits.
+      { admit. }
+      { rewrite URA.unit_id. eauto. }
+      i. unfold embed_l, embed_r. remember (k args) as itr.
       rename im_src1 into IM_SRC, im_tgt2 into IM_TGT.
       assert (INV_CIH : I' (ths, IM_SRC, IM_TGT, st_src, st_tgt, r_shared2)).
-      { ss. des. exists im_src, ths_mod.
-        assert (pick_ctx IM_TGT = pick_ctx im_tgt1).
-        { extensionalities i. specialize (TGT (inr (inl i))). ss. }
-        rewrite H. split. eauto. admit.
+      { ss. des. exists im_src, ths_ctx, ths_mod. splits; ss.
+        - assert (@pick_ctx _ _ wf_tgt IM_TGT = pick_ctx im_tgt1).
+          { extensionalities i. specialize (TGT (inr (inl i))). ss. }
+          rewrite H. ss.
+        - pose proof shared_rel_wf_lifted. unfold shared_rel_wf in H. hexploit H.
+          + eexact INV2.
+          + instantiate (1 := chop_ctx inh ths_mod IM_TGT). ii. destruct i as [i|i]; ss.
+            * specialize (TGT (inl i)). ss. destruct (tids_fmap_all ths_mod i) eqn:E; ss.
+              -- unfold tids_fmap_all, tids_fmap in TGT, E. destruct (NatMapP.F.In_dec ths_mod i); ss.
+                 assert (NatMap.In i ths). (* i ∈ ths_mod ⊂ ths *)
+                 { admit. }
+                 assert (i <> tid). (* ths_ctx ∩ ths_mod = ∅, i ∈ ths_mod, tid ∈ ths_ctx *)
+                 { destruct INV3. intro. subst. eapply H1. admit. }
+                 des_ifs.
+              -- unfold tids_fmap_all, tids_fmap in TGT, E. des_ifs.
+            * specialize (TGT (inr (inr i))). ss.
+          + ss.
       }
-
       clear - INV0 VALID0.
       rename INV0 into INV, VALID0 into VALID, r_shared2 into r_shared0, r_ctx2 into r_ctx0.
       revert_until tid. ginit. gcofix CIH. i.
       destruct_itree itr.
       + rewrite 2 embed_state_ret. rewrite 2 map_event_ret.
         gstep. eapply pind9_fold. econs. ss. eexists. exists URA.unit, r_shared0. splits; ss.
-        des. esplits; ss.
+        des. esplits; ss. eauto. admit. admit. admit.
+      + admit.
+      + admit.
+    - eapply local_sim_clos_trans in funs0; ss.
+      admit.
   Admitted.
 
 End ADD_RIGHT_CONG.
