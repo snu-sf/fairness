@@ -5,11 +5,8 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
-From Fairness Require Import Axioms.
-From Fairness Require Import FairBeh.
-From Fairness Require Import pind_internal.
-From Fairness Require Import pind3.
-From Fairness Require Import SelectBeh.
+From Fairness Require Import
+  Axioms WFLib FairBeh pind_internal pind3 SelectBeh.
 
 From Paco Require Import paco.
 
@@ -194,15 +191,8 @@ Section EQUIV.
       { pfold. econs 7. auto. split; ss. eapply IH. 2: eauto. all: eauto.
         unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. auto.
       }
-      { dup FAIR. unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR. destruct FAIR as [EQ | LT].
-        - pfold. econs 6. auto. right. eapply CIH2; eauto.
-        - pfold. econs 6. auto. right. eapply CIH2.
-          instantiate (1:= fun id => if (ID_DEC id i) then (m i) else (m0 id)).
-          + ginit. guclo RawTr.fair_ord_imap_le_ctx_spec. econs. gfinal; eauto.
-            unfold soft_update. i. destruct (ID_DEC i0 i) as [EQ | NEQ].
-            * clarify. right. auto.
-            * left. auto.
-          + ss. des_ifs.
+      { dup FAIR. unfold fair_update in FAIR. specialize (FAIR i). rewrite FM in FAIR.
+        pfold. econs 6. auto. right. eapply CIH2; eauto.
       }
       { pfold. econs 8. auto. right. eapply CIH1; eauto. }
     }
@@ -347,7 +337,7 @@ Section EQUIV2.
   Proof. econs. exact wft0. Qed.
 
   Definition tr2ord_i {R} i (tr: (@RawTr.t id R)): wft.(T) :=
-    epsilon _ (inhabited_tr_ord) (fun o => ord_tr wft wft0 S i o tr).
+    epsilon (inhabited_tr_ord) (fun o => ord_tr wft wft0 S i o tr).
 
   Theorem tr2ord_i_spec
           i R (tr: @RawTr.t id R)
@@ -471,21 +461,21 @@ Section EQUIV2.
     }
     { destruct (fair_ind_cases i tr) as [NF | [MF | MS]]; des.
       { inv ORD.
-        { rewrite <- H. left. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. econs 1. auto. }
-        { rewrite <- H. left. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. econs 1. auto. }
+        { rewrite <- H. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. econs 1. auto. }
+        { rewrite <- H. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. econs 1. auto. }
         { clarify. }
         { rewrite Heq in FAIL; ss. }
       }
       { inv ORD.
         { punfold NOFAIL. inv NOFAIL. rewrite Heq in SUCCESS; ss. pclearbot. clarify. }
         { inv MS. rewrite Heq in SUCCESS; ss. clarify. }
-        { left. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. }
+        { eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. }
         { rewrite Heq in FAIL; ss. }
       }
       { inv ORD.
         { punfold NOFAIL. inv NOFAIL; pclearbot; clarify. }
-        { rewrite <- H. left. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. econs 2; auto. }
-        { left. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. }
+        { rewrite <- H. eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. econs 2; auto. }
+        { eapply ord_tr_eq; eauto. eapply tr2ord_i_spec; eauto. }
         { rewrite Heq in FAIL; ss. }
       }
     }

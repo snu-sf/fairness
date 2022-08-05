@@ -8,8 +8,7 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 Require Import Lia.
 
-From Fairness Require Import ITreeLib.
-From Fairness Require Import FairBeh.
+From Fairness Require Import Axioms ITreeLib WFLib FairBeh.
 
 Set Implicit Arguments.
 
@@ -259,9 +258,6 @@ Section SIM.
   (*********************** upto ***********************)
   (****************************************************)
 
-  Hypothesis WFSTR: Transitive wfs.(lt).
-  Hypothesis WFTTR: Transitive wft.(lt).
-
   Variant sim_imap_ctxL
           (sim: forall R0 R1: Type, (R0 -> R1 -> Prop) -> bool -> (@imap ids wfs) -> bool -> (@imap idt wft) -> (@state ids R0) -> (@state idt R1) -> Prop)
           R0 R1 (RR: R0 -> R1 -> Prop)
@@ -286,11 +282,24 @@ Section SIM.
     { econs. i. subst. eapply rclo9_clo_base. econs; eauto. }
     { des. econs. eexists. eapply IH. eauto. }
     { econs. i. specialize (SIM x). des. eapply IH. eauto. }
-    { econs. des. esplits.
-      2:{ eapply IH. reflexivity. }
-      clear - WFSTR FAIR IMAP. unfold fair_update, soft_update in *. i. specialize (FAIR i). specialize (IMAP i). des_ifs.
-      - unfold le in IMAP. des. rewrite <- IMAP; auto. eapply WFSTR; eauto.
-      - eapply WF_le_Trans; eauto.
+    { econs. des. rename x4 into M_SRC, m_src0 into m_src'.
+      pose (M_SRC' := fun i => match f_src i with
+                            | Flag.fail => match excluded_middle_informative (M_SRC i = m_src i) with
+                                          | left _ => m_src' i
+                                          | right _ => m_src i
+                                          end
+                            | Flag.emp => M_SRC i
+                            | Flag.success => m_src' i
+                            end).
+      exists M_SRC'. splits.
+      - subst M_SRC'. ii. specialize (FAIR i). specialize (IMAP i). des_ifs.
+        + rewrite e. eauto.
+        + destruct IMAP; ss. exfalso. eauto.
+      - eapply IH. subst M_SRC'. ii. specialize (FAIR i). specialize (IMAP i).
+        des_ifs; try reflexivity. destruct IMAP.
+        + exfalso. eauto.
+        + right. eauto.
+        + rewrite FAIR. auto.
     }
     { econs. i. specialize (SIM m_tgt0). eapply SIM in FAIR. des. eauto. }
     { clarify. econs; eauto. eapply rclo9_clo_base. econs; eauto. }
@@ -326,11 +335,24 @@ Section SIM.
     { des. econs. eexists. eauto. }
     { econs. i. specialize (SIM x). des. eauto. }
     { econs. des. esplits; eauto. }
-    { econs. i. hexploit SIM.
-      2:{ i; des. eapply IH. reflexivity. }
-      clear - WFTTR IMAP FAIR. unfold fair_update, soft_update in *. i. specialize (IMAP i). specialize (FAIR i). des_ifs.
-      - unfold le in IMAP. des. rewrite <- IMAP; auto. eapply WFTTR; eauto.
-      - eapply WF_le_Trans; eauto.
+    { econs. i. rename m_tgt into M_TGT, x6 into m_tgt, m_tgt0 into m_tgt'.
+      pose (M_TGT' := fun i => match f_tgt i with
+                            | Flag.fail => match excluded_middle_informative (M_TGT i = m_tgt i) with
+                                          | left _ => m_tgt' i
+                                          | right _ => m_tgt i
+                                          end
+                            | Flag.emp => M_TGT i
+                            | Flag.success => m_tgt' i
+                            end).
+      hexploit SIM. instantiate (1 := M_TGT').
+      - subst M_TGT'. ii. specialize (IMAP i). specialize (FAIR i). des_ifs.
+        + rewrite e. ss.
+        + destruct IMAP; eauto. exfalso. eauto.
+      - i; des. eapply IH. subst M_TGT'. ii. specialize (IMAP i). specialize (FAIR i).
+        des_ifs; try reflexivity. destruct IMAP.
+        + exfalso. eauto.
+        + right. eauto.
+        + rewrite FAIR; auto.
     }
     { clarify. econs; eauto. eapply rclo9_clo_base. econs; eauto. }
   Qed.
@@ -503,8 +525,6 @@ Section EMBEDSIM.
     { des. guclo sim_indC_spec. econs 7. eexists (fun id => wfs_embed (m_src0 id)).
       splits; eauto. ii. specialize (FAIR i). des_ifs; ss; eauto.
       inv FAIR; eauto.
-      { left. rewrite H. eauto. }
-      { right. eauto. }
     }
     { guclo sim_indC_spec. econs 8. i. specialize (SIM m_tgt0 FAIR). des. eauto. }
     { gstep. econs 9; eauto. pclearbot. gbase. eauto. }
@@ -595,7 +615,7 @@ Section EX.
     ginit. rewrite unfold_while_itree. guclo sim_indC_spec. ired. econs 8. i.
     dup FAIR. specialize (FAIR0 0). rewrite <- Heqt_fuel in FAIR0. ss.
     guclo sim_indC_spec. econs.
-    guclo sim_imap_ctxR_spec. eapply nat_wf_Trans. econs.
+    guclo sim_imap_ctxR_spec. econs.
     2:{ instantiate (1:= fun id => (if ndec 0 id then t_fuel else (m_tgt0 id))). ii.
         des_ifs.
         - inv FAIR0. left; auto. right. ss.

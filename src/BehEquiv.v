@@ -6,9 +6,8 @@ Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
-From Fairness Require Import ITreeLib.
-From Fairness Require Import FairBeh.
-From Fairness Require Import SelectBeh.
+From Fairness Require Import
+  ITreeLib WFLib FairBeh SelectBeh.
 
 From Fairness Require Import Axioms.
 
@@ -291,7 +290,7 @@ Section ExtractTr.
   Qed.
 
   Definition observe_raw {R} (raw: (@RawTr.t id R)): option (prod (option obsE) RawTr.t) :=
-    epsilon _ (@inhabited_observe_raw R) (observe_raw_prop raw).
+    epsilon (@inhabited_observe_raw R) (observe_raw_prop raw).
 
 
   (** properties **)
@@ -678,7 +677,7 @@ Section ExtractRaw.
   Qed.
 
   Definition observe_state (sti: st_tr_im): (prod (list rawE) st_tr_im) :=
-    epsilon _ inhabited_observe_state (observe_state_prop sti).
+    epsilon inhabited_observe_state (observe_state_prop sti).
 
 
   (** properties **)

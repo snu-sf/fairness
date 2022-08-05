@@ -229,7 +229,6 @@ Section SIM.
   Variable wf_tgt : WF.
   Variable wf_src : WF.
   Variable wf_emb : wf_tgt.(T) -> wf_src.(T).
-  Hypothesis WF_TRANS : Transitive (lt wf_tgt).
   Hypothesis EMB_MON : forall x y, lt wf_tgt x y -> lt wf_src (wf_emb x) (wf_emb y).
 
   Lemma monotone_weak : forall x y, le wf_tgt x y -> le wf_src (wf_emb x) (wf_emb y).
@@ -307,8 +306,7 @@ Section SIM.
                           end) as gm_src0.
           exists gm_src0. splits.
           { subst. intros []; ss.
-            - reflexivity.
-            - rewrite M_SRC1. specialize (FAIR (inr _i)); ss. destruct (m _i); eauto using monotone_weak.
+            rewrite M_SRC1. specialize (FAIR (inr _i)); ss. destruct (m _i); eauto using monotone_weak. rewrite FAIR. auto.
           }
           econs; eauto.
           guclo sim_imap_ctxR_spec; ss. econs; cycle 1.
@@ -316,7 +314,7 @@ Section SIM.
                                   | inl i => gm_tgt (inl i)
                                   | inr i => gm_tgt0 (inr i)
                                   end).
-          { ii. destruct i. specialize (FAIR (inl n)). ss. reflexivity. }
+          { ii. destruct i. specialize (FAIR (inl n)). ss. rewrite FAIR. left; auto. left; auto. }
           gfinal. left. eapply CIH2.
           -- subst; eauto.
           -- subst; reflexivity.
@@ -343,10 +341,7 @@ Section SIM.
                   | inr i => wf_emb (gm_tgt (inr i))
                   end) as gm_src0.
       exists gm_src0. splits.
-      { subst. intros []; ss.
-        - rewrite M_SRC0. eapply FAIR.
-        - rewrite M_SRC1. reflexivity.
-      }
+      { subst. intros []; ss. rewrite M_SRC0. eapply FAIR. }
       rewrite interp_state_tau.
       do 2 (guclo sim_indC_spec; econs). eapply H1; subst; eauto.
     - rewrite interp_sched_vis, interp_state_vis, <- bind_trigger.
@@ -358,7 +353,7 @@ Section SIM.
                               | inl i => gm_tgt0 (inl i)
                               | inr i => gm_tgt (inr i)
                               end).
-      { ii. destruct i. reflexivity. specialize (FAIR (inr _i)). ss. }
+      { ii. destruct i. reflexivity. specialize (FAIR (inr _i)). ss. rewrite FAIR; left; auto. }
       eapply H0. instantiate (1 := fun i => gm_tgt0 (inl i)).
       + ii. rewrite M_TGT. specialize (FAIR (inl i)); ss.
       + reflexivity.
