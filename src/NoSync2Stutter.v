@@ -1250,21 +1250,23 @@ Section PROOF.
 
   Qed.
 
-  Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
-  Let wf_ot {R0 R1} := @ord_tree_WF (A R0 R1).
-  Let wf_stt {R0 R1} := sum_WF (sum_WF (@wf_ot R0 R1) (@wf_ot R0 R1)) (@wf_ot R0 R1).
+  Definition lift_wf (wf: WF): WF := sum_WF (sum_WF wf wf) wf.
 
-  Definition mk_o {R0 R1}
-             (o: (@wf_ot R0 R1).(T)) (ps: bool) (itr_src: itree srcE R0): (@wf_stt R0 R1).(T) :=
+  Definition mk_o (wf: WF) (w: wf.(T)) R (o: wf.(T)) (ps: bool) (itr_src: itree srcE R):
+    (lift_wf wf).(T) :=
     if ps
     then match (observe itr_src) with
          | VisF ((|Yield)|)%sum _ => (inl (inr o))
-         | _ => (inr (@ord_tree_base _))
+         | _ => (inr w)
          end
     else match (observe itr_src) with
          | VisF ((|Yield)|)%sum _ => (inl (inl o))
-         | _ => (inr (@ord_tree_base _))
+         | _ => (inr w)
          end.
+
+  Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
+  Let wf_ot R0 R1 := @ord_tree_WF (A R0 R1).
+  Let wf_stt R0 R1 := lift_wf (@wf_ot R0 R1).
 
   Lemma nosync_implies_stutter
         tid
@@ -1276,7 +1278,29 @@ Section PROOF.
     exists (o: (@wf_stt R0 R1).(T)),
       ModSimStutter.lsim (@wf_stt R0 R1) I tid LRR ps pt r_ctx (o, src) tgt shr.
   Proof.
-    eapply nosync_geno in LSIM. des. exists (mk_o o ps src).
+    eapply nosync_geno in LSIM. des.
+    exists (mk_o (@wf_ot R0 R1) (@ord_tree_base _) o ps src).
+    revert_until R1. ginit. gcofix CIH; i.
+    remember (o, src) as osrc.
+    remember R0 as _R0. remember R1 as _R1.
+    move R0 after CIH. move R1 after CIH. move CIH before tid.
+    remember src as _src. remember tgt as _tgt. remember o as _o.
+    assert (__src: itree srcE R0).
+    { rewrite <- Heq_R0. exact src. }
+    assert (Heq_src_: __src = src).
+
+    rewrite Heq_R0 in src.
+    setoid_rewrite HeqR_src in src.
+    revert_until HeqR_src. rewrite !HeqR_tgt.
+    pattern R_src, R_tgt, LRR, ps, pt, r_ctx, osrc, tgt, shr.
+    move LSIM before CIH. revert_until LSIM.
+    pattern R_src, R_tgt, LRR, ps, pt, r_ctx, osrc, tgt, shr.
+    revert R0 R1 LRR ps pt r_ctx osrc tgt shr LSIM. apply pind9_acc.
+    intros rr DEC IH. clear DEC. intros R0 R1 LRR ps pt r_ctx osrc tgt shr LSIM.
+    intros src o Eosrc. clarify.
+    eapply pind9_unfold in LSIM; eauto with paco.
+    inv LSIM.
+
     remember (o, src) as osrc. ss.
     move LSIM before tid. revert_until LSIM.
     pattern R0, R1, LRR, ps, pt, r_ctx, osrc, tgt, shr.
