@@ -1,12 +1,9 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
-
-Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Import
-  Axioms WFLib FairBeh pind_internal pind3 SelectBeh.
+  Axioms ITreeLib WFLib FairBeh pind_internal pind3 SelectBeh.
 
 From Paco Require Import paco.
 

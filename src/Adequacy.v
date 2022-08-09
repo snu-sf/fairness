@@ -1,8 +1,5 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
-
-Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.

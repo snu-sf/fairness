@@ -1,11 +1,8 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
 From Coq Require Import Program.
-
-Export ITreeNotations.
 
 From Fairness Require Export ITreeLib FairBeh NatStructs.
 From Fairness Require Import Mod.
@@ -370,7 +367,7 @@ Section SCHEDULE.
       | inr r => tau;; interp_sched (Th.remove tid ths, ktr (Some r))
       end.
   Proof. unfold interp_sched. rewrite unfold_iter. grind. Qed.
-  
+
   Lemma interp_sched_execute_None RT R ths tid (ktr : option RT -> scheduler RT R)
     (NONE : Th.find tid ths = None)
     : interp_sched (ths, Vis (inl1 (Execute _ tid)) ktr) =
@@ -400,7 +397,7 @@ Section SCHEDULE_NONDET.
         match nm_pop tid' (NatSet.add tid q) with
         | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
         | Some (_, q') =>
-            ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
+            ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;;
             Ret (inl (tid', q'))
         end
     | Some r =>
@@ -411,7 +408,7 @@ Section SCHEDULE_NONDET.
           match nm_pop tid' q with
           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
           | Some (_, q') =>
-              ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
+              ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;;
               Ret (inl (tid', q'))
           end
     end.
@@ -430,7 +427,7 @@ Section SCHEDULE_NONDET.
           match nm_pop tid' (NatSet.add tid q) with
           | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
           | Some (_, q') =>
-              ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
+              ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;;
               tau;; sched_nondet _ (tid', q')
           end
       | Some r =>
@@ -441,7 +438,7 @@ Section SCHEDULE_NONDET.
             match nm_pop tid' q with
             | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
             | Some (_, q') =>
-                ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
+                ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;;
                 tau;; sched_nondet _ (tid', q')
             end
       end.
@@ -473,7 +470,7 @@ Section SCHEDULE_NONDET.
                                      match nm_pop tid' (NatSet.add tid q) with
                                      | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                                      | Some (_, q') =>
-                                         ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
+                                         ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;;
                                          tau;; sched_nondet _ (tid', q')
                                      end))
       | inr r => Tau (interp_sched (Th.remove tid ths,
@@ -484,7 +481,7 @@ Section SCHEDULE_NONDET.
                                       match nm_pop tid' q with
                                       | None => Vis (inr1 (Choose void)) (Empty_set_rect _)
                                       | Some (_, q') =>
-                                          ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;
+                                          ITree.trigger (inr1 (Fair (tids_fmap tid' q')));;;
                                           tau;; sched_nondet _ (tid', q')
                                       end))
       end.

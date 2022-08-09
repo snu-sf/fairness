@@ -14,12 +14,31 @@ From ExtLib Require Export
      Structures.Maps
 .
 
+
+Module ITreeNotations2.
+Notation "t1 >>= k2" := (ITree.bind t1 k2)
+  (at level 58, left associativity) : itree_scope.
+Notation "x <- t1 ;; t2" := (ITree.bind t1 (fun x => t2))
+  (at level 62, t1 at next level, right associativity) : itree_scope.
+Notation "` x : t <- t1 ;; t2" := (ITree.bind t1 (fun x : t => t2))
+  (at level 62, t at next level, t1 at next level, x ident, right associativity) : itree_scope.
+Notation "t1 ;;; t2" := (ITree.bind t1 (fun _ => t2))
+  (at level 62, right associativity) : itree_scope.
+Notation "' p <- t1 ;; t2" :=
+  (ITree.bind t1 (fun x_ => match x_ with p => t2 end))
+  (at level 62, t1 at next level, p pattern, right associativity) : itree_scope.
+Infix ">=>" := ITree.cat (at level 62, right associativity) : itree_scope.
+Notation "f <$> x" := (@fmap _ _ _ _ f x) (at level 61, left associativity).
+End ITreeNotations2.
+
+
 Export SumNotations.
-Export ITreeNotations.
+(* Export ITreeNotations. *)
 Export Monads.
-Export MonadNotation.
-Export FunctorNotation.
+(* Export MonadNotation. *)
+(* Export FunctorNotation. *)
 Export CatNotations.
+Export ITreeNotations2.
 Open Scope cat_scope.
 Open Scope monad_scope.
 Open Scope itree_scope.

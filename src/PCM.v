@@ -1071,10 +1071,12 @@ Abort.
 ***)
 
 
-
 Declare Scope ra_scope.
 Delimit Scope ra_scope with ra.
-Notation " K ==> V' " := (URA.pointwise K V') (at level 80, right associativity): ra_scope.
+Notation " K ==> V' " := (URA.pointwise K V') (at level 55, right associativity): ra_scope.
+From iris.bi Require Import derived_connectives updates.
+From iris.prelude Require Import options.
+
 
 Section TEST.
   Variable A B C: Type.
@@ -1131,7 +1133,7 @@ Section UNIT.
   Proof. unfold URA.wf. unseal "ra". ss. Qed.
 
 End UNIT.
-  
+
 Section URA_PROD.
 
   Lemma unfold_prod_add (M0 M1 : URA.t) : @URA.add (URA.prod M0 M1) = fun '(a0, a1) '(b0, b1) => (a0 ⋅ b0, a1 ⋅ b1).
@@ -1153,3 +1155,41 @@ Tactic Notation "unfold_prod" hyp(H) :=
   simpl in H;
   let H1 := fresh H in
   destruct H as [H H1].
+
+From iris.bi Require Import derived_connectives updates.
+From iris.prelude Require Import options.
+
+
+Section AUX.
+  Context {K: Type} `{M: URA.t}.
+  Let RA := URA.pointwise K M.
+
+  Lemma pw_extends (f0 f1: K -> M) (EXT: @URA.extends RA f0 f1): <<EXT: forall k, URA.extends (f0 k) (f1 k)>>.
+  Proof. ii. r in EXT. des. subst. ur. ss. eexists; eauto. Qed.
+
+  Lemma pw_wf: forall (f: K -> M) (WF: URA.wf (f: @URA.car RA)), <<WF: forall k, URA.wf (f k)>>.
+  Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
+
+  Lemma pw_add_disj_wf
+        (f g: K -> M)
+        (WF0: URA.wf (f: @URA.car RA))
+        (WF1: URA.wf (g: @URA.car RA))
+        (DISJ: forall k, <<DISJ: f k = ε \/ g k = ε>>)
+    :
+      <<WF: URA.wf ((f: RA) ⋅ g)>>
+  .
+  Proof.
+    ii; ss. ur. i. ur in WF0. ur in WF1. specialize (DISJ k). des; rewrite DISJ.
+    - rewrite URA.unit_idl; eauto.
+    - rewrite URA.unit_id; eauto.
+  Qed.
+
+  Lemma pw_insert_wf: forall `{EqDecision K} (f: K -> M) k v (WF: URA.wf (f: @URA.car RA)) (WFV: URA.wf v),
+      <<WF: URA.wf (<[k:=v]> f: @URA.car RA)>>.
+  Proof.
+    i. unfold insert, functions.fn_insert. ur. ii. des_ifs. ur in WF. eapply WF.
+  Qed.
+
+  Lemma lookup_wf: forall (f: @URA.car RA) k (WF: URA.wf f), URA.wf (f k).
+  Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
+End AUX.

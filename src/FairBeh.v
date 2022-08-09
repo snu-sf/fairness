@@ -1,8 +1,6 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
-From Fairness Require Import Axioms WFLib.
-Export ITreeNotations.
+From Fairness Require Import Axioms WFLib ITreeLib.
 
 Require Import Coq.Classes.RelationClasses.
 

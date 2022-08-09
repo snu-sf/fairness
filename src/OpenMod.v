@@ -359,7 +359,7 @@ Section RED.
     @close_itree omd md R (trigger (|Call fn args)%sum >>= ktr) =
       match (md.(Mod.funs) fn) with
       | Some body =>
-          trigger ((|Yield)|)%sum;; rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv)
+          trigger ((|Yield)|)%sum;;; rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv)
       | None => Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)
       end.
   Proof.

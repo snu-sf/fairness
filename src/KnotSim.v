@@ -1,11 +1,8 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
-
-Export ITreeNotations.
 
 From Fairness Require Export ITreeLib FairBeh NatStructs.
 From Fairness Require Export Mod ModSimStutter Concurrency.

@@ -21,15 +21,15 @@ Section MOD.
            then
              Ret (inr tt)
            else
-             trigger Yield;;
-             Ret (inl tt)) tt;;
-      trigger Yield;;
+             trigger Yield;;;
+             Ret (inl tt)) tt;;;
+      trigger Yield;;;
       Ret 0
     else
-      trigger (Put (true, f0));;
-      trigger Yield;;
+      trigger (Put (true, f0));;;
+      trigger Yield;;;
       '(l1, _) <- trigger (@Get _);;
-      trigger (Put (l1, true));;
+      trigger (Put (l1, true));;;
       Ret 0
   .
 
@@ -41,7 +41,7 @@ Section MOD.
 
   Definition example_fun_spec:
     itree (((@eventE void) +' cE) +' sE unit) Val :=
-    trigger Yield;;
+    trigger Yield;;;
     Ret 0
   .
 

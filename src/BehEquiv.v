@@ -1,8 +1,5 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
-
-Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 
@@ -790,7 +787,7 @@ Section ExtractRaw.
   Proof.
     match goal with | |- ?lhs = _ => replace lhs with (RawTr.ob lhs) end.
     2:{ symmetry. apply RawTr.ob_eq. }
-    rewrite raw_spin_trace_red. ss. 
+    rewrite raw_spin_trace_red. ss.
   Qed.
 
   Lemma tr2raw_red_ub

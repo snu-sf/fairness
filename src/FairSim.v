@@ -1,8 +1,5 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
-
-Export ITreeNotations.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
@@ -575,7 +572,7 @@ Section EX.
         itr
     :
     while_itree (fun u => ITree.bind itr (fun r => Ret (inl r))) =
-      itr;; tau;; (while_itree (fun u => ITree.bind itr (fun r => Ret (inl r)))).
+      itr;;; tau;; (while_itree (fun u => ITree.bind itr (fun r => Ret (inl r)))).
   Proof.
     unfold while_itree. rewrite unfold_iter_eq at 1. ired.
     f_equal. extensionality u. destruct u. ired. auto.
@@ -596,7 +593,7 @@ Section EX.
 
   Definition src1: @state Ident nat := Ret 0.
   Definition tgt1: @state _ nat :=
-    while_itree (fun u => (trigger (Fair (fun id => (if ndec 0 id then Flag.fail else Flag.emp)))) >>= (fun r => Ret (inl r)));; Ret 0.
+    while_itree (fun u => (trigger (Fair (fun id => (if ndec 0 id then Flag.fail else Flag.emp)))) >>= (fun r => Ret (inl r)));;; Ret 0.
 
   Definition imsrc1: imap Ident nat_wf := fun id => (if ndec 0 id then 100 else 0).
   (* Definition imtgt1: imap nat_wf := fun id => (if ndec 0 id then 100 else 0). *)
