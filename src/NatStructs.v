@@ -1053,11 +1053,8 @@ Section AUX.
                  (nm_pop k m2 = Some (e2, m4)) /\
                  (nm_wf_pair m3 m4)).
   Proof.
-    i. pose nm_wf_pair_equal_pop_cases.
-    specialize (o _ _ m1 m2). hexploit o; eauto.
-    { ii. rewrite WF. auto. }
-    i. des; eauto. right. esplits; eauto.
-    { unfold nm_wf_pair, nm_wf_pair_equal in *. eapply nm_eq_is_equal. auto. }
+    i. exploit nm_wf_pair_equal_pop_cases. eapply nm_wf_pair_implies. eauto. i; des; eauto.
+    right. esplits; eauto. unfold nm_wf_pair, nm_wf_pair_equal in *. eapply nm_eq_is_equal. auto.
   Qed.
 
   Lemma nm_map_empty1

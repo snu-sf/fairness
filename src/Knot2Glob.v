@@ -1,4 +1,4 @@
-From Fairness Require Import CoqLib.
+From sflib Require Import sflib.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
