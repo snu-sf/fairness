@@ -1277,12 +1277,8 @@ Section PROOF.
       ModSimStutter.lsim (@wf_stt R0 R1) I tid LRR ps pt r_ctx (o, src) tgt shr.
   Proof.
     eapply nosync_geno in LSIM. des. exists (mk_o o ps src).
-    (* revert_until tid. *)
-    (* ginit. gcofix CIH. i. *)
-
-    remember (o, src) as osrc.
+    remember (o, src) as osrc. ss.
     move LSIM before tid. revert_until LSIM.
-    (* move LSIM before CIH. revert_until LSIM. *)
     pattern R0, R1, LRR, ps, pt, r_ctx, osrc, tgt, shr.
     revert R0 R1 LRR ps pt r_ctx osrc tgt shr LSIM. apply pind9_acc.
     intros rr DEC IH. clear DEC. intros R0 R1 LRR ps pt r_ctx osrc tgt shr LSIM.
