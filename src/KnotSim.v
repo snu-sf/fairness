@@ -178,11 +178,11 @@ Section KSIM.
         tid f_src f_tgt
         sf itr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o o0
+        im_src im_tgt st_src st_tgt o
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, itr_src)
                          itr_tgt
-                         (im_src, im_tgt, st_src, st_tgt, r_kshared) o0)
+                         (im_src, im_tgt, st_src, st_tgt, r_kshared) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Tau itr_src)
@@ -192,11 +192,11 @@ Section KSIM.
         tid f_src f_tgt
         sf X ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o o0
+        im_src im_tgt st_src st_tgt o
         (KSIM: exists x, _sim_knot thsl thsr tid rs_local true f_tgt
                               (sf, ktr_src x)
                               itr_tgt
-                              (im_src, im_tgt, st_src, st_tgt, r_kshared) o0)
+                              (im_src, im_tgt, st_src, st_tgt, r_kshared) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inl1 (Choose X))) ktr_src)
@@ -206,11 +206,11 @@ Section KSIM.
         tid f_src f_tgt
         sf st_src0 ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o o0
+        im_src im_tgt st_src st_tgt o
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src tt)
                          itr_tgt
-                         (im_src, im_tgt, st_src0, st_tgt, r_kshared) o0)
+                         (im_src, im_tgt, st_src0, st_tgt, r_kshared) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inr1 (Mod.Put st_src0)) ktr_src)
@@ -220,11 +220,11 @@ Section KSIM.
         tid f_src f_tgt
         sf ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o o0
+        im_src im_tgt st_src st_tgt o
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src st_src)
                          itr_tgt
-                         (im_src, im_tgt, st_src, st_tgt, r_kshared) o0)
+                         (im_src, im_tgt, st_src, st_tgt, r_kshared) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inr1 (@Mod.Get _)) ktr_src)
@@ -234,11 +234,11 @@ Section KSIM.
         tid f_src f_tgt
         sf ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o o0
+        im_src im_tgt st_src st_tgt o
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src tid)
                          itr_tgt
-                         (im_src, im_tgt, st_src, st_tgt, r_kshared) o0)
+                         (im_src, im_tgt, st_src, st_tgt, r_kshared) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inr1 GetTid)) ktr_src)
@@ -258,13 +258,13 @@ Section KSIM.
         tid f_src f_tgt
         sf fm ktr_src itr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o o0
+        im_src im_tgt st_src st_tgt o
         (KSIM: exists im_src0,
             (<<FAIR: fair_update im_src im_src0 (sum_fmap_r fm)>>) /\
               (_sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src tt)
                          itr_tgt
-                         (im_src0, im_tgt, st_src, st_tgt, r_kshared) o0))
+                         (im_src0, im_tgt, st_src, st_tgt, r_kshared) o))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inl1 (Fair fm))) ktr_src)
@@ -361,11 +361,11 @@ Section KSIM.
         tid f_src f_tgt
         sf fn args ktr_src ktr_tgt
         rs_local r_kshared
-        im_src im_tgt st_src st_tgt o o0
+        im_src im_tgt st_src st_tgt o
         (KSIM: forall ret, sim_knot thsl thsr tid rs_local true true
                                (sf, ktr_src ret)
                                (ktr_tgt ret)
-                               (im_src, im_tgt, st_src, st_tgt, r_kshared) o0)
+                               (im_src, im_tgt, st_src, st_tgt, r_kshared) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, Vis (inl1 (inl1 (Observe fn args))) ktr_src)

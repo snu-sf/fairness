@@ -13,7 +13,7 @@ From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World.
 From Fairness Require Export Mod ModSimGStutter Concurrency.
-From Fairness Require Import KnotSim LocalAdequacy0.
+From Fairness Require Import KnotSim LocalAdequacyAux.
 
 Set Implicit Arguments.
 

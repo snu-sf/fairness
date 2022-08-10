@@ -14,7 +14,7 @@ From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World.
 From Fairness Require Export Mod ModSimGStutter Concurrency.
 From Fairness Require Import SchedSim Adequacy.
-From Fairness Require Import KnotSim LocalAdequacy0 LocalAdequacy1 LocalAdequacy2.
+From Fairness Require Import KnotSim LocalAdequacyAux Stutter2Knot Knot2Glob.
 
 Set Implicit Arguments.
 

@@ -13,7 +13,7 @@ From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World.
 From Fairness Require Export Mod ModSimGStutter Concurrency.
-From Fairness Require Import KnotSim LocalAdequacy0.
+From Fairness Require Import KnotSim LocalAdequacyAux.
 
 Set Implicit Arguments.
 
@@ -507,11 +507,6 @@ Section PROOF.
       + eapply IHo; eauto.
         eapply find_none_aux; eauto. eapply find_none_aux; eauto.
         { apply nm_pop_res_is_rm_eq in KSIM0, KSIM1. rewrite <- KSIM0, <- KSIM1. eapply nm_wf_pair_rm. eapply nm_wf_pair_add. auto. }
-        (* replace (NatSet.add tid0 (key_set thsl1)) with (NatSet.add tid (key_set ths_src)). *)
-        (* 2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM0. erewrite <- !key_set_pull_add_eq. rewrite KSIM0. eauto. } *)
-        (* replace (NatSet.add tid0 (key_set thsr1)) with (NatSet.add tid (key_set ths_tgt)). *)
-        (* 2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM1. erewrite <- !key_set_pull_add_eq. rewrite KSIM1. eauto. } *)
-        (* eapply ksim_reset_prog; eauto. *)
   Qed.
 
   Lemma kgsim_true
@@ -770,28 +765,28 @@ Section PROOF.
 
     { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tau.
       guclo sim_indC_spec. eapply sim_indC_tauL.
-      eapply kgsim_true; eauto. pfold. eapply pind10_mon_top. eapply KSIM0. ss.
+      eapply IH; eauto.
     }
 
     { des. destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseL. eexists.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply kgsim_true; eauto. pfold. eapply pind10_mon_top. eapply KSIM0. ss.
+      eapply IH; eauto.
     }
 
     { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply kgsim_true; eauto. pfold. eapply pind10_mon_top. eapply KSIM0. ss.
+      eapply IH; eauto.
     }
 
     { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply kgsim_true; eauto. pfold. eapply pind10_mon_top. eapply KSIM0. ss.
+      eapply IH; eauto.
     }
 
     { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tid.
       do 1 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply kgsim_true; eauto. pfold. eapply pind10_mon_top. eapply KSIM0. ss.
+      eapply IH; eauto.
     }
 
     { rewrite interp_all_vis.
@@ -801,7 +796,7 @@ Section PROOF.
     { des. destruct KSIM1 as [KSIM1 IND]. rewrite interp_all_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL. esplits; eauto.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply kgsim_true; eauto. pfold. eapply pind10_mon_top. eapply KSIM1. ss.
+      eapply IH; eauto.
     }
 
     { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_tau.
