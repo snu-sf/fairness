@@ -865,7 +865,6 @@ Module ModSim.
           wf_tgt : WF;
           wf_tgt_inhabited: inhabited wf_tgt.(T);
           wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
-          wf_stt : Type -> Type -> WF;
 
           world: URA.t;
 
@@ -874,6 +873,7 @@ Module ModSim.
             (I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), r_shared)) /\
               (URA.wf r_shared);
 
+          wf_stt : Type -> Type -> WF;
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                            | None, _ => True
                            | _, None => False

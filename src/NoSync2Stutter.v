@@ -603,3 +603,38 @@ Section PROOF.
   Qed.
 
 End PROOF.
+
+Section MODSIM.
+
+  Lemma nosync_implies_stutter_mod
+        md_src md_tgt
+        (MDSIM: ModSimNoSync.ModSim.mod_sim md_src md_tgt)
+    :
+    ModSimStutter.ModSim.mod_sim md_src md_tgt.
+  Proof.
+    inv MDSIM.
+    set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
+    set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).    
+    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
+    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (ident_src := @ident_src _ident_src).
+    set (ident_tgt := @ident_tgt _ident_tgt).
+    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt * URA.car)%type).
+    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
+    econs; eauto. instantiate (1:=wf_stt).
+    i. specialize (funs fn args). des_ifs.
+    unfold ModSimNoSync.local_sim in funs.
+    ii. specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID).
+    des. esplits; eauto. instantiate (1:=inr None).
+    i. specialize (funs1 _ _ _ _ _ _ _ INV1 VALID1 _ TGT).
+    des. esplits; eauto. i. specialize (LSIM fs ft).
+    eapply nosync_implies_stutter in LSIM. des.
+    eapply stutter_ord_weak. 2: eauto.
+    clear. destruct o.
+    { right. econs. }
+    destruct t.
+    { right. do 2 econs. }
+    { left. auto. }
+  Qed.
+
+End MODSIM.
