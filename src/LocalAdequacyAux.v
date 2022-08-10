@@ -35,7 +35,7 @@ Section AUX.
   Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Variable wf_stt: WF.
+  Variable wf_stt: Type -> Type -> WF.
 
   Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
 
@@ -66,7 +66,7 @@ Section AUX.
       (lsim wf_stt I tid (local_RR I RR tid)
             fs ft r_ctx0 (o0, Vis (inl1 (inr1 Yield)) (fun _ => src)) tgt
             (ths0, im_src0, im_tgt1, st_src0, st_tgt0, r_shared0)) /\
-        (wf_stt.(lt) o0 o).
+        ((wf_stt R0 R1).(lt) o0 o).
 
   Definition th_wf_pair {elt1 elt2} := @nm_wf_pair elt1 elt2.
 

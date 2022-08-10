@@ -255,5 +255,6 @@ End WFTYPE.
 
 Definition ord_tree_WF {A}: WF := mk_wf (@ord_tree_lt_well_founded A).
 
+Definition option_WF (A: WF): WF := mk_wf (option_lt_well_founded A.(wf)).
 Definition sum_WF (A B: WF): WF := mk_wf (sum_lt_well_founded A.(wf) B.(wf)).
 Definition prod_WF (A B: WF): WF := mk_wf (prod_lt_well_founded A.(wf) B.(wf)).

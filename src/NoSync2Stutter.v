@@ -463,18 +463,17 @@ Section PROOF.
 
   Variable I: shared_rel.
 
-  Definition lift_wf (wf: WF): WF := sum_WF (sum_WF wf wf) wf.
+  Definition lift_wf (wf: WF): WF := sum_WF wf (option_WF wf).
 
-  Definition mk_o (wf: WF) (w: wf.(T)) R (o: wf.(T)) (ps: bool) (itr_src: itree srcE R):
-    (lift_wf wf).(T) :=
+  Definition mk_o (wf: WF) R (o: wf.(T)) (ps: bool) (itr_src: itree srcE R): (lift_wf wf).(T) :=
     if ps
     then match (observe itr_src) with
-         | VisF ((|Yield)|)%sum _ => (inl (inr o))
-         | _ => (inr w)
+         | VisF ((|Yield)|)%sum _ => (inr (Some o))
+         | _ => (inr None)
          end
     else match (observe itr_src) with
-         | VisF ((|Yield)|)%sum _ => (inl (inl o))
-         | _ => (inr w)
+         | VisF ((|Yield)|)%sum _ => (inl o)
+         | _ => (inr None)
          end.
 
   Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
@@ -489,10 +488,10 @@ Section PROOF.
         (LSIM: ModSimNoSync.lsim I tid LRR ps pt r_ctx src tgt shr)
     :
     exists (o: (@wf_stt R0 R1).(T)),
-      ModSimStutter.lsim (@wf_stt R0 R1) I tid LRR ps pt r_ctx (o, src) tgt shr.
+      ModSimStutter.lsim (wf_stt) I tid LRR ps pt r_ctx (o, src) tgt shr.
   Proof.
     eapply nosync_geno in LSIM. des.
-    exists (mk_o (@wf_ot R0 R1) (@ord_tree_base _) o ps src).
+    exists (mk_o (@wf_ot R0 R1) o ps src).
     revert_until R1. ginit. gcofix CIH; i.
     remember (o, src) as osrc.
     move LSIM before CIH. revert_until LSIM.
@@ -504,7 +503,7 @@ Section PROOF.
     inv LSIM.
 
     { guclo lsim_indC_spec. econs 1; eauto.
-      instantiate (1:=inl (inl o1)). ss.
+      instantiate (1:=(inl o1)). ss.
       unfold mk_o. des_ifs. all: econs 3.
     }
 
@@ -512,44 +511,44 @@ Section PROOF.
       guclo lsim_indC_spec. econs 2; eauto.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
-      - right. ss. econs 3.
-      - right. ss. econs 3.
+      - right. ss. do 2 econs.
+      - right. ss. do 2 econs.
     }
     { des. destruct GENO as [GENO IND]. eapply IH in IND; eauto.
       guclo lsim_indC_spec. econs 3; eauto. exists x.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
-      - right. ss. econs 3.
-      - right. ss. econs 3.
+      - right. ss. do 2 econs.
+      - right. ss. do 2 econs.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
       guclo lsim_indC_spec. econs 4; eauto.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
-      - right. ss. econs 3.
-      - right. ss. econs 3.
+      - right. ss. do 2 econs.
+      - right. ss. do 2 econs.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
       guclo lsim_indC_spec. econs 5; eauto.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
-      - right. ss. econs 3.
-      - right. ss. econs 3.
+      - right. ss. do 2 econs.
+      - right. ss. do 2 econs.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
       guclo lsim_indC_spec. econs 6; eauto.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
-      - right. ss. econs 3.
-      - right. ss. econs 3.
+      - right. ss. do 2 econs.
+      - right. ss. do 2 econs.
     }
     { guclo lsim_indC_spec. econs 7; eauto. }
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
       guclo lsim_indC_spec. econs 8; eauto. esplits; eauto.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
-      - right. ss. econs 3.
-      - right. ss. econs 3.
+      - right. ss. do 2 econs.
+      - right. ss. do 2 econs.
     }
 
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
@@ -575,8 +574,8 @@ Section PROOF.
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. ss. des_ifs; try reflexivity.
-      - right. ss. econs 3.
-      - right. ss. econs 3.
+      - right. ss. do 2 econs.
+      - right. ss. do 2 econs.
     }
 
     { guclo lsim_indC_spec. econs 16; eauto. i.
@@ -586,8 +585,8 @@ Section PROOF.
       guclo lsim_resetC_spec. econs; eauto.
       unfold mk_o; ss. rewrite !bind_trigger. ss.
       des_ifs.
-      - econs 1. econs 2. auto.
-      - econs 1. econs 1. auto.
+      - do 2 econs. auto.
+      - econs. auto.
     }
 
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
@@ -596,9 +595,9 @@ Section PROOF.
 
     { eapply nosync_geno in GENO. des.
       guclo lsim_ord_weakC_spec. econs.
-      instantiate (1:=mk_o (@wf_ot R0 R1) (@ord_tree_base _) o0 false src).
+      instantiate (1:=mk_o (@wf_ot R0 R1) o0 false src).
       gfinal. right. pfold. eapply pind9_fold. econs 18. right. eapply CIH. auto.
-      ss. des_ifs; try reflexivity. right. ss. econs 1. econs 3.
+      ss. des_ifs; try reflexivity. right. ss. do 2 econs.
     }
 
   Qed.

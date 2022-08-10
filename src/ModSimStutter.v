@@ -26,7 +26,7 @@ Section PRIMIVIESIM.
   Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Variable wf_stt: WF.
+  Variable wf_stt: Type -> Type -> WF.
 
   Definition shared :=
     (TIdSet.t *
@@ -42,16 +42,16 @@ Section PRIMIVIESIM.
 
   Variant __lsim
           (tid: thread_id)
-          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
-          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel),bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
+          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
+          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel),bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
           R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
     :
-    bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
   | lsim_ret
       f_src f_tgt r_ctx o o0
       ths im_src im_tgt st_src st_tgt r_shared
       r_src r_tgt
-      (LT: wf_stt.(lt) o0 o)
+      (LT: (wf_stt R_src R_tgt).(lt) o0 o)
       (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (o, Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
@@ -175,7 +175,7 @@ Section PRIMIVIESIM.
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
         exists o1,
             (<<LSIM: lsim _ _ RR true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>) /\
-              (<<STUTTER: wf_stt.(lt) o1 o0>>))
+              (<<STUTTER: (wf_stt R_src R_tgt).(lt) o1 o0>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
   | lsim_yieldL
@@ -199,7 +199,7 @@ Section PRIMIVIESIM.
 
   Definition lsim (tid: thread_id)
              R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel):
-    bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
     paco9 (fun r => pind9 (__lsim tid r) top9) bot9 R_src R_tgt RR.
 
   Lemma __lsim_mon tid:
@@ -225,15 +225,15 @@ Section PRIMIVIESIM.
   Qed.
 
   Variant lsim_indC tid
-          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
+          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
           R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
     :
-    bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
     | lsim_indC_ret
         f_src f_tgt r_ctx o o0
         ths im_src im_tgt st_src st_tgt r_shared
         r_src r_tgt
-        (LT: wf_stt.(lt) o0 o)
+        (LT: (wf_stt R_src R_tgt).(lt) o0 o)
         (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
       :
       lsim_indC tid r RR f_src f_tgt r_ctx (o, Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
@@ -357,7 +357,7 @@ Section PRIMIVIESIM.
                  (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
           exists o1,
             (<<LSIM: r _ _ RR true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>) /\
-              (<<STUTTER: wf_stt.(lt) o1 o0>>))
+              (<<STUTTER: (wf_stt R_src R_tgt).(lt) o1 o0>>))
       :
       lsim_indC tid r RR f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
     | lsim_indC_yieldL
@@ -469,10 +469,10 @@ Section PRIMIVIESIM.
 
 
   Variant lsim_resetC
-          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
+          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
           R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
     :
-    bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
     | lsim_resetC_intro
         src tgt shr r_ctx
         ps0 pt0 ps1 pt1
@@ -692,14 +692,14 @@ Section PRIMIVIESIM.
 
 
   Variant lsim_ord_weakC
-          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
+          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
           R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
     :
-    bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
     | lsim_ord_weakC_intro
         src tgt shr r_ctx ps pt o0 o1
         (REL: r _ _ RR ps pt r_ctx (o0, src) tgt shr)
-        (LE: wf_stt.(le) o0 o1)
+        (LE: (wf_stt R_src R_tgt).(le) o0 o1)
       :
       lsim_ord_weakC r RR ps pt r_ctx (o1, src) tgt shr
   .
@@ -795,7 +795,7 @@ Section PRIMIVIESIM.
         tid
         R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
         ps pt r_ctx src tgt (shr: shared) o0 o1
-        (LE: wf_stt.(le) o0 o1)
+        (LE: (wf_stt R0 R1).(le) o0 o1)
         (LSIM: lsim tid LRR ps pt r_ctx (o0, src) tgt shr)
     :
     lsim tid LRR ps pt r_ctx (o1, src) tgt shr.
@@ -825,7 +825,7 @@ Section PRIMIVIESIM.
       tid ths1
       (THS: TIdSet.add_new tid ths0 ths1)
       (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
-    exists r_shared1 r_own,
+    exists r_shared1 r_own o,
       (<<INV: I (ths1, im_src0, im_tgt0, st_src0, st_tgt0, r_shared1)>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
         (forall ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2
@@ -833,7 +833,6 @@ Section PRIMIVIESIM.
            (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2))
            im_tgt2
            (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
-          exists o,
           exists im_src2, (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
                        (<<LSIM: forall fs ft,
                            lsim
@@ -866,7 +865,7 @@ Module ModSim.
           wf_tgt : WF;
           wf_tgt_inhabited: inhabited wf_tgt.(T);
           wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
-          wf_stt : WF;
+          wf_stt : Type -> Type -> WF;
 
           world: URA.t;
 
