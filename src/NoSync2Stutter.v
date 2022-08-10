@@ -493,7 +493,7 @@ Section PROOF.
   Proof.
     eapply nosync_geno in LSIM. des.
     exists (mk_o (@wf_ot R0 R1) (@ord_tree_base _) o ps src).
-    revert_until R1. pcofix CIH; i.
+    revert_until R1. ginit. gcofix CIH; i.
     remember (o, src) as osrc.
     move LSIM before CIH. revert_until LSIM.
     pattern LRR, ps, pt, r_ctx, osrc, tgt, shr.
@@ -503,111 +503,87 @@ Section PROOF.
     eapply pind7_unfold in LSIM; eauto with paco.
     inv LSIM.
 
-    { pfold. eapply pind9_fold. econs 1; eauto.
+    { guclo lsim_indC_spec. econs 1; eauto.
       instantiate (1:=inl (inl o1)). ss.
       unfold mk_o. des_ifs. all: econs 3.
     }
 
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 2; eauto.
-      split; ss.
-      
-      eapply stutter_ord_weak in IND. punfold IND.
+      guclo lsim_indC_spec. econs 2; eauto.
+      guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. econs 3.
       - right. ss. econs 3.
     }
     { des. destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 3; eauto. exists x.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
+      guclo lsim_indC_spec. econs 3; eauto. exists x.
+      guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. econs 3.
       - right. ss. econs 3.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 4; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
+      guclo lsim_indC_spec. econs 4; eauto.
+      guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. econs 3.
       - right. ss. econs 3.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 5; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
+      guclo lsim_indC_spec. econs 5; eauto.
+      guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. econs 3.
       - right. ss. econs 3.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 6; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
+      guclo lsim_indC_spec. econs 6; eauto.
+      guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. econs 3.
       - right. ss. econs 3.
     }
-    { pfold. eapply pind9_fold. econs 7; eauto. }
+    { guclo lsim_indC_spec. econs 7; eauto. }
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 8; eauto. esplits; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
+      guclo lsim_indC_spec. econs 8; eauto. esplits; eauto.
+      guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. econs 3.
       - right. ss. econs 3.
     }
 
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 9; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
-      left; auto.
+      guclo lsim_indC_spec. econs 9; eauto.
     }
-    { pfold. eapply pind9_fold. econs 10; eauto. i. specialize (GENO x).
+    { guclo lsim_indC_spec. econs 10; eauto. i. specialize (GENO x).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
-      left; auto.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 11; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
-      left; auto.
+      guclo lsim_indC_spec. econs 11; eauto.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 12; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
-      left; auto.
+      guclo lsim_indC_spec. econs 12; eauto.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 13; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
-      left; auto.
+      guclo lsim_indC_spec. econs 13; eauto.
     }
-    { pfold. eapply pind9_fold. econs 14; eauto. i. specialize (GENO _ FAIR).
+    { guclo lsim_indC_spec. econs 14; eauto. i. specialize (GENO _ FAIR).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      split; ss.
-      eapply stutter_ord_weak in IND. punfold IND.
-      left; auto.
     }
 
-    { pfold. eapply pind9_fold. econs 15; eauto. i. specialize (GENO ret).
+    { guclo lsim_indC_spec. econs 15; eauto. i. specialize (GENO ret).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      eapply stutter_ord_weak in IND. punfold IND.
+      guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. ss. des_ifs; try reflexivity.
       - right. ss. econs 3.
       - right. ss. econs 3.
     }
 
-    { pfold. eapply pind9_fold. econs 16; eauto. i.
+    { guclo lsim_indC_spec. econs 16; eauto. i.
       specialize (GENO _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      esplits. left. eapply ModSimStutter.lsim_reset_prog. eauto. 1,2: ss.
+      esplits.
+      guclo lsim_resetC_spec. econs; eauto.
       unfold mk_o; ss. rewrite !bind_trigger. ss.
       des_ifs.
       - econs 1. econs 2. auto.
@@ -615,21 +591,16 @@ Section PROOF.
     }
 
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      pfold. eapply pind9_fold. econs 17; eauto. esplits; eauto.
-      split; ss. punfold IND.
+      guclo lsim_indC_spec. econs 17; eauto.
     }
 
     { eapply nosync_geno in GENO. des.
-      eapply stutter_ord_weak. instantiate (1:=mk_o o0 false src).
-      { ss. des_ifs; try reflexivity. right. ss. econs 1. econs 3. }
-      pfold. eapply pind9_fold. econs 18.
-      right.
-      (*TODO*)
-      eapply geno_ord_weak in GENO. instantiate (1:=mk_o o true src) in GENO.
-
-      pclearbot. auto. }
+      guclo lsim_ord_weakC_spec. econs.
+      instantiate (1:=mk_o (@wf_ot R0 R1) (@ord_tree_base _) o0 false src).
+      gfinal. right. pfold. eapply pind9_fold. econs 18. right. eapply CIH. auto.
+      ss. des_ifs; try reflexivity. right. ss. econs 1. econs 3.
+    }
 
   Qed.
 
 End PROOF.
-
