@@ -1624,3 +1624,31 @@ Section AUX.
   Qed.
 
 End AUX.
+
+
+From Fairness Require Import WFLib.
+Section NMWF.
+
+  Import NatMap.
+  Import NatMapP.
+
+  Variant nm_lt A (R: A -> A -> Prop): NatMap.t A -> NatMap.t A -> Prop :=
+    | nm_lt_intro
+        nm0 nm1 k
+        (LT: option_lt R (find k nm0) (find k nm1))
+        (EQ: forall k0 (NEQ: k <> k0), find k0 nm0 = find k0 nm1)
+      :
+      nm_lt R nm0 nm1.
+
+  Lemma nm_lt_well_founded A (R: A -> A -> Prop)
+        (WF: well_founded R)
+    :
+    well_founded (nm_lt R).
+  Proof.
+    ii. destruct a as [l SORTED]. revert SORTED. induction l; i.
+    { econs. i. inv H. admit. }
+
+    econs. i. inv H. 
+
+
+End NMWF.
