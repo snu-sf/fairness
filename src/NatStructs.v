@@ -127,6 +127,16 @@ Section NATMAP.
   Lemma union_in_iff elt k (x y : NatMap.t elt) : NatMap.In k (union x y) <-> NatMap.In k x \/ NatMap.In k y.
   Admitted.
 
+  Lemma Partition_In_left elt (x y z : NatMap.t elt) : NatMapP.Partition x y z -> forall k, NatMap.In k y -> NatMap.In k x.
+  Proof.
+    i. destruct H. destruct H0. specialize (H1 k x0). des. firstorder.
+  Qed.
+
+  Lemma Partition_In_right elt (x y z : NatMap.t elt) : NatMapP.Partition x y z -> forall k, NatMap.In k z -> NatMap.In k x.
+  Proof.
+    i. destruct H. destruct H0. specialize (H1 k x0). des. firstorder.
+  Qed.
+
   Lemma Disjoint_add elt k e (x y : NatMap.t elt)
     : NatMapP.Disjoint x (NatMap.add k e y) <-> ~ NatMap.In k x /\ NatMapP.Disjoint x y.
   Proof.

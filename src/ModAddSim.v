@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.
 From Fairness Require Import
-  ITreeLib WFLib Axioms pind PCM Mod ModSim ModSimAux.
+  ITreeLib WFLib Axioms pind PCM Mod ModSim ModSimAux AddWorld.
 
 Import Lia.
 Import Mod.
@@ -265,22 +265,26 @@ Section ADD_RIGHT_CONG.
   Proof.
     Opaque lifted.
     i. inv H. rename wf_tgt_inhabited into inh.
-    pose (I' := fun x : @shared world
+    Check URA.prod.
+    pose (I' := fun x : @shared (URA.prod threadsRA world)
                        (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
                        (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
                        (sum_wf wf_src wf_tgt) wf_tgt
-                => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt, w) := x in
+                => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt, r) := x in
                   exists im_src ths_ctx ths_mod,
                     let im_ctx := pick_ctx IM_TGT in
                     let im_tgt := chop_ctx inh ths_mod IM_TGT in
                     IM_SRC = add_ctx im_ctx im_src
                     /\ NatMapP.Partition ths ths_ctx ths_mod
-                    /\ lifted I (ths_mod, im_src, im_tgt, snd st_src, snd st_tgt, w)
+                    /\ fst r = global_th ths_ctx ths_mod
+                    /\ lifted I (ths_mod, im_src, im_tgt, snd st_src, snd st_tgt, snd r)
          ).
-    constructor 1 with (sum_wf wf_src wf_tgt) wf_tgt world I'; eauto.
+    constructor 1 with _ _ _ I'; eauto.
     { i. specialize (init (chop_ctx inh NatSet.empty im_tgt)). des.
-      pose (pick_ctx im_tgt) as im_ctx. exists (add_ctx im_ctx im_src). exists r_shared. ss. split; ss.      
-      exists im_src. exists NatSet.empty, NatSet.empty. splits; ss. admit. exists (chop_ctx inh NatSet.empty im_tgt). split; ss. ii. reflexivity.
+      pose (pick_ctx im_tgt) as im_ctx. exists (add_ctx im_ctx im_src).
+      exists (global_th NatSet.empty NatSet.empty, r_shared). ss. split.
+      - exists im_src. exists NatSet.empty, NatSet.empty. splits; ss. admit. exists (chop_ctx inh NatSet.empty im_tgt). split; ss. ii. reflexivity.
+      - rewrite URA.unfold_wf. ss. split; ss. rewrite URA.unfold_wf. ss. econs; ss. eapply Disjoint_empty.
     }
     i. specialize (funs0 fn args).
     destruct M1 as [state1 ident1 st_init1 funs1].
@@ -290,42 +294,50 @@ Section ADD_RIGHT_CONG.
     destruct (funs1 fn) eqn: E1, (funs2_src fn) eqn: E2, (funs2_tgt fn) eqn: E3; ss.
     - ii. exists r_shared0, URA.unit. splits.
       { ss. des. exists im_src, (NatSet.add tid ths_ctx), ths_mod. splits; ss.
-        inv THS. admit.
+        inv THS. admit. admit.
       }
       { rewrite URA.unit_id. eauto. }
       i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
     - (* tid ∈ ths_ctx *)
-      ii. exists r_shared0, URA.unit. splits.
+      ii. simpl in INV. des. destruct r_shared0 as [r_shared_th r_shared_w], r_ctx0 as [r_ctx_th r_ctx_w].
+      rewrite URA.unfold_wf, URA.unfold_add in VALID. simpl in VALID, INV1. subst. des.
+      exists (global_th (TIdSet.add tid ths_ctx) ths_mod, r_shared_w), (local_th_context tid, URA.unit). splits.
       { admit. }
-      { rewrite URA.unit_id. eauto. }
+      { rewrite URA.unfold_wf, URA.unfold_add. ss. split.
+        - eapply global_th_alloc_context.
+          + eapply VALID.
+          + admit.
+          + admit.
+        - rewrite URA.unit_id. eauto.
+      }
       i. unfold embed_l, embed_r. remember (k args) as itr.
       rename im_src1 into IM_SRC, im_tgt2 into IM_TGT.
       assert (INV_CIH : I' (ths, IM_SRC, IM_TGT, st_src, st_tgt, r_shared2)).
-      { ss. des. exists im_src, ths_ctx, ths_mod. splits; ss.
+      { ss. des. exists im_src0, ths_ctx, ths_mod0. splits; ss.
         - assert (@pick_ctx _ _ wf_tgt IM_TGT = pick_ctx im_tgt1).
           { extensionalities i. specialize (TGT (inr (inl i))). ss. }
           rewrite H. ss.
-        - pose proof shared_rel_wf_lifted. unfold shared_rel_wf in H. hexploit H.
-          + eexact INV2.
-          + instantiate (1 := chop_ctx inh ths_mod IM_TGT). ii. destruct i as [i|i]; ss.
-            * specialize (TGT (inl i)). ss. destruct (tids_fmap_all ths_mod i) eqn:E; ss.
-              -- unfold tids_fmap_all, tids_fmap in TGT, E. destruct (NatMapP.F.In_dec ths_mod i); ss.
+        - admit.
+        - admit.
+        - eapply shared_rel_wf_lifted.
+          + eexact INV4.
+          + ii. destruct i as [i|i]; ss.
+            * specialize (TGT (inl i)). ss. destruct (tids_fmap_all ths_mod0 i) eqn:E; ss.
+              -- unfold tids_fmap_all, tids_fmap in TGT, E. destruct (NatMapP.F.In_dec ths_mod0 i); ss.
                  assert (NatMap.In i ths). (* i ∈ ths_mod ⊂ ths *)
-                 { admit. }
+                 { eapply Partition_In_right in INV1; eauto. }
                  assert (i <> tid). (* ths_ctx ∩ ths_mod = ∅, i ∈ ths_mod, tid ∈ ths_ctx *)
-                 { destruct INV3. intro. subst. eapply H1. admit. }
+                 { ii. subst. destruct INV1. eapply H0. eauto. split; [| eapply i0 ]. admit. }
                  des_ifs.
               -- unfold tids_fmap_all, tids_fmap in TGT, E. des_ifs.
             * specialize (TGT (inr (inr i))). ss.
-          + ss.
       }
       clear - INV0 VALID0.
       rename INV0 into INV, VALID0 into VALID, r_shared2 into r_shared0, r_ctx2 into r_ctx0.
       revert_until tid. ginit. gcofix CIH. i.
       destruct_itree itr.
       + rewrite 2 embed_state_ret. rewrite 2 map_event_ret.
-        gstep. eapply pind9_fold. econs. ss. eexists. exists URA.unit, r_shared0. splits; ss.
-        des. esplits; ss. eauto. admit. admit. admit.
+        gstep. eapply pind9_fold. econs. ss. eexists. admit.
       + admit.
       + admit.
     - eapply local_sim_clos_trans in funs0; ss.
