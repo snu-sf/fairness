@@ -434,13 +434,33 @@ Section ADD_RIGHT_CONG.
           gfinal. left. eapply CIH; ss.
         * eapply pind9_fold. eapply lsim_UB.
       + rewrite 2 embed_state_vis.
-        rewrite 2 map_event_vis. ss.
+        rewrite 2 map_event_vis. simpl.
         rewrite <- 2 bind_trigger.
         gstep. destruct c.
-        * eapply pind9_fold. eapply lsim_sync; eauto.
-          { admit. }
-          { admit. }
-          admit.
+        * eapply pind9_fold. eapply lsim_sync.
+          { eapply INV0. }
+          { instantiate (1 := (local_th_context tid, ε)). unfold_prod. split; ss. }
+          intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT1' TGT.
+          simpl in INV1_0. des. subst r_sha_th1. rename im_src0 into im_src1. unfold_prod VALID1_0.
+          gfinal. left. eapply CIH; ss.
+          { exists im_src1, ths_ctx1, ths_usr1. splits; ss.
+            - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
+            - (* TODO : Factorize this part *)
+              eapply shared_rel_wf_lifted.
+              + eauto.
+              + ii. destruct i as [i|i]; ss.
+                * specialize (TGT (inl i)). ss. destruct (tids_fmap_all ths_usr1 i) eqn:E; ss.
+                  -- unfold tids_fmap_all, tids_fmap in TGT, E. destruct (NatMapP.F.In_dec ths_usr1 i); ss.
+                     assert (NatMap.In i ths1). (* i ∈ ths_usr ⊂ ths *)
+                     { eapply Partition_In_right in INV1_1; eauto. }
+                     assert (NatMap.In tid ths_ctx1).
+                     { clear - VALID1_0. eapply local_th_context_in_context. eauto. }
+                     assert (i <> tid). (* ths_ctx ∩ ths_usr = ∅, i ∈ ths_usr, tid ∈ ths_ctx *)
+                     { ii. subst. destruct INV1_1. eapply H1. eauto. }
+                     des_ifs.
+                  -- unfold tids_fmap_all, tids_fmap in TGT, E. des_ifs.
+                * specialize (TGT (inr (inr i))). ss.
+          }
         * eapply pind9_fold. eapply lsim_tidR. esplit; ss.
           eapply pind9_fold. eapply lsim_tidL. esplit; ss.
           eapply pind9_fold. eapply lsim_progress.
