@@ -259,31 +259,35 @@ End IMAP_OPERATIONS.
 
 Section ADD_RIGHT_CONG.
 
+  Opaque lifted.
+
   Lemma ModAdd_right_cong M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
-    Opaque lifted.
     i. inv H. rename wf_tgt_inhabited into inh.
-    Check URA.prod.
     pose (I' := fun x : @shared (URA.prod threadsRA world)
                        (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
                        (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
                        (sum_wf wf_src wf_tgt) wf_tgt
                 => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt, r) := x in
-                  exists im_src ths_ctx ths_mod,
-                    let im_ctx := pick_ctx IM_TGT in
-                    let im_tgt := chop_ctx inh ths_mod IM_TGT in
-                    IM_SRC = add_ctx im_ctx im_src
-                    /\ NatMapP.Partition ths ths_ctx ths_mod
-                    /\ fst r = global_th ths_ctx ths_mod
-                    /\ lifted I (ths_mod, im_src, im_tgt, snd st_src, snd st_tgt, snd r)
+                  exists im_src0 ths_ctx0 ths_usr0,
+                    let im_ctx0 := pick_ctx IM_TGT in
+                    let im_tgt0 := chop_ctx inh ths_usr0 IM_TGT in
+                    IM_SRC = add_ctx im_ctx0 im_src0
+                    /\ NatMapP.Partition ths ths_ctx0 ths_usr0
+                    /\ fst r = global_th ths_ctx0 ths_usr0
+                    /\ lifted I (ths_usr0, im_src0, im_tgt0, snd st_src, snd st_tgt, snd r)
          ).
     constructor 1 with _ _ _ I'; eauto.
-    { i. specialize (init (chop_ctx inh NatSet.empty im_tgt)). des.
-      pose (pick_ctx im_tgt) as im_ctx. exists (add_ctx im_ctx im_src).
-      exists (global_th NatSet.empty NatSet.empty, r_shared). ss. split.
-      - exists im_src. exists NatSet.empty, NatSet.empty. splits; ss. admit. exists (chop_ctx inh NatSet.empty im_tgt). split; ss. ii. reflexivity.
+    { clear - init.
+      intro IM_TGT. specialize (init (chop_ctx inh NatSet.empty IM_TGT)).
+      destruct init as [im_src [r_shared [init R_SHARED]]].
+      pose (pick_ctx IM_TGT) as im_ctx.
+      exists (add_ctx im_ctx im_src), (global_th NatSet.empty NatSet.empty, r_shared). ss. split.
+      - exists im_src. exists NatSet.empty, NatSet.empty. splits; ss.
+        + eapply Partition_empty.
+        + exists (chop_ctx inh NatSet.empty IM_TGT). split; ss. ii. left. ss.
       - rewrite URA.unfold_wf. ss. split; ss. rewrite URA.unfold_wf. ss. econs; ss. eapply Disjoint_empty.
     }
     i. specialize (funs0 fn args).
@@ -291,48 +295,67 @@ Section ADD_RIGHT_CONG.
     destruct M2_src as [state2_src ident2_src st_init2_src funs2_src].
     destruct M2_tgt as [state2_tgt ident2_tgt st_init2_tgt funs2_tgt].
     ss. unfold add_funs. ss.
-    destruct (funs1 fn) eqn: E1, (funs2_src fn) eqn: E2, (funs2_tgt fn) eqn: E3; ss.
-    - ii. exists r_shared0, URA.unit. splits.
-      { ss. des. exists im_src, (NatSet.add tid ths_ctx), ths_mod. splits; ss.
-        inv THS. admit. admit.
+    destruct (funs1 fn), (funs2_src fn), (funs2_tgt fn); ss.
+    - (* treat as if tid ∈ ths_ctx *)
+      intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0.
+      simpl in INV0_0. des. subst.
+      rewrite URA.unfold_wf, URA.unfold_add in VALID0_0. simpl in VALID0_0. des.
+      exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0). exists (local_th_context tid, URA.unit). splits.
+      { exists im_src0, (TIdSet.add tid ths_ctx0), ths_usr0. splits; ss.
+        eauto using NatMapP.Partition_sym, Partition_add.
       }
-      { rewrite URA.unit_id. eauto. }
-      i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
-    - (* tid ∈ ths_ctx *)
-      ii. simpl in INV. des. destruct r_shared0 as [r_shared_th r_shared_w], r_ctx0 as [r_ctx_th r_ctx_w].
-      rewrite URA.unfold_wf, URA.unfold_add in VALID. simpl in VALID, INV1. subst. des.
-      exists (global_th (TIdSet.add tid ths_ctx) ths_mod, r_shared_w), (local_th_context tid, URA.unit). splits.
-      { admit. }
       { rewrite URA.unfold_wf, URA.unfold_add. ss. split.
-        - eapply global_th_alloc_context.
-          + eapply VALID.
-          + admit.
-          + admit.
+        - eapply inv_add_new in THS0. des; subst. eapply global_th_alloc_context.
+          + eauto.
+          + eapply inv_add_new. split; ss.
+            ii. eapply THS0. eapply (Partition_In_left INV0_1). ss.
+          + ii. eapply THS0. eapply (Partition_In_right INV0_1). ss.
         - rewrite URA.unit_id. eauto.
       }
-      i. unfold embed_l, embed_r. remember (k args) as itr.
-      rename im_src1 into IM_SRC, im_tgt2 into IM_TGT.
-      assert (INV_CIH : I' (ths, IM_SRC, IM_TGT, st_src, st_tgt, r_shared2)).
-      { ss. des. exists im_src0, ths_ctx, ths_mod0. splits; ss.
-        - assert (@pick_ctx _ _ wf_tgt IM_TGT = pick_ctx im_tgt1).
+      i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
+    - (* tid ∈ ths_ctx *)
+      intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0.
+      simpl in INV0_0. des. subst r_sha_th0.
+      rewrite URA.unfold_wf, URA.unfold_add in VALID0_0. simpl in VALID0_0. des.
+      exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0), (local_th_context tid, URA.unit). splits.
+      { exists im_src0, (TIdSet.add tid ths_ctx0), ths_usr0. splits; ss.
+        eauto using NatMapP.Partition_sym, Partition_add.
+      }
+      { rewrite URA.unfold_wf, URA.unfold_add. ss. split.
+        - eapply inv_add_new in THS0. des; subst. eapply global_th_alloc_context.
+          + eauto.
+          + eapply inv_add_new. split; ss.
+            ii. eapply THS0. eapply (Partition_In_left INV0_1). ss.
+          + ii. eapply THS0. eapply (Partition_In_right INV0_1). ss.
+        - rewrite URA.unit_id. eauto.
+      }
+      intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0.
+      intros IM_TGT1' TGT fs ft.
+      simpl in INV1_0. des. subst r_sha_th1.
+      rewrite URA.unfold_wf, URA.unfold_add in VALID1_0. simpl in VALID1_0. des.
+      unfold embed_l, embed_r. remember (k args) as itr.
+      assert (INV : I' (ths1, IM_SRC1, IM_TGT1', st_src1, st_tgt1, (global_th ths_ctx1 ths_usr1, r_sha_w1))).
+      { ss. exists im_src1, ths_ctx1, ths_usr1. splits; ss.
+        - assert (@pick_ctx _ _ wf_tgt IM_TGT1' = pick_ctx IM_TGT1).
           { extensionalities i. specialize (TGT (inr (inl i))). ss. }
           rewrite H. ss.
-        - admit.
-        - admit.
         - eapply shared_rel_wf_lifted.
-          + eexact INV4.
+          + eexact INV1_3.
           + ii. destruct i as [i|i]; ss.
-            * specialize (TGT (inl i)). ss. destruct (tids_fmap_all ths_mod0 i) eqn:E; ss.
-              -- unfold tids_fmap_all, tids_fmap in TGT, E. destruct (NatMapP.F.In_dec ths_mod0 i); ss.
-                 assert (NatMap.In i ths). (* i ∈ ths_mod ⊂ ths *)
-                 { eapply Partition_In_right in INV1; eauto. }
-                 assert (i <> tid). (* ths_ctx ∩ ths_mod = ∅, i ∈ ths_mod, tid ∈ ths_ctx *)
-                 { ii. subst. destruct INV1. eapply H0. eauto. split; [| eapply i0 ]. admit. }
+            * specialize (TGT (inl i)). ss. destruct (tids_fmap_all ths_usr1 i) eqn:E; ss.
+              -- unfold tids_fmap_all, tids_fmap in TGT, E. destruct (NatMapP.F.In_dec ths_usr1 i); ss.
+                 assert (NatMap.In i ths1). (* i ∈ ths_usr ⊂ ths *)
+                 { eapply Partition_In_right in INV1_1; eauto. }
+                 assert (NatMap.In tid ths_ctx1).
+                 { clear - VALID1_0. eapply local_th_context_in_context. eauto. }
+                 assert (i <> tid). (* ths_ctx ∩ ths_usr = ∅, i ∈ ths_usr, tid ∈ ths_ctx *)
+                 { ii. subst. destruct INV1_1. eapply H1. eauto. }
                  des_ifs.
               -- unfold tids_fmap_all, tids_fmap in TGT, E. des_ifs.
             * specialize (TGT (inr (inr i))). ss.
       }
-      clear - INV0 VALID0.
+      (*
+      clear - INV VALID.
       rename INV0 into INV, VALID0 into VALID, r_shared2 into r_shared0, r_ctx2 into r_ctx0.
       revert_until tid. ginit. gcofix CIH. i.
       destruct_itree itr.
@@ -340,7 +363,10 @@ Section ADD_RIGHT_CONG.
         gstep. eapply pind9_fold. econs. ss. eexists. admit.
       + admit.
       + admit.
-    - eapply local_sim_clos_trans in funs0; ss.
+       *)
+      admit.
+    - (* tid ∈ ths_mod *)
+      eapply local_sim_clos_trans in funs0; ss.
       admit.
   Admitted.
 
