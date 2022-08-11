@@ -142,6 +142,13 @@ Section NATMAP.
     - ii. des; subst; firstorder.
   Qed.
 
+  Lemma Disjoint_remove elt k (x y : NatMap.t elt) :
+    NatMapP.Disjoint x y ->
+    NatMapP.Disjoint x (NatMap.remove k y).
+  Proof.
+    unfold NatMapP.Disjoint. setoid_rewrite NatMapP.F.remove_in_iff. firstorder.
+  Qed.
+
   Lemma Disjoint_union elt (x y z : NatMap.t elt)
     : NatMapP.Disjoint x (union y z) <-> NatMapP.Disjoint x y /\ NatMapP.Disjoint x z.
   Proof.
@@ -777,6 +784,17 @@ Section NATSET.
     split.
     - eapply Disjoint_add. firstorder using Partition_In_left.
     - setoid_rewrite NatMapP.F.add_in_iff. firstorder.
+  Qed.
+
+  Lemma Partition_remove k (x y z : NatSet.t) :
+    NatMapP.Partition x y z ->
+    NatMap.In k z ->
+    NatMapP.Partition (NatSet.remove k x) y (NatSet.remove k z).
+  Proof.
+    rewrite 2 unfold_Partition. i. des. split.
+    - eapply Disjoint_remove. ss.
+    - i. setoid_rewrite NatMapP.F.remove_in_iff.
+      firstorder. intro. subst. firstorder.
   Qed.
 
 End NATSET.

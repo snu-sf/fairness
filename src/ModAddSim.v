@@ -259,7 +259,7 @@ End IMAP_OPERATIONS.
 
 Section ADD_RIGHT_CONG.
 
-  Opaque lifted.
+  Opaque lifted threadsRA.
 
   Lemma ModAdd_right_cong M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
@@ -298,7 +298,7 @@ Section ADD_RIGHT_CONG.
     destruct (funs1 fn), (funs2_src fn), (funs2_tgt fn); ss.
     - (* treat as if tid ∈ ths_ctx *)
       intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0.
-      simpl in INV0_0. des. subst.
+      simpl in INV0_0. des. subst r_sha_th0.
       rewrite URA.unfold_wf, URA.unfold_add in VALID0_0. simpl in VALID0_0. des.
       exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0). exists (local_th_context tid, URA.unit). splits.
       { exists im_src0, (TIdSet.add tid ths_ctx0), ths_usr0. splits; ss.
@@ -354,17 +354,28 @@ Section ADD_RIGHT_CONG.
               -- unfold tids_fmap_all, tids_fmap in TGT, E. des_ifs.
             * specialize (TGT (inr (inr i))). ss.
       }
-      (*
-      clear - INV VALID.
-      rename INV0 into INV, VALID0 into VALID, r_shared2 into r_shared0, r_ctx2 into r_ctx0.
+      clear - INV VALID1_0 VALID1_1.
+      rename
+        ths1 into ths0, ths_ctx1 into ths_ctx0, ths_usr1 into ths_usr0,
+        IM_SRC1 into IM_SRC0, IM_TGT1' into IM_TGT0, st_src1 into st_src0, st_tgt1 into st_tgt0,
+        r_sha_w1 into r_sha_w0, r_ctx_th1 into r_ctx_th0, r_ctx_w1 into r_ctx_w0,
+        INV into INV0, VALID1_0 into VALID_TH0, VALID1_1 into VALID_W0.
       revert_until tid. ginit. gcofix CIH. i.
       destruct_itree itr.
-      + rewrite 2 embed_state_ret. rewrite 2 map_event_ret.
-        gstep. eapply pind9_fold. econs. ss. eexists. admit.
+      + rewrite 2 embed_state_ret, 2 map_event_ret.
+        gstep. eapply pind9_fold. econs. ss.
+        exists (NatSet.remove tid ths0), (URA.unit, URA.unit), (global_th (NatSet.remove tid ths_ctx0) ths_usr0, r_sha_w0).
+        splits; ss.
+        { rewrite URA.unfold_wf, URA.unfold_add. ss. split.
+          - eapply global_th_dealloc_context; eauto.
+          - eauto.
+        }
+        { des. inversion INV2. subst ths_ctx1 ths_usr1. exists im_src0, (NatSet.remove tid ths_ctx0), ths_usr0. splits; ss.
+          eapply local_th_context_in_context in VALID_TH0.
+          eauto using NatMapP.Partition_sym, Partition_remove.
+        }
       + admit.
       + admit.
-       *)
-      admit.
     - (* tid ∈ ths_mod *)
       eapply local_sim_clos_trans in funs0; ss.
       admit.

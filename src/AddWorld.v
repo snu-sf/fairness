@@ -110,7 +110,7 @@ Section THREADS_RA.
     inv VALID. eapply LE_CTX. (do 3 econs); ss.
   Qed.
 
-  Lemma local_th_user_in_context ths_ctx ths_usr tid r_ctx
+  Lemma local_th_user_in_user ths_ctx ths_usr tid r_ctx
         (VALID: URA.wf (global_th ths_ctx ths_usr ⋅ local_th_user tid ⋅ r_ctx))
     :
     TIdSet.In tid ths_usr.
@@ -174,6 +174,7 @@ Section THREADS_RA.
         (REMOVE: TIdSet.remove tid ths_ctx0 = ths_ctx1)
     :
     URA.wf (global_th ths_ctx1 ths_usr ⋅ URA.unit ⋅ r_ctx).
+
   Proof.
     rewrite URA.unit_id. unfold URA.wf, URA.add in *. unseal "ra". destruct r_ctx; ss.
     rewrite ! union_empty in *. unfold union, NatMap.fold in VALID; ss. des_ifs; inv VALID.
