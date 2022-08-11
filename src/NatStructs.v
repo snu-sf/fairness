@@ -1634,8 +1634,10 @@ Section NMWF.
 
   Variant nm_lt A (R: A -> A -> Prop): NatMap.t A -> NatMap.t A -> Prop :=
     | nm_lt_intro
-        nm0 nm1 k
-        (LT: option_lt R (find k nm0) (find k nm1))
+        nm0 nm1 k e0 e1
+        (FIND1: find k nm0 = Some e0)
+        (FIND2: find k nm1 = Some e1)
+        (LT: R e0 e1)
         (EQ: forall k0 (NEQ: k <> k0), find k0 nm0 = find k0 nm1)
       :
       nm_lt R nm0 nm1.
@@ -1645,10 +1647,6 @@ Section NMWF.
     :
     well_founded (nm_lt R).
   Proof.
-    ii. destruct a as [l SORTED]. revert SORTED. induction l; i.
-    { econs. i. inv H. admit. }
-
-    econs. i. inv H. 
-
+  Abort.
 
 End NMWF.
