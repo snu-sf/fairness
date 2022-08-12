@@ -271,6 +271,18 @@ Section IMAP_OPERATIONS.
     - specialize (FAIR (inr (inr i))). ss.
   Qed.
 
+  Lemma chop_ctx_fair_thread ths ths_usr tid IM_TGT0 IM_TGT1
+    (LE : KeySetLE ths_usr ths)
+    (FAIR : fair_update IM_TGT0 IM_TGT1 (sum_fmap_l (tids_fmap tid ths)))
+    : fair_update (chop_ctx ths_usr IM_TGT0) (chop_ctx ths_usr IM_TGT1) (sum_fmap_l (tids_fmap tid ths_usr)).
+  Proof.
+    ii. destruct i as [i|i]; ss.
+    - specialize (FAIR (inl i)); ss. destruct (NatMapP.F.In_dec ths_usr i).
+      + pose proof (LE _ i0). unfold tids_fmap in *. des_ifs.
+      + unfold tids_fmap in *. des_ifs.
+    - specialize (FAIR (inr (inr i))); ss.
+  Qed.
+
 End IMAP_OPERATIONS.
 
 Section ADD_RIGHT_CONG.
@@ -489,8 +501,42 @@ Section ADD_RIGHT_CONG.
           des. rewrite INV3.
           gfinal. left. eapply CIH; ss. esplits; eauto.
     - (* tid ∈ ths_mod *)
-      eapply local_sim_clos_trans in funs0; ss.
-      admit.
+      rename funs0 into SIM.
+      eapply local_sim_clos_trans in SIM; ss.
+      intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0.
+      simpl in INV0_0. des. subst r_sha_th0. unfold_prod VALID0_0.
+      move SIM at bottom.
+      assert (THS0' : TIdSet.add_new tid ths_usr0 (TIdSet.add tid ths_usr0)).
+      { eapply inv_add_new. split; ss. eapply inv_add_new in THS0. des.
+        eapply Partition_In_right in INV0_1. eauto.
+      }
+      specialize (SIM ths_usr0 im_src0 (chop_ctx inh ths_usr0 IM_TGT0) (snd st_src0) (snd st_tgt0) r_sha_w0 r_ctx_w0 INV0_4 tid (NatSet.add tid ths_usr0) THS0' VALID0_1).
+      destruct SIM as [r_sha_w1 [r_own_w1 [INV_USR [VALID_USR SIM]]]].
+      exists (global_th (NatSet.add tid ths_ctx0) ths_usr0, r_sha_w1), (local_th_user tid, r_own_w1). splits.
+      { admit. }
+      { admit. }
+      intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
+      simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. unfold_prod VALID2_0.
+      assert (TGT' : @fair_update _ (wf_clos_trans wf_tgt) (chop_ctx inh ths_usr2 IM_TGT2) (chop_ctx inh ths_usr2 IM_TGT2') (sum_fmap_l (tids_fmap tid ths_usr2))).
+      { eapply fair_mono with (wft_lt' := lt wf_tgt) (wft_wf' := wf wf_tgt).
+        { econs. ss. }
+        destruct wf_tgt. eapply chop_ctx_fair_thread.
+        - eapply Partition_In_right in INV2_1. eapply INV2_1.
+        - eauto.
+      }
+      specialize (SIM ths_usr2 im_src2 (chop_ctx inh ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx inh ths_usr2 IM_TGT2') TGT' fs ft).
+      unfold embed_l, embed_r. remember (k args) as itr_src. remember (k0 args) as itr_tgt.
+      assert (INV : I' (ths2, IM_SRC2, IM_TGT2', st_src2, st_tgt2, (global_th ths_ctx2 ths_usr2, r_sha_w2))).
+      { admit. }
+      clear - INV VALID2_0 VALID2_1 SIM.
+      rename
+        ths2 into ths0, ths_ctx2 into ths_ctx0, ths_usr2 into ths_usr0,
+        IM_SRC2 into IM_SRC0, IM_TGT2' into IM_TGT0, st_src2 into st_src0, st_tgt2 into st_tgt0,
+        r_sha_w2 into r_sha_w0, r_ctx_th2 into r_ctx_th0, r_ctx_w2 into r_ctx_w0, r_own_w1 into r_own_w0,
+        INV into INV0, VALID2_0 into VALID_TH0, VALID2_1 into VALID_W0.
+      revert_until tid. ginit. gcofix CIH. i. gstep.
+      punfold SIM.
+      match type of SIM with pind9 _ _ _ _ ?RR _ _ _ _ _ ?SHA =>remember RR as RR_MEM; remember SHA as SHA_MEM end.
   Admitted.
 
 End ADD_RIGHT_CONG.
