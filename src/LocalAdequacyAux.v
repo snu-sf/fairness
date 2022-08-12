@@ -62,11 +62,9 @@ Section AUX.
       (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0))
       fs ft,
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
-    exists o0,
       (lsim wf_stt I tid (local_RR I RR tid)
-            fs ft r_ctx0 (o0, Vis (inl1 (inr1 Yield)) (fun _ => src)) tgt
-            (ths0, im_src0, im_tgt1, st_src0, st_tgt0, r_shared0)) /\
-        ((wf_stt R0 R1).(lt) o0 o).
+            fs ft r_ctx0 (o, Vis (inl1 (inr1 Yield)) (fun _ => src)) tgt
+            (ths0, im_src0, im_tgt1, st_src0, st_tgt0, r_shared0)).
 
   Definition th_wf_pair {elt1 elt2} := @nm_wf_pair elt1 elt2.
 
