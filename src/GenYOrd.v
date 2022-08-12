@@ -713,14 +713,13 @@ Section GENORDER.
 
   Qed.
 
-  Lemma modsim_genos
+  Lemma gensim_genos
         tid R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
         ps pt r_ctx src tgt shr
-        (LSIM: ModSim.lsim I tid RR ps pt r_ctx src tgt shr)
+        (LSIM: lsim I tid RR ps pt r_ctx src tgt shr)
     :
     exists os ot, genos tid RR ps pt r_ctx (os, src) (ot, tgt) shr.
   Proof.
-    eapply modsim_implies_gensim in LSIM.
     punfold LSIM.
     pattern R0, R1, RR, ps, pt, r_ctx, src, tgt, shr.
     revert R0 R1 RR ps pt r_ctx src tgt shr LSIM. apply pind9_acc.
