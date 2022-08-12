@@ -5,7 +5,7 @@ Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
 From Fairness Require Import pind PCM WFLib.
-From Fairness Require Import ModSim ModSimYOrd.
+From Fairness Require Import ModSim.
 
 Set Implicit Arguments.
 
@@ -320,247 +320,6 @@ Section PRIMIVIESIM.
     }
 
   Qed.
-
-  (* Variant lsim_resetC *)
-  (*         (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel) *)
-  (*         R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel) *)
-  (*   : *)
-  (*   bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel := *)
-  (*   | lsim_resetC_intro *)
-  (*       src tgt shr r_ctx *)
-  (*       ps0 pt0 ps1 pt1 *)
-  (*       (REL: r _ _ RR ps1 pt1 r_ctx src tgt shr) *)
-  (*       (SRC: ps1 = true -> ps0 = true) *)
-  (*       (TGT: pt1 = true -> pt0 = true) *)
-  (*     : *)
-  (*     lsim_resetC r RR ps0 pt0 r_ctx src tgt shr *)
-  (* . *)
-
-  (* Lemma lsim_resetC_spec tid *)
-  (*   : *)
-  (*   lsim_resetC <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)). *)
-  (* Proof. *)
-  (*   eapply wrespect9_uclo; eauto with paco. *)
-  (*   { eapply lsim_mon. } *)
-  (*   econs. *)
-  (*   { ii. inv IN. econs; eauto. } *)
-  (*   i. inv PR. eapply GF in REL. *)
-  (*   eapply pind9_acc in REL. *)
-  (*   instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) ps1 pt1 r_ctx src tgt shr => *)
-  (*                       forall ps0 pt0, *)
-  (*                         (ps1 = true -> ps0 = true) -> *)
-  (*                         (pt1 = true -> pt0 = true) -> *)
-  (*                         pind9 (__lsim tid (rclo9 lsim_resetC r)) top9 R0 R1 RR ps0 pt0 r_ctx src tgt shr)) in REL; eauto. *)
-  (*   ss. i. eapply pind9_unfold in PR. *)
-  (*   2:{ eapply _lsim_mon. } *)
-  (*   rename PR into LSIM. inv LSIM. *)
-
-  (*   { eapply pind9_fold. econs; eauto. } *)
-
-  (*   { destruct LSIM0 as [LSIM0 IND]. clear LSIM0. *)
-  (*     eapply pind9_fold. eapply lsim_tauL. split; ss. *)
-  (*     hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { des. eapply pind9_fold. eapply lsim_chooseL. esplits; eauto. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_putL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_getL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_tidL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_UB. } *)
-
-  (*   { des. eapply pind9_fold. eapply lsim_fairL. esplits; eauto. split; ss. *)
-  (*     destruct LSIM as [LSIM IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { destruct LSIM0 as [LSIM0 IND]. clear LSIM0. *)
-  (*     eapply pind9_fold. eapply lsim_tauR. split; ss. *)
-  (*     hexploit IH. eauto. all: eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_chooseR. i. split; ss. specialize (LSIM0 x). *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_putR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_getR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_tidR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_fairR. i. split; ss. specialize (LSIM0 _ FAIR). *)
-  (*     des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_base. auto. } *)
-
-  (*   { des. eapply pind9_fold. eapply lsim_yieldL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM IND]. hexploit IH; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_yieldR; eauto. i. *)
-  (*     hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. split; ss; eauto. *)
-  (*   } *)
-
-  (*   { eapply pind9_fold. eapply lsim_sync; eauto. i. *)
-  (*     hexploit LSIM0. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto. *)
-  (*     eapply rclo9_base. auto. *)
-  (*   } *)
-
-  (*   { pclearbot. hexploit H; ss; i. hexploit H0; ss; i. clarify. *)
-  (*     eapply pind9_fold. eapply lsim_progress. eapply rclo9_base. auto. } *)
-  (* Qed. *)
-
-  (* Lemma lsim_reset_prog *)
-  (*       tid *)
-  (*       R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) *)
-  (*       src tgt shr *)
-  (*       ps0 pt0 ps1 pt1 r_ctx *)
-  (*       (LSIM: lsim tid RR ps1 pt1 r_ctx src tgt shr) *)
-  (*       (SRC: ps1 = true -> ps0 = true) *)
-  (*       (TGT: pt1 = true -> pt0 = true) *)
-  (*   : *)
-  (*   lsim tid RR ps0 pt0 r_ctx src tgt shr. *)
-  (* Proof. *)
-  (*   ginit. *)
-  (*   { eapply lsim_mon. } *)
-  (*   { eapply cpn9_wcompat. eapply lsim_mon. } *)
-  (*   guclo lsim_resetC_spec. *)
-  (*   { eapply lsim_mon. } *)
-  (*   econs; eauto. gfinal. *)
-  (*   { eapply lsim_mon. } *)
-  (*   right. auto. *)
-  (* Qed. *)
-
-  (* Lemma lsim_set_prog *)
-  (*       tid *)
-  (*       R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) *)
-  (*       r_ctx src tgt shr *)
-  (*       (LSIM: lsim tid RR true true r_ctx src tgt shr) *)
-  (*   : *)
-  (*   forall ps pt, lsim tid RR ps pt r_ctx src tgt shr. *)
-  (* Proof. *)
-  (*   i. revert_until tid. pcofix CIH. i. *)
-  (*   remember true as ps0 in LSIM at 1. remember true as pt0 in LSIM at 1. *)
-  (*   move LSIM before CIH. revert_until LSIM. punfold LSIM. *)
-  (*   2:{ eapply lsim_mon. } *)
-  (*   eapply pind9_acc in LSIM. *)
-
-  (*   { instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) ps0 pt0 r_ctx src tgt shr => *)
-  (*                         ps0 = true -> *)
-  (*                         pt0 = true -> *)
-  (*                         forall ps pt, *)
-  (*                           paco9 *)
-  (*                             (fun r0 => *)
-  (*                                pind9 (__lsim tid r0) top9) r R0 R1 RR ps pt r_ctx src tgt shr)) in LSIM; auto. } *)
-
-  (*   ss. clear ps0 pt0 r_ctx src tgt shr LSIM. *)
-  (*   intros rr DEC IH R0' R1' RR' gps gpt r_ctx src tgt shr LSIM. clear DEC. *)
-  (*   intros Egps Egpt ps pt. *)
-  (*   eapply pind9_unfold in LSIM. *)
-  (*   2:{ eapply _lsim_mon. } *)
-  (*   inv LSIM. *)
-
-  (*   { pfold. eapply pind9_fold. econs; eauto. } *)
-
-  (*   { destruct LSIM0 as [LSIM0 IND]. clear LSIM0. *)
-  (*     pfold. eapply pind9_fold. eapply lsim_tauL. split; ss. *)
-  (*     hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { des. pfold. eapply pind9_fold. eapply lsim_chooseL. esplits; eauto. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_putL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_getL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_tidL. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_UB. } *)
-
-  (*   { des. pfold. eapply pind9_fold. eapply lsim_fairL. esplits; eauto. split; ss. *)
-  (*     destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { destruct LSIM0 as [LSIM0 IND]. clear LSIM0. *)
-  (*     pfold. eapply pind9_fold. eapply lsim_tauR. split; ss. *)
-  (*     hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_chooseR. i. split; ss. specialize (LSIM0 x). *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_putR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_getR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_tidR. split; ss. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_fairR. i. split; ss. specialize (LSIM0 _ FAIR). *)
-  (*     des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. } *)
-
-  (*   { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss. *)
-  (*     destruct LSIM0 as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i. *)
-  (*     hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. *)
-  (*     destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. split; ss. punfold H. eapply lsim_mon. *)
-  (*   } *)
-
-  (*   { pfold. eapply pind9_fold. eapply lsim_sync; eauto. i. *)
-  (*     hexploit LSIM0. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto. *)
-  (*     eapply upaco9_mon_bot; eauto. *)
-  (*   } *)
-
-  (*   { pclearbot. eapply paco9_mon_bot. eapply lsim_reset_prog. eauto. all: ss. } *)
-
-  (* Qed. *)
-
-  (* Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid: *)
-  (*   R0 -> R1 -> URA.car -> shared_rel := *)
-  (*   fun (r_src: R0) (r_tgt: R1) (r_ctx: URA.car) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1) => *)
-  (*     (exists ths3 r_own r_shared2, *)
-  (*         (<<THS: NatMap.remove tid ths2 = ths3>>) /\ *)
-  (*           (<<VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx)>>) /\ *)
-  (*           (<<INV: I (ths3, im_src1, im_tgt1, st_src1, st_tgt1, r_shared2)>>) /\ *)
-  (*           (<<RET: RR r_src r_tgt>>)). *)
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
@@ -961,39 +720,38 @@ Section GENORDER.
     :
     exists os ot, genos tid RR ps pt r_ctx (os, src) (ot, tgt) shr.
   Proof.
+    eapply modsim_implies_gensim in LSIM.
     punfold LSIM.
     pattern R0, R1, RR, ps, pt, r_ctx, src, tgt, shr.
     revert R0 R1 RR ps pt r_ctx src tgt shr LSIM. apply pind9_acc.
     intros rr DEC IH. clear DEC. intros R0 R1 RR ps pt r_ctx src tgt shr LSIM.
     eapply pind9_unfold in LSIM; eauto with paco.
-    set (fzero:= fun _: (A R0 R1) => @ord_tree_base (A R0 R1)). set (one:= ord_tree_cons fzero).
+    set (zero:= @ord_tree_base (A R0 R1)). set (fzero:= fun _: (A R0 R1) => zero). set (one:= ord_tree_cons fzero).
     inv LSIM.
 
-    { exists one. eapply pind9_fold. econs 1; eauto.
-      instantiate (1:=fzero (ps, pt, r_ctx, Ret r_src, Ret r_tgt, (ths, im_src, im_tgt, st_src, st_tgt, r_shared))); ss.
-    }
+    { exists zero, zero. eapply pind9_fold. econs 1; eauto. }
 
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind9_fold. econs 2; eauto. split; ss.
+      exists os, ot. eapply pind9_fold. econs 2; eauto. split; ss.
     }
     { des. destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind9_fold. econs 3; eauto. eexists. split; ss. eauto.
+      exists os, ot. eapply pind9_fold. econs 3; eauto. eexists. split; ss. eauto.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind9_fold. econs 4; eauto. split; ss.
+      exists os, ot. eapply pind9_fold. econs 4; eauto. split; ss.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind9_fold. econs 5; auto. split; ss.
+      exists os, ot. eapply pind9_fold. econs 5; auto. split; ss.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind9_fold. econs 6; auto. split; ss.
+      exists os, ot. eapply pind9_fold. econs 6; auto. split; ss.
     }
-    { exists one. eapply pind9_fold. econs 7; eauto. }
+    { exists zero, zero. eapply pind9_fold. econs 7; eauto. }
     { des. destruct LSIM as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind9_fold. econs 8; eauto. esplits; eauto. split; ss.
+      exists os, ot. eapply pind9_fold. econs 8; eauto. esplits; eauto. split; ss.
     }
 
-    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
+    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists os, ot.
       eapply pind9_fold. econs 9; eauto. ss.
     }
 
@@ -1002,24 +760,37 @@ Section GENORDER.
         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
         i. ss. des_ifs. eapply IH in SAT.
         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
-                           genos tid RR ps pt rs (o, src) tgt shr).
+                           exists ot, genos tid RR ps pt rs (o, src) (ot, tgt) shr).
         eauto.
       }
-      intro JOIN. des. exists o1.
+      intro JOIN1. des. exists o1.
+      hexploit ord_tree_join.
+      { instantiate (2:=A R0 R1).
+        instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
+        i. ss. des_ifs. 
+        specialize (JOIN1 (b, b0, c, i0, i, s)). destruct JOIN1; auto. des.
+        instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
+                           genos tid RR ps pt rs (o1, src) (o, tgt) shr).
+        exists ot. eapply genos_ord_weakL; eauto.
+      }
+      intro JOIN2. des. exists o0.
       eapply pind9_fold. econs 10.
       i. specialize (LSIM0 x). destruct LSIM0 as [LSIM IND].
-      specialize (JOIN (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
-      destruct JOIN; auto. des. split; ss.
-      eapply genos_ord_weak; eauto.
+      specialize (JOIN1 (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
+      destruct JOIN1; auto. des.
+      specialize (JOIN2 (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
+      destruct JOIN2; auto. des.
+      split; ss.
+      eapply genos_ord_weakR; eauto.
     }
 
-    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
+    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists os, ot.
       eapply pind9_fold. econs 11; eauto. ss.
     }
-    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
+    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists os, ot.
       eapply pind9_fold. econs 12; eauto. ss.
     }
-    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
+    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists os, ot.
       eapply pind9_fold. econs 13; eauto. ss.
     }
 
@@ -1028,15 +799,28 @@ Section GENORDER.
         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
         i. ss. des_ifs. eapply IH in SAT.
         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
-                           genos tid RR ps pt rs (o, src) tgt shr).
+                           exists ot, genos tid RR ps pt rs (o, src) (ot, tgt) shr).
         eauto.
       }
-      intro JOIN. des. exists o1.
+      intro JOIN1. des. exists o1.
+      hexploit ord_tree_join.
+      { instantiate (2:=A R0 R1).
+        instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
+        i. ss. des_ifs. 
+        specialize (JOIN1 (b, b0, c, i0, i, s)). destruct JOIN1; auto. des.
+        instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
+                           genos tid RR ps pt rs (o1, src) (o, tgt) shr).
+        exists ot. eapply genos_ord_weakL; eauto.
+      }
+      intro JOIN2. des. exists o0.
       eapply pind9_fold. econs 14.
       i. specialize (LSIM0 _ FAIR). destruct LSIM0 as [LSIM IND].
-      specialize (JOIN (ps, true, r_ctx, src, (ktr_tgt ()), (ths, im_src, im_tgt1, st_src, st_tgt, r_shared))).
-      destruct JOIN; auto. des. split; ss.
-      eapply genos_ord_weak; eauto.
+      specialize (JOIN1 (ps, true, r_ctx, src, (ktr_tgt tt), (ths, im_src, im_tgt1, st_src, st_tgt, r_shared))).
+      destruct JOIN1; auto. des.
+      specialize (JOIN2 (ps, true, r_ctx, src, (ktr_tgt tt), (ths, im_src, im_tgt1, st_src, st_tgt, r_shared))).
+      destruct JOIN2; auto. des.
+      split; ss.
+      eapply genos_ord_weakR; eauto.
     }
 
     { hexploit ord_tree_join.
@@ -1044,15 +828,35 @@ Section GENORDER.
         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
         i. ss. des_ifs. eapply IH in SAT.
         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
-                           genos tid RR ps pt rs (o, src) tgt shr).
+                           exists ot, genos tid RR ps pt rs (o, src) (ot, tgt) shr).
         eauto.
       }
-      intro JOIN. des. exists o1.
+      intro JOIN1. des. exists o1.
+      hexploit ord_tree_join.
+      { instantiate (2:=A R0 R1).
+        instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
+        i. ss. des_ifs. 
+        specialize (JOIN1 (b, b0, c, i0, i, s)). destruct JOIN1; auto. des.
+        instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
+                           genos tid RR ps pt rs (o1, src) (o, tgt) shr).
+        exists ot. eapply genos_ord_weakL; eauto.
+      }
+      intro JOIN2. des. exists o0.
       eapply pind9_fold. econs 15.
       i. specialize (LSIM0 ret). destruct LSIM0 as [LSIM IND].
-      specialize (JOIN (true, true, r_ctx, ktr_src ret, ktr_tgt ret, (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
-      destruct JOIN; auto. des. split; ss.
-      eapply genos_ord_weak; eauto.
+      specialize (JOIN1 (true, true, r_ctx, (ktr_src ret), (ktr_tgt ret), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
+      destruct JOIN1; auto. des.
+      specialize (JOIN2 (true, true, r_ctx, (ktr_src ret), (ktr_tgt ret), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
+      destruct JOIN2; auto. des.
+      split; ss.
+      eapply genos_ord_weakR; eauto.
+    }
+
+    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
+      set (fos:= fun _: (A R0 R1) => os). exists (ord_tree_cons fos), ot.
+      eapply pind9_fold. econs 16; eauto. esplits; eauto.
+      split; ss. eauto. ss.
+      replace os with (fos (true, pt, r_ctx, (ktr_src tt), (x <- trigger Yield;; itr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))); ss.
     }
 
     { hexploit ord_tree_join.
@@ -1060,27 +864,40 @@ Section GENORDER.
         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
         i. ss. des_ifs. eapply IH in SAT.
         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
-                           genos tid RR ps pt rs (o, src) tgt shr).
+                           exists ot, genos tid RR ps pt rs (o, src) (ot, tgt) shr).
         eauto.
       }
-      intro JOIN. des. exists o1.
-      eapply pind9_fold. econs 16.
-      1,2: eauto.
+      intro JOIN1. des. exists o1.
+      hexploit ord_tree_join.
+      { instantiate (2:=A R0 R1).
+        instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
+        i. ss. des_ifs. 
+        specialize (JOIN1 (b, b0, c, i0, i, s)). destruct JOIN1; auto. des.
+        instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
+                           genos tid RR ps pt rs (o1, src) (o, tgt) shr).
+        exists ot. eapply genos_ord_weakL; eauto.
+      }
+      intro JOIN2. des. exists o0.
+      eapply pind9_fold. econs 17. 1,2: eauto.
       i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). destruct LSIM0 as [LSIM IND].
-      specialize (JOIN (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt (), (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))).
-      destruct JOIN; auto. des. esplits; eauto. split; ss.
+      specialize (JOIN1 (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt tt, (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))).
+      destruct JOIN1; auto. des.
+      specialize (JOIN2 (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt tt, (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))).
+      destruct JOIN2; auto. des.
+      exists o1, x0. esplits; eauto.
+      split; ss.
     }
 
-    { des. destruct LSIM as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind9_fold. econs 17; eauto. esplits; eauto.
-      split; ss. eauto.
+    { exists zero, zero. eapply pind9_fold. econs 18; eauto.
+      i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. des. do 2 eexists. split; ss. eapply IND.
     }
 
-    { exists one. eapply pind9_fold. econs 18. pclearbot. auto. }
+    { exists zero, zero. eapply pind9_fold. econs 19. pclearbot. auto. }
 
   Qed.
 
 End GENORDER.
-#[export] Hint Constructors _geno: core.
-#[export] Hint Unfold geno: core.
-#[export] Hint Resolve geno_mon: paco.
+#[export] Hint Constructors _genos: core.
+#[export] Hint Unfold genos: core.
+#[export] Hint Resolve genos_mon: paco.
