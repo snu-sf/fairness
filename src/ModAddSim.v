@@ -271,7 +271,25 @@ Section IMAP_OPERATIONS.
     - specialize (FAIR (inr (inr i))). ss.
   Qed.
 
-  Lemma chop_ctx_fair_thread ths ths_usr tid IM_TGT0 IM_TGT1
+  Lemma chop_ctx_fair_thread1 ths ths_ctx ths_usr tid IM_TGT0 IM_TGT1
+    (PARTITION : NatMapP.Partition ths ths_ctx ths_usr)
+    (TID_CTX : NatMap.In tid ths_ctx)
+    (FAIR : fair_update IM_TGT0 IM_TGT1 (sum_fmap_l (tids_fmap tid ths)))
+    : fair_update (chop_ctx ths_usr IM_TGT0) (chop_ctx ths_usr IM_TGT1) (sum_fmap_l (tids_fmap_all ths_usr)).
+  Proof.
+    ii. destruct i as [i|i]; ss.
+    - specialize (FAIR (inl i)). ss. destruct (tids_fmap_all ths_usr i) eqn:E; ss.
+      + unfold tids_fmap_all, tids_fmap in FAIR, E. destruct (NatMapP.F.In_dec ths_usr i); ss.
+        assert (NatMap.In i ths). (* i ∈ ths_usr ⊂ ths *)
+        { eapply Partition_In_right in PARTITION; eauto. }
+        assert (i <> tid). (* ths_ctx ∩ ths_usr = ∅, i ∈ ths_usr, tid ∈ ths_ctx *)
+        { ii. subst. destruct PARTITION. eapply H0. eauto. }
+        des_ifs.
+      + unfold tids_fmap_all, tids_fmap in FAIR, E. des_ifs.
+    - specialize (FAIR (inr (inr i))). ss.
+  Qed.
+
+  Lemma chop_ctx_fair_thread2 ths ths_usr tid IM_TGT0 IM_TGT1
     (LE : KeySetLE ths_usr ths)
     (FAIR : fair_update IM_TGT0 IM_TGT1 (sum_fmap_l (tids_fmap tid ths)))
     : fair_update (chop_ctx ths_usr IM_TGT0) (chop_ctx ths_usr IM_TGT1) (sum_fmap_l (tids_fmap tid ths_usr)).
@@ -381,20 +399,9 @@ Section ADD_RIGHT_CONG.
       assert (INV : I' (ths1, IM_SRC1, IM_TGT1', st_src1, st_tgt1, (global_th ths_ctx1 ths_usr1, r_sha_w1))).
       { ss. exists im_src1, ths_ctx1, ths_usr1. splits; ss.
         - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
-        - eapply shared_rel_wf_lifted.
-          + eauto.
-          + ii. destruct i as [i|i]; ss.
-            * specialize (TGT (inl i)). ss. destruct (tids_fmap_all ths_usr1 i) eqn:E; ss.
-              -- unfold tids_fmap_all, tids_fmap in TGT, E. destruct (NatMapP.F.In_dec ths_usr1 i); ss.
-                 assert (NatMap.In i ths1). (* i ∈ ths_usr ⊂ ths *)
-                 { eapply Partition_In_right in INV1_1; eauto. }
-                 assert (NatMap.In tid ths_ctx1).
-                 { clear - VALID1_0. eapply local_th_context_in_context. eauto. }
-                 assert (i <> tid). (* ths_ctx ∩ ths_usr = ∅, i ∈ ths_usr, tid ∈ ths_ctx *)
-                 { ii. subst. destruct INV1_1. eapply H1. eauto. }
-                 des_ifs.
-              -- unfold tids_fmap_all, tids_fmap in TGT, E. des_ifs.
-            * specialize (TGT (inr (inr i))). ss.
+        - eapply shared_rel_wf_lifted; eauto.
+          eapply chop_ctx_fair_thread1; eauto.
+          eapply local_th_context_in_context; eauto.
       }
       clear - INV VALID1_0 VALID1_1.
       rename
@@ -457,21 +464,9 @@ Section ADD_RIGHT_CONG.
           gfinal. left. eapply CIH; ss.
           { exists im_src1, ths_ctx1, ths_usr1. splits; ss.
             - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
-            - (* TODO : Factorize this part *)
-              eapply shared_rel_wf_lifted.
-              + eauto.
-              + ii. destruct i as [i|i]; ss.
-                * specialize (TGT (inl i)). ss. destruct (tids_fmap_all ths_usr1 i) eqn:E; ss.
-                  -- unfold tids_fmap_all, tids_fmap in TGT, E. destruct (NatMapP.F.In_dec ths_usr1 i); ss.
-                     assert (NatMap.In i ths1). (* i ∈ ths_usr ⊂ ths *)
-                     { eapply Partition_In_right in INV1_1; eauto. }
-                     assert (NatMap.In tid ths_ctx1).
-                     { clear - VALID1_0. eapply local_th_context_in_context. eauto. }
-                     assert (i <> tid). (* ths_ctx ∩ ths_usr = ∅, i ∈ ths_usr, tid ∈ ths_ctx *)
-                     { ii. subst. destruct INV1_1. eapply H1. eauto. }
-                     des_ifs.
-                  -- unfold tids_fmap_all, tids_fmap in TGT, E. des_ifs.
-                * specialize (TGT (inr (inr i))). ss.
+            - eapply shared_rel_wf_lifted; eauto.
+              eapply chop_ctx_fair_thread1; eauto.
+              eapply local_th_context_in_context; eauto.
           }
         * eapply pind9_fold. eapply lsim_tidR. esplit; ss.
           eapply pind9_fold. eapply lsim_tidL. esplit; ss.
@@ -520,7 +515,7 @@ Section ADD_RIGHT_CONG.
       assert (TGT' : @fair_update _ (wf_clos_trans wf_tgt) (chop_ctx inh ths_usr2 IM_TGT2) (chop_ctx inh ths_usr2 IM_TGT2') (sum_fmap_l (tids_fmap tid ths_usr2))).
       { eapply fair_mono with (wft_lt' := lt wf_tgt) (wft_wf' := wf wf_tgt).
         { econs. ss. }
-        destruct wf_tgt. eapply chop_ctx_fair_thread.
+        destruct wf_tgt. eapply chop_ctx_fair_thread2.
         - eapply Partition_In_right in INV2_1. eapply INV2_1.
         - eauto.
       }
@@ -536,7 +531,7 @@ Section ADD_RIGHT_CONG.
         INV into INV0, VALID2_0 into VALID_TH0, VALID2_1 into VALID_W0.
       revert_until tid. ginit. gcofix CIH. i. gstep.
       punfold SIM.
-      match type of SIM with pind9 _ _ _ _ ?RR _ _ _ _ _ ?SHA =>remember RR as RR_MEM; remember SHA as SHA_MEM end.
+      match type of SIM with pind9 _ _ _ _ ?RR _ _ _ _ _ ?SHA => remember RR as RR_MEM; remember SHA as SHA_MEM end.
   Admitted.
 
 End ADD_RIGHT_CONG.
