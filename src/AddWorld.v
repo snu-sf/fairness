@@ -188,20 +188,19 @@ Section THREADS_RA.
 
   Lemma global_th_dealloc_user ths_ctx ths_usr0 r_ctx
         tid ths_usr1
-        (VALID: URA.wf (global_th ths_ctx ths_usr0 ⋅ local_th_context tid ⋅ r_ctx))
+        (VALID: URA.wf (global_th ths_ctx ths_usr0 ⋅ local_th_user tid ⋅ r_ctx))
         (REMOVE: TIdSet.remove tid ths_usr0 = ths_usr1)
     :
     URA.wf (global_th ths_ctx ths_usr1 ⋅ URA.unit ⋅ r_ctx).
   Proof.
     rewrite URA.unit_id. unfold URA.wf, URA.add in *. unseal "ra". destruct r_ctx; ss.
     rewrite ! union_empty in *. unfold union, NatMap.fold in VALID; ss. des_ifs; inv VALID.
-    unfold TIdSet.empty, TIdSet.add in *. solve_andb; solve_disjoint.
-    unfold KeySetLE in LE_CTX. setoid_rewrite NatMapP.F.add_in_iff in LE_CTX.
+    unfold TIdSet.empty, TIdSet.add in *. solve_disjoint.
+    unfold KeySetLE in LE_USR. setoid_rewrite NatMapP.F.add_in_iff in LE_USR.
     econs; ss.
     - ii. des. eapply NatMapP.F.remove_in_iff in H1. firstorder.
-    - unfold KeySetLE in LE_CTX. firstorder.
     - ii. rewrite NatMapP.F.remove_in_iff. split.
-      + ii. subst. eapply DISJOINT. firstorder.
+      + ii. subst. tauto.
       + firstorder.
   Qed.
 

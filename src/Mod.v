@@ -147,19 +147,19 @@ Section ADD.
   Import Mod.
   Variable M1 M2 : Mod.t.
 
-  Definition embed_l (fn_body : ktree ((eventE +' cE) +' sE _) (list Val) Val) args :=
+  Definition embed_l {R} (itr : itree ((eventE +' cE) +' sE _) R) :=
     map_event (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident))))
-      (embed_state (@fst M1.(state) M2.(state)) update_fst (fn_body args)).
+      (embed_state (@fst M1.(state) M2.(state)) update_fst itr).
 
-  Definition embed_r (fn_body : ktree ((eventE +' cE) +' sE _) (list Val) Val) args :=
+  Definition embed_r {R} (itr : itree ((eventE +' cE) +' sE _) R) :=
     map_event (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident))))
-      (embed_state (@snd M1.(state) M2.(state)) update_snd (fn_body args)).
+      (embed_state (@snd M1.(state) M2.(state)) update_snd itr).
 
   Definition add_funs : fname -> option (ktree _ (list Val) Val) :=
     fun fn =>
       match M1.(funs) fn, M2.(funs) fn with
-      | Some fn_body, None => Some (embed_l fn_body)
-      | None, Some fn_body => Some (embed_r fn_body)
+      | Some fn_body, None => Some (fun args => embed_l (fn_body args))
+      | None, Some fn_body => Some (fun args => embed_r (fn_body args))
       | Some _, Some _ => Some (fun args => Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
       | None , None => None
       end.
