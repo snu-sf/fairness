@@ -1642,11 +1642,101 @@ Section NMWF.
       :
       nm_lt R nm0 nm1.
 
+  Lemma cardinal_remove A k (m: NatMap.t A)
+        (IN: NatMap.In k m)
+    :
+    S (cardinal (remove k m)) = cardinal m.
+  Proof.
+    eapply F.in_find_iff in IN.
+    destruct (find k m) eqn:EQ; ss.
+    symmetry. eapply cardinal_2.
+    { eapply remove_1; eauto. }
+    instantiate (1:=a). unfold Add.
+    i. rewrite F.add_o. rewrite F.remove_o. des_ifs.
+  Qed.
+
+  Lemma nm_lt_same_cardinal A (R: A -> A -> Prop) m0 m1
+        (LT: nm_lt R m0 m1)
+    :
+    cardinal m0 = cardinal m1.
+  Proof.
+    inv LT.
+    transitivity (S (cardinal (remove k m0))).
+    { symmetry. eapply cardinal_remove.
+      eapply F.in_find_iff. rewrite FIND1. ss. }
+    { transitivity (S (cardinal (remove k m1))).
+      { f_equal. eapply Equal_cardinal. ii.
+        rewrite F.remove_o. rewrite F.remove_o.
+        des_ifs. eauto.
+      }
+      eapply cardinal_remove.
+      eapply F.in_find_iff. rewrite FIND2. ss. }
+  Qed.
+
+  Lemma nm_lt_inv A (R: A -> A-> Prop)
+        m k a
+        (FIND: NatMap.find k m = Some a)
+    :
+    forall m' (LT: nm_lt R m' m),
+      (exists a',
+          (<<FIND: NatMap.find k m' = Some a'>>) /\
+            (<<REMOVE: NatMap.remove k m = NatMap.remove k m'>>) /\
+            (<<REL: R a' a>>)) \/
+        ((<<FIND: NatMap.find k m' = Some a>>) /\
+           (<<REL: nm_lt R (NatMap.remove k m') (NatMap.remove k m)>>)).
+  Proof.
+    i. inv LT.
+    destruct (PeanoNat.Nat.eq_dec k k0).
+    { clarify. left. esplits; eauto.
+      eapply nm_eq_is_equal. ii.
+      rewrite F.remove_o. rewrite F.remove_o.
+      des_ifs. symmetry. eapply EQ; eauto.
+    }
+    { subst. right. splits; auto.
+      { rewrite EQ; eauto. }
+      { econs.
+        { rewrite nm_find_rm_neq; eauto. }
+        { rewrite nm_find_rm_neq; eauto. }
+        { eauto. }
+        { i. rewrite F.remove_o. rewrite F.remove_o.
+          des_ifs. eapply EQ; eauto.
+        }
+      }
+    }
+  Qed.
+
   Lemma nm_lt_well_founded A (R: A -> A -> Prop)
         (WF: well_founded R)
     :
     well_founded (nm_lt R).
   Proof.
-  Abort.
-
+    cut (forall n m (CARDINAL: cardinal m = n), Acc (nm_lt R) m).
+    { ii. eapply H; eauto. }
+    induction n.
+    { ii. econs. i. inv H.
+      eapply cardinal_inv_1 in CARDINAL.
+      eapply nm_empty_equal in CARDINAL.
+      rewrite CARDINAL in FIND2. rewrite F.empty_o in FIND2. ss.
+    }
+    i.
+    assert (FIND: exists k a, NatMap.find k m = Some a).
+    { destruct (cardinal_inv_2 CARDINAL) as [[k a] p]. ss.
+      exists k, a. eapply find_1. eauto.
+    }
+    des. revert m CARDINAL FIND.
+    pattern a. revert a.
+    eapply (well_founded_induction WF). intros a IHL.
+    i. hexploit (IHn (NatMap.remove k m)).
+    { erewrite <- cardinal_remove in CARDINAL; eauto.
+      eapply F.in_find_iff. ii. clarify.
+    }
+    intros ACC. remember (NatMap.remove k m) as m0 eqn:REMOVE.
+    revert m REMOVE CARDINAL FIND.
+    pattern m0. revert m0 ACC.
+    eapply Acc_ind. intros m0 _ IHR.
+    i. subst. econs. i.
+    hexploit nm_lt_inv; eauto. i. des.
+    { eapply IHL; eauto. eapply nm_lt_same_cardinal in H. rewrite H. auto. }
+    { eapply IHR; eauto. eapply nm_lt_same_cardinal in H. rewrite H. auto. }
+  Qed.
 End NMWF.
