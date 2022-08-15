@@ -34,13 +34,13 @@ Section TRANS_CLOS.
 
   Let wf_tgt' := {| wf := clos_trans_well_founded wf_tgt.(wf) |}.
 
-  Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> Prop.
-  Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> Prop.
+  Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> M -> Prop.
+  Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> M -> Prop.
   Variable I: shared_rel.
   Let I' : shared_rel' :=
-        fun '(ths, im_src, im_tgt, st_src, st_tgt, w) =>
+        fun '(ths, im_src, im_tgt, st_src, st_tgt) w =>
           exists im_tgt'0, << INV_LE : (forall i, le wf_tgt' (im_tgt i) (im_tgt'0 i)) >>
-                    /\ << INV : I (ths, im_src, im_tgt'0, st_src, st_tgt, w) >>.
+                    /\ << INV : I (ths, im_src, im_tgt'0, st_src, st_tgt) w >>.
 
   Lemma fair_break {Id im_tgt im_tgt' im_tgt'' fm}
     (LE : (forall i, le wf_tgt' (im_tgt' i) (im_tgt i)))
@@ -82,17 +82,17 @@ Section TRANS_CLOS.
     specialize (SIM ths0 im_src0 im_tgt'0 st_src0 st_tgt0 r_shared0 r_ctx0 INV0 tid ths1 THS VALID).
     des. exists r_shared1, r_own. splits; ss. { exists im_tgt'0. ss. }
     i. des. pose proof (fair_break INV1 TGT). des. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 im_tgt'1 st_src st_tgt r_shared2 r_ctx2 INV2 VALID1 im_tgt'2 FAIR fs ft).
+    specialize (SIM1 ths im_src1 im_tgt'1 st_src st_tgt2 r_ctx2 r_shared2 INV2 VALID1 im_tgt'2 FAIR fs ft).
     rename SIM1 into LSIM. clear - inh LSIM LE. revert_until I'. ginit. gcofix CIH. i. gstep.
     remember (local_RR I RR tid) as RR'.
-    remember (ths, im_src1, im_tgt'2, st_src, st_tgt, r_shared2) as sha.
-    revert ths im_src1 im_tgt2 im_tgt'2 st_src st_tgt r_shared2 LE Heqsha RR HeqRR'.
+    remember (ths, im_src1, im_tgt'2, st_src, st_tgt2) as sha.
+    revert ths im_src1 im_tgt2 im_tgt'2 st_src st_tgt2 LE Heqsha RR HeqRR'.
     unfold lsim in LSIM. punfold LSIM.
     pattern R0, R1, RR', fs, ft, r_ctx2, src, tgt, sha.
     revert R0 R1 RR' fs ft r_ctx2 src tgt sha LSIM.
     eapply pind9_acc. intros rr DEC IH R0 R1 RR' fs ft r_ctx src tgt sha. i. clear DEC. subst.
     eapply pind9_unfold in PR; eauto with paco. eapply pind9_fold. inv PR.
-    - econs. ss. des. exists ths3, r_own, r_shared0. splits; ss. exists im_tgt'2. split; ss.
+    - econs. ss. des. exists ths3, r_own, r_shared. splits; ss. exists im_tgt'2. split; ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
@@ -142,8 +142,8 @@ Section WFT_MONO.
   Let wf_tgt  := {| wf := wft_wf |}.
   Let wf_tgt' := {| wf := wft_wf' |}.
 
-  Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> Prop.
-  Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> Prop.
+  Let shared_rel: Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt -> M -> Prop.
+  Let shared_rel': Type := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt' -> M -> Prop.
   Variable I: shared_rel.
   Let I' : shared_rel' := I.
 
@@ -161,11 +161,11 @@ Section WFT_MONO.
     ii. ss. move SIM at bottom.
     specialize (SIM ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID).
     des. exists r_shared1, r_own. splits; ss. i. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2 INV1 VALID1 im_tgt2 (fair_mono TGT) fs ft).
+    specialize (SIM1 ths im_src1 im_tgt1 st_src st_tgt2 r_ctx2 r_shared2 INV1 VALID1 im_tgt2 (fair_mono TGT) fs ft).
     rename SIM1 into LSIM. clear - LSIM wft_LE. revert_until I'. ginit. gcofix CIH. i. gstep.
     remember (local_RR I RR tid) as RR'.
     match goal with [ LSIM : lsim _ _ _ _ _ _ _ _ ?SHA |- _ ] => remember SHA as sha end.
-    revert ths im_src1 im_tgt2 st_src st_tgt r_shared2 Heqsha RR HeqRR'.
+    revert ths im_src1 im_tgt2 st_src st_tgt2 Heqsha RR HeqRR'.
     unfold lsim in LSIM. punfold LSIM.
     pattern R0, R1, RR', fs, ft, r_ctx2, src, tgt, sha.
     revert R0 R1 RR' fs ft r_ctx2 src tgt sha LSIM.
@@ -210,9 +210,9 @@ Module ModSimN.
 
           world: URA.t;
 
-          I: (@shared world md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src nat_wf) -> Prop;
+          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src nat_wf) -> world -> Prop;
           init: forall im_tgt, exists im_src r_shared,
-            I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), r_shared)
+            I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared
             /\ (URA.wf r_shared);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
@@ -266,13 +266,13 @@ Section NAT.
 
   Variable wf_src: WF.
 
-  Let shared_rel: Type := @shared M state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt  -> Prop.
-  Let shared_rel_nat: Type := @shared M state_src state_tgt _ident_src _ident_tgt wf_src succ_wf -> Prop.
+  Let shared_rel: Type := @shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt  -> M -> Prop.
+  Let shared_rel_nat: Type := @shared state_src state_tgt _ident_src _ident_tgt wf_src succ_wf -> M -> Prop.
   Variable I: shared_rel.
 
-  Definition to_shared_rel_nat : shared_rel_nat := 
-    fun '(ths, m_src, m_tgt, st_src, st_tgt, w) =>
-      I (ths, m_src, wfemb ∘ m_tgt, st_src, st_tgt, w).
+  Definition to_shared_rel_nat : shared_rel_nat :=
+    fun '(ths, m_src, m_tgt, st_src, st_tgt) w =>
+      I (ths, m_src, wfemb ∘ m_tgt, st_src, st_tgt) w.
 
   Variable R0 R1 : Type.
   Variable RR : R0 -> R1 -> Prop.
@@ -283,12 +283,12 @@ Section NAT.
     ii. move SIM at bottom.
     specialize (SIM ths0 im_src0 (wfemb ∘ im_tgt0) st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID).
     des. exists r_shared1, r_own. splits; ss. i. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 (wfemb ∘ im_tgt1) st_src st_tgt r_shared2 r_ctx2 INV1 VALID1 (wfemb ∘ im_tgt2)
+    specialize (SIM1 ths im_src1 (wfemb ∘ im_tgt1) st_src st_tgt2 r_ctx2 r_shared2 INV1 VALID1 (wfemb ∘ im_tgt2)
                   ltac:(eapply wfemb_mono; ss) fs ft).
     rename SIM1 into LSIM. clear - LSIM wf_tgt_inhabited wf_tgt_open. revert_until I. ginit. gcofix CIH. i. gstep.
     remember (local_RR I RR tid) as RR' in LSIM.
     match goal with [ LSIM : lsim _ _ _ _ _ _ _ _ ?SHA |- _ ] => remember SHA as sha end.
-    revert ths im_src1 im_tgt2 st_src st_tgt r_shared2 RR Heqsha HeqRR'.
+    revert ths im_src1 im_tgt2 st_src st_tgt2 RR Heqsha HeqRR'.
     unfold lsim in LSIM. punfold LSIM.
     pattern R0, R1, RR', fs, ft, r_ctx2, src, tgt, sha.
     revert R0 R1 RR' fs ft r_ctx2 src tgt sha LSIM.
@@ -333,10 +333,10 @@ Section MODSIMNAT.
     destruct SIM.
     pose (wfemb wf_tgt wf_tgt_inhabited) as wf_emb.
     pose (I' := to_shared_rel_nat wf_tgt_inhabited I).
-    pose (fun '(ths, im_src0, im_tgt0, st_src, st_tgt, w) =>
+    pose (fun '(ths, im_src0, im_tgt0, st_src, st_tgt) w =>
             exists im_tgt'0,
               << LE : forall i, le succ_wf' (im_tgt0 i) (im_tgt'0 i) >>
-            /\ << INV : I' (ths, im_src0, im_tgt'0, st_src, st_tgt, w) >>
+            /\ << INV : I' (ths, im_src0, im_tgt'0, st_src, st_tgt) w >>
          ) as I''.
     constructor 1 with wf_src world I''.
     { i. specialize (init (wf_emb ∘ im_tgt)). des. esplits; eauto. ss. esplits; [reflexivity|eauto]. }
