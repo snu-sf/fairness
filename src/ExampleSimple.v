@@ -58,8 +58,8 @@ Section SIM.
   Context `{M: URA.t}.
 
   Let I:
-    shared unit (bool * bool) void void nat_wf nat_wf -> Prop :=
-        fun '(ths, im_src, im_tgt, st_src, st_tgt, w) => True.
+    shared unit (bool * bool) void void nat_wf nat_wf -> M -> Prop :=
+        fun '(ths, im_src, im_tgt, st_src, st_tgt) w => True.
 
   Lemma sim: ModSim.mod_sim example_mod_spec example_mod.
   Proof.
