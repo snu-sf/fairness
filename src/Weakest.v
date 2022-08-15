@@ -19,7 +19,6 @@ Section SIM.
   Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
 
-  Let shared_rel' := TIdSet.t -> (@imap ident_src wf_src) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> @URA.car Σ -> Prop.
   Let shared_rel := TIdSet.t -> (@imap ident_src wf_src) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
 
   Let lift (R: shared_rel): (TIdSet.t *
@@ -43,10 +42,21 @@ Section SIM.
 
   Variable I: shared_rel.
 
-  Definition isim (tid: thread_id) (R_src R_tgt: Type)
-             (RR: R_src -> R_tgt -> shared_rel):
-    itree srcE R_src -> itree tgtE R_tgt -> shared_rel' :=
-    fun itr_src itr_tgt ths im_src im_tgt st_src st_tgt r =>
-      forall r_ctx (WF: URA.wf (r ⋅ r_ctx)),
-        lsim (lift I) tid (liftRR RR) false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt).
+  Program Definition isim (tid: thread_id) (R_src R_tgt: Type)
+          (RR: R_src -> R_tgt -> shared_rel):
+    itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    fun itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+      iProp_intro
+        (fun r =>
+           forall r_ctx (WF: URA.wf (r ⋅ r_ctx)),
+             lsim (lift I) tid (liftRR RR) false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _.
+  Next Obligation.
+  Proof.
+    ii. ss. eapply H.
+    eapply URA.wf_extends; eauto. eapply URA.extends_add; eauto.
+  Qed.
+
+  Lemma isim
+
+
 End SIM.
