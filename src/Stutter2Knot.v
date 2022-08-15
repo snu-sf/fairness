@@ -10,10 +10,10 @@ Require Import Permutation.
 Export ITreeNotations.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
+From Fairness Require Export ITreeLib FairBeh FairSim WFLib NatStructs.
 From Fairness Require Import pind PCM World.
-From Fairness Require Export Mod ModSimGStutter Concurrency.
-From Fairness Require Import KnotSim LocalAdequacyAux.
+From Fairness Require Export Mod Concurrency.
+From Fairness Require Import ModSimStutter KnotSim LocalAdequacyAux.
 
 Set Implicit Arguments.
 
@@ -37,10 +37,10 @@ Section PROOF.
   Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Variable wf_stt: WF.
+  Variable wf_stt: Type -> Type -> WF.
 
-  Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt wf_stt.
-  Let kshared := kshared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt wf_stt.
+  Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
+  Let kshared := kshared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
 
   Notation threads_src1 R0 := (threads _ident_src (sE state_src) R0).
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
@@ -62,27 +62,30 @@ Section PROOF.
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
-        (LSIM: forall im_tgt, exists im_src o r_shared rs_ctx,
+        (LSIM: forall im_tgt, exists im_src r_shared (os: (nm_wf (wf_stt R0 R1)).(T)) rs_ctx o,
             (<<RSWF: Th.find tid rs_ctx = None>>) /\
+              (<<OSWF: Th.find tid os = Some o>>) /\
               (<<LSIM:
                 forall im_tgt0
                   (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
                 exists im_src0,
                   (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
-                    (lsim I (local_RR I RR tid) tid gps gpt (sum_of_resources rs_ctx) src tgt
-                          (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt),
-                            im_src0, im_tgt0, st_src, st_tgt, o, r_shared))>>) /\
-              (<<LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1) r_own
+                    (lsim (wf_stt) I tid (local_RR I RR tid)
+                          gps gpt (sum_of_resources rs_ctx) (o, src) tgt
+                          (NatSet.add tid (key_set ths_src),
+                            im_src0, im_tgt0, st_src, st_tgt, r_shared))>>) /\
+              (<<LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1) o r_own
                           (OWN: r_own = fst (get_resource tid rs_ctx))
+                          (ORD: Th.find tid os = Some o)
                           (LSRC: Th.find tid ths_src = Some (sf, src))
                           (LTGT: Th.find tid ths_tgt = Some tgt),
-                  ((sf = true) -> (local_sim_sync I RR src tgt tid r_own)) /\
-                    ((sf = false) -> (local_sim_pick I RR src tgt tid r_own))>>))
+                  ((sf = true) -> (local_sim_sync wf_stt I RR src tgt tid o r_own)) /\
+                    ((sf = false) -> (local_sim_pick wf_stt I RR src tgt tid o r_own))>>))
     :
-    forall im_tgt, exists im_src o r_shared rs_ctx,
-      (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (wf_stt:=wf_stt)
+    forall im_tgt, exists im_src r_shared os rs_ctx,
+      (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (nm_wf (wf_stt R0 R1))
                 RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
-                (im_src, im_tgt, st_src, st_tgt, o, r_shared)).
+                (im_src, im_tgt, st_src, st_tgt, r_shared) os).
   Proof.
     ii. remember (fun i => match sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))) i with
                         | Flag.fail => St (im_tgt i)
@@ -95,19 +98,19 @@ Section PROOF.
     specialize (LSIM im_tgt FAIR). des. clear LSIM Heqim_tgt1 FAIR im_tgt1.
     clear im_src; rename im_src0 into im_src.
     move LOCAL before RR. rename LSIM0 into LSIM.
-    exists im_src, o, r_shared, rs_ctx.
+    exists im_src, r_shared, os, rs_ctx.
 
     revert_until RR. pcofix CIH. i.
     match goal with
-    | LSIM: lsim _ ?_LRR tid _ _ ?_rs _ _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr; remember _rs as rs
+    | LSIM: lsim _ _ _ ?_LRR _ _ ?_rs ?_osrc _ ?_shr |- _ => remember _LRR as LRR; remember _shr as shr; remember _rs as rs; remember _osrc as osrc
     end.
     match goal with
-    | |- paco9 _ _ _ _ tid _ _ _ _ _ ?_kshr => replace _kshr with (to_kshared shr); [|unfold to_kshared; des_ifs]
+    | |- paco10 _ _ _ _ tid _ _ _ _ _ ?_kshr _ => replace _kshr with (to_kshared shr); [|unfold to_kshared; des_ifs]
     end.
     move LSIM before LOCAL. revert_until LSIM. punfold LSIM.
-    pattern gps, gpt, rs, src, tgt, shr.
-    revert gps gpt rs src tgt shr LSIM.
-    eapply pind6_acc.
+    pattern gps, gpt, rs, osrc, tgt, shr.
+    revert gps gpt rs osrc tgt shr LSIM.
+    apply pind9_acc.
     intros rr DEC IH gps gpt rs src tgt shr LSIM. clear DEC.
     intros THSRC THTGT WF sf st_src st_tgt o r_shared RSWF im_tgt im_src ELRR Eshr Ers.
     assert (LBASE: lsim I LRR tid gps gpt rs src tgt shr).

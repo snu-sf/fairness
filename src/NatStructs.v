@@ -1739,4 +1739,7 @@ Section NMWF.
     { eapply IHL; eauto. eapply nm_lt_same_cardinal in H. rewrite H. auto. }
     { eapply IHR; eauto. eapply nm_lt_same_cardinal in H. rewrite H. auto. }
   Qed.
+
+  Definition nm_wf (A: WF): WF := mk_wf (nm_lt_well_founded A.(wf)).
+
 End NMWF.
