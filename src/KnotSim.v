@@ -33,7 +33,7 @@ Section KSIM.
   Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Variable wf_stt: WF.
+  Variable wf_stt: Type -> Type -> WF.
 
   Definition kshared :=
     ((@imap ident_src wf_src) *
@@ -52,11 +52,11 @@ Section KSIM.
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
   Variant __sim_knot R0 R1 (RR: R0 -> R1 -> Prop)
-          (sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id -> local_resources -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> kshared -> wf_stt.(T) -> Prop)
-          (_sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id -> local_resources -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> kshared -> wf_stt.(T) -> Prop)
+          (sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id -> local_resources -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> kshared -> (wf_stt R0 R1).(T) -> Prop)
+          (_sim_knot: threads_src2 R0 -> threads_tgt R1 -> thread_id -> local_resources -> bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> kshared -> (wf_stt R0 R1).(T) -> Prop)
           (thsl: threads_src2 R0) (thsr: threads_tgt R1)
     :
-    thread_id -> local_resources -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> kshared -> wf_stt.(T) -> Prop :=
+    thread_id -> local_resources -> bool -> bool -> (prod bool (itree srcE R0)) -> itree tgtE R1 -> kshared -> (wf_stt R0 R1).(T) -> Prop :=
     | ksim_ret_term
         tid f_src f_tgt
         sf r_src r_tgt
@@ -80,7 +80,7 @@ Section KSIM.
         rs_local0 r_own r_shared0
         (UPDRS: rs_local0 = NatMap.add tid r_own rs_local)
         (WF: resources_wf r_shared0 rs_local0)
-        (STUTTER: wf_stt.(lt) o0 o)
+        (STUTTER: (wf_stt R0 R1).(lt) o0 o)
         (RET: RR r_src r_tgt)
         (NNILS: Th.is_empty thsl = false)
         (NNILT: Th.is_empty thsr = false)
@@ -133,7 +133,7 @@ Section KSIM.
                     (nm_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
                     ((b = true) ->
                      (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
-                       exists o0, (wf_stt.(lt) o0 o) /\
+                       exists o0, ((wf_stt R0 R1).(lt) o0 o) /\
                                (sim_knot thsl1 thsr1 tid0
                                          (snd (get_resource tid0 rs_local0))
                                          true true
@@ -144,7 +144,7 @@ Section KSIM.
                      (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
                        exists im_src0 o0,
                          (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl1)))) /\
-                           (wf_stt.(lt) o0 o) /\
+                           ((wf_stt R0 R1).(lt) o0 o) /\
                            (sim_knot thsl1 thsr1 tid0
                                      (snd (get_resource tid0 rs_local0))
                                      true true
@@ -390,7 +390,7 @@ Section KSIM.
 
   Definition sim_knot R0 R1 (RR: R0 -> R1 -> Prop):
     threads_src2 R0 -> threads_tgt R1 -> thread_id -> local_resources ->
-    bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> kshared -> wf_stt.(T) -> Prop :=
+    bool -> bool -> (prod bool (itree srcE R0)) -> (itree tgtE R1) -> kshared -> (wf_stt R0 R1).(T) -> Prop :=
     paco10 (fun r => pind10 (__sim_knot RR r) top10) bot10.
 
   Lemma __ksim_mon R0 R1 (RR: R0 -> R1 -> Prop):

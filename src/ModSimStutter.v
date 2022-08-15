@@ -166,14 +166,14 @@ Section PRIMIVIESIM.
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      o1
+      (STUTTER: (wf_stt R_src R_tgt).(lt) o1 o0)
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-        exists o1,
-            (<<LSIM: lsim true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>) /\
-              (<<STUTTER: (wf_stt R_src R_tgt).(lt) o1 o0>>))
+          (<<LSIM: lsim true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
     :
     __lsim tid RR lsim _lsim f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
   | lsim_yieldL
@@ -204,7 +204,7 @@ Section PRIMIVIESIM.
     forall r r' (LE: r <6= r'), (__lsim tid RR r) <7= (__lsim tid RR r').
   Proof.
     ii. inv PR; try (econs; eauto; fail).
-    eapply lsim_yieldR; eauto. i. hexploit LSIM; eauto. i. des. esplits; eauto.
+    eapply lsim_yieldR; eauto. i. hexploit LSIM; eauto.
   Qed.
 
   Lemma _lsim_mon tid R0 R1 (RR: R0 -> R1 -> _ -> _): forall r, monotone6 (__lsim tid RR r).
@@ -348,14 +348,14 @@ Section PRIMIVIESIM.
         ktr_src ktr_tgt
         (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
         (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+        o1
+        (STUTTER: (wf_stt R_src R_tgt).(lt) o1 o0)
         (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                  (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
                  (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                  im_tgt2
                  (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          exists o1,
-            (<<LSIM: r true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>) /\
-              (<<STUTTER: (wf_stt R_src R_tgt).(lt) o1 o0>>))
+            (<<LSIM: r true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
       :
       lsim_indC tid RR r f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
     | lsim_indC_yieldL
@@ -383,7 +383,7 @@ Section PRIMIVIESIM.
     { des; econs; eauto. }
     { des; econs; eauto. }
     { econs. i. specialize (LSIM _ FAIR). eauto. }
-    { econs; eauto. i. hexploit LSIM; eauto. i; des; eauto. }
+    { econs; eauto. i. hexploit LSIM; eauto. }
     { des; econs; eauto. esplits; eauto. }
   Qed.
 

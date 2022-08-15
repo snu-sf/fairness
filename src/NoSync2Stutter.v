@@ -173,14 +173,14 @@ Section GENORDER.
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      o1
+      (STUTTER: wf_stt.(lt) o1 o0)
       (GENO: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-        exists o1,
-          (<<GENO: geno f_src true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>) /\
-            (<<STUTTER: wf_stt.(lt) o1 o0>>))
+          (<<GENO: geno f_src true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
     :
     _geno tid RR geno f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
 
@@ -289,7 +289,7 @@ Section GENORDER.
 
     { eapply pind6_fold. econs 16; eauto.
       i. specialize (GENO0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des. esplits; eauto.
-      destruct GENO as [GENO IND]. eapply IH in IND; eauto. split; ss.
+      destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
 
     { eapply pind6_fold. econs 17; eauto.
@@ -410,12 +410,16 @@ Section GENORDER.
                            geno tid RR ps pt rs (o, src) tgt shr).
         eauto.
       }
-      intro JOIN. des. exists o1.
+      intro JOIN. des.
+      set (fo1:= fun _: A R0 R1 => o1). exists (ord_tree_cons fo1).
+      (* exists o1. *)
       eapply pind6_fold. econs 16.
       1,2: eauto.
+      { instantiate (1:=fo1 (ps, pt, r_ctx, (x <- trigger Yield;; ktr_src x), (x <- trigger Yield;; ktr_tgt x), (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0))). ss.
+      }
       i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). destruct LSIM0 as [LSIM IND].
       specialize (JOIN (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt (), (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))).
-      destruct JOIN; auto. des. esplits; eauto. split; ss.
+      destruct JOIN; auto. des. subst fo1. ss. split; ss. eapply geno_ord_weak; eauto.
     }
 
     { des. destruct LSIM as [LSIM IND]. eapply IH in IND. des. exists o.
@@ -578,11 +582,12 @@ Section PROOF.
       - right. ss. do 2 econs.
     }
 
-    { guclo lsim_indC_spec. econs 16; eauto. i.
-      specialize (GENO _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
-      destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      esplits.
-      guclo lsim_resetC_spec. econs; eauto.
+    { guclo lsim_indC_spec. econs 16; eauto.
+      2:{ i. specialize (GENO _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
+          destruct GENO as [GENO IND]. eapply IH in IND; eauto.
+          esplits.
+          guclo lsim_resetC_spec. econs; eauto.
+      }
       unfold mk_o; ss. rewrite !bind_trigger. ss.
       des_ifs.
       - do 2 econs. auto.
