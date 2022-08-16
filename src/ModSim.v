@@ -481,7 +481,7 @@ Section PRIMIVIESIM.
     exists r_shared1 r_own,
       (<<INV: I (ths1, im_src0, im_tgt0, st_src0, st_tgt0) r_shared1>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
-        (forall ths im_src1 im_tgt1 st_src st_tgt2 r_ctx2 r_shared2
+        (forall ths im_src1 im_tgt1 st_src st_tgt2 r_shared2 r_ctx2
                 (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt2) r_shared2)
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
           forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
@@ -494,16 +494,6 @@ Section PRIMIVIESIM.
                   src tgt
                   (ths, im_src1, im_tgt2, st_src, st_tgt2)
                   >>)).
-
-  Definition shared_rel_wf: Prop :=
-    forall ths im_src0 im_tgt0 st_src st_tgt0 r_ctx r_shared0
-           (INV: I (ths, im_src0, im_tgt0, st_src, st_tgt0) r_shared0)
-           (VALID: URA.wf (r_shared0 ⋅ r_ctx)),
-    forall im_tgt1
-           (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap_all ths))),
-    exists r_shared1,
-      (<<INV: I (ths, im_src0, im_tgt1, st_src, st_tgt0) r_shared1>>) /\
-        (<<VALID: URA.wf (r_shared1 ⋅ r_ctx)>>).
 
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
@@ -535,9 +525,9 @@ Module ModSim.
               (URA.wf r_shared);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                           | None, _ => True
-                           | _, None => False
                            | Some ktr_src, Some ktr_tgt => local_sim I (@eq Val) (ktr_src args) (ktr_tgt args)
+                           | None        , None         => True
+                           | _           , _            => False
                            end;
         }.
   End MODSIM.

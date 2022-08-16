@@ -59,8 +59,117 @@ Section NATMAP.
     end.
 
 
+  Definition KeySetLE {elt} (x y : NatMap.t elt) : Prop := forall k, NatMap.In k x -> NatMap.In k y.
+
+  (* prefers x over y *)
+  Definition union {elt} (x y : NatMap.t elt) : NatMap.t elt := NatMap.fold (@NatMap.add elt) x y.
+
+  Definition disjoint {elt} (x y : NatMap.t elt) : bool := NatMap.is_empty (NatMapP.restrict x y).
+
   Import FMapFacts.
   Import NatMap.
+
+  Lemma Disjoint_empty elt (x : NatMap.t elt) : NatMapP.Disjoint x (NatMap.empty elt).
+  Proof. ii. des. inv H0. inv H1. Qed.
+
+  Lemma KeySetLE_empty elt (x : NatMap.t elt) : KeySetLE (NatMap.empty elt) x.
+  Proof. ii. inv H. inv H0. Qed.
+
+  Lemma union_assoc elt (x y z : NatMap.t elt) : union (union x y) z = union x (union y z).
+  Admitted.
+
+  Lemma union_KeySetLE elt (x y : NatMap.t elt) : KeySetLE x (union x y).
+  Admitted.
+
+  Lemma inv_add_new elt k e (m1 m2 : NatMap.t elt) : nm_add_new k e m1 m2 <-> ~ NatMap.In k m1 /\ m2 = NatMap.add k e m1.
+  Proof.
+    split.
+    - i. destruct H. eapply NatMapP.F.not_find_in_iff in NEW. eauto.
+    - i. des. econs; ss. eapply NatMapP.F.not_find_in_iff. ss.
+  Qed.
+
+  Lemma union_empty elt (x : NatMap.t elt) : union (NatMap.empty elt) x = x.
+  Proof. ss. Qed.
+
+  Lemma is_empty_false elt (m : NatMap.t elt) : NatMap.is_empty m = false <-> exists k, NatMap.In k m.
+  Proof.
+    split.
+    - i. unfold NatMap.is_empty, NatMap.Raw.is_empty in H.
+      destruct m as [[] SORTED]; ss. destruct p as [k x].
+      exists k. exists x. ss. econs; ss.
+    - i. destruct m as [[] SORTED]; ss. des. inv H. inv H0.
+  Qed.
+
+  Lemma Empty_iff_not_In elt (x : NatMap.t elt) : NatMap.Empty x <-> ~ exists k, NatMap.In k x.
+  Proof.
+    split.
+    - ii. destruct H0 as [k [e H0]]. specialize (H k e). ss.
+    - ii. eapply H. exists a, e. ss.
+  Qed.
+
+  Lemma disjoint_false_iff' elt (x y : NatMap.t elt) : disjoint x y = false <-> exists k, NatMap.In k x /\ NatMap.In k y.
+  Proof.
+    unfold disjoint. split.
+    - i. eapply is_empty_false in H. des. eapply NatMapP.restrict_in_iff in H. eauto.
+    - i. eapply is_empty_false. des. exists k. eapply NatMapP.restrict_in_iff. eauto.
+  Qed.
+
+  Lemma disjoint_true_iff elt (x y : NatMap.t elt) : disjoint x y = true <-> NatMapP.Disjoint x y.
+  Proof.
+    pose proof (disjoint_false_iff' x y). rewrite <- Bool.not_false_iff_true. firstorder.
+  Qed.
+
+  Lemma disjoint_false_iff elt (x y : NatMap.t elt) : disjoint x y = false <-> ~ NatMapP.Disjoint x y.
+  Proof.
+    pose proof (disjoint_true_iff x y). rewrite <- Bool.not_true_iff_false. tauto.
+  Qed.
+
+  Lemma disjoint_comm elt (x y : NatMap.t elt) : disjoint x y = disjoint y x.
+  Proof.
+    destruct (disjoint x y) eqn: H1, (disjoint y x) eqn: H2; ss.
+    - apply disjoint_true_iff in H1. apply disjoint_false_iff in H2. eapply NatMapP.Disjoint_sym in H1. tauto.
+    - apply disjoint_false_iff in H1. apply disjoint_true_iff in H2. eapply NatMapP.Disjoint_sym in H2. tauto.
+  Qed.
+
+  Lemma union_in_iff elt k (x y : NatMap.t elt) : NatMap.In k (union x y) <-> NatMap.In k x \/ NatMap.In k y.
+  Admitted.
+
+  Lemma Disjoint_add elt k e (x y : NatMap.t elt)
+    : NatMapP.Disjoint x (NatMap.add k e y) <-> ~ NatMap.In k x /\ NatMapP.Disjoint x y.
+  Proof.
+    unfold NatMapP.Disjoint. setoid_rewrite NatMapP.F.add_in_iff. split.
+    - firstorder.
+    - ii. des; subst; firstorder.
+  Qed.
+
+  Lemma Disjoint_remove elt k (x y : NatMap.t elt) :
+    NatMapP.Disjoint x y ->
+    NatMapP.Disjoint x (NatMap.remove k y).
+  Proof.
+    unfold NatMapP.Disjoint. setoid_rewrite NatMapP.F.remove_in_iff. firstorder.
+  Qed.
+
+  Lemma Disjoint_union elt (x y z : NatMap.t elt)
+    : NatMapP.Disjoint x (union y z) <-> NatMapP.Disjoint x y /\ NatMapP.Disjoint x z.
+  Proof.
+    unfold NatMapP.Disjoint. setoid_rewrite union_in_iff. firstorder.
+  Qed.
+
+  Lemma not_Disjoint_sym elt (x y : NatMap.t elt) : ~ NatMapP.Disjoint x y -> ~ NatMapP.Disjoint y x.
+  Proof. eauto using NatMapP.Disjoint_sym. Qed.
+
+  Lemma Partition_In_left elt (x y z : NatMap.t elt) : NatMapP.Partition x y z -> KeySetLE y x.
+  Proof.
+    ii. destruct H. destruct H0. specialize (H1 k x0). des. firstorder.
+  Qed.
+
+  Lemma Partition_In_right elt (x y z : NatMap.t elt) : NatMapP.Partition x y z -> KeySetLE z x.
+  Proof.
+    ii. destruct H. destruct H0. specialize (H1 k x0). des. firstorder.
+  Qed.
+
+  Lemma Partition_empty elt (x : NatMap.t elt) : NatMapP.Partition x x (NatMap.empty elt).
+  Proof. split; [ eapply Disjoint_empty | firstorder; inv H ]. Qed.
 
   Lemma In_MapsTo A k e (m : NatMap.t A) : List.In (k, e) (elements m) -> MapsTo k e m.
   Proof.
@@ -550,6 +659,37 @@ Section NATMAP.
 
 End NATMAP.
 
+Ltac solve_andb := 
+  repeat match goal with
+    | [ H : andb _ _ = true |- _ ] => eapply Bool.andb_true_iff in H; destruct H
+    | [ H : andb _ _ = false |- _ ] => eapply Bool.andb_false_iff in H; destruct H
+    end.
+
+Ltac solve_disjoint :=
+  repeat match goal with
+    | [ H : disjoint _ _ = true |- _ ] => eapply disjoint_true_iff in H
+    | [ H : disjoint _ _ = false |- _ ] => eapply disjoint_false_iff in H
+    end;
+  repeat match goal with
+    | [ H :   NatMapP.Disjoint _ (NatMap.empty _)   |- _ ] => clear H
+    | [ H : ~ NatMapP.Disjoint _ (NatMap.empty _)   |- _ ] => exfalso; eapply H, Disjoint_empty
+    | [ H :   NatMapP.Disjoint _ (NatMap.add _ _ _) |- _ ] => eapply Disjoint_add in H; destruct H
+    | [ H :   NatMapP.Disjoint _ (union _ _)        |- _ ] => eapply Disjoint_union in H
+    | [ H : ~ NatMapP.Disjoint _ (union _ _)        |- _ ] => rewrite Disjoint_union in H
+    (* symmetricity *)
+    | [ H :   NatMapP.Disjoint (NatMap.empty _) _   |- _ ] => clear H
+    | [ H : ~ NatMapP.Disjoint (NatMap.empty _) _   |- _ ] => eapply not_Disjoint_sym in H
+    | [ H :   NatMapP.Disjoint (NatMap.add _ _ _) _ |- _ ] => eapply NatMapP.Disjoint_sym in H
+    | [ H :   NatMapP.Disjoint (union _ _) _        |- _ ] => eapply NatMapP.Disjoint_sym in H
+    | [ H : ~ NatMapP.Disjoint (union _ _) _        |- _ ] => eapply not_Disjoint_sym in H
+    end.
+
+Tactic Notation "solve_disjoint!" :=
+  solve_andb;
+  solve_disjoint;
+  firstorder using NatMapP.Disjoint_sym;
+  fail.
+
 Module NatSet.
   Definition t := NatMap.t unit.
   Definition empty: t := @NatMap.empty unit.
@@ -562,6 +702,9 @@ Module NatSet.
 End NatSet.
 
 Section NATSET.
+
+  Lemma union_comm (x y : NatSet.t) : union x y = union y x.
+  Admitted.
 
   Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = [].
   Proof.
@@ -592,8 +735,12 @@ Section NATSET.
     - econs 2. eapply IHInA.
   Qed.
 
-  Lemma NatSet_In_MapsTo x s : NatSet.In x s -> NatMap.MapsTo x tt s.
-  Proof. unfold NatSet.In, NatMap.In, NatMap.Raw.PX.In. i. des. destruct e. ss.
+  Lemma NatSet_In_MapsTo x s : NatSet.In x s <-> NatMap.MapsTo x tt s.
+  Proof.
+    (* unfold NatSet.In, NatMap.In, NatMap.Raw.PX.In. i. des. destruct e. ss. *)
+    split.
+    - i. destruct H. destruct x0. ss.
+    - firstorder.
   Qed.
 
   Lemma NatSet_Permutation_remove x s l :
@@ -620,6 +767,34 @@ Section NATSET.
     eapply Permutation_add in H; [| eapply H0 ].
     eapply Permutation_map with (f := fst) in H. simpl in H.
     rewrite map_map in H. rewrite map_id in H. eapply H.
+  Qed.
+
+  Lemma unfold_Partition (x y z : NatSet.t) : NatMapP.Partition x y z <-> NatMapP.Disjoint y z /\ (forall k, NatSet.In k x <-> NatSet.In k y \/ NatSet.In k z).
+  Proof.
+    split; [firstorder |].
+    i. des. split; ss. i. destruct e. rewrite <- ! NatSet_In_MapsTo. ss.
+  Qed.
+
+  Lemma Partition_add k e (x x' y z : NatSet.t) :
+    NatMapP.Partition x y z ->
+    nm_add_new k e x x' ->
+    NatMapP.Partition x' y (NatMap.add k e z).
+  Proof.
+    i. eapply inv_add_new in H0. des; subst. eapply unfold_Partition.
+    split.
+    - eapply Disjoint_add. firstorder using Partition_In_left.
+    - setoid_rewrite NatMapP.F.add_in_iff. firstorder.
+  Qed.
+
+  Lemma Partition_remove k (x y z : NatSet.t) :
+    NatMapP.Partition x y z ->
+    NatMap.In k z ->
+    NatMapP.Partition (NatSet.remove k x) y (NatSet.remove k z).
+  Proof.
+    rewrite 2 unfold_Partition. i. des. split.
+    - eapply Disjoint_remove. ss.
+    - i. setoid_rewrite NatMapP.F.remove_in_iff.
+      firstorder. intro. subst. firstorder.
   Qed.
 
 End NATSET.
