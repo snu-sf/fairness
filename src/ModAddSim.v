@@ -510,8 +510,13 @@ Section ADD_RIGHT_CONG_SIM.
     }
     specialize (SIM ths_usr0 im_src0 (chop_ctx inh ths_usr0 IM_TGT0) (snd st_src0) (snd st_tgt0) r_sha_w0 r_ctx_w0 INV0_4 tid (NatSet.add tid ths_usr0) THS0' VALID0_1).
     destruct SIM as [r_sha_w1 [r_own_w1 [INV_USR [VALID_USR SIM]]]].
-    exists (global_th (NatSet.add tid ths_ctx0) ths_usr0, r_sha_w1), (local_th_user tid, r_own_w1). splits.
-    { admit. }
+    exists (global_th ths_ctx0 (NatSet.add tid ths_usr0), r_sha_w1), (local_th_user tid, r_own_w1). splits.
+    { eapply inv_add_new in THS0. des. subst.
+      ss. esplits; ss.
+      - eapply Partition_add; eauto.
+        eapply inv_add_new; eauto.
+      - admit.
+    }
     { admit. }
     intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
     simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. unfold_prod VALID2_0.
