@@ -38,10 +38,6 @@ Section PROOF.
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
-  (* Variable oz: forall (R0 R1: Type), (wf_stt R0 R1).(T). *)
-
-  (* Definition get_o {R0 R1} (k: NatMap.key) (m: NatMap.t _): (wf_stt R0 R1).(T) := *)
-  (*   tfind (@oz R0 R1) k m. *)
 
   Definition nm_wf_stt: Type -> Type -> WF := fun R0 R1 => nm_wf (wf_stt R0 R1).
 
@@ -88,7 +84,7 @@ Section PROOF.
                   ((sf = true) -> (local_sim_sync wf_stt I RR src tgt tid o r_own)) /\
                     ((sf = false) -> (local_sim_pick wf_stt I RR src tgt tid o r_own))>>))
     :
-    forall im_tgt, exists im_src r_shared os rs_ctx,
+    forall im_tgt, exists im_src os r_shared rs_ctx,
       (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (nm_wf_stt)
                 RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
                 (im_src, im_tgt, st_src, st_tgt, r_shared) os).
@@ -104,7 +100,7 @@ Section PROOF.
     specialize (LSIM im_tgt FAIR). des. clear LSIM Heqim_tgt1 FAIR im_tgt1.
     clear im_src; rename im_src0 into im_src.
     move LOCAL before RR. rename LSIM0 into LSIM.
-    exists im_src, r_shared, (Th.add tid o os), rs_ctx.
+    exists im_src, (Th.add tid o os), r_shared, rs_ctx.
 
     revert_until RR. pcofix CIH. i.
     match goal with
