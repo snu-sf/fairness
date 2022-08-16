@@ -263,22 +263,6 @@ Section LADEQ.
                           (LTGT: Th.find tid ths_tgt = Some tgt)
                           (ORD: Th.find tid os = Some o),
                     (local_sim_pick wf_stt I RR src tgt tid o r_own)>>))
-        (* (LSIM: forall im_tgt, exists im_src o r_shared rs_ctx, *)
-        (*     (<<RSWF: Th.find tid rs_ctx = None>>) /\ *)
-        (*       (<<LSIM: *)
-        (*         forall im_tgt0 *)
-        (*           (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))), *)
-        (*         exists im_src0, *)
-        (*           (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\ *)
-        (*             (lsim I (local_RR I RR tid) tid ps pt (sum_of_resources rs_ctx) *)
-        (*                   src tgt *)
-        (*                   (NatSet.add tid (key_set ths_src), NatSet.add tid (key_set ths_tgt), *)
-        (*                     im_src0, im_tgt0, st_src, st_tgt, o, r_shared))>>) /\ *)
-        (*       (<<LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1) r_own *)
-        (*                   (OWN: r_own = fst (get_resource tid rs_ctx)) *)
-        (*                   (LSRC: Th.find tid ths_src = Some src) *)
-        (*                   (LTGT: Th.find tid ths_tgt = Some tgt), *)
-        (*           (local_sim_pick I RR src tgt tid r_own)>>)) *)
     :
     gsim wf_src wf_tgt RR
          (interp_all st_src (Th.add tid src ths_src) tid)
@@ -364,6 +348,9 @@ Section LADEQ.
     }
     { r_wf IND0. }
     instantiate (1:=im_tgt). i; des.
+    assert (UPD: fair_update im_tgt im_tgt (sum_fmap_l (fun t : thread_id => if tid_dec t tid1 then Flag.success else Flag.emp))).
+    { clear. ii. unfold sum_fmap_l. des_ifs. }
+    specialize (H _ UPD). clear UPD. des.
     assert (WFPAIR: nm_wf_pair (NatMap.remove (elt:=thread _ident_src (sE state_src) R0) tid1 ths_src) rs_local).
     { hexploit list_forall4_implies_forall2_3. eauto.
       { i. instantiate (1:=fun '(t1, src) '(t3, r_own) => t1 = t3). ss. des_ifs. des; auto. }
