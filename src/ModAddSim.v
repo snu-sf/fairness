@@ -32,11 +32,12 @@ Section ADD_COMM.
   Proof.
     Local Opaque Unit.
     pose proof Unit_wf.
-    pose (I := fun x : @shared Unit
+    pose (I := fun (x : @shared
                        (ModAdd M1 M2).(state) (ModAdd M2 M1).(state)
                        (ModAdd M1 M2).(ident) (ModAdd M2 M1).(ident)
-                       nat_wf nat_wf
-               => let '(ths, m_src, m_tgt, st_src, st_tgt, w) := x in
+                       nat_wf nat_wf)
+                 (w : Unit)
+               => let '(ths, m_src, m_tgt, st_src, st_tgt) := x in
                  fst st_src = snd st_tgt
                  /\ snd st_src = fst st_tgt
                  /\ (forall i, m_src (inl i) = m_tgt (inr (inr i)))
@@ -54,7 +55,7 @@ Section ADD_COMM.
       + ii. esplits; ss. i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
       + ii. exists tt, tt. splits; ss. i.
         unfold embed_l, embed_r. remember (k args) as itr.
-        assert (INV_CIH : I (ths, im_src1, im_tgt2, st_src, st_tgt, tt)).
+        assert (INV_CIH : I (ths, im_src1, im_tgt2, st_src, st_tgt2) tt).
         { des. ss. splits; ss.
           - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. transitivity (im_tgt1 (inr (inr i))); eauto.
           - ii. specialize (TGT (inr (inl i))). specialize (INV3 i). ss. transitivity (im_tgt1 (inr (inl i))); eauto.
@@ -75,7 +76,7 @@ Section ADD_COMM.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs.
-          gfinal. left. eapply CIH; ss.
+          gfinal. left. eapply CIH; eauto.
         * { destruct e as [[|] | ].
             - rewrite 2 embed_state_vis.
               rewrite 2 map_event_vis.
@@ -84,7 +85,7 @@ Section ADD_COMM.
               + eapply pind9_fold. eapply lsim_chooseR. i. esplit; ss.
                 eapply pind9_fold. eapply lsim_chooseL. exists x. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
-                gfinal. left. eapply CIH; ss.
+                gfinal. left. eapply CIH; eauto.
               + eapply pind9_fold. eapply lsim_fairR. i. esplit; ss.
                 eapply pind9_fold. eapply lsim_fairL. exists (conv im_tgt1). esplit.
                 { des. ii. destruct i; ss.
@@ -93,22 +94,22 @@ Section ADD_COMM.
                 }
                 esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
-                gfinal. left. des. eapply CIH; ss. 
+                gfinal. left. des. eapply CIH; eauto.
               + eapply pind9_fold. eapply lsim_observe. i.
-                gfinal. left. eapply CIH; ss.
+                gfinal. left. eapply CIH; eauto.
               + eapply pind9_fold. eapply lsim_UB.
             - rewrite 2 embed_state_vis.
               rewrite 2 map_event_vis. ss.
               rewrite <- 2 bind_trigger.
               gstep. destruct c.
               + eapply pind9_fold. eapply lsim_sync; eauto.
-                gfinal. left. eapply CIH; ss. des; splits; ss.
+                gfinal. left. eapply CIH; eauto. ss; des; splits; ss.
                 * i. specialize (TGT (inr (inr i))). ss. transitivity (im_tgt1 (inr (inr i))); eauto.
                 * i. specialize (TGT (inr (inl i))). ss. transitivity (im_tgt1 (inr (inl i))); eauto.
               + eapply pind9_fold. eapply lsim_tidR. esplit; ss.
                 eapply pind9_fold. eapply lsim_tidL. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
-                gfinal. left. eapply CIH; ss.
+                gfinal. left. eapply CIH; eauto.
             - destruct s.
               + rewrite 2 embed_state_put. ss.
                 rewrite 2 map_event_vis. ss.
@@ -121,8 +122,8 @@ Section ADD_COMM.
                 eapply pind9_fold. eapply lsim_putL. esplit; ss.
                 eapply pind9_fold. eapply lsim_putR. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
-                gfinal. left. eapply CIH; ss.
-                des. destruct st_src, st_tgt. ss.
+                gfinal. left. eapply CIH; eauto.
+                des. destruct st_src, st_tgt2. ss.
               + rewrite 2 embed_state_get. ss.
                 rewrite 2 map_event_vis. ss.
                 rewrite <- 2 bind_trigger.
@@ -131,12 +132,12 @@ Section ADD_COMM.
                 eapply pind9_fold. eapply lsim_getR. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left.
-                destruct st_src, st_tgt. des. ss. subst.
-                eapply CIH; ss.
+                destruct st_src, st_tgt2. des. ss. subst.
+                eapply CIH; eauto.
           }
       + ii. exists tt, tt. splits; ss. i.
         unfold embed_l, embed_r. remember (k args) as itr.
-        assert (INV_CIH : I (ths, im_src1, im_tgt2, st_src, st_tgt, tt)).
+        assert (INV_CIH : I (ths, im_src1, im_tgt2, st_src, st_tgt2) tt).
         { des. ss. splits; ss.
           - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. transitivity (im_tgt1 (inr (inr i))); eauto.
           - ii. specialize (TGT (inr (inl i))). specialize (INV3 i). ss. transitivity (im_tgt1 (inr (inl i))); eauto.
@@ -157,7 +158,7 @@ Section ADD_COMM.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs.
-          gfinal. left. eapply CIH; ss.
+          gfinal. left. eapply CIH; eauto.
         * { destruct e as [[|] | ].
             - rewrite 2 embed_state_vis.
               rewrite 2 map_event_vis.
@@ -166,7 +167,7 @@ Section ADD_COMM.
               + eapply pind9_fold. eapply lsim_chooseR. i. esplit; ss.
                 eapply pind9_fold. eapply lsim_chooseL. exists x. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
-                gfinal. left. eapply CIH; ss.
+                gfinal. left. eapply CIH; eauto.
               + eapply pind9_fold. eapply lsim_fairR. i. esplit; ss.
                 eapply pind9_fold. eapply lsim_fairL. exists (conv im_tgt1). esplit.
                 { des. ii. destruct i; ss.
@@ -175,22 +176,22 @@ Section ADD_COMM.
                 }
                 esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
-                gfinal. left. des. eapply CIH; ss. 
+                gfinal. left. des. eapply CIH; eauto.
               + eapply pind9_fold. eapply lsim_observe. i.
-                gfinal. left. eapply CIH; ss.
+                gfinal. left. eapply CIH; eauto.
               + eapply pind9_fold. eapply lsim_UB.
             - rewrite 2 embed_state_vis.
               rewrite 2 map_event_vis. ss.
               rewrite <- 2 bind_trigger.
               gstep. destruct c.
               + eapply pind9_fold. eapply lsim_sync; eauto.
-                gfinal. left. eapply CIH; ss. des; splits; ss.
+                gfinal. left. eapply CIH; eauto. ss. des; splits; ss.
                 * i. specialize (TGT (inr (inr i))). ss. transitivity (im_tgt1 (inr (inr i))); eauto.
                 * i. specialize (TGT (inr (inl i))). ss. transitivity (im_tgt1 (inr (inl i))); eauto.
               + eapply pind9_fold. eapply lsim_tidR. esplit; ss.
                 eapply pind9_fold. eapply lsim_tidL. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
-                gfinal. left. eapply CIH; ss.
+                gfinal. left. eapply CIH; eauto.
             - destruct s.
               + rewrite 2 embed_state_put. ss.
                 rewrite 2 map_event_vis. ss.
@@ -203,8 +204,8 @@ Section ADD_COMM.
                 eapply pind9_fold. eapply lsim_putL. esplit; ss.
                 eapply pind9_fold. eapply lsim_putR. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
-                gfinal. left. eapply CIH; ss.
-                des. destruct st_src, st_tgt. ss.
+                gfinal. left. eapply CIH; eauto.
+                des. destruct st_src, st_tgt2. ss.
               + rewrite 2 embed_state_get. ss.
                 rewrite 2 map_event_vis. ss.
                 rewrite <- 2 bind_trigger.
@@ -213,8 +214,8 @@ Section ADD_COMM.
                 eapply pind9_fold. eapply lsim_getR. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left.
-                destruct st_src, st_tgt. des. ss. subst.
-                eapply CIH; ss.
+                destruct st_src, st_tgt2. des. ss. subst.
+                eapply CIH; eauto.
           }
       + ss.
         Unshelve. all: exact tt.
@@ -332,14 +333,15 @@ Section ADD_RIGHT_CONG_SIM.
   Context `{world : URA.t}.
   Context (inh : inhabited wf_tgt.(T)).
 
-  Variable I : shared (state M2_src) (state M2_tgt) (ident M2_src) (ident M2_tgt) wf_src wf_tgt -> Prop.
+  Variable I : shared (state M2_src) (state M2_tgt) (ident M2_src) (ident M2_tgt) wf_src wf_tgt -> world -> Prop.
 
   Definition lift_ma :=
-    fun x : @shared (URA.prod threadsRA world)
+    fun (x : @shared
             (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
             (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
-            (sum_wf wf_src wf_tgt) wf_tgt
-    => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt, r) := x in
+            (sum_wf wf_src wf_tgt) wf_tgt)
+      (r : URA.prod threadsRA world)
+    => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt) := x in
       exists im_src0 ths_ctx0 ths_usr0,
         let im_ctx0 := pick_ctx IM_TGT in
         let im_tgt0 := chop_ctx inh ths_usr0 IM_TGT in
@@ -347,7 +349,7 @@ Section ADD_RIGHT_CONG_SIM.
         /\ NatMapP.Partition ths ths_ctx0 ths_usr0
         /\ fst r = global_th ths_ctx0 ths_usr0
         /\ fst st_src = fst st_tgt
-        /\ lifted I (ths_usr0, im_src0, im_tgt0, snd st_src, snd st_tgt, snd r).
+        /\ lifted I (ths_usr0, im_src0, im_tgt0, snd st_src, snd st_tgt) (snd r).
 
   Opaque lifted threadsRA URA.prod.
 
@@ -390,11 +392,11 @@ Section ADD_RIGHT_CONG_SIM.
         + ii. eapply THS0. eapply (Partition_In_right INV0_1). ss.
       - rewrite URA.unit_id. eauto.
     }
-    intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0.
+    intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_ctx_th1 r_ctx_w1] [r_sha_th1 r_sha_w1] INV1_0 VALID1_0.
     intros IM_TGT1' TGT fs ft.
     simpl in INV1_0. des. subst r_sha_th1. unfold_prod VALID1_0.
     unfold embed_l, embed_r.
-    assert (INV : lift_ma (ths1, IM_SRC1, IM_TGT1', st_src1, st_tgt1, (global_th ths_ctx1 ths_usr1, r_sha_w1))).
+    assert (INV : lift_ma (ths1, IM_SRC1, IM_TGT1', st_src1, st_tgt1) (global_th ths_ctx1 ths_usr1, r_sha_w1)).
     { ss. exists im_src1, ths_ctx1, ths_usr1. splits; ss.
       - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
       - eapply shared_rel_wf_lifted; eauto.
@@ -426,7 +428,7 @@ Section ADD_RIGHT_CONG_SIM.
       eapply pind9_fold. econs. split; ss.
       eapply pind9_fold. econs. split; ss.
       eapply pind9_fold. econs.
-      gfinal. left. eapply CIH; ss.
+      gfinal. left. eapply CIH; eauto.
     - rewrite 2 embed_state_vis.
       rewrite 2 map_event_vis.
       rewrite <- 2 bind_trigger.
@@ -434,7 +436,7 @@ Section ADD_RIGHT_CONG_SIM.
       + eapply pind9_fold. eapply lsim_chooseR. i. esplit; ss.
         eapply pind9_fold. eapply lsim_chooseL. exists x. esplit; ss.
         eapply pind9_fold. eapply lsim_progress.
-        gfinal. left. eapply CIH; ss.
+        gfinal. left. eapply CIH; eauto.
       + eapply pind9_fold. eapply lsim_fairR. intros IM_TGT1 FAIR. esplit; ss.
         eapply pind9_fold. eapply lsim_fairL.
         des. inversion INV2. subst ths_ctx1 ths_usr1. exists (add_ctx (pick_ctx IM_TGT1) im_src0). split.
@@ -445,10 +447,10 @@ Section ADD_RIGHT_CONG_SIM.
         }
         split; ss.
         eapply pind9_fold. eapply lsim_progress.
-        gfinal. left. des. eapply CIH; ss.
+        gfinal. left. des. eapply CIH; eauto.
         { esplits; eauto. eapply chop_ctx_fair_ctx in FAIR. rewrite <- FAIR. ss. }
       + eapply pind9_fold. eapply lsim_observe. i.
-        gfinal. left. eapply CIH; ss.
+        gfinal. left. eapply CIH; eauto.
       + eapply pind9_fold. eapply lsim_UB.
     - rewrite 2 embed_state_vis.
       rewrite 2 map_event_vis. simpl.
@@ -459,8 +461,8 @@ Section ADD_RIGHT_CONG_SIM.
         { instantiate (1 := (local_th_context tid, ε)). unfold_prod. split; ss. }
         intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT1' TGT.
         simpl in INV1_0. des. subst r_sha_th1. rename im_src0 into im_src1. unfold_prod VALID1_0.
-        gfinal. left. eapply CIH; ss.
-        { exists im_src1, ths_ctx1, ths_usr1. splits; ss.
+        gfinal. left. eapply CIH; eauto.
+        { exists im_src1, ths_ctx1, ths_usr1. ss. splits; ss.
           - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
           - eapply shared_rel_wf_lifted; eauto.
             eapply chop_ctx_fair_thread1; eauto.
@@ -469,7 +471,7 @@ Section ADD_RIGHT_CONG_SIM.
       + eapply pind9_fold. eapply lsim_tidR. esplit; ss.
         eapply pind9_fold. eapply lsim_tidL. esplit; ss.
         eapply pind9_fold. eapply lsim_progress.
-        gfinal. left. eapply CIH; ss.
+        gfinal. left. eapply CIH; eauto.
     - destruct s.
       + rewrite 2 embed_state_put. ss.
         rewrite 2 map_event_vis. ss.
@@ -482,7 +484,7 @@ Section ADD_RIGHT_CONG_SIM.
         eapply pind9_fold. eapply lsim_putL. esplit; ss.
         eapply pind9_fold. eapply lsim_putR. esplit; ss.
         eapply pind9_fold. eapply lsim_progress.
-        gfinal. left. eapply CIH; ss.
+        gfinal. left. eapply CIH; eauto.
         destruct st_src0, st_tgt0; ss. des; esplits; eauto.
       + rewrite 2 embed_state_get. ss.
         rewrite 2 map_event_vis. ss.
@@ -492,7 +494,7 @@ Section ADD_RIGHT_CONG_SIM.
         eapply pind9_fold. eapply lsim_getR. esplit; ss.
         eapply pind9_fold. eapply lsim_progress.
         des. rewrite INV3.
-        gfinal. left. eapply CIH; ss. esplits; eauto.
+        gfinal. left. eapply CIH; eauto. esplits; eauto.
   Qed.
 
   Lemma lift_ma_local_sim_usr R_src R_tgt (RR : R_src -> R_tgt -> Prop) itr_src itr_tgt
@@ -518,7 +520,7 @@ Section ADD_RIGHT_CONG_SIM.
       - admit.
     }
     { admit. }
-    intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
+    intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_ctx_th2 r_ctx_w2] [r_sha_th2 r_sha_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
     simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. unfold_prod VALID2_0.
     assert (TGT' : @fair_update _ (wf_clos_trans wf_tgt) (chop_ctx inh ths_usr2 IM_TGT2) (chop_ctx inh ths_usr2 IM_TGT2') (sum_fmap_l (tids_fmap tid ths_usr2))).
     { eapply fair_mono with (wft_lt' := lt wf_tgt) (wft_wf' := wf wf_tgt).
@@ -527,9 +529,9 @@ Section ADD_RIGHT_CONG_SIM.
       - eapply Partition_In_right in INV2_1. eapply INV2_1.
       - eauto.
     }
-    specialize (SIM ths_usr2 im_src2 (chop_ctx inh ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx inh ths_usr2 IM_TGT2') TGT' fs ft).
+    specialize (SIM ths_usr2 im_src2 (chop_ctx inh ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_ctx_w2 r_sha_w2 INV2_4 VALID2_1 (chop_ctx inh ths_usr2 IM_TGT2') TGT' fs ft).
     unfold embed_l, embed_r.
-    assert (INV : lift_ma (ths2, IM_SRC2, IM_TGT2', st_src2, st_tgt2, (global_th ths_ctx2 ths_usr2, r_sha_w2))).
+    assert (INV : lift_ma (ths2, IM_SRC2, IM_TGT2', st_src2, st_tgt2) (global_th ths_ctx2 ths_usr2, r_sha_w2)).
     { admit. }
     clear - INV VALID2_0 VALID2_1 SIM. move tid before I.
     rename
@@ -547,7 +549,7 @@ Section ADD_RIGHT_CONG_SIM.
     eapply pind9_unfold in PR; eauto with paco. eapply pind9_fold. inv PR.
     - rewrite 2 embed_state_ret, 2 map_event_ret. econs.
       ss. des. inversion INV2. clear INV2. subst ths_ctx1 ths_usr1 ths3 IM_SRC0.
-      exists (NatMap.remove tid ths0), (URA.unit, r_own), (global_th ths_ctx0 (NatMap.remove tid ths_usr0), r_shared2).
+      exists (NatMap.remove tid ths0), (URA.unit, r_own), (global_th ths_ctx0 (NatMap.remove tid ths_usr0), r_shared).
       splits; ss.
       + unfold_prod. split.
         * eapply global_th_dealloc_user; eauto.
