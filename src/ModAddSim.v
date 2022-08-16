@@ -519,7 +519,10 @@ Section ADD_RIGHT_CONG_SIM.
         eapply inv_add_new; eauto.
       - admit.
     }
-    { admit. }
+    { unfold_prod. split.
+      - admit.
+      - eauto.
+    }
     intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
     simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. unfold_prod VALID2_0.
     assert (TGT' : @fair_update _ (wf_clos_trans wf_tgt) (chop_ctx inh ths_usr2 IM_TGT2) (chop_ctx inh ths_usr2 IM_TGT2') (sum_fmap_l (tids_fmap tid ths_usr2))).
@@ -531,24 +534,35 @@ Section ADD_RIGHT_CONG_SIM.
     }
     specialize (SIM ths_usr2 im_src2 (chop_ctx inh ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx inh ths_usr2 IM_TGT2') TGT' fs ft).
     unfold embed_l, embed_r.
+    (*    
     assert (INV : lift_ma (ths2, IM_SRC2, IM_TGT2', st_src2, st_tgt2) (global_th ths_ctx2 ths_usr2, r_sha_w2)).
-    { admit. }
-    clear - INV VALID2_0 VALID2_1 SIM. move tid before I.
+    { ss. exists im_src2, ths_ctx2, ths_usr2. splits; ss.
+      - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
+      - Print tids_fmap.
+
+        Search shared_rel_wf.
+        eapply shared_rel_wf_lifted; eauto.
+        admit.
+    }
+     *)
+    eapply pick_ctx_fair_thread in TGT. rewrite TGT in INV2_0.
+    clear - INV2_0 INV2_1 INV2_3 VALID2_0 VALID2_1 SIM.
+    move tid before I.
     rename
       ths2 into ths0, ths_ctx2 into ths_ctx0, ths_usr2 into ths_usr0,
       im_src2 into im_src0, IM_SRC2 into IM_SRC0, IM_TGT2' into IM_TGT0, st_src2 into st_src0, st_tgt2 into st_tgt0,
       r_sha_w2 into r_sha_w0, r_ctx_th2 into r_ctx_th0, r_ctx_w2 into r_ctx_w0, r_own_w1 into r_own_w0,
-      INV into INV0, VALID2_0 into VALID_TH0, VALID2_1 into VALID_W0.
+      INV2_0 into INV0, INV2_1 into INV1, INV2_3 into INV2, VALID2_0 into VALID_TH0, VALID2_1 into VALID_W0.
     revert_until tid. ginit. gcofix CIH. i. gstep. punfold SIM.
     match type of SIM with pind9 _ _ _ _ ?RR _ _ _ _ _ ?SHA => remember RR as RR_MEM; remember SHA as SHA_MEM end.
-    revert RR ths0 ths_ctx0 ths_usr0 st_src0 st_tgt0 r_sha_w0 r_own_w0 r_ctx_th0 im_src0 IM_SRC0 IM_TGT0 INV0 VALID_TH0 VALID_W0 HeqRR_MEM HeqSHA_MEM.
+    revert RR ths0 ths_ctx0 ths_usr0 st_src0 st_tgt0 r_sha_w0 r_own_w0 r_ctx_th0 im_src0 IM_SRC0 IM_TGT0 INV0 INV1 INV2 VALID_TH0 VALID_W0 HeqRR_MEM HeqSHA_MEM.
     pattern R_src, R_tgt, RR_MEM, fs, ft, r_ctx_w0, itr_src, itr_tgt, SHA_MEM.
     revert R_src R_tgt RR_MEM fs ft r_ctx_w0 itr_src itr_tgt SHA_MEM SIM.
     eapply pind9_acc. intros rr DEC IH R_src R_tgt RR_MEM fs ft r_ctx_w0 itr_src itr_tgt SHA_MEM. i.
     clear DEC. subst RR_MEM SHA_MEM.
     eapply pind9_unfold in PR; eauto with paco. eapply pind9_fold. inv PR.
     - rewrite 2 embed_state_ret, 2 map_event_ret. econs.
-      ss. des. inversion INV2. clear INV2. subst ths_ctx1 ths_usr1 ths3 IM_SRC0.
+      ss. des. subst. (* inversion INV2. clear INV2. subst ths_ctx1 ths_usr1 ths3 IM_SRC0. *)
       exists (NatMap.remove tid ths0), (URA.unit, r_own), (global_th ths_ctx0 (NatMap.remove tid ths_usr0), r_shared).
       splits; ss.
       + unfold_prod. split.
