@@ -392,7 +392,7 @@ Section ADD_RIGHT_CONG_SIM.
         + ii. eapply THS0. eapply (Partition_In_right INV0_1). ss.
       - rewrite URA.unit_id. eauto.
     }
-    intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_ctx_th1 r_ctx_w1] [r_sha_th1 r_sha_w1] INV1_0 VALID1_0.
+    intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0.
     intros IM_TGT1' TGT fs ft.
     simpl in INV1_0. des. subst r_sha_th1. unfold_prod VALID1_0.
     unfold embed_l, embed_r.
@@ -520,7 +520,7 @@ Section ADD_RIGHT_CONG_SIM.
       - admit.
     }
     { admit. }
-    intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_ctx_th2 r_ctx_w2] [r_sha_th2 r_sha_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
+    intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
     simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. unfold_prod VALID2_0.
     assert (TGT' : @fair_update _ (wf_clos_trans wf_tgt) (chop_ctx inh ths_usr2 IM_TGT2) (chop_ctx inh ths_usr2 IM_TGT2') (sum_fmap_l (tids_fmap tid ths_usr2))).
     { eapply fair_mono with (wft_lt' := lt wf_tgt) (wft_wf' := wf wf_tgt).
@@ -529,7 +529,7 @@ Section ADD_RIGHT_CONG_SIM.
       - eapply Partition_In_right in INV2_1. eapply INV2_1.
       - eauto.
     }
-    specialize (SIM ths_usr2 im_src2 (chop_ctx inh ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_ctx_w2 r_sha_w2 INV2_4 VALID2_1 (chop_ctx inh ths_usr2 IM_TGT2') TGT' fs ft).
+    specialize (SIM ths_usr2 im_src2 (chop_ctx inh ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx inh ths_usr2 IM_TGT2') TGT' fs ft).
     unfold embed_l, embed_r.
     assert (INV : lift_ma (ths2, IM_SRC2, IM_TGT2', st_src2, st_tgt2) (global_th ths_ctx2 ths_usr2, r_sha_w2)).
     { admit. }

@@ -481,7 +481,7 @@ Section PRIMIVIESIM.
     exists r_shared1 r_own,
       (<<INV: I (ths1, im_src0, im_tgt0, st_src0, st_tgt0) r_shared1>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
-        (forall ths im_src1 im_tgt1 st_src st_tgt2 r_ctx2 r_shared2
+        (forall ths im_src1 im_tgt1 st_src st_tgt2 r_shared2 r_ctx2
                 (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt2) r_shared2)
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
           forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),

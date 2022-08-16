@@ -124,7 +124,7 @@ Section TRANS_CLOS.
     specialize (SIM ths0 im_src0 im_tgt'0 st_src0 st_tgt0 r_shared0 r_ctx0 INV0 tid ths1 THS VALID).
     des. exists r_shared1, r_own. splits; ss. { exists im_tgt'0. ss. }
     i. des. pose proof (fair_break INV1 TGT). des. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 im_tgt'1 st_src st_tgt2 r_ctx2 r_shared2 INV2 VALID1 im_tgt'2 FAIR fs ft).
+    specialize (SIM1 ths im_src1 im_tgt'1 st_src st_tgt2 r_shared2 r_ctx2 INV2 VALID1 im_tgt'2 FAIR fs ft).
     rename SIM1 into LSIM. clear - inh LSIM LE. revert_until I'. ginit. gcofix CIH. i. gstep.
     remember (local_RR I RR tid) as RR'.
     remember (ths, im_src1, im_tgt'2, st_src, st_tgt2) as sha.
@@ -203,7 +203,7 @@ Section WFT_MONO.
     ii. ss. move SIM at bottom.
     specialize (SIM ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID).
     des. exists r_shared1, r_own. splits; ss. i. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 im_tgt1 st_src st_tgt2 r_ctx2 r_shared2 INV1 VALID1 im_tgt2 (fair_mono TGT) fs ft).
+    specialize (SIM1 ths im_src1 im_tgt1 st_src st_tgt2 r_shared2 r_ctx2 INV1 VALID1 im_tgt2 (fair_mono TGT) fs ft).
     rename SIM1 into LSIM. clear - LSIM wft_LE. revert_until I'. ginit. gcofix CIH. i. gstep.
     remember (local_RR I RR tid) as RR'.
     match goal with [ LSIM : lsim _ _ _ _ _ _ _ _ ?SHA |- _ ] => remember SHA as sha end.

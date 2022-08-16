@@ -97,7 +97,7 @@ Section NAT.
     ii. move SIM at bottom.
     specialize (SIM ths0 im_src0 (wfemb ∘ im_tgt0) st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID).
     des. exists r_shared1, r_own. splits; ss. i. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 (wfemb ∘ im_tgt1) st_src st_tgt2 r_ctx2 r_shared2 INV1 VALID1 (wfemb ∘ im_tgt2)
+    specialize (SIM1 ths im_src1 (wfemb ∘ im_tgt1) st_src st_tgt2 r_shared2 r_ctx2 INV1 VALID1 (wfemb ∘ im_tgt2)
                   ltac:(eapply wfemb_mono; ss) fs ft).
     rename SIM1 into LSIM. clear - LSIM wf_tgt_inhabited wf_tgt_open. revert_until I. ginit. gcofix CIH. i. gstep.
     remember (local_RR I RR tid) as RR' in LSIM.
