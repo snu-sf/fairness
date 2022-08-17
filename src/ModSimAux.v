@@ -48,15 +48,28 @@ Section SHARED_REL_WF.
       exists im_tgt'0, << INV_LE : (forall i, le wf_clos_trans (im_tgt i) (im_tgt'0 i)) >>
                     /\ << INV : I (ths, im_src, im_tgt'0, st_src, st_tgt) r_shared >>.
 
+  Definition lifted_drop_imap :
+    forall ths im_src im_tgt st_src st_tgt r_shared
+      (INV : lifted (ths, im_src, im_tgt, st_src, st_tgt) r_shared),
+    forall im_tgt'
+      (LE : forall i, le wf_tgt (im_tgt' i) (im_tgt i)),
+      << INV : lifted (ths, im_src, im_tgt', st_src, st_tgt) r_shared >>.
+  Proof.
+    i. ss. des. exists im_tgt'0. split; ss.
+    ii. specialize (INV_LE i). specialize (LE i). destruct LE.
+    - rewrite H. ss.
+    - right. destruct INV_LE.
+      + rewrite <- H0. econs. ss.
+      + eapply clos_trans_n1_trans.
+        * econs. eauto.
+        * eauto.
+  Qed.
+
   Lemma shared_rel_wf_lifted : shared_rel_wf lifted.
   Proof.
-    ii. ss. des. exists im_tgt'0. split; ss.
-    ii. specialize (TGT i). specialize (INV_LE i). des_ifs.
-    - right. destruct INV_LE.
-      + rewrite H in TGT. econs. ss.
-      + eapply clos_trans_n1_trans; [econs|]; eauto.
-    - rewrite TGT. destruct INV_LE; [left|right]; eauto.
-    - unfold sum_fmap_l, tids_fmap_all in Heq. des_ifs.
+    ii. eapply lifted_drop_imap; eauto.
+    i. specialize (TGT i). unfold le, tids_fmap_all in *.
+    destruct i as [i|i]; ss; des_ifs; eauto.
   Qed.
 
 End SHARED_REL_WF.

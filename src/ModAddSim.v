@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.
 From Fairness Require Import
-  ITreeLib WFLib Axioms pind PCM Mod ModSim ModSimAux AddWorld.
+  ITreeLib WFLib Axioms pind PCM Mod ModSim ModSimAux ModSimNat AddWorld.
 
 Import Lia.
 Import Mod.
@@ -226,31 +226,27 @@ End ADD_COMM.
 Section IMAP_OPERATIONS.
 
   Context {id_ctx id_src id_tgt : ID}.
-  Context {wf_src wf_tgt : WF}.
-  Context (wf_tgt_inhabited : inhabited wf_tgt.(T)).
-
-  Let zero: wf_tgt.(T) := epsilon wf_tgt_inhabited (fun _ => True).
+  Context {wf_src : WF}.
 
   Definition sum_wf wf1 wf2 := {| wf := sum_lt_well_founded (wf wf1) (wf wf2) |}.
 
   Definition pick_ctx
-    (IM_TGT : @imap (ident_tgt (id_sum id_ctx id_tgt)) wf_tgt)
-    : @imap id_ctx wf_tgt := fun i => IM_TGT (inr (inl i)).
+    (IM_TGT : @imap (ident_tgt (id_sum id_ctx id_tgt)) nat_wf)
+    : @imap id_ctx nat_wf := fun i => IM_TGT (inr (inl i)).
 
   Definition chop_ctx
     (ths : TIdSet.t)
-    (IM_TGT : @imap (ident_tgt (id_sum id_ctx id_tgt)) wf_tgt)
-    : @imap (ident_tgt id_tgt) wf_tgt :=
+    (IM_TGT : @imap (ident_tgt (id_sum id_ctx id_tgt)) nat_wf)
+    : @imap (ident_tgt id_tgt) nat_wf:=
     fun i => match i with
-          | inl i => if NatMapP.F.In_dec ths i then IM_TGT (inl i) else zero
+          | inl i => if NatMapP.F.In_dec ths i then IM_TGT (inl i) else 0
           | inr i => IM_TGT (inr (inr i))
           end.
 
   Definition add_ctx
-    {id_ctx id_src wf_src wf_tgt}
-    (im_ctx : imap id_ctx wf_tgt)
+    (im_ctx : imap id_ctx nat_wf)
     (im_src : imap id_src wf_src)
-    : forall i, (sum_wf wf_src wf_tgt).(T)
+    : forall i, (sum_wf wf_src nat_wf).(T)
     := fun i => match i with
              | inl i => inr (im_ctx i)
              | inr i => inl (im_src i)
@@ -329,22 +325,21 @@ Tactic Notation "unfold_prod" hyp(H) :=
 Section ADD_RIGHT_CONG_SIM.
 
   Context {M1 M2_src M2_tgt : Mod.t}.
-  Context {wf_src wf_tgt : WF}.
+  Context {wf_src : WF}.
   Context `{world : URA.t}.
-  Context (inh : inhabited wf_tgt.(T)).
 
-  Variable I : shared (state M2_src) (state M2_tgt) (ident M2_src) (ident M2_tgt) wf_src wf_tgt -> world -> Prop.
+  Variable I : shared (state M2_src) (state M2_tgt) (ident M2_src) (ident M2_tgt) wf_src nat_wf -> world -> Prop.
 
   Definition lift_ma :=
     fun (x : @shared
             (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
             (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
-            (sum_wf wf_src wf_tgt) wf_tgt)
+            (sum_wf wf_src nat_wf) nat_wf)
       (r : URA.prod threadsRA world)
     => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt) := x in
       exists im_src0 ths_ctx0 ths_usr0,
         let im_ctx0 := pick_ctx IM_TGT in
-        let im_tgt0 := chop_ctx inh ths_usr0 IM_TGT in
+        let im_tgt0 := chop_ctx ths_usr0 IM_TGT in
         IM_SRC = add_ctx im_ctx0 im_src0
         /\ NatMapP.Partition ths ths_ctx0 ths_usr0
         /\ fst r = global_th ths_ctx0 ths_usr0
@@ -498,11 +493,10 @@ Section ADD_RIGHT_CONG_SIM.
   Qed.
 
   Lemma lift_ma_local_sim_usr R_src R_tgt (RR : R_src -> R_tgt -> Prop) itr_src itr_tgt
-    (SIM : local_sim I RR itr_src itr_tgt)
+    (SIM : local_sim (lifted I) RR itr_src itr_tgt)
     : local_sim lift_ma RR (embed_r M1 M2_src itr_src) (embed_r M1 M2_tgt itr_tgt).
   Proof.
     (* tid ∈ ths_usr *)
-    eapply local_sim_clos_trans in SIM; ss.
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0.
     simpl in INV0_0. des. subst r_sha_th0. unfold_prod VALID0_0.
     move SIM at bottom.
@@ -510,7 +504,7 @@ Section ADD_RIGHT_CONG_SIM.
     { eapply inv_add_new. split; ss. eapply inv_add_new in THS0. des.
       eapply Partition_In_right in INV0_1. eauto.
     }
-    specialize (SIM ths_usr0 im_src0 (chop_ctx inh ths_usr0 IM_TGT0) (snd st_src0) (snd st_tgt0) r_sha_w0 r_ctx_w0 INV0_4 tid (NatSet.add tid ths_usr0) THS0' VALID0_1).
+    specialize (SIM ths_usr0 im_src0 (chop_ctx ths_usr0 IM_TGT0) (snd st_src0) (snd st_tgt0) r_sha_w0 r_ctx_w0 INV0_4 tid (NatSet.add tid ths_usr0) THS0' VALID0_1).
     destruct SIM as [r_sha_w1 [r_own_w1 [INV_USR [VALID_USR SIM]]]].
     exists (global_th ths_ctx0 (NatSet.add tid ths_usr0), r_sha_w1), (local_th_user tid, r_own_w1). splits.
     { eapply inv_add_new in THS0. des. subst.
@@ -525,14 +519,12 @@ Section ADD_RIGHT_CONG_SIM.
     }
     intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
     simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. unfold_prod VALID2_0.
-    assert (TGT' : @fair_update _ (wf_clos_trans wf_tgt) (chop_ctx inh ths_usr2 IM_TGT2) (chop_ctx inh ths_usr2 IM_TGT2') (sum_fmap_l (tids_fmap tid ths_usr2))).
-    { eapply fair_mono with (wft_lt' := lt wf_tgt) (wft_wf' := wf wf_tgt).
-      { econs. ss. }
-      destruct wf_tgt. eapply chop_ctx_fair_thread2.
+    assert (TGT' : @fair_update _ nat_wf (chop_ctx ths_usr2 IM_TGT2) (chop_ctx ths_usr2 IM_TGT2') (sum_fmap_l (tids_fmap tid ths_usr2))).
+    { eapply chop_ctx_fair_thread2.
       - eapply Partition_In_right in INV2_1. eapply INV2_1.
       - eauto.
     }
-    specialize (SIM ths_usr2 im_src2 (chop_ctx inh ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx inh ths_usr2 IM_TGT2') TGT' fs ft).
+    specialize (SIM ths_usr2 im_src2 (chop_ctx ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx ths_usr2 IM_TGT2') TGT' fs ft).
     unfold embed_l, embed_r.
     (*    
     assert (INV : lift_ma (ths2, IM_SRC2, IM_TGT2', st_src2, st_tgt2) (global_th ths_ctx2 ths_usr2, r_sha_w2)).
@@ -571,7 +563,13 @@ Section ADD_RIGHT_CONG_SIM.
       + esplits; ss.
         * eapply local_th_user_in_user in VALID_TH0.
           eapply Partition_remove; eauto.
-        * admit.
+        * eapply lifted_drop_imap; eauto.
+          { i. destruct i as [i|i]; ss.
+            - assert (i = tid \/ tid <> i) by lia. destruct H.
+              + pose proof NatMap.remove_1 H (m := ths_usr0). des_ifs; unfold le; ss; lia.
+              + pose proof (@NatMapP.F.remove_neq_in_iff _ ths_usr0 tid i H). des_ifs; try tauto; reflexivity.
+            - des_ifs. left. ss.
+          }
     - admit.
     - admit.
     - admit.
@@ -602,24 +600,29 @@ Section ADD_RIGHT_CONG.
     ModSim.mod_sim M2_src M2_tgt ->
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
-    i. inv H. rename wf_tgt_inhabited into inh.
-    pose (I' := @lift_ma M1 M2_src M2_tgt _ _ _ inh I).
-    constructor 1 with _ _ _ I'; eauto.
+    i. eapply modsim_nat_modsim_exist in H. inv H.
+    pose (I' := @lift_ma M1 M2_src M2_tgt _ _ I).
+    constructor 1 with _ _ _ I'.
+    { econs. exact 0. }
+    { i. exists (S o0). ss. }
     { clear - init.
-      intro IM_TGT. specialize (init (chop_ctx inh NatSet.empty IM_TGT)).
+      intro IM_TGT. specialize (init (chop_ctx NatSet.empty IM_TGT)).
       destruct init as [im_src [r_shared [init R_SHARED]]].
       pose (pick_ctx IM_TGT) as im_ctx.
       exists (add_ctx im_ctx im_src), (global_th NatSet.empty NatSet.empty, r_shared). ss. split.
       - exists im_src. exists NatSet.empty, NatSet.empty. splits; ss.
         + eapply Partition_empty.
-        + exists (chop_ctx inh NatSet.empty IM_TGT). split; ss. ii. left. ss.
+        + exists (chop_ctx NatSet.empty IM_TGT). split; ss. ii. left. ss.
       - unfold_prod. split; ss. rewrite URA.unfold_wf. econs; ss. eapply Disjoint_empty.
     }
     i. specialize (funs0 fn args).
     unfold ModAdd, add_funs; ss. des_ifs.
     - eapply lift_ma_local_sim_ub.
     - eapply lift_ma_local_sim_ctx.
-    - eapply lift_ma_local_sim_usr; eauto.
+    - eapply lift_ma_local_sim_usr.
+      eapply local_sim_clos_trans in funs0; cycle 1. { econs. exact 0. }
+      eapply local_sim_wft_mono with (wft_lt := lt (wf_clos_trans nat_wf)). { i. econs. ss. }
+      eapply funs0.
   Qed.
 
 End ADD_RIGHT_CONG.
