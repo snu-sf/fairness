@@ -347,10 +347,11 @@ Section LADEQ.
       rewrite <- nm_find_some_rm_add_eq; auto. eapply nm_elements_cons_find_some; eauto.
     }
     { r_wf IND0. }
-    instantiate (1:=im_tgt). i; des.
-    assert (UPD: fair_update im_tgt im_tgt (sum_fmap_l (fun t : thread_id => if tid_dec t tid1 then Flag.success else Flag.emp))).
-    { clear. ii. unfold sum_fmap_l. des_ifs. }
-    specialize (H _ UPD). clear UPD. des.
+    { instantiate (2:=im_tgt). instantiate (1:=im_tgt). clear. ii. unfold sum_fmap_l. des_ifs. }
+    (* instantiate (1:=im_tgt). *)
+    (* assert (UPD: fair_update im_tgt im_tgt (sum_fmap_l (fun t : thread_id => if tid_dec t tid1 then Flag.success else Flag.emp))). *)
+    (* specialize (H _ UPD). clear UPD. des. *)
+    i; des.
     assert (WFPAIR: nm_wf_pair (NatMap.remove (elt:=thread _ident_src (sE state_src) R0) tid1 ths_src) rs_local).
     { hexploit list_forall4_implies_forall2_3. eauto.
       { i. instantiate (1:=fun '(t1, src) '(t3, r_own) => t1 = t3). ss. des_ifs. des; auto. }
