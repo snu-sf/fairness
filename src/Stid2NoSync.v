@@ -33,16 +33,13 @@ Section PROOF.
   Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
   Let shared :=
-    (TIdSet.t *
-       (@imap ident_src wf_src) *
-       (@imap ident_tgt wf_tgt) *
-       state_src *
-       state_tgt *
-       URA.car)%type.
-
+        (TIdSet.t *
+           (@imap ident_src wf_src) *
+           (@imap ident_tgt wf_tgt) *
+           state_src *
+           state_tgt)%type.
   Let shared_rel: Type := shared -> Prop.
-
-  Variable I: shared_rel.
+  Variable I: shared -> URA.car -> Prop.
 
   Theorem stid_implies_nosync
           tid
@@ -152,7 +149,7 @@ Section MODSIM.
     set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
-    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt * URA.car)%type).
+    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
     econs; eauto.
     i. specialize (funs fn args). des_ifs.
     unfold ModSimStid.local_sim in funs.

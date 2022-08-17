@@ -32,12 +32,11 @@ Section PRIMIVIESIM.
        (@imap ident_src wf_src) *
        (@imap ident_tgt wf_tgt) *
        state_src *
-       state_tgt *
-       URA.car)%type.
+       state_tgt)%type.
 
   Let shared_rel: Type := shared -> Prop.
 
-  Variable I: shared_rel.
+  Variable I: shared -> URA.car -> Prop.
 
   Variant __lsim
           (tid: thread_id) R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
@@ -47,152 +46,152 @@ Section PRIMIVIESIM.
     bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
   | lsim_ret
       f_src f_tgt r_ctx o o0
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       r_src r_tgt
       (LT: (wf_stt R_src R_tgt).(lt) o0 o)
-      (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
   | lsim_tauL
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (LSIM: _lsim true f_tgt r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim true f_tgt r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, Tau itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, Tau itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_chooseL
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       X ktr_src itr_tgt
-      (LSIM: exists x, _lsim true f_tgt r_ctx (o, ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: exists x, _lsim true f_tgt r_ctx (o, ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_putL
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       st ktr_src itr_tgt
-      (LSIM: _lsim true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt, r_shared))
+      (LSIM: _lsim true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_getL
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
-      (LSIM: _lsim true f_tgt r_ctx (o, ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim true f_tgt r_ctx (o, ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_tidL
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
-      (LSIM: _lsim true f_tgt r_ctx (o, ktr_src tid) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim true f_tgt r_ctx (o, ktr_src tid) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_UB
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_fairL
       f_src f_tgt r_ctx o
-      ths im_src0 im_tgt st_src st_tgt r_shared
+      ths im_src0 im_tgt st_src st_tgt
       f ktr_src itr_tgt
       (LSIM: exists im_src1,
           (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_r f)>>) /\
-            (<<LSIM: _lsim true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
+            (<<LSIM: _lsim true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt)>>))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt)
 
   | lsim_tauR
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (LSIM: _lsim f_src true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim f_src true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_chooseR
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       X itr_src ktr_tgt
-      (LSIM: forall x, _lsim f_src true r_ctx (o, itr_src) (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: forall x, _lsim f_src true r_ctx (o, itr_src) (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_putR
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       st itr_src ktr_tgt
-      (LSIM: _lsim f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st, r_shared))
+      (LSIM: _lsim f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_getR
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src ktr_tgt
-      (LSIM: _lsim f_src true r_ctx (o, itr_src) (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim f_src true r_ctx (o, itr_src) (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_tidR
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src ktr_tgt
-      (LSIM: _lsim f_src true r_ctx (o, itr_src) (ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim f_src true r_ctx (o, itr_src) (ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_fairR
       f_src f_tgt r_ctx o
-      ths im_src im_tgt0 st_src st_tgt r_shared
+      ths im_src im_tgt0 st_src st_tgt
       f itr_src ktr_tgt
       (LSIM: forall im_tgt1
                    (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
-          (<<LSIM: _lsim f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt, r_shared)>>))
+          (<<LSIM: _lsim f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, itr_src) (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
 
   | lsim_observe
       f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       fn args ktr_src ktr_tgt
       (LSIM: forall ret,
-          lsim true true r_ctx (o, ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+          lsim true true r_ctx (o, ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
   | lsim_yieldR
       f_src f_tgt r_ctx0 o0
-      ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
+      ths0 im_src0 im_tgt0 st_src0 st_tgt0
       r_own r_shared
       ktr_src ktr_tgt
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       o1
       (STUTTER: (wf_stt R_src R_tgt).(lt) o1 o0)
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
+               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          (<<LSIM: lsim true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
+          (<<LSIM: lsim true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
   | lsim_yieldL
       f_src f_tgt r_ctx o0
-      ths im_src0 im_tgt st_src st_tgt r_shared
+      ths im_src0 im_tgt st_src st_tgt
       ktr_src itr_tgt
       (LSIM: exists im_src1 o1,
           (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
-            (<<LSIM: _lsim true f_tgt r_ctx (o1, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
+            (<<LSIM: _lsim true f_tgt r_ctx (o1, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt)>>))
     :
-    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o0, trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o0, trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt)
 
   | lsim_progress
       r_ctx o
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (LSIM: lsim false false r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: lsim false false r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid RR lsim _lsim true true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid RR lsim _lsim true true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   .
 
   Definition lsim (tid: thread_id)
@@ -229,152 +228,152 @@ Section PRIMIVIESIM.
     bool -> bool -> URA.car -> ((wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
     | lsim_indC_ret
         f_src f_tgt r_ctx o o0
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         r_src r_tgt
         (LT: (wf_stt R_src R_tgt).(lt) o0 o)
-        (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
     | lsim_indC_tauL
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         itr_src itr_tgt
-        (LSIM: r true f_tgt r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: r true f_tgt r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, Tau itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, Tau itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_chooseL
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         X ktr_src itr_tgt
-        (LSIM: exists x, r true f_tgt r_ctx (o, ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: exists x, r true f_tgt r_ctx (o, ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_putL
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         st ktr_src itr_tgt
-        (LSIM: r true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt, r_shared))
+        (LSIM: r true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_getL
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         ktr_src itr_tgt
-        (LSIM: r true f_tgt r_ctx (o, ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: r true f_tgt r_ctx (o, ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_tidL
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         ktr_src itr_tgt
-        (LSIM: r true f_tgt r_ctx (o, ktr_src tid) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: r true f_tgt r_ctx (o, ktr_src tid) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_UB
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         ktr_src itr_tgt
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_fairL
         f_src f_tgt r_ctx o
-        ths im_src0 im_tgt st_src st_tgt r_shared
+        ths im_src0 im_tgt st_src st_tgt
         f ktr_src itr_tgt
         (LSIM: exists im_src1,
             (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_r f)>>) /\
-              (<<LSIM: r true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
+              (<<LSIM: r true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt)>>))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt)
 
     | lsim_indC_tauR
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         itr_src itr_tgt
-        (LSIM: r f_src true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: r f_src true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_chooseR
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         X itr_src ktr_tgt
-        (LSIM: forall x, r f_src true r_ctx (o, itr_src) (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: forall x, r f_src true r_ctx (o, itr_src) (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_putR
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         st itr_src ktr_tgt
-        (LSIM: r f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st, r_shared))
+        (LSIM: r f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_getR
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         itr_src ktr_tgt
-        (LSIM: r f_src true r_ctx (o, itr_src) (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: r f_src true r_ctx (o, itr_src) (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_tidR
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         itr_src ktr_tgt
-        (LSIM: r f_src true r_ctx (o, itr_src) (ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: r f_src true r_ctx (o, itr_src) (ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
     | lsim_indC_fairR
         f_src f_tgt r_ctx o
-        ths im_src im_tgt0 st_src st_tgt r_shared
+        ths im_src im_tgt0 st_src st_tgt
         f itr_src ktr_tgt
         (LSIM: forall im_tgt1
                  (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
-            (<<LSIM: r f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt, r_shared)>>))
+            (<<LSIM: r f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, itr_src) (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
 
     | lsim_indC_observe
         f_src f_tgt r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         fn args ktr_src ktr_tgt
         (LSIM: forall ret,
-            r true true r_ctx (o, ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+            r true true r_ctx (o, ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
     | lsim_indC_yieldR
         f_src f_tgt r_ctx0 o0
-        ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
+        ths0 im_src0 im_tgt0 st_src0 st_tgt0
         r_own r_shared
         ktr_src ktr_tgt
-        (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
+        (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
         (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
         o1
         (STUTTER: (wf_stt R_src R_tgt).(lt) o1 o0)
         (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-                 (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
+                 (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                  (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                  im_tgt2
                  (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-            (<<LSIM: r true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
+            (<<LSIM: r true true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
+      lsim_indC tid RR r f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
     | lsim_indC_yieldL
         f_src f_tgt r_ctx o0
-        ths im_src0 im_tgt st_src st_tgt r_shared
+        ths im_src0 im_tgt st_src st_tgt
         ktr_src itr_tgt
         (LSIM: exists im_src1 o1,
             (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
-              (<<LSIM: r true f_tgt r_ctx (o1, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
+              (<<LSIM: r true f_tgt r_ctx (o1, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt)>>))
       :
-      lsim_indC tid RR r f_src f_tgt r_ctx (o0, trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r f_src f_tgt r_ctx (o0, trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt)
 
     | lsim_indC_progress
         r_ctx o
-        ths im_src im_tgt st_src st_tgt r_shared
+        ths im_src im_tgt st_src st_tgt
         itr_src itr_tgt
-        (LSIM: r false false r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+        (LSIM: r false false r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
       :
-      lsim_indC tid RR r true true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+      lsim_indC tid RR r true true r_ctx (o, itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   .
 
   Lemma lsim_indC_mon tid R0 R1 (RR: R0 -> R1 -> _ -> _): monotone6 (lsim_indC tid RR).
@@ -807,26 +806,26 @@ Section PRIMIVIESIM.
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid:
     R0 -> R1 -> URA.car -> shared_rel :=
-    fun (r_src: R0) (r_tgt: R1) (r_ctx: URA.car) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1) =>
-      (exists ths3 r_own r_shared2,
+    fun (r_src: R0) (r_tgt: R1) (r_ctx: URA.car) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1) =>
+      (exists ths3 r_own r_shared,
           (<<THS: NatMap.remove tid ths2 = ths3>>) /\
-            (<<VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx)>>) /\
-            (<<INV: I (ths3, im_src1, im_tgt1, st_src1, st_tgt1, r_shared2)>>) /\
+            (<<VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx)>>) /\
+            (<<INV: I (ths3, im_src1, im_tgt1, st_src1, st_tgt1) r_shared>>) /\
             (<<RET: RR r_src r_tgt>>)).
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0))
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
       tid ths1
       (THS: TIdSet.add_new tid ths0 ths1)
       (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
     forall im_tgt0'
       (UPD: fair_update im_tgt0 im_tgt0' (sum_fmap_l (fun t => if (tid_dec t tid) then Flag.success else Flag.emp))),
     exists r_shared1 r_own o im_src0',
-      (<<INV: I (ths1, im_src0', im_tgt0', st_src0, st_tgt0, r_shared1)>>) /\
+      (<<INV: I (ths1, im_src0', im_tgt0', st_src0, st_tgt0) r_shared1>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
         (forall ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2
-           (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared2))
+           (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt) r_shared2)
            (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2))
            im_tgt2
            (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
@@ -838,7 +837,7 @@ Section PRIMIVIESIM.
                              fs ft
                              r_ctx2
                              (o, src) tgt
-                             (ths, im_src2, im_tgt2, st_src, st_tgt, r_shared2)
+                             (ths, im_src2, im_tgt2, st_src, st_tgt)
                              >>)).
 
 End PRIMIVIESIM.
@@ -865,9 +864,9 @@ Module ModSim.
 
           world: URA.t;
 
-          I: (@shared world md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> Prop;
+          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop;
           init: forall im_tgt, exists im_src r_shared,
-            (I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init), r_shared)) /\
+            (I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared) /\
               (URA.wf r_shared);
 
           wf_stt : Type -> Type -> WF;

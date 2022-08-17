@@ -31,7 +31,7 @@ Section PRIMIVIESIM.
 
   Let shared_rel: Type := shared -> Prop.
 
-  Variable I: shared_rel.
+  Variable I: shared -> URA.car -> Prop.
 
   Variant __lsim
           (tid: thread_id)
@@ -42,162 +42,162 @@ Section PRIMIVIESIM.
     bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
   | lsim_ret
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       r_src r_tgt
-      (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (Ret r_src) (Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
   | lsim_tauL
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim _ _ RR true f_tgt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (Tau itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (Tau itr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_chooseL
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       X ktr_src itr_tgt
-      (LSIM: exists x, _lsim _ _ RR true f_tgt r_ctx (ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: exists x, _lsim _ _ RR true f_tgt r_ctx (ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_putL
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       st ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt, r_shared))
+      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_getL
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_tidL
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tid) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tid) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (GetTid) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_UB
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Undefined) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_fairL
       f_src f_tgt r_ctx
-      ths im_src0 im_tgt st_src st_tgt r_shared
+      ths im_src0 im_tgt st_src st_tgt
       f ktr_src itr_tgt
       (LSIM: exists im_src1,
           (<<FAIR: fair_update im_src0 im_src1 f>>) /\
-            (<<LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
+            (<<LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt)>>))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt)
 
   | lsim_tauR
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_chooseR
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       X itr_src ktr_tgt
-      (LSIM: forall x, _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: forall x, _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_putR
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       st itr_src ktr_tgt
-      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st, r_shared))
+      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_getR
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src ktr_tgt
-      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_tidR
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src ktr_tgt
-      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_fairR
       f_src f_tgt r_ctx
-      ths im_src im_tgt0 st_src st_tgt r_shared
+      ths im_src im_tgt0 st_src st_tgt
       f itr_src ktr_tgt
       (LSIM: forall im_tgt1
                    (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
-          (<<LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt, r_shared)>>))
+          (<<LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
 
   | lsim_observe
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       fn args ktr_src ktr_tgt
       (LSIM: forall ret,
-          _lsim _ _ RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+          _lsim _ _ RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
   | lsim_yieldL
       f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) (trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) (trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_yieldR
       f_src f_tgt r_ctx0
-      ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
+      ths0 im_src0 im_tgt0 st_src0 st_tgt0
       r_own r_shared
       ktr_src ktr_tgt
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-                    (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
+                    (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                     (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                     im_tgt2
                     (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          _lsim _ _ RR f_src true r_ctx1 (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))
+          _lsim _ _ RR f_src true r_ctx1 (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
   | lsim_sync
       f_src f_tgt r_ctx0
-      ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
+      ths0 im_src0 im_tgt0 st_src0 st_tgt0
       r_own r_shared
       ktr_src ktr_tgt
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
+               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-          (<<LSIM: _lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
+          (<<LSIM: _lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
 
   | lsim_progress
       r_ctx
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (LSIM: lsim _ _ RR false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (LSIM: lsim _ _ RR false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    __lsim tid lsim _lsim RR true true r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    __lsim tid lsim _lsim RR true true r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   .
 
   Definition lsim (tid: thread_id)
@@ -346,7 +346,7 @@ Section GENORDER.
 
   Let shared := shared state_src state_tgt ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
-  Variable I: shared_rel.
+  Variable I: shared -> URA.car -> Prop.
 
   Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
   Let wf_stt R0 R1 := @ord_tree_WF (A R0 R1).
@@ -359,166 +359,166 @@ Section GENORDER.
     bool -> bool -> URA.car -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel :=
   | genos_ret
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       r_src r_tgt
-      (GENOS: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, Ret r_src) (ot, Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, Ret r_src) (ot, Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
   | genos_tauL
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (GENOS: genos _ _ RR true f_tgt r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: genos _ _ RR true f_tgt r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, Tau itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, Tau itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_chooseL
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       X ktr_src itr_tgt
-      (GENOS: exists x, genos _ _ RR true f_tgt r_ctx (os, ktr_src x) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: exists x, genos _ _ RR true f_tgt r_ctx (os, ktr_src x) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Choose X) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Choose X) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_putL
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       st ktr_src itr_tgt
-      (GENOS: genos _ _ RR true f_tgt r_ctx (os, ktr_src tt) (ot, itr_tgt) (ths, im_src, im_tgt, st, st_tgt, r_shared))
+      (GENOS: genos _ _ RR true f_tgt r_ctx (os, ktr_src tt) (ot, itr_tgt) (ths, im_src, im_tgt, st, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Put st) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Put st) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_getL
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
-      (GENOS: genos _ _ RR true f_tgt r_ctx (os, ktr_src st_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: genos _ _ RR true f_tgt r_ctx (os, ktr_src st_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (@Get _) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (@Get _) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_tidL
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
-      (GENOS: genos _ _ RR true f_tgt r_ctx (os, ktr_src tid) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: genos _ _ RR true f_tgt r_ctx (os, ktr_src tid) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (GetTid) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (GetTid) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_UB
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Undefined) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Undefined) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_fairL
       f_src f_tgt r_ctx os ot
-      ths im_src0 im_tgt st_src st_tgt r_shared
+      ths im_src0 im_tgt st_src st_tgt
       f ktr_src itr_tgt
       (GENOS: exists im_src1,
           (<<FAIR: fair_update im_src0 im_src1 f>>) /\
-            (<<GENOS: genos _ _ RR true f_tgt r_ctx (os, ktr_src tt) (ot, itr_tgt) (ths, im_src1, im_tgt, st_src, st_tgt, r_shared)>>))
+            (<<GENOS: genos _ _ RR true f_tgt r_ctx (os, ktr_src tt) (ot, itr_tgt) (ths, im_src1, im_tgt, st_src, st_tgt)>>))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Fair f) >>= ktr_src) (ot, itr_tgt) (ths, im_src0, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Fair f) >>= ktr_src) (ot, itr_tgt) (ths, im_src0, im_tgt, st_src, st_tgt)
 
   | genos_tauR
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_chooseR
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       X itr_src ktr_tgt
-      (GENOS: forall x, genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: forall x, genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_putR
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       st itr_src ktr_tgt
-      (GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tt) (ths, im_src, im_tgt, st_src, st, r_shared))
+      (GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tt) (ths, im_src, im_tgt, st_src, st))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_getR
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src ktr_tgt
-      (GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_tidR
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src ktr_tgt
-      (GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_fairR
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt0 st_src st_tgt r_shared
+      ths im_src im_tgt0 st_src st_tgt
       f itr_src ktr_tgt
       (GENOS: forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
-          (<<GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt, r_shared)>>))
+          (<<GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
 
   | genos_observe
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       fn args ktr_src ktr_tgt
       (GENOS: forall ret,
-          genos _ _ RR true true r_ctx (os, ktr_src ret) (ot, ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+          genos _ _ RR true true r_ctx (os, ktr_src ret) (ot, ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Observe fn args) >>= ktr_src) (ot, trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Observe fn args) >>= ktr_src) (ot, trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
   | genos_yieldL
       f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       ktr_src itr_tgt
       (GENOS: exists os1 ot1,
-          (<<GENOS: genos _ _ RR true f_tgt r_ctx (os1, ktr_src tt) (ot1, trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)>>) /\
+          (<<GENOS: genos _ _ RR true f_tgt r_ctx (os1, ktr_src tt) (ot1, trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)>>) /\
             (<<LT: (wf_stt R0 R1).(lt) os1 os>>))
     :
-    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR f_src f_tgt r_ctx (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | genos_yieldR
       f_src f_tgt r_ctx0 os ot
-      ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
+      ths0 im_src0 im_tgt0 st_src0 st_tgt0
       r_own r_shared
       ktr_src ktr_tgt
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (GENOS: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
+               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
         exists os1 ot1,
-          (<<GENOS: genos _ _ RR f_src true r_ctx1 (os1, trigger (Yield) >>= ktr_src) (ot1, ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>) /\
+          (<<GENOS: genos _ _ RR f_src true r_ctx1 (os1, trigger (Yield) >>= ktr_src) (ot1, ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>) /\
             (<<LT: (wf_stt R0 R1).(lt) ot1 ot>>))
     :
-    _genos tid genos RR f_src f_tgt r_ctx0 (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
+    _genos tid genos RR f_src f_tgt r_ctx0 (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
   | genos_sync
       f_src f_tgt r_ctx0 os ot
-      ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0
+      ths0 im_src0 im_tgt0 st_src0 st_tgt0
       r_own r_shared
       ktr_src ktr_tgt
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared))
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (GENOS: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1, r_shared1))
+               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
         exists os1 ot1,
-          (<<GENOS: genos _ _ RR true true r_ctx1 (os1, ktr_src tt) (ot1, ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1)>>))
+          (<<GENOS: genos _ _ RR true true r_ctx1 (os1, ktr_src tt) (ot1, ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
     :
-    _genos tid genos RR f_src f_tgt r_ctx0 (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0)
+    _genos tid genos RR f_src f_tgt r_ctx0 (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
 
   | genos_progress
       r_ctx os ot
-      ths im_src im_tgt st_src st_tgt r_shared
+      ths im_src im_tgt st_src st_tgt
       itr_src itr_tgt
-      (GENOS: lsim I tid RR false false r_ctx (itr_src) (itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared))
+      (GENOS: lsim I tid RR false false r_ctx (itr_src) (itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
-    _genos tid genos RR true true r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt, r_shared)
+    _genos tid genos RR true true r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   .
 
   Definition genos (tid: thread_id)
@@ -775,9 +775,9 @@ Section GENORDER.
       intro JOIN2. des. exists o0.
       eapply pind9_fold. econs 10.
       i. specialize (LSIM0 x). destruct LSIM0 as [LSIM IND].
-      specialize (JOIN1 (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
+      specialize (JOIN1 (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt))).
       destruct JOIN1; auto. des.
-      specialize (JOIN2 (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
+      specialize (JOIN2 (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt))).
       destruct JOIN2; auto. des.
       split; ss.
       eapply genos_ord_weakR; eauto.
@@ -814,9 +814,9 @@ Section GENORDER.
       intro JOIN2. des. exists o0.
       eapply pind9_fold. econs 14.
       i. specialize (LSIM0 _ FAIR). destruct LSIM0 as [LSIM IND].
-      specialize (JOIN1 (ps, true, r_ctx, src, (ktr_tgt tt), (ths, im_src, im_tgt1, st_src, st_tgt, r_shared))).
+      specialize (JOIN1 (ps, true, r_ctx, src, (ktr_tgt tt), (ths, im_src, im_tgt1, st_src, st_tgt))).
       destruct JOIN1; auto. des.
-      specialize (JOIN2 (ps, true, r_ctx, src, (ktr_tgt tt), (ths, im_src, im_tgt1, st_src, st_tgt, r_shared))).
+      specialize (JOIN2 (ps, true, r_ctx, src, (ktr_tgt tt), (ths, im_src, im_tgt1, st_src, st_tgt))).
       destruct JOIN2; auto. des.
       split; ss.
       eapply genos_ord_weakR; eauto.
@@ -843,9 +843,9 @@ Section GENORDER.
       intro JOIN2. des. exists o0.
       eapply pind9_fold. econs 15.
       i. specialize (LSIM0 ret). destruct LSIM0 as [LSIM IND].
-      specialize (JOIN1 (true, true, r_ctx, (ktr_src ret), (ktr_tgt ret), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
+      specialize (JOIN1 (true, true, r_ctx, (ktr_src ret), (ktr_tgt ret), (ths, im_src, im_tgt, st_src, st_tgt))).
       destruct JOIN1; auto. des.
-      specialize (JOIN2 (true, true, r_ctx, (ktr_src ret), (ktr_tgt ret), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))).
+      specialize (JOIN2 (true, true, r_ctx, (ktr_src ret), (ktr_tgt ret), (ths, im_src, im_tgt, st_src, st_tgt))).
       destruct JOIN2; auto. des.
       split; ss.
       eapply genos_ord_weakR; eauto.
@@ -855,7 +855,7 @@ Section GENORDER.
       set (fos:= fun _: (A R0 R1) => os). exists (ord_tree_cons fos), ot.
       eapply pind9_fold. econs 16; eauto. esplits; eauto.
       split; ss. eauto. ss.
-      replace os with (fos (true, pt, r_ctx, (ktr_src tt), (x <- trigger Yield;; itr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt, r_shared))); ss.
+      replace os with (fos (true, pt, r_ctx, (ktr_src tt), (x <- trigger Yield;; itr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt))); ss.
     }
 
     { hexploit ord_tree_join.
@@ -879,9 +879,9 @@ Section GENORDER.
       intro JOIN2. des. exists o0.
       eapply pind9_fold. econs 17. 1,2: eauto.
       i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). destruct LSIM0 as [LSIM IND].
-      specialize (JOIN1 (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt tt, (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))).
+      specialize (JOIN1 (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt tt, (ths1, im_src1, im_tgt2, st_src1, st_tgt1))).
       destruct JOIN1; auto. des.
-      specialize (JOIN2 (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt tt, (ths1, im_src1, im_tgt2, st_src1, st_tgt1, r_shared1))).
+      specialize (JOIN2 (ps, true, r_ctx1, (x <- trigger Yield;; ktr_src x), ktr_tgt tt, (ths1, im_src1, im_tgt2, st_src1, st_tgt1))).
       destruct JOIN2; auto. des.
       exists o1, x0. esplits; eauto.
       split; ss.

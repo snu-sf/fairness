@@ -27,7 +27,7 @@ Section PROOF.
 
   Let shared := shared state_src state_tgt ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
-  Variable I: shared_rel.
+  Variable I: shared -> URA.car -> Prop.
 
   Definition lift_wf (wf: WF): WF := sum_WF wf (option_WF wf).
 
@@ -220,7 +220,7 @@ Section MODSIM.
   (*   set (srcE := ((@eventE ident_src +' cE) +' sE state_src)). *)
   (*   set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)). *)
   (*   set (ident_tgt := @ident_tgt _ident_tgt). *)
-  (*   set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt * URA.car)%type). *)
+  (*   set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type). *)
   (*   set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)). *)
   (*   econs; eauto. instantiate (1:=wf_stt). *)
   (*   i. specialize (funs fn args). des_ifs. *)
