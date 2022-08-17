@@ -4,7 +4,6 @@ From Paco Require Import paco.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
-Require Import Permutation.
 
 Export ITreeNotations.
 
