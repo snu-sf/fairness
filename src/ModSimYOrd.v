@@ -977,18 +977,19 @@ Section PRIMIVIESIM.
 
   Definition local_sim {R0 R1} (RR: R0 -> R1 -> Prop) src tgt :=
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
-           (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0))
-           tid ths1
-           (THS: TIdSet.add_new tid ths0 ths1)
-           (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
-    exists r_shared1 r_own,
-      (<<INV: I (ths1, im_src0, im_tgt0, st_src0, st_tgt0, r_shared1)>>) /\
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0))
+      tid ths1
+      (THS: TIdSet.add_new tid ths0 ths1)
+      (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
+    forall im_tgt0'
+      (UPD: fair_update im_tgt0 im_tgt0' (sum_fmap_l (fun t => if (tid_dec t tid) then Flag.success else Flag.emp))),
+    exists r_shared1 r_own os ot,
+      (<<INV: I (ths1, im_src0, im_tgt0', st_src0, st_tgt0, r_shared1)>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
         (forall ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2
-                (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared2))
-                (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
+           (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt, r_shared2))
+           (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
           forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
-            exists os ot,
             (<<LSIM: forall fs ft,
                 lsim
                   tid

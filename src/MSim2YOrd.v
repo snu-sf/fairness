@@ -205,3 +205,42 @@ Section PROOF.
   Qed.
 
 End PROOF.
+
+Section MODSIM.
+
+  (* Lemma modsim_implies_yord_mod *)
+  (*       md_src md_tgt *)
+  (*       (MDSIM: ModSim.ModSim.mod_sim md_src md_tgt) *)
+  (*   : *)
+  (*   ModSimYOrd.ModSim.mod_sim md_src md_tgt. *)
+  (* Proof. *)
+  (*   inv MDSIM. *)
+  (*   set (ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt). *)
+  (*   set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt). *)
+  (*   set (srcE := ((@eventE ident_src +' cE) +' sE state_src)). *)
+  (*   set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)). *)
+  (*   set (ident_tgt := @ident_tgt _ident_tgt). *)
+  (*   set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt * URA.car)%type). *)
+  (*   set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)). *)
+  (*   econs; eauto. instantiate (1:=wf_stt). *)
+  (*   i. specialize (funs fn args). des_ifs. *)
+  (*   unfold ModSim.local_sim in funs. *)
+  (*   ii. specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID _ UPD). *)
+  (*   des. do 2 eexists. exists (inr None), (inr None). splits. 1,2: eauto. *)
+  (*   i. specialize (funs1 _ _ _ _ _ _ _ INV1 VALID1 _ TGT fs ft). *)
+  (*   eapply modsim_implies_yord in funs1. des. *)
+  (*   ginit. guclo lsim_ord_weakRC_spec. econs. guclo lsim_ord_weakLC_spec. econs. *)
+  (*   gfinal. right. eapply funs1. *)
+  (*   - clear. destruct os. *)
+  (*     { right. econs. } *)
+  (*     destruct t. *)
+  (*     { right. do 2 econs. } *)
+  (*     { left. auto. } *)
+  (*   - clear. destruct ot. *)
+  (*     { right. econs. } *)
+  (*     destruct t. *)
+  (*     { right. do 2 econs. } *)
+  (*     { left. auto. } *)
+  (* Qed. *)
+
+End MODSIM.
