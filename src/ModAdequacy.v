@@ -229,7 +229,7 @@ Section LADEQ.
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
-  Variable I: shared -> Prop.
+  Variable I: shared -> URA.car -> Prop.
 
   Variable St: wf_tgt.(T) -> wf_tgt.(T).
   Hypothesis lt_succ_diag_r_t: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
@@ -245,7 +245,7 @@ Section LADEQ.
         src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         ps pt
-        (LSIM: forall im_tgt, exists im_src r_shared (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
+        (LSIM: forall im_tgt, exists im_src (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
             (<<RSWF: Th.find tid rs_ctx = None>>) /\
               (<<OSWF: (forall tid', Th.In tid' ths_src -> Th.In tid' os) /\ (Th.find tid os = None)>>) /\
               (<<LSIM:
@@ -256,7 +256,7 @@ Section LADEQ.
                     (lsim (wf_stt) I tid (local_RR I RR tid)
                           ps pt (sum_of_resources rs_ctx) (o, src) tgt
                           (NatSet.add tid (key_set ths_src),
-                            im_src0, im_tgt0, st_src, st_tgt, r_shared))>>) /\
+                            im_src0, im_tgt0, st_src, st_tgt))>>) /\
               (<<LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1) o r_own
                           (OWN: r_own = fst (get_resource tid rs_ctx))
                           (LSRC: Th.find tid ths_src = Some src)
@@ -307,11 +307,11 @@ Section LADEQ.
         (LOCAL: local_sim_threads RR ths_src ths_tgt)
         (st_src: state_src) (st_tgt: state_tgt)
         (INV: forall im_tgt, exists im_src r_shared,
-            (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt, r_shared)) /\ (URA.wf r_shared))
+            (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
     :
     forall im_tgt,
     exists (im_src0 : imap ident_src wf_src) r_shared0 (os: (nm_wf_stt R0 R1).(T)) (rs_local: local_resources),
-      (I (key_set ths_src, im_src0, im_tgt, st_src, st_tgt, r_shared0)) /\
+      (I (key_set ths_src, im_src0, im_tgt, st_src, st_tgt) r_shared0) /\
         (resources_wf r_shared0 rs_local) /\
         (Forall4 (fun '(t1, src) '(t2, tgt) '(t3, r_own) '(t4, o) =>
                     (t1 = t2) /\ (t1 = t3) /\ (t1 = t4) /\ (local_sim_pick wf_stt I RR src tgt t1 o r_own))
@@ -348,9 +348,6 @@ Section LADEQ.
     }
     { r_wf IND0. }
     { instantiate (2:=im_tgt). instantiate (1:=im_tgt). clear. ii. unfold sum_fmap_l. des_ifs. }
-    (* instantiate (1:=im_tgt). *)
-    (* assert (UPD: fair_update im_tgt im_tgt (sum_fmap_l (fun t : thread_id => if tid_dec t tid1 then Flag.success else Flag.emp))). *)
-    (* specialize (H _ UPD). clear UPD. des. *)
     i; des.
     assert (WFPAIR: nm_wf_pair (NatMap.remove (elt:=thread _ident_src (sE state_src) R0) tid1 ths_src) rs_local).
     { hexploit list_forall4_implies_forall2_3. eauto.
@@ -406,7 +403,7 @@ Section LADEQ.
           (LOCAL: local_sim_threads RR ths_src ths_tgt)
           (st_src: state_src) (st_tgt: state_tgt)
           (INV: forall im_tgt, exists im_src r_shared,
-              (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt, r_shared)) /\ (URA.wf r_shared))
+              (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
           tid
           (INS: Th.In tid ths_src)
           (INT: Th.In tid ths_tgt)
@@ -442,7 +439,7 @@ Section LADEQ.
     { eapply nm_pop_res_find_none; eauto. }
 
     cut (forall im_tgt0, exists im_src0 r_shared0 (os0: (nm_wf_stt R0 R1).(T)) rs_ctx0,
-            (I (key_set ths_src, im_src0, im_tgt0, st_src, st_tgt, r_shared0)) /\
+            (I (key_set ths_src, im_src0, im_tgt0, st_src, st_tgt) r_shared0) /\
               (resources_wf r_shared0 rs_ctx0) /\
               (nm_wf_pair ths_src os0) /\
               (forall (tid0 : Th.key) (src : thread _ident_src (sE state_src) R0)
@@ -456,7 +453,7 @@ Section LADEQ.
       assert (POPOS: exists o os, nm_pop tid os0 = Some (o, os)).
       { hexploit nm_wf_pair_pop_cases. eapply H1. instantiate (1:=tid). i; des; eauto.
         unfold nm_pop in H3. rewrite FINDS in H3. ss. }
-      des. exists im_src0, r_shared0, os, (snd (get_resource tid rs_ctx0)), o. splits.
+      des. exists im_src0, os, (snd (get_resource tid rs_ctx0)), o. splits.
       - eapply get_resource_snd_find_eq_none.
       - i. eapply nm_wf_pair_pop_cases in H1. des. erewrite POPS in H1. ss.
         rewrite POPS in H1; rewrite POPOS in H4. clarify.
@@ -485,7 +482,7 @@ Section LADEQ.
     }
 
     cut (forall im_tgt, exists (im_src0 : imap ident_src wf_src) r_shared0 (os0: (nm_wf_stt R0 R1).(T)) rs_ctx0,
-            I (key_set ths_src, im_src0, im_tgt, st_src, st_tgt, r_shared0) /\
+            (I (key_set ths_src, im_src0, im_tgt, st_src, st_tgt) r_shared0) /\
               (resources_wf r_shared0 rs_ctx0) /\
               (Forall3 (fun '(t1, src) '(t2, tgt) '(t3, o) =>
                           (t1 = t2) /\ (t1 = t3) /\

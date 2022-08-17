@@ -48,7 +48,7 @@ Section PROOF.
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
-  Variable I: shared -> Prop.
+  Variable I: shared -> URA.car -> Prop.
 
   Variable St: wf_tgt.(T) -> wf_tgt.(T).
   Hypothesis lt_succ_diag_r_t: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
@@ -64,7 +64,7 @@ Section PROOF.
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
-        (LSIM: forall im_tgt, exists im_src r_shared (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
+        (LSIM: forall im_tgt, exists im_src (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
             (<<RSWF: Th.find tid rs_ctx = None>>) /\
               (<<OSWF: (forall tid', Th.In tid' ths_src -> Th.In tid' os) /\ (Th.find tid os = None)>>) /\
               (<<LSIM:
@@ -75,7 +75,7 @@ Section PROOF.
                     (lsim (wf_stt) I tid (local_RR I RR tid)
                           gps gpt (sum_of_resources rs_ctx) (o, src) tgt
                           (NatSet.add tid (key_set ths_src),
-                            im_src0, im_tgt0, st_src, st_tgt, r_shared))>>) /\
+                            im_src0, im_tgt0, st_src, st_tgt))>>) /\
               (<<LOCAL: forall tid sf (src: itree srcE R0) (tgt: itree tgtE R1) o r_own
                           (OWN: r_own = fst (get_resource tid rs_ctx))
                           (LSRC: Th.find tid ths_src = Some (sf, src))
@@ -84,10 +84,10 @@ Section PROOF.
                   ((sf = true) -> (local_sim_sync wf_stt I RR src tgt tid o r_own)) /\
                     ((sf = false) -> (local_sim_pick wf_stt I RR src tgt tid o r_own))>>))
     :
-    forall im_tgt, exists im_src os r_shared rs_ctx,
+    forall im_tgt, exists im_src os rs_ctx,
       (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (nm_wf_stt)
                 RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
-                (im_src, im_tgt, st_src, st_tgt, r_shared) os).
+                (im_src, im_tgt, st_src, st_tgt) os).
   Proof.
     ii. remember (fun i => match sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))) i with
                         | Flag.fail => St (im_tgt i)
@@ -100,7 +100,7 @@ Section PROOF.
     specialize (LSIM im_tgt FAIR). des. clear LSIM Heqim_tgt1 FAIR im_tgt1.
     clear im_src; rename im_src0 into im_src.
     move LOCAL before RR. rename LSIM0 into LSIM.
-    exists im_src, (Th.add tid o os), r_shared, rs_ctx.
+    exists im_src, (Th.add tid o os), rs_ctx.
 
     revert_until RR. pcofix CIH. i.
     match goal with
@@ -114,7 +114,7 @@ Section PROOF.
     revert gps gpt rs osrc tgt shr LSIM.
     apply pind6_acc.
     intros rr DEC IH gps gpt rs src tgt shr LSIM. clear DEC.
-    intros THSRC THTGT WF sf src0 st_src st_tgt r_shared o RSWF OSWF0 OSWF1 im_tgt im_src ELRR Eshr Ers Esrc.
+    intros THSRC THTGT WF sf src0 st_src st_tgt o RSWF OSWF0 OSWF1 im_tgt im_src ELRR Eshr Ers Esrc.
     assert (LBASE: lsim _ I tid LRR gps gpt rs src tgt shr).
     { clarify. pfold. eapply pind6_mon_top; eauto. }
     eapply pind6_unfold in LSIM.
@@ -130,7 +130,7 @@ Section PROOF.
       { destruct (Th.is_empty ths_tgt) eqn:EMPT.
         { exfalso. erewrite nm_wf_pair_is_empty in EMPS. 2:eapply WF. rewrite EMPT in EMPS. ss. }
         { pfold. eapply pind10_fold. econs 2; eauto.
-          { instantiate (1:=r_own). instantiate (1:=r_shared2). unfold resources_wf.
+          { instantiate (1:=r_own). instantiate (1:=r_shared). unfold resources_wf.
             rewrite sum_of_resources_add; auto. r_wf VALID. }
           { instantiate (1:=Th.add tid o1 os). ss. econs. all: eauto.
             - apply nm_find_add_eq.
@@ -363,7 +363,7 @@ Section PROOF.
 
     { clear IH rr. clarify. rewrite ! bind_trigger.
       pfold. eapply pind10_fold. eapply ksim_sync; eauto.
-      { instantiate (1:=r_own). instantiate (1:=r_shared1). unfold resources_wf.
+      { instantiate (1:=r_own). instantiate (1:=r_shared). unfold resources_wf.
         rewrite sum_of_resources_add; auto. r_wf VALID. }
       i.
       assert (WF0: th_wf_pair (Th.add tid (true, ktr_src ()) ths_src) (Th.add tid (ktr_tgt ()) ths_tgt)).

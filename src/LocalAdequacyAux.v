@@ -43,28 +43,28 @@ Section AUX.
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
-  Variable I: shared -> Prop.
+  Variable I: shared -> URA.car -> Prop.
 
   Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid o r_own :=
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0))
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
       (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0)),
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
     exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
                  (forall fs ft,
                      lsim wf_stt I tid (local_RR I RR tid)
                           fs ft r_ctx0 (o, src) tgt
-                          (ths0, im_src1, im_tgt1, st_src0, st_tgt0, r_shared0)).
+                          (ths0, im_src1, im_tgt1, st_src0, st_tgt0)).
 
   Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid o r_own :=
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0, r_shared0))
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
       (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0))
       fs ft,
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
       (lsim wf_stt I tid (local_RR I RR tid)
             fs ft r_ctx0 (o, Vis (inl1 (inr1 Yield)) (fun _ => src)) tgt
-            (ths0, im_src0, im_tgt1, st_src0, st_tgt0, r_shared0)).
+            (ths0, im_src0, im_tgt1, st_src0, st_tgt0)).
 
   Definition th_wf_pair {elt1 elt2} := @nm_wf_pair elt1 elt2.
 

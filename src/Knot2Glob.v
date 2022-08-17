@@ -94,10 +94,10 @@ Section PROOF.
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-              (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) r_shared rs_ctx
+              (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) rs_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
-                       (ms, mt, st_src, st_tgt, r_shared) o ->
+                       (ms, mt, st_src, st_tgt) o ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
         (o : T (wf_stt R0 R1)) ps
@@ -110,10 +110,10 @@ Section PROOF.
                        th_wf_pair ths_src ths_tgt ->
                        forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
                          (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-                         (st_tgt : state_tgt) (ps pt : bool) r_shared rs_ctx (mt : imap ident_tgt wf_tgt)
+                         (st_tgt : state_tgt) (ps pt : bool) rs_ctx (mt : imap ident_tgt wf_tgt)
                          (ms : imap ident_src wf_src),
                          sim_knot (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
-                                  (ms, mt, st_src, st_tgt, r_shared) y ->
+                                  (ms, mt, st_src, st_tgt) y ->
                          gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
                                 (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)))
@@ -142,7 +142,7 @@ Section PROOF.
                        fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr0))) ->
                          upaco10 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl0 thsr0 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_local))) true true
                                 (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
-                                (ms, im_tgt0, st_src, st_tgt, r_shared0) o1) /\
+                                (ms, im_tgt0, st_src, st_tgt) o1) /\
                     (b = false ->
                      forall im_tgt0 : imap ident_tgt wf_tgt,
                        fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr0))) ->
@@ -150,7 +150,7 @@ Section PROOF.
                          fair_update ms im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl0))) /\
                            (upaco10 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl0 thsr0 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_local))) true true
                                       (b, th_src) th_tgt
-                                      (im_src0, im_tgt0, st_src, st_tgt, r_shared0) o1))))
+                                      (im_src0, im_tgt0, st_src, st_tgt) o1))))
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
            (interp_all st_src (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)) tid)
@@ -302,10 +302,10 @@ Section PROOF.
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-              (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) r_shared r_ctx
+              (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) r_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot (wf_stt) RR ths_src ths_tgt tid r_ctx ps pt (sf, src) tgt
-                       (ms, mt, st_src, st_tgt, r_shared) o ->
+                       (ms, mt, st_src, st_tgt) o ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
         (o : T (wf_stt R0 R1)) ps
@@ -318,10 +318,10 @@ Section PROOF.
                        th_wf_pair ths_src ths_tgt ->
                        forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
                          (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-                         (st_tgt : state_tgt) (ps pt : bool) r_shared r_ctx (mt : imap ident_tgt wf_tgt)
+                         (st_tgt : state_tgt) (ps pt : bool) r_ctx (mt : imap ident_tgt wf_tgt)
                          (ms : imap ident_src wf_src),
                          sim_knot (wf_stt) RR ths_src ths_tgt tid r_ctx ps pt (sf, src) tgt
-                                  (ms, mt, st_src, st_tgt, r_shared) y ->
+                                  (ms, mt, st_src, st_tgt) y ->
                          gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
                                 (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid)))
@@ -350,7 +350,7 @@ Section PROOF.
                              upaco10
                                (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl1 thsr1 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))) true true
                                (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
-                               (ms, im_tgt0, st_src, st_tgt, r_shared0) o0)) /\
+                               (ms, im_tgt0, st_src, st_tgt) o0)) /\
                     (b = false ->
                      (forall im_tgt0 : imap ident_tgt wf_tgt,
                          fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1))) ->
@@ -360,7 +360,7 @@ Section PROOF.
                              (upaco10
                                 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl1 thsr1 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))) true true
                                 (b, th_src) th_tgt
-                                (im_src0, im_tgt0, st_src, st_tgt, r_shared0) o0)))))
+                                (im_src0, im_tgt0, st_src, st_tgt) o0)))))
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
            (interp_all st_src (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
@@ -519,10 +519,10 @@ Section PROOF.
             th_wf_pair ths_src ths_tgt ->
             forall (sf : bool) (src : thread _ident_src (sE state_src) R0)
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
-              (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) r_shared rs_ctx
+              (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) rs_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
               sim_knot (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
-                       (ms, mt, st_src, st_tgt, r_shared) o ->
+                       (ms, mt, st_src, st_tgt) o ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
         (ths_src : threads_src2 R0) (ths_tgt : threads_tgt R1) tid pt
@@ -530,11 +530,11 @@ Section PROOF.
         (THSRC : Th.find (elt:=bool * thread _ident_src (sE state_src) R0) tid ths_src = None)
         (THTGT : Th.find (elt:=thread _ident_tgt (sE state_tgt) R1) tid ths_tgt = None)
         (WF : th_wf_pair ths_src ths_tgt)
-        (st_src : state_src) (st_tgt : state_tgt) rs_local r_shared mt ms (o : T (wf_stt R0 R1))
+        (st_src : state_src) (st_tgt : state_tgt) rs_local mt ms (o : T (wf_stt R0 R1))
         (src : thread _ident_src (sE state_src) R0)
         sf
         (KSIM : sim_knot (wf_stt) RR ths_src ths_tgt tid rs_local true pt (sf, src) tgt
-                         (ms, mt, st_src, st_tgt, r_shared) o)
+                         (ms, mt, st_src, st_tgt) o)
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR true ms pt mt
            (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
@@ -550,7 +550,7 @@ Section PROOF.
     revert ths_src ths_tgt tid rs_local ps pt ssrc tgt shr o KSIM.
     eapply pind10_acc.
     intros rr DEC IH ths_src ths_tgt tid rs_local ps pt ssrc tgt shr o KSIM. clear DEC.
-    intros THSRC THTGT WF st_src st_tgt r_shared mt ms src sf Essrc Eshr Eps.
+    intros THSRC THTGT WF st_src st_tgt mt ms src sf Essrc Eshr Eps.
     clarify.
     eapply pind10_unfold in KSIM.
     2:{ eapply _ksim_mon. }
@@ -687,10 +687,10 @@ Section PROOF.
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         ps pt
-        (KSIM: forall im_tgt, exists im_src (o: T (wf_stt R0 R1)) r_shared rs_ctx,
+        (KSIM: forall im_tgt, exists im_src (o: T (wf_stt R0 R1)) rs_ctx,
             sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (wf_stt)
                      RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
-                     (im_src, im_tgt, st_src, st_tgt, r_shared) o)
+                     (im_src, im_tgt, st_src, st_tgt) o)
     :
     gsim wf_src wf_tgt RR
          (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
@@ -709,7 +709,7 @@ Section PROOF.
     revert ths_src ths_tgt tid rs_ctx ps pt ssrc tgt shr ox KSIM.
     apply pind10_acc.
     intros rr DEC IH ths_src ths_tgt tid rs_ctx ps pt ssrc tgt shr ox KSIM. clear DEC.
-    intros THSRC THTGT WF sf src st_src st_tgt mt ms r_shared Essrc Eshr Eox.
+    intros THSRC THTGT WF sf src st_src st_tgt mt ms Essrc Eshr Eox.
     clarify.
     eapply pind10_unfold in KSIM.
     2:{ eapply _ksim_mon. }
@@ -724,7 +724,7 @@ Section PROOF.
     { des; clarify. destruct KSIM1 as [KSIM1 IND].
       assert (KSIM: sim_knot (wf_stt) RR ths_src ths_tgt tid rs_ctx true pt
                              (false, ktr_src ()) tgt
-                             (im_src0, mt, st_src, st_tgt, r_shared) o0).
+                             (im_src0, mt, st_src, st_tgt) o0).
       { pfold. eapply pind10_mon_top; eauto. }
       unfold interp_all. erewrite unfold_interp_sched_nondet_Some; auto using nm_find_add_eq.
       rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
