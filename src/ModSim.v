@@ -286,24 +286,6 @@ Section PRIMIVIESIM.
     eauto.
   Qed.
 
-  (* TODO: add this in pico lib *)
-  Lemma lsim_indC_spec tid
-    :
-    (fun r => __lsim tid r r) <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)).
-  Proof.
-    eapply wrespect9_uclo; eauto with paco.
-    econs.
-    { ii. eapply __lsim_mon; eauto. eapply _lsim_mon; eauto. }
-    i. eapply pind9_fold.
-    eapply __lsim_mon.
-    { instantiate (1:=l). i. eapply rclo9_base. eauto. }
-    eapply _lsim_mon; eauto. i. split; ss.
-    eapply GF in PR0. eapply pind9_mon_gen; eauto.
-    i. eapply __lsim_mon.
-    { i. eapply rclo9_base. eassumption. }
-    eauto.
-  Qed.
-
   Variant lsim_resetC
           (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
           R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
