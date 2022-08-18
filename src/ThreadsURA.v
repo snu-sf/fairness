@@ -20,7 +20,7 @@ Section THHAS.
     _th_has tid a = fun _tid => if (tid_dec _tid tid) then (Some a) else ε.
   Proof. reflexivity. Qed.
 
-  Definition th_has {A: Type} (tid: thread_id) (a: A): @thsRA A := Auth.white (_th_has tid a).
+  Definition th_has {A: Type} (tid: thread_id) (a: A): @thsRA A := Auth.black (_th_has tid a).
 
   (* properties *)
   Lemma _th_has_hit {A: Type}: forall tid (a: A), (_th_has tid a) tid = Some a.
