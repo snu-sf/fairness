@@ -202,7 +202,7 @@ Section PROOF.
     ModSimStid.lsim I2 tid (ModSimStid.local_RR I2 RR tid) ps pt (ctx_r, r_ctx) src tgt
                     (ths, im_src, im_tgt, st_src, st_tgt).
   Proof.
-    revert_until tid. pcofix CIH; i.
+    revert_until RR. pcofix CIH; i.
     remember (ModSimYOrd.local_RR I RR tid) as LRR0.
     remember (os, src) as osrc. remember (ot, tgt) as otgt.
     move LSIM before CIH. revert_until LSIM.
