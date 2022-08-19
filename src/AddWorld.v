@@ -32,16 +32,16 @@ Section THREADS_RA_DEF.
     | global_local ths_ctx ths_usr ths_ctx' ths_usr', global_local _ _ _ _      => boom
     | global_local ths_ctx ths_usr ths_ctx' ths_usr', local ths_ctx'' ths_usr'' =>
         if (disjoint ths_ctx' ths_ctx'' && disjoint ths_usr' ths_usr'')%bool
-        then global_local ths_ctx ths_usr (union ths_ctx' ths_ctx'') (union ths_usr' ths_usr'')
+        then global_local ths_ctx ths_usr (NatMapP.update ths_ctx' ths_ctx'') (NatMapP.update ths_usr' ths_usr'')
         else boom
     | global_local ths_ctx ths_usr ths_ctx' ths_usr', boom                      => boom
     | local ths_ctx' ths_usr', global_local ths_ctx ths_usr ths_ctx'' ths_usr'' =>
         if (disjoint ths_ctx' ths_ctx'' && disjoint ths_usr' ths_usr'')%bool
-        then global_local ths_ctx ths_usr (union ths_ctx' ths_ctx'') (union ths_usr' ths_usr'')
+        then global_local ths_ctx ths_usr (NatMapP.update ths_ctx' ths_ctx'') (NatMapP.update ths_usr' ths_usr'')
         else boom
     | local ths_ctx' ths_usr', local ths_ctx'' ths_usr''                        =>
         if (disjoint ths_ctx' ths_ctx'' && disjoint ths_usr' ths_usr'')%bool
-        then local (union ths_ctx' ths_ctx'') (union ths_usr' ths_usr'')
+        then local (NatMapP.update ths_ctx' ths_ctx'') (NatMapP.update ths_usr' ths_usr'')
         else boom
     | local ths_ctx' ths_usr', boom                                             => boom
     | boom, _                                                                   => boom
@@ -78,13 +78,15 @@ Section THREADS_RA_DEF.
   Qed.
   Next Obligation.
     unseal "ra". destruct a, b; inv H; unfold add; des_ifs; econs; ss.
-    - assert (KeySetLE ths_ctx' (union ths_ctx' ths_ctx'0)) by eapply union_KeySetLE.
+    - assert (KeySetLE ths_ctx' (NatMapP.update ths_ctx' ths_ctx'0)) by eapply union_KeySetLE.
       unfold KeySetLE in *. auto.
-    - assert (KeySetLE ths_usr' (union ths_usr' ths_usr'0)) by eapply union_KeySetLE.
+    - assert (KeySetLE ths_usr' (NatMapP.update ths_usr' ths_usr'0)) by eapply union_KeySetLE.
       unfold KeySetLE in *. auto.
   Qed.
   Next Obligation.
     unseal "ra". destruct a; ss.
+    - f_equal; rewrite union_comm; ss.
+    - f_equal; rewrite union_comm; ss.
   Qed.
   Next Obligation.
     exists (local NatSet.empty NatSet.empty). unseal "ra". ss.
@@ -139,7 +141,7 @@ Section THREADS_RA.
       + ii. des. eapply NatMapP.F.add_in_iff in H. des.
         * subst. eauto.
         * eapply DISJOINT. eauto.
-      + ii. eapply NatMapP.F.add_in_iff. eapply NatMapP.F.add_in_iff in H. des; eauto.
+      + ii. eapply NatMapP.F.add_in_iff. rewrite union_comm in H. eapply NatMapP.F.add_in_iff in H. des; eauto.
     - eapply NatMapP.F.not_find_in_iff in NEW. solve_andb.
       + eapply disjoint_false_iff' in H. des.
         eapply NatMapP.F.add_in_iff in H. rewrite NatMapP.F.empty_in_iff in H.
@@ -161,7 +163,7 @@ Section THREADS_RA.
       + ii. des. eapply NatMapP.F.add_in_iff in H0. des.
         * subst. eauto.
         * eapply DISJOINT. eauto.
-      + ii. eapply NatMapP.F.add_in_iff. eapply NatMapP.F.add_in_iff in H. des; eauto.
+      + ii. eapply NatMapP.F.add_in_iff. rewrite union_comm in H. eapply NatMapP.F.add_in_iff in H. des; eauto.
     - eapply NatMapP.F.not_find_in_iff in NEW.
       eapply disjoint_false_iff' in Heq. des.
       eapply NatMapP.F.add_in_iff in Heq. rewrite NatMapP.F.empty_in_iff in Heq.
@@ -183,7 +185,7 @@ Section THREADS_RA.
     - unfold TIdSet.empty, TIdSet.add in *. solve_andb; solve_disjoint.
       ii. eapply NatMapP.F.remove_in_iff. assert (tid = k \/ tid <> k) by lia; des.
       + subst. tauto.
-      + unfold KeySetLE in LE_CTX. setoid_rewrite NatMapP.F.add_in_iff in LE_CTX. eauto.
+      + unfold KeySetLE in LE_CTX. rewrite union_comm in LE_CTX. setoid_rewrite NatMapP.F.add_in_iff in LE_CTX. eauto.
   Qed.
 
   Lemma global_th_dealloc_user ths_ctx ths_usr0 r_ctx
@@ -196,7 +198,7 @@ Section THREADS_RA.
     rewrite URA.unit_id. unfold URA.wf, URA.add in *. unseal "ra". destruct r_ctx; ss.
     rewrite ! union_empty in *. unfold union, NatMap.fold in VALID; ss. des_ifs; inv VALID.
     unfold TIdSet.empty, TIdSet.add in *. solve_disjoint.
-    unfold KeySetLE in LE_USR. setoid_rewrite NatMapP.F.add_in_iff in LE_USR.
+    unfold KeySetLE in LE_USR. rewrite union_comm in LE_USR. setoid_rewrite NatMapP.F.add_in_iff in LE_USR.
     econs; ss.
     - ii. des. eapply NatMapP.F.remove_in_iff in H1. firstorder.
     - ii. rewrite NatMapP.F.remove_in_iff. split.

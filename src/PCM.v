@@ -1120,3 +1120,36 @@ Ltac g_wf_tac :=
   repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; try apply URA.wf_unit.
 
 Global Opaque URA.unit.
+
+Section UNIT.
+
+  Program Instance Unit : URA.t := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True |}.
+  Next Obligation. destruct a. ss. Qed.
+  Next Obligation. destruct a. ss. Qed.
+
+  Lemma Unit_wf : forall x, @URA.wf Unit x.
+  Proof. unfold URA.wf. unseal "ra". ss. Qed.
+
+End UNIT.
+  
+Section URA_PROD.
+
+  Lemma unfold_prod_add (M0 M1 : URA.t) : @URA.add (URA.prod M0 M1) = fun '(a0, a1) '(b0, b1) => (a0 ⋅ b0, a1 ⋅ b1).
+  Proof. rewrite URA.unfold_add. extensionalities r0 r1. destruct r0, r1. ss. Qed.
+
+  Lemma unfold_prod_wf (M0 M1 : URA.t) : @URA.wf (URA.prod M0 M1) = fun r => URA.wf (fst r) /\ URA.wf (snd r).
+  Proof. rewrite URA.unfold_wf. extensionalities r. destruct r. ss. Qed.
+
+End URA_PROD.
+
+Tactic Notation "unfold_prod" :=
+  try rewrite ! unfold_prod_add;
+  rewrite unfold_prod_wf;
+  simpl.
+
+Tactic Notation "unfold_prod" hyp(H) :=
+  try rewrite ! unfold_prod_add in H;
+  rewrite unfold_prod_wf in H;
+  simpl in H;
+  let H1 := fresh H in
+  destruct H as [H H1].

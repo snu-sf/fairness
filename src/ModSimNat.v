@@ -30,9 +30,9 @@ Module ModSimN.
             /\ (URA.wf r_shared);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                                | None, _ => True
-                                | _, None => False
                                 | Some ktr_src, Some ktr_tgt => local_sim I (@eq Val) (ktr_src args) (ktr_tgt args)
+                                | None, None => True
+                                | _, _ => False
                                 end;
         }.
   End MODSIMNAT.
@@ -95,14 +95,19 @@ Section NAT.
     : local_sim to_shared_rel_nat RR src tgt.
   Proof.
     ii. move SIM at bottom.
-    specialize (SIM ths0 im_src0 (wfemb ∘ im_tgt0) st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID).
+    assert (TID_TGT' : @fair_update _ wf_tgt (wfemb ∘ im_tgt0) (wfemb ∘ im_tgt1) (sum_fmap_l (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))).
+    { ii. specialize (TID_TGT i). destruct i as [i|i]; ss.
+      - des_ifs. unfold compose. f_equal. ss.
+      - unfold compose. f_equal. ss.
+    }
+    specialize (SIM ths0 im_src0 (wfemb ∘ im_tgt0) st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID (wfemb ∘ im_tgt1) TID_TGT').
     des. exists r_shared1, r_own. splits; ss. i. move SIM1 at bottom.
-    specialize (SIM1 ths im_src1 (wfemb ∘ im_tgt1) st_src st_tgt2 r_shared2 r_ctx2 INV1 VALID1 (wfemb ∘ im_tgt2)
+    specialize (SIM1 ths im_src1 (wfemb ∘ im_tgt2) st_src2 st_tgt2 r_shared2 r_ctx2 INV1 VALID1 (wfemb ∘ im_tgt3)
                   ltac:(eapply wfemb_mono; ss) fs ft).
     rename SIM1 into LSIM. clear - LSIM wf_tgt_inhabited wf_tgt_open. revert_until I. ginit. gcofix CIH. i. gstep.
     remember (local_RR I RR tid) as RR' in LSIM.
     match goal with [ LSIM : lsim _ _ _ _ _ _ _ _ ?SHA |- _ ] => remember SHA as sha end.
-    revert ths im_src1 im_tgt2 st_src st_tgt2 RR Heqsha HeqRR'.
+    revert ths im_src1 im_tgt3 st_src2 st_tgt2 RR Heqsha HeqRR'.
     unfold lsim in LSIM. punfold LSIM.
     pattern R0, R1, RR', fs, ft, r_ctx2, src, tgt, sha.
     revert R0 R1 RR' fs ft r_ctx2 src tgt sha LSIM.
@@ -125,10 +130,10 @@ Section NAT.
     - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_yieldR; eauto. i. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt0) (wfemb_mono TGT)).
+      specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt2) (wfemb_mono TGT)).
       split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_sync; eauto. i. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt0) (wfemb_mono TGT)).
+      specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt2) (wfemb_mono TGT)).
       pclearbot. gfinal. left. eapply CIH; ss.
     - econs. gfinal. left. pclearbot. eapply CIH; ss.
   Qed.
