@@ -152,15 +152,20 @@ Section PROOF.
                      | None => ae_black (wf_stt0 R0 R1, wf_stt0 R0 R1) ⋅ ae_white (wf_stt0 R0 R1, wf_stt0 R0 R1)
                      end).
 
+  Definition Is {R0 R1}:
+    (TIdSet.t * (@imap thread_id (@wf_src_th R0 R1)) * (@imap ident_tgt wf_tgt))%type ->
+    (@URA.car (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T))) -> Prop :=
+    fun '(ths, im_src, im_tgt) ths_r =>
+      exists (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)),
+        (<<WFOST: nm_wf_pair ths ost>>) /\
+          (<<TRES: shared_thsRA ths_r ost>>) /\
+          (<<IMSRC: forall tid (IN: NatMap.In tid ths)
+                      os ot (FIND: NatMap.find tid ost = Some (os, ot)),
+              wf_src_th.(lt) ((ot, im_tgt (inl tid)), nm_proj_v1 ost) (im_src tid)>>).
+
   Definition I2 {R0 R1}: (@shared2 R0 R1) -> (@URA.car (@M2 R0 R1)) -> Prop :=
     fun '(ths, im_src, im_tgt, st_src, st_tgt) '(ths_r, r) =>
       (<<INV: I (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt) r>>) /\
-        (<<MK: exists (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)),
-            (<<WFOST: nm_wf_pair ths ost>>) /\
-              (<<TRES: shared_thsRA ths_r ost>>) /\
-              (<<IMSRC: forall tid (IN: NatMap.In tid ths)
-                          os ot (FIND: NatMap.find tid ost = Some (os, ot)),
-                  wf_src_th.(lt) ((ot, im_tgt (inl tid)), nm_proj_v1 ost) ((imap_proj_wf1 im_src) (inl tid))>>)
-                >>).
+        (<<INVS: Is (ths, (imap_proj_id1 (imap_proj_wf1 im_src)), im_tgt) ths_r>>).
 
 End PROOF.
