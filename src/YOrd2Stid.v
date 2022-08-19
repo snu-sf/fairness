@@ -182,6 +182,8 @@ Section PROOF.
   (*     (<<LRR0: LRR r0 r1 (snd r_ctx) (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt)>>) /\ *)
   (*       (<<IS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt)>>) *)
 
+  From Fairness Require Import PindTac.
+
   Lemma yord_implies_stid
         tid
         R0 R1 (RR: R0 -> R1 -> Prop)
@@ -202,9 +204,13 @@ Section PROOF.
     ModSimStid.lsim I2 tid (ModSimStid.local_RR I2 RR tid) ps pt (ctx_r, r_ctx) src tgt
                     (ths, im_src, im_tgt, st_src, st_tgt).
   Proof.
-    revert_until RR. pcofix CIH; i.
-    remember (ModSimYOrd.local_RR I RR tid) as LRR0.
-    remember (os, src) as osrc. remember (ot, tgt) as otgt.
+    revert_until R1. pcofix CIH; i.
+    match type of LSIM with ModSimYOrd.lsim _ _ _ ?_LRR0 _ _ _ ?_osrc ?_otgt ?_shr => remember _LRR0 as LRR0 in LSIM; remember _osrc as osrc; remember _otgt as otgt; remember _shr as shr end.
+    move LSIM before CIH. punfold LSIM. revert_until LSIM.
+    revert LRR0 ps pt r_ctx osrc otgt shr LSIM.
+    pinduction 7.
+
+    apply pind9_acc.
     move LSIM before CIH. revert_until LSIM.
     pattern R0, R1, LRR, ps, pt, r_ctx, osrc, otgt, shr.
     revert R0 R1 LRR ps pt r_ctx osrc otgt shr LSIM. apply pind9_acc.

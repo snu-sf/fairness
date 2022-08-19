@@ -4,7 +4,9 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind PCM.
+From Fairness Require Import pind PCM PindTac.
+
+From Paco Require Import pacotac_internal.
 
 Set Implicit Arguments.
 
@@ -240,267 +242,58 @@ Section PRIMIVIESIM.
   Qed.
 
 
-  Variant lsim_indC tid
-          (r: forall R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel), bool -> bool -> URA.car -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel)
-          R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+
+  Lemma lsim_acc_gen
+        tid r
+        (A: Type)
+        (f0: forall (a: A), Type)
+        (f1: forall (a: A), Type)
+        (f2: forall (a: A), f0 a -> f1 a -> URA.car -> shared_rel)
+        (f3: forall (a: A), bool)
+        (f4: forall (a: A), bool)
+        (f5: forall (a: A), URA.car)
+        (f6: forall (a: A), ((wf_stt (f0 a) (f1 a)).(T) * (itree srcE (f0 a)))%type)
+        (f7: forall (a: A), ((wf_stt (f0 a) (f1 a)).(T) * (itree tgtE (f1 a)))%type)
+        (f8: forall (a: A), shared)
+        r0 (q: A -> Prop)
+        (IND: forall r1
+                     (LE: r1 <9= r0)
+                     (IH: forall a, @r1 (f0 a) (f1 a) (f2 a) (f3 a) (f4 a) (f5 a) (f6 a) (f7 a) (f8 a) -> q a),
+          forall a, pind9 (__lsim tid r) r1 (f0 a) (f1 a) (f2 a) (f3 a) (f4 a) (f5 a) (f6 a) (f7 a) (f8 a) -> q a)
     :
-    bool -> bool -> URA.car -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel :=
-    | lsim_indC_ret
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        r_src r_tgt
-        (LSIM: RR r_src r_tgt r_ctx (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, Ret r_src) (ot, Ret r_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-
-    | lsim_indC_tauL
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        itr_src itr_tgt
-        (LSIM: r _ _ RR true f_tgt r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, Tau itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_chooseL
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        X ktr_src itr_tgt
-        (LSIM: exists x, r _ _ RR true f_tgt r_ctx (os, ktr_src x) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, trigger (Choose X) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_putL
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        st ktr_src itr_tgt
-        (LSIM: r _ _ RR true f_tgt r_ctx (os, ktr_src tt) (ot, itr_tgt) (ths, im_src, im_tgt, st, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, trigger (Put st) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_getL
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        ktr_src itr_tgt
-        (LSIM: r _ _ RR true f_tgt r_ctx (os, ktr_src st_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, trigger (@Get _) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_tidL
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        ktr_src itr_tgt
-        (LSIM: r _ _ RR true f_tgt r_ctx (os, ktr_src tid) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, trigger (GetTid) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_UB
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        ktr_src itr_tgt
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, trigger (Undefined) >>= ktr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_fairL
-        f_src f_tgt r_ctx os ot
-        ths im_src0 im_tgt st_src st_tgt
-        f ktr_src itr_tgt
-        (LSIM: exists im_src1,
-            (<<FAIR: fair_update im_src0 im_src1 f>>) /\
-              (<<LSIM: r _ _ RR true f_tgt r_ctx (os, ktr_src tt) (ot, itr_tgt) (ths, im_src1, im_tgt, st_src, st_tgt)>>))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, trigger (Fair f) >>= ktr_src) (ot, itr_tgt) (ths, im_src0, im_tgt, st_src, st_tgt)
-
-    | lsim_indC_tauR
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        itr_src itr_tgt
-        (LSIM: r _ _ RR f_src true r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, itr_src) (ot, Tau itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_chooseR
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        X itr_src ktr_tgt
-        (LSIM: forall x, r _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_putR
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        st itr_src ktr_tgt
-        (LSIM: r _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tt) (ths, im_src, im_tgt, st_src, st))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_getR
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        itr_src ktr_tgt
-        (LSIM: r _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_tidR
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        itr_src ktr_tgt
-        (LSIM: r _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tid) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (GetTid) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-    | lsim_indC_fairR
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt0 st_src st_tgt
-        f itr_src ktr_tgt
-        (LSIM: forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
-            (<<LSIM: r _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
-
-    | lsim_indC_observe
-        f_src f_tgt r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        fn args ktr_src ktr_tgt
-        (LSIM: forall ret,
-            r _ _ RR true true r_ctx (os, ktr_src ret) (ot, ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR f_src f_tgt r_ctx (os, trigger (Observe fn args) >>= ktr_src) (ot, trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-
-   | lsim_indC_yieldL
-      f_src f_tgt r_ctx os ot
-      ths im_src im_tgt st_src st_tgt
-      ktr_src itr_tgt
-      (LSIM: exists os1 ot1,
-          (<<LSIM: r _ _ RR true f_tgt r_ctx (os1, ktr_src tt) (ot1, trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)>>) /\
-            (<<LT: (wf_stt R0 R1).(lt) os1 os>>))
-    :
-    lsim_indC tid r RR f_src f_tgt r_ctx (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_indC_yieldR
-      f_src f_tgt r_ctx0 os ot
-      ths0 im_src0 im_tgt0 st_src0 st_tgt0
-      r_own r_shared
-      ktr_src ktr_tgt
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
-      (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-               (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
-               im_tgt2
-               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-        exists os1 ot1,
-          (<<LSIM: r _ _ RR f_src true r_ctx1 (os1, trigger (Yield) >>= ktr_src) (ot1, ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>) /\
-            (<<LT: (wf_stt R0 R1).(lt) ot1 ot>>))
-    :
-    lsim_indC tid r RR f_src f_tgt r_ctx0 (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
-  | lsim_indC_sync
-      f_src f_tgt r_ctx0 os ot
-      ths0 im_src0 im_tgt0 st_src0 st_tgt0
-      r_own r_shared
-      ktr_src ktr_tgt
-      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
-      (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-               (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
-               im_tgt2
-               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
-        exists os1 ot1,
-          (<<LSIM: r _ _ RR true true r_ctx1 (os1, ktr_src tt) (ot1, ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
-    :
-    lsim_indC tid r RR f_src f_tgt r_ctx0 (os, trigger (Yield) >>= ktr_src) (ot, trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
-
-    | lsim_indC_progress
-        r_ctx os ot
-        ths im_src im_tgt st_src st_tgt
-        itr_src itr_tgt
-        (LSIM: r _ _ RR false false r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-      :
-      lsim_indC tid r RR true true r_ctx (os, itr_src) (ot, itr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  .
-
-  Lemma lsim_indC_mon tid: monotone9 (lsim_indC tid).
+    forall a, pind9 (__lsim tid r) r0 (f0 a) (f1 a) (f2 a) (f3 a) (f4 a) (f5 a) (f6 a) (f7 a) (f8 a) -> q a.
   Proof.
-    ii. inv IN; try (econs; eauto; fail).
-    { des; econs; eauto. }
-    { des; econs; eauto. }
-    { econs. i. specialize (LSIM _ FAIR). eauto. }
-    { des; econs; eauto. esplits; eauto. }
-    { eapply lsim_indC_yieldR; eauto. i. hexploit LSIM; eauto. i; des. esplits; eauto. }
-    { eapply lsim_indC_sync; eauto. i. hexploit LSIM; eauto. i; des. esplits; eauto. }
+    cut ((pind9 (__lsim tid r) r0) <9= curry9 (fun x => forall a (EQ: @exist9T _ _ _ _ _ _ _ _ _ (f0 a) (f1 a) (f2 a) (f3 a) (f4 a) (f5 a) (f6 a) (f7 a) (f8 a) = x), q a)).
+    { exact (fun P a H => uncurry_adjoint2_9 P (@exist9T _ _ _ _ _ _ _ _ _ (f0 a) (f1 a) (f2 a) (f3 a) (f4 a) (f5 a) (f6 a) (f7 a) (f8 a)) H a eq_refl). }
+    { exact (@pind9_acc _ _ _ _ _ _ _ _ _ (__lsim tid r) (curry9 (fun x => forall a (EQ: @exist9T _ _ _ _ _ _ _ _ _ (f0 a) (f1 a) (f2 a) (f3 a) (f4 a) (f5 a) (f6 a) (f7 a) (f8 a) = x), q a)) r0 (fun rr LE IH => @uncurry_adjoint1_9 _ _ _ _ _ _ _ _ _ (pind9 (__lsim tid r) rr) (fun x => forall a (EQ: @exist9T _ _ _ _ _ _ _ _ _ (f0 a) (f1 a) (f2 a) (f3 a) (f4 a) (f5 a) (f6 a) (f7 a) (f8 a) = x), q a) (fun x PR a EQ => IND rr LE (fun a H => IH (f0 a) (f1 a) (f2 a) (f3 a) (f4 a) (f5 a) (f6 a) (f7 a) (f8 a) H a eq_refl) a (@eq_rect _ _ (uncurry9 (pind9 (__lsim tid r) rr)) PR _ (eq_sym EQ))))).
+    }
   Qed.
 
-  Hint Resolve lsim_indC_mon: paco.
+  Ltac pind_gen := patterning 9; refine (@lsim_acc_gen
+                                           _ _ _
+                                           _ _ _ _ _ _ _ _ _
+                                           _ _ _).
+  Ltac pinduction n := currying n pind_gen.
 
-  Lemma lsim_indC_wrepectful tid: wrespectful9 (fun r => pind9 (__lsim tid r) top9) (lsim_indC tid).
-  Proof.
-    econs; eauto with paco.
-    i. eapply pind9_fold. inv PR.
-    { econs 1; eauto. }
-    { econs 2; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { des. econs 3; eauto. esplits; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 4; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 5; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 6; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 7; eauto. }
-    { des. econs 8; eauto. esplits; eauto. split; ss.
-      eapply GF in LSIM0. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 9; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 10; eauto. i. specialize (LSIM x). split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 11; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 12; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 13; eauto. split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 14; eauto. i. specialize (LSIM _ FAIR). split; ss.
-      eapply GF in LSIM. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 15; eauto. i. specialize (LSIM ret).
-      eapply rclo9_base; auto.
-    }
-    { econs 16; eauto. des. esplits; eauto. split; ss.
-      eapply GF in LSIM0. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 17; eauto. i. specialize (LSIM _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
-      des. esplits; eauto. split; ss.
-      eapply GF in LSIM0. eapply pind9_mon_gen; ss. eauto.
-      i. eapply __lsim_mon. 2: eauto. i. eapply rclo9_base; auto.
-    }
-    { econs 18; eauto. i. specialize (LSIM _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
-      des. esplits; eauto.
-      eapply rclo9_base; eauto.
-    }
-    { econs 19; eauto. eapply rclo9_base; auto. }
-  Qed.
 
-  Lemma lsim_indC_spec tid:
-    (lsim_indC tid) <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)).
+  Local Hint Resolve lsim_mon: paco.
+  Local Hint Resolve cpn9_wcompat: paco.
+
+  Lemma lsim_indC_spec tid
+    :
+    (fun r => __lsim tid r r) <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)).
   Proof.
-    i. eapply wrespect9_uclo; eauto with paco.
-    { eapply lsim_mon. }
-    eapply lsim_indC_wrepectful.
+    eapply wrespect9_uclo; eauto with paco.
+    econs.
+    { ii. eapply __lsim_mon; eauto. eapply _lsim_mon; eauto. }
+    i. eapply pind9_fold.
+    eapply __lsim_mon.
+    { instantiate (1:=l). i. eapply rclo9_base. eauto. }
+    eapply _lsim_mon; eauto. i. split; ss.
+    eapply GF in PR0. eapply pind9_mon_gen; eauto.
+    i. eapply __lsim_mon.
+    { i. eapply rclo9_base. eassumption. }
+    eauto.
   Qed.
 
   Variant lsim_resetC
@@ -523,17 +316,13 @@ Section PRIMIVIESIM.
     lsim_resetC <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)).
   Proof.
     eapply wrespect9_uclo; eauto with paco.
-    { eapply lsim_mon. }
     econs.
     { ii. inv IN. econs; eauto. }
     i. inv PR. eapply GF in REL.
-    eapply pind9_acc in REL.
-    instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) ps1 pt1 r_ctx src tgt shr =>
-                        forall ps0 pt0,
-                          (ps1 = true -> ps0 = true) ->
-                          (pt1 = true -> pt0 = true) ->
-                          pind9 (__lsim tid (rclo9 lsim_resetC r)) top9 R0 R1 RR ps0 pt0 r_ctx src tgt shr)) in REL; eauto.
-    ss. i. eapply pind9_unfold in PR.
+    move REL before GF. revert_until REL.
+    revert x0 x1 x2 ps1 pt1 x5 x6 x7 x8 REL.
+    pinduction 9. i.
+    eapply pind9_unfold in PR.
     2:{ eapply _lsim_mon. }
     rename PR into LSIM. inv LSIM.
 
@@ -608,7 +397,7 @@ Section PRIMIVIESIM.
       i; des. esplits; eauto. eapply rclo9_base. eauto.
     }
 
-    { hexploit H; ss; i. hexploit H0; ss; i. clarify.
+    { hexploit SRC; ss; i. hexploit TGT; ss; i. clarify.
       eapply pind9_fold. eapply lsim_progress. eapply rclo9_base. auto. }
   Qed.
 
@@ -623,13 +412,8 @@ Section PRIMIVIESIM.
     :
     lsim tid RR ps0 pt0 r_ctx src tgt shr.
   Proof.
-    ginit.
-    { eapply lsim_mon. }
-    { eapply cpn9_wcompat. eapply lsim_mon. }
-    guclo lsim_resetC_spec.
-    { eapply lsim_mon. }
+    ginit. guclo lsim_resetC_spec.
     econs; eauto. gfinal.
-    { eapply lsim_mon. }
     right. auto.
   Qed.
 
@@ -644,7 +428,6 @@ Section PRIMIVIESIM.
     i. revert_until tid. pcofix CIH. i.
     remember true as ps0 in LSIM at 1. remember true as pt0 in LSIM at 1.
     move LSIM before CIH. revert_until LSIM. punfold LSIM.
-    2:{ eapply lsim_mon. }
     eapply pind9_acc in LSIM.
 
     { instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) ps0 pt0 r_ctx src tgt shr =>
@@ -666,66 +449,66 @@ Section PRIMIVIESIM.
 
     { destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind9_fold. eapply lsim_tauL. split; ss.
-      hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
+      hexploit IH. eauto. all: eauto. i. punfold H.
     }
 
     { des. pfold. eapply pind9_fold. eapply lsim_chooseL. esplits; eauto. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_putL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_getL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_tidL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_UB. }
 
     { des. pfold. eapply pind9_fold. eapply lsim_fairL. esplits; eauto. split; ss.
-      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
       pfold. eapply pind9_fold. eapply lsim_tauR. split; ss.
-      hexploit IH. eauto. all: eauto. i. punfold H. eapply lsim_mon.
+      hexploit IH. eauto. all: eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_chooseR. i. split; ss. specialize (LSIM0 x).
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_putR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_getR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_tidR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_fairR. i. split; ss. specialize (LSIM0 _ FAIR).
-      des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      des. destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
 
     { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
-      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i.
       hexploit LSIM0; eauto. clear LSIM0. intros LSIM0.
       des. esplits; eauto.
-      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. split; ss. punfold H. eapply lsim_mon.
+      destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. split; ss. punfold H.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_sync; eauto. i.
@@ -756,7 +539,6 @@ Section PRIMIVIESIM.
     lsim_ord_weakLC <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)).
   Proof.
     eapply wrespect9_uclo; eauto with paco.
-    { eapply lsim_mon. }
     econs.
     { ii. inv IN. econs; eauto. }
     i. inv PR. destruct LE0 as [EQ | LT].
@@ -869,7 +651,6 @@ Section PRIMIVIESIM.
     lsim_ord_weakRC <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)).
   Proof.
     eapply wrespect9_uclo; eauto with paco.
-    { eapply lsim_mon. }
     econs.
     { ii. inv IN. econs; eauto. }
     i. inv PR. destruct LE0 as [EQ | LT].
@@ -1007,6 +788,13 @@ End PRIMIVIESIM.
 #[export] Hint Resolve _lsim_mon: paco.
 #[export] Hint Resolve lsim_mon: paco.
 #[export] Hint Resolve cpn9_wcompat: paco.
+
+
+Ltac pind_gen := patterning 9; refine (@lsim_acc_gen
+                                         _ _ _
+                                         _ _ _ _ _ _ _ _ _
+                                         _ _ _).
+Ltac pinduction n := currying n pind_gen.
 
 
 Module ModSim.
