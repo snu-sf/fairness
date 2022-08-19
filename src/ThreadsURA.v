@@ -30,10 +30,10 @@ Section THHAS.
   Lemma th_has_hit {A: Type}: forall tid (a: A), (th_has tid a) tid = ae_white a.
   Proof. i. rewrite unfold_th_has. des_ifs. Qed.
 
-  Lemma _th_has_miss {A: Type}: forall tid tid' (MISS: tid <> tid') (a: A), (th_has tid a tid') = ε.
+  Lemma th_has_miss {A: Type}: forall tid tid' (MISS: tid <> tid') (a: A), (th_has tid a tid') = ε.
   Proof. i. rewrite unfold_th_has. des_ifs. Qed.
 
-  Lemma _th_has_disj {A: Type}: forall tid0 tid1 (a0 a1: A),
+  Lemma th_has_disj {A: Type}: forall tid0 tid1 (a0 a1: A),
       URA.wf (th_has tid0 a0 ⋅ th_has tid1 a1) -> tid0 <> tid1.
   Proof. ii. do 2 ur in H. clarify. specialize (H tid1). rewrite !th_has_hit in H. ss. ur in H. ss. Qed.
 
