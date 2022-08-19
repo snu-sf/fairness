@@ -176,30 +176,34 @@ Section PROOF.
       (<<INV: I (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt) r>>) /\
         (<<INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt) ths_r>>).
 
-  Definition lift_LRR {R0 R1} (LRR: R0 -> R1 -> (@URA.car M) -> shared_rel):
-    R0 -> R1 -> (@URA.car (@M2 R0 R1)) -> (@shared2_rel R0 R1) :=
-    fun r0 r1 r_ctx '(ths, im_src, im_tgt, st_src, st_tgt) =>
-      LRR r0 r1 (snd r_ctx) (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt).
+  (* Definition lift_LRR {R0 R1} (LRR: R0 -> R1 -> (@URA.car M) -> shared_rel): *)
+  (*   R0 -> R1 -> (@URA.car (@M2 R0 R1)) -> (@shared2_rel R0 R1) := *)
+  (*   fun r0 r1 r_ctx '(ths, im_src, im_tgt, st_src, st_tgt) => *)
+  (*     (<<LRR0: LRR r0 r1 (snd r_ctx) (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt)>>) /\ *)
+  (*       (<<IS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt)>>) *)
 
   Lemma yord_implies_stid
         tid
-        R0 R1 (LRR: R0 -> R1 -> (@URA.car M) -> shared_rel)
+        R0 R1 (RR: R0 -> R1 -> Prop)
+        (* R0 R1 (LRR: R0 -> R1 -> (@URA.car M) -> shared_rel) *)
         ths
         (im_src: @imap ident_src2 (@wf_src2 R0 R1))
         (im_tgt: @imap ident_tgt wf_tgt)
         st_src st_tgt
         ps pt r_ctx src tgt
         os ot
-        (LSIM: ModSimYOrd.lsim I wf_stt tid LRR ps pt r_ctx (os, src) (ot, tgt)
+        (LSIM: ModSimYOrd.lsim I wf_stt tid (ModSimYOrd.local_RR I RR tid)
+                               ps pt r_ctx (os, src) (ot, tgt)
                                (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt))
         (ths_r ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
         (INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt) ths_r)
         (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
     :
-    ModSimStid.lsim I2 tid (lift_LRR LRR) ps pt (ctx_r, r_ctx) src tgt
+    ModSimStid.lsim I2 tid (ModSimStid.local_RR I2 RR tid) ps pt (ctx_r, r_ctx) src tgt
                     (ths, im_src, im_tgt, st_src, st_tgt).
   Proof.
     revert_until tid. pcofix CIH; i.
+    remember (ModSimYOrd.local_RR I RR tid) as LRR0.
     remember (os, src) as osrc. remember (ot, tgt) as otgt.
     move LSIM before CIH. revert_until LSIM.
     pattern R0, R1, LRR, ps, pt, r_ctx, osrc, otgt, shr.
