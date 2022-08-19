@@ -228,6 +228,31 @@ Proof.
 Qed.
 
 
+Variant option_bot_lt A (R: A -> A -> Prop): option A -> option A -> Prop :=
+  | optoin_bot_lt_bot
+      a
+    :
+    option_bot_lt R None (Some a)
+  | optoin_bot_lt_normal
+      a0 a1
+      (LT: R a0 a1)
+    :
+    option_bot_lt R (Some a0) (Some a1)
+.
+
+Lemma option_bot_lt_well_founded A (R: A -> A -> Prop)
+      (WF: well_founded R)
+  :
+  well_founded (option_bot_lt R).
+Proof.
+  cut (forall a, Acc (option_bot_lt R) (Some a)).
+  { ii. destruct a; ss. econs. i. inv H0. }
+  i. induction (WF a). econs.
+  i. inv H1; eauto.
+  econs. i. inv H1.
+Qed.
+
+
 Section WFTYPE.
   Record WF: Type :=
     mk_wf {
@@ -255,6 +280,7 @@ End WFTYPE.
 
 Definition ord_tree_WF {A}: WF := mk_wf (@ord_tree_lt_well_founded A).
 Definition option_WF (A: WF): WF := mk_wf (option_lt_well_founded A.(wf)).
+Definition option_bot_WF (A: WF): WF := mk_wf (option_bot_lt_well_founded A.(wf)).
 Definition sum_WF (A B: WF): WF := mk_wf (sum_lt_well_founded A.(wf) B.(wf)).
 Definition prod_WF (A B: WF): WF := mk_wf (prod_lt_well_founded A.(wf) B.(wf)).
 Definition clos_trans_WF (A: WF): WF := mk_wf (clos_trans_well_founded A.(wf)).
