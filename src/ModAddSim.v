@@ -558,7 +558,9 @@ Section ADD_RIGHT_CONG_SIM.
       - eapply INV_USR.
     }
     { unfold_prod. split.
-      - admit.
+      - eapply global_th_alloc_user; eauto.
+        eapply inv_add_new in THS0. des. ii. eapply THS0.
+        eapply Partition_In_left in INV0_1. eapply INV0_1. ss.
       - eauto.
     }
     intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
@@ -597,7 +599,8 @@ Section ADD_RIGHT_CONG_SIM.
     eapply pind9_acc. intros rr DEC IH R_src R_tgt RR_MEM fs ft r_ctx_w0 itr_src itr_tgt SHA_MEM. i.
     clear DEC. subst RR_MEM SHA_MEM.
     eapply pind9_unfold in PR; eauto with paco. eapply pind9_fold. inv PR.
-    - rewrite 2 embed_state_ret, 2 map_event_ret. econs.
+    - clear - LSIM VALID_TH0 VALID_W0 INV1 INV2.
+      rewrite 2 embed_state_ret, 2 map_event_ret. econs.
       ss. des. subst. (* inversion INV2. clear INV2. subst ths_ctx1 ths_usr1 ths3 IM_SRC0. *)
       exists (NatMap.remove tid ths0), (URA.unit, r_own), (global_th ths_ctx0 (NatMap.remove tid ths_usr0), r_shared).
       splits; ss.
@@ -614,25 +617,103 @@ Section ADD_RIGHT_CONG_SIM.
               + pose proof (@NatMapP.F.remove_neq_in_iff _ ths_usr0 tid i H). des_ifs; try tauto; reflexivity.
             - des_ifs. left. ss.
           }
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-  Admitted.
+    - rewrite embed_state_tau, map_event_tau. econs. split; ss.
+      destruct LSIM. eapply IH; eauto.
+    - rewrite embed_state_trigger, map_event_trigger. econs.
+      des. destruct LSIM. exists x. split; ss. eapply IH; eauto.
+    - rewrite embed_state_put'. rewrite map_event_trigger. econs. split; ss. eapply pind9_fold.
+      rewrite map_event_trigger. econs. split; ss.
+      destruct LSIM. eapply IH; eauto.
+      + destruct st_src0, st_tgt0. ss.
+      + destruct st_src0. ss.
+    - rewrite embed_state_get', map_event_trigger. econs. split; ss.
+      destruct LSIM. eapply IH; eauto.
+    - rewrite embed_state_trigger, map_event_trigger. econs. split; ss.
+      destruct LSIM. eapply IH; eauto.
+    - rewrite embed_state_trigger, map_event_trigger. econs.
+    - rewrite embed_state_trigger, map_event_trigger. econs.
+      des. destruct LSIM0. exists (add_ctx (pick_ctx IM_TGT0) im_src1). splits.
+      { clear - FAIR. ii. destruct i as [i|i]; ss.
+        specialize (FAIR i). des_ifs.
+        - econs. ss.
+        - f_equal. ss.
+      }
+      split; ss. eapply IH; eauto.
+    - rewrite embed_state_tau, map_event_tau. econs. split; ss.
+      destruct LSIM. eapply IH; eauto.
+    - rewrite embed_state_trigger, map_event_trigger. econs. i. specialize (LSIM x). split; ss.
+      destruct LSIM. eapply IH; eauto.
+    - rewrite embed_state_put', map_event_trigger. econs. split; ss. eapply pind9_fold.
+      rewrite map_event_trigger. econs. split; ss.
+      destruct LSIM. eapply IH; eauto.
+      + destruct st_src0, st_tgt0. ss.
+      + destruct st_tgt0. ss.
+    - rewrite embed_state_get', map_event_trigger. econs. split; ss.
+      destruct LSIM. eapply IH; eauto.
+    - rewrite embed_state_trigger, map_event_trigger. econs. split; ss.
+      destruct LSIM. eapply IH; eauto.
+    - rewrite embed_state_trigger, map_event_trigger. econs. intros IM_TGT1 FAIR. split; ss.
+      assert (FAIR' : fair_update (chop_ctx ths_usr0 IM_TGT0) (chop_ctx ths_usr0 IM_TGT1) (sum_fmap_r f)).
+      { ii. destruct i as [i|i]; ss.
+        - specialize (FAIR (inl i)). ss. des_ifs.
+        - specialize (FAIR (inr (inr i))). ss.
+      }
+      specialize (LSIM (chop_ctx ths_usr0 IM_TGT1) FAIR').
+      destruct LSIM. eapply IH; eauto.
+      + extensionalities i. destruct i; ss. f_equal.
+        specialize (FAIR (inr (inl i))). ss.
+    - rewrite 2 embed_state_trigger, 2 map_event_trigger. econs. i. specialize (LSIM ret). pclearbot.
+      gfinal. left. eapply CIH; eauto.
+    - rewrite 2 embed_state_trigger, 2 map_event_trigger.
+      match goal with [ |- __lsim _ _ _ _ _ _ _ _ _ (_ <- trigger (?EMB _);; _) _ ] => set EMB as emb end.
+      eapply lsim_yieldL. split; ss.
+      replace (trigger Yield) with (trigger (emb (subevent _ Yield))) by ss. subst emb.
+      rewrite <- map_event_trigger, <- embed_state_trigger.
+      destruct LSIM. eapply IH; eauto.
+    - rewrite 2 embed_state_trigger, 2 map_event_trigger. 
+      match goal with [ |- __lsim _ _ _ _ _ _ _ _ (_ <- trigger (?EMB _);; _) _ _ ] => set EMB as emb end.
+      eapply lsim_yieldR.
+      { instantiate (1 := (global_th ths_ctx0 ths_usr0, r_shared)).
+        ss. exists im_src0, ths_ctx0, ths_usr0. splits; ss.
+      }
+      { instantiate (1 := (local_th_user tid, r_own)). unfold_prod. split; ss. }
+      intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT2 TGT.
+      split; ss. des. unfold_prod VALID1_0.
+      assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (sum_fmap_l (tids_fmap tid ths_usr1))).
+      { ii. destruct i as [i|i]; ss.
+        - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). ss.
+          unfold tids_fmap in *. destruct (Nat.eq_dec i tid); ss. des_ifs.
+          exfalso. tauto.
+        - specialize (TGT (inr (inr i))). ss.
+      }
+      specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
+      replace (trigger Yield) with (trigger (emb (subevent _ Yield))) by ss. subst emb.
+      rewrite <- map_event_trigger, <- embed_state_trigger.
+      destruct LSIM. eapply IH; eauto.
+      + subst. extensionalities i. destruct i as [i|i]; ss. f_equal.
+        specialize (TGT (inr (inl i))). ss.
+      + subst. ss.
+    - rewrite 2 embed_state_trigger, 2 map_event_trigger. eapply lsim_sync.
+      { instantiate (1 := (global_th ths_ctx0 ths_usr0, r_shared)).
+        ss. exists im_src0, ths_ctx0, ths_usr0. splits; ss.
+      }
+      { instantiate (1 := (local_th_user tid, r_own)). unfold_prod. split; ss. }
+      intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT2 TGT.
+      ss. des. unfold_prod VALID1_0.
+      assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (sum_fmap_l (tids_fmap tid ths_usr1))).
+      { ii. destruct i as [i|i]; ss.
+        - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). ss.
+          unfold tids_fmap in *. destruct (Nat.eq_dec i tid); ss. des_ifs.
+          exfalso. tauto.
+        - specialize (TGT (inr (inr i))). ss.
+      }
+      specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
+      pclearbot. gfinal. left. eapply CIH; eauto.
+      + subst. extensionalities i. destruct i as [i|i]; ss. f_equal.
+        specialize (TGT (inr (inl i))). ss.
+      + subst. ss.
+    - econs. pclearbot. gfinal. left. eapply CIH; eauto.
+  Qed.
 
 End ADD_RIGHT_CONG_SIM.
 

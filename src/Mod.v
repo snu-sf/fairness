@@ -138,6 +138,25 @@ Section LENS.
       Vis (inr1 (Get _)) (fun s => Vis (inr1 (Put (put s v))) (fun _ => embed_state (ktr tt))).
   Proof. eapply observe_eta. ss. Qed.
 
+  Lemma embed_state_trigger E' `[E' -< E] R X (e : E' X) (ktr : ktree (E +' sE V) X R) :
+    embed_state (x <- trigger e;; ktr x) = x <- trigger e;; embed_state (ktr x).
+  Proof.
+    rewrite 2 bind_trigger. apply embed_state_vis.
+  Qed.
+
+  Lemma embed_state_get' R (ktr : ktree (E +' sE V) V R) :
+    embed_state (x <- trigger (Get _);; ktr x) = x <- trigger (Get _);; (embed_state (ktr (get x))).
+  Proof. rewrite 2 bind_trigger. eapply embed_state_get. Qed.
+
+  Lemma embed_state_put' R v (ktr : ktree (E +' sE V) unit R) :
+    embed_state (x <- trigger (Put v);; ktr x) = s <- trigger (Get _);; _ <- trigger (Put (put s v));; (embed_state (ktr tt)).
+  Proof.
+    rewrite 2 bind_trigger.
+    match goal with [ |- embed_state (go (VisF ?e _)) = _ ] => replace e with (@inr1 E _ _ (Put v)) by ss end.
+    rewrite embed_state_put. f_equal. f_equal. extensionalities s.
+    rewrite bind_trigger. ss.
+  Qed.
+
 End LENS.
 
 Global Opaque embed_state.
