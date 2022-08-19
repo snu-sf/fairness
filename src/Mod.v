@@ -138,6 +138,25 @@ Section LENS.
       Vis (inr1 (Get _)) (fun s => Vis (inr1 (Put (put s v))) (fun _ => embed_state (ktr tt))).
   Proof. eapply observe_eta. ss. Qed.
 
+  Lemma embed_state_trigger E' `[E' -< E] R X (e : E' X) (ktr : ktree (E +' sE V) X R) :
+    embed_state (x <- trigger e;; ktr x) = x <- trigger e;; embed_state (ktr x).
+  Proof.
+    rewrite 2 bind_trigger. apply embed_state_vis.
+  Qed.
+
+  Lemma embed_state_get' R (ktr : ktree (E +' sE V) V R) :
+    embed_state (x <- trigger (Get _);; ktr x) = x <- trigger (Get _);; (embed_state (ktr (get x))).
+  Proof. rewrite 2 bind_trigger. eapply embed_state_get. Qed.
+
+  Lemma embed_state_put' R v (ktr : ktree (E +' sE V) unit R) :
+    embed_state (x <- trigger (Put v);; ktr x) = s <- trigger (Get _);; _ <- trigger (Put (put s v));; (embed_state (ktr tt)).
+  Proof.
+    rewrite 2 bind_trigger.
+    match goal with [ |- embed_state (go (VisF ?e _)) = _ ] => replace e with (@inr1 E _ _ (Put v)) by ss end.
+    rewrite embed_state_put. f_equal. f_equal. extensionalities s.
+    rewrite bind_trigger. ss.
+  Qed.
+
 End LENS.
 
 Global Opaque embed_state.
@@ -173,75 +192,3 @@ Section ADD.
     |}.
 
 End ADD.
-
-(*   Definition add_fun_right *)
-(*              (ktr: ktree (BehE +' cE state1) (Val * state1) (Val * state1)): *)
-(*     ktree (BehE +' cE add_state) (Val * add_state) (Val * add_state) := *)
-(*     embed_fun snd update_snd ktr. *)
-
-(*   Definition add_funs *)
-(*              (funs0: fname -> ktree (BehE +' cE state0) (Val * state0) (Val * state0)) *)
-(*              (funs1: fname -> ktree (BehE +' cE state1) (Val * state1) (Val * state1)) *)
-(*     : *)
-(*     fname -> ktree (BehE +' cE add_state) (Val * add_state) (Val * add_state) := *)
-(*     fun fn => *)
-(*       match fname_parse fn with *)
-(*       | Some (true, fn) => add_fun_left (funs0 fn) *)
-(*       | Some (false, fn) => add_fun_right (funs1 fn) *)
-(*       | None => fun _ => trigger UB >>= Empty_set_rect _ *)
-(*       end. *)
-(* End ADD. *)
-
-(* Definition add (md0 md1: t): t := *)
-(*   @mk *)
-(*     (add_state md0.(state) md1.(state)) *)
-(*     (add_st_init md0.(st_init) md1.(st_init)) *)
-(*     (add_funs md0.(funs) md1.(funs)). *)
-(* End Mod. *)
-
-
-(* Module ModSim. *)
-(*   Definition sim: Mod.t -> Mod.t -> Prop. *)
-(*   Admitted. *)
-
-(*   Lemma sim_id (md: Mod.t) *)
-(*     : *)
-(*     sim md md. *)
-(*   Admitted. *)
-
-(*   Lemma sim_horizontal *)
-(*         (md_src0 md_src1 md_tgt0 md_tgt1: Mod.t) *)
-(*         (SIM0: sim md_src0 md_tgt0) *)
-(*         (SIM1: sim md_src1 md_tgt1) *)
-(*     : *)
-(*     sim (Mod.add md_src0 md_tgt0) (Mod.add md_src1 md_tgt1). *)
-(*   Admitted. *)
-(* End ModSim. *)
-
-(* Variant callE: Type -> Type := *)
-(* | Call (fn: fname) (arg: Val): callE Val *)
-(* . *)
-
-(* Module OMod. *)
-(*   Record t: Type := *)
-(*     mk { *)
-(*         state: Type; *)
-(*         st_init: state; *)
-(*         funs: fname -> ktree (BehE +' cE state +' callE state) (Val * state) (Val * state); *)
-(*       }. *)
-
-(*   Section LINK. *)
-(*     Variable omd: t. *)
-(*     Variable md: Mod.t. *)
-
-(*     Definition link_state: Type := omd.(state) * md.(Mod.state). *)
-
-(*     Definition link_st_init: link_state := (omd.(st_init), md.(Mod.st_init)). *)
-
-(*     Definition link_itree: *)
-(*       forall (s: link_state) R, *)
-(*         itree (BehE +' callE omd.(state) +' cE omd.(state)) R -> itree (BehE +' callE link_state +' cE link_state) (link_state * R). *)
-(*     Proof. *)
-(*     Admitted. *)
-(*   End LINK. *)
-(* End OMod. *)
