@@ -144,13 +144,21 @@ Section PROOF.
   (*           end. *)
 
   Definition shared_thsRA {R0 R1}
-             (ths_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
              (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T))
-    :=
-    ths_r = (fun tid => match NatMap.find tid ost with
-                     | Some osot => ae_black osot
-                     | None => ae_black (wf_stt0 R0 R1, wf_stt0 R0 R1) ⋅ ae_white (wf_stt0 R0 R1, wf_stt0 R0 R1)
-                     end).
+    : @thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T) :=
+    (fun tid => match NatMap.find tid ost with
+             | Some osot => ae_black osot
+             | None => ae_black (wf_stt0 R0 R1, wf_stt0 R0 R1) ⋅ ae_white (wf_stt0 R0 R1, wf_stt0 R0 R1)
+             end).
+
+  (* Definition shared_thsRA {R0 R1} *)
+  (*            (ths_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T))) *)
+  (*            (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) *)
+  (*   := *)
+  (*   ths_r = (fun tid => match NatMap.find tid ost with *)
+  (*                    | Some osot => ae_black osot *)
+  (*                    | None => ae_black (wf_stt0 R0 R1, wf_stt0 R0 R1) ⋅ ae_white (wf_stt0 R0 R1, wf_stt0 R0 R1) *)
+  (*                    end). *)
 
   Definition Is {R0 R1}:
     (TIdSet.t * (@imap thread_id (@wf_src_th R0 R1)) * (@imap ident_tgt wf_tgt))%type ->
@@ -158,7 +166,7 @@ Section PROOF.
     fun '(ths, im_src, im_tgt) ths_r =>
       exists (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)),
         (<<WFOST: nm_wf_pair ths ost>>) /\
-          (<<TRES: shared_thsRA ths_r ost>>) /\
+          (<<TRES: ths_r = shared_thsRA ost>>) /\
           (<<IMSRC: forall tid (IN: NatMap.In tid ths)
                       os ot (FIND: NatMap.find tid ost = Some (os, ot)),
               wf_src_th.(lt) ((ot, im_tgt (inl tid)), nm_proj_v1 ost) (im_src tid)>>).
