@@ -478,13 +478,15 @@ Section PRIMIVIESIM.
            tid ths1
            (THS: TIdSet.add_new tid ths0 ths1)
            (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
+    forall im_tgt1
+      (TID_TGT : fair_update im_tgt0 im_tgt1 (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp))),
     exists r_shared1 r_own,
-      (<<INV: I (ths1, im_src0, im_tgt0, st_src0, st_tgt0) r_shared1>>) /\
+      (<<INV: I (ths1, im_src0, im_tgt1, st_src0, st_tgt0) r_shared1>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
-        (forall ths im_src1 im_tgt1 st_src st_tgt2 r_shared2 r_ctx2
-                (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt2) r_shared2)
+        (forall ths im_src1 im_tgt2 st_src2 st_tgt2 r_shared2 r_ctx2
+           (INV: I (ths, im_src1, im_tgt2, st_src2, st_tgt2) r_shared2)
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
-          forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths))),
+          forall im_tgt3 (TGT: fair_update im_tgt2 im_tgt3 (sum_fmap_l (tids_fmap tid ths))),
             (<<LSIM: forall fs ft,
                 lsim
                   tid
@@ -492,7 +494,7 @@ Section PRIMIVIESIM.
                   fs ft
                   r_ctx2
                   src tgt
-                  (ths, im_src1, im_tgt2, st_src, st_tgt2)
+                  (ths, im_src1, im_tgt3, st_src2, st_tgt2)
                   >>)).
 
 End PRIMIVIESIM.

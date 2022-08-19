@@ -52,19 +52,26 @@ Section ADD_COMM.
       destruct M2 as [state2 ident2 st_init2 funs2].
       ss. unfold add_funs. ss.
       destruct (funs1 fn), (funs2 fn).
-      + ii. esplits; ss. i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
-      + ii. exists tt, tt. splits; ss. i.
-        unfold embed_l, embed_r. remember (k args) as itr.
-        assert (INV_CIH : I (ths, im_src1, im_tgt2, st_src, st_tgt2) tt).
-        { des. ss. splits; ss.
-          - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. transitivity (im_tgt1 (inr (inr i))); eauto.
-          - ii. specialize (TGT (inr (inl i))). specialize (INV3 i). ss. transitivity (im_tgt1 (inr (inl i))); eauto.
+      + ii. exists tt, tt. splits; ss.
+        { des. splits; ss.
+          - i. specialize (TID_TGT (inr (inr i))). specialize (INV1 i). ss. rewrite TID_TGT. ss.
+          - i. specialize (TID_TGT (inr (inl i))). specialize (INV2 i). ss. rewrite TID_TGT. ss.
         }
-          
+        i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
+      + ii. exists tt, tt. splits; ss.
+        { des. splits; ss.
+          - i. specialize (TID_TGT (inr (inr i))). specialize (INV1 i). ss. rewrite TID_TGT. ss.
+          - i. specialize (TID_TGT (inr (inl i))). specialize (INV2 i). ss. rewrite TID_TGT. ss.
+        }
+        i. unfold embed_l, embed_r. remember (k args) as itr.
+        assert (INV_CIH : I (ths, im_src1, im_tgt3, st_src2, st_tgt2) tt).
+        { des. ss. splits; ss.
+          - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. rewrite TGT. ss.
+          - ii. specialize (TGT (inr (inl i))). specialize (INV3 i). ss. rewrite TGT. ss.
+        }
         clear - INV_CIH VALID0.
-        rename INV_CIH into INV, VALID0 into VALID, im_src1 into im_src0, im_tgt2 into im_tgt0.
+        rename INV_CIH into INV, VALID0 into VALID, im_src1 into im_src0, im_tgt3 into im_tgt0.
         revert_until tid. ginit. gcofix CIH. i.
-
         destruct_itree itr.
         * rewrite 2 embed_state_ret.
           rewrite 2 map_event_ret.
@@ -123,7 +130,7 @@ Section ADD_COMM.
                 eapply pind9_fold. eapply lsim_putR. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; eauto.
-                des. destruct st_src, st_tgt2. ss.
+                des. destruct st_src2, st_tgt2. ss.
               + rewrite 2 embed_state_get. ss.
                 rewrite 2 map_event_vis. ss.
                 rewrite <- 2 bind_trigger.
@@ -132,21 +139,23 @@ Section ADD_COMM.
                 eapply pind9_fold. eapply lsim_getR. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left.
-                destruct st_src, st_tgt2. des. ss. subst.
+                destruct st_src2, st_tgt2. des. ss. subst.
                 eapply CIH; eauto.
           }
-      + ii. exists tt, tt. splits; ss. i.
-        unfold embed_l, embed_r. remember (k args) as itr.
-        assert (INV_CIH : I (ths, im_src1, im_tgt2, st_src, st_tgt2) tt).
-        { des. ss. splits; ss.
-          - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. transitivity (im_tgt1 (inr (inr i))); eauto.
-          - ii. specialize (TGT (inr (inl i))). specialize (INV3 i). ss. transitivity (im_tgt1 (inr (inl i))); eauto.
+      + ii. exists tt, tt. splits; ss.
+        { des. splits; ss.
+          - i. specialize (TID_TGT (inr (inr i))). specialize (INV1 i). ss. rewrite TID_TGT. ss.
+          - i. specialize (TID_TGT (inr (inl i))). specialize (INV2 i). ss. rewrite TID_TGT. ss.
         }
-          
+        i. unfold embed_l, embed_r. remember (k args) as itr.
+        assert (INV_CIH : I (ths, im_src1, im_tgt3, st_src2, st_tgt2) tt).
+        { des. ss. splits; ss.
+          - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. rewrite TGT. ss.
+          - ii. specialize (TGT (inr (inl i))). specialize (INV3 i). ss. rewrite TGT. ss.
+        }
         clear - INV_CIH VALID0.
-        rename INV_CIH into INV, VALID0 into VALID, im_src1 into im_src0, im_tgt2 into im_tgt0.
+        rename INV_CIH into INV, VALID0 into VALID, im_src1 into im_src0, im_tgt3 into im_tgt0.
         revert_until tid. ginit. gcofix CIH. i.
-
         destruct_itree itr.
         * rewrite 2 embed_state_ret.
           rewrite 2 map_event_ret.
@@ -185,7 +194,7 @@ Section ADD_COMM.
               rewrite <- 2 bind_trigger.
               gstep. destruct c.
               + eapply pind9_fold. eapply lsim_sync; eauto.
-                gfinal. left. eapply CIH; eauto. ss. des; splits; ss.
+                gfinal. left. eapply CIH; eauto. ss; des; splits; ss.
                 * i. specialize (TGT (inr (inr i))). ss. transitivity (im_tgt1 (inr (inr i))); eauto.
                 * i. specialize (TGT (inr (inl i))). ss. transitivity (im_tgt1 (inr (inl i))); eauto.
               + eapply pind9_fold. eapply lsim_tidR. esplit; ss.
@@ -205,7 +214,7 @@ Section ADD_COMM.
                 eapply pind9_fold. eapply lsim_putR. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; eauto.
-                des. destruct st_src, st_tgt2. ss.
+                des. destruct st_src2, st_tgt2. ss.
               + rewrite 2 embed_state_get. ss.
                 rewrite 2 map_event_vis. ss.
                 rewrite <- 2 bind_trigger.
@@ -214,7 +223,7 @@ Section ADD_COMM.
                 eapply pind9_fold. eapply lsim_getR. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left.
-                destruct st_src, st_tgt2. des. ss. subst.
+                destruct st_src2, st_tgt2. des. ss. subst.
                 eapply CIH; eauto.
           }
       + ss.
@@ -352,11 +361,23 @@ Section ADD_RIGHT_CONG_SIM.
     : local_sim lift_ma RR (Vis (inl1 (inl1 Undefined)) ktr_src) itr_tgt.
   Proof.
     (* treat as if tid ∈ ths_ctx *)
-    intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0.
+    intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0 IM_TGT1 TID_TGT.
     simpl in INV0_0. des. subst r_sha_th0. unfold_prod VALID0_0.
-    exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0). exists (local_th_context tid, URA.unit). splits.
+    assert (CTX_TGT : pick_ctx IM_TGT0 = pick_ctx IM_TGT1).
+    { extensionalities i. specialize (TID_TGT (inr (inl i))). ss. }
+    assert (USR_TGT : chop_ctx ths_usr0 IM_TGT0 = chop_ctx ths_usr0 IM_TGT1).
+    { extensionalities i. destruct i as [i|i].
+      - specialize (TID_TGT (inl i)). ss. des_ifs. exfalso.
+        eapply inv_add_new in THS0. des. eapply THS0.
+        eapply Partition_In_right in INV0_1. eapply INV0_1.
+        ss.
+      - specialize (TID_TGT (inr (inr i))). ss.
+    }
+    exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0), (local_th_context tid, URA.unit). splits.
     { exists im_src0, (TIdSet.add tid ths_ctx0), ths_usr0. splits; ss.
-      eauto using NatMapP.Partition_sym, Partition_add.
+      - subst. rewrite CTX_TGT. ss.
+      - eauto using NatMapP.Partition_sym, Partition_add.
+      - rewrite USR_TGT in INV0_4. ss.
     }
     { unfold_prod. split.
       - eapply inv_add_new in THS0. des; subst. eapply global_th_alloc_context.
@@ -373,11 +394,23 @@ Section ADD_RIGHT_CONG_SIM.
     : local_sim lift_ma eq (embed_l M1 M2_src itr) (embed_l M1 M2_tgt itr).
   Proof.
     (* tid ∈ ths_ctx *)
-    intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0.
+    intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0 IM_TGT1 TID_TGT.
     simpl in INV0_0. des. subst r_sha_th0. unfold_prod VALID0_0.
+    assert (CTX_TGT : pick_ctx IM_TGT0 = pick_ctx IM_TGT1).
+    { extensionalities i. specialize (TID_TGT (inr (inl i))). ss. }
+    assert (USR_TGT : chop_ctx ths_usr0 IM_TGT0 = chop_ctx ths_usr0 IM_TGT1).
+    { extensionalities i. destruct i as [i|i].
+      - specialize (TID_TGT (inl i)). ss. des_ifs. exfalso.
+        eapply inv_add_new in THS0. des. eapply THS0.
+        eapply Partition_In_right in INV0_1. eapply INV0_1.
+        ss.
+      - specialize (TID_TGT (inr (inr i))). ss.
+    }
     exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0), (local_th_context tid, URA.unit). splits.
     { exists im_src0, (TIdSet.add tid ths_ctx0), ths_usr0. splits; ss.
-      eauto using NatMapP.Partition_sym, Partition_add.
+      - subst. rewrite CTX_TGT. ss.
+      - eauto using NatMapP.Partition_sym, Partition_add.
+      - rewrite USR_TGT in INV0_4. ss.
     }
     { unfold_prod. split.
       - eapply inv_add_new in THS0. des; subst. eapply global_th_alloc_context.
@@ -387,11 +420,11 @@ Section ADD_RIGHT_CONG_SIM.
         + ii. eapply THS0. eapply (Partition_In_right INV0_1). ss.
       - rewrite URA.unit_id. eauto.
     }
-    intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0.
-    intros IM_TGT1' TGT fs ft.
+    intros ths1 IM_SRC1 IM_TGT2 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0.
+    intros IM_TGT2' TGT fs ft.
     simpl in INV1_0. des. subst r_sha_th1. unfold_prod VALID1_0.
     unfold embed_l, embed_r.
-    assert (INV : lift_ma (ths1, IM_SRC1, IM_TGT1', st_src1, st_tgt1) (global_th ths_ctx1 ths_usr1, r_sha_w1)).
+    assert (INV : lift_ma (ths1, IM_SRC1, IM_TGT2', st_src1, st_tgt1) (global_th ths_ctx1 ths_usr1, r_sha_w1)).
     { ss. exists im_src1, ths_ctx1, ths_usr1. splits; ss.
       - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
       - eapply shared_rel_wf_lifted; eauto.
@@ -401,7 +434,7 @@ Section ADD_RIGHT_CONG_SIM.
     clear - INV VALID1_0 VALID1_1. move itr after tid.
     rename
       ths1 into ths0, ths_ctx1 into ths_ctx0, ths_usr1 into ths_usr0,
-      IM_SRC1 into IM_SRC0, IM_TGT1' into IM_TGT0, st_src1 into st_src0, st_tgt1 into st_tgt0,
+      IM_SRC1 into IM_SRC0, IM_TGT2' into IM_TGT0, st_src1 into st_src0, st_tgt1 into st_tgt0,
       r_sha_w1 into r_sha_w0, r_ctx_th1 into r_ctx_th0, r_ctx_w1 into r_ctx_w0,
       INV into INV0, VALID1_0 into VALID_TH0, VALID1_1 into VALID_W0.
     revert_until tid. ginit. gcofix CIH. i.
@@ -497,21 +530,32 @@ Section ADD_RIGHT_CONG_SIM.
     : local_sim lift_ma RR (embed_r M1 M2_src itr_src) (embed_r M1 M2_tgt itr_tgt).
   Proof.
     (* tid ∈ ths_usr *)
-    intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0.
+    intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0. i.
     simpl in INV0_0. des. subst r_sha_th0. unfold_prod VALID0_0.
     move SIM at bottom.
     assert (THS0' : TIdSet.add_new tid ths_usr0 (TIdSet.add tid ths_usr0)).
     { eapply inv_add_new. split; ss. eapply inv_add_new in THS0. des.
       eapply Partition_In_right in INV0_1. eauto.
     }
-    specialize (SIM ths_usr0 im_src0 (chop_ctx ths_usr0 IM_TGT0) (snd st_src0) (snd st_tgt0) r_sha_w0 r_ctx_w0 INV0_4 tid (NatSet.add tid ths_usr0) THS0' VALID0_1).
+    assert (TID_TGT' : fair_update (chop_ctx ths_usr0 IM_TGT0) (chop_ctx (NatSet.add tid ths_usr0) im_tgt1) (sum_fmap_l (fun i => if Nat.eq_dec i tid then Flag.success else Flag.emp))).
+    { ii. destruct i as [i|i]; ss.
+      - specialize (TID_TGT (inl i)). ss. destruct (Nat.eq_dec i tid); ss.
+        assert (H : tid <> i) by lia.
+        eapply NatMapP.F.add_neq_in_iff with (m := ths_usr0) (e := tt) in H.
+        des_ifs; tauto.
+      - specialize (TID_TGT (inr (inr i))). des_ifs.
+    }
+    specialize (SIM ths_usr0 im_src0 (chop_ctx ths_usr0 IM_TGT0) (snd st_src0) (snd st_tgt0) r_sha_w0 r_ctx_w0 INV0_4 tid (NatSet.add tid ths_usr0) THS0' VALID0_1 (chop_ctx (NatSet.add tid ths_usr0) im_tgt1) TID_TGT').
     destruct SIM as [r_sha_w1 [r_own_w1 [INV_USR [VALID_USR SIM]]]].
     exists (global_th ths_ctx0 (NatSet.add tid ths_usr0), r_sha_w1), (local_th_user tid, r_own_w1). splits.
     { eapply inv_add_new in THS0. des. subst.
       ss. esplits; ss.
+      - instantiate (1 := im_src0). extensionalities i. destruct i; ss.
+        specialize (TID_TGT (inr (inl i))). ss.
+        unfold pick_ctx. f_equal. ss.
       - eapply Partition_add; eauto.
         eapply inv_add_new; eauto.
-      - admit.
+      - eapply INV_USR.
     }
     { unfold_prod. split.
       - admit.
