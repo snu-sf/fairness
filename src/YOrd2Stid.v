@@ -280,52 +280,148 @@ Section PROOF.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
-
-    (*TODO*)
-
     { pfold. eapply pind9_fold. econs 3; eauto.
       des. exists x.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
     { pfold. eapply pind9_fold. econs 4; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
     { pfold. eapply pind9_fold. econs 5; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
     { pfold. eapply pind9_fold. econs 6; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
     { pfold. eapply pind9_fold. econs 7; eauto. }
+
     { pfold. eapply pind9_fold. econs 8; eauto.
-      des. esplits; eauto.
-      split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND.
+      des.
+      exists (fun idx => match idx with
+                 | inl t => im_src (inl t)
+                 | inr i => (imap_proj_wf1 (imap_proj_id2 im_src) i, im_src1 i)
+                 end).
+      esplits.
+      { clear - FAIR. ii. destruct i; ss. specialize (FAIR i). des_ifs.
+        - replace (im_src (inr i)) with (imap_proj_wf1 (imap_proj_id2 im_src) i, imap_proj_wf2 (imap_proj_id2 im_src) i).
+          econs; auto. rewrite <- (imap_sum_proj_wf_inv2 im_src). ss.
+        - rewrite FAIR. rewrite <- (imap_sum_proj_wf_inv2 im_src). ss.
+      }
+      split; [|ss]. destruct LSIM as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
+
     { pfold. eapply pind9_fold. econs 9; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
     { pfold. eapply pind9_fold. econs 10; eauto.
       i. specialize (LSIM0 x).
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
     { pfold. eapply pind9_fold. econs 11; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
     { pfold. eapply pind9_fold. econs 12; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
     { pfold. eapply pind9_fold. econs 13; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
     }
+
     { pfold. eapply pind9_fold. econs 14; eauto.
       i. specialize (LSIM0 _ FAIR).
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
+      clear - FAIR INVS. unfold Is in INVS. des. esplits; eauto. i. hexploit IMSRC; eauto; i.
+      replace (im_tgt1 (inl tid)) with (im_tgt (inl tid)); auto.
+      clear - FAIR. specialize (FAIR (inl tid)). ss.
     }
 
     { pfold. eapply pind9_fold. econs 15; eauto.
       i. specialize (LSIM0 ret). pclearbot.
-      split; ss. eapply pind9_fold. eapply ModSimNoSync.lsim_progress.
-      right. eapply CIH; eauto. eapply ModSimStid.lsim_set_prog. auto.
+      right. eapply CIH; eauto.
+    }
+
+    { pfold. eapply pind9_fold. econs 16; eauto.
+      des. unfold Is in INVS. des.
+      set (ost':= NatMap.add tid (os1, ot1) ost).
+      assert (WFOST': nm_wf_pair ths ost').
+      { admit. }
+      exists (fun idx => match idx with
+                 | inl t =>
+                     if (NatMapP.F.In_dec ths t)
+                     then match (NatMap.find t ost') with
+                          | None => im_src (inl t)
+                          | Some (_, ot) => (((ot, im_tgt (inl t)), nm_proj_v1 ost), snd (im_src (inl t)))
+                          end
+                     else im_src (inl t)
+                 | inr i => im_src (inr i)
+                 end).
+      splits.
+      { clear - LT IMSRC VALS WFOST WFOST' TRES.
+        ii. destruct i; ss. destruct (tids_fmap tid ths n) eqn:FM; auto.
+        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
+          des_ifs.
+          2:{ exfalso. eapply NatMapP.F.in_find_iff; eauto.
+              apply nm_wf_pair_sym in  WFOST'. eapply nm_wf_pair_find_cases in WFOST'. des.
+              eapply WFOST' in Heq. auto.
+          }
+          hexploit IMSRC; clear IMSRC.
+          3:{ instantiate (1:=n). instantiate (1:=t0). i.
+              rewrite surjective_pairing. econs. ss.
+          }
+          auto.
+          subst ost'. rewrite nm_find_add_neq in Heq; eauto.
+        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
+      }
+
+      split; [|ss]. destruct LSIM as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto. instantiate (1:=shared_thsRA ost').
+      - exists ost'; splits; auto.
+        clear - LT IMSRC VALS WFOST WFOST' TRES. subst.
+        i. econs 1.
+        Local Transparent imap_proj_id1 imap_proj_wf1. unfold imap_proj_id1, imap_proj_wf1.
+        Local Opaque imap_proj_id1 imap_proj_wf1.
+        des_ifs. ss. econs 2; auto. econs. instantiate (1:=tid).
+        + unfold nm_proj_v1. rewrite !NatMapP.F.map_o.
+          replace (NatMap.find tid ost) with (Some (os, ot)).
+          subst ost'. rewrite nm_find_add_eq. ss. econs. auto.
+          admit.
+        + i. unfold nm_proj_v1. rewrite !NatMapP.F.map_o. subst ost'. rewrite nm_find_add_neq; auto.
+      - admit.
     }
 
 
