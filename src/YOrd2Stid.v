@@ -424,6 +424,19 @@ Section PROOF.
       - admit.
     }
 
+    { pfold. eapply pind9_fold. econs 17; eauto. instantiate (1:=(ths_r, r_shared)).
+      { split; auto. }
+      instantiate (1:=(tid |-> (os, ot) , r_own)).
+      { ur. auto. }
+      clear - LSIM0 IH; i. unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
+      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
+      unfold Is in INVS. des. set (ost':= NatMap.add tid (os1, ot1) ost). clarify.
+      split; [|ss]. destruct LSIM as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto. instantiate (1:=shared_thsRA ost').
+
+      - 
 
 
     Abort.
