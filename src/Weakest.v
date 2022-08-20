@@ -56,6 +56,10 @@ Section SIM.
     eapply URA.wf_extends; eauto. eapply URA.extends_add; eauto.
   Qed.
 
+  Tactic Notation "muclo" uconstr(H) :=
+    eapply gpaco9_uclo; [auto with paco|apply H|].
+
+
   Lemma isim_mono tid R_src R_tgt
         (Q0 Q1: R_src -> R_tgt -> shared_rel)
         (MONO: forall r_src r_tgt ths im_src im_tgt st_src st_tgt,
@@ -157,4 +161,49 @@ Section SIM.
     2:{ gfinal. right. eapply RET0; eauto. }
     unfold liftRR. i. des_ifs.
   Qed.
+
+  Lemma isim_ret tid R_src R_tgt
+        (Q: R_src -> R_tgt -> shared_rel)
+        r_src r_tgt ths im_src im_tgt st_src st_tgt
+    :
+    bi_entails
+      (Q r_src r_tgt ths im_src im_tgt st_src st_tgt)
+      (isim tid Q (Ret r_src) (Ret r_tgt) ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    rr. autorewrite with iprop. i.
+    ii. ginit. muclo lsim_indC_spec.
+    eapply lsim_ret. unfold liftRR. esplits; eauto.
+  Qed.
+
+  Lemma isim_tauL tid R_src R_tgt
+        (Q: R_src -> R_tgt -> shared_rel)
+        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+    :
+    bi_entails
+      (isim tid Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim tid Q (Tau itr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    rr. autorewrite with iprop. i.
+    ii. ginit. muclo lsim_indC_spec.
+    eapply lsim_tauL. gfinal. right.
+    eapply lsim_reset_prog; eauto.
+  Qed.
+
+  Lemma isim_tauR tid R_src R_tgt
+        (Q: R_src -> R_tgt -> shared_rel)
+        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+    :
+    bi_entails
+      (isim tid Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim tid Q itr_src (Tau itr_tgt) ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    rr. autorewrite with iprop. i.
+    ii. ginit. muclo lsim_indC_spec.
+    eapply lsim_tauR. gfinal. right.
+    eapply lsim_reset_prog; eauto.
+  Qed.
+
 End SIM.
