@@ -1778,23 +1778,31 @@ Section NMOWF.
       :
       nmo_lt R nm0 nm1.
 
-  (* Lemma nmo_lt_same_cardinal A (R: A -> A -> Prop) m0 m1 *)
-  (*       (LT: nmo_lt R m0 m1) *)
-  (*   : *)
-  (*   cardinal m0 = cardinal m1. *)
-  (* Proof. *)
-  (*   inv LT. *)
-  (*   transitivity (S (cardinal (remove k m0))). *)
-  (*   { symmetry. eapply cardinal_remove. *)
-  (*     eapply F.in_find_iff. rewrite FIND1. ss. } *)
-  (*   { transitivity (S (cardinal (remove k m1))). *)
-  (*     { f_equal. eapply Equal_cardinal. ii. *)
-  (*       rewrite F.remove_o. rewrite F.remove_o. *)
-  (*       des_ifs. eauto. *)
-  (*     } *)
-  (*     eapply cardinal_remove. *)
-  (*     eapply F.in_find_iff. rewrite FIND2. ss. } *)
-  (* Qed. *)
+  Lemma nmo_lt_same_cardinal A (R: A -> A -> Prop) m0 m1
+        (LT: nmo_lt R m0 m1)
+    :
+    cardinal m0 <= cardinal m1.
+  Proof.
+    inv LT. inv LT0.
+    { replace m0 with (remove k m1). rewrite <- (@cardinal_remove _ k m1). lia.
+      apply F.in_find_iff. ii. rewrite H1 in H. ss.
+      apply nm_eq_is_equal. ii. destruct (PeanoNat.Nat.eq_dec k y); clarify.
+      { rewrite nm_find_rm_eq. auto. }
+      rewrite nm_find_rm_neq; auto. symmetry. apply EQ; auto.
+    }
+    cut (cardinal m0 = cardinal m1).
+    { i; lia. }
+    transitivity (S (cardinal (remove k m0))).
+    { symmetry. eapply cardinal_remove.
+      eapply F.in_find_iff. rewrite <- H0. ss. }
+    { transitivity (S (cardinal (remove k m1))).
+      { f_equal. eapply Equal_cardinal. ii.
+        rewrite F.remove_o. rewrite F.remove_o.
+        des_ifs. eauto.
+      }
+      eapply cardinal_remove.
+      eapply F.in_find_iff. rewrite <- H. ss. }
+  Qed.
 
   Lemma nmo_lt_inv A (R: A -> A-> Prop)
         m k a
@@ -1838,49 +1846,55 @@ Section NMOWF.
     }
   Qed.
 
-  (* Lemma nmo_lt_well_founded A (R: A -> A -> Prop) *)
-  (*       (WF: well_founded R) *)
-  (*   : *)
-  (*   well_founded (nmo_lt R). *)
-  (* Proof. *)
-  (*   cut (forall n m (CARDINAL: cardinal m = n), Acc (nmo_lt R) m). *)
-  (*   { ii. eapply H; eauto. } *)
-  (*   induction n. *)
-  (*   { ii. econs. i. inv H. *)
-  (*     eapply cardinal_inv_1 in CARDINAL. *)
-  (*     eapply nm_empty_equal in CARDINAL. *)
-  (*     rewrite CARDINAL in LT. rewrite F.empty_o in LT. inv LT. *)
-  (*   } *)
-  (*   i. *)
-  (*   assert (FIND: exists k a, NatMap.find k m = Some a). *)
-  (*   { destruct (cardinal_inv_2 CARDINAL) as [[k a] p]. ss. *)
-  (*     exists k, a. eapply find_1. eauto. *)
-  (*   } *)
-  (*   des. revert m CARDINAL FIND. *)
-  (*   pattern a. revert a. *)
-  (*   eapply (well_founded_induction WF). intros a IHL. *)
-  (*   i. hexploit (IHn (NatMap.remove k m)). *)
-  (*   { erewrite <- cardinal_remove in CARDINAL; eauto. *)
-  (*     eapply F.in_find_iff. ii. clarify. *)
-  (*   } *)
-  (*   intros ACC. remember (NatMap.remove k m) as m0 eqn:REMOVE. *)
-  (*   revert m REMOVE CARDINAL FIND. *)
-  (*   pattern m0. revert m0 ACC. *)
-  (*   eapply Acc_ind. intros m0 _ IHR. *)
-  (*   i. subst. econs. i. *)
-  (*   hexploit nmo_lt_inv; eauto. i. des. *)
-  (*   { eapply IHn. rewrite <- REMOVE. erewrite <- cardinal_remove in CARDINAL. *)
-  (*     inv CARDINAL. eauto. apply F.in_find_iff. ii; clarify. } *)
-  (*   { eapply IHL; eauto. *)
-  (*     rewrite <- CARDINAL. erewrite <- cardinal_remove. rewrite <- REMOVE. *)
-  (*     apply cardinal_remove. 1,2: apply F.in_find_iff; ii; clarify. } *)
-  (*   { eapply IHR; eauto. *)
-  (*     rewrite <- CARDINAL. erewrite <- cardinal_remove. rewrite <- REMOVE. *)
-  (*     apply cardinal_remove. 1,2: apply F.in_find_iff; ii; clarify. } *)
+  Lemma nmo_lt_well_founded A (R: A -> A -> Prop)
+        (WF: well_founded R)
+    :
+    well_founded (nmo_lt R).
+  Proof.
+    cut (forall n m (CARDINAL: cardinal m <= n), Acc (nmo_lt R) m).
+    { ii. eapply H; eauto. }
+    induction n.
+    { ii. econs. i. inv H.
+      inv CARDINAL. rename H0 into CARDINAL.
+      eapply cardinal_inv_1 in CARDINAL.
+      eapply nm_empty_equal in CARDINAL.
+      rewrite CARDINAL in LT. rewrite F.empty_o in LT. inv LT.
+    }
+    i.
+    destruct (cardinal m) eqn:CARD.
+    { eapply IHn. rewrite CARD. lia. }
+    assert (FIND: exists k a, NatMap.find k m = Some a).
+    { destruct (cardinal_inv_2 CARD) as [[k a] p]. ss.
+      exists k, a. eapply find_1. eauto.
+    }
+    rewrite <- CARD in CARDINAL. clear CARD n0.
+    des. revert m CARDINAL FIND.
+    pattern a. revert a.
+    eapply (well_founded_induction WF). intros a IHL.
+    i. hexploit (IHn (NatMap.remove k m)).
+    { erewrite <- cardinal_remove in CARDINAL; eauto.
+      { instantiate (1:=k) in CARDINAL. lia. }
+      eapply F.in_find_iff. ii. clarify.
+    }
+    intros ACC. remember (NatMap.remove k m) as m0 eqn:REMOVE.
+    revert m REMOVE CARDINAL FIND.
+    pattern m0. revert m0 ACC.
+    eapply Acc_ind. intros m0 _ IHR.
+    i. subst. econs. i.
+    hexploit nmo_lt_inv; eauto. i. des.
+    { eapply IHn. rewrite <- REMOVE. erewrite <- cardinal_remove in CARDINAL.
+      { instantiate (1:=k) in CARDINAL. lia. }
+      apply F.in_find_iff. ii; clarify. }
+    { eapply IHL; eauto.
+      rewrite <- CARDINAL. erewrite <- cardinal_remove. rewrite <- REMOVE.
+      rewrite cardinal_remove. lia. 1,2: apply F.in_find_iff; ii; clarify. }
+    { eapply IHR; eauto. rewrite <- CARDINAL.
+      rewrite <- (@cardinal_remove _ k). rewrite <- (@cardinal_remove _ k m).
+      2,3: apply F.in_find_iff; ii; clarify.
+      apply nmo_lt_same_cardinal in REL. lia.
+    }
+  Qed.
 
-  (*     eapply nm_lt_same_cardinal in H. rewrite H. auto. } *)
-  (* Qed. *)
-
-  (* Definition nm_wf (A: WF): WF := mk_wf (nm_lt_well_founded A.(wf)). *)
+  Definition nmo_wf (A: WF): WF := mk_wf (nmo_lt_well_founded A.(wf)).
 
 End NMOWF.
