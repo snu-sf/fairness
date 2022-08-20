@@ -469,7 +469,7 @@ Section PROOF.
       { admit. }
       exists (fun idx => match idx with
                  | inl t =>
-                     if (tid_dec tid t)
+                     if (tid_dec t tid)
                      then (((ot1, St (im_tgt2 (inl t))), nm_proj_v1 ost), snd (im_src1 (inl t)))
                      else
                        if (NatMapP.F.In_dec ths1 t)
@@ -482,9 +482,9 @@ Section PROOF.
                  end).
       splits.
 
-      { clear - LT IMSRC VALS WFOST WFOST' TRES.
-        ii. destruct i; ss. destruct (tids_fmap tid ths n) eqn:FM; auto.
-        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
+      { clear - IMSRC VALID TGT WFOST WFOST' TRES.
+        ii. destruct i; ss. destruct (tids_fmap tid ths1 n) eqn:FM; auto.
+        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss.
           des_ifs.
           2:{ exfalso. eapply NatMapP.F.in_find_iff; eauto.
               apply nm_wf_pair_sym in  WFOST'. eapply nm_wf_pair_find_cases in WFOST'. des.
@@ -496,28 +496,29 @@ Section PROOF.
           }
           auto.
           subst ost'. rewrite nm_find_add_neq in Heq; eauto.
-        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
+        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss.
+          des_ifs.
       }
 
-      split; [|ss]. destruct LSIM as [LSIM IND].
-      eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto. instantiate (1:=shared_thsRA ost').
+      pclearbot. right. eapply CIH. eauto.
+      instantiate (1:=shared_thsRA ost').
       - exists ost'; splits; auto.
-        clear - LT IMSRC VALS WFOST WFOST' TRES. subst.
+        revert IMSRC VALID TGT WFOST WFOST' TRES. clear_upto tid. i. subst.
         i. econs 1.
         Local Transparent imap_proj_id1 imap_proj_wf1. unfold imap_proj_id1, imap_proj_wf1.
         Local Opaque imap_proj_id1 imap_proj_wf1.
-        des_ifs. ss. econs 2; auto. econs. instantiate (1:=tid).
-        + unfold nm_proj_v1. rewrite !NatMapP.F.map_o.
-          replace (NatMap.find tid ost) with (Some (os, ot)).
-          subst ost'. rewrite nm_find_add_eq. ss. econs. auto.
-          admit.
-        + i. unfold nm_proj_v1. rewrite !NatMapP.F.map_o. subst ost'. rewrite nm_find_add_neq; auto.
+        des_ifs; ss.
+        + subst ost'. rewrite nm_find_add_eq in FIND. clarify. econs 1. econs 2; auto.
+        + rewrite FIND in Heq. clarify. econs 1. econs 2; auto.
+          clear - n IN TGT. specialize (TGT (inl tid0)). ss. unfold tids_fmap in TGT. des_ifs.
+        + rewrite FIND in Heq. ss.
       - admit.
     }
 
+    { pfold. eapply pind9_fold. econs 19; eauto. pclearbot. right. eapply CIH; eauto. }
 
-    Abort.
+    Unshelve. exact (wf_stt0 R0 R1).
+
+  Abort.
 
 End PROOF.
