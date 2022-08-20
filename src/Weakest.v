@@ -68,7 +68,19 @@ Section SIM.
       (isim tid Q0 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
       (isim tid Q1 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
-  Admitted.
+  Proof.
+    rr. autorewrite with iprop. i.
+    ii. exploit H; eauto. i.
+    ginit.
+    eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
+    econs.
+    { instantiate (1:=liftRR Q0). unfold liftRR. i. des_ifs.
+      des. esplits; eauto. hexploit MONO; eauto.
+      intros ENT. rr in ENT. autorewrite with iprop in ENT.
+      eapply ENT; eauto. eapply URA.wf_mon. eauto.
+    }
+    { gfinal. right. eauto. }
+  Qed.
 
   Lemma isim_upd tid R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
@@ -78,7 +90,11 @@ Section SIM.
       (#=> (isim tid Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
       (isim tid Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
-  Admitted.
+  Proof.
+    rr. autorewrite with iprop. i.
+    rr in H. autorewrite with iprop in H.
+    ii. hexploit H; eauto. i. des. eauto.
+  Qed.
 
   Lemma isim_wand tid R_src R_tgt
         (Q0 Q1: R_src -> R_tgt -> shared_rel)
@@ -89,7 +105,32 @@ Section SIM.
            ((Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt) -∗ (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt))) ** (isim tid Q0 itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
       (isim tid Q1 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
-  Admitted.
+  Proof.
+    rr. autorewrite with iprop. i.
+    rr in H. autorewrite with iprop in H. des. subst.
+    ii. ginit.
+    eapply gpaco9_uclo; [auto with paco|apply lsim_frameC_spec|].
+    econs.
+    instantiate (1:=a).
+    eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
+    econs.
+    2:{ gfinal. right. eapply H1. r_wf WF0. }
+    unfold liftRR. i. subst. des_ifs.
+    des. exists (r ⋅ a). esplits; eauto.
+    { r_wf WF1. }
+    { rr in H0. autorewrite with iprop in H0. specialize (H0 r_src).
+      rr in H0. autorewrite with iprop in H0. specialize (H0 r_tgt).
+      rr in H0. autorewrite with iprop in H0. specialize (H0 t).
+      rr in H0. autorewrite with iprop in H0. specialize (H0 i0).
+      rr in H0. autorewrite with iprop in H0. specialize (H0 i).
+      rr in H0. autorewrite with iprop in H0. specialize (H0 s0).
+      rr in H0. autorewrite with iprop in H0. specialize (H0 s).
+      rr in H0. autorewrite with iprop in H0.
+      hexploit (H0 r); eauto.
+      { eapply URA.wf_mon. instantiate (1:=r_ctx'). r_wf WF1. }
+      { i. rewrite URA.add_comm. auto. }
+    }
+  Qed.
 
   Lemma isim_bind tid R_src R_tgt S_src S_tgt
         (Q: R_src -> R_tgt -> shared_rel)
@@ -102,5 +143,18 @@ Section SIM.
                    isim tid Q (ktr_src s_src) (ktr_tgt s_tgt) ths im_src im_tgt st_src st_tgt) itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
       (isim tid Q (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
-  Admitted.
+  Proof.
+    rr. autorewrite with iprop. i.
+    ii. ginit.
+    eapply gpaco9_uclo; [auto with paco|apply lsim_bindC_spec|].
+    econs.
+    eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
+    econs.
+    2:{ gfinal. right. eapply H; eauto. }
+    unfold liftRR. i. des_ifs. des.
+    eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
+    econs.
+    2:{ gfinal. right. eapply RET0; eauto. }
+    unfold liftRR. i. des_ifs.
+  Qed.
 End SIM.
