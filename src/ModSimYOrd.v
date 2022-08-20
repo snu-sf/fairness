@@ -269,10 +269,11 @@ Section PRIMIVIESIM.
     }
   Qed.
 
-  Ltac pind_gen := patterning 9; refine (@lsim_acc_gen
-                                           _ _ _
-                                           _ _ _ _ _ _ _ _ _
-                                           _ _ _).
+  (* Ltac pind_gen := patterning 9; refine (@lsim_acc_gen *)
+  (*                                          _ _ _ *)
+  (*                                          _ _ _ _ _ _ _ _ _ *)
+  (*                                          _ _ _). *)
+  Ltac pind_gen := patterning 9; apply lsim_acc_gen.
   Ltac pinduction n := currying n pind_gen.
 
 
@@ -790,10 +791,7 @@ End PRIMIVIESIM.
 #[export] Hint Resolve cpn9_wcompat: paco.
 
 
-Ltac pind_gen := patterning 9; refine (@lsim_acc_gen
-                                         _ _ _
-                                         _ _ _ _ _ _ _ _ _
-                                         _ _ _).
+Ltac pind_gen := patterning 9; apply lsim_acc_gen.
 Ltac pinduction n := currying n pind_gen.
 
 
