@@ -81,6 +81,21 @@ Global Opaque imap_proj_wf1.
 Global Opaque imap_proj_wf2.
 Global Opaque imap_sum_wf.
 
+Section IMAPCOMB.
+
+  Definition imap_comb {id1 id2: ID} {wf1 wf2: WF} (im1: imap id1 wf1) (im2: imap id2 wf2):
+    imap (id_sum id1 id2) (sum_WF wf1 wf2) :=
+    fun i => match i with
+          | inl il => inl (im1 il)
+          | inr ir => inr (im2 ir)
+          end.
+
+  Definition imap_is_comb {id1 id2: ID} {wf1 wf2: WF}
+             (im: imap (id_sum id1 id2) (sum_WF wf1 wf2)) :=
+    exists (im1: imap id1 wf1) (im2: imap id2 wf2), im = imap_comb im1 im2.
+
+End IMAPCOMB.
+
 
 
 Section PROOF.
@@ -119,7 +134,7 @@ Section PROOF.
   Let ident_src2 := sum_tid ident_src.
 
   Let wf_src_th {R0 R1}: WF := clos_trans_WF (prod_WF (prod_WF (wf_stt R0 R1) wf_tgt) (nmo_wf (wf_stt R0 R1))).
-  Let wf_src2 {R0 R1}: WF := double_rel_WF (@wf_src_th R0 R1) wf_src.
+  Let wf_src2 {R0 R1}: WF := sum_WF (@wf_src_th R0 R1) wf_src.
 
   Let srcE2 := ((@eventE ident_src2 +' cE) +' sE state_src).
   Let shared2 {R0 R1} :=
@@ -153,8 +168,10 @@ Section PROOF.
 
   Definition I2 {R0 R1}: (@shared2 R0 R1) -> (@URA.car (@M2 R0 R1)) -> Prop :=
     fun '(ths, im_src, im_tgt, st_src, st_tgt) '(ths_r, r) =>
-      (<<INV: I (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt) r>>) /\
-        (<<INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt) ths_r>>).
+      exists im_src_th im_src_us,
+        (<<ICOMB: im_src = imap_comb im_src_th im_src_us>>) /\
+          (<<INV: I (ths, im_src_us, im_tgt, st_src, st_tgt) r>>) /\
+          (<<INVS: Is (ths, im_src_th, im_tgt) ths_r>>).
 
 
   Lemma shared_thsRA_th_has_wf_find
@@ -226,13 +243,15 @@ Section PROOF.
         R0 R1 (RR: R0 -> R1 -> Prop)
         ths
         (im_src: @imap ident_src2 (@wf_src2 R0 R1))
+        im_src_th im_src_us
+        (ICOMB: im_src = imap_comb im_src_th im_src_us)
         (im_tgt: @imap ident_tgt wf_tgt)
         st_src st_tgt r_ctx
         r0 r1
-        (LRR: ModSimYOrd.local_RR I RR tid r0 r1 r_ctx (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt))
+        (LRR: ModSimYOrd.local_RR I RR tid r0 r1 r_ctx (ths, im_src_us, im_tgt, st_src, st_tgt))
         (ths_r ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
         os ot
-        (INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt) ths_r)
+        (INVS: Is (ths, im_src_th, im_tgt) ths_r)
         (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
     :
     ModSimStid.local_RR I2 RR tid r0 r1 (ctx_r, r_ctx) (ths, im_src, im_tgt, st_src, st_tgt).
@@ -253,7 +272,7 @@ Section PROOF.
       + rewrite th_has_miss in VALS; auto. rewrite URA.unit_id in VALS.
         unfold shared_thsRA in *. subst ost'. rewrite nm_find_rm_neq; auto.
 
-    - unfold I2. splits; auto. unfold Is. exists ost'. splits; auto.
+    - unfold I2. esplits; eauto. unfold Is. exists ost'. splits; auto.
       { subst ost'. eapply nm_wf_pair_rm; auto. }
       i. specialize (IMSRC tid0). destruct (tid_dec tid0 tid); clarify.
       { exfalso. apply NatMap.remove_1 in IN; auto. }
@@ -283,15 +302,17 @@ Section PROOF.
         R0 R1 (RR: R0 -> R1 -> Prop)
         ths
         (im_src: @imap ident_src2 (@wf_src2 R0 R1))
+        im_src_th im_src_us
+        (ICOMB: im_src = imap_comb im_src_th im_src_us)
         (im_tgt: @imap ident_tgt wf_tgt)
         st_src st_tgt
         ps pt r_ctx src tgt
         os ot
         (LSIM: ModSimYOrd.lsim I wf_stt tid (ModSimYOrd.local_RR I RR tid)
                                ps pt r_ctx (os, src) (ot, tgt)
-                               (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt))
+                               (ths, im_src_us, im_tgt, st_src, st_tgt))
         (ths_r ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
-        (INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt) ths_r)
+        (INVS: Is (ths, im_src_th, im_tgt) ths_r)
         (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
     :
     ModSimStid.lsim I2 tid (ModSimStid.local_RR I2 RR tid) ps pt (ctx_r, r_ctx) src tgt
@@ -304,7 +325,7 @@ Section PROOF.
     pinduction 7. i. clear LE. clarify.
     rename x1 into ps, x2 into pt, x3 into r_ctx, PR into LSIM.
     eapply pind9_unfold in LSIM; eauto with paco.
-    rename INVS into INVS0; assert (INVS:Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt) ths_r).
+    rename INVS into INVS0; assert (INVS:Is (ths, im_src_th, im_tgt) ths_r).
     { auto. }
     clear INVS0.
     inv LSIM.
@@ -347,19 +368,18 @@ Section PROOF.
     { pfold. eapply pind9_fold. econs 8; eauto.
       des.
       exists (fun idx => match idx with
-                 | inl t => im_src (inl t)
-                 | inr i => (imap_proj_wf1 (imap_proj_id2 im_src) i, im_src1 i)
+                 | inl t => inl (im_src_th t)
+                 | inr i => inr (im_src1 i)
                  end).
       esplits.
       { clear - FAIR. ii. destruct i; ss. specialize (FAIR i). des_ifs.
-        - replace (im_src (inr i)) with (imap_proj_wf1 (imap_proj_id2 im_src) i, imap_proj_wf2 (imap_proj_id2 im_src) i).
-          econs; auto. rewrite <- (imap_sum_proj_wf_inv2 im_src). ss.
-        - rewrite FAIR. rewrite <- (imap_sum_proj_wf_inv2 im_src). ss.
+        - econs 2. auto.
+        - rewrite FAIR. auto.
       }
       split; [|ss]. destruct LSIM as [LSIM IND].
       eapply IH in IND. punfold IND.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto.
+      all: eauto. ss.
     }
 
     { pfold. eapply pind9_fold. econs 9; eauto.
@@ -419,11 +439,11 @@ Section PROOF.
                  | inl t =>
                      if (NatMapP.F.In_dec ths t)
                      then match (NatMap.find t ost') with
-                          | None => im_src (inl t)
-                          | Some (_, ot) => (((ot, im_tgt (inl t)), nm_proj_v1 ost), snd (im_src (inl t)))
+                          | None => inl (im_src_th t)
+                          | Some (_, ot) => inl ((ot, im_tgt (inl t)), nm_proj_v1 ost)
                           end
-                     else im_src (inl t)
-                 | inr i => im_src (inr i)
+                     else inl (im_src_th t)
+                 | inr i => inr (im_src_us i)
                  end).
       splits.
       { clear - LT IMSRC VALS WFOST WFOST'.
@@ -435,9 +455,7 @@ Section PROOF.
               eapply WFOST' in Heq. auto.
           }
           hexploit IMSRC; clear IMSRC.
-          3:{ instantiate (1:=n). instantiate (1:=t0). i.
-              rewrite surjective_pairing. econs. ss.
-          }
+          3:{ instantiate (1:=n). instantiate (1:=t0). i. econs 1. auto. }
           auto.
           subst ost'. rewrite nm_find_add_neq in Heq; eauto.
         - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
@@ -446,12 +464,18 @@ Section PROOF.
       split; [|ss]. destruct LSIM as [LSIM IND].
       eapply IH in IND. punfold IND.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto. instantiate (1:=shared_thsRA ost').
+      6: instantiate (2:=shared_thsRA ost'). all: eauto.
+      - instantiate (1:= fun t => if NatMapP.F.In_dec ths t
+                               then
+                                 match NatMap.find t ost' with
+                                 | Some (_, ot0) => (ot0, im_tgt (inl t), nm_proj_v1 ost)
+                                 | None => (im_src_th t)
+                                 end
+                               else (im_src_th t)).
+        unfold imap_comb. clear. extensionality idx. des_ifs.
       - exists ost'; splits; auto.
-        clear - LT IMSRC VALS WFOST WFOST'. subst.
+        clear - LT IMSRC VALS WFOST WFOST'.
         i. econs 1.
-        Local Transparent imap_proj_id1 imap_proj_wf1. unfold imap_proj_id1, imap_proj_wf1.
-        Local Opaque imap_proj_id1 imap_proj_wf1.
         des_ifs. ss. econs 2; auto. econs. instantiate (1:=tid).
         + unfold nm_proj_v1. rewrite !NatMapP.F.map_o.
           replace (NatMap.find tid ost) with (Some (os, ot)).
@@ -462,11 +486,11 @@ Section PROOF.
     }
 
     { pfold. eapply pind9_fold. econs 17; eauto. instantiate (1:=(ths_r, r_shared)).
-      { split; auto. }
+      { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
       { ur. auto. }
       clear - LSIM0 IH; i. unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
-      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
+      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV VALID0 _ TGT). des.
       unfold Is in INVS. des. subst. set (ost':= NatMap.add tid (os1, ot1) ost). clarify.
       assert (WFOST': nm_wf_pair ths1 ost').
       { eapply shared_thsRA_th_has_wf_wf_pair; eauto. }
@@ -487,27 +511,28 @@ Section PROOF.
     }
 
     { pfold. eapply pind9_fold. econs 18; eauto. instantiate (1:=(ths_r, r_shared)).
-      { split; auto. }
+      { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
       { ur. auto. }
       revert LSIM0. clear_upto IH. i.
       unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
-      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
+      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV VALID0 _ TGT). des.
       unfold Is in INVS. des. subst. set (ost':= NatMap.add tid (os1, ot1) ost).
       assert (WFOST': nm_wf_pair ths1 ost').
       { eapply shared_thsRA_th_has_wf_wf_pair; eauto. }
       exists (fun idx => match idx with
                  | inl t =>
                      if (tid_dec t tid)
-                     then (((ot1, St (im_tgt2 (inl t))), nm_proj_v1 ost), snd (im_src1 (inl t)))
+                     then inl ((ot1, St (im_tgt2 (inl t))), nm_proj_v1 ost)
                      else
                        if (NatMapP.F.In_dec ths1 t)
                        then match (NatMap.find t ost') with
-                            | None => im_src1 (inl t)
-                            | Some (_, ot) => (((ot, im_tgt1 (inl t)), nm_proj_v1 ost), snd (im_src1 (inl t)))
+                            | None => inl (im_src_th t)
+                            | Some (_, ot) =>
+                                inl ((ot, im_tgt1 (inl t)), nm_proj_v1 ost)
                             end
-                       else im_src1 (inl t)
-                 | inr i => im_src1 (inr i)
+                       else inl (im_src_th t)
+                 | inr i => inr (im_src_us i)
                  end).
       splits.
 
@@ -520,23 +545,29 @@ Section PROOF.
               eapply WFOST' in Heq. auto.
           }
           hexploit IMSRC; clear IMSRC.
-          3:{ instantiate (1:=n). instantiate (1:=t0). i.
-              rewrite surjective_pairing. econs. ss.
-          }
+          3:{ instantiate (1:=n). instantiate (1:=t0). i. econs 1. auto. }
           auto.
           subst ost'. rewrite nm_find_add_neq in Heq; eauto.
         - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss.
           des_ifs.
       }
 
-      pclearbot. right. eapply CIH. eauto.
-      instantiate (1:=shared_thsRA ost').
+      pclearbot. right. eapply CIH. 2:eauto.
+      3: instantiate (1:=shared_thsRA ost').
+      - instantiate (1:= fun t => if tid_dec t tid
+                               then (ot1, St (im_tgt2 (inl t)), nm_proj_v1 ost)
+                               else
+                                 if NatMapP.F.In_dec ths1 t
+                                 then
+                                   match NatMap.find t ost' with
+                                   | Some (_, ot0) => (ot0, im_tgt1 (inl t), nm_proj_v1 ost)
+                                   | None => (im_src_th t)
+                                   end
+                                 else (im_src_th t)).
+        unfold imap_comb. extensionality idx. des_ifs.
       - exists ost'; splits; auto.
         revert IMSRC VALID TGT WFOST WFOST'. clear_upto tid. i. subst.
-        i. econs 1.
-        Local Transparent imap_proj_id1 imap_proj_wf1. unfold imap_proj_id1, imap_proj_wf1.
-        Local Opaque imap_proj_id1 imap_proj_wf1.
-        des_ifs; ss.
+        i. econs 1. des_ifs; ss.
         + subst ost'. rewrite nm_find_add_eq in FIND. clarify. econs 1. econs 2; auto.
         + rewrite FIND in Heq. clarify. econs 1. econs 2; auto.
           clear - n IN TGT. specialize (TGT (inl tid0)). ss. unfold tids_fmap in TGT. des_ifs.
@@ -553,32 +584,30 @@ Section PROOF.
         R0 R1
         ths
         (im_src1: @imap ident_src2 (@wf_src2 R0 R1))
+        im_src_th1 im_src_us
+        (ICOMB: im_src1 = imap_comb im_src_th1 im_src_us)
         (im_tgt1 im_tgt2: @imap ident_tgt wf_tgt)
         (ths_r ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
         os ot
-        (INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src1)), im_tgt1) ths_r)
+        (INVS: Is (ths, im_src_th1, im_tgt1) ths_r)
         (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
         (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths)))
     :
-    exists im_src2,
-      (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
-        (<<INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src2)), im_tgt2) ths_r>>).
+    exists im_src_th2,
+      (<<SRC: fair_update im_src1 (imap_comb im_src_th2 im_src_us) (sum_fmap_l (tids_fmap tid ths))>>) /\
+        (<<INVS: Is (ths, im_src_th2, im_tgt2) ths_r>>).
   Proof.
-    unfold Is in INVS. des.
-    exists (fun idx => match idx with
-               | inl t =>
-                   if (tid_dec t tid)
-                   then (((ot, St (im_tgt2 (inl t))), nm_proj_v1 ost), snd (im_src1 (inl t)))
-                   else
-                     if (NatMapP.F.In_dec ths t)
-                     then match (NatMap.find t ost) with
-                          | None => im_src1 (inl t)
-                          | Some (_, ot) =>
-                              (((ot, im_tgt1 (inl t)), nm_proj_v1 ost), snd (im_src1 (inl t)))
-                          end
-                     else im_src1 (inl t)
-               | inr i => im_src1 (inr i)
-               end).
+    unfold Is in INVS. des. clarify.
+    exists (fun t => if (tid_dec t tid)
+             then ((ot, St (im_tgt2 (inl t))), nm_proj_v1 ost)
+             else
+               if (NatMapP.F.In_dec ths t)
+               then match (NatMap.find t ost) with
+                    | None => (im_src_th1 t)
+                    | Some (_, ot) =>
+                        ((ot, im_tgt1 (inl t)), nm_proj_v1 ost)
+                    end
+               else (im_src_th1 t)).
     splits.
 
     - ii. destruct i; ss. unfold tids_fmap. destruct (Nat.eq_dec n tid) eqn:EQT; clarify.
@@ -590,13 +619,9 @@ Section PROOF.
           eapply nm_wf_pair_sym in WFOST. hexploit nm_wf_pair_find_cases; eauto. i. des.
           eapply H in FIND; clarify.
       }
-      des_ifs. specialize (IMSRC _ i _ _ FIND). rewrite surjective_pairing. econs 1.
-      eapply IMSRC.
+      des_ifs. specialize (IMSRC _ i _ _ FIND). econs 1. eapply IMSRC.
 
-    - exists ost. splits; auto. subst. i.
-      Local Transparent imap_proj_id1 imap_proj_wf1. unfold imap_proj_id1, imap_proj_wf1.
-      Local Opaque imap_proj_id1 imap_proj_wf1.
-      des_ifs.
+    - exists ost. splits; auto. i. des_ifs.
       + ss. hexploit shared_thsRA_th_has_wf_find. eapply VALS. intro FIND2.
         ss; rewrite FIND in FIND2; clarify.
         econs 1. econs 1. econs 2; auto.
@@ -623,43 +648,65 @@ Section MODSIM.
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
     set (ident_src2 := sum_tid ident_src).
     set (wf_src_th := fun R0 R1 => clos_trans_WF (prod_WF (prod_WF (wf_stt R0 R1) wf_tgt) (nmo_wf (wf_stt R0 R1)))).
-    set (wf_src2 := fun R0 R1 => double_rel_WF (@wf_src_th R0 R1) wf_src).
-    set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))). ss.
+    set (wf_src2 := fun R0 R1 => sum_WF (@wf_src_th R0 R1) wf_src).
+    set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))).
     set (M2 := fun R0 R1 => URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
+    set (St := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
+    assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
+    { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
+    ss.
     eapply (@ModSim.mk _ _ (wf_src2 Val Val) _ wf_tgt_inhabited wf_tgt_open (M2 Val Val) (I2 Val Val)).
     { i. move init after im_tgt. specialize (init im_tgt). des.
-      (*TODO*)
-      exists (fun ti => match ti with
-                | inl t => (((wf_stt0 Val Val, im_tgt (inl t)), NatMap.empty), )
-                | inr i => im_src i
-                end).
-         
-    
-    econs.
-    { instantiate (1:= fun ti => match ti with
-                               | inl t => 
+      set (ost:= @NatMap.empty (prod (wf_stt Val Val).(T) (wf_stt Val Val).(T))).
+      assert (im_src_th: imap thread_id (@wf_src_th Val Val)).
+      { exact (fun t => ((wf_stt0 Val Val, im_tgt (inl t)), nm_proj_v1 ost)). }
+      exists (imap_comb im_src_th im_src). exists (shared_thsRA wf_stt wf_stt0 ost, r_shared).
+      unfold I2. unfold YOrd2Stid.I2. esplits; eauto.
+      - unfold Is. exists ost. splits; auto.
+        { subst ost. eapply nm_wf_pair_empty_empty_eq. }
+        i. eapply NatMapP.F.empty_in_iff in IN. ss.
+      - ur. split; auto. subst ost. ur. i. ur. split; ur; ss. des_ifs. unfold URA.extends.
+        exists ε. r_solve.
+    }
 
-
-    1,2: eauto. instantiate (1:=wf_src2 Val Val). instantiate (1:=I2 Val Val).
-    { i. exact (inr None). }
     i. specialize (funs fn args). des_ifs.
-    unfold ModSim.local_sim in funs.
-    ii. specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID _ UPD).
-    des. do 2 eexists. exists (inr None), (inr None). splits. 1,2: eauto.
-    i. specialize (funs1 _ _ _ _ _ _ _ INV1 VALID1 _ TGT fs ft).
-    eapply modsim_implies_yord in funs1. des.
-    ginit. guclo lsim_ord_weakRC_spec. econs. guclo lsim_ord_weakLC_spec. econs.
-    gfinal. right. eapply funs1.
-    - clear. destruct os.
-      { right. econs. }
-      destruct t.
-      { right. do 2 econs. }
-      { left. auto. }
-    - clear. destruct ot.
-      { right. econs. }
-      destruct t.
-      { right. do 2 econs. }
-      { left. auto. }
+    unfold ModSimYOrd.local_sim in funs.
+    ii. unfold I2 in INV. unfold YOrd2Stid.I2 in INV.
+    destruct r_shared0 as [shared_r r_shared], r_ctx0 as [ctx_r r_ctx].
+    ur in VALID. des.
+    specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID0 _ UPD).
+    move funs after UPD. des. rename funs1 into LSIM. move LSIM before M2.
+    unfold Is in INVS. des. clarify.
+    set (ost':= NatMap.add tid (os, ot) ost).
+    exists (shared_thsRA wf_stt wf_stt0 ost', r_shared1), (tid |-> (os, ot), r_own).
+    set (im_src_th':= fun t => match (NatMap.find t ost') with
+                            | None => (im_src_th t)
+                            | Some (_, ot) => ((ot, St (im_tgt0' (inl t))), nm_proj_v1 ost')
+                            end).
+    remember (fun ti => match ti with | inl t => inl (im_src_th' t) | inr i => inr (im_src_us i) end) as im_src_tot. exists im_src_tot.
+    splits.
+
+    - unfold I2, YOrd2Stid.I2.  exists im_src_th', im_src_us. splits; auto.
+      exists ost'. splits; auto.
+      { subst ost'. clear - THS WFOST. inv THS. eapply nm_wf_pair_add. auto. }
+      i. inv THS. subst im_src_th'. ss. rewrite FIND.
+      econs 1. econs 1. econs 2; auto.
+    - ur; split; auto. subst ost'. ur. ur in VALID. i.
+      unfold shared_thsRA in *. specialize (VALID k1). destruct (tid_dec k1 tid); clarify.
+      + rewrite nm_find_add_eq. assert (NatMap.find tid ost = None).
+        { inv THS. eapply nm_wf_pair_find_cases in WFOST. des. eapply WFOST in NEW. auto. }
+        rewrite H in VALID. clear - VALID. rewrite th_has_hit.
+        ur. ur in VALID. des_ifs. des; split. 2: ur; ss.
+        unfold URA.extends in *. des. exists ctx. rewrite URA.unit_idl in VALID.
+        ur in VALID. des_ifs. r_solve. ur. ss.
+      + rewrite nm_find_add_neq; auto. rewrite th_has_miss. r_solve. des_ifs; auto. ii. clarify.
+    - subst. i. destruct r_shared2 as [shared_r2 r_shared2], r_ctx2 as [ctx_r2 r_ctx2].
+      unfold I2, YOrd2Stid.I2 in INV1. ur in VALID2. des.
+      move LSIM after TGT. specialize (LSIM _ _ _ _ _ _ _ INV1 VALID3 _ TGT).
+      des. hexploit init_src_inv. 1,2: eauto. 2: eapply INVS. 2: eapply VALID2. 2: eapply TGT.
+      instantiate (1:=im_src_us0). reflexivity. i. des.
+      subst im_src1. esplits. eapply SRC.
+      i. eapply yord_implies_stid; eauto.
   Qed.
 
 End MODSIM.
