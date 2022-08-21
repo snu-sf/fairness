@@ -223,6 +223,7 @@ Section MODSIM.
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
     set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
     econs; eauto. instantiate (1:=wf_stt).
+    { i. exact (inr None). }
     i. specialize (funs fn args). des_ifs.
     unfold ModSim.local_sim in funs.
     ii. specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID _ UPD).

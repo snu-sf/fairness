@@ -548,4 +548,118 @@ Section PROOF.
 
   Qed.
 
+  Lemma init_src_inv
+        tid
+        R0 R1
+        ths
+        (im_src1: @imap ident_src2 (@wf_src2 R0 R1))
+        (im_tgt1 im_tgt2: @imap ident_tgt wf_tgt)
+        (ths_r ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
+        os ot
+        (INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src1)), im_tgt1) ths_r)
+        (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths)))
+    :
+    exists im_src2,
+      (<<SRC: fair_update im_src1 im_src2 (sum_fmap_l (tids_fmap tid ths))>>) /\
+        (<<INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src2)), im_tgt2) ths_r>>).
+  Proof.
+    unfold Is in INVS. des.
+    exists (fun idx => match idx with
+               | inl t =>
+                   if (tid_dec t tid)
+                   then (((ot, St (im_tgt2 (inl t))), nm_proj_v1 ost), snd (im_src1 (inl t)))
+                   else
+                     if (NatMapP.F.In_dec ths t)
+                     then match (NatMap.find t ost) with
+                          | None => im_src1 (inl t)
+                          | Some (_, ot) =>
+                              (((ot, im_tgt1 (inl t)), nm_proj_v1 ost), snd (im_src1 (inl t)))
+                          end
+                     else im_src1 (inl t)
+               | inr i => im_src1 (inr i)
+               end).
+    splits.
+
+    - ii. destruct i; ss. unfold tids_fmap. destruct (Nat.eq_dec n tid) eqn:EQT; clarify.
+      destruct (NatMapP.F.In_dec ths n) eqn:INT; ss; clarify.
+      2:{ des_ifs; ss. }
+      clear EQT INT.
+      destruct (NatMap.find n ost) eqn:FIND.
+      2:{ exfalso. eapply NatMapP.F.in_find_iff in i.
+          eapply nm_wf_pair_sym in WFOST. hexploit nm_wf_pair_find_cases; eauto. i. des.
+          eapply H in FIND; clarify.
+      }
+      des_ifs. specialize (IMSRC _ i _ _ FIND). rewrite surjective_pairing. econs 1.
+      eapply IMSRC.
+
+    - exists ost. splits; auto. subst. i.
+      Local Transparent imap_proj_id1 imap_proj_wf1. unfold imap_proj_id1, imap_proj_wf1.
+      Local Opaque imap_proj_id1 imap_proj_wf1.
+      des_ifs.
+      + ss. hexploit shared_thsRA_th_has_wf_find. eapply VALS. intro FIND2.
+        ss; rewrite FIND in FIND2; clarify.
+        econs 1. econs 1. econs 2; auto.
+      + ss. econs 1. econs 1. econs 2; auto. clear - n i TGT.
+        specialize (TGT (inl tid0)). ss. unfold tids_fmap in TGT. des_ifs.
+  Qed.
+
 End PROOF.
+
+Section MODSIM.
+
+  Lemma yord_implies_stid_mod
+        md_src md_tgt
+        (MDSIM: ModSimYOrd.ModSim.mod_sim md_src md_tgt)
+    :
+    ModSimStid.ModSim.mod_sim md_src md_tgt.
+  Proof.
+    inv MDSIM.
+    set (ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
+    set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
+    set (srcE := ((@eventE ident_src +' cE) +' sE state_src)).
+    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (ident_tgt := @ident_tgt _ident_tgt).
+    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
+    set (ident_src2 := sum_tid ident_src).
+    set (wf_src_th := fun R0 R1 => clos_trans_WF (prod_WF (prod_WF (wf_stt R0 R1) wf_tgt) (nmo_wf (wf_stt R0 R1)))).
+    set (wf_src2 := fun R0 R1 => double_rel_WF (@wf_src_th R0 R1) wf_src).
+    set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))). ss.
+    set (M2 := fun R0 R1 => URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
+    eapply (@ModSim.mk _ _ (wf_src2 Val Val) _ wf_tgt_inhabited wf_tgt_open (M2 Val Val) (I2 Val Val)).
+    { i. move init after im_tgt. specialize (init im_tgt). des.
+      (*TODO*)
+      exists (fun ti => match ti with
+                | inl t => (((wf_stt0 Val Val, im_tgt (inl t)), NatMap.empty), )
+                | inr i => im_src i
+                end).
+         
+    
+    econs.
+    { instantiate (1:= fun ti => match ti with
+                               | inl t => 
+
+
+    1,2: eauto. instantiate (1:=wf_src2 Val Val). instantiate (1:=I2 Val Val).
+    { i. exact (inr None). }
+    i. specialize (funs fn args). des_ifs.
+    unfold ModSim.local_sim in funs.
+    ii. specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID _ UPD).
+    des. do 2 eexists. exists (inr None), (inr None). splits. 1,2: eauto.
+    i. specialize (funs1 _ _ _ _ _ _ _ INV1 VALID1 _ TGT fs ft).
+    eapply modsim_implies_yord in funs1. des.
+    ginit. guclo lsim_ord_weakRC_spec. econs. guclo lsim_ord_weakLC_spec. econs.
+    gfinal. right. eapply funs1.
+    - clear. destruct os.
+      { right. econs. }
+      destruct t.
+      { right. do 2 econs. }
+      { left. auto. }
+    - clear. destruct ot.
+      { right. econs. }
+      destruct t.
+      { right. do 2 econs. }
+      { left. auto. }
+  Qed.
+
+End MODSIM.

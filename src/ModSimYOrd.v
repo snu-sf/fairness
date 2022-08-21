@@ -816,6 +816,7 @@ Module ModSim.
               (URA.wf r_shared);
 
           wf_stt : Type -> Type -> WF;
+          wf_stt0: forall R0 R1, (wf_stt R0 R1).(T);
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                            | None, _ => True
                            | _, None => False
