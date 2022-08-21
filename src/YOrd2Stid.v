@@ -132,20 +132,6 @@ Section PROOF.
 
   Let M2 {R0 R1}: URA.t := URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) M.
 
-  (* Definition shared_thsRA_white {R0 R1} *)
-  (*            (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)): @_thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T) := *)
-  (*   fun tid => match NatMap.find tid ost with *)
-  (*           | Some osot => Some osot *)
-  (*           | None => Some (wf_stt0 R0 R1, wf_stt0 R0 R1) *)
-  (*           end. *)
-
-  (* Definition shared_thsRA_black {R0 R1} *)
-  (*            (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)): @_thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T) := *)
-  (*   fun tid => match NatMap.find tid ost with *)
-  (*           | Some osot => ε *)
-  (*           | None => Some (wf_stt0 R0 R1, wf_stt0 R0 R1) *)
-  (*           end. *)
-
   Definition shared_thsRA {R0 R1}
              (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T))
     : @thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T) :=
@@ -153,15 +139,6 @@ Section PROOF.
              | Some osot => ae_black osot
              | None => ae_black (wf_stt0 R0 R1, wf_stt0 R0 R1) ⋅ ae_white (wf_stt0 R0 R1, wf_stt0 R0 R1)
              end).
-
-  (* Definition shared_thsRA {R0 R1} *)
-  (*            (ths_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T))) *)
-  (*            (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) *)
-  (*   := *)
-  (*   ths_r = (fun tid => match NatMap.find tid ost with *)
-  (*                    | Some osot => ae_black osot *)
-  (*                    | None => ae_black (wf_stt0 R0 R1, wf_stt0 R0 R1) ⋅ ae_white (wf_stt0 R0 R1, wf_stt0 R0 R1) *)
-  (*                    end). *)
 
   Definition Is {R0 R1}:
     (TIdSet.t * (@imap thread_id (@wf_src_th R0 R1)) * (@imap ident_tgt wf_tgt))%type ->
@@ -178,6 +155,70 @@ Section PROOF.
     fun '(ths, im_src, im_tgt, st_src, st_tgt) '(ths_r, r) =>
       (<<INV: I (ths, imap_proj_wf2 (imap_proj_id2 im_src), im_tgt, st_src, st_tgt) r>>) /\
         (<<INVS: Is (ths, (imap_proj_wf1 (imap_proj_id1 im_src)), im_tgt) ths_r>>).
+
+
+  Lemma shared_thsRA_th_has_wf_find
+        tid
+        R0 R1
+        ost os ot
+        (ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
+        (VALS: URA.wf ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+    :
+    NatMap.find tid ost = Some (os, ot).
+  Proof.
+    ur in VALS. specialize (VALS tid). eapply URA.wf_mon in VALS.
+    unfold shared_thsRA in VALS. rewrite th_has_hit in VALS.
+    des_ifs.
+    - ur in VALS. des. rewrite URA.unit_idl in VALS.
+      unfold URA.extends in VALS. des. ur in VALS. des_ifs.
+    - rewrite <- URA.add_assoc in VALS. rewrite URA.add_comm in VALS. eapply URA.wf_mon in VALS.
+      ur in VALS. ur in VALS. ss.
+  Qed.
+
+  Lemma shared_thsRA_th_has_wf_update
+        tid
+        R0 R1
+        ost os ot
+        (ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
+        (VALS: URA.wf ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        os1 ot1
+    :
+    URA.wf ((shared_thsRA (NatMap.add tid (os1, ot1) ost)) ⋅ (th_has tid (os1, ot1)) ⋅ ctx_r).
+  Proof.
+    hexploit shared_thsRA_th_has_wf_find; eauto. intro FIND.
+    ur. ur in VALS. i. specialize (VALS k).
+    destruct (tid_dec k tid); clarify.
+    - rewrite th_has_hit in *. unfold shared_thsRA in *.
+      rewrite nm_find_add_eq. rewrite FIND in VALS.
+      ur. ur in VALS. des_ifs. des. split.
+      + rewrite URA.unit_idl in VALS. unfold URA.extends in *. des.
+        r_solve. ss. exists ctx. ur in VALS. ur. des_ifs.
+      + ur. ss.
+    - rewrite th_has_miss in *; auto. rewrite URA.unit_id in VALS. r_solve.
+      unfold shared_thsRA in *. rewrite nm_find_add_neq; auto.
+  Qed.
+
+  Lemma shared_thsRA_th_has_wf_wf_pair
+        tid
+        R0 R1
+        (ths: TIdSet.t)
+        ost os ot
+        (ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
+        (VALS: URA.wf ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        (WFP: nm_wf_pair ths ost)
+        os1 ot1
+    :
+    nm_wf_pair ths (NatMap.add tid (os1, ot1) ost).
+  Proof.
+    replace ths with (NatMap.add tid tt ths). apply nm_wf_pair_add; auto.
+    apply nm_eq_is_equal. ii. destruct (tid_dec y tid); clarify.
+    2:{ rewrite nm_find_add_neq; auto. }
+    rewrite nm_find_add_eq. symmetry.
+    destruct (NatMap.find tid ths) eqn:FIND; ss. destruct u; auto.
+    hexploit shared_thsRA_th_has_wf_find. eapply VALS. i.
+    hexploit nm_wf_pair_find_cases; eauto. i; des. eapply H0 in FIND.
+    ss. clarify.
+  Qed.
 
 
   Lemma local_RR_impl
@@ -200,16 +241,11 @@ Section PROOF.
     unfold Is in INVS. des. set (ost':=NatMap.remove tid ost).
     clarify. esplits; eauto.
     - instantiate (1:=(ε, r_own)). instantiate (1:=(shared_thsRA ost', r_shared)).
-      ur. split; auto.
+      ur. split; auto. hexploit shared_thsRA_th_has_wf_find; eauto. intro FIND.
       r_solve. ur. ur in VALS. i. specialize (VALS k).
       destruct (tid_dec k tid); clarify.
       + rewrite th_has_hit in VALS. unfold shared_thsRA in *.
-        subst ost'. rewrite nm_find_rm_eq. des_ifs.
-        2:{ exfalso. eapply URA.wf_mon in VALS.
-            rewrite <- URA.add_assoc in VALS. rewrite URA.add_comm in VALS.
-            eapply URA.wf_mon in VALS.
-            ur in VALS. ur in VALS. ss.
-        }
+        subst ost'. rewrite nm_find_rm_eq. rewrite FIND in VALS.
         ur. ur in VALS. des_ifs. des. split.
         * rewrite URA.unit_idl in VALS. unfold URA.extends in *. des.
           r_solve. ss. exists ctx. ur in VALS. ur. des_ifs.
@@ -228,19 +264,13 @@ Section PROOF.
       econs 1. econs 2. auto.
       subst ost'. econs. instantiate (1:=tid).
       { unfold nm_proj_v1. rewrite <- nm_map_rm_comm_eq. rewrite nm_find_rm_eq.
-        assert (TIDIN: NatMap.In tid ost).
-        { clear_upto VALS. ur in VALS. specialize (VALS tid). unfold shared_thsRA in VALS.
-          des_ifs. apply NatMapP.F.in_find_iff. ss. ii. clarify.
-          rewrite th_has_hit in VALS. eapply URA.wf_mon in VALS.
-          rewrite <- URA.add_assoc in VALS. rewrite URA.add_comm in VALS.
-          eapply URA.wf_mon in VALS. ur in VALS. ur in VALS. ss.
-        }
-        destruct (NatMap.find tid ost) eqn:FINDOST.
-        - rewrite NatMapP.F.map_o. rewrite FINDOST. ss. econs.
-        - rewrite NatMapP.F.in_find_iff in TIDIN. ss.
+        assert (FINDOST: NatMap.find tid ost = Some (os, ot)).
+        { eapply shared_thsRA_th_has_wf_find. eapply VALS. }
+        rewrite NatMapP.F.map_o. rewrite FINDOST. ss. econs.
       }
       { i. unfold nm_proj_v1. rewrite <- nm_map_rm_comm_eq. rewrite nm_find_rm_neq; auto. }
   Qed.
+
 
   Let St: wf_tgt.(T) -> wf_tgt.(T) := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
   Let lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
@@ -381,10 +411,10 @@ Section PROOF.
     }
 
     { pfold. eapply pind9_fold. econs 16; eauto.
-      des. unfold Is in INVS. des.
+      des. unfold Is in INVS. des. subst.
       set (ost':= NatMap.add tid (os1, ot1) ost).
       assert (WFOST': nm_wf_pair ths ost').
-      { admit. }
+      { eapply shared_thsRA_th_has_wf_wf_pair; eauto. }
       exists (fun idx => match idx with
                  | inl t =>
                      if (NatMapP.F.In_dec ths t)
@@ -396,7 +426,7 @@ Section PROOF.
                  | inr i => im_src (inr i)
                  end).
       splits.
-      { clear - LT IMSRC VALS WFOST WFOST' TRES.
+      { clear - LT IMSRC VALS WFOST WFOST'.
         ii. destruct i; ss. destruct (tids_fmap tid ths n) eqn:FM; auto.
         - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
           des_ifs.
@@ -418,7 +448,7 @@ Section PROOF.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto. instantiate (1:=shared_thsRA ost').
       - exists ost'; splits; auto.
-        clear - LT IMSRC VALS WFOST WFOST' TRES. subst.
+        clear - LT IMSRC VALS WFOST WFOST'. subst.
         i. econs 1.
         Local Transparent imap_proj_id1 imap_proj_wf1. unfold imap_proj_id1, imap_proj_wf1.
         Local Opaque imap_proj_id1 imap_proj_wf1.
@@ -426,9 +456,9 @@ Section PROOF.
         + unfold nm_proj_v1. rewrite !NatMapP.F.map_o.
           replace (NatMap.find tid ost) with (Some (os, ot)).
           subst ost'. rewrite nm_find_add_eq. ss. econs. auto.
-          admit.
+          symmetry. eapply shared_thsRA_th_has_wf_find; eauto.
         + i. unfold nm_proj_v1. rewrite !NatMapP.F.map_o. subst ost'. rewrite nm_find_add_neq; auto.
-      - admit.
+      - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
     { pfold. eapply pind9_fold. econs 17; eauto. instantiate (1:=(ths_r, r_shared)).
@@ -437,23 +467,23 @@ Section PROOF.
       { ur. auto. }
       clear - LSIM0 IH; i. unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
       ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
-      unfold Is in INVS. des. set (ost':= NatMap.add tid (os1, ot1) ost). clarify.
+      unfold Is in INVS. des. subst. set (ost':= NatMap.add tid (os1, ot1) ost). clarify.
       assert (WFOST': nm_wf_pair ths1 ost').
-      { admit. }
+      { eapply shared_thsRA_th_has_wf_wf_pair; eauto. }
       split; [|ss]. destruct LSIM as [LSIM IND].
       eapply IH in IND. punfold IND.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto. instantiate (1:=shared_thsRA ost').
 
       - exists ost'. splits; auto. i. specialize (IMSRC _ IN). destruct (tid_dec tid0 tid); clarify.
-        + hexploit IMSRC. instantiate (1:=ot). admit.
+        + hexploit IMSRC. eapply shared_thsRA_th_has_wf_find; eauto.
           i. subst ost'. rewrite nm_find_add_eq in FIND. clarify.
           eapply clos_trans_n1_trans. 2: eapply H. econs 1. econs 1. econs 1. auto.
         + subst ost'. rewrite nm_find_add_neq in FIND; auto.
           hexploit IMSRC. eauto. i.
           eapply clos_trans_n1_trans. 2: eapply H. econs 1. econs 1. econs 2; auto.
           clear - n IN TGT. specialize (TGT (inl tid0)). ss. unfold tids_fmap in TGT. des_ifs.
-      - admit.
+      - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
     { pfold. eapply pind9_fold. econs 18; eauto. instantiate (1:=(ths_r, r_shared)).
@@ -463,10 +493,9 @@ Section PROOF.
       revert LSIM0. clear_upto IH. i.
       unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
       ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
-      unfold Is in INVS. des.
-      set (ost':= NatMap.add tid (os1, ot1) ost).
+      unfold Is in INVS. des. subst. set (ost':= NatMap.add tid (os1, ot1) ost).
       assert (WFOST': nm_wf_pair ths1 ost').
-      { admit. }
+      { eapply shared_thsRA_th_has_wf_wf_pair; eauto. }
       exists (fun idx => match idx with
                  | inl t =>
                      if (tid_dec t tid)
@@ -482,7 +511,7 @@ Section PROOF.
                  end).
       splits.
 
-      { clear - IMSRC VALID TGT WFOST WFOST' TRES.
+      { clear - IMSRC VALID TGT WFOST WFOST'.
         ii. destruct i; ss. destruct (tids_fmap tid ths1 n) eqn:FM; auto.
         - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss.
           des_ifs.
@@ -503,7 +532,7 @@ Section PROOF.
       pclearbot. right. eapply CIH. eauto.
       instantiate (1:=shared_thsRA ost').
       - exists ost'; splits; auto.
-        revert IMSRC VALID TGT WFOST WFOST' TRES. clear_upto tid. i. subst.
+        revert IMSRC VALID TGT WFOST WFOST'. clear_upto tid. i. subst.
         i. econs 1.
         Local Transparent imap_proj_id1 imap_proj_wf1. unfold imap_proj_id1, imap_proj_wf1.
         Local Opaque imap_proj_id1 imap_proj_wf1.
@@ -512,13 +541,11 @@ Section PROOF.
         + rewrite FIND in Heq. clarify. econs 1. econs 2; auto.
           clear - n IN TGT. specialize (TGT (inl tid0)). ss. unfold tids_fmap in TGT. des_ifs.
         + rewrite FIND in Heq. ss.
-      - admit.
+      - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
     { pfold. eapply pind9_fold. econs 19; eauto. pclearbot. right. eapply CIH; eauto. }
 
-    Unshelve. exact (wf_stt0 R0 R1).
-
-  Abort.
+  Qed.
 
 End PROOF.
