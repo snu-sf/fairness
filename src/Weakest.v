@@ -520,6 +520,28 @@ Section SIM.
     i. eapply H2. r_wf VALID.
   Qed.
 
+  Variant unlift2 (r: rel):
+    forall R_src R_tgt (RR: R_src -> R_tgt -> Σ ->
+                            (TIdSet.t *
+                               (@imap ident_src wf_src) *
+                               (@imap (sum_tid ident_tgt) nat_wf) *
+                               state_src *
+                               state_tgt) -> Prop),
+      bool -> bool -> Σ -> itree srcE R_src -> itree tgtE R_tgt ->
+      (TIdSet.t *
+         (@imap ident_src wf_src) *
+         (@imap (sum_tid ident_tgt) nat_wf) *
+         state_src *
+         state_tgt) -> Prop :=
+    | unlift2_intro
+        ps pt
+        R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_ctx r_own
+        (REL: r R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_own)
+        (WF: URA.wf (r_own ⋅ r_ctx))
+      :
+      unlift2 r (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+  .
+
   Lemma isim_base ps pt r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
         itr_src itr_tgt ths im_src im_tgt st_src st_tgt
@@ -530,8 +552,17 @@ Section SIM.
   .
   Proof.
     rr. autorewrite with iprop.
-    ii. muclo lsim_monoC_spec. econs.
-    2:{ gbase. rr. esplits; eauto.
+    ii. gbase.
+
+    unfold liftRR. rr. esplits. eauto.
+
+  (* H : r R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt r0 *)
+  (* r_ctx : Σ *)
+  (* WF0 : URA.wf (r0 ⋅ r_ctx) *)
+  (* ============================ *)
+  (* unlift r (liftRR Q) ps pt r_ctx itr_src itr_tgt *)
+  (*   (ths, im_src, im_tgt, st_src, st_tgt) *)
+
   Admitted.
 
   Lemma isim_mono_knowledge (r0 g0 r1 g1: rel) ps pt R_src R_tgt
@@ -555,6 +586,123 @@ Section SIM.
   Proof.
   Admitted.
 
+  Ltac espc H :=
+    let T := fresh "T" in
+    evar (T: Type);
+    let x := fresh "x" in
+    evar (x: T);
+    specialize (H x); subst T; subst x.
+
+  Tactic Notation "rspc" constr(H) := rr in H; autorewrite with iprop in H; espc H.
+  Ltac rspc := rr; autorewrite with iprop.
+
+  Lemma unlift_mon (r0 r1: rel)
+        (MON: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
+                     itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+            bi_entails
+              (@r0 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+              (#=> (@r1 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)))
+    :
+    unlift r0 <9= unlift r1.
+  Admitted.
+
+  Lemma isim_coind' A
+        (ps: forall (a: A), bool)
+        (pt: forall (a: A), bool)
+        (R_src: forall (a: A), Prop)
+        (R_tgt: forall (a: A), Prop)
+        (Q: forall (a: A), R_src a -> R_tgt a -> shared_rel)
+        (itr_src : forall (a: A), itree srcE (R_src a))
+        (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
+        (ths: forall (a: A), TIdSet.t)
+        (im_src: forall (a: A), imap ident_src wf_src)
+        (im_tgt: forall (a: A), imap (sum_tid ident_tgt) nat_wf)
+        (st_src: forall (a: A), state_src)
+        (st_tgt: forall (a: A), state_tgt)
+        (P: forall (a: A), iProp)
+        (r g0: rel)
+    :
+    bi_entails
+      (∀ (g1: rel) a,
+          P a -*
+            (□(∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
+                itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+                 @g0 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* @g1 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)) -*
+            (□(∀ a,
+                 P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))) -*
+            isim (ps a, pt a, r, g1) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))
+      (∀ a, P a -* isim (ps a, pt a, r, g0) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))
+  .
+  Proof.
+    rr. autorewrite with iprop. i.
+    rr. autorewrite with iprop. i.
+    rr. autorewrite with iprop.
+    revert x. gcofix CIH. i. eapply gpaco9_gpaco.
+    { auto with paco. }
+    epose (fun R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
+               itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+             @iProp_intro _ (fun r_own => forall r_ctx (WF: URA.wf (r_own ⋅ r_ctx)),
+                                 gpaco9 gf (cpn9 gf) r1 r1 R_src R_tgt (liftRR Q) false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _).
+    rr in H. autorewrite with iprop in H. specialize (H i). subst i.
+    rspc H.
+    rr in H. autorewrite with iprop in H.
+    hexploit H; eauto. clear H. i.
+    rr in H. autorewrite with iprop in H.
+    hexploit (H URA.unit); eauto.
+    { r_wf H1. }
+    { rr. autorewrite with iprop. split.
+      { rr. autorewrite with iprop. auto. }
+      rr. autorewrite with iprop.
+      do 11 (rr; autorewrite with iprop; i).
+      rewrite URA.unit_core. rewrite URA.unit_idl.
+      ss. i. gbase. eapply CIH0.
+      (* rr. esplits. eauto. eauto. *)
+
+      (* rr in H3. autorewrite with iprop in H3. *)
+      (* hexploit H3; eauto. i. des. *)
+
+
+      (* muclo lsim_monoC_spec. econs. *)
+      (* 2:{ gbase. eapply CIH0. *)
+      (*     rr. esplits. eauto. eauto. *)
+
+      (* g0 x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 rp0 -> forall r_ctx (WF: URA.wf (rp0 ⋅ r_ctx0)), unlift g0 (liftRR x2) false false r_ctx0 x3 x4 (x5, x6, x7, x8, x9) *)
+      admit.
+    } clear H.
+    i. rr in H. autorewrite with iprop in H.
+    hexploit (H URA.unit); eauto.
+    { r_wf H1. }
+    { rr. autorewrite with iprop. split.
+      { rr. autorewrite with iprop. auto. }
+      rr. autorewrite with iprop.
+      do 2 (rr; autorewrite with iprop; i).
+      rewrite URA.unit_core. rewrite URA.unit_idl.
+      ss. i.
+      hexploit CIH.
+      2:{ eauto. }
+      { admit. }
+      { admit. }
+      i. muclo lsim_resetC_spec. econs.
+      { gbase. eauto. }
+      { admit. }
+      { admit. }
+    }
+    i. eapply gpaco9_mon.
+    { eapply H0. r_wf WF0. }
+    { i. gbase. eauto. }
+    { i. gbase. left. eapply CIH0.
+      eapply unlift_mon; [|eauto].
+      i. ss. rr. autorewrite with iprop. i.
+      ss. rr. autorewrite with iprop. i.
+      esplits. eauto.
+
+
+
+      rr. eapply
+      admit. }
+  Qed.
+
+
   Lemma isim_coind A
         (ps: forall (a: A), bool)
         (pt: forall (a: A), bool)
@@ -569,19 +717,121 @@ Section SIM.
         (st_src: forall (a: A), state_src)
         (st_tgt: forall (a: A), state_tgt)
         (P: forall (a: A), iProp)
-        (r0 g: rel)
+        (r g0: rel)
     :
     bi_entails
-      (∀ (r1: rel) a,
+      (∀ (g1: rel) a,
           P a -*
-            □(∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
+            (□(∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
                 itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
-                 @r0 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* @r1 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt) -*
-            □(∀ a,
-                 P a -* @r1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a)) -*
-            isim (false, false, r1, g) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))
-      (∀ a, P a -* isim (false, false, r0, g) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))
+                 @g0 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* @g1 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)) -*
+            (□(∀ a,
+                 P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))) -*
+            isim (ps a, pt a, r, g1) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))
+      (∀ a, P a -* isim (ps a, pt a, r, g0) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))
   .
   Proof.
+    rr. autorewrite with iprop. i.
+    rr. autorewrite with iprop. i.
+    rr. autorewrite with iprop.
+    revert x. gcofix CIH. i.
+    rspc H. rspc H.
+    rr in H. autorewrite with iprop in H.
+    hexploit H; eauto. clear H. i.
+    rr in H. autorewrite with iprop in H.
+    hexploit (H URA.unit); eauto.
+    { r_wf H1. }
+    { rr. autorewrite with iprop. split.
+      { rr. autorewrite with iprop. auto. }
+      rr. autorewrite with iprop.
+      do 11 (rr; autorewrite with iprop; i).
+      rewrite URA.unit_core. rewrite URA.unit_idl.
+      instantiate (1:=fun R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
+                          itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+                        r1 ? false false
+                  ).
+
+      instantiate (1:=lift r1).
+      eapply H3.
+
+    } clear H.
+    i. rr in H. autorewrite with iprop in H.
+    hexploit (H URA.unit); eauto.
+    { r_wf H1. }
+    { rr. autorewrite with iprop. split.
+      { rr. autorewrite with iprop. auto. }
+      rr. autorewrite with iprop.
+      do 2 (rr; autorewrite with iprop; i).
+      rewrite URA.unit_core. rewrite URA.unit_idl.
+      admit.
+    }
+    i. eapply gpaco9_mon.
+    { eapply H0. r_wf WF0. }
+    { i. eauto. }
+    { eapply CIH0. }
+  Qed.
+
+    rr in H0. eapply gpaco9_mon.
+    { eapply H0.
+
+
+    eapply H0.
+
+    i.
+
+    {
+
+
+
+
+ss.      rewrite URA.unit_id.
+
+      rr. autorewrite with iprop. i.
+      rr. autorewrite with iprop. i.
+      rr. autorewrite with iprop. i.
+      rr. autorewrite with iprop. i.
+      rr. autorewrite with iprop. i.
+      rr. autorewrite with iprop. i.
+      rr. autorewrite with iprop. i.
+      rr. autorewrite with iprop. i.
+      rr. autorewrite with iprop. i.
+      r
+
+      split.
+      {
+
+
+      instantiate (1:=r1).
+
+      instantiate (1:=r1).
+
+    2:{
+      i. rr in H0. autorewrite with iprop in H0.
+      hexploit H0.
+
+    clear H. i.
+
+    ; [|eauto|..]; eauto. clear H. i.
+
+
+
+    { admit. }
+    { eauto. }
+
+
+    espc H.
+    rr in H. autorewrite with iprop in H. espc H.
+    rr in H.
+
+    ;
+
+
+      evar (T: Type).
+    specialize (H
+    s
+
+    i.
+
+
   Admitted.
 End SIM.
