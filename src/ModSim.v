@@ -918,6 +918,114 @@ Section PRIMIVIESIM.
 
   Require Import Program.
 
+  Lemma trigger_yield E `{cE -< E}
+    :
+    (trigger Yield;;; Ret tt: itree E unit) = trigger Yield.
+  Proof.
+    eapply observe_eta. ss.
+    rewrite bind_trigger. ss.
+    f_equal. extensionality x. destruct x. ss.
+  Qed.
+
+  Lemma trigger_yield_rev E `{cE -< E}
+        ktr
+        (EQ: (trigger Yield >>= ktr: itree E unit) = trigger Yield)
+    :
+    ktr = fun _ => Ret tt.
+  Proof.
+    eapply f_equal with (f:=observe) in EQ.
+    ss. rewrite bind_trigger in EQ. ss.
+    dependent destruction EQ.
+    extensionality u. destruct u.
+    eapply equal_f in x. eauto.
+  Qed.
+
+  Lemma trigger_unit_same (E: Type -> Type) (e: E unit) R
+        (ktr: unit -> itree E R)
+    :
+    trigger e >>= (fun x => ktr x) = trigger e >>= (fun x => ktr tt).
+  Proof.
+    f_equal. extensionality u. destruct u. auto.
+  Qed.
+
+  Lemma lsim_bindRC'_spec tid
+    :
+    lsim_bindRC' <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)).
+  Proof.
+    assert (HINT: forall r1, monotone9 (fun r0 => pind9 (__lsim tid r0) r1)).
+    { ii. eapply pind9_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
+    eapply grespect9_uclo; eauto with paco.
+    econs.
+    { ii. inv IN. econs; eauto. }
+    i. inv PR. eapply GF in REL.
+    eapply rclo9_clo_base. eapply cpn9_gupaco.
+    { eauto with paco. }
+    revert x0 x1 x2 ktr_src ktr_tgt MON.
+    revert x3 x4 x5 x8 R_tgt0 RR0 itr_tgt REL.
+    pinduction 7. i.
+
+    eapply pind9_unfold in PR.
+    2:{ eapply _lsim_mon. }
+    rename PR into LSIM. inv LSIM; ired.
+
+    { eapply f_equal with (f := observe) in H3. ss. }
+    { eapply f_equal with (f := observe) in H3. ss. }
+    { eapply f_equal with (f := observe) in H3. ss. }
+    { eapply f_equal with (f := observe) in H3. ss. }
+    { eapply f_equal with (f := observe) in H3. ss. }
+    { eapply f_equal with (f := observe) in H3. ss. }
+    { destruct LSIM0 as [LSIM0 IND].
+      guclo lsim_indC_spec. eapply lsim_tauR.
+      hexploit IH; eauto.
+    }
+    { guclo lsim_indC_spec. eapply lsim_chooseR.
+      intros x. specialize (LSIM0 x). destruct LSIM0 as [LSIM0 IND].
+      hexploit IH; eauto.
+    }
+    { destruct LSIM0 as [LSIM0 IND].
+      guclo lsim_indC_spec. eapply lsim_putR.
+      hexploit IH; eauto.
+    }
+    { destruct LSIM0 as [LSIM0 IND].
+      guclo lsim_indC_spec. eapply lsim_getR.
+      hexploit IH; eauto.
+    }
+    { destruct LSIM0 as [LSIM0 IND].
+      guclo lsim_indC_spec. eapply lsim_tidR.
+      hexploit IH; eauto.
+    }
+    { guclo lsim_indC_spec. eapply lsim_fairR.
+      i. hexploit LSIM0; eauto. i. des. destruct H as [LSIM IND].
+      splits. hexploit IH; eauto.
+    }
+    { eapply f_equal with (f := observe) in H3. ss. }
+    { ss. destruct LSIM0 as [LSIM0 IND].
+      eapply trigger_yield_rev in H3. subst.
+      ired.
+      admit.
+    }
+    { eapply trigger_yield_rev in H3.
+      subst. revert LSIM0. ired. intros LSIM0.
+
+      guclo lsim_indC_spec.
+      eapply lsim_yieldR; eauto.
+      i. hexploit LSIM0; eauto. i.
+      destruct H as [LSIM IND].
+
+      gbase.
+
+      gstep.
+
+      gbase.
+      hexploit IH; eauto.
+      { rewrite <- trigger_yield. eauto. }
+      i. replace (trigger Yield;;; ktr_src tt) with (x <- trigger Yield;; ktr_src x); auto.
+      eapply trigger_unit_same.
+    }
+    2:{ gfinal. left. eapply pind9_fold. eapply lsim_progress. eapply rclo9_clo_base. left. econs; eauto.
+    }
+  Admitted.
+
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid:
     R0 -> R1 -> URA.car -> shared_rel :=
     fun (r_src: R0) (r_tgt: R1) (r_ctx: URA.car) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1) =>
