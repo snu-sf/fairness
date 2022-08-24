@@ -93,32 +93,6 @@ Section SIM.
   Tactic Notation "muclo" uconstr(H) :=
     eapply gpaco9_uclo; [auto with paco|apply H|].
 
-  Lemma isim_mono r g R_src R_tgt
-        (Q0 Q1: R_src -> R_tgt -> shared_rel)
-        (MONO: forall r_src r_tgt ths im_src im_tgt st_src st_tgt,
-            bi_entails
-              (Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt)
-              (#=> (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt)))
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
-    :
-    bi_entails
-      (isim r g Q0 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q1 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-  .
-  Proof.
-    rr. autorewrite with iprop. i.
-    ii. exploit H; eauto. i.
-    eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
-    econs; [|eapply x0].
-    unfold liftRR. i. des_ifs.
-    des. hexploit MONO; eauto.
-    intros ENT. rr in ENT. autorewrite with iprop in ENT.
-    hexploit (ENT r1); eauto.
-    { eapply URA.wf_mon. eauto. }
-    i. rr in H0. autorewrite with iprop in H0.
-    hexploit (H0 r_ctx0); eauto.
-  Qed.
-
   Lemma isim_upd r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
         itr_src itr_tgt ths im_src im_tgt st_src st_tgt
@@ -133,13 +107,26 @@ Section SIM.
     ii. hexploit H; eauto. i. des. eauto.
   Qed.
 
+  Global Instance isim_elim_upd
+         r g R_src R_tgt
+         (Q: R_src -> R_tgt -> shared_rel)
+         itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+         P
+    :
+    ElimModal True false false (#=> P) P (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt) (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+  Proof.
+    unfold ElimModal. i. iIntros "[H0 H1]".
+    iApply isim_upd. iMod "H0". iModIntro.
+    iApply "H1". iFrame.
+  Qed.
+
   Lemma isim_wand r g R_src R_tgt
         (Q0 Q1: R_src -> R_tgt -> shared_rel)
         itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
       ((∀ r_src r_tgt ths im_src im_tgt st_src st_tgt,
-           ((Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt) -∗ (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt))) ** (isim r g Q0 itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
+           ((Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt) -∗ #=> (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt))) ** (isim r g Q0 itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
       (isim r g Q1 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
@@ -151,21 +138,53 @@ Section SIM.
     eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
     econs.
     2:{ eapply H1. r_wf WF0. }
-    unfold liftRR. i. subst. des_ifs.
-    des. exists (r0 ⋅ a). esplits; eauto.
-    { r_wf WF1. }
-    { rr in H0. autorewrite with iprop in H0. specialize (H0 r_src).
-      rr in H0. autorewrite with iprop in H0. specialize (H0 r_tgt).
-      rr in H0. autorewrite with iprop in H0. specialize (H0 t).
-      rr in H0. autorewrite with iprop in H0. specialize (H0 i0).
-      rr in H0. autorewrite with iprop in H0. specialize (H0 i).
-      rr in H0. autorewrite with iprop in H0. specialize (H0 s0).
-      rr in H0. autorewrite with iprop in H0. specialize (H0 s).
-      rr in H0. autorewrite with iprop in H0.
-      hexploit (H0 r0); eauto.
-      { eapply URA.wf_mon. instantiate (1:=r_ctx'). r_wf WF1. }
-      { i. rewrite URA.add_comm. auto. }
-    }
+    unfold liftRR. i. subst. des_ifs. des.
+    rr in H0. autorewrite with iprop in H0. specialize (H0 r_src).
+    rr in H0. autorewrite with iprop in H0. specialize (H0 r_tgt).
+    rr in H0. autorewrite with iprop in H0. specialize (H0 t).
+    rr in H0. autorewrite with iprop in H0. specialize (H0 i0).
+    rr in H0. autorewrite with iprop in H0. specialize (H0 i).
+    rr in H0. autorewrite with iprop in H0. specialize (H0 s0).
+    rr in H0. autorewrite with iprop in H0. specialize (H0 s).
+    rr in H0. autorewrite with iprop in H0.
+    hexploit (H0 r0); eauto.
+    { eapply URA.wf_mon. instantiate (1:=r_ctx'). r_wf WF1. }
+    i. rr in H. autorewrite with iprop in H.
+    hexploit H.
+    { instantiate (1:=r_ctx'). r_wf WF1. }
+    i. des. esplits; eauto.
+  Qed.
+
+  Lemma isim_mono r g R_src R_tgt
+        (Q0 Q1: R_src -> R_tgt -> shared_rel)
+        (MONO: forall r_src r_tgt ths im_src im_tgt st_src st_tgt,
+            bi_entails
+              (Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt)
+              (#=> (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt)))
+        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+    :
+    bi_entails
+      (isim r g Q0 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q1 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    iIntros. iApply isim_wand. iFrame.
+    iIntros. iApply MONO. eauto.
+  Qed.
+
+  Lemma isim_frame r g R_src R_tgt
+        P (Q: R_src -> R_tgt -> shared_rel)
+        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+    :
+    bi_entails
+      (P ** isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
+                   P ** Q r_src r_tgt ths im_src im_tgt st_src st_tgt)
+            itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    iIntros "[H0 H1]". iApply isim_wand. iFrame.
+    iIntros. iModIntro. iFrame.
   Qed.
 
   Lemma isim_bind r g R_src R_tgt S_src S_tgt
