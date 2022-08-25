@@ -125,31 +125,64 @@ Section Monotone.
   Definition monoBlack (w: W): iProp :=
     OwnM (Auth.black (leR w) ⋅ Auth.white (leR w)).
 
-  Definition monoWhite (w: W): iProp :=
+  Definition monoWhiteExact (w: W): iProp :=
     OwnM (Auth.white (leR w)).
+
+  Definition monoWhite (w0: W): iProp :=
+    ∃ w1, monoWhiteExact w1 ∧ ⌜le w0 w1⌝.
+
+  Lemma black_persistent_white_exact w
+    :
+    (monoBlack w) -∗ (□ monoWhiteExact w).
+  Proof.
+    unfold monoBlack, monoWhiteExact.
+    iIntros "[_ H]". iPoseProof (own_persistent with "H") as "H". ss.
+  Qed.
 
   Lemma black_persistent_white w
     :
     (monoBlack w) -∗ (□ monoWhite w).
   Proof.
-    unfold monoBlack, monoWhite.
-    iIntros "[_ H]". iPoseProof (own_persistent with "H") as "H". ss.
+    unfold monoWhite. iIntros "H".
+    iPoseProof (black_persistent_white_exact with "H") as "# H0".
+    iClear "∗". iModIntro.
+    iExists _. iSplit; eauto.
   Qed.
 
-  Lemma white_persistent_white w
+  Lemma white_exact_persistent w
     :
-    (monoWhite w) -∗ (□ monoWhite w).
+    (monoWhiteExact w) -∗ (□ monoWhiteExact w).
   Proof.
-    unfold monoBlack, monoWhite.
+    unfold monoBlack, monoWhiteExact.
     iIntros "H". iPoseProof (own_persistent with "H") as "H". ss.
   Qed.
 
-  Lemma black_updatable w0 w1
-        (LE: le w0 w1)
+  Lemma white_mon w0 w1
     :
-    (monoBlack w0) -∗ (#=> monoBlack w1).
+    (monoWhite w1) -∗ ⌜le w0 w1⌝ -∗ (monoWhite w0).
   Proof.
-    eapply OwnM_Upd. eapply Auth.auth_update.
+    unfold monoWhite. iIntros "H %".
+    iDestruct "H" as (w) "[H %]".
+    iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
+  Qed.
+
+  Lemma white_persistent w
+    :
+    (monoWhite w) -∗ (□ monoWhite w).
+  Proof.
+    unfold monoWhite. iIntros "H".
+    iDestruct "H" as (w1) "[H %]".
+    iPoseProof (white_exact_persistent with "H") as "# H0".
+    iClear "∗". iModIntro.
+    iExists _. iSplit; eauto.
+  Qed.
+
+  Lemma black_updatable w0 w1
+    :
+    (monoBlack w0) -∗ ⌜le w0 w1⌝ -∗ (#=> monoBlack w1).
+  Proof.
+    iIntros "H %". iApply (OwnM_Upd with "H").
+    eapply Auth.auth_update.
     rr. i. des. splits; auto.
     { rr. unseal "ra". ss. }
     { unfold URA.add in *. unseal "ra". ss.
@@ -161,9 +194,9 @@ Section Monotone.
     }
   Qed.
 
-  Lemma black_white_compare w0 w1
+  Lemma black_white_exact_compare w0 w1
     :
-    (monoWhite w0) -∗ (monoBlack w1) -∗ ⌜le w0 w1⌝.
+    (monoWhiteExact w0) -∗ (monoBlack w1) -∗ ⌜le w0 w1⌝.
   Proof.
     iIntros "H0 [H1 H2]".
     iCombine "H1 H0" as "H". iOwnWf "H".
@@ -172,5 +205,15 @@ Section Monotone.
     ss. unfold Collection.add in H0.
     eapply equal_f in H0. eapply prop_ext_rev in H0. des.
     eapply H1. reflexivity.
+  Qed.
+
+  Lemma black_white_compare w0 w1
+    :
+    (monoWhite w0) -∗ (monoBlack w1) -∗ ⌜le w0 w1⌝.
+  Proof.
+    unfold monoWhite.
+    iIntros "H0 H1". iDestruct "H0" as (w) "[H0 %]".
+    iPoseProof (black_white_exact_compare with "H0 H1") as "%".
+    iPureIntro. etrans; eauto.
   Qed.
 End Monotone.
