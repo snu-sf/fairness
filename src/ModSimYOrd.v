@@ -818,9 +818,9 @@ Module ModSim.
           wf_stt : Type -> Type -> WF;
           wf_stt0: forall R0 R1, (wf_stt R0 R1).(T);
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                           | None, _ => True
-                           | _, None => False
                            | Some ktr_src, Some ktr_tgt => local_sim I wf_stt (@eq Val) (ktr_src args) (ktr_tgt args)
+                           | None        , None         => True
+                           | _           , _            => False
                            end;
         }.
   End MODSIM.

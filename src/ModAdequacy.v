@@ -576,6 +576,18 @@ Section ADEQ.
     let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
     NatMapP.of_list (numbering pre_threads).
 
+  Lemma _numbering_cons
+        E (l: list E) n x
+    :
+    _numbering (x :: l) n = (n, x) :: (_numbering l (S n)).
+  Proof. reflexivity. Qed.
+
+  Lemma of_list_cons
+        elt (l: list (NatMap.key * elt)) k e
+    :
+    NatMapP.of_list ((k, e) :: l) = Th.add k e (NatMapP.of_list l).
+  Proof. reflexivity. Qed.
+
   Theorem modsim_adequacy
           m_src m_tgt
           (MSIM: ModSim.ModSim.mod_sim m_src m_tgt)
@@ -595,7 +607,20 @@ Section ADEQ.
     instantiate (1:= fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
     { i. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
     instantiate (1:=wf_stt).
-
-
+    unfold ModSimStutter_local_sim_threads, prog2ths. unfold numbering.
+    remember 0 as k. clear Heqk. revert_until p.
+    induction p; i.
+    { ss. unfold NatMap.Raw.empty. econs. }
+    rewrite !map_cons, !_numbering_cons. destruct a as [fn args].
+    rewrite !of_list_cons. eapply nm_find_some_implies_forall2.
+    { admit. }
+    i. destruct (tid_dec k k0); clarify.
+    { clear IHp. rewrite nm_find_add_eq in FIND1, FIND2. clarify. unfold fn2th.
+      specialize (funs fn args). des_ifs; ss.
+      admit.
+    }
+    rewrite nm_find_add_neq in FIND1, FIND2; auto.
+    specialize (IHp (S k)). eapply nm_forall2_implies_find_some in IHp; eauto.
+  Abort.
 
 End ADEQ.
