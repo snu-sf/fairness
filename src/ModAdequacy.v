@@ -13,8 +13,11 @@ From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World.
 From Fairness Require Export Mod Concurrency.
-From Fairness Require Import ModSimStutter KnotSim.
-From Fairness Require Import SchedSim Adequacy LocalAdequacyAux Stutter2Knot Knot2Glob.
+From Fairness Require Import KnotSim LocalAdequacyAux.
+From Fairness Require Import
+     ModSim MSim2YOrd YOrd2Stid Stid2NoSync NoSync2Stutter
+     Stutter2Knot Knot2Glob.
+From Fairness Require Import SchedSim Adequacy.
 
 Set Implicit Arguments.
 
@@ -234,7 +237,7 @@ Section LADEQ.
   Variable St: wf_tgt.(T) -> wf_tgt.(T).
   Hypothesis lt_succ_diag_r_t: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
 
-  Lemma lsim_implies_gsim
+  Lemma ModSimStutter_lsim_implies_gsim
         R0 R1 (RR: R0 -> R1 -> Prop)
         (ths_src: threads_src1 R0)
         (ths_tgt: threads_tgt R1)
@@ -253,7 +256,7 @@ Section LADEQ.
                   (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
                 exists im_src0,
                   (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
-                    (lsim (wf_stt) I tid (local_RR I RR tid)
+                    (ModSimStutter.lsim (wf_stt) I tid (local_RR I RR tid)
                           ps pt (sum_of_resources rs_ctx) (o, src) tgt
                           (NatSet.add tid (key_set ths_src),
                             im_src0, im_tgt0, st_src, st_tgt))>>) /\
@@ -276,7 +279,7 @@ Section LADEQ.
     replace ths_src with (nm_proj_v2 ths_src2).
     2:{ subst. unfold nm_proj_v2. rewrite nm_map_map_eq. ss. apply nm_map_self_eq. }
     eapply ksim_implies_gsim; auto.
-    eapply lsim_implies_ksim; eauto.
+    eapply Stutter2Knot.lsim_implies_ksim; eauto.
     i. specialize (LSIM im_tgt). des.
     replace (NatSet.add tid (key_set ths_src2)) with (NatSet.add tid (key_set ths_src)).
     2:{ unfold key_set. clarify. rewrite nm_map_unit1_map_eq. auto. }
@@ -291,20 +294,20 @@ Section LADEQ.
     Unshelve. exact true.
   Qed.
 
-  Definition local_sim_threads
+  Definition ModSimStutter_local_sim_threads
              R0 R1 (RR: R0 -> R1 -> Prop)
              (ths_src: threads_src1 R0)
              (ths_tgt: threads_tgt R1)
     :=
     List.Forall2
-      (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim wf_stt I RR src tgt))
+      (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (ModSimStutter.local_sim wf_stt I RR src tgt))
       (Th.elements ths_src) (Th.elements ths_tgt).
 
-  Lemma local_sim_threads_local_sim_pick
+  Lemma ModSimStutter_local_sim_threads_local_sim_pick
         R0 R1 (RR: R0 -> R1 -> Prop)
         (ths_src: threads_src1 R0)
         (ths_tgt: threads_tgt R1)
-        (LOCAL: local_sim_threads RR ths_src ths_tgt)
+        (LOCAL: ModSimStutter_local_sim_threads RR ths_src ths_tgt)
         (st_src: state_src) (st_tgt: state_tgt)
         (INV: forall im_tgt, exists im_src r_shared,
             (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
@@ -319,7 +322,7 @@ Section LADEQ.
                  (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt)
                  (Th.elements rs_local) (Th.elements os)).
   Proof.
-    unfold local_sim_threads in LOCAL.
+    unfold ModSimStutter_local_sim_threads in LOCAL.
     match goal with
     | FA: List.Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt
     end.
@@ -339,7 +342,7 @@ Section LADEQ.
     hexploit nm_elements_cons_rm. eapply Heqtl_tgt. intro REST.
     hexploit IHLOCAL; clear IHLOCAL; eauto. intro IND.
     des. clear INV.
-    unfold local_sim in H0.
+    unfold ModSimStutter.local_sim in H0.
     specialize (H0 _ _ _ _ _ _ (sum_of_resources rs_local) IND tid1 (key_set ths_src)).
     hexploit H0; clear H0.
     { econs. rewrite key_set_pull_rm_eq. eapply nm_find_rm_eq.
@@ -396,11 +399,11 @@ Section LADEQ.
     }
   Qed.
 
-  Theorem local_sim_implies_gsim
+  Theorem ModSimStutter_local_sim_implies_gsim
           R0 R1 (RR: R0 -> R1 -> Prop)
           (ths_src: threads_src1 R0)
           (ths_tgt: threads_tgt R1)
-          (LOCAL: local_sim_threads RR ths_src ths_tgt)
+          (LOCAL: ModSimStutter_local_sim_threads RR ths_src ths_tgt)
           (st_src: state_src) (st_tgt: state_tgt)
           (INV: forall im_tgt, exists im_src r_shared,
               (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
@@ -412,7 +415,7 @@ Section LADEQ.
          (interp_all st_src ths_src tid)
          (interp_all st_tgt ths_tgt tid).
   Proof.
-    unfold local_sim_threads in LOCAL.
+    unfold ModSimStutter_local_sim_threads in LOCAL.
     eapply NatMapP.F.in_find_iff in INS, INT.
     destruct (Th.find tid ths_src) eqn:FINDS.
     2:{ clarify. }
@@ -434,7 +437,7 @@ Section LADEQ.
     { subst. eapply nm_wf_pair_rm. eapply nm_forall2_wf_pair.
       eapply list_forall2_implies; eauto. i. des_ifs. des; auto.
     }
-    eapply lsim_implies_gsim; auto.
+    eapply ModSimStutter_lsim_implies_gsim; auto.
     { eapply nm_pop_res_find_none; eauto. }
     { eapply nm_pop_res_find_none; eauto. }
 
@@ -498,7 +501,7 @@ Section LADEQ.
       i. subst. eapply nm_forall3_implies_find_some in FA1; eauto.
     }
 
-    i. hexploit local_sim_threads_local_sim_pick; eauto. intros FAALL. instantiate (1:=im_tgt) in FAALL.
+    i. hexploit ModSimStutter_local_sim_threads_local_sim_pick; eauto. intros FAALL. instantiate (1:=im_tgt) in FAALL.
     clear LOCAL. des.
     exists im_src0, r_shared0, os, rs_local. splits; auto.
     clear - FAALL1.
@@ -538,6 +541,19 @@ Section ADEQ.
     | None => (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
     end.
 
+  Fixpoint _numbering {E} (l: list E) (n: NatMap.key): list (NatMap.key * E) :=
+    match l with
+    | hd :: tl => (n, hd) :: (_numbering tl (S n))
+    | [] => []
+    end.
+
+  Definition numbering {E} (l: list E): list (NatMap.key * E) := _numbering l O.
+
+  Definition prog2ths (m: Mod.t) (p: program): @threads (Mod.ident m) (sE (Mod.state m)) Val :=
+    let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
+    NatMapP.of_list (numbering pre_threads).
+
+
 
 
   (* Definition mod_prog_wf (m: Mod.t) (p: program) := *)
@@ -563,7 +579,7 @@ Section ADEQ.
   (*   | _ => None *)
   (*   end. *)
 
-  (* Definition local_sim_threads_list *)
+  (* Definition ModSimStutter.local_sim_threads_list *)
   (*            (m1 m2: Mod.t) *)
   (*            (lths_src: list (Th.key * @thread (Mod.ident m1) (sE (Mod.state m1)) Val)%type)  *)
   (*            (lths_tgt: list (Th.key * @thread (Mod.ident m2) (sE (Mod.state m2)) Val)%type) *)
@@ -572,7 +588,7 @@ Section ADEQ.
   (*            I *)
   (*   := *)
   (*   List.Forall2 *)
-  (*     (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (local_sim ( world_le I (@eq Val) src tgt)) *)
+  (*     (fun '(t1, src) '(t2, tgt) => (t1 = t2) /\ (ModSimStutter.local_sim ( world_le I (@eq Val) src tgt)) *)
   (*     lths_src lths_tgt. *)
 
   (* Lemma mod_prog_wf_prog_ex_ths_ *)
