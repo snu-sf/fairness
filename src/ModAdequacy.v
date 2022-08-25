@@ -564,6 +564,12 @@ Section ADEQ.
     | None => (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
     end.
 
+  Definition fn2th_wf (m: Mod.t) (fn: fname): Prop :=
+    match Mod.funs m fn with
+    | Some ktr => True
+    | None => False
+    end.
+
   Fixpoint _numbering {E} (l: list E) (n: NatMap.key): list (NatMap.key * E) :=
     match l with
     | hd :: tl => (n, hd) :: (_numbering tl (S n))
@@ -575,6 +581,9 @@ Section ADEQ.
   Definition prog2ths (m: Mod.t) (p: program): @threads (Mod.ident m) (sE (Mod.state m)) Val :=
     let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
     NatMapP.of_list (numbering pre_threads).
+
+  Definition prog2ths_wf (m: Mod.t) (p: program): Prop :=
+    Forall (fun '(fn, args) => fn2th_wf m fn) p.
 
   Lemma _numbering_cons
         E (l: list E) n x
@@ -603,6 +612,16 @@ Section ADEQ.
     inv MSIM. i.
     eapply Adequacy.adequacy. eapply wf_tgt_inhabited. eapply wf_tgt_open.
     instantiate (1:=wf_src).
+
+
+  (*   Forall_Exists_dec: *)
+  (* forall [A : Type] (P : A -> Prop), *)
+  (* (forall x : A, {P x} + {~ P x}) -> *)
+  (* forall l : list A, {Forall P l} + {Exists (fun x : A => ~ P x) l} *)
+
+  (*   Exists_exists: *)
+  (* forall [A : Type] (P : A -> Prop) (l : list A), Exists P l <-> (exists x : A, In x l /\ P x) *)
+
     eapply ModSimStutter_local_sim_implies_gsim. 3: eapply init.
     instantiate (1:= fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
     { i. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
