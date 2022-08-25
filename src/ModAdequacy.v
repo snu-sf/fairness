@@ -553,19 +553,21 @@ Section ADEQ.
     let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
     NatMapP.of_list (numbering pre_threads).
 
+  Definition tid_main := 0.
+
   Theorem modsim_adequacy
           m_src m_tgt
           (MSIM: ModSim.ModSim.mod_sim m_src m_tgt)
     :
-    forall tid (p: program),
-      Adequacy.improves (interp_all m_src.(Mod.st_init) (prog2ths m_src p) tid)
-                        (interp_all m_tgt.(Mod.st_init) (prog2ths m_tgt p) tid).
+    forall (p: program),
+      Adequacy.improves (interp_all m_src.(Mod.st_init) (prog2ths m_src p) tid_main)
+                        (interp_all m_tgt.(Mod.st_init) (prog2ths m_tgt p) tid_main).
   Proof.
     apply modsim_implies_yord_mod in MSIM.
     apply yord_implies_stid_mod in MSIM.
     apply stid_implies_nosync_mod in MSIM.
     apply nosync_implies_stutter_mod in MSIM.
-    inv MSIM. i.
+    i. inv MSIM.
     eapply Adequacy.adequacy. eapply wf_tgt_inhabited. eapply wf_tgt_open.
     instantiate (1:=wf_src).
     eapply ModSimStutter_local_sim_implies_gsim. 3: eapply init.
