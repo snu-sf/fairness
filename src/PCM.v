@@ -388,6 +388,20 @@ Module URA.
     exists (c_aux0, c_aux1). rewrite EQ0. rewrite EQ1. auto.
   Qed.
 
+  Theorem prod_updatable
+          M0 M1
+          (a0: @car M0) (a1: @car M1)
+          (b0: @car M0) (b1: @car M1)
+          (UPD0: updatable a0 b0)
+          (UPD1: updatable a1 b1)
+    :
+      <<UPD: @updatable (prod M0 M1) (a0, a1) (b0, b1)>>
+  .
+  Proof.
+    ii. unfold wf, add in *. unseal "ra".
+    ss. des_ifs. des. esplits; eauto.
+  Qed.
+
   Program Definition to_RA (M: t): RA.t := {|
     RA.car := car;
     RA.add := add;
@@ -468,6 +482,84 @@ Module URA.
     intros [f EQ]. exists f. apply func_ext_dep. i. apply EQ.
   Qed.
 
+  Let sum_add {M0 M1} := (fun (a b: car (t:=M0) + car (t:=M1) + bool) =>
+                            match a, b with
+                            | inl (inl a0), inl (inl b0) => inl (inl (add a0 b0))
+                            | inl (inr a1), inl (inr b1) => inl (inr (add a1 b1))
+                            | _, inr false => a
+                            | inr false, _ => b
+                            | _, _ => inr true
+                            end).
+  Let sum_wf {M0 M1} := (fun (a: car (t:=M0) + car (t:=M1) + bool) =>
+                           match a with
+                           | inl (inl a0) => wf a0
+                           | inl (inr a1) => wf a1
+                           | inr false => True
+                           | inr true => False
+                           end).
+  Let sum_core {M0 M1} := (fun (a: car (t:=M0) + car (t:=M1) + bool) =>
+                             match a with
+                             | inl (inl a0) => inl (inl (core a0))
+                             | inl (inr a1) => inl (inr (core a1))
+                             | inr false => inr false
+                             | inr true => inr true
+                             end).
+
+  Program Instance sum (M0 M1: t): t := {
+    car := car (t:=M0) + car (t:=M1) + bool;
+    unit := inr false;
+    _add := sum_add;
+    _wf := sum_wf;
+    core := sum_core;
+  }
+  .
+  Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_comm. Qed.
+  Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_assoc. Qed.
+  Next Obligation. unfold sum_add. des_ifs. Qed.
+  Next Obligation. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed.
+  Next Obligation. unfold sum_add, sum_core. des_ifs; ss; do 2 f_equal; eapply core_id. Qed.
+  Next Obligation. unfold sum_core. des_ifs; ss; do 2 f_equal; eapply core_idem. Qed.
+  Next Obligation.
+    pose (c := match a, b with
+               | inr false, _ => sum_core b
+               | _, inr false => inr false
+               | inr true, _ => inr true
+               | _, inr true => inr true
+               | inl (inl _), inl (inr _) => inr true
+               | inl (inr _), inl (inl _) => inr true
+               | _, _ => inr false
+               end: @car M0 + @car M1 + bool).
+    destruct a as [[]|[]] eqn:EQA, b as [[]|[]] eqn:EQB; ss;
+      try by (exists c; ss).
+    { hexploit (@core_mono M0). i. des.
+      eexists (inl (inl _)). do 2 f_equal. eauto.
+    }
+    { hexploit (@core_mono M1). i. des.
+      eexists (inl (inr _)). do 2 f_equal. eauto.
+    }
+  Qed.
+
+  Definition agree_add (A: Type) (a0 a1: option (option A)): option (option A) :=
+    match a0, a1 with
+    | None, _ => a1
+    | _, None => a0
+    | _, _ => if excluded_middle_informative (a0 = a1) then a0 else (Some None)
+    end.
+
+  Program Instance agree (A: Type): t := {
+    car := option (option A);
+    unit := None;
+    _add := @agree_add A;
+    _wf := fun a => a <> Some None;
+    core := fun a => a;
+  }
+  .
+  Next Obligation. unfold agree_add. des_ifs. Qed.
+  Next Obligation. unfold agree_add. des_ifs. Qed.
+  Next Obligation. unfold agree_add. des_ifs. Qed.
+  Next Obligation. unfold agree_add in *. des_ifs. Qed.
+  Next Obligation. unfold agree_add. des_ifs. Qed.
+  Next Obligation. exists b. auto. Qed.
 End URA.
 
 (* Coercion URA.to_RA: URA.t >-> RA.t. *)
