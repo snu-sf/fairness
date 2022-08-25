@@ -408,13 +408,36 @@ Section LADEQ.
           (INV: forall im_tgt, exists im_src r_shared,
               (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
           tid
-          (INS: Th.In tid ths_src)
-          (INT: Th.In tid ths_tgt)
+          (* (INS: Th.In tid ths_src) *)
+          (* (INT: Th.In tid ths_tgt) *)
     :
     gsim wf_src wf_tgt RR
          (interp_all st_src ths_src tid)
          (interp_all st_tgt ths_tgt tid).
   Proof.
+    assert (WFP: nm_wf_pair ths_src ths_tgt).
+    { eapply nm_forall2_wf_pair. eapply list_forall2_implies. eauto. i. des_ifs. des; auto. }
+    destruct (NatMapP.F.In_dec ths_src tid).
+    2:{ destruct (NatMapP.F.In_dec ths_tgt tid).
+        { eapply nm_wf_pair_find_cases in WFP. des. eapply NatMapP.F.not_find_in_iff in n.
+          eapply WFP in n. eapply NatMapP.F.not_find_in_iff in n. clarify. }
+        eapply NatMapP.F.not_find_in_iff in n. eapply NatMapP.F.not_find_in_iff in n0.
+        unfold interp_all.
+        rewrite (unfold_interp_sched_nondet_None tid _ _ n).
+        rewrite (unfold_interp_sched_nondet_None tid _ _ n0).
+        rewrite !interp_state_vis. unfold gsim. i.
+        specialize (INV mt). des. exists im_src, false, false.
+        rewrite <- bind_trigger. pfold. econs 10.
+    }
+    rename i into INS.
+    assert (INT: Th.In tid ths_tgt).
+    { destruct (NatMapP.F.In_dec ths_tgt tid); auto.
+      apply nm_wf_pair_sym in WFP. eapply nm_wf_pair_find_cases in WFP. des.
+      eapply NatMapP.F.not_find_in_iff in n. eapply WFP in n.
+      eapply NatMapP.F.not_find_in_iff in n. clarify.
+    }
+    clear WFP.
+
     unfold ModSimStutter_local_sim_threads in LOCAL.
     eapply NatMapP.F.in_find_iff in INS, INT.
     destruct (Th.find tid ths_src) eqn:FINDS.
@@ -553,21 +576,19 @@ Section ADEQ.
     let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
     NatMapP.of_list (numbering pre_threads).
 
-  Definition tid_main := 0.
-
   Theorem modsim_adequacy
           m_src m_tgt
           (MSIM: ModSim.ModSim.mod_sim m_src m_tgt)
     :
-    forall (p: program),
-      Adequacy.improves (interp_all m_src.(Mod.st_init) (prog2ths m_src p) tid_main)
-                        (interp_all m_tgt.(Mod.st_init) (prog2ths m_tgt p) tid_main).
+    forall tid (p: program),
+      Adequacy.improves (interp_all m_src.(Mod.st_init) (prog2ths m_src p) tid)
+                        (interp_all m_tgt.(Mod.st_init) (prog2ths m_tgt p) tid).
   Proof.
     apply modsim_implies_yord_mod in MSIM.
     apply yord_implies_stid_mod in MSIM.
     apply stid_implies_nosync_mod in MSIM.
     apply nosync_implies_stutter_mod in MSIM.
-    i. inv MSIM.
+    inv MSIM. i.
     eapply Adequacy.adequacy. eapply wf_tgt_inhabited. eapply wf_tgt_open.
     instantiate (1:=wf_src).
     eapply ModSimStutter_local_sim_implies_gsim. 3: eapply init.
