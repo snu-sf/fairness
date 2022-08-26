@@ -1013,17 +1013,6 @@ Section PRIMIVIESIM.
       destruct H as [LSIM IND].
 
       gbase.
-
-      gstep.
-
-      gbase.
-      hexploit IH; eauto.
-      { rewrite <- trigger_yield. eauto. }
-      i. replace (trigger Yield;;; ktr_src tt) with (x <- trigger Yield;; ktr_src x); auto.
-      eapply trigger_unit_same.
-    }
-    2:{ gfinal. left. eapply pind9_fold. eapply lsim_progress. eapply rclo9_clo_base. left. econs; eauto.
-    }
   Admitted.
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid:
