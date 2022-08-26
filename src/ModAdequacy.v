@@ -564,12 +564,6 @@ Section ADEQ.
     | None => (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
     end.
 
-  Definition fn2th_wf (m: Mod.t) (fn: fname): Prop :=
-    match Mod.funs m fn with
-    | Some ktr => True
-    | None => False
-    end.
-
   Fixpoint _numbering {E} (l: list E) (n: NatMap.key): list (NatMap.key * E) :=
     match l with
     | hd :: tl => (n, hd) :: (_numbering tl (S n))
@@ -582,8 +576,6 @@ Section ADEQ.
     let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
     NatMapP.of_list (numbering pre_threads).
 
-  Definition prog2ths_wf (m: Mod.t) (p: program): Prop :=
-    Forall (fun '(fn, args) => fn2th_wf m fn) p.
 
   Lemma _numbering_cons
         E (l: list E) n x
@@ -596,6 +588,16 @@ Section ADEQ.
     :
     NatMapP.of_list ((k, e) :: l) = Th.add k e (NatMapP.of_list l).
   Proof. reflexivity. Qed.
+
+  Lemma mod_funs_cases
+        (m: Mod.t)
+    :
+    (forall fn, Mod.funs m fn = None) \/ (exists fn ktr, Mod.funs m fn = Some ktr).
+  Proof.
+    destruct (classic (forall fn, Mod.funs m fn = None)); auto.
+    apply Classical_Pred_Type.not_all_ex_not in H. right. des.
+    destruct (Mod.funs m n) eqn:FUNS; ss; eauto.
+  Qed.
 
   Theorem modsim_adequacy
           m_src m_tgt
@@ -612,22 +614,27 @@ Section ADEQ.
     inv MSIM. i.
     eapply Adequacy.adequacy. eapply wf_tgt_inhabited. eapply wf_tgt_open.
     instantiate (1:=wf_src).
+    destruct (mod_funs_cases m_src).
+    { ii. specialize (init mt). des. exists im_src, false, false.
+      destruct (Th.find tid (prog2ths m_src p)) eqn:FIND.
+      2:{ unfold interp_all. rewrite unfold_interp_sched_nondet_None.
+          rewrite interp_state_vis. rewrite <- bind_trigger. pfold. econs 10. auto.
+      }
+      unfold interp_all. erewrite unfold_interp_sched_nondet_Some.
+      2: eauto.
+      assert (UB: Th.find tid (prog2ths m_src p) = Some (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))).
+      { admit. }
+      clarify. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
+      rewrite <- bind_trigger. pfold. econs 10.
+    }
 
-
-  (*   Forall_Exists_dec: *)
-  (* forall [A : Type] (P : A -> Prop), *)
-  (* (forall x : A, {P x} + {~ P x}) -> *)
-  (* forall l : list A, {Forall P l} + {Exists (fun x : A => ~ P x) l} *)
-
-  (*   Exists_exists: *)
-  (* forall [A : Type] (P : A -> Prop) (l : list A), Exists P l <-> (exists x : A, In x l /\ P x) *)
-
+    des. rename fn into fn0, ktr into ktr0, H into SOME0.
     eapply ModSimStutter_local_sim_implies_gsim. 3: eapply init.
     instantiate (1:= fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
     { i. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
     instantiate (1:=wf_stt).
     unfold ModSimStutter_local_sim_threads, prog2ths. unfold numbering.
-    remember 0 as k. clear Heqk. revert_until p.
+    remember 0 as k. clear Heqk. move p before k. revert_until p.
     induction p; i.
     { ss. unfold NatMap.Raw.empty. econs. }
     rewrite !map_cons, !_numbering_cons. destruct a as [fn args].
@@ -635,8 +642,13 @@ Section ADEQ.
     { admit. }
     i. destruct (tid_dec k k0); clarify.
     { clear IHp. rewrite nm_find_add_eq in FIND1, FIND2. clarify. unfold fn2th.
+      dup funs. specialize (funs0 fn0 []). rewrite SOME0 in funs0.
       specialize (funs fn args). des_ifs; ss.
-      admit.
+      unfold local_sim in funs0. ii.
+      specialize (funs0 _ _ _ _ _ _ _ INV _ _ THS VALID _ UPD). des.
+      esplits; eauto. i. specialize (funs0 _ _ _ _ _ _ _ INV1 VALID1 _ TGT). des.
+      esplits. eapply SRC. i. instantiate (1:=o).
+      pfold. eapply pind6_fold. rewrite <- bind_trigger. econs 7.
     }
     rewrite nm_find_add_neq in FIND1, FIND2; auto.
     specialize (IHp (S k)). eapply nm_forall2_implies_find_some in IHp; eauto.
