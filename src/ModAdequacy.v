@@ -622,8 +622,14 @@ Section ADEQ.
       }
       unfold interp_all. erewrite unfold_interp_sched_nondet_Some.
       2: eauto.
-      assert (UB: Th.find tid (prog2ths m_src p) = Some (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))).
-      { admit. }
+      assert (UB: i = (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))).
+      { revert_until funs. clear. i. unfold prog2ths, numbering in FIND.
+        remember 0 as k. clear Heqk. move p after tid. revert_until p. induction p; i; ss.
+        destruct a as [fn args]. unfold NatMapP.uncurry in FIND. ss.
+        destruct (tid_dec tid k); clarify.
+        { rewrite nm_find_add_eq in FIND. clarify. unfold fn2th. rewrite H. auto. }
+        rewrite nm_find_add_neq in FIND; auto. eapply IHp; eauto.
+      }
       clarify. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
       rewrite <- bind_trigger. pfold. econs 10.
     }
@@ -639,7 +645,11 @@ Section ADEQ.
     { ss. unfold NatMap.Raw.empty. econs. }
     rewrite !map_cons, !_numbering_cons. destruct a as [fn args].
     rewrite !of_list_cons. eapply nm_find_some_implies_forall2.
-    { admit. }
+    { apply nm_wf_pair_add. clear. move p after m_src. revert_until p. induction p; i.
+      { ss. apply nm_wf_pair_empty_empty_eq. }
+      ss. destruct a as [fn args]. unfold NatMapP.uncurry. ss. eapply nm_wf_pair_add.
+      eauto.
+    }
     i. destruct (tid_dec k k0); clarify.
     { clear IHp. rewrite nm_find_add_eq in FIND1, FIND2. clarify. unfold fn2th.
       dup funs. specialize (funs0 fn0 []). rewrite SOME0 in funs0.
@@ -652,6 +662,6 @@ Section ADEQ.
     }
     rewrite nm_find_add_neq in FIND1, FIND2; auto.
     specialize (IHp (S k)). eapply nm_forall2_implies_find_some in IHp; eauto.
-  Abort.
+  Qed.
 
 End ADEQ.
