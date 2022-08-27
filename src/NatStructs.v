@@ -58,9 +58,104 @@ Section NATMAP.
     | None => def
     end.
 
+  Definition eq_ext {elt} (x y : NatMap.t elt) : Prop := forall k e, NatMap.MapsTo k e x <-> NatMap.MapsTo k e y.
+
+  Definition KeySetLE {elt} (x y : NatMap.t elt) : Prop := forall k, NatMap.In k x -> NatMap.In k y.
+
+  Definition disjoint {elt} (x y : NatMap.t elt) : bool := NatMap.is_empty (NatMapP.restrict x y).
 
   Import FMapFacts.
   Import NatMap.
+
+  Lemma Disjoint_empty elt (x : NatMap.t elt) : NatMapP.Disjoint x (NatMap.empty elt).
+  Proof. ii. des. inv H0. inv H1. Qed.
+
+  Lemma KeySetLE_empty elt (x : NatMap.t elt) : KeySetLE (NatMap.empty elt) x.
+  Proof. ii. inv H. inv H0. Qed.
+
+  Lemma inv_add_new elt k e (m1 m2 : NatMap.t elt) : nm_add_new k e m1 m2 <-> ~ NatMap.In k m1 /\ m2 = NatMap.add k e m1.
+  Proof.
+    split.
+    - i. destruct H. eapply NatMapP.F.not_find_in_iff in NEW. eauto.
+    - i. des. econs; ss. eapply NatMapP.F.not_find_in_iff. ss.
+  Qed.
+
+  Lemma is_empty_false elt (m : NatMap.t elt) : NatMap.is_empty m = false <-> exists k, NatMap.In k m.
+  Proof.
+    split.
+    - i. unfold NatMap.is_empty, NatMap.Raw.is_empty in H.
+      destruct m as [[] SORTED]; ss. destruct p as [k x].
+      exists k. exists x. ss. econs; ss.
+    - i. destruct m as [[] SORTED]; ss. des. inv H. inv H0.
+  Qed.
+
+  Lemma Empty_iff_not_In elt (x : NatMap.t elt) : NatMap.Empty x <-> ~ exists k, NatMap.In k x.
+  Proof.
+    split.
+    - ii. destruct H0 as [k [e H0]]. specialize (H k e). ss.
+    - ii. eapply H. exists a, e. ss.
+  Qed.
+
+  Lemma disjoint_false_iff' elt (x y : NatMap.t elt) : disjoint x y = false <-> exists k, NatMap.In k x /\ NatMap.In k y.
+  Proof.
+    unfold disjoint. split.
+    - i. eapply is_empty_false in H. des. eapply NatMapP.restrict_in_iff in H. eauto.
+    - i. eapply is_empty_false. des. exists k. eapply NatMapP.restrict_in_iff. eauto.
+  Qed.
+
+  Lemma disjoint_true_iff elt (x y : NatMap.t elt) : disjoint x y = true <-> NatMapP.Disjoint x y.
+  Proof.
+    pose proof (disjoint_false_iff' x y). rewrite <- Bool.not_false_iff_true. firstorder.
+  Qed.
+
+  Lemma disjoint_false_iff elt (x y : NatMap.t elt) : disjoint x y = false <-> ~ NatMapP.Disjoint x y.
+  Proof.
+    pose proof (disjoint_true_iff x y). rewrite <- Bool.not_true_iff_false. tauto.
+  Qed.
+
+  Lemma disjoint_comm elt (x y : NatMap.t elt) : disjoint x y = disjoint y x.
+  Proof.
+    destruct (disjoint x y) eqn: H1, (disjoint y x) eqn: H2; ss.
+    - apply disjoint_true_iff in H1. apply disjoint_false_iff in H2. eapply NatMapP.Disjoint_sym in H1. tauto.
+    - apply disjoint_false_iff in H1. apply disjoint_true_iff in H2. eapply NatMapP.Disjoint_sym in H2. tauto.
+  Qed.
+
+  Lemma Disjoint_add elt k e (x y : NatMap.t elt)
+    : NatMapP.Disjoint x (NatMap.add k e y) <-> ~ NatMap.In k x /\ NatMapP.Disjoint x y.
+  Proof.
+    unfold NatMapP.Disjoint. setoid_rewrite NatMapP.F.add_in_iff. split.
+    - firstorder.
+    - ii. des; subst; firstorder.
+  Qed.
+
+  Lemma Disjoint_remove elt k (x y : NatMap.t elt) :
+    NatMapP.Disjoint x y ->
+    NatMapP.Disjoint x (NatMap.remove k y).
+  Proof.
+    unfold NatMapP.Disjoint. setoid_rewrite NatMapP.F.remove_in_iff. firstorder.
+  Qed.
+
+  Lemma Disjoint_union elt (x y z : NatMap.t elt)
+    : NatMapP.Disjoint x (NatMapP.update y z) <-> NatMapP.Disjoint x y /\ NatMapP.Disjoint x z.
+  Proof.
+    unfold NatMapP.Disjoint. setoid_rewrite NatMapP.update_in_iff. firstorder.
+  Qed.
+
+  Lemma not_Disjoint_sym elt (x y : NatMap.t elt) : ~ NatMapP.Disjoint x y -> ~ NatMapP.Disjoint y x.
+  Proof. eauto using NatMapP.Disjoint_sym. Qed.
+
+  Lemma Partition_In_left elt (x y z : NatMap.t elt) : NatMapP.Partition x y z -> KeySetLE y x.
+  Proof.
+    ii. destruct H. destruct H0. specialize (H1 k x0). des. firstorder.
+  Qed.
+
+  Lemma Partition_In_right elt (x y z : NatMap.t elt) : NatMapP.Partition x y z -> KeySetLE z x.
+  Proof.
+    ii. destruct H. destruct H0. specialize (H1 k x0). des. firstorder.
+  Qed.
+
+  Lemma Partition_empty elt (x : NatMap.t elt) : NatMapP.Partition x x (NatMap.empty elt).
+  Proof. split; [ eapply Disjoint_empty | firstorder; inv H ]. Qed.
 
   Lemma In_MapsTo A k e (m : NatMap.t A) : List.In (k, e) (elements m) -> MapsTo k e m.
   Proof.
@@ -193,6 +288,17 @@ Section NATMAP.
     }
     revert sorted0 sorted1 EQ. rewrite EQ1. i.
     rewrite (proof_irrelevance sorted0 sorted1). auto.
+  Qed.
+
+  Lemma eq_ext_is_eq elt (x y : NatMap.t elt) (EQ : eq_ext x y) : x = y.
+  Proof.
+    i. eapply nm_eq_is_equal. intro k. destruct (find k x) eqn: H; symmetry.
+    - eapply NatMapP.F.find_mapsto_iff.
+      eapply NatMapP.F.find_mapsto_iff in H.
+      firstorder.
+    - eapply F.not_find_in_iff.
+      eapply F.not_find_in_iff in H.
+      firstorder.
   Qed.
 
   Variable elt: Type.
@@ -548,7 +654,56 @@ Section NATMAP.
     unfold nm_pop, nm_pop_l in *. rewrite <- F.elements_o. des_ifs.
   Qed.
 
+  Lemma union_assoc (x y z : NatMap.t elt) : NatMapP.update (NatMapP.update x y) z = NatMapP.update x (NatMapP.update y z).
+  Proof.
+    eapply eq_ext_is_eq. ii.
+    rewrite ! update_mapsto_iff.
+    rewrite update_in_iff.
+    firstorder.
+  Qed.
+
+  Lemma union_KeySetLE (x y : NatMap.t elt) : KeySetLE x (NatMapP.update x y).
+  Proof.
+    ii. eapply update_in_iff. firstorder.
+  Qed.
+
+  Lemma union_empty (x : NatMap.t elt) : NatMapP.update (NatMap.empty elt) x = x.
+  Proof.
+    eapply eq_ext_is_eq. ii. rewrite update_mapsto_iff. pose proof empty_1. firstorder.
+  Qed.
+
 End NATMAP.
+
+Ltac solve_andb := 
+  repeat match goal with
+    | [ H : andb _ _ = true |- _ ] => eapply Bool.andb_true_iff in H; destruct H
+    | [ H : andb _ _ = false |- _ ] => eapply Bool.andb_false_iff in H; destruct H
+    end.
+
+Ltac solve_disjoint :=
+  repeat match goal with
+    | [ H : disjoint _ _ = true |- _ ] => eapply disjoint_true_iff in H
+    | [ H : disjoint _ _ = false |- _ ] => eapply disjoint_false_iff in H
+    end;
+  repeat match goal with
+    | [ H :   NatMapP.Disjoint _ (NatMap.empty _)   |- _ ] => clear H
+    | [ H : ~ NatMapP.Disjoint _ (NatMap.empty _)   |- _ ] => exfalso; eapply H, Disjoint_empty
+    | [ H :   NatMapP.Disjoint _ (NatMap.add _ _ _) |- _ ] => eapply Disjoint_add in H; destruct H
+    | [ H :   NatMapP.Disjoint _ (NatMapP.update _ _)        |- _ ] => eapply Disjoint_union in H
+    | [ H : ~ NatMapP.Disjoint _ (NatMapP.update _ _)        |- _ ] => rewrite Disjoint_union in H
+    (* symmetricity *)
+    | [ H :   NatMapP.Disjoint (NatMap.empty _) _   |- _ ] => clear H
+    | [ H : ~ NatMapP.Disjoint (NatMap.empty _) _   |- _ ] => eapply not_Disjoint_sym in H
+    | [ H :   NatMapP.Disjoint (NatMap.add _ _ _) _ |- _ ] => eapply NatMapP.Disjoint_sym in H
+    | [ H :   NatMapP.Disjoint (NatMapP.update _ _) _        |- _ ] => eapply NatMapP.Disjoint_sym in H
+    | [ H : ~ NatMapP.Disjoint (NatMapP.update _ _) _        |- _ ] => eapply not_Disjoint_sym in H
+    end.
+
+Tactic Notation "solve_disjoint!" :=
+  solve_andb;
+  solve_disjoint;
+  firstorder using NatMapP.Disjoint_sym;
+  fail.
 
 Module NatSet.
   Definition t := NatMap.t unit.
@@ -592,8 +747,21 @@ Section NATSET.
     - econs 2. eapply IHInA.
   Qed.
 
-  Lemma NatSet_In_MapsTo x s : NatSet.In x s -> NatMap.MapsTo x tt s.
-  Proof. unfold NatSet.In, NatMap.In, NatMap.Raw.PX.In. i. des. destruct e. ss.
+  Lemma NatSet_In_MapsTo x s : NatSet.In x s <-> NatMap.MapsTo x tt s.
+  Proof.
+    (* unfold NatSet.In, NatMap.In, NatMap.Raw.PX.In. i. des. destruct e. ss. *)
+    split.
+    - i. destruct H. destruct x0. ss.
+    - firstorder.
+  Qed.
+
+  Lemma union_comm (x y : NatSet.t) : NatMapP.update x y = NatMapP.update y x.
+  Proof.
+    eapply eq_ext_is_eq. intros k []. rewrite ! NatMapP.update_mapsto_iff.
+    assert (forall (m : NatSet.t), NatSet.In k m \/ ~ NatSet.In k m).
+    { i. pose proof NatMapP.F.In_dec m k. destruct H; eauto. }
+    rewrite ! NatSet_In_MapsTo. setoid_rewrite NatSet_In_MapsTo in H.
+    firstorder.
   Qed.
 
   Lemma NatSet_Permutation_remove x s l :
@@ -620,6 +788,34 @@ Section NATSET.
     eapply Permutation_add in H; [| eapply H0 ].
     eapply Permutation_map with (f := fst) in H. simpl in H.
     rewrite map_map in H. rewrite map_id in H. eapply H.
+  Qed.
+
+  Lemma unfold_Partition (x y z : NatSet.t) : NatMapP.Partition x y z <-> NatMapP.Disjoint y z /\ (forall k, NatSet.In k x <-> NatSet.In k y \/ NatSet.In k z).
+  Proof.
+    split; [firstorder |].
+    i. des. split; ss. i. destruct e. rewrite <- ! NatSet_In_MapsTo. ss.
+  Qed.
+
+  Lemma Partition_add k e (x x' y z : NatSet.t) :
+    NatMapP.Partition x y z ->
+    nm_add_new k e x x' ->
+    NatMapP.Partition x' y (NatMap.add k e z).
+  Proof.
+    i. eapply inv_add_new in H0. des; subst. eapply unfold_Partition.
+    split.
+    - eapply Disjoint_add. firstorder using Partition_In_left.
+    - setoid_rewrite NatMapP.F.add_in_iff. firstorder.
+  Qed.
+
+  Lemma Partition_remove k (x y z : NatSet.t) :
+    NatMapP.Partition x y z ->
+    NatMap.In k z ->
+    NatMapP.Partition (NatSet.remove k x) y (NatSet.remove k z).
+  Proof.
+    rewrite 2 unfold_Partition. i. des. split.
+    - eapply Disjoint_remove. ss.
+    - i. setoid_rewrite NatMapP.F.remove_in_iff.
+      firstorder. intro. subst. firstorder.
   Qed.
 
 End NATSET.
@@ -1449,3 +1645,256 @@ Section AUX.
   Qed.
 
 End AUX.
+
+
+From Fairness Require Import WFLib.
+Section NMWF.
+
+  Import NatMap.
+  Import NatMapP.
+
+  Variant nm_lt A (R: A -> A -> Prop): NatMap.t A -> NatMap.t A -> Prop :=
+    | nm_lt_intro
+        nm0 nm1 k e0 e1
+        (FIND1: find k nm0 = Some e0)
+        (FIND2: find k nm1 = Some e1)
+        (LT: R e0 e1)
+        (EQ: forall k0 (NEQ: k <> k0), find k0 nm0 = find k0 nm1)
+      :
+      nm_lt R nm0 nm1.
+
+  Lemma cardinal_remove A k (m: NatMap.t A)
+        (IN: NatMap.In k m)
+    :
+    S (cardinal (remove k m)) = cardinal m.
+  Proof.
+    eapply F.in_find_iff in IN.
+    destruct (find k m) eqn:EQ; ss.
+    symmetry. eapply cardinal_2.
+    { eapply remove_1; eauto. }
+    instantiate (1:=a). unfold Add.
+    i. rewrite F.add_o. rewrite F.remove_o. des_ifs.
+  Qed.
+
+  Lemma nm_lt_same_cardinal A (R: A -> A -> Prop) m0 m1
+        (LT: nm_lt R m0 m1)
+    :
+    cardinal m0 = cardinal m1.
+  Proof.
+    inv LT.
+    transitivity (S (cardinal (remove k m0))).
+    { symmetry. eapply cardinal_remove.
+      eapply F.in_find_iff. rewrite FIND1. ss. }
+    { transitivity (S (cardinal (remove k m1))).
+      { f_equal. eapply Equal_cardinal. ii.
+        rewrite F.remove_o. rewrite F.remove_o.
+        des_ifs. eauto.
+      }
+      eapply cardinal_remove.
+      eapply F.in_find_iff. rewrite FIND2. ss. }
+  Qed.
+
+  Lemma nm_lt_inv A (R: A -> A-> Prop)
+        m k a
+        (FIND: NatMap.find k m = Some a)
+    :
+    forall m' (LT: nm_lt R m' m),
+      (exists a',
+          (<<FIND: NatMap.find k m' = Some a'>>) /\
+            (<<REMOVE: NatMap.remove k m = NatMap.remove k m'>>) /\
+            (<<REL: R a' a>>)) \/
+        ((<<FIND: NatMap.find k m' = Some a>>) /\
+           (<<REL: nm_lt R (NatMap.remove k m') (NatMap.remove k m)>>)).
+  Proof.
+    i. inv LT.
+    destruct (PeanoNat.Nat.eq_dec k k0).
+    { clarify. left. esplits; eauto.
+      eapply nm_eq_is_equal. ii.
+      rewrite F.remove_o. rewrite F.remove_o.
+      des_ifs. symmetry. eapply EQ; eauto.
+    }
+    { subst. right. splits; auto.
+      { rewrite EQ; eauto. }
+      { econs.
+        { rewrite nm_find_rm_neq; eauto. }
+        { rewrite nm_find_rm_neq; eauto. }
+        { eauto. }
+        { i. rewrite F.remove_o. rewrite F.remove_o.
+          des_ifs. eapply EQ; eauto.
+        }
+      }
+    }
+  Qed.
+
+  Lemma nm_lt_well_founded A (R: A -> A -> Prop)
+        (WF: well_founded R)
+    :
+    well_founded (nm_lt R).
+  Proof.
+    cut (forall n m (CARDINAL: cardinal m = n), Acc (nm_lt R) m).
+    { ii. eapply H; eauto. }
+    induction n.
+    { ii. econs. i. inv H.
+      eapply cardinal_inv_1 in CARDINAL.
+      eapply nm_empty_equal in CARDINAL.
+      rewrite CARDINAL in FIND2. rewrite F.empty_o in FIND2. ss.
+    }
+    i.
+    assert (FIND: exists k a, NatMap.find k m = Some a).
+    { destruct (cardinal_inv_2 CARDINAL) as [[k a] p]. ss.
+      exists k, a. eapply find_1. eauto.
+    }
+    des. revert m CARDINAL FIND.
+    pattern a. revert a.
+    eapply (well_founded_induction WF). intros a IHL.
+    i. hexploit (IHn (NatMap.remove k m)).
+    { erewrite <- cardinal_remove in CARDINAL; eauto.
+      eapply F.in_find_iff. ii. clarify.
+    }
+    intros ACC. remember (NatMap.remove k m) as m0 eqn:REMOVE.
+    revert m REMOVE CARDINAL FIND.
+    pattern m0. revert m0 ACC.
+    eapply Acc_ind. intros m0 _ IHR.
+    i. subst. econs. i.
+    hexploit nm_lt_inv; eauto. i. des.
+    { eapply IHL; eauto. eapply nm_lt_same_cardinal in H. rewrite H. auto. }
+    { eapply IHR; eauto. eapply nm_lt_same_cardinal in H. rewrite H. auto. }
+  Qed.
+
+  Definition nm_wf (A: WF): WF := mk_wf (nm_lt_well_founded A.(wf)).
+
+End NMWF.
+
+Section NMOWF.
+
+  Import NatMap.
+  Import NatMapP.
+
+  Variant nmo_lt A (R: A -> A -> Prop): NatMap.t A -> NatMap.t A -> Prop :=
+    | nmo_lt_intro
+        nm0 nm1 k
+        (LT: option_bot_lt R (find k nm0) (find k nm1))
+        (EQ: forall k0 (NEQ: k <> k0), find k0 nm0 = find k0 nm1)
+      :
+      nmo_lt R nm0 nm1.
+
+  Lemma nmo_lt_same_cardinal A (R: A -> A -> Prop) m0 m1
+        (LT: nmo_lt R m0 m1)
+    :
+    cardinal m0 <= cardinal m1.
+  Proof.
+    inv LT. inv LT0.
+    { replace m0 with (remove k m1). rewrite <- (@cardinal_remove _ k m1). lia.
+      apply F.in_find_iff. ii. rewrite H1 in H. ss.
+      apply nm_eq_is_equal. ii. destruct (PeanoNat.Nat.eq_dec k y); clarify.
+      { rewrite nm_find_rm_eq. auto. }
+      rewrite nm_find_rm_neq; auto. symmetry. apply EQ; auto.
+    }
+    cut (cardinal m0 = cardinal m1).
+    { i; lia. }
+    transitivity (S (cardinal (remove k m0))).
+    { symmetry. eapply cardinal_remove.
+      eapply F.in_find_iff. rewrite <- H0. ss. }
+    { transitivity (S (cardinal (remove k m1))).
+      { f_equal. eapply Equal_cardinal. ii.
+        rewrite F.remove_o. rewrite F.remove_o.
+        des_ifs. eauto.
+      }
+      eapply cardinal_remove.
+      eapply F.in_find_iff. rewrite <- H. ss. }
+  Qed.
+
+  Lemma nmo_lt_inv A (R: A -> A-> Prop)
+        m k a
+        (FIND: NatMap.find k m = Some a)
+    :
+    forall m' (LT: nmo_lt R m' m),
+      ((<<FIND: NatMap.find k m' = None>>) /\
+         (<<REMOVE: NatMap.remove k m = m'>>)) \/
+      (exists a',
+          (<<FIND: NatMap.find k m' = Some a'>>) /\
+            (<<REMOVE: NatMap.remove k m = NatMap.remove k m'>>) /\
+            (<<REL: R a' a>>)) \/
+        ((<<FIND: NatMap.find k m' = Some a>>) /\
+           (<<REL: nmo_lt R (NatMap.remove k m') (NatMap.remove k m)>>)).
+  Proof.
+    i. inv LT. inv LT0.
+    { destruct (PeanoNat.Nat.eq_dec k k0).
+      { clarify. left. esplits; eauto.
+        eapply nm_eq_is_equal. ii. rewrite F.remove_o. des_ifs.
+        symmetry. eapply EQ; auto.
+      }
+      { assert (NEQ: k0 <> k) by auto. hexploit EQ. eapply NEQ. i.
+        do 2 right. rewrite FIND in H1. splits; auto.
+        econs. instantiate (1:=k0).
+        { rewrite !nm_find_rm_neq; auto. rewrite <- H0, <- H. econs. }
+        { i. rewrite !F.remove_o. des_ifs. auto. }
+      }
+    }
+    destruct (PeanoNat.Nat.eq_dec k k0).
+    { clarify. right. rewrite <- H in FIND. clarify.
+      left. esplits; eauto.
+      eapply nm_eq_is_equal. ii.
+      rewrite !F.remove_o. des_ifs. symmetry. eapply EQ; eauto.
+    }
+    { right. right. splits; auto.
+      { rewrite EQ; eauto. }
+      { econs.
+        { rewrite !nm_find_rm_neq; eauto. rewrite <- H0, <- H. econs; auto. }
+        { i. rewrite !F.remove_o. des_ifs. eapply EQ; eauto. }
+      }
+    }
+  Qed.
+
+  Lemma nmo_lt_well_founded A (R: A -> A -> Prop)
+        (WF: well_founded R)
+    :
+    well_founded (nmo_lt R).
+  Proof.
+    cut (forall n m (CARDINAL: cardinal m <= n), Acc (nmo_lt R) m).
+    { ii. eapply H; eauto. }
+    induction n.
+    { ii. econs. i. inv H.
+      inv CARDINAL. rename H0 into CARDINAL.
+      eapply cardinal_inv_1 in CARDINAL.
+      eapply nm_empty_equal in CARDINAL.
+      rewrite CARDINAL in LT. rewrite F.empty_o in LT. inv LT.
+    }
+    i.
+    destruct (cardinal m) eqn:CARD.
+    { eapply IHn. rewrite CARD. lia. }
+    assert (FIND: exists k a, NatMap.find k m = Some a).
+    { destruct (cardinal_inv_2 CARD) as [[k a] p]. ss.
+      exists k, a. eapply find_1. eauto.
+    }
+    rewrite <- CARD in CARDINAL. clear CARD n0.
+    des. revert m CARDINAL FIND.
+    pattern a. revert a.
+    eapply (well_founded_induction WF). intros a IHL.
+    i. hexploit (IHn (NatMap.remove k m)).
+    { erewrite <- cardinal_remove in CARDINAL; eauto.
+      { instantiate (1:=k) in CARDINAL. lia. }
+      eapply F.in_find_iff. ii. clarify.
+    }
+    intros ACC. remember (NatMap.remove k m) as m0 eqn:REMOVE.
+    revert m REMOVE CARDINAL FIND.
+    pattern m0. revert m0 ACC.
+    eapply Acc_ind. intros m0 _ IHR.
+    i. subst. econs. i.
+    hexploit nmo_lt_inv; eauto. i. des.
+    { eapply IHn. rewrite <- REMOVE. erewrite <- cardinal_remove in CARDINAL.
+      { instantiate (1:=k) in CARDINAL. lia. }
+      apply F.in_find_iff. ii; clarify. }
+    { eapply IHL; eauto.
+      rewrite <- CARDINAL. erewrite <- cardinal_remove. rewrite <- REMOVE.
+      rewrite cardinal_remove. lia. 1,2: apply F.in_find_iff; ii; clarify. }
+    { eapply IHR; eauto. rewrite <- CARDINAL.
+      rewrite <- (@cardinal_remove _ k). rewrite <- (@cardinal_remove _ k m).
+      2,3: apply F.in_find_iff; ii; clarify.
+      apply nmo_lt_same_cardinal in REL. lia.
+    }
+  Qed.
+
+  Definition nmo_wf (A: WF): WF := mk_wf (nmo_lt_well_founded A.(wf)).
+
+End NMOWF.

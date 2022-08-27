@@ -268,6 +268,19 @@ Section ADEQ2.
     forall (obs_tr: @Tr.t R),
       (FairBeh_of_state tgt obs_tr) -> (FairBeh_of_state src obs_tr).
 
+  Lemma improves_trans
+        (id1 id2 id3: ID) R
+        (st1: @state id1 R)
+        (st2: @state id2 R)
+        (st3: @state id3 R)
+        (IMP1: improves st2 st1)
+        (IMP2: improves st3 st2)
+    :
+    improves st3 st1.
+  Proof.
+    ii. eapply IMP2. eapply IMP1. auto.
+  Qed.
+
   Variable ids: ID.
   Variable idt: ID.
   Variable wfs: WF.

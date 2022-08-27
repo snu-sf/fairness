@@ -422,6 +422,10 @@ Section EMBED_EVENT.
     map_event embed (Vis e ktr) = Vis (embed _ e) (fun x => map_event embed (ktr x)).
   Proof. eapply observe_eta. ss. Qed.
 
+  Lemma map_event_trigger E1 E2 (embed : forall X, E1 X -> E2 X) E' `[E' -< E1] R X (e : E' X) (ktr : ktree E1 X R) :
+    map_event embed (x <- trigger e;; ktr x) = x <- trigger (embed _ (subevent X e));; map_event embed (ktr x).
+  Proof. rewrite 2 bind_trigger. apply map_event_vis. Qed.
+
   Definition embed_left {E1 E2} (embed : forall X, E1 X -> E2 X) {E} X (e : (E1 +' E) X) : (E2 +' E) X :=
     match e with
     | inl1 e => inl1 (embed _ e)

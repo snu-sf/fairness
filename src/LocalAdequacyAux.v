@@ -12,7 +12,7 @@ Export ITreeNotations.
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM.
-From Fairness Require Export Mod ModSimGStutter Concurrency.
+From Fairness Require Export Mod ModSimStutter Concurrency.
 From Fairness Require Import KnotSim.
 
 Set Implicit Arguments.
@@ -35,47 +35,36 @@ Section AUX.
   Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
   Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
 
-  Variable wf_stt: WF.
+  Variable wf_stt: Type -> Type -> WF.
 
-  Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt wf_stt.
+  Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
 
   Notation threads_src1 R0 := (threads _ident_src (sE state_src) R0).
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
-  Variable I: shared -> Prop.
+  Variable I: shared -> URA.car -> Prop.
 
-  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid r_own :=
-    forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 r_shared0 r_ctx0
-      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, r_shared0))
-      (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0))
-      fs ft,
-    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
+  Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid o r_own :=
+    forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
+      (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0)),
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
     exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
-                 (lsim
-                    I
-                    (local_RR I RR tid)
-                    tid
-                    fs ft
-                    r_ctx0
-                    src tgt
-                    (ths0, tht0, im_src1, im_tgt1, st_src0, st_tgt0, o0, r_shared0)).
+                 (forall fs ft,
+                     lsim wf_stt I tid (local_RR I RR tid)
+                          fs ft r_ctx0 (o, src) tgt
+                          (ths0, im_src1, im_tgt1, st_src0, st_tgt0)).
 
-  Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid r_own :=
-    forall ths0 tht0 im_src0 im_tgt0 st_src0 st_tgt0 o0 r_shared0 r_ctx0
-      (INV: I (ths0, tht0, im_src0, im_tgt0, st_src0, st_tgt0, o0, r_shared0))
+  Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid o r_own :=
+    forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
+      (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
       (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0))
       fs ft,
-    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid tht0))),
-      (lsim
-         I
-         (local_RR I RR tid)
-         tid
-         fs ft
-         r_ctx0
-         (Vis (inl1 (inr1 Yield)) (fun _ => src))
-         tgt
-         (ths0, tht0, im_src0, im_tgt1, st_src0, st_tgt0, o0, r_shared0)).
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
+      (lsim wf_stt I tid (local_RR I RR tid)
+            fs ft r_ctx0 (o, Vis (inl1 (inr1 Yield)) (fun _ => src)) tgt
+            (ths0, im_src0, im_tgt1, st_src0, st_tgt0)).
 
   Definition th_wf_pair {elt1 elt2} := @nm_wf_pair elt1 elt2.
 
