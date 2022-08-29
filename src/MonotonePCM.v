@@ -217,3 +217,254 @@ Section Monotone.
     iPureIntro. etrans; eauto.
   Qed.
 End Monotone.
+
+Variant gmon: Type :=
+  | mk_gmon
+      (A: Type)
+      (le: A -> A -> Prop)
+      (ORDER: PreOrder le)
+      (a: A)
+.
+
+Variant gmon_le: gmon -> gmon -> Prop :=
+  | mk_gmon_intro
+      A (le: A -> A -> Prop) ORDER a0 a1 (LE: le a0 a1)
+    :
+    gmon_le (@mk_gmon A le ORDER a0) (@mk_gmon A le ORDER a1)
+.
+
+Program Instance gmon_le_PreOrder: PreOrder gmon_le.
+Next Obligation.
+  ii. destruct x. econs. reflexivity.
+Qed.
+Next Obligation.
+  ii. dependent destruction H. dependent destruction H0.
+  replace ORDER0 with ORDER.
+  { econs; eauto. etrans; eauto. }
+  eapply proof_irrelevance.
+Qed.
+
+Module FiniteMap.
+  Section FiniteMap.
+    Context `{M: URA.t}.
+
+    Let car := nat -> option M.(URA.car).
+
+    Let unit: car := fun _ => None.
+
+    Let add (f0 f1: car): car :=
+          fun n =>
+            match (f0 n), (f1 n) with
+            | None, _ => f1 n
+            | _, None => f0 n
+            | Some m0, Some m1 => Some (URA.add m0 m1)
+            end.
+
+    Definition wf (f: car): Prop :=
+      (<<POINTWISE: forall n m (EQ: f n = Some m), URA.wf m>>) /\ (<<FIN: exists k, forall n (LE: k < n), f n = None>>).
+
+    Let core (f: car): car := fun n =>
+                                match (f n) with
+                                | Some m => Some (URA.core m)
+                                | None => None
+                                end.
+
+    Global Program Instance t: URA.t := {
+        car := car;
+        unit := unit;
+        _add := add;
+        _wf := wf;
+        core := core;
+      }
+    .
+    Next Obligation.
+      unfold add. apply func_ext.
+      ii. des_ifs. f_equal.
+      rewrite URA.add_comm. ss.
+    Qed.
+    Next Obligation.
+      unfold add. apply func_ext.
+      ii. des_ifs. f_equal.
+      rewrite URA.add_assoc. ss.
+    Qed.
+    Next Obligation.
+      unfold add. unseal "ra". apply func_ext.
+      ii. des_ifs.
+    Qed.
+    Next Obligation.
+      unfold unit, wf. unseal "ra". splits; auto.
+      { i. ss. }
+      { exists 0. auto. }
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold wf, add in *.
+      des. splits; auto.
+      { i. hexploit POINTWISE.
+        { rewrite EQ.
+          instantiate (1:= match b n with
+                           | Some m1 => m ⋅ m1
+                           | None => m
+                           end). des_ifs.
+        }
+        { des_ifs. i. eapply URA.wf_mon; eauto. }
+      }
+      { exists k. i. hexploit FIN; eauto. i. des_ifs. }
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold add, core. apply func_ext.
+      ii. des_ifs. f_equal.
+      rewrite URA.core_id. ss.
+    Qed.
+    Next Obligation.
+      unfold core. apply func_ext.
+      ii. des_ifs. f_equal.
+      rewrite URA.core_idem. ss.
+    Qed.
+    Next Obligation.
+      unseal "ra".
+      hexploit (choice (fun (n: nat) (m: option URA.car) =>
+                          core (add a b) n = match (core a n), m with
+                                             | None, _ => m
+                                             | _, None => core a n
+                                             | Some m0, Some m1 => Some (URA.add m0 m1)
+                                             end)).
+      { i. unfold core, add. des_ifs.
+        { hexploit URA.core_mono. i. des.
+          rewrite H. exists (Some c). auto.
+        }
+        { exists None. auto. }
+        { eauto. }
+        { eauto. }
+      }
+      i. des. exists f. apply func_ext.
+      i. rewrite H. unfold add, core. des_ifs.
+    Qed.
+
+    Definition singleton (k: nat) (m: @URA.car M):
+      @URA.car t :=
+      fun n => if Nat.eq_dec n k then Some m else None.
+
+    Lemma singleton_wf k m
+      :
+      URA.wf (singleton k m) <-> URA.wf m.
+    Proof.
+      split; i.
+      { rewrite URA.unfold_wf in H. rr in H.
+        des. eapply POINTWISE. unfold singleton. des_ifs.
+      }
+      { rewrite URA.unfold_wf. rr. splits.
+        { i. unfold singleton in *. des_ifs. }
+        { exists k. i. unfold singleton. des_ifs. lia. }
+      }
+    Qed.
+
+    Lemma singleton_add k m0 m1
+      :
+      URA.add (singleton k m0) (singleton k m1)
+      =
+        singleton k (URA.add m0 m1).
+    Proof.
+      rewrite URA.unfold_add. ss.
+      unfold singleton, add. apply func_ext. i. des_ifs.
+    Qed.
+
+    Lemma singleton_core k m
+      :
+      URA.core (singleton k m) = singleton k (URA.core m).
+    Proof.
+      unfold URA.car. ss.
+      apply func_ext. i. unfold core, singleton. des_ifs.
+    Qed.
+
+    Lemma singleton_updatable k m0 m1
+          (UPD: @URA.updatable M m0 m1)
+      :
+      URA.updatable (singleton k m0) (singleton k m1).
+    Proof.
+      ii. rewrite URA.unfold_wf in H. rr in H. des.
+      hexploit (UPD (match ctx k with
+                     | Some a => a
+                     | None => URA.unit
+                     end)).
+      { rewrite URA.unfold_add in POINTWISE. ss.
+        eapply (POINTWISE k).
+        unfold add, singleton. des_ifs. rewrite URA.unit_id. auto.
+      }
+      i.
+      assert (OTHER: forall n m (NEQ: n <> k) (EQ: ctx n = Some m), URA.wf m).
+      { i. eapply (POINTWISE n).
+        rewrite URA.unfold_add. ss. unfold add, singleton. des_ifs.
+      }
+      rewrite URA.unfold_wf. ss. rr. splits.
+      { i. rewrite URA.unfold_add in EQ. ss. unfold add, singleton in EQ.
+        des_ifs; eauto. r_wf H.
+      }
+      { exists k0. i. hexploit FIN; eauto.
+        rewrite URA.unfold_add. i. ss.
+        unfold add, singleton in *. des_ifs.
+      }
+    Qed.
+
+    Lemma singleton_updatable_set k m s
+          (UPD: @URA.updatable_set M m s)
+      :
+      URA.updatable_set (singleton k m) (fun a => exists m1, s m1 /\ a = singleton k m1).
+    Proof.
+      ii. rewrite URA.unfold_wf in WF. rr in WF. des.
+      hexploit (UPD (match ctx k with
+                     | Some a => a
+                     | None => URA.unit
+                     end)).
+      { rewrite URA.unfold_add in POINTWISE. ss.
+        eapply (POINTWISE k).
+        unfold add, singleton. des_ifs. rewrite URA.unit_id. auto.
+      }
+      i. destruct H as [m1 [SAT H]]. des.
+      assert (OTHER: forall n m (NEQ: n <> k) (EQ: ctx n = Some m), URA.wf m).
+      { i. eapply (POINTWISE n).
+        rewrite URA.unfold_add. ss. unfold add, singleton. des_ifs.
+      }
+      exists (singleton k m1). splits.
+      { splits; eauto. }
+      rewrite URA.unfold_wf. ss. rr. splits.
+      { i. rewrite URA.unfold_add in EQ. ss. unfold add, singleton in EQ.
+        des_ifs; eauto. r_wf H.
+      }
+      { exists k0. i. hexploit FIN; eauto.
+        rewrite URA.unfold_add. i. ss.
+        unfold add, singleton in *. des_ifs.
+      }
+    Qed.
+
+    Lemma singleton_alloc (m: @URA.car M) (f: @URA.car t)
+          (WF: URA.wf m)
+      :
+      URA.updatable_set f (fun f1 => exists k, f1 = singleton k m).
+    Proof.
+      ii. rewrite URA.unfold_wf in WF0. rr in WF0. des.
+      exists (singleton (S k) m). splits.
+      { eauto. }
+      hexploit (FIN (S k)).
+      { lia. }
+      i. rewrite URA.unfold_add in H. ss. unfold add in H. des_ifs.
+      rewrite URA.unfold_wf. ss. rr. split.
+      { ii. rewrite URA.unfold_add in EQ. ss.
+        unfold add, singleton in EQ. des_ifs.
+        hexploit (POINTWISE n (m0 ⋅ match f n with
+                                    | Some a => a
+                                    | None => URA.unit
+                                    end)).
+        { rewrite URA.unfold_add. ss. unfold add. des_ifs.
+          { rewrite URA.add_comm. auto. }
+          { rewrite URA.unit_id. auto. }
+        }
+        i. eapply URA.wf_mon; eauto.
+      }
+      { exists (S k). i. hexploit (FIN n).
+        { lia. }
+        i. rewrite URA.unfold_add. rewrite URA.unfold_add in H0.
+        ss. unfold add, singleton in *. des_ifs. lia.
+      }
+    Qed.
+  End FiniteMap.
+End FiniteMap.
