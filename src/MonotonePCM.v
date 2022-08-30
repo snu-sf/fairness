@@ -8,242 +8,6 @@ Require Import Program.
 Set Implicit Arguments.
 
 
-Module Collection.
-  Section Collection.
-    Variable A: Type.
-
-    Definition car: Type := A -> Prop.
-
-    Definition unit: car := fun _ => True.
-
-    Definition add: car -> car -> car :=
-      fun s0 s1 a => s0 a /\ s1 a.
-
-    Definition wf: car -> Prop :=
-      fun _ => True.
-
-    Definition core: car -> car :=
-      fun s => s.
-
-    Program Instance t: URA.t := {
-        car := car;
-        unit := unit;
-        _add := add;
-        _wf := wf;
-        core := core;
-      }
-    .
-    Next Obligation.
-    Proof.
-      unfold add. extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unfold add. extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra". unfold add. extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra". ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra". ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra". unfold add, core. extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra".
-      unfold add, core. esplits; eauto.
-    Qed.
-  End Collection.
-End Collection.
-
-Section Monotone.
-  Variable W: Type.
-  Variable le: W -> W -> Prop.
-  Hypothesis le_PreOrder: PreOrder le.
-
-  Let leR (w: W): Collection.t W := le w.
-
-  Lemma white_idempotent w0 w1
-        (LE: le w0 w1)
-    :
-    Auth.white (leR w0) ⋅ Auth.white (leR w1) = Auth.white (leR w1).
-  Proof.
-    unfold Auth.white.
-    unfold URA.add. unseal "ra". ss.
-    unfold URA.add. unseal "ra". ss.
-    unfold Collection.add. f_equal. extensionality a.
-    eapply propositional_extensionality. split; i; des; ss.
-    split; auto. rr. etrans; eauto.
-  Qed.
-
-  Lemma embed_core_commute `{@GRA.inG M Σ}
-        (r: M)
-    :
-    GRA.embed (URA.core r) = URA.core (GRA.embed r).
-  Proof.
-    Local Transparent GRA.to_URA URA.unit.
-    dependent destruction H. subst.
-    extensionality n. ss. unfold URA.core at 2. ss.
-    unfold GRA.embed. destruct (PeanoNat.Nat.eq_dec GRA.inG_id n) eqn:EQ; ss.
-    { subst. ss. }
-    { des_ifs. ss. transitivity (add (core unit) unit); auto. }
-  Qed.
-
-  Lemma own_persistent `{@GRA.inG M Σ}
-        (r: M)
-    :
-    (OwnM r) -∗ (□ OwnM (URA.core r)).
-  Proof.
-    rr. autorewrite with iprop. i.
-    rr. autorewrite with iprop. split.
-    { rr. autorewrite with iprop. auto. }
-    { rr. autorewrite with iprop.
-      rr in H0. autorewrite with iprop in H0.
-      rr. autorewrite with iprop.
-      eapply URA.extends_core in H0.
-      rewrite embed_core_commute. auto.
-    }
-  Qed.
-
-  Definition monoRA: URA.t := Auth.t (Collection.t W).
-
-  Context `{@GRA.inG monoRA Σ}.
-
-  Definition monoBlack (w: W): iProp :=
-    OwnM (Auth.black (leR w) ⋅ Auth.white (leR w)).
-
-  Definition monoWhiteExact (w: W): iProp :=
-    OwnM (Auth.white (leR w)).
-
-  Definition monoWhite (w0: W): iProp :=
-    ∃ w1, monoWhiteExact w1 ∧ ⌜le w0 w1⌝.
-
-  Lemma black_persistent_white_exact w
-    :
-    (monoBlack w) -∗ (□ monoWhiteExact w).
-  Proof.
-    unfold monoBlack, monoWhiteExact.
-    iIntros "[_ H]". iPoseProof (own_persistent with "H") as "H". ss.
-  Qed.
-
-  Lemma black_persistent_white w
-    :
-    (monoBlack w) -∗ (□ monoWhite w).
-  Proof.
-    unfold monoWhite. iIntros "H".
-    iPoseProof (black_persistent_white_exact with "H") as "# H0".
-    iClear "∗". iModIntro.
-    iExists _. iSplit; eauto.
-  Qed.
-
-  Lemma white_exact_persistent w
-    :
-    (monoWhiteExact w) -∗ (□ monoWhiteExact w).
-  Proof.
-    unfold monoBlack, monoWhiteExact.
-    iIntros "H". iPoseProof (own_persistent with "H") as "H". ss.
-  Qed.
-
-  Lemma white_mon w0 w1
-    :
-    (monoWhite w1) -∗ ⌜le w0 w1⌝ -∗ (monoWhite w0).
-  Proof.
-    unfold monoWhite. iIntros "H %".
-    iDestruct "H" as (w) "[H %]".
-    iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
-  Qed.
-
-  Lemma white_persistent w
-    :
-    (monoWhite w) -∗ (□ monoWhite w).
-  Proof.
-    unfold monoWhite. iIntros "H".
-    iDestruct "H" as (w1) "[H %]".
-    iPoseProof (white_exact_persistent with "H") as "# H0".
-    iClear "∗". iModIntro.
-    iExists _. iSplit; eauto.
-  Qed.
-
-  Lemma black_updatable w0 w1
-    :
-    (monoBlack w0) -∗ ⌜le w0 w1⌝ -∗ (#=> monoBlack w1).
-  Proof.
-    iIntros "H %". iApply (OwnM_Upd with "H").
-    eapply Auth.auth_update.
-    rr. i. des. splits; auto.
-    { rr. unseal "ra". ss. }
-    { unfold URA.add in *. unseal "ra". ss.
-      unfold Collection.add in *.
-      extensionality w. eapply equal_f with (x:=w) in FRAME.
-      eapply prop_ext_rev in FRAME. des.
-      eapply propositional_extensionality. split; i; des; ss.
-      split; eauto. eapply FRAME. etrans; eauto.
-    }
-  Qed.
-
-  Lemma black_white_exact_compare w0 w1
-    :
-    (monoWhiteExact w0) -∗ (monoBlack w1) -∗ ⌜le w0 w1⌝.
-  Proof.
-    iIntros "H0 [H1 H2]".
-    iCombine "H1 H0" as "H". iOwnWf "H".
-    iPureIntro. eapply Auth.auth_included in H0.
-    rr in H0. des. unfold URA.add in H0. unseal "ra".
-    ss. unfold Collection.add in H0.
-    eapply equal_f in H0. eapply prop_ext_rev in H0. des.
-    eapply H1. reflexivity.
-  Qed.
-
-  Lemma black_white_compare w0 w1
-    :
-    (monoWhite w0) -∗ (monoBlack w1) -∗ ⌜le w0 w1⌝.
-  Proof.
-    unfold monoWhite.
-    iIntros "H0 H1". iDestruct "H0" as (w) "[H0 %]".
-    iPoseProof (black_white_exact_compare with "H0 H1") as "%".
-    iPureIntro. etrans; eauto.
-  Qed.
-End Monotone.
-
-Variant gmon: Type :=
-  | mk_gmon
-      (A: Type)
-      (le: A -> A -> Prop)
-      (ORDER: PreOrder le)
-      (a: A)
-.
-
-Variant gmon_le: gmon -> gmon -> Prop :=
-  | mk_gmon_intro
-      A (le: A -> A -> Prop) ORDER a0 a1 (LE: le a0 a1)
-    :
-    gmon_le (@mk_gmon A le ORDER a0) (@mk_gmon A le ORDER a1)
-.
-
-Program Instance gmon_le_PreOrder: PreOrder gmon_le.
-Next Obligation.
-  ii. destruct x. econs. reflexivity.
-Qed.
-Next Obligation.
-  ii. dependent destruction H. dependent destruction H0.
-  replace ORDER0 with ORDER.
-  { econs; eauto. etrans; eauto. }
-  eapply proof_irrelevance.
-Qed.
-
 Module FiniteMap.
   Section FiniteMap.
     Context `{M: URA.t}.
@@ -468,3 +232,404 @@ Module FiniteMap.
     Qed.
   End FiniteMap.
 End FiniteMap.
+
+
+Module Collection.
+  Section Collection.
+    Variable A: Type.
+
+    Definition car: Type := A -> Prop.
+
+    Definition unit: car := fun _ => True.
+
+    Definition add: car -> car -> car :=
+      fun s0 s1 a => s0 a /\ s1 a.
+
+    Definition wf: car -> Prop :=
+      fun _ => True.
+
+    Definition core: car -> car :=
+      fun s => s.
+
+    Program Instance t: URA.t := {
+        car := car;
+        unit := unit;
+        _add := add;
+        _wf := wf;
+        core := core;
+      }
+    .
+    Next Obligation.
+    Proof.
+      unfold add. extensionality a0.
+      eapply propositional_extensionality. split; i; des; ss.
+    Qed.
+    Next Obligation.
+    Proof.
+      unfold add. extensionality a0.
+      eapply propositional_extensionality. split; i; des; ss.
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". unfold add. extensionality a0.
+      eapply propositional_extensionality. split; i; des; ss.
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". ss.
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". ss.
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". unfold add, core. extensionality a0.
+      eapply propositional_extensionality. split; i; des; ss.
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra".
+      unfold add, core. esplits; eauto.
+    Qed.
+  End Collection.
+End Collection.
+
+
+Variant gmon: Type :=
+  | mk_gmon
+      (A: Type)
+      (le: A -> A -> Prop)
+      (ORDER: PreOrder le)
+      (a: A)
+.
+
+Variant gmon_le: gmon -> gmon -> Prop :=
+  | mk_gmon_intro
+      A (le: A -> A -> Prop) ORDER a0 a1 (LE: le a0 a1)
+    :
+    gmon_le (@mk_gmon A le ORDER a0) (@mk_gmon A le ORDER a1)
+.
+
+Program Instance gmon_le_PreOrder: PreOrder gmon_le.
+Next Obligation.
+  ii. destruct x. econs. reflexivity.
+Qed.
+Next Obligation.
+  ii. dependent destruction H. dependent destruction H0.
+  replace ORDER0 with ORDER.
+  { econs; eauto. etrans; eauto. }
+  eapply proof_irrelevance.
+Qed.
+
+
+
+Lemma embed_core_commute `{@GRA.inG M Σ}
+      (r: M)
+  :
+  GRA.embed (URA.core r) = URA.core (GRA.embed r).
+Proof.
+  Local Transparent GRA.to_URA URA.unit.
+  dependent destruction H. subst.
+  extensionality n. ss. unfold URA.core at 2. ss.
+  unfold GRA.embed. destruct (PeanoNat.Nat.eq_dec GRA.inG_id n) eqn:EQ; ss.
+  { subst. ss. }
+  { des_ifs. ss. transitivity (add (core unit) unit); auto. }
+Qed.
+
+Lemma own_persistent `{@GRA.inG M Σ}
+      (r: M)
+  :
+  (OwnM r) -∗ (□ OwnM (URA.core r)).
+Proof.
+  rr. autorewrite with iprop. i.
+  rr. autorewrite with iprop. split.
+  { rr. autorewrite with iprop. auto. }
+  { rr. autorewrite with iprop.
+    rr in H0. autorewrite with iprop in H0.
+    rr. autorewrite with iprop.
+    eapply URA.extends_core in H0.
+    rewrite embed_core_commute. auto.
+  }
+Qed.
+
+Lemma OwnM_unit `{@GRA.inG M Σ}
+  :
+  ⊢ OwnM (@URA.unit M).
+Proof.
+  rr. autorewrite with iprop. i.
+  rr. autorewrite with iprop.
+  exists r.
+  Local Transparent GRA.to_URA URA.unit.
+  replace (GRA.embed ε) with (@URA.unit Σ).
+  { rewrite URA.unit_idl. auto. }
+  unfold GRA.embed. extensionality n. des_ifs. ss.
+  destruct H. ss. destruct inG_prf. ss.
+Qed.
+
+Section Monotone.
+  Definition monoRA: URA.t := @FiniteMap.t (Auth.t (Collection.t gmon)).
+  Context `{@GRA.inG monoRA Σ}.
+
+  Section LE.
+    Variable k: nat.
+
+    Variable W: Type.
+    Variable le: W -> W -> Prop.
+    Hypothesis le_PreOrder: PreOrder le.
+
+    Let leR (w: W): Collection.t gmon := gmon_le (@mk_gmon W le le_PreOrder w).
+
+    Definition monoBlack (w: W): iProp :=
+      OwnM (FiniteMap.singleton k (Auth.black (leR w) ⋅ Auth.white (leR w))).
+
+    Definition monoWhiteExact (w: W): iProp :=
+      OwnM (FiniteMap.singleton k (Auth.white (leR w))).
+
+    Definition monoWhite (w0: W): iProp :=
+      ∃ w1, monoWhiteExact w1 ∧ ⌜le w0 w1⌝.
+
+    Lemma white_idempotent w0 w1
+          (LE: le w0 w1)
+      :
+      Auth.white (leR w0) ⋅ Auth.white (leR w1) = Auth.white (leR w1).
+    Proof.
+      unfold Auth.white.
+      unfold URA.add. unseal "ra". ss.
+      unfold URA.add. unseal "ra". ss.
+      unfold Collection.add. f_equal. extensionality a.
+      eapply propositional_extensionality. split; i; des; ss.
+      split; auto. rr. etrans; eauto. econs; eauto.
+    Qed.
+
+    Lemma black_persistent_white_exact w
+      :
+      (monoBlack w) -∗ (□ monoWhiteExact w).
+    Proof.
+      unfold monoBlack, monoWhiteExact.
+      rewrite <- FiniteMap.singleton_add.
+      iIntros "[_ H]". iPoseProof (own_persistent with "H") as "H".
+      rewrite FiniteMap.singleton_core. auto.
+    Qed.
+
+    Lemma black_persistent_white w
+      :
+      (monoBlack w) -∗ (□ monoWhite w).
+    Proof.
+      unfold monoWhite. iIntros "H".
+      iPoseProof (black_persistent_white_exact with "H") as "# H0".
+      iClear "∗". iModIntro.
+      iExists _. iSplit; eauto.
+    Qed.
+
+    Lemma white_exact_persistent w
+      :
+      (monoWhiteExact w) -∗ (□ monoWhiteExact w).
+    Proof.
+      unfold monoBlack, monoWhiteExact.
+      iIntros "H". iPoseProof (own_persistent with "H") as "H".
+      rewrite FiniteMap.singleton_core. auto.
+    Qed.
+
+    Lemma white_mon w0 w1
+      :
+      (monoWhite w1) -∗ ⌜le w0 w1⌝ -∗ (monoWhite w0).
+    Proof.
+      unfold monoWhite. iIntros "H %".
+      iDestruct "H" as (w) "[H %]".
+      iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
+    Qed.
+
+    Lemma white_persistent w
+      :
+      (monoWhite w) -∗ (□ monoWhite w).
+    Proof.
+      unfold monoWhite. iIntros "H".
+      iDestruct "H" as (w1) "[H %]".
+      iPoseProof (white_exact_persistent with "H") as "# H0".
+      iClear "∗". iModIntro.
+      iExists _. iSplit; eauto.
+    Qed.
+
+    Lemma black_updatable w0 w1
+      :
+      (monoBlack w0) -∗ ⌜le w0 w1⌝ -∗ (#=> monoBlack w1).
+    Proof.
+      iIntros "H %". iApply (OwnM_Upd with "H").
+      eapply FiniteMap.singleton_updatable.
+      eapply Auth.auth_update.
+      rr. i. des. splits; auto.
+      { rr. unseal "ra". ss. }
+      { unfold URA.add in *. unseal "ra". ss.
+        unfold Collection.add in *.
+        extensionality w. eapply equal_f with (x:=w) in FRAME.
+        eapply prop_ext_rev in FRAME. des.
+        eapply propositional_extensionality. split; i; des; ss.
+        split; eauto. eapply FRAME.
+        rr. etrans; eauto. econs; eauto.
+      }
+    Qed.
+
+    Lemma black_white_exact_compare w0 w1
+      :
+      (monoWhiteExact w0) -∗ (monoBlack w1) -∗ ⌜le w0 w1⌝.
+    Proof.
+      unfold monoWhiteExact, monoBlack.
+      rewrite <- FiniteMap.singleton_add.
+      iIntros "H0 [H1 H2]".
+      iCombine "H1 H0" as "H".
+      rewrite FiniteMap.singleton_add.
+      iOwnWf "H". iPureIntro.
+      rewrite FiniteMap.singleton_wf in H0.
+      eapply Auth.auth_included in H0.
+      rr in H0. des. unfold URA.add in H0. unseal "ra".
+      ss. unfold Collection.add in H0.
+      eapply equal_f in H0. eapply prop_ext_rev in H0. des.
+      hexploit H1.
+      { rr. econs. reflexivity. }
+      i. des. rr in H2. dependent destruction H2. auto.
+    Qed.
+
+    Lemma black_white_compare w0 w1
+      :
+      (monoWhite w0) -∗ (monoBlack w1) -∗ ⌜le w0 w1⌝.
+    Proof.
+      unfold monoWhite.
+      iIntros "H0 H1". iDestruct "H0" as (w) "[H0 %]".
+      iPoseProof (black_white_exact_compare with "H0 H1") as "%".
+      iPureIntro. etrans; eauto.
+    Qed.
+  End LE.
+
+  Lemma monoBlack_alloc
+        (W: Type)
+        (le: W -> W -> Prop)
+        (le_PreOrder: PreOrder le)
+        (w: W)
+    :
+    ⊢ #=> (∃ k, monoBlack k le_PreOrder w).
+  Proof.
+    iPoseProof (@OwnM_unit _ _ H) as "H".
+    iPoseProof (OwnM_Upd_set with "H") as "> H0".
+    { eapply FiniteMap.singleton_alloc.
+      instantiate (1:=@Auth.black (Collection.t gmon) (gmon_le (mk_gmon le_PreOrder w)) ⋅ @Auth.white (Collection.t gmon) (gmon_le (mk_gmon le_PreOrder w))).
+      rewrite URA.unfold_wf. rewrite URA.unfold_add. ss. split.
+      { exists (URA.unit). rewrite URA.unit_id.
+        rewrite URA.unfold_add. ss. extensionality a.
+        eapply propositional_extensionality. split; i; des; ss.
+        rr in H0. des; auto.
+      }
+      { rewrite URA.unfold_wf. ss. }
+    }
+    iDestruct "H0" as (b) "[% H0]". des. subst.
+    iModIntro. iExists k. auto.
+  Qed.
+End Monotone.
+
+
+Section Monotone.
+  Variable W: Type.
+  Variable le: W -> W -> Prop.
+  Hypothesis le_PreOrder: PreOrder le.
+
+  Let leR (w: W): Collection.t W := le w.
+
+  Definition monoRA2: URA.t := Auth.t (Collection.t W).
+
+  Context `{@GRA.inG monoRA2 Σ}.
+
+  Definition monoBlack2 (w: W): iProp :=
+    OwnM (Auth.black (leR w) ⋅ Auth.white (leR w)).
+
+  Definition monoWhiteExact2 (w: W): iProp :=
+    OwnM (Auth.white (leR w)).
+
+  Definition monoWhite2 (w0: W): iProp :=
+    ∃ w1, monoWhiteExact2 w1 ∧ ⌜le w0 w1⌝.
+
+  Lemma black_persistent_white_exact2 w
+    :
+    (monoBlack2 w) -∗ (□ monoWhiteExact2 w).
+  Proof.
+    unfold monoBlack2, monoWhiteExact2.
+    iIntros "[_ H]". iPoseProof (own_persistent with "H") as "H". ss.
+  Qed.
+
+  Lemma black_persistent_white2 w
+    :
+    (monoBlack2 w) -∗ (□ monoWhite2 w).
+  Proof.
+    unfold monoWhite2. iIntros "H".
+    iPoseProof (black_persistent_white_exact2 with "H") as "# H0".
+    iClear "∗". iModIntro.
+    iExists _. iSplit; eauto.
+  Qed.
+
+  Lemma white_exact_persistent2 w
+    :
+    (monoWhiteExact2 w) -∗ (□ monoWhiteExact2 w).
+  Proof.
+    unfold monoBlack2, monoWhiteExact2.
+    iIntros "H". iPoseProof (own_persistent with "H") as "H". ss.
+  Qed.
+
+  Lemma white_mon2 w0 w1
+    :
+    (monoWhite2 w1) -∗ ⌜le w0 w1⌝ -∗ (monoWhite2 w0).
+  Proof.
+    unfold monoWhite2. iIntros "H %".
+    iDestruct "H" as (w) "[H %]".
+    iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
+  Qed.
+
+  Lemma white_persistent2 w
+    :
+    (monoWhite2 w) -∗ (□ monoWhite2 w).
+  Proof.
+    unfold monoWhite2. iIntros "H".
+    iDestruct "H" as (w1) "[H %]".
+    iPoseProof (white_exact_persistent2 with "H") as "# H0".
+    iClear "∗". iModIntro.
+    iExists _. iSplit; eauto.
+  Qed.
+
+  Lemma black_updatable2 w0 w1
+    :
+    (monoBlack2 w0) -∗ ⌜le w0 w1⌝ -∗ (#=> monoBlack2 w1).
+  Proof.
+    iIntros "H %". iApply (OwnM_Upd with "H").
+    eapply Auth.auth_update.
+    rr. i. des. splits; auto.
+    { rr. unseal "ra". ss. }
+    { unfold URA.add in *. unseal "ra". ss.
+      unfold Collection.add in *.
+      extensionality w. eapply equal_f with (x:=w) in FRAME.
+      eapply prop_ext_rev in FRAME. des.
+      eapply propositional_extensionality. split; i; des; ss.
+      split; eauto. eapply FRAME. etrans; eauto.
+    }
+  Qed.
+
+  Lemma black_white_exact_compare2 w0 w1
+    :
+    (monoWhiteExact2 w0) -∗ (monoBlack2 w1) -∗ ⌜le w0 w1⌝.
+  Proof.
+    iIntros "H0 [H1 H2]".
+    iCombine "H1 H0" as "H". iOwnWf "H".
+    iPureIntro. eapply Auth.auth_included in H0.
+    rr in H0. des. unfold URA.add in H0. unseal "ra".
+    ss. unfold Collection.add in H0.
+    eapply equal_f in H0. eapply prop_ext_rev in H0. des.
+    eapply H1. reflexivity.
+  Qed.
+
+  Lemma black_white_compare2 w0 w1
+    :
+    (monoWhite2 w0) -∗ (monoBlack2 w1) -∗ ⌜le w0 w1⌝.
+  Proof.
+    unfold monoWhite2.
+    iIntros "H0 H1". iDestruct "H0" as (w) "[H0 %]".
+    iPoseProof (black_white_exact_compare2 with "H0 H1") as "%".
+    iPureIntro. etrans; eauto.
+  Qed.
+End Monotone.
