@@ -20,3 +20,4 @@ pico_meta/__pycache__/
 *.py[cod]
 
 _opam
+nohup.out
