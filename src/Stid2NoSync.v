@@ -119,7 +119,7 @@ Section PROOF.
     }
 
     { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldR; eauto.
-      i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
+      i. specialize (LSIM0 _ _ _ _ _ _ _ NIN INV0 VALID0 _ TGT).
       split; ss. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL.
       des. esplits. eapply FAIR. split; ss. pclearbot.
       eapply pind9_fold. eapply ModSimNoSync.lsim_progress. right.
