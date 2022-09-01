@@ -183,7 +183,6 @@ Section PRIMIVIESIM.
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (NIN: ~NatSet.In tid ths1)
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
@@ -311,7 +310,7 @@ Section PRIMIVIESIM.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_sync; eauto.
-      i. specialize (LSIM0 _ _ _ _ _ _ _ NIN INV0 VALID0 _ TGT).
+      i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
       split; ss. eapply pind9_fold. eapply lsim_progress. pclearbot.
       right. eapply CIH. apply ModSim.lsim_set_prog; auto.
     }
@@ -504,7 +503,6 @@ Section GENORDER.
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (GENOS: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (NIN: ~NatSet.In tid ths1)
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
@@ -621,7 +619,7 @@ Section GENORDER.
     }
 
     { eapply pind9_fold. econs 18; eauto.
-      i. specialize (GENOS0 _ _ _ _ _ _ _ NIN INV0 VALID0 _ TGT). des. esplits; eauto.
+      i. specialize (GENOS0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des. esplits; eauto.
       eapply upind9_mon; eauto. ss.
     }
 
@@ -707,7 +705,7 @@ Section GENORDER.
     }
 
     { eapply pind9_fold. econs 18; eauto.
-      i. specialize (GENOS0 _ _ _ _ _ _ _ NIN INV0 VALID0 _ TGT). des. esplits; eauto.
+      i. specialize (GENOS0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des. esplits; eauto.
       eapply upind9_mon; eauto. ss.
     }
 
@@ -890,7 +888,7 @@ Section GENORDER.
     }
 
     { exists zero, zero. eapply pind9_fold. econs 18; eauto.
-      i. specialize (LSIM0 _ _ _ _ _ _ _ NIN INV0 VALID0 _ TGT). destruct LSIM0 as [LSIM IND].
+      i. specialize (LSIM0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). destruct LSIM0 as [LSIM IND].
       eapply IH in IND. des. do 2 eexists. split; ss. eapply IND.
     }
 

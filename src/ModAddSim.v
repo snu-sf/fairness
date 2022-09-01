@@ -253,7 +253,7 @@ Section ADD_RIGHT_CONG_SIM.
       + eapply pind9_fold. eapply lsim_sync.
         { eapply INV0. }
         { instantiate (1 := (local_th_context tid, ε)). unfold_prod. split; ss. }
-        intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] NIN INV1_0 VALID1_0 IM_TGT1' TGT.
+        intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT1' TGT.
         simpl in INV1_0. des. subst r_sha_th1. rename im_src0 into im_src1. unfold_prod VALID1_0.
         gfinal. left. eapply CIH; eauto.
         { exists im_src1, ths_ctx1, ths_usr1. ss. splits; ss.
@@ -464,7 +464,7 @@ Section ADD_RIGHT_CONG_SIM.
         ss. exists im_src0, ths_ctx0, ths_usr0. splits; ss.
       }
       { instantiate (1 := (local_th_user tid, r_own)). unfold_prod. split; ss. }
-      intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] NIN INV1_0 VALID1_0 IM_TGT2 TGT.
+      intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT2 TGT.
       ss. des. unfold_prod VALID1_0.
       assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (sum_fmap_l (tids_fmap tid ths_usr1))).
       { ii. destruct i as [i|i]; ss.
@@ -473,9 +473,7 @@ Section ADD_RIGHT_CONG_SIM.
           exfalso. tauto.
         - specialize (TGT (inr (inr i))). ss.
       }
-      assert(NIN0: ~ NatSet.In tid ths_usr1).
-      { eapply Partition_In_right in INV1_1. r in INV1_1. ii. eapply NIN. eapply INV1_1. ss. }
-      specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 NIN0 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
+      specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
       pclearbot. gfinal. left. eapply CIH; eauto.
       + subst. extensionalities i. destruct i as [i|i]; ss. f_equal.
         specialize (TGT (inr (inl i))). ss.

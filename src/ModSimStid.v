@@ -191,7 +191,6 @@ Section PRIMIVIESIM.
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
       (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
-               (NIN: ~NatSet.In tid ths1)
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
@@ -220,7 +219,7 @@ Section PRIMIVIESIM.
     forall r r' (LE: r <9= r'), (__lsim tid r) <10= (__lsim tid r').
   Proof.
     ii. inv PR; try (econs; eauto; fail).
-    eapply lsim_sync; eauto. i. hexploit LSIM. eauto. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
+    eapply lsim_sync; eauto. i. hexploit LSIM. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
   Qed.
 
   Lemma _lsim_mon tid: forall r, monotone9 (__lsim tid r).
@@ -338,7 +337,7 @@ Section PRIMIVIESIM.
     }
 
     { eapply pind9_fold. eapply lsim_sync; eauto. i.
-      hexploit LSIM0. eauto. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
+      hexploit LSIM0. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
       eapply rclo9_base. auto.
     }
 
@@ -462,7 +461,7 @@ Section PRIMIVIESIM.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_sync; eauto. i.
-      hexploit LSIM0. eauto. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
+      hexploit LSIM0. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
       eapply upaco9_mon_bot; eauto.
     }
 
@@ -570,7 +569,7 @@ Section PRIMIVIESIM.
     }
 
     { eapply pind9_fold. eapply lsim_sync; eauto. i.
-      hexploit LSIM0. eauto. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
+      hexploit LSIM0. eapply INV0. eapply VALID0. all: eauto. i; des. esplits; eauto.
       eapply rclo9_clo. econs; eauto. eapply rclo9_base; auto.
     }
 

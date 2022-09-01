@@ -184,7 +184,7 @@ Section TRANS_CLOS.
       split; ss. eapply IH; ss. destruct LSIM. eapply H0.
     - eapply lsim_sync; eauto. { exists im_tgt'3. split; eauto. } i. ss. des.
       pose proof (fair_break INV_LE TGT). des. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 im_tgt'0 st_src1 st_tgt1 r_shared1 r_ctx1 NIN INV1 VALID0 im_tgt'1 FAIR).
+      specialize (LSIM ths1 im_src0 im_tgt'0 st_src1 st_tgt1 r_shared1 r_ctx1 INV1 VALID0 im_tgt'1 FAIR).
       pclearbot. gfinal. left. eapply CIH; ss.
     - econs. gfinal. left. pclearbot. eapply CIH; ss.
   Qed.
@@ -262,7 +262,7 @@ Section WFT_MONO.
       specialize (LSIM ths1 im_src0 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 im_tgt2 (fair_mono TGT)).
       split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_sync; eauto. i. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1 NIN INV0 VALID0 im_tgt2 (fair_mono TGT)).
+      specialize (LSIM ths1 im_src0 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 im_tgt2 (fair_mono TGT)).
       pclearbot. gfinal. left. eapply CIH; ss.
     - econs. gfinal. left. pclearbot. eapply CIH; ss.
   Qed.

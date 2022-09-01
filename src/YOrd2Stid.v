@@ -516,7 +516,7 @@ Section PROOF.
       { ur. auto. }
       revert LSIM0. clear_upto IH. i.
       unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
-      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ NIN INV VALID0 _ TGT). des.
+      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV VALID0 _ TGT). des.
       unfold Is in INVS. des. subst. set (ost':= NatMap.add tid (os1, ot1) ost).
       assert (WFOST': nm_wf_pair ths1 ost').
       { eapply shared_thsRA_th_has_wf_wf_pair; eauto. }

@@ -133,7 +133,7 @@ Section NAT.
       specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt2) (wfemb_mono TGT)).
       split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_sync; eauto. i. move LSIM at bottom.
-      specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 NIN INV0 VALID0 (wfemb ∘ im_tgt2) (wfemb_mono TGT)).
+      specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt2) (wfemb_mono TGT)).
       pclearbot. gfinal. left. eapply CIH; ss.
     - econs. gfinal. left. pclearbot. eapply CIH; ss.
   Qed.
