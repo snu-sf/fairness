@@ -22,7 +22,7 @@ Section SIM.
 
   Let shared_rel := TIdSet.t -> (@imap ident_src wf_src) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
 
-  Let lift (R: shared_rel): (TIdSet.t *
+  Definition liftI (R: shared_rel): (TIdSet.t *
                                (@imap ident_src wf_src) *
                                (@imap (sum_tid ident_tgt) nat_wf) *
                                state_src *
@@ -46,7 +46,7 @@ Section SIM.
 
   Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel).
 
-  Let gf := (fun r => pind9 (__lsim (lift I) tid r) top9).
+  Let gf := (fun r => pind9 (__lsim (liftI I) tid r) top9).
   Let gf_mon: monotone9 gf.
   Proof.
     eapply lsim_mon.
