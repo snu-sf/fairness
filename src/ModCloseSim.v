@@ -72,6 +72,11 @@ Section CLOSE_CONG_SIM.
     i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
   Qed.
 
+  Notation pind := (fun r => pind9 (__lsim _ _ r) top9).
+  Notation cpn := (cpn9 _).
+  Tactic Notation "muclo" uconstr(H) :=
+    eapply gpaco9_uclo; [auto with paco|apply H|].
+
   Lemma lift_ma_local_sim_usr R_src R_tgt (RR : R_src -> R_tgt -> Prop) itr_src itr_tgt
     (SIM : local_sim (lifted I) RR itr_src itr_tgt)
     : local_sim lift_ma RR (embed_itree M1 M2_src itr_src) (embed_itree M1 M2_tgt itr_tgt).
@@ -127,62 +132,7 @@ Section CLOSE_CONG_SIM.
       im_src2 into im_src0, IM_SRC2 into IM_SRC0, IM_TGT2' into IM_TGT0, st_src2 into st_src0, st_tgt2 into st_tgt0,
       r_sha_w2 into r_sha_w0, r_ctx_th2 into r_ctx_th0, r_ctx_w2 into r_ctx_w0, r_own_w1 into r_own_w0,
       INV2_0 into INV0, INV2_1 into INV1, INV2_3 into INV2, VALID2_0 into VALID_TH0, VALID2_1 into VALID_W0.
-    revert_until tid. ginit. set ((fun
-          r : rel9 Type (fun _ : Type => Type)
-                (fun x0 x1 : Type =>
-                 x0 ->
-                 x1 ->
-                 URA.prod threadsRA world ->
-                 shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                   (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop)
-                (fun (x0 x1 : Type)
-                   (_ : x0 ->
-                        x1 ->
-                        URA.prod threadsRA world ->
-                        shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                          (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) => bool)
-                (fun (x0 x1 : Type)
-                   (_ : x0 ->
-                        x1 ->
-                        URA.prod threadsRA world ->
-                        shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                          (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                   (_ : bool) => bool)
-                (fun (x0 x1 : Type)
-                   (_ : x0 ->
-                        x1 ->
-                        URA.prod threadsRA world ->
-                        shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                          (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                   (_ _ : bool) => URA.prod threadsRA world)
-                (fun (x0 x1 : Type)
-                   (_ : x0 ->
-                        x1 ->
-                        URA.prod threadsRA world ->
-                        shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                          (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                   (_ _ : bool) (_ : URA.prod threadsRA world) =>
-                 itree ((eventE +' cE) +' sE (state (close M1 M2_src))) x0)
-                (fun (x0 x1 : Type)
-                   (_ : x0 ->
-                        x1 ->
-                        URA.prod threadsRA world ->
-                        shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                          (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                   (_ _ : bool) (_ : URA.prod threadsRA world)
-                   (_ : itree ((eventE +' cE) +' sE (state (close M1 M2_src))) x0) =>
-                 itree ((eventE +' cE) +' sE (state (close M1 M2_tgt))) x1)
-                (fun (x0 x1 : Type)
-                   (_ : x0 ->
-                        x1 ->
-                        URA.prod threadsRA world ->
-                        shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                          (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                   (_ _ : bool) (_ : URA.prod threadsRA world)
-                   (_ : itree ((eventE +' cE) +' sE (state (close M1 M2_src))) x0)
-                   (_ : itree ((eventE +' cE) +' sE (state (close M1 M2_tgt))) x1) =>
-                 shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                   (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf) => pind9 (__lsim lift_ma tid r) top9)) as boo in *. gcofix CIH. i. gstep. punfold SIM.
+    revert_until tid. ginit. gcofix CIH. i. gstep. punfold SIM.
     match type of SIM with pind9 _ _ _ _ ?RR _ _ _ _ _ ?SHA => remember RR as RR_MEM; remember SHA as SHA_MEM end.
     revert RR ths0 ths_ctx0 ths_usr0 st_src0 st_tgt0 r_sha_w0 r_own_w0 r_ctx_th0 im_src0 IM_SRC0 IM_TGT0 INV0 INV1 INV2 VALID_TH0 VALID_W0 HeqRR_MEM HeqSHA_MEM.
     pattern R_src, R_tgt, RR_MEM, fs, ft, r_ctx_w0, itr_src, itr_tgt, SHA_MEM.
@@ -257,10 +207,9 @@ Section CLOSE_CONG_SIM.
       + extensionalities i. destruct i; ss. f_equal.
         specialize (FAIR (inr (inl i))). ss.
     - rewrite 2 embed_itree_trigger_eventE. econs. i. specialize (LSIM ret). pclearbot.
-      gstep. r. eapply pind9_fold. econs. split; ss.
-      eapply pind9_fold. econs. split; ss. eapply pind9_fold. econs; ss.
+      muclo lsim_indC_spec. cbn. econs; eauto.
+      muclo lsim_indC_spec. cbn. econs; eauto.
       gfinal. left. eapply CIH; eauto.
-      admit. (*** TODO: flag does not match. maybe make upto techniques? or use bind rule? ***)
     - rewrite 2 embed_itree_trigger_cE.
       eapply lsim_yieldL. split; ss.
       rewrite <- embed_itree_trigger_cE.
@@ -303,15 +252,15 @@ Section CLOSE_CONG_SIM.
         - specialize (TGT (inr (inr i))). ss.
       }
       specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
-      pclearbot. gstep. eapply pind9_fold. econs; eauto. split; ss. eapply pind9_fold. econs; eauto. split; ss.
-      eapply pind9_fold. econs; eauto.
+      pclearbot. 
+      muclo lsim_indC_spec. cbn. econs; eauto.
+      muclo lsim_indC_spec. cbn. econs; eauto.
       gfinal. left. eapply CIH; eauto.
-      + admit. (*** ditto ***)
       + subst. extensionalities i. destruct i as [i|i]; ss. f_equal.
         specialize (TGT (inr (inl i))). ss.
       + subst. ss.
     - econs. pclearbot. gfinal. left. eapply CIH; eauto.
-  Admitted.
+  Qed.
 
   Lemma lift_ma_local_sim_ctx
         (FSIM: forall (fn : string) (args : list Val),
@@ -376,62 +325,6 @@ Section CLOSE_CONG_SIM.
       r_sha_w1 into r_sha_w0, r_ctx_th1 into r_ctx_th0, r_ctx_w1 into r_ctx_w0,
       INV into INV0, VALID1_0 into VALID_TH0, VALID1_1 into VALID_W0.
     revert_until tid. ginit. gcofix CIH. i.
-    set (fun
-       r1 : rel9 Type (fun _ : Type => Type)
-              (fun x0 x1 : Type =>
-               x0 ->
-               x1 ->
-               URA.prod threadsRA world ->
-               shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                 (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop)
-              (fun (x0 x1 : Type)
-                 (_ : x0 ->
-                      x1 ->
-                      URA.prod threadsRA world ->
-                      shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                        (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) => bool)
-              (fun (x0 x1 : Type)
-                 (_ : x0 ->
-                      x1 ->
-                      URA.prod threadsRA world ->
-                      shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                        (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                 (_ : bool) => bool)
-              (fun (x0 x1 : Type)
-                 (_ : x0 ->
-                      x1 ->
-                      URA.prod threadsRA world ->
-                      shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                        (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                 (_ _ : bool) => URA.prod threadsRA world)
-              (fun (x0 x1 : Type)
-                 (_ : x0 ->
-                      x1 ->
-                      URA.prod threadsRA world ->
-                      shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                        (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                 (_ _ : bool) (_ : URA.prod threadsRA world) =>
-               itree ((eventE +' cE) +' sE (state (close M1 M2_src))) x0)
-              (fun (x0 x1 : Type)
-                 (_ : x0 ->
-                      x1 ->
-                      URA.prod threadsRA world ->
-                      shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                        (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                 (_ _ : bool) (_ : URA.prod threadsRA world)
-                 (_ : itree ((eventE +' cE) +' sE (state (close M1 M2_src))) x0) =>
-               itree ((eventE +' cE) +' sE (state (close M1 M2_tgt))) x1)
-              (fun (x0 x1 : Type)
-                 (_ : x0 ->
-                      x1 ->
-                      URA.prod threadsRA world ->
-                      shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                        (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf -> Prop) 
-                 (_ _ : bool) (_ : URA.prod threadsRA world)
-                 (_ : itree ((eventE +' cE) +' sE (state (close M1 M2_src))) x0)
-                 (_ : itree ((eventE +' cE) +' sE (state (close M1 M2_tgt))) x1) =>
-               shared (state (close M1 M2_src)) (state (close M1 M2_tgt)) (ident (close M1 M2_src))
-                 (ident (close M1 M2_tgt)) (sum_wf wf_src nat_wf) nat_wf) => pind9 (__lsim lift_ma tid r1) top9) as boo in *. move boo at top.
     destruct_itree itr; [| | destruct e as [[[|]|]|] ].
     - rewrite 2 close_itree_ret.
       gstep. eapply pind9_fold. econs. ss.
@@ -536,7 +429,27 @@ Section CLOSE_CONG_SIM.
       + rewrite <- 2 bind_trigger.
         gstep. eapply pind9_fold. eapply lsim_sync; eauto.
         { instantiate (1:=(local_th_context tid, ε)). unfold_prod; ss. }
-        i. admit. (*** "use a bind rule here". ***)
+        move FSIM at bottom.
+        eapply local_sim_clos_trans in FSIM; [|econs; exact 0].
+        eapply local_sim_wft_mono with (wft_lt := lt (wf_clos_trans nat_wf)) in FSIM; cycle 1.
+        { i; econs; ss. eauto. }
+        eapply lift_ma_local_sim_usr in FSIM.
+        r in FSIM.
+        i.
+        exploit FSIM; eauto.
+        { instantiate (2:=tid).
+          eapply inv_add_new. split; ss. des. subst. eapply inv_add_new in THS0. des.
+          eapply Partition_In_right in INV0_1. eauto.
+          admit. }
+        { rewrite <- URA.add_assoc in VALID. eauto. }
+        { admit. }
+        intro T; des.
+        muclo lsim_bindC'_spec. cbn. econs; eauto.
+        * gfinal. right. eapply paco9_mon; [eapply T1|]; eauto.
+          { eapply URA.wf_extends; eauto. exists (local_th_context tid, ε). r_solve. }
+INV1 : lift_ma (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared0
+          ii; ss.
+        * i. admit.
       + rewrite <- 2 bind_trigger.
         gstep. eapply pind9_fold. econs; eauto.
   Admitted.
