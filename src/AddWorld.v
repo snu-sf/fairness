@@ -3,7 +3,7 @@ Require Import Coq.Classes.RelationClasses.
 From Fairness Require Import Axioms NatStructs.
 From Fairness Require Import PCM World.
 From Fairness Require Import Mod.
-Require Import String Lia.
+Require Import String Lia Program.
 
 Set Implicit Arguments.
 
@@ -46,7 +46,6 @@ Section THREADS_RA_DEF.
     | local ths_ctx' ths_usr', boom                                             => boom
     | boom, _                                                                   => boom
     end.
-
   Program Instance threadsRA: URA.t :=
     {|
       URA.car := threadsRA_car;

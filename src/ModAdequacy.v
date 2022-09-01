@@ -11,10 +11,13 @@ From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World.
 From Fairness Require Export Mod Concurrency.
 From Fairness Require Import KnotSim LocalAdequacyAux.
+Unset Universe Checking.
 From Fairness Require Import
      ModSim MSim2YOrd YOrd2Stid Stid2NoSync NoSync2Stutter
      Stutter2Knot Knot2Glob.
 From Fairness Require Import SchedSim Adequacy.
+
+
 
 Set Implicit Arguments.
 
@@ -330,7 +333,7 @@ Section LADEQ.
       apply nm_empty_eq in Heqtl_src, Heqtl_tgt. clarify.
       esplits; ss; eauto.
       - unfold NatSet.empty in *. rewrite !key_set_empty_empty_eq. eauto.
-      - instantiate (1:=@NatMap.empty _). unfold resources_wf. r_wf INV0. rewrite sum_of_resources_empty. r_solve.
+      - instantiate (1:=@NatMap.empty _). unfold resources_wf. r_wf INV0.
       - instantiate (1:=NatMap.empty _). econs.
     }
 

@@ -10,7 +10,6 @@ Set Implicit Arguments.
 Global Instance thsRA {A: Type}: URA.t := (thread_id ==> Auth.t (Excl.t A))%ra.
 (* Compute (URA.car (t:=_thsRA)). *)
 (* Global Instance thsRA {A: Type}: URA.t := Auth.t (@_thsRA A). *)
-Compute (URA.car).
 
 Section THHAS.
 

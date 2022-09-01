@@ -1217,9 +1217,15 @@ Global Opaque URA.unit.
 
 Section UNIT.
 
-  Program Instance Unit : URA.t := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True |}.
+  Program Instance Unit : URA.t := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True; URA.core := fun _ => tt; |}.
   Next Obligation. destruct a. ss. Qed.
   Next Obligation. destruct a. ss. Qed.
+  Next Obligation. unseal "ra". i. destruct a. ss. Qed.
+  Next Obligation. unseal "ra". ss. Qed.
+  Next Obligation. unseal "ra". i. ss. Qed.
+  Next Obligation. unseal "ra". i. destruct a. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. unseal "ra". i. exists tt. ss. Qed.
 
   Lemma Unit_wf : forall x, @URA.wf Unit x.
   Proof. unfold URA.wf. unseal "ra". ss. Qed.
