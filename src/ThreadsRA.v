@@ -34,4 +34,9 @@ Section THREADS_RA_DEF.
     :
     own_threads ths0 -∗ own_thread tid -∗ ∃ ths1, ⌜NatMap.remove tid ths0 = ths1⌝ ** own_threads ths1.
   Admitted.
+
+  Lemma threads_in tid ths
+    :
+    own_threads ths -∗ own_thread tid -∗ ⌜TIdSet.In tid ths⌝.
+  Admitted.
 End THREADS_RA_DEF.

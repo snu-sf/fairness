@@ -432,10 +432,11 @@ Section Monotone.
     Qed.
 
     Lemma white_mon w0 w1
+          (LE: le w0 w1)
       :
-      (monoWhite w1) -∗ ⌜le w0 w1⌝ -∗ (monoWhite w0).
+      (monoWhite w1) -∗ (monoWhite w0).
     Proof.
-      unfold monoWhite. iIntros "H %".
+      unfold monoWhite. iIntros "H".
       iDestruct "H" as (w) "[H %]".
       iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
     Qed.
@@ -452,10 +453,11 @@ Section Monotone.
     Qed.
 
     Lemma black_updatable w0 w1
+          (LE: le w0 w1)
       :
-      (monoBlack w0) -∗ ⌜le w0 w1⌝ -∗ (#=> monoBlack w1).
+      (monoBlack w0) -∗ (#=> monoBlack w1).
     Proof.
-      iIntros "H %". iApply (OwnM_Upd with "H").
+      iIntros "H". iApply (OwnM_Upd with "H").
       eapply FiniteMap.singleton_updatable.
       eapply Auth.auth_update.
       rr. i. des. splits; auto.
@@ -594,10 +596,11 @@ Section Monotone.
   Qed.
 
   Lemma black_updatable2 w0 w1
+        (LE: le w0 w1)
     :
-    (monoBlack2 w0) -∗ ⌜le w0 w1⌝ -∗ (#=> monoBlack2 w1).
+    (monoBlack2 w0) -∗ (#=> monoBlack2 w1).
   Proof.
-    iIntros "H %". iApply (OwnM_Upd with "H").
+    iIntros "H". iApply (OwnM_Upd with "H").
     eapply Auth.auth_update.
     rr. i. des. splits; auto.
     { rr. unseal "ra". ss. }
