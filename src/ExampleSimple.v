@@ -223,14 +223,12 @@ Section SIM.
 
     {
       iPoseProof (black_persistent_white with "MONO") as "#WHITE".
-      iDestruct "INV" as "[% OWN]". des. subst.
-      remember (im_tgt0 (inl th)).
-
+      unfold I_aux. des_ifs. iDestruct "INV" as "[% OWN]". des. subst.
       iApply isim_getR.
 
       iStopProof.
-      revert ths im_src st_src im_tgt0 im_tgt1 b0 th Heqt H.
-      induction (Nat.lt_wf_0 t). clear H. rename H0 into IH.
+      revert ths im_src st_src im_tgt0 im_tgt1 b0 th H1 H.
+      induction (Nat.lt_wf_0 i). clear H. rename H0 into IH.
       i. subst.
       iIntros "[WHITE [TID [THS [MONO OWN]]]]".
 
@@ -249,62 +247,28 @@ Section SIM.
       iApply isim_getR. destruct b0.
       { ired.
         iApply isim_sync.
-        iSplitL.
-        { iExists (W_own _ _). iFrame. iPureIntro. auto. }
+        iSplitR "TID".
+        { unfold I. iFrame. iExists (W_own _ _). iFrame. iPureIntro. auto. }
         iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV".
-        iIntros. iApply isim_ret. iSplitL; auto. des_ifs.
-        iDestruct "INV" as (w) "[[THS MONO] INV]".
-        iPoseProof (black_white_compare with "WHITE MONO") as "%".
-        inv H2.
-        admit. admit.
+        iIntros. iApply isim_ret. iSplitL; auto.
+        iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
       }
-
       { ired. iPoseProof (threads_in with "THS OWN") as "%".
         iApply isim_yieldR.
         { iSplitR "TID".
-          { iExists (W_own _ _). iFrame. iPureIntro. auto. }
+          { unfold I. iFrame. iExists (W_own _ _). iFrame. iPureIntro. auto. }
           iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV".
           iIntros. iApply isim_tauR.
-          des_ifs.
-          iDestruct "INV" as (w) "[[THS MONO] INV]".
+          iDestruct "INV" as "[THS INV]". iDestruct "INV" as (w) "[MONO INV]".
+          destruct st_tgt1 as [l f]. ss.
           iPoseProof (black_white_compare with "WHITE MONO") as "%".
-          inv H3.
-          2:{ iDestruct "INV" as "[% INV]". des. subst.
-              rewrite unfold_iter_eq. ired.
-              iApply isim_getR. ired.
-              iApply isim_sync. iSplitL.
-              { iExists W_top. iFrame. auto. }
-              { iIntros (? ? ? ? ? ?) "INV %".
-                iApply isim_ret. des_ifs. iSplitL; auto.
-                iDestruct "INV" as (w) "[[THS MONO] INV]".
-                iPoseProof (black_white_compare with "WHITE MONO") as "%".
-                inv H4.
-                { iDestruct "INV" as "[% OWN]".
-                  iExists (W_own th (im_tgt5 (inl th))). iFrame.
-
-
-i
-
-admit. }
-                { iExists W_top. iFrame. }
-
-                inv H3.
-                { admit. }
-                {
-
-
-                admit. admit.
-              }
-
-admit. }
-          }
-          { iDestruct "INV" as "[% INV]". des. subst.
-            iPoseProof (threads_in with "THS INV") as "%".
+          inv H4.
+          { iDestruct "INV" as "[% OWN]". des. subst.
+            iPoseProof (threads_in with "THS OWN") as "%".
             iApply IH.
             3:{ eauto. }
-            2:{ reflexivity. }
-            { instantiate (1:=th).
-              cut (im_tgt1 (inl th) < im_tgt0 (inl th)).
+            2:{ eauto. }
+            { cut (im_tgt1 (inl th) < im_tgt0 (inl th)).
               { lia. }
               specialize (H (inl th)). unfold sum_fmap_l, tids_fmap in H.
               des_ifs.
@@ -313,9 +277,18 @@ admit. }
             iPoseProof (black_persistent_white with "MONO") as "#WHITE".
             iFrame. auto.
           }
+          { iDestruct "INV" as "[% INV]". des. subst.
+            rewrite unfold_iter_eq. ired.
+            iApply isim_getR. ired.
+            iApply isim_sync. iSplitR "TID".
+            { unfold I. iFrame. iExists W_top. iFrame. auto. }
+            { iIntros (? ? ? ? ? ?) "INV %".
+              iApply isim_ret.
+              iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
+            }
+          }
         }
       }
-
-
+    }
   Admitted.
 End SIM.
