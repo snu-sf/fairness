@@ -190,6 +190,11 @@ Section IPM.
     exists a. rewrite H. r_solve.
   Qed.
 
+  Global Instance iProp_affine (P: iProp): Affine P.
+  Proof.
+    rr. uipropall. i. rr. uipropall.
+  Qed.
+
   Global Instance iProp_pure_forall: BiPureForall iProp.
   Proof.
     ii. rr. uipropall. i. rr. rr in H. uipropall.
