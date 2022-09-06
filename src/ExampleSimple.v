@@ -169,10 +169,17 @@ Section SIM.
 
   Lemma sim: ModSim.mod_sim example_mod_spec example_mod.
   Proof.
-    eapply (@ModSim.mk _ _ nat_wf nat_wf _ _ Σ).
+    refine (@ModSim.mk _ _ nat_wf nat_wf _ _ Σ _ _ _).
+    { econs. exact 0. }
+    { i. exists (S o0). ss. }
     { instantiate (1:=liftI I). admit. }
     i. ss.
-    cut (forall tid, own_thread tid ⊢ @isim_gen tid itop10 itop10 _ _ (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => I ths im_src im_tgt st_src st_tgt ** ⌜r_src = r_tgt⌝) example_fun_spec example_fun).
+
+    cut (forall tid,
+            own_thread tid ⊢ @isim_gen tid itop10 itop10 _ _ (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
+                                                                I ths im_src im_tgt st_src st_tgt
+                                                                  ** own_thread tid
+                                                                  ** ⌜r_src = r_tgt⌝)%I example_fun_spec example_fun).
     { admit. }
 
     unfold example_fun_spec, example_fun.
@@ -191,8 +198,9 @@ Section SIM.
       iSplitR "TID".
       { unfold I. iFrame. iExists W_top. iFrame. auto. }
       iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV".
-      iIntros. iApply isim_ret. iSplitL; auto.
+      iIntros. iApply isim_ret.
       iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
+      iFrame. auto.
     }
 
     1:{
@@ -212,9 +220,9 @@ Section SIM.
       { iApply isim_getR. des_ifs. iApply isim_putR.
         iPoseProof (black_updatable with "MONO") as "> MONO".
         { instantiate (1:=W_top). econs. }
-        iApply isim_ret. iSplitL; auto.
-        unfold I. iFrame. iExists W_top. iFrame.
-        ss. iDestruct "INV" as "[% INV]". des. subst. auto.
+        iApply isim_ret. iFrame. iSplitL; auto.
+        iDestruct "INV" as "[% TID]". des.
+        iFrame. iExists W_top. iFrame. auto.
       }
       { unfold I_aux. des_ifs. iDestruct "INV" as "[% INV]".
         iCombine "OWN INV" as "OWN". iOwnWf "OWN". ur in H2. ss.
@@ -252,6 +260,7 @@ Section SIM.
         iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV".
         iIntros. iApply isim_ret. iSplitL; auto.
         iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
+        iFrame.
       }
       { ired. iPoseProof (threads_in with "THS OWN") as "%".
         iApply isim_yieldR.
@@ -285,6 +294,7 @@ Section SIM.
             { iIntros (? ? ? ? ? ?) "INV %".
               iApply isim_ret.
               iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
+              iFrame. auto.
             }
           }
         }
