@@ -194,33 +194,9 @@ Section SIM.
       iDestruct "INV" as "[[% INV] ORD]". des. subst.
       iPoseProof (thread_disjoint with "OWN INV") as "%".
       iPoseProof (threads_in with "THS OWN") as "%".
-
-
-      des. subst. iFrame.
-      iExists (im_tgt1 (inl th)). iPureIntro. splits; auto.
-      specialize (UPD (inl th)). unfold sum_fmap_l, tids_fmap in UPD.
-      des_ifs.
-      ss; lia.
-
-
-iPoseProof (I_aux_own_fair_update with "OWN INV") as "[OWN [DISJ INV]]".
-      { eauto. }
-      iPoseProof (black_updatable with "MONO") as "> MONO".
-      { instantiate (1:=W_own th k o1 (im_tgt1 (inl th))). econs.
-        right. split; auto.
-        specialize (UPD (inl th)). unfold sum_fmap_l, tids_fmap in UPD. des_ifs.
-        { ss. des; try lia.
-
-
-        des
-
-lia. }
-
-
-      iFrame.
-
-      iFrame. iExists _. iFrame.
-  Qed.
+      admit.
+    }
+  Admitted.
 
   Lemma locked_after_own
         ths im_src im_tgt st_src st_tgt
@@ -371,18 +347,20 @@ lia. }
       iApply isim_getR.
       ired. rewrite unfold_iter_eq. ired.
 
-      iApply isim_yieldR. iFrame.
-      iIntros (? ? ? ? ? ?) "INV %".
-      iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
+      admit.
+
+      (* iApply isim_yieldR. iFrame. *)
+      (* iIntros (? ? ? ? ? ?) "INV %". *)
+      (* iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto. *)
 
 
-      iApply isim_getR. ired. iApply isim_sync.
-      iSplitR "TID".
-      { unfold I. iFrame. iExists W_top. iFrame. auto. }
-      iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV".
-      iIntros. iApply isim_ret.
-      iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
-      iFrame. auto.
+      (* iApply isim_getR. ired. iApply isim_sync. *)
+      (* iSplitR "TID". *)
+      (* { unfold I. iFrame. iExists W_top. iFrame. auto. } *)
+      (* iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV". *)
+      (* iIntros. iApply isim_ret. *)
+      (* iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto. *)
+      (* iFrame. auto. *)
     }
 
     1:{
@@ -465,59 +443,62 @@ lia. }
       iPoseProof (black_persistent_white with "MONO") as "#WHITE".
 
       rewrite unfold_iter_eq. ired.
-      iApply isim_getR. destruct b0.
-      { ired.
-        iApply isim_sync.
-        iSplitR "TID".
-        { unfold I. iFrame. iExists (W_own _ _ _ _). iFrame. iPureIntro. auto. }
-        iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV".
-        iIntros. iApply isim_ret. iSplitL; auto.
-        iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
-        iFrame.
-      }
-      { ired. iPoseProof (threads_in with "THS OWN") as "%".
-        iApply isim_yieldR.
-        { iSplitR "TID".
-          { unfold I. iFrame. iExists (W_own _ _ _ _). iFrame. iPureIntro. auto. }
-          iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV".
-          iIntros. iApply isim_tauR.
-          iDestruct "INV" as "[THS INV]". iDestruct "INV" as (w) "[MONO INV]".
-          destruct st_tgt1 as [l f]. ss.
-          iPoseProof (black_white_compare with "WHITE MONO") as "%".
-          inv H4.
-          { guardH LE. iDestruct "INV" as "[[% OWN] MONOWHITE]". des. subst.
-            iPoseProof (threads_in with "THS OWN") as "%".
-            iApply IH.
-            3:{ eauto. }
-            2:{ instantiate (1:=(o0, _)). simpl. eauto. }
-            { inv LE.
-              { left. auto. }
-              { des. right.
-                { lia. }
-                { cut (im_tgt1 (inl th) < im_tgt0 (inl th)).
-                  { lia. }
-                  specialize (H (inl th)). unfold sum_fmap_l, tids_fmap in H.
-                  des_ifs.
-                }
-              }
-            }
-            iClear "WHITE".
-            iPoseProof (black_persistent_white with "MONO") as "#WHITE".
-            iFrame. auto.
-          }
-          { iDestruct "INV" as "[% INV]". des. subst.
-            rewrite unfold_iter_eq. ired.
-            iApply isim_getR. ired.
-            iApply isim_sync. iSplitR "TID".
-            { unfold I. iFrame. iExists W_top. iFrame. auto. }
-            { iIntros (? ? ? ? ? ?) "INV %".
-              iApply isim_ret.
-              iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto.
-              iFrame. auto.
-            }
-          }
-        }
-      }
+
+      admit.
+
+      (* iApply isim_getR. destruct b0. *)
+      (* { ired. *)
+      (*   iApply isim_sync. *)
+      (*   iSplitR "TID". *)
+      (*   { unfold I. iFrame. iExists (W_own _ _ _ _). iFrame. iPureIntro. auto. } *)
+      (*   iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV". *)
+      (*   iIntros. iApply isim_ret. iSplitL; auto. *)
+      (*   iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto. *)
+      (*   iFrame. *)
+      (* } *)
+      (* { ired. iPoseProof (threads_in with "THS OWN") as "%". *)
+      (*   iApply isim_yieldR. *)
+      (*   { iSplitR "TID". *)
+      (*     { unfold I. iFrame. iExists (W_own _ _ _ _). iFrame. iPureIntro. auto. } *)
+      (*     iIntros (ths1 im_src1 im_tgt2 st_src1 st_tgt1 im_tgt3) "INV". *)
+      (*     iIntros. iApply isim_tauR. *)
+      (*     iDestruct "INV" as "[THS INV]". iDestruct "INV" as (w) "[MONO INV]". *)
+      (*     destruct st_tgt1 as [l f]. ss. *)
+      (*     iPoseProof (black_white_compare with "WHITE MONO") as "%". *)
+      (*     inv H4. *)
+      (*     { guardH LE. iDestruct "INV" as "[[% OWN] MONOWHITE]". des. subst. *)
+      (*       iPoseProof (threads_in with "THS OWN") as "%". *)
+      (*       iApply IH. *)
+      (*       3:{ eauto. } *)
+      (*       2:{ instantiate (1:=(o0, _)). simpl. eauto. } *)
+      (*       { inv LE. *)
+      (*         { left. auto. } *)
+      (*         { des. right. *)
+      (*           { lia. } *)
+      (*           { cut (im_tgt1 (inl th) < im_tgt0 (inl th)). *)
+      (*             { lia. } *)
+      (*             specialize (H (inl th)). unfold sum_fmap_l, tids_fmap in H. *)
+      (*             des_ifs. *)
+      (*           } *)
+      (*         } *)
+      (*       } *)
+      (*       iClear "WHITE". *)
+      (*       iPoseProof (black_persistent_white with "MONO") as "#WHITE". *)
+      (*       iFrame. auto. *)
+      (*     } *)
+      (*     { iDestruct "INV" as "[% INV]". des. subst. *)
+      (*       rewrite unfold_iter_eq. ired. *)
+      (*       iApply isim_getR. ired. *)
+      (*       iApply isim_sync. iSplitR "TID". *)
+      (*       { unfold I. iFrame. iExists W_top. iFrame. auto. } *)
+      (*       { iIntros (? ? ? ? ? ?) "INV %". *)
+      (*         iApply isim_ret. *)
+      (*         iPoseProof (I_fair_update with "TID INV") as "[TID INV]"; eauto. *)
+      (*         iFrame. auto. *)
+      (*       } *)
+      (*     } *)
+      (*   } *)
+      (* } *)
     }
   Admitted.
 End SIM.
