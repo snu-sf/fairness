@@ -11,57 +11,6 @@ From Fairness Require Import Mod ModSimYOrd ModSimStid.
 
 Set Implicit Arguments.
 
-Section IMAPAUX2.
-
-  Variable id: ID.
-
-  Definition imap_proj_wf1 {wf1 wf2: WF} (im: @imap id (double_rel_WF wf1 wf2)): @imap id wf1 := fun i => fst (im i).
-  Definition imap_proj_wf2 {wf1 wf2: WF} (im: @imap id (double_rel_WF wf1 wf2)): @imap id wf2 := fun i => snd (im i).
-  Definition imap_proj_wf {wf1 wf2: WF} (im: @imap id (double_rel_WF wf1 wf2)): prod (@imap id wf1) (@imap id wf2) :=
-    (imap_proj_wf1 im, imap_proj_wf2 im).
-
-  Definition imap_sum_wf {wf1 wf2: WF} (im: prod (@imap id wf1) (@imap id wf2)): @imap id (double_rel_WF wf1 wf2) :=
-    fun i => (fst im i, snd im i).
-
-  Lemma imap_sum_proj_wf_inv1
-        wf1 wf2
-        (im1: @imap id wf1)
-        (im2: @imap id wf2)
-    :
-    imap_proj_wf (imap_sum_wf (im1, im2)) = (im1, im2).
-  Proof. reflexivity. Qed.
-
-  Lemma imap_sum_proj_wf_inv2
-        wf1 wf2
-        (im: @imap id (double_rel_WF wf1 wf2))
-    :
-    imap_sum_wf (imap_proj_wf im) = im.
-  Proof.
-    extensionality i. unfold imap_sum_wf, imap_proj_wf, imap_proj_wf1, imap_proj_wf2. ss. destruct (im i); ss.
-  Qed.
-
-End IMAPAUX2.
-Global Opaque imap_proj_wf1.
-Global Opaque imap_proj_wf2.
-Global Opaque imap_sum_wf.
-
-Section IMAPCOMB.
-
-  Definition imap_comb {id1 id2: ID} {wf1 wf2: WF} (im1: imap id1 wf1) (im2: imap id2 wf2):
-    imap (id_sum id1 id2) (sum_WF wf1 wf2) :=
-    fun i => match i with
-          | inl il => inl (im1 il)
-          | inr ir => inr (im2 ir)
-          end.
-
-  Definition imap_is_comb {id1 id2: ID} {wf1 wf2: WF}
-             (im: imap (id_sum id1 id2) (sum_WF wf1 wf2)) :=
-    exists (im1: imap id1 wf1) (im2: imap id2 wf2), im = imap_comb im1 im2.
-
-End IMAPCOMB.
-
-
-
 Section PROOF.
 
   Context `{M: URA.t}.
