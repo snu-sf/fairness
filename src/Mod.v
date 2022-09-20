@@ -4,7 +4,7 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Any.
 
 Set Implicit Arguments.
 
@@ -86,7 +86,7 @@ Module Mod.
         state: Type;
         ident: ID;
         st_init: state;
-        funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val);
+        funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t);
       }.
 End Mod.
 
@@ -174,7 +174,7 @@ Section ADD.
     map_event (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident))))
       (embed_state (@snd M1.(state) M2.(state)) update_snd itr).
 
-  Definition add_funs : fname -> option (ktree _ (list Val) Val) :=
+  Definition add_funs : fname -> option (ktree _ Any.t Any.t) :=
     fun fn =>
       match M1.(funs) fn, M2.(funs) fn with
       | Some fn_body, None => Some (fun args => embed_l (fn_body args))

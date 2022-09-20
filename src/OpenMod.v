@@ -11,7 +11,7 @@ From Fairness Require Export Mod.
 Set Implicit Arguments.
 
 Variant callE: Type -> Type :=
-  | Call (fn: fname) (arg: list Val): callE Val
+  | Call (fn: fname) (arg: Any.t): callE Any.t
 .
 
 Module OMod.
@@ -21,7 +21,7 @@ Module OMod.
         ident: ID;
         st_init: state;
         funs: fname ->
-              option (ktree ((((@eventE ident) +' cE) +' (sE state)) +' callE) (list Val) Val);
+              option (ktree ((((@eventE ident) +' cE) +' (sE state)) +' callE) Any.t Any.t);
       }.
 
   Section CLOSED.
@@ -67,7 +67,7 @@ Module OMod.
           { exact (Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)). }
     Defined.
 
-    Definition closed_funs: fname -> option (ktree _ (list Val) Val) :=
+    Definition closed_funs: fname -> option (ktree _ Any.t Any.t) :=
       fun fn =>
         match (omd.(funs) fn) with
         | None => None

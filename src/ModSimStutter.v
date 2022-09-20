@@ -871,7 +871,7 @@ Module ModSim.
 
           wf_stt : Type -> Type -> WF;
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                           | Some ktr_src, Some ktr_tgt => local_sim wf_stt I (@eq Val) (ktr_src args) (ktr_tgt args)
+                           | Some ktr_src, Some ktr_tgt => local_sim wf_stt I (@eq Any.t) (ktr_src args) (ktr_tgt args)
                            | None        , None         => True
                            | _           , _            => False
                            end;
