@@ -19,7 +19,7 @@ Qed.
 
 Section MOD.
   Definition example_fun:
-    itree (((@eventE void) +' cE) +' sE (bool * bool)) Val :=
+    itree (((@eventE void) +' cE) +' sE (bool * bool)) Any.t :=
     '(l0, f0) <- trigger (@Get _);;
     if (l0: bool)
     then
@@ -38,7 +38,7 @@ Section MOD.
              trigger Yield;;;
              Ret (inl tt)) tt;;;
       trigger Yield;;;
-      Ret 0
+      Ret 0↑
     else
       trigger (Put (true, f0));;;
       trigger Yield;;;
@@ -49,7 +49,7 @@ Section MOD.
       trigger (Put (l1, true));;;
       trigger Yield;;;
       trigger Yield;;;
-      Ret 0
+      Ret 0↑
   .
 
   Definition example_mod: Mod.t :=
@@ -59,9 +59,9 @@ Section MOD.
   .
 
   Definition example_fun_spec:
-    itree (((@eventE void) +' cE) +' sE unit) Val :=
+    itree (((@eventE void) +' cE) +' sE unit) Any.t :=
     trigger Yield;;;
-    Ret 0
+    Ret 0↑
   .
 
   Definition example_mod_spec: Mod.t :=

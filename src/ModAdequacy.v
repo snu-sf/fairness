@@ -556,9 +556,9 @@ End LADEQ.
 
 Section ADEQ.
 
-  Definition program := list (fname * (list Val))%type.
+  Definition program := list (fname * Any.t)%type.
 
-  Definition fn2th (m: Mod.t) (fn: fname) (args: list Val): @thread (Mod.ident m) (sE (Mod.state m)) Val :=
+  Definition fn2th (m: Mod.t) (fn: fname) (args: Any.t): @thread (Mod.ident m) (sE (Mod.state m)) Any.t :=
     match Mod.funs m fn with
     | Some ktr => ktr args
     | None => (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
@@ -572,7 +572,7 @@ Section ADEQ.
 
   Definition numbering {E} (l: list E): list (NatMap.key * E) := _numbering l O.
 
-  Definition prog2ths (m: Mod.t) (p: program): @threads (Mod.ident m) (sE (Mod.state m)) Val :=
+  Definition prog2ths (m: Mod.t) (p: program): @threads (Mod.ident m) (sE (Mod.state m)) Any.t :=
     let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
     NatMapP.of_list (numbering pre_threads).
 
@@ -652,7 +652,7 @@ Section ADEQ.
     }
     i. destruct (tid_dec k k0); clarify.
     { clear IHp. rewrite nm_find_add_eq in FIND1, FIND2. clarify. unfold fn2th.
-      dup funs. specialize (funs0 fn0 []). rewrite SOME0 in funs0.
+      dup funs. specialize (funs0 fn0 ([]: list Val)↑). rewrite SOME0 in funs0.
       specialize (funs fn args). des_ifs; ss.
       unfold local_sim in funs0. ii.
       specialize (funs0 _ _ _ _ _ _ _ INV _ _ THS VALID _ UPD). des.

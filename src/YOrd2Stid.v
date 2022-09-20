@@ -568,11 +568,11 @@ Section MODSIM.
     assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
     { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
     ss.
-    eapply (@ModSim.mk _ _ (wf_src2 Val Val) _ wf_tgt_inhabited wf_tgt_open (M2 Val Val) (I2 Val Val)).
+    eapply (@ModSim.mk _ _ (wf_src2 Any.t Any.t) _ wf_tgt_inhabited wf_tgt_open (M2 Any.t Any.t) (I2 Any.t Any.t)).
     { i. move init after im_tgt. specialize (init im_tgt). des.
-      set (ost:= @NatMap.empty (prod (wf_stt Val Val).(T) (wf_stt Val Val).(T))).
-      assert (im_src_th: imap thread_id (@wf_src_th Val Val)).
-      { exact (fun t => ((wf_stt0 Val Val, im_tgt (inl t)), nm_proj_v1 ost)). }
+      set (ost:= @NatMap.empty (prod (wf_stt Any.t Any.t).(T) (wf_stt Any.t Any.t).(T))).
+      assert (im_src_th: imap thread_id (@wf_src_th Any.t Any.t)).
+      { exact (fun t => ((wf_stt0 Any.t Any.t, im_tgt (inl t)), nm_proj_v1 ost)). }
       exists (imap_comb im_src_th im_src). exists (shared_thsRA wf_stt wf_stt0 ost, r_shared).
       unfold I2. unfold YOrd2Stid.I2. esplits; eauto.
       - unfold Is. exists ost. splits; auto.

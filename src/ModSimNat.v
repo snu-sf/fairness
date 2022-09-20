@@ -30,7 +30,7 @@ Module ModSimN.
             /\ (URA.wf r_shared);
 
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                                | Some ktr_src, Some ktr_tgt => local_sim I (@eq Val) (ktr_src args) (ktr_tgt args)
+                                | Some ktr_src, Some ktr_tgt => local_sim I (@eq Any.t) (ktr_src args) (ktr_tgt args)
                                 | None, None => True
                                 | _, _ => False
                                 end;
