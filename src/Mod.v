@@ -88,6 +88,25 @@ Module Mod.
         st_init: state;
         funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t);
       }.
+
+  Program Definition wrap_fun {ident} {E} `{@eventE ident -< E} A R
+          (f: ktree E A R):
+    ktree E Any.t Any.t :=
+    fun arg =>
+      match (arg↓) with
+      | Some arg => ret <- f arg;; Ret ret↑
+      | None => UB
+      end.
+
+  Fixpoint get_funs state ident
+           (funs: list (fname * (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t)))
+           (fn: fname):
+    option (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t) :=
+    match funs with
+    | [] => None
+    | (fn_hd, body_hd)::tl =>
+        if string_dec fn fn_hd then Some body_hd else get_funs tl fn
+    end.
 End Mod.
 
 Definition update_fst {A B}: A * B -> A -> A * B :=

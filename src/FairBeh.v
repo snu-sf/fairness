@@ -174,6 +174,18 @@ Section EVENT.
     | Undefined: eventE void
   .
 
+  Definition UB {id: ID} {E} `{@eventE id -< E} {R}:
+    itree E R :=
+    f <- trigger Undefined;;
+    match (f: void) with end.
+
+  Definition unwrap {id: ID} {E} `{@eventE id -< E} {R}
+             (r: option R): itree E R :=
+    match r with
+    | Some r => Ret r
+    | None => UB
+    end.
+
   Definition sum_fmap_l {A B: ID} (fm: @fmap A): @fmap (id_sum A B) :=
     fun sa => match sa with | inl a => (fm a) | inr _ => Flag.emp end.
 
