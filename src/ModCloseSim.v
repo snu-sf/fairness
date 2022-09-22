@@ -433,23 +433,20 @@ Section CLOSE_CONG_SIM.
         eapply local_sim_clos_trans in FSIM; [|econs; exact 0].
         eapply local_sim_wft_mono with (wft_lt := lt (wf_clos_trans nat_wf)) in FSIM; cycle 1.
         { i; econs; ss. eauto. }
-        eapply lift_ma_local_sim_usr in FSIM.
-        r in FSIM.
-        i.
-        exploit FSIM; eauto.
-        { instantiate (2:=tid).
-          eapply inv_add_new. split; ss. des. subst. eapply inv_add_new in THS0. des.
-          eapply Partition_In_right in INV0_1. eauto.
-          admit. }
-        { rewrite <- URA.add_assoc in VALID. eauto. }
-        { admit. }
-        intro T; des.
-        muclo lsim_bindC'_spec. cbn. econs; eauto.
-        * gfinal. right. eapply paco9_mon; [eapply T1|]; eauto.
-          { eapply URA.wf_extends; eauto. exists (local_th_context tid, ε). r_solve. }
-INV1 : lift_ma (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared0
-          ii; ss.
-        * i. admit.
+        eapply lift_ma_local_sim_usr in FSIM. r in FSIM.
+
+        (*** TODO: somehow exploit FSIM ***)
+        i. muclo lsim_bindC'_spec. cbn. econs; eauto.
+        * gfinal. right. (*** somehow prove with FSIM ***) admit.
+        * instantiate(1:=fun r_src r_tgt _ _ => r_src = r_tgt). cbn.
+          i. des; subst. destruct r_ctx as [r_ctx0 r_ctx2]. destruct shr as [[[[shr0 shr1] shr2] shr3] shr4].
+          muclo lsim_indC_spec. cbn. econs; eauto.
+          muclo lsim_indC_spec. cbn. econs; eauto.
+          gbase. eapply CIH; eauto.
+          (*** TODO: somehow... ***)
+          { admit. }
+          { admit. }
+          { admit. }
       + rewrite <- 2 bind_trigger.
         gstep. eapply pind9_fold. econs; eauto.
   Admitted.
