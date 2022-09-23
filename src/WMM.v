@@ -76,10 +76,48 @@ Module WMem.
       Ret (lc1.(Local.tview))
   .
 
+  Definition faa_fun:
+    ktree (((@eventE ident) +' cE) +' sE t) (TView.t * Loc.t * Const.t * Ordering.t * Ordering.t) (TView.t * Const.t) :=
+    fun '(tvw0, loc, addendum, ordr, ordw) =>
+      msc <- trigger (@Get _);;
+      '(exist _ (lc1, to, val, sc1, mem1) _) <- trigger (Choose (sig (fun '(lc2, from, val, sc1, mem1) =>
+                                                                   exists lc1 to releasedr releasedw kind,
+
+
+                                                                     (Local.read_step
+                                                                        (Local.mk tvw0 Memory.bot)
+                                                                        (msc.(memory))
+                                                                        loc
+                                                                        from
+                                                                        val
+                                                                        releasedr
+                                                                        ordr
+                                                                        lc1) /\
+                                                                       (Local.write_step
+                                                                          lc1
+                                                                          (msc.(sc))
+                                                                          (msc.(memory))
+                                                                          loc
+                                                                          from
+                                                                          to
+                                                                          (Const.add val addendum)
+                                                                          releasedr
+                                                                          releasedw
+                                                                          ordw
+                                                                          lc1
+                                                                          sc1
+                                                                          mem1
+                                                                          kind))));;
+      _ <- trigger (Fair (missed msc loc to));;
+      _ <- trigger (Put (mk mem1 sc1));;
+      Ret (lc1.(Local.tview), val)
+  .
+
   Definition mod: Mod.t :=
     Mod.mk
       init
       (Mod.get_funs [("store", Mod.wrap_fun store_fun);
-                     ("load", Mod.wrap_fun load_fun)
+                     ("load", Mod.wrap_fun load_fun);
+                     ("faa", Mod.wrap_fun faa_fun)
       ]).
 End WMem.
