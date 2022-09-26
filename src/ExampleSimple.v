@@ -5,17 +5,6 @@ From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind.
 
 Set Implicit Arguments.
 
-(* TODO: move it to ITreeLib *)
-Lemma unfold_iter_eq A E B
-  : forall (f : A -> itree E (A + B)) (x : A),
-    ITree.iter f x = lr <- f x;; match lr with
-                                 | inl l => Tau (ITree.iter f l)
-                                 | inr r0 => Ret r0
-                                 end.
-Proof.
-  i. eapply bisim_is_eq. eapply unfold_iter.
-Qed.
-
 
 Section MOD.
   Definition example_fun:
