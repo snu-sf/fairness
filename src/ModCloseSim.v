@@ -78,8 +78,37 @@ Section CLOSE_CONG_SIM.
     eapply gpaco9_uclo; [auto with paco|apply H|].
 
   Lemma lift_ma_local_sim_usr R_src R_tgt (RR : R_src -> R_tgt -> Prop) itr_src itr_tgt
-    (SIM : local_sim (lifted I) RR itr_src itr_tgt)
-    : local_sim lift_ma RR (embed_itree M1 M2_src itr_src) (embed_itree M1 M2_tgt itr_tgt).
+        (SIM : local_sim (lifted I) RR itr_src itr_tgt)
+    :
+    forall ths0 im_src0
+           im_tgt0 st_src0 st_tgt0
+           (r_shared0 r_ctx0 : URA.prod threadsRA world)
+           (INV: lift_ma (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
+           (tid : NatMap.key) (ths1 : NatMap.t unit)
+           (THS: TIdSet.add_new tid ths0 ths1)
+           (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
+    forall im_tgt1
+           (TID_TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))),
+    exists r_shared1 r_own : URA.prod threadsRA world,
+      (<<INV: lift_ma (ths1, im_src0, im_tgt1, st_src0, st_tgt0) r_shared1 >>) /\
+        (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0) >>) /\
+        (forall ths im_src1 im_tgt2 st_src2 st_tgt2
+                (r_shared2 r_ctx2 : URA.prod threadsRA world)
+                (INV: lift_ma (ths, im_src1, im_tgt2, st_src2, st_tgt2) r_shared2)
+                (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
+          forall im_tgt3
+                 (TGT: fair_update im_tgt2 im_tgt3 (sum_fmap_l (tids_fmap tid ths))),
+            (<<LSIM:
+              forall fs ft : bool,
+                lsim lift_ma tid (fun (r_src: R_src) (r_tgt: R_tgt) (r_ctx: URA.car) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1) =>
+                                    (exists ths3 r_own r_shared,
+                                        (<<TIN: TIdSet.In tid ths2>>) /\
+                                          (<<THS: NatMap.remove tid ths2 = ths3>>) /\
+                                          (<<VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx)>>) /\
+                                          (<<INV: lift_ma (ths3, im_src1, im_tgt1, st_src1, st_tgt1) r_shared>>) /\
+                                          (<<RET: RR r_src r_tgt>>))) fs ft r_ctx2 (embed_itree M1 M2_src itr_src) (embed_itree M1 M2_tgt itr_tgt)
+                     (ths, im_src1, im_tgt3, st_src2, st_tgt2) >>))
+  .
   Proof.
     (* tid ∈ ths_usr *)
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0. i.
@@ -145,6 +174,8 @@ Section CLOSE_CONG_SIM.
       ss. des. subst. (* inversion INV2. clear INV2. subst ths_ctx1 ths_usr1 ths3 IM_SRC0. *)
       exists (NatMap.remove tid ths0), (URA.unit, r_own), (global_th ths_ctx0 (NatMap.remove tid ths_usr0), r_shared).
       splits; ss.
+      + eapply Partition_In_right; eauto.
+        eapply local_th_user_in_user in VALID_TH0. exact VALID_TH0.
       + unfold_prod. split.
         * eapply global_th_dealloc_user; eauto.
         * ss.
@@ -215,7 +246,7 @@ Section CLOSE_CONG_SIM.
       rewrite <- embed_itree_trigger_cE.
       eapply pind9_fold. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
-    - rewrite 2 embed_itree_trigger_cE. 
+    - rewrite 2 embed_itree_trigger_cE.
       eapply lsim_yieldR.
       { instantiate (1 := (global_th ths_ctx0 ths_usr0, r_shared)).
         ss. exists im_src0, ths_ctx0, ths_usr0. splits; ss.
@@ -252,7 +283,7 @@ Section CLOSE_CONG_SIM.
         - specialize (TGT (inr (inr i))). ss.
       }
       specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
-      pclearbot. 
+      pclearbot.
       muclo lsim_indC_spec. cbn. econs; eauto.
       muclo lsim_indC_spec. cbn. econs; eauto.
       gfinal. left. eapply CIH; eauto.
@@ -433,23 +464,111 @@ Section CLOSE_CONG_SIM.
         eapply local_sim_clos_trans in FSIM; [|econs; exact 0].
         eapply local_sim_wft_mono with (wft_lt := lt (wf_clos_trans nat_wf)) in FSIM; cycle 1.
         { i; econs; ss. eauto. }
-        eapply lift_ma_local_sim_usr in FSIM. r in FSIM.
 
         (*** TODO: somehow exploit FSIM ***)
-        i. muclo lsim_bindC'_spec. cbn. econs; eauto.
-        * gfinal. right. (*** somehow prove with FSIM ***) admit.
-        * instantiate(1:=fun r_src r_tgt _ _ => r_src = r_tgt). cbn.
-          i. des; subst. destruct r_ctx as [r_ctx0 r_ctx2]. destruct shr as [[[[shr0 shr1] shr2] shr3] shr4].
+        i.
+
+        Set Nested Proofs Allowed.
+        Lemma lift_ma_pop_push ths0 im_src im_tgt st_src st_tgt r0 r_ctx
+              tid
+              (INV: lift_ma (ths0, im_src, im_tgt, st_src, st_tgt) r0)
+              (WF: URA.wf (r0 ⋅ (local_th_context tid, ε) ⋅ r_ctx))
+          :
+          exists ths1 r1,
+            (<<INV: lift_ma (ths1, im_src, im_tgt, st_src, st_tgt) r1>>) /\
+              (<<WF: URA.wf (r1 ⋅ r_ctx)>>) /\
+              (<<ADD: TIdSet.add_new tid ths1 ths0>>).
+        Proof.
+          red in INV. des. subst. destruct r0, r_ctx. ss. subst.
+          rewrite unfold_prod_wf in WF. rewrite unfold_prod_add in WF. ss. des.
+          hexploit local_th_context_in_context; eauto. i.
+          hexploit Partition_remove.
+          { eapply NatMapP.Partition_sym. eauto. }
+          { eauto. }
+          intros PART. hexploit global_th_dealloc_context; eauto.
+          intros WF1. eexists _, (_, _). esplits.
+          { eauto. }
+          { eapply NatMapP.Partition_sym. eauto. }
+          { ss. }
+          { eauto. }
+          { eauto. }
+          { rewrite URA.unit_id in WF1. rewrite URA.unit_id in WF0.
+            rewrite unfold_prod_wf. rewrite unfold_prod_add. auto.
+          }
+          { rr. econs.
+            { eapply nm_find_rm_eq. }
+            { eapply nm_find_some_rm_add_eq.
+              eapply Partition_In_left in H; eauto.
+              eapply NatMapP.F.in_find_iff in H.
+              destruct (NatMap.find tid ths0) as [[]|]; ss.
+            }
+          }
+        Qed.
+
+        Lemma lift_ma_push_pop ths im_src im_tgt st_src st_tgt r0 r_ctx
+              tid r_own
+              (INV: lift_ma (NatMap.remove tid ths, im_src, im_tgt, st_src, st_tgt) r0)
+              (WF: URA.wf (r0 ⋅ r_own ⋅ r_ctx))
+              (IN: TIdSet.In tid ths)
+          :
+          exists r1,
+            (<<INV: lift_ma (ths, im_src, im_tgt, st_src, st_tgt) r1>>) /\
+              (<<WF: URA.wf (r1 ⋅ (local_th_context tid, ε) ⋅ r_ctx)>>).
+        Proof.
+          red in INV. des. subst. destruct r0, r_own, r_ctx. ss. subst.
+          rewrite unfold_prod_wf in WF. rewrite unfold_prod_add in WF. ss. des.
+          hexploit global_th_alloc_context.
+          { rewrite <- URA.add_assoc in WF. eapply WF. }
+          { econs.
+            { eapply NatMapP.F.not_find_in_iff. ii.
+              eapply Partition_In_left in H; eauto.
+              eapply NatMap.remove_1 in H; eauto.
+            }
+            { ss. }
+          }
+          { ii. eapply Partition_In_right in H; eauto.
+            eapply NatMap.remove_1 in H; eauto.
+          }
+          i. eexists (_, _). esplits.
+          { ss. }
+          { eapply NatMapP.Partition_sym.
+            eapply Partition_add.
+            { eapply NatMapP.Partition_sym. eauto. }
+            econs; eauto.
+            { eapply NatMapP.F.not_find_in_iff.
+              eapply NatMap.remove_1; eauto.
+            }
+            { eapply nm_find_some_rm_add_eq.
+              instantiate (1:=tt). destruct (NatMap.find tid ths) as [[]|] eqn:EQ; ss.
+              eapply NatMapP.F.not_find_in_iff in EQ; eauto. ss.
+            }
+          }
+          { ss. }
+          { ss. }
+          { eauto. }
+          rewrite unfold_prod_wf. rewrite unfold_prod_add. ss. split.
+          { eapply URA.wf_mon. instantiate (1:=c1). r_wf H. }
+          { eapply URA.wf_mon. instantiate (1:=c2). r_wf WF0. }
+        Qed.
+
+        hexploit lift_ma_pop_push; eauto. i. des.
+        muclo lsim_bindC'_spec. cbn. econs; eauto.
+        * hexploit lift_ma_local_sim_usr; eauto.
+          { instantiate (1:=im_tgt1). ii. unfold sum_fmap_l. des_ifs. }
+          i. des. hexploit H1; eauto. i.
+          gfinal. right. eapply paco9_mon; [eapply H|]; ss.
+        * i. destruct r_ctx as [r_ctx0 r_ctx2]. destruct shr as [[[[shr0 shr1] shr2] shr3] shr4].
           muclo lsim_indC_spec. cbn. econs; eauto.
           muclo lsim_indC_spec. cbn. econs; eauto.
+          des. subst.
+          hexploit lift_ma_push_pop; eauto.
+          i. des. destruct r0.
+          rewrite unfold_prod_wf in WF0. rewrite unfold_prod_add in WF0. ss. des. subst.
           gbase. eapply CIH; eauto.
-          (*** TODO: somehow... ***)
-          { admit. }
-          { admit. }
-          { admit. }
+          esplits; eauto.
       + rewrite <- 2 bind_trigger.
         gstep. eapply pind9_fold. econs; eauto.
-  Admitted.
+  Qed.
 
 End CLOSE_CONG_SIM.
 
