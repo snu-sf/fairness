@@ -849,253 +849,231 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ktr_src itr_tgt st_src
     :
-    (stsim r g Q (ktr_src tt) itr_tgt)
+    (OwnM (Auth.white (Excl.just st_src: @Excl.t state_src): stateSrcRA state_src))
       -∗
-      (OwnM (Auth.black (Excl.just st_src: @Excl.t state_src): stateSrcRA state_src))
+      ((OwnM (Auth.white (Excl.just st: @Excl.t state_src): stateSrcRA state_src))
+         -∗ (stsim r g Q (ktr_src tt) itr_tgt))
       -∗
-      ((stsim r g Q (trigger (Put st) >>= ktr_src) itr_tgt)
-         **
-         (OwnM (Auth.black (Excl.just st: @Excl.t state_src): stateSrcRA state_src)))
+      (stsim r g Q (trigger (Put st) >>= ktr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_putL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    iPoseProof (default_I_update_st_src with "D H0") as "> [D H0]".
+    iApply isim_putL. iApply ("H1" with "D H0").
   Qed.
 
   Lemma stsim_putR st r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src ktr_tgt
+        itr_src ktr_tgt st_tgt
     :
-    bi_entails
-      (stsim r g Q itr_src (ktr_tgt tt) ths im_src im_tgt st_src st)
+    (OwnM (Auth.white (Excl.just st_tgt: @Excl.t state_tgt): stateSrcRA state_tgt))
+      -∗
+      ((OwnM (Auth.white (Excl.just st: @Excl.t state_tgt): stateSrcRA state_tgt))
+         -∗ (stsim r g Q itr_src (ktr_tgt tt)))
+      -∗
       (stsim r g Q itr_src (trigger (Put st) >>= ktr_tgt))
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_putR. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "D".
+    iPoseProof (default_I_update_st_tgt with "D H0") as "> [D H0]".
+    iApply isim_putR. iApply ("H1" with "D H0").
   Qed.
 
-  Lemma stsim_getL r g R_src R_tgt
+  Lemma stsim_getL st r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ktr_src itr_tgt
     :
-    bi_entails
-      (stsim r g Q (ktr_src st_src) itr_tgt)
+    ((OwnM (Auth.white (Excl.just st: @Excl.t state_src): stateSrcRA state_src)) ∧
+       (stsim r g Q (ktr_src st) itr_tgt))
+      -∗
       (stsim r g Q (trigger (@Get _) >>= ktr_src) itr_tgt)
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_getL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "D". iApply isim_getL.
+    iAssert (⌜st_src = st⌝)%I as "%".
+    { iDestruct "H" as "[H _]". iApply (default_I_get_st_src with "D"); eauto. }
+    subst. iDestruct "H" as "[_ H]". iApply ("H" with "D").
   Qed.
 
-  Lemma stsim_getR r g R_src R_tgt
+  Lemma stsim_getR st r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         itr_src ktr_tgt
     :
-    bi_entails
-      (stsim r g Q itr_src (ktr_tgt st_tgt))
+    ((OwnM (Auth.white (Excl.just st: @Excl.t state_tgt): stateTgtRA state_tgt)) ∧
+       (stsim r g Q itr_src (ktr_tgt st)))
+      -∗
       (stsim r g Q itr_src (trigger (@Get _) >>= ktr_tgt))
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_getR. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "D". iApply isim_getR.
+    iAssert (⌜st_tgt = st⌝)%I as "%".
+    { iDestruct "H" as "[H _]". iApply (default_I_get_st_tgt with "D"); eauto. }
+    subst. iDestruct "H" as "[_ H]". iApply ("H" with "D").
   Qed.
 
   Lemma stsim_tidL r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ktr_src itr_tgt
     :
-    bi_entails
-      (stsim r g Q (ktr_src tid) itr_tgt)
+    (stsim r g Q (ktr_src tid) itr_tgt)
+      -∗
       (stsim r g Q (trigger GetTid >>= ktr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_tidL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    iApply isim_tidL. iApply ("H" with "D").
   Qed.
 
   Lemma stsim_tidR r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         itr_src ktr_tgt
     :
-    bi_entails
-      (stsim r g Q itr_src (ktr_tgt tid))
+    (stsim r g Q itr_src (ktr_tgt tid))
+      -∗
       (stsim r g Q itr_src (trigger GetTid >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_tidR. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    iApply isim_tidR. iApply ("H" with "D").
   Qed.
 
   Lemma stsim_fairL f r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src itr_tgt ths im_src0 im_tgt st_src st_tgt
+        ktr_src itr_tgt im_src0
     :
-    bi_entails
-      (∃ im_src1, ⌜fair_update im_src0 im_src1 f⌝ ∧ stsim r g Q (ktr_src tt) itr_tgt ths im_src1 im_tgt st_src st_tgt)
-      (stsim r g Q (trigger (Fair f) >>= ktr_src) itr_tgt ths im_src0 im_tgt st_src st_tgt)
-  .
+    (OwnM (Auth.white (Excl.just im_src0: @Excl.t _): identSrcRA ident_src wf_src))
+      -∗
+      (∃ im_src1, ⌜fair_update im_src0 im_src1 f⌝ ∧
+                    ((OwnM (Auth.white (Excl.just im_src1: @Excl.t _): identSrcRA ident_src wf_src)) -∗ (stsim r g Q (ktr_src tt) itr_tgt)))
+      -∗
+      (stsim r g Q (trigger (Fair f) >>= ktr_src) itr_tgt).
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_fairL.
-    rr in H. autorewrite with iprop in H. des.
-    rr in H. autorewrite with iprop in H. des.
-    rr in H. autorewrite with iprop in H.
-    esplits; eauto. muclo lsim_resetC_spec. econs; [eapply H0|..]; eauto.
+    unfold stsim. iIntros "OWN H" (? ? ? ? ?) "D".
+    iDestruct "H" as (im_src1) "[% H]".
+    iPoseProof (default_I_get_ident_src with "D OWN") as "%". subst.
+    iPoseProof (default_I_update_ident_src with "D OWN") as "> [OWN D]".
+    iPoseProof ("H" with "OWN D") as "H".
+    iApply isim_fairL. iExists _. iSplit; eauto.
   Qed.
 
   Lemma stsim_fairR f r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src ktr_tgt ths im_src im_tgt0 st_src st_tgt
+        itr_src ktr_tgt im_tgt0
     :
-    bi_entails
-      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 (sum_fmap_r f)⌝ -* stsim r g Q itr_src (ktr_tgt tt) ths im_src im_tgt1 st_src st_tgt)
-      (stsim r g Q itr_src (trigger (Fair f) >>= ktr_tgt) ths im_src im_tgt0 st_src st_tgt)
+    (OwnM (Auth.white (Excl.just im_tgt0: @Excl.t _): identTgtRA ident_tgt))
+      -∗
+      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 f⌝ -* (OwnM (Auth.white (Excl.just im_tgt1: @Excl.t _): identTgtRA ident_tgt)) -* stsim r g Q itr_src (ktr_tgt tt))
+      -∗
+      (stsim r g Q itr_src (trigger (Fair f) >>= ktr_tgt))
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_fairR. i.
-    rr in H. autorewrite with iprop in H.
-    hexploit H; eauto. i.
-    rr in H0. autorewrite with iprop in H0.
-    hexploit (H0 URA.unit); eauto.
-    { rewrite URA.unit_id. eapply URA.wf_mon; eauto. }
-    { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H1|..]; eauto. r_wf WF0.
+    unfold stsim. iIntros "OWN H"  (? ? ? ? ?) "D".
+    iPoseProof (default_I_get_ident_tgt with "D OWN") as "%". subst.
+    iApply isim_fairR. iIntros (?) "%".
+    iPoseProof (default_I_update_ident_tgt with "D OWN") as "> [OWN D]". ss.
+    hexploit imap_proj_update_r; eauto. i. des. rewrite LEFT.
+    iAssert (⌜fair_update (imap_proj_id2 im_tgt) (imap_proj_id2 im_tgt1) f⌝)%I as "UPD".
+    { auto. }
+    iPoseProof ("H" with "UPD OWN D") as "H".
+    change (imap_proj_id1 im_tgt1, imap_proj_id2 im_tgt1) with (imap_proj_id im_tgt1).
+    rewrite imap_sum_proj_id_inv2. iFrame.
   Qed.
 
   Lemma stsim_UB r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ktr_src itr_tgt
     :
-    bi_entails
-      (True)
-      (stsim r g Q (trigger Undefined >>= ktr_src) itr_tgt)
+    ⊢ (stsim r g Q (trigger Undefined >>= ktr_src) itr_tgt)
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_UB.
+    unfold stsim. iIntros (? ? ? ? ?) "D".
+    iApply isim_UB. auto.
   Qed.
 
   Lemma stsim_observe fn args r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ktr_src ktr_tgt
     :
-    bi_entails
-      (∀ ret, stsim g g Q (ktr_src ret) (ktr_tgt ret))
+    (∀ ret, stsim g g Q (ktr_src ret) (ktr_tgt ret))
+      -∗
       (stsim r g Q (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. gstep. rr. eapply pind9_fold.
-    eapply lsim_observe; eauto.
-    i. rr in H. autorewrite with iprop in H.
-    muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    iApply isim_observe. iIntros (?). iApply ("H" with "D").
   Qed.
 
   Lemma stsim_yieldL r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ktr_src ktr_tgt
     :
-    bi_entails
-      (stsim r g Q (ktr_src tt) (trigger (Yield) >>= ktr_tgt))
+    (stsim r g Q (ktr_src tt) (trigger (Yield) >>= ktr_tgt))
+      -∗
       (stsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_yieldL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    iApply isim_yieldL. iApply ("H" with "D").
   Qed.
 
   Lemma stsim_yieldR r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
+        ktr_src ktr_tgt
     :
-    bi_entails
-      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))⌝ -* stsim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
-      (stsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
+    I_aux
+      -∗
+      (I_aux -∗ ∃ im_ths0 ths, (OwnM (Auth.white (Excl.just im_ths0: @Excl.t _): identThsRA)) ** (own_threads_white ths ∧ (∀ im_ths1, (⌜fair_update im_ths0 im_ths1 (tids_fmap tid ths)⌝) -* (OwnM (Auth.white (Excl.just im_ths1: @Excl.t _): identThsRA)) -* stsim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      -∗
+      (stsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    rr in H. autorewrite with iprop in H. des. subst.
-    ii. muclo lsim_indC_spec.
-    eapply lsim_yieldR; eauto. i.
-    rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_src1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 st_src1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 st_tgt1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
-    rr in H1. autorewrite with iprop in H1.
-    hexploit (H1 r_shared1); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
-    i. rr in H. autorewrite with iprop in H. hexploit (H URA.unit); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
-    { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. r_wf VALID.
+    unfold stsim. iIntros "INV H" (? ? ? ? ?) "D".
+    iApply isim_yieldR. unfold I. iFrame.
+    iIntros (? ? ? ? ? ?) "[D INV] %". iPoseProof ("H" with "INV") as "H".
+    iPoseProof "H" as (? ?) "[OWN H]".
+    iAssert (⌜ths1 = ths0⌝)%I as "%".
+    { iDestruct "H" as "[H _]". iApply (default_I_ths_eq with "D H"). }
+    subst. iDestruct "H" as "[_ H]".
+    iPoseProof (default_I_get_ident_ths with "D OWN") as "%". subst.
+    iPoseProof (default_I_update_ident_ths with "D OWN") as "> [OWN D]". ss.
+    hexploit imap_proj_update_l; eauto. i. des. rewrite RIGHT.
+    iAssert (⌜fair_update (imap_proj_id1 im_tgt1) (imap_proj_id1 im_tgt2) (tids_fmap tid ths0)⌝)%I as "UPD".
+    { auto. }
+    iPoseProof ("H" with "UPD OWN D") as "H".
+    change (imap_proj_id1 im_tgt2, imap_proj_id2 im_tgt2) with (imap_proj_id im_tgt2).
+    rewrite imap_sum_proj_id_inv2. iFrame.
   Qed.
 
   Lemma stsim_sync r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
+        ktr_src ktr_tgt
     :
-    bi_entails
-      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))⌝ -* stsim g g Q (ktr_src tt) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
-      (stsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
-  .
+    I_aux
+      -∗
+      (I_aux -∗ ∃ im_ths0 ths, (OwnM (Auth.white (Excl.just im_ths0: @Excl.t _): identThsRA)) ** (own_threads_white ths ∧ (∀ im_ths1, (⌜fair_update im_ths0 im_ths1 (tids_fmap tid ths)⌝) -* (OwnM (Auth.white (Excl.just im_ths1: @Excl.t _): identThsRA)) -* stsim g g Q (ktr_src tt) (ktr_tgt tt))))
+      -∗
+      (stsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    rr. autorewrite with iprop. i.
-    rr in H. autorewrite with iprop in H. des. subst.
-    ii. gstep. eapply pind9_fold. eapply lsim_sync; eauto. i.
-    rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_src1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 st_src1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 st_tgt1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
-    rr in H1. autorewrite with iprop in H1.
-    hexploit (H1 r_shared1); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
-    i. rr in H. autorewrite with iprop in H. hexploit (H URA.unit); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
-    { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. r_wf VALID.
+    unfold stsim. iIntros "INV H" (? ? ? ? ?) "D".
+    iApply isim_sync. unfold I. iFrame.
+    iIntros (? ? ? ? ? ?) "[D INV] %". iPoseProof ("H" with "INV") as "H".
+    iPoseProof "H" as (? ?) "[OWN H]".
+    iAssert (⌜ths1 = ths0⌝)%I as "%".
+    { iDestruct "H" as "[H _]". iApply (default_I_ths_eq with "D H"). }
+    subst. iDestruct "H" as "[_ H]".
+    iPoseProof (default_I_get_ident_ths with "D OWN") as "%". subst.
+    iPoseProof (default_I_update_ident_ths with "D OWN") as "> [OWN D]". ss.
+    hexploit imap_proj_update_l; eauto. i. des. rewrite RIGHT.
+    iAssert (⌜fair_update (imap_proj_id1 im_tgt1) (imap_proj_id1 im_tgt2) (tids_fmap tid ths0)⌝)%I as "UPD".
+    { auto. }
+    iPoseProof ("H" with "UPD OWN D") as "H".
+    change (imap_proj_id1 im_tgt2, imap_proj_id2 im_tgt2) with (imap_proj_id im_tgt2).
+    rewrite imap_sum_proj_id_inv2. iFrame.
   Qed.
+
+
+
+  TODO
 
   Lemma stsim_base r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1110,26 +1088,6 @@ Section STATE.
 
     rr. autorewrite with iprop.
     ii. gbase. econs; eauto.
-  Qed.
-
-  Lemma unlift_mon (r0 r1: rel)
-        (MON: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
-                     itr_src itr_tgt,
-            bi_entails
-              (@r0 _ _ Q itr_src itr_tgt)
-              (#=> (@r1 _ _ Q itr_src itr_tgt)))
-    :
-    unlift r0 <9= unlift r1.
-  Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
-
-    i. dependent destruction PR.
-    hexploit MON; eauto. i.
-    rr in H. autorewrite with iprop in H.
-    hexploit H; [|eauto|..].
-    { eapply URA.wf_mon. eauto. }
-    i. rr in H0. autorewrite with iprop in H0.
-    hexploit H0; eauto. i. des. econs; eauto.
   Qed.
 
   Lemma stsim_mono_knowledge (r0 g0 r1 g1: rel) R_src R_tgt
