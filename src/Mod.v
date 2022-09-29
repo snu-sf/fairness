@@ -11,7 +11,7 @@ Set Implicit Arguments.
 Module TIdSet := NatSet.
 
 
-Notation thread_id := nat.
+Notation thread_id := nat (only parsing).
 Section TID.
 
   Definition nat_wf: WF := mk_wf Wf_nat.lt_wf.

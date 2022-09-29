@@ -84,8 +84,6 @@ Module SCMem.
         else None
     end.
 
-  Definition init: t := mk (fun _ _ => None) 0.
-
   Definition alloc (m: t) (size: nat): t * val :=
     let nb := (S m.(next_block)) in
     (mk (fun blk => if (PeanoNat.Nat.eq_dec blk nb)
@@ -206,9 +204,24 @@ Module SCMem.
         else UB
   .
 
-  Definition mod: Mod.t :=
+  Definition empty: t := mk (fun _ _ => None) 0.
+
+  Fixpoint initialize (l: list nat): t * list val :=
+    match l with
+    | hd::tl =>
+        let (m, vs) := initialize tl in
+        let (m, v) := alloc m hd in
+        (m, v::vs)
+    | [] => (empty, [])
+    end.
+
+  Definition init_gvars (l: list nat): list val := snd (initialize l).
+
+  Definition init_mem (l: list nat): t := fst (initialize l).
+
+  Definition mod (gvars: list nat): Mod.t :=
     Mod.mk
-      init
+      (init_mem gvars)
       (Mod.get_funs [("alloc", Mod.wrap_fun alloc_fun);
                      ("store", Mod.wrap_fun store_fun);
                      ("load", Mod.wrap_fun load_fun);
