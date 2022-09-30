@@ -565,6 +565,74 @@ Section SIM.
     { eapply unlift_mon; eauto. }
   Qed.
 
+  Lemma isim_mono_knowledge2 (r0 g0 r1 g1: rel) R_src R_tgt
+        (Q: R_src -> R_tgt -> shared_rel)
+        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+    :
+    (isim r0 g0 Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      -∗
+      (□(∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
+           itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+            (@r0 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+              -∗
+              (#=> (@r1 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt))))
+      -∗
+      (□(∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
+           itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+            (@g0 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+              -∗
+              (#=> (@g1 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt))))
+      -∗
+      (isim r1 g1 Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+  Admitted.
+    (* rr. autorewrite with iprop. i. *)
+    (* rr. autorewrite with iprop. i. *)
+    (* rr. autorewrite with iprop. i. *)
+    (* ii. rr in H. *)
+    (* rr in H1. autorewrite with iprop in H1. *)
+    (* rr in H3. autorewrite with iprop in H3. *)
+    (* des. *)
+    (* rr in H5. autorewrite with iprop in H5. *)
+    (* rr in H4. autorewrite with iprop in H4. *)
+    (* rr in H5. autorewrite with iprop in H5. *)
+    (* rr in H4. autorewrite with iprop in H4. *)
+    (* eapply gpaco9_gpaco. *)
+    (* { auto. } *)
+    (* hexploit (H (rp ⋅ rp0 ⋅ r_ctx)); eauto. *)
+    (* { r_wf WF0. } *)
+    (* i. muclo lsim_frameC_spec. econs. *)
+    (* i. muclo lsim_frameC_spec. econs. rewrite URA.add_assoc. *)
+    (* muclo lsim_monoC_spec. econs. *)
+    (* 2:{ eapply gpaco9_mon; eauto. *)
+    (*     { i. dependent destruction PR. subst. admit. } *)
+    (*     { i. dependent destruction PR. subst. admit. } *)
+    (* } *)
+    (* { i. *)
+
+(*           eapply *)
+
+(* ; eauto. *)
+(*     { eapply unlift_mon; eauto. } *)
+(*     { eapply unlift_mon; eauto. } *)
+
+
+
+(*     des. rr in H5. autorewrite with iprop in H5. *)
+(*     rr in H3. *)
+
+(*     r. *)
+
+(*     uipropall. *)
+(*     rr. *)
+(*     ii. rr in H. hexploit H; eauto. i. *)
+(*     eapply gpaco9_mon; eauto. *)
+(*     { eapply unlift_mon; eauto. } *)
+(*     { eapply unlift_mon; eauto. } *)
+(*   Qed. *)
+
+
   Lemma isim_coind A
         (R_src: forall (a: A), Prop)
         (R_tgt: forall (a: A), Prop)
@@ -582,7 +650,7 @@ Section SIM.
                                                      itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
                                                       @g0 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* @g1 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
                                                     **
-                                                    (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))) ** P a) (isim r g0 (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a)))
+                                                    (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))) ** P a) (isim r g1 (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a)))
     :
     (forall a, bi_entails (P a) (isim r g0 (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))).
   Proof.
@@ -611,10 +679,17 @@ Section SIM.
         ss. i. gbase. eapply CIH; eauto. r_wf WF.
       }
     }
-    clear H. i. eapply gpaco9_mon.
+    clear H. i. eapply gpaco9_gpaco.
+    { auto. }
+    eapply gpaco9_mon.
     { eapply H. eauto. }
-    { eauto. }
-    { i. eauto. }
+    { i. gbase. eauto. }
+    { i. dependent destruction PR. subst.
+      rr in REL. eapply gpaco9_mon.
+      { eapply REL; eauto. }
+      { eauto. }
+      { eauto. }
+    }
     Unshelve.
     { i. ss. i. eapply H; eauto.
       eapply URA.wf_extends; eauto. eapply URA.extends_add; eauto.
@@ -656,16 +731,76 @@ Section STATE.
 
   Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> iProp), itree srcE R_src -> itree tgtE R_tgt -> iProp).
 
-  Let lift_rel (r: rel):
-    forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
-        fun R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
-          (default_I ths im_src im_tgt st_src st_tgt)
-            **
-            (r _ _ (fun r_src r_tgt =>
-                      (∀ ths im_src im_tgt st_src st_tgt,
-                          default_I ths im_src im_tgt st_src st_tgt -* Q r_src r_tgt ths im_src im_tgt st_src st_tgt)%I) itr_src itr_tgt).
-
   Variable tid: thread_id.
+
+  Let unlift_rel
+      (r: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel): rel :=
+        fun R_src R_tgt Q itr_src itr_tgt =>
+          (∀ ths im_src im_tgt st_src st_tgt,
+              (default_I ths im_src im_tgt st_src st_tgt)
+                -*
+                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => default_I ths im_src im_tgt st_src st_tgt ** Q r_src r_tgt) itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
+
+  Let lift_rel (rr: rel):
+    forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+        fun R_src R_tgt QQ itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+          (∃ (r: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp), itree srcE R_src -> itree tgtE R_tgt -> iProp)
+             (Q: R_src -> R_tgt -> iProp)
+             (QIMPL: forall r_src r_tgt ths im_src im_tgt st_src st_tgt,
+                 bi_entails
+                   (default_I ths im_src im_tgt st_src st_tgt ** Q r_src r_tgt)
+                   (QQ r_src r_tgt ths im_src im_tgt st_src st_tgt))
+             (TT: True),
+              r R_src R_tgt Q itr_src itr_tgt ** default_I ths im_src im_tgt st_src st_tgt)%I.
+
+  Let lift_rel_mon (rr0 rr1: rel)
+      (MON: forall R_src R_tgt Q itr_src itr_tgt,
+          bi_entails
+            (rr0 R_src R_tgt Q itr_src itr_tgt)
+            (#=> rr1 R_src R_tgt Q itr_src itr_tgt))
+    :
+    forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel) itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+      bi_entails
+        (lift_rel rr0 QQ itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+        (#=> lift_rel rr1 QQ itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+  Proof.
+    unfold lift_rel. i.
+    iIntros "[% [% [% [% [H D]]]]]". iModIntro.
+    iExists r, Q, _. iFrame.
+    Unshelve.
+    { auto. }
+    { i. auto. }
+  Qed.
+
+  Lemma lift_unlift (r0: rel) (r1: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+    :
+    bi_entails
+      (∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel) itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+          @lift_rel r0 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* r1 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (∀ R_src R_tgt Q itr_src itr_tgt, r0 R_src R_tgt Q itr_src itr_tgt -* unlift_rel r1 Q itr_src itr_tgt).
+  Admitted.
+
+  Lemma unlift_lift r
+    :
+    forall R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+      (lift_rel (unlift_rel r) Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+        ⊢ (r R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+  Admitted.
+
+  Lemma unlift_rel_base r
+    :
+    forall R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+      (r R_src R_tgt Q itr_src itr_tgt)
+        -∗
+        (default_I ths im_src im_tgt st_src st_tgt)
+        -∗
+        (lift_rel
+           r
+           (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => default_I ths im_src im_tgt st_src st_tgt ** Q r_src r_tgt)
+           itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+  Admitted.
+
+  Opaque lift_rel.
 
   Definition stsim: rel -> rel -> rel :=
     fun r g
@@ -681,6 +816,107 @@ Section STATE.
                (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => default_I ths im_src im_tgt st_src st_tgt ** Q r_src r_tgt)
                itr_src itr_tgt
                ths im_src im_tgt st_src st_tgt))%I.
+
+  Lemma stsim_base r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        itr_src itr_tgt
+    :
+    bi_entails
+      (@r _ _ Q itr_src itr_tgt)
+      (stsim r g Q itr_src itr_tgt)
+  .
+  Proof.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
+    iApply isim_base.
+    iApply (unlift_rel_base with "H D").
+  Qed.
+
+  Lemma stsim_mono_knowledge (r0 g0 r1 g1: rel) R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        itr_src itr_tgt
+        (MON0: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
+                      itr_src itr_tgt,
+            bi_entails
+              (@r0 _ _ Q itr_src itr_tgt)
+              (#=> (@r1 _ _ Q itr_src itr_tgt)))
+        (MON1: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
+                      itr_src itr_tgt,
+            bi_entails
+              (@g0 _ _ Q itr_src itr_tgt)
+              (#=> (@g1 _ _ Q itr_src itr_tgt)))
+    :
+    bi_entails
+      (stsim r0 g0 Q itr_src itr_tgt)
+      (stsim r1 g1 Q itr_src itr_tgt)
+  .
+  Proof.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
+    iApply isim_mono_knowledge.
+    { eapply lift_rel_mon. eauto. }
+    { eapply lift_rel_mon. eauto. }
+    iApply ("H" with "D").
+  Qed.
+
+  Record mytype
+         (A: Type) :=
+    mk_mytype {
+        comp_a: A;
+        comp_ths: TIdSet.t;
+        comp_im_src: imap ident_src wf_src;
+        comp_im_tgt: imap (sum_tid ident_tgt) nat_wf;
+        comp_st_src: state_src;
+        comp_st_tgt: state_tgt;
+      }.
+
+  Lemma stsim_coind A
+        (R_src: forall (a: A), Prop)
+        (R_tgt: forall (a: A), Prop)
+        (Q: forall (a: A), R_src a -> R_tgt a -> iProp)
+        (itr_src : forall (a: A), itree srcE (R_src a))
+        (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
+        (P: forall (a: A), iProp)
+        (r g0: rel)
+        (COIND: forall (g1: rel) a,
+            (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
+                  itr_src itr_tgt,
+                   @g0 R_src R_tgt Q itr_src itr_tgt -* @g1 R_src R_tgt Q itr_src itr_tgt)
+                 **
+                 (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a))))
+              -∗
+              (P a)
+              -∗
+              (stsim r g1 (Q a) (itr_src a) (itr_tgt a)))
+    :
+    (forall a, bi_entails (P a) (stsim r g0 (Q a) (itr_src a) (itr_tgt a))).
+  Proof.
+    cut (forall (m: mytype A),
+            bi_entails
+              ((fun m => P m.(comp_a) ** default_I m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt)) m)
+              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => default_I ths im_src im_tgt st_src st_tgt ** Q m.(comp_a) r_src r_tgt) m)
+                    ((fun m => itr_src m.(comp_a)) m) ((fun m => itr_tgt m.(comp_a)) m) (comp_ths m) (comp_im_src m) (comp_im_tgt m) (comp_st_src m) (comp_st_tgt m))).
+    { ss. i.
+      unfold stsim. iIntros "H" (? ? ? ? ?) "D".
+      specialize (H (mk_mytype a ths im_src im_tgt st_src st_tgt)). ss.
+      iApply H. iFrame.
+    }
+    eapply isim_coind. i. iIntros "[# CIH [H D]]".
+    unfold stsim in COIND.
+    iAssert (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
+                  itr_src itr_tgt,
+                   @g0 R_src R_tgt Q itr_src itr_tgt -* @unlift_rel g1 R_src R_tgt Q itr_src itr_tgt)
+                 **
+                 (∀ a, P a -* @unlift_rel g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a))))%I with "[CIH]" as "CIH'".
+    { iPoseProof "CIH" as "# [CIH0 CIH1]". iModIntro. iSplitL.
+      { iApply (lift_unlift with "CIH0"). }
+      { unfold unlift_rel. iIntros. iSpecialize ("CIH1" $! (mk_mytype _ _ _ _ _ _)). ss.
+        iApply "CIH1". iFrame.
+      }
+    }
+    iPoseProof (COIND with "CIH' H D") as "H".
+    iApply (isim_mono_knowledge with "H").
+    { auto. }
+    { i. iIntros "H". iModIntro. iApply unlift_lift. auto. }
+  Qed.
 
   Lemma stsim_upd r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1071,10 +1307,6 @@ Section STATE.
     rewrite imap_sum_proj_id_inv2. iFrame.
   Qed.
 
-
-
-  TODO
-
   Lemma stsim_base r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         itr_src itr_tgt
@@ -1085,6 +1317,7 @@ Section STATE.
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
+    iApply isim_base. unfold lift_rel.
 
     rr. autorewrite with iprop.
     ii. gbase. econs; eauto.
