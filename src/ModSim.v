@@ -899,6 +899,18 @@ Section PRIMIVIESIM.
 
   Qed.
 
+  Lemma lsim_flag_any ps0 pt0
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        src tgt shr
+        ps1 pt1 r_ctx
+        (LSIM: lsim tid RR ps1 pt1 r_ctx src tgt shr)
+    :
+    lsim tid RR ps0 pt0 r_ctx src tgt shr.
+  Proof.
+    eapply lsim_set_prog. eapply lsim_reset_prog; eauto.
+  Qed.
+
   Variant lsim_bindRC'
           (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
           R_src1 R_tgt1
@@ -948,72 +960,431 @@ Section PRIMIVIESIM.
     f_equal. extensionality u. destruct u. auto.
   Qed.
 
-  Lemma lsim_bindRC'_spec tid
+  Lemma trigger_eq_rev E R X0 X1 (e0: E X0) (e1: E X1)
+        (ktr0: X0 -> itree E R) (ktr1: X1 -> itree E R)
+        (EQ: ITree.trigger e0 >>= ktr0 = ITree.trigger e1 >>= ktr1)
     :
-    lsim_bindRC' <10= gupaco9 (fun r => pind9 (__lsim tid r) top9) (cpn9 (fun r => pind9 (__lsim tid r) top9)).
+    X0 = X1 /\ e0 ~= e1 /\ ktr0 ~= ktr1.
   Proof.
-    assert (HINT: forall r1, monotone9 (fun r0 => pind9 (__lsim tid r0) r1)).
-    { ii. eapply pind9_mon_gen; eauto. i. eapply __lsim_mon; eauto. }
-    eapply grespect9_uclo; eauto with paco.
-    econs.
-    { ii. inv IN. econs; eauto. }
-    i. inv PR. eapply GF in REL.
-    eapply rclo9_clo_base. eapply cpn9_gupaco.
-    { eauto with paco. }
-    revert x0 x1 x2 ktr_src ktr_tgt MON.
-    revert x3 x4 x5 x8 R_tgt0 RR0 itr_tgt REL.
-    pinduction 7. i.
+    rewrite bind_trigger in EQ.
+    rewrite bind_trigger in EQ.
+    eapply f_equal with (f:=observe) in EQ. ss.
+    dependent destruction EQ. splits; auto.
+    assert (ktr0 = ktr1).
+    { extensionality a. eapply equal_f in x. eauto. }
+    subst. auto.
+  Qed.
 
-    eapply pind9_unfold in PR.
+  Lemma lsim_rev_ret
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src r_tgt shr ps pt r_ctx
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (Ret r_tgt) shr)
+    :
+    RR r_src r_tgt r_ctx shr.
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM. clear ps pt.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
     2:{ eapply _lsim_mon. }
-    rename PR into LSIM. inv LSIM; ired.
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+  Qed.
 
-    { eapply f_equal with (f := observe) in H3. ss. }
-    { eapply f_equal with (f := observe) in H3. ss. }
-    { eapply f_equal with (f := observe) in H3. ss. }
-    { eapply f_equal with (f := observe) in H3. ss. }
-    { eapply f_equal with (f := observe) in H3. ss. }
-    { eapply f_equal with (f := observe) in H3. ss. }
-    { destruct LSIM0 as [LSIM0 IND].
-      guclo lsim_indC_spec. eapply lsim_tauR.
-      hexploit IH; eauto.
-    }
-    { guclo lsim_indC_spec. eapply lsim_chooseR.
-      intros x. specialize (LSIM0 x). destruct LSIM0 as [LSIM0 IND].
-      hexploit IH; eauto.
-    }
-    { destruct LSIM0 as [LSIM0 IND].
-      guclo lsim_indC_spec. eapply lsim_putR.
-      hexploit IH; eauto.
-    }
-    { destruct LSIM0 as [LSIM0 IND].
-      guclo lsim_indC_spec. eapply lsim_getR.
-      hexploit IH; eauto.
-    }
-    { destruct LSIM0 as [LSIM0 IND].
-      guclo lsim_indC_spec. eapply lsim_tidR.
-      hexploit IH; eauto.
-    }
-    { guclo lsim_indC_spec. eapply lsim_fairR.
-      i. hexploit LSIM0; eauto. i. des. destruct H as [LSIM IND].
-      splits. hexploit IH; eauto.
-    }
-    { eapply f_equal with (f := observe) in H3. ss. }
-    { ss. destruct LSIM0 as [LSIM0 IND].
-      eapply trigger_yield_rev in H3. subst.
-      ired.
-      admit.
-    }
-    { eapply trigger_yield_rev in H3.
-      subst. revert LSIM0. ired. intros LSIM0.
+  Lemma lsim_rev_tau
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src tgt shr ps pt r_ctx
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (Tau tgt) shr)
+    :
+    lsim tid RR ps pt r_ctx (Ret r_src) tgt shr.
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
+    2:{ eapply _lsim_mon. }
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { inv LSIM0. eapply lsim_flag_any. pfold. eauto. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+  Qed.
 
-      guclo lsim_indC_spec.
-      eapply lsim_yieldR; eauto.
-      i. hexploit LSIM0; eauto. i.
-      destruct H as [LSIM IND].
+  Lemma lsim_rev_choose
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src X tgt shr ps pt r_ctx
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (Choose X) >>= tgt) shr)
+    :
+    forall x, lsim tid RR ps pt r_ctx (Ret r_src) (tgt x) shr.
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
+    2:{ eapply _lsim_mon. }
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply trigger_eq_rev in H4. des. subst.
+      i. specialize (LSIM0 x). inv LSIM0.
+      eapply lsim_flag_any. pfold. eauto. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+  Qed.
 
-      gbase.
-  Admitted.
+  Lemma inhabited_not_void X
+        (INHABITED: inhabited X)
+    :
+    X <> void.
+  Proof.
+    ii. subst. inv INHABITED. inv H.
+  Qed.
+
+  Lemma nat_not_unit
+    :
+    (nat: Type) <> unit.
+  Proof.
+    ii. assert (exists (u0 u1: nat), u0 <> u1).
+    { exists 0, 1. ss. }
+    rewrite H in H0. des. destruct u0, u1. ss.
+  Qed.
+
+  Lemma lsim_rev_tid
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src tgt shr ps pt r_ctx
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (GetTid) >>= tgt) shr)
+    :
+    lsim tid RR ps pt r_ctx (Ret r_src) (tgt tid) shr.
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
+    2:{ eapply _lsim_mon. }
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; ss.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. subst.
+      inv LSIM0. eapply lsim_flag_any. pfold. eauto. }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; eauto.
+    }
+  Qed.
+
+  Lemma lsim_rev_UB
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src tgt shr ps pt r_ctx
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (Undefined) >>= tgt) shr)
+    :
+    False.
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
+    2:{ eapply _lsim_mon. }
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply inhabited_not_void; [|eapply H4]. econs. exact 0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply inhabited_not_void; [|eapply H4]. econs. exact 0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
+    }
+  Qed.
+
+  Lemma lsim_rev_yield
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src tgt shr ps pt r_ctx
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (Yield) >>= tgt) shr)
+    :
+    False.
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
+    2:{ eapply _lsim_mon. }
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; eauto.
+    }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+  Qed.
+
+  Lemma lsim_rev_get
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src tgt ths im_src im_tgt st_src st_tgt ps pt r_ctx
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (@Get _) >>= tgt) (ths, im_src, im_tgt, st_src, st_tgt))
+    :
+    lsim tid RR ps pt r_ctx (Ret r_src) (tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt).
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
+    2:{ eapply _lsim_mon. }
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. subst.
+      inv LSIM0. eapply lsim_flag_any. pfold. eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+  Qed.
+
+  Lemma lsim_rev_put
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src tgt ths im_src im_tgt st_src st_tgt ps pt r_ctx
+        st
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (Put st) >>= tgt) (ths, im_src, im_tgt, st_src, st_tgt))
+    :
+    lsim tid RR ps pt r_ctx (Ret r_src) (tgt tt) (ths, im_src, im_tgt, st_src, st).
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
+    2:{ eapply _lsim_mon. }
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0.
+      inv LSIM0. eapply lsim_flag_any. pfold. eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; ss.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+  Qed.
+
+  Lemma lsim_rev_fair
+        tid
+        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        r_src tgt ths im_src im_tgt st_src st_tgt ps pt r_ctx
+        f
+        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (Fair f) >>= tgt) (ths, im_src, im_tgt, st_src, st_tgt))
+    :
+    forall im_tgt1
+           (FAIR: fair_update im_tgt im_tgt1 (sum_fmap_r f)),
+      (<<LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>).
+  Proof.
+    eapply lsim_reset_prog in LSIM.
+    2:{ i. reflexivity. }
+    2:{ i. reflexivity. }
+    eapply lsim_set_prog in LSIM.
+    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
+    punfold LSIM. eapply pind9_unfold in LSIM; auto.
+    2:{ eapply _lsim_mon. }
+    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; ss.
+    }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0.
+      i. specialize (LSIM0 _ FAIR).
+      inv LSIM0. eapply lsim_flag_any. pfold. eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      eapply nat_not_unit; eauto.
+    }
+    { eapply trigger_eq_rev in H4. des. exfalso.
+      clear - H4 H0 H1. subst. dependent destruction H0.
+    }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+  Qed.
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid:
     R0 -> R1 -> URA.car -> shared_rel :=
