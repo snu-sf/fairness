@@ -6,7 +6,7 @@ Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
 From Fairness Require Export ITreeLib FairBeh NatStructs.
-From Fairness Require Export Mod.
+From Fairness Require Export Mod StateRA.
 
 Set Implicit Arguments.
 
@@ -82,7 +82,6 @@ Module OMod.
       (closed_ident om m)
       (closed_st_init om m)
       (closed_funs om m).
-
 End OMod.
 
 Section RED.
@@ -107,6 +106,13 @@ Section RED.
         (r: R)
     :
     @embed_itree omd md R (Ret r) = Ret r.
+  Proof. unfold embed_itree. rewrite unfold_iter. grind. Qed.
+
+  Lemma embed_itree_tau
+        omd md
+        R itr
+    :
+    @embed_itree omd md R (Tau itr) = Tau (@embed_itree omd md R itr).
   Proof. unfold embed_itree. rewrite unfold_iter. grind. Qed.
 
   Lemma embed_itree_vis_eventE
@@ -217,6 +223,49 @@ Section RED.
     rewrite ! bind_trigger. setoid_rewrite embed_itree_vis_get. ss.
   Qed.
 
+  Lemma embed_itree_bind
+        omd md
+        A B (itr: itree _ A) (ktr: ktree _ A B)
+    :
+    @embed_itree omd md B (itr >>= ktr) =
+      (@embed_itree omd md A itr) >>= (fun a => @embed_itree omd md B (ktr a)).
+  Proof.
+    eapply bisim_is_eq. revert itr ktr. ginit. gcofix CIH; i.
+    ides itr; grind.
+    { rewrite embed_itree_ret. ired.
+      gfinal. right. eapply paco2_mon.
+      2:{ instantiate (1:=bot2). ss. }
+      eapply eq_is_bisim. auto.
+    }
+    { rewrite ! embed_itree_tau. rewrite bind_tau.
+      gstep. eapply EqTau. gbase. eauto.
+    }
+    { revert k. destruct e as [[|]|[]]; i.
+      { rewrite ! embed_itree_vis_eventE.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+      { rewrite ! embed_itree_vis_cE.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+      { rewrite ! embed_itree_vis_put.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+      { rewrite ! embed_itree_vis_get.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+    }
+  Qed.
+
+
   Local Opaque embed_itree.
 
   Lemma close_itree_ret
@@ -224,6 +273,13 @@ Section RED.
         R r
     :
     @close_itree omd md R (Ret r) = Ret r.
+  Proof. unfold close_itree. rewrite unfold_iter. grind. Qed.
+
+  Lemma close_itree_tau
+        omd md
+        R itr
+    :
+    @close_itree omd md R (Tau itr) = Tau (@close_itree omd md R itr).
   Proof. unfold close_itree. rewrite unfold_iter. grind. Qed.
 
   Lemma close_itree_vis_eventE
@@ -365,6 +421,56 @@ Section RED.
   Proof.
     rewrite bind_trigger. setoid_rewrite close_itree_vis_call. des_ifs.
     rewrite bind_trigger. auto.
+  Qed.
+
+  Lemma close_itree_bind
+        omd md
+        A B (itr: itree _ A) (ktr: ktree _ A B)
+    :
+    @close_itree omd md B (itr >>= ktr) =
+      (@close_itree omd md A itr) >>= (fun a => @close_itree omd md B (ktr a)).
+  Proof.
+    eapply bisim_is_eq. revert itr ktr. ginit. gcofix CIH; i.
+    ides itr; grind.
+    { rewrite close_itree_ret. ired.
+      gfinal. right. eapply paco2_mon.
+      2:{ instantiate (1:=bot2). ss. }
+      eapply eq_is_bisim. auto.
+    }
+    { rewrite ! close_itree_tau. rewrite bind_tau.
+      gstep. eapply EqTau. gbase. eauto.
+    }
+    { revert k. destruct e as [[[|]|[]]|[]]; i.
+      { rewrite ! close_itree_vis_eventE.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+      { rewrite ! close_itree_vis_cE.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+      { rewrite ! close_itree_vis_put.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+      { rewrite ! close_itree_vis_get.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+      { rewrite ! close_itree_vis_call. des_ifs.
+        { ired. gstep. eapply EqVis. i. ss.
+          guclo eqit_clo_bind. econs.
+          { eapply eq_is_bisim. eauto. }
+          { i. subst. ired. gstep. eapply EqTau. gbase. eauto. }
+        }
+        { ired. gstep. eapply EqVis. i. ss. }
+      }
+    }
   Qed.
 
 End RED.

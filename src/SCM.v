@@ -80,8 +80,7 @@ Module SCMem.
     | val_nat n, val_ptr p
     | val_ptr p, val_nat n =>
         if (has_permission m p)
-        then Some (if (PeanoNat.Nat.eq_dec n 0) then true else false)
-        else None
+        then Some false else None
     | val_ptr p0, val_ptr p1 =>
         if (has_permission m p0 && has_permission m p1)%bool then
           Some (if (ptr_eq_dec p0 p1) then true else false)
@@ -208,6 +207,14 @@ Module SCMem.
         else UB
   .
 
+  Definition compare_fun:
+    ktree (((@eventE ident) +' cE) +' sE t) (val * val) bool :=
+    fun '(v0, v1) =>
+      m <- trigger (@Get _);;
+      b <- unwrap (compare m v0 v1);;
+      Ret b
+  .
+
   Definition empty: t := mk (fun _ _ => None) 0.
 
   Fixpoint initialize (m: t) (l: list nat): t * list val :=
@@ -231,7 +238,8 @@ Module SCMem.
                      ("load", Mod.wrap_fun load_fun);
                      ("faa", Mod.wrap_fun faa_fun);
                      ("cas", Mod.wrap_fun cas_fun);
-                     ("cas_weak", Mod.wrap_fun cas_weak_fun)
+                     ("cas_weak", Mod.wrap_fun cas_weak_fun);
+                     ("compare", Mod.wrap_fun compare_fun)
       ]).
 End SCMem.
 
@@ -508,7 +516,7 @@ Section MEMRA.
       -∗
       (points_to l v)
       -∗
-      ∃ p, (⌜SCMem.unwrap_ptr l = Some p⌝) ** (⌜SCMem.load m p = Some v⌝).
+      ∃ p, (⌜SCMem.unwrap_ptr l = Some p /\ SCMem.load m p = Some v /\ SCMem.has_permission m p = true⌝).
   Proof.
     iIntros "[BLACK %WF] WHITE".
     unfold memory_black, points_to. des_ifs.
@@ -516,7 +524,8 @@ Section MEMRA.
     ur in H. specialize (H n). ur in H. specialize (H n0).
     unfold memory_resource_black, points_to_white in H. des_ifs.
     { ur in H. des. unfold URA.extends in H. des. ur in H. des_ifs.
-      iExists (_, _). iSplit; eauto.
+      iExists (_, _). iPureIntro. splits; auto.
+      unfold SCMem.has_permission. rewrite Heq. ss.
     }
     { ur in H. des. unfold URA.extends in H. des. ur in H. des_ifs. }
   Qed.
@@ -528,8 +537,7 @@ Section MEMRA.
       (points_to l v0)
       -∗
       ∃ p m1,
-        ((⌜SCMem.unwrap_ptr l = Some p⌝)
-           ** (⌜SCMem.store m0 p v1 = Some m1⌝)
+        ((⌜SCMem.unwrap_ptr l = Some p /\ SCMem.store m0 p v1 = Some m1⌝)
            ** #=> (memory_black m1 ** points_to l v1)).
   Proof.
     iIntros "[BLACK %WF] WHITE".
@@ -552,5 +560,72 @@ Section MEMRA.
     { iModIntro. iFrame. iPureIntro.
       unfold SCMem.mem_update. ii. ss. des_ifs; eauto.
     }
+  Qed.
+
+  Lemma memory_ra_compare_nat m n0 n1
+    :
+    (memory_black m)
+      -∗
+      (⌜SCMem.compare m (SCMem.val_nat n0) (SCMem.val_nat n1) = Some (if PeanoNat.Nat.eq_dec n0 n1 then true else false)⌝).
+  Proof.
+    iIntros "BLACK". ss.
+  Qed.
+
+  Lemma memory_ra_compare_ptr_left m n l v
+    :
+    (memory_black m)
+      -∗
+      (points_to l v)
+      -∗
+      (⌜SCMem.compare m (SCMem.val_nat n) l = Some false⌝).
+  Proof.
+    iIntros "BLACK POINT". ss.
+    iPoseProof (memory_ra_load with "BLACK POINT") as "%". des.
+    unfold SCMem.unwrap_ptr in H. des_ifs.
+  Qed.
+
+  Lemma memory_ra_compare_ptr_right m n l v
+    :
+    (memory_black m)
+      -∗
+      (points_to l v)
+      -∗
+      (⌜SCMem.compare m l (SCMem.val_nat n) = Some false⌝).
+  Proof.
+    iIntros "BLACK POINT". ss.
+    iPoseProof (memory_ra_load with "BLACK POINT") as "%". des.
+    unfold SCMem.unwrap_ptr in H. des_ifs. ss. des_ifs.
+  Qed.
+
+  Lemma memory_ra_compare_ptr_same m l v
+    :
+    (memory_black m)
+      -∗
+      (points_to l v)
+      -∗
+      (⌜SCMem.compare m l l = Some true⌝).
+  Proof.
+    iIntros "BLACK POINT". ss.
+    iPoseProof (memory_ra_load with "BLACK POINT") as "%". des.
+    unfold SCMem.unwrap_ptr in H. des_ifs. ss. des_ifs.
+  Qed.
+
+  Lemma memory_ra_compare_ptr_both m l0 v0 l1 v1
+    :
+    (memory_black m)
+      -∗
+      (points_to l0 v0)
+      -∗
+      (points_to l1 v1)
+      -∗
+      (⌜SCMem.compare m l0 l1 = Some false⌝).
+  Proof.
+    iIntros "BLACK POINT0 POINT1". ss.
+    iPoseProof (memory_ra_load with "BLACK POINT0") as "%". des.
+    iPoseProof (memory_ra_load with "BLACK POINT1") as "%". des.
+    unfold SCMem.unwrap_ptr in *. des_ifs. ss. des_ifs.
+    iCombine "POINT0 POINT1" as "POINT". iOwnWf "POINT".
+    ur in H. ur in H. specialize (H n1). specialize (H n2). ur in H.
+    unfold points_to_white in H. des_ifs. inv Heq1. ur in H. ss.
   Qed.
 End MEMRA.

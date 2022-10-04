@@ -98,10 +98,10 @@ Module Mod.
       | None => UB
       end.
 
-  Fixpoint get_funs state ident
-           (funs: list (fname * (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t)))
+  Fixpoint get_funs {ident} {E} `{@eventE ident -< E}
+           (funs: list (fname * (ktree E Any.t Any.t)))
            (fn: fname):
-    option (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t) :=
+    option (ktree E Any.t Any.t) :=
     match funs with
     | [] => None
     | (fn_hd, body_hd)::tl =>
