@@ -82,6 +82,16 @@ Module OMod.
       (closed_ident om m)
       (closed_st_init om m)
       (closed_funs om m).
+
+  Definition call {R} {ID E} `{@eventE ID -< E} `{callE -< E} {A} (fn: string) (arg: A): itree E R :=
+    r <- trigger (Call fn arg↑);;
+    unwrap (r↓)
+  .
+
+  Definition callR R {ID E} `{@eventE ID -< E} `{callE -< E} {A} (fn: string) (arg: A): itree E R :=
+    r <- trigger (Call fn arg↑);;
+    unwrap (r↓)
+  .
 End OMod.
 
 Section RED.
@@ -265,6 +275,68 @@ Section RED.
     }
   Qed.
 
+  Lemma embed_itree_trigger_eventE2
+        omd md
+        X ee
+    :
+    @embed_itree omd md X (trigger ee) =
+      trigger (embed_event_r ee) >>= (fun r => tau;; Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger ee)).
+    setoid_rewrite embed_itree_trigger_eventE. grind. apply embed_itree_ret.
+  Qed.
+
+  Lemma embed_itree_trigger_cE2
+        omd md
+        X (ce: @cE X)
+    :
+    @embed_itree omd md X (trigger ce) =
+      trigger (ce) >>= (fun r => tau;; Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger ce)).
+    setoid_rewrite embed_itree_trigger_cE. grind. apply embed_itree_ret.
+  Qed.
+
+  Lemma embed_itree_trigger_put2
+        omd md
+        st
+    :
+    @embed_itree omd md _ (trigger (Put st)) =
+      trigger (Get _) >>= (fun s => trigger (Put (update_snd s st)) >>= (fun r => tau;; Ret r)).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger (Put st))).
+    setoid_rewrite embed_itree_trigger_put. grind. destruct x0. apply embed_itree_ret.
+  Qed.
+
+  Lemma embed_itree_trigger_get2
+        omd md
+    :
+    @embed_itree omd md _ (trigger (Get _)) =
+      trigger (Get _) >>= (fun s => tau;; Ret (snd s)).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger (Get _))).
+    setoid_rewrite embed_itree_trigger_get. grind. apply embed_itree_ret.
+  Qed.
+
+  Lemma embed_itree_UB
+        omd md
+        R
+    :
+    @embed_itree omd md R UB = UB.
+  Proof.
+    unfold UB. rewrite embed_itree_bind. rewrite embed_itree_trigger_eventE2. grind.
+  Qed.
+
+  Lemma embed_itree_unwrap
+        omd md
+        X x
+    :
+    @embed_itree omd md X (unwrap x) = unwrap x.
+  Proof.
+    unfold unwrap. des_ifs.
+    { eapply embed_itree_ret. }
+    { eapply embed_itree_UB. }
+  Qed.
 
   Local Opaque embed_itree.
 
@@ -473,6 +545,119 @@ Section RED.
     }
   Qed.
 
+  Lemma close_itree_trigger_eventE2
+        omd md
+        X ee
+    :
+    @close_itree omd md X (trigger ee) =
+      trigger (embed_event_l ee) >>= (fun r => tau;; Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger ee)).
+    setoid_rewrite close_itree_trigger_eventE. grind. apply close_itree_ret.
+  Qed.
+
+  Lemma close_itree_trigger_cE2
+        omd md
+        X (ce: @cE _)
+    :
+    @close_itree omd md X (trigger ce) =
+      trigger (ce) >>= (fun r => tau;; Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger ce)).
+    setoid_rewrite close_itree_trigger_cE. grind. apply close_itree_ret.
+  Qed.
+
+  Lemma close_itree_trigger_put2
+        omd md
+        st
+    :
+    @close_itree omd md _ (trigger (Put st)) =
+      trigger (Get _) >>= (fun s => trigger (Put (update_fst s st)) >>= (fun r => tau;; Ret r)).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger (Put st))).
+    setoid_rewrite close_itree_trigger_put. grind. destruct x0. apply close_itree_ret.
+  Qed.
+
+  Lemma close_itree_trigger_get2
+        omd md
+    :
+    @close_itree omd md _ (trigger (Get _)) =
+      trigger (Get _) >>= (fun s => tau;; Ret (fst s)).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger (Get _))).
+    setoid_rewrite close_itree_trigger_get. grind. apply close_itree_ret.
+  Qed.
+
+  Lemma close_itree_trigger_call2
+        omd md
+        fn args
+    :
+    @close_itree omd md _ (trigger (Call fn args)) =
+      match (md.(Mod.funs) fn) with
+      | Some body =>
+          trigger (Yield) >>= (fun _ => embed_itree omd md (body args) >>= (fun rv => tau;; Ret rv))
+      | None => UB
+      end.
+  Proof.
+    rewrite (bind_ret_r_rev (trigger (Call _ _))).
+    setoid_rewrite close_itree_trigger_call. grind.
+    { apply close_itree_ret. }
+    { unfold UB. rewrite bind_trigger. grind. }
+  Qed.
+
+  Lemma close_itree_UB
+        omd md
+        R
+    :
+    @close_itree omd md R UB = UB.
+  Proof.
+    unfold UB. rewrite close_itree_bind. rewrite close_itree_trigger_eventE2. grind.
+  Qed.
+
+  Lemma close_itree_unwrap
+        omd md
+        X x
+    :
+    @close_itree omd md X (unwrap x) = unwrap x.
+  Proof.
+    unfold unwrap. des_ifs.
+    { eapply close_itree_ret. }
+    { eapply close_itree_UB. }
+  Qed.
+
+  Lemma close_itree_call
+        omd md
+        A R
+        fn (arg: A)
+    :
+    @close_itree omd md R (call fn arg) =
+      match (md.(Mod.funs) fn) with
+      | Some body =>
+          trigger (Yield) >>= (fun _ => embed_itree omd md (body (arg↑)) >>= (fun rv => tau;; unwrap (rv↓)))
+      | None => UB
+      end.
+  Proof.
+    unfold call. rewrite close_itree_bind. rewrite close_itree_trigger_call2. grind.
+    { apply close_itree_unwrap. }
+    { unfold UB. grind. }
+  Qed.
+
+  Lemma close_itree_callR
+        omd md
+        A R
+        fn (arg: A)
+    :
+    @close_itree omd md R (callR R fn arg) =
+      match (md.(Mod.funs) fn) with
+      | Some body =>
+          trigger (Yield) >>= (fun _ => embed_itree omd md (body (arg↑)) >>= (fun rv => tau;; unwrap (rv↓)))
+      | None => UB
+      end.
+  Proof.
+    unfold callR. rewrite close_itree_bind. rewrite close_itree_trigger_call2. grind.
+    { apply close_itree_unwrap. }
+    { unfold UB. grind. }
+  Qed.
 End RED.
 Global Opaque OMod.embed_itree.
 Global Opaque OMod.close_itree.
