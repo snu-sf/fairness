@@ -8,9 +8,7 @@ Require Import Program.
 Set Implicit Arguments.
 
 Module AddLattice.
-  Section LATTICE.
-    Variable car: Type.
-    Class t := mk {
+    Class t (car: Type) := mk {
         le: car -> car -> Prop;
         unit: car;
         add: car -> car -> car;
@@ -23,7 +21,9 @@ Module AddLattice.
         le_add_l: forall a0 a1 a2 (LE: le a1 a2), le (add a0 a1) (add a0 a2);
       }.
 
-    Context `{t}.
+  Section LATTICE.
+    Variable car: Type.
+    Context `{t car}.
 
     Definition eq (a0 a1: car): Prop := le a0 a1 /\ le a1 a0.
 
@@ -203,26 +203,25 @@ Qed.
 Module Fuel.
   Section LATTICE.
     Variable (A: Type).
-    Context `{AddLattice.t A}.
 
-    Record quotient :=
+    Record quotient `{AddLattice.t A} :=
       mk {
           collection:> A -> Prop;
           generated: exists a0, forall a1,
             collection a1 <-> AddLattice.le a0 a1;
         }.
 
-    Global Program Definition from_lattice (a: A): quotient :=
-      mk (AddLattice.le a) _.
+    Global Program Definition from_lattice `{AddLattice.t A} (a: A): quotient :=
+      mk _ (AddLattice.le a) _.
     Next Obligation.
     Proof.
       exists a. i. auto.
     Qed.
 
-    Definition le (s0 s1: quotient): Prop :=
+    Definition le `{AddLattice.t A} (s0 s1: quotient): Prop :=
       forall a, s1 a -> s0 a.
 
-    Global Program Instance le_PreOrder: PreOrder le.
+    Global Program Instance le_PreOrder `{AddLattice.t A}: PreOrder le.
     Next Obligation.
     Proof.
       ii. auto.
@@ -232,7 +231,7 @@ Module Fuel.
       ii. eauto.
     Qed.
 
-    Lemma le_anstisymmetric s0 s1
+    Lemma le_anstisymmetric`{AddLattice.t A} s0 s1
           (LE0: le s0 s1)
           (LE1: le s1 s0)
       :
@@ -246,7 +245,7 @@ Module Fuel.
       subst. f_equal. eapply proof_irrelevance.
     Qed.
 
-    Lemma ext (s0 s1: quotient)
+    Lemma ext `{AddLattice.t A} (s0 s1: quotient)
           (EXT: forall a, s0 a <-> s1 a)
       :
       s0 = s1.
@@ -256,7 +255,7 @@ Module Fuel.
       { ii. eapply EXT; auto. }
     Qed.
 
-    Lemma from_lattice_exist (s: quotient)
+    Lemma from_lattice_exist `{AddLattice.t A} (s: quotient)
       :
       exists a, s = from_lattice a.
     Proof.
@@ -264,14 +263,14 @@ Module Fuel.
       eapply ext. i. rewrite H0. ss.
     Qed.
 
-    Lemma from_lattice_le a0 a1
+    Lemma from_lattice_le `{AddLattice.t A} a0 a1
       :
       from_lattice a0 a1 <-> AddLattice.le a0 a1.
     Proof.
       ss.
     Qed.
 
-    Lemma le_iff a0 a1
+    Lemma le_iff `{AddLattice.t A} a0 a1
       :
       le (from_lattice a0) (from_lattice a1) <-> AddLattice.le a0 a1.
     Proof.
@@ -283,7 +282,7 @@ Module Fuel.
       { ii. ss. etrans; eauto. }
     Qed.
 
-    Lemma from_lattice_eq a0 a1
+    Lemma from_lattice_eq `{AddLattice.t A} a0 a1
       :
       from_lattice a0 = from_lattice a1 <-> AddLattice.eq a0 a1.
     Proof.
@@ -302,9 +301,10 @@ Module Fuel.
       }
     Qed.
 
-    Global Program Definition quotient_add (s0 s1: quotient): quotient :=
-      mk (fun a => exists a0 a1 (IN0: s0 a0) (IN1: s1 a1),
-              AddLattice.le (AddLattice.add a0 a1) a) _.
+    Global Program Definition quotient_add `{AddLattice.t A}
+           (s0 s1: quotient): quotient :=
+      mk _ (fun a => exists a0 a1 (IN0: s0 a0) (IN1: s1 a1),
+                AddLattice.le (AddLattice.add a0 a1) a) _.
     Next Obligation.
       hexploit (from_lattice_exist s0).
       hexploit (from_lattice_exist s1). i. des. subst.
@@ -321,7 +321,7 @@ Module Fuel.
       { eauto. }
     Qed.
 
-    Lemma from_lattice_add a0 a1
+    Lemma from_lattice_add `{AddLattice.t A} a0 a1
       :
       quotient_add (from_lattice a0) (from_lattice a1)
       =
@@ -341,7 +341,7 @@ Module Fuel.
       }
     Qed.
 
-    Lemma quotient_add_comm s0 s1
+    Lemma quotient_add_comm `{AddLattice.t A} s0 s1
       :
       quotient_add s0 s1
       =
@@ -353,7 +353,7 @@ Module Fuel.
       eapply from_lattice_eq. eapply AddLattice.add_comm_eq.
     Qed.
 
-    Lemma quotient_add_assoc s0 s1 s2
+    Lemma quotient_add_assoc `{AddLattice.t A} s0 s1 s2
       :
       quotient_add s0 (quotient_add s1 s2)
       =
@@ -366,39 +366,42 @@ Module Fuel.
       eapply from_lattice_eq. eapply AddLattice.add_assoc_eq.
     Qed.
 
-    Variant car: Type :=
+    Variant car `{AddLattice.t A}: Type :=
       | frag (s: quotient)
       | excl (e: quotient) (s: quotient)
       | boom
     .
 
-    Definition black (a: A): car :=
+    Definition black `{AddLattice.t A} (a: A): car :=
       excl (from_lattice a) (from_lattice (@AddLattice.unit _ _)).
 
-    Definition white (a: A): car :=
+    Definition white `{AddLattice.t A} (a: A): car :=
       frag (from_lattice a).
 
-    Definition unit: car :=
+    Definition unit `{AddLattice.t A}: car :=
       white (@AddLattice.unit _ _).
 
-    Let add := fun (a0 a1: car) =>
-                 match a0, a1 with
-                 | frag f0, frag f1 => frag (quotient_add f0 f1)
-                 | frag f0, excl e1 f1 => excl e1 (quotient_add f0 f1)
-                 | excl e0 f0, frag f1 => excl e0 (quotient_add f0 f1)
-                 | _, _ => boom
-                 end.
+    Let add `{AddLattice.t A} :=
+          fun (a0 a1: car) =>
+            match a0, a1 with
+            | frag f0, frag f1 => frag (quotient_add f0 f1)
+            | frag f0, excl e1 f1 => excl e1 (quotient_add f0 f1)
+            | excl e0 f0, frag f1 => excl e0 (quotient_add f0 f1)
+            | _, _ => boom
+            end.
 
-    Let wf := fun (a: car) =>
-                match a with
-                | frag f => True
-                | excl e f => le f e
-                | boom => False
-                end.
+    Let wf `{AddLattice.t A} :=
+          fun (a: car) =>
+            match a with
+            | frag f => True
+            | excl e f => le f e
+            | boom => False
+            end.
 
-    Let core := fun (a: car) => unit.
+    Let core `{AddLattice.t A} :=
+          fun (a: car) => unit.
 
-    Global Program Instance t: URA.t := {
+    Global Program Instance t `{AddLattice.t A}: URA.t := {
         car := car;
         unit := unit;
         _add := add;
@@ -467,7 +470,7 @@ Module Fuel.
       eapply AddLattice.add_unit_eq_r.
     Qed.
 
-    Lemma white_sum (a0 a1: A)
+    Lemma white_sum `{AddLattice.t A} (a0 a1: A)
       :
       white a0 ⋅ white a1
       =
@@ -477,7 +480,7 @@ Module Fuel.
       rewrite from_lattice_add. auto.
     Qed.
 
-    Lemma white_eq (a0 a1: A)
+    Lemma white_eq `{AddLattice.t A} (a0 a1: A)
           (EQ: AddLattice.eq a0 a1)
       :
       white a0 = white a1.
@@ -486,7 +489,7 @@ Module Fuel.
       eapply from_lattice_eq; eauto.
     Qed.
 
-    Lemma black_eq (a0 a1: A)
+    Lemma black_eq `{AddLattice.t A} (a0 a1: A)
           (EQ: AddLattice.eq a0 a1)
       :
       black a0 = black a1.
@@ -495,7 +498,7 @@ Module Fuel.
       eapply from_lattice_eq; eauto.
     Qed.
 
-    Lemma white_mon (a0 a1: A)
+    Lemma white_mon `{AddLattice.t A} (a0 a1: A)
           (LE: AddLattice.le a0 a1)
       :
       URA.updatable (white a1) (white a0).
@@ -507,7 +510,7 @@ Module Fuel.
       eapply AddLattice.le_add_r. auto.
     Qed.
 
-    Lemma black_mon (a0 a1: A)
+    Lemma black_mon `{AddLattice.t A} (a0 a1: A)
           (LE: AddLattice.le a0 a1)
       :
       URA.updatable (black a0) (black a1).
@@ -518,7 +521,7 @@ Module Fuel.
       eapply le_iff. auto.
     Qed.
 
-    Lemma success_update a0 a1
+    Lemma success_update `{AddLattice.t A} a0 a1
       :
       URA.updatable
         (black a0)
@@ -541,7 +544,7 @@ Module Fuel.
       }
     Qed.
 
-    Lemma decr_update a0 a1
+    Lemma decr_update `{AddLattice.t A} a0 a1
       :
       URA.updatable_set
         (black a0 ⋅ white a1)
@@ -655,12 +658,12 @@ Section INFSUM.
   Qed.
 
   Lemma infsum_unfold
-        (X: Type) (P: X -> M -> Prop) (r: M)
+        X Y (Q: Y -> M -> Prop) (f: Y -> X)
+        (P: X -> M -> Prop) (r: M)
         (INF: infsum P r)
-        Y (Q: Y -> M -> Prop) x
-        (f: Y -> X)
         (PRED: forall y r, P (f y) r -> Q y r)
         (INJ: forall y0 y1, f y0 = f y1 -> y0 = y1)
+        x
         (MINUS: forall y, f y <> x)
     :
     exists r0 r1,
@@ -688,7 +691,13 @@ Section INFSUM.
     :
     partial_fun_to_total f TOTAL x = y.
   Proof.
-  Admitted.
+    compute.
+    replace (fun (EQ0 : f x = None) => match TOTAL x EQ0 return Y with
+                                       end) with
+      (fun (EQ0 : f x = None) => y).
+    2:{ extensionality a. clarify. }
+    rewrite EQ. auto.
+  Qed.
 
   Lemma infsum_fold_aux
     :
@@ -701,7 +710,51 @@ Section INFSUM.
   Proof.
     ginit. gcofix CIH. i. gstep. econs. i.
     destruct x.
-    { admit. }
+    { assert (exists (f': sig (fun y => f y <> None) -> X),
+               forall y, f (proj1_sig y) = Some (f' y)).
+      { eapply (choice (fun (y: sig (fun y => f y <> None)) x => f (proj1_sig y) = Some x)).
+        i. destruct x0. ss. destruct (f x0); ss. eauto.
+      }
+      des. hexploit (@infsum_unfold X _ (fun y => Q (proj1_sig y)) f').
+      { eauto. }
+      { i. eapply PRED. rewrite H. ss. }
+      { i. assert (proj1_sig y0 = proj1_sig y1).
+        { eapply INJ. rewrite ! H. f_equal. auto. }
+        { destruct y0, y1. ss. subst. f_equal. apply proof_irrelevance. }
+      }
+      { instantiate (1:=x). ii. eapply MINUS. rewrite H. rewrite H0. auto. }
+      i. des. subst. exists r2, (r3 ⋅ r1). splits.
+      { r_solve. }
+      { ss. }
+      assert (exists (wrap: Y -> option (sig (fun y => f y <> None))),
+               forall y,
+                 match (wrap y) with
+                 | None => f y = None
+                 | Some (exist _ y' _) => y = y' /\ exists x, f y = Some x
+                 end).
+      { eapply (choice (fun y (y': option (sig (fun y => f y <> None))) =>
+                          match y' with
+                          | Some (exist _ y' _) => y = y' /\ exists x, f y = Some x
+                          | None => f y = None
+                          end)).
+        i. destruct (f x0) eqn:EQ.
+        { refine (ex_intro _ (Some (exist _ x0 _)) _).
+          { ii. clarify. }
+          { splits; eauto. }
+        }
+        { exists None. auto. }
+      }
+      des. guclo infsum_monoC_spec. econs.
+      3:{ gbase. eapply CIH; eauto. }
+      { instantiate (1:=wrap). i. specialize (H0 y). des_ifs; ss.
+        { des. subst. auto. }
+        { eapply PRED. rewrite H0. ss. }
+      }
+      { i. eapply INJ. pose proof (H0 y0). pose proof (H0 y1). des_ifs.
+        { des. subst. auto. }
+        { rewrite H4. rewrite H5. auto. }
+      }
+    }
     { exists r1, r0. splits.
       { eapply URA.add_comm. }
       { ss. }
@@ -714,24 +767,37 @@ Section INFSUM.
           i. hexploit partial_fun_to_total_eq; eauto. i.
           erewrite H0 in H. eapply PRED. rewrite EQ. ss.
         }
-        {
-  Admitted.
+        { i. destruct (f y0) eqn:EQ0.
+          2:{ destruct (MINUS _ EQ0). }
+          destruct (f y1) eqn:EQ1.
+          2:{ destruct (MINUS _ EQ1). }
+          eapply INJ; eauto.
+          erewrite partial_fun_to_total_eq in H; eauto.
+          erewrite partial_fun_to_total_eq in H; eauto.
+          rewrite EQ0. rewrite EQ1. subst. auto.
+        }
+      }
+    }
+  Qed.
 
   Lemma infsum_fold
+        (X: Type) (P0: X -> M -> Prop) (r0: M)
+        (INF: infsum P0 r0)
+        (P1: M -> Prop) (r1: M)
+        (SAT: P1 r1)
+        Y (Q: Y -> M -> Prop)
+        (f: Y -> option X)
+        (PRED0: forall y x r (EQ: f y = Some x), P0 x r -> Q y r)
+        (PRED1: forall y r (EQ: f y = None), P1 r -> Q y r)
+        (INJ: forall y0 y1, f y0 = f y1 -> y0 = y1)
     :
-    forall
-      (X: Type) (P0: X -> M -> Prop) (r0: M)
-      (INF: infsum P0 r0)
-      (P1: M -> Prop) (r1: M)
-      (SAT: P1 r1)
-      Y (Q: Y -> M -> Prop)
-      (f: Y -> option X)
-      (PRED0: forall y x r (EQ: f y = Some x), P0 x r -> Q y r)
-      (PRED1: forall y r (EQ: f y = None), P1 r -> Q y r)
-      (INJ: forall y0 y1, f y0 = f y1 -> y0 = y1),
-      infsum Q (r0 ⋅ r1).
+    infsum Q (r0 ⋅ r1).
   Proof.
-  Admitted.
+    ginit. guclo infsum_monoC_spec. econs.
+    3:{ gfinal. right. eapply infsum_fold_aux; eauto. }
+    { instantiate (1:=f). i. destruct (f y) eqn:EQ; ss; eauto. }
+    { auto. }
+  Qed.
 
   Lemma infsum_to_singleton
         (X: Type) (P: X -> M -> Prop)
@@ -749,505 +815,243 @@ Section INFSUM.
     i. des. esplits; eauto.
   Qed.
 End INFSUM.
+#[export] Hint Resolve infsum_monotone: paco.
+#[export] Hint Resolve cpn3_wcompat: paco.
+
+Lemma updatable_set_impl (M: URA.t)
+      (P0 P1: M -> Prop)
+      (IMPL: forall r, URA.wf r -> P0 r -> P1 r)
+      (m: M)
+      (UPD: URA.updatable_set m P0)
+  :
+  URA.updatable_set m P1.
+Proof.
+  ii. eapply UPD in WF; eauto. des.
+  esplits; eauto. eapply IMPL; auto.
+  eapply URA.wf_mon. eauto.
+Qed.
+
+Lemma pointwise_updatable A (M: URA.t)
+      (f0 f1: (A ==> M)%ra)
+      (UPD: forall a, URA.updatable (f0 a) (f1 a))
+  :
+  URA.updatable f0 f1.
+Proof.
+  ii. ur. i. ur in H. specialize (H k).
+  eapply (UPD k); eauto.
+Qed.
+
+Lemma pointwise_updatable_set A (M: URA.t)
+      (f: (A ==> M)%ra)
+      (P: A -> M -> Prop)
+      (UPD: forall a, URA.updatable_set (f a) (P a))
+  :
+  URA.updatable_set f (fun f' => forall a, P a (f' a)).
+Proof.
+  ii. hexploit (choice (fun a m => P a m /\ URA.wf (m ⋅ ctx a))).
+  { i. eapply (UPD x). ur in WF. auto. }
+  i. des. exists f0. splits; auto.
+  { i. specialize (H a). des. auto. }
+  { ur. i. specialize (H k). des. auto. }
+Qed.
+
+Definition maps_to_res {A} {M: URA.t}
+           a m: (A ==> M)%ra :=
+  fun a' => if excluded_middle_informative (a' = a)
+            then m
+            else URA.unit.
+
+Lemma maps_to_res_add A (M: URA.t)
+      (a: A) (m0 m1: M)
+  :
+  maps_to_res a m0 ⋅ maps_to_res a m1
+  =
+    maps_to_res a (m0 ⋅ m1).
+Proof.
+  extensionality a'. unfold maps_to_res. ur. des_ifs.
+  { ur. auto. }
+  { r_solve. }
+Qed.
+
+Lemma maps_to_updatable A (M: URA.t)
+      (a: A) (m0 m1: M)
+      (UPD: URA.updatable m0 m1)
+  :
+  URA.updatable (maps_to_res a m0) (maps_to_res a m1).
+Proof.
+  eapply pointwise_updatable. i.
+  unfold maps_to_res. des_ifs.
+Qed.
+
+Lemma maps_to_updatable_set A (M: URA.t)
+      (a: A) (m: M) (P: M -> Prop)
+      (UPD: URA.updatable_set m P)
+  :
+  URA.updatable_set
+    (maps_to_res a m)
+    (fun f => exists (m1: M), f = maps_to_res a m1 /\ P m1).
+Proof.
+  eapply updatable_set_impl; cycle 1.
+  { eapply pointwise_updatable_set.
+    instantiate (1:= fun a' m' => (a' = a -> P m') /\ (a' <> a -> m' = URA.unit)).
+    ii. unfold maps_to_res in WF. des_ifs.
+    { exploit UPD; eauto. i. des. esplits; eauto. ss. }
+    { exists URA.unit. splits; ss. }
+  }
+  { i. ss. exists (r a). splits; auto.
+    { extensionality a'. unfold maps_to_res. des_ifs.
+      specialize (H0 a'). des. auto.
+    }
+    { specialize (H0 a). des. auto. }
+  }
+Qed.
+
+Definition map_update {A} {M: URA.t}
+           (f: (A ==> M)%ra) a m :=
+  fun a' => if excluded_middle_informative (a' = a)
+            then m
+            else f a'.
+
+Definition maps_to {Σ} {A: Type} {M: URA.t} `{ING: @GRA.inG (A ==> M)%ra Σ}
+           (a: A) (m: M): iProp :=
+  OwnM (maps_to_res a m).
+
+Program Definition Infsum {Σ: GRA.t} (X: Type) (P: X -> iProp): iProp :=
+  iProp_intro (infsum Σ P) _.
+Next Obligation.
+Proof.
+  rr in LE. des. subst.
+  ginit. guclo infsum_extendC_spec. econs; eauto. gfinal. right. auto.
+Qed.
+
+Lemma pointwise_own_infsum A (M: URA.t)
+      {Σ: GRA.t} `{ING: @GRA.inG (A ==> M)%ra Σ}
+      (f: (A ==> M)%ra)
+  :
+  (OwnM f)
+    -∗
+    Infsum (fun a => OwnM (maps_to_res a (f a))).
+Proof.
+  uipropall. i. rr in H. uipropall. rr in H. des. subst.
+  ginit. guclo infsum_extendC_spec. econs; eauto.
+  clear WF ctx. revert f. gcofix CIH. i. gstep. econs. i.
+  exists (GRA.embed (maps_to_res x (f x))), (GRA.embed (map_update f x URA.unit: (A ==> M)%ra)).
+  splits.
+  { rewrite GRA.embed_add. f_equal.
+    extensionality a. ur.
+    unfold maps_to_res, map_update. des_ifs.
+    { r_solve. }
+    { r_solve. }
+  }
+  { rr. uipropall. reflexivity. }
+  guclo infsum_monoC_spec. econs.
+  3:{ gbase. eapply CIH. }
+  { instantiate (1:=f0). i. ss.
+    unfold map_update in H. des_ifs.
+    { exfalso. eapply MINUS; eauto. }
+    { eapply PRED; eauto. }
+  }
+  { auto. }
+Qed.
+
+Arguments Fuel.t A {_}.
 
 Module FairRA.
   Section FAIR.
     Variable (Id: Type).
-    Variable (O: Type).
-    Context `{AddLattice.t O}.
+    Variable (A: Type).
+    Context `{L: AddLattice.t A}.
 
     Definition t: URA.t :=
-      (Id ==> @Fuel.t O _)%ra.
-
-    Set Printing All.
-
-    Definition black (i:
-
-
-    Variable (M: URA.t).
-    Definition t: URA.t := Auth.t M.
+      (Id ==> @Fuel.t A _)%ra.
 
     Context `{ING: @GRA.inG t Σ}.
 
-    Definition curr (n: M): iProp :=
-      OwnM (Auth.black n).
+    Definition black (i: Id) (a: A): iProp :=
+      maps_to i (Fuel.black a: Fuel.t A).
 
-    Definition decr (n: M): iProp :=
-      OwnM (Auth.white n).
+    Definition white (i: Id) (a: A): iProp :=
+      maps_to i (Fuel.white a: Fuel.t A).
 
-    Lemma decr_sum (n0 n1: M)
+    Lemma white_sum i a0 a1
       :
-      (decr n0)
+      (white i a0)
         -∗
-        (decr n1)
+        (white i a1)
         -∗
-        (decr (n0 ⋅ n1)).
+        (white i (AddLattice.add a0 a1)).
     Proof.
-      iIntros "H0 H1". iCombine "H0 H1" as "H".
-      ur. ur. auto.
+      unfold white, maps_to. iIntros "H0 H1".
+      iCombine "H0 H1" as "H".
+      rewrite maps_to_res_add. rewrite (@Fuel.white_sum A L). auto.
     Qed.
 
-    Lemma decr_split (n0 n1: M)
+    Lemma white_eq a1 i a0
+          (EQ: AddLattice.eq a0 a1)
       :
-      (decr (n0 ⋅ n1))
-        -∗
-        (decr n0 ** decr n1).
+      white i a0 = white i a1.
     Proof.
-      iIntros "H". unfold decr.
-      replace (Auth.white (n0 ⋅ n1)) with (Auth.white n0 ⋅ Auth.white n1).
-      { iDestruct "H" as "[H0 H1]". iFrame. }
-      repeat ur. auto.
+      unfold white. erewrite Fuel.white_eq; eauto.
     Qed.
 
-    Lemma decr_0 (n0 n1: M)
+    Lemma black_eq a1 i a0
+          (EQ: AddLattice.eq a0 a1)
       :
-      ⊢
-        (decr URA.unit).
+      black i a0 = black i a1.
     Proof.
-      iIntros "". iApply (@OwnM_unit _ _ ING).
+      unfold black. erewrite Fuel.black_eq; eauto.
     Qed.
 
-    Lemma decr_mon (n0 n1: M)
-          (LE: URA.extends n0 n1)
+    Lemma white_mon a0 i a1
+          (LE: AddLattice.le a0 a1)
       :
-      (decr n1)
+      (white i a1)
         -∗
-        (decr n0).
+        (#=> white i a0).
     Proof.
-      rr in LE. des. subst.
-      iIntros "H". iPoseProof (decr_split with "H") as "[H0 H1]". iFrame.
+      eapply OwnM_Upd. eapply maps_to_updatable.
+      eapply Fuel.white_mon. auto.
     Qed.
 
-    Lemma curr_mon (n0 n1: M)
-          (LE: URA.extends n0 n1)
-          (WF: URA.wf n1)
+    Lemma black_mon a1 i a0
+          (LE: AddLattice.le a0 a1)
       :
-      (curr n0)
+      (black i a0)
         -∗
-        (#=> curr n1).
+        (#=> black i a1).
     Proof.
-      iIntros "H". iPoseProof (OwnM_Upd with "H") as "> H".
-      { instantiate (1:=Auth.black n1).
-        ii. ur in H. des_ifs. des.
-        ur. split; auto. etrans; eauto.
-      }
-      iModIntro. eauto.
+      eapply OwnM_Upd. eapply maps_to_updatable.
+      eapply Fuel.black_mon. auto.
     Qed.
 
-    Lemma success_update n2 n0 n1
-          (WF: URA.wf (n1 ⋅ n2))
+    Lemma success_update a1 i a0
       :
-      (decr n0)
+      (black i a0)
         -∗
-        (curr n1)
-        -∗
-        (#=> (decr n2 ** ∃ n, curr n)).
+        (#=> ((∃ a, black i a) ** (white i a1))).
     Proof.
-      iIntros "H0 H1".
-      iCombine "H1 H0" as "H".
-      iOwnWf "H".
-      iPoseProof (OwnM_Upd_set with "H") as "> H".
-      { instantiate (1:= fun r => exists ctx, r = Auth.black (n2 ⋅ ctx) ⋅ Auth.white (n2)).
-        ii. ur in WF0. des_ifs. des.
-        exists (Auth.black (n2 ⋅ f0) ⋅ Auth.white n2).
-        esplits; eauto. rewrite URA.unfold_add. ss.
-        rewrite URA.unfold_wf. ss. split.
-        { rewrite URA.unit_idl. reflexivity. }
-        { r in WF0. des. subst.
-          eapply URA.wf_mon.
-          instantiate (1:=ctx ⋅ n0). r_wf WF.
-        }
-      }
-      iDestruct "H" as "[% [% H]]". des. subst.
-      iDestruct "H" as "[H0 H1]". iModIntro.
-      iFrame. iExists _. eauto.
-    Qed.
-
-    Lemma fail_update n0 n1 n2
-          (LE: URA.extends (n0 ⋅ n1) n2)
-      :
-      (decr n2)
-        -∗
-        (decr n0 ** decr n1).
-    Proof.
-      iIntros "H". iApply decr_split.
-      iApply (decr_mon with "H"); eauto.
-    Qed.
-
-    Lemma decr_update_gen n0 n1
-      :
-      (curr n0)
-        -∗
-        (decr n1)
-        -∗
-        (#=> (∃ n, ⌜(n0 = n ⋅ n1)%nat⌝ ** curr n)).
-    Proof.
-      iIntros "H0 H1".
-      iCombine "H1 H0" as "H".
-      iOwnWf "H". rewrite URA.unfold_add in H. ss.
-      rewrite URA.unfold_wf in H. ss. des.
-      r in H. des. subst.
-      iPoseProof (OwnM_Upd with "H") as "> H".
-      { instantiate (1:=Auth.black (n1)). ii.
-        rewrite URA.unfold_add in H. ss.
-        rewrite URA.unfold_wf in H. ss. des_ifs. des.
-        rewrite URA.unfold_add. rewrite URA.unfold_wf. ss.
-        split.
-        { admit. }
-        { admit. }
-      }
-      iModIntro. iExists _. iSplit; eauto.
-      iPureIntro. r_solve. change (@URA.unit NatRA.t) with 0 in *. lia.
-
-
-
-in H. ss. des_ifs. des.
-
-
-des.
-        r in H. des.
-
-repeat ur in H1. des_ifs. des.
-        rr in H1. des. repeat ur in H1.
-        repeat ur. splits; auto. exists ctx0.
-        repeat ur. change (@URA.unit NatRA.t) with 0 in *. lia.
-      }
-      iModIntro. iExists _. iSplit; eauto.
-      iPureIntro. change (@URA.unit NatRA.t) with 0 in *. lia.
-    Qed.
-
-    Lemma decr_update n1
-      :
-      (curr n1)
-        -∗
-        (decr 1)
-        -∗
-        (#=> (∃ n0, ⌜n0 < n1⌝ ** curr n0)).
-    Proof.
-      iIntros "H0 H1".
-      iPoseProof (decr_update_gen with "H0 H1") as "> [% [% H]]".
-      iModIntro. iExists _. iSplit; eauto. iPureIntro. lia.
-    Qed.
-  End FAIRTGT.
-End FairTgtRA.
-
-
-Module FairTgtRA.
-  Section FAIRTGT.
-    Variable (M: URA.t).
-    Definition t: URA.t := Auth.t M.
-
-    Context `{ING: @GRA.inG t Σ}.
-
-    Definition curr (n: M): iProp :=
-      OwnM (Auth.black n).
-
-    Definition decr (n: M): iProp :=
-      OwnM (Auth.white n).
-
-    Lemma decr_sum (n0 n1: M)
-      :
-      (decr n0)
-        -∗
-        (decr n1)
-        -∗
-        (decr (n0 ⋅ n1)).
-    Proof.
-      iIntros "H0 H1". iCombine "H0 H1" as "H".
-      ur. ur. auto.
-    Qed.
-
-    Lemma decr_split (n0 n1: M)
-      :
-      (decr (n0 ⋅ n1))
-        -∗
-        (decr n0 ** decr n1).
-    Proof.
-      iIntros "H". unfold decr.
-      replace (Auth.white (n0 ⋅ n1)) with (Auth.white n0 ⋅ Auth.white n1).
-      { iDestruct "H" as "[H0 H1]". iFrame. }
-      repeat ur. auto.
-    Qed.
-
-    Lemma decr_0 (n0 n1: M)
-      :
-      ⊢
-        (decr URA.unit).
-    Proof.
-      iIntros "". iApply (@OwnM_unit _ _ ING).
-    Qed.
-
-    Lemma decr_mon (n0 n1: M)
-          (LE: URA.extends n0 n1)
-      :
-      (decr n1)
-        -∗
-        (decr n0).
-    Proof.
-      rr in LE. des. subst.
-      iIntros "H". iPoseProof (decr_split with "H") as "[H0 H1]". iFrame.
-    Qed.
-
-    Lemma curr_mon (n0 n1: M)
-          (LE: URA.extends n0 n1)
-          (WF: URA.wf n1)
-      :
-      (curr n0)
-        -∗
-        (#=> curr n1).
-    Proof.
-      iIntros "H". iPoseProof (OwnM_Upd with "H") as "> H".
-      { instantiate (1:=Auth.black n1).
-        ii. ur in H. des_ifs. des.
-        ur. split; auto. etrans; eauto.
-      }
-      iModIntro. eauto.
-    Qed.
-
-    Lemma success_update n2 n0 n1
-          (WF: URA.wf (n1 ⋅ n2))
-      :
-      (decr n0)
-        -∗
-        (curr n1)
-        -∗
-        (#=> (decr n2 ** ∃ n, curr n)).
-    Proof.
-      iIntros "H0 H1".
-      iCombine "H1 H0" as "H".
-      iOwnWf "H".
-      iPoseProof (OwnM_Upd_set with "H") as "> H".
-      { instantiate (1:= fun r => exists ctx, r = Auth.black (n2 ⋅ ctx) ⋅ Auth.white (n2)).
-        ii. ur in WF0. des_ifs. des.
-        exists (Auth.black (n2 ⋅ f0) ⋅ Auth.white n2).
-        esplits; eauto. rewrite URA.unfold_add. ss.
-        rewrite URA.unfold_wf. ss. split.
-        { rewrite URA.unit_idl. reflexivity. }
-        { r in WF0. des. subst.
-          eapply URA.wf_mon.
-          instantiate (1:=ctx ⋅ n0). r_wf WF.
-        }
-      }
-      iDestruct "H" as "[% [% H]]". des. subst.
-      iDestruct "H" as "[H0 H1]". iModIntro.
-      iFrame. iExists _. eauto.
-    Qed.
-
-    Lemma fail_update n0 n1 n2
-          (LE: URA.extends (n0 ⋅ n1) n2)
-      :
-      (decr n2)
-        -∗
-        (decr n0 ** decr n1).
-    Proof.
-      iIntros "H". iApply decr_split.
-      iApply (decr_mon with "H"); eauto.
-    Qed.
-
-    Lemma decr_update_gen n0 n1
-      :
-      (curr n0)
-        -∗
-        (decr n1)
-        -∗
-        (#=> (∃ n, ⌜(n0 = n ⋅ n1)%nat⌝ ** curr n)).
-    Proof.
-      iIntros "H0 H1".
-      iCombine "H1 H0" as "H".
-      iOwnWf "H". rewrite URA.unfold_add in H. ss.
-      rewrite URA.unfold_wf in H. ss. des.
-      r in H. des. subst.
-      iPoseProof (OwnM_Upd with "H") as "> H".
-      { instantiate (1:=Auth.black (n1)). ii.
-        rewrite URA.unfold_add in H. ss.
-        rewrite URA.unfold_wf in H. ss. des_ifs. des.
-        rewrite URA.unfold_add. rewrite URA.unfold_wf. ss.
-        split.
-        { admit. }
-        { admit. }
-      }
-      iModIntro. iExists _. iSplit; eauto.
-      iPureIntro. r_solve. change (@URA.unit NatRA.t) with 0 in *. lia.
-
-
-
-in H. ss. des_ifs. des.
-
-
-des.
-        r in H. des.
-
-repeat ur in H1. des_ifs. des.
-        rr in H1. des. repeat ur in H1.
-        repeat ur. splits; auto. exists ctx0.
-        repeat ur. change (@URA.unit NatRA.t) with 0 in *. lia.
-      }
-      iModIntro. iExists _. iSplit; eauto.
-      iPureIntro. change (@URA.unit NatRA.t) with 0 in *. lia.
-    Qed.
-
-    Lemma decr_update n1
-      :
-      (curr n1)
-        -∗
-        (decr 1)
-        -∗
-        (#=> (∃ n0, ⌜n0 < n1⌝ ** curr n0)).
-    Proof.
-      iIntros "H0 H1".
-      iPoseProof (decr_update_gen with "H0 H1") as "> [% [% H]]".
-      iModIntro. iExists _. iSplit; eauto. iPureIntro. lia.
-    Qed.
-  End FAIRTGT.
-End FairTgtRA.
-
-
-Module FairTgtRA.
-  Section FAIRTGT.
-    Definition t: URA.t := Auth.t NatRA.t.
-
-    Context `{ING: @GRA.inG t Σ}.
-
-    Definition curr (n: nat): iProp :=
-      OwnM (Auth.black (n: NatRA.t)).
-
-    Definition decr (n: nat): iProp :=
-      OwnM (Auth.white (n: NatRA.t)).
-
-    Lemma decr_sum (n0 n1: nat)
-      :
-      (decr n0)
-        -∗
-        (decr n1)
-        -∗
-        (decr (n0 + n1)).
-    Proof.
-      iIntros "H0 H1". iCombine "H0 H1" as "H".
-      ur. ur. auto.
-    Qed.
-
-    Lemma decr_split (n0 n1: nat)
-      :
-      (decr (n0 + n1))
-        -∗
-        (decr n0 ** decr n1).
-    Proof.
-      iIntros "H". unfold decr.
-      replace (Auth.white (n0 + n1: NatRA.t)) with (Auth.white (n0: NatRA.t) ⋅ Auth.white (n1: NatRA.t)).
-      { iDestruct "H" as "[H0 H1]". iFrame. }
-      repeat ur. auto.
-    Qed.
-
-    Lemma decr_0 (n0 n1: nat)
-      :
-      ⊢
-        (decr 0).
-    Proof.
-      iIntros "". iApply (@OwnM_unit _ _ ING).
-    Qed.
-
-    Lemma decr_mon (n0 n1: nat)
-          (LE: n0 <= n1)
-      :
-      (decr n1)
-        -∗
-        (decr n0).
-    Proof.
-      assert (exists n, n0 + n = n1).
-      { exists (n1 - n0). lia. }
-      des. subst. iIntros "H".
-      iPoseProof (decr_split with "H") as "[H0 H1]". iFrame.
-    Qed.
-
-    Lemma curr_mon (n0 n1: nat)
-          (LE: n0 <= n1)
-      :
-      (curr n0)
-        -∗
-        (#=> curr n1).
-    Proof.
-      iIntros "H". iPoseProof (OwnM_Upd with "H") as "> H".
-      { instantiate (1:=Auth.black (n1: NatRA.t)).
-        ii. repeat ur in H. des_ifs. des.
-        rr in H. des. repeat ur in H.
-        repeat ur. splits; auto. exists (n1 - e + ctx).
-        repeat ur. lia.
-      }
-      iModIntro. eauto.
-    Qed.
-
-    Lemma success_update n2 n0 n1
-      :
-      (decr n0)
-        -∗
-        (curr n1)
-        -∗
-        (#=> (decr n2 ** ∃ n, curr n)).
-    Proof.
-      iIntros "H0 H1".
-      iCombine "H1 H0" as "H".
-      iPoseProof (OwnM_Upd_set with "H") as "> H".
-      { instantiate (1:= fun r => exists ctx, r = Auth.black (n2 + ctx: NatRA.t) ⋅ Auth.white (n2: NatRA.t)).
-        ii. ur in WF. des_ifs. des.
-        exists (Auth.black (n2 + f0: NatRA.t) ⋅ Auth.white (n2: NatRA.t)).
-        esplits; eauto. repeat ur. split; auto.
-        exists 0. repeat ur. auto.
-      }
-      iDestruct "H" as "[% [% H]]". des. subst.
-      iDestruct "H" as "[H0 H1]". iModIntro.
-      iFrame. iExists _. eauto.
-    Qed.
-
-    Lemma fail_update n0 n1
-          (LT: n0 < n1)
-      :
-      (decr n1)
-        -∗
-        (decr n0 ** decr 1).
-    Proof.
-      assert (exists n, n1 = n + n0 + 1).
-      { exists (n1 - n0 - 1). lia. }
-      des. subst.
       iIntros "H".
-      iPoseProof (decr_split with "H") as "[H0 H1]".
-      iPoseProof (decr_split with "H0") as "[H0 H2]".
-      iFrame.
-    Qed.
-
-    Lemma decr_update_gen n0 n1
-      :
-      (curr n0)
-        -∗
-        (decr n1)
-        -∗
-        (#=> (∃ n, ⌜(n0 = n + n1)%nat⌝ ** curr n)).
-    Proof.
-      iIntros "H0 H1".
-      iCombine "H1 H0" as "H".
-      iOwnWf "H". repeat ur in H. des. rr in H. des.
-      ur in H. ss.
       iPoseProof (OwnM_Upd with "H") as "> H".
-      { instantiate (1:=Auth.black ctx). ii.
-        repeat ur in H1. des_ifs. des.
-        rr in H1. des. repeat ur in H1.
-        repeat ur. splits; auto. exists ctx0.
-        repeat ur. change (@URA.unit NatRA.t) with 0 in *. lia.
-      }
-      iModIntro. iExists _. iSplit; eauto.
-      iPureIntro. change (@URA.unit NatRA.t) with 0 in *. lia.
+      { eapply maps_to_updatable.
+        eapply Fuel.success_update. }
+      rewrite <- maps_to_res_add. iDestruct "H" as "[H0 H1]".
+      iModIntro. iFrame. iExists _. iFrame.
     Qed.
 
-    Lemma decr_update n1
+    Lemma decr_update i a0 a1
       :
-      (curr n1)
+      (black i a0)
         -∗
-        (decr 1)
+        (white i a1)
         -∗
-        (#=> (∃ n0, ⌜n0 < n1⌝ ** curr n0)).
+        (#=> (∃ a2, black i a2 ** ⌜AddLattice.le (AddLattice.add a1 a2) a0⌝)).
     Proof.
-      iIntros "H0 H1".
-      iPoseProof (decr_update_gen with "H0 H1") as "> [% [% H]]".
-      iModIntro. iExists _. iSplit; eauto. iPureIntro. lia.
+      iIntros "H0 H1". iCombine "H0 H1" as "H".
+      rewrite maps_to_res_add.
+      iPoseProof (OwnM_Upd_set with "H") as "> H".
+      { eapply maps_to_updatable_set. eapply Fuel.decr_update. }
+      iModIntro. ss. iDestruct "H" as "[% [% H]]".
+      des. subst. iExists _. iFrame. auto.
     Qed.
-  End FAIRTGT.
-End FairTgtRA.
+  End FAIR.
+End FairRA.
