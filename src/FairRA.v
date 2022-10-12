@@ -7,18 +7,18 @@ Require Import Program.
 
 Set Implicit Arguments.
 
-Module AddLattice.
-    Class t (car: Type) := mk {
-        le: car -> car -> Prop;
-        unit: car;
-        add: car -> car -> car;
+Module CommMonoid.
+  Class t (car: Type) :=
+    mk { le: car -> car -> Prop;
+         unit: car;
+         add: car -> car -> car;
 
-        le_PreOrder:> PreOrder le;
-        add_assoc_le: forall a0 a1 a2, le (add a0 (add a1 a2)) (add (add a0 a1) a2);
-        add_comm_le: forall a0 a1, le (add a0 a1) (add a1 a0);
-        add_unit_le_l: forall a, le (add a unit) a;
-        add_base_l: forall a0 a1, le a0 (add a0 a1);
-        le_add_l: forall a0 a1 a2 (LE: le a1 a2), le (add a0 a1) (add a0 a2);
+         le_PreOrder:> PreOrder le;
+         add_assoc_le: forall a0 a1 a2, le (add a0 (add a1 a2)) (add (add a0 a1) a2);
+         add_comm_le: forall a0 a1, le (add a0 a1) (add a1 a0);
+         add_unit_le_l: forall a, le (add a unit) a;
+         add_base_l: forall a0 a1, le a0 (add a0 a1);
+         le_add_l: forall a0 a1 a2 (LE: le a1 a2), le (add a0 a1) (add a0 a2);
       }.
 
   Section LATTICE.
@@ -149,11 +149,11 @@ Module AddLattice.
       { eapply le_add_r; eauto. }
     Qed.
   End LATTICE.
-End AddLattice.
+End CommMonoid.
 
 
-Global Program Instance nat_AddLattice: AddLattice.t nat :=
-  @AddLattice.mk _ le 0 Nat.add _ _ _ _ _ _ .
+Global Program Instance nat_CommMonoid: CommMonoid.t nat :=
+  @CommMonoid.mk _ le 0 Nat.add _ _ _ _ _ _ .
 Next Obligation. Proof. lia. Qed.
 Next Obligation. Proof. lia. Qed.
 Next Obligation. Proof. lia. Qed.
@@ -162,8 +162,8 @@ Next Obligation. Proof. lia. Qed.
 
 From Ordinal Require Import Ordinal Hessenberg.
 
-Global Program Instance ord_AddLattice: AddLattice.t Ord.t :=
-  @AddLattice.mk _ Ord.le Ord.O Hessenberg.add _ _ _ _ _ _ .
+Global Program Instance ord_CommMonoid: CommMonoid.t Ord.t :=
+  @CommMonoid.mk _ Ord.le Ord.O Hessenberg.add _ _ _ _ _ _ .
 Next Obligation.
 Proof.
   eapply Hessenberg.add_assoc.
@@ -185,43 +185,68 @@ Proof.
   eapply Hessenberg.le_add_r; eauto.
 Qed.
 
-Lemma ord_AddLattice_eq (a0 a1: Ord.t):
-  AddLattice.eq a0 a1 <-> Ord.eq a0 a1.
+Lemma ord_CommMonoid_eq (a0 a1: Ord.t):
+  CommMonoid.eq a0 a1 <-> Ord.eq a0 a1.
 Proof.
   auto.
 Qed.
 
-Lemma nat_AddLattice_eq (a0 a1: nat):
-  AddLattice.eq a0 a1 <-> a0 = a1.
+Lemma nat_CommMonoid_eq (a0 a1: nat):
+  CommMonoid.eq a0 a1 <-> a0 = a1.
 Proof.
   split.
   { i. red in H. des. ss. lia. }
   { i. subst. reflexivity. }
 Qed.
 
+Module LtMonoid.
+  Class t (car: Type) `{CommMonoid.t car} :=
+    mk { lt: car -> car -> Prop;
+         one: car;
+         lt_iff: forall a0 a1,
+           lt a0 a1 <-> CommMonoid.le (CommMonoid.add a0 one) a1;
+      }.
+End LtMonoid.
+
+Global Program Instance ord_LtMonoid: @LtMonoid.t Ord.t _ :=
+  @LtMonoid.mk _ _ Ord.lt (Ord.S Ord.O) _.
+Next Obligation.
+Proof.
+  rewrite Hessenberg.add_S_r. rewrite Hessenberg.add_O_r.
+  split; i.
+  { eapply Ord.S_supremum; auto. }
+  { eapply Ord.lt_le_lt; eauto. eapply Ord.S_lt. }
+Qed.
+
+Global Program Instance nat_LtMonoid: @LtMonoid.t nat _ :=
+  @LtMonoid.mk _ _ lt 1 _.
+Next Obligation.
+Proof.
+  lia.
+Qed.
 
 Module Fuel.
   Section LATTICE.
     Variable (A: Type).
 
-    Record quotient `{AddLattice.t A} :=
+    Record quotient `{CommMonoid.t A} :=
       mk {
           collection:> A -> Prop;
           generated: exists a0, forall a1,
-            collection a1 <-> AddLattice.le a0 a1;
+            collection a1 <-> CommMonoid.le a0 a1;
         }.
 
-    Global Program Definition from_lattice `{AddLattice.t A} (a: A): quotient :=
-      mk _ (AddLattice.le a) _.
+    Global Program Definition from_lattice `{CommMonoid.t A} (a: A): quotient :=
+      mk _ (CommMonoid.le a) _.
     Next Obligation.
     Proof.
       exists a. i. auto.
     Qed.
 
-    Definition le `{AddLattice.t A} (s0 s1: quotient): Prop :=
+    Definition le `{CommMonoid.t A} (s0 s1: quotient): Prop :=
       forall a, s1 a -> s0 a.
 
-    Global Program Instance le_PreOrder `{AddLattice.t A}: PreOrder le.
+    Global Program Instance le_PreOrder `{CommMonoid.t A}: PreOrder le.
     Next Obligation.
     Proof.
       ii. auto.
@@ -231,7 +256,7 @@ Module Fuel.
       ii. eauto.
     Qed.
 
-    Lemma le_anstisymmetric`{AddLattice.t A} s0 s1
+    Lemma le_anstisymmetric`{CommMonoid.t A} s0 s1
           (LE0: le s0 s1)
           (LE1: le s1 s0)
       :
@@ -245,7 +270,7 @@ Module Fuel.
       subst. f_equal. eapply proof_irrelevance.
     Qed.
 
-    Lemma ext `{AddLattice.t A} (s0 s1: quotient)
+    Lemma ext `{CommMonoid.t A} (s0 s1: quotient)
           (EXT: forall a, s0 a <-> s1 a)
       :
       s0 = s1.
@@ -255,7 +280,7 @@ Module Fuel.
       { ii. eapply EXT; auto. }
     Qed.
 
-    Lemma from_lattice_exist `{AddLattice.t A} (s: quotient)
+    Lemma from_lattice_exist `{CommMonoid.t A} (s: quotient)
       :
       exists a, s = from_lattice a.
     Proof.
@@ -263,16 +288,16 @@ Module Fuel.
       eapply ext. i. rewrite H0. ss.
     Qed.
 
-    Lemma from_lattice_le `{AddLattice.t A} a0 a1
+    Lemma from_lattice_le `{CommMonoid.t A} a0 a1
       :
-      from_lattice a0 a1 <-> AddLattice.le a0 a1.
+      from_lattice a0 a1 <-> CommMonoid.le a0 a1.
     Proof.
       ss.
     Qed.
 
-    Lemma le_iff `{AddLattice.t A} a0 a1
+    Lemma le_iff `{CommMonoid.t A} a0 a1
       :
-      le (from_lattice a0) (from_lattice a1) <-> AddLattice.le a0 a1.
+      le (from_lattice a0) (from_lattice a1) <-> CommMonoid.le a0 a1.
     Proof.
       split.
       { i. exploit H0.
@@ -282,9 +307,9 @@ Module Fuel.
       { ii. ss. etrans; eauto. }
     Qed.
 
-    Lemma from_lattice_eq `{AddLattice.t A} a0 a1
+    Lemma from_lattice_eq `{CommMonoid.t A} a0 a1
       :
-      from_lattice a0 = from_lattice a1 <-> AddLattice.eq a0 a1.
+      from_lattice a0 = from_lattice a1 <-> CommMonoid.eq a0 a1.
     Proof.
       split.
       { i. split.
@@ -301,18 +326,18 @@ Module Fuel.
       }
     Qed.
 
-    Global Program Definition quotient_add `{AddLattice.t A}
+    Global Program Definition quotient_add `{CommMonoid.t A}
            (s0 s1: quotient): quotient :=
       mk _ (fun a => exists a0 a1 (IN0: s0 a0) (IN1: s1 a1),
-                AddLattice.le (AddLattice.add a0 a1) a) _.
+                CommMonoid.le (CommMonoid.add a0 a1) a) _.
     Next Obligation.
       hexploit (from_lattice_exist s0).
       hexploit (from_lattice_exist s1). i. des. subst.
-      exists (AddLattice.add a a0). i. split.
+      exists (CommMonoid.add a a0). i. split.
       { i. des. etrans.
-        { eapply AddLattice.le_add_r. erewrite <- from_lattice_le. eauto. }
+        { eapply CommMonoid.le_add_r. erewrite <- from_lattice_le. eauto. }
         etrans.
-        { eapply AddLattice.le_add_l. erewrite <- from_lattice_le. eauto. }
+        { eapply CommMonoid.le_add_l. erewrite <- from_lattice_le. eauto. }
         { eauto. }
       }
       i. esplits.
@@ -321,17 +346,17 @@ Module Fuel.
       { eauto. }
     Qed.
 
-    Lemma from_lattice_add `{AddLattice.t A} a0 a1
+    Lemma from_lattice_add `{CommMonoid.t A} a0 a1
       :
       quotient_add (from_lattice a0) (from_lattice a1)
       =
-        from_lattice (AddLattice.add a0 a1).
+        from_lattice (CommMonoid.add a0 a1).
     Proof.
       eapply ext. i. split.
       { i. ss. des. etrans.
-        { eapply AddLattice.le_add_r. eauto. }
+        { eapply CommMonoid.le_add_r. eauto. }
         etrans.
-        { eapply AddLattice.le_add_l. eauto. }
+        { eapply CommMonoid.le_add_l. eauto. }
         { eauto. }
       }
       { i. ss. esplits.
@@ -341,7 +366,7 @@ Module Fuel.
       }
     Qed.
 
-    Lemma quotient_add_comm `{AddLattice.t A} s0 s1
+    Lemma quotient_add_comm `{CommMonoid.t A} s0 s1
       :
       quotient_add s0 s1
       =
@@ -350,10 +375,10 @@ Module Fuel.
       hexploit (from_lattice_exist s0).
       hexploit (from_lattice_exist s1). i. des. subst.
       rewrite ! from_lattice_add.
-      eapply from_lattice_eq. eapply AddLattice.add_comm_eq.
+      eapply from_lattice_eq. eapply CommMonoid.add_comm_eq.
     Qed.
 
-    Lemma quotient_add_assoc `{AddLattice.t A} s0 s1 s2
+    Lemma quotient_add_assoc `{CommMonoid.t A} s0 s1 s2
       :
       quotient_add s0 (quotient_add s1 s2)
       =
@@ -363,25 +388,25 @@ Module Fuel.
       hexploit (from_lattice_exist s1).
       hexploit (from_lattice_exist s2). i. des. subst.
       rewrite ! from_lattice_add.
-      eapply from_lattice_eq. eapply AddLattice.add_assoc_eq.
+      eapply from_lattice_eq. eapply CommMonoid.add_assoc_eq.
     Qed.
 
-    Variant car `{AddLattice.t A}: Type :=
+    Variant car `{CommMonoid.t A}: Type :=
       | frag (s: quotient)
       | excl (e: quotient) (s: quotient)
       | boom
     .
 
-    Definition black `{AddLattice.t A} (a: A): car :=
-      excl (from_lattice a) (from_lattice (@AddLattice.unit _ _)).
+    Definition black `{CommMonoid.t A} (a: A): car :=
+      excl (from_lattice a) (from_lattice (@CommMonoid.unit _ _)).
 
-    Definition white `{AddLattice.t A} (a: A): car :=
+    Definition white `{CommMonoid.t A} (a: A): car :=
       frag (from_lattice a).
 
-    Definition unit `{AddLattice.t A}: car :=
-      white (@AddLattice.unit _ _).
+    Definition unit `{CommMonoid.t A}: car :=
+      white (@CommMonoid.unit _ _).
 
-    Let add `{AddLattice.t A} :=
+    Let add `{CommMonoid.t A} :=
           fun (a0 a1: car) =>
             match a0, a1 with
             | frag f0, frag f1 => frag (quotient_add f0 f1)
@@ -390,7 +415,7 @@ Module Fuel.
             | _, _ => boom
             end.
 
-    Let wf `{AddLattice.t A} :=
+    Let wf `{CommMonoid.t A} :=
           fun (a: car) =>
             match a with
             | frag f => True
@@ -398,10 +423,10 @@ Module Fuel.
             | boom => False
             end.
 
-    Let core `{AddLattice.t A} :=
+    Let core `{CommMonoid.t A} :=
           fun (a: car) => unit.
 
-    Global Program Instance t `{AddLattice.t A}: URA.t := {
+    Global Program Instance t `{CommMonoid.t A}: URA.t := {
         car := car;
         unit := unit;
         _add := add;
@@ -427,12 +452,12 @@ Module Fuel.
       { f_equal.
         hexploit (from_lattice_exist s). i. des. subst.
         rewrite from_lattice_add.
-        eapply from_lattice_eq. eapply AddLattice.add_unit_eq_l.
+        eapply from_lattice_eq. eapply CommMonoid.add_unit_eq_l.
       }
       { f_equal.
         hexploit (from_lattice_exist s). i. des. subst.
         rewrite from_lattice_add.
-        eapply from_lattice_eq. eapply AddLattice.add_unit_eq_l.
+        eapply from_lattice_eq. eapply CommMonoid.add_unit_eq_l.
       }
     Qed.
     Next Obligation.
@@ -445,7 +470,7 @@ Module Fuel.
       hexploit (from_lattice_exist e). i. des. subst.
       rewrite from_lattice_add in H0.
       rewrite le_iff in H0. rewrite le_iff.
-      etrans; eauto. eapply AddLattice.add_base_l.
+      etrans; eauto. eapply CommMonoid.add_base_l.
     Qed.
     Next Obligation.
       unseal "ra". destruct a; ss.
@@ -453,13 +478,13 @@ Module Fuel.
         hexploit (from_lattice_exist s). i. des. subst.
         rewrite from_lattice_add.
         eapply from_lattice_eq.
-        eapply AddLattice.add_unit_eq_r.
+        eapply CommMonoid.add_unit_eq_r.
       }
       { f_equal.
         hexploit (from_lattice_exist s). i. des. subst.
         rewrite from_lattice_add.
         eapply from_lattice_eq.
-        eapply AddLattice.add_unit_eq_r.
+        eapply CommMonoid.add_unit_eq_r.
       }
     Qed.
     Next Obligation.
@@ -467,21 +492,21 @@ Module Fuel.
       f_equal.
       rewrite from_lattice_add.
       eapply from_lattice_eq. symmetry.
-      eapply AddLattice.add_unit_eq_r.
+      eapply CommMonoid.add_unit_eq_r.
     Qed.
 
-    Lemma white_sum `{AddLattice.t A} (a0 a1: A)
+    Lemma white_sum `{CommMonoid.t A} (a0 a1: A)
       :
       white a0 ⋅ white a1
       =
-        white (AddLattice.add a0 a1).
+        white (CommMonoid.add a0 a1).
     Proof.
       ur. unfold white. f_equal.
       rewrite from_lattice_add. auto.
     Qed.
 
-    Lemma white_eq `{AddLattice.t A} (a0 a1: A)
-          (EQ: AddLattice.eq a0 a1)
+    Lemma white_eq `{CommMonoid.t A} (a0 a1: A)
+          (EQ: CommMonoid.eq a0 a1)
       :
       white a0 = white a1.
     Proof.
@@ -489,8 +514,8 @@ Module Fuel.
       eapply from_lattice_eq; eauto.
     Qed.
 
-    Lemma black_eq `{AddLattice.t A} (a0 a1: A)
-          (EQ: AddLattice.eq a0 a1)
+    Lemma black_eq `{CommMonoid.t A} (a0 a1: A)
+          (EQ: CommMonoid.eq a0 a1)
       :
       black a0 = black a1.
     Proof.
@@ -498,8 +523,8 @@ Module Fuel.
       eapply from_lattice_eq; eauto.
     Qed.
 
-    Lemma white_mon `{AddLattice.t A} (a0 a1: A)
-          (LE: AddLattice.le a0 a1)
+    Lemma white_mon `{CommMonoid.t A} (a0 a1: A)
+          (LE: CommMonoid.le a0 a1)
       :
       URA.updatable (white a1) (white a0).
     Proof.
@@ -507,11 +532,11 @@ Module Fuel.
       etrans; eauto.
       hexploit (from_lattice_exist s0). i. des. subst.
       rewrite ! from_lattice_add. eapply le_iff.
-      eapply AddLattice.le_add_r. auto.
+      eapply CommMonoid.le_add_r. auto.
     Qed.
 
-    Lemma black_mon `{AddLattice.t A} (a0 a1: A)
-          (LE: AddLattice.le a0 a1)
+    Lemma black_mon `{CommMonoid.t A} (a0 a1: A)
+          (LE: CommMonoid.le a0 a1)
       :
       URA.updatable (black a0) (black a1).
     Proof.
@@ -521,11 +546,11 @@ Module Fuel.
       eapply le_iff. auto.
     Qed.
 
-    Lemma success_update `{AddLattice.t A} a0 a1
+    Lemma success_update `{CommMonoid.t A} a0 a1
       :
       URA.updatable
         (black a0)
-        (black (AddLattice.add a0 a1) ⋅ white a1).
+        (black (CommMonoid.add a0 a1) ⋅ white a1).
     Proof.
       ii. ur in H0. ur. unfold wf in *. des_ifs.
       hexploit (from_lattice_exist s0). i. des. subst.
@@ -533,22 +558,22 @@ Module Fuel.
       rewrite ! from_lattice_add.
       erewrite le_iff in H0. erewrite le_iff.
       etrans.
-      { eapply AddLattice.le_add_l. etrans.
-        { eapply AddLattice.add_base_r. }
+      { eapply CommMonoid.le_add_l. etrans.
+        { eapply CommMonoid.add_base_r. }
         { eapply H0. }
       }
       etrans.
-      { eapply AddLattice.add_comm_le. }
-      { eapply AddLattice.le_add_l.
-        eapply AddLattice.add_unit_le_r.
+      { eapply CommMonoid.add_comm_le. }
+      { eapply CommMonoid.le_add_l.
+        eapply CommMonoid.add_unit_le_r.
       }
     Qed.
 
-    Lemma decr_update `{AddLattice.t A} a0 a1
+    Lemma decr_update `{CommMonoid.t A} a0 a1
       :
       URA.updatable_set
         (black a0 ⋅ white a1)
-        (fun r => exists a2, r = black a2 /\ AddLattice.le (AddLattice.add a1 a2) a0).
+        (fun r => exists a2, r = black a2 /\ CommMonoid.le (CommMonoid.add a1 a2) a0).
     Proof.
       ii. ur in WF. unfold wf in WF. des_ifs.
       hexploit (from_lattice_exist s0). i. des. subst.
@@ -556,10 +581,10 @@ Module Fuel.
       eexists. esplits.
       { reflexivity. }
       { instantiate (1:=a). etrans; eauto.
-        eapply AddLattice.le_add_r. eapply AddLattice.add_base_r.
+        eapply CommMonoid.le_add_r. eapply CommMonoid.add_base_r.
       }
       ur. rewrite ! from_lattice_add. rewrite le_iff.
-      eapply AddLattice.add_unit_le_r.
+      eapply CommMonoid.add_unit_le_r.
     Qed.
   End LATTICE.
 End Fuel.
@@ -960,7 +985,7 @@ Module FairRA.
   Section FAIR.
     Variable (Id: Type).
     Variable (A: Type).
-    Context `{L: AddLattice.t A}.
+    Context `{L: CommMonoid.t A}.
 
     Definition t: URA.t :=
       (Id ==> @Fuel.t A _)%ra.
@@ -979,7 +1004,7 @@ Module FairRA.
         -∗
         (white i a1)
         -∗
-        (white i (AddLattice.add a0 a1)).
+        (white i (CommMonoid.add a0 a1)).
     Proof.
       unfold white, maps_to. iIntros "H0 H1".
       iCombine "H0 H1" as "H".
@@ -987,7 +1012,7 @@ Module FairRA.
     Qed.
 
     Lemma white_eq a1 i a0
-          (EQ: AddLattice.eq a0 a1)
+          (EQ: CommMonoid.eq a0 a1)
       :
       white i a0 = white i a1.
     Proof.
@@ -995,7 +1020,7 @@ Module FairRA.
     Qed.
 
     Lemma black_eq a1 i a0
-          (EQ: AddLattice.eq a0 a1)
+          (EQ: CommMonoid.eq a0 a1)
       :
       black i a0 = black i a1.
     Proof.
@@ -1003,7 +1028,7 @@ Module FairRA.
     Qed.
 
     Lemma white_mon a0 i a1
-          (LE: AddLattice.le a0 a1)
+          (LE: CommMonoid.le a0 a1)
       :
       (white i a1)
         -∗
@@ -1014,7 +1039,7 @@ Module FairRA.
     Qed.
 
     Lemma black_mon a1 i a0
-          (LE: AddLattice.le a0 a1)
+          (LE: CommMonoid.le a0 a1)
       :
       (black i a0)
         -∗
@@ -1044,7 +1069,7 @@ Module FairRA.
         -∗
         (white i a1)
         -∗
-        (#=> (∃ a2, black i a2 ** ⌜AddLattice.le (AddLattice.add a1 a2) a0⌝)).
+        (#=> (∃ a2, black i a2 ** ⌜CommMonoid.le (CommMonoid.add a1 a2) a0⌝)).
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
       rewrite maps_to_res_add.
@@ -1063,7 +1088,7 @@ Module FairRA.
                (u: A)
                (S F: Id -> Prop)
                (EMPTY: forall i (FAIL: ~ F i) (SUCC: ~ S i), f1 i = f0 i)
-               (FAIL: forall i (FAIL: F i) (SUCC: ~ S i), AddLattice.le (AddLattice.add u (f1 i)) (f0 i))
+               (FAIL: forall i (FAIL: F i) (SUCC: ~ S i), CommMonoid.le (CommMonoid.add u (f1 i)) (f0 i))
       :
       (whites f0)
         -∗
@@ -1098,7 +1123,7 @@ Module FairRA.
                   (Infsum (fun i: sig S => white (proj1_sig i) n))
                   **
                   ⌜((forall i (FAIL: ~ F i) (SUCC: ~ S i), f1 i = f0 i) /\
-                      (forall i (FAIL: F i) (SUCC: ~ S i), AddLattice.le (AddLattice.add u (f1 i)) (f0 i)))⌝))).
+                      (forall i (FAIL: F i) (SUCC: ~ S i), CommMonoid.le (CommMonoid.add u (f1 i)) (f0 i)))⌝))).
     Proof.
     Admitted.
   End FAIR.
