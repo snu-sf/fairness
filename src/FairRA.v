@@ -1053,5 +1053,53 @@ Module FairRA.
       iModIntro. ss. iDestruct "H" as "[% [% H]]".
       des. subst. iExists _. iFrame. auto.
     Qed.
+
+    (* Target *)
+    Definition whites (f: Id -> A): iProp :=
+      OwnM ((fun i => Fuel.white (f i)): (Id ==> Fuel.t A)%ra).
+
+    Definition whites_update
+               (f0 f1: Id -> A)
+               (u: A)
+               (S F: Id -> Prop)
+               (EMPTY: forall i (FAIL: ~ F i) (SUCC: ~ S i), f1 i = f0 i)
+               (FAIL: forall i (FAIL: F i) (SUCC: ~ S i), AddLattice.le (AddLattice.add u (f1 i)) (f0 i))
+      :
+      (whites f0)
+        -∗
+        (Infsum (fun i: sig S => (∃ a, black (proj1_sig i) a)%I))
+        -∗
+        (#=>
+           ((whites f1)
+              **
+              (Infsum (fun i: sig S => (∃ a, black (proj1_sig i) a)%I))
+              **
+              (Infsum (fun i: sig F => white (proj1_sig i) u)))).
+    Proof.
+    Admitted.
+
+    (* Source *)
+    Definition blacks (f: Id -> A): iProp :=
+      OwnM ((fun i => Fuel.black (f i)): (Id ==> Fuel.t A)%ra).
+
+    Definition blacks_update
+               (f0: Id -> A)
+               (u: A) (n: A)
+               (S F: Id -> Prop)
+      :
+      (blacks f0)
+        -∗
+        (Infsum (fun i: sig F => white (proj1_sig i) u))
+        -∗
+        (#=>
+           (∃ (f1: Id -> A),
+               ((blacks f1)
+                  **
+                  (Infsum (fun i: sig S => white (proj1_sig i) n))
+                  **
+                  ⌜((forall i (FAIL: ~ F i) (SUCC: ~ S i), f1 i = f0 i) /\
+                      (forall i (FAIL: F i) (SUCC: ~ S i), AddLattice.le (AddLattice.add u (f1 i)) (f0 i)))⌝))).
+    Proof.
+    Admitted.
   End FAIR.
 End FairRA.
