@@ -169,6 +169,15 @@ Module FiniteMap.
       }
     Qed.
 
+    Lemma singleton_extends k m0 m1
+          (UPD: @URA.extends M m0 m1)
+      :
+      URA.extends (singleton k m0) (singleton k m1).
+    Proof.
+      r in UPD. des. exists (singleton k ctx).
+      rewrite singleton_add. subst. auto.
+    Qed.
+
     Lemma singleton_updatable_set k m s
           (UPD: @URA.updatable_set M m s)
       :

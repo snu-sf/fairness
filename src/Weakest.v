@@ -629,7 +629,7 @@ Section SIM.
   Qed.
 End SIM.
 
-From Fairness Require Import ThreadsRA StateRA.
+From Fairness Require Import ThreadsRA StateRA FairRA.
 
 Section STATE.
   Context `{Σ: GRA.t}.
@@ -641,6 +641,8 @@ Section STATE.
   Variable ident_tgt: ID.
 
   Variable wf_src: WF.
+  Context `{CommMonoid.t wf_src.(T)}.
+  Context `{@LtMonoid.t wf_src.(T) _}.
 
   Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
@@ -656,6 +658,9 @@ Section STATE.
   Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src wf_src) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
   Context `{IDENTTHS: @GRA.inG identThsRA Σ}.
+  Context `{FAIRSRC: @GRA.inG (@FairRA.t ident_src wf_src.(T) _) Σ}.
+  Context `{FAIRTGT: @GRA.inG (@FairRA.t ident_tgt nat _) Σ}.
+  Context `{FAIRTHS: @GRA.inG (@FairRA.t thread_id nat _) Σ}.
 
   Let I: shared_rel :=
         fun ths im_src im_tgt st_src st_tgt =>

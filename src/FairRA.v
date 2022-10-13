@@ -2,12 +2,12 @@ From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
-From Fairness Require Import Axioms MonotonePCM.
+From Fairness Require Import Axioms.
 Require Import Program.
 
 Set Implicit Arguments.
 
-Module CommMonoid.
+Module OrderedCM.
   Class t (car: Type) :=
     mk { le: car -> car -> Prop;
          unit: car;
@@ -21,7 +21,7 @@ Module CommMonoid.
          le_add_l: forall a0 a1 a2 (LE: le a1 a2), le (add a0 a1) (add a0 a2);
       }.
 
-  Section LATTICE.
+  Section MONOID.
     Variable car: Type.
     Context `{t car}.
 
@@ -148,12 +148,12 @@ Module CommMonoid.
       { eapply le_add_r; eauto. }
       { eapply le_add_r; eauto. }
     Qed.
-  End LATTICE.
-End CommMonoid.
+  End MONOID.
+End OrderedCM.
 
 
-Global Program Instance nat_CommMonoid: CommMonoid.t nat :=
-  @CommMonoid.mk _ le 0 Nat.add _ _ _ _ _ _ .
+Global Program Instance nat_OrderedCM: OrderedCM.t nat :=
+  @OrderedCM.mk _ le 0 Nat.add _ _ _ _ _ _ .
 Next Obligation. Proof. lia. Qed.
 Next Obligation. Proof. lia. Qed.
 Next Obligation. Proof. lia. Qed.
@@ -162,8 +162,8 @@ Next Obligation. Proof. lia. Qed.
 
 From Ordinal Require Import Ordinal Hessenberg.
 
-Global Program Instance ord_CommMonoid: CommMonoid.t Ord.t :=
-  @CommMonoid.mk _ Ord.le Ord.O Hessenberg.add _ _ _ _ _ _ .
+Global Program Instance ord_OrderedCM: OrderedCM.t Ord.t :=
+  @OrderedCM.mk _ Ord.le Ord.O Hessenberg.add _ _ _ _ _ _ .
 Next Obligation.
 Proof.
   eapply Hessenberg.add_assoc.
@@ -185,31 +185,31 @@ Proof.
   eapply Hessenberg.le_add_r; eauto.
 Qed.
 
-Lemma ord_CommMonoid_eq (a0 a1: Ord.t):
-  CommMonoid.eq a0 a1 <-> Ord.eq a0 a1.
+Lemma ord_OrderedCM_eq (a0 a1: Ord.t):
+  OrderedCM.eq a0 a1 <-> Ord.eq a0 a1.
 Proof.
   auto.
 Qed.
 
-Lemma nat_CommMonoid_eq (a0 a1: nat):
-  CommMonoid.eq a0 a1 <-> a0 = a1.
+Lemma nat_OrderedCM_eq (a0 a1: nat):
+  OrderedCM.eq a0 a1 <-> a0 = a1.
 Proof.
   split.
   { i. red in H. des. ss. lia. }
   { i. subst. reflexivity. }
 Qed.
 
-Module LtMonoid.
-  Class t (car: Type) `{CommMonoid.t car} :=
+Module SOrderedCM.
+  Class t (car: Type) `{OrderedCM.t car} :=
     mk { lt: car -> car -> Prop;
          one: car;
          lt_iff: forall a0 a1,
-           lt a0 a1 <-> CommMonoid.le (CommMonoid.add a0 one) a1;
+           lt a0 a1 <-> OrderedCM.le (OrderedCM.add a0 one) a1;
       }.
-End LtMonoid.
+End SOrderedCM.
 
-Global Program Instance ord_LtMonoid: @LtMonoid.t Ord.t _ :=
-  @LtMonoid.mk _ _ Ord.lt (Ord.S Ord.O) _.
+Global Program Instance ord_SOrderedCM: @SOrderedCM.t Ord.t _ :=
+  @SOrderedCM.mk _ _ Ord.lt (Ord.S Ord.O) _.
 Next Obligation.
 Proof.
   rewrite Hessenberg.add_S_r. rewrite Hessenberg.add_O_r.
@@ -218,35 +218,120 @@ Proof.
   { eapply Ord.lt_le_lt; eauto. eapply Ord.S_lt. }
 Qed.
 
-Global Program Instance nat_LtMonoid: @LtMonoid.t nat _ :=
-  @LtMonoid.mk _ _ lt 1 _.
+Global Program Instance nat_SOrderedCM: @SOrderedCM.t nat _ :=
+  @SOrderedCM.mk _ _ lt 1 _.
 Next Obligation.
 Proof.
   lia.
 Qed.
 
+Definition prod_add A0 B0 C0 A1 B1 C1
+           (f0: A0 -> B0 -> C0)
+           (f1: A1 -> B1 -> C1)
+  :
+  (A0 * A1) -> (B0 * B1) -> (C0 * C1) :=
+  fun '(a0, a1) '(b0, b1) => (f0 a0 b0, f1 a1 b1).
+
+Global Program Instance prod_OrderedCM A B `{OrderedCM.t A} `{OrderedCM.t B}
+  : OrderedCM.t (A * B)%type :=
+  @OrderedCM.mk
+    _ (prod_relation OrderedCM.le OrderedCM.le)
+    (OrderedCM.unit, OrderedCM.unit)
+    (prod_add OrderedCM.add OrderedCM.add)
+    _ _ _ _ _ _.
+Next Obligation.
+Proof.
+  econs.
+  { ii. destruct x; ss. econs; ss; reflexivity. }
+  { ii. inv H1. inv H2. econs; etrans; eauto. }
+Qed.
+Next Obligation.
+Proof.
+  econs; ss.
+  { eapply OrderedCM.add_assoc_le. }
+  { eapply OrderedCM.add_assoc_le. }
+Qed.
+Next Obligation.
+Proof.
+  econs; ss.
+  { eapply OrderedCM.add_comm_le. }
+  { eapply OrderedCM.add_comm_le. }
+Qed.
+Next Obligation.
+Proof.
+  econs; ss.
+  { eapply OrderedCM.add_unit_le_l. }
+  { eapply OrderedCM.add_unit_le_l. }
+Qed.
+Next Obligation.
+Proof.
+  econs; ss.
+  { eapply OrderedCM.add_base_l. }
+  { eapply OrderedCM.add_base_l. }
+Qed.
+Next Obligation.
+Proof.
+  inv LE. econs; ss.
+  { eapply OrderedCM.le_add_l; auto. }
+  { eapply OrderedCM.le_add_l; auto. }
+Qed.
+
+Global Program Instance bool_OrderedCM
+  : OrderedCM.t bool :=
+  @OrderedCM.mk
+    _ implb
+    false
+    orb
+    _ _ _ _ _ _.
+Next Obligation.
+Proof.
+  econs.
+  { ii. destruct x; auto. }
+  { ii. destruct x, y; ss. }
+Qed.
+Next Obligation.
+Proof.
+  destruct a0, a1, a2; ss.
+Qed.
+Next Obligation.
+Proof.
+  destruct a0, a1; ss.
+Qed.
+Next Obligation.
+Proof.
+  destruct a; ss.
+Qed.
+Next Obligation.
+Proof.
+  destruct a0, a1; ss.
+Qed.
+Next Obligation.
+Proof.
+  destruct a0, a1, a2; ss.
+Qed.
+
 Module Fuel.
-  Section LATTICE.
+  Section MONOID.
     Variable (A: Type).
 
-    Record quotient `{CommMonoid.t A} :=
+    Record quotient `{OrderedCM.t A} :=
       mk {
           collection:> A -> Prop;
           generated: exists a0, forall a1,
-            collection a1 <-> CommMonoid.le a0 a1;
+            collection a1 <-> OrderedCM.le a0 a1;
         }.
 
-    Global Program Definition from_lattice `{CommMonoid.t A} (a: A): quotient :=
-      mk _ (CommMonoid.le a) _.
+    Global Program Definition from_monoid `{OrderedCM.t A} (a: A): quotient :=
+      mk _ (OrderedCM.le a) _.
     Next Obligation.
     Proof.
       exists a. i. auto.
     Qed.
 
-    Definition le `{CommMonoid.t A} (s0 s1: quotient): Prop :=
+    Definition le `{OrderedCM.t A} (s0 s1: quotient): Prop :=
       forall a, s1 a -> s0 a.
 
-    Global Program Instance le_PreOrder `{CommMonoid.t A}: PreOrder le.
+    Global Program Instance le_PreOrder `{OrderedCM.t A}: PreOrder le.
     Next Obligation.
     Proof.
       ii. auto.
@@ -256,7 +341,7 @@ Module Fuel.
       ii. eauto.
     Qed.
 
-    Lemma le_anstisymmetric`{CommMonoid.t A} s0 s1
+    Lemma le_anstisymmetric`{OrderedCM.t A} s0 s1
           (LE0: le s0 s1)
           (LE1: le s1 s0)
       :
@@ -270,7 +355,7 @@ Module Fuel.
       subst. f_equal. eapply proof_irrelevance.
     Qed.
 
-    Lemma ext `{CommMonoid.t A} (s0 s1: quotient)
+    Lemma ext `{OrderedCM.t A} (s0 s1: quotient)
           (EXT: forall a, s0 a <-> s1 a)
       :
       s0 = s1.
@@ -280,83 +365,83 @@ Module Fuel.
       { ii. eapply EXT; auto. }
     Qed.
 
-    Lemma from_lattice_exist `{CommMonoid.t A} (s: quotient)
+    Lemma from_monoid_exist `{OrderedCM.t A} (s: quotient)
       :
-      exists a, s = from_lattice a.
+      exists a, s = from_monoid a.
     Proof.
       hexploit generated. i. des. exists a0.
       eapply ext. i. rewrite H0. ss.
     Qed.
 
-    Lemma from_lattice_le `{CommMonoid.t A} a0 a1
+    Lemma from_monoid_le `{OrderedCM.t A} a0 a1
       :
-      from_lattice a0 a1 <-> CommMonoid.le a0 a1.
+      from_monoid a0 a1 <-> OrderedCM.le a0 a1.
     Proof.
       ss.
     Qed.
 
-    Lemma le_iff `{CommMonoid.t A} a0 a1
+    Lemma le_iff `{OrderedCM.t A} a0 a1
       :
-      le (from_lattice a0) (from_lattice a1) <-> CommMonoid.le a0 a1.
+      le (from_monoid a0) (from_monoid a1) <-> OrderedCM.le a0 a1.
     Proof.
       split.
       { i. exploit H0.
         { s. reflexivity. }
-        i. rewrite <- from_lattice_le. ss.
+        i. rewrite <- from_monoid_le. ss.
       }
       { ii. ss. etrans; eauto. }
     Qed.
 
-    Lemma from_lattice_eq `{CommMonoid.t A} a0 a1
+    Lemma from_monoid_eq `{OrderedCM.t A} a0 a1
       :
-      from_lattice a0 = from_lattice a1 <-> CommMonoid.eq a0 a1.
+      from_monoid a0 = from_monoid a1 <-> OrderedCM.eq a0 a1.
     Proof.
       split.
       { i. split.
-        { rewrite <- from_lattice_le. rewrite H0. ss. reflexivity. }
-        { rewrite <- from_lattice_le. rewrite <- H0. ss. reflexivity. }
+        { rewrite <- from_monoid_le. rewrite H0. ss. reflexivity. }
+        { rewrite <- from_monoid_le. rewrite <- H0. ss. reflexivity. }
       }
       { i. red in H0. des. eapply ext. i. etrans.
-        { eapply from_lattice_le. }
+        { eapply from_monoid_le. }
         etrans.
-        2:{ symmetry. eapply from_lattice_le. }
+        2:{ symmetry. eapply from_monoid_le. }
         split. i.
         { etransitivity; eauto. }
         { etransitivity; eauto. }
       }
     Qed.
 
-    Global Program Definition quotient_add `{CommMonoid.t A}
+    Global Program Definition quotient_add `{OrderedCM.t A}
            (s0 s1: quotient): quotient :=
       mk _ (fun a => exists a0 a1 (IN0: s0 a0) (IN1: s1 a1),
-                CommMonoid.le (CommMonoid.add a0 a1) a) _.
+                OrderedCM.le (OrderedCM.add a0 a1) a) _.
     Next Obligation.
-      hexploit (from_lattice_exist s0).
-      hexploit (from_lattice_exist s1). i. des. subst.
-      exists (CommMonoid.add a a0). i. split.
+      hexploit (from_monoid_exist s0).
+      hexploit (from_monoid_exist s1). i. des. subst.
+      exists (OrderedCM.add a a0). i. split.
       { i. des. etrans.
-        { eapply CommMonoid.le_add_r. erewrite <- from_lattice_le. eauto. }
+        { eapply OrderedCM.le_add_r. erewrite <- from_monoid_le. eauto. }
         etrans.
-        { eapply CommMonoid.le_add_l. erewrite <- from_lattice_le. eauto. }
+        { eapply OrderedCM.le_add_l. erewrite <- from_monoid_le. eauto. }
         { eauto. }
       }
       i. esplits.
-      { erewrite from_lattice_le. reflexivity. }
-      { erewrite from_lattice_le. reflexivity. }
+      { erewrite from_monoid_le. reflexivity. }
+      { erewrite from_monoid_le. reflexivity. }
       { eauto. }
     Qed.
 
-    Lemma from_lattice_add `{CommMonoid.t A} a0 a1
+    Lemma from_monoid_add `{OrderedCM.t A} a0 a1
       :
-      quotient_add (from_lattice a0) (from_lattice a1)
+      quotient_add (from_monoid a0) (from_monoid a1)
       =
-        from_lattice (CommMonoid.add a0 a1).
+        from_monoid (OrderedCM.add a0 a1).
     Proof.
       eapply ext. i. split.
       { i. ss. des. etrans.
-        { eapply CommMonoid.le_add_r. eauto. }
+        { eapply OrderedCM.le_add_r. eauto. }
         etrans.
-        { eapply CommMonoid.le_add_l. eauto. }
+        { eapply OrderedCM.le_add_l. eauto. }
         { eauto. }
       }
       { i. ss. esplits.
@@ -366,47 +451,47 @@ Module Fuel.
       }
     Qed.
 
-    Lemma quotient_add_comm `{CommMonoid.t A} s0 s1
+    Lemma quotient_add_comm `{OrderedCM.t A} s0 s1
       :
       quotient_add s0 s1
       =
         quotient_add s1 s0.
     Proof.
-      hexploit (from_lattice_exist s0).
-      hexploit (from_lattice_exist s1). i. des. subst.
-      rewrite ! from_lattice_add.
-      eapply from_lattice_eq. eapply CommMonoid.add_comm_eq.
+      hexploit (from_monoid_exist s0).
+      hexploit (from_monoid_exist s1). i. des. subst.
+      rewrite ! from_monoid_add.
+      eapply from_monoid_eq. eapply OrderedCM.add_comm_eq.
     Qed.
 
-    Lemma quotient_add_assoc `{CommMonoid.t A} s0 s1 s2
+    Lemma quotient_add_assoc `{OrderedCM.t A} s0 s1 s2
       :
       quotient_add s0 (quotient_add s1 s2)
       =
         quotient_add (quotient_add s0 s1) s2.
     Proof.
-      hexploit (from_lattice_exist s0).
-      hexploit (from_lattice_exist s1).
-      hexploit (from_lattice_exist s2). i. des. subst.
-      rewrite ! from_lattice_add.
-      eapply from_lattice_eq. eapply CommMonoid.add_assoc_eq.
+      hexploit (from_monoid_exist s0).
+      hexploit (from_monoid_exist s1).
+      hexploit (from_monoid_exist s2). i. des. subst.
+      rewrite ! from_monoid_add.
+      eapply from_monoid_eq. eapply OrderedCM.add_assoc_eq.
     Qed.
 
-    Variant car `{CommMonoid.t A}: Type :=
+    Variant car `{OrderedCM.t A}: Type :=
       | frag (s: quotient)
       | excl (e: quotient) (s: quotient)
       | boom
     .
 
-    Definition black `{CommMonoid.t A} (a: A): car :=
-      excl (from_lattice a) (from_lattice (@CommMonoid.unit _ _)).
+    Definition black `{OrderedCM.t A} (a: A): car :=
+      excl (from_monoid a) (from_monoid (@OrderedCM.unit _ _)).
 
-    Definition white `{CommMonoid.t A} (a: A): car :=
-      frag (from_lattice a).
+    Definition white `{OrderedCM.t A} (a: A): car :=
+      frag (from_monoid a).
 
-    Definition unit `{CommMonoid.t A}: car :=
-      white (@CommMonoid.unit _ _).
+    Definition unit `{OrderedCM.t A}: car :=
+      white (@OrderedCM.unit _ _).
 
-    Let add `{CommMonoid.t A} :=
+    Let add `{OrderedCM.t A} :=
           fun (a0 a1: car) =>
             match a0, a1 with
             | frag f0, frag f1 => frag (quotient_add f0 f1)
@@ -415,7 +500,7 @@ Module Fuel.
             | _, _ => boom
             end.
 
-    Let wf `{CommMonoid.t A} :=
+    Let wf `{OrderedCM.t A} :=
           fun (a: car) =>
             match a with
             | frag f => True
@@ -423,10 +508,10 @@ Module Fuel.
             | boom => False
             end.
 
-    Let core `{CommMonoid.t A} :=
+    Let core `{OrderedCM.t A} :=
           fun (a: car) => unit.
 
-    Global Program Instance t `{CommMonoid.t A}: URA.t := {
+    Global Program Instance t `{OrderedCM.t A}: URA.t := {
         car := car;
         unit := unit;
         _add := add;
@@ -450,14 +535,14 @@ Module Fuel.
     Next Obligation.
       unseal "ra". destruct a; ss.
       { f_equal.
-        hexploit (from_lattice_exist s). i. des. subst.
-        rewrite from_lattice_add.
-        eapply from_lattice_eq. eapply CommMonoid.add_unit_eq_l.
+        hexploit (from_monoid_exist s). i. des. subst.
+        rewrite from_monoid_add.
+        eapply from_monoid_eq. eapply OrderedCM.add_unit_eq_l.
       }
       { f_equal.
-        hexploit (from_lattice_exist s). i. des. subst.
-        rewrite from_lattice_add.
-        eapply from_lattice_eq. eapply CommMonoid.add_unit_eq_l.
+        hexploit (from_monoid_exist s). i. des. subst.
+        rewrite from_monoid_add.
+        eapply from_monoid_eq. eapply OrderedCM.add_unit_eq_l.
       }
     Qed.
     Next Obligation.
@@ -465,128 +550,128 @@ Module Fuel.
     Qed.
     Next Obligation.
       unseal "ra". destruct a, b; ss.
-      hexploit (from_lattice_exist s).
-      hexploit (from_lattice_exist s0).
-      hexploit (from_lattice_exist e). i. des. subst.
-      rewrite from_lattice_add in H0.
+      hexploit (from_monoid_exist s).
+      hexploit (from_monoid_exist s0).
+      hexploit (from_monoid_exist e). i. des. subst.
+      rewrite from_monoid_add in H0.
       rewrite le_iff in H0. rewrite le_iff.
-      etrans; eauto. eapply CommMonoid.add_base_l.
+      etrans; eauto. eapply OrderedCM.add_base_l.
     Qed.
     Next Obligation.
       unseal "ra". destruct a; ss.
       { f_equal.
-        hexploit (from_lattice_exist s). i. des. subst.
-        rewrite from_lattice_add.
-        eapply from_lattice_eq.
-        eapply CommMonoid.add_unit_eq_r.
+        hexploit (from_monoid_exist s). i. des. subst.
+        rewrite from_monoid_add.
+        eapply from_monoid_eq.
+        eapply OrderedCM.add_unit_eq_r.
       }
       { f_equal.
-        hexploit (from_lattice_exist s). i. des. subst.
-        rewrite from_lattice_add.
-        eapply from_lattice_eq.
-        eapply CommMonoid.add_unit_eq_r.
+        hexploit (from_monoid_exist s). i. des. subst.
+        rewrite from_monoid_add.
+        eapply from_monoid_eq.
+        eapply OrderedCM.add_unit_eq_r.
       }
     Qed.
     Next Obligation.
       unseal "ra". exists unit. unfold core, unit, white. ss.
       f_equal.
-      rewrite from_lattice_add.
-      eapply from_lattice_eq. symmetry.
-      eapply CommMonoid.add_unit_eq_r.
+      rewrite from_monoid_add.
+      eapply from_monoid_eq. symmetry.
+      eapply OrderedCM.add_unit_eq_r.
     Qed.
 
-    Lemma white_sum `{CommMonoid.t A} (a0 a1: A)
+    Lemma white_sum `{OrderedCM.t A} (a0 a1: A)
       :
       white a0 ⋅ white a1
       =
-        white (CommMonoid.add a0 a1).
+        white (OrderedCM.add a0 a1).
     Proof.
       ur. unfold white. f_equal.
-      rewrite from_lattice_add. auto.
+      rewrite from_monoid_add. auto.
     Qed.
 
-    Lemma white_eq `{CommMonoid.t A} (a0 a1: A)
-          (EQ: CommMonoid.eq a0 a1)
+    Lemma white_eq `{OrderedCM.t A} (a0 a1: A)
+          (EQ: OrderedCM.eq a0 a1)
       :
       white a0 = white a1.
     Proof.
       unfold white. f_equal.
-      eapply from_lattice_eq; eauto.
+      eapply from_monoid_eq; eauto.
     Qed.
 
-    Lemma black_eq `{CommMonoid.t A} (a0 a1: A)
-          (EQ: CommMonoid.eq a0 a1)
+    Lemma black_eq `{OrderedCM.t A} (a0 a1: A)
+          (EQ: OrderedCM.eq a0 a1)
       :
       black a0 = black a1.
     Proof.
       unfold black. f_equal.
-      eapply from_lattice_eq; eauto.
+      eapply from_monoid_eq; eauto.
     Qed.
 
-    Lemma white_mon `{CommMonoid.t A} (a0 a1: A)
-          (LE: CommMonoid.le a0 a1)
+    Lemma white_mon `{OrderedCM.t A} (a0 a1: A)
+          (LE: OrderedCM.le a0 a1)
       :
       URA.updatable (white a1) (white a0).
     Proof.
       ii. ur in H0. ur. unfold wf in *. des_ifs.
       etrans; eauto.
-      hexploit (from_lattice_exist s0). i. des. subst.
-      rewrite ! from_lattice_add. eapply le_iff.
-      eapply CommMonoid.le_add_r. auto.
+      hexploit (from_monoid_exist s0). i. des. subst.
+      rewrite ! from_monoid_add. eapply le_iff.
+      eapply OrderedCM.le_add_r. auto.
     Qed.
 
-    Lemma black_mon `{CommMonoid.t A} (a0 a1: A)
-          (LE: CommMonoid.le a0 a1)
+    Lemma black_mon `{OrderedCM.t A} (a0 a1: A)
+          (LE: OrderedCM.le a0 a1)
       :
       URA.updatable (black a0) (black a1).
     Proof.
       ii. ur in H0. ur. unfold wf in *. des_ifs.
-      hexploit (from_lattice_exist s0). i. des. subst.
-      rewrite from_lattice_add in *. etrans; eauto.
+      hexploit (from_monoid_exist s0). i. des. subst.
+      rewrite from_monoid_add in *. etrans; eauto.
       eapply le_iff. auto.
     Qed.
 
-    Lemma success_update `{CommMonoid.t A} a0 a1
+    Lemma success_update `{OrderedCM.t A} a0 a1
       :
       URA.updatable
         (black a0)
-        (black (CommMonoid.add a0 a1) ⋅ white a1).
+        (black (OrderedCM.add a0 a1) ⋅ white a1).
     Proof.
       ii. ur in H0. ur. unfold wf in *. des_ifs.
-      hexploit (from_lattice_exist s0). i. des. subst.
-      rewrite ! from_lattice_add in H0.
-      rewrite ! from_lattice_add.
+      hexploit (from_monoid_exist s0). i. des. subst.
+      rewrite ! from_monoid_add in H0.
+      rewrite ! from_monoid_add.
       erewrite le_iff in H0. erewrite le_iff.
       etrans.
-      { eapply CommMonoid.le_add_l. etrans.
-        { eapply CommMonoid.add_base_r. }
+      { eapply OrderedCM.le_add_l. etrans.
+        { eapply OrderedCM.add_base_r. }
         { eapply H0. }
       }
       etrans.
-      { eapply CommMonoid.add_comm_le. }
-      { eapply CommMonoid.le_add_l.
-        eapply CommMonoid.add_unit_le_r.
+      { eapply OrderedCM.add_comm_le. }
+      { eapply OrderedCM.le_add_l.
+        eapply OrderedCM.add_unit_le_r.
       }
     Qed.
 
-    Lemma decr_update `{CommMonoid.t A} a0 a1
+    Lemma decr_update `{OrderedCM.t A} a0 a1
       :
       URA.updatable_set
         (black a0 ⋅ white a1)
-        (fun r => exists a2, r = black a2 /\ CommMonoid.le (CommMonoid.add a1 a2) a0).
+        (fun r => exists a2, r = black a2 /\ OrderedCM.le (OrderedCM.add a1 a2) a0).
     Proof.
       ii. ur in WF. unfold wf in WF. des_ifs.
-      hexploit (from_lattice_exist s0). i. des. subst.
-      rewrite ! from_lattice_add in WF. rewrite le_iff in WF.
+      hexploit (from_monoid_exist s0). i. des. subst.
+      rewrite ! from_monoid_add in WF. rewrite le_iff in WF.
       eexists. esplits.
       { reflexivity. }
       { instantiate (1:=a). etrans; eauto.
-        eapply CommMonoid.le_add_r. eapply CommMonoid.add_base_r.
+        eapply OrderedCM.le_add_r. eapply OrderedCM.add_base_r.
       }
-      ur. rewrite ! from_lattice_add. rewrite le_iff.
-      eapply CommMonoid.add_unit_le_r.
+      ur. rewrite ! from_monoid_add. rewrite le_iff.
+      eapply OrderedCM.add_unit_le_r.
     Qed.
-  End LATTICE.
+  End MONOID.
 End Fuel.
 
 
@@ -985,7 +1070,7 @@ Module FairRA.
   Section FAIR.
     Variable (Id: Type).
     Variable (A: Type).
-    Context `{L: CommMonoid.t A}.
+    Context `{L: OrderedCM.t A}.
 
     Definition t: URA.t :=
       (Id ==> @Fuel.t A _)%ra.
@@ -1004,7 +1089,7 @@ Module FairRA.
         -∗
         (white i a1)
         -∗
-        (white i (CommMonoid.add a0 a1)).
+        (white i (OrderedCM.add a0 a1)).
     Proof.
       unfold white, maps_to. iIntros "H0 H1".
       iCombine "H0 H1" as "H".
@@ -1012,7 +1097,7 @@ Module FairRA.
     Qed.
 
     Lemma white_eq a1 i a0
-          (EQ: CommMonoid.eq a0 a1)
+          (EQ: OrderedCM.eq a0 a1)
       :
       white i a0 = white i a1.
     Proof.
@@ -1020,7 +1105,7 @@ Module FairRA.
     Qed.
 
     Lemma black_eq a1 i a0
-          (EQ: CommMonoid.eq a0 a1)
+          (EQ: OrderedCM.eq a0 a1)
       :
       black i a0 = black i a1.
     Proof.
@@ -1028,7 +1113,7 @@ Module FairRA.
     Qed.
 
     Lemma white_mon a0 i a1
-          (LE: CommMonoid.le a0 a1)
+          (LE: OrderedCM.le a0 a1)
       :
       (white i a1)
         -∗
@@ -1039,7 +1124,7 @@ Module FairRA.
     Qed.
 
     Lemma black_mon a1 i a0
-          (LE: CommMonoid.le a0 a1)
+          (LE: OrderedCM.le a0 a1)
       :
       (black i a0)
         -∗
@@ -1069,7 +1154,7 @@ Module FairRA.
         -∗
         (white i a1)
         -∗
-        (#=> (∃ a2, black i a2 ** ⌜CommMonoid.le (CommMonoid.add a1 a2) a0⌝)).
+        (#=> (∃ a2, black i a2 ** ⌜OrderedCM.le (OrderedCM.add a1 a2) a0⌝)).
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
       rewrite maps_to_res_add.
@@ -1088,7 +1173,7 @@ Module FairRA.
                (u: A)
                (S F: Id -> Prop)
                (EMPTY: forall i (FAIL: ~ F i) (SUCC: ~ S i), f1 i = f0 i)
-               (FAIL: forall i (FAIL: F i) (SUCC: ~ S i), CommMonoid.le (CommMonoid.add u (f1 i)) (f0 i))
+               (FAIL: forall i (FAIL: F i) (SUCC: ~ S i), OrderedCM.le (OrderedCM.add u (f1 i)) (f0 i))
       :
       (whites f0)
         -∗
@@ -1123,8 +1208,424 @@ Module FairRA.
                   (Infsum (fun i: sig S => white (proj1_sig i) n))
                   **
                   ⌜((forall i (FAIL: ~ F i) (SUCC: ~ S i), f1 i = f0 i) /\
-                      (forall i (FAIL: F i) (SUCC: ~ S i), CommMonoid.le (CommMonoid.add u (f1 i)) (f0 i)))⌝))).
+                      (forall i (FAIL: F i) (SUCC: ~ S i), OrderedCM.le (OrderedCM.add u (f1 i)) (f0 i)))⌝))).
     Proof.
     Admitted.
   End FAIR.
 End FairRA.
+
+Global Opaque Fuel.from_monoid Fuel.quotient_add.
+
+Module CounterRA.
+  Section MONOID.
+    Variable (A: Type).
+    Context `{OrderedCM.t A}.
+
+    Record partition :=
+      mk {
+          collection:> A -> Prop;
+          closed: forall a0 a1 (LE: OrderedCM.le a0 a1),
+            collection a1 -> collection a0;
+        }.
+
+    Lemma partition_ext (p0 p1: partition)
+          (EXT: forall a, p0 a <-> p1 a)
+      :
+      p0 = p1.
+    Proof.
+      destruct p0, p1. assert (collection0 = collection1).
+      { extensionality a. eapply propositional_extensionality. ss. }
+      { subst. f_equal. apply proof_irrelevance. }
+    Qed.
+
+    Program Definition partition_join (p0 p1: partition): partition :=
+      mk (fun a => p0 a /\ p1 a) _.
+    Next Obligation.
+      split.
+      { eapply closed; eauto. }
+      { eapply closed; eauto. }
+    Qed.
+
+    Program Definition partition_top: partition :=
+      mk (fun _ => True) _.
+
+    Program Definition partition_from_monoid (a: A): partition :=
+      mk (fun a' => OrderedCM.le a' a) _.
+    Next Obligation.
+      etrans; eauto.
+    Qed.
+
+    Definition car: Type :=
+      partition * (@Fuel.quotient A _).
+
+    Definition add: car -> car -> car :=
+      fun '(s0, q0) '(s1, q1) =>
+        (partition_join s0 s1, Fuel.quotient_add q0 q1).
+
+    Definition wf: car -> Prop :=
+      fun '(s, q) =>
+        exists a, Fuel.collection q a /\ s a.
+
+    Definition core: car -> car :=
+      fun '(s, q) => (s, Fuel.from_monoid OrderedCM.unit).
+
+    Definition unit: car :=
+      (partition_top, Fuel.from_monoid OrderedCM.unit).
+
+    Global Program Instance t: URA.t := {
+        car := car;
+        unit := unit;
+        _add := add;
+        _wf := wf;
+        core := core;
+      }
+    .
+    Next Obligation.
+    Proof.
+      unfold add. des_ifs. f_equal.
+      { apply partition_ext. i. ss. split; i; des; auto. }
+      { apply Fuel.quotient_add_comm. }
+    Qed.
+    Next Obligation.
+    Proof.
+      unfold add. des_ifs. f_equal.
+      { apply partition_ext. i. ss. split; i; des; auto. }
+      { apply Fuel.quotient_add_assoc. }
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". unfold add, unit. des_ifs. f_equal.
+      { apply partition_ext. i. ss. split; i; des; auto. }
+      { hexploit (Fuel.from_monoid_exist q). i. des. subst.
+        rewrite Fuel.from_monoid_add.
+        apply Fuel.from_monoid_eq. eapply OrderedCM.add_unit_eq_l.
+      }
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". ss. splits; auto. exists OrderedCM.unit.
+      rewrite Fuel.from_monoid_le. splits; auto. reflexivity.
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". unfold add, wf in *. des_ifs. des.
+      hexploit (Fuel.from_monoid_exist q). i. des. subst.
+      hexploit (Fuel.from_monoid_exist q1). i. des. subst.
+      rewrite Fuel.from_monoid_add in H0.
+      rewrite Fuel.from_monoid_le in H0. esplits; eauto.
+      { rewrite Fuel.from_monoid_le. etrans; eauto.
+        apply OrderedCM.add_base_l.
+      }
+      { ss. des. auto. }
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". unfold add. des_ifs. ss. clarify. f_equal.
+      { apply partition_ext. i. ss. split; i; des; auto. }
+      { hexploit (Fuel.from_monoid_exist q0). i. des. subst.
+        rewrite Fuel.from_monoid_add.
+        apply Fuel.from_monoid_eq. apply OrderedCM.add_unit_eq_r.
+      }
+    Qed.
+    Next Obligation.
+    Proof.
+      unfold core. des_ifs.
+    Qed.
+    Next Obligation.
+    Proof.
+      unseal "ra". unfold add. des_ifs. ss. clarify.
+      eexists (_, _). f_equal.
+      rewrite Fuel.from_monoid_add.
+      apply Fuel.from_monoid_eq. symmetry. apply OrderedCM.add_unit_eq_r.
+    Qed.
+
+    Definition black (a: A): car :=
+      (partition_from_monoid a, Fuel.from_monoid OrderedCM.unit).
+
+    Definition white (a: A): car :=
+      (partition_top, Fuel.from_monoid a).
+
+    Lemma black_persistent a
+      :
+      URA.core (black a) = black a.
+    Proof.
+      ss.
+    Qed.
+
+    Lemma black_mon a0 a1
+          (LE: OrderedCM.le a0 a1)
+      :
+      URA.extends (black a1) (black a0).
+    Proof.
+      exists (black a0).
+      ur. unfold black. f_equal.
+      { apply partition_ext. i. ss. split; i; des; auto.
+        split; auto. etrans; eauto.
+      }
+      { rewrite Fuel.from_monoid_add.
+        apply Fuel.from_monoid_eq. apply OrderedCM.add_unit_eq_r.
+      }
+    Qed.
+
+    Lemma white_mon a0 a1
+          (LE: OrderedCM.le a0 a1)
+      :
+      URA.updatable (white a1) (white a0).
+    Proof.
+      ii. ur in H0. ur. des_ifs.
+      hexploit (Fuel.from_monoid_exist q). i. des. subst.
+      rewrite Fuel.from_monoid_add in *. ss. des.
+      esplits; eauto.
+      rewrite Fuel.from_monoid_le in H0.
+      rewrite Fuel.from_monoid_le. etrans; eauto.
+      apply OrderedCM.le_add_r; auto.
+    Qed.
+
+    Lemma white_eq a0 a1
+          (LE: OrderedCM.eq a0 a1)
+      :
+      white a0 = white a1.
+    Proof.
+      unfold white. f_equal. apply Fuel.from_monoid_eq; auto.
+    Qed.
+
+    Lemma white_split a0 a1
+      :
+      white (OrderedCM.add a0 a1) = white a0 ⋅ white a1.
+    Proof.
+      ur. unfold white. f_equal.
+      { apply partition_ext. i. ss. }
+      { rewrite Fuel.from_monoid_add. auto. }
+    Qed.
+
+    Lemma black_white_wf a
+      :
+      URA.wf (black a ⋅ white a).
+    Proof.
+      ur. exists a. rewrite Fuel.from_monoid_add. splits; auto.
+      { rewrite Fuel.from_monoid_le. apply OrderedCM.add_unit_le_r. }
+      { reflexivity. }
+    Qed.
+
+    Lemma black_white_decr a0 a1
+      :
+      URA.updatable_set (black a0 ⋅ white a1) (fun r => exists a2, r = black a2 /\ OrderedCM.le (OrderedCM.add a2 a1) a0).
+    Proof.
+      ii. ur in WF. ss. des_ifs.
+      hexploit (Fuel.from_monoid_exist q). i. des. subst. ss. des.
+      rewrite ! Fuel.from_monoid_add in *.
+      rewrite Fuel.from_monoid_le in WF.
+      eexists (_, _). esplits.
+      { reflexivity. }
+      { instantiate (1:=a). etrans; eauto.
+        etrans; eauto. etrans.
+        { eapply OrderedCM.add_comm_le. }
+        { apply OrderedCM.le_add_r. apply OrderedCM.add_base_r. }
+      }
+      { ur. esplits.
+        { rewrite Fuel.from_monoid_add. rewrite Fuel.from_monoid_le.
+          eapply OrderedCM.add_unit_le_r.
+        }
+        { reflexivity. }
+        { eapply closed; eauto. etrans; eauto.
+          eapply OrderedCM.add_base_r.
+        }
+      }
+    Qed.
+
+    Lemma black_white_compare a0 a1
+          (WF: URA.wf (black a0 ⋅ white a1))
+      :
+      OrderedCM.le a1 a0.
+    Proof.
+      exploit black_white_decr.
+      { rewrite URA.unit_id. eauto. }
+      i. des. etrans; eauto. apply OrderedCM.add_base_r.
+    Qed.
+  End MONOID.
+End CounterRA.
+
+
+From Fairness Require Import Axioms MonotonePCM.
+
+Module ObligationRA.
+  Definition t: URA.t := @FiniteMap.t (@CounterRA.t Ord.t _).
+  Section RA.
+    Context `{@GRA.inG t Σ}.
+
+    Definition black (k: nat) (o: Ord.t): iProp :=
+      OwnM (FiniteMap.singleton k (CounterRA.black o: @CounterRA.t Ord.t _)).
+
+    Definition white (k: nat) (o: Ord.t): iProp :=
+      OwnM (FiniteMap.singleton k (CounterRA.white o: @CounterRA.t Ord.t _)).
+
+    Definition white_one k: iProp :=
+      white k (Ord.S Ord.O).
+
+    Lemma black_persistent k o
+      :
+      black k o -∗ □ black k o.
+    Proof.
+      iIntros "H".
+      unfold black.
+      iPoseProof (own_persistent with "H") as "H".
+      rewrite FiniteMap.singleton_core. auto.
+    Qed.
+
+    Lemma alloc o
+      :
+      ⊢ #=> (∃ k, □ black k o ** white k o).
+    Proof.
+      iPoseProof (@OwnM_unit _ _ H) as "H".
+      iPoseProof (OwnM_Upd_set with "H") as "> H0".
+      { eapply FiniteMap.singleton_alloc.
+        eapply CounterRA.black_white_wf.
+      }
+      iDestruct "H0" as "[% [% H0]]".
+      des. subst. erewrite <- FiniteMap.singleton_add.
+      iDestruct "H0" as "[H0 H1]".
+      iModIntro. iExists _. iFrame.
+      iApply black_persistent. auto.
+    Qed.
+
+    Lemma black_mon o1 k o0
+          (LE: Ord.le o0 o1)
+      :
+      black k o0 -∗ black k o1.
+    Proof.
+      iApply OwnM_extends. apply FiniteMap.singleton_extends.
+      apply CounterRA.black_mon. auto.
+    Qed.
+
+    Lemma white_mon o1 k o0
+          (LE: Ord.le o0 o1)
+      :
+      white k o1 -∗ #=> white k o0.
+    Proof.
+      iApply OwnM_Upd. apply FiniteMap.singleton_updatable.
+      apply CounterRA.white_mon. auto.
+    Qed.
+
+    Lemma white_eq o1 k o0
+          (LE: Ord.eq o0 o1)
+      :
+      white k o0 -∗ white k o1.
+    Proof.
+      unfold white. erewrite CounterRA.white_eq; auto.
+    Qed.
+
+    Lemma white_merge k o0 o1
+      :
+      (white k o0)
+        -∗
+        (white k o1)
+        -∗
+        (white k (Hessenberg.add o0 o1)).
+    Proof.
+      iIntros "H0 H1". unfold white.
+      replace (CounterRA.white (Hessenberg.add o0 o1): @CounterRA.t Ord.t ord_OrderedCM) with
+        ((CounterRA.white o0: @CounterRA.t Ord.t _) ⋅ (CounterRA.white o1: @CounterRA.t Ord.t _)).
+      { iCombine "H0 H1" as "H". rewrite <- FiniteMap.singleton_add. iFrame. }
+      { symmetry. eapply (@CounterRA.white_split Ord.t ord_OrderedCM o0 o1). }
+    Qed.
+
+    Lemma white_split_eq k o0 o1
+      :
+      (white k (Hessenberg.add o0 o1))
+        -∗
+        (white k o0 ** white k o1).
+    Proof.
+      iIntros "H". unfold white.
+      replace (CounterRA.white (Hessenberg.add o0 o1): @CounterRA.t Ord.t ord_OrderedCM) with
+        ((CounterRA.white o0: @CounterRA.t Ord.t _) ⋅ (CounterRA.white o1: @CounterRA.t Ord.t _)).
+      { rewrite <- FiniteMap.singleton_add. iDestruct "H" as "[H0 H1]". iFrame. }
+      { symmetry. eapply (@CounterRA.white_split Ord.t ord_OrderedCM o0 o1). }
+    Qed.
+
+    Lemma white_split o0 o1 k o
+          (LE: Ord.le (Hessenberg.add o0 o1) o)
+      :
+      (white k o)
+        -∗
+        (#=> (white k o0 ** white k o1)).
+    Proof.
+      iIntros "H". iPoseProof (white_mon with "H") as "> H"; eauto.
+      iModIntro. iApply white_split_eq; auto.
+    Qed.
+
+    Lemma white_split_one o0 k o1
+          (LT: Ord.lt o0 o1)
+      :
+      (white k o1)
+        -∗
+        (#=> (white k o0 ** white_one k)).
+    Proof.
+      iIntros "H". iApply white_split; eauto.
+      rewrite Hessenberg.add_S_r. rewrite Hessenberg.add_O_r.
+      apply Ord.S_supremum; auto.
+    Qed.
+
+    Lemma black_white_compare k o0 o1
+      :
+      (black k o0)
+        -∗
+        (white k o1)
+        -∗
+        ⌜Ord.le o1 o0⌝.
+    Proof.
+      iIntros "H0 H1".
+      iCombine "H0 H1" as "H". rewrite FiniteMap.singleton_add.
+      iOwnWf "H". iPureIntro.
+      apply FiniteMap.singleton_wf in H0.
+      apply CounterRA.black_white_compare in H0. auto.
+    Qed.
+
+    Lemma black_white_decr k o0 o1
+      :
+      (black k o0)
+        -∗
+        (white k o1)
+        -∗
+        (#=> ∃ o2, black k o2 ** ⌜Ord.le (Hessenberg.add o2 o1) o0⌝).
+    Proof.
+      iIntros "H0 H1".
+      iCombine "H0 H1" as "H". rewrite FiniteMap.singleton_add.
+      iPoseProof (OwnM_Upd_set with "H") as "> [% [% H]]".
+      { eapply FiniteMap.singleton_updatable_set.
+        eapply CounterRA.black_white_decr.
+      }
+      { ss. des. subst. iModIntro. iExists _. iFrame. eauto. }
+    Qed.
+
+    Lemma black_white_decr_one k o1
+      :
+      (black k o1)
+        -∗
+        (white_one k)
+        -∗
+        (#=> ∃ o0, black k o0 ** ⌜Ord.lt o0 o1⌝).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (black_white_decr with "H0 H1") as "> [% [H %]]".
+      iModIntro. iExists _. iFrame. iPureIntro.
+      eapply Ord.lt_le_lt; eauto.
+      rewrite Hessenberg.add_S_r. rewrite Hessenberg.add_O_r.
+      apply Ord.S_lt; auto.
+    Qed.
+
+    Lemma black_white_annihilate o_w0 k o_b1 o_w1
+          (LT: Ord.lt o_w0 o_w1)
+      :
+      (black k o_b1)
+        -∗
+        (white k o_w1)
+        -∗
+        (#=> ∃ o_b0, black k o_b0 ** white k o_w0 ** ⌜Ord.lt o_b0 o_b1⌝).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (white_split_one with "H1") as "> [H1 H2]"; [eauto|].
+      iPoseProof (black_white_decr_one with "H0 H2") as "> [% [H0 %]]".
+      iModIntro. iExists _. iFrame. auto.
+    Qed.
+  End RA.
+End ObligationRA.
