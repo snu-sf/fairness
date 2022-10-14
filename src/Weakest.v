@@ -641,8 +641,6 @@ Section STATE.
   Variable ident_tgt: ID.
 
   Variable wf_src: WF.
-  Context `{CommMonoid.t wf_src.(T)}.
-  Context `{@LtMonoid.t wf_src.(T) _}.
 
   Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
@@ -658,9 +656,6 @@ Section STATE.
   Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src wf_src) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
   Context `{IDENTTHS: @GRA.inG identThsRA Σ}.
-  Context `{FAIRSRC: @GRA.inG (@FairRA.t ident_src wf_src.(T) _) Σ}.
-  Context `{FAIRTGT: @GRA.inG (@FairRA.t ident_tgt nat _) Σ}.
-  Context `{FAIRTHS: @GRA.inG (@FairRA.t thread_id nat _) Σ}.
 
   Let I: shared_rel :=
         fun ths im_src im_tgt st_src st_tgt =>
@@ -1259,3 +1254,555 @@ Section STATE.
   Qed.
 
 End STATE.
+
+
+From Ordinal Require Import Ordinal Hessenberg Arithmetic.
+
+Definition owf: WF := mk_wf Ord.lt_well_founded.
+
+Section FAIR.
+  Context `{Σ: GRA.t}.
+
+  Definition Pos (k: nat) (n: Ord.t): iProp. Admitted.
+  Definition Neg (k: nat) (n: Ord.t): iProp. Admitted.
+  Definition Ongoing (k: nat): iProp. Admitted.
+  Definition Done (k: nat): iProp. Admitted.
+
+  Lemma Pos_persistent k n
+    :
+    (Pos k n)
+      -∗
+      (□ Pos k n).
+  Proof.
+  Admitted.
+
+  Definition PosEx k: iProp := ∃ n, Pos k n.
+
+  Lemma PosEx_persistent k
+    :
+    (PosEx k)
+      -∗
+      (□ PosEx k).
+  Proof.
+  Admitted.
+
+  Lemma PosEx_unfold k
+    :
+    (PosEx k)
+      -∗
+      (∃ n, Pos k n).
+  Proof.
+  Admitted.
+
+  Lemma Neg_split n0 n1 k n
+        (DECR: Ord.le (Hessenberg.add n0 n1) n)
+    :
+    (Neg k n)
+      -∗
+      (#=> (Neg k n0 ** Neg k n1)).
+  Proof.
+  Admitted.
+
+  Lemma Pos_Neg_annihilate k n1
+    :
+    (Pos k n1)
+      -∗
+      (Neg k (Ord.from_nat 1))
+      -∗
+      (#=> (∃ n0, Pos k n0 ** ⌜Ord.lt n0 n1⌝)).
+  Proof.
+  Admitted.
+
+  Lemma Done_persistent k
+    :
+    (Done k)
+      -∗
+      (□ Done k).
+  Proof.
+  Admitted.
+
+  Lemma Ongoing_not_Done k
+    :
+    (Ongoing k)
+      -∗
+      (Done k)
+      -∗
+      False.
+  Proof.
+  Admitted.
+
+  Definition Eventually (k: nat) (P: iProp): iProp :=
+    □ PosEx k ** (Ongoing k ∨ ((□ Done k) ** P)).
+
+  Lemma eventually_done k P
+    :
+    (Done k)
+      -∗
+      (Eventually k P)
+      -∗
+      (P ** (P -* Eventually k P)).
+  Proof.
+  Admitted.
+
+  Lemma eventually_intro_ongoing k P
+    :
+    (Ongoing k)
+      -∗
+      (Eventually k P).
+  Proof.
+  Admitted.
+
+  Lemma eventually_intro_done k P
+    :
+    (Done k)
+      -∗
+      P
+      -∗
+      (Eventually k P).
+  Proof.
+  Admitted.
+
+  Lemma eventually_finish k P
+    :
+    (Eventually k P)
+      -∗
+      ((□ Done k) ∨ (Ongoing k ** (Done k -* P -* Eventually k P))).
+  Proof.
+  Admitted.
+
+  Lemma eventually_obligation k P
+    :
+    (Eventually k P)
+      -∗
+      (□ PosEx k).
+  Proof.
+  Admitted.
+
+  Variable state_tgt: Type.
+  Definition St_tgt: state_tgt -> iProp. Admitted.
+
+  Variable state_src: Type.
+  Definition St_src: state_src -> iProp. Admitted.
+
+  Variable ident_src: ID.
+  Variable ident_tgt: ID.
+
+  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
+  Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
+
+  Variable I: iProp.
+
+  Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> list nat -> iProp), itree srcE R_src -> itree tgtE R_tgt -> list nat -> iProp).
+
+  Variable tid: thread_id.
+
+  Definition fsim: rel -> rel -> rel. Admitted.
+
+  Lemma fsim_base r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src itr_tgt
+    :
+    (@r _ _ Q itr_src itr_tgt os)
+      -∗
+      (fsim r g Q itr_src itr_tgt os)
+  .
+  Admitted.
+
+  Lemma fsim_mono_knowledge (r0 g0 r1 g1: rel) R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src itr_tgt
+        (MON0: forall R_src R_tgt (Q: R_src -> R_tgt -> list nat -> iProp)
+                      os itr_src itr_tgt,
+            (@r0 _ _ Q itr_src itr_tgt os)
+              -∗
+              (#=> (@r1 _ _ Q itr_src itr_tgt os)))
+        (MON1: forall R_src R_tgt (Q: R_src -> R_tgt -> list nat -> iProp)
+                      os itr_src itr_tgt,
+            (@g0 _ _ Q itr_src itr_tgt os)
+              -∗
+              (#=> (@g1 _ _ Q itr_src itr_tgt os)))
+    :
+    bi_entails
+      (fsim r0 g0 Q os itr_src itr_tgt)
+      (fsim r1 g1 Q os itr_src itr_tgt)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_coind A
+        (R_src: forall (a: A), Prop)
+        (R_tgt: forall (a: A), Prop)
+        (Q: forall (a: A), R_src a -> R_tgt a -> list nat -> iProp)
+        (o : forall (a: A), list nat)
+        (itr_src : forall (a: A), itree srcE (R_src a))
+        (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
+        (P: forall (a: A), iProp)
+        (r g0: rel)
+        (COIND: forall (g1: rel) a,
+            (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> list nat -> iProp)
+                  os itr_src itr_tgt,
+                   @g0 R_src R_tgt Q itr_src itr_tgt os -* @g1 R_src R_tgt Q itr_src itr_tgt os)
+                 **
+                 (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a) (o a))))
+              -∗
+              (P a)
+              -∗
+              (fsim r g1 (Q a) (itr_src a) (itr_tgt a) (o a)))
+    :
+    (forall a, bi_entails (P a) (fsim r g0 (Q a) (itr_src a) (itr_tgt a) (o a))).
+  Proof.
+  Admitted.
+
+  Lemma fsim_upd r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src itr_tgt
+    :
+    (#=> (fsim r g Q itr_src itr_tgt os))
+      -∗
+      (fsim r g Q itr_src itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Global Instance fsim_elim_upd
+         r g R_src R_tgt
+         (Q: R_src -> R_tgt -> list nat -> iProp)
+         os itr_src itr_tgt
+         P
+    :
+    ElimModal True false false (#=> P) P (fsim r g Q itr_src itr_tgt os) (fsim r g Q itr_src itr_tgt os).
+  Proof.
+  Admitted.
+
+  Lemma fsim_wand r g R_src R_tgt
+        (Q0 Q1: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src itr_tgt
+    :
+    (fsim r g Q0 itr_src itr_tgt os)
+      -∗
+      (∀ r_src r_tgt os,
+          ((Q0 r_src r_tgt os) -∗ #=> (Q1 r_src r_tgt os)))
+      -∗
+      (fsim r g Q1 itr_src itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_mono r g R_src R_tgt
+        (Q0 Q1: R_src -> R_tgt -> list nat -> iProp)
+        (MONO: forall r_src r_tgt os,
+            (Q0 r_src r_tgt os)
+              -∗
+              (#=> (Q1 r_src r_tgt os)))
+        os itr_src itr_tgt
+    :
+    (fsim r g Q0 itr_src itr_tgt os)
+      -∗
+      (fsim r g Q1 itr_src itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_frame r g R_src R_tgt
+        P (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src itr_tgt
+    :
+    (fsim r g Q itr_src itr_tgt os)
+      -∗
+      P
+      -∗
+      (fsim r g (fun r_src r_tgt os => P ** Q r_src r_tgt os) itr_src itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_bind r g R_src R_tgt S_src S_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        (itr_src: itree srcE S_src) (itr_tgt: itree tgtE S_tgt)
+        os ktr_src ktr_tgt
+    :
+    (fsim r g (fun s_src s_tgt => fsim r g Q (ktr_src s_src) (ktr_tgt s_tgt)) itr_src itr_tgt os)
+      -∗
+      (fsim r g Q (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_ret r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os r_src r_tgt
+    :
+    (Q r_src r_tgt os)
+      -∗
+      (fsim r g Q (Ret r_src) (Ret r_tgt) os)
+  .
+  Admitted.
+
+  Lemma fsim_tauL r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src itr_tgt
+    :
+    (fsim r g Q itr_src itr_tgt os)
+      -∗
+      (fsim r g Q (Tau itr_src) itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_tauR r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src itr_tgt
+    :
+    (fsim r g Q itr_src itr_tgt os)
+      -∗
+      (fsim r g Q itr_src (Tau itr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_chooseL X r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src itr_tgt
+    :
+    (∃ x, fsim r g Q (ktr_src x) itr_tgt os)
+      -∗
+      (fsim r g Q (trigger (Choose X) >>= ktr_src) itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_chooseR X r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src ktr_tgt
+    :
+    (∀ x, fsim r g Q itr_src (ktr_tgt x) os)
+      -∗
+      (fsim r g Q itr_src (trigger (Choose X) >>= ktr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_putL st r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src itr_tgt st_src
+    :
+    (St_src st_src)
+      -∗
+      (St_src st -∗ fsim r g Q (ktr_src tt) itr_tgt os)
+      -∗
+      (fsim r g Q (trigger (Put st) >>= ktr_src) itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_putR st r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src ktr_tgt st_tgt
+    :
+    (St_tgt st_tgt)
+      -∗
+      (St_tgt st -∗ fsim r g Q itr_src (ktr_tgt tt) os)
+      -∗
+      (fsim r g Q itr_src (trigger (Put st) >>= ktr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_getL st r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src itr_tgt
+    :
+    (St_src st ∧ fsim r g Q (ktr_src st) itr_tgt os)
+      -∗
+      (fsim r g Q (trigger (@Get _) >>= ktr_src) itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_getR st r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src ktr_tgt
+    :
+    (St_tgt st  ∧ fsim r g Q itr_src (ktr_tgt st) os)
+      -∗
+      (fsim r g Q itr_src (trigger (@Get _) >>= ktr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_tidL r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src itr_tgt
+    :
+    (fsim r g Q (ktr_src tid) itr_tgt os)
+      -∗
+      (fsim r g Q (trigger GetTid >>= ktr_src) itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_tidR r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src ktr_tgt
+    :
+    (fsim r g Q itr_src (ktr_tgt tid) os)
+      -∗
+      (fsim r g Q itr_src (trigger GetTid >>= ktr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_UB r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src itr_tgt
+    :
+    ⊢ (fsim r g Q (trigger Undefined >>= ktr_src) itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_observe fn args r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src ktr_tgt
+    :
+    (∀ ret, fsim g g Q (ktr_src ret) (ktr_tgt ret) os)
+      -∗
+      (fsim r g Q (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_yieldL r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src ktr_tgt
+    :
+    (fsim r g Q (ktr_src tt) (trigger (Yield) >>= ktr_tgt) os)
+      -∗
+      (fsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_alloc_obligation n
+        r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src itr_tgt
+    :
+    (∀ k, Ongoing k -* Neg k n -* (□ Pos k n) -* fsim r g Q itr_src itr_tgt (k::os))
+      -∗
+      (fsim r g Q itr_src itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_dealloc_obligation os1
+        r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        k os0 itr_src itr_tgt
+        (DEALLOC: Permutation (k::os1) os0)
+    :
+    (Ongoing k)
+      -∗
+      (□ Done k -* fsim r g Q itr_src itr_tgt os1)
+      -∗
+      (fsim r g Q itr_src itr_tgt os0)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_obligation_not_done
+        r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        k os itr_src itr_tgt
+        (IN: List.In k os)
+    :
+    (Done k)
+      -∗
+      (fsim r g Q itr_src itr_tgt os)
+  .
+  Proof.
+  Admitted.
+
+  Definition optPos (k: option nat): iProp :=
+    match k with
+    | Some k => PosEx k
+    | None => True
+    end.
+
+  Definition optNeg (k: option nat): iProp :=
+    match k with
+    | Some k => Neg k (Ord.from_nat 1) ∨ Done k
+    | None => True
+    end.
+
+  Fixpoint recharging (os: list nat): iProp :=
+    match os with
+    | [] => True
+    | k::os => Neg k Ord.omega ** recharging os
+    end.
+
+  Lemma fsim_yieldR k r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src ktr_tgt
+    :
+    (I ** optPos k ** recharging os ** (I -∗ optNeg k -* fsim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt) os))
+      -∗
+      (fsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) os)
+  .
+  Proof.
+  Admitted.
+
+  Lemma fsim_sync k r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src ktr_tgt
+    :
+    (I ** optPos k ** recharging os ** (I -∗ optNeg k -* fsim g g Q (ktr_src tt) (ktr_tgt tt) os))
+      -∗
+      (fsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) os).
+  Proof.
+  Admitted.
+
+
+  (* Lemma fsim_fairL f r g R_src R_tgt *)
+  (*       (Q: R_src -> R_tgt -> list nat -> iProp) *)
+  (*       ktr_src itr_tgt im_src0 *)
+  (*   : *)
+  (*   (OwnM (Auth.white (Excl.just im_src0: @Excl.t _): identSrcRA ident_src wf_src)) *)
+  (*     -∗ *)
+  (*     (∃ im_src1, ⌜fair_update im_src0 im_src1 f⌝ ∧ *)
+  (*                   ((OwnM (Auth.white (Excl.just im_src1: @Excl.t _): identSrcRA ident_src wf_src)) -∗ (fsim r g Q (ktr_src tt) itr_tgt))) *)
+  (*     -∗ *)
+  (*     (fsim r g Q (trigger (Fair f) >>= ktr_src) itr_tgt). *)
+  (* Proof. *)
+  (*   unfold fsim. iIntros "OWN H" (? ? ? ? ?) "D". *)
+  (*   iDestruct "H" as (im_src1) "[% H]". *)
+  (*   iPoseProof (default_I_get_ident_src with "D OWN") as "%". subst. *)
+  (*   iPoseProof (default_I_update_ident_src with "D OWN") as "> [OWN D]". *)
+  (*   iPoseProof ("H" with "OWN D") as "H". *)
+  (*   iApply isim_fairL. iExists _. iSplit; eauto. *)
+  (* Qed. *)
+
+  (* Lemma fsim_fairR f r g R_src R_tgt *)
+  (*       (Q: R_src -> R_tgt -> list nat -> iProp) *)
+  (*       itr_src ktr_tgt im_tgt0 *)
+  (*   : *)
+  (*   (OwnM (Auth.white (Excl.just im_tgt0: @Excl.t _): identTgtRA ident_tgt)) *)
+  (*     -∗ *)
+  (*     (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 f⌝ -* (OwnM (Auth.white (Excl.just im_tgt1: @Excl.t _): identTgtRA ident_tgt)) -* fsim r g Q itr_src (ktr_tgt tt)) *)
+  (*     -∗ *)
+  (*     (fsim r g Q itr_src (trigger (Fair f) >>= ktr_tgt)) *)
+  (* . *)
+  (* Proof. *)
+  (*   unfold fsim. iIntros "OWN H"  (? ? ? ? ?) "D". *)
+  (*   iPoseProof (default_I_get_ident_tgt with "D OWN") as "%". subst. *)
+  (*   iApply isim_fairR. iIntros (?) "%". *)
+  (*   iPoseProof (default_I_update_ident_tgt with "D OWN") as "> [OWN D]". ss. *)
+  (*   hexploit imap_proj_update_r; eauto. i. des. rewrite LEFT. *)
+  (*   iAssert (⌜fair_update (imap_proj_id2 im_tgt) (imap_proj_id2 im_tgt1) f⌝)%I as "UPD". *)
+  (*   { auto. } *)
+  (*   iPoseProof ("H" with "UPD OWN D") as "H". *)
+  (*   change (imap_proj_id1 im_tgt1, imap_proj_id2 im_tgt1) with (imap_proj_id im_tgt1). *)
+  (*   rewrite imap_sum_proj_id_inv2. iFrame. *)
+  (* Qed. *)
+
+End FAIR.

@@ -8,12 +8,12 @@ Set Implicit Arguments.
 Module SCMem.
   Definition pointer := (nat * nat)%type.
 
-  Let ident := pointer.
-
   Variant val: Type :=
     | val_nat (n: nat)
     | val_ptr (p: pointer)
   .
+
+  Let ident := val.
 
   Definition unwrap_ptr (v: val): option pointer :=
     match v with
@@ -63,15 +63,11 @@ Module SCMem.
     forall blk ofs v (SOME: m.(contents) blk ofs = Some v),
       blk < m.(next_block).
 
-  Definition has_permission (m: t) (ptr: pointer): bool :=
-    let (blk, ofs) := ptr in
-    if (m.(contents) blk ofs) then true else false.
-
-  Definition val_valid (m: t) (v: val): bool :=
-    match v with
-    | val_nat _ => true
-    | val_ptr p =>
-        if (has_permission m p) then true else false
+  Definition has_permission (m: t) (ptr: val): bool :=
+    match unwrap_ptr ptr with
+    | Some (blk, ofs) =>
+        if (m.(contents) blk ofs) then true else false
+    | None => false
     end.
 
   Definition val_compare (m: t) (v0 v1: val): option bool :=
@@ -79,10 +75,10 @@ Module SCMem.
     | val_nat n0, val_nat n1 => Some (if (PeanoNat.Nat.eq_dec n0 n1) then true else false)
     | val_nat n, val_ptr p
     | val_ptr p, val_nat n =>
-        if (has_permission m p)
+        if (has_permission m (val_ptr p))
         then Some false else None
     | val_ptr p0, val_ptr p1 =>
-        if (has_permission m p0 && has_permission m p1)%bool then
+        if (has_permission m (val_ptr p0) && has_permission m (val_ptr p1))%bool then
           Some (if (ptr_eq_dec p0 p1) then true else false)
         else None
     end.
@@ -105,35 +101,46 @@ Module SCMem.
                                   else m.(contents) blk' ofs'
                     else m.(contents) blk') m.(next_block).
 
-  Definition store (m: t) (ptr: pointer) (v: val): option t :=
-    let (blk, ofs) := ptr in
-    if (m.(contents) blk ofs)
-    then Some (mem_update m blk ofs v)
-    else None.
+  Definition store (m: t) (ptr: val) (v: val): option t :=
+    match unwrap_ptr ptr with
+    | Some (blk, ofs) =>
+        if (m.(contents) blk ofs)
+        then Some (mem_update m blk ofs v)
+        else None
+    | None => None
+    end.
 
-  Definition load (m: t) (ptr: pointer): option val :=
-    let (blk, ofs) := ptr in
-    m.(contents) blk ofs.
+  Definition load (m: t) (ptr: val): option val :=
+    match unwrap_ptr ptr with
+    | Some (blk, ofs) =>
+        m.(contents) blk ofs
+    | _ => None
+    end.
 
   Definition compare (m: t) (v0: val) (v1: val): option bool :=
     val_compare m v0 v1.
 
-  Definition faa (m: t) (ptr: pointer) (addend: nat): option (t * val) :=
-    let (blk, ofs) := ptr in
-    match (m.(contents) blk ofs) with
-    | Some v => Some (mem_update m blk ofs (val_add v addend), v)
+  Definition faa (m: t) (ptr: val) (addend: nat): option (t * val) :=
+    match unwrap_ptr ptr with
+    | Some (blk, ofs) =>
+        match (m.(contents) blk ofs) with
+        | Some v => Some (mem_update m blk ofs (val_add v addend), v)
+        | None => None
+        end
     | None => None
     end.
 
-  Definition cas (m: t) (ptr: pointer) (v_old: val) (v_new: val):
+  Definition cas (m: t) (ptr: val) (v_old: val) (v_new: val):
     option (t * bool) :=
-    let (blk, ofs) := ptr in
-    match (m.(contents) blk ofs) with
+    match (load m ptr) with
     | Some v =>
         match (val_compare m v v_old) with
         | None => None
         | Some true =>
-            Some (mem_update m blk ofs v_new, true)
+            match store m ptr v_new with
+            | Some m_new => Some (m_new, true)
+            | None => None
+            end
         | Some false =>
             Some (m, false)
         end
@@ -152,9 +159,8 @@ Module SCMem.
   Definition store_fun:
     ktree (((@eventE ident) +' cE) +' sE t) (val * val) unit :=
     fun '(vptr, v) =>
-      p <- unwrap (unwrap_ptr vptr);;
       m <- trigger (@Get _);;
-      m <- unwrap (store m p v);;
+      m <- unwrap (store m vptr v);;
       _ <- trigger (Put m);;
       Ret tt
   .
@@ -162,18 +168,16 @@ Module SCMem.
   Definition load_fun:
     ktree (((@eventE ident) +' cE) +' sE t) val val :=
     fun vptr =>
-      p <- unwrap (unwrap_ptr vptr);;
       m <- trigger (@Get _);;
-      v <- unwrap (load m p);;
+      v <- unwrap (load m vptr);;
       Ret v
   .
 
   Definition faa_fun:
     ktree (((@eventE ident) +' cE) +' sE t) (val * nat) val :=
     fun '(vptr, addend) =>
-      p <- unwrap (unwrap_ptr vptr);;
       m <- trigger (@Get _);;
-      '(m, v) <- unwrap (faa m p addend);;
+      '(m, v) <- unwrap (faa m vptr addend);;
       _ <- trigger (Put m);;
       Ret v
   .
@@ -181,9 +185,8 @@ Module SCMem.
   Definition cas_fun:
     ktree (((@eventE ident) +' cE) +' sE t) (val * val * val) bool :=
     fun '(vptr, v_old, v_new) =>
-      p <- unwrap (unwrap_ptr vptr);;
       m <- trigger (@Get _);;
-      '(m, b) <- unwrap (cas m p v_old v_new);;
+      '(m, b) <- unwrap (cas m vptr v_old v_new);;
       _ <- trigger (Put m);;
       Ret b
   .
@@ -191,18 +194,17 @@ Module SCMem.
   Definition cas_weak_fun:
     ktree (((@eventE ident) +' cE) +' sE t) (val * val * val) bool :=
     fun '(vptr, v_old, v_new) =>
-      p <- unwrap (unwrap_ptr vptr);;
       m <- trigger (@Get _);;
       b <- trigger (Choose bool);;
       if (b: bool)
       then
-        '(m, b) <- unwrap (cas m p v_old v_new);;
+        '(m, b) <- unwrap (cas m vptr v_old v_new);;
         _ <- trigger (Put m);;
         Ret b
       else
-        if has_permission m p
+        if has_permission m vptr
         then
-          _ <- trigger (Fair (fun i => if ptr_eq_dec i p then Flag.fail else Flag.success));;
+          _ <- trigger (Fair (fun i => if val_eq_dec i vptr then Flag.fail else Flag.success));;
           Ret false
         else UB
   .
@@ -516,7 +518,7 @@ Section MEMRA.
       -∗
       (points_to l v)
       -∗
-      ∃ p, (⌜SCMem.unwrap_ptr l = Some p /\ SCMem.load m p = Some v /\ SCMem.has_permission m p = true⌝).
+      (⌜SCMem.load m l = Some v /\ SCMem.has_permission m l = true⌝).
   Proof.
     iIntros "[BLACK %WF] WHITE".
     unfold memory_black, points_to. des_ifs.
@@ -524,8 +526,8 @@ Section MEMRA.
     ur in H. specialize (H n). ur in H. specialize (H n0).
     unfold memory_resource_black, points_to_white in H. des_ifs.
     { ur in H. des. unfold URA.extends in H. des. ur in H. des_ifs.
-      iExists (_, _). iPureIntro. splits; auto.
-      unfold SCMem.has_permission. rewrite Heq. ss.
+      iPureIntro. splits; auto.
+      unfold SCMem.has_permission. ss. rewrite Heq. ss.
     }
     { ur in H. des. unfold URA.extends in H. des. ur in H. des_ifs. }
   Qed.
@@ -536,8 +538,8 @@ Section MEMRA.
       -∗
       (points_to l v0)
       -∗
-      ∃ p m1,
-        ((⌜SCMem.unwrap_ptr l = Some p /\ SCMem.store m0 p v1 = Some m1⌝)
+      ∃ m1,
+        ((⌜SCMem.store m0 l v1 = Some m1⌝)
            ** #=> (memory_black m1 ** points_to l v1)).
   Proof.
     iIntros "[BLACK %WF] WHITE".
@@ -546,7 +548,7 @@ Section MEMRA.
     ur in H. specialize (H n). ur in H. specialize (H n0).
     unfold memory_resource_black, points_to_white in H. des_ifs.
     2:{ ur in H. des. unfold URA.extends in H. des. ur in H. des_ifs. }
-    iExists (n, n0). unfold SCMem.store. des_ifs. iExists _.
+    unfold SCMem.store. ss. des_ifs. iExists _.
     iSplit; eauto.
     iAssert (#=> OwnM (memory_resource_black (SCMem.mem_update m0 n n0 v1) ⋅  points_to_white n n0 v1)) with "[OWN]" as "> [BLACK WHITE]".
     { iApply (OwnM_Upd with "OWN").
@@ -557,18 +559,16 @@ Section MEMRA.
       { ur. ss. }
       { ur in FRAME. ur. des_ifs. }
     }
-    { iModIntro. iFrame. iPureIntro.
+    { ss. iModIntro. iFrame. iPureIntro.
       unfold SCMem.mem_update. ii. ss. des_ifs; eauto.
     }
   Qed.
 
   Lemma memory_ra_compare_nat m n0 n1
     :
-    (memory_black m)
-      -∗
-      (⌜SCMem.compare m (SCMem.val_nat n0) (SCMem.val_nat n1) = Some (if PeanoNat.Nat.eq_dec n0 n1 then true else false)⌝).
+    SCMem.compare m (SCMem.val_nat n0) (SCMem.val_nat n1) = Some (if PeanoNat.Nat.eq_dec n0 n1 then true else false).
   Proof.
-    iIntros "BLACK". ss.
+    ss.
   Qed.
 
   Lemma memory_ra_compare_ptr_left m n l v
@@ -594,7 +594,7 @@ Section MEMRA.
   Proof.
     iIntros "BLACK POINT". ss.
     iPoseProof (memory_ra_load with "BLACK POINT") as "%". des.
-    unfold SCMem.unwrap_ptr in H. des_ifs. ss. des_ifs.
+    unfold SCMem.compare, SCMem.val_compare. des_ifs.
   Qed.
 
   Lemma memory_ra_compare_ptr_same m l v
@@ -607,7 +607,7 @@ Section MEMRA.
   Proof.
     iIntros "BLACK POINT". ss.
     iPoseProof (memory_ra_load with "BLACK POINT") as "%". des.
-    unfold SCMem.unwrap_ptr in H. des_ifs. ss. des_ifs.
+    unfold SCMem.compare, SCMem.val_compare. des_ifs.
   Qed.
 
   Lemma memory_ra_compare_ptr_both m l0 v0 l1 v1
@@ -623,9 +623,11 @@ Section MEMRA.
     iIntros "BLACK POINT0 POINT1". ss.
     iPoseProof (memory_ra_load with "BLACK POINT0") as "%". des.
     iPoseProof (memory_ra_load with "BLACK POINT1") as "%". des.
-    unfold SCMem.unwrap_ptr in *. des_ifs. ss. des_ifs.
-    iCombine "POINT0 POINT1" as "POINT". iOwnWf "POINT".
-    ur in H. ur in H. specialize (H n1). specialize (H n2). ur in H.
+    unfold SCMem.compare, SCMem.val_compare. des_ifs.
+    ss. des_ifs. iCombine "POINT0 POINT1" as "POINT". iOwnWf "POINT".
+    ur in H. ur in H. specialize (H n). specialize (H n0). ur in H.
     unfold points_to_white in H. des_ifs. inv Heq1. ur in H. ss.
   Qed.
 End MEMRA.
+
+Global Opaque points_to memory_black SCMem.load SCMem.store SCMem.alloc.

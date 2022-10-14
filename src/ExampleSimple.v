@@ -71,8 +71,7 @@ Section SIM.
 
   Variant W: Type :=
     | W_bot
-    | W_own (th: thread_id) (k: nat) (o: nat) (i: nat)
-    | W_top
+    | W_own (k: nat)
   .
 
   Variant W_le: W -> W -> Prop :=
@@ -81,14 +80,9 @@ Section SIM.
       :
       W_le W_bot w
     | W_le_th
-        th k i0 i1 o0 o1
-        (LE: o0 < o1 \/ o0 <= o1 /\ i0 <= i1)
+        k
       :
-      W_le (W_own k th o1 i1) (W_own k th o0 i0)
-    | W_le_top
-        w
-      :
-      W_le w W_top
+      W_le (W_own k) (W_own k)
   .
 
   Global Program Instance ge_PreOrder: PreOrder ge.
@@ -104,38 +98,29 @@ Section SIM.
   Program Instance W_le_PreOrder: PreOrder W_le.
   Next Obligation.
   Proof.
-    ii. destruct x; econs. lia.
+    ii. destruct x; econs.
   Qed.
   Next Obligation.
   Proof.
-    ii. inv H; inv H0; try econs; eauto. lia.
+    ii. inv H; inv H0; try econs; eauto.
   Qed.
 
-  Let I_aux (w: W): (@imap void nat_wf) -> (@imap (sum_tid void) nat_wf) -> unit -> (bool * bool) -> iProp :=
-        fun im_src im_tgt st_src '(l, f) =>
+  Let I_aux iProp :=
+        (match w with
+         | W_bot => ⌜l = false⌝ ** (OwnM (Excl.just tt: @URA.car (Excl.t unit)))
+         | W_own th k o i => ⌜l = true /\ im_tgt (inl th) <= i⌝ ** own_thread th ** monoWhite k ge_PreOrder o
+         | W_top => ⌜l = true /\ f = true⌝ ** (OwnM (Excl.just tt: @URA.car (Excl.t unit)))
+         end).
+
+
+        fun
+
+im_src im_tgt st_src '(l, f) =>
           (match w with
            | W_bot => ⌜l = false⌝ ** (OwnM (Excl.just tt: @URA.car (Excl.t unit)))
            | W_own th k o i => ⌜l = true /\ im_tgt (inl th) <= i⌝ ** own_thread th ** monoWhite k ge_PreOrder o
            | W_top => ⌜l = true /\ f = true⌝ ** (OwnM (Excl.just tt: @URA.car (Excl.t unit)))
            end).
-
-  Lemma I_aux_fair_update w
-        im_src im_tgt0 im_tgt1 tid ths st_src st_tgt
-        (UPD: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths)))
-    :
-    (own_thread tid)
-      -∗
-      (I_aux w im_src im_tgt0 st_src st_tgt)
-      -∗
-      (own_thread tid ∗ I_aux w im_src im_tgt1 st_src st_tgt).
-  Proof.
-    iIntros "OWN INV". destruct w; try by iFrame.
-    unfold I_aux. des_ifs. iDestruct "INV" as "[[% INV] ORD]".
-    iPoseProof (thread_disjoint with "OWN INV") as "%".
-    des. subst. iFrame. iPureIntro. split; auto.
-    specialize (UPD (inl th)). unfold sum_fmap_l, tids_fmap in UPD.
-    des_ifs; ss; lia.
-  Qed.
 
   Let I: TIdSet.t -> (@imap void nat_wf) -> (@imap (sum_tid void) nat_wf) -> unit -> (bool * bool) -> iProp :=
         fun ths im_src im_tgt st_src st_tgt =>

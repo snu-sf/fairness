@@ -15,7 +15,10 @@ Section MOD.
     fun _ =>
       b <- OMod.call "cas" (loc_l, SCMem.val_nat 0, SCMem.val_nat 1);;
       if (b: bool) then
-        OMod.call "store" (loc_f, SCMem.val_nat 1)
+        _ <- trigger Yield;;
+        _ <- trigger Yield;;
+        `_: unit <- OMod.call "store" (loc_f, SCMem.val_nat 1);;
+        trigger Yield
       else
         ITree.iter
           (fun _ =>
@@ -66,8 +69,7 @@ Section SIM.
 
   Variant W: Type :=
     | W_bot
-    | W_own (th: thread_id) (k: nat) (o: nat) (i: nat)
-    | W_top
+    | W_own (th: thread_id) (x: nat)
   .
 
   Variant W_le: W -> W -> Prop :=
@@ -76,59 +78,45 @@ Section SIM.
       :
       W_le W_bot w
     | W_le_th
-        th k i0 i1 o0 o1
-        (LE: o0 < o1 \/ o0 <= o1 /\ i0 <= i1)
+        k x
       :
-      W_le (W_own k th o1 i1) (W_own k th o0 i0)
-    | W_le_top
-        w
-      :
-      W_le w W_top
+      W_le (W_own k x) (W_own k x)
   .
 
-  Global Program Instance ge_PreOrder: PreOrder ge.
-  Next Obligation.
-  Proof.
-    ii. lia.
-  Qed.
-  Next Obligation.
-  Proof.
-    ii. lia.
-  Qed.
+  Global Program Instance le_PreOrder: PreOrder Nat.le.
 
   Program Instance W_le_PreOrder: PreOrder W_le.
   Next Obligation.
   Proof.
-    ii. destruct x; econs. lia.
+    ii. destruct x; econs.
   Qed.
   Next Obligation.
   Proof.
-    ii. inv H; inv H0; try econs; eauto. lia.
+    ii. inv H; inv H0; try econs; eauto.
   Qed.
 
   Let I_aux (w: W): iProp :=
-        (∃ ths, own_threads_white ths)
-          **
-        (∃ m,
-            (memory_black m)
-              **
-              (OwnM (Auth.white (Excl.just (tt, m): @Excl.t _): stateTgtRA (unit * SCMem.t)%type)))
-          **
-          (∃ im_ths,
-              (OwnM (Auth.white (Excl.just im_ths: @Excl.t (imap thread_id nat_wf)): identThsRA))
-                **
-                (match w with
-                 | W_bot => points_to loc_l (SCMem.val_nat 0) ** points_to loc_f (SCMem.val_nat 0) ** (OwnM (Excl.just tt: @URA.car (Excl.t unit)))
-                 | W_own th k o i => points_to loc_l (SCMem.val_nat 1) ** points_to loc_f (SCMem.val_nat 0) ** ⌜im_ths th <= i⌝ ** own_thread th ** monoWhite k ge_PreOrder o
-                 | W_top => points_to loc_l (SCMem.val_nat 1) ** points_to loc_f (SCMem.val_nat 1) ** (OwnM (Excl.just tt: @URA.car (Excl.t unit)))
-                 end))
+        (match w with
+         | W_bot => points_to loc_l (SCMem.val_nat 0) ** points_to loc_f (SCMem.val_nat 0) ** (OwnM (Excl.just tt: @URA.car (Excl.t unit)))
+         | W_own k x =>
+             (points_to loc_l (SCMem.val_nat 1))
+               **
+               (∃ n, points_to loc_f (SCMem.val_nat n) ** monoWhite x le_PreOrder n ** ⌜n = 0 \/ n = 1⌝)
+               **
+               Eventually k (monoWhite x le_PreOrder 1)
+         end)
   .
 
   Let I: iProp :=
-        ∃ w,
-          (monoBlack 0 W_le_PreOrder w)
-            **
-            I_aux w.
+        (∃ m,
+            (memory_black m)
+              **
+              (St_tgt (tt, m)))
+          **
+          (∃ w,
+              (monoBlack 0 W_le_PreOrder w)
+                **
+                I_aux w).
 
   (* Lemma I_aux_fair_update w *)
   (*       im_src im_tgt0 im_tgt1 tid ths st_src st_tgt *)
@@ -302,6 +290,8 @@ Section SIM.
 
   Definition itop5 { T0 T1 T2 T3 T4 } (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := True%I.
 
+  Definition itop6 { T0 T1 T2 T3 T4 T5 } (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4): iProp := True%I.
+
   Definition itop10 { T0 T1 T2 T3 T4 T5 T6 T7 T8 T9} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5) (x7: T7 x0 x1 x2 x3 x4 x5 x6) (x8: T8 x0 x1 x2 x3 x4 x5 x6 x7) (x9: T9 x0 x1 x2 x3 x4 x5 x6 x7 x8): iProp := True%I.
 
   (* Definition isim_gen tid r g R_src R_tgt Q (itr_src: itree srcE R_src) (itr_tgt: itree tgtE R_tgt): iProp := *)
@@ -359,20 +349,315 @@ Section SIM.
 
   (*       isim tid I r g Q itr_src itr_tgt ths im_src im_tgt1 st_src st_tgt. *)
 
+  Definition a ⊕ b
+
   Lemma sim: ModSim.mod_sim example_spec_mod example_mod.
   Proof.
     refine (@ModSim.mk _ _ nat_wf nat_wf _ _ Σ _ _ _).
     { econs. exact 0. }
     { i. exists (S o0). ss. }
     { cut (forall tid,
-              I ** own_thread tid ⊢ stsim I tid itop5 itop5 (fun r_src r_tgt => I ** own_thread tid ** ⌜r_src = r_tgt⌝) (example_spec_fun tt) (OMod.close_itree (example_omod) (SCMem.mod [1; 1]) (example_fun tt))).
+              I ⊢ fsim I tid itop6 itop6 (fun r_src r_tgt os => I ** ⌜r_src = r_tgt /\ os = []⌝) (example_spec_fun tt) (OMod.close_itree (example_omod) (SCMem.mod [1; 1]) (example_fun tt)) []).
       { admit. }
-      i. iIntros "[INV TID]". ss. unfold example_spec_fun, example_fun.
+      i. iIntros "INV". ss. unfold example_spec_fun, example_fun.
 
-      repeat (prw _red_itree 1 2 0).
+      repeat (prw _red_itree 1 3 0).
 
       rewrite ! close_itree_bind. rewrite close_itree_call. ss.
-      repeat (prw _red_itree 1 1 0).
+      repeat (prw _red_itree 1 2 0).
+      iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iIntros "INV _".
+      repeat (prw _red_itree 1 2 0).
+      unfold SCMem.cas_fun, Mod.wrap_fun.
+      repeat (prw _red_itree 1 2 0).
+      rewrite Any.upcast_downcast. ss.
+      rewrite embed_itree_bind.
+      repeat (prw _red_itree 1 2 0). repeat (rewrite embed_itree_bind).
+      repeat (prw _red_itree 1 2 0).
+
+      iDestruct "INV" as "[[%m [MEM ST]] [%w [MONO H]]]".
+      rewrite embed_itree_trigger_get2.
+      repeat (prw _red_itree 1 2 0).
+      iApply fsim_getR. iSplit.
+      { iFrame. }
+      repeat (prw _red_itree 1 2 0).
+      iApply fsim_tauR.
+      repeat (prw _red_itree 1 2 0).
+
+      unfold SCMem.cas.
+      destruct w; ss.
+      { iDestruct "H" as "[[POINTL POINTF] EXCL]".
+        iPoseProof (memory_ra_load with "MEM POINTL") as "%". ss. des; clarify.
+        rewrite H. ss.
+        iPoseProof (memory_ra_store with "MEM POINTL") as "[% [% > [MEM POINTL]]]".
+        rewrite H1. ss.
+        rewrite embed_itree_bind.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_ret.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_bind.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_trigger_put2.
+        repeat (prw _red_itree 1 2 0).
+        iApply fsim_getR. iSplit.
+        { iFrame. }
+        repeat (prw _red_itree 1 2 0).
+        iApply (fsim_putR with "ST"). iIntros "ST".
+        repeat (prw _red_itree 1 2 0).
+        iApply fsim_tauR.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_ret.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_ret.
+        repeat (prw _red_itree 1 2 0).
+        iApply fsim_tauR.
+        rewrite Any.upcast_downcast. ss.
+        repeat (prw _red_itree 1 2 0).
+        rewrite close_itree_bind.
+        rewrite close_itree_trigger_cE2.
+        repeat (prw _red_itree 1 2 0).
+
+        iApply (@fsim_alloc_obligation _ _ _ _ _ _ (Ord.)). iIntros "% ONG NEG # POS".
+        iDestruct (monoBlack_alloc le_PreOrder 0) as "-# > [% ORD]".
+        iPoseProof (black_persistent_white with "ORD") as "# WHITE".
+        iPoseProof (black_updatable with "MONO") as "> MONO".
+        { instantiate (1:=W_own k k0). econs. }
+        iPoseProof (black_persistent_white with "MONO") as "# MWHITE".
+
+        iApply (@fsim_yieldR _ _ _ _ _ _ _ None). iSplitR "EXCL ORD".
+        { ss. iFrame. iSplit; auto. iSplitL "MEM ST".
+          { iExists _. iFrame. }
+          iExists _. iFrame. iSplit.
+          { iExists _. iFrame. iSplit; auto. }
+          { iClear "POINTF". iModIntro. iExists _. eauto. }
+        }
+        iIntros "INV _".
+
+        repeat (prw _red_itree 1 2 0).
+        iApply fsim_tauR.
+        repeat (prw _red_itree 1 2 0).
+        rewrite close_itree_bind.
+        rewrite close_itree_trigger_cE2.
+        repeat (prw _red_itree 1 2 0).
+        iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame.
+
+iSplitR "EXCL ORD".
+
+
+        rewrite close_itree_call. ss.
+        repeat (prw _red_itree 1 2 0).
+
+
+unfold SCMem.store_fun, Mod.wrap_fun.
+        rewrite Any.upcast_downcast.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_bind.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_bind.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_trigger_get2.
+        repeat (prw _red_itree 1 2 0).
+
+        iDestruct "INV" as "[[% [MEM ST]] [% [MONO H]]]".
+        iApply fsim_getR. iSplit.
+        { iFrame. }
+        repeat (prw _red_itree 1 2 0).
+        iApply fsim_tauR.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_bind.
+        repeat (prw _red_itree 1 2 0).
+
+        iPoseProof (black_white_compare with "MWHITE MONO") as "%". inv H2.
+        ss. iDestruct "H" as "[[POINTL [% [[POINTF _] _]]] EVT]".
+
+        iPoseProof (memory_ra_store with "MEM POINTF") as "[% [% > [MEM POINTF]]]".
+        rewrite H2. ss.
+        rewrite embed_itree_ret.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_bind.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_trigger_put2.
+        repeat (prw _red_itree 1 2 0).
+        iApply fsim_getR. iSplit.
+        { iFrame. }
+        repeat (prw _red_itree 1 2 0).
+        iApply (fsim_putR with "ST"). iIntros "ST".
+        repeat (prw _red_itree 1 2 0).
+        iApply fsim_tauR.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_ret.
+        repeat (prw _red_itree 1 2 0).
+        rewrite embed_itree_ret.
+        repeat (prw _red_itree 1 2 0).
+        iApply fsim_tauR.
+        rewrite Any.upcast_downcast. ss.
+        repeat (prw _red_itree 1 2 0).
+        rewrite close_itree_trigger_cE2.
+        iPoseProof (eventually_finish with "EVT") as "[# DONE | [ONG EVT]]".
+        { iApply (fsim_obligation_not_done with "DONE"). ss. auto. }
+        iPoseProof (black_updatable with "ORD") as "> ORD".
+        { instantiate (1:=1). lia. }
+        iClear "WHITE". iPoseProof (black_persistent_white with "ORD") as "#WHITE".
+        iApply (fsim_dealloc_obligation with "ONG").
+        { ss. }
+        iIntros "# DONE". iPoseProof ("EVT" with "DONE WHITE") as "EVT".
+
+        iApply (@fsim_sync _ _ _ _ _ _ _ None). iSplitR "".
+        { ss. unfold I. iSplit; auto. iSplit; auto. iSplitL "MEM ST".
+          { iExists _. iFrame. }
+          iExists _. iFrame. ss. iFrame.
+          iExists _. iFrame. iSplit; auto.
+        }
+        iIntros "INV _". iApply fsim_tauR. iApply fsim_ret. auto.
+      }
+
+      { iDestruct "H" as "[[POINTL POINTF] EXCL]".
+
+
+               {
+
+ }
+          { iClear "POINTF". iModIntro. iExists _. eauto. }
+        }
+
+
+
+ORD") as "EVT".
+
+instantiate (1:=W_own k k0). econs. }
+
+
+
+ss. }
+
+        iApply fsim_dealloc_obligation.
+
+        iApply (@fsim_yieldR _ _ _ _ _ _ _ None). iSplitR "EXCL ORD".
+
+
+        repeat (prw _red_itree 1 2 0).
+
+        repeat (prw _red_itree 1 2 0).
+
+
+        rewrite embed_itree_ret.
+
+
+        rewrite embed_itree_tauR.
+
+
+        rewrite embed_itree_bind.
+
+iSplit.
+                { iFrame. }
+                repeat (prw _red_itree 1 2 0).
+                repeat (prw _red_itree 1 2 0).
+
+        iPoseProof (memory_ra_store
+
+        iPoseProof (black_white_compare with "MWHITE MONO") as "%". inv H2.
+        ss. iDestruct "H" as "[[POINTL [% [[H _] _]]] EVT]".
+
+
+iPoseProof (memory_ra_load with "MEM POINTL") as "%". ss. des; clarify.
+        rewrite H. ss.
+
+
+
+
+        rewrite embed_itree_trigger_get2.
+        repeat (prw _red_itree 1 2 0).
+
+
+
+        iApply fsim_getR. iSplit.
+        { iFrame. }
+
+
+
+o        rewrite embed_itree_trigger.
+
+
+        repeat (prw _red_itree 1 2 0).
+
+ss.
+
+
+
+iSplit
+
+ss.
+
+iFrame.
+
+instan
+
+*)
+                                                      (*
+
+
+
+        iApply
+
+
+ *)
+
+
+
+        repeat (prw _red_itree 1 2 0).
+
+
+>
+
+        iApply fsim_getR. iSplit.
+
+
+
+        iApply fsim_getR. iSplit.
+        { iFrame. }
+
+
+
+
+        rewrite embed_itree_bind.
+        rewrite embed_itree_trigger_get2.
+        repeat (prw _red_itree 1 2 0).
+
+              rewrite embed_itree_bind.
+
+
+repeat (rewrite embed_itree_bind)
+        .
+        ss. des; clarify.
+
+des.
+
+
+
+
+      ss.
+
+
+      rewrite embed_itree_get_tgt.
+      i
+
+
+      repeat (rewrite embed_itree_bind).
+      repeat (prw _red_itree 1 2 0).
+
+
+repeat (rewrite embed_itree_bind).
+
+repeat (prw _red_itree 1 2 0).
+
+
+ss.
+
+
+      iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iIntros "H _".
+
+ with "INV"). iIntros "INV".
+
+
       iApply (stsim_yieldR with "INV"). iIntros "INV".
 
       iDestruct "INV" as (w) "[MONO [[[% THS] MEM] [% [TMAP INV]]]]".
