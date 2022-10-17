@@ -93,10 +93,9 @@ Module Mod.
           (f: ktree E A R):
     ktree E Any.t Any.t :=
     fun arg =>
-      match (arg↓) with
-      | Some arg => ret <- f arg;; Ret ret↑
-      | None => UB
-      end.
+      arg <- unwrap (arg↓);;
+      ret <- f arg;; Ret ret↑
+  .
 
   Fixpoint get_funs {ident} {E} `{@eventE ident -< E}
            (funs: list (fname * (ktree E Any.t Any.t)))

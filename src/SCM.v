@@ -131,18 +131,18 @@ Module SCMem.
     end.
 
   Definition cas (m: t) (ptr: val) (v_old: val) (v_new: val):
-    option (t * bool) :=
+    option (t + unit) :=
     match (load m ptr) with
     | Some v =>
         match (val_compare m v v_old) with
         | None => None
         | Some true =>
             match store m ptr v_new with
-            | Some m_new => Some (m_new, true)
+            | Some m_new => Some (inl m_new)
             | None => None
             end
         | Some false =>
-            Some (m, false)
+            Some (inr tt)
         end
     | None => None
     end.
@@ -186,9 +186,14 @@ Module SCMem.
     ktree (((@eventE ident) +' cE) +' sE t) (val * val * val) bool :=
     fun '(vptr, v_old, v_new) =>
       m <- trigger (@Get _);;
-      '(m, b) <- unwrap (cas m vptr v_old v_new);;
-      _ <- trigger (Put m);;
-      Ret b
+      mb <- unwrap (cas m vptr v_old v_new);;
+      match mb with
+      | inl m =>
+          _ <- trigger (Put m);;
+          Ret true
+      | inr _ =>
+          Ret false
+      end
   .
 
   Definition cas_weak_fun:
@@ -198,9 +203,14 @@ Module SCMem.
       b <- trigger (Choose bool);;
       if (b: bool)
       then
-        '(m, b) <- unwrap (cas m vptr v_old v_new);;
-        _ <- trigger (Put m);;
-        Ret b
+        mb <- unwrap (cas m vptr v_old v_new);;
+        match mb with
+        | inl m =>
+            _ <- trigger (Put m);;
+            Ret true
+        | inr _ =>
+            Ret false
+        end
       else
         if has_permission m vptr
         then

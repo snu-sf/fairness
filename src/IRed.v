@@ -1,4 +1,4 @@
-From Fairness Require Import Red ITreeLib Any.
+From Fairness Require Import Red ITreeLib Any FairBeh.
 From sflib Require Import sflib.
 Require Import Program.
 
@@ -174,92 +174,92 @@ Ltac _red_itree f :=
   | _ => fail
   end.
 
-(* Ltac __red_interp f term := *)
-(*   match term with *)
-(*   | unwrapU (@Any.downcast ?A (@Any.upcast ?A ?a)) => *)
-(*     instantiate (f:=_continue); apply f_equal; apply Any.upcast_downcast; fail *)
-(*   | unwrapU (Any.split (Any.pair ?a0 ?a1)) => *)
-(*     instantiate (f:=_continue); apply f_equal; apply Any.pair_split; fail *)
-(*   | unwrapN (@Any.downcast ?A (@Any.upcast ?A ?a)) => *)
-(*     instantiate (f:=_continue); apply f_equal; apply Any.upcast_downcast; fail *)
-(*   | unwrapN (Any.split (Any.pair ?a0 ?a1)) => *)
-(*     instantiate (f:=_continue); apply f_equal; apply Any.pair_split; fail *)
-(*   | _ => *)
+Ltac __red_interp f term :=
+  match term with
+  | unwrap (@Any.downcast ?A (@Any.upcast ?A ?a)) =>
+    instantiate (f:=_continue); apply f_equal; apply Any.upcast_downcast; fail
+  | unwrap (Any.split (Any.pair ?a0 ?a1)) =>
+    instantiate (f:=_continue); apply f_equal; apply Any.pair_split; fail
+  (* | unwrapN (@Any.downcast ?A (@Any.upcast ?A ?a)) => *)
+  (*   instantiate (f:=_continue); apply f_equal; apply Any.upcast_downcast; fail *)
+  (* | unwrapN (Any.split (Any.pair ?a0 ?a1)) => *)
+  (*   instantiate (f:=_continue); apply f_equal; apply Any.pair_split; fail *)
+  | _ =>
 
-(*   (* idtac "__red_interp"; *) *)
-(*   (* idtac term; *) *)
-(*   let my_interp := get_head2 term in *)
-(*   (* idtac itr; *) *)
-(*   let tc := fresh "_TC_" in *)
-(*   unshelve evar (tc: @red_database (mk_box (my_interp))); [typeclasses eauto|]; *)
-(*   let name := fresh "TMP" in *)
-(*   let _nth := constr:(rdb_pos tc) in *)
-(*   let nth := (eval simpl in _nth) in *)
-(*   let itr := get_nth term nth in *)
-(*   lazymatch itr with *)
-(*   | ITree.bind' ?k0 ?i0 => *)
-(*     (* idtac "bind"; *) *)
-(*     instantiate (f:=_continue); pose (rdb_bind tc) as name; cbn in name; *)
-(*     (*** Note: Why not just "apply lemma"? Because of Coq bug. (Anomaly) ***) *)
-(*     match goal with | name := mk_box ?lemma |- _ => first[apply (@lemma _ _ i0 k0)|apply lemma] end *)
-(*   | Tau _ => *)
-(*     instantiate (f:=_continue); pose (rdb_tau tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
-(*   | Ret _ => *)
-(*     (* idtac "ret"; *) *)
-(*     instantiate (f:=_continue); pose (rdb_ret tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
-(*   | trigger ?e => *)
-(*     instantiate (f:=_continue); *)
-(*     ((pose (rdb_trigger0 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) || *)
-(*      (pose (rdb_trigger1 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) || *)
-(*      (pose (rdb_trigger2 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) || *)
-(*      (pose (rdb_trigger3 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) || *)
-(*      fail 3 *)
-(*     ) *)
-(*   | triggerUB => *)
-(*     instantiate (f:=_continue); pose (rdb_UB tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
-(*   | triggerNB => *)
-(*     instantiate (f:=_continue); pose (rdb_NB tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
-(*   | unwrapU _ => *)
-(*     instantiate (f:=_continue); pose (rdb_unwrapU tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
-(*   | unwrapN _ => *)
-(*     instantiate (f:=_continue); pose (rdb_unwrapN tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
-(*   | assume _ => *)
-(*     instantiate (f:=_continue); pose (rdb_assume tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
-(*   | guarantee _ => *)
-(*     instantiate (f:=_continue); pose (rdb_guarantee tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
-(*   | ?term => *)
-(*     (* idtac "term"; *) *)
-(*     pose (rdb_ext tc) as name; cbn in name; *)
-(*     match goal with | name := mk_box ?lemma |- _ => apply lemma end; *)
-(*     subst tc; *)
-(*     __red_interp f term *)
-(*   end *)
-(* end *)
-(* . *)
+  (* idtac "__red_interp"; *)
+  (* idtac term; *)
+  let my_interp := get_head2 term in
+  (* idtac itr; *)
+  let tc := fresh "_TC_" in
+  unshelve evar (tc: @red_database (mk_box (my_interp))); [typeclasses eauto|];
+  let name := fresh "TMP" in
+  let _nth := constr:(rdb_pos tc) in
+  let nth := (eval simpl in _nth) in
+  let itr := get_nth term nth in
+  lazymatch itr with
+  | ITree.bind ?i0 ?k0 =>
+    (* idtac "bind"; *)
+    instantiate (f:=_continue); pose (rdb_bind tc) as name; cbn in name;
+    (*** Note: Why not just "apply lemma"? Because of Coq bug. (Anomaly) ***)
+    match goal with | name := mk_box ?lemma |- _ => first[apply (@lemma _ _ i0 k0)|apply lemma] end
+  | Tau _ =>
+    instantiate (f:=_continue); pose (rdb_tau tc) as name; cbn in name;
+    match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end
+  | Ret _ =>
+    (* idtac "ret"; *)
+    instantiate (f:=_continue); pose (rdb_ret tc) as name; cbn in name;
+    match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end
+  | trigger ?e =>
+    instantiate (f:=_continue);
+    ((pose (rdb_trigger0 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) ||
+     (pose (rdb_trigger1 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) ||
+     (pose (rdb_trigger2 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) ||
+     (pose (rdb_trigger3 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) ||
+     fail 3
+    )
+  | UB =>
+    instantiate (f:=_continue); pose (rdb_UB tc) as name; cbn in name;
+    match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end
+  (* | triggerNB => *)
+  (*   instantiate (f:=_continue); pose (rdb_NB tc) as name; cbn in name; *)
+  (*   match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
+  | unwrap _ =>
+    instantiate (f:=_continue); pose (rdb_unwrapU tc) as name; cbn in name;
+    match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end
+  (* | unwrapN _ => *)
+  (*   instantiate (f:=_continue); pose (rdb_unwrapN tc) as name; cbn in name; *)
+  (*   match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
+  (* | assume _ => *)
+  (*   instantiate (f:=_continue); pose (rdb_assume tc) as name; cbn in name; *)
+  (*   match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
+  (* | guarantee _ => *)
+  (*   instantiate (f:=_continue); pose (rdb_guarantee tc) as name; cbn in name; *)
+  (*   match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end *)
+  | ?term =>
+    (* idtac "term"; *)
+    pose (rdb_ext tc) as name; cbn in name;
+    match goal with | name := mk_box ?lemma |- _ => apply lemma end;
+    subst tc;
+    __red_interp f term
+  end
+end
+.
 
-(* Ltac _red_interp f := *)
-(*   (* idtac "_red_interp"; *) *)
-(*   lazymatch goal with *)
-(*   | [ |- ITree.bind' _ ?term = _ ] => *)
-(*     (* idtac "_red_interp_bind"; *) *)
-(*     apply bind_ext; __red_interp f term *)
-(*   | [ |- ?term = _] => *)
-(*     (* idtac "_red_interp_term"; *) *)
-(*     __red_interp f term *)
-(*   end *)
-(* . *)
+Ltac _red_interp f :=
+  (* idtac "_red_interp"; *)
+  lazymatch goal with
+  | [ |- ITree.bind ?term _ = _ ] =>
+    (* idtac "_red_interp_bind"; *)
+    apply bind_ext; __red_interp f term
+  | [ |- ?term = _] =>
+    (* idtac "_red_interp_term"; *)
+    __red_interp f term
+  end
+.
 
-(* Ltac _red_gen f := *)
-(*   (* idtac "DEBUG:_red_gen"; *) *)
-(*   _red_interp f || _red_itree f || fail. *)
+Ltac _red_gen f :=
+  (* idtac "DEBUG:_red_gen"; *)
+  _red_interp f || _red_itree f || fail.
 
 
 
