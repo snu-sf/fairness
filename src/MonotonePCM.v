@@ -421,6 +421,21 @@ Section Monotone.
       rewrite FiniteMap.singleton_core. auto.
     Qed.
 
+    Lemma white_exact_persistent w
+      :
+      (monoWhiteExact w) -∗ (□ monoWhiteExact w).
+    Proof.
+      unfold monoBlack, monoWhiteExact.
+      iIntros "H". iPoseProof (own_persistent with "H") as "H".
+      rewrite FiniteMap.singleton_core. auto.
+    Qed.
+
+    Global Program Instance Persistent_white_exact w: Persistent (monoWhiteExact w).
+    Next Obligation.
+    Proof.
+      i. iIntros "WHITE". iPoseProof (white_exact_persistent with "WHITE") as "WHITE". auto.
+    Qed.
+
     Lemma black_persistent_white w
       :
       (monoBlack w) -∗ (□ monoWhite w).
@@ -429,15 +444,6 @@ Section Monotone.
       iPoseProof (black_persistent_white_exact with "H") as "# H0".
       iClear "∗". iModIntro.
       iExists _. iSplit; eauto.
-    Qed.
-
-    Lemma white_exact_persistent w
-      :
-      (monoWhiteExact w) -∗ (□ monoWhiteExact w).
-    Proof.
-      unfold monoBlack, monoWhiteExact.
-      iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
     Qed.
 
     Lemma white_mon w0 w1
@@ -460,6 +466,8 @@ Section Monotone.
       iClear "∗". iModIntro.
       iExists _. iSplit; eauto.
     Qed.
+
+    Global Program Instance Persistent_white w: Persistent (monoWhite w).
 
     Lemma black_updatable w0 w1
           (LE: le w0 w1)
@@ -584,6 +592,12 @@ Section Monotone.
     iIntros "H". iPoseProof (own_persistent with "H") as "H". ss.
   Qed.
 
+  Global Program Instance Persistent_white_exact2 w: Persistent (monoWhiteExact2 w).
+  Next Obligation.
+  Proof.
+    i. iIntros "WHITE". iPoseProof (white_exact_persistent2 with "WHITE") as "WHITE". auto.
+  Qed.
+
   Lemma white_mon2 w0 w1
     :
     (monoWhite2 w1) -∗ ⌜le w0 w1⌝ -∗ (monoWhite2 w0).
@@ -603,6 +617,8 @@ Section Monotone.
     iClear "∗". iModIntro.
     iExists _. iSplit; eauto.
   Qed.
+
+  Global Program Instance Persistent_white2 w: Persistent (monoWhite2 w).
 
   Lemma black_updatable2 w0 w1
         (LE: le w0 w1)

@@ -1276,6 +1276,12 @@ Section FAIR.
   Proof.
   Admitted.
 
+  Global Program Instance Persistent_Pos k n: Persistent (Pos k n).
+  Next Obligation.
+  Proof.
+    i. iIntros "POS". iPoseProof (Pos_persistent with "POS") as "POS". auto.
+  Qed.
+
   Definition PosEx k: iProp := ∃ n, Pos k n.
 
   Lemma PosEx_persistent k
@@ -1284,7 +1290,10 @@ Section FAIR.
       -∗
       (□ PosEx k).
   Proof.
-  Admitted.
+    iIntros "# H". auto.
+  Qed.
+
+  Global Program Instance Persistent_PosEx k: Persistent (PosEx k).
 
   Lemma PosEx_unfold k
     :
@@ -1320,6 +1329,12 @@ Section FAIR.
       (□ Done k).
   Proof.
   Admitted.
+
+  Global Program Instance Persistent_Done k: Persistent (Done k).
+  Next Obligation.
+  Proof.
+    i. iIntros "DONE". iPoseProof (Done_persistent with "DONE") as "DONE". auto.
+  Qed.
 
   Lemma Ongoing_not_Done k
     :
