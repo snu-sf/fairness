@@ -1783,49 +1783,32 @@ Section FAIR.
   Proof.
   Admitted.
 
+  Context `{SRCORD: @GRA.inG (@FairRA.t ident_src Ord.t _) Σ}.
+  Context `{TGTORD: @GRA.inG (@FairRA.t ident_tgt nat _) Σ}.
 
-  (* Lemma fsim_fairL f r g R_src R_tgt *)
-  (*       (Q: R_src -> R_tgt -> list nat -> iProp) *)
-  (*       ktr_src itr_tgt im_src0 *)
-  (*   : *)
-  (*   (OwnM (Auth.white (Excl.just im_src0: @Excl.t _): identSrcRA ident_src wf_src)) *)
-  (*     -∗ *)
-  (*     (∃ im_src1, ⌜fair_update im_src0 im_src1 f⌝ ∧ *)
-  (*                   ((OwnM (Auth.white (Excl.just im_src1: @Excl.t _): identSrcRA ident_src wf_src)) -∗ (fsim r g Q (ktr_src tt) itr_tgt))) *)
-  (*     -∗ *)
-  (*     (fsim r g Q (trigger (Fair f) >>= ktr_src) itr_tgt). *)
-  (* Proof. *)
-  (*   unfold fsim. iIntros "OWN H" (? ? ? ? ?) "D". *)
-  (*   iDestruct "H" as (im_src1) "[% H]". *)
-  (*   iPoseProof (default_I_get_ident_src with "D OWN") as "%". subst. *)
-  (*   iPoseProof (default_I_update_ident_src with "D OWN") as "> [OWN D]". *)
-  (*   iPoseProof ("H" with "OWN D") as "H". *)
-  (*   iApply isim_fairL. iExists _. iSplit; eauto. *)
-  (* Qed. *)
+  Lemma fsim_fairL o f r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os ktr_src itr_tgt
+    :
+    (Infsum (fun i: sig (fun i => f i = Flag.fail) => FairRA.white (proj1_sig i) (Ord.from_nat 1)))
+      -∗
+      ((Infsum (fun i: sig (fun i => f i = Flag.success) => FairRA.white (proj1_sig i) o)) -* (fsim r g Q (ktr_src tt) itr_tgt os))
+      -∗
+      (fsim r g Q (trigger (Fair f) >>= ktr_src) itr_tgt os).
+  Proof.
+  Admitted.
 
-  (* Lemma fsim_fairR f r g R_src R_tgt *)
-  (*       (Q: R_src -> R_tgt -> list nat -> iProp) *)
-  (*       itr_src ktr_tgt im_tgt0 *)
-  (*   : *)
-  (*   (OwnM (Auth.white (Excl.just im_tgt0: @Excl.t _): identTgtRA ident_tgt)) *)
-  (*     -∗ *)
-  (*     (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 f⌝ -* (OwnM (Auth.white (Excl.just im_tgt1: @Excl.t _): identTgtRA ident_tgt)) -* fsim r g Q itr_src (ktr_tgt tt)) *)
-  (*     -∗ *)
-  (*     (fsim r g Q itr_src (trigger (Fair f) >>= ktr_tgt)) *)
-  (* . *)
-  (* Proof. *)
-  (*   unfold fsim. iIntros "OWN H"  (? ? ? ? ?) "D". *)
-  (*   iPoseProof (default_I_get_ident_tgt with "D OWN") as "%". subst. *)
-  (*   iApply isim_fairR. iIntros (?) "%". *)
-  (*   iPoseProof (default_I_update_ident_tgt with "D OWN") as "> [OWN D]". ss. *)
-  (*   hexploit imap_proj_update_r; eauto. i. des. rewrite LEFT. *)
-  (*   iAssert (⌜fair_update (imap_proj_id2 im_tgt) (imap_proj_id2 im_tgt1) f⌝)%I as "UPD". *)
-  (*   { auto. } *)
-  (*   iPoseProof ("H" with "UPD OWN D") as "H". *)
-  (*   change (imap_proj_id1 im_tgt1, imap_proj_id2 im_tgt1) with (imap_proj_id im_tgt1). *)
-  (*   rewrite imap_sum_proj_id_inv2. iFrame. *)
-  (* Qed. *)
-
+  Lemma fsim_fairR f r g R_src R_tgt
+        (Q: R_src -> R_tgt -> list nat -> iProp)
+        os itr_src ktr_tgt
+    :
+    (Infsum (fun i: sig (fun i => f i = Flag.success) => (∃ a, FairRA.black (proj1_sig i) a)%I))
+      -∗
+      ((Infsum (fun i: sig (fun i => f i = Flag.fail) => FairRA.white (proj1_sig i) 1)) -* (fsim r g Q itr_src (ktr_tgt tt) os))
+      -∗
+      (fsim r g Q itr_src (trigger (Fair f) >>= ktr_tgt) os).
+  Proof.
+  Admitted.
 End FAIR.
 
 From Fairness Require Export Red IRed.
