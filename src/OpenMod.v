@@ -110,6 +110,13 @@ Section RED.
     apply bisim_is_eq. eapply unfold_iter.
   Qed.
 
+  Lemma embed_itree_ext
+        omd md R (itr0 itr1: itree _ R)
+    :
+    itr0 = itr1 -> OMod.embed_itree omd md itr0 = OMod.embed_itree omd md itr1
+  .
+  Proof. i; subst; reflexivity. Qed.
+
   Lemma embed_itree_ret
         omd md
         R
@@ -339,6 +346,13 @@ Section RED.
   Qed.
 
   Local Opaque embed_itree.
+
+  Lemma close_itree_ext
+        omd md R (itr0 itr1: itree _ R)
+    :
+    itr0 = itr1 -> OMod.close_itree omd md itr0 = OMod.close_itree omd md itr1
+  .
+  Proof. i; subst; reflexivity. Qed.
 
   Lemma close_itree_ret
         omd md
@@ -661,3 +675,45 @@ Section RED.
 End RED.
 Global Opaque OMod.embed_itree.
 Global Opaque OMod.close_itree.
+
+From Fairness Require Export Red IRed.
+Global Program Instance embed_itree_rdb: red_database (mk_box (@OMod.embed_itree)) :=
+  mk_rdb
+    0
+    (mk_box embed_itree_bind)
+    (mk_box embed_itree_tau)
+    (mk_box embed_itree_ret)
+    (mk_box embed_itree_trigger_eventE2)
+    (mk_box embed_itree_trigger_cE2)
+    (mk_box embed_itree_trigger_put2)
+    (mk_box embed_itree_trigger_get2)
+    (mk_box embed_itree_UB)
+    (mk_box embed_itree_UB)
+    (mk_box embed_itree_unwrap)
+    (mk_box embed_itree_UB)
+    (mk_box embed_itree_UB)
+    (mk_box embed_itree_UB)
+    (mk_box embed_itree_ext)
+.
+
+Global Program Instance close_itree_rdb: red_database (mk_box (@OMod.close_itree)) :=
+  mk_rdb
+    0
+    (mk_box close_itree_bind)
+    (mk_box close_itree_tau)
+    (mk_box close_itree_ret)
+    (mk_box close_itree_trigger_eventE2)
+    (mk_box close_itree_trigger_cE2)
+    (mk_box close_itree_trigger_put2)
+    (mk_box close_itree_trigger_get2)
+    (mk_box close_itree_UB)
+    (mk_box close_itree_UB)
+    (mk_box close_itree_unwrap)
+    (mk_box close_itree_UB)
+    (mk_box close_itree_UB)
+    (mk_box close_itree_UB)
+    (mk_box close_itree_ext)
+.
+(* close_itree_trigger_call2 *)
+(* close_itree_call *)
+(* close_itree_callR *)

@@ -1447,6 +1447,19 @@ End CounterRA.
 
 
 From Fairness Require Import Axioms MonotonePCM.
+From Ordinal Require Export Ordinal Arithmetic Hessenberg ClassicalHessenberg.
+
+Lemma ord_mult_split (n: nat)
+  :
+  ((Ord.omega ⊕ Ord.large × n) <= (Ord.large × (S n)))%ord.
+Proof.
+  rewrite Ord.from_nat_S.
+  rewrite Jacobsthal.mult_S.
+  apply Hessenberg.le_add_l.
+  apply Ord.lt_le.
+  rewrite Ord.omega_from_peano_lt_set.
+  apply Ord.large_lt_from_wf_set.
+Qed.
 
 Module ObligationRA.
   Definition t: URA.t := @FiniteMap.t (@CounterRA.t Ord.t _).
@@ -1470,6 +1483,12 @@ Module ObligationRA.
       unfold black.
       iPoseProof (own_persistent with "H") as "H".
       rewrite FiniteMap.singleton_core. auto.
+    Qed.
+
+    Global Program Instance Persistent_black k o: Persistent (black k o).
+    Next Obligation.
+    Proof.
+      i. iIntros "POS". iPoseProof (black_persistent with "POS") as "POS". auto.
     Qed.
 
     Lemma alloc o

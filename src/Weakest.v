@@ -1263,6 +1263,12 @@ Definition owf: WF := mk_wf Ord.lt_well_founded.
 Section FAIR.
   Context `{Σ: GRA.t}.
 
+  Definition itop5 { T0 T1 T2 T3 T4 } (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := True%I.
+
+  Definition itop6 { T0 T1 T2 T3 T4 T5 } (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4): iProp := True%I.
+
+  Definition itop10 { T0 T1 T2 T3 T4 T5 T6 T7 T8 T9} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5) (x7: T7 x0 x1 x2 x3 x4 x5 x6) (x8: T8 x0 x1 x2 x3 x4 x5 x6 x7) (x9: T9 x0 x1 x2 x3 x4 x5 x6 x7 x8): iProp := True%I.
+
   Definition Pos (k: nat) (n: Ord.t): iProp. Admitted.
   Definition Neg (k: nat) (n: Ord.t): iProp. Admitted.
   Definition Ongoing (k: nat): iProp. Admitted.
@@ -1821,3 +1827,8 @@ Section FAIR.
   (* Qed. *)
 
 End FAIR.
+
+From Fairness Require Export Red IRed.
+
+Ltac lred := repeat (prw _red_gen 1 3 0).
+Ltac rred := repeat (prw _red_gen 1 2 0).

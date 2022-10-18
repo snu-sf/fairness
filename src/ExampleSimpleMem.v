@@ -57,7 +57,7 @@ Section MOD.
 End MOD.
 
 From Fairness Require Import IProp IPM Weakest.
-From Fairness Require Import ModSim PCM MonotonePCM ThreadsRA StateRA.
+From Fairness Require Import ModSim PCM MonotonePCM ThreadsRA StateRA FairRA.
 
 Section SIM.
   Context `{Σ: GRA.t}.
@@ -121,83 +121,6 @@ Section SIM.
               (monoBlack 0 W_le_PreOrder w)
                 **
                 I_aux w).
-
-  Definition itop5 { T0 T1 T2 T3 T4 } (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := True%I.
-
-  Definition itop6 { T0 T1 T2 T3 T4 T5 } (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4): iProp := True%I.
-
-  Definition itop10 { T0 T1 T2 T3 T4 T5 T6 T7 T8 T9} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5) (x7: T7 x0 x1 x2 x3 x4 x5 x6) (x8: T8 x0 x1 x2 x3 x4 x5 x6 x7) (x9: T9 x0 x1 x2 x3 x4 x5 x6 x7 x8): iProp := True%I.
-
-  Lemma ord_mult_split (n: nat)
-    :
-    ((Ord.omega ⊕ Ord.large × n ) <= (Ord.large × (S n)))%ord.
-  Proof.
-    rewrite Ord.from_nat_S.
-    rewrite Jacobsthal.mult_S.
-    apply Hessenberg.le_add_l.
-    apply Ord.lt_le.
-    rewrite Ord.omega_from_peano_lt_set.
-    apply Ord.large_lt_from_wf_set.
-  Qed.
-
-  Section AUX.
-    Lemma embed_itree_ext
-          omd md R (itr0 itr1: itree _ R)
-      :
-      itr0 = itr1 -> OMod.embed_itree omd md itr0 = OMod.embed_itree omd md itr1
-    .
-    Proof. i; subst; reflexivity. Qed.
-
-    Lemma close_itree_ext
-          omd md R (itr0 itr1: itree _ R)
-      :
-      itr0 = itr1 -> OMod.close_itree omd md itr0 = OMod.close_itree omd md itr1
-    .
-    Proof. i; subst; reflexivity. Qed.
-
-    Global Program Instance embed_itree_rdb: red_database (mk_box (@OMod.embed_itree)) :=
-      mk_rdb
-        0
-        (mk_box embed_itree_bind)
-        (mk_box embed_itree_tau)
-        (mk_box embed_itree_ret)
-        (mk_box embed_itree_trigger_eventE2)
-        (mk_box embed_itree_trigger_cE2)
-        (mk_box embed_itree_trigger_put2)
-        (mk_box embed_itree_trigger_get2)
-        (mk_box embed_itree_UB)
-        (mk_box embed_itree_UB)
-        (mk_box embed_itree_unwrap)
-        (mk_box embed_itree_UB)
-        (mk_box embed_itree_UB)
-        (mk_box embed_itree_UB)
-        (mk_box embed_itree_ext)
-    .
-
-    Global Program Instance close_itree_rdb: red_database (mk_box (@OMod.close_itree)) :=
-      mk_rdb
-        0
-        (mk_box close_itree_bind)
-        (mk_box close_itree_tau)
-        (mk_box close_itree_ret)
-        (mk_box close_itree_trigger_eventE2)
-        (mk_box close_itree_trigger_cE2)
-        (mk_box close_itree_trigger_put2)
-        (mk_box close_itree_trigger_get2)
-        (mk_box close_itree_UB)
-        (mk_box close_itree_UB)
-        (mk_box close_itree_unwrap)
-        (mk_box close_itree_UB)
-        (mk_box close_itree_UB)
-        (mk_box close_itree_UB)
-        (mk_box close_itree_ext)
-    .
-(* close_itree_trigger_call2 *)
-(* close_itree_call *)
-(* close_itree_callR *)
-  End AUX.
-  Ltac lred := repeat (prw _red_gen 1 3 0).
-  Ltac rred := repeat (prw _red_gen 1 2 0).
 
   Lemma sim: ModSim.mod_sim example_spec_mod example_mod.
   Proof.
