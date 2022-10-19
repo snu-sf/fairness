@@ -1271,7 +1271,10 @@ Section FAIR.
 
   Definition Pos (k: nat) (n: Ord.t): iProp. Admitted.
   Definition Neg (k: nat) (n: Ord.t): iProp. Admitted.
+
+  Definition Pending (k: nat): iProp. Admitted.
   Definition Ongoing (k: nat): iProp. Admitted.
+  Definition Ready (k: nat): iProp. Admitted.
   Definition Done (k: nat): iProp. Admitted.
 
   Lemma Pos_persistent k n
@@ -1309,6 +1312,14 @@ Section FAIR.
   Proof.
   Admitted.
 
+  Lemma Ready_Pos k
+    :
+    (Ready k)
+      -∗
+      (∃ n, Pos k n).
+  Proof.
+  Admitted.
+
   Lemma Neg_split n0 n1 k n
         (DECR: Ord.le (Hessenberg.add n0 n1) n)
     :
@@ -1327,6 +1338,20 @@ Section FAIR.
       (#=> (∃ n0, Pos k n0 ** ⌜Ord.lt n0 n1⌝)).
   Proof.
   Admitted.
+
+  Lemma Ready_persistent k
+    :
+    (Ready k)
+      -∗
+      (□ Ready k).
+  Proof.
+  Admitted.
+
+  Global Program Instance Persistent_Ready k: Persistent (Ready k).
+  Next Obligation.
+  Proof.
+    i. iIntros "READY". iPoseProof (Ready_persistent with "READY") as "READY". auto.
+  Qed.
 
   Lemma Done_persistent k
     :
@@ -1352,8 +1377,70 @@ Section FAIR.
   Proof.
   Admitted.
 
+  Lemma Pending_not_Done k
+    :
+    (Pending k)
+      -∗
+      (Done k)
+      -∗
+      False.
+  Proof.
+  Admitted.
+
+  Lemma Pending_not_Ready k
+    :
+    (Pending k)
+      -∗
+      (Ready k)
+      -∗
+      False.
+  Proof.
+  Admitted.
+
+  Lemma Pending_not_Ongoing k
+    :
+    (Pending k)
+      -∗
+      (Ongoing k)
+      -∗
+      False.
+  Proof.
+  Admitted.
+
+  Lemma Pending_Ongoing_Ready k
+    :
+    (Pending k)
+      -∗
+      #=> (Ongoing k ** Ready k)
+  .
+  Admitted.
+
+  Lemma Ongoing_Ready k
+    :
+    (Ongoing k)
+      -∗
+      (Ready k)
+  .
+  Admitted.
+
+  Lemma Ongoing_Done k
+    :
+    (Ongoing k)
+      -∗
+      #=> (Done k)
+  .
+  Admitted.
+
   Definition Eventually (k: nat) (P: iProp): iProp :=
     □ PosEx k ** (Ongoing k ∨ ((□ Done k) ** P)).
+
+  Lemma pending_eventually P k
+    :
+    (Pending k)
+      -∗
+      (#=> Eventually k P).
+  Proof.
+  Admitted.
 
   Lemma eventually_done k P
     :
@@ -1395,7 +1482,7 @@ Section FAIR.
     :
     (Eventually k P)
       -∗
-      (□ PosEx k).
+      (Ready k).
   Proof.
   Admitted.
 
@@ -1709,7 +1796,7 @@ Section FAIR.
         (Q: R_src -> R_tgt -> list nat -> iProp)
         os itr_src itr_tgt
     :
-    (∀ k, Ongoing k -* Neg k n -* (□ Pos k n) -* fsim r g Q itr_src itr_tgt (k::os))
+    (∀ k, Pending k -* Neg k n -* (□ Pos k n) -* fsim r g Q itr_src itr_tgt (k::os))
       -∗
       (fsim r g Q itr_src itr_tgt os)
   .
@@ -1746,7 +1833,7 @@ Section FAIR.
 
   Definition optPos (k: option nat): iProp :=
     match k with
-    | Some k => PosEx k
+    | Some k => Ready k
     | None => True
     end.
 
@@ -1759,7 +1846,7 @@ Section FAIR.
   Fixpoint recharging (os: list nat): iProp :=
     match os with
     | [] => True
-    | k::os => Neg k Ord.omega ** recharging os
+    | k::os => (Ready k -* Neg k Ord.omega) ** recharging os
     end.
 
   Lemma fsim_yieldR k r g R_src R_tgt

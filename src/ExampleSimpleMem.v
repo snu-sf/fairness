@@ -154,14 +154,16 @@ Section SIM.
         rred. iApply fsim_tauR.
         rred. iApply fsim_tauR.
 
-        iApply (@fsim_alloc_obligation _ _ _ _ _ _ _ (Ord.large × 10)%ord). iIntros "% ONG NEG # POS".
+        iApply (@fsim_alloc_obligation _ _ _ _ _ _ _ (Ord.large × 10)%ord). iIntros "% PEND NEG # POS".
+        iPoseProof (Pending_Ongoing_Ready with "PEND") as "> [ONG # READY]".
+
         iDestruct (monoBlack_alloc le_PreOrder 0) as "-# > [% ORD]".
         iPoseProof (black_updatable with "MONO") as "> MONO".
         { instantiate (1:=W_own k k0). econs. }
         iPoseProof (black_persistent_white with "MONO") as "# MWHITE".
         iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
         rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). iSplitR "EXCL NEG".
-        { ss. iFrame. iSplit; auto. iSplitL "MEM ST".
+        { ss. iFrame. iSplitL; auto. iSplit; auto. iSplitL "MEM ST".
           { iExists _. iFrame. }
           iExists _. iFrame. iSplit.
           { iExists _. iFrame. auto. }
@@ -170,13 +172,13 @@ Section SIM.
         iIntros "INV _".
         iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
         rred. iApply fsim_tauR.
-        rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame.
+        rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iSplitR; auto.
         iIntros "INV _".
         iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
 
         rred. iApply fsim_tauR.
         rred. rewrite close_itree_call. ss.
-        rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame.
+        rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iSplitR; auto.
         iIntros "INV _".
         iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
 
@@ -216,7 +218,8 @@ Section SIM.
 
       { iDestruct "H" as "[[POINTL POINTF] EXCL]".
         iPoseProof (memory_ra_load with "MEM POINTL") as "%". des; clarify.
-        iPoseProof (eventually_obligation with "EXCL") as "# [% OBL]".
+        iPoseProof  (eventually_obligation with "EXCL") as "# READY".
+        iPoseProof (Ready_Pos with "READY") as "[% OBL]".
         rewrite H. ss.
         rred. iApply fsim_tauR.
         rred.
@@ -228,12 +231,10 @@ Section SIM.
         }
         iStopProof.
         pattern n. revert n. eapply (well_founded_induction Ord.lt_well_founded). intros o IH.
-        iIntros "[# [OBL WHITE] INV]".
+        iIntros "[# [READY [OBL WHITE]] INV]".
         rewrite unfold_iter_eq. rred.
         iApply (@fsim_yieldR _ _ _ _ _ _ _ (Some k)).
-        ss. iFrame. iSplitL.
-        { iExists _. eauto. }
-        iIntros "INV FUEL".
+        ss. iFrame. iSplitL; auto. iIntros "INV FUEL".
         rred. iApply fsim_tauR.
         rred. rewrite close_itree_call. ss.
         unfold SCMem.load_fun, Mod.wrap_fun. ss.
