@@ -187,14 +187,18 @@ Section SIM.
     { econs. exact 0. }
     { i. exists (S o0). ss. }
     { admit. }
-    { cut ((forall tid,
-               (I ⊢ fsim I tid itop6 itop6 (fun r_src r_tgt os => I ** ⌜r_src = r_tgt /\ os = []⌝) (FairLock.lock_fun tt) (OMod.close_itree TicketLock.omod (SCMem.mod [1; 1]) (TicketLock.lock_fun tt)) [])) /\
-             (forall tid,
-                 (I ⊢ fsim I tid itop6 itop6 (fun r_src r_tgt os => I ** ⌜r_src = r_tgt /\ os = []⌝) (FairLock.unlock_fun tt) (OMod.close_itree TicketLock.omod (SCMem.mod [1; 1]) (TicketLock.unlock_fun tt)) []))).
-      { admit. }
-      split.
-      { i. iIntros "INV". unfold FairLock.lock_fun, TicketLock.lock_fun.
-        rred. rred. rewrite close_itree_call. ss. rred.
+    { ii. ss. unfold OMod.closed_funs. ss. des_ifs.
+      { cut ((forall tid,
+                 (I ** own_thread tid ⊢ fsim I tid itop6 itop6 (fun r_src r_tgt os => I ** own_thread tid ** ⌜r_src = r_tgt /\ os = []⌝) (WMod.interp_fun FairLock.wmod FairLock.lock_fun args) (OMod.close_itree TicketLock.omod (SCMem.mod [1; 1])
+                                                                                                                                                                                                                  (Mod.wrap_fun TicketLock.lock_fun args)) []))).
+        { admit. }
+        i. iIntros "[INV TH]".
+        unfold TicketLock.lock_fun, WMod.interp_fun, Mod.wrap_fun. ss.
+        destruct (Any.downcast args); ss.
+        2:{ unfold UB. lred. iApply fsim_UB. }
+        lred. rred. rewrite close_itree_call. ss. rred.
+
+
         iApply (@fsim_sync _ _ _ _ _ _ _ None). ss. iFrame. iIntros "INV _".
         rred. unfold SCMem.cas_fun, Mod.wrap_fun. rred.
         iDestruct "INV" as "[[%m [MEM ST]] [%w [MONO H]]]".
