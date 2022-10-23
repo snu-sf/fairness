@@ -9,29 +9,27 @@ Set Implicit Arguments.
 
 
 Module FairLock.
-  Definition lock_fun: WMod.function (option thread_id) unit void :=
+  Definition lock_fun: WMod.function bool unit void :=
     WMod.mk_fun
       tt
-      (fun tid (_: unit) st next =>
+      (fun (_: unit) st next =>
          match st with
-         | None => next = WMod.normal (Some tid) tt (sum_fmap_l (fun _ => Flag.fail))
-         | Some _ => next = WMod.disabled
+         | true => next = WMod.disabled
+         | false => next = WMod.normal true tt (sum_fmap_l (fun _ => Flag.fail))
          end).
 
-  Definition unlock_fun: WMod.function (option thread_id) unit void :=
+  Definition unlock_fun: WMod.function bool unit void :=
     WMod.mk_fun
       tt
-      (fun tid (_: unit) st next =>
+      (fun (_: unit) st next =>
          match st with
-         | None => next = WMod.stuck
-         | Some tid' =>
-             if (tid_dec tid' tid) then next = WMod.stuck
-             else next = WMod.normal None tt (sum_fmap_l (fun _ => Flag.emp))
+         | false => next = WMod.stuck
+         | true => next = WMod.normal false tt (sum_fmap_l (fun _ => Flag.emp))
          end).
 
   Definition wmod: WMod.t :=
     WMod.mk
-      None
+      false
       [("lock", lock_fun);
        ("unlock", unlock_fun)
       ].
@@ -59,7 +57,9 @@ Module TicketLock.
     ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit :=
     fun _ =>
       _ <- trigger Yield;;
-      `_: unit <- (OMod.call "faa" (now_serving, 1));;
+      v <- (OMod.call "load" now_serving);;
+      let v := SCMem.val_add v 1 in
+      `_: unit <- (OMod.call "store" (now_serving, v));;
       trigger Yield
   .
 
@@ -87,11 +87,11 @@ Section SIM.
   Context `{EXCL: @GRA.inG (Excl.t unit) Σ}.
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THSRA: @GRA.inG ths_RA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA unit) Σ}.
+  (* Context `{STATESRC: @GRA.inG (stateSrcRA unit) Σ}. *)
   Context `{STATETGT: @GRA.inG (stateTgtRA (unit * SCMem.t)) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA void nat_wf) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA (void + SCMem.pointer)%type) Σ}.
-  Context `{IDENTTHS: @GRA.inG identThsRA Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA (id_sum thread_id void) (mk_wf Ord.lt_well_founded)) Σ}.
+  (* Context `{IDENTTGT: @GRA.inG (identTgtRA (void + SCMem.pointer)%type) Σ}. *)
+  (* Context `{IDENTTHS: @GRA.inG identThsRA Σ}. *)
   Context `{MEMRA: @GRA.inG memRA Σ}.
 
   Global Program Instance ge_PreOrder: PreOrder ge.
@@ -165,21 +165,33 @@ Section SIM.
               **
               (St_tgt (tt, m)))
           **
-          (∃ now_serving n f i,
+          (∃ im0 im1 (W: NatMap.t unit) (b: bool),
+              (OwnM (Auth.white (Excl.just (imap_sum_id (im0, im1)): @Excl.t _): identSrcRA (id_sum thread_id void) (mk_wf Ord.lt_well_founded)))
+                **
+                (St_src void (W, b)))
+          **
+          (∃ now_serving n,
               (points_to TicketLock.next_ticket (SCMem.val_nat (now_serving + n)))
+                **
+                (points_to TicketLock.now_serving (SCMem.val_nat now_serving))
                 **
                 (monoBlack 0 ge_PreOrder now_serving)
                 **
-                (monoBlack 1 (@partial_map_PreOrder nat nat) f)
+                (waiters now_serving n)
                 **
-                (⌜forall m (LT: now_serving + n < m), f m = None⌝)
+                (∃ f,
+                    (monoBlack 1 (@partial_map_PreOrder nat nat) f)
+                      **
+                      (⌜forall m (LT: now_serving + n < m), f m = None⌝))
                 **
-                (monoWhite 1 (@partial_map_PreOrder nat nat) (partial_map_singleton now_serving i))
-                **
-                (Eventually i (points_to TicketLock.now_serving (SCMem.val_nat now_serving)))
-                **
-                (waiters now_serving n))
+                (∃ i,
+                    (monoWhite 1 (@partial_map_PreOrder nat nat) (partial_map_singleton now_serving i))
+                      **
+                      (Eventually i (points_to TicketLock.now_serving (SCMem.val_nat now_serving))))
+)
   .
+
+
 
   Lemma sim: ModSim.mod_sim TicketLock.mod FairLock.mod.
   Proof.
@@ -197,11 +209,48 @@ Section SIM.
         destruct (Any.downcast args); ss.
         2:{ unfold UB. lred. iApply fsim_UB. }
         lred. rred. rewrite close_itree_call. ss. rred.
-
-
         iApply (@fsim_sync _ _ _ _ _ _ _ None). ss. iFrame. iIntros "INV _".
         rred. unfold SCMem.cas_fun, Mod.wrap_fun. rred.
-        iDestruct "INV" as "[[%m [MEM ST]] [%w [MONO H]]]".
+        lred. iApply fsim_tidL. lred.
+        iDestruct "INV" as "[[[%m [MEM ST]] SRC] [% [% [% [% [NEXT TK]]]]]]".
+        rred. iApply fsim_getR. iSplit.
+        { iFrame. }
+        rred. iApply fsim_tauR.
+        rred.
+
+[% [% [% [% H]]]]]".
+
+        iDestruct "INV" as "[[[%m [MEM ST]] IM] [% [% [% [% H]]]]]".
+
+
+  Let I: iProp :=
+        (∃ m,
+            (memory_black m)
+              **
+              (St_tgt (tt, m)))
+          **
+          (∃ im0 im1,
+              (OwnM (Auth.white (Excl.just (imap_sum_id (im0, im1)): @Excl.t _): identSrcRA (id_sum thread_id void) (mk_wf Ord.lt_well_founded)))
+                **
+                True
+          )
+          **
+          (∃ now_serving n f i,
+              (points_to TicketLock.next_ticket (SCMem.val_nat (now_serving + n)))
+                **
+                (monoBlack 0 ge_PreOrder now_serving)
+                **
+                (monoBlack 1 (@partial_map_PreOrder nat nat) f)
+                **
+                (⌜forall m (LT: now_serving + n < m), f m = None⌝)
+                **
+                (monoWhite 1 (@partial_map_PreOrder nat nat) (partial_map_singleton now_serving i))
+                **
+                (Eventually i (points_to TicketLock.now_serving (SCMem.val_nat now_serving)))
+                **
+                (waiters now_serving n))
+  .
+
         iApply fsim_getR. iSplit.
         { iFrame. }
         rred. iApply fsim_tauR. rred.

@@ -18,7 +18,7 @@ Module WMod.
         type: ident;
         A: Type;
         R: Type;
-        body: thread_id -> A -> state -> output state ident mident R -> Prop;
+        body: A -> state -> output state ident mident R -> Prop;
       }.
 
   Record t: Type :=
@@ -67,7 +67,7 @@ Module WMod.
                 if (b: bool) then _ <- trigger Yield;; Ret (inl tt)
                 else
                   '(st, ts) <- trigger (@Get _);;
-                  next <- trigger (Choose (sig (f.(body) tid arg st)));;
+                  next <- trigger (Choose (sig (f.(body) arg st)));;
                   match proj1_sig next with
                   | normal st r fm =>
                       let ts := NatMap.remove tid ts in

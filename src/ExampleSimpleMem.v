@@ -73,7 +73,7 @@ Section SIM.
 
   Variant W: Type :=
     | W_bot
-    | W_own (k: nat) (x: nat)
+    | W_own (k: nat)
   .
 
   Variant W_le: W -> W -> Prop :=
@@ -82,9 +82,9 @@ Section SIM.
       :
       W_le W_bot w
     | W_le_th
-        k x
+        k
       :
-      W_le (W_own k x) (W_own k x)
+      W_le (W_own k) (W_own k)
   .
 
   Global Program Instance le_PreOrder: PreOrder Nat.le.
@@ -102,12 +102,10 @@ Section SIM.
   Let I_aux (w: W): iProp :=
         (match w with
          | W_bot => points_to loc_l (SCMem.val_nat 0) ** points_to loc_f (SCMem.val_nat 0) ** (OwnM (Excl.just tt: @URA.car (Excl.t unit)))
-         | W_own k x =>
+         | W_own k =>
              (points_to loc_l (SCMem.val_nat 1))
                **
-               (∃ n, points_to loc_f (SCMem.val_nat n) ** monoBlack x le_PreOrder n ** ⌜n = 0 \/ n = 1⌝)
-               **
-               Eventually k (monoWhite x le_PreOrder 1)
+               Eventually k (points_to loc_f (SCMem.val_nat 0)) (points_to loc_f (SCMem.val_nat 1))
          end)
   .
 
@@ -155,19 +153,16 @@ Section SIM.
         rred. iApply fsim_tauR.
 
         iApply (@fsim_alloc_obligation _ _ _ _ _ _ _ (Ord.large × 10)%ord). iIntros "% PEND NEG # POS".
-        iPoseProof (Pending_Ongoing_Ready with "PEND") as "> [ONG # READY]".
-
-        iDestruct (monoBlack_alloc le_PreOrder 0) as "-# > [% ORD]".
+        iPoseProof (pending_eventually with "PEND POINTF") as "> EVT".
         iPoseProof (black_updatable with "MONO") as "> MONO".
-        { instantiate (1:=W_own k k0). econs. }
+        { instantiate (1:=W_own k). econs. }
         iPoseProof (black_persistent_white with "MONO") as "# MWHITE".
         iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
+
         rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). iSplitR "EXCL NEG".
         { ss. iFrame. iSplitL; auto. iSplit; auto. iSplitL "MEM ST".
           { iExists _. iFrame. }
-          iExists _. iFrame. iSplit.
-          { iExists _. iFrame. auto. }
-          { iClear "POINTF ORD". iModIntro. iExists _. eauto. }
+          iExists _. iFrame.
         }
         iIntros "INV _".
         iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
@@ -189,45 +184,39 @@ Section SIM.
         rred. iApply fsim_tauR. rred.
 
         iPoseProof (black_white_compare with "MWHITE MONO") as "%". inv H2.
-        ss. iDestruct "H" as "[[POINTL [% [[POINTF ORD] %]]] EVT]".
-
+        ss. iDestruct "H" as "[POINTL EVT]".
+        iPoseProof (eventually_unfold with "EVT") as "[[[ONG POINTF] [EVT _]]|[[DONE POINTF] EVT]]".
+        2:{ iApply (fsim_obligation_not_done with "DONE"); ss. auto. }
         iPoseProof (memory_ra_store with "MEM POINTF") as "[% [% > [MEM POINTF]]]".
-        rewrite H3. ss.
+        rewrite H2. ss.
         rred. iApply fsim_getR. iSplit.
         { iFrame. }
         rred. iApply (fsim_putR with "ST"). iIntros "ST".
         rred. iApply fsim_tauR.
         rred. iApply fsim_tauR.
-        iPoseProof (eventually_finish with "EVT") as "[# DONE | [ONG EVT]]".
-        { iApply (fsim_obligation_not_done with "DONE"). ss. auto. }
-        iPoseProof (black_updatable with "ORD") as "> ORD".
-        { instantiate (1:=1). lia. }
-        iPoseProof (black_persistent_white with "ORD") as "#WHITE".
         iApply (fsim_dealloc_obligation with "ONG").
         { ss. }
-        iIntros "# DONE". iPoseProof ("EVT" with "DONE WHITE") as "EVT".
-
+        iIntros "# DONE". iPoseProof ("EVT" with "DONE POINTF") as "EVT".
         rred. iApply (@fsim_sync _ _ _ _ _ _ _ None). iSplitR "".
         { ss. unfold I. iSplit; auto. iSplit; auto. iSplitL "MEM ST".
           { iExists _. iFrame. }
           iExists _. iFrame. ss. iFrame.
-          iExists _. iFrame. auto.
         }
         iIntros "INV _". iApply fsim_tauR. iApply fsim_ret. auto.
       }
 
-      { iDestruct "H" as "[[POINTL POINTF] EXCL]".
+      { iDestruct "H" as "[POINTL EVT]".
         iPoseProof (memory_ra_load with "MEM POINTL") as "%". des; clarify.
-        iPoseProof  (eventually_obligation with "EXCL") as "# READY".
+        iPoseProof  (eventually_obligation with "EVT") as "# READY".
         iPoseProof (Ready_Pos with "READY") as "[% OBL]".
         rewrite H. ss.
         rred. iApply fsim_tauR.
         rred.
         iPoseProof (black_persistent_white with "MONO") as "# WHITE".
-        iAssert I with "[MEM ST MONO POINTL POINTF EXCL]" as "INV".
+        iAssert I with "[MEM ST MONO POINTL EVT]" as "INV".
         { unfold I. iSplitL "MEM ST".
           { iExists _. iFrame. }
-          iExists (W_own _ _). ss. iFrame.
+          iExists (W_own _). ss. iFrame.
         }
         iStopProof.
         pattern n. revert n. eapply (well_founded_induction Ord.lt_well_founded). intros o IH.
@@ -243,41 +232,16 @@ Section SIM.
         rred. iApply fsim_getR. iSplit. { iFrame. }
         rred. iApply fsim_tauR. rred.
         iPoseProof (black_white_compare with "WHITE MONO") as "%". inv H1.
-        ss. iDestruct "H" as "[[POINTL [% [[POINTF PWHITE] %]]] EVT]".
-        iPoseProof (memory_ra_load with "MEM POINTF") as "%".
-        destruct H2 as [LOAD _]. rewrite LOAD.
-        rred. iApply fsim_tauR.
-        rred. des; subst; cycle 1.
-        { iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitL.
-          { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
-            { iExists _. iFrame. }
-            iExists (W_own _ _). ss. iFrame. iExists _. iFrame. auto.
-          }
-          iIntros "INV _".
-          rred. iApply fsim_tauR.
-          rred. rewrite close_itree_call. ss.
-          unfold SCMem.compare_fun, Mod.wrap_fun.
-          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iIntros "INV _".
-          iDestruct "INV" as "[[% [MEM ST]] [% [MONO H]]]".
-          rred. iApply fsim_getR. iSplit; [eauto|].
-          rred. iApply fsim_tauR.
-          rred. iApply fsim_tauR.
-          rred. iApply (@fsim_sync _ _ _ _ _ _ _ None). ss. iSplitL.
-          { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
-            { iExists _. iFrame. }
-            { iExists _. iFrame. }
-          }
-          iIntros "INV _". rred. iApply fsim_tauR.
-          rred. iApply fsim_ret. auto.
-        }
+        ss. iDestruct "H" as "[POINTL EVT]".
+        iPoseProof (eventually_unfold with "EVT") as "[[[ONG POINTF] [_ EVT]]|[[DONE POINTF] EVT]]".
         { iDestruct "FUEL" as "[FUEL|#DONE]"; cycle 1.
-          { iDestruct (eventually_done with "DONE EVT") as "[H EVT]".
-            iPoseProof (black_white_compare with "H PWHITE") as "%". exfalso. lia.
-          }
+          { iExFalso. iApply (Ongoing_not_Done with "ONG DONE"). }
+          iPoseProof (memory_ra_load with "MEM POINTF") as "%". des. rewrite H1.
+          rred. iApply fsim_tauR.
           rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitR "FUEL".
           { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
             { iExists _. iFrame. }
-            { iExists _. iFrame. unfold I_aux. iFrame. iExists _. iFrame. auto. }
+            iExists (W_own _). ss. iFrame. iApply ("EVT" with "ONG POINTF").
           }
           iIntros "INV _".
           rred. iApply fsim_tauR.
@@ -299,6 +263,30 @@ Section SIM.
           iPoseProof (Pos_Neg_annihilate with "OBL FUEL") as "> [% [H %]]".
           iClear "OBL". iPoseProof (Pos_persistent with "H") as "# OBL".
           iApply IH; eauto. iSplit; auto. iClear "INV H". auto.
+        }
+        { iPoseProof (memory_ra_load with "MEM POINTF") as "%". des. rewrite H1.
+          rred. iApply fsim_tauR.
+          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitL.
+          { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
+            { iExists _. iFrame. }
+            iExists (W_own _). ss. iFrame. iApply ("EVT" with "POINTF").
+          }
+          iIntros "INV _".
+          rred. iApply fsim_tauR.
+          rred. rewrite close_itree_call. ss.
+          unfold SCMem.compare_fun, Mod.wrap_fun.
+          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iIntros "INV _".
+          iDestruct "INV" as "[[% [MEM ST]] [% [MONO H]]]".
+          rred. iApply fsim_getR. iSplit; [eauto|].
+          rred. iApply fsim_tauR.
+          rred. iApply fsim_tauR.
+          rred. iApply (@fsim_sync _ _ _ _ _ _ _ None). ss. iSplitL.
+          { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
+            { iExists _. iFrame. }
+            { iExists _. iFrame. }
+          }
+          iIntros "INV _". rred. iApply fsim_tauR.
+          rred. iApply fsim_ret. auto.
         }
       }
     }
