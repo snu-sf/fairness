@@ -158,12 +158,14 @@ Section SIM.
         { instantiate (1:=W_own k). econs. }
         iPoseProof (black_persistent_white with "MONO") as "# MWHITE".
         iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
+        iAssert I with "[MEM POINTL ST MONO EVT]" as "INV".
+        { unfold I. iSplitL "MEM ST".
+          { iExists _. iFrame. }
+          iExists (W_own _). ss. iFrame.
+        }
 
         rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). iSplitR "EXCL NEG".
-        { ss. iFrame. iSplitL; auto. iSplit; auto. iSplitL "MEM ST".
-          { iExists _. iFrame. }
-          iExists _. iFrame.
-        }
+        { ss. iFrame. auto. }
         iIntros "INV _".
         iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
         rred. iApply fsim_tauR.
@@ -197,11 +199,13 @@ Section SIM.
         iApply (fsim_dealloc_obligation with "ONG").
         { ss. }
         iIntros "# DONE". iPoseProof ("EVT" with "DONE POINTF") as "EVT".
-        rred. iApply (@fsim_sync _ _ _ _ _ _ _ None). iSplitR "".
-        { ss. unfold I. iSplit; auto. iSplit; auto. iSplitL "MEM ST".
+        iAssert I with "[MEM POINTL ST MONO EVT]" as "INV".
+        { unfold I. iSplitL "MEM ST".
           { iExists _. iFrame. }
-          iExists _. iFrame. ss. iFrame.
+          iExists (W_own _). ss. iFrame.
         }
+        rred. iApply (@fsim_sync _ _ _ _ _ _ _ None). iSplitR "".
+        { ss. auto. }
         iIntros "INV _". iApply fsim_tauR. iApply fsim_ret. auto.
       }
 
@@ -238,11 +242,13 @@ Section SIM.
           { iExFalso. iApply (Ongoing_not_Done with "ONG DONE"). }
           iPoseProof (memory_ra_load with "MEM POINTF") as "%". des. rewrite H1.
           rred. iApply fsim_tauR.
-          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitR "FUEL".
-          { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
+          iAssert I with "[MEM POINTL ST MONO EVT ONG POINTF]" as "INV".
+          { unfold I. iSplitL "MEM ST".
             { iExists _. iFrame. }
             iExists (W_own _). ss. iFrame. iApply ("EVT" with "ONG POINTF").
           }
+          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitR "FUEL".
+          { iSplit; auto. }
           iIntros "INV _".
           rred. iApply fsim_tauR.
           rred. rewrite close_itree_call. ss.
@@ -252,11 +258,13 @@ Section SIM.
           iApply fsim_getR. iSplit. { iFrame. }
           rred. iApply fsim_tauR.
           rred. iApply fsim_tauR.
-          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitR "FUEL".
-          { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
+          iAssert I with "[MEM ST MONO H]" as "INV".
+          { unfold I. iSplitL "MEM ST".
             { iExists _. iFrame. }
-            { iExists _. iFrame. }
+            iExists _. iFrame.
           }
+          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitR "FUEL".
+          { iSplit; auto. }
           iIntros "INV _".
           rred. iApply fsim_tauR.
           rred. iApply fsim_tauR.
@@ -266,11 +274,13 @@ Section SIM.
         }
         { iPoseProof (memory_ra_load with "MEM POINTF") as "%". des. rewrite H1.
           rred. iApply fsim_tauR.
-          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitL.
-          { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
+          iAssert I with "[MEM POINTL ST MONO EVT POINTF]" as "INV".
+          { unfold I. iSplitL "MEM ST".
             { iExists _. iFrame. }
-            iExists (W_own _). ss. iFrame. iApply ("EVT" with "POINTF").
+            iExists (W_own _). ss. iFrame. iApply "EVT". auto.
           }
+          rred. iApply (@fsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitL.
+          { iSplit; auto. }
           iIntros "INV _".
           rred. iApply fsim_tauR.
           rred. rewrite close_itree_call. ss.
@@ -280,11 +290,13 @@ Section SIM.
           rred. iApply fsim_getR. iSplit; [eauto|].
           rred. iApply fsim_tauR.
           rred. iApply fsim_tauR.
-          rred. iApply (@fsim_sync _ _ _ _ _ _ _ None). ss. iSplitL.
-          { iSplit; auto. iSplit; auto. unfold I. iSplitL "MEM ST".
+          iAssert I with "[MEM ST MONO H]" as "INV".
+          { unfold I. iSplitL "MEM ST".
             { iExists _. iFrame. }
-            { iExists _. iFrame. }
+            iExists _. iFrame.
           }
+          rred. iApply (@fsim_sync _ _ _ _ _ _ _ None). ss. iSplitL.
+          { iSplit; auto. }
           iIntros "INV _". rred. iApply fsim_tauR.
           rred. iApply fsim_ret. auto.
         }

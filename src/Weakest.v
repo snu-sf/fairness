@@ -1492,10 +1492,16 @@ Section FAIR.
   Global Opaque Eventually.
 
   Variable state_tgt: Type.
-  Definition St_tgt: state_tgt -> iProp. Admitted.
-
   Variable state_src: Type.
-  Definition St_src: state_src -> iProp. Admitted.
+
+  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
+
+  Definition St_tgt (st: state_tgt): iProp :=
+    OwnM (Auth.white (Excl.just st: @Excl.t state_tgt): stateTgtRA state_tgt).
+
+  Definition St_src (st: state_src): iProp :=
+    OwnM (Auth.white (Excl.just st: @Excl.t state_src): stateSrcRA state_src).
 
   Variable ident_src: ID.
   Variable ident_tgt: ID.
@@ -1848,17 +1854,23 @@ Section FAIR.
     | None => True
     end.
 
-  Fixpoint recharging (os: list nat): iProp :=
+  Fixpoint recharging (os: list nat) (I: iProp): iProp :=
     match os with
-    | [] => True
-    | k::os => (Ready k -* Neg k Ord.omega) ** recharging os
+    | [] => I
+    | k::os => (Ready k -* (Neg k Ord.omega ** recharging os I)) ∧ (recharging os I)
     end.
+
+  (* Fixpoint recharging (os: list nat): iProp := *)
+  (*   match os with *)
+  (*   | [] => True *)
+  (*   | k::os => (Ready k -* Neg k Ord.omega) ** recharging os *)
+  (*   end. *)
 
   Lemma fsim_yieldR k r g R_src R_tgt
         (Q: R_src -> R_tgt -> list nat -> iProp)
         os ktr_src ktr_tgt
     :
-    (I ** optPos k ** recharging os ** (I -∗ optNeg k -* fsim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt) os))
+    (optPos k ** recharging os I ** (I -∗ optNeg k -* fsim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt) os))
       -∗
       (fsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) os)
   .
@@ -1869,15 +1881,15 @@ Section FAIR.
         (Q: R_src -> R_tgt -> list nat -> iProp)
         os ktr_src ktr_tgt
     :
-    (I ** optPos k ** recharging os ** (I -∗ optNeg k -* fsim g g Q (ktr_src tt) (ktr_tgt tt) os))
+    (optPos k ** recharging os I ** (I -∗ optNeg k -* fsim g g Q (ktr_src tt) (ktr_tgt tt) os))
       -∗
       (fsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) os).
   Proof.
   Admitted.
 
 
-  Context `{SRCORD: @GRA.inG (@FairRA.t ident_src Ord.t _) Σ}.
-  Context `{TGTORD: @GRA.inG (@FairRA.t ident_tgt nat _) Σ}.
+  (* Context `{SRCORD: @GRA.inG (@FairRA.t ident_src Ord.t _) Σ}. *)
+  (* Context `{TGTORD: @GRA.inG (@FairRA.t ident_tgt nat _) Σ}. *)
   Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src wf_src) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
 

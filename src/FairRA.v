@@ -1096,6 +1096,18 @@ Module FairRA.
       rewrite maps_to_res_add. rewrite (@Fuel.white_sum A L). auto.
     Qed.
 
+    Lemma white_split i a0 a1
+      :
+      (white i (OrderedCM.add a0 a1))
+        -∗
+        (white i a0 ** white i a1).
+    Proof.
+      unfold white, maps_to. iIntros "H".
+      rewrite <- (@Fuel.white_sum A L).
+      rewrite <- maps_to_res_add.
+      iDestruct "H" as "[H0 H1]". iFrame.
+    Qed.
+
     Lemma white_eq a1 i a0
           (EQ: OrderedCM.eq a0 a1)
       :

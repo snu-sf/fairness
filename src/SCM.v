@@ -121,13 +121,13 @@ Module SCMem.
     val_compare m v0 v1.
 
   Definition faa (m: t) (ptr: val) (addend: nat): option (t * val) :=
-    match unwrap_ptr ptr with
-    | Some (blk, ofs) =>
-        match (m.(contents) blk ofs) with
-        | Some v => Some (mem_update m blk ofs (val_add v addend), v)
+    match (load m ptr) with
+    | None => None
+    | Some v =>
+        match (store m ptr (val_add v addend)) with
+        | Some m => Some (m, v)
         | None => None
         end
-    | None => None
     end.
 
   Definition cas (m: t) (ptr: val) (v_old: val) (v_new: val):
@@ -574,6 +574,22 @@ Section MEMRA.
     }
   Qed.
 
+  Lemma memory_ra_faa m0 l v addend
+    :
+    (memory_black m0)
+      -∗
+      (points_to l v)
+      -∗
+      ∃ m1,
+        ((⌜SCMem.faa m0 l addend = Some (m1, v)⌝)
+           ** #=> (memory_black m1 ** points_to l (SCMem.val_add v addend))).
+  Proof.
+    iIntros "BLACK POINT". unfold SCMem.faa.
+    iPoseProof (memory_ra_load with "BLACK POINT") as "%". des. rewrite H.
+    iPoseProof (memory_ra_store with "BLACK POINT") as "[% [% H]]".
+    iExists m1. rewrite H1. iFrame. auto.
+  Qed.
+
   Lemma memory_ra_compare_nat m n0 n1
     :
     SCMem.compare m (SCMem.val_nat n0) (SCMem.val_nat n1) = Some (if PeanoNat.Nat.eq_dec n0 n1 then true else false).
@@ -640,4 +656,4 @@ Section MEMRA.
   Qed.
 End MEMRA.
 
-Global Opaque points_to memory_black SCMem.load SCMem.store SCMem.alloc.
+Global Opaque points_to memory_black SCMem.load SCMem.store SCMem.faa SCMem.alloc.
