@@ -224,6 +224,59 @@ Infix "**" := bi_sep (at level 99).
 Infix "-*" := bi_wand (at level 99, right associativity).
 Notation "#=> P" := ((@bupd (bi_car (@iProp _)) (@bi_bupd_bupd (@iProp _) (@iProp_bi_bupd _))) P) (at level 99).
 
+Section IUPD.
+  Context {Σ: GRA.t}.
+
+  Definition IUpd (I: iProp): iProp -> iProp :=
+    fun P => I -* #=> (I ** P).
+
+  Lemma IUpd_intro I: forall P, P ⊢ IUpd I P.
+  Proof.
+    ii. iIntros "H INV". iModIntro. iFrame.
+  Qed.
+
+  Lemma IUpd_mono I: forall P Q, (P ⊢ Q) -> (IUpd I P ⊢ IUpd I Q).
+  Proof.
+    ii. unfold IUpd. iIntros "H INV".
+    iPoseProof ("H" with "INV") as "> [H0 H1]". iModIntro.
+    iFrame. iApply H. auto.
+  Qed.
+
+  Lemma IUpd_trans I: forall P, (IUpd I (IUpd I P)) ⊢ (IUpd I P).
+  Proof.
+    ii. unfold IUpd. iIntros "H INV".
+    iPoseProof ("H" with "INV") as "> [H0 H1]".
+    iApply "H1". auto.
+  Qed.
+
+  Lemma IUpd_frame_r I: forall P R, ((IUpd I P) ** R) ⊢ (IUpd I (P ** R)).
+  Proof.
+    ii. unfold IUpd. iIntros "[H0 H1] INV".
+    iPoseProof ("H0" with "INV") as "> [H0 H2]".
+    iModIntro. iFrame.
+  Qed.
+
+  Lemma Upd_IUpd I: forall P, #=> P ⊢ (IUpd I P).
+  Proof.
+    ii. unfold IUpd. iIntros "H INV". iFrame.
+  Qed.
+
+  Lemma iProp_bupd_mixin_IUpd I: BiBUpdMixin iProp (IUpd I).
+  Proof.
+    econs.
+    - ii. unfold bupd. unfold IUpd. rewrite H. auto.
+    - apply IUpd_intro.
+    - apply IUpd_mono.
+    - apply IUpd_trans.
+    - apply IUpd_frame_r.
+  Qed.
+  Global Instance iProp_bi_bupd_IUpd I: BiBUpd iProp := {| bi_bupd_mixin := iProp_bupd_mixin_IUpd I |}.
+End IUPD.
+Notation "#=( Q )=> P" := ((@bupd (bi_car (@iProp _)) (@bi_bupd_bupd (@iProp _) (@iProp_bi_bupd_IUpd _ Q))) P) (at level 99).
+Notation "P =( I ) =∗ Q" := (P ⊢ #=( I )=> Q) (only parsing, at level 99) : stdpp_scope.
+Notation "P =( I )=∗ Q" := (P -∗ #=( I )=> Q)%I (at level 99): bi_scope.
+
+
 Class IsOp {A : URA.t} (a b1 b2 : A) := is_op : a = b1 ⋅ b2.
 Global Arguments is_op {_} _ _ _ {_}.
 Global Hint Mode IsOp + - - - : typeclass_instances.
