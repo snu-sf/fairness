@@ -766,8 +766,30 @@ Section MUPD.
     rewrite <- app_assoc. auto.
   Qed.
 
+  Global Instance permutation_mset_sub_proper:
+    Proper (Permutation ==> Permutation ==> iff) mset_sub.
+  Proof.
+    ii. unfold mset_sub. split.
+    { i. des. exists s. rewrite <- H. rewrite H1. auto. }
+    { i. des. exists s. rewrite H0. rewrite H. auto. }
+  Qed.
+
+  Global Instance permutation_mset_disjoint_proper:
+    Proper (Permutation ==> Permutation ==> iff) mset_disjoint.
+  Proof.
+    ii. split.
+    { ii. eapply H1.
+      { symmetry in H. eapply Permutation_in; eauto. }
+      { symmetry in H0. eapply Permutation_in; eauto. }
+    }
+    { ii. eapply H1.
+      { eapply Permutation_in; eauto. }
+      { eapply Permutation_in; eauto. }
+    }
+  Qed.
+
   Definition mset_minus (s0 s1: mset): mset :=
-    match list_remove_list s0 s1 with
+    match list_remove_list s1 s0 with
     | Some s => s
     | None => []
     end.
@@ -930,6 +952,115 @@ Section MUPD.
     iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
   Qed.
 
+  Lemma list_remove_permutation A `{EqDecision A} a (l0 l1: list A)
+        (PERM: Permutation l0 l1)
+    :
+    option_Forall2 Permutation (list_remove a l0) (list_remove a l1).
+  Proof.
+    induction PERM; ss.
+    { econs. }
+    { des_ifs.
+      { econs. auto. }
+      { unfold fmap, option_fmap, option_map. inv IHPERM; econs.
+        econs. auto.
+      }
+    }
+    { des_ifs.
+      { econs. auto. }
+      { unfold fmap, option_fmap, option_map. reflexivity. }
+      { unfold fmap, option_fmap, option_map. reflexivity. }
+      { unfold fmap, option_fmap, option_map. des_ifs; econs. econs. }
+    }
+    { etrans; eauto. }
+  Qed.
+
+  Lemma list_remove_list_permutation_l A `{EqDecision A} (l l0 l1: list A)
+        (PERM: Permutation l0 l1)
+    :
+    option_Forall2 Permutation (list_remove_list l l0) (list_remove_list l l1).
+  Proof.
+    revert l0 l1 PERM. induction l; i.
+    { ss. econs; eauto. }
+    ss. unfold mbind, option_bind.
+    hexploit list_remove_permutation.
+    { eapply PERM. }
+    instantiate (1:=a). i. inv H.
+    { rewrite <- H0. rewrite <- H1. auto. }
+    { rewrite <- H1. rewrite <- H2. econs. }
+  Qed.
+
+  Lemma list_remove_add_permutation A `{EqDecision A} a (l0 l1: list A)
+        (REMOVE: list_remove a l0 = Some l1)
+    :
+    Permutation l0 (a :: l1).
+  Proof.
+    revert l1 REMOVE. induction l0; i; ss. des_ifs.
+    unfold fmap, option_fmap, option_map in REMOVE. des_ifs.
+    rewrite IHl0; eauto. econs.
+  Qed.
+
+  Lemma list_remove_list_add_permutation A `{EqDecision A} (l l0 l1: list A)
+        (REMOVE: list_remove_list l l0 = Some l1)
+    :
+    Permutation l0 (l ++ l1).
+  Proof.
+    revert l0 l1 REMOVE. induction l; i; ss.
+    { clarify. }
+    unfold mbind, option_bind in REMOVE. des_ifs.
+    hexploit IHl; eauto. i. rewrite <- H.
+    eapply list_remove_add_permutation; eauto.
+  Qed.
+
+  Lemma list_remove_list_permutation_r A `{EqDecision A} (l l0 l1: list A)
+        (PERM: Permutation l0 l1)
+    :
+    option_Forall2 Permutation (list_remove_list l0 l) (list_remove_list l1 l).
+  Proof.
+    destruct (list_remove_list l0 l) eqn:EQ0, (list_remove_list l1 l) eqn:EQ1.
+    { econs.
+      eapply list_remove_list_add_permutation in EQ0.
+      eapply list_remove_list_add_permutation in EQ1.
+      rewrite EQ0 in EQ1. rewrite PERM in EQ1.
+      eapply Permutation_app_inv_l; eauto.
+    }
+    { assert (submseteq l0 l).
+      { eapply list_remove_list_submseteq. rewrite EQ0. ss. }
+      rewrite PERM in H. eapply list_remove_list_submseteq in H.
+      rewrite EQ1 in H. inv H. ss.
+    }
+    { assert (submseteq l1 l).
+      { eapply list_remove_list_submseteq. rewrite EQ1. ss. }
+      rewrite <- PERM in H. eapply list_remove_list_submseteq in H.
+      rewrite EQ0 in H. inv H. ss.
+    }
+    { econs. }
+  Qed.
+
+  Global Instance permutation_mset_minus_proper:
+    Proper (Permutation ==> Permutation ==> Permutation) mset_minus.
+  Proof.
+    ii. unfold mset_minus.
+    cut (option_Forall2 Permutation (list_remove_list x0 x) (list_remove_list y0 y)).
+    { i. inv H1; ss. }
+    rewrite list_remove_list_permutation_r; [|eauto].
+    eapply list_remove_list_permutation_l; auto.
+  Qed.
+
+  Lemma mset_minus_add_eq E1 E
+        (SUB: mset_sub E1 E)
+    :
+    Permutation E (E1 ++ mset_minus E E1).
+  Proof.
+    r in SUB. des. rewrite <- SUB.
+    unfold mset_minus.
+    assert (is_Some (list_remove_list E1 (s ++ E1))).
+    { eapply list_remove_list_submseteq.
+      eapply submseteq_inserts_l. reflexivity.
+    }
+    inv H. rewrite H0.
+    eapply list_remove_list_add_permutation; auto.
+  Qed.
+
   Definition MUpd (l0 l1: mset) (P: iProp): iProp :=
     mset_all l0 -* #=> (mset_all l1 ** P).
 
@@ -967,7 +1098,7 @@ Section MUPD.
     iModIntro. iFrame.
   Qed.
 
-  Lemma MUpd_mask_frame_r' E1 E2 Ef P
+  Lemma MUpd_mask_frame_r E1 E2 Ef P
     :
     (MUpd E1 E2 P ⊢ MUpd (E1 ++ Ef) (E2 ++ Ef) P).
   Proof.
@@ -1063,103 +1194,238 @@ Section MUPD.
     ((Q -* MUpd E2 E3 emp) ∗ MUpd E1 E2 (Q ∗ P)) ⊢ MUpd E1 E3 P.
   Proof.
     rewrite MUpd_frame_l.
-    rewrite MUpd_frame_r.
-
-assoc -(comm _ Q) wand_elim_r.
-    by rewrite fupd_frame_r left_id fupd_trans.
+    iIntros "H0". iApply MUpd_trans.
+    iApply (MUpd_mono with "H0").
+    iIntros "[H0 [H1 H2]]".
+    iPoseProof ("H0" with "H1") as "H0".
+    iApply MUpd_mono.
+    { instantiate (1:=emp ** P). iIntros "[H0 H1]". auto. }
+    iApply MUpd_frame_r. iFrame.
   Qed.
 
-  Lemma fupd_elim E1 E2 E3 P Q :
-    (Q -∗ (|={E2,E3}=> P)) → (|={E1,E2}=> Q) -∗ (|={E1,E3}=> P).
-  Proof. intros ->. rewrite fupd_trans //. Qed.
+  Lemma MUpd_elim E1 E2 E3 P Q :
+    (Q -∗ MUpd E2 E3 P) -> (MUpd E1 E2 Q) -∗ (MUpd E1 E3 P).
+  Proof.
+    i. rewrite H. rewrite MUpd_trans. auto.
+  Qed.
 
-  Lemma fupd_mask_frame_r E1 E2 Ef P :
-    E1 ## Ef → (|={E1,E2}=> P) ={E1 ∪ Ef,E2 ∪ Ef}=∗ P.
+  Lemma MUpd_permutation E1 E2 E1' E2' P
+        (PERM0: Permutation E1 E1')
+        (PERM1: Permutation E2 E2')
+    :
+    MUpd E1' E2' P ⊢ MUpd E1 E2 P.
   Proof.
-    intros ?. rewrite -fupd_mask_frame_r' //. f_equiv.
-    apply impl_intro_l, and_elim_r.
+    iIntros "H".
+    iApply MUpd_trans.
+    iApply MUpd_mask_intro_discard.
+    { rewrite PERM0. reflexivity. }
+    iApply MUpd_trans. iApply (MUpd_mono with "H").
+    iApply MUpd_mask_intro_discard. rewrite PERM1. reflexivity.
   Qed.
-  Lemma fupd_mask_mono E1 E2 P : E1 ⊆ E2 → (|={E1}=> P) ={E2}=∗ P.
+
+  Lemma MUpd_mask_mono E1 E2 P : mset_sub E1 E2 -> MUpd E1 E1 P ⊢ MUpd E2 E2 P.
   Proof.
-    intros (Ef&->&?)%subseteq_disjoint_union_L. by apply fupd_mask_frame_r.
+    i. unfold mset_sub in H. des.
+    symmetry in H. rewrite Permutation_app_comm in H.
+    iIntros "H". iPoseProof (MUpd_mask_frame_r with "H") as "H".
+    iApply (MUpd_permutation with "H"); eauto.
   Qed.
-  (** How to apply an arbitrary mask-changing view shift when having
-      an arbitrary mask. *)
-  Lemma fupd_mask_frame E E' E1 E2 P :
-    E1 ⊆ E →
-    (|={E1,E2}=> |={E2 ∪ (E ∖ E1),E'}=> P) -∗ (|={E,E'}=> P).
+
+  Lemma MUpd_mask_frame E E' E1 E2 P :
+    mset_sub E1 E →
+    (MUpd E1 E2 (MUpd (E2 ++ (mset_minus E E1)) E' P)) -∗ (MUpd E E' P).
   Proof.
-    intros ?. rewrite (fupd_mask_frame_r _ _ (E ∖ E1)); last set_solver.
-    rewrite fupd_trans.
-    by replace (E1 ∪ E ∖ E1) with E by (by apply union_difference_L).
+    i. rewrite (MUpd_mask_frame_r _ _ (mset_minus E E1)).
+    rewrite MUpd_trans. eapply MUpd_permutation; eauto.
+    eapply mset_minus_add_eq. auto.
   Qed.
-  (* A variant of [fupd_mask_frame] that works well for accessors: Tailored to
-     eliminate updates of the form [|={E1,E1∖E2}=> Q] and provides a way to
-     transform the closing view shift instead of letting you prove the same
-     side-conditions twice. *)
-  Lemma fupd_mask_frame_acc E E' E1(*Eo*) E2(*Em*) P Q :
-    E1 ⊆ E →
-    (|={E1,E1∖E2}=> Q) -∗
-    (Q -∗ |={E∖E2,E'}=> (∀ R, (|={E1∖E2,E1}=> R) -∗ |={E∖E2,E}=> R) -∗  P) -∗
-    (|={E,E'}=> P).
+
+  Lemma MUpd_or E1 E2 P Q :
+    (MUpd E1 E2 P ∨ MUpd E1 E2 Q)
+      ⊢
+      (MUpd E1 E2 (P ∨ Q)).
+  Proof. apply Or_elim; apply MUpd_mono; [ apply Or_intro_l | apply Or_intro_r ]. Qed.
+
+  Global Instance MUpd_or_homomorphism E :
+    MonoidHomomorphism bi_or bi_or (flip (⊢)) (MUpd E E).
+  Proof. split; [split|]; try apply _; [apply MUpd_or | apply MUpd_intro]. Qed.
+
+  Lemma MUpd_and E1 E2 P Q :
+    (MUpd E1 E2 (P ∧ Q)) ⊢ (MUpd E1 E2 P) ∧ (MUpd E1 E2 Q).
+  Proof. apply And_intro; apply MUpd_mono; [apply And_elim_l | apply And_elim_r]. Qed.
+
+  Lemma MUpd_exist E1 E2 A (Φ : A → iProp) : (∃ x : A, MUpd E1 E2 (Φ x)) ⊢ MUpd E1 E2 (∃ x : A, Φ x).
   Proof.
-    intros HE. apply wand_intro_r. rewrite fupd_frame_r.
+    iIntros "[% H]". iApply (MUpd_mono with "H"). apply Ex_intro.
+  Qed.
+
+  Lemma MUpd_forall E1 E2 A (Φ : A → iProp) : (MUpd E1 E2 (∀ x : A, Φ x)) ⊢ ∀ x : A, MUpd E1 E2 (Φ x).
+  Proof.
+    iIntros "H %". iApply (MUpd_mono with "H"). apply Univ_elim.
+  Qed.
+
+  Lemma MUpd_sep E P Q : (MUpd E E P) ∗ (MUpd E E Q) ⊢ MUpd E E (P ∗ Q).
+  Proof. rewrite MUpd_frame_r. rewrite MUpd_frame_l. rewrite MUpd_trans. auto. Qed.
+
+  Global Instance MUpd_sep_homomorphism E :
+    MonoidHomomorphism bi_sep bi_sep (flip (⊢)) (MUpd E E).
+  Proof. split; [split|]; try apply _; [apply MUpd_sep | apply MUpd_intro]. Qed.
+
+  Lemma MUpd_mask_subseteq_emptyset_difference E1 E2 :
+    mset_sub E2 E1 ->
+    ⊢ MUpd E1 E2 (MUpd [] (mset_minus E1 E2) emp).
+  Proof.
+    i. iStartProof. iStopProof. etrans.
+    { eapply MUpd_mask_intro_subseteq.
+      instantiate (1:=mset_minus E1 E2). instantiate (1:=[]).
+      unfold mset_sub in *. des.
+      exists s. rewrite app_nil_r. rewrite <- H.
+      eapply Permutation_app_inv_l. rewrite <- mset_minus_add_eq.
+      { apply Permutation_app_comm. }
+      { exists s. auto. }
+    }
+    etrans.
+    { eapply MUpd_mask_frame_r. }
+    eapply MUpd_permutation.
+    { instantiate (1:=E2). rewrite Permutation_app_comm. eapply mset_minus_add_eq. auto. }
+    { ss. }
+  Qed.
+
+  Lemma fupd_mask_frame_acc E E' E1 E2 P Q :
+    mset_sub E1 E ->
+    (MUpd E1 (mset_minus E1 E2) Q)
+      -∗
+      (Q -∗ MUpd (mset_minus E E2) E' (∀ R, MUpd (mset_minus E1 E2) E1 R -∗ MUpd (mset_minus E E2) E R) -∗ P)
+      -∗
+      (MUpd E E' P).
+  Proof.
+    intros HE. apply Wand_intro_r. rewrite MUpd_frame_r.
     rewrite wand_elim_r. clear Q.
-    rewrite -(fupd_mask_frame E E'); first apply fupd_mono; last done.
-    (* The most horrible way to apply fupd_intro_mask *)
-    rewrite -[X in (X -∗ _)](right_id emp%I).
-    rewrite (fupd_mask_intro_subseteq (E1 ∖ E2 ∪ E ∖ E1) (E ∖ E2) emp); last first.
-    { rewrite {1}(union_difference_L _ _ HE). set_solver. }
-    rewrite fupd_frame_l fupd_frame_r. apply fupd_elim.
-    apply fupd_mono.
-    eapply wand_apply;
-      last (apply sep_mono; first reflexivity); first reflexivity.
-    apply forall_intro=>R. apply wand_intro_r.
-    rewrite fupd_frame_r. apply fupd_elim. rewrite left_id.
-    rewrite (fupd_mask_frame_r _ _ (E ∖ E1)); last set_solver+.
-    rewrite {4}(union_difference_L _ _ HE). done.
-  Qed.
+    iIntros "H0".
+  (*   rewrite - (MUpd_mask_frame E E'). *)
+  (*   ; first apply fupd_mono; last done. *)
+  (*   (* The most horrible way to apply fupd_intro_mask *) *)
+  (*   rewrite -[X in (X -∗ _)](right_id emp%I). *)
+  (*   rewrite (fupd_mask_intro_subseteq (E1 ∖ E2 ∪ E ∖ E1) (E ∖ E2) emp%I); last first. *)
+  (*   { rewrite {1}(union_difference_L _ _ HE). set_solver. } *)
+  (*   rewrite fupd_frame_l fupd_frame_r. apply fupd_elim. *)
+  (*   apply fupd_mono. *)
+  (*   eapply wand_apply; *)
+  (*     last (apply sep_mono; first reflexivity); first reflexivity. *)
+  (*   apply forall_intro=>R. apply wand_intro_r. *)
+  (*   rewrite fupd_frame_r. apply fupd_elim. rewrite left_id. *)
+  (*   rewrite (fupd_mask_frame_r _ _ (E ∖ E1)); last set_solver+. *)
+  (*   rewrite {4}(union_difference_L _ _ HE). done. *)
+  (* Qed. *)
+  Admitted.
 
-  Lemma fupd_mask_subseteq_emptyset_difference E1 E2 :
-    E2 ⊆ E1 →
-    ⊢@{PROP} |={E1, E2}=> |={∅, E1∖E2}=> emp.
+  Lemma BUpd_MUpd E P:
+    #=> P ⊢ MUpd E E P.
   Proof.
-    intros ?. rewrite [in fupd E1](union_difference_L E2 E1); [|done].
-    rewrite (comm_L (∪))
-      -[X in fupd _ X](left_id_L ∅ (∪) E2) -fupd_mask_frame_r; [|set_solver+].
-    apply fupd_mask_intro_subseteq; set_solver.
+    iIntros "H0 H1". iMod "H0". iModIntro. iFrame.
   Qed.
 
-  Lemma fupd_or E1 E2 P Q :
-    (|={E1,E2}=> P) ∨ (|={E1,E2}=> Q) ⊢@{PROP}
-    (|={E1,E2}=> (P ∨ Q)).
-  Proof. apply or_elim; apply fupd_mono; [ apply or_intro_l | apply or_intro_r ]. Qed.
+  Global Instance from_assumption_MUpd
+         E p P Q :
+    FromAssumption p P (#=> Q) → KnownRFromAssumption p P (MUpd E E Q).
+  Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. apply BUpd_MUpd. Qed.
 
-  Global Instance fupd_or_homomorphism E :
-    MonoidHomomorphism bi_or bi_or (flip (⊢)) (fupd (PROP:=PROP) E E).
-  Proof. split; [split|]; try apply _; [apply fupd_or | apply fupd_intro]. Qed.
+  Global Instance from_pure_MUpd a E P φ :
+    FromPure a P φ → FromPure a (MUpd E E P) φ.
+  Proof. rewrite /FromPure=> <-. apply MUpd_intro. Qed.
 
-  Lemma fupd_and E1 E2 P Q :
-    (|={E1,E2}=> (P ∧ Q)) ⊢@{PROP} (|={E1,E2}=> P) ∧ (|={E1,E2}=> Q).
-  Proof. apply and_intro; apply fupd_mono; [apply and_elim_l | apply and_elim_r]. Qed.
+  Global Instance into_wand_MUpd E p q R P Q :
+    IntoWand false false R P Q →
+    IntoWand p q (MUpd E E R) (MUpd E E P) (MUpd E E Q).
+  Proof.
+    rewrite /IntoWand /= => HR. rewrite ! intuitionistically_if_elim.
+    rewrite ! HR. apply wand_intro_l. rewrite MUpd_sep. rewrite wand_elim_r. auto.
+  Qed.
 
-  Lemma fupd_exist E1 E2 A (Φ : A → PROP) : (∃ x : A, |={E1, E2}=> Φ x) ⊢ |={E1, E2}=> ∃ x : A, Φ x.
-  Proof. apply exist_elim=> a. by rewrite -(exist_intro a). Qed.
+  Global Instance into_wand_MUpd_persistent E1 E2 p q R P Q :
+    IntoWand false q R P Q → IntoWand p q (MUpd E1 E2 R) P (MUpd E1 E2 Q).
+  Proof.
+    rewrite /IntoWand /= => HR. rewrite intuitionistically_if_elim. rewrite HR.
+    apply wand_intro_l. rewrite MUpd_frame_l. rewrite wand_elim_r. auto.
+  Qed.
 
-  Lemma fupd_forall E1 E2 A (Φ : A → PROP) : (|={E1, E2}=> ∀ x : A, Φ x) ⊢ ∀ x : A, |={E1, E2}=> Φ x.
-  Proof. apply forall_intro=> a. by rewrite -(forall_elim a). Qed.
+  Global Instance into_wand_MUpd_args E1 E2 p q R P Q :
+    IntoWand p false R P Q → IntoWand' p q R (MUpd E1 E2 P) (MUpd E1 E2 Q).
+  Proof.
+    rewrite /IntoWand' /IntoWand /= => ->.
+    apply wand_intro_l. rewrite intuitionistically_if_elim. rewrite MUpd_wand_r. auto.
+  Qed.
 
-  Lemma fupd_sep E P Q : (|={E}=> P) ∗ (|={E}=> Q) ={E}=∗ P ∗ Q.
-  Proof. by rewrite fupd_frame_r fupd_frame_l fupd_trans. Qed.
+  Global Instance from_sep_MUpd E P Q1 Q2 :
+    FromSep P Q1 Q2 → FromSep (MUpd E E P) (MUpd E E Q1) (MUpd E E Q2).
+  Proof. rewrite /FromSep =><-. apply MUpd_sep. Qed.
 
-  Global Instance fupd_sep_homomorphism E :
-    MonoidHomomorphism bi_sep bi_sep (flip (⊢)) (fupd (PROP:=PROP) E E).
-  Proof. split; [split|]; try apply _; [apply fupd_sep | apply fupd_intro]. Qed.
+  Global Instance from_or_MUpd E1 E2 P Q1 Q2 :
+    FromOr P Q1 Q2 → FromOr (MUpd E1 E2 P) (MUpd E1 E2 Q1) (MUpd E1 E2 Q2).
+  Proof. rewrite /FromOr=><-. apply MUpd_or. Qed.
 
+  Global Instance into_and_MUpd E1 E2 P Q1 Q2 :
+    IntoAnd false P Q1 Q2 → IntoAnd false (MUpd E1 E2 P) (MUpd E1 E2 Q1) (MUpd E1 E2 Q2).
+  Proof. rewrite /IntoAnd/==>->. apply MUpd_and. Qed.
 
+  Global Instance from_exist_MUpd {A} E1 E2 P (Φ : A → iProp) :
+    FromExist P Φ → FromExist (MUpd E1 E2 P) (λ a, MUpd E1 E2 (Φ a))%I.
+  Proof. rewrite /FromExist=><-. apply MUpd_exist. Qed.
 
+  Global Instance into_forall_MUpd {A} E1 E2 P (Φ : A → iProp) :
+    IntoForall P Φ → IntoForall (MUpd E1 E2 P) (λ a, MUpd E1 E2 (Φ a))%I.
+  Proof. rewrite /IntoForall=>->. apply MUpd_forall. Qed.
 
+  Global Instance from_modal_MUpd E P :
+    FromModal True modality_id (MUpd E E P) (MUpd E E P) P.
+  Proof. by rewrite /FromModal /= -MUpd_intro. Qed.
 
+  Global Instance from_modal_MUpd_wrong_mask E1 E2 P :
+    FromModal
+      (pm_error "Only non-mask-changing update modalities can be introduced directly.
+Use [iApply MUpd_mask_intro] to introduce mask-changing update modalities")
+      modality_id (MUpd E1 E2 P) (MUpd E1 E2 P) P | 100.
+  Proof. by intros []. Qed.
+
+  Global Instance elim_modal_bupd_MUpd
+         p E1 E2 P Q :
+    ElimModal True p false (|==> P) P (MUpd E1 E2 Q) (MUpd E1 E2 Q) | 10.
+  Proof.
+    unfold ElimModal. rewrite intuitionistically_if_elim.
+    rewrite (BUpd_MUpd E1). rewrite MUpd_frame_r. rewrite wand_elim_r. rewrite MUpd_trans. auto.
+  Qed.
+
+  Global Instance elim_modal_MUpd_MUpd p E1 E2 E3 P Q :
+    ElimModal True p false (MUpd E1 E2 P) P (MUpd E1 E3 Q) (MUpd E2 E3 Q).
+  Proof.
+    unfold ElimModal. rewrite intuitionistically_if_elim.
+    rewrite MUpd_frame_r. rewrite wand_elim_r. rewrite MUpd_trans. auto.
+  Qed.
+
+  Global Instance elim_modal_MUpd_MUpd_wrong_mask p E0 E1 E2 E3 P Q :
+    ElimModal
+      (pm_error "Goal and eliminated modality must have the same mask.
+Use [iMod (MUpd_mask_subseteq E2)] to adjust the mask of your goal to [E2]")
+      p false
+      (MUpd E1 E2 P) False (MUpd E0 E3 Q) False | 100.
+  Proof. intros []. Qed.
+
+  Global Instance add_modal_MUpd E1 E2 P Q :
+    AddModal (MUpd E1 E1 P) P (MUpd E1 E2 Q).
+  Proof.
+    unfold AddModal. rewrite MUpd_frame_r. rewrite wand_elim_r. rewrite MUpd_trans. auto.
+  Qed.
+
+  Global Instance elim_acc_MUpd {X} E1 E2 E α β mγ Q :
+    ElimAcc (X:=X) True (MUpd E1 E2) (MUpd E2 E1) α β mγ
+            (MUpd E1 E Q)
+            (λ x, MUpd E2 E2 (β x) ∗ (mγ x -∗? MUpd E1 E Q))%I.
+  Proof.
+    iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
+    iPoseProof ("Hinner" with "Hα") as "[> Hβ Hfin]".
+    iMod ("Hclose" with "Hβ") as "Hγ". by iApply "Hfin".
+  Qed.
+End MUPD.
 
 
 
@@ -1177,6 +1443,9 @@ Module Region.
       monoWhite2 (@partial_map_le _ _) (partial_map_singleton k a).
 
     Global Program Instance Persistent_white k a: Persistent (white k a).
+    Next Obligation.
+      i. unfold white. iIntros "# H". auto.
+    Qed.
 
     Lemma black_white_in k a l
       :
@@ -1227,6 +1496,105 @@ Module Region.
     Qed.
 
     Variable interp: A -> iProp.
+
+    Definition sat_list (l: list A) := fold_right (fun a P => interp a ** P) True%I l.
+
+    Lemma sat_list_nil
+      :
+      ⊢ sat_list [].
+    Proof.
+      unfold sat_list. ss. auto.
+    Qed.
+
+    Lemma sat_list_cons_fold hd tl
+      :
+      (interp hd ** sat_list tl)
+        -∗
+        (sat_list (hd::tl)).
+    Proof.
+      unfold sat_list. ss.
+    Qed.
+
+    Lemma sat_list_cons_unfold hd tl
+      :
+      (sat_list (hd::tl))
+        -∗
+        (interp hd ** sat_list tl).
+    Proof.
+      unfold sat_list. ss.
+    Qed.
+
+    Lemma sat_list_split l0 l1
+      :
+      (sat_list (l0 ++ l1))
+        -∗
+        (sat_list l0 ** sat_list l1).
+    Proof.
+      induction l0; ss.
+      { iIntros "SAT". iFrame. }
+      { iIntros "[INTERP SAT]". iFrame. iApply IHl0; auto. }
+    Qed.
+
+    Lemma sat_list_combine l0 l1
+      :
+      (sat_list l0 ** sat_list l1)
+        -∗
+        (sat_list (l0 ++ l1)).
+    Proof.
+      induction l0; ss.
+      { iIntros "[_ SAT]". auto. }
+      { iIntros "[[INTERP SAT0] SAT1]". iFrame.
+        iApply IHl0. iFrame.
+      }
+    Qed.
+
+    Lemma sat_list_add l a
+      :
+      (interp a ** sat_list l)
+        -∗
+        (sat_list (l++[a])).
+    Proof.
+      iIntros "[NEW SAT]". iApply sat_list_combine. iFrame.
+    Qed.
+
+    Lemma sat_list_permutation l0 l1
+          (PERM: Permutation l0 l1)
+      :
+      sat_list l0 ⊢ sat_list l1.
+    Proof.
+      induction PERM.
+      { auto. }
+      { iIntros "H". iApply sat_list_cons_fold.
+        iPoseProof (sat_list_cons_unfold with "H") as "[HD TL]".
+        iFrame. iApply IHPERM; auto.
+      }
+      { iIntros "H". iApply sat_list_cons_fold.
+        iPoseProof (sat_list_cons_unfold with "H") as "[HD0 TL]".
+        iPoseProof (sat_list_cons_unfold with "TL") as "[HD1 TL]".
+        iSplitL "HD1"; auto. iApply sat_list_cons_fold. iFrame.
+      }
+      { etrans; eauto. }
+    Qed.
+
+    Lemma sat_list_update l k a
+          (FIND: nth_error l k = Some a)
+      :
+      sat_list l ⊢ interp a ** (interp a -* sat_list l).
+    Proof.
+      hexploit nth_error_split; eauto. i. des. subst.
+      iIntros "SAT". iPoseProof (sat_list_split with "SAT") as "[SAT0 SAT1]".
+      iPoseProof (sat_list_cons_unfold with "SAT1") as "[OLD SAT1]".
+      iFrame. iIntros "NEW". iApply sat_list_combine. iFrame.
+    Qed.
+
+    Lemma sat_list_nth_sub l k a
+          (FIND: nth_error l k = Some a)
+      :
+      ⊢ SubIProp (interp a) (sat_list l).
+    Proof.
+      iIntros "H". iPoseProof (sat_list_update with "H") as "[H0 H1]"; eauto.
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
 
     Definition sat: iProp := ∃ l, black l ** sat_list l.
 
@@ -1307,198 +1675,3 @@ Module Region.
     Qed.
   End REGION.
 End Region.
-
-
-
-
-Section class_instances_updates.
-Context {PROP : bi}.
-Implicit Types P Q R : PROP.
-
-Global Instance from_assumption_bupd `{!BiBUpd PROP} p P Q :
-  FromAssumption p P Q → KnownRFromAssumption p P (|==> Q).
-Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. apply bupd_intro. Qed.
-Global Instance from_assumption_fupd
-    `{!BiBUpd PROP, !BiFUpd PROP, !BiBUpdFUpd PROP} E p P Q :
-  FromAssumption p P (|==> Q) → KnownRFromAssumption p P (|={E}=> Q).
-Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. apply bupd_fupd. Qed.
-
-Global Instance from_pure_bupd `{!BiBUpd PROP} a P φ :
-  FromPure a P φ → FromPure a (|==> P) φ.
-Proof. rewrite /FromPure=> <-. apply bupd_intro. Qed.
-Global Instance from_pure_fupd `{!BiFUpd PROP} a E P φ :
-  FromPure a P φ → FromPure a (|={E}=> P) φ.
-Proof. rewrite /FromPure=> <-. apply fupd_intro. Qed.
-
-Global Instance into_wand_bupd `{!BiBUpd PROP} p q R P Q :
-  IntoWand false false R P Q → IntoWand p q (|==> R) (|==> P) (|==> Q).
-Proof.
-  rewrite /IntoWand /= => HR. rewrite !intuitionistically_if_elim HR.
-  apply wand_intro_l. by rewrite bupd_sep wand_elim_r.
-Qed.
-Global Instance into_wand_fupd `{!BiFUpd PROP} E p q R P Q :
-  IntoWand false false R P Q →
-  IntoWand p q (|={E}=> R) (|={E}=> P) (|={E}=> Q).
-Proof.
-  rewrite /IntoWand /= => HR. rewrite !intuitionistically_if_elim HR.
-  apply wand_intro_l. by rewrite fupd_sep wand_elim_r.
-Qed.
-
-Global Instance into_wand_bupd_persistent `{!BiBUpd PROP} p q R P Q :
-  IntoWand false q R P Q → IntoWand p q (|==> R) P (|==> Q).
-Proof.
-  rewrite /IntoWand /= => HR. rewrite intuitionistically_if_elim HR.
-  apply wand_intro_l. by rewrite bupd_frame_l wand_elim_r.
-Qed.
-Global Instance into_wand_fupd_persistent `{!BiFUpd PROP} E1 E2 p q R P Q :
-  IntoWand false q R P Q → IntoWand p q (|={E1,E2}=> R) P (|={E1,E2}=> Q).
-Proof.
-  rewrite /IntoWand /= => HR. rewrite intuitionistically_if_elim HR.
-  apply wand_intro_l. by rewrite fupd_frame_l wand_elim_r.
-Qed.
-
-Global Instance into_wand_bupd_args `{!BiBUpd PROP} p q R P Q :
-  IntoWand p false R P Q → IntoWand' p q R (|==> P) (|==> Q).
-Proof.
-  rewrite /IntoWand' /IntoWand /= => ->.
-  apply wand_intro_l. by rewrite intuitionistically_if_elim bupd_wand_r.
-Qed.
-Global Instance into_wand_fupd_args `{!BiFUpd PROP} E1 E2 p q R P Q :
-  IntoWand p false R P Q → IntoWand' p q R (|={E1,E2}=> P) (|={E1,E2}=> Q).
-Proof.
-  rewrite /IntoWand' /IntoWand /= => ->.
-  apply wand_intro_l. by rewrite intuitionistically_if_elim fupd_wand_r.
-Qed.
-
-Global Instance from_sep_bupd `{!BiBUpd PROP} P Q1 Q2 :
-  FromSep P Q1 Q2 → FromSep (|==> P) (|==> Q1) (|==> Q2).
-Proof. rewrite /FromSep=><-. apply bupd_sep. Qed.
-Global Instance from_sep_fupd `{!BiFUpd PROP} E P Q1 Q2 :
-  FromSep P Q1 Q2 → FromSep (|={E}=> P) (|={E}=> Q1) (|={E}=> Q2).
-Proof. rewrite /FromSep =><-. apply fupd_sep. Qed.
-
-Global Instance from_or_bupd `{!BiBUpd PROP} P Q1 Q2 :
-  FromOr P Q1 Q2 → FromOr (|==> P) (|==> Q1) (|==> Q2).
-Proof. rewrite /FromOr=><-. apply bupd_or. Qed.
-Global Instance from_or_fupd `{!BiFUpd PROP} E1 E2 P Q1 Q2 :
-  FromOr P Q1 Q2 → FromOr (|={E1,E2}=> P) (|={E1,E2}=> Q1) (|={E1,E2}=> Q2).
-Proof. rewrite /FromOr=><-. apply fupd_or. Qed.
-
-Global Instance into_and_bupd `{!BiBUpd PROP} P Q1 Q2 :
-  IntoAnd false P Q1 Q2 → IntoAnd false (|==> P) (|==> Q1) (|==> Q2).
-Proof. rewrite /IntoAnd/==>->. apply bupd_and. Qed.
-Global Instance into_and_fupd `{!BiFUpd PROP} E1 E2 P Q1 Q2 :
-  IntoAnd false P Q1 Q2 → IntoAnd false (|={E1,E2}=> P) (|={E1,E2}=> Q1) (|={E1,E2}=> Q2).
-Proof. rewrite /IntoAnd/==>->. apply fupd_and. Qed.
-
-Global Instance from_exist_bupd `{!BiBUpd PROP} {A} P (Φ : A → PROP) :
-  FromExist P Φ → FromExist (|==> P) (λ a, |==> Φ a)%I.
-Proof. rewrite /FromExist=><-. apply bupd_exist. Qed.
-Global Instance from_exist_fupd `{!BiFUpd PROP} {A} E1 E2 P (Φ : A → PROP) :
-  FromExist P Φ → FromExist (|={E1,E2}=> P) (λ a, |={E1,E2}=> Φ a)%I.
-Proof. rewrite /FromExist=><-. apply fupd_exist. Qed.
-
-Global Instance into_forall_bupd `{!BiBUpd PROP} {A} P (Φ : A → PROP) :
-  IntoForall P Φ → IntoForall (|==> P) (λ a, |==> Φ a)%I.
-Proof. rewrite /IntoForall=>->. apply bupd_forall. Qed.
-Global Instance into_forall_fupd `{!BiFUpd PROP} {A} E1 E2 P (Φ : A → PROP) :
-  IntoForall P Φ → IntoForall (|={E1,E2}=> P) (λ a, |={E1,E2}=> Φ a)%I.
-Proof. rewrite /IntoForall=>->. apply fupd_forall. Qed.
-
-Global Instance from_forall_fupd
-    `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP} E1 E2 {A} P (Φ : A → PROP) name :
-  (* Some cases in which [E2 ⊆ E1] holds *)
-  TCOr (TCEq E1 E2) (TCOr (TCEq E1 ⊤) (TCEq E2 ∅)) →
-  FromForall P Φ name → (∀ x, Plain (Φ x)) →
-  FromForall (|={E1,E2}=> P) (λ a, |={E1,E2}=> (Φ a))%I name.
-Proof.
-  rewrite /FromForall=> -[->|[->|->]] <- ?; rewrite fupd_plain_forall; set_solver.
-Qed.
-Global Instance from_forall_step_fupd
-    `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP} E1 E2 {A} P (Φ : A → PROP) name :
-  (* Some cases in which [E2 ⊆ E1] holds *)
-  TCOr (TCEq E1 E2) (TCOr (TCEq E1 ⊤) (TCEq E2 ∅)) →
-  FromForall P Φ name → (∀ x, Plain (Φ x)) →
-  FromForall (|={E1}[E2]▷=> P) (λ a, |={E1}[E2]▷=> (Φ a))%I name.
-Proof.
-  rewrite /FromForall=> -[->|[->|->]] <- ?; rewrite step_fupd_plain_forall; set_solver.
-Qed.
-
-Global Instance is_except_0_bupd `{!BiBUpd PROP} P : IsExcept0 P → IsExcept0 (|==> P).
-Proof.
-  rewrite /IsExcept0=> HP.
-  by rewrite -{2}HP -(except_0_idemp P) -except_0_bupd -(except_0_intro P).
-Qed.
-Global Instance is_except_0_fupd `{!BiFUpd PROP} E1 E2 P :
-  IsExcept0 (|={E1,E2}=> P).
-Proof. by rewrite /IsExcept0 except_0_fupd. Qed.
-
-Global Instance from_modal_bupd `{!BiBUpd PROP} P :
-  FromModal True modality_id (|==> P) (|==> P) P.
-Proof. by rewrite /FromModal /= -bupd_intro. Qed.
-Global Instance from_modal_fupd E P `{!BiFUpd PROP} :
-  FromModal True modality_id (|={E}=> P) (|={E}=> P) P.
-Proof. by rewrite /FromModal /= -fupd_intro. Qed.
-Global Instance from_modal_fupd_wrong_mask E1 E2 P `{!BiFUpd PROP} :
-  FromModal
-        (pm_error "Only non-mask-changing update modalities can be introduced directly.
-Use [iApply fupd_mask_intro] to introduce mask-changing update modalities")
-    modality_id (|={E1,E2}=> P) (|={E1,E2}=> P) P | 100.
-Proof. by intros []. Qed.
-
-Global Instance elim_modal_bupd `{!BiBUpd PROP} p P Q :
-  ElimModal True p false (|==> P) P (|==> Q) (|==> Q).
-Proof.
-  by rewrite /ElimModal
-    intuitionistically_if_elim bupd_frame_r wand_elim_r bupd_trans.
-Qed.
-
-Global Instance elim_modal_bupd_plain_goal
-    `{!BiBUpd PROP, !BiPlainly PROP, !BiBUpdPlainly PROP} p P Q :
-  Plain Q → ElimModal True p false (|==> P) P Q Q.
-Proof.
-  intros. by rewrite /ElimModal intuitionistically_if_elim
-    bupd_frame_r wand_elim_r bupd_plain.
-Qed.
-Global Instance elim_modal_bupd_plain
-    `{!BiBUpd PROP, !BiPlainly PROP, !BiBUpdPlainly PROP} p P Q :
-  Plain P → ElimModal True p p (|==> P) P Q Q.
-Proof. intros. by rewrite /ElimModal bupd_plain wand_elim_r. Qed.
-Global Instance elim_modal_bupd_fupd
-    `{!BiBUpd PROP, !BiFUpd PROP, !BiBUpdFUpd PROP} p E1 E2 P Q :
-  ElimModal True p false (|==> P) P (|={E1,E2}=> Q) (|={E1,E2}=> Q) | 10.
-Proof.
-  by rewrite /ElimModal intuitionistically_if_elim
-    (bupd_fupd E1) fupd_frame_r wand_elim_r fupd_trans.
-Qed.
-Global Instance elim_modal_fupd_fupd `{!BiFUpd PROP} p E1 E2 E3 P Q :
-  ElimModal True p false (|={E1,E2}=> P) P (|={E1,E3}=> Q) (|={E2,E3}=> Q).
-Proof.
-  by rewrite /ElimModal intuitionistically_if_elim
-    fupd_frame_r wand_elim_r fupd_trans.
-Qed.
-Global Instance elim_modal_fupd_fupd_wrong_mask `{!BiFUpd PROP} p E0 E1 E2 E3 P Q :
-  ElimModal
-    (pm_error "Goal and eliminated modality must have the same mask.
-Use [iMod (fupd_mask_subseteq E2)] to adjust the mask of your goal to [E2]")
-    p false
-    (|={E1,E2}=> P) False (|={E0,E3}=> Q) False | 100.
-Proof. intros []. Qed.
-
-Global Instance add_modal_bupd `{!BiBUpd PROP} P Q : AddModal (|==> P) P (|==> Q).
-Proof. by rewrite /AddModal bupd_frame_r wand_elim_r bupd_trans. Qed.
-
-Global Instance add_modal_fupd `{!BiFUpd PROP} E1 E2 P Q :
-  AddModal (|={E1}=> P) P (|={E1,E2}=> Q).
-Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_trans. Qed.
-
-Global Instance elim_acc_fupd `{!BiFUpd PROP} {X} E1 E2 E α β mγ Q :
-  ElimAcc (X:=X) True (fupd E1 E2) (fupd E2 E1) α β mγ
-          (|={E1,E}=> Q)
-          (λ x, |={E2}=> β x ∗ (mγ x -∗? |={E1,E}=> Q))%I.
-Proof.
-  iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-  iMod ("Hinner" with "Hα") as "[Hβ Hfin]".
-  iMod ("Hclose" with "Hβ") as "Hγ". by iApply "Hfin".
-Qed.
-End class_instances_updates.
