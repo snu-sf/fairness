@@ -12,26 +12,26 @@ Module FiniteMap.
   Section FiniteMap.
     Context `{M: URA.t}.
 
-    Let car := nat -> option M.(URA.car).
+    Definition car := nat -> option M.(URA.car).
 
-    Let unit: car := fun _ => None.
+    Definition unit: car := fun _ => None.
 
-    Let add (f0 f1: car): car :=
-          fun n =>
-            match (f0 n), (f1 n) with
-            | None, _ => f1 n
-            | _, None => f0 n
-            | Some m0, Some m1 => Some (URA.add m0 m1)
-            end.
+    Definition add (f0 f1: car): car :=
+      fun n =>
+        match (f0 n), (f1 n) with
+        | None, _ => f1 n
+        | _, None => f0 n
+        | Some m0, Some m1 => Some (URA.add m0 m1)
+        end.
 
     Definition wf (f: car): Prop :=
       (<<POINTWISE: forall n m (EQ: f n = Some m), URA.wf m>>) /\ (<<FIN: exists k, forall n (LE: k < n), f n = None>>).
 
-    Let core (f: car): car := fun n =>
-                                match (f n) with
-                                | Some m => Some (URA.core m)
-                                | None => None
-                                end.
+    Definition core (f: car): car := fun n =>
+                                       match (f n) with
+                                       | Some m => Some (URA.core m)
+                                       | None => None
+                                       end.
 
     Global Program Instance t: URA.t := {
         car := car;
@@ -411,16 +411,6 @@ Section Monotone.
       split; auto. rr. etrans; eauto. econs; eauto.
     Qed.
 
-    Lemma black_persistent_white_exact w
-      :
-      (monoBlack w) -∗ (□ monoWhiteExact w).
-    Proof.
-      unfold monoBlack, monoWhiteExact.
-      rewrite <- FiniteMap.singleton_add.
-      iIntros "[_ H]". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
-    Qed.
-
     Lemma white_exact_persistent w
       :
       (monoWhiteExact w) -∗ (□ monoWhiteExact w).
@@ -436,26 +426,6 @@ Section Monotone.
       i. iIntros "WHITE". iPoseProof (white_exact_persistent with "WHITE") as "WHITE". auto.
     Qed.
 
-    Lemma black_persistent_white w
-      :
-      (monoBlack w) -∗ (□ monoWhite w).
-    Proof.
-      unfold monoWhite. iIntros "H".
-      iPoseProof (black_persistent_white_exact with "H") as "# H0".
-      iClear "∗". iModIntro.
-      iExists _. iSplit; eauto.
-    Qed.
-
-    Lemma white_mon w0 w1
-          (LE: le w0 w1)
-      :
-      (monoWhite w1) -∗ (monoWhite w0).
-    Proof.
-      unfold monoWhite. iIntros "H".
-      iDestruct "H" as (w) "[H %]".
-      iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
-    Qed.
-
     Lemma white_persistent w
       :
       (monoWhite w) -∗ (□ monoWhite w).
@@ -468,6 +438,34 @@ Section Monotone.
     Qed.
 
     Global Program Instance Persistent_white w: Persistent (monoWhite w).
+
+    Lemma black_persistent_white_exact w
+      :
+      (monoBlack w) -∗ (monoWhiteExact w).
+    Proof.
+      unfold monoBlack, monoWhiteExact.
+      rewrite <- FiniteMap.singleton_add.
+      iIntros "[_ H]". auto.
+    Qed.
+
+    Lemma black_white w
+      :
+      (monoBlack w) -∗ (monoWhite w).
+    Proof.
+      unfold monoWhite. iIntros "H".
+      iPoseProof (black_persistent_white_exact with "H") as "H".
+      iExists _. iSplit; eauto.
+    Qed.
+
+    Lemma white_mon w0 w1
+          (LE: le w0 w1)
+      :
+      (monoWhite w1) -∗ (monoWhite w0).
+    Proof.
+      unfold monoWhite. iIntros "H".
+      iDestruct "H" as (w) "[H %]".
+      iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
+    Qed.
 
     Lemma black_updatable w0 w1
           (LE: le w0 w1)
@@ -566,24 +564,6 @@ Section Monotone.
   Definition monoWhite2 (w0: W): iProp :=
     ∃ w1, monoWhiteExact2 w1 ∧ ⌜le w0 w1⌝.
 
-  Lemma black_persistent_white_exact2 w
-    :
-    (monoBlack2 w) -∗ (□ monoWhiteExact2 w).
-  Proof.
-    unfold monoBlack2, monoWhiteExact2.
-    iIntros "[_ H]". iPoseProof (own_persistent with "H") as "H". ss.
-  Qed.
-
-  Lemma black_persistent_white2 w
-    :
-    (monoBlack2 w) -∗ (□ monoWhite2 w).
-  Proof.
-    unfold monoWhite2. iIntros "H".
-    iPoseProof (black_persistent_white_exact2 with "H") as "# H0".
-    iClear "∗". iModIntro.
-    iExists _. iSplit; eauto.
-  Qed.
-
   Lemma white_exact_persistent2 w
     :
     (monoWhiteExact2 w) -∗ (□ monoWhiteExact2 w).
@@ -598,15 +578,6 @@ Section Monotone.
     i. iIntros "WHITE". iPoseProof (white_exact_persistent2 with "WHITE") as "WHITE". auto.
   Qed.
 
-  Lemma white_mon2 w0 w1
-    :
-    (monoWhite2 w1) -∗ ⌜le w0 w1⌝ -∗ (monoWhite2 w0).
-  Proof.
-    unfold monoWhite2. iIntros "H %".
-    iDestruct "H" as (w) "[H %]".
-    iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
-  Qed.
-
   Lemma white_persistent2 w
     :
     (monoWhite2 w) -∗ (□ monoWhite2 w).
@@ -619,6 +590,32 @@ Section Monotone.
   Qed.
 
   Global Program Instance Persistent_white2 w: Persistent (monoWhite2 w).
+
+  Lemma black_white_exact2 w
+    :
+    (monoBlack2 w) -∗ (monoWhiteExact2 w).
+  Proof.
+    unfold monoBlack2, monoWhiteExact2.
+    iIntros "[_ H]". ss.
+  Qed.
+
+  Lemma black_white2 w
+    :
+    (monoBlack2 w) -∗ (monoWhite2 w).
+  Proof.
+    unfold monoWhite2. iIntros "H".
+    iPoseProof (black_white_exact2 with "H") as "H".
+    iExists _. iSplit; eauto.
+  Qed.
+
+  Lemma white_mon2 w0 w1
+    :
+    (monoWhite2 w1) -∗ ⌜le w0 w1⌝ -∗ (monoWhite2 w0).
+  Proof.
+    unfold monoWhite2. iIntros "H %".
+    iDestruct "H" as (w) "[H %]".
+    iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
+  Qed.
 
   Lemma black_updatable2 w0 w1
         (LE: le w0 w1)
@@ -661,3 +658,281 @@ Section Monotone.
     iPureIntro. etrans; eauto.
   Qed.
 End Monotone.
+
+
+Section MAP.
+  Definition partial_map_le A B (f0 f1: A -> option B): Prop :=
+    forall a b (SOME: f0 a = Some b), f1 a = Some b.
+
+  Global Program Instance partial_map_PreOrder A B: PreOrder (@partial_map_le A B).
+  Next Obligation.
+  Proof.
+    ii. auto.
+  Qed.
+  Next Obligation.
+  Proof.
+    ii. eapply H0. eapply H. auto.
+  Qed.
+
+  Definition partial_map_empty A B: A -> option B :=
+    fun _ => None.
+
+  Definition partial_map_update A B (a: A) (b: B) (f: A -> option B):
+    A -> option B :=
+    fun a' => if (excluded_middle_informative (a' = a)) then Some b else (f a').
+
+  Definition partial_map_singleton A B (a: A) (b: B): A -> option B :=
+    partial_map_update a b (@partial_map_empty A B).
+
+  Definition partial_map_update_le A B (a: A) (b: B) (f: A -> option B)
+             (NONE: f a = None)
+    :
+    partial_map_le f (partial_map_update a b f).
+  Proof.
+    ii. unfold partial_map_update. des_ifs.
+  Qed.
+
+  Definition partial_map_update_le_singleton A B (a: A) (b: B) (f: A -> option B)
+             (NONE: f a = None)
+    :
+    partial_map_le (partial_map_singleton a b) (partial_map_update a b f).
+  Proof.
+    ii. unfold partial_map_singleton, partial_map_update in *. des_ifs.
+  Qed.
+
+  Lemma partial_map_singleton_le_iff A B (a: A) (b: B) f
+    :
+    partial_map_le (partial_map_singleton a b) f <-> (f a = Some b).
+  Proof.
+    split.
+    { i. eapply H. unfold partial_map_singleton, partial_map_update. des_ifs. }
+    { ii. unfold partial_map_singleton, partial_map_update in *. des_ifs. }
+  Qed.
+End MAP.
+
+
+Module Region.
+  Section REGION.
+    Variable A: Type.
+    Definition t: URA.t := monoRA2 (nat -> option A).
+
+    Context `{@GRA.inG t Σ}.
+
+    Definition black (l: list A): iProp :=
+      monoBlack2 (@partial_map_le _ _) (nth_error l).
+
+    Definition white (k: nat) (a: A): iProp :=
+      monoWhite2 (@partial_map_le _ _) (partial_map_singleton k a).
+
+    Global Program Instance Persistent_white k a: Persistent (white k a).
+
+    Lemma black_white_in k a l
+      :
+      (black l)
+        -∗
+        (white k a)
+        -∗
+        ⌜nth_error l k = Some a⌝.
+    Proof.
+      iIntros "BLACK WHITE".
+      iPoseProof (black_white_compare2 with "WHITE BLACK") as "%".
+      apply partial_map_singleton_le_iff in H0. auto.
+    Qed.
+
+    Lemma white_agree k a0 a1 l
+      :
+      (black l)
+        -∗
+        (white k a0)
+        -∗
+        (white k a1)
+        -∗
+        ⌜a0 = a1⌝.
+    Proof.
+      iIntros "BLACK WHITE0 WHITE1".
+      iPoseProof (black_white_in with "BLACK WHITE0") as "%".
+      iPoseProof (black_white_in with "BLACK WHITE1") as "%".
+      clarify.
+    Qed.
+
+    Lemma black_alloc l a
+      :
+      (black l)
+        -∗
+        #=> (black (l++[a]) ** white (length l) a).
+    Proof.
+      iIntros "H". iPoseProof (black_updatable2 with "H") as "> H".
+      { instantiate (1:=nth_error (l++[a])). ii.
+        rewrite nth_error_app1; eauto.
+        apply nth_error_Some; auto. rewrite SOME; auto.
+      }
+      iModIntro. iSplit; auto.
+      iPoseProof (black_white2 with "H") as "H".
+      iApply (white_mon2 with "H"); auto. iPureIntro.
+      apply partial_map_singleton_le_iff.
+      rewrite nth_error_app2; auto.
+      replace (length l - length l) with 0 by lia. ss.
+    Qed.
+
+    Variable interp: A -> iProp.
+
+    Definition sat_list (l: list A): iProp :=
+      fold_right (fun a P => interp a ** P) True%I l.
+
+    Lemma sat_list_nil
+      :
+      ⊢ sat_list [].
+    Proof.
+      unfold sat_list. ss. auto.
+    Qed.
+
+    Lemma sat_list_cons_fold hd tl
+      :
+      (interp hd ** sat_list tl)
+        -∗
+        (sat_list (hd::tl)).
+    Proof.
+      unfold sat_list. ss.
+    Qed.
+
+    Lemma sat_list_cons_unfold hd tl
+      :
+      (sat_list (hd::tl))
+        -∗
+        (interp hd ** sat_list tl).
+    Proof.
+      unfold sat_list. ss.
+    Qed.
+
+    Lemma sat_list_split l0 l1
+      :
+      (sat_list (l0 ++ l1))
+        -∗
+        (sat_list l0 ** sat_list l1).
+    Proof.
+      induction l0; ss.
+      { iIntros "SAT". iFrame. }
+      { iIntros "[INTERP SAT]". iFrame. iApply IHl0; auto. }
+    Qed.
+
+    Lemma sat_list_combine l0 l1
+      :
+      (sat_list l0 ** sat_list l1)
+        -∗
+        (sat_list (l0 ++ l1)).
+    Proof.
+      induction l0; ss.
+      { iIntros "[_ SAT]". auto. }
+      { iIntros "[[INTERP SAT0] SAT1]". iFrame.
+        iApply IHl0. iFrame.
+      }
+    Qed.
+
+    Lemma sat_list_add l a
+      :
+      (interp a ** sat_list l)
+        -∗
+        (sat_list (l++[a])).
+    Proof.
+      iIntros "[NEW SAT]". iApply sat_list_combine. iFrame.
+    Qed.
+
+    Lemma sat_list_update l k a
+          (FIND: nth_error l k = Some a)
+      :
+      sat_list l ⊢ interp a ** (interp a -* sat_list l).
+    Proof.
+      hexploit nth_error_split; eauto. i. des. subst.
+      iIntros "SAT". iPoseProof (sat_list_split with "SAT") as "[SAT0 SAT1]".
+      iPoseProof (sat_list_cons_unfold with "SAT1") as "[OLD SAT1]".
+      iFrame. iIntros "NEW". iApply sat_list_combine. iFrame.
+    Qed.
+
+    Lemma sat_list_nth_sub l k a
+          (FIND: nth_error l k = Some a)
+      :
+      ⊢ SubIProp (interp a) (sat_list l).
+    Proof.
+      iIntros "H". iPoseProof (sat_list_update with "H") as "[H0 H1]"; eauto.
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
+
+    Definition sat: iProp := ∃ l, black l ** sat_list l.
+
+    Lemma white_agree_sat k a0 a1
+      :
+      (white k a0)
+        -∗
+        (white k a1)
+        -∗
+        (#=(sat)=> (⌜a0 = a1⌝)).
+    Proof.
+      iIntros "WHITE0 WHITE1 [% [BLACK SAT]]".
+      iPoseProof (white_agree with "BLACK WHITE0 WHITE1") as "%".
+      subst. iModIntro. iSplit; auto. iExists _. iFrame.
+    Qed.
+
+    Lemma sat_update k a
+      :
+      (white k a)
+        -∗
+        (sat)
+        -∗
+        (interp a ** (interp a -* sat)).
+    Proof.
+      iIntros "WHITE [% [BLACK SAT]]".
+      iPoseProof (black_white_in with "BLACK WHITE") as "%".
+      iPoseProof (sat_list_update with "SAT") as "[INTERP H0]"; eauto.
+      iFrame. iIntros "H1". iExists _. iFrame. iApply ("H0" with "H1").
+    Qed.
+
+    Lemma sat_white_sub k a
+      :
+      white k a ⊢ SubIProp (interp a) sat.
+    Proof.
+      iIntros "H0 H1". iPoseProof (sat_update with "H0 H1") as "[H0 H1]".
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
+
+    Lemma sat_alloc a
+      :
+      sat
+        -∗
+        (interp a)
+        -∗
+        ∃ k, (#=> (sat ** white k a)).
+    Proof.
+      iIntros "[% [BLACK SAT]] INTERP".
+      iPoseProof (sat_list_add with "[SAT INTERP]") as "SAT".
+      { iFrame. }
+      iExists _.
+      iPoseProof (black_alloc with "BLACK") as "> [BLACK WHITE]".
+      iModIntro. iSplitR "WHITE"; auto.
+      iExists _. iFrame.
+    Qed.
+
+    Lemma update k a P
+      :
+      (white k a)
+        -∗
+        (#=(interp a)=> P)
+        -∗
+        (#=(sat)=> P).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (sat_white_sub with "H0") as "H0".
+      iApply (IUpd_sub_mon with "H0 H1").
+    Qed.
+
+    Lemma alloc a
+      :
+      (interp a)
+        -∗
+        (#=(sat)=> ∃ k, white k a).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (sat_alloc with "H1 H0") as "[% > [H0 H1]]".
+      iModIntro. iFrame. iExists _. iFrame.
+    Qed.
+  End REGION.
+End Region.

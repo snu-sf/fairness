@@ -506,7 +506,84 @@ Section ILEMMAS.
     rewrite <- URA.add_assoc. eauto.
   Qed.
 
+  Lemma IUpd_unfold I P
+    :
+    #=(I)=> P ⊢ (I -* #=> (I ** P)).
+  Proof.
+    reflexivity.
+  Qed.
+
+  Lemma IUpd_fold I P
+    :
+    (I -* #=> (I ** P)) ⊢ #=(I)=> P.
+  Proof.
+    reflexivity.
+  Qed.
+
+  Definition SubIProp P Q: iProp :=
+    Q -* #=> (P ** (P -* #=> Q)).
+
+  Lemma SubIProp_refl P
+    :
+    ⊢ SubIProp P P.
+  Proof.
+    iIntros "H". iFrame. auto.
+  Qed.
+
+  Lemma SubIProp_trans P Q R
+    :
+    (SubIProp P Q)
+      -∗
+      (SubIProp Q R)
+      -∗
+      (SubIProp P R).
+  Proof.
+    iIntros "H0 H1 H2".
+    iPoseProof ("H1" with "H2") as "> [H1 H2]".
+    iPoseProof ("H0" with "H1") as "> [H0 H1]".
+    iFrame. iModIntro. iIntros "H".
+    iPoseProof ("H1" with "H") as "> H".
+    iPoseProof ("H2" with "H") as "H". auto.
+  Qed.
+
+  Lemma SubIProp_sep_l P Q
+    :
+    ⊢ (SubIProp P (P ** Q)).
+  Proof.
+    iIntros "[H0 H1]". iFrame. auto.
+  Qed.
+
+  Lemma SubIProp_sep_r P Q
+    :
+    ⊢ (SubIProp Q (P ** Q)).
+  Proof.
+    iIntros "[H0 H1]". iFrame. auto.
+  Qed.
+
+  Lemma IUpd_sub_mon P Q R
+    :
+    (SubIProp P Q)
+      -∗
+      (#=(P)=> R)
+      -∗
+      (#=(Q)=> R).
+  Proof.
+    iIntros "H0 H1 H2".
+    iPoseProof (IUpd_unfold with "H1") as "H1".
+    iPoseProof ("H0" with "H2") as "> [H0 H2]".
+    iPoseProof ("H1" with "H0") as "> [H0 H1]".
+    iPoseProof ("H2" with "H0") as "H0". iFrame. auto.
+  Qed.
 End ILEMMAS.
+
+Global Instance upd_elim_iupd `{GRA.t} I P Q
+       `{ElimModal _ True false false (#=(I)=> P) P Q R}
+  :
+  ElimModal True false false (#=> P) P Q R.
+Proof.
+  unfold ElimModal. i. iIntros "[H0 H1]".
+  iPoseProof (Upd_IUpd with "H0") as "> H0". iApply "H1". auto.
+Qed.
 
 Ltac iOwnWf' H :=
   iPoseProof (OwnM_valid with H) as "%".

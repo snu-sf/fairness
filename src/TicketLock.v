@@ -200,55 +200,6 @@ Section SIM.
     ii. lia.
   Qed.
 
-
-  Definition partial_map_le A B (f0 f1: A -> option B): Prop :=
-    forall a b (SOME: f0 a = Some b), f1 a = Some b.
-
-  Global Program Instance partial_map_PreOrder A B: PreOrder (@partial_map_le A B).
-  Next Obligation.
-  Proof.
-    ii. auto.
-  Qed.
-  Next Obligation.
-  Proof.
-    ii. eapply H0. eapply H. auto.
-  Qed.
-
-  Definition partial_map_empty A B: A -> option B :=
-    fun _ => None.
-
-  Definition partial_map_update A B (a: A) (b: B) (f: A -> option B):
-    A -> option B :=
-    fun a' => if (excluded_middle_informative (a' = a)) then Some b else (f a').
-
-  Definition partial_map_singleton A B (a: A) (b: B): A -> option B :=
-    partial_map_update a b (@partial_map_empty A B).
-
-  Definition partial_map_update_le A B (a: A) (b: B) (f: A -> option B)
-             (NONE: f a = None)
-    :
-    partial_map_le f (partial_map_update a b f).
-  Proof.
-    ii. unfold partial_map_update. des_ifs.
-  Qed.
-
-  Definition partial_map_update_le_singleton A B (a: A) (b: B) (f: A -> option B)
-             (NONE: f a = None)
-    :
-    partial_map_le (partial_map_singleton a b) (partial_map_update a b f).
-  Proof.
-    ii. unfold partial_map_singleton, partial_map_update in *. des_ifs.
-  Qed.
-
-  Lemma partial_map_singleton_le_iff A B (a: A) (b: B) f
-    :
-    partial_map_le (partial_map_singleton a b) f <-> (f a = Some b).
-  Proof.
-    split.
-    { i. eapply H. unfold partial_map_singleton, partial_map_update. des_ifs. }
-    { ii. unfold partial_map_singleton, partial_map_update in *. des_ifs. }
-  Qed.
-
   Fixpoint waiters now_serving (n: nat) (W: NatMap.t unit): iProp :=
     match n with
     | 0 => True
