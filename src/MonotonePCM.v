@@ -933,6 +933,14 @@ Section MUPD.
     iApply mset_all_combine. iFrame.
   Qed.
 
+  Lemma mset_all_discard l0 l1
+        (SUB: mset_sub l0 l1)
+    :
+    mset_all l1 ⊢ mset_all l0.
+  Proof.
+    rewrite mset_all_sub; eauto. iIntros "[H0 H1]". iFrame.
+  Qed.
+
   Lemma mset_all_update l k a
         (FIND: nth_error l k = Some a)
     :
