@@ -712,6 +712,7 @@ End MAP.
 
 
 From iris.bi Require Import derived_laws. Import bi.
+Require Import Coq.Sorting.Mergesort. Import NatSort.
 
 Section MUPD.
   Definition mset := list nat.
@@ -1223,6 +1224,15 @@ Section MUPD.
     iApply MUpd_mask_intro_discard. rewrite PERM1. reflexivity.
   Qed.
 
+  Lemma MUpd_sort E1 E2 P
+    :
+    MUpd (NatSort.sort E1) (NatSort.sort E2) P ⊢ MUpd E1 E2 P.
+  Proof.
+    apply MUpd_permutation.
+    { apply Permuted_sort. }
+    { apply Permuted_sort. }
+  Qed.
+
   Lemma MUpd_mask_mono E1 E2 P : mset_sub E1 E2 -> MUpd E1 E1 P ⊢ MUpd E2 E2 P.
   Proof.
     i. unfold mset_sub in H. des.
@@ -1291,17 +1301,17 @@ Section MUPD.
     { ss. }
   Qed.
 
-  Lemma fupd_mask_frame_acc E E' E1 E2 P Q :
-    mset_sub E1 E ->
-    (MUpd E1 (mset_minus E1 E2) Q)
-      -∗
-      (Q -∗ MUpd (mset_minus E E2) E' (∀ R, MUpd (mset_minus E1 E2) E1 R -∗ MUpd (mset_minus E E2) E R) -∗ P)
-      -∗
-      (MUpd E E' P).
-  Proof.
-    intros HE. apply Wand_intro_r. rewrite MUpd_frame_r.
-    rewrite wand_elim_r. clear Q.
-    iIntros "H0".
+  (* Lemma MUpd_mask_frame_acc E E' E1 E2 P Q : *)
+  (*   mset_sub E1 E -> *)
+  (*   (MUpd E1 (mset_minus E1 E2) Q) *)
+  (*     -∗ *)
+  (*     (Q -∗ MUpd (mset_minus E E2) E' (∀ R, MUpd (mset_minus E1 E2) E1 R -∗ MUpd (mset_minus E E2) E R) -∗ P) *)
+  (*     -∗ *)
+  (*     (MUpd E E' P). *)
+  (* Proof. *)
+  (*   intros HE. apply Wand_intro_r. rewrite MUpd_frame_r. *)
+  (*   rewrite wand_elim_r. clear Q. *)
+  (*   iIntros "H0". *)
   (*   rewrite - (MUpd_mask_frame E E'). *)
   (*   ; first apply fupd_mono; last done. *)
   (*   (* The most horrible way to apply fupd_intro_mask *) *)
@@ -1317,7 +1327,6 @@ Section MUPD.
   (*   rewrite (fupd_mask_frame_r _ _ (E ∖ E1)); last set_solver+. *)
   (*   rewrite {4}(union_difference_L _ _ HE). done. *)
   (* Qed. *)
-  Admitted.
 
   Lemma BUpd_MUpd E P:
     #=> P ⊢ MUpd E E P.
@@ -1395,6 +1404,13 @@ Use [iApply MUpd_mask_intro] to introduce mask-changing update modalities")
     rewrite (BUpd_MUpd E1). rewrite MUpd_frame_r. rewrite wand_elim_r. rewrite MUpd_trans. auto.
   Qed.
 
+  Global Instance elim_modal_MUpd_MUpd_gen p E0 E1 E2 E3 P Q :
+    ElimModal (mset_sub E0 E2) p false (MUpd E0 E1 P) P (MUpd E2 E3 Q) (MUpd (E1 ++ mset_minus E2 E0) E3 Q).
+  Proof.
+    unfold ElimModal. i. rewrite intuitionistically_if_elim.
+    rewrite MUpd_frame_r. rewrite wand_elim_r. rewrite MUpd_mask_frame; eauto.
+  Qed.
+
   Global Instance elim_modal_MUpd_MUpd p E1 E2 E3 P Q :
     ElimModal True p false (MUpd E1 E2 P) P (MUpd E1 E3 Q) (MUpd E2 E3 Q).
   Proof.
@@ -1427,7 +1443,8 @@ Use [iMod (MUpd_mask_subseteq E2)] to adjust the mask of your goal to [E2]")
   Qed.
 End MUPD.
 
-
+Ltac mset_sub_tac :=
+  try by (ss; apply mset_sub_b_reflect; ss).
 
 Module Region.
   Section REGION.
