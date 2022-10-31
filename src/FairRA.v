@@ -1735,4 +1735,95 @@ Module ObligationRA.
       iModIntro. iExists _. iFrame. auto.
     Qed.
   End RA.
+
+  Section REGION.
+    Context `{Σ: GRA.t}.
+    Context `{@GRA.inG t Σ}.
+    Context `{@GRA.inG (Region.t (nat * nat * Ord.t)) Σ}.
+
+    Definition edge: (nat * nat * Ord.t) -> iProp :=
+      fun '(k0, k1, c) => (∃ o, black k0 o ** white k1 (Jacobsthal.mult c o))%I.
+
+    Definition region_sat: iProp := Region.sat edge.
+
+    Definition amplifier (k0 k1: nat) (c: Ord.t): iProp :=
+      □ (∀ o, white k0 o -* #=(region_sat)=> white k1 (Jacobsthal.mult c o)).
+
+    Lemma amplifier_persistent k0 k1 c
+      :
+      amplifier k0 k1 c ⊢ □ amplifier k0 k1 c.
+    Proof.
+      iIntros "# H". auto.
+    Qed.
+
+    Global Program Instance Persistent_amplifier k0 k1 c: Persistent (amplifier k0 k1 c).
+
+    Local Opaque IUpd.
+    Lemma amplifier_mon k0 k1 c0 c1
+          (LE: Ord.le c0 c1)
+      :
+      amplifier k0 k1 c1 ⊢ amplifier k0 k1 c0.
+    Proof.
+      iIntros "# H". iModIntro. iIntros "% WHITE".
+      iPoseProof ("H" with "WHITE") as "> WHITE".
+      iPoseProof (white_mon with "WHITE") as "> WHITE".
+      {  eapply Jacobsthal.le_mult_l. eauto. }
+      iModIntro. auto.
+    Qed.
+
+    Lemma amplifier_trans k0 k1 k2 c0 c1
+      :
+      (amplifier k0 k1 c0)
+        -∗
+        (amplifier k1 k2 c1)
+        -∗
+        (amplifier k0 k2 (Jacobsthal.mult c1 c0)).
+    Proof.
+      iIntros "# H0 # H1". iModIntro. iIntros "% WHITE".
+      iPoseProof ("H0" with "WHITE") as "> WHITE".
+      iPoseProof ("H1" with "WHITE") as "> WHITE".
+      iPoseProof (white_mon with "WHITE") as "> WHITE".
+      { rewrite <- ClassicJacobsthal.mult_assoc. reflexivity. }
+      iModIntro. auto.
+    Qed.
+
+    Lemma amplifier_amplify k0 k1 c o
+      :
+      (amplifier k0 k1 c)
+        -∗
+        (white k0 o)
+        -∗
+        (#=(region_sat)=> white k1 (Jacobsthal.mult c o)).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof ("H0" with "H1") as "> H". iModIntro. auto.
+    Qed.
+
+    Local Transparent IUpd.
+    Lemma amplifier_intro k0 k1 c o
+      :
+      (black k0 o)
+        -∗
+        (white k1 (Jacobsthal.mult c o))
+        -∗
+        (#=(region_sat)=> amplifier k0 k1 c).
+    Proof.
+      iIntros "BLACK WHITE".
+      iPoseProof (Region.alloc with "[BLACK WHITE]") as "H".
+      { instantiate (1:=(k0, k1, c)). instantiate (1:=edge).
+        ss. iExists _. iFrame.
+      }
+      iMod "H" as "[% # H]". iModIntro.
+      unfold amplifier. iModIntro. iIntros "% WHITE".
+      iApply (Region.update with "H [WHITE]").
+      iIntros "[% [H0 H1]]".
+      iPoseProof (black_white_decr with "H0 WHITE") as "> [% [H0 %]]".
+      iPoseProof (white_mon with "H1") as "> H1".
+      { rewrite <- Jacobsthal.le_mult_r; [|eauto].
+        rewrite ClassicJacobsthal.mult_dist. reflexivity.
+      }
+      iPoseProof (white_split_eq with "H1") as "[H1 H2]".
+      iFrame. iModIntro. iExists _. iFrame.
+    Qed.
+  End REGION.
 End ObligationRA.
