@@ -402,6 +402,38 @@ Module URA.
     ss. des_ifs. des. esplits; eauto.
   Qed.
 
+  Lemma prod_extends (A B: t)
+        (a0 a1: @car A) (b0 b1: @car B)
+    :
+    @extends (prod A B) (a0, b0) (a1, b1) <-> extends a0 a1 /\ URA.extends b0 b1.
+  Proof.
+    split.
+    { i. r in H. des. unfold add in H. unseal "ra". destruct ctx. ss. clarify.  split.
+      { exists c; auto. }
+      { exists c0; auto. }
+    }
+    { i. des. r in H. r in H0. des. subst.
+      exists (ctx0, ctx). unfold add. unseal "ra". ss. unfold add. unseal "ra". f_equal.
+    }
+  Qed.
+
+  Lemma prod_updatable_set (A B: t)
+        (a0: @car A) (PA: @car A -> Prop)
+        (b0: @car B) (PB: @car B -> Prop)
+        (UPD0: URA.updatable_set a0 PA)
+        (UPD1: URA.updatable_set b0 PB)
+    :
+    @updatable_set (prod A B) (a0, b0) (fun '(a1, b1) => PA a1 /\ PB b1).
+  Proof.
+    ii. destruct ctx.
+    unfold wf, add in WF. unseal "ra". ss. des.
+    exploit UPD0; eauto. i. des.
+    exploit UPD1; eauto. i. des.
+    exists (b, b1). ss. splits; ss.
+    unfold wf. unseal "ra". ss. des_ifs.
+    unfold add in Heq. unseal "ra". ss. clarify.
+  Qed.
+
   Program Definition to_RA (M: t): RA.t := {|
     RA.car := car;
     RA.add := add;
@@ -897,34 +929,95 @@ End Auth.
 (*** For backward compatibility, I put below definitions "outside" Auth module. ***)
 (*** TODO: put it inside ***)
 
+Module OneShot.
+  Section ONESHOT.
+    Variable A: Type.
 
+    Definition oneshot_add (a0 a1: bool + option A): bool + option A :=
+      match a0, a1 with
+      | inl true, _
+      | _, inl true => inl true
+      | inl false, a
+      | a, inl false => a
+      | inr None, _
+      | _, inr None => inl true
+      | inr (Some a0), inr (Some a1) => if (excluded_middle_informative (a0 = a1)) then inr (Some a0) else inl true
+      end.
 
+    Definition oneshot_core (a: bool + option A): bool + option A :=
+      match a with
+      | inr None => inl false
+      | _ => a
+      end.
 
+    Program Instance t: URA.t := {
+        car := bool + option A;
+        unit := inl false;
+        _add := oneshot_add;
+        _wf := fun a => a <> inl true;
+        core := oneshot_core;
+      }
+    .
+    Next Obligation. unfold oneshot_add. des_ifs. Qed.
+    Next Obligation. unfold oneshot_add. des_ifs. Qed.
+    Next Obligation. unfold oneshot_add. des_ifs. Qed.
+    Next Obligation. unfold oneshot_add in *. des_ifs. Qed.
+    Next Obligation. unfold oneshot_add, oneshot_core. des_ifs. Qed.
+    Next Obligation. unfold oneshot_add, oneshot_core. des_ifs. Qed.
+    Next Obligation.
+      pose (c := oneshot_core b).
+      unfold oneshot_core, oneshot_add. des_ifs; try by (exists c; ss).
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inr (Some a0)). des_ifs. }
+    Qed.
 
+    Definition pending: t := inr None.
+    Definition shot (a: A): t := inr (Some a).
 
+    Lemma pending_wf: URA.wf pending.
+    Proof.
+      ur. ss.
+    Qed.
 
+    Lemma shot_wf a: URA.wf (shot a).
+    Proof.
+      ur. ss.
+    Qed.
 
+    Lemma shot_agree a0 a1
+          (WF: URA.wf (shot a0 ⋅ shot a1))
+      :
+      a0 = a1.
+    Proof.
+      ur in WF. des_ifs.
+    Qed.
 
+    Lemma pending_not_shot a
+          (WF: URA.wf (pending ⋅ shot a))
+      :
+      False.
+    Proof.
+      ur in WF. ss.
+    Qed.
 
+    Lemma pending_unique
+          (WF: URA.wf (pending ⋅ pending))
+      :
+      False.
+    Proof.
+      ur in WF. ss.
+    Qed.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    Lemma pending_shot a
+      :
+      URA.updatable pending (shot a).
+    Proof.
+      ii. ur in H. ur. des_ifs.
+    Qed.
+  End ONESHOT.
+End OneShot.
 
 
 
@@ -1291,3 +1384,7 @@ Section AUX.
   Lemma lookup_wf: forall (f: @URA.car RA) k (WF: URA.wf f), URA.wf (f k).
   Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
 End AUX.
+
+
+
+(* TODO: make lemmas for RA and turn it into URA at the last *)
