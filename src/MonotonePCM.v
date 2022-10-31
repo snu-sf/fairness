@@ -752,27 +752,37 @@ Section MUPD.
     }
   Qed.
 
-  Definition mset_sub (s0 s1: mset): Prop :=
+  Definition list_sub A (s0 s1: list A): Prop :=
     exists s, Permutation (s ++ s0) s1.
 
-  Global Program Instance mset_sub_PreOrder: PreOrder mset_sub.
+  Global Program Instance list_sub_PreOrder A: PreOrder (@list_sub A).
   Next Obligation.
   Proof.
     ii. exists []. ss.
   Qed.
   Next Obligation.
   Proof.
-    ii. unfold mset_sub in *. des.
+    ii. unfold list_sub in *. des.
     rewrite <- H in H0. exists (s ++ s0).
     rewrite <- app_assoc. auto.
   Qed.
 
+  Global Instance permutation_list_sub_proper A:
+    Proper (Permutation ==> Permutation ==> iff) (@list_sub A).
+  Proof.
+    ii. unfold list_sub. split.
+    { i. des. exists s. rewrite <- H. rewrite H1. auto. }
+    { i. des. exists s. rewrite H0. rewrite H. auto. }
+  Qed.
+
+  Definition mset_sub (s0 s1: mset): Prop := list_sub s0 s1.
+
+  Global Program Instance mset_sub_PreOrder: PreOrder mset_sub.
+
   Global Instance permutation_mset_sub_proper:
     Proper (Permutation ==> Permutation ==> iff) mset_sub.
   Proof.
-    ii. unfold mset_sub. split.
-    { i. des. exists s. rewrite <- H. rewrite H1. auto. }
-    { i. des. exists s. rewrite H0. rewrite H. auto. }
+    unfold mset_sub. typeclasses eauto.
   Qed.
 
   Global Instance permutation_mset_disjoint_proper:
@@ -820,7 +830,7 @@ Section MUPD.
     { unfold mset_sub_b in *. ss.
       destruct (list_remove a s1) eqn:EQ; ss.
       { eapply list_remove_Some in EQ.
-        rewrite <- IHs0. unfold mset_sub. split.
+        rewrite <- IHs0. unfold mset_sub, list_sub. split.
         { i. des. rewrite EQ in H.
           rewrite <- Permutation_middle in H.
           apply Permutation_cons_inv in H.
@@ -831,7 +841,7 @@ Section MUPD.
         }
       }
       { eapply list_remove_none in EQ. split; i; ss.
-        exfalso. unfold mset_sub in H. des.
+        exfalso. unfold mset_sub, list_sub in H. des.
         rewrite <- Permutation_middle in H.
         eapply EQ. eapply Permutation_in; eauto.
         econs; ss.
@@ -925,7 +935,7 @@ Section MUPD.
     :
     mset_all l1 ⊢ mset_all l0 ** (mset_all l0 -* mset_all l1).
   Proof.
-    red in SUB. des. iIntros "H".
+    rr in SUB. des. iIntros "H".
     iPoseProof (mset_all_permutation with "H") as "H".
     { symmetry. eauto. }
     iPoseProof (mset_all_split with "H") as "[H0 H1]". iFrame.
@@ -1060,7 +1070,7 @@ Section MUPD.
     :
     Permutation E (E1 ++ mset_minus E E1).
   Proof.
-    r in SUB. des. rewrite <- SUB.
+    rr in SUB. des. rewrite <- SUB.
     unfold mset_minus.
     assert (is_Some (list_remove_list E1 (s ++ E1))).
     { eapply list_remove_list_submseteq.
@@ -1243,7 +1253,7 @@ Section MUPD.
 
   Lemma MUpd_mask_mono E1 E2 P : mset_sub E1 E2 -> MUpd E1 E1 P ⊢ MUpd E2 E2 P.
   Proof.
-    i. unfold mset_sub in H. des.
+    i. rr in H. des.
     symmetry in H. rewrite Permutation_app_comm in H.
     iIntros "H". iPoseProof (MUpd_mask_frame_r with "H") as "H".
     iApply (MUpd_permutation with "H"); eauto.
@@ -1296,7 +1306,7 @@ Section MUPD.
     i. iStartProof. iStopProof. etrans.
     { eapply MUpd_mask_intro_subseteq.
       instantiate (1:=mset_minus E1 E2). instantiate (1:=[]).
-      unfold mset_sub in *. des.
+      rr in H. rr. des.
       exists s. rewrite app_nil_r. rewrite <- H.
       eapply Permutation_app_inv_l. rewrite <- mset_minus_add_eq.
       { apply Permutation_app_comm. }
@@ -1453,6 +1463,20 @@ End MUPD.
 
 Ltac mset_sub_tac :=
   try by (ss; apply mset_sub_b_reflect; ss).
+
+Lemma injective_map_NoDup_strong A B (f: A -> B) (l: list A)
+      (INJ: forall a0 a1 (IN0: List.In a0 l) (IN1: List.In a1 l)
+                   (EQ: f a0 = f a1), a0 = a1)
+      (ND: List.NoDup l)
+  :
+  List.NoDup (List.map f l).
+Proof.
+  revert INJ ND. induction l.
+  { i. s. econs. }
+  i. inv ND. ss. econs; eauto.
+  ii. rewrite in_map_iff in H. des.
+  hexploit (INJ x a); eauto. i. subst. ss.
+Qed.
 
 Module Region.
   Section REGION.
@@ -1621,6 +1645,29 @@ Module Region.
       iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
     Qed.
 
+    Lemma sat_list_sub_update l0 l1
+          (SUB: list_sub l0 l1)
+      :
+      sat_list l1 ⊢ sat_list l0 ** (sat_list l0 -* sat_list l1).
+    Proof.
+      rr in SUB. des.
+      iIntros "H". iPoseProof (sat_list_permutation with "H") as "H".
+      { symmetry. eassumption. }
+      iPoseProof (sat_list_split with "H") as "[H0 H1]". iFrame.
+      iIntros "H1". iPoseProof (sat_list_combine with "[H0 H1]") as "H".
+      { iSplitL "H0"; eauto. }
+      iApply (sat_list_permutation with "H"). auto.
+    Qed.
+
+    Lemma sat_list_sub_sub l0 l1
+          (SUB: list_sub l0 l1)
+      :
+      ⊢ SubIProp (sat_list l0) (sat_list l1).
+    Proof.
+      iIntros "H". iPoseProof (sat_list_sub_update with "H") as "[H0 H1]"; eauto.
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
+
     Definition sat: iProp := ∃ l, black l ** sat_list l.
 
     Lemma white_agree_sat k a0 a1
@@ -1658,6 +1705,94 @@ Module Region.
       iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
     Qed.
 
+    Lemma black_whites_in l ks
+          (ND: List.NoDup (List.map fst ks))
+      :
+      (black l)
+        -∗
+        (fold_right (fun '(k, a) P => white k a ** P) True%I ks)
+        -∗
+        ⌜list_sub (List.map snd ks) l⌝.
+    Proof.
+      iIntros "BLACK WHITES".
+      iAssert (⌜forall k a (IN: List.In (k, a) ks), nth_error l k = Some a⌝)%I as "%INS".
+      { iStopProof. clear ND. induction ks; ss.
+        { iIntros. ss. }
+        { destruct a as [k a]. ss. iIntros "[BLACK [HD TL]] % % %".
+          des; clarify.
+          { iApply (black_white_in with "BLACK HD"); eauto. }
+          { iPoseProof (IHks with "[BLACK TL]") as "%".
+            { iFrame. }
+            iPureIntro. eauto.
+          }
+        }
+      }
+      iPureIntro.
+      remember (length ks) as n. revert ks l Heqn ND INS.
+      induction n; ss.
+      { i. destruct ks; ss. exists l. rewrite app_nil_r. ss. }
+      i. destruct ks as [|[k0 a0] tl]; ss. inv Heqn. inv ND.
+      hexploit (INS k0 a0); eauto. i.
+      hexploit nth_error_split; eauto. i. des. subst.
+      hexploit (IHn (List.map (fun ka => (if le_lt_dec (fst ka) (length l1) then (fst ka) else (fst ka - 1), snd ka)) tl) (l1++l2)).
+      { rewrite map_length. auto. }
+      { rewrite map_map. ss.
+        match goal with
+        | |- _ (map ?f tl) => replace (map f tl) with (map (fun k => (if le_lt_dec k (length l1) then k else (k - 1))) (map fst tl))
+        end.
+        { eapply injective_map_NoDup_strong; auto. i. des_ifs.
+          { exfalso. eapply H2. replace (length l1) with (a2 - 1) by lia; ss. }
+          { exfalso. eapply H2. replace (length l1) with (a1 - 1) by lia; ss. }
+          { lia. }
+        }
+        rewrite map_map. auto.
+      }
+      { i. apply in_map_iff in IN. des.
+        destruct x as [k1 a1]. ss. clarify. des_ifs.
+        { assert (k1 = length l1 \/ k1 < length l1) by lia. des.
+          { subst. eapply in_map with (f:=fst)in IN0. ss. }
+          rewrite nth_error_app1; auto.
+          hexploit (INS k1 a); auto. i. rewrite nth_error_app1 in H4; auto.
+        }
+        rewrite nth_error_app2; [|lia].
+        hexploit (INS k1 a); auto. i.
+        rewrite nth_error_app2 in H1; [|lia].
+        replace (k1 - length l1) with (S (k1 - 1 - length l1)) in H1 by lia. ss.
+      }
+      i. rewrite map_map in H1. ss.
+      r in H1. des. exists s.
+      rewrite <- Permutation_middle. rewrite <- Permutation_middle.
+      econs. auto.
+    Qed.
+
+    Lemma sat_sub_update (l: list (nat * A))
+          (ND: List.NoDup (List.map fst l))
+      :
+      (fold_right (fun '(k, a) P => white k a ** P) True%I l)
+        -∗
+        (sat)
+        -∗
+        (sat_list (List.map snd l)) ** ((sat_list (List.map snd l)) -* sat).
+    Proof.
+      iIntros "H0 [% [H1 H2]]".
+      iPoseProof (black_whites_in with "H1 H0") as "%"; auto.
+      iPoseProof (sat_list_sub_update with "H2") as "[H2 H3]".
+      { eauto. }
+      iFrame. iIntros "H". iPoseProof ("H3" with "H") as "H".
+      iExists _. iFrame.
+    Qed.
+
+    Lemma sat_whites_sub (l: list (nat * A))
+          (ND: List.NoDup (List.map fst l))
+      :
+      (fold_right (fun '(k, a) P => white k a ** P) True%I l)
+        ⊢ SubIProp (sat_list (List.map snd l)) sat.
+    Proof.
+      iIntros "H0 H1". iPoseProof (sat_sub_update with "H0 H1") as "[H0 H1]".
+      { auto. }
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
+
     Lemma sat_alloc a
       :
       sat
@@ -1685,6 +1820,20 @@ Module Region.
     Proof.
       iIntros "H0 H1".
       iPoseProof (sat_white_sub with "H0") as "H0".
+      iApply (IUpd_sub_mon with "H0 H1").
+    Qed.
+
+    Lemma updates (l: list (nat * A)) P
+          (ND: List.NoDup (List.map fst l))
+      :
+      (fold_right (fun '(k, a) P => white k a ** P) True%I l)
+        -∗
+        (#=(sat_list (List.map snd l))=> P)
+        -∗
+        (#=(sat)=> P).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (sat_whites_sub with "H0") as "H0"; auto.
       iApply (IUpd_sub_mon with "H0 H1").
     Qed.
 
