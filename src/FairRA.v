@@ -2709,9 +2709,35 @@ Module ObligationRA.
       iPoseProof (duty_list_unfold with "DUTY") as "[[# WHITE OWN] DUTY]".
       iPoseProof (IHrs with "DUTY") as "> [DUTY %]".
       iPoseProof (duty_list_whites with "DUTY") as "# WHITES".
-      iAssert (⌜forall r k c q x (IN: List.In (r, (k, c, q, x)) rs), n <> r⌝)%I as "H".
-      { iIntros (? ? ? ? ? IN). iPoseProof ("WHITES" $! _ _ _ _ _ IN) as "# WHITE1".
-    Admitted.
+      iIntros "H".
+      iAssert (⌜forall r k c q x (IN: List.In (r, (k, c, q, x)) rs), n <> r⌝)%I as "%".
+      { iIntros (? ? ? ? ? IN ?). subst.
+        iPoseProof "H" as "[% [H _]]".
+        iPoseProof (Region.white_agree with "H WHITE []") as "%".
+        { iApply "WHITES". iPureIntro. eauto. }
+        clarify. iPoseProof ("WHITES" $! _ _ _ _ _ IN) as "# WHITE1".
+        iAssert (OwnM (FiniteMap.singleton a3 (OneShot.pending unit))) with "[DUTY]" as "OWN1".
+        { apply in_split in IN. des. subst.
+          iClear "WHITE WHITES WHITE1". clear IHrs H3.
+          iStopProof. generalize (q + a2)%Qp. induction l1; ss.
+          { i. iIntros "H". iPoseProof (duty_list_unfold with "H") as "[[_ OWN] _]". auto.
+          }
+          { i. iIntros "H". destruct a4 as [? [[[? ?] ?] ?]].
+            iPoseProof (duty_list_unfold with "H") as "[_ H]". iApply (IHl1 with "H").
+          }
+        }
+        iCombine "OWN OWN1" as "OWN". iOwnWf "OWN".
+        rewrite FiniteMap.singleton_add in H4.
+        rewrite FiniteMap.singleton_wf in H4.
+        apply OneShot.pending_unique in H4. ss.
+      }
+      iSplitL "H".
+      { eauto. }
+      iModIntro. iSplit.
+      { iApply (duty_list_fold with "DUTY"); auto. }
+      iPureIntro. econs; ss. ii. eapply in_map_iff in H5.
+      des. destruct x as [? [[[? ?] ?] ?]]. ss. subst. eapply H4; eauto.
+    Qed.
 
     Lemma duty_update n i l
       :
@@ -2750,104 +2776,39 @@ Module ObligationRA.
         }
         iSplitR "BLACK"; [|auto]. iApply (duty_list_fold with "DUTY WHITE OWN").
       }
-      iPoseProof (FairRA.success_ex_update with "BLACK") as "> [BLACK WHITE]".
+      iPoseProof (FairRA.success_ex_update with "BLACK") as "> [[% BLACK] WHITE]".
       iFrame.
-      iModIntro. iSplitR.
-      2:{ iExists _, _. iSplit; [|eauto]. iSplitR; eauto. admit. }
-
-
-
-      iFrame.
-
-        iFrame.
-
-
-          auto.
-
-i
-
-
-subst. iFrame. auto. }
-        i.
-
-i
- iFrame.
-
-rewrite map_map. ss.
-
-iStopProof. induction rs.
-        { iIntros "# H". ss. }
-        { iIntros "# H". ss. destruct a as [? [[[? ?] ?] ?]]. iSplit.
-          { iApply "H". ss. auto. }
-          { iApply IHrs.
-            { inv H3. ss. }
-            { iModIntro. iIntros. iApply "H". auto. }
+      iAssert (⌜(fold_right (fun '(r, (k, c, q0, x)) q1 => (q0 + q1)%Qp) q rs = 1%Qp)⌝)%I as "%".
+      { iPoseProof "DUTY" as "[DUTY %]". auto. }
+      iAssert (#=> (Region.sat_list
+                      arrow
+                      (map snd (map (fun '(r, (k, c, q0, x)) => (r, (i, k, c, q0, x))) rs)) ** FairRA.black i a q)) with "[TAX BLACK]" as "> [REGION BLACK]".
+      2:{ iModIntro. iFrame. iExists _, _. iFrame. iSplit; eauto. iExists _. iFrame. }
+      rewrite <- H4. iStopProof. clear H3 H4. revert q. induction rs.
+      { i. iIntros "[# WHITES [TAX BLACK]]". iModIntro. ss. iFrame. }
+      { i. iIntros "[# WHITES [TAX BLACK]]". ss.
+        destruct a0 as [? [[[? ?] ?] ?]]. ss.
+        iPoseProof "TAX" as "[WHITE TAX]".
+        replace (q0 + foldr (fun '(_, (_, _, q1, _)) q2 => (q1 + q2)%Qp) q rs)%Qp with (q + foldr (fun '(_, (_, _, q1, _)) q2 => (q1 + q2)%Qp) q0 rs)%Qp; cycle 1.
+        { clear IHrs. revert q q0. induction rs; ss; i.
+          { apply Qp_add_comm. }
+          { destruct a0 as [? [[[? ?] ?] ?]].
+            rewrite (IHrs q1 q0). rewrite (IHrs q1 q).
+            rewrite Qp_add_assoc. rewrite Qp_add_assoc.
+            f_equal. apply Qp_add_comm.
           }
         }
+        iPoseProof (FairRA.black_split with "BLACK") as "[BLACK0 BLACK1]".
+        iPoseProof (IHrs with "[TAX BLACK1]") as "> [REGION BLACK1]".
+        { iSplit.
+          { iClear "TAX BLACK1". iModIntro. iIntros.
+            iApply "WHITES". eauto.
+          }
+          iFrame.
+        }
+        iFrame. iRight. iExists _. iFrame. iApply (white_mon with "WHITE").
+        apply Jacobsthal.le_mult_r. eapply Ord.lt_le. eapply Ord.omega_upperbound.
       }
-
- iPureIntro.  auto. }
-
-
-      ss.
-
-des
-
- des_ifs. }
-
-
-
-ss.
-        ss.
-
-H [WHITE]").
-
-
-
-    Admitted.
-
-
-    (* Lemma duty_list_forall i rs q *)
-    (*   : *)
-    (*   (duty_list i rs q) *)
-    (*     -∗ *)
-    (*     (∀ r k c q x (IN: List.In (r, (k, c, q, x)) rs), *)
-    (*         Region.white r (i, k, c, q, x)). *)
-    (* Proof. *)
-    (*   iIntros "H". *)
-    (*   iAssert (□ (fold_right (fun '(r, (k, c, q, x)) P => *)
-    (*                             (Region.white r (i, k, c, q, x)) ** P) True%I rs))%I as "# WHITES". *)
-    (*   { iStopProof. revert q. induction rs. *)
-    (*     { i. iIntros. iModIntro. ss. } *)
-    (*     i. iIntros "DUTY". destruct a as [? [[[? ?] ?] ?]]. *)
-    (*     iPoseProof (duty_list_unfold with "DUTY") as "[[# WHITE OWN] DUTY]". *)
-    (*     iPoseProof (IHrs with "DUTY") as "# WHITES". iClear "OWN DUTY". *)
-    (*     iModIntro. ss. iFrame. iSplit; auto. *)
-    (*   } *)
-    (*   iClear "H". iModIntro. iStopProof. induction rs. *)
-    (*   { iIntros "# WHITES" (? ? ? ? ? ?). ss. } *)
-    (*   iIntros "# WHITES" (? ? ? ? ? ?). ss. *)
-    (*   destruct a as [? [[[? ?] ?] ?]]. iPoseProof "WHITES" as "[WHITE WHITES0]". c*)
-    (*   des; clarify. iApply IHrs; auto. *)
-    (* Qed. *)
-
-    (* Lemma duty_list_nodup i rs q *)
-    (*   : *)
-    (*   (duty_list i rs q) *)
-    (*     -∗ *)
-    (*     #=(arrows_sat)=> ((duty_list i rs q) ** ⌜List.NoDup (map fst rs)⌝). *)
-    (* Proof. *)
-    (*   revert q. induction rs. *)
-    (*   { i. iIntros "H". iModIntro. iSplit; ss. iPureIntro. econs; ss. } *)
-    (*   i. destruct a as [? [[[? ?] ?] ?]]. *)
-    (*   ss. iIntros "DUTY". *)
-    (*   iPoseProof (duty_list_unfold with "DUTY") as "[[# WHITE OWN] DUTY]". *)
-    (*   iPoseProof (IHrs with "DUTY") as "> [DUTY %]". *)
-    (*   iPoseProof (duty_list_whites with "DUTY") as "# WHITES". *)
-    (*   iAssert (⌜forall r k c q x (IN: List.In (r, (k, c, q, x)) rs), n <> r⌝)%I as "H". *)
-    (*   { iIntros (? ? ? ? ? IN). iPoseProof ("WHITES" $! _ _ _ _ _ IN) as "# WHITE1". *)
-
-
-
+    Qed.
   End ARROW.
 End ObligationRA.
