@@ -585,6 +585,22 @@ Proof.
   iPoseProof (Upd_IUpd with "H0") as "> H0". iApply "H1". auto.
 Qed.
 
+Global Instance iupd_elim_upd `{GRA.t} I P Q b
+  :
+  ElimModal True b false (#=> P) P (#=(I)=> Q) (#=(I)=> Q).
+Proof.
+  unfold ElimModal. i. iIntros "[H0 H1]".
+  iPoseProof (Upd_IUpd with "H0") as "H0".
+  iIntros "H". iPoseProof ("H0" with "H") as "> [H0 H2]".
+  destruct b; ss.
+  { iPoseProof ("H2") as "# > H2". iPoseProof ("H1" with "H2") as "H".
+    iApply ("H" with "H0").
+  }
+  { iPoseProof ("H2") as "> H2". iPoseProof ("H1" with "H2") as "H".
+    iApply ("H" with "H0").
+  }
+Qed.
+
 Ltac iOwnWf' H :=
   iPoseProof (OwnM_valid with H) as "%".
 

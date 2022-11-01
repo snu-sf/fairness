@@ -1710,7 +1710,7 @@ Module Region.
       :
       (black l)
         -∗
-        (fold_right (fun '(k, a) P => white k a ** P) True%I ks)
+        (∀ k a (IN: List.In (k, a) ks), white k a)
         -∗
         ⌜list_sub (List.map snd ks) l⌝.
     Proof.
@@ -1718,11 +1718,11 @@ Module Region.
       iAssert (⌜forall k a (IN: List.In (k, a) ks), nth_error l k = Some a⌝)%I as "%INS".
       { iStopProof. clear ND. induction ks; ss.
         { iIntros. ss. }
-        { destruct a as [k a]. ss. iIntros "[BLACK [HD TL]] % % %".
+        { destruct a as [k a]. iIntros "[BLACK ALL] % % %".
           des; clarify.
-          { iApply (black_white_in with "BLACK HD"); eauto. }
-          { iPoseProof (IHks with "[BLACK TL]") as "%".
-            { iFrame. }
+          { iApply (black_white_in with "BLACK [ALL]"); eauto. iApply "ALL". auto. }
+          { iPoseProof (IHks with "[BLACK ALL]") as "%".
+            { iFrame. iIntros. iApply "ALL". auto. }
             iPureIntro. eauto.
           }
         }
@@ -1768,7 +1768,7 @@ Module Region.
     Lemma sat_sub_update (l: list (nat * A))
           (ND: List.NoDup (List.map fst l))
       :
-      (fold_right (fun '(k, a) P => white k a ** P) True%I l)
+      (∀ k a (IN: List.In (k, a) l), white k a)
         -∗
         (sat)
         -∗
@@ -1785,7 +1785,7 @@ Module Region.
     Lemma sat_whites_sub (l: list (nat * A))
           (ND: List.NoDup (List.map fst l))
       :
-      (fold_right (fun '(k, a) P => white k a ** P) True%I l)
+      (∀ k a (IN: List.In (k, a) l), white k a)
         ⊢ SubIProp (sat_list (List.map snd l)) sat.
     Proof.
       iIntros "H0 H1". iPoseProof (sat_sub_update with "H0 H1") as "[H0 H1]".
@@ -1826,7 +1826,7 @@ Module Region.
     Lemma updates (l: list (nat * A)) P
           (ND: List.NoDup (List.map fst l))
       :
-      (fold_right (fun '(k, a) P => white k a ** P) True%I l)
+      (∀ k a (IN: List.In (k, a) l), white k a)
         -∗
         (#=(sat_list (List.map snd l))=> P)
         -∗
