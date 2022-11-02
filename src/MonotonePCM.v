@@ -1849,3 +1849,7 @@ Module Region.
     Qed.
   End REGION.
 End Region.
+
+Definition maps_to {Σ} {A: Type} {M: URA.t} `{ING: @GRA.inG (A ==> M)%ra Σ}
+           (a: A) (m: M): iProp :=
+  OwnM (maps_to_res a m).

@@ -1335,6 +1335,124 @@ Section URA_PROD.
 
 End URA_PROD.
 
+Section POINTWISE.
+
+  Lemma unfold_pointwise_add X (M: URA.t) (f0 f1: (X ==> M)%ra)
+    :
+    f0 ⋅ f1 = (fun x => f0 x ⋅ f1 x).
+  Proof.
+    ur. ur. auto.
+  Qed.
+
+  Lemma updatable_set_impl (M: URA.t)
+        (P0 P1: M -> Prop)
+        (IMPL: forall r, URA.wf r -> P0 r -> P1 r)
+        (m: M)
+        (UPD: URA.updatable_set m P0)
+    :
+    URA.updatable_set m P1.
+  Proof.
+    ii. eapply UPD in WF; eauto. des.
+    esplits; eauto. eapply IMPL; auto.
+    eapply URA.wf_mon. eauto.
+  Qed.
+
+  Lemma pointwise_extends A (M: URA.t)
+        (f0 f1: (A ==> M)%ra)
+        (UPD: forall a, URA.extends (f0 a) (f1 a))
+    :
+    URA.extends f0 f1.
+  Proof.
+    hexploit (choice (fun a ctx => f1 a = (f0 a) ⋅ ctx)).
+    { i. specialize (UPD x). r in UPD. des. eauto. }
+    i. des. exists f.
+    rewrite unfold_pointwise_add. extensionality a. auto.
+  Qed.
+
+  Lemma pointwise_updatable A (M: URA.t)
+        (f0 f1: (A ==> M)%ra)
+        (UPD: forall a, URA.updatable (f0 a) (f1 a))
+    :
+    URA.updatable f0 f1.
+  Proof.
+    ii. ur. i. ur in H. specialize (H k).
+    eapply (UPD k); eauto.
+  Qed.
+
+  Lemma pointwise_updatable_set A (M: URA.t)
+        (f: (A ==> M)%ra)
+        (P: A -> M -> Prop)
+        (UPD: forall a, URA.updatable_set (f a) (P a))
+    :
+    URA.updatable_set f (fun f' => forall a, P a (f' a)).
+  Proof.
+    ii. hexploit (choice (fun a m => P a m /\ URA.wf (m ⋅ ctx a))).
+    { i. eapply (UPD x). ur in WF. auto. }
+    i. des. exists f0. splits; auto.
+    { i. specialize (H a). des. auto. }
+    { ur. i. specialize (H k). des. auto. }
+  Qed.
+
+  Definition maps_to_res {A} {M: URA.t}
+             a m: (A ==> M)%ra :=
+    fun a' => if excluded_middle_informative (a' = a)
+              then m
+              else URA.unit.
+
+  Lemma maps_to_res_add A (M: URA.t)
+        (a: A) (m0 m1: M)
+    :
+    maps_to_res a m0 ⋅ maps_to_res a m1
+    =
+      maps_to_res a (m0 ⋅ m1).
+  Proof.
+    extensionality a'. unfold maps_to_res. ur. des_ifs.
+    { ur. auto. }
+    { r_solve. }
+  Qed.
+
+  Lemma maps_to_updatable A (M: URA.t)
+        (a: A) (m0 m1: M)
+        (UPD: URA.updatable m0 m1)
+    :
+    URA.updatable (maps_to_res a m0) (maps_to_res a m1).
+  Proof.
+    eapply pointwise_updatable. i.
+    unfold maps_to_res. des_ifs.
+  Qed.
+
+  Lemma maps_to_updatable_set A (M: URA.t)
+        (a: A) (m: M) (P: M -> Prop)
+        (UPD: URA.updatable_set m P)
+    :
+    URA.updatable_set
+      (maps_to_res a m)
+      (fun f => exists (m1: M), f = maps_to_res a m1 /\ P m1).
+  Proof.
+    eapply updatable_set_impl; cycle 1.
+    { eapply pointwise_updatable_set.
+      instantiate (1:= fun a' m' => (a' = a -> P m') /\ (a' <> a -> m' = URA.unit)).
+      ii. unfold maps_to_res in WF. des_ifs.
+      { exploit UPD; eauto. i. des. esplits; eauto. ss. }
+      { exists URA.unit. splits; ss. }
+    }
+    { i. ss. exists (r a). splits; auto.
+      { extensionality a'. unfold maps_to_res. des_ifs.
+        specialize (H0 a'). des. auto.
+      }
+      { specialize (H0 a). des. auto. }
+    }
+  Qed.
+
+  Definition map_update {A} {M: URA.t}
+             (f: (A ==> M)%ra) a m :=
+    fun a' => if excluded_middle_informative (a' = a)
+              then m
+              else f a'.
+
+End POINTWISE.
+
+
 Tactic Notation "unfold_prod" :=
   try rewrite ! unfold_prod_add;
   rewrite unfold_prod_wf;

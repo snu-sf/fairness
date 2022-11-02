@@ -1383,8 +1383,6 @@ End STATE.
 
 From Ordinal Require Import Ordinal Hessenberg Arithmetic.
 
-Definition owf: WF := mk_wf Ord.lt_well_founded.
-
 Section FAIR.
   Context `{Σ: GRA.t}.
 
