@@ -1695,6 +1695,24 @@ Module FairRA.
       { reflexivity. }
     Qed.
 
+    Lemma blacks_black (s: Id -> Prop) i
+          (IN: s i)
+      :
+      (blacks s)
+        -∗
+        (black_ex i 1).
+    Proof.
+      iIntros "[% [% H]]".
+      hexploit (proj2 (H i)); auto. i. destruct (f i) eqn:EQ.
+      2:{ inv H0. ss. }
+      iExists a. iApply (OwnM_extends with "H").
+      unfold maps_to_res. eapply pointwise_extends.
+      i. des_ifs; ss.
+      { reflexivity. }
+      { exists (Fuel.black a1 1). rewrite URA.unit_idl. auto. }
+      { reflexivity. }
+    Qed.
+
     (* Target *)
     Definition whites_all (f: Id -> A): iProp :=
       OwnM ((fun i => Fuel.white (f i)): (Id ==> Fuel.t A)%ra).
@@ -2026,6 +2044,42 @@ Module FairRA.
         }
       }
     Qed.
+
+    Definition source_init_resource: srct := fun i => Fuel.black Ord.O 1.
+
+    Lemma source_init_resource_wf:
+      URA.wf source_init_resource.
+    Proof.
+      ur. i. ur. split; auto. reflexivity.
+    Qed.
+
+    Lemma source_init
+          o
+      :
+      (OwnM source_init_resource)
+        -∗
+        (#=>
+           (∃ f,
+               (sat_source f)
+                 **
+                 (whites (fun _ => True: Prop) o))).
+    Proof.
+      transitivity (blacks_all (fun (_: Id) => Ord.O)); [auto|].
+      iIntros "BLACKS".
+      iPoseProof (blacks_update with "BLACKS []") as "> [% [[% BLACKS] WHITES]]".
+      { iApply (OwnM_extends with "[]").
+        { instantiate (1:=URA.unit).
+          instantiate (1:=Ord.O).
+          instantiate (1:=fun _ => Flag.success).
+          eapply pointwise_extends. i. des_ifs.
+          eexists. rewrite URA.unit_idl. eauto.
+        }
+        { iApply (@OwnM_unit (Id ==> Fuel.t Ord.t)%ra). }
+      }
+      iModIntro. iExists _. iFrame.
+      iApply (OwnM_extends with "WHITES").
+      { eapply pointwise_extends. i. des_ifs. reflexivity. }
+    Qed.
   End SOURCE.
 
 
@@ -2036,14 +2090,162 @@ Module FairRA.
     Context `{ING: @GRA.inG tgtt Σ}.
 
     Definition sat_target (f: imap Id nat_wf) (ths: TIdSet.t): iProp :=
-      ∃ (f': imap Id nat_wf),
-        (⌜(forall i, f (inr i) = f' (inr i)) /\
-           (forall i (IN: TIdSet.In i ths), f (inl i) = f' (inl i))⌝)
-          **
-          (whites_all f')
-          **
-          (blacks (fun i => exists j, (<<NIN: ~ TIdSet.In j ths>>) /\ (<<EQ: i = inl j>>)))
+      ((whites_all f)
+         **
+         (blacks (fun i => exists j, (<<NIN: ~ TIdSet.In j ths>>) /\ (<<EQ: i = inl j>>))))
     .
+
+    Definition target_init_resource (f: imap Id nat_wf) (ths: TIdSet.t): tgtt :=
+      ((fun i => Fuel.white (f i)): (Id ==> Fuel.t nat)%ra)
+        ⋅
+        ((fun i => Fuel.black (f i) 1): (Id ==> Fuel.t nat)%ra).
+
+    Lemma target_init_resource_wf f ths:
+      URA.wf (target_init_resource f ths).
+    Proof.
+      ur. i. ur. unfold target_init_resource.
+      erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
+      ur. split; auto. rewrite Fuel.from_monoid_add.
+      apply Fuel.le_iff. ss. lia.
+    Qed.
+
+    Lemma target_init f ths
+      :
+      (OwnM (target_init_resource f ths))
+        -∗
+        ((sat_target f ths)
+           **
+           (natmap_prop_sum ths (fun tid _ => black_ex (inl tid) 1))
+           **
+           (blacks (fun i => match i with | inr _ => True | _ => False end: Prop))).
+    Proof.
+      iIntros "[WHITES BLACKS]". unfold sat_target. iFrame.
+      set (f0 :=
+             (fun i =>
+                match i with
+                | inr _ => None
+                | inl tid => if NatMap.find tid ths then None else Some (f (inl tid))
+                end): Id -> option nat).
+      set (f1 :=
+             (fun i =>
+                match i with
+                | inr _ => None
+                | inl tid => if NatMap.find tid ths then Some (f (inl tid)) else None
+                end): Id -> option nat).
+      set (f2 :=
+             (fun i =>
+                match i with
+                | inr _ => Some (f i)
+                | inl _ => None
+                end): Id -> option nat).
+      iPoseProof (OwnM_extends with "BLACKS") as "[BLACKS0 [BLACKS1 BLACKS2]]".
+      { instantiate (1:=((fun i =>
+                            match (f0 i) with
+                            | Some a => Fuel.black a 1
+                            | None => ε
+                            end): (Id ==> Fuel.t nat)%ra)).
+        instantiate (1:=((fun i =>
+                            match (f1 i) with
+                            | Some a => Fuel.black a 1
+                            | None => ε
+                            end): (Id ==> Fuel.t nat)%ra)).
+        instantiate (1:=((fun i =>
+                            match (f2 i) with
+                            | Some a => Fuel.black a 1
+                            | None => ε
+                            end): (Id ==> Fuel.t nat)%ra)).
+        ss. apply pointwise_extends. i. unfold f0, f1, f2.
+        ur. des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; try reflexivity.
+      }
+      iSplitR "BLACKS2"; [iSplitR "BLACKS1"|].
+      { iExists _. iSplit; [|iApply "BLACKS0"].
+        iPureIntro.
+        {
+
+      {
+
+ur.
+        erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
+
+
+f0).
+
+fun i =>
+                          match i with
+                          |
+
+              i
+
+
+
+      transitivity (blacks_all (fun (_: Id) => Ord.O)); [auto|].
+      iIntros "BLACKS".
+      iPoseProof (blacks_update with "BLACKS []") as "> [% [[% BLACKS] WHITES]]".
+      { iApply (OwnM_extends with "[]").
+        { instantiate (1:=URA.unit).
+          instantiate (1:=Ord.O).
+          instantiate (1:=fun _ => Flag.success).
+          eapply pointwise_extends. i. des_ifs.
+          eexists. rewrite URA.unit_idl. eauto.
+        }
+        { iApply (@OwnM_unit (Id ==> Fuel.t Ord.t)%ra). }
+      }
+      iModIntro. iExists _. iFrame.
+      iApply (OwnM_extends with "WHITES").
+      { eapply pointwise_extends. i. des_ifs. reflexivity. }
+    Qed.
+
+
+
+: (Id ==> Fuel.t A)%ra).
+
+    (* Source *)
+    Definition blacks_all (f: Id -> A): iProp :=
+      OwnM ((fun i => Fuel.black (f i) 1%Qp): (Id ==> Fuel.t A)%ra).
+
+
+       whites_all
+
+        sat_target
+
+
+
+      : srct := fun i => Fuel.black Ord.O 1.
+
+    Lemma source_init_resource_wf:
+      URA.wf source_init_resource.
+    Proof.
+      ur. i. ur. split; auto. reflexivity.
+    Qed.
+
+    Lemma source_init
+          o
+      :
+      (OwnM source_init_resource)
+        -∗
+        (#=>
+           (∃ f,
+               (sat_source f)
+                 **
+                 (whites (fun _ => True: Prop) o))).
+    Proof.
+      transitivity (blacks_all (fun (_: Id) => Ord.O)); [auto|].
+      iIntros "BLACKS".
+      iPoseProof (blacks_update with "BLACKS []") as "> [% [[% BLACKS] WHITES]]".
+      { iApply (OwnM_extends with "[]").
+        { instantiate (1:=URA.unit).
+          instantiate (1:=Ord.O).
+          instantiate (1:=fun _ => Flag.success).
+          eapply pointwise_extends. i. des_ifs.
+          eexists. rewrite URA.unit_idl. eauto.
+        }
+        { iApply (@OwnM_unit (Id ==> Fuel.t Ord.t)%ra). }
+      }
+      iModIntro. iExists _. iFrame.
+      iApply (OwnM_extends with "WHITES").
+      { eapply pointwise_extends. i. des_ifs. reflexivity. }
+    Qed.
+
 
     Definition target_remove_thread
                tid ths
@@ -2056,12 +2258,8 @@ Module FairRA.
         (#=>
            (sat_target f (NatMap.remove tid ths))).
     Proof.
-      iIntros "[% [[% WHITES] [% [% BLACKS]]]] [% BLACK]". des.
-      iExists f'. iFrame. iSplitR.
-      { iPureIntro. split; auto. i. eapply H1.
-        apply NatMapP.F.remove_in_iff in IN. des. auto.
-      }
-      iCombine "BLACKS BLACK" as "BLACK".
+      iIntros "[WHITES [% [% BLACKS]]] [% BLACK]". des.
+      iFrame. iCombine "BLACKS BLACK" as "BLACK".
       iExists (fun i =>
                  match i with
                  | inl tid' => if (tid_dec tid' tid) then Some a else f0 i
@@ -2070,17 +2268,17 @@ Module FairRA.
       iSplitR.
       { iModIntro. iPureIntro. i. des_ifs.
         { split; i; ss. esplits; eauto.
-          ii. apply NatMapP.F.remove_in_iff in H3. des; ss.
+          ii. apply NatMapP.F.remove_in_iff in H1. des; ss.
         }
-        { rewrite H0. split; i.
+        { rewrite H. split; i.
           { des. esplits; eauto. ii.
-            apply NatMapP.F.remove_in_iff in H2. des; ss.
+            apply NatMapP.F.remove_in_iff in H0. des; ss.
           }
           { des. esplits; eauto. ii. clarify. eapply NIN.
             apply NatMapP.F.remove_in_iff. split; auto.
           }
         }
-        { rewrite H0. split; i.
+        { rewrite H. split; i.
           { des; ss. }
           { des; ss. }
         }
@@ -2105,227 +2303,185 @@ Module FairRA.
               **
               (black_ex (inl tid) 1))).
     Proof.
-      iIntros "[% [[% WHITES] [% [% BLACKS]]]]". des.
+      iIntros "[WHITES [% [% BLACKS]]]".
+      hexploit (proj2 (H (inl tid))).
+      { apply inv_add_new in THS. des. esplits; eauto. }
+      i. destruct (f (inl tid)) eqn:TID.
+      2:{ inv H0. ss. } clear H0.
       set (f2 :=
              (fun i =>
                 match i with
                 | inl tid' => if tid_dec tid' tid then None else f i
                 | _ => f i
                 end): Id -> option nat).
-      iAssert (OwnM ((fun i =>
-                        match (f i) with
-                        | Some a => Fuel.black a 1
-                        | None => ε
-                        end) ⋅ (maps_to (inl tid) )
-
-black
-
-maps_to
-
-
-      iExists f'. iFrame. iSplitR.
-      { iPureIntro. split; auto. i. eapply H1.
-        apply NatMapP.F.remove_in_iff in IN. des. auto.
+      iAssert (OwnM (((fun i =>
+                         match (f2 i) with
+                         | Some a => Fuel.black a 1: Fuel.t nat
+                         | None => ε: Fuel.t nat
+                         end): (Id ==> Fuel.t nat)%ra) ⋅ (maps_to_res (inl tid) (Fuel.black n 1: Fuel.t nat)))) with "[BLACKS]" as "[BLACKS BLACK]".
+      { iApply (OwnM_extends with "BLACKS").
+        erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
+        eapply pointwise_extends. i. unfold f2, maps_to_res.
+        des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; reflexivity.
       }
-      iCombine "BLACKS BLACK" as "BLACK".
-      iExists (fun i =>
-                 match i with
-                 | inl tid' => if (tid_dec tid' tid) then Some a else f0 i
-                 | _ => f0 i
-                 end).
-      iSplitR.
-      { iModIntro. iPureIntro. i. des_ifs.
-        { split; i; ss. esplits; eauto.
-          ii. apply NatMapP.F.remove_in_iff in H3. des; ss.
+      iPoseProof (whites_update with "WHITES [BLACK]") as "> [[[WHITES BLACK] FAIL] SUCCESS]".
+      { instantiate (1:=f1). instantiate (1:=1).
+        instantiate (1:=sum_fmap_l (fun i: thread_id => if tid_dec i tid then Flag.success else Flag.emp)).
+        i. specialize (UPD i). revert UPD. unfold sum_fmap_l. des_ifs.
+      }
+      { iExists (fun i =>
+                   match i with
+                   | inl tid' => if tid_dec tid' tid then Some n else None
+                   | _ => None
+                   end). iSplit.
+        { iPureIntro. i. unfold sum_fmap_l. des_ifs.
+          { split; i; ss. inv H0. ss. }
+          { split; i; ss. inv H0. ss. }
         }
-        { rewrite H0. split; i.
-          { des. esplits; eauto. ii.
-            apply NatMapP.F.remove_in_iff in H2. des; ss.
-          }
-          { des. esplits; eauto. ii. clarify. eapply NIN.
-            apply NatMapP.F.remove_in_iff. split; auto.
-          }
-        }
-        { rewrite H0. split; i.
-          { des; ss. }
-          { des; ss. }
+        { iApply (OwnM_extends with "BLACK").
+          eapply pointwise_extends. i. unfold maps_to_res.
+          des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; reflexivity.
         }
       }
-      iApply (OwnM_Upd with "BLACK").
-      apply pointwise_updatable. i.
-      erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
-      unfold maps_to_res. des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss.
-      apply URA.extends_updatable. exists (Fuel.black n 1). apply URA.add_comm.
+      iModIntro. iSplitR "BLACK".
+      2:{ iApply (blacks_black with "BLACK"). ss. des_ifs. }
+      unfold sat_target. iFrame.
+      iExists f2. iSplit; auto.
+      iPureIntro. i. unfold f2. hexploit (H i). i.
+      inv THS. des_ifs.
+      { split; i.
+        { inv H1. ss. }
+        { des. clarify. exfalso. eapply NIN.
+          apply NatMapP.F.in_find_iff. rewrite nm_find_add_eq. ss.
+        }
+      }
+      { rewrite H0. split; i; des.
+        { esplits; eauto. ii. clarify.
+          eapply NIN. eapply NatMapP.F.in_find_iff.
+          apply NatMapP.F.in_find_iff in H2.
+          rewrite nm_find_add_neq in H2; auto.
+        }
+        { clarify. esplits; eauto. ii.
+          eapply NIN. eapply NatMapP.F.in_find_iff.
+          apply NatMapP.F.in_find_iff in H2.
+          rewrite nm_find_add_neq; auto.
+        }
+      }
+      { rewrite H0. split; i; des; ss. }
     Qed.
 
-
-    Admitted.
-
-
-r_solve.
-
-
-
-      specialize (H0 (inl tid)). rewrite Heq in H0. inv H0.
-      hexploit H2; eauto. i. des. clarify.
-
-      hexploit H0; eauto.
-
-
-      { admit. }
-      { admit. }
-      { admit. }
-      { admit. }
-      { admit. }
-      { admit. }
-      { admit. }
-
- des_ifs; try reflexivity.
-
-
-auto.
-      }
-
-ii.
-
-      {
-
-ss.
-
-in H2. des; ss.
-
-          }
- eapply NIN.
-
-split; i; ss. esplits; eauto.
-          ii. apply NatMapP.F.remove_in_iff in H3. des; ss.
-        }
-
-
-
-des. auto.
-      }
- ii.
-
-
-
-
-match f0 i with
-                        | Some a => Some a
-                        |
-
-      iApply (OwnM_Upd with "BLACK").
-
-      iExists f'.
-      assert (
-
-NatMapP.F.in_find_iff
-NatMap.In
-
-odes.
-
-
-    Admitted.
+    Definition white_thread: iProp := ∀ i, white (inl i) 1.
 
     Definition target_update_thread
-               tid ths0 ths1
-               (THS: TIdSet.add_new tid ths0 ths1)
-               (f: imap Id nat_wf)
+               tid ths
+               (f0 f1: imap Id nat_wf)
+               (UPD: fair_update f0 f1 (sum_fmap_l (tids_fmap tid ths)))
       :
-      (sat_target f ths0)
+      (sat_target f0 ths)
         -∗
         (black_ex (inl tid) 1)
         -∗
         (#=>
-           (∃ ths1,
-               (⌜NatMap.remove tid ths0 = ths1⌝)
-                 **
-                 (sat_target f ths1))).
+           ((sat_target f1 ths)
+              **
+              (black_ex (inl tid) 1)
+              **
+              white_thread)).
     Proof.
-    Admitted.
-
-
-
-               (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
-               (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
-      :
-      (sat_target f ths)
-        -∗
-        (sat_target f ths)
-        -∗
-
-
-        (whites_of lf Ord.one)
-        -∗
-        (#=>
-           (∃ f1,
-               (⌜fair_update f0 f1 fm⌝)
-                 **
-                 (sat_target f1 ths)
-                 **
-                 (whites_of ls o))).
-
-
-    Proof.
-      iIntros "SAT WHITE".
-      iPoseProof (blacks_update with "SAT [> WHITE]") as "> [% [[% BLACK] WHITE]]".
-      { instantiate (1:=Ord.one). instantiate (1:=fm).
-        iStopProof. cut (forall l (P: Id -> Prop) (COMPLETE: forall i (IN: P i), List.In i l), whites_of l Ord.one ⊢ #=> whites P Ord.one).
-        { i. eapply H. auto. }
-          induction l; ss; i.
-          { iIntros "H". iApply (OwnM_Upd with "[]").
-            { instantiate (1:=URA.unit). apply pointwise_updatable.
-              i. des_ifs. exfalso. eauto.
-            }
-            { iApply (@OwnM_unit _ _ ING). }
-          }
-          iIntros "[WHITE WHITES]".
-          iPoseProof ((@IHl (fun i => P i /\ a <> i)) with "WHITES") as "> WHITES".
-          { i. des. hexploit COMPLETE; eauto. i. des; ss. }
-          iCombine "WHITE WHITES" as "WHITES". iApply (OwnM_Upd with "WHITES").
-          erewrite ! (@unfold_pointwise_add Id (Fuel.t Ord.t)).
-          apply pointwise_updatable. i. unfold maps_to_res.
-          des_ifs; des; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss.
-          { ii. eapply URA.wf_mon. instantiate (1:=Fuel.white Ord.one). r_wf H. }
-          { exfalso. eapply n0; ss. auto. }
+      iIntros "[WHITES [% [% BLACKS]]] [% BLACK]".
+      iCombine "BLACKS BLACK" as "BLACKS". iOwnWf "BLACKS".
+      iPoseProof "BLACKS" as "[BLACKS BLACK]".
+      assert (TIN: TIdSet.In tid ths).
+      { ur in H0. specialize (H0 (inl tid)). ur in H0.
+        unfold maps_to_res in H0. specialize (H (inl tid)). des_ifs.
+        { destruct (classic (TIdSet.In tid ths)); ss.
+          hexploit (proj2 H).
+          { esplits; eauto. }
+          { i. inv H2. ss. }
+        }
+        { inv Heq0. inv Heq1. des. ss. }
       }
-      { iExists f1. iFrame. iSplitR.
-        { iPureIntro. ii. specialize (H i). des_ifs.
-          ss. eapply Ord.lt_le_lt; [|eauto].
-          unfold Ord.one. rewrite Hessenberg.add_S_l.
-          rewrite Hessenberg.add_O_l. eapply Ord.S_lt.
-        }
-        { instantiate (1:=Jacobsthal.mult o (Ord.from_nat (List.length ls))).
-          iStopProof. cut (forall l (P: Id -> Prop) (SOUND: forall i (IN: List.In i l), P i), whites P (o × List.length l)%ord ⊢ #=> whites_of l o).
-          { i. eapply H0. auto. }
-          induction l; ss; i.
-          { iIntros "H". auto. }
-          iIntros "H".
-          iPoseProof (OwnM_Upd with "H") as "> H".
-          { instantiate (1:=(maps_to_res a (Fuel.white o: Fuel.t Ord.t): (Id ==> Fuel.t Ord.t)%ra)
-                              ⋅
-                              (fun i =>
-                                 if (excluded_middle_informative (P i))
-                                 then (Fuel.white (o × List.length l)%ord: Fuel.t Ord.t)
-                                 else ε): (Id ==> Fuel.t Ord.t)%ra).
-            erewrite ! (@unfold_pointwise_add Id (Fuel.t Ord.t)).
-            apply pointwise_updatable. i. unfold maps_to_res. des_ifs.
-            { rewrite (@Fuel.white_sum Ord.t _ o (o × (Ord.from_nat (List.length l)))%ord).
-              apply Fuel.white_mon. ss.
-              rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity.
-            }
-            { rewrite URA.unit_idl.
-              apply Fuel.white_mon. ss.
-              apply Jacobsthal.le_mult_r. apply Ord.S_le.
-            }
-            { exfalso. eapply n. eapply SOUND. eauto. }
-            { rewrite URA.unit_id. reflexivity. }
+      clear H0.
+      set (f2 :=
+             (fun i =>
+                match i with
+                | inl tid' => if tid_dec tid' tid then Some a else f i
+                | _ => f i
+                end): Id -> option nat).
+      iPoseProof (whites_update with "WHITES [BLACKS BLACK]") as "> [[[WHITES [% [% BLACK]]] FAIL] SUCCESS]".
+      { instantiate (1:=f1). instantiate (1:=1).
+        instantiate (1:=sum_fmap_l
+                          (fun i: thread_id =>
+                             if tid_dec i tid then Flag.success
+                             else
+                               if NatMap.find i ths
+                               then Flag.fail
+                               else Flag.success)).
+        i. specialize (UPD i). revert UPD. unfold f2, sum_fmap_l, tids_fmap. des_ifs.
+        i. exfalso. eapply n2. eapply NatMapP.F.in_find_iff. ii. clarify.
+      }
+      { iExists f2. iCombine "BLACKS BLACK" as "BLACKS". iSplit.
+        { iPureIntro. i. unfold f2, sum_fmap_l.
+          specialize (H i). revert H. des_ifs; i.
+          { rewrite H. split; i; ss. des. clarify. exfalso. eapply NIN.
+            eapply NatMapP.F.in_find_iff. ii. clarify.
           }
-          iPoseProof "H" as "[H0 H1]". iFrame. iApply IHl; [|eauto]. auto.
+          { rewrite H. split; i; ss. esplits; eauto. ii.
+            eapply NatMapP.F.in_find_iff in H1. ss.
+          }
+          { rewrite H. split; i; ss. des; ss. }
         }
+        iApply (OwnM_extends with "BLACKS").
+        erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
+        eapply pointwise_extends. i. unfold f2, maps_to_res.
+        des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try reflexivity.
+        exists (Fuel.black n0 1). rewrite URA.add_comm. auto.
+      }
+      iSplitR "FAIL SUCCESS".
+      { hexploit (proj2 (H0 (inl tid))).
+        { unfold sum_fmap_l. des_ifs. }
+        i. inv H1.
+        set (f4 := (fun i =>
+                      match i with
+                      | inl tid' => if tid_dec tid' tid then None else f3 i
+                      | _ => f3 i
+                      end): Id -> option nat).
+        iPoseProof (OwnM_extends with "BLACK") as "[BLACKS BLACK]".
+        { instantiate (1:=(maps_to_res (inl tid) (Fuel.black x 1: Fuel.t nat))).
+          instantiate (1:=(fun i =>
+                             match f4 i with
+                             | Some a => Fuel.black a 1
+                             | None => ε
+                             end)).
+          erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
+          eapply pointwise_extends. i. unfold f4, maps_to_res.
+          des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try reflexivity.
+        }
+        iModIntro. iSplitR "BLACK".
+        { iSplitL "WHITES"; auto. iExists _.
+          iSplit; [|iApply "BLACKS"]. iPureIntro. i.
+          unfold f4. specialize (H0 i). unfold sum_fmap_l in H0. ss. des_ifs.
+          { split; i; ss.
+            { inv H1. ss. }
+            { des. clarify. }
+          }
+          { rewrite H0. split; i; ss. des. clarify.
+            exfalso. eapply NIN. eapply NatMapP.F.in_find_iff. ii. clarify.
+          }
+          { rewrite H0. split; i; ss. esplits; eauto.
+            ii. eapply NatMapP.F.in_find_iff in H3. ss.
+          }
+          { rewrite H0. split; i; ss. des. clarify. }
+        }
+        { iExists _. iFrame. }
+      }
+      { iModIntro. iIntros (tid'). destruct (tid_dec tid' tid).
+          { subst. iApply (whites_white with "SUCCESS"). ss. des_ifs. }
+          destruct (NatMap.find tid' ths) eqn:EQ.
+          { iApply (whites_white with "FAIL"). ss. des_ifs. }
+          { iApply (whites_white with "SUCCESS"). ss. des_ifs. }
       }
     Qed.
-
 
     Definition target_update
                (o: Ord.t)
