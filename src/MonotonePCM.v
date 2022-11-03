@@ -1478,6 +1478,32 @@ Proof.
   hexploit (INJ x a); eauto. i. subst. ss.
 Qed.
 
+
+Section UPDATING.
+  Context `{Σ: @GRA.t}.
+
+  Definition updating (I: iProp) (P Q R: iProp): iProp :=
+    I -* (#=> (P ** (Q -* #=> (I ** R)))).
+
+  Lemma updating_sub_mon (I0 I1: iProp) (P Q R: iProp)
+    :
+    (SubIProp I0 I1)
+      -∗
+      (updating I0 P Q R)
+      -∗
+      (updating I1 P Q R).
+  Proof.
+    iIntros "SUB UPD INV".
+    iPoseProof ("SUB" with "INV") as "> [INV K]".
+    iPoseProof ("UPD" with "INV") as "> [INV FIN]".
+    iFrame. iModIntro. iIntros "H".
+    iPoseProof ("FIN" with "H") as "> [INV H]".
+    iPoseProof ("K" with "INV") as "> INV".
+    iModIntro. iFrame.
+  Qed.
+End UPDATING.
+
+
 Module Region.
   Section REGION.
     Variable A: Type.
@@ -1837,6 +1863,20 @@ Module Region.
       iApply (IUpd_sub_mon with "H0 H1").
     Qed.
 
+    Lemma sat_updating (l: list (nat * A)) P Q R
+          (ND: List.NoDup (List.map fst l))
+      :
+      (∀ k a (IN: List.In (k, a) l), white k a)
+        -∗
+        (updating (sat_list (List.map snd l)) P Q R)
+        -∗
+        (updating sat P Q R).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (sat_whites_sub with "H0") as "H0"; auto.
+      iApply (updating_sub_mon with "H0 H1").
+    Qed.
+
     Lemma alloc a
       :
       (interp a)
@@ -1859,16 +1899,16 @@ From Fairness Require Import NatStructs.
 Section SUM.
   Context `{Σ: GRA.t}.
 
-  Fixpoint list_prop_sum A (l: list A) (P: A -> iProp): iProp :=
+  Fixpoint list_prop_sum A (P: A -> iProp) (l: list A): iProp :=
     match l with
     | [] => True
-    | hd::tl => P hd ** list_prop_sum tl P
+    | hd::tl => P hd ** list_prop_sum P tl
     end.
 
-  Lemma list_prop_sum_perm A (l0 l1: list A) P
+  Lemma list_prop_sum_perm A P (l0 l1: list A)
         (PERM: Permutation l0 l1)
     :
-    list_prop_sum l0 P ⊢ list_prop_sum l1 P.
+    list_prop_sum P l0 ⊢ list_prop_sum P l1.
   Proof.
     induction PERM; ss.
     { iIntros "[H0 H1]". iFrame. iApply IHPERM. auto. }
@@ -1876,8 +1916,105 @@ Section SUM.
     { etrans; eauto. }
   Qed.
 
+  Lemma list_prop_sum_nil A (P: A -> iProp)
+    :
+    ⊢ list_prop_sum P [].
+  Proof.
+    ss. auto.
+  Qed.
+
+  Lemma list_prop_sum_cons_fold A (P: A -> iProp) hd tl
+    :
+    (P hd ** list_prop_sum P tl)
+      -∗
+      (list_prop_sum P (hd::tl)).
+  Proof.
+    ss.
+  Qed.
+
+  Lemma list_prop_sum_cons_unfold A (P: A -> iProp) hd tl
+    :
+    (list_prop_sum P (hd::tl))
+      -∗
+      (P hd ** list_prop_sum P tl).
+  Proof.
+    ss.
+  Qed.
+
+  Lemma list_prop_sum_split A (P: A -> iProp) l0 l1
+    :
+    (list_prop_sum P (l0 ++ l1))
+      -∗
+      (list_prop_sum P l0 ** list_prop_sum P l1).
+  Proof.
+    induction l0; ss.
+    { iIntros "SAT". iFrame. }
+    { iIntros "[INTERP SAT]". iFrame. iApply IHl0; auto. }
+  Qed.
+
+  Lemma list_prop_sum_combine A (P: A -> iProp) l0 l1
+    :
+    (list_prop_sum P l0 ** list_prop_sum P l1)
+      -∗
+      (list_prop_sum P (l0 ++ l1)).
+  Proof.
+    induction l0; ss.
+    { iIntros "[_ SAT]". auto. }
+    { iIntros "[[INTERP SAT0] SAT1]". iFrame.
+      iApply IHl0. iFrame.
+    }
+  Qed.
+
+  Lemma list_prop_sum_add A (P: A -> iProp) l a
+    :
+    (P a ** list_prop_sum P l)
+      -∗
+      (list_prop_sum P (l++[a])).
+  Proof.
+    iIntros "[NEW SAT]". iApply list_prop_sum_combine. iFrame.
+  Qed.
+
+  Lemma list_prop_sum_impl A (P0 P1: A -> iProp) l
+        (IMPL: forall a, P0 a ⊢ P1 a)
+    :
+    (list_prop_sum P0 l)
+      -∗
+      (list_prop_sum P1 l).
+  Proof.
+    induction l; ss.
+    iIntros "[HD TL]". iSplitL "HD".
+    { iApply (IMPL with "HD"). }
+    { iApply (IHl with "TL"). }
+  Qed.
+
+  Lemma list_map_forall2 A B (f: A -> B)
+        l
+    :
+    List.Forall2 (fun a b => b = f a) l (List.map f l).
+  Proof.
+    induction l; ss. econs; eauto.
+  Qed.
+
+  Lemma list_prop_sum_forall2 A B
+        (R: A -> B -> Prop)
+        (P: A -> iProp) (Q: B -> iProp)
+        la lb
+        (FORALL: List.Forall2 R la lb)
+        (IMPL: forall a b (INA: List.In a la) (INB: List.In b lb),
+            R a b -> P a ⊢ Q b)
+    :
+    (list_prop_sum P la)
+      -∗
+      (list_prop_sum Q lb).
+  Proof.
+    revert IMPL. induction FORALL; i; ss.
+    iIntros "[HD TL]". iSplitL "HD".
+    { iApply (IMPL with "HD"); auto. }
+    { iApply (IHFORALL with "TL"). auto. }
+  Qed.
+
   Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
-    list_prop_sum (NatMap.elements f) (fun '(k, v) => P k v).
+    list_prop_sum (fun '(k, v) => P k v) (NatMap.elements f).
 
   Lemma natmap_prop_sum_empty A P
     :

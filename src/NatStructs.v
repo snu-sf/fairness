@@ -674,7 +674,7 @@ Section NATMAP.
 
 End NATMAP.
 
-Ltac solve_andb := 
+Ltac solve_andb :=
   repeat match goal with
     | [ H : andb _ _ = true |- _ ] => eapply Bool.andb_true_iff in H; destruct H
     | [ H : andb _ _ = false |- _ ] => eapply Bool.andb_false_iff in H; destruct H
@@ -1897,4 +1897,38 @@ Section NMOWF.
 
   Definition nmo_wf (A: WF): WF := mk_wf (nmo_lt_well_founded A.(wf)).
 
+  Lemma nm_ind A (P: NatMap.t A -> Prop)
+        (EMPTY: P (NatMap.empty A))
+        (ADD:
+          forall m k v
+                 (IH: P m)
+                 (NONE: NatMap.find k m = None)
+                 (STRONG: forall m' (LT: NatMap.cardinal m' < NatMap.cardinal (NatMap.add k v m)),
+                     P m'),
+            P (NatMap.add k v m))
+    :
+    forall m, P m.
+  Proof.
+    assert (ZERO: forall m (CARDINAL: NatMap.cardinal m <= 0), P m).
+    { i. inv CARDINAL. hexploit NatMapP.cardinal_inv_1; eauto. i.
+      apply nm_empty_equal in H. apply nm_eq_is_equal in H. subst. auto.
+    }
+    cut (forall n, forall m (CARDINAL: NatMap.cardinal m <= n), P m).
+    { i. eapply H. reflexivity. }
+    induction n; auto.
+    { i. destruct (NatMap.cardinal m) eqn:EQ.
+      { eapply ZERO; eauto. rewrite EQ. auto. }
+      destruct (NatMapP.cardinal_inv_2 EQ) as [[k v] p]. ss.
+      hexploit nm_rm_add_mapsto_equal; eauto. i.
+      apply nm_eq_is_equal in H.
+      hexploit (ADD (NatMap.remove k m) k v).
+      { eapply IHn. hexploit cardinal_remove; eauto.
+        { rewrite NatMapP.F.in_find_iff. erewrite NatMap.find_1; eauto. ss. }
+        { i. rewrite EQ in *. clarify. lia. }
+      }
+      { apply nm_find_rm_eq. }
+      { i. eapply IHn. rewrite <- H in LT. lia. }
+      i. rewrite H. auto.
+    }
+  Qed.
 End NMOWF.
