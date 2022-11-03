@@ -3963,6 +3963,64 @@ Module ObligationRA.
            (FairRA.blacks_of (List.map fst os))
            (FairRA.blacks_of (List.map fst os))
            (list_prop_sum (fun '(i, l) => duty i l) os)).
+    Proof.
+      iIntros "DUTY".
+      iAssert (∃ (xs: list (Id * list (nat * (nat * Ord.t * Qp * nat)) * Qp)),
+                  (⌜os = List.map (fun '(i, rs, q) => (i, List.map (fun '(r, (k, c, q, x)) => (r, c)) rs)) xs⌝)
+                    **
+                    (list_prop_sum (fun '(i, rs, q) =>
+                                      (duty_list i rs q)
+                                        **
+                                        (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
+                                        **
+                                        (FairRA.black_ex i q)) xs))%I with "[DUTY]" as "[% [% ALL]]".
+      { iStopProof. induction os; ss; i.
+        { iIntros.
+
+                                        **
+
+    Lemma duty_list_updating i rs q
+      :
+      (duty_list i rs q)
+        -∗
+        (FairRA.black_ex i q)
+        -∗
+        (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
+        -∗
+        #=(arrows_sat)=>
+            (updating
+               (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs)))
+               (FairRA.black_ex i 1)
+               (FairRA.black_ex i 1)
+               (duty_list i rs q)).
+    Proof.
+
+
+))
+
+
+      (duty_list i rs q)
+        -∗
+        (FairRA.black_ex i q)
+        -∗
+        (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
+
+
+      (duty_list i rs q)
+        -∗
+        (FairRA.black_ex i q)
+        -∗
+        (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
+        -∗
+        #=(arrows_sat)=>
+            (updating
+               (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs)))
+               (FairRA.black_ex i 1)
+               (FairRA.black_ex i 1)
+               (duty_list i rs q)).
+
+
+
     Admitted.
   End ARROW.
 
