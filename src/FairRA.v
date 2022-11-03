@@ -3966,7 +3966,7 @@ Module ObligationRA.
     Proof.
       iIntros "DUTY".
       iAssert (∃ (xs: list (Id * list (nat * (nat * Ord.t * Qp * nat)) * Qp)),
-                  (⌜os = List.map (fun '(i, rs, q) => (i, List.map (fun '(r, (k, c, q, x)) => (r, c)) rs)) xs⌝)
+                  (⌜os = List.map (fun '(i, rs, q) => (i, List.map (fun '(r, (k, c, q, x)) => (k, c)) rs)) xs⌝)
                     **
                     (list_prop_sum (fun '(i, rs, q) =>
                                       (duty_list i rs q)
@@ -3975,7 +3975,21 @@ Module ObligationRA.
                                         **
                                         (FairRA.black_ex i q)) xs))%I with "[DUTY]" as "[% [% ALL]]".
       { iStopProof. induction os; ss; i.
-        { iIntros.
+        { iIntros. iExists []. ss. }
+        { destruct a as [i l].
+          iIntros "[[[% [% [[BLACK DUTY] %]]] TAX] OS]".
+          iPoseProof (IHos with "OS") as "[% [% OS]]". subst.
+          iExists ((_, _, _)::_). ss. iSplit.
+          { iPureIntro. eauto. }
+          iFrame.
+
+
+
+          f_equal. f_equal. eauto.
+
+
+
+          ss.
 
                                         **
 
