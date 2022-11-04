@@ -3705,80 +3705,93 @@ Module ObligationRA.
     Definition tax (l: list (nat * Ord.t)): iProp :=
       list_prop_sum (fun '(k, c) => white k (Jacobsthal.mult c Ord.omega)) l.
 
-    Lemma duty_list_pending i rs q
+    Lemma tax_perm l0 l1
+          (PERM: Permutation l0 l1)
       :
-      (duty_list i rs q)
-        -∗
-        #=(arrows_sat)=> ((duty_list i rs q) ∧ (∀ r k c q x (IN: List.In (r, (k, c, q, x)) rs), OwnM ((FiniteMap.singleton x (OneShot.pending unit))))).
+      tax l0 ⊢ tax l1.
     Proof.
-      revert q. induction rs.
-      { i. iIntros "H". iModIntro. iSplit; ss. iIntros. ss. }
-      i. destruct a as [? [[[? ?] ?] ?]].
-      ss. iIntros "DUTY".
-      iPoseProof (duty_list_unfold with "DUTY") as "[[# WHITE OWN] DUTY]".
-      iPoseProof (IHrs with "DUTY") as "> DUTY".
-      iModIntro. iSplit.
-      { iPoseProof "DUTY" as "[DUTY _]".
-        iApply (duty_list_fold with "DUTY WHITE OWN").
-      }
-      iIntros. des; clarify. iPoseProof "DUTY" as "[_ PENDING]".
-      iApply ("PENDING"); eauto.
+      apply list_prop_sum_perm; auto.
     Qed.
 
-    Lemma duty_list_nodup i rs q
+    Lemma tax_nil
       :
-      (duty_list i rs q)
-        -∗
-        #=(arrows_sat)=> ((duty_list i rs q) ** ⌜List.NoDup (List.map fst rs)⌝).
+      ⊢ tax [].
     Proof.
-      revert q. induction rs.
-      { i. iIntros "H". iModIntro. iSplit; ss. iPureIntro. econs; ss. }
-      i. destruct a as [? [[[? ?] ?] ?]].
-      ss. iIntros "DUTY".
-      iPoseProof (duty_list_unfold with "DUTY") as "[[# WHITE OWN] DUTY]".
-      iPoseProof (IHrs with "DUTY") as "> [DUTY %]".
-      iPoseProof (duty_list_whites with "DUTY") as "# WHITES".
-      iIntros "H".
-      iAssert (⌜forall r k c q x (IN: List.In (r, (k, c, q, x)) rs), n <> r⌝)%I as "%".
-      { iIntros (? ? ? ? ? IN ?). subst.
-        iPoseProof "H" as "[% [H _]]".
-        iPoseProof (Region.white_agree with "H WHITE []") as "%".
-        { iApply "WHITES". iPureIntro. eauto. }
-        clarify. iPoseProof ("WHITES" $! _ _ _ _ _ IN) as "# WHITE1".
-        iAssert (OwnM (FiniteMap.singleton a3 (OneShot.pending unit))) with "[DUTY]" as "OWN1".
-        { apply in_split in IN. des. subst.
-          iClear "WHITE WHITES WHITE1". clear IHrs H3.
-          iStopProof. generalize (q + a2)%Qp. induction l1; ss.
-          { i. iIntros "H". iPoseProof (duty_list_unfold with "H") as "[[_ OWN] _]". auto.
-          }
-          { i. iIntros "H". destruct a4 as [? [[[? ?] ?] ?]].
-            iPoseProof (duty_list_unfold with "H") as "[_ H]". iApply (IHl1 with "H").
-          }
-        }
-        iCombine "OWN OWN1" as "OWN". iOwnWf "OWN".
-        rewrite FiniteMap.singleton_add in H4.
-        rewrite FiniteMap.singleton_wf in H4.
-        apply OneShot.pending_unique in H4. ss.
-      }
-      iSplitL "H".
-      { eauto. }
-      iModIntro. iSplit.
-      { iApply (duty_list_fold with "DUTY"); auto. }
-      iPureIntro. econs; ss. ii. eapply in_map_iff in H5.
-      des. destruct x as [? [[[? ?] ?] ?]]. ss. subst. eapply H4; eauto.
+      apply list_prop_sum_nil.
     Qed.
 
-    Lemma duty_list_disjoint i0 rs0 q0 i1 rs1 q1
+    Lemma tax_cons_fold k c tl
       :
-      (duty_list i0 rs0 q0 ** duty_list i1 rs1 q1)
+      (white k (Jacobsthal.mult c Ord.omega) ** tax tl)
         -∗
-        #=(arrows_sat)=> ((duty_list i0 rs0 q0 ** duty_list i1 rs1 q1) ** ⌜forall r (IN0: List.In r (List.map fst rs0)) (IN1: List.In r (List.map fst rs1)), False⌝).
+        (tax ((k, c)::tl)).
     Proof.
-      iIntros "[DUTY0 DUTY1]".
-      iPoseProof (duty_list_whites with "DUTY0") as "# WHITES0".
-      iPoseProof (duty_list_whites with "DUTY1") as "# WHITES1".
-      iPoseProof (duty_list_pending with "DUTY0") as "> DUTY0".
-      iPoseProof (duty_list_pending with "DUTY1") as "> DUTY1".
+      ss.
+    Qed.
+
+    Lemma tax_cons_unfold k c tl
+      :
+      (tax ((k, c)::tl))
+        -∗
+        (white k (Jacobsthal.mult c Ord.omega) ** tax tl).
+    Proof.
+      ss.
+    Qed.
+
+    Lemma tax_split l0 l1
+      :
+      (tax (l0 ++ l1))
+        -∗
+        (tax l0 ** tax l1).
+    Proof.
+      apply list_prop_sum_split.
+    Qed.
+
+    Lemma tax_combine l0 l1
+      :
+      (tax l0 ** tax l1)
+        -∗
+        (tax (l0 ++ l1)).
+    Proof.
+      apply list_prop_sum_combine.
+    Qed.
+
+    Lemma duty_list_pending P i rs q
+          (IMPL: P ⊢ duty_list i rs q)
+      :
+      (P)
+        -∗
+        (P ∧ (∀ r k c q x (IN: List.In (r, (k, c, q, x)) rs), OwnM ((FiniteMap.singleton x (OneShot.pending unit))))).
+    Proof.
+      revert P q IMPL. induction rs.
+      { i. iIntros "H". iSplit; ss. iIntros. ss. }
+      i. destruct a as [? [[[? ?] ?] ?]].
+      ss. iIntros "DUTY".
+      iPoseProof (IHrs with "DUTY") as "DUTY".
+      { etrans; eauto. iIntros "DUTY".
+        iPoseProof (duty_list_unfold with "DUTY") as "[[# WHITE OWN] DUTY]". eauto.
+      }
+      iSplit.
+      { iDestruct "DUTY" as "[DUTY _]". auto. }
+      iIntros. des; clarify.
+      { iDestruct "DUTY" as "[DUTY _]". iPoseProof (IMPL with "DUTY") as "DUTY".
+        iPoseProof (duty_list_unfold with "DUTY") as "[[# WHITE OWN] DUTY]". eauto.
+      }
+      { iDestruct "DUTY" as "[_ DUTY]". iApply "DUTY". eauto. }
+    Qed.
+
+    Lemma duty_list_disjoint P i0 rs0 q0 i1 rs1 q1
+          (IMPL: P ⊢ (duty_list i0 rs0 q0 ** duty_list i1 rs1 q1))
+      :
+      (P)
+        -∗
+        #=(arrows_sat)=> (P ** ⌜forall r (IN0: List.In r (List.map fst rs0)) (IN1: List.In r (List.map fst rs1)), False⌝).
+    Proof.
+      iIntros "DUTY".
+      iPoseProof (duty_list_whites with "[DUTY]") as "# WHITES0".
+      { iPoseProof (IMPL with "DUTY") as "[DUTY0 DUTY1]". iApply "DUTY0". }
+      iPoseProof (duty_list_whites with "[DUTY]") as "# WHITES1".
+      { iPoseProof (IMPL with "DUTY") as "[DUTY0 DUTY1]". iApply "DUTY1". }
       iIntros "H".
       iAssert (⌜forall r v0 v1 (IN0: In (r, v0) rs0) (IN1: In (r, v1) rs1), v0 = v1⌝)%I as "%".
       { iIntros (? ? ? ? ?).
@@ -3790,23 +3803,72 @@ Module ObligationRA.
         { iApply "WHITES1". eauto. }
         clarify.
       }
-      iModIntro. iFrame. iSplit.
-      { iPoseProof "DUTY0" as "[DUTY0 _]".
-        iPoseProof "DUTY1" as "[DUTY1 _]". iFrame.
+      iAssert (P ∧ ((∀ r k c q x (IN0: List.In (r, (k, c, q, x)) rs0), OwnM ((FiniteMap.singleton x (OneShot.pending unit)))) ** (∀ r k c q x (IN: List.In (r, (k, c, q, x)) rs1), OwnM ((FiniteMap.singleton x (OneShot.pending unit))))))%I with "[DUTY]" as "DUTY".
+      { iSplit; [auto|]. iPoseProof (IMPL with "DUTY") as "[DUTY0 DUTY1]".
+        iSplitL "DUTY0".
+        { iPoseProof (duty_list_pending with "DUTY0") as "[_ DUTY0]"; eauto. }
+        { iPoseProof (duty_list_pending with "DUTY1") as "[_ DUTY1]"; eauto. }
       }
-      { iIntros (? ? ?).
-        iPoseProof "DUTY0" as "[_ ALL0]".
-        iPoseProof "DUTY1" as "[_ ALL1]".
+      iModIntro. iFrame. iSplit.
+      { iPoseProof "DUTY" as "[DUTY _]"; auto. }
+      { iPoseProof "DUTY" as "[_ [OWN0 OWN1]]".
+        iIntros (? ? ?).
         apply in_map_iff in a0. des. destruct x as [? [[[? ?] ?] ?]].
         apply in_map_iff in a1. des. destruct x as [? [[[? ?] ?] ?]].
         ss. subst.
-        iPoseProof ("ALL0" $! _ _ _ _ _ a2) as "ALL0".
-        iPoseProof ("ALL1" $! _ _ _ _ _ a3) as "ALL1".
         hexploit H3; eauto. i. clarify.
-        iCombine "ALL0 ALL1" as "OWN". iOwnWf "OWN".
+        iPoseProof ("OWN0" $! _ _ _ _ _ a2) as "OWN0".
+        iPoseProof ("OWN1" $! _ _ _ _ _ a3) as "OWN1".
+        iCombine "OWN0 OWN1" as "OWN". iOwnWf "OWN".
         rewrite FiniteMap.singleton_add in H4.
         apply FiniteMap.singleton_wf in H4. apply OneShot.pending_unique in H4; ss.
       }
+    Qed.
+
+    Lemma duty_list_nodup P i rs q
+          (IMPL: P ⊢ (duty_list i rs q))
+      :
+      (P)
+        -∗
+        #=(arrows_sat)=> ((P) ** ⌜List.NoDup (List.map fst rs)⌝).
+    Proof.
+      revert q P IMPL. induction rs.
+      { i. iIntros "H". iModIntro. iSplit; ss. iPureIntro. econs; ss. }
+      i. destruct a as [? [[[? ?] ?] ?]].
+      ss. iIntros "DUTY".
+      iPoseProof (IHrs with "DUTY") as "> [DUTY %]".
+      { etrans; eauto. iIntros "DUTY".
+        iPoseProof (duty_list_unfold with "DUTY") as "[[# WHITE OWN] DUTY]". eauto.
+      }
+      iPoseProof (duty_list_whites with "[DUTY]") as "# WHITES".
+      { iApply IMPL. auto. }
+      iIntros "H".
+      iAssert (⌜forall r k c q x (IN: List.In (r, (k, c, q, x)) rs), n <> r⌝)%I as "%".
+      { iIntros (? ? ? ? ? IN ?). subst.
+        iPoseProof (IMPL with "DUTY") as "DUTY".
+        iPoseProof (duty_list_unfold with "DUTY") as "[[WHITE PENDING] DUTY]". eauto.
+        iPoseProof "H" as "[% [H _]]".
+        iPoseProof (Region.white_agree with "H [] WHITE") as "%".
+        { iApply "WHITES". iPureIntro. ss. eauto. }
+        clarify. iPoseProof ("WHITES" $! _ _ _ _ _ (or_intror IN)) as "# WHITE1".
+        iAssert (OwnM (FiniteMap.singleton n1 (OneShot.pending unit))) with "[DUTY]" as "OWN1".
+        { iClear "WHITE1 WHITES". clear IHrs H3 IMPL.
+          iStopProof. generalize (q + q0)%Qp. revert IN. induction rs; ss.
+          { i. destruct a0 as [? [[[? ?] ?] ?]].
+            iIntros "H". iPoseProof (duty_list_unfold with "H") as "[[_ OWN] DUTY]".
+            des; clarify. iApply IHrs; eauto.
+          }
+        }
+        iCombine "PENDING OWN1" as "OWN". iOwnWf "OWN".
+        rewrite FiniteMap.singleton_add in H4.
+        rewrite FiniteMap.singleton_wf in H4.
+        apply OneShot.pending_unique in H4. ss.
+      }
+      iSplitL "H".
+      { eauto. }
+      iModIntro. iSplit; auto.
+      iPureIntro. econs; ss. ii. eapply in_map_iff in H5.
+      des. destruct x as [? [[[? ?] ?] ?]]. ss. subst. eapply H4; eauto.
     Qed.
 
     Lemma duty_update n i l
@@ -3819,6 +3881,7 @@ Module ObligationRA.
     Proof.
       iIntros "[% [% [[BLACK DUTY] %]]] TAX". subst.
       iPoseProof (duty_list_nodup with "DUTY") as "> [DUTY %]".
+      { reflexivity. }
       iPoseProof (duty_list_whites with "DUTY") as "# WHITES".
       iApply (Region.updates with "[]").
       { instantiate (1:=List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs).
@@ -3894,10 +3957,11 @@ Module ObligationRA.
                (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs)))
                (FairRA.black_ex i 1)
                (FairRA.black_ex i 1)
-               (duty_list i rs q)).
+               (duty_list i rs q ** FairRA.black_ex i q)).
     Proof.
       iIntros "DUTY BLACK TAX".
       iPoseProof (duty_list_nodup with "DUTY") as "> [DUTY %]".
+      { reflexivity. }
       iPoseProof (duty_list_whites with "DUTY") as "# WHITES".
       iIntros "SAT". iModIntro.
       iSplitL "SAT"; [auto|]. iIntros "SAT".
@@ -3926,7 +3990,7 @@ Module ObligationRA.
       iAssert (#=> (Region.sat_list
                       arrow
                       (List.map snd (List.map (fun '(r, (k, c, q0, x)) => (r, (i, k, c, q0, x))) rs)) ** FairRA.black i a q)) with "[TAX BLACK]" as "> [REGION BLACK]".
-      2:{ iModIntro. iFrame. }
+      2:{ iModIntro. iFrame. iExists _. eauto. }
       rewrite <- H4. iStopProof. clear H3 H4. revert q. induction rs.
       { i. iIntros "[# WHITES [TAX BLACK]]". iModIntro. ss. iFrame. }
       { i. iIntros "[# WHITES [TAX BLACK]]". ss.
@@ -3954,15 +4018,27 @@ Module ObligationRA.
       }
     Qed.
 
+    Lemma list_app_disjoint_nodup A (l0 l1: list A)
+          (NODUP0: List.NoDup l0)
+          (NODUP1: List.NoDup l1)
+          (DISJOINT: forall a (IN0: List.In a l0) (IN1: List.In a l1), False)
+      :
+      List.NoDup (l0 ++ l1).
+    Proof.
+      revert NODUP0 DISJOINT. induction l0; ss; i. inv NODUP0. econs; eauto.
+      ii. apply in_app_iff in H3. des; ss. eapply DISJOINT; eauto.
+    Qed.
+
     Lemma duties_updating os
       :
       (list_prop_sum (fun '(i, l) => duty i l ** tax l) os)
         -∗
-        (updating
-           arrows_sat
-           (FairRA.blacks_of (List.map fst os))
-           (FairRA.blacks_of (List.map fst os))
-           (list_prop_sum (fun '(i, l) => duty i l) os)).
+        #=(arrows_sat)=>
+            (updating
+               arrows_sat
+               (FairRA.blacks_of (List.map fst os))
+               (FairRA.blacks_of (List.map fst os))
+               (list_prop_sum (fun '(i, l) => duty i l) os)).
     Proof.
       iIntros "DUTY".
       iAssert (∃ (xs: list (Id * list (nat * (nat * Ord.t * Qp * nat)) * Qp)),
@@ -3981,61 +4057,125 @@ Module ObligationRA.
           iPoseProof (IHos with "OS") as "[% [% OS]]". subst.
           iExists ((_, _, _)::_). ss. iSplit.
           { iPureIntro. eauto. }
-          iFrame.
+          iFrame. clear IHos. iStopProof. induction rs; ss.
+          destruct a as [? [[[? ?] ?] ?]].
+          iIntros "TAX". iPoseProof (tax_cons_unfold with "TAX") as "[HD TL]".
+          iPoseProof (IHrs with "TL") as "TL". iFrame.
+        }
+      }
+      subst.
+      set (l := List.concat (List.map (fun '(i, rs, q) => List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs) xs)).
 
-
-
-          f_equal. f_equal. eauto.
-
-
-
-          ss.
-
-                                        **
-
-    Lemma duty_list_updating i rs q
-      :
-      (duty_list i rs q)
-        -∗
-        (FairRA.black_ex i q)
-        -∗
-        (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
-        -∗
-        #=(arrows_sat)=>
-            (updating
-               (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs)))
-               (FairRA.black_ex i 1)
-               (FairRA.black_ex i 1)
-               (duty_list i rs q)).
-    Proof.
-
-
-))
-
-
-      (duty_list i rs q)
-        -∗
-        (FairRA.black_ex i q)
-        -∗
-        (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
-
-
-      (duty_list i rs q)
-        -∗
-        (FairRA.black_ex i q)
-        -∗
-        (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
-        -∗
-        #=(arrows_sat)=>
-            (updating
-               (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs)))
-               (FairRA.black_ex i 1)
-               (FairRA.black_ex i 1)
-               (duty_list i rs q)).
-
-
-
-    Admitted.
+      iAssert (#=(arrows_sat)=>
+                 ((list_prop_sum (fun '(i, rs, q) =>
+                                    (duty_list i rs q)
+                                      **
+                                      (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
+                                      **
+                                      (FairRA.black_ex i q)) xs)
+                    **
+                    (⌜List.NoDup (List.map fst l)⌝))) with "[ALL]" as "> [ALL %]".
+      { subst l. iStopProof. induction xs; ss.
+        { iIntros. iModIntro. iSplit; ss. iPureIntro. econs; ss. }
+        destruct a as [[i rs] q]. iIntros "[[[DUTY HD] BLACK] TL]".
+        iPoseProof (IHxs with "TL") as "> [TL %]".
+        iPoseProof (duty_list_nodup with "DUTY") as "> [DUTY %]".
+        { reflexivity. }
+        iAssert (#=(arrows_sat)=>
+                   (((duty_list i rs q)
+                       **
+                       (list_prop_sum (fun '(i, rs, q) =>
+                                         (duty_list i rs q)
+                                           **
+                                           (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
+                                           **
+                                           (FairRA.black_ex i q)) xs))
+                      **
+                      (⌜forall i0 rs0 q0 (IN: List.In (i0, rs0, q0) xs),
+                            (forall r (IN0: List.In r (List.map fst rs)) (IN1: List.In r (List.map fst rs0)), False)⌝)))%I with "[DUTY TL]" as "> [[DUTY TL] %]".
+        { clear IHxs H3 H4. iStopProof. induction xs; ss.
+          { iIntros "[DUTY TL]". iModIntro. iSplit; auto. }
+          destruct a as [[i0 rs0] q0].
+          iIntros "[DUTY [HD TL]]".
+          iPoseProof (IHxs with "[DUTY TL]") as "> [[DUTY TL] %]".
+          { iFrame. }
+          iCombine "HD DUTY" as "H".
+          iPoseProof (duty_list_disjoint with "H") as "> [[HD DUTY] %]".
+          { iIntros "[[[H0 _] _] H1]". iFrame. }
+          iModIntro. iFrame. iPureIntro. i. des; clarify; eauto.
+        }
+        { iModIntro. iFrame. iPureIntro.
+          rewrite List.map_app. apply list_app_disjoint_nodup; auto.
+          { rewrite List.map_map. erewrite List.map_ext; eauto. i. des_ifs. }
+          { i. rewrite List.concat_map in IN1.
+            apply in_concat in IN1. des.
+            rewrite List.map_map in IN1. rewrite List.in_map_iff in IN1. des. subst.
+            rewrite List.in_map_iff in IN2. des. subst.
+            destruct x0 as [[? ?] ?].
+            rewrite List.in_map_iff in IN1. des. subst.
+            destruct x0 as [? [[[? ?] ?] ?]]. ss.
+            rewrite List.map_map in IN0.
+            rewrite List.in_map_iff in IN0. des. subst.
+            destruct x as [? [[[? ?] ?] ?]]. ss.
+            eapply H5.
+            { eauto. }
+            { eapply in_map_iff. esplits; eauto. }
+            { ss. eapply in_map_iff. esplits; eauto. ss. }
+          }
+        }
+      }
+      iAssert (#=(arrows_sat)=>
+                 (((list_prop_sum (fun '(i, rs, q) =>
+                                     (updating
+                                        (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs)))
+                                        (FairRA.black_ex i 1)
+                                        (FairRA.black_ex i 1)
+                                        (duty_list i rs q ** FairRA.black_ex i q)))) xs)
+                    ** (∀ i rs q0 r k c q1 x
+                          (IN0: List.In (i, rs, q0) xs)
+                          (IN1: List.In (r, (k, c, q1, x)) rs),
+                           Region.white r (i, k, c, q1, x)))) with "[ALL]" as "> [ALL WHITES]".
+      { subst l. iStopProof. clear H3. induction xs.
+        { iIntros. iModIntro. ss. iSplit; auto. iIntros. ss. }
+        destruct a as [[i rs] q]. iIntros "[[[DUTY TAX] BLACK] DUTIES]".
+        iPoseProof (IHxs with "DUTIES") as "> [DUTIES WHITES]".
+        iPoseProof (duty_list_whites with "DUTY") as "# WHITE".
+        iPoseProof (duty_list_updating with "DUTY BLACK TAX") as "> UPD".
+        iModIntro. iSplitL "DUTIES UPD".
+        { ss. iFrame. }
+        { iIntros. ss. des; clarify.
+          { iApply "WHITE"; auto. }
+          { iApply "WHITES"; auto. }
+        }
+      }
+      iModIntro.
+      iApply (Region.sat_updating with "[WHITES] [ALL]").
+      { instantiate (1:=l). subst l. auto. }
+      { iIntros. subst l. apply List.in_concat in IN. des.
+        apply in_map_iff in IN. des. destruct x0 as [[i rs] q]. subst.
+        apply in_map_iff in IN0. des.
+        destruct x as [? [[[? ?] ?] ?]]. clarify.
+        iApply "WHITES"; eauto.
+      }
+      subst l. clear H3. iStopProof. induction xs.
+      { ss. iIntros "_ SAT". iModIntro. ss. }
+      destruct a as [[i rs] q]. ss.
+      iIntros "[UPD UPDS]".
+      iPoseProof (IHxs with "UPDS") as "UPDS".
+      iIntros "SAT". repeat rewrite List.map_app.
+      iPoseProof (Region.sat_list_split with "SAT") as "[SAT SATS]".
+      iPoseProof ("UPD" with "SAT") as "> [BLACK K]".
+      iPoseProof ("UPDS" with "SATS") as "> [BLACKS KS]".
+      iModIntro. iSplitL "BLACK BLACKS".
+      { iApply list_prop_sum_cons_fold. iFrame. }
+      iIntros "BLACKS".
+      iPoseProof (list_prop_sum_cons_unfold with "BLACKS") as "[BLACK BLACKS]".
+      iPoseProof ("K" with "BLACK") as "> [SAT [BLACK DUTY]]".
+      iPoseProof ("KS" with "BLACKS") as "> [SATS DUTIES]".
+      iModIntro. iSplitL "SAT SATS".
+      { iApply Region.sat_list_combine. iFrame. }
+      { iFrame. iExists _, _. iFrame. eauto. }
+    Qed.
   End ARROW.
 
   Section TARGET.
@@ -4046,6 +4186,17 @@ Module ObligationRA.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
     Context `{@GRA.inG (Region.t (Id * nat * Ord.t * Qp * nat)) Σ}.
     Context `{@GRA.inG (@FairRA.tgtt _Id) Σ}.
+
+    Lemma IUpd_open I P
+      :
+      (#=(I)=> P)
+        -∗
+        I
+        -∗
+        (#=> (I ** P)).
+    Proof.
+      iIntros "H0 H1". iPoseProof ("H0" with "H1") as "H". auto.
+    Qed.
 
     Lemma target_update_thread
           (tid: thread_id) l
@@ -4067,7 +4218,8 @@ Module ObligationRA.
       iIntros "SAT DUTY ARROWS".
       iPoseProof (duties_updating with "[DUTY]") as "UPD".
       { instantiate (1:=[(inl tid, l)]). ss. iFrame. }
-      iPoseProof ("UPD" with "ARROWS") as "> [[BLACK _] K]". ss.
+      iPoseProof (IUpd_open with "UPD ARROWS") as "> [ARROWS UPD]".
+      iPoseProof ("UPD" with "ARROWS") as "> [[BLACK _] K]".
       iPoseProof (FairRA.target_update_thread with "SAT BLACK") as "> [[SAT BLACK] WHITE]".
       { eauto. }
       iPoseProof ("K" with "[BLACK]") as "> [ARROWS [DUTY _]]".
@@ -4102,7 +4254,8 @@ Module ObligationRA.
         induction ls; ss. destruct a. iIntros "[HD TL]". iFrame.
         iApply IHls. auto.
       }
-      iPoseProof ("UPD" with "ARROWS") as "> [BLACKS K]".
+      iPoseProof (IUpd_open with "UPD ARROWS") as "> [ARROWS K]".
+      iPoseProof ("K" with "ARROWS") as "> [BLACKS K]".
       iPoseProof (FairRA.target_update with "SAT [BLACKS]") as "> [[SAT BLACKS] WHITES]".
       { eauto. }
       { eauto. }
@@ -4122,4 +4275,5 @@ Module ObligationRA.
       induction ls; ss. destruct a. iIntros "[HD TL]".
       iFrame. iApply IHls. auto.
     Qed.
+  End TARGET.
 End ObligationRA.
