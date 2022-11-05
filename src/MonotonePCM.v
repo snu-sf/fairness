@@ -1083,6 +1083,13 @@ Section MUPD.
   Definition MUpd (l0 l1: mset) (P: iProp): iProp :=
     mset_all l0 -* #=> (mset_all l1 ** P).
 
+  Lemma MUpd_open i:
+    ⊢ MUpd [i] [] (I i ** (I i -* (MUpd [] [i] True))).
+  Proof.
+    i. iIntros "[H0 H1]". ss. iModIntro. iFrame.
+    iIntros "H0 H1". iModIntro. ss. iFrame.
+  Qed.
+
   Lemma MUpd_mask_subseteq E1 E2 :
     mset_sub E2 E1 -> ⊢ MUpd E1 E2 (MUpd E2 E1 emp).
   Proof.

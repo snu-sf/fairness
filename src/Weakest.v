@@ -110,12 +110,13 @@ Section SIM.
   Global Instance isim_elim_upd
          r g R_src R_tgt
          (Q: R_src -> R_tgt -> shared_rel)
-         itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+         itr_src itr_tgt ths im_src im_tgt st_src st_tgt p
          P
     :
-    ElimModal True false false (#=> P) P (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt) (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+    ElimModal True p false (#=> P) P (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt) (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
-    unfold ElimModal. i. iIntros "[H0 H1]".
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]".
     iApply isim_upd. iMod "H0". iModIntro.
     iApply "H1". iFrame.
   Qed.
@@ -913,10 +914,10 @@ Section STATE.
   Global Instance stsim_elim_upd
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt
+         itr_src itr_tgt p
          P
     :
-    ElimModal True false false (#=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
+    ElimModal True p false (#=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
   Proof.
     typeclasses eauto.
   Qed.
@@ -951,12 +952,13 @@ Section STATE.
   Global Instance stsim_elim_mupd_gen
          E0 E1 E2 r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt
+         itr_src itr_tgt p
          P
     :
-    ElimModal (mset_sub E0 E2) false false (MUpd (nth_default True%I Invs) E0 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim (NatSort.sort (E1 ++ mset_minus E2 E0)) r g Q itr_src itr_tgt).
+    ElimModal (mset_sub E0 E2) p false (MUpd (nth_default True%I Invs) E0 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim (NatSort.sort (E1 ++ mset_minus E2 E0)) r g Q itr_src itr_tgt).
   Proof.
-    unfold ElimModal. i. iIntros "[H0 H1]".
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]".
     iPoseProof (MUpd_mask_frame_r with "H0") as "H0".
     iPoseProof (MUpd_permutation with "H0") as "H0".
     { eapply mset_minus_add_eq; eauto. }
@@ -970,12 +972,13 @@ Section STATE.
   Global Instance stsim_elim_mupd_eq
          E1 E2 r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt
+         itr_src itr_tgt p
          P
     :
-    ElimModal (mset_sub E1 E2) false false (MUpd (nth_default True%I Invs) E1 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
+    ElimModal (mset_sub E1 E2) p false (MUpd (nth_default True%I Invs) E1 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
   Proof.
-    unfold ElimModal. i. iIntros "[H0 H1]".
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]".
     iApply stsim_mupd_weaken.
     { eauto. }
     iMod "H0". iModIntro. iApply ("H1" with "H0").
@@ -984,12 +987,13 @@ Section STATE.
   Global Instance stsim_elim_mupd
          E1 E2 r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt
+         itr_src itr_tgt p
          P
     :
-    ElimModal True false false (MUpd (nth_default True%I Invs) E1 E2 P) P (stsim E1 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
+    ElimModal True p false (MUpd (nth_default True%I Invs) E1 E2 P) P (stsim E1 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
   Proof.
-    unfold ElimModal. i. iIntros "[H0 H1]".
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]".
     iApply stsim_mupd. iMod "H0".
     iModIntro. iApply ("H1" with "H0").
   Qed.
@@ -1008,12 +1012,13 @@ Section STATE.
   Global Instance stsim_elim_iupd_edge
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt
+         itr_src itr_tgt p
          P
     :
-    ElimModal True false false (#=(ObligationRA.edges_sat)=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
+    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
   Proof.
-    unfold ElimModal. i. iIntros "[H0 H1]" (? ? ? ? ?) "[D C]".
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]" (? ? ? ? ?) "[D C]".
     iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
     { iApply edges_sat_sub. }
     iApply ("H1" with "P"). iFrame.
@@ -1022,12 +1027,13 @@ Section STATE.
   Global Instance stsim_elim_iupd_arrow
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt
+         itr_src itr_tgt p
          P
     :
-    ElimModal True false false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
+    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
   Proof.
-    unfold ElimModal. i. iIntros "[H0 H1]" (? ? ? ? ?) "[D C]".
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]" (? ? ? ? ?) "[D C]".
     iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
     { iApply arrows_sat_sub. }
     iApply ("H1" with "P"). iFrame.
@@ -1411,9 +1417,11 @@ Section STATE.
     iApply stsim_discard.
     rewrite <- NatSort.Permuted_sort. reflexivity.
   Qed.
+
+  Definition ibot5 { T0 T1 T2 T3 T4} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := False.
 End STATE.
 
 From Fairness Require Export Red IRed.
 
-Ltac lred := repeat (prw _red_gen 1 3 0).
-Ltac rred := repeat (prw _red_gen 1 2 0).
+Ltac lred := repeat (prw _red_gen 1 2 0).
+Ltac rred := repeat (prw _red_gen 1 1 0).
