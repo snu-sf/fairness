@@ -661,6 +661,12 @@ Section STATE.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
 
+  Definition St_src (st_src: state_src): iProp :=
+    OwnM (Auth.white (Excl.just st_src: @Excl.t state_src): stateSrcRA state_src).
+
+  Definition St_tgt (st_tgt: state_tgt): iProp :=
+    OwnM (Auth.white (Excl.just st_tgt: @Excl.t state_tgt): stateTgtRA state_tgt).
+
   Let I: shared_rel :=
         fun ths im_src im_tgt st_src st_tgt =>
           default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset.
@@ -1169,9 +1175,9 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ktr_src itr_tgt st_src
     :
-    (OwnM (Auth.white (Excl.just st_src: @Excl.t state_src): stateSrcRA state_src))
+    (St_src st_src)
       -∗
-      ((OwnM (Auth.white (Excl.just st: @Excl.t state_src): stateSrcRA state_src))
+      ((St_src st)
          -∗ (stsim E r g Q (ktr_src tt) itr_tgt))
       -∗
       (stsim E r g Q (trigger (Put st) >>= ktr_src) itr_tgt)
@@ -1186,9 +1192,9 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         itr_src ktr_tgt st_tgt
     :
-    (OwnM (Auth.white (Excl.just st_tgt: @Excl.t state_tgt): stateSrcRA state_tgt))
+    (St_tgt st_tgt)
       -∗
-      ((OwnM (Auth.white (Excl.just st: @Excl.t state_tgt): stateSrcRA state_tgt))
+      ((St_tgt st)
          -∗ (stsim E r g Q itr_src (ktr_tgt tt)))
       -∗
       (stsim E r g Q itr_src (trigger (Put st) >>= ktr_tgt))
@@ -1203,7 +1209,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ktr_src itr_tgt
     :
-    ((OwnM (Auth.white (Excl.just st: @Excl.t state_src): stateSrcRA state_src)) ∧
+    ((St_src st) ∧
        (stsim E r g Q (ktr_src st) itr_tgt))
       -∗
       (stsim E r g Q (trigger (@Get _) >>= ktr_src) itr_tgt)
@@ -1219,7 +1225,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         itr_src ktr_tgt
     :
-    ((OwnM (Auth.white (Excl.just st: @Excl.t state_tgt): stateTgtRA state_tgt)) ∧
+    ((St_tgt st) ∧
        (stsim E r g Q itr_src (ktr_tgt st)))
       -∗
       (stsim E r g Q itr_src (trigger (@Get _) >>= ktr_tgt))

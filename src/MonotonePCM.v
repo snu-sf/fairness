@@ -2086,3 +2086,124 @@ Section SUM.
     }
   Qed.
 End SUM.
+
+Require Import Program.
+
+Module OneShot.
+  Section ONESHOT.
+    Variable A: Type.
+
+    Definition oneshot_add (a0 a1: bool + (Qp + A)): bool + (Qp + A) :=
+      match a0, a1 with
+      | inl false, a
+      | a, inl false => a
+      | inr (inr a0), inr (inr a1) => if (excluded_middle_informative (a0 = a1)) then inr (inr a0) else inl true
+      | inr (inl q0), inr (inl q1) => inr (inl (q0 + q1)%Qp)
+      | _, _ => inl true
+      end.
+
+    Definition oneshot_core (a: bool + (Qp + A)): bool + (Qp + A) :=
+      match a with
+      | inr (inl _) => inl false
+      | _ => a
+      end.
+
+    Program Instance t: URA.t := {
+        car := bool + (Qp + A);
+        unit := inl false;
+        _add := oneshot_add;
+        _wf := fun a =>
+                 match a with
+                 | inl true => False
+                 | inr (inl q) => (q ≤ 1)%Qp
+                 | _ => True
+                 end;
+        core := oneshot_core;
+      }
+    .
+    Next Obligation.
+      unfold oneshot_add. des_ifs. f_equal. f_equal. eapply Qp_add_comm.
+    Qed.
+    Next Obligation.
+      unfold oneshot_add. des_ifs. f_equal. f_equal. eapply Qp_add_assoc.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold oneshot_add. des_ifs.
+    Qed.
+    Next Obligation.
+      unseal "ra". ss.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold oneshot_add in *. des_ifs.
+      etrans; [|eauto]. apply Qp_le_add_l.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold oneshot_add, oneshot_core. des_ifs.
+    Qed.
+    Next Obligation.
+      unfold oneshot_add, oneshot_core. des_ifs.
+    Qed.
+    Next Obligation.
+      unseal "ra".
+      pose (c := oneshot_core b).
+      unfold oneshot_core, oneshot_add. des_ifs; subst; try by (exists c; ss).
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inr (inr a0)). des_ifs. }
+    Qed.
+
+    Definition pending (q: Qp): t := inr (inl q).
+    Definition shot (a: A): t := inr (inr a).
+
+    Lemma pending_one_wf: URA.wf (pending 1).
+    Proof.
+      ur. ss.
+    Qed.
+
+    Lemma shot_wf a: URA.wf (shot a).
+    Proof.
+      ur. ss.
+    Qed.
+
+    Lemma shot_agree a0 a1
+          (WF: URA.wf (shot a0 ⋅ shot a1))
+      :
+      a0 = a1.
+    Proof.
+      ur in WF. des_ifs.
+    Qed.
+
+    Lemma pending_not_shot a q
+          (WF: URA.wf (pending q ⋅ shot a))
+      :
+      False.
+    Proof.
+      ur in WF. ss.
+    Qed.
+
+    Lemma pending_wf q
+          (WF: URA.wf (pending q))
+      :
+      (q ≤ 1)%Qp.
+    Proof.
+      ur in WF. ss.
+    Qed.
+
+    Lemma pending_sum q0 q1
+      :
+      pending (q0 + q1)%Qp = pending q0 ⋅ pending q1.
+    Proof.
+      ur. ss.
+    Qed.
+
+    Lemma pending_shot a
+      :
+      URA.updatable (pending 1) (shot a).
+    Proof.
+      ii. ur in H. ur. des_ifs.
+      apply Qp_not_add_le_l in H; auto.
+    Qed.
+  End ONESHOT.
+End OneShot.
