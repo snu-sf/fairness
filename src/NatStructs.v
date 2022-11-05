@@ -654,6 +654,23 @@ Section NATMAP.
     unfold nm_pop, nm_pop_l in *. rewrite <- F.elements_o. des_ifs.
   Qed.
 
+  Lemma disjoint_union_comm (x y : NatMap.t elt)
+        (DISJOINT: Disjoint x y)
+    :
+    NatMapP.update x y = NatMapP.update y x.
+  Proof.
+    eapply eq_ext_is_eq. ii.
+    rewrite ! update_mapsto_iff. split; i; des; auto.
+    { right. split; auto.
+      ii. eapply DISJOINT. splits; eauto.
+      apply F.in_find_iff. erewrite find_1; eauto. ss.
+    }
+    { right. split; auto.
+      ii. eapply DISJOINT. splits; eauto.
+      apply F.in_find_iff. erewrite find_1; eauto. ss.
+    }
+  Qed.
+
   Lemma union_assoc (x y z : NatMap.t elt) : NatMapP.update (NatMapP.update x y) z = NatMapP.update x (NatMapP.update y z).
   Proof.
     eapply eq_ext_is_eq. ii.
@@ -671,7 +688,6 @@ Section NATMAP.
   Proof.
     eapply eq_ext_is_eq. ii. rewrite update_mapsto_iff. pose proof empty_1. firstorder.
   Qed.
-
 End NATMAP.
 
 Ltac solve_andb :=
