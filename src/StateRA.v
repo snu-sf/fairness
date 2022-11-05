@@ -133,6 +133,30 @@ Section INVARIANT.
     iModIntro. iFrame.
   Qed.
 
+  Lemma default_I_get_st_src ths im_src im_tgt st_src st_tgt st
+    :
+    (default_I ths im_src im_tgt st_src st_tgt)
+      -∗
+      (OwnM (Auth.white (Excl.just st: @Excl.t state_src): stateSrcRA))
+      -∗
+      ⌜st_src = st⌝.
+  Proof.
+    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
+    iApply (black_white_equal with "B OWN").
+  Qed.
+
+  Lemma default_I_get_st_tgt ths im_src im_tgt st_src st_tgt st
+    :
+    (default_I ths im_src im_tgt st_src st_tgt)
+      -∗
+      (OwnM (Auth.white (Excl.just st: @Excl.t state_tgt): stateTgtRA))
+      -∗
+      ⌜st_tgt = st⌝.
+  Proof.
+    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
+    iApply (black_white_equal with "C OWN").
+  Qed.
+
   Lemma default_I_thread_alloc ths0 im_src im_tgt0 st_src st_tgt
         tid ths1 im_tgt1
         (THS: TIdSet.add_new tid ths0 ths1)
@@ -192,6 +216,30 @@ Section INVARIANT.
     { eauto. }
     { eauto. }
     iModIntro. iFrame.
+  Qed.
+
+  Lemma default_I_update_ident_source lf ls o
+        ths im_src0 im_tgt st_src st_tgt
+        fm
+        (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
+        (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
+    :
+    (default_I ths im_src0 im_tgt st_src st_tgt)
+      -∗
+      (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
+      -∗
+      #=> (∃ im_src1,
+              (⌜fair_update im_src0 im_src1 fm⌝)
+                **
+                (list_prop_sum (fun i => FairRA.white i o) ls)
+                **
+                default_I ths im_src1 im_tgt st_src st_tgt).
+  Proof.
+    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] WHITES".
+    iPoseProof (FairRA.source_update with "D WHITES") as "> [% [[% D] WHITE]]".
+    { eauto. }
+    { eauto. }
+    iModIntro. iExists _. iFrame. auto.
   Qed.
 
   Lemma arrows_sat_sub ths im_src im_tgt st_src st_tgt

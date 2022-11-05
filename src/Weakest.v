@@ -629,7 +629,7 @@ Section SIM.
   Qed.
 End SIM.
 
-From Fairness Require Import ThreadsRA StateRA FairRA MonotonePCM.
+From Fairness Require Export NatMapRA StateRA FairRA MonotonePCM.
 Require Import Coq.Sorting.Mergesort.
 
 Section STATE.
@@ -641,24 +641,25 @@ Section STATE.
   Variable ident_src: ID.
   Variable ident_tgt: ID.
 
-  Variable wf_src: WF.
-
   Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
   Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
 
-  Let shared_rel := TIdSet.t -> (@imap ident_src wf_src) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
+  Let shared_rel := TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
 
   Variable Invs: list iProp.
 
   Let topset: mset := List.seq 0 (List.length Invs).
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
-  Context `{THSRA: @GRA.inG ths_RA Σ}.
+  Context `{THDRA: @GRA.inG ThreadRA Σ}.
   Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
   Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src wf_src) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
-  Context `{IDENTTHS: @GRA.inG identThsRA Σ}.
+  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+  Context `{ARROWRA: @GRA.inG (ArrowRA ident_tgt) Σ}.
+  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
+  Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
 
   Let I: shared_rel :=
         fun ths im_src im_tgt st_src st_tgt =>
@@ -767,7 +768,7 @@ Section STATE.
     mk_mytype {
         comp_a: A;
         comp_ths: TIdSet.t;
-        comp_im_src: imap ident_src wf_src;
+        comp_im_src: imap ident_src owf;
         comp_im_tgt: imap (sum_tid ident_tgt) nat_wf;
         comp_st_src: state_src;
         comp_st_tgt: state_tgt;
@@ -996,6 +997,34 @@ Section STATE.
     AddModal (MUpd (nth_default True%I Invs) E E P) P (stsim E r g Q itr_src itr_tgt).
   Proof.
     unfold AddModal. iIntros "[> H0 H1]". iApply ("H1" with "H0").
+  Qed.
+
+  Global Instance stsim_elim_iupd_edge
+         E r g R_src R_tgt
+         (Q: R_src -> R_tgt -> iProp)
+         itr_src itr_tgt
+         P
+    :
+    ElimModal True false false (#=(ObligationRA.edges_sat)=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
+  Proof.
+    unfold ElimModal. i. iIntros "[H0 H1]" (? ? ? ? ?) "[D C]".
+    iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
+    { iApply edges_sat_sub. }
+    iApply ("H1" with "P"). iFrame.
+  Qed.
+
+  Global Instance stsim_elim_iupd_arrow
+         E r g R_src R_tgt
+         (Q: R_src -> R_tgt -> iProp)
+         itr_src itr_tgt
+         P
+    :
+    ElimModal True false false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
+  Proof.
+    unfold ElimModal. i. iIntros "[H0 H1]" (? ? ? ? ?) "[D C]".
+    iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
+    { iApply arrows_sat_sub. }
+    iApply ("H1" with "P"). iFrame.
   Qed.
 
   Lemma stsim_wand E r g R_src R_tgt
@@ -1228,48 +1257,54 @@ Section STATE.
     iApply isim_tidR. iApply ("H" with "D").
   Qed.
 
-  Lemma stsim_fairL E f r g R_src R_tgt
+  Lemma stsim_fairL o lf ls
+        E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src itr_tgt im_src0
+        ktr_src itr_tgt
+        (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
+        (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (OwnM (Auth.white (Excl.just im_src0: @Excl.t _): identSrcRA ident_src wf_src))
+    (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
       -∗
-      (∃ im_src1, ⌜fair_update im_src0 im_src1 f⌝ ∧
-                    ((OwnM (Auth.white (Excl.just im_src1: @Excl.t _): identSrcRA ident_src wf_src)) -∗ (stsim E r g Q (ktr_src tt) itr_tgt)))
+      ((list_prop_sum (fun i => FairRA.white i o) ls) -∗ (stsim E r g Q (ktr_src tt) itr_tgt))
       -∗
-      (stsim E r g Q (trigger (Fair f) >>= ktr_src) itr_tgt).
+      (stsim E r g Q (trigger (Fair fm) >>= ktr_src) itr_tgt).
   Proof.
     unfold stsim. iIntros "OWN H" (? ? ? ? ?) "[D C]".
-    iDestruct "H" as (im_src1) "[% H]".
-    iPoseProof (default_I_get_ident_src with "D OWN") as "%". subst.
-    iPoseProof (default_I_update_ident_src with "D OWN") as "> [OWN D]".
-    iPoseProof ("H" with "OWN [D C]") as "H".
+    iPoseProof (default_I_update_ident_source with "D OWN") as "> [% [[% WHITES] D]]".
+    { eauto. }
+    { eauto. }
+    iPoseProof ("H" with "WHITES [D C]") as "H".
     { iFrame. }
     iApply isim_fairL. iExists _. iSplit; eauto.
   Qed.
 
-  Lemma stsim_fairR E f r g R_src R_tgt
+  Lemma stsim_fairR lf ls
+        E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src ktr_tgt im_tgt0
+        itr_src ktr_tgt
+        (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
+        (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+        (NODUP: List.NoDup lf)
     :
-    (OwnM (Auth.white (Excl.just im_tgt0: @Excl.t _): identTgtRA ident_tgt))
+    (list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l ** ObligationRA.tax l) ls)
       -∗
-      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 f⌝ -* (OwnM (Auth.white (Excl.just im_tgt1: @Excl.t _): identTgtRA ident_tgt)) -* stsim E r g Q itr_src (ktr_tgt tt))
+      ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l) ls)
+         -*
+         (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
+         -*
+         stsim E r g Q itr_src (ktr_tgt tt))
       -∗
-      (stsim E r g Q itr_src (trigger (Fair f) >>= ktr_tgt))
+      (stsim E r g Q itr_src (trigger (Fair fm) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "OWN H"  (? ? ? ? ?) "[D C]".
-    iPoseProof (default_I_get_ident_tgt with "D OWN") as "%". subst.
     iApply isim_fairR. iIntros (?) "%".
-    iPoseProof (default_I_update_ident_tgt with "D OWN") as "> [OWN D]". ss.
-    hexploit imap_proj_update_r; eauto. i. des. rewrite LEFT.
-    iAssert (⌜fair_update (imap_proj_id2 im_tgt) (imap_proj_id2 im_tgt1) f⌝)%I as "UPD".
-    { auto. }
-    iPoseProof ("H" with "UPD OWN [D C]") as "H".
-    { iFrame. }
-    change (imap_proj_id1 im_tgt1, imap_proj_id2 im_tgt1) with (imap_proj_id im_tgt1).
-    rewrite imap_sum_proj_id_inv2. iFrame.
+    iPoseProof (default_I_update_ident_target with "D OWN") as "> [[DUTY WHITE] D]".    { eauto. }
+    { eauto. }
+    { eauto. }
+    { eauto. }
+    iApply ("H" with "DUTY WHITE"). iFrame.
   Qed.
 
   Lemma stsim_UB E r g R_src R_tgt
@@ -1311,59 +1346,51 @@ Section STATE.
 
   Lemma stsim_yieldR E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt
+        ktr_src ktr_tgt l
         (TOP: mset_sub topset E)
     :
-    (∃ im_ths0 ths, (OwnM (Auth.white (Excl.just im_ths0: @Excl.t _): identThsRA)) ** (own_threads_white ths ∧ (∀ im_ths1, (⌜fair_update im_ths0 im_ths1 (tids_fmap tid ths)⌝) -* (OwnM (Auth.white (Excl.just im_ths1: @Excl.t _): identThsRA)) -* stsim topset r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+    (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+      -∗
+      ((ObligationRA.duty (inl tid) l)
+         -*
+         (FairRA.white_thread (_Id:=_))
+         -*
+         stsim topset r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
       -∗
       (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    iIntros "H". iApply stsim_discard; [eassumption|].
+    iIntros "H K". iApply stsim_discard; [eassumption|].
     unfold stsim. iIntros (? ? ? ? ?) "[D C]".
     iApply isim_yieldR. unfold I. iFrame.
     iIntros (? ? ? ? ? ?) "[D C] %".
-    iPoseProof "H" as (? ?) "[OWN H]".
-    iAssert (⌜ths1 = ths0⌝)%I as "%".
-    { iDestruct "H" as "[H _]". iApply (default_I_ths_eq with "[D C] H"). iFrame. }
-    subst. iDestruct "H" as "[_ H]".
-    iPoseProof (default_I_get_ident_ths with "D OWN") as "%". subst.
-    iPoseProof (default_I_update_ident_ths with "D OWN") as "> [OWN D]". ss.
-    hexploit imap_proj_update_l; eauto. i. des. rewrite RIGHT.
-    iAssert (⌜fair_update (imap_proj_id1 im_tgt1) (imap_proj_id1 im_tgt2) (tids_fmap tid ths0)⌝)%I as "UPD".
-    { auto. }
-    iPoseProof ("H" with "UPD OWN [D C]") as "H".
-    { iFrame. }
-    change (imap_proj_id1 im_tgt2, imap_proj_id2 im_tgt2) with (imap_proj_id im_tgt2).
-    rewrite imap_sum_proj_id_inv2. iFrame.
+    iPoseProof (default_I_update_ident_thread with "D H") as "> [[DUTY WHITE] D]".
+    { eauto. }
+    iApply ("K" with "DUTY WHITE"). iFrame.
   Qed.
 
   Lemma stsim_sync E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt
+        ktr_src ktr_tgt l
         (TOP: mset_sub topset E)
     :
-    (∃ im_ths0 ths, (OwnM (Auth.white (Excl.just im_ths0: @Excl.t _): identThsRA)) ** (own_threads_white ths ∧ (∀ im_ths1, (⌜fair_update im_ths0 im_ths1 (tids_fmap tid ths)⌝) -* (OwnM (Auth.white (Excl.just im_ths1: @Excl.t _): identThsRA)) -* stsim topset g g Q (ktr_src tt) (ktr_tgt tt))))
+    (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+      -∗
+      ((ObligationRA.duty (inl tid) l)
+         -*
+         (FairRA.white_thread (_Id:=_))
+         -*
+         stsim topset g g Q (ktr_src tt) (ktr_tgt tt))
       -∗
       (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
-    iIntros "H". iApply stsim_discard; [eassumption|].
+    iIntros "H K". iApply stsim_discard; [eassumption|].
     unfold stsim. iIntros (? ? ? ? ?) "[D C]".
     iApply isim_sync. unfold I. iFrame.
     iIntros (? ? ? ? ? ?) "[D C] %".
-    iPoseProof "H" as (? ?) "[OWN H]".
-    iAssert (⌜ths1 = ths0⌝)%I as "%".
-    { iDestruct "H" as "[H _]". iApply (default_I_ths_eq with "[D C] H"). iFrame. }
-    subst. iDestruct "H" as "[_ H]".
-    iPoseProof (default_I_get_ident_ths with "D OWN") as "%". subst.
-    iPoseProof (default_I_update_ident_ths with "D OWN") as "> [OWN D]". ss.
-    hexploit imap_proj_update_l; eauto. i. des. rewrite RIGHT.
-    iAssert (⌜fair_update (imap_proj_id1 im_tgt1) (imap_proj_id1 im_tgt2) (tids_fmap tid ths0)⌝)%I as "UPD".
-    { auto. }
-    iPoseProof ("H" with "UPD OWN [D C]") as "H".
-    { iFrame. }
-    change (imap_proj_id1 im_tgt2, imap_proj_id2 im_tgt2) with (imap_proj_id im_tgt2).
-    rewrite imap_sum_proj_id_inv2. iFrame.
+    iPoseProof (default_I_update_ident_thread with "D H") as "> [[DUTY WHITE] D]".
+    { eauto. }
+    iApply ("K" with "DUTY WHITE"). iFrame.
   Qed.
 
   Lemma stsim_sort E r g R_src R_tgt
@@ -1379,696 +1406,6 @@ Section STATE.
     rewrite <- NatSort.Permuted_sort. reflexivity.
   Qed.
 End STATE.
-
-
-From Ordinal Require Import Ordinal Hessenberg Arithmetic.
-
-Section FAIR.
-  Context `{Σ: GRA.t}.
-
-  Definition itop5 { T0 T1 T2 T3 T4 } (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := True%I.
-
-  Definition itop6 { T0 T1 T2 T3 T4 T5 } (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4): iProp := True%I.
-
-  Definition itop10 { T0 T1 T2 T3 T4 T5 T6 T7 T8 T9} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5) (x7: T7 x0 x1 x2 x3 x4 x5 x6) (x8: T8 x0 x1 x2 x3 x4 x5 x6 x7) (x9: T9 x0 x1 x2 x3 x4 x5 x6 x7 x8): iProp := True%I.
-
-  Definition Pos (k: nat) (n: Ord.t): iProp. Admitted.
-  Definition Neg (k: nat) (n: Ord.t): iProp. Admitted.
-
-  Definition Pending (k: nat): iProp. Admitted.
-  Definition Ongoing (k: nat): iProp. Admitted.
-  Definition Ready (k: nat): iProp. Admitted.
-  Definition Done (k: nat): iProp. Admitted.
-
-  Lemma Pos_persistent k n
-    :
-    (Pos k n)
-      -∗
-      (□ Pos k n).
-  Proof.
-  Admitted.
-
-  Global Program Instance Persistent_Pos k n: Persistent (Pos k n).
-  Next Obligation.
-  Proof.
-    i. iIntros "POS". iPoseProof (Pos_persistent with "POS") as "POS". auto.
-  Qed.
-
-  Definition PosEx k: iProp := ∃ n, Pos k n.
-
-  Lemma PosEx_persistent k
-    :
-    (PosEx k)
-      -∗
-      (□ PosEx k).
-  Proof.
-    iIntros "# H". auto.
-  Qed.
-
-  Global Program Instance Persistent_PosEx k: Persistent (PosEx k).
-
-  Lemma PosEx_unfold k
-    :
-    (PosEx k)
-      -∗
-      (∃ n, Pos k n).
-  Proof.
-  Admitted.
-
-  Lemma Ready_Pos k
-    :
-    (Ready k)
-      -∗
-      (∃ n, Pos k n).
-  Proof.
-  Admitted.
-
-  Lemma Neg_split n0 n1 k n
-        (DECR: Ord.le (Hessenberg.add n0 n1) n)
-    :
-    (Neg k n)
-      -∗
-      (#=> (Neg k n0 ** Neg k n1)).
-  Proof.
-  Admitted.
-
-  Lemma Pos_Neg_annihilate k n1
-    :
-    (Pos k n1)
-      -∗
-      (Neg k (Ord.from_nat 1))
-      -∗
-      (#=> (∃ n0, Pos k n0 ** ⌜Ord.lt n0 n1⌝)).
-  Proof.
-  Admitted.
-
-  Lemma Ready_persistent k
-    :
-    (Ready k)
-      -∗
-      (□ Ready k).
-  Proof.
-  Admitted.
-
-  Global Program Instance Persistent_Ready k: Persistent (Ready k).
-  Next Obligation.
-  Proof.
-    i. iIntros "READY". iPoseProof (Ready_persistent with "READY") as "READY". auto.
-  Qed.
-
-  Lemma Done_persistent k
-    :
-    (Done k)
-      -∗
-      (□ Done k).
-  Proof.
-  Admitted.
-
-  Global Program Instance Persistent_Done k: Persistent (Done k).
-  Next Obligation.
-  Proof.
-    i. iIntros "DONE". iPoseProof (Done_persistent with "DONE") as "DONE". auto.
-  Qed.
-
-  Lemma Ongoing_not_Done k
-    :
-    (Ongoing k)
-      -∗
-      (Done k)
-      -∗
-      False.
-  Proof.
-  Admitted.
-
-  Lemma Pending_not_Done k
-    :
-    (Pending k)
-      -∗
-      (Done k)
-      -∗
-      False.
-  Proof.
-  Admitted.
-
-  Lemma Pending_not_Ready k
-    :
-    (Pending k)
-      -∗
-      (Ready k)
-      -∗
-      False.
-  Proof.
-  Admitted.
-
-  Lemma Pending_not_Ongoing k
-    :
-    (Pending k)
-      -∗
-      (Ongoing k)
-      -∗
-      False.
-  Proof.
-  Admitted.
-
-  Lemma Pending_Ongoing_Ready k
-    :
-    (Pending k)
-      -∗
-      #=> (Ongoing k ** Ready k)
-  .
-  Admitted.
-
-  Lemma Ongoing_Ready k
-    :
-    (Ongoing k)
-      -∗
-      (Ready k)
-  .
-  Admitted.
-
-  Lemma Ongoing_Done k
-    :
-    (Ongoing k)
-      -∗
-      #=> (Done k)
-  .
-  Admitted.
-
-  Definition Eventually (k: nat) (P: iProp) (Q: iProp): iProp :=
-    □ PosEx k ** ((Ongoing k ** P) ∨ ((□ Done k) ** Q)).
-
-  Lemma pending_eventually P Q k
-    :
-    (Pending k)
-      -∗
-      P
-      -∗
-      (#=> Eventually k P Q).
-  Proof.
-  Admitted.
-
-  Lemma eventually_done k P Q
-    :
-    (Done k)
-      -∗
-      (Eventually k P Q)
-      -∗
-      (Q ** (Q -* Eventually k P Q)).
-  Proof.
-  Admitted.
-
-  Lemma eventually_intro_done k P Q
-    :
-    (Done k)
-      -∗
-      Q
-      -∗
-      (Eventually k P Q).
-  Proof.
-  Admitted.
-
-  Lemma eventually_finish k P Q
-    :
-    (Eventually k P Q)
-      -∗
-      ((□ Done k) ∨ (Ongoing k ** P ** (Done k -* Q -* Eventually k P Q))).
-  Proof.
-  Admitted.
-
-  Lemma eventually_unfold k P Q
-    :
-    (Eventually k P Q)
-      -∗
-      ((Ongoing k ** P ** (Done k -* Q -* Eventually k P Q) ∧ (Ongoing k -* P -* Eventually k P Q)) ∨
-         (Done k ** Q ** (Q -* Eventually k P Q))).
-  Proof.
-  Admitted.
-
-  Lemma eventually_obligation k P Q
-    :
-    (Eventually k P Q)
-      -∗
-      (Ready k).
-  Proof.
-  Admitted.
-
-  Global Opaque Eventually.
-
-  Variable state_tgt: Type.
-  Variable state_src: Type.
-
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-
-  Definition St_tgt (st: state_tgt): iProp :=
-    OwnM (Auth.white (Excl.just st: @Excl.t state_tgt): stateTgtRA state_tgt).
-
-  Definition St_src (st: state_src): iProp :=
-    OwnM (Auth.white (Excl.just st: @Excl.t state_src): stateSrcRA state_src).
-
-  Variable ident_src: ID.
-  Variable ident_tgt: ID.
-
-  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
-
-  Variable I: iProp.
-
-  Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> list nat -> iProp), itree srcE R_src -> itree tgtE R_tgt -> list nat -> iProp).
-
-  Variable tid: thread_id.
-
-  Definition fsim: rel -> rel -> rel. Admitted.
-
-  Lemma fsim_base r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src itr_tgt
-    :
-    (@r _ _ Q itr_src itr_tgt os)
-      -∗
-      (fsim r g Q itr_src itr_tgt os)
-  .
-  Admitted.
-
-  Lemma fsim_mono_knowledge (r0 g0 r1 g1: rel) R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src itr_tgt
-        (MON0: forall R_src R_tgt (Q: R_src -> R_tgt -> list nat -> iProp)
-                      os itr_src itr_tgt,
-            (@r0 _ _ Q itr_src itr_tgt os)
-              -∗
-              (#=> (@r1 _ _ Q itr_src itr_tgt os)))
-        (MON1: forall R_src R_tgt (Q: R_src -> R_tgt -> list nat -> iProp)
-                      os itr_src itr_tgt,
-            (@g0 _ _ Q itr_src itr_tgt os)
-              -∗
-              (#=> (@g1 _ _ Q itr_src itr_tgt os)))
-    :
-    bi_entails
-      (fsim r0 g0 Q os itr_src itr_tgt)
-      (fsim r1 g1 Q os itr_src itr_tgt)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_coind A
-        (R_src: forall (a: A), Prop)
-        (R_tgt: forall (a: A), Prop)
-        (Q: forall (a: A), R_src a -> R_tgt a -> list nat -> iProp)
-        (o : forall (a: A), list nat)
-        (itr_src : forall (a: A), itree srcE (R_src a))
-        (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
-        (P: forall (a: A), iProp)
-        (r g0: rel)
-        (COIND: forall (g1: rel) a,
-            (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> list nat -> iProp)
-                  os itr_src itr_tgt,
-                   @g0 R_src R_tgt Q itr_src itr_tgt os -* @g1 R_src R_tgt Q itr_src itr_tgt os)
-                 **
-                 (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a) (o a))))
-              -∗
-              (P a)
-              -∗
-              (fsim r g1 (Q a) (itr_src a) (itr_tgt a) (o a)))
-    :
-    (forall a, bi_entails (P a) (fsim r g0 (Q a) (itr_src a) (itr_tgt a) (o a))).
-  Proof.
-  Admitted.
-
-  Lemma fsim_upd r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src itr_tgt
-    :
-    (#=> (fsim r g Q itr_src itr_tgt os))
-      -∗
-      (fsim r g Q itr_src itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Global Instance fsim_elim_upd
-         r g R_src R_tgt
-         (Q: R_src -> R_tgt -> list nat -> iProp)
-         os itr_src itr_tgt
-         P
-    :
-    ElimModal True false false (#=> P) P (fsim r g Q itr_src itr_tgt os) (fsim r g Q itr_src itr_tgt os).
-  Proof.
-  Admitted.
-
-  Lemma fsim_wand r g R_src R_tgt
-        (Q0 Q1: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src itr_tgt
-    :
-    (fsim r g Q0 itr_src itr_tgt os)
-      -∗
-      (∀ r_src r_tgt os,
-          ((Q0 r_src r_tgt os) -∗ #=> (Q1 r_src r_tgt os)))
-      -∗
-      (fsim r g Q1 itr_src itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_mono r g R_src R_tgt
-        (Q0 Q1: R_src -> R_tgt -> list nat -> iProp)
-        (MONO: forall r_src r_tgt os,
-            (Q0 r_src r_tgt os)
-              -∗
-              (#=> (Q1 r_src r_tgt os)))
-        os itr_src itr_tgt
-    :
-    (fsim r g Q0 itr_src itr_tgt os)
-      -∗
-      (fsim r g Q1 itr_src itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_frame r g R_src R_tgt
-        P (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src itr_tgt
-    :
-    (fsim r g Q itr_src itr_tgt os)
-      -∗
-      P
-      -∗
-      (fsim r g (fun r_src r_tgt os => P ** Q r_src r_tgt os) itr_src itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_bind r g R_src R_tgt S_src S_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        (itr_src: itree srcE S_src) (itr_tgt: itree tgtE S_tgt)
-        os ktr_src ktr_tgt
-    :
-    (fsim r g (fun s_src s_tgt => fsim r g Q (ktr_src s_src) (ktr_tgt s_tgt)) itr_src itr_tgt os)
-      -∗
-      (fsim r g Q (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_ret r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os r_src r_tgt
-    :
-    (Q r_src r_tgt os)
-      -∗
-      (fsim r g Q (Ret r_src) (Ret r_tgt) os)
-  .
-  Admitted.
-
-  Lemma fsim_tauL r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src itr_tgt
-    :
-    (fsim r g Q itr_src itr_tgt os)
-      -∗
-      (fsim r g Q (Tau itr_src) itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_tauR r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src itr_tgt
-    :
-    (fsim r g Q itr_src itr_tgt os)
-      -∗
-      (fsim r g Q itr_src (Tau itr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_chooseL X r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src itr_tgt
-    :
-    (∃ x, fsim r g Q (ktr_src x) itr_tgt os)
-      -∗
-      (fsim r g Q (trigger (Choose X) >>= ktr_src) itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_chooseR X r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src ktr_tgt
-    :
-    (∀ x, fsim r g Q itr_src (ktr_tgt x) os)
-      -∗
-      (fsim r g Q itr_src (trigger (Choose X) >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_putL st r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src itr_tgt st_src
-    :
-    (St_src st_src)
-      -∗
-      (St_src st -∗ fsim r g Q (ktr_src tt) itr_tgt os)
-      -∗
-      (fsim r g Q (trigger (Put st) >>= ktr_src) itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_putR st r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src ktr_tgt st_tgt
-    :
-    (St_tgt st_tgt)
-      -∗
-      (St_tgt st -∗ fsim r g Q itr_src (ktr_tgt tt) os)
-      -∗
-      (fsim r g Q itr_src (trigger (Put st) >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_getL st r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src itr_tgt
-    :
-    (St_src st ∧ fsim r g Q (ktr_src st) itr_tgt os)
-      -∗
-      (fsim r g Q (trigger (@Get _) >>= ktr_src) itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_getR st r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src ktr_tgt
-    :
-    (St_tgt st  ∧ fsim r g Q itr_src (ktr_tgt st) os)
-      -∗
-      (fsim r g Q itr_src (trigger (@Get _) >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_tidL r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src itr_tgt
-    :
-    (fsim r g Q (ktr_src tid) itr_tgt os)
-      -∗
-      (fsim r g Q (trigger GetTid >>= ktr_src) itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_tidR r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src ktr_tgt
-    :
-    (fsim r g Q itr_src (ktr_tgt tid) os)
-      -∗
-      (fsim r g Q itr_src (trigger GetTid >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_UB r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src itr_tgt
-    :
-    ⊢ (fsim r g Q (trigger Undefined >>= ktr_src) itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_observe fn args r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src ktr_tgt
-    :
-    (∀ ret, fsim g g Q (ktr_src ret) (ktr_tgt ret) os)
-      -∗
-      (fsim r g Q (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_yieldL r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src ktr_tgt
-    :
-    (fsim r g Q (ktr_src tt) (trigger (Yield) >>= ktr_tgt) os)
-      -∗
-      (fsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_alloc_obligation n
-        r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src itr_tgt
-    :
-    (∀ k, Pending k -* Neg k n -* (□ Pos k n) -* fsim r g Q itr_src itr_tgt (k::os))
-      -∗
-      (fsim r g Q itr_src itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_dealloc_obligation os1
-        r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        k os0 itr_src itr_tgt
-        (DEALLOC: Permutation (k::os1) os0)
-    :
-    (Ongoing k)
-      -∗
-      (□ Done k -* fsim r g Q itr_src itr_tgt os1)
-      -∗
-      (fsim r g Q itr_src itr_tgt os0)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_obligation_not_done
-        r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        k os itr_src itr_tgt
-        (IN: List.In k os)
-    :
-    (Done k)
-      -∗
-      (fsim r g Q itr_src itr_tgt os)
-  .
-  Proof.
-  Admitted.
-
-  Definition optPos (k: option nat): iProp :=
-    match k with
-    | Some k => Ready k
-    | None => True
-    end.
-
-  Definition optNeg (k: option nat): iProp :=
-    match k with
-    | Some k => Neg k (Ord.from_nat 1) ∨ Done k
-    | None => True
-    end.
-
-  Fixpoint recharging (os: list nat) (I: iProp): iProp :=
-    match os with
-    | [] => I
-    | k::os => (Ready k -* (Neg k Ord.omega ** recharging os I)) ∧ (recharging os I)
-    end.
-
-  (* Fixpoint recharging (os: list nat): iProp := *)
-  (*   match os with *)
-  (*   | [] => True *)
-  (*   | k::os => (Ready k -* Neg k Ord.omega) ** recharging os *)
-  (*   end. *)
-
-  Lemma fsim_yieldR k r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src ktr_tgt
-    :
-    (optPos k ** recharging os I ** (I -∗ optNeg k -* fsim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt) os))
-      -∗
-      (fsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  Lemma fsim_sync k r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src ktr_tgt
-    :
-    (optPos k ** recharging os I ** (I -∗ optNeg k -* fsim g g Q (ktr_src tt) (ktr_tgt tt) os))
-      -∗
-      (fsim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) os).
-  Proof.
-  Admitted.
-
-
-  (* Context `{SRCORD: @GRA.inG (@FairRA.t ident_src Ord.t _) Σ}. *)
-  (* Context `{TGTORD: @GRA.inG (@FairRA.t ident_tgt nat _) Σ}. *)
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src wf_src) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
-
-
-
-  Lemma fsim_fairL f r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os ktr_src itr_tgt im_src0
-    :
-    (OwnM (Auth.white (Excl.just im_src0: @Excl.t _): identSrcRA ident_src wf_src))
-      -∗
-      (∃ im_src1, ⌜fair_update im_src0 im_src1 f⌝ ∧
-                    ((OwnM (Auth.white (Excl.just im_src1: @Excl.t _): identSrcRA ident_src wf_src)) -∗ (fsim r g Q (ktr_src tt) itr_tgt os)))
-      -∗
-      (fsim r g Q (trigger (Fair f) >>= ktr_src) itr_tgt os).
-  Proof.
-  Admitted.
-
-  Lemma fsim_fairR f r g R_src R_tgt
-        (Q: R_src -> R_tgt -> list nat -> iProp)
-        os itr_src ktr_tgt im_tgt0
-    :
-    (OwnM (Auth.white (Excl.just im_tgt0: @Excl.t _): identTgtRA ident_tgt))
-      -∗
-      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 f⌝ -* (OwnM (Auth.white (Excl.just im_tgt1: @Excl.t _): identTgtRA ident_tgt)) -* fsim r g Q itr_src (ktr_tgt tt) os)
-      -∗
-      (fsim r g Q itr_src (trigger (Fair f) >>= ktr_tgt) os)
-  .
-  Proof.
-  Admitted.
-
-  (* Lemma fsim_fairL o f r g R_src R_tgt *)
-  (*       (Q: R_src -> R_tgt -> list nat -> iProp) *)
-  (*       os ktr_src itr_tgt *)
-  (*   : *)
-  (*   (Infsum (fun i: sig (fun i => f i = Flag.fail) => FairRA.white (proj1_sig i) (Ord.from_nat 1))) *)
-  (*     -∗ *)
-  (*     ((Infsum (fun i: sig (fun i => f i = Flag.success) => FairRA.white (proj1_sig i) o)) -* (fsim r g Q (ktr_src tt) itr_tgt os)) *)
-  (*     -∗ *)
-  (*     (fsim r g Q (trigger (Fair f) >>= ktr_src) itr_tgt os). *)
-  (* Proof. *)
-  (* Admitted. *)
-
-  (* Lemma fsim_fairR f r g R_src R_tgt *)
-  (*       (Q: R_src -> R_tgt -> list nat -> iProp) *)
-  (*       os itr_src ktr_tgt *)
-  (*   : *)
-  (*   (Infsum (fun i: sig (fun i => f i = Flag.success) => (∃ a, FairRA.black (proj1_sig i) a)%I)) *)
-  (*     -∗ *)
-  (*     ((Infsum (fun i: sig (fun i => f i = Flag.fail) => FairRA.white (proj1_sig i) 1)) -* (fsim r g Q itr_src (ktr_tgt tt) os)) *)
-  (*     -∗ *)
-  (*     (fsim r g Q itr_src (trigger (Fair f) >>= ktr_tgt) os). *)
-  (* Proof. *)
-  (* Admitted. *)
-
-End FAIR.
 
 From Fairness Require Export Red IRed.
 
