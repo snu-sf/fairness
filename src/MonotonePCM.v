@@ -1936,6 +1936,22 @@ Section SUM.
     | hd::tl => P hd ** list_prop_sum P tl
     end.
 
+  Lemma list_prop_sum_wand (A: Type) (P0 P1 : A → iProp)
+        (l: list A)
+    :
+    (list_prop_sum P0 l)
+      -∗
+      (list_prop_sum (fun a => P0 a -* P1 a) l)
+      -∗
+      (list_prop_sum P1 l).
+  Proof.
+    induction l; ss.
+    { iIntros. auto. }
+    iIntros "[HD0 TL0] [HD1 TL1]". iSplitL "HD0 HD1".
+    { iApply ("HD1" with "HD0"). }
+    { iApply (IHl with "TL0 TL1"). }
+  Qed.
+
   Lemma list_prop_sum_perm A P (l0 l1: list A)
         (PERM: Permutation l0 l1)
     :
@@ -2311,3 +2327,218 @@ Module OneShotP.
     apply OneShot.pending_not_shot in H0. auto.
   Qed.
 End OneShotP.
+
+
+
+Module Frac.
+  Program Instance t: URA.t := {
+      car := option Qp;
+      unit := None;
+      _add := fun q0 q1 =>
+                match q0, q1 with
+                | Some q0, Some q1 => Some (q0 + q1)%Qp
+                | None, _ => q1
+                | _, None => q0
+                end;
+      _wf := fun q =>
+               match q with
+               | None => True
+               | Some q => (q ≤ 1)%Qp
+               end;
+      core := fun _ => None;
+    }
+  .
+  Next Obligation.
+    des_ifs. f_equal. eapply Qp_add_comm.
+  Qed.
+  Next Obligation.
+    des_ifs. f_equal. eapply Qp_add_assoc.
+  Qed.
+  Next Obligation.
+    unseal "ra". des_ifs.
+  Qed.
+  Next Obligation.
+    unseal "ra". ss.
+  Qed.
+  Next Obligation.
+    unseal "ra". des_ifs.
+    etrans; [|eauto]. apply Qp_le_add_l.
+  Qed.
+  Next Obligation.
+    unseal "ra". auto.
+  Qed.
+  Next Obligation.
+    exists None. unseal "ra". auto.
+  Qed.
+End Frac.
+
+
+Module Consent.
+  Section CONSENT.
+    Variable A: Type.
+    Definition car: Type := bool + (Qp * A).
+
+    Definition consent_add (a0 a1: car): car :=
+      match a0, a1 with
+      | inl false, a
+      | a, inl false => a
+      | inr (q0, a0), inr (q1, a1) =>
+          if (excluded_middle_informative (a0 = a1)) then inr ((q0 + q1)%Qp, a0) else inl true
+      | _, _ => inl true
+      end.
+
+    Program Instance t: URA.t := {
+        car := car;
+        unit := inl false;
+        _add := consent_add;
+        _wf := fun a =>
+                 match a with
+                 | inl true => False
+                 | inr (q, a) => (q ≤ 1)%Qp
+                 | _ => True
+                 end;
+        core := fun _ => inl false;
+      }
+    .
+    Next Obligation.
+      unfold consent_add. des_ifs. f_equal. f_equal. eapply Qp_add_comm.
+    Qed.
+    Next Obligation.
+      unfold consent_add. des_ifs. f_equal. f_equal. eapply Qp_add_assoc.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold consent_add. des_ifs.
+    Qed.
+    Next Obligation.
+      unseal "ra". ss.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold consent_add in *. des_ifs.
+      etrans; [|eauto]. apply Qp_le_add_l.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold consent_add. auto.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold consent_add. exists (inl false). auto.
+    Qed.
+
+    Definition vote (a: A) (q: Qp): t := inr (q, a).
+
+    Lemma vote_one_wf a: URA.wf (vote a 1%Qp).
+    Proof.
+      ur. ss.
+    Qed.
+
+    Lemma vote_agree a0 q0 a1 q1
+          (WF: URA.wf (vote a0 q0 ⋅ vote a1 q1))
+      :
+      a0 = a1 /\ (q0 + q1 ≤ 1)%Qp.
+    Proof.
+      ur in WF. des_ifs.
+    Qed.
+
+    Lemma vote_wf a q
+          (WF: URA.wf (vote a q))
+      :
+      (q ≤ 1)%Qp.
+    Proof.
+      ur in WF. ss.
+    Qed.
+
+    Lemma vote_sum a q0 q1
+      :
+      vote a (q0 + q1)%Qp = vote a q0 ⋅ vote a q1.
+    Proof.
+      ur. des_ifs.
+    Qed.
+
+    Lemma vote_revolution a0 a1
+      :
+      URA.updatable (vote a0 1%Qp) (vote a1 1%Qp).
+    Proof.
+      unfold vote. ii. ur in H. ur. des_ifs.
+      apply Qp_not_add_le_l in H; auto.
+    Qed.
+  End CONSENT.
+End Consent.
+
+Module ConsentP.
+  Lemma vote_agree (A: Type)
+        `{@GRA.inG (Consent.t A) Σ}
+        (a0 a1: A) q0 q1
+    :
+    (OwnM (Consent.vote a0 q0) ** (OwnM (Consent.vote a1 q1)))
+      -∗
+      (⌜a0 = a1⌝).
+  Proof.
+    iIntros "[H0 H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H". apply Consent.vote_agree in H0. des. auto.
+  Qed.
+
+  Definition voted (A: Type)
+             `{@GRA.inG (Consent.t A) Σ}
+             (a: A): iProp :=
+    ∃ q, OwnM (Consent.vote a q).
+
+  Lemma voted_agree (A: Type)
+        `{@GRA.inG (Consent.t A) Σ}
+        (a0 a1: A)
+    :
+    (voted a0 ** voted a1)
+      -∗
+      (⌜a0 = a1⌝).
+  Proof.
+    iIntros "[[% H0] [% H1]]". iApply vote_agree. iFrame.
+  Qed.
+
+  Lemma voted_duplicable (A: Type)
+        `{@GRA.inG (Consent.t A) Σ}
+        (a: A)
+    :
+    (voted a)
+      -∗
+      (voted a ** voted a).
+  Proof.
+    iIntros "[% H]". erewrite <- (Qp_div_2 q).
+    rewrite Consent.vote_sum.
+    iDestruct "H" as "[H0 H1]". iSplitL "H0".
+    { iExists _. iFrame. }
+    { iExists _. iFrame. }
+  Qed.
+
+  Definition voted_singleton (A: Type)
+             `{@GRA.inG (@FiniteMap.t (Consent.t A)) Σ}
+             k (a: A): iProp :=
+    ∃ q, OwnM (FiniteMap.singleton k (Consent.vote a q)).
+
+  Lemma voted_agree_singleton (A: Type)
+        `{@GRA.inG (@FiniteMap.t (Consent.t A)) Σ}
+        k (a0 a1: A)
+    :
+    (voted_singleton k a0 ** voted_singleton k a1)
+      -∗
+      (⌜a0 = a1⌝).
+  Proof.
+    iIntros "[[% H0] [% H1]]".
+    iCombine "H0 H1" as "H". iOwnWf "H".
+    rewrite FiniteMap.singleton_add in H0. apply FiniteMap.singleton_wf in H0.
+    apply Consent.vote_agree in H0. des. auto.
+  Qed.
+
+  Lemma voted_duplicable_singleton (A: Type)
+        `{@GRA.inG (@FiniteMap.t (Consent.t A)) Σ}
+        k (a: A)
+    :
+    (voted_singleton k a)
+      -∗
+      (voted_singleton k a ** voted_singleton k a).
+  Proof.
+    iIntros "[% H]". erewrite <- (Qp_div_2 q).
+    rewrite Consent.vote_sum.
+    rewrite <- FiniteMap.singleton_add.
+    iDestruct "H" as "[H0 H1]". iSplitL "H0".
+    { iExists _. iFrame. }
+    { iExists _. iFrame. }
+  Qed.
+End ConsentP.

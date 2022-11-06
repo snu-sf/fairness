@@ -1065,7 +1065,7 @@ Module Fuel.
 
     Lemma white_sum `{OrderedCM.t A} (a0 a1: A)
       :
-      white a0 ⋅ white a1
+      ((white a0: @URA.car t) ⋅ white a1)
       =
         white (OrderedCM.add a0 a1).
     Proof.
@@ -1075,7 +1075,7 @@ Module Fuel.
 
     Lemma black_sum `{OrderedCM.t A} (a0 a1: A) (q0 q1: Qp)
       :
-      black a0 q0 ⋅ black a1 q1
+      (black a0 q0: @URA.car t) ⋅ black a1 q1
       =
         black (OrderedCM.meet a0 a1) (q0 + q1).
     Proof.
@@ -1107,7 +1107,7 @@ Module Fuel.
     Lemma white_mon `{OrderedCM.t A} (a0 a1: A)
           (LE: OrderedCM.le a0 a1)
       :
-      URA.updatable (white a1) (white a0).
+      URA.updatable (white a1: @URA.car t) (white a0).
     Proof.
       ii. ur in H0. ur. unfold wf in *. des_ifs. des. split; auto.
       etrans; eauto.
@@ -1119,7 +1119,7 @@ Module Fuel.
     Lemma black_mon `{OrderedCM.t A} (a0 a1: A) (q: Qp)
           (LE: OrderedCM.le a0 a1)
       :
-      URA.updatable (black a0 q) (black a1 q).
+      URA.updatable (black a0 q: @URA.car t) (black a1 q).
     Proof.
       ii. ur in H0. ur. unfold wf in *. des_ifs.
       { hexploit (from_monoid_exist s0). i. des. subst.
@@ -1137,8 +1137,8 @@ Module Fuel.
     Lemma success_update `{OrderedCM.t A} a0 a1
       :
       URA.updatable
-        (black a0 1)
-        (black (OrderedCM.add a0 a1) 1 ⋅ white a1).
+        (black a0 1: @URA.car t)
+        ((black (OrderedCM.add a0 a1) 1: @URA.car t) ⋅ white a1).
     Proof.
       ii. ur in H0. ur. unfold wf in *. des_ifs.
       { hexploit (from_monoid_exist s0). i. des. subst. split; auto.
@@ -1162,7 +1162,7 @@ Module Fuel.
     Lemma decr_update `{OrderedCM.t A} a0 a1 q
       :
       URA.updatable_set
-        (black a0 q ⋅ white a1)
+        ((black a0 q: @URA.car t) ⋅ white a1)
         (fun r => exists a2, r = black a2 q /\ OrderedCM.le (OrderedCM.add a1 a2) a0).
     Proof.
       ii. ur in WF. unfold wf in WF. des_ifs.

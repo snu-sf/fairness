@@ -108,6 +108,61 @@ Module NatMapRA.
       { apply NatMapP.F.add_in_iff. eauto. }
     Qed.
 
+    Lemma extends_iff m0 m1
+      :
+      URA.extends (Some m0) (Some m1)
+      <->
+        (forall k a (FIND: NatMap.find k m0 = Some a), NatMap.find k m1 = Some a).
+    Proof.
+      split.
+      { ii. rr in H. des. ur in H. des_ifs.
+        apply NatMap.find_1. apply NatMapP.update_mapsto_iff.
+        apply NatMap.find_2 in FIND. right. split; auto.
+        apply disjoint_true_iff in Heq.
+        ii. eapply Heq; eauto. split; eauto.
+        apply NatMapP.F.in_find_iff. apply NatMap.find_1 in FIND. ii. clarify.
+      }
+      { i. exists (Some (NatMapP.diff m1 m0)).
+        ur. des_ifs.
+        { f_equal. apply nm_eq_is_equal.
+          apply NatMapP.F.Equal_mapsto_iff. i.
+          rewrite NatMapP.update_mapsto_iff.
+          rewrite NatMapP.diff_mapsto_iff. split; i; des; auto.
+          { apply NatMap.find_2. eapply H.
+            apply NatMap.find_1. auto.
+          }
+          { destruct (NatMap.find k m0) eqn:FIND.
+            { apply NatMap.find_1 in H0.
+              hexploit H; eauto. i. clarify.
+              right. split; auto.
+              { apply NatMap.find_2; auto. }
+              { ii. apply NatMapP.diff_in_iff in H0. des.
+                eapply H2. apply NatMapP.F.in_find_iff. ii. clarify.
+              }
+            }
+            { left. split; auto. ii.
+              apply NatMapP.F.in_find_iff in H1. ss.
+            }
+          }
+        }
+        { apply disjoint_false_iff in Heq.
+          exfalso. eapply Heq. ii. des.
+          apply NatMapP.diff_in_iff in H1. des. ss.
+        }
+      }
+    Qed.
+
+    Lemma extends_singleton_iff m k a
+      :
+      URA.extends (singleton k a) (Some m)
+      <->
+        (NatMap.find k m = Some a).
+    Proof.
+      unfold singleton. rewrite extends_iff. split; i.
+      { eapply H. apply nm_find_add_eq. }
+      { rewrite NatMapP.F.add_o in FIND. des_ifs. }
+    Qed.
+
     Lemma add_local_update m k a
           (NONE: NatMap.find k m = None)
       :

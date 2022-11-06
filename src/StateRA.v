@@ -44,6 +44,66 @@ Section UPD.
   Qed.
 End UPD.
 
+
+Section PAIR.
+  Variable A: Type.
+  Variable B: Type.
+
+  Context `{IN: @GRA.inG (Auth.t (Excl.t (A * B))) Σ}.
+  Context `{INA: @GRA.inG (Auth.t (Excl.t A)) Σ}.
+  Context `{INB: @GRA.inG (Auth.t (Excl.t B)) Σ}.
+
+  Definition pair_sat: iProp :=
+    ∃ a b,
+      (OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
+        **
+        (OwnM (Auth.black (Excl.just a: @Excl.t A)))
+        **
+        (OwnM (Auth.black (Excl.just b: @Excl.t B)))
+  .
+
+  Lemma pair_access_fst a
+    :
+    (OwnM (Auth.white (Excl.just a: @Excl.t A)))
+      -∗
+      (pair_sat)
+      -∗
+      (∃ b, (OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
+              **
+              (∀ a,
+                  ((OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
+                     -*
+                     #=> ((OwnM (Auth.white (Excl.just a: @Excl.t A))) ** (pair_sat))))).
+  Proof.
+    iIntros "H [% [% [[H0 H1] H2]]]".
+    iPoseProof (black_white_equal with "H1 H") as "%". subst.
+    iExists _. iFrame. iIntros (?) "H0".
+    iPoseProof (black_white_update with "H1 H") as "> [H1 H]".
+    iModIntro. iFrame. iExists _, _. iFrame.
+  Qed.
+
+  Lemma pair_access_snd b
+    :
+    (OwnM (Auth.white (Excl.just b: @Excl.t B)))
+      -∗
+      (pair_sat)
+      -∗
+      (∃ a, (OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
+              **
+              (∀ b,
+                  ((OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
+                     -*
+                     #=> ((OwnM (Auth.white (Excl.just b: @Excl.t B))) ** (pair_sat))))).
+  Proof.
+    iIntros "H [% [% [[H0 H1] H2]]]".
+    iPoseProof (black_white_equal with "H2 H") as "%". subst.
+    iExists _. iFrame. iIntros (?) "H0".
+    iPoseProof (black_white_update with "H2 H") as "> [H2 H]".
+    iModIntro. iFrame. iExists _, _. iFrame.
+  Qed.
+End PAIR.
+
+
 From Fairness Require Import FairRA.
 
 Section INVARIANT.

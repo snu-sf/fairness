@@ -78,165 +78,686 @@ Module TicketLock.
 End TicketLock.
 
 From Fairness Require Import IProp IPM Weakest.
-From Fairness Require Import ModSim PCM MonotonePCM ThreadsRA StateRA FairRA.
-
+From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
 
 Section SIM.
   Context `{Σ: GRA.t}.
 
-  Context `{EXCL: @GRA.inG (Excl.t unit) Σ}.
   Context `{MONORA: @GRA.inG monoRA Σ}.
-  Context `{THSRA: @GRA.inG ths_RA Σ}.
+  Context `{THDRA: @GRA.inG ThreadRA Σ}.
   Context `{STATESRC: @GRA.inG (stateSrcRA (bool * NatMap.t unit)) Σ}.
   Context `{STATETGT: @GRA.inG (stateTgtRA (unit * SCMem.t)) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA (id_sum thread_id void) (mk_wf Ord.lt_well_founded)) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA (id_sum void SCMem.val)) Σ}.
-  (* Context `{IDENTTHS: @GRA.inG identThsRA Σ}. *)
+  Context `{IDENTSRC: @GRA.inG (identSrcRA (id_sum thread_id void)) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA (void + SCMem.val)%type) Σ}.
+  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+  Context `{ARROWRA: @GRA.inG (ArrowRA (void + SCMem.val)%type) Σ}.
+  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
+  Context `{ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+
   Context `{MEMRA: @GRA.inG memRA Σ}.
-  Context `{FAIRSRC: @GRA.inG (@FairRA.t thread_id Ord.t _) Σ}.
-  (* Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}. *)
+  Context `{EXCL: @GRA.inG (Excl.t unit) Σ}.
+  Context `{ONESHOTRA: @GRA.inG (OneShot.t thread_id) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t unit)) Σ}.
+  Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}.
+  Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
 
+  Definition wait_set_wf (W: NatMap.t unit) (n: nat): iProp :=
+    ((natmap_prop_sum W (fun tid _ => own_thread tid))
+       **
+       (OwnM (Auth.black (Some W: NatMapRA.t unit)))
+       **
+       (⌜NatMap.cardinal W = n⌝)).
 
-
-
-  Global Program Instance ge_PreOrder: PreOrder ge.
-  Next Obligation.
+  Lemma natmap_prop_sum_in A P k a (m: NatMap.t A)
+        (FIND: NatMap.find k m = Some a)
+    :
+    (natmap_prop_sum m P)
+      -∗
+      (P k a).
   Proof.
-    ii. lia.
+    iIntros "MAP". iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eauto. }
+    eauto.
   Qed.
-  Next Obligation.
+
+  Lemma wait_set_wf_add W n tid
+    :
+    (wait_set_wf W n)
+      -∗
+      (own_thread tid)
+      -∗
+      #=> (wait_set_wf (NatMap.add tid tt W) (S n) ** (OwnM (Auth.white (NatMapRA.singleton tid tt: NatMapRA.t unit)))).
   Proof.
-    ii. lia.
+    iIntros "[[SUM BLACK] %] TH".
+    iAssert (⌜NatMap.find tid W = None⌝)%I as "%".
+    { destruct (NatMap.find tid W) eqn:EQ; auto.
+      iExFalso. iPoseProof (natmap_prop_sum_in with "SUM") as "H".
+      { eauto. }
+      iPoseProof (own_thread_unique with "TH H") as "%". ss.
+    }
+    iPoseProof (OwnM_Upd with "BLACK") as "> [BLACK WHTIE]".
+    { apply Auth.auth_alloc. eapply (@NatMapRA.add_local_update unit W tid tt). auto. }
+    iModIntro. iFrame. iSplit.
+    { iApply (natmap_prop_sum_add with "SUM"). auto. }
+    iPureIntro. subst.
+    eapply NatMapP.cardinal_2; eauto.
+    { apply NatMapP.F.not_find_in_iff; eauto. }
+    { ss. }
   Qed.
 
-  Fixpoint waiters now_serving (n: nat) (W: NatMap.t unit): iProp :=
-    match n with
-    | 0 => True
-    | S n' => (∃ i, (monoWhite 1 (@partial_map_PreOrder nat nat) (partial_map_singleton (now_serving + n) i)) ** Pending i ** natmap_prop_sum W (fun k _ => FairRA.white k (Ord.S Ord.O))) ** (waiters now_serving n' W)
-    end.
+  Lemma wait_set_wf_sub W n tid
+    :
+    (wait_set_wf W n)
+      -∗
+      (OwnM (Auth.white (NatMapRA.singleton tid tt: NatMapRA.t unit)))
+      -∗
+      (∃ n',
+          (⌜n = S n'⌝)
+            **
+            #=> (wait_set_wf (NatMap.remove tid W) n' ** own_thread tid)).
+  Proof.
+    iIntros "[[SUM BLACK] %] TH".
+    iCombine "BLACK TH" as "OWN". iOwnWf "OWN".
+    iAssert (⌜NatMap.find tid W = Some tt⌝)%I as "%".
+    { iOwnWf "OWN".
+      ur in H0. rewrite URA.unit_idl in H0. des.
+      apply NatMapRA.extends_singleton_iff in H0. auto.
+    }
+    hexploit cardinal_remove.
+    { apply NatMapP.F.in_find_iff. rewrite H1. ss. }
+    i. subst. iExists _. iSplit; auto.
+    iPoseProof (OwnM_Upd with "OWN") as "> BLACK".
+    { eapply Auth.auth_dealloc. apply NatMapRA.remove_local_update. }
+    iModIntro. iPoseProof (natmap_prop_remove_find with "SUM") as "[H SUM]"; eauto.
+    iFrame. auto.
+  Qed.
 
-  Let I: iProp :=
-        (∃ m,
-            (memory_black m)
-              **
-              (St_tgt (tt, m)))
-          **
-          (∃ (im: imap thread_id (mk_wf Ord.lt_well_founded)) im_void,
-              (FairRA.blacks im)
-                **
-              (OwnM (Auth.white (Excl.just (imap_sum_id (im, im_void)): @Excl.t _): identSrcRA (id_sum thread_id void) (mk_wf Ord.lt_well_founded))))
-          **
+  Definition regionl (n: nat): iProp :=
+    (∃ l, (Region.black l) ** (⌜List.length l = n⌝)).
 
-          (∃ now_serving n,
-              (points_to TicketLock.next_ticket (SCMem.val_nat (now_serving + n)))
-                **
-                (points_to TicketLock.now_serving (SCMem.val_nat now_serving))
-                **
-                (monoBlack 0 ge_PreOrder now_serving)
-                **
-                (∃ f,
-                    (monoBlack 1 (@partial_map_PreOrder nat nat) f)
+  Lemma regionl_alloc n a tid
+    :
+    (regionl n)
+      -∗
+      (#=> (regionl (S n) ** Region.white n (tid, a))).
+  Proof.
+    iIntros "[% [BLACK %]]". subst.
+    iPoseProof (Region.black_alloc with "BLACK") as "> [BLACK WHITE]".
+    iModIntro. iFrame. iExists _. iSplit; auto.
+    iPureIntro. ss. apply last_length.
+  Qed.
+
+  Definition waiters (start n: nat): iProp :=
+    (list_prop_sum
+       (fun a => (∃ k j tid,
+                     (Region.white (start + a) (tid, k))
+                       **
+                       (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
+                       **
+                       (ObligationRA.correl_thread j 1%ord)
+                       **
+                       (ObligationRA.pending j (/2)%Qp)
+                       **
+                       (∃ o, ObligationRA.black j o)
+                       **
+                       (FairRA.white (inl tid) (a × Ord.one)%ord)))
+       (seq 0 n))%I.
+
+  Lemma waiters_nil start
+    :
+    ⊢ waiters start 0.
+  Proof.
+    unfold waiters. ss. auto.
+  Qed.
+
+  Lemma waiters_push start n
+    :
+    (waiters start n)
+      -∗
+      (∃ k j tid,
+          (Region.white (start + n) (tid, k))
+            **
+            (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
+            **
+            (ObligationRA.correl_thread j 1%ord)
+            **
+            (ObligationRA.pending j (/2)%Qp)
+            **
+            (∃ o, ObligationRA.black j o)
+            **
+            (FairRA.white (inl tid) (n × Ord.one)%ord))
+      -∗
+      (waiters start (S n)).
+  Proof.
+    unfold waiters. rewrite list_numbers.seq_S.
+    iIntros "WAIT H". iApply list_prop_sum_combine. iSplitR "H".
+    { auto. }
+    { ss. iFrame. }
+  Qed.
+
+  Lemma waiters_rollback start n tid k a x
+        (IN: start <= a < start + n)
+    :
+    (regionl x)
+      -∗
+      (Region.white a (tid, k))
+      -∗
+      (waiters start n)
+      -∗
+      ((regionl x)
+         **
+         (∃ j, (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
+                 **
+                 (ObligationRA.pending j (/2)%Qp))
+         **
+         (∀ j,
+             (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
+               -*
+               (ObligationRA.correl_thread j 1%ord)
+               -*
+               (ObligationRA.pending j (/2)%Qp)
+               -*
+               (∃ o, ObligationRA.black j o)
+               -*
+               (waiters start n))).
+  Proof.
+    assert (RANGE: (0 <= a - start < 0 + n)%nat).
+    { lia. }
+    iIntros "BLACK WHITE WAIT".
+    apply in_seq in RANGE. apply in_split in RANGE. des.
+    unfold waiters. rewrite RANGE.
+    iPoseProof (list_prop_sum_split with "WAIT") as "[WAIT0 WAIT1]".
+    iPoseProof (list_prop_sum_cons_unfold with "WAIT1") as "[[% [% [% [[[[[H0 H1] H2] H3] H4] H5]]]] WAIT2]".
+    replace (start + (a - start)) with a by lia.
+    iDestruct "BLACK" as "[% [BLACK LEN]]".
+    iPoseProof (Region.white_agree with "[BLACK] WHITE H0") as "%".
+    { eauto. }
+    clarify.
+    iSplitL "BLACK LEN H1 H3".
+    { iSplitR "H1 H3".
+      { iExists _. iFrame. }
+      { iExists _. iFrame. }
+    }
+    iIntros (?) "VOTE CORR PEND BLACK".
+    iApply list_prop_sum_combine. iSplitL "WAIT0".
+    { auto. }
+    iApply list_prop_sum_cons_fold. iSplitR "WAIT2".
+    2:{ auto. }
+    iExists _, j0, _. iFrame.
+    replace (start + (a - start)) with a by lia. iFrame.
+  Qed.
+
+  Definition waiters_tax start n: iProp :=
+    (list_prop_sum
+       (fun a => (∃ k tid,
+                     (Region.white (start + a) (tid, k))
+                       **
+                       (FairRA.white (inl tid) Ord.one)))
+       (seq 0 n))%I.
+
+  Definition waiters_set_tax (W: NatMap.t unit): iProp :=
+    (∃ lf,
+        (⌜forall i (IN: @WMod.interp_fmap FairLock.wmod (fun _ => Flag.fail) W i = Flag.fail), List.In i lf⌝)
+          **
+          (list_prop_sum (fun i => FairRA.white i Ord.one) lf)).
+
+  Lemma waiters_tax_push start n
+    :
+    (waiters_tax start n)
+      -∗
+      (∃ k tid,
+          (Region.white (start + n) (tid, k))
+            **
+            (FairRA.white (inl tid) Ord.one))
+      -∗
+      (waiters_tax start (S n)).
+  Proof.
+    unfold waiters_tax. rewrite list_numbers.seq_S.
+    iIntros "WAIT H". iApply list_prop_sum_combine. iSplitR "H".
+    { auto. }
+    { ss. iFrame. }
+  Qed.
+
+  Lemma waiters_pop start n
+    :
+    (waiters start (S n))
+      -∗
+      (∃ k j,
+          (waiters (S start) n)
+            **
+            ((ConsentP.voted_singleton k j)
+               **
+               (ObligationRA.correl_thread j 1%ord)
+               **
+               (ObligationRA.pending j (/2)%Qp)
+               **
+               (∃ o, ObligationRA.black j o))
+            **
+            (waiters_tax (S start) n)).
+  Proof.
+    iIntros "WAIT".
+  Admitted.
+
+  Definition ticketlock_inv
+             (L: bool) (W: NatMap.t unit)
+             (reserved: bool)
+             (now_serving: nat) (n: nat): iProp :=
+    (wait_set_wf W n)
+      **
+      (regionl ((Nat.b2n reserved) + now_serving + n))
+      **
+      ((⌜n = 0 /\ L = false /\ reserved = false⌝ ** OwnM (Excl.just tt: Excl.t unit))
+       ∨
+         ((waiters (S ((Nat.b2n reserved) + now_serving)) n)
+            **
+            (∃ k j,
+                (ConsentP.voted_singleton k j)
+                  **
+                  (ObligationRA.correl_thread j 1%ord)
+                  **
+                  (∃ o, ObligationRA.black j o)
+                  **
+                  (((⌜L = false /\ reserved = true⌝)
                       **
-                      (⌜forall m (LT: now_serving + n < m), f m = None⌝))
-                **
-                ((⌜n = 0⌝ ** St_src (false, NatMap.empty unit))
-                 ∨
-                   (∃ n', ⌜n = S n'⌝ ** ∃ W, St_src (false, W) ** waiters now_serving n' W))).
+                      (OwnM (Excl.just tt: Excl.t unit))
+                      **
+                      (waiters_tax (S ((Nat.b2n reserved) + now_serving)) n)
+                      **
+                      (ObligationRA.pending k (/2)%Qp))
+                   ∨
+                     ((⌜L = true /\ reserved = false⌝)
+                        **
+                        (ObligationRA.shot k)))))).
 
-  Definition blacks_success_single (tid: thread_id) (o: Ord.t)
-             (f0: imap thread_id (mk_wf Ord.lt_well_founded))
+  Definition ticket (n: nat) (tid: thread_id) (k: nat) (j: nat): iProp. Admitted.
+  Definition own_lock (n: nat): iProp. Admitted.
+
+  Lemma ticket_check t tid k j
+        L W reserved now_serving n
     :
-    (FairRA.blacks f0)
+    (ticket t tid k j)
       -∗
-      (#=>
-         (∃ (f1: imap thread_id (mk_wf Ord.lt_well_founded)),
-             ((FairRA.blacks f1)
-                **
-                (FairRA.white tid o)
-                **
-                ⌜fair_update f0 f1 (fun i => if tid_dec i tid then Flag.success else Flag.emp)⌝))).
+      (ticketlock_inv L W reserved now_serving n)
+      -∗
+      (⌜(now_serving = t /\ reserved = true /\ L = false) \/
+         (now_serving < t <= now_serving + n)⌝)%I.
   Admitted.
 
-  Definition blacks_fail_single (tid: thread_id)
-             (f0: imap thread_id (mk_wf Ord.lt_well_founded))
+  Lemma own_check t
+        L W reserved now_serving n
     :
-    (FairRA.blacks f0)
+    (ticketlock_inv L W reserved now_serving n)
       -∗
-      (FairRA.white tid (Ord.S Ord.O))
+      (own_lock t)
       -∗
-      (#=>
-         (∃ (f1: imap thread_id (mk_wf Ord.lt_well_founded)),
-             ((FairRA.blacks f1)
-                **
-                ⌜fair_update f0 f1 (fun i => if tid_dec i tid then Flag.fail else Flag.emp)⌝))).
+      (⌜L = true /\ reserved = false /\ now_serving = t⌝)%I.
   Admitted.
 
-  Lemma imap_sum_update_l (A B: ID) (W: WF)
-        (im_l0 im_l1: imap A W) (im_r: imap B W) fm
-        (UPD: fair_update im_l0 im_l1 fm)
+  Lemma ticketlock_inv_init
     :
-    fair_update
-      (imap_sum_id (im_l0, im_r))
-      (imap_sum_id (im_l1, im_r))
-      (sum_fmap_l fm).
-  Proof.
-    ii. unfold sum_fmap_l. des_ifs.
-    { specialize (UPD a). des_ifs. }
-    { specialize (UPD a). des_ifs. }
-  Qed.
-
-  Lemma imap_sum_update_r (A B: ID) (W: WF)
-        (im_l: imap A W) (im_r0 im_r1: imap B W) fm
-        (UPD: fair_update im_r0 im_r1 fm)
-    :
-    fair_update
-      (imap_sum_id (im_l, im_r0))
-      (imap_sum_id (im_l, im_r1))
-      (sum_fmap_r fm).
-  Proof.
-    ii. unfold sum_fmap_r. des_ifs.
-    { specialize (UPD b). des_ifs. }
-    { specialize (UPD b). des_ifs. }
-  Qed.
-
-  Lemma fair_white_eq k o0 o1
-        (EQ: Ord.eq o0 o1)
-    :
-    (FairRA.white k o0)
+    (Region.black [] ** OwnM (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit)) ** (OwnM (Excl.just tt: Excl.t unit)))
       -∗
-      (FairRA.white k o1).
+      ticketlock_inv false (NatMap.empty unit) false 0 0.
   Proof.
-    erewrite FairRA.white_eq; eauto.
+    iIntros "[[BLACK EMPTY] EXCL]". iSplitR "EXCL".
+    { ss. iSplitL "EMPTY".
+      { unfold wait_set_wf. iFrame. iPureIntro. apply NatMapP.cardinal_1. apply NatMap.empty_1.
+      }
+      { iExists _. iFrame. auto. }
+    }
+    iLeft. iSplit; auto.
   Qed.
 
-  Lemma fair_white_one k o
+  Lemma ticketlock_inv_register L W reserved now_serving n tid
     :
-    (FairRA.white k (Ord.S o))
+    (ticketlock_inv L W reserved now_serving n)
       -∗
-      (FairRA.white k o ** FairRA.white k (Ord.S Ord.O)).
-  Proof.
-    iIntros "H". iApply FairRA.white_split. ss.
-    iApply (fair_white_eq with "H").
-    erewrite Hessenberg.add_S_r. rewrite Hessenberg.add_O_r. reflexivity.
-  Qed.
+      (own_thread tid)
+      -∗
+      (FairRA.white (inl tid) (Ord.one × (S n))%ord)
+      -∗
+      (ticketlock_inv L (NatMap.add tid tt W) reserved now_serving (S n)).
+  Admitted.
+
+  Lemma ticketlock_inv_pass W now_serving n
+    :
+    (ticketlock_inv true W false now_serving (S n))
+      -∗
+      (own_lock now_serving)
+      -∗
+      (ticketlock_inv false W true (S now_serving) n).
+  Admitted.
+
+  Lemma ticketlock_inv_release W now_serving
+    :
+    (ticketlock_inv true W false now_serving 0)
+      -∗
+      (own_lock now_serving)
+      -∗
+      (ticketlock_inv false W false now_serving 0).
+  Admitted.
+
+  Lemma ticketlock_inv_lock W now_serving n tid k j
+    :
+    (ticketlock_inv false W true now_serving n)
+      -∗
+      (ticket now_serving tid k j)
+      -∗
+      ((ObligationRA.pending k (/2)%Qp)
+         **
+         (waiters_set_tax W)
+         **
+         ((ObligationRA.shot k)
+            -*
+            (ticketlock_inv true W false now_serving n))).
+  Admitted.
+
+  Lemma ticketlock_inv_rollback L W reserved now_serving n t tid k j
+        (RANGE: t <= now_serving + n)
+    :
+    (ticketlock_inv L W reserved now_serving n)
+      -∗
+      (ticket t tid k j)
+      -∗
+      ((OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
+         **
+         (ObligationRA.pending j (/2)%Qp)
+         **
+         (∀ j,
+             (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
+               -*
+               (ObligationRA.correl_thread j 1%ord)
+               -*
+               (ObligationRA.pending j (/2)%Qp)
+               -*
+               (∃ o, ObligationRA.black j o)
+               -*
+               (ticket t tid k j ** ticketlock_inv L W reserved now_serving n))).
+  Admitted.
+
+  Let I: list iProp := [
+      (∃ m,
+          (memory_black m)
+            **
+            (St_tgt (tt, m)));
+      (∃ L W reserved now_serving n,
+          (St_src (L, W))
+            **
+            (ticketlock_inv L W reserved now_serving n)
+            **
+            (points_to TicketLock.next_ticket (SCMem.val_nat ((Nat.b2n reserved) + now_serving + n)))
+            **
+            (points_to TicketLock.next_ticket (SCMem.val_nat ((Nat.b2n reserved) + now_serving + n))))]%I.
 
   Lemma sim: ModSim.mod_sim TicketLock.mod FairLock.mod.
   Proof.
-    refine (@ModSim.mk _ _ (mk_wf Ord.lt_well_founded) nat_wf _ _ Σ _ _ _).
+    refine (@ModSim.mk _ _ nat_wf nat_wf _ _ Σ _ _ _).
     { econs. exact 0. }
     { i. exists (S o0). ss. }
     { admit. }
-    { ii. ss. unfold OMod.closed_funs. ss. des_ifs.
-      { cut ((forall tid,
-                 (I ** own_thread tid ⊢ fsim I tid itop6 itop6 (fun r_src r_tgt os => I ** own_thread tid ** ⌜r_src = r_tgt /\ os = []⌝) (WMod.interp_fun FairLock.wmod FairLock.lock_fun args) (OMod.close_itree TicketLock.omod (SCMem.mod [1; 1])
-                                                                                                                                                                                                                  (Mod.wrap_fun TicketLock.lock_fun args)) []))).
+    { i. ss. unfold OMod.closed_funs. ss. des_ifs.
+      { cut (forall tid,
+                (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot5 ibot5 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) (WMod.interp_fun FairLock.wmod FairLock.lock_fun args) (OMod.close_itree TicketLock.omod (SCMem.mod [1; 1]) (Mod.wrap_fun TicketLock.lock_fun args))).
         { admit. }
-        i. iIntros "[INV TH]".
-        unfold TicketLock.lock_fun, WMod.interp_fun, Mod.wrap_fun. ss.
-        destruct (Any.downcast args); ss.
-        2:{ unfold UB. lred. iApply fsim_UB. }
-        lred. rred. rewrite close_itree_call. ss. rred.
-        iApply fsim_sync. instantiate (1:=None). ss. iFrame. iIntros "INV _".
+        i. iIntros "[TH DUTY]".
+        unfold WMod.interp_fun, Mod.wrap_fun, TicketLock.lock_fun.
+        destruct (Any.downcast args) eqn:EQ.
+        2:{ ss. unfold UB. lred. iApply stsim_UB. }
+        clear EQ. ss. lred. rred.
+        rewrite close_itree_call. ss. rred.
+        iApply (stsim_sync with "[DUTY]"); [msubtac|iFrame|]. iIntros "DUTY _".
+        rred. unfold SCMem.faa_fun, Mod.wrap_fun. rred.
+        iopen 0 "[% [MEM ST]]" "K0".
+        iApply stsim_getR. iSplit.
+        { iFrame. }
+        rred. iApply stsim_tauR. rred.
+        iopen 1 "[% [% [% [% [% [[[SRC INV] NOW] NEXT]]]]]]" "K1".
+        iPoseProof (memory_ra_faa with "MEM NOW") as "[% [% > [MEM NOW]]]".
+        des. rewrite H.
+        rred. iApply stsim_getR. iSplit.
+        { iFrame. }
+        rred. iApply (stsim_putR with "ST"). iIntros "ST".
+        rred. iApply stsim_tauR.
+        rred. iApply stsim_tauR.
+        rred. lred. iApply stsim_tidL. lred.
+        iApply stsim_getL. iSplit.
+        { iFrame. }
+        lred. iApply (stsim_putL with "SRC"). iIntros "SRC".
+        lred. iApply stsim_fairL.
+        { instantiate (1:=[]). unfold sum_fmap_l. i. des_ifs. }
+        { instantiate (1:=[inl tid]). unfold sum_fmap_l. i. ss. des; clarify. des_ifs. }
+        { ss. }
+        instantiate (1:=Hessenberg.add Ord.one (Ord.one × (S n))%ord).
+        iIntros "[WHITES _]".
+        rewrite unfold_iter_eq.
+        lred. iApply stsim_chooseL. iExists true.
+        iPoseProof (FairRA.white_split with "WHITES") as "[WHITE WHITES]".
+        lred. iApply (stsim_fairL with "[WHITE]").
+        { instantiate (1:=[inl tid]). unfold sum_fmap_l. i. ss. des_ifs. auto. }
+        { instantiate (1:=[]). unfold sum_fmap_l. i. ss. }
+        { ss. iFrame. }
+        iIntros "_".
+        lred.
+
+
+
+
+
+
+des_ifs. }
+
+        { ss. }
+
+
+ss.
+
+
+Hessenberg.add
+        iIntros "[
+FairRA.cut_white
+        { instantiate (1:=[]). i
+
+ss.
+
+iIntros "ST".
+
+
+
+
+
+        iPoseProof (@ObligationRA.alloc _ _ ((1 × Ord.omega) × 10)%ord) as "> [% [[# BLACK WHITES] OBL]]".
+        iPoseProof (ObligationRA.cut_white with "WHITES") as "[WHITES WHITE]".
+        iPoseProof (ObligationRA.duty_alloc with "DUTY WHITE") as "> DUTY".
+        iPoseProof (ObligationRA.duty_correl_thread with "DUTY") as "# CORR"; [ss; eauto|].
+        iPoseProof (OwnM_Upd with "PEND") as "> SHOT".
+        { eapply (OneShot.pending_shot k). }
+        iPoseProof (own_persistent with "SHOT") as "# SHOTP". iClear "SHOT". ss.
+        iMod ("K0" with "[MEM ST]") as "_".
+        { iExists _. iFrame. }
+        iPoseProof (ObligationRA.pending_split with "[OBL]") as "[OBL0 OBL1]".
+        { rewrite Qp_inv_half_half. iFrame. }
+        iMod ("K1" with "[POINTF POINTL OBL1]") as "_".
+        { iRight. iExists _. iFrame. iSplitR.
+          { iSplit; [iSplit; [iApply "SHOTP"|iApply "CORR"]|eauto]. }
+          { iLeft. iFrame. }
+        }
+        { msubtac. }
+        iPoseProof (ObligationRA.cut_white with "WHITES") as "[WHITES WHITE]".
+        msimpl. iApply (stsim_yieldR with "[DUTY WHITE]").
+        { msubtac. }
+        { iFrame. iSplit; auto. }
+        iIntros "DUTY _".
+        rred. iApply stsim_tauR.
+        iPoseProof (ObligationRA.cut_white with "WHITES") as "[WHITES WHITE]".
+        rred. iApply (stsim_yieldR with "[DUTY WHITE]").
+        { msubtac. }
+        { iFrame. iSplit; auto. }
+        iIntros "DUTY _".
+        rred. iApply stsim_tauR.
+        rred. rewrite close_itree_call. ss.
+        iPoseProof (ObligationRA.cut_white with "WHITES") as "[WHITES WHITE]".
+        rred. iApply (stsim_yieldR with "[DUTY WHITE]").
+        { msubtac. }
+        { iFrame. iSplit; auto. }
+        iIntros "DUTY _".
+        unfold SCMem.store_fun, Mod.wrap_fun. rred.
+        iopen 0 "[% [MEM ST]]" "K0".
+        iApply stsim_getR. iSplit.
+        { iFrame. }
+        rred. iApply stsim_tauR. rred.
+        iopen 1 "[[[POINTL POINTF] PEND]|[% [H H1]]]" "K1".
+        { iExFalso. iApply OneShotP.pending_not_shot. iSplit; iFrame. auto. }
+        { iPoseProof (OneShotP.shot_agree with "[H]") as "%".
+          { iSplit.
+            { iApply "SHOTP". }
+            { iDestruct "H" as "[[[H _] _] _]". iApply "H". }
+          }
+          subst.
+          iDestruct "H1" as "[[POINTF PEND]|[POINTF OBL1]]".
+          { iPoseProof (memory_ra_store with "MEM POINTF") as "[% [% > [MEM POINTF]]]".
+            rewrite H2. ss.
+            rred. iApply stsim_getR. iSplit.
+            { iFrame. }
+            rred. iApply (stsim_putR with "ST"). iIntros "ST".
+            rred. iApply stsim_tauR.
+            rred. iApply stsim_tauR. rred.
+            iMod ("K0" with "[MEM ST]") as "_".
+            { iExists _. iFrame. }
+            iPoseProof (ObligationRA.pending_shot with "[OBL0 PEND]") as "> # OSHOT".
+            { rewrite <- Qp_inv_half_half. iApply (ObligationRA.pending_sum with "OBL0 PEND"). }
+            iMod ("K1" with "[POINTF H OSHOT]") as "_".
+            { iRight. iExists _. iFrame. iRight. iFrame. auto. }
+            { msubtac. }
+            iPoseProof (ObligationRA.duty_done with "DUTY OSHOT") as "> DUTY".
+            iApply (stsim_sync with "[DUTY]").
+            { msubtac. }
+            { iFrame. }
+            iIntros "DUTY _".
+            iApply stsim_tauR.
+            iApply stsim_ret. iModIntro. iFrame. auto.
+          }
+          { iExFalso. iApply (ObligationRA.pending_not_shot with "OBL0 OBL1"). }
+        }
+      }
+      { iDestruct "H" as "[[[[# SHOTK # CORR] [% # BLACK]] POINTL] F]".
+        iPoseProof (memory_ra_load with "MEM POINTL") as "%". des; clarify.
+        rewrite H. ss.
+        rred. iApply stsim_tauR.
+        iMod ("K0" with "[MEM ST]") as "_".
+        { iExists _. iFrame. }
+        iMod ("K1" with "[POINTL F]") as "_".
+        { iRight. iExists _. iFrame. auto. }
+        { msubtac. }
+        rred. iStopProof. pattern n. revert n.
+        apply (well_founded_induction Ord.lt_well_founded). intros o IH.
+        iIntros "[# [SHOTK [CORR BLACK]] [TH DUTY]]".
+        rewrite OpenMod.unfold_iter. rred.
+        iApply (stsim_yieldR with "[DUTY]").
+        { msubtac. }
+        { iFrame. }
+        iIntros "DUTY WHITE".
+        rred. iApply stsim_tauR. rred.
+        rewrite close_itree_call. ss.
+        unfold SCMem.load_fun, Mod.wrap_fun.
+        rred. iApply (stsim_yieldR with "[DUTY]").
+        { msubtac. }
+        { iFrame. }
+        iIntros "DUTY _".
+        iopen 0 "[% [MEM ST]]" "K0".
+        rred. iApply stsim_getR. iSplit.
+        { iFrame. }
+        rred. iApply stsim_tauR. rred.
+        iopen 1 "[FALSE|[% H]]" "K1".
+        { iExFalso. iApply OneShotP.pending_not_shot. iSplit; [|iApply "SHOTK"].
+          iDestruct "FALSE" as "[[? ?] ?]". iFrame.
+        }
+        iDestruct "H" as "[X [Y|Y]]".
+        { iPoseProof (OneShotP.shot_agree with "[X]") as "%".
+          { iSplit.
+            { iApply "SHOTK". }
+            { iDestruct "X" as "[[[H ?] ?] ?]". iApply "H". }
+          }
+          subst.
+          iPoseProof (ObligationRA.correl_thread_correlate with "CORR WHITE") as "> [WHITE|WHITE]"; cycle 1.
+          { iExFalso. iApply (ObligationRA.pending_not_shot with "[Y] WHITE").
+            iDestruct "Y" as "[_ ?]". eauto.
+          }
+          iPoseProof (memory_ra_load with "MEM [Y]") as "%".
+          { iDestruct "Y" as "[? _]". iFrame. }
+          des. rewrite H1.
+          rred. iApply stsim_tauR.
+          iMod ("K0" with "[MEM ST]") as "_".
+          { iExists _. iFrame. }
+          iMod ("K1" with "[X Y]") as "_".
+          { iRight. iExists _. iFrame. }
+          { msubtac. }
+          rred. iApply (stsim_yieldR with "[DUTY]").
+          { msubtac. }
+          { iFrame. }
+          iIntros "DUTY _".
+          rred. iApply stsim_tauR.
+          rred. rewrite close_itree_call. ss.
+          unfold SCMem.compare_fun, Mod.wrap_fun.
+          rred. iApply (stsim_yieldR with "[DUTY]").
+          { msubtac. }
+          { iFrame. }
+          iIntros "DUTY _".
+          iopen 0 "[% [MEM ST]]" "K0".
+          rred. iApply stsim_getR. iSplit.
+          { iFrame. }
+          iMod ("K0" with "[MEM ST]") as "_".
+          { iExists _. iFrame. }
+          { msubtac. }
+          rred. iApply stsim_tauR.
+          rred. iApply stsim_tauR.
+          rred. iApply (stsim_yieldR with "[DUTY]").
+          { msubtac. }
+          { iFrame. }
+          iIntros "DUTY _".
+          rred. iApply stsim_tauR.
+          rred. iApply stsim_tauR.
+          iPoseProof (ObligationRA.black_white_decr_one with "BLACK WHITE") as "> [% [# BLACK1 %]]".
+          iApply IH; eauto. iFrame. iModIntro. iSplit; auto.
+        }
+        { iPoseProof (memory_ra_load with "MEM [Y]") as "%".
+          { iDestruct "Y" as "[? _]". iFrame. }
+          des. rewrite H1.
+          rred. iApply stsim_tauR.
+          iMod ("K0" with "[MEM ST]") as "_".
+          { iExists _. iFrame. }
+          iMod ("K1" with "[X Y]") as "_".
+          { iRight. iExists _. iFrame. }
+          { msubtac. }
+          rred. iApply (stsim_yieldR with "[DUTY]").
+          { msubtac. }
+          { iFrame. }
+          iIntros "DUTY _".
+          rred. iApply stsim_tauR.
+          rred. rewrite close_itree_call. ss.
+          unfold SCMem.compare_fun, Mod.wrap_fun.
+          rred. iApply (stsim_yieldR with "[DUTY]").
+          { msubtac. }
+          { iFrame. }
+          iIntros "DUTY _".
+          iopen 0 "[% [MEM ST]]" "K0".
+          rred. iApply stsim_getR. iSplit.
+          { iFrame. }
+          iMod ("K0" with "[MEM ST]") as "_".
+          { iExists _. iFrame. }
+          { msubtac. }
+          rred. iApply stsim_tauR.
+          rred. iApply stsim_tauR.
+          rred. iApply (stsim_sync with "[DUTY]").
+          { msubtac. }
+          { iFrame. }
+          iIntros "DUTY _".
+          rred. iApply stsim_tauR.
+          rred. iApply stsim_ret.
+          iModIntro. iFrame. auto.
+        }
+      }
+
+instantiate (1:=None). ss. iFrame. iIntros "INV _".
         rred. lred. iApply fsim_tidL. lred.
         iDestruct "INV" as "[[[%m [MEM TGT]] IM] [% [% [[[[NEXT NOW] MONO] MAP] WAIT]]]]".
         unfold Mod.wrap_fun, SCMem.faa_fun.

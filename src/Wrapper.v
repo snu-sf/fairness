@@ -64,7 +64,10 @@ Module WMod.
            ITree.iter
              (fun (_: unit) =>
                 b <- trigger (Choose bool);;
-                if (b: bool) then _ <- trigger Yield;; Ret (inl tt)
+                if (b: bool)
+                then
+                  _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
+                  _ <- trigger Yield;; Ret (inl tt)
                 else
                   '(st, ts) <- trigger (@Get _);;
                   next <- trigger (Choose (sig (f.(body) arg st)));;
@@ -95,7 +98,9 @@ Module WMod.
       ITree.iter
         (fun (_: unit) =>
            b <- trigger (Choose bool);;
-           if (b: bool) then _ <- trigger Yield;; Ret (inl tt)
+           if (b: bool) then
+             _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
+             _ <- trigger Yield;; Ret (inl tt)
            else
              '(st, ts) <- trigger (@Get _);;
              next <- trigger (Choose (sig (step st)));;
