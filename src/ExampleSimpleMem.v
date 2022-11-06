@@ -311,7 +311,17 @@ Section SIM.
           iDestruct "FALSE" as "[[? ?] ?]". iFrame.
         }
         iDestruct "H" as "[X [Y|Y]]".
-        { iPoseProof (memory_ra_load with "MEM [Y]") as "%".
+        { iPoseProof (oneshot_agree with "[X]") as "%".
+          { iSplit.
+            { iApply "SHOTK". }
+            { iDestruct "X" as "[[[H ?] ?] ?]". iApply "H". }
+          }
+          subst.
+          iPoseProof (ObligationRA.correl_thread_correlate with "CORR WHITE") as "> [WHITE|WHITE]"; cycle 1.
+          { iExFalso. iApply (ObligationRA.pending_not_shot with "[Y] WHITE").
+            iDestruct "Y" as "[_ ?]". eauto.
+          }
+          iPoseProof (memory_ra_load with "MEM [Y]") as "%".
           { iDestruct "Y" as "[? _]". iFrame. }
           des. rewrite H1.
           rred. iApply stsim_tauR.
@@ -345,356 +355,44 @@ Section SIM.
           iIntros "DUTY _".
           rred. iApply stsim_tauR.
           rred. iApply stsim_tauR.
-          iPoseProof (ObligationRA.black_white_decr_one with "BLACK WHITE
-
-          iApply IH.
-
-          rred.
-
-
- ss.
-
-iApply (stsim_yieldR with "[DUTY]").
+          iPoseProof (ObligationRA.black_white_decr_one with "BLACK WHITE") as "> [% [# BLACK1 %]]".
+          iApply IH; eauto. iFrame. iModIntro. iSplit; auto.
+        }
+        { iPoseProof (memory_ra_load with "MEM [Y]") as "%".
+          { iDestruct "Y" as "[? _]". iFrame. }
+          des. rewrite H1.
+          rred. iApply stsim_tauR.
+          iMod ("K0" with "[MEM ST]") as "_".
+          { iExists _. iFrame. }
+          iMod ("K1" with "[X Y]") as "_".
+          { iRight. iExists _. iFrame. }
+          { mset_sub_tac. }
+          rred. iApply (stsim_yieldR with "[DUTY]").
           { mset_sub_tac. }
           { iFrame. }
           iIntros "DUTY _".
-
-iApply stsim_tauR.
-
-clarify.
-          i.
-
-des; clarify.
-
-
-iApply st
-        {
-
-[[[[# SHOTK # CORR] [% # BLACK]] POINTL] F]
-
-        rred. iApply stsim_tauR. rred.
-        iopen 1 "[FALSE|[% H]]" "K1".
-        { iExFalso. iApply oneshot_pending_not_shot. iSplit; [|iApply "SHOTK"].
-          iDestruct "FALSE" as "[[? ?] ?]". iFrame.
-        }
-
-OneShot.pending_not_shot.
-
-        rred.
-
-iApply (stsim_yieldR with "[DUTY]").
-        { mset_sub_tac. }
-        { iFrame. }
-        iIntros "DUTY _".
-
-        rred.
-
-        iApply (stsi        iopen 0 "[% [MEM ST]]" "K0".
-                iApply stsim_getR. iSplit.
-                { iFrame. }
-                rred. iApply stsim_tauR. rred.
-                unfold SCMem.cas.
-                iopen 1 "[[[POINTL POINTF] PEND]|[% H]]" "K1".
-
-iFrame. iSplit; auto. }
-
-ired.
-
-  "SHOTK" : OwnM (OneShot.shot k)
-  "CORR" : ObligationRA.correl_thread k 1
-  "BLACK" : ObligationRA.black k n
-  --------------------------------------□
-  "TH" : own_thread tid
-  "DUTY" : ObligationRA.duty (inl tid) []
-
-
-        iPoseProof (memory_ra_store with "MEM POINTL") as "[% [% > [MEM POINTL]]]".
-        rewrite H1. ss.
-        rred. iApply stsim_getR. iSplit.
-        { iFrame. }
-        rred. iApply (stsim_putR with "ST"). iIntros "ST".
-        rred. iApply stsim_tauR.
-        rred. iApply stsim_tauR.
-        rred.
-        iPoseProof (@ObligationRA.alloc _ _ ((1 × Ord.omega) × 10)%ord) as "> [% [[BLACK WHITES] OBL]]".
-        iPoseProof (cut_white with "WHITES") as "[WHITES WHITE]".
-        iPoseProof (ObligationRA.duty_alloc with "DUTY WHITE") as "> DUTY".
-        iPoseProof (ObligationRA.duty_correl_thread with "DUTY") as "# CORR"; [ss; eauto|].
-        iPoseProof (OwnM_Upd with "PEND") as "> SHOT".
-        { eapply (OneShot.pending_shot k). }
-        iPoseProof (own_persistent with "SHOT") as "# SHOTP". iClear "SHOT". ss.
-        iMod ("K0" with "[MEM ST]") as "_".
-        { iExists _. iFrame. }
-        iPoseProof (ObligationRA.pending_split with "[OBL]") as "[OBL0 OBL1]".
-        { rewrite Qp_inv_half_half. iFrame. }
-        iMod ("K1" with "[POINTF POINTL OBL1]") as "_".
-        { iRight. iExists _. iFrame. iSplitR.
-          { iSplit; [iApply "SHOTP"|iApply "CORR"]. }
-          { iLeft. iFrame. }
-        }
-        { mset_sub_tac. }
-        iPoseProof (cut_white with "WHITES") as "[WHITES WHITE]".
-        msimpl. iApply (stsim_yieldR with "[DUTY WHITE]").
-        { mset_sub_tac. }
-        { iFrame. iSplit; auto. }
-        iIntros "DUTY _".
-        rred. iApply stsim_tauR.
-        iPoseProof (cut_white with "WHITES") as "[WHITES WHITE]".
-        rred. iApply (stsim_yieldR with "[DUTY WHITE]").
-        { mset_sub_tac. }
-        { iFrame. iSplit; auto. }
-        iIntros "DUTY _".
-        rred. iApply stsim_tauR.
-        rred. rewrite close_itree_call. ss.
-        iPoseProof (cut_white with "WHITES") as "[WHITES WHITE]".
-        rred. iApply (stsim_yieldR with "[DUTY WHITE]").
-        { mset_sub_tac. }
-        { iFrame. iSplit; auto. }
-        iIntros "DUTY _".
-        unfold SCMem.store_fun, Mod.wrap_fun. rred.
-        iopen 0 "[% [MEM ST]]" "K0".
-        iApply stsim_getR. iSplit.
-        { iFrame. }
-        rred. iApply stsim_tauR. rred.
-        iopen 1 "[[[POINTL POINTF] PEND]|[% [H H1]]]" "K1".
-        { iExFalso. iCombine "PEND SHOTP" as "SHOT". iOwnWf "SHOT".
-          apply OneShot.pending_not_shot in H2. ss.
-        }
-        { iAssert (OwnM (OneShot.shot k0)) with "[H]" as "# SHOT".
-          { iDestruct "H" as "[[H _] _]". iApply "H". }
-          iCombine "SHOTP SHOT" as "SHOTEQ". iOwnWf "SHOTEQ".
-          apply OneShot.shot_agree in H2. subst.
-          iDestruct "H1" as "[[POINTF PEND]|[POINTF OBL1]]".
-          { iPoseProof (memory_ra_store with "MEM POINTF") as "[% [% > [MEM POINTF]]]".
-            rewrite H2. ss.
-            rred. iApply stsim_getR. iSplit.
-            { iFrame. }
-            rred. iApply (stsim_putR with "ST"). iIntros "ST".
-            rred. iApply stsim_tauR.
-            rred. iApply stsim_tauR. rred.
-            iMod ("K0" with "[MEM ST]") as "_".
-            { iExists _. iFrame. }
-            iPoseProof (ObligationRA.pending_shot with "[OBL0 PEND]") as "> # OSHOT".
-            { rewrite <- Qp_inv_half_half. iApply (ObligationRA.pending_sum with "OBL0 PEND"). }
-            iMod ("K1" with "[POINTF H OSHOT]") as "_".
-            { iRight. iExists _. iFrame. iRight. iFrame. auto. }
-            { mset_sub_tac. }
-            iPoseProof (ObligationRA.duty_done with "DUTY OSHOT") as "> DUTY".
-            iApply (stsim_sync with "[DUTY]").
-            { mset_sub_tac. }
-            { iFrame. }
-            iIntros "DUTY _".
-            iApply stsim_tauR.
-            iApply stsim_ret. iModIntro. iFrame. auto.
-          }
-          { iExFalso. iApply (ObligationRA.pending_not_shot with "OBL0 OBL1"). }
-        }
-      }
-
-iCombine "
-
-
-iExfalso
-rred.
-
-        iPoseProof (memory_ra_store with "MEM POINTF") as "[% [% > [MEM POINTF]]]".
-        rewrite H2. ss.
-        rred. iApply stsim_getR. iSplit.
-        { iFrame. }
-        rred. iApply (stsim_putR with "ST"). iIntros "ST".
-        rred. iApply stsim_tauR.
-        rred. iApply stsim_tauR.
-        iApply (stsim_dealloc_obligation with "ONG").
-        { ss. }
-        iIntros "# DONE". iPoseProof ("EVT" with "DONE POINTF") as "EVT".
-        iAssert I with "[MEM POINTL ST MONO EVT]" as "INV".
-        { unfold I. iSplitL "MEM ST".
-          { iExists _. iFrame. }
-          iExists (W_own _). ss. iFrame.
-        }
-        rred. iApply (@stsim_sync _ _ _ _ _ _ _ None). iSplitR "".
-        { ss. auto. }
-        iIntros "INV _". iApply stsim_tauR. iApply stsim_ret. auto.
-      }
-
-
-        unfold SCMem.cas.
-
-
-        iDestruct "INV" as "[[% [MEM ST]] [% [MONO H]]]".
-        rred. iApply stsim_getR. iSplit.
-        { iFrame. }
-        rred. iApply stsim_tauR. rred.
-iApply stsim_tauR.
-        rred. rewrite close_itree_call. ss.
-        rred.
-
-iPoseP
-
-        rred.
-
-
-ss. unfold ObligationRA.tax. ss.
-        {
-
- _ _ _ _ _ _ _ None). iSplitR "EXCL NEG".
-        { ss. iFrame. auto. }
-        iIntros "INV _".
-        iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
-
-
-ObligationRA.duty_correl with "DUTY") as "# CORR"; [ss; eauto|].
-
-
-        ObligationRA.white
-
-        iApply (@stsim_alloc_obligation _ _ _ _ _ _ _ (Ord.large × 10)%ord). iIntros "% PEND NEG # POS".
-        iPoseProof (pending_eventually with "PEND POINTF") as "> EVT".
-        iPoseProof (black_updatable with "MONO") as "> MONO".
-        { instantiate (1:=W_own k). econs. }
-        iPoseProof (black_persistent_white with "MONO") as "# MWHITE".
-        iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
-        iAssert I with "[MEM POINTL ST MONO EVT]" as "INV".
-        { unfold I. iSplitL "MEM ST".
-          { iExists _. iFrame. }
-          iExists (W_own _). ss. iFrame.
-        }
-
-        rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). iSplitR "EXCL NEG".
-        { ss. iFrame. auto. }
-        iIntros "INV _".
-        iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
-        rred. iApply stsim_tauR.
-        rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iSplitR; auto.
-        iIntros "INV _".
-        iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
-
-        rred. iApply stsim_tauR.
-        rred. rewrite close_itree_call. ss.
-        rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iSplitR; auto.
-        iIntros "INV _".
-        iPoseProof (Neg_split with "NEG") as "> [FUEL NEG]". { eapply ord_mult_split. }
-
-        unfold SCMem.store_fun, Mod.wrap_fun.
-        iDestruct "INV" as "[[% [MEM ST]] [% [MONO H]]]".
-        rred. iApply stsim_getR. iSplit.
-        { iFrame. }
-        rred. iApply stsim_tauR. rred.
-
-        iPoseProof (black_white_compare with "MWHITE MONO") as "%". inv H2.
-        ss. iDestruct "H" as "[POINTL EVT]".
-        iPoseProof (eventually_unfold with "EVT") as "[[[ONG POINTF] [EVT _]]|[[DONE POINTF] EVT]]".
-        2:{ iApply (stsim_obligation_not_done with "DONE"); ss. auto. }
-        iPoseProof (memory_ra_store with "MEM POINTF") as "[% [% > [MEM POINTF]]]".
-        rewrite H2. ss.
-        rred. iApply stsim_getR. iSplit.
-        { iFrame. }
-        rred. iApply (stsim_putR with "ST"). iIntros "ST".
-        rred. iApply stsim_tauR.
-        rred. iApply stsim_tauR.
-        iApply (stsim_dealloc_obligation with "ONG").
-        { ss. }
-        iIntros "# DONE". iPoseProof ("EVT" with "DONE POINTF") as "EVT".
-        iAssert I with "[MEM POINTL ST MONO EVT]" as "INV".
-        { unfold I. iSplitL "MEM ST".
-          { iExists _. iFrame. }
-          iExists (W_own _). ss. iFrame.
-        }
-        rred. iApply (@stsim_sync _ _ _ _ _ _ _ None). iSplitR "".
-        { ss. auto. }
-        iIntros "INV _". iApply stsim_tauR. iApply stsim_ret. auto.
-      }
-
-      { iDestruct "H" as "[POINTL EVT]".
-        iPoseProof (memory_ra_load with "MEM POINTL") as "%". des; clarify.
-        iPoseProof  (eventually_obligation with "EVT") as "# READY".
-        iPoseProof (Ready_Pos with "READY") as "[% OBL]".
-        rewrite H. ss.
-        rred. iApply stsim_tauR.
-        rred.
-        iPoseProof (black_persistent_white with "MONO") as "# WHITE".
-        iAssert I with "[MEM ST MONO POINTL EVT]" as "INV".
-        { unfold I. iSplitL "MEM ST".
-          { iExists _. iFrame. }
-          iExists (W_own _). ss. iFrame.
-        }
-        iStopProof.
-        pattern n. revert n. eapply (well_founded_induction Ord.lt_well_founded). intros o IH.
-        iIntros "[# [READY [OBL WHITE]] INV]".
-        rewrite unfold_iter_eq. rred.
-        iApply (@stsim_yieldR _ _ _ _ _ _ _ (Some k)).
-        ss. iFrame. iSplitL; auto. iIntros "INV FUEL".
-        rred. iApply stsim_tauR.
-        rred. rewrite close_itree_call. ss.
-        unfold SCMem.load_fun, Mod.wrap_fun. ss.
-        rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iIntros "INV _".
-        iDestruct "INV" as "[[% [MEM ST]] [% [MONO H]]]".
-        rred. iApply stsim_getR. iSplit. { iFrame. }
-        rred. iApply stsim_tauR. rred.
-        iPoseProof (black_white_compare with "WHITE MONO") as "%". inv H1.
-        ss. iDestruct "H" as "[POINTL EVT]".
-        iPoseProof (eventually_unfold with "EVT") as "[[[ONG POINTF] [_ EVT]]|[[DONE POINTF] EVT]]".
-        { iDestruct "FUEL" as "[FUEL|#DONE]"; cycle 1.
-          { iExFalso. iApply (Ongoing_not_Done with "ONG DONE"). }
-          iPoseProof (memory_ra_load with "MEM POINTF") as "%". des. rewrite H1.
-          rred. iApply stsim_tauR.
-          iAssert I with "[MEM POINTL ST MONO EVT ONG POINTF]" as "INV".
-          { unfold I. iSplitL "MEM ST".
-            { iExists _. iFrame. }
-            iExists (W_own _). ss. iFrame. iApply ("EVT" with "ONG POINTF").
-          }
-          rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitR "FUEL".
-          { iSplit; auto. }
-          iIntros "INV _".
-          rred. iApply stsim_tauR.
-          rred. rewrite close_itree_call. ss.
-          unfold SCMem.compare_fun, Mod.wrap_fun. ss.
-          rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iIntros "INV _".
-          rred. iDestruct "INV" as "[[% [MEM ST]] [% [MONO H]]]".
-          iApply stsim_getR. iSplit. { iFrame. }
-          rred. iApply stsim_tauR.
-          rred. iApply stsim_tauR.
-          iAssert I with "[MEM ST MONO H]" as "INV".
-          { unfold I. iSplitL "MEM ST".
-            { iExists _. iFrame. }
-            iExists _. iFrame.
-          }
-          rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitR "FUEL".
-          { iSplit; auto. }
-          iIntros "INV _".
-          rred. iApply stsim_tauR.
-          rred. iApply stsim_tauR.
-          iPoseProof (Pos_Neg_annihilate with "OBL FUEL") as "> [% [H %]]".
-          iClear "OBL". iPoseProof (Pos_persistent with "H") as "# OBL".
-          iApply IH; eauto. iSplit; auto. iClear "INV H". auto.
-        }
-        { iPoseProof (memory_ra_load with "MEM POINTF") as "%". des. rewrite H1.
-          rred. iApply stsim_tauR.
-          iAssert I with "[MEM POINTL ST MONO EVT POINTF]" as "INV".
-          { unfold I. iSplitL "MEM ST".
-            { iExists _. iFrame. }
-            iExists (W_own _). ss. iFrame. iApply "EVT". auto.
-          }
-          rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). ss. iSplitL.
-          { iSplit; auto. }
-          iIntros "INV _".
           rred. iApply stsim_tauR.
           rred. rewrite close_itree_call. ss.
           unfold SCMem.compare_fun, Mod.wrap_fun.
-          rred. iApply (@stsim_yieldR _ _ _ _ _ _ _ None). ss. iFrame. iIntros "INV _".
-          iDestruct "INV" as "[[% [MEM ST]] [% [MONO H]]]".
-          rred. iApply stsim_getR. iSplit; [eauto|].
+          rred. iApply (stsim_yieldR with "[DUTY]").
+          { mset_sub_tac. }
+          { iFrame. }
+          iIntros "DUTY _".
+          iopen 0 "[% [MEM ST]]" "K0".
+          rred. iApply stsim_getR. iSplit.
+          { iFrame. }
+          iMod ("K0" with "[MEM ST]") as "_".
+          { iExists _. iFrame. }
+          { mset_sub_tac. }
           rred. iApply stsim_tauR.
           rred. iApply stsim_tauR.
-          iAssert I with "[MEM ST MONO H]" as "INV".
-          { unfold I. iSplitL "MEM ST".
-            { iExists _. iFrame. }
-            iExists _. iFrame.
-          }
-          rred. iApply (@stsim_sync _ _ _ _ _ _ _ None). ss. iSplitL.
-          { iSplit; auto. }
-          iIntros "INV _". rred. iApply stsim_tauR.
-          rred. iApply stsim_ret. auto.
+          rred. iApply (stsim_sync with "[DUTY]").
+          { mset_sub_tac. }
+          { iFrame. }
+          iIntros "DUTY _".
+          rred. iApply stsim_tauR.
+          rred. iApply stsim_ret.
+          iModIntro. iFrame. auto.
         }
       }
     }
