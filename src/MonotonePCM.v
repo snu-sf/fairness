@@ -712,8 +712,10 @@ End MAP.
 
 
 From iris.bi Require Import derived_laws. Import bi.
-Require Import Coq.Sorting.Mergesort. Import NatSort.
+Require Export Coq.Sorting.Mergesort. Import NatSort.
 
+
+Create HintDb mset.
 Section MUPD.
   Definition mset := list nat.
   Definition mset_disjoint (s0 s1: mset): Prop :=
@@ -1468,8 +1470,11 @@ Use [iMod (MUpd_mask_subseteq E2)] to adjust the mask of your goal to [E2]")
   Qed.
 End MUPD.
 
-Ltac mset_sub_tac :=
+Ltac msubtac :=
   try by (ss; apply mset_sub_b_reflect; ss).
+
+#[export] Hint Unfold NatSort.sort: mset.
+Ltac msimpl := autounfold with mset; simpl.
 
 Lemma injective_map_NoDup_strong A B (f: A -> B) (l: list A)
       (INJ: forall a0 a1 (IN0: List.In a0 l) (IN1: List.In a1 l)
@@ -1484,6 +1489,25 @@ Proof.
   ii. rewrite in_map_iff in H. des.
   hexploit (INJ x a); eauto. i. subst. ss.
 Qed.
+
+Ltac iopen i H K :=
+  let str := constr:(String.append "[" (String.append H (String.append " " (String.append K "]")))) in
+  let Inv := fresh "I" in
+  evar (Inv: nat -> iProp);
+  ((iPoseProof (@MUpd_open _ Inv i) as "> _H";
+    [msubtac|
+      let x := (eval cbn in (Inv i)) in
+      change (Inv i) with x;
+      subst Inv;
+      msimpl;
+      iDestruct "_H" as str])
+   +
+     (iPoseProof (@MUpd_open _ Inv i) as "> _H";
+      [let x := (eval cbn in (Inv i)) in
+       change (Inv i) with x;
+       subst Inv;
+       msimpl;
+       iDestruct "_H" as str])).
 
 
 Section UPDATING.
@@ -2214,3 +2238,76 @@ Module OneShot.
     Qed.
   End ONESHOT.
 End OneShot.
+
+Module OneShotP.
+  Global Program Instance shot_persistent (A: Type)
+         `{@GRA.inG (OneShot.t A) Σ}
+         (a: A)
+    :
+    Persistent (OwnM (OneShot.shot a)).
+  Next Obligation.
+    i. iIntros "H". iPoseProof (own_persistent with "H") as "# G". ss.
+  Qed.
+
+  Lemma shot_agree (A: Type)
+        `{@GRA.inG (OneShot.t A) Σ}
+        (a0 a1: A)
+    :
+    (OwnM (OneShot.shot a0) ∧ (OwnM (OneShot.shot a1)))
+      -∗
+      (⌜a0 = a1⌝).
+  Proof.
+    iIntros "[# H0 # H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShot.shot_agree in H0. auto.
+  Qed.
+
+  Lemma pending_not_shot (A: Type)
+        `{@GRA.inG (OneShot.t A) Σ}
+        (a: A) q
+    :
+    (OwnM (OneShot.pending A q) ∧ (OwnM (OneShot.shot a)))
+      -∗
+      False.
+  Proof.
+    iIntros "[H0 # H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShot.pending_not_shot in H0. auto.
+  Qed.
+
+  Global Program Instance shot_persistent_singleton (A: Type)
+         `{@GRA.inG (@FiniteMap.t (OneShot.t A)) Σ}
+         k (a: A)
+    :
+    Persistent (OwnM (FiniteMap.singleton k (OneShot.shot a))).
+  Next Obligation.
+    i. iIntros "H". iPoseProof (own_persistent with "H") as "# G".
+    rewrite FiniteMap.singleton_core. ss.
+  Qed.
+
+  Lemma shot_agree_singleton (A: Type)
+        `{@GRA.inG (@FiniteMap.t (OneShot.t A)) Σ}
+        k (a0 a1: A)
+    :
+    (OwnM (FiniteMap.singleton k (OneShot.shot a0)) ∧ (OwnM (FiniteMap.singleton k (OneShot.shot a1))))
+      -∗
+      (⌜a0 = a1⌝).
+  Proof.
+    iIntros "[# H0 # H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H".
+    rewrite FiniteMap.singleton_add in H0. apply FiniteMap.singleton_wf in H0.
+    apply OneShot.shot_agree in H0. auto.
+  Qed.
+
+  Lemma pending_not_shot_singleton (A: Type)
+        `{@GRA.inG (@FiniteMap.t (OneShot.t A)) Σ}
+        k (a: A) q
+    :
+    (OwnM (FiniteMap.singleton k (OneShot.pending A q)) ∧ (OwnM (FiniteMap.singleton k (OneShot.shot a))))
+      -∗
+      False.
+  Proof.
+    iIntros "[H0 # H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H".
+    rewrite FiniteMap.singleton_add in H0. apply FiniteMap.singleton_wf in H0.
+    apply OneShot.pending_not_shot in H0. auto.
+  Qed.
+End OneShotP.

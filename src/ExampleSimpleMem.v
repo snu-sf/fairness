@@ -101,80 +101,6 @@ Section SIM.
                 ∨
                   (points_to loc_f (SCMem.val_nat 1) ** ObligationRA.shot k))))]%I.
 
-
-  Require Import Coq.Sorting.Mergesort.
-
-  Create HintDb mset.
-  Hint Unfold NatSort.sort: mset.
-  Ltac msimpl := autounfold with mset; simpl.
-
-  Ltac iopen i H K :=
-    let str := constr:(String.append "[" (String.append H (String.append " " (String.append K "]")))) in
-    let Inv := fresh "I" in
-    evar (Inv: nat -> iProp);
-    ((iPoseProof (@MUpd_open _ Inv i) as "> _H";
-      [mset_sub_tac|
-        let x := (eval cbn in (Inv i)) in
-        change (Inv i) with x;
-        subst Inv;
-        msimpl;
-        iDestruct "_H" as str])
-     +
-       (iPoseProof (@MUpd_open _ Inv i) as "> _H";
-        [let x := (eval cbn in (Inv i)) in
-         change (Inv i) with x;
-         subst Inv;
-         msimpl;
-         iDestruct "_H" as str])).
-
-  Lemma cut_white k n o
-    :
-    (ObligationRA.white k (o × (S n))%ord)
-      -∗
-      (ObligationRA.white k (o × n)%ord ** ObligationRA.white k o).
-  Proof.
-    iIntros "WHITE".
-    iApply (ObligationRA.white_split_eq with "[WHITE]").
-    iApply (ObligationRA.white_eq with "WHITE").
-    rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S.
-    rewrite Hessenberg.add_comm. reflexivity.
-  Qed.
-
-
-  Global Program Instance oneshot_shot_persistent (A: Type)
-         `{@GRA.inG (OneShot.t A) Σ}
-         (a: A)
-    :
-    Persistent (OwnM (OneShot.shot a)).
-  Next Obligation.
-    i. iIntros "H". iPoseProof (own_persistent with "H") as "# G". ss.
-  Qed.
-
-  Lemma oneshot_agree (A: Type)
-        `{@GRA.inG (OneShot.t A) Σ}
-        (a0 a1: A)
-    :
-    (OwnM (OneShot.shot a0) ∧ (OwnM (OneShot.shot a1)))
-      -∗
-      (⌜a0 = a1⌝).
-  Proof.
-    iIntros "[# H0 # H1]".
-    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShot.shot_agree in H0. auto.
-  Qed.
-
-  Lemma oneshot_pending_not_shot (A: Type)
-        `{@GRA.inG (OneShot.t A) Σ}
-        (a: A) q
-    :
-    (OwnM (OneShot.pending A q) ∧ (OwnM (OneShot.shot a)))
-      -∗
-      False.
-  Proof.
-    iIntros "[H0 # H1]".
-    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShot.pending_not_shot in H0. auto.
-  Qed.
-
-
   Lemma sim: ModSim.mod_sim example_spec_mod example_mod.
   Proof.
     refine (@ModSim.mk _ _ nat_wf nat_wf _ _ Σ _ _ _).
@@ -186,7 +112,7 @@ Section SIM.
       { admit. }
       iIntros (?) "[TH DUTY]". unfold example_spec_fun, example_fun.
       lred. rred. rewrite close_itree_call. ss. rred.
-      iApply (stsim_yieldR with "[DUTY]"); [mset_sub_tac|iFrame|]. iIntros "DUTY _".
+      iApply (stsim_yieldR with "[DUTY]"); [msubtac|iFrame|]. iIntros "DUTY _".
       rred. unfold SCMem.cas_fun, Mod.wrap_fun. rred.
       iopen 0 "[% [MEM ST]]" "K0".
       iApply stsim_getR. iSplit.
@@ -205,7 +131,7 @@ Section SIM.
         rred. iApply stsim_tauR.
         rred.
         iPoseProof (@ObligationRA.alloc _ _ ((1 × Ord.omega) × 10)%ord) as "> [% [[# BLACK WHITES] OBL]]".
-        iPoseProof (cut_white with "WHITES") as "[WHITES WHITE]".
+        iPoseProof (ObligationRA.cut_white with "WHITES") as "[WHITES WHITE]".
         iPoseProof (ObligationRA.duty_alloc with "DUTY WHITE") as "> DUTY".
         iPoseProof (ObligationRA.duty_correl_thread with "DUTY") as "# CORR"; [ss; eauto|].
         iPoseProof (OwnM_Upd with "PEND") as "> SHOT".
@@ -220,23 +146,23 @@ Section SIM.
           { iSplit; [iSplit; [iApply "SHOTP"|iApply "CORR"]|eauto]. }
           { iLeft. iFrame. }
         }
-        { mset_sub_tac. }
-        iPoseProof (cut_white with "WHITES") as "[WHITES WHITE]".
+        { msubtac. }
+        iPoseProof (ObligationRA.cut_white with "WHITES") as "[WHITES WHITE]".
         msimpl. iApply (stsim_yieldR with "[DUTY WHITE]").
-        { mset_sub_tac. }
+        { msubtac. }
         { iFrame. iSplit; auto. }
         iIntros "DUTY _".
         rred. iApply stsim_tauR.
-        iPoseProof (cut_white with "WHITES") as "[WHITES WHITE]".
+        iPoseProof (ObligationRA.cut_white with "WHITES") as "[WHITES WHITE]".
         rred. iApply (stsim_yieldR with "[DUTY WHITE]").
-        { mset_sub_tac. }
+        { msubtac. }
         { iFrame. iSplit; auto. }
         iIntros "DUTY _".
         rred. iApply stsim_tauR.
         rred. rewrite close_itree_call. ss.
-        iPoseProof (cut_white with "WHITES") as "[WHITES WHITE]".
+        iPoseProof (ObligationRA.cut_white with "WHITES") as "[WHITES WHITE]".
         rred. iApply (stsim_yieldR with "[DUTY WHITE]").
-        { mset_sub_tac. }
+        { msubtac. }
         { iFrame. iSplit; auto. }
         iIntros "DUTY _".
         unfold SCMem.store_fun, Mod.wrap_fun. rred.
@@ -245,8 +171,8 @@ Section SIM.
         { iFrame. }
         rred. iApply stsim_tauR. rred.
         iopen 1 "[[[POINTL POINTF] PEND]|[% [H H1]]]" "K1".
-        { iExFalso. iApply oneshot_pending_not_shot. iSplit; iFrame. auto. }
-        { iPoseProof (oneshot_agree with "[H]") as "%".
+        { iExFalso. iApply OneShotP.pending_not_shot. iSplit; iFrame. auto. }
+        { iPoseProof (OneShotP.shot_agree with "[H]") as "%".
           { iSplit.
             { iApply "SHOTP". }
             { iDestruct "H" as "[[[H _] _] _]". iApply "H". }
@@ -266,10 +192,10 @@ Section SIM.
             { rewrite <- Qp_inv_half_half. iApply (ObligationRA.pending_sum with "OBL0 PEND"). }
             iMod ("K1" with "[POINTF H OSHOT]") as "_".
             { iRight. iExists _. iFrame. iRight. iFrame. auto. }
-            { mset_sub_tac. }
+            { msubtac. }
             iPoseProof (ObligationRA.duty_done with "DUTY OSHOT") as "> DUTY".
             iApply (stsim_sync with "[DUTY]").
-            { mset_sub_tac. }
+            { msubtac. }
             { iFrame. }
             iIntros "DUTY _".
             iApply stsim_tauR.
@@ -286,20 +212,20 @@ Section SIM.
         { iExists _. iFrame. }
         iMod ("K1" with "[POINTL F]") as "_".
         { iRight. iExists _. iFrame. auto. }
-        { mset_sub_tac. }
+        { msubtac. }
         rred. iStopProof. pattern n. revert n.
         apply (well_founded_induction Ord.lt_well_founded). intros o IH.
         iIntros "[# [SHOTK [CORR BLACK]] [TH DUTY]]".
         rewrite OpenMod.unfold_iter. rred.
         iApply (stsim_yieldR with "[DUTY]").
-        { mset_sub_tac. }
+        { msubtac. }
         { iFrame. }
         iIntros "DUTY WHITE".
         rred. iApply stsim_tauR. rred.
         rewrite close_itree_call. ss.
         unfold SCMem.load_fun, Mod.wrap_fun.
         rred. iApply (stsim_yieldR with "[DUTY]").
-        { mset_sub_tac. }
+        { msubtac. }
         { iFrame. }
         iIntros "DUTY _".
         iopen 0 "[% [MEM ST]]" "K0".
@@ -307,11 +233,11 @@ Section SIM.
         { iFrame. }
         rred. iApply stsim_tauR. rred.
         iopen 1 "[FALSE|[% H]]" "K1".
-        { iExFalso. iApply oneshot_pending_not_shot. iSplit; [|iApply "SHOTK"].
+        { iExFalso. iApply OneShotP.pending_not_shot. iSplit; [|iApply "SHOTK"].
           iDestruct "FALSE" as "[[? ?] ?]". iFrame.
         }
         iDestruct "H" as "[X [Y|Y]]".
-        { iPoseProof (oneshot_agree with "[X]") as "%".
+        { iPoseProof (OneShotP.shot_agree with "[X]") as "%".
           { iSplit.
             { iApply "SHOTK". }
             { iDestruct "X" as "[[[H ?] ?] ?]". iApply "H". }
@@ -329,16 +255,16 @@ Section SIM.
           { iExists _. iFrame. }
           iMod ("K1" with "[X Y]") as "_".
           { iRight. iExists _. iFrame. }
-          { mset_sub_tac. }
+          { msubtac. }
           rred. iApply (stsim_yieldR with "[DUTY]").
-          { mset_sub_tac. }
+          { msubtac. }
           { iFrame. }
           iIntros "DUTY _".
           rred. iApply stsim_tauR.
           rred. rewrite close_itree_call. ss.
           unfold SCMem.compare_fun, Mod.wrap_fun.
           rred. iApply (stsim_yieldR with "[DUTY]").
-          { mset_sub_tac. }
+          { msubtac. }
           { iFrame. }
           iIntros "DUTY _".
           iopen 0 "[% [MEM ST]]" "K0".
@@ -346,11 +272,11 @@ Section SIM.
           { iFrame. }
           iMod ("K0" with "[MEM ST]") as "_".
           { iExists _. iFrame. }
-          { mset_sub_tac. }
+          { msubtac. }
           rred. iApply stsim_tauR.
           rred. iApply stsim_tauR.
           rred. iApply (stsim_yieldR with "[DUTY]").
-          { mset_sub_tac. }
+          { msubtac. }
           { iFrame. }
           iIntros "DUTY _".
           rred. iApply stsim_tauR.
@@ -366,16 +292,16 @@ Section SIM.
           { iExists _. iFrame. }
           iMod ("K1" with "[X Y]") as "_".
           { iRight. iExists _. iFrame. }
-          { mset_sub_tac. }
+          { msubtac. }
           rred. iApply (stsim_yieldR with "[DUTY]").
-          { mset_sub_tac. }
+          { msubtac. }
           { iFrame. }
           iIntros "DUTY _".
           rred. iApply stsim_tauR.
           rred. rewrite close_itree_call. ss.
           unfold SCMem.compare_fun, Mod.wrap_fun.
           rred. iApply (stsim_yieldR with "[DUTY]").
-          { mset_sub_tac. }
+          { msubtac. }
           { iFrame. }
           iIntros "DUTY _".
           iopen 0 "[% [MEM ST]]" "K0".
@@ -383,11 +309,11 @@ Section SIM.
           { iFrame. }
           iMod ("K0" with "[MEM ST]") as "_".
           { iExists _. iFrame. }
-          { mset_sub_tac. }
+          { msubtac. }
           rred. iApply stsim_tauR.
           rred. iApply stsim_tauR.
           rred. iApply (stsim_sync with "[DUTY]").
-          { mset_sub_tac. }
+          { msubtac. }
           { iFrame. }
           iIntros "DUTY _".
           rred. iApply stsim_tauR.

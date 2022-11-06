@@ -3285,6 +3285,19 @@ Module ObligationRA.
       apply Ord.S_supremum; auto.
     Qed.
 
+    Lemma cut_white k n o
+      :
+      (white k (o × (S n))%ord)
+        -∗
+        (white k (o × n)%ord ** white k o).
+    Proof.
+      iIntros "WHITE".
+      iApply (white_split_eq with "[WHITE]").
+      iApply (white_eq with "WHITE").
+      rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S.
+      rewrite Hessenberg.add_comm. reflexivity.
+    Qed.
+
     Lemma black_white_compare k o0 o1
       :
       (black k o0)
