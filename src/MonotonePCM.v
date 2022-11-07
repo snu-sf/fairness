@@ -1535,604 +1535,6 @@ Section UPDATING.
 End UPDATING.
 
 
-Module Region.
-  Section REGION.
-    Variable A: Type.
-    Definition t: URA.t := monoRA2 (nat -> option A).
-
-    Context `{@GRA.inG t Σ}.
-
-    Definition black (l: list A): iProp :=
-      monoBlack2 (@partial_map_le _ _) (nth_error l).
-
-    Definition white (k: nat) (a: A): iProp :=
-      monoWhite2 (@partial_map_le _ _) (partial_map_singleton k a).
-
-    Global Program Instance Persistent_white k a: Persistent (white k a).
-    Next Obligation.
-      i. unfold white. iIntros "# H". auto.
-    Qed.
-
-    Lemma black_white_in k a l
-      :
-      (black l)
-        -∗
-        (white k a)
-        -∗
-        ⌜nth_error l k = Some a⌝.
-    Proof.
-      iIntros "BLACK WHITE".
-      iPoseProof (black_white_compare2 with "WHITE BLACK") as "%".
-      apply partial_map_singleton_le_iff in H0. auto.
-    Qed.
-
-    Lemma white_agree k a0 a1 l
-      :
-      (black l)
-        -∗
-        (white k a0)
-        -∗
-        (white k a1)
-        -∗
-        ⌜a0 = a1⌝.
-    Proof.
-      iIntros "BLACK WHITE0 WHITE1".
-      iPoseProof (black_white_in with "BLACK WHITE0") as "%".
-      iPoseProof (black_white_in with "BLACK WHITE1") as "%".
-      clarify.
-    Qed.
-
-    Lemma black_alloc l a
-      :
-      (black l)
-        -∗
-        #=> (black (l++[a]) ** white (length l) a).
-    Proof.
-      iIntros "H". iPoseProof (black_updatable2 with "H") as "> H".
-      { instantiate (1:=nth_error (l++[a])). ii.
-        rewrite nth_error_app1; eauto.
-        apply nth_error_Some; auto. rewrite SOME; auto.
-      }
-      iModIntro. iSplit; auto.
-      iPoseProof (black_white2 with "H") as "H".
-      iApply (white_mon2 with "H"); auto. iPureIntro.
-      apply partial_map_singleton_le_iff.
-      rewrite nth_error_app2; auto.
-      replace (length l - length l) with 0 by lia. ss.
-    Qed.
-
-    Variable interp: A -> iProp.
-
-    Definition sat_list (l: list A) := fold_right (fun a P => interp a ** P) True%I l.
-
-    Lemma sat_list_nil
-      :
-      ⊢ sat_list [].
-    Proof.
-      unfold sat_list. ss. auto.
-    Qed.
-
-    Lemma sat_list_cons_fold hd tl
-      :
-      (interp hd ** sat_list tl)
-        -∗
-        (sat_list (hd::tl)).
-    Proof.
-      unfold sat_list. ss.
-    Qed.
-
-    Lemma sat_list_cons_unfold hd tl
-      :
-      (sat_list (hd::tl))
-        -∗
-        (interp hd ** sat_list tl).
-    Proof.
-      unfold sat_list. ss.
-    Qed.
-
-    Lemma sat_list_split l0 l1
-      :
-      (sat_list (l0 ++ l1))
-        -∗
-        (sat_list l0 ** sat_list l1).
-    Proof.
-      induction l0; ss.
-      { iIntros "SAT". iFrame. }
-      { iIntros "[INTERP SAT]". iFrame. iApply IHl0; auto. }
-    Qed.
-
-    Lemma sat_list_combine l0 l1
-      :
-      (sat_list l0 ** sat_list l1)
-        -∗
-        (sat_list (l0 ++ l1)).
-    Proof.
-      induction l0; ss.
-      { iIntros "[_ SAT]". auto. }
-      { iIntros "[[INTERP SAT0] SAT1]". iFrame.
-        iApply IHl0. iFrame.
-      }
-    Qed.
-
-    Lemma sat_list_add l a
-      :
-      (interp a ** sat_list l)
-        -∗
-        (sat_list (l++[a])).
-    Proof.
-      iIntros "[NEW SAT]". iApply sat_list_combine. iFrame.
-    Qed.
-
-    Lemma sat_list_permutation l0 l1
-          (PERM: Permutation l0 l1)
-      :
-      sat_list l0 ⊢ sat_list l1.
-    Proof.
-      induction PERM.
-      { auto. }
-      { iIntros "H". iApply sat_list_cons_fold.
-        iPoseProof (sat_list_cons_unfold with "H") as "[HD TL]".
-        iFrame. iApply IHPERM; auto.
-      }
-      { iIntros "H". iApply sat_list_cons_fold.
-        iPoseProof (sat_list_cons_unfold with "H") as "[HD0 TL]".
-        iPoseProof (sat_list_cons_unfold with "TL") as "[HD1 TL]".
-        iSplitL "HD1"; auto. iApply sat_list_cons_fold. iFrame.
-      }
-      { etrans; eauto. }
-    Qed.
-
-    Lemma sat_list_update l k a
-          (FIND: nth_error l k = Some a)
-      :
-      sat_list l ⊢ interp a ** (interp a -* sat_list l).
-    Proof.
-      hexploit nth_error_split; eauto. i. des. subst.
-      iIntros "SAT". iPoseProof (sat_list_split with "SAT") as "[SAT0 SAT1]".
-      iPoseProof (sat_list_cons_unfold with "SAT1") as "[OLD SAT1]".
-      iFrame. iIntros "NEW". iApply sat_list_combine. iFrame.
-    Qed.
-
-    Lemma sat_list_nth_sub l k a
-          (FIND: nth_error l k = Some a)
-      :
-      ⊢ SubIProp (interp a) (sat_list l).
-    Proof.
-      iIntros "H". iPoseProof (sat_list_update with "H") as "[H0 H1]"; eauto.
-      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
-    Qed.
-
-    Lemma sat_list_sub_update l0 l1
-          (SUB: list_sub l0 l1)
-      :
-      sat_list l1 ⊢ sat_list l0 ** (sat_list l0 -* sat_list l1).
-    Proof.
-      rr in SUB. des.
-      iIntros "H". iPoseProof (sat_list_permutation with "H") as "H".
-      { symmetry. eassumption. }
-      iPoseProof (sat_list_split with "H") as "[H0 H1]". iFrame.
-      iIntros "H1". iPoseProof (sat_list_combine with "[H0 H1]") as "H".
-      { iSplitL "H0"; eauto. }
-      iApply (sat_list_permutation with "H"). auto.
-    Qed.
-
-    Lemma sat_list_sub_sub l0 l1
-          (SUB: list_sub l0 l1)
-      :
-      ⊢ SubIProp (sat_list l0) (sat_list l1).
-    Proof.
-      iIntros "H". iPoseProof (sat_list_sub_update with "H") as "[H0 H1]"; eauto.
-      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
-    Qed.
-
-    Definition sat: iProp := ∃ l, black l ** sat_list l.
-
-    Lemma white_agree_sat k a0 a1
-      :
-      (white k a0)
-        -∗
-        (white k a1)
-        -∗
-        (#=(sat)=> (⌜a0 = a1⌝)).
-    Proof.
-      iIntros "WHITE0 WHITE1 [% [BLACK SAT]]".
-      iPoseProof (white_agree with "BLACK WHITE0 WHITE1") as "%".
-      subst. iModIntro. iSplit; auto. iExists _. iFrame.
-    Qed.
-
-    Lemma sat_update k a
-      :
-      (white k a)
-        -∗
-        (sat)
-        -∗
-        (interp a ** (interp a -* sat)).
-    Proof.
-      iIntros "WHITE [% [BLACK SAT]]".
-      iPoseProof (black_white_in with "BLACK WHITE") as "%".
-      iPoseProof (sat_list_update with "SAT") as "[INTERP H0]"; eauto.
-      iFrame. iIntros "H1". iExists _. iFrame. iApply ("H0" with "H1").
-    Qed.
-
-    Lemma sat_white_sub k a
-      :
-      white k a ⊢ SubIProp (interp a) sat.
-    Proof.
-      iIntros "H0 H1". iPoseProof (sat_update with "H0 H1") as "[H0 H1]".
-      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
-    Qed.
-
-    Lemma black_whites_in l ks
-          (ND: List.NoDup (List.map fst ks))
-      :
-      (black l)
-        -∗
-        (∀ k a (IN: List.In (k, a) ks), white k a)
-        -∗
-        ⌜list_sub (List.map snd ks) l⌝.
-    Proof.
-      iIntros "BLACK WHITES".
-      iAssert (⌜forall k a (IN: List.In (k, a) ks), nth_error l k = Some a⌝)%I as "%INS".
-      { iStopProof. clear ND. induction ks; ss.
-        { iIntros. ss. }
-        { destruct a as [k a]. iIntros "[BLACK ALL] % % %".
-          des; clarify.
-          { iApply (black_white_in with "BLACK [ALL]"); eauto. iApply "ALL". auto. }
-          { iPoseProof (IHks with "[BLACK ALL]") as "%".
-            { iFrame. iIntros. iApply "ALL". auto. }
-            iPureIntro. eauto.
-          }
-        }
-      }
-      iPureIntro.
-      remember (length ks) as n. revert ks l Heqn ND INS.
-      induction n; ss.
-      { i. destruct ks; ss. exists l. rewrite app_nil_r. ss. }
-      i. destruct ks as [|[k0 a0] tl]; ss. inv Heqn. inv ND.
-      hexploit (INS k0 a0); eauto. i.
-      hexploit nth_error_split; eauto. i. des. subst.
-      hexploit (IHn (List.map (fun ka => (if le_lt_dec (fst ka) (length l1) then (fst ka) else (fst ka - 1), snd ka)) tl) (l1++l2)).
-      { rewrite map_length. auto. }
-      { rewrite map_map. ss.
-        match goal with
-        | |- _ (map ?f tl) => replace (map f tl) with (map (fun k => (if le_lt_dec k (length l1) then k else (k - 1))) (map fst tl))
-        end.
-        { eapply injective_map_NoDup_strong; auto. i. des_ifs.
-          { exfalso. eapply H2. replace (length l1) with (a2 - 1) by lia; ss. }
-          { exfalso. eapply H2. replace (length l1) with (a1 - 1) by lia; ss. }
-          { lia. }
-        }
-        rewrite map_map. auto.
-      }
-      { i. apply in_map_iff in IN. des.
-        destruct x as [k1 a1]. ss. clarify. des_ifs.
-        { assert (k1 = length l1 \/ k1 < length l1) by lia. des.
-          { subst. eapply in_map with (f:=fst)in IN0. ss. }
-          rewrite nth_error_app1; auto.
-          hexploit (INS k1 a); auto. i. rewrite nth_error_app1 in H4; auto.
-        }
-        rewrite nth_error_app2; [|lia].
-        hexploit (INS k1 a); auto. i.
-        rewrite nth_error_app2 in H1; [|lia].
-        replace (k1 - length l1) with (S (k1 - 1 - length l1)) in H1 by lia. ss.
-      }
-      i. rewrite map_map in H1. ss.
-      r in H1. des. exists s.
-      rewrite <- Permutation_middle. rewrite <- Permutation_middle.
-      econs. auto.
-    Qed.
-
-    Lemma sat_sub_update (l: list (nat * A))
-          (ND: List.NoDup (List.map fst l))
-      :
-      (∀ k a (IN: List.In (k, a) l), white k a)
-        -∗
-        (sat)
-        -∗
-        (sat_list (List.map snd l)) ** ((sat_list (List.map snd l)) -* sat).
-    Proof.
-      iIntros "H0 [% [H1 H2]]".
-      iPoseProof (black_whites_in with "H1 H0") as "%"; auto.
-      iPoseProof (sat_list_sub_update with "H2") as "[H2 H3]".
-      { eauto. }
-      iFrame. iIntros "H". iPoseProof ("H3" with "H") as "H".
-      iExists _. iFrame.
-    Qed.
-
-    Lemma sat_whites_sub (l: list (nat * A))
-          (ND: List.NoDup (List.map fst l))
-      :
-      (∀ k a (IN: List.In (k, a) l), white k a)
-        ⊢ SubIProp (sat_list (List.map snd l)) sat.
-    Proof.
-      iIntros "H0 H1". iPoseProof (sat_sub_update with "H0 H1") as "[H0 H1]".
-      { auto. }
-      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
-    Qed.
-
-    Lemma sat_alloc a
-      :
-      sat
-        -∗
-        (interp a)
-        -∗
-        ∃ k, (#=> (sat ** white k a)).
-    Proof.
-      iIntros "[% [BLACK SAT]] INTERP".
-      iPoseProof (sat_list_add with "[SAT INTERP]") as "SAT".
-      { iFrame. }
-      iExists _.
-      iPoseProof (black_alloc with "BLACK") as "> [BLACK WHITE]".
-      iModIntro. iSplitR "WHITE"; auto.
-      iExists _. iFrame.
-    Qed.
-
-    Lemma update k a P
-      :
-      (white k a)
-        -∗
-        (#=(interp a)=> P)
-        -∗
-        (#=(sat)=> P).
-    Proof.
-      iIntros "H0 H1".
-      iPoseProof (sat_white_sub with "H0") as "H0".
-      iApply (IUpd_sub_mon with "H0 H1").
-    Qed.
-
-    Lemma updates (l: list (nat * A)) P
-          (ND: List.NoDup (List.map fst l))
-      :
-      (∀ k a (IN: List.In (k, a) l), white k a)
-        -∗
-        (#=(sat_list (List.map snd l))=> P)
-        -∗
-        (#=(sat)=> P).
-    Proof.
-      iIntros "H0 H1".
-      iPoseProof (sat_whites_sub with "H0") as "H0"; auto.
-      iApply (IUpd_sub_mon with "H0 H1").
-    Qed.
-
-    Lemma sat_updating (l: list (nat * A)) P Q R
-          (ND: List.NoDup (List.map fst l))
-      :
-      (∀ k a (IN: List.In (k, a) l), white k a)
-        -∗
-        (updating (sat_list (List.map snd l)) P Q R)
-        -∗
-        (updating sat P Q R).
-    Proof.
-      iIntros "H0 H1".
-      iPoseProof (sat_whites_sub with "H0") as "H0"; auto.
-      iApply (updating_sub_mon with "H0 H1").
-    Qed.
-
-    Lemma alloc a
-      :
-      (interp a)
-        -∗
-        (#=(sat)=> ∃ k, white k a).
-    Proof.
-      iIntros "H0 H1".
-      iPoseProof (sat_alloc with "H1 H0") as "[% > [H0 H1]]".
-      iModIntro. iFrame. iExists _. iFrame.
-    Qed.
-  End REGION.
-End Region.
-
-Definition maps_to {Σ} {A: Type} {M: URA.t} `{ING: @GRA.inG (A ==> M)%ra Σ}
-           (a: A) (m: M): iProp :=
-  OwnM (maps_to_res a m).
-
-From Fairness Require Import NatStructs.
-
-Section SUM.
-  Context `{Σ: GRA.t}.
-
-  Fixpoint list_prop_sum A (P: A -> iProp) (l: list A): iProp :=
-    match l with
-    | [] => True
-    | hd::tl => P hd ** list_prop_sum P tl
-    end.
-
-  Lemma list_prop_sum_wand (A: Type) (P0 P1 : A → iProp)
-        (l: list A)
-    :
-    (list_prop_sum P0 l)
-      -∗
-      (list_prop_sum (fun a => P0 a -* P1 a) l)
-      -∗
-      (list_prop_sum P1 l).
-  Proof.
-    induction l; ss.
-    { iIntros. auto. }
-    iIntros "[HD0 TL0] [HD1 TL1]". iSplitL "HD0 HD1".
-    { iApply ("HD1" with "HD0"). }
-    { iApply (IHl with "TL0 TL1"). }
-  Qed.
-
-  Lemma list_prop_sum_perm A P (l0 l1: list A)
-        (PERM: Permutation l0 l1)
-    :
-    list_prop_sum P l0 ⊢ list_prop_sum P l1.
-  Proof.
-    induction PERM; ss.
-    { iIntros "[H0 H1]". iFrame. iApply IHPERM. auto. }
-    { iIntros "[H0 [H1 H2]]". iFrame. }
-    { etrans; eauto. }
-  Qed.
-
-  Lemma list_prop_sum_nil A (P: A -> iProp)
-    :
-    ⊢ list_prop_sum P [].
-  Proof.
-    ss. auto.
-  Qed.
-
-  Lemma list_prop_sum_cons_fold A (P: A -> iProp) hd tl
-    :
-    (P hd ** list_prop_sum P tl)
-      -∗
-      (list_prop_sum P (hd::tl)).
-  Proof.
-    ss.
-  Qed.
-
-  Lemma list_prop_sum_cons_unfold A (P: A -> iProp) hd tl
-    :
-    (list_prop_sum P (hd::tl))
-      -∗
-      (P hd ** list_prop_sum P tl).
-  Proof.
-    ss.
-  Qed.
-
-  Lemma list_prop_sum_split A (P: A -> iProp) l0 l1
-    :
-    (list_prop_sum P (l0 ++ l1))
-      -∗
-      (list_prop_sum P l0 ** list_prop_sum P l1).
-  Proof.
-    induction l0; ss.
-    { iIntros "SAT". iFrame. }
-    { iIntros "[INTERP SAT]". iFrame. iApply IHl0; auto. }
-  Qed.
-
-  Lemma list_prop_sum_combine A (P: A -> iProp) l0 l1
-    :
-    (list_prop_sum P l0 ** list_prop_sum P l1)
-      -∗
-      (list_prop_sum P (l0 ++ l1)).
-  Proof.
-    induction l0; ss.
-    { iIntros "[_ SAT]". auto. }
-    { iIntros "[[INTERP SAT0] SAT1]". iFrame.
-      iApply IHl0. iFrame.
-    }
-  Qed.
-
-  Lemma list_prop_sum_add A (P: A -> iProp) l a
-    :
-    (P a ** list_prop_sum P l)
-      -∗
-      (list_prop_sum P (l++[a])).
-  Proof.
-    iIntros "[NEW SAT]". iApply list_prop_sum_combine. iFrame.
-  Qed.
-
-  Lemma list_prop_sum_impl A (P0 P1: A -> iProp) l
-        (IMPL: forall a, P0 a ⊢ P1 a)
-    :
-    (list_prop_sum P0 l)
-      -∗
-      (list_prop_sum P1 l).
-  Proof.
-    induction l; ss.
-    iIntros "[HD TL]". iSplitL "HD".
-    { iApply (IMPL with "HD"). }
-    { iApply (IHl with "TL"). }
-  Qed.
-
-  Lemma list_map_forall2 A B (f: A -> B)
-        l
-    :
-    List.Forall2 (fun a b => b = f a) l (List.map f l).
-  Proof.
-    induction l; ss. econs; eauto.
-  Qed.
-
-  Lemma list_prop_sum_forall2 A B
-        (R: A -> B -> Prop)
-        (P: A -> iProp) (Q: B -> iProp)
-        la lb
-        (FORALL: List.Forall2 R la lb)
-        (IMPL: forall a b (INA: List.In a la) (INB: List.In b lb),
-            R a b -> P a ⊢ Q b)
-    :
-    (list_prop_sum P la)
-      -∗
-      (list_prop_sum Q lb).
-  Proof.
-    revert IMPL. induction FORALL; i; ss.
-    iIntros "[HD TL]". iSplitL "HD".
-    { iApply (IMPL with "HD"); auto. }
-    { iApply (IHFORALL with "TL"). auto. }
-  Qed.
-
-  Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
-    list_prop_sum (fun '(k, v) => P k v) (NatMap.elements f).
-
-  Lemma natmap_prop_sum_empty A P
-    :
-    ⊢ natmap_prop_sum (NatMap.empty A) P.
-  Proof.
-    unfold natmap_prop_sum. ss. auto.
-  Qed.
-
-  Lemma natmap_prop_remove_find A (f: NatMap.t A) P k v
-        (FIND: NatMap.find k f = Some v)
-    :
-    (natmap_prop_sum f P)
-      -∗
-      (P k v ** natmap_prop_sum (NatMap.remove k f) P).
-  Proof.
-    hexploit NatMap.elements_1.
-    { eapply NatMap.find_2; eauto. }
-    i. eapply SetoidList.InA_split in H. des.
-    destruct y. inv H. ss. subst.
-    unfold natmap_prop_sum. rewrite H0.
-    iIntros "H".
-    iPoseProof (list_prop_sum_perm with "H") as "H".
-    { instantiate (1:=(k0,a)::(l1 ++ l2)).
-      symmetry. apply Permutation_middle.
-    }
-    iEval (ss) in "H". iDestruct "H" as "[H0 H1]". iFrame.
-    iApply (list_prop_sum_perm with "H1").
-    symmetry. eapply Permutation_remove.
-    rewrite H0. symmetry. apply Permutation_middle.
-  Qed.
-
-  Lemma natmap_prop_remove A (f: NatMap.t A) P k
-    :
-    (natmap_prop_sum f P)
-      -∗
-      (natmap_prop_sum (NatMap.remove k f) P).
-  Proof.
-    destruct (NatMap.find k f) eqn:EQ.
-    { iIntros "H". iPoseProof (natmap_prop_remove_find with "H") as "[_ H]"; eauto. }
-    replace (NatMap.remove k f) with f; auto.
-    eapply eq_ext_is_eq. ii.
-    rewrite NatMapP.F.remove_mapsto_iff. split.
-    { i. split; auto. ii.
-      eapply NatMap.find_1 in H. clarify.
-    }
-    { i. des. auto. }
-  Qed.
-
-  Lemma natmap_prop_sum_add A P k v (f: NatMap.t A)
-    :
-    (natmap_prop_sum f P)
-      -∗
-      (P k v)
-      -∗
-      (natmap_prop_sum (NatMap.add k v f) P).
-  Proof.
-    destruct (NatMapP.F.In_dec f k).
-    { rewrite <- nm_add_rm_eq. iIntros "H0 H1".
-      unfold natmap_prop_sum.
-      iApply list_prop_sum_perm.
-      { symmetry. eapply Permutation_add; eauto. apply NatMap.remove_1; auto. }
-      iPoseProof (natmap_prop_remove with "H0") as "H0".
-      ss. iFrame.
-    }
-    { unfold natmap_prop_sum. iIntros "H0 H1".
-      iApply list_prop_sum_perm.
-      { symmetry. eapply Permutation_add; eauto. }
-      ss. iFrame.
-    }
-  Qed.
-End SUM.
 
 Require Import Program.
 
@@ -2542,3 +1944,630 @@ Module ConsentP.
     { iExists _. iFrame. }
   Qed.
 End ConsentP.
+
+
+Module Region.
+  Section REGION.
+    Variable A: Type.
+    Definition t: URA.t := URA.pointwise nat (OneShot.t A).
+
+    Context `{@GRA.inG t Σ}.
+
+    Definition black (l: list A): iProp :=
+      OwnM ((fun n =>
+               match nth_error l n with
+               | Some a => OneShot.shot a
+               | _ => OneShot.pending A 1%Qp
+               end): (nat ==> OneShot.t A)%ra).
+
+    Definition white (k: nat) (a: A): iProp :=
+      OwnM ((fun n =>
+               if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra).
+
+    Global Program Instance Persistent_white k a: Persistent (white k a).
+    Next Obligation.
+      iIntros "H". iPoseProof (own_persistent with "H") as "# X".
+      replace (URA.core
+                 ((fun n =>
+                     if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra)) with
+        ((fun n =>
+            if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra).
+      2:{ ur. f_equal. extensionality n. des_ifs. }
+      auto.
+    Qed.
+
+    Lemma black_white_in k a l
+      :
+      (black l)
+        -∗
+        (white k a)
+        -∗
+        ⌜nth_error l k = Some a⌝.
+    Proof.
+      iIntros "BLACK WHITE".
+      iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN". iPureIntro.
+      ur in H0. specialize (H0 k). ur in H0. des_ifs; ss.
+      { des_ifs. }
+      { des_ifs. }
+      { des_ifs. }
+    Qed.
+
+    Lemma white_agree k a0 a1
+      :
+        (white k a0)
+        -∗
+        (white k a1)
+        -∗
+        ⌜a0 = a1⌝.
+    Proof.
+      iIntros "WHITE0 WHITE1".
+      iCombine "WHITE0 WHITE1" as "OWN". iOwnWf "OWN". iPureIntro.
+      ur in H0. specialize (H0 k). des_ifs.
+      apply OneShot.shot_agree in H0. auto.
+    Qed.
+
+    Lemma black_alloc l a
+      :
+      (black l)
+        -∗
+        #=> (black (l++[a]) ** white (length l) a).
+    Proof.
+      iIntros "H". iPoseProof (OwnM_Upd with "H") as "> [BLACK WHITE]".
+      2:{ iModIntro. iSplitL "BLACK"; [iApply "BLACK"|iApply "WHITE"]. }
+      eapply pointwise_updatable. i.
+      rewrite ! (@unfold_pointwise_add nat (OneShot.t A)).
+      destruct (nth_error l a0) eqn:EQ.
+      { rewrite nth_error_app1.
+        2:{ apply nth_error_Some; auto. rewrite EQ; auto. }
+        rewrite EQ. des_ifs; ss.
+        { exploit nth_error_Some.
+          rewrite EQ. i. des. hexploit x0; auto. i. lia.
+        }
+        { ur. reflexivity. }
+      }
+      { dup EQ. eapply nth_error_None in EQ. rewrite nth_error_app2; auto.
+        destruct (Nat.eq_dec a0 (length l)).
+        { subst. replace (length l - length l) with 0 by lia. ss. etrans.
+          { eapply OneShot.pending_shot. }
+          { instantiate (1:=a). ur. des_ifs. }
+        }
+        { hexploit nth_error_None. i. des.
+          hexploit H1.
+          2:{ i. rewrite H2. rewrite URA.unit_id. reflexivity. }
+          { ss. lia. }
+        }
+      }
+    Qed.
+
+    Variable interp: A -> iProp.
+
+    Definition sat_list (l: list A) := fold_right (fun a P => interp a ** P) True%I l.
+
+    Lemma sat_list_nil
+      :
+      ⊢ sat_list [].
+    Proof.
+      unfold sat_list. ss. auto.
+    Qed.
+
+    Lemma sat_list_cons_fold hd tl
+      :
+      (interp hd ** sat_list tl)
+        -∗
+        (sat_list (hd::tl)).
+    Proof.
+      unfold sat_list. ss.
+    Qed.
+
+    Lemma sat_list_cons_unfold hd tl
+      :
+      (sat_list (hd::tl))
+        -∗
+        (interp hd ** sat_list tl).
+    Proof.
+      unfold sat_list. ss.
+    Qed.
+
+    Lemma sat_list_split l0 l1
+      :
+      (sat_list (l0 ++ l1))
+        -∗
+        (sat_list l0 ** sat_list l1).
+    Proof.
+      induction l0; ss.
+      { iIntros "SAT". iFrame. }
+      { iIntros "[INTERP SAT]". iFrame. iApply IHl0; auto. }
+    Qed.
+
+    Lemma sat_list_combine l0 l1
+      :
+      (sat_list l0 ** sat_list l1)
+        -∗
+        (sat_list (l0 ++ l1)).
+    Proof.
+      induction l0; ss.
+      { iIntros "[_ SAT]". auto. }
+      { iIntros "[[INTERP SAT0] SAT1]". iFrame.
+        iApply IHl0. iFrame.
+      }
+    Qed.
+
+    Lemma sat_list_add l a
+      :
+      (interp a ** sat_list l)
+        -∗
+        (sat_list (l++[a])).
+    Proof.
+      iIntros "[NEW SAT]". iApply sat_list_combine. iFrame.
+    Qed.
+
+    Lemma sat_list_permutation l0 l1
+          (PERM: Permutation l0 l1)
+      :
+      sat_list l0 ⊢ sat_list l1.
+    Proof.
+      induction PERM.
+      { auto. }
+      { iIntros "H". iApply sat_list_cons_fold.
+        iPoseProof (sat_list_cons_unfold with "H") as "[HD TL]".
+        iFrame. iApply IHPERM; auto.
+      }
+      { iIntros "H". iApply sat_list_cons_fold.
+        iPoseProof (sat_list_cons_unfold with "H") as "[HD0 TL]".
+        iPoseProof (sat_list_cons_unfold with "TL") as "[HD1 TL]".
+        iSplitL "HD1"; auto. iApply sat_list_cons_fold. iFrame.
+      }
+      { etrans; eauto. }
+    Qed.
+
+    Lemma sat_list_update l k a
+          (FIND: nth_error l k = Some a)
+      :
+      sat_list l ⊢ interp a ** (interp a -* sat_list l).
+    Proof.
+      hexploit nth_error_split; eauto. i. des. subst.
+      iIntros "SAT". iPoseProof (sat_list_split with "SAT") as "[SAT0 SAT1]".
+      iPoseProof (sat_list_cons_unfold with "SAT1") as "[OLD SAT1]".
+      iFrame. iIntros "NEW". iApply sat_list_combine. iFrame.
+    Qed.
+
+    Lemma sat_list_nth_sub l k a
+          (FIND: nth_error l k = Some a)
+      :
+      ⊢ SubIProp (interp a) (sat_list l).
+    Proof.
+      iIntros "H". iPoseProof (sat_list_update with "H") as "[H0 H1]"; eauto.
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
+
+    Lemma sat_list_sub_update l0 l1
+          (SUB: list_sub l0 l1)
+      :
+      sat_list l1 ⊢ sat_list l0 ** (sat_list l0 -* sat_list l1).
+    Proof.
+      rr in SUB. des.
+      iIntros "H". iPoseProof (sat_list_permutation with "H") as "H".
+      { symmetry. eassumption. }
+      iPoseProof (sat_list_split with "H") as "[H0 H1]". iFrame.
+      iIntros "H1". iPoseProof (sat_list_combine with "[H0 H1]") as "H".
+      { iSplitL "H0"; eauto. }
+      iApply (sat_list_permutation with "H"). auto.
+    Qed.
+
+    Lemma sat_list_sub_sub l0 l1
+          (SUB: list_sub l0 l1)
+      :
+      ⊢ SubIProp (sat_list l0) (sat_list l1).
+    Proof.
+      iIntros "H". iPoseProof (sat_list_sub_update with "H") as "[H0 H1]"; eauto.
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
+
+    Definition sat: iProp := ∃ l, black l ** sat_list l.
+
+    Lemma white_agree_sat k a0 a1
+      :
+      (white k a0)
+        -∗
+        (white k a1)
+        -∗
+        (⌜a0 = a1⌝).
+    Proof.
+      iIntros "WHITE0 WHITE1".
+      iPoseProof (white_agree with "WHITE0 WHITE1") as "%".
+      subst. auto.
+    Qed.
+
+    Lemma sat_update k a
+      :
+      (white k a)
+        -∗
+        (sat)
+        -∗
+        (interp a ** (interp a -* sat)).
+    Proof.
+      iIntros "WHITE [% [BLACK SAT]]".
+      iPoseProof (black_white_in with "BLACK WHITE") as "%".
+      iPoseProof (sat_list_update with "SAT") as "[INTERP H0]"; eauto.
+      iFrame. iIntros "H1". iExists _. iFrame. iApply ("H0" with "H1").
+    Qed.
+
+    Lemma sat_white_sub k a
+      :
+      white k a ⊢ SubIProp (interp a) sat.
+    Proof.
+      iIntros "H0 H1". iPoseProof (sat_update with "H0 H1") as "[H0 H1]".
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
+
+    Lemma black_whites_in l ks
+          (ND: List.NoDup (List.map fst ks))
+      :
+      (black l)
+        -∗
+        (∀ k a (IN: List.In (k, a) ks), white k a)
+        -∗
+        ⌜list_sub (List.map snd ks) l⌝.
+    Proof.
+      iIntros "BLACK WHITES".
+      iAssert (⌜forall k a (IN: List.In (k, a) ks), nth_error l k = Some a⌝)%I as "%INS".
+      { iStopProof. clear ND. induction ks; ss.
+        { iIntros. ss. }
+        { destruct a as [k a]. iIntros "[BLACK ALL] % % %".
+          des; clarify.
+          { iApply (black_white_in with "BLACK [ALL]"); eauto. iApply "ALL". auto. }
+          { iPoseProof (IHks with "[BLACK ALL]") as "%".
+            { iFrame. iIntros. iApply "ALL". auto. }
+            iPureIntro. eauto.
+          }
+        }
+      }
+      iPureIntro.
+      remember (length ks) as n. revert ks l Heqn ND INS.
+      induction n; ss.
+      { i. destruct ks; ss. exists l. rewrite app_nil_r. ss. }
+      i. destruct ks as [|[k0 a0] tl]; ss. inv Heqn. inv ND.
+      hexploit (INS k0 a0); eauto. i.
+      hexploit nth_error_split; eauto. i. des. subst.
+      hexploit (IHn (List.map (fun ka => (if le_lt_dec (fst ka) (length l1) then (fst ka) else (fst ka - 1), snd ka)) tl) (l1++l2)).
+      { rewrite map_length. auto. }
+      { rewrite map_map. ss.
+        match goal with
+        | |- _ (map ?f tl) => replace (map f tl) with (map (fun k => (if le_lt_dec k (length l1) then k else (k - 1))) (map fst tl))
+        end.
+        { eapply injective_map_NoDup_strong; auto. i. des_ifs.
+          { exfalso. eapply H2. replace (length l1) with (a2 - 1) by lia; ss. }
+          { exfalso. eapply H2. replace (length l1) with (a1 - 1) by lia; ss. }
+          { lia. }
+        }
+        rewrite map_map. auto.
+      }
+      { i. apply in_map_iff in IN. des.
+        destruct x as [k1 a1]. ss. clarify. des_ifs.
+        { assert (k1 = length l1 \/ k1 < length l1) by lia. des.
+          { subst. eapply in_map with (f:=fst)in IN0. ss. }
+          rewrite nth_error_app1; auto.
+          hexploit (INS k1 a); auto. i. rewrite nth_error_app1 in H4; auto.
+        }
+        rewrite nth_error_app2; [|lia].
+        hexploit (INS k1 a); auto. i.
+        rewrite nth_error_app2 in H1; [|lia].
+        replace (k1 - length l1) with (S (k1 - 1 - length l1)) in H1 by lia. ss.
+      }
+      i. rewrite map_map in H1. ss.
+      r in H1. des. exists s.
+      rewrite <- Permutation_middle. rewrite <- Permutation_middle.
+      econs. auto.
+    Qed.
+
+    Lemma sat_sub_update (l: list (nat * A))
+          (ND: List.NoDup (List.map fst l))
+      :
+      (∀ k a (IN: List.In (k, a) l), white k a)
+        -∗
+        (sat)
+        -∗
+        (sat_list (List.map snd l)) ** ((sat_list (List.map snd l)) -* sat).
+    Proof.
+      iIntros "H0 [% [H1 H2]]".
+      iPoseProof (black_whites_in with "H1 H0") as "%"; auto.
+      iPoseProof (sat_list_sub_update with "H2") as "[H2 H3]".
+      { eauto. }
+      iFrame. iIntros "H". iPoseProof ("H3" with "H") as "H".
+      iExists _. iFrame.
+    Qed.
+
+    Lemma sat_whites_sub (l: list (nat * A))
+          (ND: List.NoDup (List.map fst l))
+      :
+      (∀ k a (IN: List.In (k, a) l), white k a)
+        ⊢ SubIProp (sat_list (List.map snd l)) sat.
+    Proof.
+      iIntros "H0 H1". iPoseProof (sat_sub_update with "H0 H1") as "[H0 H1]".
+      { auto. }
+      iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
+    Qed.
+
+    Lemma sat_alloc a
+      :
+      sat
+        -∗
+        (interp a)
+        -∗
+        ∃ k, (#=> (sat ** white k a)).
+    Proof.
+      iIntros "[% [BLACK SAT]] INTERP".
+      iPoseProof (sat_list_add with "[SAT INTERP]") as "SAT".
+      { iFrame. }
+      iExists _.
+      iPoseProof (black_alloc with "BLACK") as "> [BLACK WHITE]".
+      iModIntro. iSplitR "WHITE"; auto.
+      iExists _. iFrame.
+    Qed.
+
+    Lemma update k a P
+      :
+      (white k a)
+        -∗
+        (#=(interp a)=> P)
+        -∗
+        (#=(sat)=> P).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (sat_white_sub with "H0") as "H0".
+      iApply (IUpd_sub_mon with "H0 H1").
+    Qed.
+
+    Lemma updates (l: list (nat * A)) P
+          (ND: List.NoDup (List.map fst l))
+      :
+      (∀ k a (IN: List.In (k, a) l), white k a)
+        -∗
+        (#=(sat_list (List.map snd l))=> P)
+        -∗
+        (#=(sat)=> P).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (sat_whites_sub with "H0") as "H0"; auto.
+      iApply (IUpd_sub_mon with "H0 H1").
+    Qed.
+
+    Lemma sat_updating (l: list (nat * A)) P Q R
+          (ND: List.NoDup (List.map fst l))
+      :
+      (∀ k a (IN: List.In (k, a) l), white k a)
+        -∗
+        (updating (sat_list (List.map snd l)) P Q R)
+        -∗
+        (updating sat P Q R).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (sat_whites_sub with "H0") as "H0"; auto.
+      iApply (updating_sub_mon with "H0 H1").
+    Qed.
+
+    Lemma alloc a
+      :
+      (interp a)
+        -∗
+        (#=(sat)=> ∃ k, white k a).
+    Proof.
+      iIntros "H0 H1".
+      iPoseProof (sat_alloc with "H1 H0") as "[% > [H0 H1]]".
+      iModIntro. iFrame. iExists _. iFrame.
+    Qed.
+  End REGION.
+End Region.
+
+Definition maps_to {Σ} {A: Type} {M: URA.t} `{ING: @GRA.inG (A ==> M)%ra Σ}
+           (a: A) (m: M): iProp :=
+  OwnM (maps_to_res a m).
+
+From Fairness Require Import NatStructs.
+
+Section SUM.
+  Context `{Σ: GRA.t}.
+
+  Fixpoint list_prop_sum A (P: A -> iProp) (l: list A): iProp :=
+    match l with
+    | [] => True
+    | hd::tl => P hd ** list_prop_sum P tl
+    end.
+
+  Lemma list_prop_sum_wand (A: Type) (P0 P1 : A → iProp)
+        (l: list A)
+    :
+    (list_prop_sum P0 l)
+      -∗
+      (list_prop_sum (fun a => P0 a -* P1 a) l)
+      -∗
+      (list_prop_sum P1 l).
+  Proof.
+    induction l; ss.
+    { iIntros. auto. }
+    iIntros "[HD0 TL0] [HD1 TL1]". iSplitL "HD0 HD1".
+    { iApply ("HD1" with "HD0"). }
+    { iApply (IHl with "TL0 TL1"). }
+  Qed.
+
+  Lemma list_prop_sum_perm A P (l0 l1: list A)
+        (PERM: Permutation l0 l1)
+    :
+    list_prop_sum P l0 ⊢ list_prop_sum P l1.
+  Proof.
+    induction PERM; ss.
+    { iIntros "[H0 H1]". iFrame. iApply IHPERM. auto. }
+    { iIntros "[H0 [H1 H2]]". iFrame. }
+    { etrans; eauto. }
+  Qed.
+
+  Lemma list_prop_sum_nil A (P: A -> iProp)
+    :
+    ⊢ list_prop_sum P [].
+  Proof.
+    ss. auto.
+  Qed.
+
+  Lemma list_prop_sum_cons_fold A (P: A -> iProp) hd tl
+    :
+    (P hd ** list_prop_sum P tl)
+      -∗
+      (list_prop_sum P (hd::tl)).
+  Proof.
+    ss.
+  Qed.
+
+  Lemma list_prop_sum_cons_unfold A (P: A -> iProp) hd tl
+    :
+    (list_prop_sum P (hd::tl))
+      -∗
+      (P hd ** list_prop_sum P tl).
+  Proof.
+    ss.
+  Qed.
+
+  Lemma list_prop_sum_split A (P: A -> iProp) l0 l1
+    :
+    (list_prop_sum P (l0 ++ l1))
+      -∗
+      (list_prop_sum P l0 ** list_prop_sum P l1).
+  Proof.
+    induction l0; ss.
+    { iIntros "SAT". iFrame. }
+    { iIntros "[INTERP SAT]". iFrame. iApply IHl0; auto. }
+  Qed.
+
+  Lemma list_prop_sum_combine A (P: A -> iProp) l0 l1
+    :
+    (list_prop_sum P l0 ** list_prop_sum P l1)
+      -∗
+      (list_prop_sum P (l0 ++ l1)).
+  Proof.
+    induction l0; ss.
+    { iIntros "[_ SAT]". auto. }
+    { iIntros "[[INTERP SAT0] SAT1]". iFrame.
+      iApply IHl0. iFrame.
+    }
+  Qed.
+
+  Lemma list_prop_sum_add A (P: A -> iProp) l a
+    :
+    (P a ** list_prop_sum P l)
+      -∗
+      (list_prop_sum P (l++[a])).
+  Proof.
+    iIntros "[NEW SAT]". iApply list_prop_sum_combine. iFrame.
+  Qed.
+
+  Lemma list_prop_sum_impl A (P0 P1: A -> iProp) l
+        (IMPL: forall a, P0 a ⊢ P1 a)
+    :
+    (list_prop_sum P0 l)
+      -∗
+      (list_prop_sum P1 l).
+  Proof.
+    induction l; ss.
+    iIntros "[HD TL]". iSplitL "HD".
+    { iApply (IMPL with "HD"). }
+    { iApply (IHl with "TL"). }
+  Qed.
+
+  Lemma list_map_forall2 A B (f: A -> B)
+        l
+    :
+    List.Forall2 (fun a b => b = f a) l (List.map f l).
+  Proof.
+    induction l; ss. econs; eauto.
+  Qed.
+
+  Lemma list_prop_sum_forall2 A B
+        (R: A -> B -> Prop)
+        (P: A -> iProp) (Q: B -> iProp)
+        la lb
+        (FORALL: List.Forall2 R la lb)
+        (IMPL: forall a b (INA: List.In a la) (INB: List.In b lb),
+            R a b -> P a ⊢ Q b)
+    :
+    (list_prop_sum P la)
+      -∗
+      (list_prop_sum Q lb).
+  Proof.
+    revert IMPL. induction FORALL; i; ss.
+    iIntros "[HD TL]". iSplitL "HD".
+    { iApply (IMPL with "HD"); auto. }
+    { iApply (IHFORALL with "TL"). auto. }
+  Qed.
+
+  Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
+    list_prop_sum (fun '(k, v) => P k v) (NatMap.elements f).
+
+  Lemma natmap_prop_sum_empty A P
+    :
+    ⊢ natmap_prop_sum (NatMap.empty A) P.
+  Proof.
+    unfold natmap_prop_sum. ss. auto.
+  Qed.
+
+  Lemma natmap_prop_remove_find A (f: NatMap.t A) P k v
+        (FIND: NatMap.find k f = Some v)
+    :
+    (natmap_prop_sum f P)
+      -∗
+      (P k v ** natmap_prop_sum (NatMap.remove k f) P).
+  Proof.
+    hexploit NatMap.elements_1.
+    { eapply NatMap.find_2; eauto. }
+    i. eapply SetoidList.InA_split in H. des.
+    destruct y. inv H. ss. subst.
+    unfold natmap_prop_sum. rewrite H0.
+    iIntros "H".
+    iPoseProof (list_prop_sum_perm with "H") as "H".
+    { instantiate (1:=(k0,a)::(l1 ++ l2)).
+      symmetry. apply Permutation_middle.
+    }
+    iEval (ss) in "H". iDestruct "H" as "[H0 H1]". iFrame.
+    iApply (list_prop_sum_perm with "H1").
+    symmetry. eapply Permutation_remove.
+    rewrite H0. symmetry. apply Permutation_middle.
+  Qed.
+
+  Lemma natmap_prop_remove A (f: NatMap.t A) P k
+    :
+    (natmap_prop_sum f P)
+      -∗
+      (natmap_prop_sum (NatMap.remove k f) P).
+  Proof.
+    destruct (NatMap.find k f) eqn:EQ.
+    { iIntros "H". iPoseProof (natmap_prop_remove_find with "H") as "[_ H]"; eauto. }
+    replace (NatMap.remove k f) with f; auto.
+    eapply eq_ext_is_eq. ii.
+    rewrite NatMapP.F.remove_mapsto_iff. split.
+    { i. split; auto. ii.
+      eapply NatMap.find_1 in H. clarify.
+    }
+    { i. des. auto. }
+  Qed.
+
+  Lemma natmap_prop_sum_add A P k v (f: NatMap.t A)
+    :
+    (natmap_prop_sum f P)
+      -∗
+      (P k v)
+      -∗
+      (natmap_prop_sum (NatMap.add k v f) P).
+  Proof.
+    destruct (NatMapP.F.In_dec f k).
+    { rewrite <- nm_add_rm_eq. iIntros "H0 H1".
+      unfold natmap_prop_sum.
+      iApply list_prop_sum_perm.
+      { symmetry. eapply Permutation_add; eauto. apply NatMap.remove_1; auto. }
+      iPoseProof (natmap_prop_remove with "H0") as "H0".
+      ss. iFrame.
+    }
+    { unfold natmap_prop_sum. iIntros "H0 H1".
+      iApply list_prop_sum_perm.
+      { symmetry. eapply Permutation_add; eauto. }
+      ss. iFrame.
+    }
+  Qed.
+End SUM.

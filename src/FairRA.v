@@ -3849,8 +3849,7 @@ Module ObligationRA.
       { iIntros (? ? ? ? ?).
         destruct a0 as [[[? ?] ?] ?]. destruct a1 as [[[? ?] ?] ?].
         iDestruct "H" as "[% [H SAT]]".
-        iPoseProof (Region.white_agree with "[H] [] []") as "%".
-        { iApply "H". }
+        iPoseProof (Region.white_agree with "[] []") as "%".
         { iApply "WHITES0". eauto. }
         { iApply "WHITES1". eauto. }
         clarify.
@@ -3902,7 +3901,7 @@ Module ObligationRA.
         iPoseProof (IMPL with "DUTY") as "DUTY".
         iPoseProof (duty_list_unfold with "DUTY") as "[[WHITE PENDING] DUTY]". eauto.
         iPoseProof "H" as "[% [H _]]".
-        iPoseProof (Region.white_agree with "H [] WHITE") as "%".
+        iPoseProof (Region.white_agree with "[] WHITE") as "%".
         { iApply "WHITES". iPureIntro. ss. eauto. }
         clarify. iPoseProof ("WHITES" $! _ _ _ _ _ (or_intror IN)) as "# WHITE1".
         iAssert (OwnM (FiniteMap.singleton n1 (OneShot.pending unit 1))) with "[DUTY]" as "OWN1".
