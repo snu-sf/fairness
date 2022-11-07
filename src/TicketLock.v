@@ -121,12 +121,6 @@ Section SIM.
   Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
 
-  Definition wait_set_wf (W: NatMap.t unit) (n: nat): iProp :=
-    ((natmap_prop_sum W (fun tid _ => own_thread tid))
-       **
-       (OwnM (Auth.black (Some W: NatMapRA.t unit)))
-       **
-       (⌜NatMap.cardinal W = n⌝)).
 
   Lemma natmap_prop_sum_in A P k a (m: NatMap.t A)
         (FIND: NatMap.find k m = Some a)
@@ -140,41 +134,106 @@ Section SIM.
     eauto.
   Qed.
 
-  Lemma wait_set_wf_add W n tid
+  Lemma natmap_prop_sum_impl A P0 P1 (m: NatMap.t A)
+        (IMPL: forall k a (IN: NatMap.find k m = Some a), P0 k a ⊢ P1 k a)
     :
-    (wait_set_wf W n)
+    (natmap_prop_sum m P0)
+      -∗
+      (natmap_prop_sum m P1).
+  Proof.
+    revert IMPL. pattern m. eapply nm_ind.
+    { iIntros. iApply natmap_prop_sum_empty. }
+    i. iIntros "MAP".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    iPoseProof (IMPL with "H0") as "H0".
+    { rewrite nm_find_add_eq. auto. }
+    iApply (natmap_prop_sum_add with "[H1] H0").
+    iApply IH.
+    { i. eapply IMPL. rewrite NatMapP.F.add_o; eauto. des_ifs. }
+    { rewrite nm_find_none_rm_add_eq; auto. }
+  Qed.
+
+  Lemma natmap_prop_sum_wand (A: Type) P0 P1 (m: NatMap.t A)
+    :
+    (natmap_prop_sum m P0)
+      -∗
+      (natmap_prop_sum m (fun k v => P0 k v -* P1 k v))
+      -∗
+      (natmap_prop_sum m P1).
+  Proof.
+    pattern m. eapply nm_ind.
+    { iIntros. iApply natmap_prop_sum_empty. }
+    i. iIntros "MAP IMPL".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    iPoseProof (natmap_prop_remove_find with "IMPL") as "[G0 G1]".
+    { eapply nm_find_add_eq. }
+    iApply (natmap_prop_sum_add with "[H1 G1] [H0 G0]").
+    { rewrite nm_find_none_rm_add_eq; auto. iApply (IH with "H1 G1"). }
+    { iApply ("G0" with "H0"). }
+  Qed.
+
+
+
+  Definition wait_set_wf (W: NatMap.t unit)
+             (start n: nat): iProp :=
+    ((natmap_prop_sum W (fun tid _ =>
+                           (own_thread tid)
+                             **
+                             (∃ k j,
+                                 (⌜start <= k < start + n⌝)
+                                   **
+                                   (Region.white k (tid, j)))))
+       **
+       (OwnM (Auth.black (Some W: NatMapRA.t unit)))
+       **
+       (⌜NatMap.cardinal W = n⌝))
+  .
+
+  Lemma wait_set_wf_add W start n tid j
+    :
+    (wait_set_wf W start n)
       -∗
       (own_thread tid)
       -∗
-      #=> (wait_set_wf (NatMap.add tid tt W) (S n) ** (OwnM (Auth.white (NatMapRA.singleton tid tt: NatMapRA.t unit)))).
+      (Region.white (start + n) (tid, j))
+      -∗
+      #=> (wait_set_wf (NatMap.add tid tt W) start (S n) ** (OwnM (Auth.white (NatMapRA.singleton tid tt: NatMapRA.t unit)))).
   Proof.
-    iIntros "[[SUM BLACK] %] TH".
+    iIntros "[[SUM BLACK] %] TH # REGION".
     iAssert (⌜NatMap.find tid W = None⌝)%I as "%".
     { destruct (NatMap.find tid W) eqn:EQ; auto.
-      iExFalso. iPoseProof (natmap_prop_sum_in with "SUM") as "H".
+      iExFalso. iPoseProof (natmap_prop_sum_in with "SUM") as "[H _]".
       { eauto. }
       iPoseProof (own_thread_unique with "TH H") as "%". ss.
     }
     iPoseProof (OwnM_Upd with "BLACK") as "> [BLACK WHTIE]".
     { apply Auth.auth_alloc. eapply (@NatMapRA.add_local_update unit W tid tt). auto. }
     iModIntro. iFrame. iSplit.
-    { iApply (natmap_prop_sum_add with "SUM"). auto. }
+    { iApply (natmap_prop_sum_add with "[SUM]").
+      { iApply (natmap_prop_sum_impl with "SUM").
+        i. ss. iIntros "[OWN [% [% [% WHITE]]]]". iFrame. iExists _, _. iFrame.
+        iPureIntro. lia.
+      }
+      { iFrame. iExists _, _. iSplit; auto. iPureIntro. lia. }
+    }
     iPureIntro. subst.
     eapply NatMapP.cardinal_2; eauto.
     { apply NatMapP.F.not_find_in_iff; eauto. }
     { ss. }
   Qed.
 
-  Lemma wait_set_wf_sub W n tid
+  Lemma wait_set_wf_sub W start n tid
     :
-    (wait_set_wf W n)
+    (wait_set_wf W start n)
       -∗
       (OwnM (Auth.white (NatMapRA.singleton tid tt: NatMapRA.t unit)))
       -∗
       (∃ n',
           (⌜n = S n'⌝)
             **
-            #=> (wait_set_wf (NatMap.remove tid W) n' ** own_thread tid)).
+            #=> (wait_set_wf (NatMap.remove tid W) (S start) n' ** own_thread tid)).
   Proof.
     iIntros "[[SUM BLACK] %] TH".
     iCombine "BLACK TH" as "OWN". iOwnWf "OWN".
@@ -188,8 +247,31 @@ Section SIM.
     i. subst. iExists _. iSplit; auto.
     iPoseProof (OwnM_Upd with "OWN") as "> BLACK".
     { eapply Auth.auth_dealloc. apply NatMapRA.remove_local_update. }
-    iModIntro. iPoseProof (natmap_prop_remove_find with "SUM") as "[H SUM]"; eauto.
-    iFrame. auto.
+    iModIntro. iPoseProof (natmap_prop_remove_find with "SUM") as "[[H [% [% [% # G]]]] SUM]"; eauto.
+    iAssert (∀ tid j (FIND: NatMap.find tid (NatMap.remove tid W) = Some k),
+
+
+
+
+
+k <> start⌝)%I as "%".
+
+n = S n'⌝
+
+natmap_prop_sum W (fun tid _ =>
+                                  (own_thread tid)
+                                    **
+                                    (∃ k j,
+                                        (⌜start <= k < start + n⌝)
+                                          **
+                                          (Region.white k (tid, j))))).
+
+
+    iFrame. iSplit; auto.
+    iApply (natmap_prop_sum_wand with "SUM").
+    i. ss. iIntros "[OWN [% [% [% WHITE]]]]". iFrame. iExists _, _. iFrame.
+    iPureIntro. rewrite <- H2 in H. lia.
+    }
   Qed.
 
   Definition regionl (n: nat): iProp :=
@@ -348,6 +430,62 @@ Section SIM.
   Proof.
     iIntros "WAIT".
   Admitted.
+
+  Definition ticketlock_locked_inv
+             (L: bool) (W: NatMap.t unit)
+             (now_serving: nat) (n: nat): iProp :=
+    (wait_set_wf W (n + (if L then 0 else 1)))
+      **
+      (∀
+
+
+.
+
+
+  * i in (0, n], exists j tid, (now + i) ~ (j, tid) * white(tid, i)
+  |W| = n + (1 - L)
+  forall tid in W, exists i in [L, n], exists j tid, (now + i) ~ (j, tid)
+  exists j,
+    now ~ (j, _)
+    L = 0 * excl * white(W) ~j~> L = 1 * auth_white{now}
+
+
+    if llocked then
+
+
+  Definition ticketlock_inv
+             (L: bool) (W: NatMap.t unit)
+             (llocked: bool)
+             (now_serving: nat) (n: nat): iProp :=
+    if llocked then
+
+
+    (wait_set_wf W n)
+      **
+      (regionl ((Nat.b2n reserved) + now_serving + n))
+      **
+      ((⌜n = 0 /\ L = false /\ reserved = false⌝ ** OwnM (Excl.just tt: Excl.t unit))
+       ∨
+         ((waiters (S ((Nat.b2n reserved) + now_serving)) n)
+            **
+            (∃ k j,
+                (ConsentP.voted_singleton k j)
+                  **
+                  (ObligationRA.correl_thread j 1%ord)
+                  **
+                  (∃ o, ObligationRA.black j o)
+                  **
+                  (((⌜L = false /\ reserved = true⌝)
+                      **
+                      (OwnM (Excl.just tt: Excl.t unit))
+                      **
+                      (waiters_tax (S ((Nat.b2n reserved) + now_serving)) n)
+                      **
+                      (ObligationRA.pending k (/2)%Qp))
+                   ∨
+                     ((⌜L = true /\ reserved = false⌝)
+                        **
+                        (ObligationRA.shot k)))))).
 
   Definition ticketlock_inv
              (L: bool) (W: NatMap.t unit)
