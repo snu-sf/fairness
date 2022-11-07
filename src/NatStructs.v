@@ -1948,3 +1948,186 @@ Section NMOWF.
     }
   Qed.
 End NMOWF.
+
+
+Section AUX.
+
+  Lemma list_forall2_implies
+        A B (f1 f2: A -> B -> Prop) la lb
+        (FA: List.Forall2 f1 la lb)
+        (IMP: forall a b, (f1 a b) -> (f2 a b))
+    :
+    List.Forall2 f2 la lb.
+  Proof.
+    move FA before B. revert_until FA. induction FA; i; ss.
+    econs; eauto.
+  Qed.
+
+  Inductive Forall3 (A B C : Type) (R : A -> B -> C -> Prop) : list A -> list B -> list C -> Prop :=
+    Forall3_nil : Forall3 R [] [] []
+  | Forall3_cons : forall (x : A) (y : B) (z : C) (l1 : list A) (l2 : list B) (l3: list C),
+      R x y z -> Forall3 R l1 l2 l3 -> Forall3 R (x :: l1) (y :: l2) (z :: l3).
+
+  Lemma list_forall3_implies_forall2_3
+        A B C (f1: A -> B -> C -> Prop) (f2: A -> C -> Prop)
+        la lb lc
+        (FA: Forall3 f1 la lb lc)
+        (IMP: forall a b c, (f1 a b c) -> (f2 a c))
+    :
+    List.Forall2 f2 la lc.
+  Proof.
+    move FA before C. revert_until FA. induction FA; i; ss.
+    econs; eauto.
+  Qed.
+
+  Lemma list_forall3_implies_forall2_2
+        A B C (f1: A -> B -> C -> Prop) (f2: A -> B -> Prop)
+        la lb lc
+        (FA: Forall3 f1 la lb lc)
+        (IMP: forall a b c, (f1 a b c) -> (f2 a b))
+    :
+    List.Forall2 f2 la lb.
+  Proof.
+    move FA before C. revert_until FA. induction FA; i; ss.
+    econs; eauto.
+  Qed.
+
+  Import NatMap.
+  Import NatMapP.
+
+  Lemma nm_forall3_implies_find_some
+        elt1 elt2 elt3 (m1: NatMap.t elt1) (m2: NatMap.t elt2) (m3: NatMap.t elt3)
+        P
+        (FA: Forall3 (fun '(k1, e1) '(k2, e2) '(k3, e3) => (k1 = k2) /\ (k1 = k3) /\ (P e1 e2 e3 k1))
+                     (elements m1) (elements m2) (elements m3))
+    :
+    forall k e1 e2 e3 (FIND1: find k m1 = Some e1) (FIND2: find k m2 = Some e2) (FIND3: find k m3 = Some e3),
+      P e1 e2 e3 k.
+  Proof.
+    match goal with
+    | FA: Forall3 _ ?_ml1 ?_ml2 ?_ml3 |- _ => remember _ml1 as ml1; remember _ml2 as ml2; remember _ml3 as ml3
+    end.
+    move FA before elt3. revert_until FA. induction FA; i.
+    { symmetry in Heqml1; apply elements_Empty in Heqml1.
+      symmetry in Heqml2; apply elements_Empty in Heqml2.
+      symmetry in Heqml3; apply elements_Empty in Heqml3.
+      apply nm_empty_eq in Heqml1, Heqml2, Heqml3. subst. rewrite F.empty_o in FIND1; ss.
+    }
+    des_ifs. des; clarify. destruct (F.eq_dec k k2); clarify.
+    { eapply nm_elements_cons_find_some in Heqml1, Heqml2, Heqml3. clarify. }
+    hexploit nm_elements_cons_rm. eapply Heqml1. intro RM1.
+    hexploit nm_elements_cons_rm. eapply Heqml2. intro RM2.
+    hexploit nm_elements_cons_rm. eapply Heqml3. intro RM3.
+    eapply IHFA; eauto. rewrite nm_find_rm_neq; auto. rewrite nm_find_rm_neq; auto. rewrite nm_find_rm_neq; auto.
+  Qed.
+
+  Lemma nm_find_some_implies_forall3
+        elt1 elt2 elt3 (m1: NatMap.t elt1) (m2: NatMap.t elt2) (m3: NatMap.t elt3)
+        (P: elt1 -> elt2 -> elt3 -> key -> Prop)
+        (WFP1: nm_wf_pair m1 m2)
+        (WFP2: nm_wf_pair m1 m3)
+        (PROP: forall k e1 e2 e3
+                 (FIND1: find k m1 = Some e1) (FIND2: find k m2 = Some e2) (FIND3: find k m3 = Some e3), P e1 e2 e3 k)
+    :
+    Forall3 (fun '(k1, e1) '(k2, e2) '(k3, e3) => (k1 = k2) /\ (k1 = k3) /\ (P e1 e2 e3 k1))
+            (elements m1) (elements m2) (elements m3).
+  Proof.
+    remember (elements m1) as l1. move l1 before elt3. revert_until l1. induction l1; i; ss.
+    { symmetry in Heql1. apply elements_Empty in Heql1. dup Heql1.
+      hexploit nm_wf_pair_empty. eapply WFP1. i. apply H in Heql0. apply nm_empty_eq in Heql0. subst. rewrite elements_empty.
+      hexploit nm_wf_pair_empty. eapply WFP2. i. apply H0 in Heql1. apply nm_empty_eq in Heql1. subst. rewrite elements_empty.
+      econs.
+    }
+    destruct a as [k e1]. hexploit nm_elements_cons_rm. eauto. intros ELEM1. rewrite ELEM1 in Heql1.
+    destruct (elements m2) eqn:Heql2.
+    { exfalso. apply elements_Empty in Heql2. hexploit nm_wf_pair_empty. eapply WFP1. i. apply H in Heql2.
+      apply nm_empty_eq in Heql2. subst. rewrite elements_empty in Heql1. inv Heql1. }
+    destruct (elements m3) eqn:Heql3.
+    { exfalso. apply elements_Empty in Heql3. hexploit nm_wf_pair_empty. eapply WFP2. i. apply H in Heql3.
+      apply nm_empty_eq in Heql3. subst. rewrite elements_empty in Heql1. inv Heql1. }
+    destruct p as [k0 e2]. rename l into l2. symmetry in Heql2.
+    destruct p0 as [k1 e3]. rename l0 into l3. symmetry in Heql3.
+    hexploit nm_elements_cons_rm. eapply Heql2. intro ELEM2. rewrite ELEM2 in Heql2.
+    hexploit nm_elements_cons_rm. eapply Heql3. intro ELEM3. rewrite ELEM3 in Heql3.
+    assert (k = k0).
+    { hexploit nm_wf_pair_elements_forall2. eapply WFP1. rewrite <- Heql1, <- Heql2. i. inv H. auto. }
+    assert (k = k1).
+    { hexploit nm_wf_pair_elements_forall2. eapply WFP2. rewrite <- Heql1, <- Heql3. i. inv H0. auto. }
+    replace k0 with k in *. replace k1 with k in *. clear H H0. econs.
+    2:{ rewrite ELEM2, ELEM3. eapply IHl1; eauto.
+        apply nm_wf_pair_rm; auto. apply nm_wf_pair_rm; auto.
+        i. eapply PROP.
+        rewrite F.remove_o in FIND1. des_ifs. rewrite F.remove_o in FIND2. des_ifs. rewrite F.remove_o in FIND3. des_ifs.
+    }
+    splits; auto. eapply PROP. all: eapply nm_elements_cons_find_some; eauto.
+  Qed.
+
+  Inductive Forall4 (A B C D : Type) (R : A -> B -> C -> D -> Prop) : list A -> list B -> list C -> list D -> Prop :=
+    Forall4_nil : Forall4 R [] [] [] []
+  | Forall4_cons : forall (x : A) (y : B) (z : C) (w : D) (l1 : list A) (l2 : list B) (l3: list C) (l4: list D),
+      R x y z w -> Forall4 R l1 l2 l3 l4 -> Forall4 R (x :: l1) (y :: l2) (z :: l3) (w :: l4).
+
+  Lemma list_forall4_implies_forall2_4
+        A B C D (f1: A -> B -> C -> D -> Prop) (f2: A -> D -> Prop)
+        la lb lc ld
+        (FA: Forall4 f1 la lb lc ld)
+        (IMP: forall a b c d, (f1 a b c d) -> (f2 a d))
+    :
+    List.Forall2 f2 la ld.
+  Proof.
+    move FA before D. revert_until FA. induction FA; i; ss. econs; eauto.
+  Qed.
+
+  Lemma list_forall4_implies_forall2_3
+        A B C D (f1: A -> B -> C -> D -> Prop) (f2: A -> C -> Prop)
+        la lb lc ld
+        (FA: Forall4 f1 la lb lc ld)
+        (IMP: forall a b c d, (f1 a b c d) -> (f2 a c))
+    :
+    List.Forall2 f2 la lc.
+  Proof.
+    move FA before D. revert_until FA. induction FA; i; ss. econs; eauto.
+  Qed.
+
+  Lemma list_forall4_implies_forall2_2
+        A B C D (f1: A -> B -> C -> D -> Prop) (f2: A -> B -> Prop)
+        la lb lc ld
+        (FA: Forall4 f1 la lb lc ld)
+        (IMP: forall a b c d, (f1 a b c d) -> (f2 a b))
+    :
+    List.Forall2 f2 la lb.
+  Proof.
+    move FA before D. revert_until FA. induction FA; i; ss. econs; eauto.
+  Qed.
+
+  Import NatMap.
+  Import NatMapP.
+
+  Lemma nm_forall4_implies_find_some
+        elt1 elt2 elt3 elt4 (m1: NatMap.t elt1) (m2: NatMap.t elt2) (m3: NatMap.t elt3) (m4: NatMap.t elt4)
+        P
+        (FA: Forall4 (fun '(k1, e1) '(k2, e2) '(k3, e3) '(k4, e4) => (k1 = k2) /\ (k1 = k3) /\ (k1 = k4) /\ (P e1 e2 e3 e4 k1))
+                     (elements m1) (elements m2) (elements m3) (elements m4))
+    :
+    forall k e1 e2 e3 e4
+      (FIND1: find k m1 = Some e1) (FIND2: find k m2 = Some e2) (FIND3: find k m3 = Some e3) (FIND4: find k m4 = Some e4),
+      P e1 e2 e3 e4 k.
+  Proof.
+    match goal with
+    | FA: Forall4 _ ?_ml1 ?_ml2 ?_ml3 ?_ml4 |- _ =>
+        remember _ml1 as ml1; remember _ml2 as ml2; remember _ml3 as ml3; remember _ml4 as ml4
+    end.
+    move FA before elt4. revert_until FA. induction FA; i.
+    { symmetry in Heqml1; apply elements_Empty in Heqml1.
+      apply nm_empty_eq in Heqml1. subst. rewrite F.empty_o in FIND1; ss.
+    }
+    des_ifs. des; clarify. destruct (F.eq_dec k k3); clarify.
+    { eapply nm_elements_cons_find_some in Heqml1, Heqml2, Heqml3, Heqml4. clarify. }
+    hexploit nm_elements_cons_rm. eapply Heqml1. intro RM1.
+    hexploit nm_elements_cons_rm. eapply Heqml2. intro RM2.
+    hexploit nm_elements_cons_rm. eapply Heqml3. intro RM3.
+    hexploit nm_elements_cons_rm. eapply Heqml4. intro RM4.
+    eapply IHFA; eauto. all: rewrite nm_find_rm_neq; auto.
+  Qed.
+
+End AUX.
