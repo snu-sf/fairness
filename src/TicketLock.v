@@ -42,14 +42,34 @@ Module TicketLock.
   Definition now_serving: SCMem.val := SCMem.val_ptr (0, 0).
   Definition next_ticket: SCMem.val := SCMem.val_ptr (0, 1).
 
+  Definition lock_loop (myticket: SCMem.val):
+    itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit
+    :=
+    ITree.iter
+      (fun (_: unit) =>
+         next <- (OMod.call "load" (now_serving));;
+         b <- (OMod.call "compare" (next: SCMem.val, myticket: SCMem.val));;
+         if (b: bool) then Ret (inr tt) else Ret (inl tt)) tt.
+
+  Lemma lock_loop_red myticket
+    :
+    lock_loop myticket
+    =
+      next <- (OMod.call "load" (now_serving));;
+      b <- (OMod.call "compare" (next: SCMem.val, myticket: SCMem.val));;
+      if (b: bool)
+      then Ret tt else tau;; lock_loop myticket.
+  Proof.
+    unfold lock_loop. etransitivity.
+    { apply unfold_iter. }
+    grind.
+  Qed.
+
   Definition lock_fun:
     ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit :=
     fun _ =>
       myticket <- (OMod.call "faa" (next_ticket, 1));;
-      _ <- ITree.iter
-             (fun (_: unit) =>
-                next <- (OMod.call "load" (now_serving));;
-                b <- (OMod.call "compare" (next: SCMem.val, myticket: SCMem.val));;          if (b: bool) then Ret (inr tt) else Ret (inl tt)) tt;;
+      _ <- lock_loop myticket;;
       trigger Yield
   .
 
@@ -235,20 +255,16 @@ Section SIM.
     { ss. iFrame. }
   Qed.
 
-  Lemma waiters_rollback start n tid k a x
+  Lemma waiters_rollback start n tid k a
         (IN: start <= a < start + n)
     :
-    (regionl x)
-      -∗
       (Region.white a (tid, k))
       -∗
       (waiters start n)
       -∗
-      ((regionl x)
-         **
-         (∃ j, (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
-                 **
-                 (ObligationRA.pending j (/2)%Qp))
+      ((∃ j, (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
+               **
+               (ObligationRA.pending j (/2)%Qp))
          **
          (∀ j,
              (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
@@ -263,21 +279,16 @@ Section SIM.
   Proof.
     assert (RANGE: (0 <= a - start < 0 + n)%nat).
     { lia. }
-    iIntros "BLACK WHITE WAIT".
+    iIntros "WHITE WAIT".
     apply in_seq in RANGE. apply in_split in RANGE. des.
     unfold waiters. rewrite RANGE.
     iPoseProof (list_prop_sum_split with "WAIT") as "[WAIT0 WAIT1]".
     iPoseProof (list_prop_sum_cons_unfold with "WAIT1") as "[[% [% [% [[[[[H0 H1] H2] H3] H4] H5]]]] WAIT2]".
     replace (start + (a - start)) with a by lia.
-    iDestruct "BLACK" as "[% [BLACK LEN]]".
-    iPoseProof (Region.white_agree with "[BLACK] WHITE H0") as "%".
-    { eauto. }
+    iPoseProof (Region.white_agree with "WHITE H0") as "%".
     clarify.
-    iSplitL "BLACK LEN H1 H3".
-    { iSplitR "H1 H3".
-      { iExists _. iFrame. }
-      { iExists _. iFrame. }
-    }
+    iSplitL "H1 H3".
+    { iExists _. iFrame. }
     iIntros (?) "VOTE CORR PEND BLACK".
     iApply list_prop_sum_combine. iSplitL "WAIT0".
     { auto. }
@@ -497,13 +508,14 @@ Section SIM.
     { admit. }
     { i. ss. unfold OMod.closed_funs. ss. des_ifs.
       { cut (forall tid,
-                (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot5 ibot5 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) (WMod.interp_fun FairLock.wmod FairLock.lock_fun args) (OMod.close_itree TicketLock.omod (SCMem.mod [1; 1]) (Mod.wrap_fun TicketLock.lock_fun args))).
+                (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot5 ibot5 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) (Mod.wrap_fun (WMod.interp_fun FairLock.wmod FairLock.lock_fun) args) (OMod.close_itree TicketLock.omod (SCMem.mod [1; 1]) (Mod.wrap_fun TicketLock.lock_fun args))).
         { admit. }
         i. iIntros "[TH DUTY]".
-        unfold WMod.interp_fun, Mod.wrap_fun, TicketLock.lock_fun.
+        unfold Mod.wrap_fun, TicketLock.lock_fun. lred. rred.
         destruct (Any.downcast args) eqn:EQ.
         2:{ ss. unfold UB. lred. iApply stsim_UB. }
         clear EQ. ss. lred. rred.
+        rewrite WMod.interp_fun_unfold. unfold WMod.interp_fun_register. lred.
         rewrite close_itree_call. ss. rred.
         iApply (stsim_sync with "[DUTY]"); [msubtac|iFrame|]. iIntros "DUTY _".
         rred. unfold SCMem.faa_fun, Mod.wrap_fun. rred.
@@ -529,7 +541,7 @@ Section SIM.
         { ss. }
         instantiate (1:=Hessenberg.add Ord.one (Ord.one × (S n))%ord).
         iIntros "[WHITES _]".
-        rewrite unfold_iter_eq.
+        lred. rewrite WMod.interp_loop_unfold.
         lred. iApply stsim_chooseL. iExists true.
         iPoseProof (FairRA.white_split with "WHITES") as "[WHITE WHITES]".
         lred. iApply (stsim_fairL with "[WHITE]").
