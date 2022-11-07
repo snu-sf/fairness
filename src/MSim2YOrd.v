@@ -245,3 +245,54 @@ Section MODSIM.
   Qed.
 
 End MODSIM.
+
+From Fairness Require Import Concurrency.
+
+Section USERSIM.
+
+  Lemma modsim_implies_yord_user
+        md_src md_tgt
+        p_src p_tgt
+        (MDSIM: ModSim.UserSim.sim md_src md_tgt p_src p_tgt)
+    :
+    ModSimYOrd.UserSim.sim md_src md_tgt p_src p_tgt.
+  Proof.
+    inv MDSIM.
+    set (ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
+    set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
+    set (srcE := ((@eventE ident_src +' cE) +' sE state_src)).
+    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (ident_tgt := @ident_tgt _ident_tgt).
+    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
+    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
+    econs; eauto. instantiate (1:=wf_stt).
+    { i. exact (inr None). }
+    i. specialize (funs im_tgt).
+    des. esplits; eauto.
+    instantiate (1:=NatMap.map (fun _ => (inr None, inr None)) (key_set p_src)).
+    eapply nm_find_some_implies_forall4.
+    { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_2; eauto. clear. i. des. des_ifs. des; clarify. }
+    { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_3; eauto. clear. i. des. des_ifs. des; clarify. }
+    { unfold key_set. rewrite nm_map_map_eq. unfold nm_wf_pair. unfold key_set. rewrite nm_map_map_eq. ss. }
+    i. eapply nm_forall3_implies_find_some in SIM; eauto.
+    unfold ModSim.local_sim_init in SIM. unfold local_sim_init.
+    assert (e4 = (inr None, inr None)).
+    { rewrite NatMapP.F.map_o in FIND4. unfold option_map in FIND4. des_ifs. }
+    clarify.
+    i. specialize (SIM _ _ _ _ _ _ _ INV VALID _ FAIR fs ft).
+    eapply modsim_implies_yord in SIM. des.
+    ginit. guclo lsim_ord_weakRC_spec. econs. guclo lsim_ord_weakLC_spec. econs.
+    gfinal. right. eapply SIM.
+    - clear. destruct os.
+      { right. econs. }
+      destruct t.
+      { right. do 2 econs. }
+      { left. auto. }
+    - clear. destruct ot.
+      { right. econs. }
+      destruct t.
+      { right. do 2 econs. }
+      { left. auto. }
+  Qed.
+
+End USERSIM.

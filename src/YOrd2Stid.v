@@ -8,6 +8,7 @@ From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World WFLib ThreadsURA.
 From Fairness Require Import Mod ModSimYOrd ModSimStid.
+Unset Universe Checking.
 
 Set Implicit Arguments.
 
@@ -623,3 +624,112 @@ Section MODSIM.
   Qed.
 
 End MODSIM.
+
+Section USERSIM.
+
+  Lemma yord_implies_stid_user
+        md_src md_tgt
+        p_src p_tgt
+        (MDSIM: ModSimYOrd.UserSim.sim md_src md_tgt p_src p_tgt)
+    :
+    ModSimStid.UserSim.sim md_src md_tgt p_src p_tgt.
+  Proof.
+    inv MDSIM.
+    set (ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
+    set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
+    set (srcE := ((@eventE ident_src +' cE) +' sE state_src)).
+    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (ident_tgt := @ident_tgt _ident_tgt).
+    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
+    set (ident_src2 := sum_tid ident_src).
+    set (wf_src_th := fun R0 R1 => clos_trans_WF (prod_WF (prod_WF (wf_stt R0 R1) wf_tgt) (nmo_wf (wf_stt R0 R1)))).
+    set (wf_src2 := fun R0 R1 => sum_WF (@wf_src_th R0 R1) wf_src).
+    set (M2 := fun R0 R1 => URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
+    set (St := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
+    assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
+    { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
+    eapply (@UserSim.mk _ _ _ _ (wf_src2 Any.t Any.t) _ wf_tgt_inhabited wf_tgt_open (M2 Any.t Any.t)).
+    i. specialize (funs im_tgt). des.
+    set (im_src_th :=(fun t => ((wf_stt0 Any.t Any.t, im_tgt (inl t)), nm_proj_v1 ost))).
+    exists (@imap_comb _ _ (wf_src_th Any.t Any.t) _ im_src_th im_src). eexists. exists (shared_thsRA wf_stt wf_stt0 ost, r_shared).
+    exists (@I2 _ _ _ _ _ _ _ I wf_stt wf_stt0 Any.t Any.t).
+    esplits.
+    { unfold I2. esplits; eauto.
+      unfold Is. exists ost. splits; auto.
+      { admit. }
+        (* { subst ost. eapply nm_wf_pair_empty_empty_eq. } *)
+        (* i. ss. eapply NatMapP.F.empty_in_iff in IN. ss. *)
+      i. econs 1. econs 1. econs 2; auto.
+      - ur. split; auto. subst ost. ur. i. ur. split; ur; ss. des_ifs. unfold URA.extends.
+        exists ε. r_solve.
+    }
+
+    
+    esplits. instantiate (3:=I2 I wf_stt wf_stt0 Any.t Any.t).
+    set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))).
+    set (M2 := fun R0 R1 => URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
+    set (St := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
+    assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
+    { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
+    ss.
+    esplits; eauto.
+    instantiate (2:=(I2 _ _)).
+    (M2 Any.t Any.t) (I2 Any.t Any.t)).
+    econs. eapply wf_tgt_inhabited. auto.
+    
+    eapply (@ModSim.mk _ _ (wf_src2 Any.t Any.t) _ wf_tgt_inhabited wf_tgt_open (M2 Any.t Any.t) (I2 Any.t Any.t)).
+    { i. move init after im_tgt. specialize (init im_tgt). des.
+      set (ost:= @NatMap.empty (prod (wf_stt Any.t Any.t).(T) (wf_stt Any.t Any.t).(T))).
+      assert (im_src_th: imap thread_id (@wf_src_th Any.t Any.t)).
+      { exact (fun t => ((wf_stt0 Any.t Any.t, im_tgt (inl t)), nm_proj_v1 ost)). }
+      exists (imap_comb im_src_th im_src). exists (shared_thsRA wf_stt wf_stt0 ost, r_shared).
+      unfold I2. unfold YOrd2Stid.I2. esplits; eauto.
+      - unfold Is. exists ost. splits; auto.
+        { subst ost. eapply nm_wf_pair_empty_empty_eq. }
+        i. eapply NatMapP.F.empty_in_iff in IN. ss.
+      - ur. split; auto. subst ost. ur. i. ur. split; ur; ss. des_ifs. unfold URA.extends.
+        exists ε. r_solve.
+    }
+
+    i. specialize (funs fn args). des_ifs.
+    unfold ModSimYOrd.local_sim in funs.
+    ii. unfold I2 in INV. unfold YOrd2Stid.I2 in INV.
+    destruct r_shared0 as [shared_r r_shared], r_ctx0 as [ctx_r r_ctx].
+    ur in VALID. des.
+    specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID0 _ UPD).
+    move funs after UPD. des. rename funs1 into LSIM. move LSIM before M2.
+    unfold Is in INVS. des. clarify.
+    set (ost':= NatMap.add tid (os, ot) ost).
+    exists (shared_thsRA wf_stt wf_stt0 ost', r_shared1), (tid |-> (os, ot), r_own).
+    set (im_src_th':= fun t => match (NatMap.find t ost') with
+                            | None => (im_src_th t)
+                            | Some (_, ot) => ((ot, St (im_tgt0' (inl t))), nm_proj_v1 ost')
+                            end).
+    remember (fun ti => match ti with | inl t => inl (im_src_th' t) | inr i => inr (im_src_us i) end) as im_src_tot. exists im_src_tot.
+    splits.
+
+    - unfold I2, YOrd2Stid.I2.  exists im_src_th', im_src_us. splits; auto.
+      exists ost'. splits; auto.
+      { subst ost'. clear - THS WFOST. inv THS. eapply nm_wf_pair_add. auto. }
+      i. inv THS. subst im_src_th'. ss. rewrite FIND.
+      econs 1. econs 1. econs 2; auto.
+    - ur; split; auto. subst ost'. ur. ur in VALID. i.
+      unfold shared_thsRA in *. specialize (VALID k1). destruct (tid_dec k1 tid); clarify.
+      + rewrite nm_find_add_eq. assert (NatMap.find tid ost = None).
+        { inv THS. eapply nm_wf_pair_find_cases in WFOST. des. eapply WFOST in NEW. auto. }
+        rewrite H in VALID. clear - VALID. rewrite th_has_hit.
+        ur. ur in VALID. des_ifs. des; split. 2: ur; ss.
+        unfold URA.extends in *. des. exists ctx. rewrite URA.unit_idl in VALID.
+        ur in VALID. des_ifs. r_solve.
+      + rewrite nm_find_add_neq; auto. rewrite th_has_miss. r_solve. des_ifs; auto. ii. clarify.
+    - subst. i. destruct r_shared2 as [shared_r2 r_shared2], r_ctx2 as [ctx_r2 r_ctx2].
+      unfold I2, YOrd2Stid.I2 in INV1. ur in VALID2. des.
+      move LSIM after TGT. specialize (LSIM _ _ _ _ _ _ _ INV1 VALID3 _ TGT).
+      des. hexploit init_src_inv. 1,2: eauto. 2: eapply INVS. 2: eapply VALID2. 2: eapply TGT.
+      instantiate (1:=im_src_us0). reflexivity. i. des.
+      subst im_src1. esplits. eapply SRC.
+      i. eapply yord_implies_stid; eauto.
+  Qed.
+
+
+End USERSIM.

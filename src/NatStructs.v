@@ -2130,4 +2130,56 @@ Section AUX.
     eapply IHFA; eauto. all: rewrite nm_find_rm_neq; auto.
   Qed.
 
+  Lemma nm_find_some_implies_forall4
+        elt1 elt2 elt3 elt4 (m1: NatMap.t elt1) (m2: NatMap.t elt2) (m3: NatMap.t elt3) (m4: NatMap.t elt4)
+        (P: elt1 -> elt2 -> elt3 -> elt4 -> key -> Prop)
+        (WFP1: nm_wf_pair m1 m2)
+        (WFP2: nm_wf_pair m1 m3)
+        (WFP3: nm_wf_pair m1 m4)
+        (PROP: forall k e1 e2 e3 e4
+                 (FIND1: find k m1 = Some e1) (FIND2: find k m2 = Some e2) (FIND3: find k m3 = Some e3) (FIND4: find k m4 = Some e4),
+            P e1 e2 e3 e4 k)
+    :
+    Forall4 (fun '(k1, e1) '(k2, e2) '(k3, e3) '(k4, e4) => (k1 = k2) /\ (k1 = k3) /\ (k1 = k4) /\ (P e1 e2 e3 e4 k1))
+            (elements m1) (elements m2) (elements m3) (elements m4).
+  Proof.
+    remember (elements m1) as l1. move l1 before elt3. revert_until l1. induction l1; i; ss.
+    { symmetry in Heql1. apply elements_Empty in Heql1. dup Heql1. dup Heql1.
+      hexploit nm_wf_pair_empty. eapply WFP1. i. apply H in Heql0. apply nm_empty_eq in Heql0. subst. rewrite elements_empty.
+      hexploit nm_wf_pair_empty. eapply WFP2. i. apply H0 in Heql1. apply nm_empty_eq in Heql1. subst. rewrite elements_empty.
+      hexploit nm_wf_pair_empty. eapply WFP3. i. apply H1 in Heql2. apply nm_empty_eq in Heql2. subst. rewrite elements_empty.
+      econs.
+    }
+    destruct a as [k e1]. hexploit nm_elements_cons_rm. eauto. intros ELEM1. rewrite ELEM1 in Heql1.
+    destruct (elements m2) eqn:Heql2.
+    { exfalso. apply elements_Empty in Heql2. hexploit nm_wf_pair_empty. eapply WFP1. i. apply H in Heql2.
+      apply nm_empty_eq in Heql2. subst. rewrite elements_empty in Heql1. inv Heql1. }
+    destruct (elements m3) eqn:Heql3.
+    { exfalso. apply elements_Empty in Heql3. hexploit nm_wf_pair_empty. eapply WFP2. i. apply H in Heql3.
+      apply nm_empty_eq in Heql3. subst. rewrite elements_empty in Heql1. inv Heql1. }
+    destruct (elements m4) eqn:Heql4.
+    { exfalso. apply elements_Empty in Heql4. hexploit nm_wf_pair_empty. eapply WFP3. i. apply H in Heql4.
+      apply nm_empty_eq in Heql4. subst. rewrite elements_empty in Heql1. inv Heql1. }
+    destruct p as [k0 e2]. rename l into l3. symmetry in Heql2.
+    destruct p0 as [k1 e3]. rename l0 into l4. symmetry in Heql3.
+    destruct p1 as [k2 e4]. rename l2 into l5. symmetry in Heql4.
+    hexploit nm_elements_cons_rm. eapply Heql2. intro ELEM2. rewrite ELEM2 in Heql2.
+    hexploit nm_elements_cons_rm. eapply Heql3. intro ELEM3. rewrite ELEM3 in Heql3.
+    hexploit nm_elements_cons_rm. eapply Heql4. intro ELEM4. rewrite ELEM4 in Heql4.
+    assert (k = k0).
+    { hexploit nm_wf_pair_elements_forall2. eapply WFP1. rewrite <- Heql1, <- Heql2. i. inv H. auto. }
+    assert (k = k1).
+    { hexploit nm_wf_pair_elements_forall2. eapply WFP2. rewrite <- Heql1, <- Heql3. i. inv H0. auto. }
+    assert (k = k2).
+    { hexploit nm_wf_pair_elements_forall2. eapply WFP3. rewrite <- Heql1, <- Heql4. i. inv H1. auto. }
+    replace k0 with k in *. replace k1 with k in *. replace k2 with k in *. clear H H0 H1. econs.
+    2:{ rewrite ELEM2, ELEM3, ELEM4. eapply IHl1; eauto.
+        apply nm_wf_pair_rm; auto. apply nm_wf_pair_rm; auto. apply nm_wf_pair_rm; auto.
+        i. eapply PROP.
+        rewrite F.remove_o in FIND1. des_ifs. rewrite F.remove_o in FIND2. des_ifs. rewrite F.remove_o in FIND3. des_ifs.
+        rewrite F.remove_o in FIND4. des_ifs.
+    }
+    splits; auto. eapply PROP. all: eapply nm_elements_cons_find_some; eauto.
+  Qed.
+
 End AUX.
