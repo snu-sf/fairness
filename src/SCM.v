@@ -255,7 +255,7 @@ Module SCMem.
       ]).
 End SCMem.
 
-
+Unset Universe Checking.
 From Fairness Require Import PCM IProp IPM StateRA MonotonePCM.
 
 Section MEMRA.

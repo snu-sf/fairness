@@ -1,3 +1,4 @@
+Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.
@@ -9,7 +10,7 @@ Import Mod.
 Import RelationClasses.
 
 Section ADD_COMM.
-  
+
   Definition conv {id1 id2 wf} (m_tgt : @imap (ident_tgt (id_sum id2 id1)) wf) :
     @imap (id_sum id1 id2) wf :=
     fun i =>
@@ -338,7 +339,7 @@ Section ADD_RIGHT_CONG_SIM.
     }
     specialize (SIM ths_usr2 im_src2 (chop_ctx ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx ths_usr2 IM_TGT2') TGT' fs ft).
     unfold embed_l, embed_r.
-    (*    
+    (*
     assert (INV : lift_ma (ths2, IM_SRC2, IM_TGT2', st_src2, st_tgt2) (global_th ths_ctx2 ths_usr2, r_sha_w2)).
     { ss. exists im_src2, ths_ctx2, ths_usr2. splits; ss.
       - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
@@ -436,7 +437,7 @@ Section ADD_RIGHT_CONG_SIM.
       replace (trigger Yield) with (trigger (emb (subevent _ Yield))) by ss. subst emb.
       rewrite <- map_event_trigger, <- embed_state_trigger.
       destruct LSIM. eapply IH; eauto.
-    - rewrite 2 embed_state_trigger, 2 map_event_trigger. 
+    - rewrite 2 embed_state_trigger, 2 map_event_trigger.
       match goal with [ |- __lsim _ _ _ _ _ _ _ _ (_ <- trigger (?EMB _);; _) _ _ ] => set EMB as emb end.
       eapply lsim_yieldR.
       { instantiate (1 := (global_th ths_ctx0 ths_usr0, r_shared)).

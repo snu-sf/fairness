@@ -2,6 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind OpenMod.
+Unset Universe Checking.
 
 Set Implicit Arguments.
 

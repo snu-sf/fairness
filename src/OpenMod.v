@@ -6,7 +6,7 @@ Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
 From Fairness Require Export ITreeLib FairBeh NatStructs.
-From Fairness Require Export Mod StateRA.
+From Fairness Require Export Mod.
 
 Set Implicit Arguments.
 
