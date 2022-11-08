@@ -626,6 +626,8 @@ Section MODSIM.
 End MODSIM.
 
 
+Require Import List.
+
 Section AUX.
 
   Lemma nm_fold_prod_res
@@ -646,6 +648,30 @@ Section AUX.
     rewrite IHl. destruct pw as [p w]. ss. f_equal.
     - f_equal. repeat ur. des_ifs; ss.
     - f_equal. repeat ur. des_ifs; ss.
+  Qed.
+
+  Lemma list_map_elements_nm_mapi
+    : forall (elt : Type) (m : NatMap.t elt) (elt1 : Type) (f: NatMap.key -> elt -> elt1),
+      List.map (fun '(k, e) => (k, f k e)) (NatMap.elements m) = NatMap.elements (NatMap.mapi f m).
+  Proof.
+    i. ss. unfold NatMap.elements. unfold NatMap.Raw.elements. destruct m. ss. clear sorted.
+    rename this into l. induction l; ss. des_ifs. f_equal; auto.
+  Qed.
+
+  Lemma list_fold_left_resource_aux2
+        (world : URA.t) c X l
+    :
+    fold_left
+      (fun (a : world)
+         (p : NatMap.key * (world * X)) =>
+         (let '(r, _) := snd p in fun s : world => r ⋅ s) a) l ε ⋅ c =
+      fold_left
+        (fun (a : world)
+           (p : NatMap.key * (world * X)) =>
+           (let '(r, _) := snd p in fun s : world => r ⋅ s) a) l c.
+  Proof.
+    revert c. induction l; i; ss. r_solve. des_ifs. destruct a; ss. clarify; ss. rewrite <- (IHl (c0 ⋅ ε)). r_solve.
+    rewrite <- (IHl (c0 ⋅ c)). r_solve.
   Qed.
 
 End AUX.
@@ -706,7 +732,22 @@ Section USERSIM.
     { subst rowns. subst ost. clear - WF. subst M2. ss.
       setoid_rewrite (@nm_fold_prod_res world (wf_stt Any.t Any.t).(T) (ε, ε) rsost).
       try rewrite ! URA.unfold_wf; try rewrite ! URA.unfold_add. ss. split.
-      2:{ 
+      2:{ replace 
+            (NatMap.fold (fun _ : NatMap.key => URA._add)
+                         (NatMap.mapi (fun (_ : NatMap.key) (rst : world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) => fst rst) rsost) ε)
+        with (NatMap.fold (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) rsost ε); auto.
+          rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_mapi.
+          remember (NatMap.elements rsost) as l. clear.
+          replace
+            (fold_left (fun (a : world) (p : NatMap.key * world) => URA._add (snd p) a) (map (fun '(k, e) => (k, fst e)) l) ε) with
+            (fold_left (fun (a : world) (p : NatMap.key * world) => (snd p) ⋅ a) (map (fun '(k, e) => (k, fst e)) l) ε).
+          2:{ ur. auto. }
+          induction l; ss. des_ifs. ss. clarify.
+          ss. r_solve. rewrite resources_fold_left_base. rewrite <- IHl. symmetry. eapply list_fold_left_resource_aux2.
+      }
+      
+          
+
 
 
       r_solve. ur. split; auto. subst ost'. ur. ur in VALID. i.
