@@ -630,6 +630,9 @@ Require Import List.
 
 Section AUX.
 
+  Import NatMap.
+  Import NatMapP.
+
   Lemma nm_fold_prod_res
         (world: URA.t) X pw rsost
     :
@@ -654,8 +657,8 @@ Section AUX.
     : forall (elt : Type) (m : NatMap.t elt) (elt1 : Type) (f: NatMap.key -> elt -> elt1),
       List.map (fun '(k, e) => (k, f k e)) (NatMap.elements m) = NatMap.elements (NatMap.mapi f m).
   Proof.
-    i. ss. unfold NatMap.elements. unfold NatMap.Raw.elements. destruct m. ss. clear sorted.
-    rename this into l. induction l; ss. des_ifs. f_equal; auto.
+    i. ss. unfold NatMap.elements. unfold NatMap.Raw.elements. destruct m. ss. clear sorted0.
+    rename this0 into l. induction l; ss. des_ifs. f_equal; auto.
   Qed.
 
   Lemma list_fold_left_resource_aux2
@@ -673,6 +676,55 @@ Section AUX.
     revert c. induction l; i; ss. r_solve. des_ifs. destruct a; ss. clarify; ss. rewrite <- (IHl (c0 ⋅ ε)). r_solve.
     rewrite <- (IHl (c0 ⋅ c)). r_solve.
   Qed.
+
+  Lemma nm_map_empty
+        e0 e1 (f: e0 -> e1)
+    :
+    NatMap.map f (NatMap.empty e0) = (NatMap.empty e1).
+  Proof.
+    eapply nm_empty_eq. eapply nm_map_empty1. apply NatMap.empty_1.
+  Qed.
+
+  Lemma nm_mapi_empty1
+    : forall (elt1 : Type) (m : NatMap.t elt1) (elt2 : Type) (f: NatMap.key -> elt1 -> elt2),
+      NatMap.Empty m -> NatMap.Empty (NatMap.mapi f m).
+  Proof.
+    i. rewrite elements_Empty in *. ss. unfold elements, Raw.elements in *. rewrite H. ss.
+  Qed.
+
+  Lemma nm_mapi_empty
+        e0 e1 f
+    :
+    NatMap.mapi f (NatMap.empty e0) = (NatMap.empty e1).
+  Proof.
+    eapply nm_empty_eq. eapply nm_mapi_empty1. apply NatMap.empty_1.
+  Qed.
+
+  Lemma nm_mapi_add_comm_equal
+        elt (m: t elt) elt' (f: key -> elt -> elt') k e
+    :
+    Equal (add k (f k e) (mapi f m)) (mapi f (add k e m)).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + assert (H: MapsTo k0 e (add k0 e m)).
+        { eapply add_1; auto. }
+        eapply mapi_1 in H. des; clarify; eauto.
+      + eapply F.mapi_mapsto_iff in H0. 2: i; clarify; eauto.
+        des; clarify.
+        assert (H2: MapsTo k0 a (add k e m)).
+        { eapply add_2; auto. }
+        eapply mapi_1 in H2. des; clarify; eauto.
+    - eapply F.mapi_mapsto_iff in H. 2: i; clarify; eauto.
+      des; clarify. eapply F.add_mapsto_iff in H0. des; clarify.
+      + eapply add_1; auto.
+      + eapply add_2; auto. eapply mapi_1 in H1. des; clarify; eauto.
+  Qed.
+  Lemma nm_mapi_add_comm_eq
+        elt (m: t elt) elt' (f: key -> elt -> elt') k e
+    :
+    (add k (f k e) (mapi f m)) = (mapi f (add k e m)).
+  Proof. eapply nm_eq_is_equal, nm_mapi_add_comm_equal. Qed.
 
 End AUX.
 
@@ -732,101 +784,75 @@ Section USERSIM.
     { subst rowns. subst ost. clear - WF. subst M2. ss.
       setoid_rewrite (@nm_fold_prod_res world (wf_stt Any.t Any.t).(T) (ε, ε) rsost).
       try rewrite ! URA.unfold_wf; try rewrite ! URA.unfold_add. ss. split.
-      2:{ replace 
-            (NatMap.fold (fun _ : NatMap.key => URA._add)
-                         (NatMap.mapi (fun (_ : NatMap.key) (rst : world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) => fst rst) rsost) ε)
-        with (NatMap.fold (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) rsost ε); auto.
-          rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_mapi.
-          remember (NatMap.elements rsost) as l. clear.
-          replace
-            (fold_left (fun (a : world) (p : NatMap.key * world) => URA._add (snd p) a) (map (fun '(k, e) => (k, fst e)) l) ε) with
-            (fold_left (fun (a : world) (p : NatMap.key * world) => (snd p) ⋅ a) (map (fun '(k, e) => (k, fst e)) l) ε).
-          2:{ ur. auto. }
-          induction l; ss. des_ifs. ss. clarify.
-          ss. r_solve. rewrite resources_fold_left_base. rewrite <- IHl. symmetry. eapply list_fold_left_resource_aux2.
+      { clear.
+        assert (RW:
+                 (NatMap.mapi (fun (t : NatMap.key) (rst : world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) => t |-> snd rst) rsost)
+                 =
+                   (NatMap.mapi (fun t st => t |-> st) (NatMap.map snd rsost))).
+        { induction rsost using nm_ind.
+          { rewrite nm_map_empty. rewrite ! nm_mapi_empty. auto. }
+          rewrite <- nm_map_add_comm_eq. rewrite <- ! nm_mapi_add_comm_eq. f_equal. auto.
+        }
+        setoid_rewrite RW. clear RW.
+        remember (NatMap.map snd rsost) as ost. clear Heqost. clear.
+        replace
+       (@NatMap.fold (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
+          (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
+          (fun (_ : NatMap.key)
+             (f0 f1 : forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))) 
+             (k : nat) => @URA.add (Auth.t (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))) (f0 k) (f1 k))
+          (@NatMap.mapi (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))
+             (@URA.car (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
+             (fun (t : NatMap.key) (st : prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))) =>
+              @th_has (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))) t st) ost)
+          (@URA.unit (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))))
+       with
+          (fun n => match NatMap.find n ost with
+                 | Some st => ae_white st
+                 | None => ε
+                 end
+          ).
+        { unfold shared_thsRA. ur. i. des_ifs.
+          { repeat ur. des_ifs. split; r_solve. ss. }
+          { r_solve. ur. split; r_solve. ur. ss. }
+        }
+        replace
+    (@NatMap.fold (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
+       (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
+       (fun (_ : NatMap.key) (f0 f1 : forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
+          (k : nat) => @URA.add (Auth.t (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))) (f0 k) (f1 k))
+       (@NatMap.mapi (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))
+          (@URA.car (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
+          (fun (t : NatMap.key) (st : prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))) =>
+           @th_has (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))) t st) ost)
+       (@URA.unit (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))))
+          with
+          (NatMap.fold (fun t st r => (t |-> st) ⋅ r) ost ε).
+        2:{ rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_mapi. remember (NatMap.elements ost) as l. clear.
+            remember ε as r. clear. revert r. induction l; ss. i.
+            rewrite IHl. f_equal. extensionality x. des_ifs. ss. repeat ur. des_ifs; ss.
+        }
+        induction ost using nm_ind; ss.
+        extensionality x. destruct (tid_dec x k) eqn:DEC.
+        - clarify. rewrite nm_find_add_eq. admit.
+        - rewrite nm_find_add_neq; auto. eapply equal_f in IHost. erewrite IHost.
+          (*TODO*)
+
       }
-      
-          
+      { replace 
+          (NatMap.fold (fun _ : NatMap.key => URA._add)
+                       (NatMap.mapi (fun (_ : NatMap.key) (rst : world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) => fst rst) rsost) ε)
+          with (NatMap.fold (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) rsost ε); auto.
+        rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_mapi.
+        remember (NatMap.elements rsost) as l. clear.
+        replace
+          (fold_left (fun (a : world) (p : NatMap.key * world) => URA._add (snd p) a) (map (fun '(k, e) => (k, fst e)) l) ε) with
+          (fold_left (fun (a : world) (p : NatMap.key * world) => (snd p) ⋅ a) (map (fun '(k, e) => (k, fst e)) l) ε).
+        2:{ ur. auto. }
+        induction l; ss. des_ifs. ss. clarify.
+        ss. r_solve. rewrite resources_fold_left_base. rewrite <- IHl. symmetry. eapply list_fold_left_resource_aux2.
+      }
 
-
-
-      r_solve. ur. split; auto. subst ost'. ur. ur in VALID. i.
-      unfold shared_thsRA in *. specialize (VALID k1). destruct (tid_dec k1 tid); clarify.
-      + rewrite nm_find_add_eq. assert (NatMap.find tid ost = None).
-        { inv THS. eapply nm_wf_pair_find_cases in WFOST. des. eapply WFOST in NEW. auto. }
-        rewrite H in VALID. clear - VALID. rewrite th_has_hit.
-        ur. ur in VALID. des_ifs. des; split. 2: ur; ss.
-        unfold URA.extends in *. des. exists ctx. rewrite URA.unit_idl in VALID.
-        ur in VALID. des_ifs. r_solve.
-      + rewrite nm_find_add_neq; auto. rewrite th_has_miss. r_solve. des_ifs; auto. ii. clarify.
-        
-
-      ur in VALID.
-        
-    esplits. instantiate (3:=I2 I wf_stt wf_stt0 Any.t Any.t).
-    set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))).
-    set (M2 := fun R0 R1 => URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
-    set (St := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
-    assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
-    { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
-    ss.
-    esplits; eauto.
-    instantiate (2:=(I2 _ _)).
-    (M2 Any.t Any.t) (I2 Any.t Any.t)).
-    econs. eapply wf_tgt_inhabited. auto.
-    
-    eapply (@ModSim.mk _ _ (wf_src2 Any.t Any.t) _ wf_tgt_inhabited wf_tgt_open (M2 Any.t Any.t) (I2 Any.t Any.t)).
-    { i. move init after im_tgt. specialize (init im_tgt). des.
-      set (ost:= @NatMap.empty (prod (wf_stt Any.t Any.t).(T) (wf_stt Any.t Any.t).(T))).
-      assert (im_src_th: imap thread_id (@wf_src_th Any.t Any.t)).
-      { exact (fun t => ((wf_stt0 Any.t Any.t, im_tgt (inl t)), nm_proj_v1 ost)). }
-      exists (imap_comb im_src_th im_src). exists (shared_thsRA wf_stt wf_stt0 ost, r_shared).
-      unfold I2. unfold YOrd2Stid.I2. esplits; eauto.
-      - unfold Is. exists ost. splits; auto.
-        { subst ost. eapply nm_wf_pair_empty_empty_eq. }
-        i. eapply NatMapP.F.empty_in_iff in IN. ss.
-      - ur. split; auto. subst ost. ur. i. ur. split; ur; ss. des_ifs. unfold URA.extends.
-        exists ε. r_solve.
-    }
-
-    i. specialize (funs fn args). des_ifs.
-    unfold ModSimYOrd.local_sim in funs.
-    ii. unfold I2 in INV. unfold YOrd2Stid.I2 in INV.
-    destruct r_shared0 as [shared_r r_shared], r_ctx0 as [ctx_r r_ctx].
-    ur in VALID. des.
-    specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID0 _ UPD).
-    move funs after UPD. des. rename funs1 into LSIM. move LSIM before M2.
-    unfold Is in INVS. des. clarify.
-    set (ost':= NatMap.add tid (os, ot) ost).
-    exists (shared_thsRA wf_stt wf_stt0 ost', r_shared1), (tid |-> (os, ot), r_own).
-    set (im_src_th':= fun t => match (NatMap.find t ost') with
-                            | None => (im_src_th t)
-                            | Some (_, ot) => ((ot, St (im_tgt0' (inl t))), nm_proj_v1 ost')
-                            end).
-    remember (fun ti => match ti with | inl t => inl (im_src_th' t) | inr i => inr (im_src_us i) end) as im_src_tot. exists im_src_tot.
-    splits.
-
-    - unfold I2, YOrd2Stid.I2.  exists im_src_th', im_src_us. splits; auto.
-      exists ost'. splits; auto.
-      { subst ost'. clear - THS WFOST. inv THS. eapply nm_wf_pair_add. auto. }
-      i. inv THS. subst im_src_th'. ss. rewrite FIND.
-      econs 1. econs 1. econs 2; auto.
-    - ur; split; auto. subst ost'. ur. ur in VALID. i.
-      unfold shared_thsRA in *. specialize (VALID k1). destruct (tid_dec k1 tid); clarify.
-      + rewrite nm_find_add_eq. assert (NatMap.find tid ost = None).
-        { inv THS. eapply nm_wf_pair_find_cases in WFOST. des. eapply WFOST in NEW. auto. }
-        rewrite H in VALID. clear - VALID. rewrite th_has_hit.
-        ur. ur in VALID. des_ifs. des; split. 2: ur; ss.
-        unfold URA.extends in *. des. exists ctx. rewrite URA.unit_idl in VALID.
-        ur in VALID. des_ifs. r_solve.
-      + rewrite nm_find_add_neq; auto. rewrite th_has_miss. r_solve. des_ifs; auto. ii. clarify.
-    - subst. i. destruct r_shared2 as [shared_r2 r_shared2], r_ctx2 as [ctx_r2 r_ctx2].
-      unfold I2, YOrd2Stid.I2 in INV1. ur in VALID2. des.
-      move LSIM after TGT. specialize (LSIM _ _ _ _ _ _ _ INV1 VALID3 _ TGT).
-      des. hexploit init_src_inv. 1,2: eauto. 2: eapply INVS. 2: eapply VALID2. 2: eapply TGT.
-      instantiate (1:=im_src_us0). reflexivity. i. des.
-      subst im_src1. esplits. eapply SRC.
-      i. eapply yord_implies_stid; eauto.
   Qed.
 
 
