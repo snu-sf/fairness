@@ -8,7 +8,7 @@ From Fairness Require Export
   FairBeh
   Mod
   pind
-  PCM
+  LPCM
   ModSim.
 
 From Coq Require Import Relations.Relation_Operators.

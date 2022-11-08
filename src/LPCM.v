@@ -1169,8 +1169,8 @@ Abort.
 Declare Scope ra_scope.
 Delimit Scope ra_scope with ra.
 Notation " K ==> V' " := (URA.pointwise K V') (at level 55, right associativity): ra_scope.
-From iris.bi Require Import derived_connectives updates.
-From iris.prelude Require Import options.
+(* From iris.bi Require Import derived_connectives updates. *)
+(* From iris.prelude Require Import options. *)
 
 
 Section TEST.
@@ -1223,12 +1223,12 @@ Section UNIT.
   Program Instance Unit : URA.t := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True; URA.core := fun _ => tt; |}.
   Next Obligation. destruct a. ss. Qed.
   Next Obligation. destruct a. ss. Qed.
-  Next Obligation. unseal "ra". i. destruct a. ss. Qed.
-  Next Obligation. unseal "ra". ss. Qed.
-  Next Obligation. unseal "ra". i. ss. Qed.
-  Next Obligation. unseal "ra". i. destruct a. ss. Qed.
-  Next Obligation. ss. Qed.
-  Next Obligation. unseal "ra". i. exists tt. ss. Qed.
+  (* Next Obligation. unseal "ra". i. destruct a. ss. Qed. *)
+  (* Next Obligation. unseal "ra". ss. Qed. *)
+  (* Next Obligation. unseal "ra". i. ss. Qed. *)
+  (* Next Obligation. unseal "ra". i. destruct a. ss. Qed. *)
+  (* Next Obligation. ss. Qed. *)
+  (* Next Obligation. unseal "ra". i. exists tt. ss. Qed. *)
 
   Lemma Unit_wf : forall x, @URA.wf Unit x.
   Proof. unfold URA.wf. unseal "ra". ss. Qed.
@@ -1375,8 +1375,8 @@ Tactic Notation "unfold_prod" hyp(H) :=
   let H1 := fresh H in
   destruct H as [H H1].
 
-From iris.bi Require Import derived_connectives updates.
-From iris.prelude Require Import options.
+(* From iris.bi Require Import derived_connectives updates. *)
+(* From iris.prelude Require Import options. *)
 
 
 Section AUX.
@@ -1403,11 +1403,11 @@ Section AUX.
     - rewrite URA.unit_id; eauto.
   Qed.
 
-  Lemma pw_insert_wf: forall `{EqDecision K} (f: K -> M) k v (WF: URA.wf (f: @URA.car RA)) (WFV: URA.wf v),
-      <<WF: URA.wf (<[k:=v]> f: @URA.car RA)>>.
-  Proof.
-    i. unfold insert, functions.fn_insert. ur. ii. des_ifs. ur in WF. eapply WF.
-  Qed.
+  (* Lemma pw_insert_wf: forall `{EqDecision K} (f: K -> M) k v (WF: URA.wf (f: @URA.car RA)) (WFV: URA.wf v), *)
+  (*     <<WF: URA.wf (<[k:=v]> f: @URA.car RA)>>. *)
+  (* Proof. *)
+  (*   i. unfold insert, functions.fn_insert. ur. ii. des_ifs. ur in WF. eapply WF. *)
+  (* Qed. *)
 
   Lemma lookup_wf: forall (f: @URA.car RA) k (WF: URA.wf f), URA.wf (f k).
   Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
@@ -1416,36 +1416,3 @@ End AUX.
 
 
 (* TODO: make lemmas for RA and turn it into URA at the last *)
-
-From Fairness Require LPCM.
-
-Program Definition to_LURA (M: URA.t): LPCM.URA.t :=
-  @LPCM.URA.mk M.(URA.car) M.(URA.unit) M.(URA._add) M.(URA._wf) M.(URA._add_comm) M.(URA._add_assoc) _ _ _ M.(URA.core) _ _ _.
-Next Obligation.
-  i. LPCM.unseal "ra".
-  hexploit URA.unit_id. i. ur in H. eauto.
-Qed.
-Next Obligation.
-  i. LPCM.unseal "ra".
-  hexploit URA.wf_unit. i. ur in H. eauto.
-Qed.
-Next Obligation.
-  i. LPCM.unseal "ra".
-  hexploit URA.wf_mon.
-  { ur. eauto. }
-  i. ur in H0. eauto.
-Qed.
-Next Obligation.
-  i. LPCM.unseal "ra".
-  hexploit URA.core_id. i. ur in H. eauto.
-Qed.
-Next Obligation.
-  i. LPCM.unseal "ra".
-  hexploit URA.core_idem. i. ur in H. eauto.
-Qed.
-Next Obligation.
-  i. LPCM.unseal "ra".
-  hexploit URA.core_mono. i. ur in H. eauto.
-Qed.
-
-Coercion to_LURA: URA.t >-> LPCM.URA.t.

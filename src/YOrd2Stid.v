@@ -6,7 +6,7 @@ Require Import Program.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
-From Fairness Require Import pind PCM World WFLib ThreadsURA.
+From Fairness Require Import pind LPCM World WFLib ThreadsURA.
 From Fairness Require Import Mod ModSimYOrd ModSimStid.
 
 Set Implicit Arguments.
@@ -292,7 +292,7 @@ Section PROOF.
       split; [|ss]. destruct LSIM as [LSIM IND].
       eapply IH in IND. punfold IND.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto.
+      all: ss; eauto.
     }
 
     { pfold. eapply pind9_fold. econs 9; eauto.
@@ -611,7 +611,7 @@ Section MODSIM.
         rewrite H in VALID. clear - VALID. rewrite th_has_hit.
         ur. ur in VALID. des_ifs. des; split. 2: ur; ss.
         unfold URA.extends in *. des. exists ctx. rewrite URA.unit_idl in VALID.
-        ur in VALID. des_ifs. r_solve.
+        ur in VALID. r_solve. des_ifs; ur; auto.
       + rewrite nm_find_add_neq; auto. rewrite th_has_miss. r_solve. des_ifs; auto. ii. clarify.
     - subst. i. destruct r_shared2 as [shared_r2 r_shared2], r_ctx2 as [ctx_r2 r_ctx2].
       unfold I2, YOrd2Stid.I2 in INV1. ur in VALID2. des.
