@@ -1,8 +1,7 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
 From Fairness Require Import Axioms NatStructs.
-From Fairness Require Import PCM World IProp IPM.
-From Fairness Require Import Mod.
+From Fairness Require Import PCM.
 Require Import String Lia Program.
 
 Set Implicit Arguments.
