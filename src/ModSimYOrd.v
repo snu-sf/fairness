@@ -863,14 +863,14 @@ Module UserSim.
           wf_stt : Type -> Type -> WF;
           wf_stt0: forall R0 R1, (wf_stt R0 R1).(T);
           funs: forall im_tgt,
-          exists im_src rs r_shared ost I,
+          exists im_src rsost r_shared I,
             (<<INIT: I (key_set p_src, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared>>) /\
-              (<<SIM: Forall4
-                        (fun '(t1, src) '(t2, tgt) '(t3, r) '(t4, osot) =>
-                           t1 = t2 /\ t1 = t3 /\ t1 = t4 /\
-                           @local_sim_init _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt I wf_stt _ _ (@eq Any.t) r t1 src tgt osot)
-                        (Th.elements p_src) (Th.elements p_tgt) (NatMap.elements rs) (Th.elements ost)>>) /\
-              (<<WF: URA.wf (r_shared ⋅ NatMap.fold (fun _ r s => r ⋅ s) rs ε)>>)
+              (<<SIM: Forall3
+                        (fun '(t1, src) '(t2, tgt) '(t3, rosot) =>
+                           t1 = t2 /\ t1 = t3 /\
+                           @local_sim_init _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt I wf_stt _ _ (@eq Any.t) (fst rosot) t1 src tgt (snd rosot))
+                        (Th.elements p_src) (Th.elements p_tgt) (NatMap.elements rsost)>>) /\
+              (<<WF: URA.wf (r_shared ⋅ NatMap.fold (fun _ '(r, _) s => r ⋅ s) rsost ε)>>)
         }.
   End MODSIM.
 End UserSim.
