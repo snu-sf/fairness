@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
 From Fairness Require Import Axioms NatStructs.
-From Fairness Require Import PCM.
+From Fairness Require Import LPCM.
 From Fairness Require Import Mod.
 Require Import String.
 

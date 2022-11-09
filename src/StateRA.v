@@ -1,10 +1,9 @@
-Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import PCM ITreeLib pind.
 Require Import Program.
 From Fairness Require Import IProp IPM.
-From Fairness Require Import PCM MonotonePCM NatMapRA ModSim FairBeh.
+From Fairness Require Import PCM MonotonePCM NatMapRA Mod FairBeh.
 
 Set Implicit Arguments.
 

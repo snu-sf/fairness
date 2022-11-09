@@ -1,7 +1,8 @@
 Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import PCM ITreeLib IProp IPM ModSim ModSimNat.
+From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
+From Fairness Require LPCM.
 Require Import Program.
 
 Set Implicit Arguments.
@@ -47,7 +48,7 @@ Section SIM.
 
   Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel).
 
-  Let gf := (fun r => pind9 (__lsim (liftI I) tid r) top9).
+  Let gf := (fun r => pind9 ((@__lsim (to_LURA Σ)) _ _ _ _ _ _ (liftI I) tid r) top9).
   Let gf_mon: monotone9 gf.
   Proof.
     eapply lsim_mon.
@@ -122,6 +123,22 @@ Section SIM.
     iApply "H1". iFrame.
   Qed.
 
+  Lemma Ladd (a b: Σ): @LPCM.URA.add (to_LURA Σ) a b = URA.add a b.
+  Proof.
+    unfold LPCM.URA.add. LPCM.unseal "ra". ur. auto.
+  Qed.
+
+  Lemma Lwf (a: Σ): @LPCM.URA.wf (to_LURA Σ) a = URA.wf a.
+  Proof.
+    unfold LPCM.URA.wf. LPCM.unseal "ra". ur. auto.
+  Qed.
+
+  Lemma Lunit: @LPCM.URA.unit (to_LURA Σ) = URA.unit.
+  Proof.
+    Local Transparent LPCM.URA.unit.
+    unfold LPCM.URA.unit. LPCM.unseal "ra". ur. auto.
+  Qed.
+
   Lemma isim_wand r g R_src R_tgt
         (Q0 Q1: R_src -> R_tgt -> shared_rel)
         itr_src itr_tgt ths im_src im_tgt st_src st_tgt
@@ -139,7 +156,7 @@ Section SIM.
     instantiate (1:=a).
     eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
     econs.
-    2:{ eapply H1. r_wf WF0. }
+    2:{ eapply H1. r_wf WF0. rewrite Ladd. r_solve. }
     unfold liftRR. i. subst. des_ifs. des.
     rr in H0. autorewrite with iprop in H0. specialize (H0 r_src).
     rr in H0. autorewrite with iprop in H0. specialize (H0 r_tgt).
@@ -150,10 +167,10 @@ Section SIM.
     rr in H0. autorewrite with iprop in H0. specialize (H0 s).
     rr in H0. autorewrite with iprop in H0.
     hexploit (H0 r0); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx'). r_wf WF1. }
+    { eapply URA.wf_mon. instantiate (1:=r_ctx'). r_wf WF1. rewrite Ladd. r_solve. }
     i. rr in H. autorewrite with iprop in H.
     hexploit H.
-    { instantiate (1:=r_ctx'). r_wf WF1. }
+    { instantiate (1:=r_ctx'). r_wf WF1. rewrite Ladd. r_solve. }
     i. des. esplits; eauto.
   Qed.
 
@@ -467,8 +484,9 @@ Section SIM.
     rr. autorewrite with iprop. i.
     rr in H. autorewrite with iprop in H. des. subst.
     ii. muclo lsim_indC_spec.
-    eapply lsim_yieldR; eauto. i.
-    rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
+    eapply lsim_yieldR; eauto.
+    { rewrite Lwf. repeat rewrite Ladd. eauto. }
+    i. rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_src1).
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt1).
     rr in H1. autorewrite with iprop in H1. specialize (H1 st_src1).
@@ -476,11 +494,18 @@ Section SIM.
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
     rr in H1. autorewrite with iprop in H1.
     hexploit (H1 r_shared1); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
+    { eapply URA.wf_mon. instantiate (1:=r_ctx1). rewrite Lwf in VALID. r_wf VALID.
+      repeat rewrite Ladd. r_solve.
+    }
     i. rr in H. autorewrite with iprop in H. hexploit (H URA.unit); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
+    { eapply URA.wf_mon. instantiate (1:=r_ctx1).
+      rewrite Lwf in VALID. r_wf VALID.
+      repeat rewrite Ladd. r_solve.
+    }
     { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. r_wf VALID.
+    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. 
+    rewrite Lwf in VALID. r_wf VALID.
+    repeat rewrite Ladd. r_solve.
   Qed.
 
   Lemma isim_sync r g R_src R_tgt
@@ -495,6 +520,8 @@ Section SIM.
     rr. autorewrite with iprop. i.
     rr in H. autorewrite with iprop in H. des. subst.
     ii. gstep. eapply pind9_fold. eapply lsim_sync; eauto. i.
+    { rewrite Lwf. repeat rewrite Ladd. eauto. }
+    i.
     rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_src1).
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt1).
@@ -503,11 +530,19 @@ Section SIM.
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
     rr in H1. autorewrite with iprop in H1.
     hexploit (H1 r_shared1); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
+    { eapply URA.wf_mon. instantiate (1:=r_ctx1). 
+      rewrite Lwf in VALID. r_wf VALID.
+      repeat rewrite Ladd. r_solve.
+    }
     i. rr in H. autorewrite with iprop in H. hexploit (H URA.unit); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
+    { eapply URA.wf_mon. instantiate (1:=r_ctx1). 
+      rewrite Lwf in VALID. r_wf VALID.
+      repeat rewrite Ladd. r_solve.
+    }
     { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. r_wf VALID.
+    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. 
+    rewrite Lwf in VALID. r_wf VALID.
+    repeat rewrite Ladd. r_solve.
   Qed.
 
   Lemma isim_base r g R_src R_tgt

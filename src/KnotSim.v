@@ -6,7 +6,7 @@ Require Import Program.
 
 From Fairness Require Export ITreeLib FairBeh NatStructs.
 From Fairness Require Export Mod ModSimStutter Concurrency.
-From Fairness Require Import pind PCM World.
+From Fairness Require Import pind LPCM World.
 
 Set Implicit Arguments.
 

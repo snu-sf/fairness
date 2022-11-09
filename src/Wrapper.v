@@ -1,8 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind OpenMod.
-Unset Universe Checking.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind.
 
 Set Implicit Arguments.
 
@@ -152,7 +151,7 @@ Module WMod.
           | disabled _ _ _ _ => _ <- trigger Yield;; tau;; interp_fun_body tid step
           end.
     Proof.
-      unfold interp_fun_body at 1. rewrite unfold_iter.
+      unfold interp_fun_body at 1. rewrite unfold_iter_eq.
       unfold interp_fun_body, UB. grind.
     Qed.
 
