@@ -497,13 +497,37 @@ Section USERADEQ.
       Adequacy.improves (interp_all m_src.(Mod.st_init) p_src tid)
                         (interp_all m_tgt.(Mod.st_init) p_tgt tid).
   Proof.
-    apply modsim_implies_yord_mod in MSIM.
-    apply yord_implies_stid_mod in MSIM.
-    apply stid_implies_nosync_mod in MSIM.
-    apply nosync_implies_stutter_mod in MSIM.
+    apply modsim_implies_yord_user in MSIM.
+    apply yord_implies_stid_user in MSIM.
+    apply stid_implies_nosync_user in MSIM.
+    apply nosync_implies_stutter_user in MSIM.
     inv MSIM. i.
     eapply Adequacy.adequacy. eapply wf_tgt_inhabited. eapply wf_tgt_open.
     instantiate (1:=wf_src).
+    (*TODO*)
+    destruct (Th.find tid p_src) eqn:FINDS.
+    2:{ admit. (* UB *) }
+    destruct (Th.find tid p_tgt) eqn:FINDT.
+    2:{ admit. (* contra *)}.
+    rename i into src, i0 into tgt.
+    rewrite (nm_find_some_rm_add_eq p_src tid FINDS). rewrite (nm_find_some_rm_add_eq p_tgt tid FINDT).
+    eapply ModSimStutter_lsim_implies_gsim.
+    1,2,3,4: admit.
+    i. specialize (funs im_tgt). des.
+    esplits.
+
+
+    
+    eapply modsim_s
+    ii. specialize (funs mt). des. exists im_src.
+
+
+
+
+
+
+
+
     destruct (mod_funs_cases m_src).
     { ii. specialize (init mt). des. exists im_src, false, false.
       destruct (Th.find tid (prog2ths m_src p)) eqn:FIND.

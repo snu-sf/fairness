@@ -628,3 +628,39 @@ Section MODSIM.
   Qed.
 
 End MODSIM.
+
+Section USERSIM.
+
+  Lemma nosync_implies_stutter_user
+        md_src md_tgt p_src p_tgt
+        (MDSIM: ModSimNoSync.UserSim.sim md_src md_tgt p_src p_tgt)
+    :
+    ModSimStutter.UserSim.sim md_src md_tgt p_src p_tgt.
+  Proof.
+    inv MDSIM.
+    set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
+    set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
+    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
+    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (ident_src := @ident_src _ident_src).
+    set (ident_tgt := @ident_tgt _ident_tgt).
+    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
+    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
+    econs; eauto. instantiate (1:=wf_stt).
+    i. specialize (funs im_tgt). des. esplits; eauto.
+    eapply nm_find_some_implies_forall3.
+    { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_2; eauto. clear. i. des. des_ifs. des; clarify. }
+    { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_3; eauto. clear. i. des. des_ifs. des; clarify. }
+    i. eapply nm_forall3_implies_find_some in SIM; eauto.
+    unfold ModSimNoSync.local_sim_init in SIM. unfold local_sim_init. exists (inr None).
+    i. specialize (SIM _ _ _ _ _ _ _ INV VALID _ FAIR). des. esplits; eauto.
+    i. specialize (SIM0 fs ft). eapply nosync_implies_stutter in SIM0. des.
+    eapply stutter_ord_weak. 2: eapply SIM0.
+    clear. destruct o.
+    { right. econs. }
+    destruct t.
+    { right. do 2 econs. }
+    { left. auto. }
+  Qed.
+
+End USERSIM.

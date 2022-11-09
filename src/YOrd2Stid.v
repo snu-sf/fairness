@@ -837,6 +837,7 @@ Section USERSIM.
         - clarify. rewrite nm_find_add_eq. admit.
         - rewrite nm_find_add_neq; auto. eapply equal_f in IHost. erewrite IHost.
           (*TODO*)
+          admit.
 
       }
       { replace 
@@ -853,7 +854,8 @@ Section USERSIM.
         ss. r_solve. rewrite resources_fold_left_base. rewrite <- IHl. symmetry. eapply list_fold_left_resource_aux2.
       }
 
-  Qed.
+  Admitted.
+  (* Qed. *)
 
 
 End USERSIM.
