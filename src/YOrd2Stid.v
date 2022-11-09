@@ -8,7 +8,6 @@ From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind LPCM World WFLib ThreadsURA.
 From Fairness Require Import Mod ModSimYOrd ModSimStid.
-Unset Universe Checking.
 
 Set Implicit Arguments.
 
@@ -904,7 +903,8 @@ Section USERSIM.
         2:{ ii. apply NatMapP.F.in_find_iff in H. clarify. }
         extensionality x. destruct (tid_dec x k) eqn:DEC.
         - clarify. rewrite nm_find_add_eq. rewrite NatMap.fold_1. rewrite NatMapP.F.elements_o in NONE. 
-          remember (NatMap.elements ost) as l. ur. setoid_rewrite fold_left_pointwise_none; auto. r_solve. rewrite th_has_hit. auto.
+          remember (NatMap.elements ost) as l. ur. setoid_rewrite fold_left_pointwise_none; auto.
+          rewrite th_has_hit. repeat ur; ss. 
         - rewrite nm_find_add_neq; auto. eapply equal_f in IHost. erewrite IHost. ur. rewrite th_has_miss; auto. r_solve.
       }
       { replace 
