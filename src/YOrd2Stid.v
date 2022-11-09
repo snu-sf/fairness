@@ -726,6 +726,67 @@ Section AUX.
     (add k (f k e) (mapi f m)) = (mapi f (add k e m)).
   Proof. eapply nm_eq_is_equal, nm_mapi_add_comm_equal. Qed.
 
+
+  Lemma nm_map_mapi_equal
+        elt (m: t elt) elt1 (f: key -> elt -> elt1) elt2 (g: elt1 -> elt2)
+    :
+    Equal (map g (mapi f m)) (mapi (fun k e => (g (f k e))) m).
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - rewrite F.map_mapsto_iff in H. des; clarify.
+      rewrite F.mapi_mapsto_iff in H0. 2: i; clarify. des; clarify.
+      eapply mapi_1 in H1. des; clarify. instantiate (1:= (fun k e => g (f k e))) in H0. ss.
+    - rewrite F.mapi_mapsto_iff in H. 2: i; clarify. des; clarify.
+      eapply map_1. eapply mapi_1 in H0. des; clarify. eauto.
+  Qed.
+  Lemma nm_map_mapi_eq
+        elt (m: t elt) elt1 (f: key -> elt -> elt1) elt2 (g: elt1 -> elt2)
+    :
+    (map g (mapi f m)) = (mapi (fun k e => (g (f k e))) m).
+  Proof. eapply nm_eq_is_equal, nm_map_mapi_equal. Qed.
+
+  Lemma mapi_unit1_map_equal
+        elt (m: t elt) elt1 (f: key -> elt -> elt1)
+    :
+    Equal (mapi (fun k e => unit1 (f k e)) m) (map unit1 m).
+  Proof.
+    rewrite <- nm_map_mapi_eq. eapply F.Equal_mapsto_iff. i. split; i.
+    - rewrite F.map_mapsto_iff in H. des; clarify.
+      rewrite F.mapi_mapsto_iff in H0. 2: i; clarify. des; clarify.
+      unfold unit1. eapply map_1 in H1. instantiate (1:= (fun _ => tt)) in H1. ss.
+    - rewrite F.map_mapsto_iff in H. des; clarify.
+      rewrite nm_map_mapi_eq. eapply mapi_1 in H0. des; clarify. instantiate (1:=fun k a => tt) in H1. ss.
+  Qed.
+  Lemma mapi_unit1_map_eq
+        elt (m: t elt) elt1 (f: key -> elt -> elt1)
+    :
+    (mapi (fun k e => unit1 (f k e)) m) = (map unit1 m).
+  Proof. eapply nm_eq_is_equal, mapi_unit1_map_equal. Qed.
+
+  Lemma nm_mapi_unit1_map_equal
+        elt (m: t elt) elt' (f: key -> elt -> elt')
+    :
+    Equal (map unit1 (mapi f m)) (map unit1 m).
+  Proof.
+    rewrite nm_map_mapi_equal. rewrite mapi_unit1_map_equal. ss.
+  Qed.
+  Lemma nm_mapi_unit1_map_eq
+        elt (m: t elt) elt' (f: key -> elt -> elt')
+    :
+    (map unit1 (mapi f m)) = (map unit1 m).
+  Proof. eapply nm_eq_is_equal, nm_mapi_unit1_map_equal. Qed.
+
+  Lemma fold_left_pointwise_none
+        X l k e
+        (NONE : SetoidList.findA (NatMapP.F.eqb k) l = None)
+    :
+    fold_left
+      (fun (a : @thsRA X) (p : NatMap.key * X) (k0 : nat) => (fst p |-> snd p) k0 ⋅ a k0) l e k = (e k).
+  Proof.
+    revert_until l. induction l; i; ss. des_ifs. ss. rewrite IHl; auto. rewrite th_has_miss; auto. r_solve.
+    ii. clarify. unfold F.eqb in Heq. des_ifs.
+  Qed.
+
 End AUX.
 
 Section USERSIM.
@@ -761,15 +822,20 @@ Section USERSIM.
     exists (@imap_comb _ _ (wf_src_th Any.t Any.t) _ im_src_th im_src).
     set (rowns:= NatMap.mapi (fun t rst => (t |-> (snd rst), fst rst)) rsost).
     exists rowns. exists (shared_thsRA wf_stt wf_stt0 ost, r_shared).
-    exists (@I2 _ _ _ _ _ _ _ I wf_stt wf_stt0 Any.t Any.t).
+    instantiate (1:=@I2 _ _ _ _ _ _ _ I wf_stt wf_stt0 Any.t Any.t).
+
     esplits.
     { unfold I2. esplits; eauto. unfold Is. exists ost. splits; auto.
-      { admit. }
+      { subst ost. unfold nm_wf_pair. unfold key_set. rewrite ! nm_map_unit1_map_eq.
+        eapply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_3 in SIM; eauto. i. des_ifs; des; clarify.
+      }
       i. subst im_src_th. econs 1. ss. rewrite FIND. econs 1. econs 2; auto.
     }
     { eapply nm_find_some_implies_forall3.
-      { admit. }
-      { admit. }
+      { eapply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_2 in SIM; eauto. i. des_ifs; des; clarify. }
+      { subst rowns. unfold nm_wf_pair. unfold key_set. rewrite ! nm_mapi_unit1_map_eq.
+        eapply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_3 in SIM; eauto. i. des_ifs; des; clarify.
+      }
       i. subst rowns. rewrite NatMapP.F.mapi_o in FIND3. unfold option_map in FIND3. des_ifs.
       2:{ i; clarify. }
       destruct p. ss.
@@ -833,12 +899,13 @@ Section USERSIM.
             rewrite IHl. f_equal. extensionality x. des_ifs. ss. repeat ur. des_ifs; ss.
         }
         induction ost using nm_ind; ss.
+        rewrite NatMapP.fold_add; try typeclasses eauto; ss.
+        2:{ ii. r_solve. }
+        2:{ ii. apply NatMapP.F.in_find_iff in H. clarify. }
         extensionality x. destruct (tid_dec x k) eqn:DEC.
-        - clarify. rewrite nm_find_add_eq. admit.
-        - rewrite nm_find_add_neq; auto. eapply equal_f in IHost. erewrite IHost.
-          (*TODO*)
-          admit.
-
+        - clarify. rewrite nm_find_add_eq. rewrite NatMap.fold_1. rewrite NatMapP.F.elements_o in NONE. 
+          remember (NatMap.elements ost) as l. ur. setoid_rewrite fold_left_pointwise_none; auto. r_solve. rewrite th_has_hit. auto.
+        - rewrite nm_find_add_neq; auto. eapply equal_f in IHost. erewrite IHost. ur. rewrite th_has_miss; auto. r_solve.
       }
       { replace 
           (NatMap.fold (fun _ : NatMap.key => URA._add)
@@ -853,9 +920,7 @@ Section USERSIM.
         induction l; ss. des_ifs. ss. clarify.
         ss. r_solve. rewrite resources_fold_left_base. rewrite <- IHl. symmetry. eapply list_fold_left_resource_aux2.
       }
-
-  Admitted.
-  (* Qed. *)
-
+    }
+  Qed.
 
 End USERSIM.

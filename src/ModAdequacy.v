@@ -534,83 +534,8 @@ Section USERADEQ.
     assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
     { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
     eapply forall4_implies_gsim. eauto.
-    (*TODO*)
+    instantiate (1:=wf_stt). instantiate (1:=I).
     i. specialize (funs im_tgt). des. esplits; eauto.
-    
-    
-    destruct (Th.find tid p_src) eqn:FINDS.
-    2:{ admit. (* UB *) }
-    destruct (Th.find tid p_tgt) eqn:FINDT.
-    2:{ admit. (* contra *)}.
-    rename i into src, i0 into tgt.
-    rewrite (nm_find_some_rm_add_eq p_src tid FINDS). rewrite (nm_find_some_rm_add_eq p_tgt tid FINDT).
-    eapply ModSimStutter_lsim_implies_gsim.
-    1,2,3,4: admit.
-    i. specialize (funs im_tgt). des.
-    esplits.
-
-
-    
-    eapply modsim_s
-    ii. specialize (funs mt). des. exists im_src.
-
-
-
-
-
-
-
-
-    destruct (mod_funs_cases m_src).
-    { ii. specialize (init mt). des. exists im_src, false, false.
-      destruct (Th.find tid (prog2ths m_src p)) eqn:FIND.
-      2:{ unfold interp_all. rewrite unfold_interp_sched_nondet_None.
-          rewrite interp_state_vis. rewrite <- bind_trigger. pfold. econs 10. auto.
-      }
-      unfold interp_all. erewrite unfold_interp_sched_nondet_Some.
-      2: eauto.
-      assert (UB: i = (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))).
-      { revert_until funs. clear. i. unfold prog2ths, numbering in FIND.
-        remember 0 as k. clear Heqk. move p after tid. revert_until p. induction p; i; ss.
-        destruct a as [fn args]. unfold NatMapP.uncurry in FIND. ss.
-        destruct (tid_dec tid k); clarify.
-        { rewrite nm_find_add_eq in FIND. clarify. unfold fn2th. rewrite H. auto. }
-        rewrite nm_find_add_neq in FIND; auto. eapply IHp; eauto.
-      }
-      clarify. rewrite interp_thread_vis_eventE. ired. rewrite interp_state_vis.
-      rewrite <- bind_trigger. pfold. econs 10.
-    }
-
-    des. rename fn into fn0, ktr into ktr0, H into SOME0.
-    eapply ModSimStutter_local_sim_implies_gsim. 3: eapply init.
-    instantiate (1:= fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
-    { i. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
-    instantiate (1:=wf_stt).
-    unfold ModSimStutter_local_sim_threads, prog2ths. unfold numbering.
-    remember 0 as k. clear Heqk. move p before k. revert_until p.
-    induction p; i.
-    { ss. unfold NatMap.Raw.empty. econs. }
-    rewrite !map_cons, !_numbering_cons. destruct a as [fn args].
-    rewrite !of_list_cons. eapply nm_find_some_implies_forall2.
-    { apply nm_wf_pair_add. clear. move p after m_src. revert_until p. induction p; i.
-      { ss. apply nm_wf_pair_empty_empty_eq. }
-      ss. destruct a as [fn args]. unfold NatMapP.uncurry. ss. eapply nm_wf_pair_add.
-      eauto.
-    }
-    i. destruct (tid_dec k k0); clarify.
-    { clear IHp. rewrite nm_find_add_eq in FIND1, FIND2. clarify. unfold fn2th.
-      dup funs. specialize (funs0 fn0 ([]: list Val)↑). rewrite SOME0 in funs0.
-      specialize (funs fn args). des_ifs; ss.
-      unfold local_sim in funs0. ii.
-      specialize (funs0 _ _ _ _ _ _ _ INV _ _ THS VALID _ UPD). des.
-      esplits; eauto. i. specialize (funs0 _ _ _ _ _ _ _ INV1 VALID1 _ TGT). des.
-      esplits. eapply SRC. i. instantiate (1:=o).
-      pfold. eapply pind6_fold. rewrite <- bind_trigger. econs 7.
-    }
-    rewrite nm_find_add_neq in FIND1, FIND2; auto.
-    specialize (IHp (S k)). eapply nm_forall2_implies_find_some in IHp; eauto.
   Qed.
-
-
 
 End USERADEQ.
