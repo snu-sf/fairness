@@ -1490,8 +1490,9 @@ Module UserSim.
 
           world: URA.t;
 
+          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop;
           funs: forall im_tgt,
-          exists im_src rs r_shared I,
+          exists im_src rs r_shared,
             (<<INIT: I (key_set p_src, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared>>) /\
               (<<SIM: Forall3
                         (fun '(t1, src) '(t2, tgt) '(t3, r) =>
