@@ -1,3 +1,4 @@
+Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.
@@ -294,7 +295,7 @@ Section CLOSE_CONG_SIM.
   Qed.
 
   Lemma lift_ma_local_sim_ctx
-        (FSIM: forall (fn : string) (args : list Val),
+        (FSIM: forall (fn : string) (args : Any.t),
             match funs M2_src fn with
             | Some ktr_src =>
                 match funs M2_tgt fn with

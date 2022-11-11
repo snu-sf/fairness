@@ -1,12 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-Require Import Coq.Classes.RelationClasses Lia Program.
 Unset Universe Checking.
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms OpenMod WMM Red IRed Wrapper WeakestAdequacy FairLock Concurrency LockClient FIFOSched SchedSim FIFOSched FIFOSchedSim ModAdequacy TicketLockW.
-From PromisingLib Require Import Loc Event.
-From PromisingSEQ Require Import TView.
-From Ordinal Require Export ClassicalHessenberg.
-Require Import Coq.Numbers.BinNums.
+From Fairness Require Export FairBeh Mod OpenMod WMM FairLock Concurrency LockClient FIFOSched SchedSim FIFOSched FIFOSchedSim ModAdequacy TicketLockW ModCloseSim ModAddSim.
 
 Section ALL.
   Definition client_spec := ClientSpec.mod.
@@ -38,6 +33,10 @@ Section ALL.
       }
     }
     eapply Adequacy.improves_trans.
-    { eapply modsim_adequacy.
-  Admitted.
+    { eapply modsim_adequacy. eapply ModClose_cong.
+      eapply ModAdd_right_cong. eapply ticketlock_fair.
+    }
+    { eapply usersim_adequacy. eapply client_correct. }
+    Unshelve. all: exact true.
+  Qed.
 End ALL.

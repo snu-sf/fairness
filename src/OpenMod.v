@@ -502,7 +502,7 @@ Section RED.
     @close_itree omd md R (trigger (|Call fn args)%sum >>= ktr) =
       match (md.(Mod.funs) fn) with
       | Some body =>
-          trigger (Yield);; rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv)
+          _ <- trigger (Yield);; rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv)
       | None => trigger (embed_event_l Undefined) >>= (Empty_set_rect _)
       end.
   Proof.
@@ -618,7 +618,6 @@ Section RED.
     rewrite (bind_ret_r_rev (trigger (Call _ _))).
     setoid_rewrite close_itree_trigger_call. grind.
     { apply close_itree_ret. }
-    { unfold UB. rewrite bind_trigger. grind. }
   Qed.
 
   Lemma close_itree_UB
