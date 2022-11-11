@@ -1,5 +1,4 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
@@ -7,11 +6,9 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 Require Import Permutation.
 
-Export ITreeNotations.
-
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
-From Fairness Require Import pind PCM World.
+From Fairness Require Import pind LPCM World.
 From Fairness Require Export Mod Concurrency.
 From Fairness Require Import KnotSim LocalAdequacyAux.
 

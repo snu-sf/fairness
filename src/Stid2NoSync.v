@@ -1,15 +1,12 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
-Export ITreeNotations.
-
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
-From Fairness Require Import pind PCM World.
+From Fairness Require Import pind LPCM World.
 From Fairness Require Import Mod ModSimStid ModSimNoSync.
 
 Set Implicit Arguments.
@@ -161,3 +158,31 @@ Section MODSIM.
   Qed.
 
 End MODSIM.
+
+Section USERSIM.
+
+  Lemma stid_implies_nosync_user
+        md_src md_tgt p_src p_tgt
+        (MDSIM: ModSimStid.UserSim.sim md_src md_tgt p_src p_tgt)
+    :
+    ModSimNoSync.UserSim.sim md_src md_tgt p_src p_tgt.
+  Proof.
+    inv MDSIM.
+    set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
+    set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
+    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
+    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (ident_src := @ident_src _ident_src).
+    set (ident_tgt := @ident_tgt _ident_tgt).
+    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
+    econs; eauto.
+    i. specialize (funs im_tgt). des. esplits; eauto.
+    eapply nm_find_some_implies_forall3.
+    { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_2; eauto. clear. i. des. des_ifs. des; clarify. }
+    { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_3; eauto. clear. i. des. des_ifs. des; clarify. }
+    i. eapply nm_forall3_implies_find_some in SIM; eauto.
+    unfold ModSimStid.local_sim_init in SIM. ii. specialize (SIM _ _ _ _ _ _ _ INV VALID _ FAIR). des. esplits; eauto.
+    i. eapply stid_implies_nosync. eauto.
+  Qed.
+
+End USERSIM.

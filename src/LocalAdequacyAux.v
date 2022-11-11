@@ -1,5 +1,4 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
@@ -7,11 +6,9 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 Require Import Permutation.
 
-Export ITreeNotations.
-
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
-From Fairness Require Import pind PCM.
+From Fairness Require Import pind LPCM.
 From Fairness Require Export Mod ModSimStutter Concurrency.
 From Fairness Require Import KnotSim.
 
@@ -72,7 +69,7 @@ Section AUX.
         R0 R1
         (ths_src: threads_src2 R0)
         (ths_tgt: threads_tgt R1)
-        (WF: th_wf_pair ths_src ths_tgt)
+        (WFx: th_wf_pair ths_src ths_tgt)
     :
     forall x, ((nm_pop x ths_src = None) /\ (nm_pop x ths_tgt = None)) \/
            (exists th_src th_tgt ths_src0 ths_tgt0,

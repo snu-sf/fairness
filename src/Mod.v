@@ -4,14 +4,30 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Any.
 
 Set Implicit Arguments.
 
 Module TIdSet := NatSet.
 
+Notation fname := string (only parsing).
+Notation thread_id := nat (only parsing).
 
-Notation thread_id := nat.
+Definition program := list (fname * Any.t)%type.
+
+Definition Val := nat.
+
+Variant cE: Type -> Type :=
+| Yield: cE unit
+| GetTid: cE thread_id
+(* | Spawn (fn: fname) (args: list Val): cE unit *)
+.
+
+Variant sE (State: Type): Type -> Type :=
+| Put (st: State): sE State unit
+| Get: sE State State
+.
+
 Section TID.
 
   Definition nat_wf: WF := mk_wf Wf_nat.lt_wf.
@@ -66,28 +82,32 @@ Section TID.
 End TID.
 
 
-Notation fname := string (only parsing).
-Definition Val := nat.
-
-Variant cE: Type -> Type :=
-| Yield: cE unit
-| GetTid: cE thread_id
-(* | Spawn (fn: fname) (args: list Val): cE unit *)
-.
-
-Variant sE (State: Type): Type -> Type :=
-| Put (st: State): sE State unit
-| Get: sE State State
-.
-
 Module Mod.
   Record t: Type :=
     mk {
         state: Type;
         ident: ID;
         st_init: state;
-        funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) (list Val) Val);
+        funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t);
       }.
+
+  Program Definition wrap_fun {ident} {E} `{@eventE ident -< E} A R
+          (f: ktree E A R):
+    ktree E Any.t Any.t :=
+    fun arg =>
+      arg <- unwrap (arg↓);;
+      ret <- f arg;; Ret ret↑
+  .
+
+  Fixpoint get_funs {ident} {E} `{@eventE ident -< E}
+           (funs: list (fname * (ktree E Any.t Any.t)))
+           (fn: fname):
+    option (ktree E Any.t Any.t) :=
+    match funs with
+    | [] => None
+    | (fn_hd, body_hd)::tl =>
+        if string_dec fn fn_hd then Some body_hd else get_funs tl fn
+    end.
 End Mod.
 
 Definition update_fst {A B}: A * B -> A -> A * B :=
@@ -174,7 +194,7 @@ Section ADD.
     map_event (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident))))
       (embed_state (@snd M1.(state) M2.(state)) update_snd itr).
 
-  Definition add_funs : fname -> option (ktree _ (list Val) Val) :=
+  Definition add_funs : fname -> option (ktree _ Any.t Any.t) :=
     fun fn =>
       match M1.(funs) fn, M2.(funs) fn with
       | Some fn_body, None => Some (fun args => embed_l (fn_body args))

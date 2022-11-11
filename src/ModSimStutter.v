@@ -4,7 +4,7 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind PCM.
+From Fairness Require Import pind LPCM.
 
 Set Implicit Arguments.
 
@@ -840,6 +840,22 @@ Section PRIMIVIESIM.
                              (ths, im_src2, im_tgt2, st_src, st_tgt)
                              >>)).
 
+  Definition local_sim_init {R0 R1} (RR: R0 -> R1 -> Prop) (r_own: URA.car) tid src tgt o :=
+    forall ths im_src im_tgt st_src st_tgt r_shared r_ctx
+      (INV: I (ths, im_src, im_tgt, st_src, st_tgt) r_shared)
+      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx)),
+    forall im_tgt1 (FAIR: fair_update im_tgt im_tgt1 (sum_fmap_l (tids_fmap tid ths))),
+    exists im_src1,
+      (<<SRC: fair_update im_src im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
+        forall fs ft,
+          lsim
+            tid
+            (@local_RR R0 R1 RR tid)
+            fs ft
+            r_ctx
+            (o, src) tgt
+            (ths, im_src1, im_tgt1, st_src, st_tgt).
+
 End PRIMIVIESIM.
 #[export] Hint Constructors __lsim: core.
 #[export] Hint Unfold lsim: core.
@@ -871,10 +887,43 @@ Module ModSim.
 
           wf_stt : Type -> Type -> WF;
           funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                           | Some ktr_src, Some ktr_tgt => local_sim wf_stt I (@eq Val) (ktr_src args) (ktr_tgt args)
+                           | Some ktr_src, Some ktr_tgt => local_sim wf_stt I (@eq Any.t) (ktr_src args) (ktr_tgt args)
                            | None        , None         => True
                            | _           , _            => False
                            end;
         }.
   End MODSIM.
 End ModSim.
+
+
+From Fairness Require Import Concurrency.
+
+Module UserSim.
+  Section MODSIM.
+
+    Variable md_src: Mod.t.
+    Variable md_tgt: Mod.t.
+
+    Record sim (p_src: Th.t _) (p_tgt: Th.t _) : Prop :=
+      mk {
+          wf_src : WF;
+          wf_tgt : WF;
+          wf_tgt_inhabited: inhabited wf_tgt.(T);
+          wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
+
+          world: URA.t;
+
+          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop;
+          wf_stt : Type -> Type -> WF;
+          funs: forall im_tgt,
+          exists im_src rs r_shared os,
+            (<<INIT: I (key_set p_src, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared>>) /\
+              (<<SIM: Forall4
+                        (fun '(t1, src) '(t2, tgt) '(t3, r) '(t4, o) =>
+                           t1 = t2 /\ t1 = t3 /\ t1 = t4 /\
+                           @local_sim_init _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt wf_stt I _ _ (@eq Any.t) r t1 src tgt o)
+                        (Th.elements p_src) (Th.elements p_tgt) (NatMap.elements rs) (NatMap.elements os)>>) /\
+              (<<WF: URA.wf (r_shared ⋅ NatMap.fold (fun _ r s => r ⋅ s) rs ε)>>)
+        }.
+  End MODSIM.
+End UserSim.

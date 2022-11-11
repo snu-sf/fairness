@@ -1,8 +1,6 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
-From Fairness Require Import Axioms WFLib.
-Export ITreeNotations.
+From Fairness Require Import Axioms WFLib ITreeLib.
 
 Require Import Coq.Classes.RelationClasses.
 
@@ -175,6 +173,18 @@ Section EVENT.
     | Observe (fn: nat) (args: list nat): eventE nat
     | Undefined: eventE void
   .
+
+  Definition UB {id: ID} {E} `{@eventE id -< E} {R}:
+    itree E R :=
+    f <- trigger Undefined;;
+    match (f: void) with end.
+
+  Definition unwrap {id: ID} {E} `{@eventE id -< E} {R}
+             (r: option R): itree E R :=
+    match r with
+    | Some r => Ret r
+    | None => UB
+    end.
 
   Definition sum_fmap_l {A B: ID} (fm: @fmap A): @fmap (id_sum A B) :=
     fun sa => match sa with | inl a => (fm a) | inr _ => Flag.emp end.
@@ -723,3 +733,117 @@ Next Obligation.
   { guclo Beh.of_state_indC_spec. econs; eauto. }
   { guclo Beh.of_state_indC_spec. econs; eauto. }
 Qed.
+
+
+Require Import Program.
+
+Section IMAPAUX1.
+
+  Variable wf: WF.
+
+  Definition imap_proj_id1 {id1 id2: ID} (im: @imap (id_sum id1 id2) wf): @imap id1 wf := fun i => im (inl i).
+  Definition imap_proj_id2 {id1 id2: ID} (im: @imap (id_sum id1 id2) wf): @imap id2 wf := fun i => im (inr i).
+  Definition imap_proj_id {id1 id2: ID} (im: @imap (id_sum id1 id2) wf): prod (@imap id1 wf) (@imap id2 wf) :=
+    (imap_proj_id1 im, imap_proj_id2 im).
+
+  Definition imap_sum_id {id1 id2: ID} (im: prod (@imap id1 wf) (@imap id2 wf)): @imap (id_sum id1 id2) wf :=
+    fun i => match i with | inl il => (fst im) il | inr ir => (snd im) ir end.
+
+  Lemma imap_sum_proj_id_inv1
+        id1 id2
+        (im1: @imap id1 wf)
+        (im2: @imap id2 wf)
+    :
+    imap_proj_id (imap_sum_id (im1, im2)) = (im1, im2).
+  Proof. reflexivity. Qed.
+
+  Lemma imap_sum_proj_id_inv2
+        id1 id2
+        (im: @imap (id_sum id1 id2) wf)
+    :
+    imap_sum_id (imap_proj_id im) = im.
+  Proof. extensionality i. unfold imap_sum_id. des_ifs. Qed.
+
+  Lemma imap_proj_update_l
+        id1 id2 f
+        (im0 im1: @imap (id_sum id1 id2) wf)
+        (UPD: fair_update im0 im1 (sum_fmap_l f))
+    :
+    (<<LEFT: fair_update (imap_proj_id1 im0) (imap_proj_id1 im1) f>>) /\
+      (<<RIGHT: imap_proj_id2 im0 = imap_proj_id2 im1>>)
+  .
+  Proof.
+    split.
+    { ii. specialize (UPD (inl i)).
+      unfold sum_fmap_l in UPD. des_ifs.
+    }
+    { rr. extensionality i. specialize (UPD (inr i)).
+      unfold sum_fmap_l in UPD. ss.
+    }
+  Qed.
+
+  Lemma imap_proj_update_r
+        id1 id2 f
+        (im0 im1: @imap (id_sum id1 id2) wf)
+        (UPD: fair_update im0 im1 (sum_fmap_r f))
+    :
+    (<<RIGHT: fair_update (imap_proj_id2 im0) (imap_proj_id2 im1) f>>) /\
+      (<<LEFT: imap_proj_id1 im0 = imap_proj_id1 im1>>)
+  .
+  Proof.
+    split.
+    { ii. specialize (UPD (inr i)).
+      unfold sum_fmap_r in UPD. des_ifs.
+    }
+    { rr. extensionality i. specialize (UPD (inl i)).
+      unfold sum_fmap_r in UPD. ss.
+    }
+  Qed.
+End IMAPAUX1.
+
+
+Section IMAPAUX2.
+
+  Variable id: ID.
+
+  Definition imap_proj_wf1 {wf1 wf2: WF} (im: @imap id (double_rel_WF wf1 wf2)): @imap id wf1 := fun i => fst (im i).
+  Definition imap_proj_wf2 {wf1 wf2: WF} (im: @imap id (double_rel_WF wf1 wf2)): @imap id wf2 := fun i => snd (im i).
+  Definition imap_proj_wf {wf1 wf2: WF} (im: @imap id (double_rel_WF wf1 wf2)): prod (@imap id wf1) (@imap id wf2) :=
+    (imap_proj_wf1 im, imap_proj_wf2 im).
+
+  Definition imap_sum_wf {wf1 wf2: WF} (im: prod (@imap id wf1) (@imap id wf2)): @imap id (double_rel_WF wf1 wf2) :=
+    fun i => (fst im i, snd im i).
+
+  Lemma imap_sum_proj_wf_inv1
+        wf1 wf2
+        (im1: @imap id wf1)
+        (im2: @imap id wf2)
+    :
+    imap_proj_wf (imap_sum_wf (im1, im2)) = (im1, im2).
+  Proof. reflexivity. Qed.
+
+  Lemma imap_sum_proj_wf_inv2
+        wf1 wf2
+        (im: @imap id (double_rel_WF wf1 wf2))
+    :
+    imap_sum_wf (imap_proj_wf im) = im.
+  Proof.
+    extensionality i. unfold imap_sum_wf, imap_proj_wf, imap_proj_wf1, imap_proj_wf2. ss. destruct (im i); ss.
+  Qed.
+
+End IMAPAUX2.
+
+Section IMAPCOMB.
+
+  Definition imap_comb {id1 id2: ID} {wf1 wf2: WF} (im1: imap id1 wf1) (im2: imap id2 wf2):
+    imap (id_sum id1 id2) (sum_WF wf1 wf2) :=
+    fun i => match i with
+          | inl il => inl (im1 il)
+          | inr ir => inr (im2 ir)
+          end.
+
+  Definition imap_is_comb {id1 id2: ID} {wf1 wf2: WF}
+             (im: imap (id_sum id1 id2) (sum_WF wf1 wf2)) :=
+    exists (im1: imap id1 wf1) (im2: imap id2 wf2), im = imap_comb im1 im2.
+
+End IMAPCOMB.

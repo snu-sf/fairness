@@ -4,7 +4,7 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind PCM WFLib.
+From Fairness Require Import pind LPCM WFLib.
 From Fairness Require Import ModSim.
 
 Set Implicit Arguments.
@@ -766,7 +766,7 @@ Section GENORDER.
       hexploit ord_tree_join.
       { instantiate (2:=A R0 R1).
         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
-        i. ss. des_ifs. 
+        i. ss. des_ifs.
         specialize (JOIN1 (b, b0, c, i0, i, s)). destruct JOIN1; auto. des.
         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
                            genos tid RR ps pt rs (o1, src) (o, tgt) shr).
@@ -805,7 +805,7 @@ Section GENORDER.
       hexploit ord_tree_join.
       { instantiate (2:=A R0 R1).
         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
-        i. ss. des_ifs. 
+        i. ss. des_ifs.
         specialize (JOIN1 (b, b0, c, i0, i, s)). destruct JOIN1; auto. des.
         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
                            genos tid RR ps pt rs (o1, src) (o, tgt) shr).
@@ -834,7 +834,7 @@ Section GENORDER.
       hexploit ord_tree_join.
       { instantiate (2:=A R0 R1).
         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
-        i. ss. des_ifs. 
+        i. ss. des_ifs.
         specialize (JOIN1 (b, b0, c, i0, i, s)). destruct JOIN1; auto. des.
         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
                            genos tid RR ps pt rs (o1, src) (o, tgt) shr).
@@ -870,7 +870,7 @@ Section GENORDER.
       hexploit ord_tree_join.
       { instantiate (2:=A R0 R1).
         instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
-        i. ss. des_ifs. 
+        i. ss. des_ifs.
         specialize (JOIN1 (b, b0, c, i0, i, s)). destruct JOIN1; auto. des.
         instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
                            genos tid RR ps pt rs (o1, src) (o, tgt) shr).

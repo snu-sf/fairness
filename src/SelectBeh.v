@@ -1,13 +1,10 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Fairness Require Import pind3 WFLib.
 From Paco Require Import paco.
 
-Export ITreeNotations.
-
 Require Import Coq.Classes.RelationClasses.
 
-From Fairness Require Import Axioms FairBeh.
+From Fairness Require Import Axioms ITreeLib FairBeh.
 
 Set Implicit Arguments.
 
@@ -31,6 +28,8 @@ Section TR.
   | nb
   | cons (hd: (@rawE id)) (tl: t)
   .
+
+  Let TTT {id} {R} := @t id R: Type@{Epsilon.epsilon.u0}.
 
   Fixpoint app {id} {R} (pre: list rawE) (bh: @t id R): t :=
     match pre with

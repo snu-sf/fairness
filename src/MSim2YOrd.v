@@ -2,9 +2,10 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
+From Coq Require Import Program.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind PCM WFLib.
+From Fairness Require Import pind LPCM WFLib.
 From Fairness Require Import ModSim ModSimYOrd GenYOrd.
 
 Set Implicit Arguments.
@@ -245,3 +246,78 @@ Section MODSIM.
   Qed.
 
 End MODSIM.
+
+From Fairness Require Import Concurrency World.
+Require Import List.
+
+Section AUX.
+
+  Lemma list_fold_left_resource_aux
+        (world : URA.t) c X x l
+    :
+    fold_left
+      (fun (a : world)
+         (p : NatMap.key * (world * X)) =>
+         (let '(r, _) := snd p in fun s : world => r ⋅ s) a) (map (fun '(k0, e) => (k0, (e, x))) l) ε ⋅ c =
+      fold_left
+        (fun (a : world)
+           (p : NatMap.key * (world * X)) =>
+           (let '(r, _) := snd p in fun s : world => r ⋅ s) a) (map (fun '(k0, e) => (k0, (e, x))) l) c.
+  Proof.
+    revert c. induction l; i; ss. r_solve. des_ifs. ss; clarify. rewrite <- (IHl (c0 ⋅ ε)). r_solve.
+    rewrite <- (IHl (c0 ⋅ c)). r_solve.
+  Qed.
+
+End AUX.
+
+Section USERSIM.
+
+  Lemma modsim_implies_yord_user
+        md_src md_tgt
+        p_src p_tgt
+        (MDSIM: ModSim.UserSim.sim md_src md_tgt p_src p_tgt)
+    :
+    ModSimYOrd.UserSim.sim md_src md_tgt p_src p_tgt.
+  Proof.
+    inv MDSIM.
+    set (ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
+    set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
+    set (srcE := ((@eventE ident_src +' cE) +' sE state_src)).
+    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (ident_tgt := @ident_tgt _ident_tgt).
+    set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
+    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
+    econs; eauto. instantiate (1:=wf_stt).
+    { i. exact (inr None). }
+    i. specialize (funs im_tgt).
+    des. esplits; eauto.
+    instantiate (1:=NatMap.map (fun r => (r, (inr None, inr None))) rs).
+    2:{ replace (@NatMap.fold (world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) _ (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) (NatMap.map (fun r : world => (r, (inr None, inr None))) rs) ε) with (NatMap.fold (fun (_ : NatMap.key) (r s : world) => r ⋅ s) rs ε); auto.
+        rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_map.
+        remember (NatMap.elements (elt:=world) rs) as l. clear. induction l; ss. des_ifs. ss. clarify.
+        r_solve. rewrite resources_fold_left_base. rewrite IHl. eapply list_fold_left_resource_aux.
+    }
+    eapply nm_find_some_implies_forall3.
+    { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_2; eauto. clear. i. des. des_ifs. des; clarify. }
+    { unfold nm_wf_pair, key_set. rewrite nm_map_unit1_map_eq.
+      apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_3; eauto. clear. i. des. des_ifs. des; clarify. }
+    i. dup FIND3. rewrite NatMapP.F.map_o in FIND0. unfold option_map in FIND0. des_ifs. 
+    eapply nm_forall3_implies_find_some in SIM; eauto.
+    unfold ModSim.local_sim_init in SIM. unfold local_sim_init. ss.
+    i. specialize (SIM _ _ _ _ _ _ _ INV VALID _ FAIR fs ft).
+    eapply modsim_implies_yord in SIM. des.
+    ginit. guclo lsim_ord_weakRC_spec. econs. guclo lsim_ord_weakLC_spec. econs.
+    gfinal. right. eapply SIM.
+    - clear. destruct os.
+      { right. econs. }
+      destruct t.
+      { right. do 2 econs. }
+      { left. auto. }
+    - clear. destruct ot.
+      { right. econs. }
+      destruct t.
+      { right. do 2 econs. }
+      { left. auto. }
+  Qed.
+
+End USERSIM.

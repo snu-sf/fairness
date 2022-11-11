@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
 From Fairness Require Import Axioms NatStructs.
-From Fairness Require Import PCM.
+From Fairness Require Import LPCM.
 From Fairness Require Import Mod.
 
 Set Implicit Arguments.
@@ -10,7 +10,6 @@ Set Implicit Arguments.
 Global Instance thsRA {A: Type}: URA.t := (thread_id ==> Auth.t (Excl.t A))%ra.
 (* Compute (URA.car (t:=_thsRA)). *)
 (* Global Instance thsRA {A: Type}: URA.t := Auth.t (@_thsRA A). *)
-Compute (URA.car).
 
 Section THHAS.
 

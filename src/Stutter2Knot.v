@@ -1,5 +1,4 @@
 From sflib Require Import sflib.
-From ITree Require Export ITree.
 From Paco Require Import paco.
 
 Require Export Coq.Strings.String.
@@ -7,11 +6,9 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 Require Import Permutation.
 
-Export ITreeNotations.
-
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim WFLib NatStructs.
-From Fairness Require Import pind PCM World.
+From Fairness Require Import pind LPCM World.
 From Fairness Require Export Mod Concurrency.
 From Fairness Require Import ModSimStutter KnotSim LocalAdequacyAux.
 
@@ -139,7 +136,7 @@ Section PROOF.
           }
           i. hexploit th_wf_pair_pop_cases.
           { eapply WF. }
-          i. instantiate (1:=tid0) in H. des; auto.
+          intros H. instantiate (1:=tid0) in H. des; auto.
           right. destruct th_src as [sf0 th_src].
           assert (FINDS: Th.find tid0 ths_src = Some (sf0, th_src)).
           { eapply nm_pop_find_some; eauto. }
@@ -368,9 +365,9 @@ Section PROOF.
       i.
       assert (WF0: th_wf_pair (Th.add tid (true, ktr_src ()) ths_src) (Th.add tid (ktr_tgt ()) ths_tgt)).
       { unfold th_wf_pair, nm_wf_pair in *. rewrite ! key_set_pull_add_eq. rewrite WF. reflexivity. }
-      hexploit th_wf_pair_pop_cases.
+      exploit th_wf_pair_pop_cases.
       { eapply WF0. }
-      i. instantiate (1:=tid0) in H. des; auto.
+      intros H. instantiate (1:=tid0) in H. des; auto.
       right. destruct th_src as [sf0 th_src].
       exists sf0, th_src, ths_src0, th_tgt, ths_tgt0.
       splits; auto.
