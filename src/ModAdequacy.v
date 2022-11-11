@@ -399,27 +399,6 @@ End LADEQ.
 
 Section ADEQ.
 
-  Definition program := list (fname * Any.t)%type.
-
-  Definition fn2th (m: Mod.t) (fn: fname) (args: Any.t): @thread (Mod.ident m) (sE (Mod.state m)) Any.t :=
-    match Mod.funs m fn with
-    | Some ktr => ktr args
-    | None => (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
-    end.
-
-  Fixpoint _numbering {E} (l: list E) (n: NatMap.key): list (NatMap.key * E) :=
-    match l with
-    | hd :: tl => (n, hd) :: (_numbering tl (S n))
-    | [] => []
-    end.
-
-  Definition numbering {E} (l: list E): list (NatMap.key * E) := _numbering l O.
-
-  Definition prog2ths (m: Mod.t) (p: program): @threads (Mod.ident m) (sE (Mod.state m)) Any.t :=
-    let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
-    NatMapP.of_list (numbering pre_threads).
-
-
   Lemma _numbering_cons
         E (l: list E) n x
     :
