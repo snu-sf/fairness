@@ -338,17 +338,7 @@ Section ADD_RIGHT_CONG_SIM.
     }
     specialize (SIM ths_usr2 im_src2 (chop_ctx ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx ths_usr2 IM_TGT2') TGT' fs ft).
     unfold embed_l, embed_r.
-    (*
-    assert (INV : lift_ma (ths2, IM_SRC2, IM_TGT2', st_src2, st_tgt2) (global_th ths_ctx2 ths_usr2, r_sha_w2)).
-    { ss. exists im_src2, ths_ctx2, ths_usr2. splits; ss.
-      - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
-      - Print tids_fmap.
 
-        Search shared_rel_wf.
-        eapply shared_rel_wf_lifted; eauto.
-        admit.
-    }
-     *)
     eapply pick_ctx_fair_thread in TGT. rewrite TGT in INV2_0.
     clear - INV2_0 INV2_1 INV2_3 VALID2_0 VALID2_1 SIM.
     move tid before I.
