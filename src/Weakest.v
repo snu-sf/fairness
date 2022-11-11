@@ -503,7 +503,7 @@ Section SIM.
       repeat rewrite Ladd. r_solve.
     }
     { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. 
+    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto.
     rewrite Lwf in VALID. r_wf VALID.
     repeat rewrite Ladd. r_solve.
   Qed.
@@ -530,17 +530,17 @@ Section SIM.
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
     rr in H1. autorewrite with iprop in H1.
     hexploit (H1 r_shared1); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). 
+    { eapply URA.wf_mon. instantiate (1:=r_ctx1).
       rewrite Lwf in VALID. r_wf VALID.
       repeat rewrite Ladd. r_solve.
     }
     i. rr in H. autorewrite with iprop in H. hexploit (H URA.unit); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). 
+    { eapply URA.wf_mon. instantiate (1:=r_ctx1).
       rewrite Lwf in VALID. r_wf VALID.
       repeat rewrite Ladd. r_solve.
     }
     { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. 
+    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto.
     rewrite Lwf in VALID. r_wf VALID.
     repeat rewrite Ladd. r_solve.
   Qed.
@@ -685,7 +685,7 @@ Section STATE.
 
   Variable Invs: list iProp.
 
-  Let topset: mset := List.seq 0 (List.length Invs).
+  Definition topset: mset := List.seq 0 (List.length Invs).
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
@@ -699,10 +699,194 @@ Section STATE.
   Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
 
   Definition St_src (st_src: state_src): iProp :=
-    OwnM (Auth.white (Excl.just st_src: @Excl.t state_src): stateSrcRA state_src).
+    OwnM (Auth.white (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA state_src).
 
   Definition St_tgt (st_tgt: state_tgt): iProp :=
-    OwnM (Auth.white (Excl.just st_tgt: @Excl.t state_tgt): stateTgtRA state_tgt).
+    OwnM (Auth.white (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA state_tgt).
+
+  Definition default_initial_res
+    : Σ :=
+    (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit)))
+      ⋅
+      (@GRA.embed _ _ STATESRC (Auth.black (Excl.just None: @Excl.t (option state_src)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_src)): stateSrcRA state_src)))
+      ⋅
+      (@GRA.embed _ _ STATETGT (Auth.black (Excl.just None: @Excl.t (option state_tgt)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_tgt)): stateTgtRA state_tgt)))
+      ⋅
+      (@GRA.embed _ _ IDENTSRC (@FairRA.source_init_resource ident_src))
+      ⋅
+      (@GRA.embed _ _ IDENTTGT ((fun _ => Fuel.black 0 1%Qp): identTgtRA ident_tgt))
+      ⋅
+      (@GRA.embed _ _ ARROWRA ((fun _ => OneShot.pending _ 1%Qp): ArrowRA ident_tgt))
+      ⋅
+      (@GRA.embed _ _ EDGERA ((fun _ => OneShot.pending _ 1%Qp): EdgeRA))
+  .
+
+  Lemma duty_to_black
+        (i: id_sum nat ident_tgt)
+    :
+    (ObligationRA.duty i [])
+      -∗
+      FairRA.black_ex i 1%Qp.
+  Proof.
+    iIntros "[% [% [[H0 [H1 %]] %]]]". destruct rs; ss. subst. auto.
+  Qed.
+
+  Lemma black_to_duty
+        (i: id_sum nat ident_tgt)
+    :
+    (FairRA.black_ex i 1%Qp)
+      -∗
+      (ObligationRA.duty i []).
+  Proof.
+    iIntros "H". iExists _, _. iFrame. iSplit.
+    { iSplit.
+      { iApply list_prop_sum_nil. }
+      { auto. }
+    }
+    { auto. }
+  Qed.
+
+  Lemma own_threads_init ths
+    :
+    (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit)))
+      -∗
+      (#=>
+         ((OwnM (Auth.black (Some ths: NatMapRA.t unit)))
+            **
+            (natmap_prop_sum ths (fun tid _ => own_thread tid)))).
+  Proof.
+    pattern ths. revert ths. eapply nm_ind.
+    { iIntros "OWN". iModIntro. iFrame. }
+    i. iIntros "OWN".
+    iPoseProof (IH with "OWN") as "> [OWN SUM]".
+    iPoseProof (OwnM_Upd with "OWN") as "> [OWN0 OWN1]".
+    { eapply Auth.auth_alloc. eapply (@NatMapRA.add_local_update unit m k v); eauto. }
+    iModIntro. iFrame. destruct v. iApply (natmap_prop_sum_add with "SUM OWN1").
+  Qed.
+
+  Lemma natmap_prop_sum_in A P k a (m: NatMap.t A)
+        (FIND: NatMap.find k m = Some a)
+    :
+    (natmap_prop_sum m P)
+      -∗
+      (P k a).
+  Proof.
+    iIntros "MAP". iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eauto. }
+    eauto.
+  Qed.
+
+  Lemma natmap_prop_sum_impl A P0 P1 (m: NatMap.t A)
+        (IMPL: forall k a (IN: NatMap.find k m = Some a), P0 k a ⊢ P1 k a)
+    :
+    (natmap_prop_sum m P0)
+      -∗
+      (natmap_prop_sum m P1).
+  Proof.
+    revert IMPL. pattern m. eapply nm_ind.
+    { iIntros. iApply natmap_prop_sum_empty. }
+    i. iIntros "MAP".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    iPoseProof (IMPL with "H0") as "H0".
+    { rewrite nm_find_add_eq. auto. }
+    iApply (natmap_prop_sum_add with "[H1] H0").
+    iApply IH.
+    { i. eapply IMPL. rewrite NatMapP.F.add_o; eauto. des_ifs. }
+    { rewrite nm_find_none_rm_add_eq; auto. }
+  Qed.
+
+  Lemma natmap_prop_sum_wand (A: Type) P0 P1 (m: NatMap.t A)
+    :
+    (natmap_prop_sum m P0)
+      -∗
+      (natmap_prop_sum m (fun k v => P0 k v -* P1 k v))
+      -∗
+      (natmap_prop_sum m P1).
+  Proof.
+    pattern m. eapply nm_ind.
+    { iIntros. iApply natmap_prop_sum_empty. }
+    i. iIntros "MAP IMPL".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    iPoseProof (natmap_prop_remove_find with "IMPL") as "[G0 G1]".
+    { eapply nm_find_add_eq. }
+    iApply (natmap_prop_sum_add with "[H1 G1] [H0 G0]").
+    { rewrite nm_find_none_rm_add_eq; auto. iApply (IH with "H1 G1"). }
+    { iApply ("G0" with "H0"). }
+  Qed.
+
+  Lemma natmap_prop_sum_impl_strong (A: Type) P0 P1 Q (m: NatMap.t A)
+        (IMPL: forall k v, P0 k v ** Q ⊢ P1 k v ** Q)
+    :
+    (natmap_prop_sum m P0 ** Q)
+      -∗
+      (natmap_prop_sum m P1 ** Q).
+  Proof.
+    pattern m. eapply nm_ind.
+    { iIntros "[SUM H]". iFrame. }
+    i. iIntros "[MAP H]".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    rewrite nm_find_none_rm_add_eq; [|auto].
+    iPoseProof (IH with "[H1 H]") as "[H1 H]".
+    { iFrame. }
+    iPoseProof (IMPL with "[H0 H]") as "[H0 H]".
+    { iFrame. }
+    iFrame. iApply (natmap_prop_sum_add with "H1 H0").
+  Qed.
+
+  Lemma default_initial_res_init
+    :
+    (Own (default_initial_res))
+      -∗
+      (∀ ths st_src st_tgt im_tgt o,
+          #=> (∃ im_src,
+                  (default_I ths im_src im_tgt st_src st_tgt)
+                    **
+                    (natmap_prop_sum ths (fun tid _ => ObligationRA.duty (inl tid) []))
+                    **
+                    (natmap_prop_sum ths (fun tid _ => own_thread tid))
+                    **
+                    (FairRA.whites (fun _ => True: Prop) o)
+                    **
+                    (FairRA.blacks (fun i => match i with | inr _ => True | _ => False end: Prop))
+                    **
+                    (St_src st_src)
+                    **
+                    (St_tgt st_tgt)
+      )).
+  Proof.
+    iIntros "OWN" (? ? ? ? ?).
+    iDestruct "OWN" as "[[[[[[OWN0 [OWN1 OWN2]] [OWN3 OWN4]] OWN5] OWN6] OWN7] OWN8]".
+    iPoseProof (black_white_update with "OWN1 OWN2") as "> [OWN1 OWN2]".
+    iPoseProof (black_white_update with "OWN3 OWN4") as "> [OWN3 OWN4]".
+    iPoseProof (OwnM_Upd with "OWN6") as "> OWN6".
+    { instantiate (1:=FairRA.target_init_resource im_tgt).
+      unfold FairRA.target_init_resource.
+      erewrite ! (@unfold_pointwise_add (id_sum nat ident_tgt) (Fuel.t nat)).
+      apply pointwise_updatable. i.
+      rewrite URA.add_comm. exact (@Fuel.success_update nat _ 0 (im_tgt a)).
+    }
+    iPoseProof (FairRA.target_init with "OWN6") as "[[H0 H1] H2]".
+    iPoseProof (FairRA.source_init with "OWN5") as "> [% [H3 H4]]".
+    iExists f. unfold default_I. iFrame.
+    iPoseProof (own_threads_init with "OWN0") as "> [OWN0 H]". iFrame.
+    iModIntro. iSplitR "H1"; [iSplitL "OWN8"|].
+    { iExists _. iSplitL.
+      { iApply (OwnM_extends with "OWN8"). instantiate (1:=[]).
+        apply pointwise_extends. i. destruct a; ss; reflexivity.
+      }
+      { ss. }
+    }
+    { iExists _. iSplitL.
+      { iApply (OwnM_extends with "OWN7"). instantiate (1:=[]).
+        apply pointwise_extends. i. destruct a; ss; reflexivity.
+      }
+      { ss. }
+    }
+    { iApply natmap_prop_sum_impl; [|eauto]. i. ss. iApply black_to_duty. }
+  Qed.
 
   Let I: shared_rel :=
         fun ths im_src im_tgt st_src st_tgt =>
@@ -1461,3 +1645,50 @@ From Fairness Require Export Red IRed.
 
 Ltac lred := repeat (prw _red_gen 1 2 0).
 Ltac rred := repeat (prw _red_gen 1 1 0).
+
+
+Section USERPCM.
+  Definition RAs: Type :=
+    list (sigT (fun (M: URA.t) => M.(URA.car))).
+
+  Variable RS: RAs.
+
+  Definition RAs_to_GRA: GRA.t := GRA.of_list (List.map projT1 RS).
+
+  Definition nth_res (n: nat): RAs_to_GRA n.
+    destruct (nth n RS (existT (of_RA.t RA.empty) URA.unit)) as [M r] eqn:EQ.
+    unfold RAs_to_GRA. unfold GRA.of_list.
+    change (of_RA.t RA.empty) with (projT1 (existT (of_RA.t RA.empty) URA.unit)).
+    erewrite map_nth. rewrite EQ. exact r.
+  Defined.
+
+  Definition init_res := (fold_right URA.add URA.unit (List.map (fun n => @GRA.embed _ _ (@GRA.InG _ _ n eq_refl) (nth_res n)) (List.seq 0 (List.length RS)))).
+
+  Lemma init_res_eq n
+    :
+    init_res n = nth_res n.
+  Abort.
+
+  Lemma init_res_wf: URA.wf init_res.
+  Abort.
+
+  Hypothesis WF: List.Forall (fun Mr => URA.wf (projT2 Mr)) RS.
+
+  Local Existing Instance RAs_to_GRA.
+
+  Definition default_RAs
+             (ID_src: ID) (ID_tgt: ID)
+             (ST_src: Type) (ST_tgt: Type)
+    : RAs :=
+    [existT monoRA URA.unit;
+     existT ThreadRA (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit));
+     existT (stateSrcRA ST_src) (Auth.black (Excl.just None: @Excl.t (option ST_src)));
+     existT (stateTgtRA ST_tgt) (Auth.black (Excl.just None: @Excl.t (option ST_tgt)));
+     existT (identSrcRA ID_src) (@FairRA.source_init_resource ID_src);
+     existT (identTgtRA ID_tgt) ((fun _ => Fuel.black 0 1%Qp): identTgtRA ID_tgt);
+     existT ObligationRA.t URA.unit;
+     existT EdgeRA ((fun _ => OneShot.pending _ 1%Qp): EdgeRA);
+     existT (ArrowRA ID_tgt) ((fun _ => OneShot.pending _ 1%Qp): ArrowRA ID_tgt);
+     existT (@FiniteMap.t (OneShot.t unit)) URA.unit
+    ].
+End USERPCM.

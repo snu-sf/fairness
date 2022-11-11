@@ -113,8 +113,8 @@ Section INVARIANT.
   Variable ident_src: ID.
   Variable ident_tgt: ID.
 
-  Definition stateSrcRA: URA.t := Auth.t (Excl.t state_src).
-  Definition stateTgtRA: URA.t := Auth.t (Excl.t state_tgt).
+  Definition stateSrcRA: URA.t := Auth.t (Excl.t (option state_src)).
+  Definition stateTgtRA: URA.t := Auth.t (Excl.t (option state_tgt)).
   Definition identSrcRA: URA.t := FairRA.srct ident_src.
   Definition identTgtRA: URA.t := FairRA.tgtt ident_tgt.
   Definition ThreadRA: URA.t := Auth.t (NatMapRA.t unit).
@@ -138,9 +138,9 @@ Section INVARIANT.
     fun ths im_src im_tgt st_src st_tgt =>
       (OwnM (Auth.black (Some ths: (NatMapRA.t unit)): ThreadRA))
         **
-        (OwnM (Auth.black (Excl.just st_src: @Excl.t state_src): stateSrcRA))
+        (OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA))
         **
-        (OwnM (Auth.black (Excl.just st_tgt: @Excl.t state_tgt): stateTgtRA))
+        (OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA))
         **
         (FairRA.sat_source im_src)
         **
@@ -171,9 +171,9 @@ Section INVARIANT.
     :
     (default_I ths im_src im_tgt st_src0 st_tgt)
       -∗
-      (OwnM (Auth.white (Excl.just st_src': @Excl.t state_src): stateSrcRA))
+      (OwnM (Auth.white (Excl.just (Some st_src'): @Excl.t (option state_src)): stateSrcRA))
       -∗
-      #=> (OwnM (Auth.white (Excl.just st_src1: @Excl.t state_src)) ** default_I ths im_src im_tgt st_src1 st_tgt).
+      #=> (OwnM (Auth.white (Excl.just (Some st_src1): @Excl.t (option state_src))) ** default_I ths im_src im_tgt st_src1 st_tgt).
   Proof.
     unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
     iPoseProof (black_white_update with "B OWN") as "> [B OWN]".
@@ -184,9 +184,9 @@ Section INVARIANT.
     :
     (default_I ths im_src im_tgt st_src st_tgt0)
       -∗
-      (OwnM (Auth.white (Excl.just st_tgt': @Excl.t state_tgt): stateTgtRA))
+      (OwnM (Auth.white (Excl.just (Some st_tgt'): @Excl.t (option state_tgt)): stateTgtRA))
       -∗
-      #=> (OwnM (Auth.white (Excl.just st_tgt1: @Excl.t state_tgt)) ** default_I ths im_src im_tgt st_src st_tgt1).
+      #=> (OwnM (Auth.white (Excl.just (Some st_tgt1): @Excl.t (option state_tgt))) ** default_I ths im_src im_tgt st_src st_tgt1).
   Proof.
     unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
     iPoseProof (black_white_update with "C OWN") as "> [C OWN]".
@@ -197,24 +197,24 @@ Section INVARIANT.
     :
     (default_I ths im_src im_tgt st_src st_tgt)
       -∗
-      (OwnM (Auth.white (Excl.just st: @Excl.t state_src): stateSrcRA))
+      (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_src)): stateSrcRA))
       -∗
       ⌜st_src = st⌝.
   Proof.
     unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
-    iApply (black_white_equal with "B OWN").
+    iPoseProof (black_white_equal with "B OWN") as "%". clarify.
   Qed.
 
   Lemma default_I_get_st_tgt ths im_src im_tgt st_src st_tgt st
     :
     (default_I ths im_src im_tgt st_src st_tgt)
       -∗
-      (OwnM (Auth.white (Excl.just st: @Excl.t state_tgt): stateTgtRA))
+      (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_tgt)): stateTgtRA))
       -∗
       ⌜st_tgt = st⌝.
   Proof.
     unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
-    iApply (black_white_equal with "C OWN").
+    iPoseProof (black_white_equal with "C OWN") as "%". clarify.
   Qed.
 
   Lemma default_I_thread_alloc ths0 im_src im_tgt0 st_src st_tgt

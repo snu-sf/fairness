@@ -2403,13 +2403,13 @@ Module FairRA.
          (blacks (fun i => exists j, (<<NIN: ~ TIdSet.In j ths>>) /\ (<<EQ: i = inl j>>))))
     .
 
-    Definition target_init_resource (f: imap Id nat_wf) (ths: TIdSet.t): tgtt :=
+    Definition target_init_resource (f: imap Id nat_wf): tgtt :=
       ((fun i => Fuel.white (f i)): (Id ==> Fuel.t nat)%ra)
         ⋅
         ((fun i => Fuel.black (f i) 1): (Id ==> Fuel.t nat)%ra).
 
-    Lemma target_init_resource_wf f ths:
-      URA.wf (target_init_resource f ths).
+    Lemma target_init_resource_wf f:
+      URA.wf (target_init_resource f).
     Proof.
       ur. i. ur. unfold target_init_resource.
       erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
@@ -2419,7 +2419,7 @@ Module FairRA.
 
     Lemma target_init f ths
       :
-      (OwnM (target_init_resource f ths))
+      (OwnM (target_init_resource f))
         -∗
         ((sat_target f ths)
            **

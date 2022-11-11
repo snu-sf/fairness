@@ -10,8 +10,24 @@ Set Implicit Arguments.
 
 Module TIdSet := NatSet.
 
-
+Notation fname := string (only parsing).
 Notation thread_id := nat (only parsing).
+
+Definition program := list (fname * Any.t)%type.
+
+Definition Val := nat.
+
+Variant cE: Type -> Type :=
+| Yield: cE unit
+| GetTid: cE thread_id
+(* | Spawn (fn: fname) (args: list Val): cE unit *)
+.
+
+Variant sE (State: Type): Type -> Type :=
+| Put (st: State): sE State unit
+| Get: sE State State
+.
+
 Section TID.
 
   Definition nat_wf: WF := mk_wf Wf_nat.lt_wf.
@@ -65,20 +81,6 @@ Section TID.
   Definition initial_threads := TIdSet.add kernel_tid NatSet.empty.
 End TID.
 
-
-Notation fname := string (only parsing).
-Definition Val := nat.
-
-Variant cE: Type -> Type :=
-| Yield: cE unit
-| GetTid: cE thread_id
-(* | Spawn (fn: fname) (args: list Val): cE unit *)
-.
-
-Variant sE (State: Type): Type -> Type :=
-| Put (st: State): sE State unit
-| Get: sE State State
-.
 
 Module Mod.
   Record t: Type :=

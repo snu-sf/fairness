@@ -1,3 +1,4 @@
+Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.

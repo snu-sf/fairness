@@ -5,11 +5,9 @@ Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
 From Fairness Require Export ITreeLib FairBeh NatStructs.
-From Fairness Require Import Mod.
+From Fairness Require Export Mod.
 
 Set Implicit Arguments.
-
-Module Th := NatMap.
 
 Lemma unfold_iter E A B (f: A -> itree E (A + B)) (x: A)
   :
@@ -22,6 +20,30 @@ Lemma unfold_iter E A B (f: A -> itree E (A + B)) (x: A)
 Proof.
   apply bisim_is_eq. eapply unfold_iter.
 Qed.
+
+
+Module Th := NatMap.
+Notation thread _Id E R := (itree (((@eventE _Id) +' cE) +' E) R).
+Notation threads _Id E R := (Th.t (@thread _Id E R)).
+
+Definition fn2th (m: Mod.t) (fn: fname) (args: Any.t): @thread (Mod.ident m) (sE (Mod.state m)) Any.t :=
+  match Mod.funs m fn with
+  | Some ktr => ktr args
+  | None => (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
+  end.
+
+Fixpoint _numbering {E} (l: list E) (n: NatMap.key): list (NatMap.key * E) :=
+  match l with
+  | hd :: tl => (n, hd) :: (_numbering tl (S n))
+  | [] => []
+  end.
+
+Definition numbering {E} (l: list E): list (NatMap.key * E) := _numbering l O.
+
+Definition prog2ths (m: Mod.t) (p: program): @threads (Mod.ident m) (sE (Mod.state m)) Any.t :=
+  let pre_threads := List.map (fun '(fn, args) => fn2th m fn args) p in
+  NatMapP.of_list (numbering pre_threads).
+
 
 Section STATE.
 
@@ -220,9 +242,6 @@ Section STATE_PROP.
 End STATE_PROP.
 
 
-
-Notation thread _Id E R := (itree (((@eventE _Id) +' cE) +' E) R).
-Notation threads _Id E R := (Th.t (@thread _Id E R)).
 
 Section SCHEDULE.
 
