@@ -53,11 +53,17 @@ Module RA.
     add_comm: forall a b, add a b = add b a;
     add_assoc: forall a b c, add a (add b c) = add (add a b) c;
     wf_mon: forall a b, wf (add a b) -> wf a;
+    core: car -> option car;
+    core_id: forall a c (CORE: core a = Some c), add c a = a;
+    core_idem: forall a c (CORE: Some c = core a), core c = Some c;
 
+    (* add_opt: car -> option car -> car := fun a b => match b with | Some b => add a b | _ => a end; *)
     extends := fun a b => exists ctx, add a ctx = b;
     updatable := fun a b => forall ctx, wf (add a ctx) -> wf (add b ctx);
     updatable_set := fun a B => forall ctx (WF: wf (add a ctx)),
                          exists b, <<IN: B b>> /\ <<WF: wf (add b ctx)>>;
+
+    core_mono: forall a b ca (CORE: Some ca = core a) (EXT: extends a b), exists cb, core b = Some cb /\ extends ca cb;
   }
   .
 
@@ -114,14 +120,49 @@ Module RA.
   Next Obligation. ii. r in H. r in H0. eauto. Qed.
 
   Program Instance prod (M0 M1: t): t := {
-    car := car (t:=M0) * car (t:=M1);
-    add := fun '(a0, a1) '(b0, b1) => ((add a0 b0), (add a1 b1));
-    wf := fun '(a0, a1) => wf a0 /\ wf a1;
-  }
+      car := car (t:=M0) * car (t:=M1);
+      add := fun '(a0, a1) '(b0, b1) => ((add a0 b0), (add a1 b1));
+      wf := fun '(a0, a1) => wf a0 /\ wf a1;
+      core := fun '(a0, a1) =>
+                match core a0, core a1 with
+                | Some a0, Some a1 => Some (a0, a1)
+                | _, _ => None
+                end;
+    }
   .
   Next Obligation. f_equal; rewrite add_comm; ss. Qed.
   Next Obligation. f_equal; rewrite add_assoc; ss. Qed.
   Next Obligation. split; eapply wf_mon; eauto. Qed.
+  Next Obligation. des_ifs. rewrite ! core_id; auto. Qed.
+  Next Obligation.
+    des_ifs.
+    { symmetry in Heq1, Heq2. eapply core_idem in Heq1, Heq2. clarify. }
+    { symmetry in Heq2. eapply core_idem in Heq2. clarify. }
+    { symmetry in Heq0. eapply core_idem in Heq0. clarify. }
+  Qed.
+  Next Obligation.
+    des_ifs.
+    { hexploit (core_mono (t:=M0)).
+      { symmetry. eapply Heq1. }
+      { exists c5. eauto. }
+      i. des. clarify.
+      hexploit (core_mono (t:=M1)).
+      { symmetry. eapply Heq2. }
+      { exists c6. eauto. }
+      i. des. r in H0. r in H2. des. clarify. esplits; eauto.
+      instantiate (1:=(_,_)). ss.
+    }
+    { hexploit (core_mono (t:=M1)).
+      { symmetry. eapply Heq2. }
+      { exists c6. eauto. }
+      i. des. clarify.
+    }
+    { hexploit (core_mono (t:=M0)).
+      { symmetry. eapply Heq0. }
+      { exists c5. eauto. }
+      i. des. clarify.
+    }
+  Qed.
 
   Theorem prod_updatable
           M0 M1
@@ -136,35 +177,22 @@ Module RA.
     ii. ss. des_ifs. des. esplits; eauto.
   Qed.
 
-  Program Instance frac (denom: positive): t := {
-    car := positive;
-    add := fun a b => (a + b)%positive;
-    wf := fun a => (a <= denom)%positive;
-  }
-  .
-  Next Obligation. lia. Qed.
-  Next Obligation. lia. Qed.
-  Next Obligation. lia. Qed.
-
-  Theorem frac_updatable
-          denom M
-          a b
-    :
-      <<UPD: @updatable (prod (frac denom) M) (denom, a) b>>
-  .
-  Proof.
-    ii. ss. des_ifs. des. lia.
-  Qed.
-
   Program Instance agree (A: Type): t := {
     car := option A;
     add := fun a0 a1 => if excluded_middle_informative (a0 = a1) then a0 else None;
     wf := fun a => a <> None;
+    core := fun a => Some a;
   }
   .
   Next Obligation. des_ifs. Qed.
   Next Obligation. des_ifs. Qed.
   Next Obligation. des_ifs. Qed.
+  Next Obligation. des_ifs. Qed.
+  Next Obligation.
+    des_ifs.
+    { esplits; eauto. des_ifs. }
+    { esplits; eauto. des_ifs. eauto. }
+  Qed.
 
   Theorem agree_unupdatable
           A
@@ -181,6 +209,7 @@ Module RA.
     car := option A;
     add := fun _ _ => None;
     wf := fun a => a <> None;
+    core := fun a => None;
   }
   .
 
@@ -204,21 +233,69 @@ Module RA.
                            | inl (inr a1) => wf a1
                            | _ => False
                            end).
+  Let sum_core {M0 M1} := (fun (a: car (t:=M0) + car (t:=M1) + unit) =>
+                           match a with
+                           | inl (inl a0) =>
+                               match core a0 with
+                               | Some c => Some (inl (inl c))
+                               | _ => None
+                               end
+                           | inl (inr a0) =>
+                               match core a0 with
+                               | Some c => Some (inl (inr c))
+                               | _ => None
+                               end
+                           | inr tt => Some (inr tt)
+                           end).
   Program Instance sum (M0 M1: t): t := {
     car := car (t:=M0) + car (t:=M1) + unit (* boom *);
     add := sum_add;
     wf := sum_wf;
+    core := sum_core;
   }
   .
   Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_comm. Qed.
   Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_assoc. Qed.
   Next Obligation. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed.
+  Next Obligation.
+    unfold sum_core in *. des_ifs; ss.
+    { repeat f_equal. eapply core_id; auto. }
+    { repeat f_equal. eapply core_id; auto. }
+  Qed.
+  Next Obligation.
+    unfold sum_core in *. des_ifs; ss.
+    { symmetry in Heq0. eapply core_idem in Heq0; auto. clarify. }
+    { symmetry in Heq0. eapply core_idem in Heq0; auto. clarify. }
+    { symmetry in Heq0. eapply core_idem in Heq0; auto. clarify. }
+    { symmetry in Heq0. eapply core_idem in Heq0; auto. clarify. }
+  Qed.
+  Next Obligation.
+    unfold sum_core in CORE. des_ifs; ss; des_ifs.
+    { hexploit (core_mono (t:=M0)).
+      { symmetry. eapply Heq. }
+      { exists c1. eauto. }
+      i. des. rr in H0. des. subst.
+      esplits; eauto. ss. rewrite H. instantiate (1:=inl (inl _)). ss.
+    }
+    { ss. esplits; eauto. instantiate (1:=inr tt). ss. }
+    { ss. esplits; eauto. instantiate (1:=inr tt). ss. }
+    { ss. esplits; eauto. instantiate (1:=inr tt). ss. }
+    { hexploit (core_mono (t:=M1)).
+      { symmetry. eapply Heq. }
+      { exists c1. eauto. }
+      i. des. rr in H0. des. subst.
+      esplits; eauto. ss. rewrite H. instantiate (1:=inl (inr _)). ss.
+    }
+    { ss. esplits; eauto. instantiate (1:=inr tt). ss. }
+    { esplits; eauto. }
+  Qed.
 
   Program Instance pointwise K (M: t): t := {
-    car := K -> car;
-    add := fun f0 f1 => (fun k => add (f0 k) (f1 k));
-    wf := fun f => forall k, wf (f k);
-  }
+      car := K -> car;
+      add := fun f0 f1 => (fun k => add (f0 k) (f1 k));
+      wf := fun f => forall k, wf (f k);
+      core := fun _ => None;
+    }
   .
   Next Obligation. apply func_ext. ii. rewrite add_comm. ss. Qed.
   Next Obligation. apply func_ext. ii. rewrite add_assoc. ss. Qed.
@@ -228,10 +305,310 @@ Module RA.
     car := False;
     add := fun a _ => a;
     wf := fun _ => False;
+    core := fun _ => None;
   }
   .
   Next Obligation. ss. Qed.
 
+  Inductive auth_car `{M: t}: Type :=
+  | auth_frag (f: option car)
+  | auth_excl (e: car) (f: option car)
+  | auth_boom
+  .
+
+  Let option_add `{M: t} := fun a0 a1 => match a0, a1 with
+                                         | None, a1 => a1
+                                         | a0, None => a0
+                                         | Some a0, Some a1 => Some (add a0 a1)
+                                         end.
+
+  Let option_add_comm `{M: t} a b
+    :
+    option_add a b = option_add b a.
+  Proof.
+    destruct a, b; ss. rewrite add_comm. auto.
+  Qed.
+
+  Let option_add_assoc `{M: t} a b c
+    :
+    option_add a (option_add b c) = option_add (option_add a b) c.
+  Proof.
+    destruct a, b, c; ss. rewrite add_assoc. auto.
+  Qed.
+
+  Let option_wf `{M: t} := fun a => match a with
+                                    | Some a => wf a
+                                    | None => True
+                                    end.
+
+  Let auth_add `{M: t} := fun a0 a1 => match a0, a1 with
+                                       | auth_frag f0, auth_frag f1 => auth_frag (option_add f0 f1)
+                                       | auth_frag f0, auth_excl e1 f1 => auth_excl e1 (option_add f0 f1)
+                                       | auth_excl e0 f0, auth_frag f1 => auth_excl e0 (option_add f0 f1)
+                                       | _, _ => auth_boom
+                                       end.
+
+  Let auth_wf `{M: t} := fun a =>
+                           match a with
+                           | auth_frag f => option_wf f
+                           | auth_excl e f => (match f with
+                                               | Some f => extends f e
+                                               | None => True
+                                               end) /\ wf e
+                           | auth_boom => False
+                           end.
+
+  Let option_core `{M: t} := fun a =>
+                               match a with
+                               | Some a => core a
+                               | None => None
+                               end.
+
+  Let auth_core `{M: t} := fun a =>
+                             match a with
+                             | auth_frag f
+                             | auth_excl _ f => Some (auth_frag (option_core f))
+                             | auth_boom => Some auth_boom
+                             end.
+
+  Let option_core_mono `{M: t}
+      a b
+    :
+    exists ctx, option_core (option_add a b) = option_add ctx (option_core a).
+  Proof.
+    destruct a, b; ss.
+    { destruct (core c) eqn:EQ; clarify.
+      { hexploit core_mono.
+        { eauto. }
+        { eexists. eauto. }
+        i. des. rr in H0. des. subst. esplits; eauto.
+        instantiate (1:=Some ctx). rewrite H. rewrite add_comm. auto.
+      }
+      { eexists. rewrite option_add_comm. ss. }
+    }
+    { exists None. ss. }
+    { eexists. rewrite option_add_comm. ss. }
+    { exists None. ss. }
+  Qed.
+
+  Program Instance auth (M: t): t := {
+      car := auth_car;
+      add := auth_add;
+      wf := auth_wf;
+      core := auth_core;
+    }
+  .
+  Next Obligation.
+    unfold auth_add. des_ifs.
+    { rewrite option_add_comm. auto. }
+    { rewrite option_add_comm. auto. }
+    { rewrite option_add_comm. auto. }
+  Qed.
+  Next Obligation.
+    unfold auth_add. des_ifs.
+    { rewrite option_add_assoc. auto. }
+    { rewrite option_add_assoc. auto. }
+    { rewrite option_add_assoc. auto. }
+    { rewrite option_add_assoc. auto. }
+  Qed.
+  Next Obligation.
+    unfold auth_add, auth_wf, option_add, option_wf in *. des_ifs; des.
+    { eapply wf_mon; eauto. }
+    { rr in H. des. subst. eapply wf_mon in H0. eapply wf_mon in H0. auto. }
+    { rr in H. des. subst. eapply wf_mon in H0. auto. }
+    { splits; auto. etransitivity; eauto. exists c1. eauto. }
+    { splits; auto. }
+  Qed.
+  Next Obligation.
+    unfold auth_add, auth_core, option_add in *. des_ifs.
+    { rewrite core_id; auto. }
+    { rewrite core_id; auto. }
+  Qed.
+  Next Obligation.
+    unfold auth_core, option_core in *. des_ifs.
+    { erewrite core_idem; eauto. }
+    { erewrite core_idem; eauto. }
+  Qed.
+  Next Obligation.
+    destruct a.
+    { destruct EXT.
+      { ss. clarify.
+        hexploit option_core_mono. i. des.
+        rewrite H. esplits; eauto. instantiate (1:=auth_frag _). ss.
+        rewrite option_add_comm. eauto.
+      }
+      { ss. clarify.
+        hexploit option_core_mono. i. des.
+        rewrite H. esplits; eauto. instantiate (1:=auth_frag _). ss.
+        rewrite option_add_comm. eauto.
+      }
+      { exists auth_boom. splits; ss. exists auth_boom. destruct ca; ss. }
+    }
+    { destruct EXT.
+      { ss. clarify.
+        hexploit option_core_mono. i. des.
+        rewrite H. esplits; eauto. instantiate (1:=auth_frag _). ss.
+        rewrite option_add_comm. eauto.
+      }
+      { exists auth_boom. splits; ss. exists auth_boom. destruct ca; ss. }
+      { exists auth_boom. splits; ss. exists auth_boom. destruct ca; ss. }
+    }
+    { ss. clarify. exists auth_boom. splits; ss. }
+  Qed.
+
+  Definition black `{M: t} (a: car): @car (auth M) := auth_excl a None.
+  Definition white `{M: t} (a: car): @car (auth M) := auth_frag (Some a).
+
+  Definition local_update `{M: t} a0 b0 a1 b1: Prop :=
+    forall ctx, (<<WF: wf a0>> /\ <<FRAME: a0 = add b0 ctx>>) ->
+                (<<WF: wf a1>> /\ <<FRAME: a1 = add b1 ctx>>)
+  .
+
+  Definition local_update_alloc `{M: t} a0 a1 b1: Prop :=
+    (<<WF: wf a0>>) ->
+    (<<WF: wf a1>> /\ <<FRAME: a1 = add b1 a0>>)
+  .
+
+  Definition local_update_dealloc `{M: t} a0 b0 a1: Prop :=
+    forall ctx, (<<WF: wf a0>> /\ <<FRAME: a0 = add b0 ctx>>) ->
+                (<<WF: wf a1>> /\ <<FRAME: a1 = ctx>>)
+  .
+
+  Theorem auth_wf_init
+          `{M: t}
+          a b
+          (EXT: extends b a)
+          (WF: wf a)
+    :
+    wf (add (black a) (white b)).
+  Proof.
+    ss.
+  Qed.
+
+  Theorem auth_update
+          `{M: t}
+          a b a' b'
+          (UPD: local_update a b a' b')
+    :
+    <<UPD: updatable (add (black a) (white b)) (add (black a') (white b'))>>
+  .
+  Proof.
+    rr. i. ss. rr in H. des_ifs.
+    { des. rr in H. des. subst. exploit UPD.
+      { esplits; eauto. rewrite add_assoc. eauto. }
+      i. des. subst. splits; auto. exists ctx. rewrite add_assoc. auto.
+    }
+    { des. rr in H. des. subst. exploit UPD.
+      { esplits; eauto. }
+      i. des. subst. splits; auto. exists ctx. auto.
+    }
+  Qed.
+
+  Theorem auth_dup_black
+          `{M: t}
+          a ca
+          (CORE: a = add a ca)
+    :
+    <<DUP: updatable (black a) (add (black a) (white ca))>>
+  .
+  Proof.
+    rr. ii. ss. rr in H. des_ifs.
+    { des. rr in H. des. subst. esplits; eauto. exists ctx.
+      rewrite CORE. rewrite <- add_assoc. rewrite add_comm. auto.
+    }
+    { des. splits; auto. exists e. rewrite add_comm. auto. }
+  Qed.
+
+  Theorem auth_dup_white
+          `{M: t}
+          a ca
+          (CORE: a = add a ca)
+    :
+    <<DUP: updatable (white a) (add (white a) (white ca))>>
+  .
+  Proof.
+    rr. ii. ss. rr in H. des_ifs; ss.
+    { rewrite <- CORE. auto. }
+    { rewrite <- CORE. auto. }
+    { rewrite <- CORE. auto. }
+    { rewrite <- CORE. auto. }
+  Qed.
+
+  Theorem auth_alloc
+          `{M: t}
+          a0 a1 b1
+          (UPD: local_update_alloc a0 a1 b1)
+    :
+    <<UPD: updatable (black a0) (add (black a1) (white b1))>>
+  .
+  Proof.
+    rr. i. ss. rr in H. des_ifs.
+    { des. rr in H. des. subst. exploit UPD; auto.
+      i. des. subst. splits; auto. exists ctx. rewrite add_assoc. auto.
+    }
+    { des. exploit UPD; auto.
+      i. des. subst. splits; auto. exists a0. auto.
+    }
+  Qed.
+
+  Theorem auth_alloc2
+          `{M: t}
+          a0 delta
+          (WF: wf a0 -> wf (add a0 delta))
+    :
+    <<UPD: updatable (black a0) (add (black (add a0 delta)) (white delta))>>
+  .
+  Proof.
+    eapply auth_alloc; eauto. ii. splits; auto. rewrite add_comm. auto.
+  Qed.
+
+  Theorem auth_dealloc
+          `{M: t}
+          a0 a1 b0
+          (UPD: local_update_dealloc a0 b0 a1)
+    :
+    <<UPD: updatable (add (black a0) (white b0)) (black a1)>>
+  .
+  Proof.
+    rr. i. ss. rr in H. des_ifs.
+    { des. rr in H. des. subst. exploit UPD.
+      { esplits; eauto. rewrite add_assoc. eauto. }
+      i. des. subst. splits; auto. exists ctx. auto.
+    }
+    { des. rr in H. des. subst. exploit UPD.
+      { esplits; eauto. }
+      i. des. subst. splits; auto.
+    }
+  Qed.
+
+  Theorem auth_included
+          `{M: t}
+          a b
+          (WF: wf (add (black a) (white b)))
+    :
+    <<EXT: extends b a>>
+  .
+  Proof.
+    rr in WF. ss. des. auto.
+  Qed.
+
+  Theorem auth_exclusive
+          `{M: t}
+          a b
+          (WF: wf (add (black a) (black b)))
+    :
+    False
+  .
+  Proof. rr in WF. auto. Qed.
+
+  Lemma black_wf
+        `{M: t}
+        a
+        (WF: wf (black a))
+    :
+    <<WF: wf a>>
+  .
+  Proof. rr in WF. des; auto. Qed.
 End RA.
 
 
@@ -434,16 +811,6 @@ Module URA.
     unfold add in Heq. unseal "ra". ss. clarify.
   Qed.
 
-  Program Definition to_RA (M: t): RA.t := {|
-    RA.car := car;
-    RA.add := add;
-    RA.wf := wf;
-  |}
-  .
-  Next Obligation. apply add_comm. Qed.
-  Next Obligation. apply add_assoc. Qed.
-  Next Obligation. eapply wf_mon; eauto. Qed.
-
   Global Program Instance extends_PreOrder `{M: t}: PreOrder extends.
   Next Obligation. rr. eexists unit. ss. rewrite unit_id. ss. Qed.
   Next Obligation.
@@ -592,6 +959,261 @@ Module URA.
   Next Obligation. unfold agree_add in *. des_ifs. Qed.
   Next Obligation. unfold agree_add. des_ifs. Qed.
   Next Obligation. exists b. auto. Qed.
+
+
+
+
+  Variant gra: Type :=
+    | gra_cons
+        (M: RA.t)
+        (a: RA.car)
+    | gra_boom
+  .
+
+  Definition gra_add (a0 a1: option gra): option gra :=
+    match a0, a1 with
+    | None, a1 => a1
+    | a0, None => a0
+    | Some (@gra_cons M0 a0), Some (@gra_cons M1 a1) =>
+        match (excluded_middle_informative (M0 = M1)) with
+        | left e =>
+            Some (@gra_cons M1 (RA.add (eq_rect _ (@RA.car) a0 _ e) a1))
+        | right _ => Some gra_boom
+        end
+    | _, _ => Some gra_boom
+    end.
+
+  Definition gra_wf (g: gra): Prop :=
+    match g with
+    | @gra_cons M a => RA.wf a
+    | _ => False
+    end.
+
+  Definition gen_car: Type := nat -> option gra.
+
+  Definition gen_wf (f: gen_car): Prop :=
+    (<<POINTWISE: forall k g (EQ: f k = Some g), gra_wf g>>) /\ (<<FIN: exists n, forall k (LE: n < k), f k = None>>).
+
+  Definition gra_core (g: gra): option gra :=
+    match g with
+    | (@gra_cons M a) =>
+        match (RA.core a) with
+        | Some c => Some (@gra_cons M c)
+        | None => None
+        end
+    | _ => Some gra_boom
+    end.
+
+  Definition gen_core (f: gen_car): gen_car :=
+    fun k =>
+      match (f k) with
+      | None => None
+      | Some g => gra_core g
+      end.
+
+  Global Program Instance gen: URA.t := {
+      car := nat -> option gra;
+      unit := fun _ => None;
+      _add := fun f0 f1 k => gra_add (f0 k) (f1 k);
+      _wf := gen_wf;
+      core := gen_core;
+    }
+  .
+  Next Obligation.
+    unfold gra_add. apply func_ext.
+    ii. des_ifs. dependent destruction e. ss.
+    rewrite RA.add_comm. ss.
+  Qed.
+  Next Obligation.
+    unfold gra_add. apply func_ext.
+    ii. des_ifs.
+    { dependent destruction H0. dependent destruction H1. dependent destruction e. ss.
+      rewrite RA.add_assoc. ss.
+    }
+    { dependent destruction H0. dependent destruction H1. ss. }
+    { dependent destruction H0. ss. }
+    { dependent destruction H0. ss. }
+  Qed.
+  Next Obligation.
+    unfold gra_add. apply func_ext.
+    ii. des_ifs.
+  Qed.
+  Next Obligation.
+    unfold gen_wf. splits; auto.
+    { i. ss. }
+    { exists 0. auto. }
+  Qed.
+  Next Obligation.
+    unfold gen_wf, gra_add in *.
+    des. splits; auto.
+    { i. hexploit POINTWISE.
+      { rewrite EQ.
+        instantiate (1:= match gra_add (Some g) (b k) with
+                         | Some x => x
+                         | None => g
+                         end).
+        unfold gra_add. des_ifs; ss.
+      }
+      { unfold gra_add, gra_wf. des_ifs.
+        { dependent destruction H0. i. eapply RA.wf_mon; eauto. }
+        { dependent destruction H0. auto. }
+      }
+    }
+    { exists n. i. hexploit FIN; eauto. i. des_ifs. }
+  Qed.
+  Next Obligation.
+    unfold gra_add, gen_core, gra_core. apply func_ext.
+    ii. des_ifs. dependent destruction H0. ss.
+    rewrite RA.core_id; ss.
+  Qed.
+  Next Obligation.
+    unfold gen_core, gra_core. apply func_ext.
+    ii. des_ifs.
+    { dependent destruction H0. f_equal.
+      erewrite RA.core_idem in Heq0; eauto. clarify.
+    }
+    { dependent destruction H0.
+      erewrite RA.core_idem in Heq0; eauto. clarify.
+    }
+  Qed.
+  Next Obligation.
+    unfold gen_core.
+    hexploit (choice (fun (k: nat) (c: option gra) =>
+                        match gra_add (a k) (b k) with
+                        | Some g => gra_core g
+                        | None => None
+                        end
+                        =
+                          gra_add match a k with
+                                  | Some g => gra_core g
+                                  | None => None
+                                  end c)).
+    { i. destruct (a x) eqn:EQA.
+      2:{ ss. eauto. }
+      destruct g.
+      2:{ exists (Some gra_boom). ss. des_ifs. }
+      destruct (b x) eqn:EQB.
+      2:{ exists None. ss. des_ifs. }
+      destruct g.
+      2:{ exists (Some gra_boom). ss. des_ifs. }
+      ss. des_ifs; ss; eauto.
+      { hexploit RA.core_mono; eauto.
+        { eexists _. eauto. }
+        i. des. rr in H0. des. ss. subst.
+        rewrite H. eexists (Some (@gra_cons M0 _)). des_ifs.
+        dependent destruction e. ss.
+      }
+      { exists (Some gra_boom). ss. }
+    }
+    i. des. exists f. apply func_ext.
+    i. rewrite H. unfold gra_add, gra_core. des_ifs.
+  Qed.
+
+  Definition singleton `{M: RA.t} (k: nat) (m: RA.car): @URA.car gen :=
+    fun n => if Nat.eq_dec n k then Some (@gra_cons M m) else None.
+
+  Lemma singleton_wf `{M: RA.t} k m
+    :
+    wf (singleton k m) <-> RA.wf m.
+  Proof.
+    split; i.
+    { rewrite URA.unfold_wf in H. rr in H.
+      des. hexploit POINTWISE.
+      { unfold singleton. des_ifs. }
+      i. ss.
+    }
+    { rewrite URA.unfold_wf. rr. splits.
+      { i. unfold singleton in *. des_ifs. }
+      { exists k. i. unfold singleton. des_ifs. lia. }
+    }
+  Qed.
+
+  Lemma singleton_add `{M: RA.t} k m0 m1
+    :
+    URA.add (singleton k m0) (singleton k m1)
+    =
+      singleton k (RA.add m0 m1).
+  Proof.
+    rewrite URA.unfold_add. ss.
+    unfold singleton, gra_add. apply func_ext. i. des_ifs.
+    dependent destruction H0. dependent destruction H1. ss.
+  Qed.
+
+  Lemma singleton_core `{M: RA.t} k m c
+        (CORE: RA.core m = Some c)
+    :
+    URA.core (singleton k m) = singleton k c.
+  Proof.
+    ss. apply func_ext. i. unfold gen_core, singleton. des_ifs.
+    ss. rewrite CORE. auto.
+  Qed.
+
+  Lemma singleton_updatable `{M: RA.t} k m0 m1
+        (UPD: @RA.updatable M m0 m1)
+    :
+    URA.updatable (singleton k m0) (singleton k m1).
+  Proof.
+    ii. rewrite URA.unfold_wf in H. rr in H. des.
+    rewrite URA.unfold_wf. ss. rr. splits.
+    { i. rewrite URA.unfold_add in EQ. ss.
+      cut (match add (singleton k m0) ctx k0 with
+           | Some g0 => gra_wf g0
+           | None => True
+           end).
+      2:{ des_ifs; eauto. }
+      rewrite URA.unfold_add. ss.
+      unfold gra_add, singleton in EQ.
+      unfold gra_add, singleton. des_ifs; i; ss.
+      { dependent destruction H0. ss. eapply UPD; eauto. }
+      { dependent destruction H0. ss. admit. }
+    }
+    { exists n. i. hexploit FIN; eauto. i.
+      rewrite URA.unfold_add in H. rewrite URA.unfold_add. ss.
+      unfold gra_add, singleton in *. des_ifs.
+    }
+  Admitted.
+
+  Lemma singleton_extends `{M: RA.t} k m0 m1
+        (UPD: @RA.extends M m0 m1)
+    :
+    URA.extends (singleton k m0) (singleton k m1).
+  Proof.
+    r in UPD. des. exists (singleton k ctx).
+    rewrite singleton_add. subst. auto.
+  Qed.
+
+  Lemma singleton_alloc `{M: RA.t} (m: @RA.car M) (f: @URA.car gen)
+        (WF: RA.wf m)
+    :
+    URA.updatable_set f (fun f1 => exists k, f1 = singleton k m).
+  Proof.
+    ii. hexploit wf_mon.
+    { rewrite add_comm. eauto. }
+    intros WFF. rewrite URA.unfold_wf in WF0. rr in WF0. des.
+    exists (singleton (S n) m). splits.
+    { eauto. }
+    hexploit (FIN (S n)).
+    { lia. }
+    i. rewrite URA.unfold_add in H. ss. unfold gra_add in H. des_ifs.
+    rewrite URA.unfold_wf. ss. rr. split.
+    { ii. rewrite URA.unfold_add in EQ. ss.
+      unfold gra_add, singleton in EQ. des_ifs.
+      { dependent destruction H1. ss. }
+      rewrite URA.unfold_wf in WFF. ss. rr in WFF. des. eauto.
+    }
+    { exists (S n). i. hexploit (FIN k).
+      { lia. }
+      i. rewrite URA.unfold_add. rewrite URA.unfold_add in H0.
+      ss. unfold gra_add, singleton in *. des_ifs. lia.
+    }
+  Qed.
+
+  Lemma singleton_updatable_set `{M: RA.t} k m s
+        (UPD: @RA.updatable_set M m s)
+    :
+    URA.updatable_set (singleton k m) (fun a => exists m1, s m1 /\ a = singleton k m1).
+  Proof.
+  Admitted.
 End URA.
 
 (* Coercion URA.to_RA: URA.t >-> RA.t. *)
@@ -637,19 +1259,43 @@ Let add `{M: RA.t}: car -> car -> car :=
     | unit, _ => b
     | _, unit => a
     end.
+Let core `{M: RA.t}: car -> car :=
+  fun a =>
+    match a with
+    | just a =>
+        match RA.core a with
+        | Some c => just c
+        | None => unit
+        end
+    | _ => unit
+    end.
 
 Program Instance t (RA: RA.t): URA.t := {
   car := car;
   unit := of_RA.unit;
   _wf := wf;
   _add := add;
-  core := fun _ => unit;
+  core := core;
 }.
 Next Obligation. unfold add. des_ifs. { rewrite RA.add_comm; ss. } Qed.
 Next Obligation. unfold add. des_ifs. { rewrite RA.add_assoc; ss. } Qed.
 Next Obligation. unfold add. des_ifs. Qed.
 Next Obligation. unfold add in *. des_ifs. eapply RA.wf_mon; eauto. Qed.
-Next Obligation. exists unit. ss. Qed.
+Next Obligation. unfold add, core. des_ifs. rewrite RA.core_id; eauto. Qed.
+Next Obligation.
+  unfold add, core. des_ifs.
+  { erewrite RA.core_idem in Heq0; eauto. clarify. }
+  { erewrite RA.core_idem in Heq0; eauto. clarify. }
+Qed.
+Next Obligation.
+  destruct a; ss; eauto. destruct b; ss.
+  2:{ des_ifs; ss; eauto. exists unit. eauto. }
+  destruct (RA.core x) eqn:CORE; ss; eauto.
+  hexploit RA.core_mono; eauto.
+  { eexists. eauto. }
+  i. des. rr in H0. des. subst. rewrite H. esplits; eauto.
+  instantiate (1:=just _). ss.
+Qed.
 
 End of_RA.
 End of_RA.
