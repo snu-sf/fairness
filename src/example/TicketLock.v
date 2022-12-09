@@ -279,6 +279,26 @@ Section SIM.
                        (FairRA.white (inl tid) Ord.one)))
        (seq 0 n))%I.
 
+  Lemma waiters_pop start n
+    :
+    (waiters start (S n))
+      -∗
+      (∃ k j,
+          (waiters (S start) n)
+            **
+            ((ConsentP.voted_singleton k j)
+               **
+               (ObligationRA.correl_thread j 1%ord)
+               **
+               (ObligationRA.pending j (/2)%Qp)
+               **
+               (∃ o, ObligationRA.black j o))
+            **
+            (waiters_tax (S start) n)).
+  Proof.
+    iIntros "WAIT".
+  Admitted.
+
   Definition ticketlock_inv
              (L: bool) (W: NatMap.t unit)
              (reserved: bool)
@@ -304,9 +324,9 @@ Section SIM.
                       **
                       (waiters_tax (S ((Nat.b2n reserved) + now_serving)) n)
                       **
-                      (ObligationRA.pending k (/2)%Qp))
+                      (ObligationRA.pending j (/2)%Qp))
                    ∨
                      ((⌜L = true /\ reserved = false⌝)
                         **
-                        (ObligationRA.shot k)))))).
+                        (ObligationRA.shot j)))))).
 End SIM.
