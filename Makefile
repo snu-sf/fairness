@@ -1,6 +1,11 @@
-COQMODULE    := Ordinal
+COQMODULE    := Fairness
 COQTHEORIES  := \
-	src/*.v \
+	pico/*.v \
+	src/lib/*.v \
+	src/semantics/*.v \
+	src/simulation/*.v \
+	src/logic/*.v \
+	src/example/*.v \
 
 .PHONY: all theories clean
 
@@ -14,6 +19,7 @@ quick: Makefile.coq
 
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-Q src $(COQMODULE)"; \
+	 echo "-Q pico $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq

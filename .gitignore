@@ -10,7 +10,14 @@ Makefile.coq.conf
 .*.aux
 *.vok
 *.vos
+*.v~
 
 .lia.cache
 .nia.cache
 .coqdeps.d
+
+pico_meta/__pycache__/
+*.py[cod]
+
+_opam
+nohup.out
