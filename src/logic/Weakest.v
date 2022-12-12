@@ -1603,28 +1603,28 @@ Section STATE.
 
   Lemma stsim_yieldR0 E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt
-        (TOP: mset_sub topset E)
+        ktr_src ktr_tgt l
     :
-    ((mset_all (nth_default True Invs) topset)
-       -∗
-       #=>(∃ (l: list (nat * Ord.t)),
-              (ObligationRA.duty (inl tid) l ∗ ObligationRA.tax l)
-                ∗
-                ((ObligationRA.duty (inl tid) l)
-                   -∗
-                   (FairRA.white_thread (_Id:=_))
-                   -∗
-                   ((mset_all (nth_default True Invs) topset) ∗ (stsim topset r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
-          )
-    )
+    (ObligationRA.duty (inl tid) l ∗ ObligationRA.tax l)
+      -∗
+      ((ObligationRA.duty (inl tid) l)
+         -∗
+         (MUpd (nth_default True%I Invs) E topset
+               ((FairRA.white_thread (_Id:=_))
+                  -∗
+                  (stsim topset r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      )
       -∗
       (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    iIntros "H". iApply stsim_discard; [eassumption|].
+    iIntros "H K".
     unfold stsim. iIntros (? ? ? ? ?) "[D C]".
     iApply isim_yieldR. unfold I. iFrame.
+    iPoseProof "H" as "[DUTY TAX]".
+    iPoseProof ("K" with "DUTY C") as "K".
+    iPoseProof "K" as "> K".
+    unfold MUpd. iPoseProof ("K" with "C") as "[C K]".
     iIntros (? ? ? ? ? ?) "[D C] %".
     iPoseProof ("H" with "C") as "> K". iDestruct "K" as (l) "[DX K]".
     iPoseProof (default_I_update_ident_thread with "D DX") as "> [[DUTY WHITE] D]".
