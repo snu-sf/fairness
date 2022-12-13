@@ -1601,6 +1601,39 @@ Section STATE.
     iApply ("K" with "DUTY WHITE"). iFrame.
   Qed.
 
+  Lemma stsim_yieldR_fine E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ktr_src ktr_tgt l
+        (TOP: mset_sub topset E)
+    :
+    ((mset_all (nth_default True Invs) topset)
+       -∗
+       ((ObligationRA.duty (inl tid) l ∗ ObligationRA.tax l)
+          ∗
+          ((ObligationRA.duty (inl tid) l)
+             -∗
+             (FairRA.white_thread (_Id:=_))
+             -∗
+             ((mset_all (nth_default True Invs) topset)
+                ∗
+                (stsim topset r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
+    )))
+      -∗
+      (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "H". iApply stsim_discard; [eassumption|].
+    unfold stsim. iIntros (? ? ? ? ?) "[D C]".
+    iApply isim_yieldR. unfold I. iFrame.
+    iIntros (? ? ? ? ? ?) "[D C] %".
+    iPoseProof ("H" with "C") as "[DX H]".
+    iPoseProof (default_I_update_ident_thread with "D DX") as "> [[DUTY WHITE] D]".
+    { eauto. }
+    iPoseProof ("H" with "DUTY WHITE") as "[IV H]".
+    iApply "H". iFrame.
+  Qed.
+
+  (* TODO *)
   Lemma stsim_yieldR0 E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ktr_src ktr_tgt l
