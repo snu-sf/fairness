@@ -900,28 +900,28 @@ Section STATE.
       (r: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel): rel :=
         fun R_src R_tgt Q itr_src itr_tgt =>
           (∀ ths im_src im_tgt st_src st_tgt,
-              (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
+              (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
                 -*
-                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt) itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
+                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt) itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
 
   Let lift_rel (rr: rel):
     forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
         fun R_src R_tgt QQ itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
           (∃ (Q: R_src -> R_tgt -> iProp)
              (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
-                          (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)),
-              rr R_src R_tgt Q itr_src itr_tgt ** (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset))%I.
+                          (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)),
+              rr R_src R_tgt Q itr_src itr_tgt ** (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset))%I.
 
   Let unlift_rel_base r
     :
     forall R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
       (r R_src R_tgt Q itr_src itr_tgt)
         -∗
-        (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
+        (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
         -∗
         (lift_rel
            r
-           (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
+           (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
            itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
     unfold lift_rel, unlift_rel. i.
@@ -978,14 +978,14 @@ Section STATE.
     fun r g
         R_src R_tgt Q itr_src itr_tgt =>
       (∀ ths im_src im_tgt st_src st_tgt,
-          (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) E)
+          (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) E)
             -*
             (isim
                tid
                I
                (lift_rel r)
                (lift_rel g)
-               (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
+               (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
                itr_src itr_tgt
                ths im_src im_tgt st_src st_tgt))%I
   .
@@ -1090,8 +1090,8 @@ Section STATE.
   Proof.
     cut (forall (m: mytype A),
             bi_entails
-              ((fun m => P m.(comp_a) ** (default_I m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ** mset_all (nth_default True%I Invs) topset)) m)
-              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q m.(comp_a) r_src r_tgt) m)
+              ((fun m => P m.(comp_a) ** (default_I_past tid m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ** mset_all (nth_default True%I Invs) topset)) m)
+              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q m.(comp_a) r_src r_tgt) m)
                     ((fun m => itr_src m.(comp_a)) m) ((fun m => itr_tgt m.(comp_a)) m) (comp_ths m) (comp_im_src m) (comp_im_tgt m) (comp_st_src m) (comp_st_tgt m))).
     { ss. i. rewrite <- stsim_discard; [|eassumption].
       unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1151,11 +1151,11 @@ Section STATE.
       (stsim E0 r g Q itr_src itr_tgt)
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "[[[D X0] X1] C]".
+    unfold stsim. iIntros "H" (? ? ? ? ?) "[[% [% [[D X0] X1]]] C]".
     iAssert (fairI (ident_tgt:=ident_tgt) ** mset_all (nth_default True%I Invs) E0) with "[X0 X1 C]" as "C".
     { iFrame. }
     iMod ("H" with "C") as "[[[X0 X1] C] H]".
-    iApply "H". iFrame.
+    iApply "H". iFrame. iExists _. iFrame. auto.
   Qed.
 
   Lemma stsim_mupd_weaken E0 E1 r g R_src R_tgt
@@ -1240,10 +1240,10 @@ Section STATE.
     ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]" (? ? ? ? ?) "[D C]".
+    i. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] C]".
     iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
     { iApply edges_sat_sub. }
-    iApply ("H1" with "P"). iFrame.
+    iApply ("H1" with "P"). iFrame. iExists _. eauto.
   Qed.
 
   Global Instance stsim_elim_iupd_arrow
@@ -1255,10 +1255,10 @@ Section STATE.
     ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]" (? ? ? ? ?) "[D C]".
+    i. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] C]".
     iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
     { iApply arrows_sat_sub. }
-    iApply ("H1" with "P"). iFrame.
+    iApply ("H1" with "P"). iFrame. iExists _. eauto.
   Qed.
 
   Global Instance mupd_elim_iupd_edge
@@ -1436,7 +1436,7 @@ Section STATE.
   .
   Proof.
     unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]".
-    iPoseProof (default_I_update_st_src with "D H0") as "> [D H0]".
+    iPoseProof (default_I_past_update_st_src with "D H0") as "> [D H0]".
     iApply isim_putL. iApply ("H1" with "D [H0 C]"). iFrame.
   Qed.
 
@@ -1453,7 +1453,7 @@ Section STATE.
   .
   Proof.
     unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]".
-    iPoseProof (default_I_update_st_tgt with "D H0") as "> [D H0]".
+    iPoseProof (default_I_past_update_st_tgt with "D H0") as "> [D H0]".
     iApply isim_putR. iApply ("H1" with "D [H0 C]"). iFrame.
   Qed.
 
@@ -1469,7 +1469,7 @@ Section STATE.
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". iApply isim_getL.
     iAssert (⌜st_src = st⌝)%I as "%".
-    { iDestruct "H" as "[H _]". iApply (default_I_get_st_src with "D"); eauto. }
+    { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_src with "D"); eauto. }
     subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
   Qed.
 
@@ -1485,7 +1485,7 @@ Section STATE.
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". iApply isim_getR.
     iAssert (⌜st_tgt = st⌝)%I as "%".
-    { iDestruct "H" as "[H _]". iApply (default_I_get_st_tgt with "D"); eauto. }
+    { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_tgt with "D"); eauto. }
     subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
   Qed.
 
@@ -1529,7 +1529,7 @@ Section STATE.
       (stsim E r g Q (trigger (Fair fm) >>= ktr_src) itr_tgt).
   Proof.
     unfold stsim. iIntros "OWN H" (? ? ? ? ?) "[D C]".
-    iPoseProof (default_I_update_ident_source with "D OWN") as "> [% [[% WHITES] D]]".
+    iPoseProof (default_I_past_update_ident_source with "D OWN") as "> [% [[% WHITES] D]]".
     { eauto. }
     { eauto. }
     iPoseProof ("H" with "WHITES [D C]") as "H".
@@ -1558,7 +1558,7 @@ Section STATE.
   Proof.
     unfold stsim. iIntros "OWN H"  (? ? ? ? ?) "[D C]".
     iApply isim_fairR. iIntros (?) "%".
-    iPoseProof (default_I_update_ident_target with "D OWN") as "> [[DUTY WHITE] D]".    { eauto. }
+    iPoseProof (default_I_past_update_ident_target with "D OWN") as "> [[DUTY WHITE] D]".    { eauto. }
     { eauto. }
     { eauto. }
     { eauto. }
@@ -1602,6 +1602,59 @@ Section STATE.
     iApply isim_yieldL. iApply ("H" with "D").
   Qed.
 
+  Lemma stsim_yieldR_strong E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ktr_src ktr_tgt l
+    :
+    (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+      -∗
+      ((ObligationRA.duty (inl tid) l)
+         -*
+         (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset
+               ((FairRA.white_thread (_Id:=_))
+                  -*
+                  stsim topset r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      -∗
+      (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "H K".
+    unfold stsim. iIntros (? ? ? ? ?) "[D C]".
+    iPoseProof (default_I_past_update_ident_thread with "D H") as "> [[B W] [[[[[[D0 D1] D2] D3] D4] D5] D6]]".
+    iAssert ((fairI (ident_tgt:=ident_tgt)) ** mset_all (nth_default True%I Invs) E) with "[C D5 D6]" as "C".
+    { iFrame. }
+    iPoseProof ("K" with "B C") as "> [[[D5 D6] C] K]".
+    iApply isim_yieldR. unfold I. iFrame.
+    iIntros (? ? ? ? ? ?) "[D C] %".
+    iApply ("K" with "W [D C]"). iFrame. iExists _. eauto.
+  Qed.
+
+  Lemma stsim_sync_strong E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ktr_src ktr_tgt l
+    :
+    (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+      -∗
+      ((ObligationRA.duty (inl tid) l)
+         -*
+         (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset
+               ((FairRA.white_thread (_Id:=_))
+                  -*
+                  stsim topset g g Q (ktr_src tt) (ktr_tgt tt))))
+      -∗
+      (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "H K".
+    unfold stsim. iIntros (? ? ? ? ?) "[D C]".
+    iPoseProof (default_I_past_update_ident_thread with "D H") as "> [[B W] [[[[[[D0 D1] D2] D3] D4] D5] D6]]".
+    iAssert ((fairI (ident_tgt:=ident_tgt)) ** mset_all (nth_default True%I Invs) E) with "[C D5 D6]" as "C".
+    { iFrame. }
+    iPoseProof ("K" with "B C") as "> [[[D5 D6] C] K]".
+    iApply isim_sync. unfold I. iFrame.
+    iIntros (? ? ? ? ? ?) "[D C] %".
+    iApply ("K" with "W [D C]"). iFrame. iExists _. eauto.
+  Qed.
+
   Lemma stsim_yieldR E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ktr_src ktr_tgt l
@@ -1619,12 +1672,8 @@ Section STATE.
   .
   Proof.
     iIntros "H K". iApply stsim_discard; [eassumption|].
-    unfold stsim. iIntros (? ? ? ? ?) "[D C]".
-    iApply isim_yieldR. unfold I. iFrame.
-    iIntros (? ? ? ? ? ?) "[D C] %".
-    iPoseProof (default_I_update_ident_thread with "D H") as "> [[DUTY WHITE] D]".
-    { eauto. }
-    iApply ("K" with "DUTY WHITE"). iFrame.
+    iApply (stsim_yieldR_strong with "H"). iIntros "DUTY".
+    iModIntro. iApply ("K" with "DUTY").
   Qed.
 
   Lemma stsim_sync E r g R_src R_tgt
@@ -1643,12 +1692,8 @@ Section STATE.
       (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "H K". iApply stsim_discard; [eassumption|].
-    unfold stsim. iIntros (? ? ? ? ?) "[D C]".
-    iApply isim_sync. unfold I. iFrame.
-    iIntros (? ? ? ? ? ?) "[D C] %".
-    iPoseProof (default_I_update_ident_thread with "D H") as "> [[DUTY WHITE] D]".
-    { eauto. }
-    iApply ("K" with "DUTY WHITE"). iFrame.
+    iApply (stsim_sync_strong with "H"). iIntros "DUTY".
+    iModIntro. iApply ("K" with "DUTY").
   Qed.
 
   Lemma stsim_sort E r g R_src R_tgt
