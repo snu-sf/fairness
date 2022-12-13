@@ -1146,13 +1146,15 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         itr_src itr_tgt
     :
-    (MUpd (nth_default True%I Invs) E0 E1 (stsim E1 r g Q itr_src itr_tgt))
+    (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E1 (stsim E1 r g Q itr_src itr_tgt))
       -∗
       (stsim E0 r g Q itr_src itr_tgt)
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
-    iMod ("H" with "C") as "[C H]".
+    unfold stsim. iIntros "H" (? ? ? ? ?) "[[[D X0] X1] C]".
+    iAssert (fairI (ident_tgt:=ident_tgt) ** mset_all (nth_default True%I Invs) E0) with "[X0 X1 C]" as "C".
+    { iFrame. }
+    iMod ("H" with "C") as "[[[X0 X1] C] H]".
     iApply "H". iFrame.
   Qed.
 
@@ -1161,7 +1163,7 @@ Section STATE.
         itr_src itr_tgt
         (SUB: mset_sub E0 E1)
     :
-    (MUpd (nth_default True%I Invs) E0 E0 (stsim E1 r g Q itr_src itr_tgt))
+    (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E0 (stsim E1 r g Q itr_src itr_tgt))
       -∗
       (stsim E1 r g Q itr_src itr_tgt)
   .
@@ -1175,7 +1177,7 @@ Section STATE.
          itr_src itr_tgt p
          P
     :
-    ElimModal (mset_sub E0 E2) p false (MUpd (nth_default True%I Invs) E0 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim (NatSort.sort (E1 ++ mset_minus E2 E0)) r g Q itr_src itr_tgt).
+    ElimModal (mset_sub E0 E2) p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim (NatSort.sort (E1 ++ mset_minus E2 E0)) r g Q itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1195,7 +1197,7 @@ Section STATE.
          itr_src itr_tgt p
          P
     :
-    ElimModal (mset_sub E1 E2) p false (MUpd (nth_default True%I Invs) E1 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
+    ElimModal (mset_sub E1 E2) p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E1 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1210,7 +1212,7 @@ Section STATE.
          itr_src itr_tgt p
          P
     :
-    ElimModal True p false (MUpd (nth_default True%I Invs) E1 E2 P) P (stsim E1 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
+    ElimModal True p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E1 E2 P) P (stsim E1 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1224,7 +1226,7 @@ Section STATE.
          itr_src itr_tgt
          P
     :
-    AddModal (MUpd (nth_default True%I Invs) E E P) P (stsim E r g Q itr_src itr_tgt).
+    AddModal (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E E P) P (stsim E r g Q itr_src itr_tgt).
   Proof.
     unfold AddModal. iIntros "[> H0 H1]". iApply ("H1" with "H0").
   Qed.
@@ -1257,6 +1259,30 @@ Section STATE.
     iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
     { iApply arrows_sat_sub. }
     iApply ("H1" with "P"). iFrame.
+  Qed.
+
+  Global Instance mupd_elim_iupd_edge
+         P E1 E2 p Inv
+    :
+    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 P) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 P).
+  Proof.
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]".
+    iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
+    { iApply SubIProp_sep_l. }
+    iMod "H0". iApply ("H1" with "H0").
+  Qed.
+
+  Global Instance mupd_elim_iupd_arrow
+         P E1 E2 p Inv
+    :
+    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 P) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 P).
+  Proof.
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]".
+    iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
+    { iApply SubIProp_sep_r. }
+    iMod "H0". iApply ("H1" with "H0").
   Qed.
 
   Lemma stsim_wand E r g R_src R_tgt
@@ -1331,7 +1357,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         r_src r_tgt
     :
-    (MUpd (nth_default True%I Invs) E topset (Q r_src r_tgt))
+    (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset (Q r_src r_tgt))
       -∗
       (stsim E r g Q (Ret r_src) (Ret r_tgt))
   .

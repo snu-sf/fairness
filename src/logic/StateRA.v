@@ -134,6 +134,11 @@ Section INVARIANT.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
 
+  Definition fairI: iProp :=
+    (ObligationRA.edges_sat)
+      **
+      (ObligationRA.arrows_sat (Id := sum_tid ident_tgt)).
+
   Definition default_I: TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
     fun ths im_src im_tgt st_src st_tgt =>
       (OwnM (Auth.black (Some ths: (NatMapRA.t unit)): ThreadRA))
