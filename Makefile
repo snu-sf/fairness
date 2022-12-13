@@ -18,7 +18,11 @@ quick: Makefile.coq
 	$(MAKE) -f Makefile.coq vio
 
 Makefile.coq: Makefile $(COQTHEORIES)
-	(echo "-Q src $(COQMODULE)"; \
+	(echo "-Q src/lib $(COQMODULE)"; \
+	 echo "-Q src/semantics $(COQMODULE)"; \
+	 echo "-Q src/simulation $(COQMODULE)"; \
+	 echo "-Q src/logic $(COQMODULE)"; \
+	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
