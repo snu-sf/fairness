@@ -9,6 +9,44 @@ From Ordinal Require Export ClassicalHessenberg.
 
 Set Implicit Arguments.
 
+Module ABSLock.
+
+  Definition lock_fun
+    : ktree (((@eventE thread_id) +' cE) +' (sE (bool * NatMap.t unit)%type)) unit unit :=
+    fun _ =>
+      tid <- trigger (GetTid);;
+      '(own, ts) <- trigger (@Get _);;
+      let ts := NatMap.add tid tt ts in
+      _ <- trigger (Put (own, ts));;
+      _ <- (ITree.iter
+             (fun (_: unit) =>
+                '(own, ts) <- trigger (@Get _);;
+                if (Bool.eqb own true)
+                then _ <- trigger Yield;; Ret (inl tt)
+                else Ret (inr tt)) tt);;
+      '(_, ts) <- trigger (@Get _);;
+      let ts := NatMap.remove tid ts in
+      _ <- trigger (Put (true, ts));;
+      _ <- trigger (Fair (fun i => if tid_dec i tid then Flag.success
+                               else if (NatMapP.F.In_dec ts i) then Flag.fail
+                                    else Flag.emp));;
+      Ret tt.
+
+  Definition unlock_fun
+    : ktree (((@eventE thread_id) +' cE) +' (sE (bool * NatMap.t unit)%type)) unit unit :=
+    fun _ =>
+      '(own, ts) <- trigger (@Get _);;
+      if (Bool.eqb own true)
+      then _ <- trigger (Put (false, ts));; Ret tt
+      else UB.
+
+  Definition mod: Mod.t :=
+    Mod.mk
+      (false, NatMap.empty unit)
+      (Mod.get_funs [("lock", Mod.wrap_fun lock_fun);
+                     ("unlock", Mod.wrap_fun unlock_fun)]).
+
+End ABSLock.
 
 Module FairLock.
   Definition lock_fun: WMod.function bool unit void :=
