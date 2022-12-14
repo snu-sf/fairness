@@ -134,6 +134,11 @@ Section INVARIANT.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
 
+  Definition fairI: iProp :=
+    (ObligationRA.edges_sat)
+      **
+      (ObligationRA.arrows_sat (Id := sum_tid ident_tgt)).
+
   Definition default_I: TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
     fun ths im_src im_tgt st_src st_tgt =>
       (OwnM (Auth.black (Some ths: (NatMapRA.t unit)): ThreadRA))
@@ -150,6 +155,12 @@ Section INVARIANT.
         **
         (ObligationRA.arrows_sat (Id := sum_tid ident_tgt))
   .
+
+  Definition default_I_past (tid: thread_id): TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
+    fun ths im_src im_tgt st_src st_tgt =>
+      (∃ im_tgt0,
+          (⌜fair_update im_tgt0 im_tgt (sum_fmap_l (tids_fmap tid ths))⌝)
+            ** (default_I ths im_src im_tgt0 st_src st_tgt))%I.
 
   Definition own_thread (tid: thread_id): iProp :=
     (OwnM (Auth.white (NatMapRA.singleton tid tt: NatMapRA.t unit): ThreadRA)).
@@ -314,5 +325,128 @@ Section INVARIANT.
     ⊢ SubIProp (ObligationRA.edges_sat) (default_I ths im_src im_tgt st_src st_tgt).
   Proof.
     iIntros "[[[[[[A B] C] D] E] F] G]". iModIntro. iFrame. auto.
+  Qed.
+
+  Lemma default_I_past_update_st_src tid ths im_src im_tgt st_src0 st_tgt st_src' st_src1
+    :
+    (default_I_past tid ths im_src im_tgt st_src0 st_tgt)
+      -∗
+      (OwnM (Auth.white (Excl.just (Some st_src'): @Excl.t (option state_src)): stateSrcRA))
+      -∗
+      #=> (OwnM (Auth.white (Excl.just (Some st_src1): @Excl.t (option state_src))) ** default_I_past tid ths im_src im_tgt st_src1 st_tgt).
+  Proof.
+    iIntros "[% [% D]] H".
+    iPoseProof (default_I_update_st_src with "D H") as "> [H D]".
+    iModIntro. iSplitL "H"; auto. unfold default_I_past. eauto.
+  Qed.
+
+  Lemma default_I_past_update_st_tgt tid ths im_src im_tgt st_src st_tgt0 st_tgt' st_tgt1
+    :
+    (default_I_past tid ths im_src im_tgt st_src st_tgt0)
+      -∗
+      (OwnM (Auth.white (Excl.just (Some st_tgt'): @Excl.t (option state_tgt)): stateTgtRA))
+      -∗
+      #=> (OwnM (Auth.white (Excl.just (Some st_tgt1): @Excl.t (option state_tgt))) ** default_I_past tid ths im_src im_tgt st_src st_tgt1).
+  Proof.
+    iIntros "[% [% D]] H".
+    iPoseProof (default_I_update_st_tgt with "D H") as "> [H D]".
+    iModIntro. iSplitL "H"; auto. unfold default_I_past. eauto.
+  Qed.
+
+  Lemma default_I_past_get_st_src tid ths im_src im_tgt st_src st_tgt st
+    :
+    (default_I_past tid ths im_src im_tgt st_src st_tgt)
+      -∗
+      (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_src)): stateSrcRA))
+      -∗
+      ⌜st_src = st⌝.
+  Proof.
+    iIntros "[% [% D]] H".
+    iApply (default_I_get_st_src with "D H").
+  Qed.
+
+  Lemma default_I_past_get_st_tgt tid ths im_src im_tgt st_src st_tgt st
+    :
+    (default_I_past tid ths im_src im_tgt st_src st_tgt)
+      -∗
+      (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_tgt)): stateTgtRA))
+      -∗
+      ⌜st_tgt = st⌝.
+  Proof.
+    iIntros "[% [% D]] H".
+    iApply (default_I_get_st_tgt with "D H").
+  Qed.
+
+  Lemma default_I_past_update_ident_thread ths im_src im_tgt st_src st_tgt
+        tid l
+    :
+    (default_I_past tid ths im_src im_tgt st_src st_tgt)
+      -∗
+      (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+      -∗
+      #=> (ObligationRA.duty (inl tid) l ** FairRA.white_thread (_Id:=_) ** default_I ths im_src im_tgt st_src st_tgt).
+  Proof.
+    iIntros "[% [% D]] H".
+    iApply (default_I_update_ident_thread with "D H"); auto.
+  Qed.
+
+  Lemma default_I_past_update_ident_target tid lf ls
+        ths im_src im_tgt0 st_src st_tgt
+        fm im_tgt1
+        (UPD: fair_update im_tgt0 im_tgt1 (sum_fmap_r fm))
+        (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
+        (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+        (NODUP: List.NoDup lf)
+    :
+    (default_I_past tid ths im_src im_tgt0 st_src st_tgt)
+      -∗
+      (list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l ** ObligationRA.tax l) ls)
+      -∗
+      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l) ls)
+             **
+             (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
+             **
+             default_I_past tid ths im_src im_tgt1 st_src st_tgt).
+  Proof.
+    iIntros "[% [% D]] H".
+    iPoseProof (default_I_update_ident_target with "D H") as "> [[H0 H1] D]"; [eauto|eauto|eauto|eauto|..].
+    { instantiate (1:=(fun i =>
+                         match i with
+                         | inl i => im_tgt2 (inl i)
+                         | inr i => im_tgt1 (inr i)
+                         end)).
+      ii. specialize (UPD i). specialize (H i).
+      unfold sum_fmap_l, tids_fmap in *. des_ifs.
+      { rewrite <- H. auto. }
+      { rewrite UPD. auto. }
+    }
+    iModIntro. iFrame.
+    unfold default_I_past. iExists _. iSplit; eauto. iPureIntro.
+    ii. specialize (UPD i). specialize (H i).
+    unfold sum_fmap_l, tids_fmap in *. des_ifs.
+    { rewrite UPD. auto. }
+    { rewrite <- H. auto. }
+  Qed.
+
+  Lemma default_I_past_update_ident_source tid lf ls o
+        ths im_src0 im_tgt st_src st_tgt
+        fm
+        (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
+        (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
+    :
+    (default_I_past tid ths im_src0 im_tgt st_src st_tgt)
+      -∗
+      (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
+      -∗
+      #=> (∃ im_src1,
+              (⌜fair_update im_src0 im_src1 fm⌝)
+                **
+                (list_prop_sum (fun i => FairRA.white i o) ls)
+                **
+                default_I_past tid ths im_src1 im_tgt st_src st_tgt).
+  Proof.
+    iIntros "[% [% D]] H".
+    iPoseProof (default_I_update_ident_source with "D H") as "> [% [[% H] D]]"; [eauto|eauto|..].
+    iModIntro. unfold default_I_past. iExists _. iSplitL "H"; auto.
   Qed.
 End INVARIANT.

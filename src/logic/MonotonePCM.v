@@ -853,6 +853,7 @@ Section MUPD.
 
   Context `{Σ: GRA.t}.
   Variable I: nat -> iProp.
+  Variable IA: iProp.
   Definition mset_all (l: mset) := fold_right (fun n P => I n ** P) True%I l.
 
   Lemma mset_all_nil
@@ -1083,21 +1084,21 @@ Section MUPD.
   Qed.
 
   Definition MUpd (l0 l1: mset) (P: iProp): iProp :=
-    mset_all l0 -* #=> (mset_all l1 ** P).
+    (IA ** mset_all l0) -* #=> ((IA ** mset_all l1) ** P).
 
   Lemma MUpd_open i:
     ⊢ MUpd [i] [] (I i ** (I i -* (MUpd [] [i] True))).
   Proof.
-    i. iIntros "[H0 H1]". ss. iModIntro. iFrame.
-    iIntros "H0 H1". iModIntro. ss. iFrame.
+    i. iIntros "[X [H0 H1]]". ss. iModIntro. iFrame.
+    iIntros "H0 [X H1]". iModIntro. ss. iFrame.
   Qed.
 
   Lemma MUpd_mask_subseteq E1 E2 :
     mset_sub E2 E1 -> ⊢ MUpd E1 E2 (MUpd E2 E1 emp).
   Proof.
-    i. iIntros "H".
+    i. iIntros "[X H]".
     iPoseProof (mset_all_sub with "H") as "[H0 H1]"; eauto.
-    iModIntro. iFrame. iIntros "H0". iModIntro. iSplit; auto.
+    iModIntro. iFrame. iIntros "[X H0]". iModIntro. iSplit; auto. iFrame.
     iApply "H1"; auto.
   Qed.
 
@@ -1130,9 +1131,10 @@ Section MUPD.
     :
     (MUpd E1 E2 P ⊢ MUpd (E1 ++ Ef) (E2 ++ Ef) P).
   Proof.
-    i. iIntros "H0 H1".
+    i. iIntros "H0 [X H1]".
     iPoseProof (mset_all_split with "H1") as "[H1 H2]".
-    iPoseProof ("H0" with "H1") as "> [H0 H1]".
+    iPoseProof ("H0" with "[X H1]") as "> [[X H0] H1]".
+    { iFrame. }
     iModIntro. iFrame. iApply (mset_all_combine with "[H2 H0]"). iFrame.
   Qed.
 
@@ -1467,6 +1469,16 @@ Use [iMod (MUpd_mask_subseteq E2)] to adjust the mask of your goal to [E2]")
     iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
     iPoseProof ("Hinner" with "Hα") as "[> Hβ Hfin]".
     iMod ("Hclose" with "Hβ") as "Hγ". by iApply "Hfin".
+  Qed.
+
+  Global Instance elim_modal_iupd_MUpd
+         p E1 E2 P Q :
+    ElimModal True p false (IUpd IA P) P (MUpd E1 E2 Q) (MUpd E1 E2 Q) | 10.
+  Proof.
+    unfold ElimModal. rewrite intuitionistically_if_elim.
+    i. iIntros "[H0 H1] [H2 H3]".
+    iPoseProof ("H0" with "H2") as "> [H2 H0]".
+    iApply ("H1" with "H0 [H2 H3]"). iFrame.
   Qed.
 End MUPD.
 
