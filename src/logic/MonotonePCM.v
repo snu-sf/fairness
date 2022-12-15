@@ -1506,7 +1506,7 @@ Ltac iopen i H K :=
   let str := constr:(String.append "[" (String.append H (String.append " " (String.append K "]")))) in
   let Inv := fresh "I" in
   evar (Inv: nat -> iProp);
-  ((iPoseProof (@MUpd_open _ Inv i) as "> _H";
+  ((iPoseProof (@MUpd_open _ Inv _ i) as "> _H";
     [msubtac|
       let x := (eval cbn in (Inv i)) in
       change (Inv i) with x;
@@ -1514,7 +1514,7 @@ Ltac iopen i H K :=
       msimpl;
       iDestruct "_H" as str])
    +
-     (iPoseProof (@MUpd_open _ Inv i) as "> _H";
+     (iPoseProof (@MUpd_open _ Inv _ i) as "> _H";
       [let x := (eval cbn in (Inv i)) in
        change (Inv i) with x;
        subst Inv;

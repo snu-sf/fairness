@@ -118,6 +118,26 @@ Section SIM.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
   Context `{AUTHRA: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}.
 
+  Definition thread1_will_write : iProp :=
+    ∃ k, (∃ n, ObligationRA.black k n)
+           ∗
+           (ObligationRA.correl_thread k 1%ord)
+           ∗
+           ((ObligationRA.pending k (/2)%Qp ∗ points_to loc_X const_0)
+            ∨
+              (ObligationRA.shot k ∗ points_to loc_X const_42)).
+
+  Definition lock_will_unlock (wait: NatMap.t unit) : iProp :=
+    ∃ f (j: nat),
+      (OwnM (Auth.black (Some f: NatMapRA.t nat)))
+        ∗
+        (OwnM (Auth.black j))
+        ∗
+        (⌜nm_wf_pair f wait⌝).
+        ∗
+        
+      
+
   Let Is: list iProp := [
       (∃ m own ws,
           (memory_black m)
