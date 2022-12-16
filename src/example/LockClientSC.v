@@ -112,31 +112,50 @@ Section SIM.
   Context `{MEMRA: @GRA.inG memRA Σ}.
 
   Context `{EXCL: @GRA.inG (Excl.t unit) Σ}.
-  Context `{ONESHOTRA: @GRA.inG (OneShot.t thread_id) Σ}.
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t unit)) Σ}.
+  Context `{ONESHOTRA: @GRA.inG (OneShot.t nat) Σ}.
   Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
-  Context `{AUTHRA: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}.
+  Context `{AUTHNRA: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
+  Context `{AUTHNMRA: @GRA.inG (Auth.t (NatMapRA.t unit)) Σ}.
+  Context `{AUTHNMNRA: @GRA.inG (Auth.t (NatMapRA.t nat)) Σ}.
+  Context `{AUTHNMNN: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}.
 
   Definition thread1_will_write : iProp :=
     ∃ k, (∃ n, ObligationRA.black k n)
            ∗
            (ObligationRA.correl_thread k 1%ord)
            ∗
+           (OwnM (OneShot.shot k))
+           ∗
            ((ObligationRA.pending k (/2)%Qp ∗ points_to loc_X const_0)
             ∨
               (ObligationRA.shot k ∗ points_to loc_X const_42)).
 
-  Definition lock_will_unlock (wait: NatMap.t unit) : iProp :=
-    ∃ f (j: nat),
+  Definition lock_will_unlock (own: bool) (ths wait: TIdSet.t) : iProp :=
+    ∃ (f: NatMap.t nat) (j: nat),
       (OwnM (Auth.black (Some f: NatMapRA.t nat)))
         ∗
-        (OwnM (Auth.black j))
+        (OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗
-        (⌜nm_wf_pair f wait⌝).
+        (⌜nm_wf_pair f wait⌝)
+
         ∗
-        
-      
+        (natmap_prop_sum f (fun tid idx => (ObligationRA.correl (inr (inr tid)) idx (Ord.omega ^ 2)%ord)
+                                          ∗
+                                          (ObligationRA.pending idx 1)
+                                          ∗
+                                          (ObligationRA.duty (inr (inr tid)) [(idx, Ord.O)])
+        ))
+        ∗
+        ((⌜own = false⌝ ∗ OwnM (Auth.white (Excl.just j: Excl.t nat)))
+         ∨
+           ((⌜own = true⌝)
+              ∗ (ObligationRA.pending j 1)
+              ∗ (ObligationRA.correl_thread j 1%ord)
+              ∗ (natmap_prop_sum f (fun tid idx => ObligationRA.amplifier j idx 1%ord))
+           )
+        )
+  .
 
   Let Is: list iProp := [
       (∃ m own ws,
