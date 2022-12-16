@@ -138,13 +138,14 @@ Section SIM.
         (OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗
         (⌜nm_wf_pair f wait⌝)
-
+        ∗
+        (natmap_prop_sum ths (fun tid _ => (⌜~ NatMap.In tid wait⌝) -∗ ObligationRA.duty (inr (inr tid)) []))
         ∗
         (natmap_prop_sum f (fun tid idx => (ObligationRA.correl (inr (inr tid)) idx (Ord.omega ^ 2)%ord)
                                           ∗
                                           (ObligationRA.pending idx 1)
                                           ∗
-                                          (ObligationRA.duty (inr (inr tid)) [(idx, Ord.O)])
+                                          (ObligationRA.duty (inr (inr tid)) [(idx, Ord.omega)])
         ))
         ∗
         ((⌜own = false⌝ ∗ OwnM (Auth.white (Excl.just j: Excl.t nat)))
@@ -156,139 +157,6 @@ Section SIM.
            )
         )
   .
-
-  Let Is: list iProp := [
-      (∃ m own ws,
-          (memory_black m)
-            ∗
-            (St_tgt (tt, m, (own, ws))));
-      ()
-
-      ((points_to loc_X const_0 ∗ OwnM (OneShot.pending thread_id 1))
-
-  Let I: list iProp := [
-      (∃ m,
-          (memory_black m)
-            **
-            (St_tgt (tt, m)));
-      (((points_to loc_l (SCMem.val_nat 0))
-          **
-          (points_to loc_f (SCMem.val_nat 0))
-          **
-          (OwnM (OneShot.pending thread_id 1)))
-       ∨
-         (∃ k,
-             (OwnM (OneShot.shot k))
-               **
-               (ObligationRA.correl_thread k 1%ord)
-               **
-               (∃ n, ObligationRA.black k n)
-               **
-               (points_to loc_l (SCMem.val_nat 1))
-               **
-               ((points_to loc_f (SCMem.val_nat 0) ** ObligationRA.pending k (/2)%Qp)
-                ∨
-                  (points_to loc_f (SCMem.val_nat 1) ** ObligationRA.shot k))))]%I.
-
-  Definition ticketlock_inv
-             (L: bool) (W: NatMap.t unit)
-             (reserved: bool)
-             (now_serving: nat) (n: nat): iProp :=
-    (wait_set_wf W n)
-      **
-      (regionl ((Nat.b2n reserved) + now_serving + n))
-      **
-      ((⌜n = 0 /\ L = false /\ reserved = false⌝ ** OwnM (Excl.just tt: Excl.t unit))
-       ∨
-         ((waiters (S ((Nat.b2n reserved) + now_serving)) n)
-            **
-            (∃ k j,
-                (ConsentP.voted_singleton k j)
-                  **
-                  (ObligationRA.correl_thread j 1%ord)
-                  **
-                  (∃ o, ObligationRA.black j o)
-                  **
-                  (((⌜L = false /\ reserved = true⌝)
-                      **
-                      (OwnM (Excl.just tt: Excl.t unit))
-                      **
-                      (waiters_tax (S ((Nat.b2n reserved) + now_serving)) n)
-                      **
-                      (ObligationRA.pending j (/2)%Qp))
-                   ∨
-                     ((⌜L = true /\ reserved = false⌝)
-                        **
-                        (ObligationRA.shot j)))))).
-
-  Definition wait_set_wf (W: NatMap.t unit) (n: nat): iProp :=
-    ((natmap_prop_sum W (fun tid _ => own_thread tid))
-       **
-       (OwnM (Auth.black (Some W: NatMapRA.t unit)))
-       **
-       (⌜NatMap.cardinal W = n⌝))
-  .
-
-  Definition regionl (n: nat): iProp :=
-    (∃ l, (Region.black l) ** (⌜List.length l = n⌝)).
-
-  Definition waiters (start n: nat): iProp :=
-    (list_prop_sum
-       (fun a => (∃ k j tid,
-                     (Region.white (start + a) (tid, k))
-                       **
-                       (OwnM (FiniteMap.singleton k (Consent.vote j (/2)%Qp)))
-                       **
-                       (ObligationRA.correl_thread j 1%ord)
-                       **
-                       (ObligationRA.pending j (/2)%Qp)
-                       **
-                       (∃ o, ObligationRA.black j o)
-                       **
-                       (FairRA.white (inl tid) (a × Ord.one)%ord)
-                       **
-                       (OwnM (Auth.white (NatMapRA.singleton tid tt: NatMapRA.t unit)))
-       ))
-       (seq 0 n))%I.
-
-  Definition waiters_tax start n: iProp :=
-    (list_prop_sum
-       (fun a => (∃ k tid,
-                     (Region.white (start + a) (tid, k))
-                       **
-                       (FairRA.white (inl tid) Ord.one)))
-       (seq 0 n))%I.
-
-  Definition ticketlock_inv
-             (L: bool) (W: NatMap.t unit)
-             (reserved: bool)
-             (now_serving: nat) (n: nat): iProp :=
-    (wait_set_wf W n)
-      **
-      (regionl ((Nat.b2n reserved) + now_serving + n))
-      **
-      ((⌜n = 0 /\ L = false /\ reserved = false⌝ ** OwnM (Excl.just tt: Excl.t unit))
-       ∨
-         ((waiters (S ((Nat.b2n reserved) + now_serving)) n)
-            **
-            (∃ k j,
-                (ConsentP.voted_singleton k j)
-                  **
-                  (ObligationRA.correl_thread j 1%ord)
-                  **
-                  (∃ o, ObligationRA.black j o)
-                  **
-                  (((⌜L = false /\ reserved = true⌝)
-                      **
-                      (OwnM (Excl.just tt: Excl.t unit))
-                      **
-                      (waiters_tax (S ((Nat.b2n reserved) + now_serving)) n)
-                      **
-                      (ObligationRA.pending j (/2)%Qp))
-                   ∨
-                     ((⌜L = true /\ reserved = false⌝)
-                        **
-                        (ObligationRA.shot j)))))).
 
   Let config := [("thread1", tt↑); ("thread2", tt↑)].
 
