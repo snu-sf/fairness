@@ -158,6 +158,16 @@ Section SIM.
         )
   .
 
+  Definition lock_holding (j: nat) (n: Ord.t) : iProp :=
+    (OwnM (Auth.black (Excl.just j: Excl.t nat))) ∗ (ObligationRA.white j n).
+
+  Definition lock_waiting (tid: thread_id) (i: nat) : iProp :=
+    ∃ m, (OwnM (Auth.white (NatMapRA.singleton tid i: NatMapRA.t nat)))
+           ∗
+           (ObligationRA.correl (inr (inr tid)) i (Ord.omega ^ 2)%ord)
+           ∗
+           (ObligationRA.black i m).
+
   Let config := [("thread1", tt↑); ("thread2", tt↑)].
 
   Lemma client_correct:
