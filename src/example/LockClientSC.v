@@ -72,13 +72,15 @@ Module ClientSpec.
     ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
     :=
     fun _ =>
-      Ret tt.
+      _ <- trigger Yield;; Ret tt.
 
   Definition thread2:
     ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
     :=
     fun _ =>
+      _ <- trigger Yield;;
       _ <- trigger (Observe 0 [42]);;
+      _ <- trigger Yield;;
       Ret tt.
 
   Definition mod: Mod.t :=
@@ -185,7 +187,23 @@ Section SIM.
                 (ClientSpec.thread1 tt)
                 (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (ClientImpl.thread1 tt))).
   Proof.
-    iIntros "[TH DUTY]". 
+    iIntros "[TH DUTY]". unfold ClientSpec.thread1, ClientImpl.thread1.
+    rred. rewrite close_itree_call. ss. rred.
+    iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame.
+    iIntros "DUTY _". rred.
+    unfold ABSLock.lock_fun, Mod.wrap_fun. rred.
+
+    unfold embed_r.
+    (* assert (TEMP: ⊢ stsim I 0 (topset I) ibot5 ibot5 *)
+    (* (λ r_src r_tgt : (), (own_thread 0 ** ObligationRA.duty (inl 1) []) ** ⌜r_src = r_tgt⌝) *)
+    (* (trigger Yield;;; Ret ()) *)
+    (* (embed_state snd update_snd (Ret ()))). *)
+    (* { rred. *)
+
+    rred. ss.
+
+    erewrite Any.upcast_downcast. ss. rred.
+    
 
 
 

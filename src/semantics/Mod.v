@@ -145,6 +145,10 @@ Section LENS.
     embed_state (Tau itr) = Tau (embed_state itr).
   Proof. eapply observe_eta. ss. Qed.
 
+  Lemma embed_state_tau2 R (itr : itree (E +'sE V) R) :
+    embed_state (tau;; itr) = tau;; (embed_state itr).
+  Proof. eapply observe_eta. ss. Qed.
+
   Lemma embed_state_vis R X e (ktr : ktree (E +' sE V) X R) :
     embed_state (Vis (inl1 e) ktr) = Vis (inl1 e) (fun x => embed_state (ktr x)).
   Proof. eapply observe_eta. ss. Qed.
@@ -176,6 +180,94 @@ Section LENS.
     rewrite embed_state_put. f_equal. f_equal. extensionalities s.
     rewrite bind_trigger. ss.
   Qed.
+
+  Lemma embed_state_bind
+        A B (itr: itree _ A) (ktr: ktree _ A B)
+    :
+    @embed_state B (itr >>= ktr) =
+      (@embed_state A itr) >>= (fun a => @embed_state B (ktr a)).
+  Proof.
+    eapply bisim_is_eq. revert itr ktr. ginit. gcofix CIH; i.
+    ides itr; grind.
+    { rewrite embed_state_ret. ired.
+      gfinal. right. eapply paco2_mon.
+      2:{ instantiate (1:=bot2). ss. }
+      eapply eq_is_bisim. auto.
+    }
+    { rewrite ! embed_state_tau. rewrite bind_tau.
+      gstep. eapply EqTau. gbase. eauto.
+    }
+    { revert k. destruct e as [|[|]]; i.
+      { rewrite ! embed_state_vis.
+        ired. gstep. eapply EqVis.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_state_put.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqVis. i. ss.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_state_get.
+        ired. gstep. eapply EqVis. i. ss.
+        i. gbase. eauto.
+      }
+    }
+  Qed.
+
+  Lemma embed_state_trigger_eventE2
+        E' `[E' -< E] X (e : E' X):
+    @embed_state X (trigger e) = trigger e >>= (fun r => Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger e)).
+    setoid_rewrite embed_state_trigger. f_equal. extensionality x.
+    apply embed_state_ret.
+  Qed.
+
+  Lemma embed_state_trigger_put2
+        st
+    :
+    @embed_state _ (trigger (Put st)) =
+      trigger (Get _) >>= (fun s => trigger (Put (put s st)) >>= (fun r => Ret r)).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger (Put st))).
+    setoid_rewrite embed_state_put'. grind.
+    rewrite (bind_ret_r_rev (trigger (Put (put x st)))) at 2.
+    f_equal. extensionality t. destruct t. apply embed_state_ret.
+  Qed.
+
+  Lemma embed_state_trigger_get2
+    :
+    @embed_state _ (trigger (Get _)) =
+      trigger (Get _) >>= (fun s => Ret (get s)).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger (Get _))).
+    setoid_rewrite embed_state_get'. grind. apply embed_state_ret.
+  Qed.
+
+  Lemma embed_state_UB
+        {ID} `{(@eventE ID) -< E} R:
+    @embed_state R UB = UB.
+  Proof.
+    unfold UB. rewrite embed_state_bind. rewrite embed_state_trigger_eventE2. grind.
+  Qed.
+
+  Lemma embed_state_unwrap
+        {ID} `{(@eventE ID) -< E}
+        X x
+    :
+    @embed_state X (unwrap x) = unwrap x.
+  Proof.
+    unfold unwrap. des_ifs.
+    { eapply embed_state_ret. }
+    { eapply embed_state_UB. }
+  Qed.
+
+  Lemma embed_state_ext
+        R (itr0 itr1: itree _ R)
+    :
+    itr0 = itr1 -> embed_state itr0 = embed_state itr1
+  .
+  Proof. i; subst; reflexivity. Qed.
 
 End LENS.
 
@@ -212,3 +304,388 @@ Section ADD.
     |}.
 
 End ADD.
+
+Section EMBEDS.
+
+  Import Mod.
+  Variable M1 M2 : Mod.t.
+
+  Lemma embed_l_ret R (r : R) :
+    embed_l M1 M2 (Ret r) = Ret r.
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_l_tau R (itr : itree _ R) :
+    embed_l M1 M2 (tau;; itr) = tau;; (embed_l M1 M2 itr).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_l_vis_eventE R X e (ktr : ktree _ X R) :
+    embed_l M1 M2 (Vis (inl1 (inl1 e)) ktr) =
+      Vis (inl1 (inl1 (@embed_event_l M1.(ident) M2.(ident) _ e))) (fun x => embed_l M1 M2 (ktr x)).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_l_vis_cE R X e (ktr : ktree _ X R) :
+    embed_l M1 M2 (Vis (inl1 (inr1 e)) ktr) =
+      Vis (inl1 (inr1 e)) (fun x => embed_l M1 M2 (ktr x)).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_l_vis_getE R (ktr : ktree _ _ R) :
+    embed_l M1 M2 (Vis (inr1 (Get _)) ktr) =
+      Vis (inr1 (Get _)) (fun s => embed_l M1 M2 (ktr (fst s))).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_l_vis_putE R v (ktr : ktree _ _ R) :
+    embed_l M1 M2 (Vis (inr1 (Put v)) ktr) =
+      Vis (inr1 (Get _)) (fun s => Vis (inr1 (Put (update_fst s v))) (fun _ => embed_l M1 M2 (ktr tt))).
+  Proof.
+    unfold embed_l at 1. rewrite embed_state_put. rewrite map_event_vis. ss.
+    eapply observe_eta. ss. f_equal. extensionality x. rewrite map_event_vis. ss.
+  Qed.
+
+  Lemma embed_l_bind
+        A B (itr: itree _ A) (ktr: ktree _ A B)
+    :
+    @embed_l M1 M2 B (itr >>= ktr) =
+      (@embed_l M1 M2 A itr) >>= (fun a => @embed_l M1 M2 B (ktr a)).
+  Proof.
+    eapply bisim_is_eq. revert itr ktr. ginit. gcofix CIH; i.
+    ides itr; grind.
+    { rewrite embed_l_ret. ired.
+      gfinal. right. eapply paco2_mon.
+      2:{ instantiate (1:=bot2). ss. }
+      eapply eq_is_bisim. auto.
+    }
+    { rewrite ! embed_l_tau. rewrite bind_tau.
+      gstep. eapply EqTau. gbase. eauto.
+    }
+    { revert k. destruct e as [[|]|[|]]; i.
+      { rewrite ! embed_l_vis_eventE.
+        ired. gstep. eapply EqVis.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_l_vis_cE.
+        ired. gstep. eapply EqVis.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_l_vis_putE.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqVis. i. ss.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_l_vis_getE.
+        ired. gstep. eapply EqVis. i. ss.
+        i. gbase. eauto.
+      }
+    }
+  Qed.
+
+  Lemma embed_l_trigger_eventE
+        R X (e: eventE X) (ktr : ktree _ X R) :
+    embed_l M1 M2 (x <- trigger e;; ktr x) =
+      x <- trigger (embed_event_l e);; embed_l M1 M2 (ktr x).
+  Proof. rewrite 2 bind_trigger. eapply embed_l_vis_eventE. Qed.
+
+  Lemma embed_l_trigger_cE
+        R X (e: cE X) (ktr : ktree _ X R) :
+    embed_l M1 M2 (x <- trigger e;; ktr x) =
+      x <- trigger (e);; embed_l M1 M2 (ktr x).
+  Proof. rewrite 2 bind_trigger. eapply embed_l_vis_cE. Qed.
+
+  Lemma embed_l_trigger_getE
+        R (ktr : ktree _ _ R) :
+    embed_l M1 M2 (x <- trigger (Get _);; ktr x) =
+      x <- trigger (Get _);; (embed_l M1 M2 (ktr (fst x))).
+  Proof. rewrite 2 bind_trigger. eapply embed_l_vis_getE. Qed.
+
+  Lemma embed_l_trigger_putE
+        R v (ktr : ktree _ _ R) :
+    embed_l M1 M2 (x <- trigger (Put v);; ktr x) =
+      x <- trigger (Get _);; (x <- trigger (Put (update_fst x v));; (embed_l M1 M2 (ktr x))).
+  Proof.
+    rewrite bind_trigger. setoid_rewrite embed_l_vis_putE.
+    rewrite bind_trigger. repeat f_equal. extensionality s. rewrite bind_trigger.
+    repeat f_equal. extensionality x. destruct x; ss.
+  Qed.
+
+  Lemma embed_l_trigger_eventE2
+        X (e: eventE X)
+    :
+    embed_l M1 M2 (trigger e) = trigger (embed_event_l e) >>= (fun r => Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger e)).
+    rewrite embed_l_trigger_eventE. f_equal. extensionality x.
+    apply embed_l_ret.
+  Qed.
+
+  Lemma embed_l_trigger_cE2
+        X (e: cE X) :
+    embed_l M1 M2 (trigger e) = trigger e >>= (fun r => Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger e)).
+    rewrite embed_l_trigger_cE. f_equal. extensionality x.
+    apply embed_l_ret.
+  Qed.
+
+  Lemma embed_l_trigger_getE2
+    :
+    embed_l M1 M2 (trigger (Get _)) = trigger (Get _) >>= (fun r => Ret (fst r)).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger _)).
+    rewrite embed_l_trigger_getE. f_equal. extensionality x.
+    apply embed_l_ret.
+  Qed.
+
+  Lemma embed_l_trigger_putE2
+        v:
+    embed_l M1 M2 (trigger (Put v)) =
+      trigger (Get _) >>= (fun x => x <- trigger (Put (update_fst x v));; Ret x).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger _)).
+    rewrite embed_l_trigger_putE. f_equal. extensionality x.
+    f_equal. extensionality s.
+    apply embed_l_ret.
+  Qed.
+
+  Lemma embed_l_UB
+        R:
+    @embed_l M1 M2 R UB = UB.
+  Proof.
+    unfold UB. rewrite embed_l_bind. rewrite embed_l_trigger_eventE2. grind.
+  Qed.
+
+  Lemma embed_l_unwrap
+        X x
+    :
+    @embed_l M1 M2 X (unwrap x) = unwrap x.
+  Proof.
+    unfold unwrap. des_ifs.
+    { eapply embed_l_ret. }
+    { eapply embed_l_UB. }
+  Qed.
+
+  Lemma embed_l_ext
+        R (itr0 itr1: itree _ R)
+    :
+    itr0 = itr1 -> embed_l M1 M2 itr0 = embed_l M1 M2 itr1
+  .
+  Proof. i; subst; reflexivity. Qed.
+
+
+
+  Lemma embed_r_ret R (r : R) :
+    embed_r M1 M2 (Ret r) = Ret r.
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_r_tau R (itr : itree _ R) :
+    embed_r M1 M2 (tau;; itr) = tau;; (embed_r M1 M2 itr).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_r_vis_eventE R X e (ktr : ktree _ X R) :
+    embed_r M1 M2 (Vis (inl1 (inl1 e)) ktr) =
+      Vis (inl1 (inl1 (@embed_event_r M1.(ident) M2.(ident) _ e))) (fun x => embed_r M1 M2 (ktr x)).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_r_vis_cE R X e (ktr : ktree _ X R) :
+    embed_r M1 M2 (Vis (inl1 (inr1 e)) ktr) =
+      Vis (inl1 (inr1 e)) (fun x => embed_r M1 M2 (ktr x)).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_r_vis_getE R (ktr : ktree _ _ R) :
+    embed_r M1 M2 (Vis (inr1 (Get _)) ktr) =
+      Vis (inr1 (Get _)) (fun s => embed_r M1 M2 (ktr (snd s))).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_r_vis_putE R v (ktr : ktree _ _ R) :
+    embed_r M1 M2 (Vis (inr1 (Put v)) ktr) =
+      Vis (inr1 (Get _)) (fun s => Vis (inr1 (Put (update_snd s v))) (fun _ => embed_r M1 M2 (ktr tt))).
+  Proof.
+    unfold embed_r at 1. rewrite embed_state_put. rewrite map_event_vis. ss.
+    eapply observe_eta. ss. f_equal. extensionality x. rewrite map_event_vis. ss.
+  Qed.
+
+  Lemma embed_r_bind
+        A B (itr: itree _ A) (ktr: ktree _ A B)
+    :
+    @embed_r M1 M2 B (itr >>= ktr) =
+      (@embed_r M1 M2 A itr) >>= (fun a => @embed_r M1 M2 B (ktr a)).
+  Proof.
+    eapply bisim_is_eq. revert itr ktr. ginit. gcofix CIH; i.
+    ides itr; grind.
+    { rewrite embed_r_ret. ired.
+      gfinal. right. eapply paco2_mon.
+      2:{ instantiate (1:=bot2). ss. }
+      eapply eq_is_bisim. auto.
+    }
+    { rewrite ! embed_r_tau. rewrite bind_tau.
+      gstep. eapply EqTau. gbase. eauto.
+    }
+    { revert k. destruct e as [[|]|[|]]; i.
+      { rewrite ! embed_r_vis_eventE.
+        ired. gstep. eapply EqVis.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_r_vis_cE.
+        ired. gstep. eapply EqVis.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_r_vis_putE.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqVis. i. ss.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_r_vis_getE.
+        ired. gstep. eapply EqVis. i. ss.
+        i. gbase. eauto.
+      }
+    }
+  Qed.
+
+  Lemma embed_r_trigger_eventE
+        R X (e: eventE X) (ktr : ktree _ X R) :
+    embed_r M1 M2 (x <- trigger e;; ktr x) =
+      x <- trigger (embed_event_r e);; embed_r M1 M2 (ktr x).
+  Proof. rewrite 2 bind_trigger. eapply embed_r_vis_eventE. Qed.
+
+  Lemma embed_r_trigger_cE
+        R X (e: cE X) (ktr : ktree _ X R) :
+    embed_r M1 M2 (x <- trigger e;; ktr x) =
+      x <- trigger (e);; embed_r M1 M2 (ktr x).
+  Proof. rewrite 2 bind_trigger. eapply embed_r_vis_cE. Qed.
+
+  Lemma embed_r_trigger_getE
+        R (ktr : ktree _ _ R) :
+    embed_r M1 M2 (x <- trigger (Get _);; ktr x) =
+      x <- trigger (Get _);; (embed_r M1 M2 (ktr (snd x))).
+  Proof. rewrite 2 bind_trigger. eapply embed_r_vis_getE. Qed.
+
+  Lemma embed_r_trigger_putE
+        R v (ktr : ktree _ _ R) :
+    embed_r M1 M2 (x <- trigger (Put v);; ktr x) =
+      x <- trigger (Get _);; (x <- trigger (Put (update_snd x v));; (embed_r M1 M2 (ktr x))).
+  Proof.
+    rewrite bind_trigger. setoid_rewrite embed_r_vis_putE.
+    rewrite bind_trigger. repeat f_equal. extensionality s. rewrite bind_trigger.
+    repeat f_equal. extensionality x. destruct x; ss.
+  Qed.
+
+  Lemma embed_r_trigger_eventE2
+        X (e: eventE X)
+    :
+    embed_r M1 M2 (trigger e) = trigger (embed_event_r e) >>= (fun r => Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger e)).
+    rewrite embed_r_trigger_eventE. f_equal. extensionality x.
+    apply embed_r_ret.
+  Qed.
+
+  Lemma embed_r_trigger_cE2
+        X (e: cE X) :
+    embed_r M1 M2 (trigger e) = trigger e >>= (fun r => Ret r).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger e)).
+    rewrite embed_r_trigger_cE. f_equal. extensionality x.
+    apply embed_r_ret.
+  Qed.
+
+  Lemma embed_r_trigger_getE2
+    :
+    embed_r M1 M2 (trigger (Get _)) = trigger (Get _) >>= (fun r => Ret (snd r)).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger _)).
+    rewrite embed_r_trigger_getE. f_equal. extensionality x.
+    apply embed_r_ret.
+  Qed.
+
+  Lemma embed_r_trigger_putE2
+        v:
+    embed_r M1 M2 (trigger (Put v)) =
+      trigger (Get _) >>= (fun x => x <- trigger (Put (update_snd x v));; Ret x).
+  Proof.
+    rewrite (bind_ret_r_rev (trigger _)).
+    rewrite embed_r_trigger_putE. f_equal. extensionality x.
+    f_equal. extensionality s.
+    apply embed_r_ret.
+  Qed.
+
+  Lemma embed_r_UB
+        R:
+    @embed_r M1 M2 R UB = UB.
+  Proof.
+    unfold UB. rewrite embed_r_bind. rewrite embed_r_trigger_eventE2. grind.
+  Qed.
+
+  Lemma embed_r_unwrap
+        X x
+    :
+    @embed_r M1 M2 X (unwrap x) = unwrap x.
+  Proof.
+    unfold unwrap. des_ifs.
+    { eapply embed_r_ret. }
+    { eapply embed_r_UB. }
+  Qed.
+
+  Lemma embed_r_ext
+        R (itr0 itr1: itree _ R)
+    :
+    itr0 = itr1 -> embed_r M1 M2 itr0 = embed_r M1 M2 itr1
+  .
+  Proof. i; subst; reflexivity. Qed.
+
+End EMBEDS.
+
+From Fairness Require Export Red IRed.
+Global Program Instance embed_state_rdb: red_database (mk_box (@embed_state)) :=
+  mk_rdb
+    0
+    (mk_box embed_state_bind)
+    (mk_box embed_state_tau2)
+    (mk_box embed_state_ret)
+    (mk_box embed_state_trigger_eventE2)
+    (mk_box embed_state_trigger_put2)
+    (mk_box embed_state_trigger_get2)
+    (mk_box embed_state_trigger_eventE2)
+    (mk_box embed_state_UB)
+    (mk_box embed_state_UB)
+    (mk_box embed_state_unwrap)
+    (mk_box embed_state_UB)
+    (mk_box embed_state_UB)
+    (mk_box embed_state_UB)
+    (mk_box embed_state_ext)
+.
+
+Global Program Instance embed_l_rdb: red_database (mk_box (@embed_l)) :=
+  mk_rdb
+    0
+    (mk_box embed_l_bind)
+    (mk_box embed_l_tau)
+    (mk_box embed_l_ret)
+    (mk_box embed_l_trigger_eventE2)
+    (mk_box embed_l_trigger_cE2)
+    (mk_box embed_l_trigger_putE2)
+    (mk_box embed_l_trigger_getE2)
+    (mk_box embed_l_UB)
+    (mk_box embed_l_UB)
+    (mk_box embed_l_unwrap)
+    (mk_box embed_l_UB)
+    (mk_box embed_l_UB)
+    (mk_box embed_l_UB)
+    (mk_box embed_l_ext)
+.
+
+Global Program Instance embed_r_rdb: red_database (mk_box (@embed_r)) :=
+  mk_rdb
+    0
+    (mk_box embed_r_bind)
+    (mk_box embed_r_tau)
+    (mk_box embed_r_ret)
+    (mk_box embed_r_trigger_eventE2)
+    (mk_box embed_r_trigger_cE2)
+    (mk_box embed_r_trigger_putE2)
+    (mk_box embed_r_trigger_getE2)
+    (mk_box embed_r_UB)
+    (mk_box embed_r_UB)
+    (mk_box embed_r_unwrap)
+    (mk_box embed_r_UB)
+    (mk_box embed_r_UB)
+    (mk_box embed_r_UB)
+    (mk_box embed_r_ext)
+.
