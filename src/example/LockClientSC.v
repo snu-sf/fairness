@@ -138,8 +138,8 @@ Section SIM.
             ∨
               (ObligationRA.shot k ∗ points_to loc_X const_42)).
 
-  Definition lock_will_unlock (own: bool) (wait: TIdSet.t) : iProp :=
-    ∃ (ths: TIdSet.t) (f: NatMap.t nat) (j: nat),
+  Definition lock_will_unlock : iProp :=
+    ∃ (own: bool) (ths wait: TIdSet.t) (f: NatMap.t nat) (j: nat),
       (OwnM (Auth.black (Some f: NatMapRA.t nat)))
         ∗
         (OwnM (Auth.black (Excl.just j: Excl.t nat)))
@@ -178,7 +178,7 @@ Section SIM.
         (ObligationRA.black i m).
 
   Let I: list iProp :=
-        [thread1_will_write; lock_will_unlock false TIdSet.empty; lock_holding; lock_waiting].
+        [thread1_will_write; lock_will_unlock; lock_holding; lock_waiting].
 
   Lemma correct_thread1:
     (own_thread 0 ∗ ObligationRA.duty (inl 0) []) ⊢
@@ -192,23 +192,9 @@ Section SIM.
     iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
     unfold ABSLock.lock_fun, Mod.wrap_fun. rred.
+    iApply stsim_tidR. rred. iApply stsim_tauR. rred.
+    (*TODO*)
 
-    unfold embed_r.
-    (* assert (TEMP: ⊢ stsim I 0 (topset I) ibot5 ibot5 *)
-    (* (λ r_src r_tgt : (), (own_thread 0 ** ObligationRA.duty (inl 1) []) ** ⌜r_src = r_tgt⌝) *)
-    (* (trigger Yield;;; Ret ()) *)
-    (* (embed_state snd update_snd (Ret ()))). *)
-    (* { rred. *)
-
-    rred. ss.
-
-    erewrite Any.upcast_downcast. ss. rred.
-    
-
-
-
-
-    
       iIntros (?) "[TH DUTY]". unfold example_spec_fun, example_fun.
       lred. rred. rewrite close_itree_call. ss. rred.
       iApply (stsim_yieldR with "[DUTY]"); [msubtac|iFrame|]. iIntros "DUTY _".
