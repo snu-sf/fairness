@@ -3757,6 +3757,9 @@ Module ObligationRA.
     Definition tax (l: list (nat * Ord.t)): iProp :=
       list_prop_sum (fun '(k, c) => white k (Jacobsthal.mult c Ord.omega)) l.
 
+    Definition taxes (l: list (nat * Ord.t)) (o: Ord.t): iProp :=
+      list_prop_sum (fun '(k, c) => white k ((Jacobsthal.mult c Ord.omega) × o)%ord) l.
+
     Lemma tax_perm l0 l1
           (PERM: Permutation l0 l1)
       :
@@ -3807,6 +3810,59 @@ Module ObligationRA.
     Proof.
       apply list_prop_sum_combine.
     Qed.
+
+    Lemma taxes_perm l0 l1
+          (PERM: Permutation l0 l1)
+      :
+      taxes l0 ⊢ taxes l1.
+    Proof.
+      apply list_prop_sum_perm; auto.
+    Qed.
+
+    Lemma taxes_nil
+      :
+      ⊢ taxes [].
+    Proof.
+      apply list_prop_sum_nil.
+    Qed.
+
+    Lemma taxes_cons_fold k c tl
+      :
+      (white k (Jacobsthal.mult c Ord.omega) ** taxes tl)
+        -∗
+        (taxes ((k, c)::tl)).
+    Proof.
+      ss.
+    Qed.
+
+    Lemma taxes_cons_unfold k c tl
+      :
+      (taxes ((k, c)::tl))
+        -∗
+        (white k (Jacobsthal.mult c Ord.omega) ** taxes tl).
+    Proof.
+      ss.
+    Qed.
+
+    Lemma taxes_split l0 l1
+      :
+      (taxes (l0 ++ l1))
+        -∗
+        (taxes l0 ** taxes l1).
+    Proof.
+      apply list_prop_sum_split.
+    Qed.
+
+    Lemma taxes_combine l0 l1
+      :
+      (taxes l0 ** taxes l1)
+        -∗
+        (taxex (l0 ++ l1)).
+    Proof.
+      apply list_prop_sum_combine.
+    Qed.
+
+
 
     Lemma duty_list_pending P i rs q
           (IMPL: P ⊢ duty_list i rs q)

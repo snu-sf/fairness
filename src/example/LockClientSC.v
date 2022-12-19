@@ -139,14 +139,18 @@ Section SIM.
               (ObligationRA.shot k ∗ points_to loc_X const_42)).
 
   Definition lock_will_unlock : iProp :=
-    ∃ (own: bool) (ths wait: TIdSet.t) (f: NatMap.t nat) (j: nat),
+    ∃ (own: bool) (mem: SCMem.t) (wait: TIdSet.t) (f: NatMap.t nat) (j: nat),
       (OwnM (Auth.black (Some f: NatMapRA.t nat)))
         ∗
         (OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗
         (⌜nm_wf_pair f wait⌝)
         ∗
-        (natmap_prop_sum ths (fun tid _ => (⌜~ NatMap.In tid wait⌝) -∗ ObligationRA.duty (inr (inr (inr tid))) []))
+        (memory_black mem)
+        ∗
+        (St_tgt (tt, (mem, (own, wait))))
+        ∗
+        (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wait)))
         ∗
         (natmap_prop_sum f (fun tid idx => (ObligationRA.correl (inr (inr (inr tid))) idx (Ord.omega ^ 2)%ord)
                                           ∗
@@ -155,7 +159,7 @@ Section SIM.
                                           (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)])
         ))
         ∗
-        ((⌜own = false⌝ ∗ OwnM (Auth.white (Excl.just j: Excl.t nat)))
+        ((⌜own = false⌝ ∗ OwnM (Auth.white (Excl.just j: Excl.t nat)) ∗ OwnM (Auth.black (Excl.just tt)))
          ∨
            ((⌜own = true⌝)
               ∗ (ObligationRA.pending j 1)
@@ -177,13 +181,60 @@ Section SIM.
         ∗
         (ObligationRA.black i m).
 
-  Let I: list iProp :=
-        [thread1_will_write; lock_will_unlock; lock_holding; lock_waiting].
+  (* Let I: list iProp := *)
+  (*       [thread1_will_write; lock_will_unlock; lock_holding; lock_waiting]. *)
 
-  Lemma correct_thread1:
-    (own_thread 0 ∗ ObligationRA.duty (inl 0) []) ⊢
-          (stsim I 0 [0; 1; 2; 3] ibot5 ibot5
-                (fun r_src r_tgt => own_thread 0 ** ObligationRA.duty (inl 1) [] ** ⌜r_src = r_tgt⌝)
+  Let I: list iProp := [thread1_will_write; lock_will_unlock].
+
+
+  Lemma ABSLock_lock K
+        R_src R_tgt src tgt tid
+        r g
+        (Q: R_src -> R_tgt -> iProp)
+        l
+    :
+    ((ObligationRA.duty (inl tid) l) ∗ (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord))
+      ∗
+      ((∃ j, (ObligationRA.duty (inl tid) ((j, 1%ord) :: l))
+               ∗
+               (ObligationRA.white j Ord.omega)
+               ∗
+               (OwnM (Auth.black (Excl.just tt))))
+         -∗
+         (stsim I tid (topset I) r g Q
+                (trigger Yield;;; src)
+                (tgt)))
+      ⊢
+      (stsim I tid (topset I) r g Q
+             (trigger Yield;;; src)
+             (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (OMod.call "lock" ());;; tgt)).
+  Proof.
+  Abort.
+
+  Lemma ABSLock_unlock K
+        R_src R_tgt src tgt tid
+        r g
+        (Q: R_src -> R_tgt -> iProp)
+        l
+    :
+    ((ObligationRA.duty (inl tid) l) ∗ (ObligationRA.taxes l Ord.omega) ∗ (OwnM (Auth.black (Excl.just tt))))
+      ∗
+      ((ObligationRA.duty (inl tid) l)
+         -∗
+         (stsim I tid (topset I) r g Q
+                (trigger Yield;;; src)
+                (tgt)))
+      ⊢
+      (stsim I tid (topset I) r g Q
+             (trigger Yield;;; src)
+             (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (OMod.call "unlock" ());;; tgt)).
+  Proof.
+  Abort.
+
+  Lemma correct_thread1 tid:
+    (own_thread tid ∗ ObligationRA.duty (inl tid) []) ⊢
+          (stsim I tid (topset I) ibot5 ibot5
+                (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
                 (ClientSpec.thread1 tt)
                 (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (ClientImpl.thread1 tt))).
   Proof.
