@@ -3862,35 +3862,100 @@ Module ObligationRA.
       apply list_prop_sum_combine.
     Qed.
 
-    Lemma taxes_mon l o0 o1
+    Lemma taxes_ord_mon l o0 o1
           (LE: Ord.le o0 o1)
       :
-      taxes l o0 ⊢ #=> taxes l o1.
+      taxes l o1 ⊢ #=> taxes l o0.
     Proof.
+      revert_until l. induction l; i.
+      { iIntros "H". iModIntro. iApply taxes_nil. }
+      iIntros "H". destruct a as [k o].
+      iPoseProof (taxes_cons_unfold with "H") as "[W TX]".
+      iPoseProof (IHl with "TX") as "IH".
+      { eauto. }
+      iPoseProof (white_mon with "W") as "W".
+      { instantiate (1:=((o × Ord.omega) × o0)%ord).
+        apply Jacobsthal.le_mult_r. auto.
+      }
+      iMod "W". iMod "IH".
+      iPoseProof (taxes_cons_fold with "[W IH]") as "A".
+      { iFrame. }
+      iModIntro. iFrame.
+    Qed.
 
-    Abort.
-
-    Lemma taxes_ord_split l o0 o1
+    Lemma taxes_ord_split_eq l o0 o1
       :
       taxes l (o0 ⊕ o1)%ord ⊢ taxes l o0 ∗ taxes l o1.
     Proof.
+      revert_until l. induction l; i.
+      { iIntros "H". iPoseProof taxes_nil as "TN". iFrame. }
+      iIntros "H". destruct a as [k o].
+      iPoseProof (taxes_cons_unfold with "H") as "[W TX]".
+      iPoseProof (IHl with "TX") as "[IH1 IH2]".
+      iPoseProof (white_eq with "W") as "W".
+      { rewrite ClassicJacobsthal.mult_dist. reflexivity. }
+      iPoseProof (white_split_eq with "W") as "[W1 W2]".
+      iSplitL "IH1 W1".
+      { iApply taxes_cons_fold. iFrame. }
+      { iApply taxes_cons_fold. iFrame. }
+      Unshelve. exact o0.
+    Qed.
 
-    Abort.
+    Lemma taxes_ord_split l o o0 o1
+          (LE: ((o0 ⊕ o1) <= o)%ord)
+      :
+      taxes l o ⊢ #=> (taxes l o0 ∗ taxes l o1).
+    Proof.
+      iIntros "T". iPoseProof (taxes_ord_mon with "T") as "T". eauto.
+      iMod "T". iModIntro. iApply taxes_ord_split_eq. auto.
+    Qed.
 
-    Lemma taxes_ord_sum l o0 o1
+    Lemma taxes_single_is_tax l
+      :
+      taxes l (Ord.S Ord.O) ⊢ tax l.
+    Proof.
+      induction l.
+      { iIntros. iApply tax_nil. }
+      iIntros "T". destruct a as [k o].
+      iPoseProof (taxes_cons_unfold with "T") as "[W T]".
+      iApply tax_cons_fold.
+      iPoseProof (white_eq with "W") as "W".
+      { rewrite Jacobsthal.mult_1_r. reflexivity. }
+      iFrame. iApply IHl. auto.
+    Qed.
+
+    Lemma taxes_ord_split_one l o0 o1
+          (LT: (o0 < o1)%ord)
+      :
+      taxes l o1 ⊢ #=> (taxes l o0 ∗ tax l).
+    Proof.
+      iIntros "T". iPoseProof (taxes_ord_split with "T") as "T".
+      { dup LT. eapply Ord.S_supremum in LT0.
+        assert (REP: (o0 == (Ord.O ⊕ o0))%ord).
+        { symmetry. apply Hessenberg.add_O_l. }
+        etrans. 2: eapply LT0. rewrite REP.
+        rewrite <- Hessenberg.add_S_l. reflexivity.
+      }
+      iMod "T". iDestruct "T" as "[T1 T2]".
+      iModIntro. iFrame. iApply taxes_single_is_tax. auto.
+    Qed.
+
+    Lemma taxes_ord_merge l o0 o1
       :
       taxes l o0 ∗ taxes l o1 ⊢ taxes l (o0 ⊕ o1)%ord.
     Proof.
+      revert_until l. induction l; i.
+      { iIntros "H". iPoseProof taxes_nil as "TN". eauto. }
+      iIntros "[H1 H2]". destruct a as [k o].
+      iPoseProof (taxes_cons_unfold with "H1") as "[W1 TX1]".
+      iPoseProof (taxes_cons_unfold with "H2") as "[W2 TX2]".
+      iApply taxes_cons_fold. iSplitR "TX1 TX2"; cycle 1.
+      { iApply IHl. iFrame. }
+      iApply white_eq.
+      { rewrite ClassicJacobsthal.mult_dist. reflexivity. }
+      iApply (white_merge with "W1 W2").
+    Qed.
 
-    Abort.
-
-    Lemma taxes_unfold l o0 o1
-          (LE: Ord.le o0 o1)
-      :
-      (taxes l o1) ==∗ (taxes l o0) ∗ (tax l).
-    Proof.
-
-    Abort.
 
 
     Lemma duty_list_pending P i rs q
