@@ -3811,53 +3811,53 @@ Module ObligationRA.
       apply list_prop_sum_combine.
     Qed.
 
-    Lemma taxes_perm l0 l1
+    Lemma taxes_perm l0 l1 o
           (PERM: Permutation l0 l1)
       :
-      taxes l0 ⊢ taxes l1.
+      taxes l0 o ⊢ taxes l1 o.
     Proof.
       apply list_prop_sum_perm; auto.
     Qed.
 
-    Lemma taxes_nil
+    Lemma taxes_nil o
       :
-      ⊢ taxes [].
+      ⊢ taxes [] o.
     Proof.
       apply list_prop_sum_nil.
     Qed.
 
-    Lemma taxes_cons_fold k c tl
+    Lemma taxes_cons_fold k c tl o
       :
-      (white k (Jacobsthal.mult c Ord.omega) ** taxes tl)
+      (white k ((c × Ord.omega) × o)%ord ** (taxes tl o))
         -∗
-        (taxes ((k, c)::tl)).
+        (taxes ((k, c)::tl) o).
     Proof.
       ss.
     Qed.
 
-    Lemma taxes_cons_unfold k c tl
+    Lemma taxes_cons_unfold k c tl o
       :
-      (taxes ((k, c)::tl))
+      (taxes ((k, c)::tl) o)
         -∗
-        (white k (Jacobsthal.mult c Ord.omega) ** taxes tl).
+        (white k ((c × Ord.omega) × o)%ord ** taxes tl o).
     Proof.
       ss.
     Qed.
 
-    Lemma taxes_split l0 l1
+    Lemma taxes_split l0 l1 o
       :
-      (taxes (l0 ++ l1))
+      (taxes (l0 ++ l1) o)
         -∗
-        (taxes l0 ** taxes l1).
+        (taxes l0 o ** taxes l1 o).
     Proof.
       apply list_prop_sum_split.
     Qed.
 
-    Lemma taxes_combine l0 l1
+    Lemma taxes_combine l0 l1 o
       :
-      (taxes l0 ** taxes l1)
+      (taxes l0 o ** taxes l1 o)
         -∗
-        (taxex (l0 ++ l1)).
+        (taxes (l0 ++ l1) o).
     Proof.
       apply list_prop_sum_combine.
     Qed.
