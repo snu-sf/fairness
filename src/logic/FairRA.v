@@ -3862,6 +3862,35 @@ Module ObligationRA.
       apply list_prop_sum_combine.
     Qed.
 
+    Lemma taxes_mon l o0 o1
+          (LE: Ord.le o0 o1)
+      :
+      taxes l o0 ⊢ #=> taxes l o1.
+    Proof.
+
+    Abort.
+
+    Lemma taxes_ord_split l o0 o1
+      :
+      taxes l (o0 ⊕ o1)%ord ⊢ taxes l o0 ∗ taxes l o1.
+    Proof.
+
+    Abort.
+
+    Lemma taxes_ord_sum l o0 o1
+      :
+      taxes l o0 ∗ taxes l o1 ⊢ taxes l (o0 ⊕ o1)%ord.
+    Proof.
+
+    Abort.
+
+    Lemma taxes_unfold l o0 o1
+          (LE: Ord.le o0 o1)
+      :
+      (taxes l o1) ==∗ (taxes l o0) ∗ (tax l).
+    Proof.
+
+    Abort.
 
 
     Lemma duty_list_pending P i rs q
