@@ -251,6 +251,15 @@ NatMapRA.add_local_update:
     → Auth.local_update (Some m) (NatMapRA.unit A) (Some (NatMap.add k a m))
         (NatMapRA.singleton k a)
 
+OwnM_Upd:
+  ∀ (Σ : GRA.t) (M : URA.t) (H : GRA.inG M Σ) (r1 r2 : M),
+    URA.updatable r1 r2 → OwnM r1 ⊢ #=> OwnM r2
+
+Auth.auth_alloc:
+  ∀ (M : URA.t) (a0 a1 b1 : M),
+    Auth.local_update a0 ε a1 b1
+    → << URA.updatable (Auth.black a0) (Auth.black a1 ⋅ Auth.white b1) >>
+
     (OwnM (Auth.white (NatMapRA.singleton tid i: NatMapRA.t nat)))
 
     iMod ("K1" with "[B1 B2 WF MB STGT I1]") as "A".
