@@ -123,6 +123,7 @@ Section SIM.
   Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
   Context `{AUTHNRA: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
+  Context `{AUTHUNITRA: @GRA.inG (Auth.t (Excl.t unit)) Σ}.
   Context `{AUTHNMRA: @GRA.inG (Auth.t (NatMapRA.t unit)) Σ}.
   Context `{AUTHNMNRA: @GRA.inG (Auth.t (NatMapRA.t nat)) Σ}.
   Context `{AUTHNMNN: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}.
@@ -152,22 +153,29 @@ Section SIM.
         ∗
         (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wait)))
         ∗
-        (natmap_prop_sum f (fun tid idx => (ObligationRA.correl (inr (inr (inr tid))) idx (Ord.omega ^ 2)%ord)
-                                          ∗
-                                          (ObligationRA.pending idx 1)
-                                          ∗
-                                          (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)])
+        (natmap_prop_sum f (fun tid idx =>
+                              (ObligationRA.correl (inr (inr (inr tid))) idx (Ord.omega ^ 2)%ord)
+                                ∗
+                                (ObligationRA.pending idx 1)
+                                ∗
+                                (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)])
         ))
         ∗
-        ((⌜own = false⌝ ∗ OwnM (Auth.white (Excl.just j: Excl.t nat)) ∗ OwnM (Auth.black (Excl.just tt)))
-         ∨
-           ((⌜own = true⌝)
-              ∗ (ObligationRA.pending j 1)
-              ∗ (ObligationRA.correl_thread j 1%ord)
-              ∗ (natmap_prop_sum f (fun tid idx => ObligationRA.amplifier j idx 1%ord))
-           )
+        (
+          ((⌜own = false⌝)
+             ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
+             ∗ (OwnM (Auth.black (Excl.just tt: Excl.t unit)))
+          )
+            ∨
+            ((⌜own = true⌝)
+               ∗ (ObligationRA.pending j 1)
+               ∗ (ObligationRA.correl_thread j 1%ord)
+               ∗ (natmap_prop_sum f (fun tid idx => ObligationRA.amplifier j idx 1%ord))
+            )
         )
   .
+
+  Let I: list iProp := [thread1_will_write; lock_will_unlock].
 
   Definition lock_holding: iProp :=
     ∃ (j: nat) (n: Ord.t),
@@ -181,25 +189,21 @@ Section SIM.
         ∗
         (ObligationRA.black i m).
 
-  (* Let I: list iProp := *)
-  (*       [thread1_will_write; lock_will_unlock; lock_holding; lock_waiting]. *)
-
-  Let I: list iProp := [thread1_will_write; lock_will_unlock].
 
 
   Lemma ABSLock_lock K
         R_src R_tgt src tgt tid
         r g
         (Q: R_src -> R_tgt -> iProp)
-        l
+        (l: list (nat * Ord.t)%type)
     :
     ((ObligationRA.duty (inl tid) l) ∗ (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord))
       ∗
-      ((∃ j, (ObligationRA.duty (inl tid) ((j, 1%ord) :: l))
+      ((∃ j, (ObligationRA.duty (inl tid) ((j, (Ord.S Ord.O)) :: l))
                ∗
                (ObligationRA.white j Ord.omega)
                ∗
-               (OwnM (Auth.black (Excl.just tt))))
+               (OwnM (Auth.black (Excl.just tt: Excl.t unit))))
          -∗
          (stsim I tid (topset I) r g Q
                 (trigger Yield;;; src)
@@ -207,8 +211,11 @@ Section SIM.
       ⊢
       (stsim I tid (topset I) r g Q
              (trigger Yield;;; src)
-             (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (OMod.call "lock" ());;; tgt)).
+             (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (R:=unit) (OMod.call "lock" ());;; tgt)).
   Proof.
+
+
+
   Abort.
 
   Lemma ABSLock_unlock K
