@@ -3910,6 +3910,20 @@ Module ObligationRA.
       iMod "T". iModIntro. iApply taxes_ord_split_eq. auto.
     Qed.
 
+    Lemma tax_is_single_taxes l
+      :
+      tax l ⊢ taxes l (Ord.S Ord.O).
+    Proof.
+      induction l.
+      { iIntros. iApply taxes_nil. }
+      iIntros "T". destruct a as [k o].
+      iPoseProof (tax_cons_unfold with "T") as "[W T]".
+      iApply taxes_cons_fold.
+      iPoseProof (white_eq with "W") as "W".
+      { rewrite <- Jacobsthal.mult_1_r. reflexivity. }
+      iFrame. iApply IHl. auto.
+    Qed.
+
     Lemma taxes_single_is_tax l
       :
       taxes l (Ord.S Ord.O) ⊢ tax l.

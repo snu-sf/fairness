@@ -191,11 +191,13 @@ Section SIM.
 
 
 
-  Lemma ABSLock_lock K
-        R_src R_tgt src tgt tid
+  Lemma ABSLock_lock
+        R_src R_tgt tid
+        K src tgt
         r g
         (Q: R_src -> R_tgt -> iProp)
         (l: list (nat * Ord.t)%type)
+        (NONZERO: exists K', (K' < K)%ord)
     :
     ((ObligationRA.duty (inl tid) l) ∗ (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord))
       ∗
@@ -213,7 +215,66 @@ Section SIM.
              (trigger Yield;;; src)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (R:=unit) (OMod.call "lock" ());;; tgt)).
   Proof.
+    des. iIntros "[DT SIM]".
+    rewrite close_itree_call. ss. rred.
+    iDestruct "DT" as "[DUTY TAXES]".
+    iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "TAXES".
+    { eapply Jacobsthal.lt_mult_r. eauto. etrans. rewrite <- Ord.from_nat_O.
+      eapply Ord.omega_upperbound. remember (Ord.omega ^ 2)%ord as temp.
+      rewrite <- OrdArith.expn_1_r. subst temp. apply OrdArith.lt_expn_r.
+      setoid_rewrite <- Ord.from_nat_1. eapply Ord.omega_upperbound.
+      setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto.
+      setoid_rewrite <- Ord.from_nat_O. eapply Ord.omega_upperbound.
+    }
+    iMod "TAXES". iDestruct "TAXES" as "[TAXES TAX]".
+    iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
+    iIntros "DUTY _". rred.
+    unfold ABSLock.lock_fun, Mod.wrap_fun. rred.
+    iApply stsim_tidR. rred. iApply stsim_tauR. rred.
+    iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
+    iDestruct "I1" as "[B1 [B2 [WF [MB [STGT I1]]]]]".
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
+    iApply stsim_tauR. rred.
 
+    iPoseProof (ObligationRA.alloc (Ord.omega ^ 3)%ord) as "A".
+    iMod "A" as "[% [[MYB MYW] PEND]]".
+    
+
+NatMapRA.add_local_update:
+  ∀ (A : Type) (m : NatMap.t A) (k : NatMap.key) (a : A),
+    NatMap.find (elt:=A) k m = None
+    → Auth.local_update (Some m) (NatMapRA.unit A) (Some (NatMap.add k a m))
+        (NatMapRA.singleton k a)
+
+    (OwnM (Auth.white (NatMapRA.singleton tid i: NatMapRA.t nat)))
+
+    iMod ("K1" with "[B1 B2 WF MB STGT I1]") as "A".
+    { unfold lock_will_unlock.
+      iExists own, mem.
+      do 2 iExists _. iExists (NatMap.add tid tt wait).
+      
+
+      do 2 iExists _. iFrame.
+      
+
+    rewrite OpenMod.unfold_iter. rred.
+    
+
+        rred. iApply stsim_tauR.
+        iMod ("K0" with "[MEM ST]") as "_".
+        { iExists _. iFrame. }
+        iMod ("K1" with "[POINTL F]") as "_".
+        { iRight. iExists _. iFrame. auto. }
+        { msubtac. }
+        rred. iStopProof. pattern n. revert n.
+        apply (well_founded_induction Ord.lt_well_founded). intros o IH.
+        iIntros "[# [SHOTK [CORR BLACK]] [TH DUTY]]".
+        rewrite OpenMod.unfold_iter. rred.
 
 
   Abort.
