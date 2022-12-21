@@ -140,26 +140,26 @@ Section SIM.
               (ObligationRA.shot k ∗ points_to loc_X const_42)).
 
   Definition lock_will_unlock : iProp :=
-    ∃ (own: bool) (mem: SCMem.t) (wobj: NatMap.t nat) (j: nat),
-      (OwnM (Auth.black (Some wobj: NatMapRA.t nat)))
+    ∃ (own: bool) (mem: SCMem.t) (wobl: NatMap.t nat) (j: nat),
+      (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
         ∗
         (OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗
         (memory_black mem)
         ∗
-        (St_tgt (tt, (mem, (own, key_set wobj))))
+        (St_tgt (tt, (mem, (own, key_set wobl))))
         ∗
-        (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wobj)))
+        (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wobl)))
         ∗
-        (natmap_prop_sum wobj
+        (natmap_prop_sum wobl
                          (fun tid idx =>
                             (own_thread tid)
                               ∗
                               (ObligationRA.correl (inr (inr (inr tid))) idx (Ord.omega ^ 2)%ord)
                               ∗
                               (ObligationRA.pending idx 1)
-                              ∗
-                              (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)])
+                              (* ∗ *)
+                              (* (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)]) *)
         ))
         ∗
         (
@@ -171,7 +171,7 @@ Section SIM.
             ((⌜own = true⌝)
                ∗ (ObligationRA.pending j 1)
                ∗ (ObligationRA.correl_thread j 1%ord)
-               ∗ (natmap_prop_sum wobj (fun tid idx => ObligationRA.amplifier j idx 1%ord))
+               ∗ (natmap_prop_sum wobl (fun tid idx => ObligationRA.amplifier j idx 1%ord))
             )
         )
   .
@@ -285,6 +285,12 @@ Section SIM.
 
     iPoseProof (ObligationRA.alloc (Ord.omega ^ 3)%ord) as "A".
     iMod "A" as "[% [[MYB MYW] PEND]]".
+    (* make (Auth.white singleton tid k) and update wobl *)
+    (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
+    (* need to make amp; need ObligationRA.black j ??? *)
+    iMod ("K1" with "[TH B1 B2 MEM STGT I1 PEND]") as "A".
+    { unfold lock_will_unlock. iDestruct "I1" as "[BLKS [SUM CASES]]".
+      iExists own, mem, (NatMap.add tid k wobl), j. iFrame.
     
 
 NatMapRA.add_local_update:
@@ -304,10 +310,6 @@ Auth.auth_alloc:
 
     (OwnM (Auth.white (NatMapRA.singleton tid i: NatMapRA.t nat)))
 
-    iMod ("K1" with "[B1 B2 WF MB STGT I1]") as "A".
-    { unfold lock_will_unlock.
-      iExists own, mem.
-      do 2 iExists _. iExists (NatMap.add tid tt wait).
       
 
       do 2 iExists _. iFrame.
