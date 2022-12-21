@@ -124,9 +124,9 @@ Section SIM.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
   Context `{AUTHNRA: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   Context `{AUTHUNITRA: @GRA.inG (Auth.t (Excl.t unit)) Σ}.
-  Context `{AUTHNMRA: @GRA.inG (Auth.t (NatMapRA.t unit)) Σ}.
+  (* Context `{AUTHNMRA: @GRA.inG (Auth.t (NatMapRA.t unit)) Σ}. *)
   Context `{AUTHNMNRA: @GRA.inG (Auth.t (NatMapRA.t nat)) Σ}.
-  Context `{AUTHNMNN: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}.
+  (* Context `{AUTHNMNN: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}. *)
 
   Definition thread1_will_write : iProp :=
     ∃ k, (∃ n, ObligationRA.black k n)
@@ -140,25 +140,26 @@ Section SIM.
               (ObligationRA.shot k ∗ points_to loc_X const_42)).
 
   Definition lock_will_unlock : iProp :=
-    ∃ (own: bool) (mem: SCMem.t) (wait: TIdSet.t) (f: NatMap.t nat) (j: nat),
-      (OwnM (Auth.black (Some f: NatMapRA.t nat)))
+    ∃ (own: bool) (mem: SCMem.t) (wobj: NatMap.t nat) (j: nat),
+      (OwnM (Auth.black (Some wobj: NatMapRA.t nat)))
         ∗
         (OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗
-        (⌜nm_wf_pair f wait⌝)
-        ∗
         (memory_black mem)
         ∗
-        (St_tgt (tt, (mem, (own, wait))))
+        (St_tgt (tt, (mem, (own, key_set wobj))))
         ∗
-        (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wait)))
+        (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wobj)))
         ∗
-        (natmap_prop_sum f (fun tid idx =>
+        (natmap_prop_sum wobj
+                         (fun tid idx =>
+                            (own_thread tid)
+                              ∗
                               (ObligationRA.correl (inr (inr (inr tid))) idx (Ord.omega ^ 2)%ord)
-                                ∗
-                                (ObligationRA.pending idx 1)
-                                ∗
-                                (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)])
+                              ∗
+                              (ObligationRA.pending idx 1)
+                              ∗
+                              (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)])
         ))
         ∗
         (
@@ -170,10 +171,46 @@ Section SIM.
             ((⌜own = true⌝)
                ∗ (ObligationRA.pending j 1)
                ∗ (ObligationRA.correl_thread j 1%ord)
-               ∗ (natmap_prop_sum f (fun tid idx => ObligationRA.amplifier j idx 1%ord))
+               ∗ (natmap_prop_sum wobj (fun tid idx => ObligationRA.amplifier j idx 1%ord))
             )
         )
   .
+
+  (* Definition lock_will_unlock : iProp := *)
+  (*   ∃ (own: bool) (mem: SCMem.t) (wait: TIdSet.t) (f: NatMap.t nat) (j: nat), *)
+  (*     (OwnM (Auth.black (Some f: NatMapRA.t nat))) *)
+  (*       ∗ *)
+  (*       (OwnM (Auth.black (Excl.just j: Excl.t nat))) *)
+  (*       ∗ *)
+  (*       (⌜nm_wf_pair f wait⌝) *)
+  (*       ∗ *)
+  (*       (memory_black mem) *)
+  (*       ∗ *)
+  (*       (St_tgt (tt, (mem, (own, wait)))) *)
+  (*       ∗ *)
+  (*       (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wait))) *)
+  (*       ∗ *)
+  (*       (natmap_prop_sum f (fun tid idx => *)
+  (*                             (ObligationRA.correl (inr (inr (inr tid))) idx (Ord.omega ^ 2)%ord) *)
+  (*                               ∗ *)
+  (*                               (ObligationRA.pending idx 1) *)
+  (*                               ∗ *)
+  (*                               (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)]) *)
+  (*       )) *)
+  (*       ∗ *)
+  (*       ( *)
+  (*         ((⌜own = false⌝) *)
+  (*            ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat))) *)
+  (*            ∗ (OwnM (Auth.black (Excl.just tt: Excl.t unit))) *)
+  (*         ) *)
+  (*           ∨ *)
+  (*           ((⌜own = true⌝) *)
+  (*              ∗ (ObligationRA.pending j 1) *)
+  (*              ∗ (ObligationRA.correl_thread j 1%ord) *)
+  (*              ∗ (natmap_prop_sum f (fun tid idx => ObligationRA.amplifier j idx 1%ord)) *)
+  (*           ) *)
+  (*       ) *)
+  (* . *)
 
   Let I: list iProp := [thread1_will_write; lock_will_unlock].
 
@@ -199,13 +236,19 @@ Section SIM.
         (l: list (nat * Ord.t)%type)
         (NONZERO: exists K', (K' < K)%ord)
     :
-    ((ObligationRA.duty (inl tid) l) ∗ (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord))
+    ((own_thread tid)
+       ∗
+       (ObligationRA.duty (inl tid) l)
+       ∗
+       (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord))
       ∗
-      ((∃ j, (ObligationRA.duty (inl tid) ((j, (Ord.S Ord.O)) :: l))
-               ∗
-               (ObligationRA.white j Ord.omega)
-               ∗
-               (OwnM (Auth.black (Excl.just tt: Excl.t unit))))
+      (((own_thread tid)
+          ∗
+          (∃ j, (ObligationRA.duty (inl tid) ((j, (Ord.S Ord.O)) :: l))
+                  ∗
+                  (ObligationRA.white j Ord.omega))
+          ∗
+          (OwnM (Auth.black (Excl.just tt: Excl.t unit))))
          -∗
          (stsim I tid (topset I) r g Q
                 (trigger Yield;;; src)
@@ -215,9 +258,8 @@ Section SIM.
              (trigger Yield;;; src)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (R:=unit) (OMod.call "lock" ());;; tgt)).
   Proof.
-    des. iIntros "[DT SIM]".
+    des. iIntros "[[TH [DUTY TAXES]] SIM]".
     rewrite close_itree_call. ss. rred.
-    iDestruct "DT" as "[DUTY TAXES]".
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "TAXES".
     { eapply Jacobsthal.lt_mult_r. eauto. etrans. rewrite <- Ord.from_nat_O.
       eapply Ord.omega_upperbound. remember (Ord.omega ^ 2)%ord as temp.
@@ -231,8 +273,8 @@ Section SIM.
     iIntros "DUTY _". rred.
     unfold ABSLock.lock_fun, Mod.wrap_fun. rred.
     iApply stsim_tidR. rred. iApply stsim_tauR. rred.
-    iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
-    iDestruct "I1" as "[B1 [B2 [WF [MB [STGT I1]]]]]".
+    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+    iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
     iApply stsim_getR. iSplit. iFrame. rred.
     iApply stsim_tauR. rred.
     iApply stsim_getR. iSplit. iFrame. rred.
