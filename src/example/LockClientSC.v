@@ -366,6 +366,7 @@ Section SIM.
       iIntros "OT". iFrame.
     }
     iMod "AMP".
+    (* iPoseProof "AMP" as "# AMP". *)
 
     (* now close invariant *)
     iMod ("K1" with "[TH OWNB1 B2 MEM SUM CASES STGT PEND BLKS MYCOR AMP]") as "_".
@@ -379,7 +380,9 @@ Section SIM.
     { msubtac. }
 
     (* induction *)
-    rred. remember ((Ord.omega ^ 2 × Ord.omega) ⊕ Ord.S Ord.O × Ord.omega)%ord as wd.
+    rred. iApply stsim_discard.
+    { instantiate (1:=topset I). msubtac. }
+    remember ((Ord.omega ^ 2 × Ord.omega) ⊕ Ord.S Ord.O × Ord.omega)%ord as wd.
     remember (Ord.omega ^ 2 × Ord.omega ⊕ 1)%ord as credit.
     assert (RICH: (wd < credit)%ord).
     { subst. rewrite ClassicJacobsthal.mult_dist. apply Hessenberg.lt_add_r.
@@ -401,8 +404,38 @@ Section SIM.
     iApply stsim_tauR. rred. destruct own.
 
     (* someone is holding the lock *)
-    { rred.
+    { rred. iDestruct "I1" as "[BLKS [SUM CASES]]".
+      destruct (NatMap.find tid wobl) eqn:FIND.
+      2:{ iPoseProof (OwnM_Upd with "B1") as "OWN1".
+          { eapply Auth.auth_alloc. instantiate (1:=NatMapRA.singleton tid k).
+            instantiate (1:=Some (NatMap.add tid k wobl)). eapply NatMapRA.add_local_update.
+            auto.
+          }
+          iMod "OWN1" as "[OWNB1 MYSING]".
+          iAssert (OwnM ((Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat)))) with "[MYW MYSING]" as "CONTRA".
+          { iSplitL "MYW"; iFrame. }
+          iPoseProof (OwnM_valid with "CONTRA") as "CONTRA". iPure "CONTRA" as CONTRA.
+          exfalso. ur in CONTRA. apply NatMapRA.singleton_unique in CONTRA. ss.
+      }
+Auth.auth_included:
+  ∀ (M : URA.t) (a b : M), URA.wf (Auth.black a ⋅ Auth.white b) → << URA.extends b a >>
 
+
+       iAssert (
+          (ObligationRA.amplifier j )
+
+      iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM CASES]") as "_".
+      { unfold lock_will_unlock. do 4 (iExists _). iFrame. }
+      { msubtac. }
+      iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]". eauto.
+      iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
+      iIntros "DUTY WTH". rred.
+      iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+
+      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
+      
+      iApply IH.
 
   Abort.
 
