@@ -334,21 +334,42 @@ Section SIM.
     }
     iMod "OWN1" as "[OWNB1 MYSING]".
 
-    iMod ("K1" with "[TH OWNB1 B2 MEM SUM CASES STGT PEND YOUW BLKS MYCOR]") as "_".
+    (* need to make amp; need ObligationRA.black j *)
+    iAssert (
+  ((⌜own = false⌝ ∗
+   (OwnM (Auth.white (Excl.just j: Excl.t nat)) ** OwnM (Auth.black (Excl.just (): Excl.t unit))))
+   ∨ (⌜own = true⌝ **
+               (ObligationRA.pending j 1 **
+                (ObligationRA.black j Ord.omega **
+                 (ObligationRA.correl_thread j 1 **
+            natmap_prop_sum wobl (λ _ idx : nat, ObligationRA.amplifier j idx 1))))))
+    ∗
+    #=( ObligationRA.edges_sat )=>((⌜own = true⌝) -∗ (ObligationRA.amplifier j k 1)))%I
+      with "[CASES YOUW]" as "[CASES AMP]".
+    { iDestruct "CASES" as "[OWNF | [OT [PEND [JBLK [JCOR ALLAMP]]]]]".
+      { iDestruct "OWNF" as "[% OW]". iSplitL "OW". iLeft. iFrame. auto.
+        iModIntro. iIntros "OT". iPure "OT" as OT. clarify.
+      }
+      iPoseProof ("JBLK") as "# JBLK". iSplitR "YOUW".
+      { iRight. iFrame. auto. }
+      iPoseProof (ObligationRA.amplifier_intro with "JBLK") as "AMP".
+      iPoseProof ("AMP" with "YOUW") as "AMP2". iMod "AMP2". iModIntro.
+      iIntros "OT". iFrame.
+    }
+    iMod "AMP".
+
+    (* now close invariant *)
+    iMod ("K1" with "[TH OWNB1 B2 MEM SUM CASES STGT PEND BLKS MYCOR AMP]") as "_".
     { unfold lock_will_unlock. iExists own, mem, (NatMap.add tid k wobl), j. iFrame.
       rewrite key_set_pull_add_eq. iFrame. iSplitL "SUM TH MYCOR PEND".
       { iApply (natmap_prop_sum_add with "SUM"). iFrame. }
       iDestruct "CASES" as "[OWNF | [OT [PEND [JBLK [JCOR ALLAMP]]]]]". iFrame.
-      iPoseProof ("JBLK") as "# JBLK".
-      iRight. iFrame. iSplit; auto. iApply (natmap_prop_sum_add with "ALLAMP").
-      iPoseProof (ObligationRA.amplifier_intro with "JBLK") as "AMP".
-      iPoseProof ("AMP" with "YOUW") as "AMP2".
-      
-      iPoseProof ("AMP2") as "# AMP2".
-      
+      iRight. iPure "OT" as OT. iFrame. iSplit; auto.
+      iApply (natmap_prop_sum_add with "ALLAMP"). iApply "AMP". auto.
+    }
+    { msubtac. }
 
-    (* need to make amp; need ObligationRA.black j ??? *)
-
+    (* induction *)
     rewrite OpenMod.unfold_iter. rred.
 
         rred. iApply stsim_tauR.
