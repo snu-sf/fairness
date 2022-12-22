@@ -231,17 +231,19 @@ Section SIM.
 
   Lemma ABSLock_lock
         R_src R_tgt tid
-        K src tgt
+        src tgt
         r g
         (Q: R_src -> R_tgt -> iProp)
         (l: list (nat * Ord.t)%type)
-        (NONZERO: exists K', (K' < K)%ord)
+        (* K *)
+        (* (NONZERO: exists K', (K' < K)%ord) *)
     :
     ((own_thread tid)
        ∗
        (ObligationRA.duty (inl tid) l)
        ∗
-       (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord))
+       (ObligationRA.taxes l ((Ord.omega ^ 2) × (Ord.omega ⊕ Ord.omega))%ord))
+       (* (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord)) *)
       ∗
       (((own_thread tid)
           ∗
@@ -259,17 +261,24 @@ Section SIM.
              (trigger Yield;;; src)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (R:=unit) (OMod.call "lock" ());;; tgt)).
   Proof.
-    des. iIntros "[[TH [DUTY TAXES]] SIM]".
+    iIntros "[[TH [DUTY TAXES]] SIM]".
     rewrite close_itree_call. ss. rred.
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "TAXES".
-    { eapply Jacobsthal.lt_mult_r. eauto. etrans. rewrite <- Ord.from_nat_O.
-      eapply Ord.omega_upperbound. remember (Ord.omega ^ 2)%ord as temp.
-      rewrite <- OrdArith.expn_1_r. subst temp. apply OrdArith.lt_expn_r.
-      setoid_rewrite <- Ord.from_nat_1. eapply Ord.omega_upperbound.
+    { eapply Jacobsthal.lt_mult_r. eapply Hessenberg.lt_add_r. eapply (Ord.omega_upperbound 1).
+      setoid_rewrite <- Ord.from_nat_O. etrans. eapply Ord.omega_upperbound.
+      remember (Ord.omega ^ 2)%ord as temp. rewrite <- OrdArith.expn_1_r. subst temp.
+      apply OrdArith.lt_expn_r. setoid_rewrite <- Ord.from_nat_1. eapply Ord.omega_upperbound.
       setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto.
       setoid_rewrite <- Ord.from_nat_O. eapply Ord.omega_upperbound.
+      (* eauto. etrans. rewrite <- Ord.from_nat_O. *)
+      (* eapply Ord.omega_upperbound. remember (Ord.omega ^ 2)%ord as temp. *)
+      (* rewrite <- OrdArith.expn_1_r. subst temp. apply OrdArith.lt_expn_r. *)
+      (* setoid_rewrite <- Ord.from_nat_1. eapply Ord.omega_upperbound. *)
+      (* setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto. *)
+      (* setoid_rewrite <- Ord.from_nat_O. eapply Ord.omega_upperbound. *)
     }
     iMod "TAXES". iDestruct "TAXES" as "[TAXES TAX]".
+
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
     unfold ABSLock.lock_fun, Mod.wrap_fun. rred.
@@ -370,15 +379,29 @@ Section SIM.
     { msubtac. }
 
     (* induction *)
-    rred. remember ((Ord.omega ^ 2 × Ord.omega) ⊕ Ord.S Ord.O × Ord.omega)%ord as wd. clear Heqwd.
-    clear K NONZERO own mem blks2 j H wobl.
-    iStopProof. pattern wd. revert wd.
-    apply (well_founded_induction Ord.lt_well_founded). intros wd IH.
+    rred. remember ((Ord.omega ^ 2 × Ord.omega) ⊕ Ord.S Ord.O × Ord.omega)%ord as wd.
+    remember (Ord.omega ^ 2 × Ord.omega ⊕ 1)%ord as credit.
+    assert (RICH: (wd < credit)%ord).
+    { subst. rewrite ClassicJacobsthal.mult_dist. apply Hessenberg.lt_add_r.
+      rewrite Jacobsthal.mult_1_l. rewrite Jacobsthal.mult_1_r.
+      remember (Ord.omega ^ 2)%ord as temp. rewrite <- OrdArith.expn_1_r. subst.
+      apply OrdArith.lt_expn_r. setoid_rewrite <- Ord.from_nat_1. apply Ord.omega_upperbound.
+      setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto.
+      rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound.
+    }
+    clear Heqwd Heqcredit.
+    clear own mem blks2 j H wobl.
+    iStopProof. revert credit RICH. pattern wd. revert wd.
+    apply (well_founded_induction Ord.lt_well_founded). intros wd IH. intros credit RICH.
     iIntros "[SIM [TAXES [DUTY [MYB MYW]]]]".
     rewrite OpenMod.unfold_iter. rred.
     iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
     iApply stsim_getR. iSplit. iFrame. rred.
+    iApply stsim_tauR. rred. destruct own.
+
+    (* someone is holding the lock *)
+    { rred.
 
 
   Abort.
