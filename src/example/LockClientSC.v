@@ -310,6 +310,7 @@ Section SIM.
       iPoseProof (own_thread_unique with "TH TH2") as "F". iPure "F" as F. ss.
     }
 
+    (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
     set (blks2 := 
            (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
                (∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t (NatMap.add tid k wobl))%type)).    
@@ -325,40 +326,30 @@ Section SIM.
     iPoseProof (ObligationRA.duty_correl with "MYDUTY") as "MYCOR".
     { ss. left; eauto. }
 
-    
     (* make (Auth.white singleton tid k) and update wobl *)
-    (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
+    iPoseProof (OwnM_Upd with "B1") as "OWN1".
+    { eapply Auth.auth_alloc. instantiate (1:=NatMapRA.singleton tid k).
+      instantiate (1:=Some (NatMap.add tid k wobl)). eapply NatMapRA.add_local_update.
+      eapply NatMapP.F.not_find_in_iff; auto.
+    }
+    iMod "OWN1" as "[OWNB1 MYSING]".
+
+    iMod ("K1" with "[TH OWNB1 B2 MEM SUM CASES STGT PEND YOUW BLKS MYCOR]") as "_".
+    { unfold lock_will_unlock. iExists own, mem, (NatMap.add tid k wobl), j. iFrame.
+      rewrite key_set_pull_add_eq. iFrame. iSplitL "SUM TH MYCOR PEND".
+      { iApply (natmap_prop_sum_add with "SUM"). iFrame. }
+      iDestruct "CASES" as "[OWNF | [OT [PEND [JBLK [JCOR ALLAMP]]]]]". iFrame.
+      iPoseProof ("JBLK") as "# JBLK".
+      iRight. iFrame. iSplit; auto. iApply (natmap_prop_sum_add with "ALLAMP").
+      iPoseProof (ObligationRA.amplifier_intro with "JBLK") as "AMP".
+      iPoseProof ("AMP" with "YOUW") as "AMP2".
+      
+      iPoseProof ("AMP2") as "# AMP2".
+      
+
     (* need to make amp; need ObligationRA.black j ??? *)
-    iMod ("K1" with "[TH B1 B2 MEM STGT I1 PEND]") as "A".
-    { unfold lock_will_unlock.
-      iDestruct "I1" as "[BLKS [SUM CASES]]".
-      iExists own, mem, (NatMap.add tid k wobl), j. iFrame.
-    
-
-NatMapRA.add_local_update:
-  ∀ (A : Type) (m : NatMap.t A) (k : NatMap.key) (a : A),
-    NatMap.find (elt:=A) k m = None
-    → Auth.local_update (Some m) (NatMapRA.unit A) (Some (NatMap.add k a m))
-        (NatMapRA.singleton k a)
-
-OwnM_Upd:
-  ∀ (Σ : GRA.t) (M : URA.t) (H : GRA.inG M Σ) (r1 r2 : M),
-    URA.updatable r1 r2 → OwnM r1 ⊢ #=> OwnM r2
-
-Auth.auth_alloc:
-  ∀ (M : URA.t) (a0 a1 b1 : M),
-    Auth.local_update a0 ε a1 b1
-    → << URA.updatable (Auth.black a0) (Auth.black a1 ⋅ Auth.white b1) >>
-
-    (OwnM (Auth.white (NatMapRA.singleton tid i: NatMapRA.t nat)))
-
-      
-
-      do 2 iExists _. iFrame.
-      
 
     rewrite OpenMod.unfold_iter. rred.
-    
 
         rred. iApply stsim_tauR.
         iMod ("K0" with "[MEM ST]") as "_".
