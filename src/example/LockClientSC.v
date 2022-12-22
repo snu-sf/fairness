@@ -371,10 +371,14 @@ Section SIM.
 
     (* induction *)
     rred. remember ((Ord.omega ^ 2 × Ord.omega) ⊕ Ord.S Ord.O × Ord.omega)%ord as wd. clear Heqwd.
+    clear K NONZERO own mem blks2 j H wobl.
     iStopProof. pattern wd. revert wd.
     apply (well_founded_induction Ord.lt_well_founded). intros wd IH.
     iIntros "[SIM [TAXES [DUTY [MYB MYW]]]]".
     rewrite OpenMod.unfold_iter. rred.
+    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+    iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
+    iApply stsim_getR. iSplit. iFrame. rred.
 
 
   Abort.
