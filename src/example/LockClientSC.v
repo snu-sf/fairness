@@ -170,6 +170,7 @@ Section SIM.
             ∨
             ((⌜own = true⌝)
                ∗ (ObligationRA.pending j 1)
+               ∗ (ObligationRA.black j Ord.omega)
                ∗ (ObligationRA.correl_thread j 1%ord)
                ∗ (natmap_prop_sum wobl (fun tid idx => ObligationRA.amplifier j idx 1%ord))
             )
@@ -283,13 +284,54 @@ Section SIM.
     iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
     iApply stsim_tauR. rred.
 
-    iPoseProof (ObligationRA.alloc (Ord.omega ^ 3)%ord) as "A".
+    iPoseProof (ObligationRA.alloc
+                  (((Ord.omega ^ 2) × Ord.omega) ⊕ ((Ord.S Ord.O) × Ord.omega))%ord) as "A".
     iMod "A" as "[% [[MYB MYW] PEND]]".
+    iPoseProof (ObligationRA.white_split_eq with "MYW") as "[MYW YOUW]".
+    iDestruct "I1" as "[BLKS [SUM CASES]]".
+
+    iAssert ((⌜~ NatMap.In tid wobl⌝) ∧
+               ((own_thread tid)
+                  ∗
+                  (natmap_prop_sum wobl (λ tid0 idx : nat,
+                       own_thread tid0 **
+                       (ObligationRA.correl (inr (inr (inr tid0))) idx (Ord.omega ^ 2)%ord **
+                       ObligationRA.pending idx 1))))
+            )%I with "[TH SUM]" as "[% [TH SUM]]".
+    { iSplit. 2: iFrame.
+      iAssert (⌜(NatMap.In tid wobl)⌝ ∨ ⌜(~ NatMap.In tid wobl)⌝)%I as "[IN | NN]".
+      { iPureIntro. pose NatMapP.F.In_dec. specialize (s _ wobl tid). destruct s; auto. }
+      2: auto.
+      iPoseProof (natmap_prop_sum_impl with "SUM") as "SUM".
+      { instantiate (1:= fun tid0 idx => own_thread tid0). i. iIntros "[F1 F2]". iFrame. }
+      iPure "IN" as IN. apply NatMapP.F.in_find_iff in IN.
+      destruct (NatMap.find tid wobl) eqn:FIND; ss.
+      iPoseProof (natmap_prop_sum_in with "SUM") as "TH2". eauto.
+      iPoseProof (own_thread_unique with "TH TH2") as "F". iPure "F" as F. ss.
+    }
+
+    set (blks2 := 
+           (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
+               (∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t (NatMap.add tid k wobl))%type)).    
+    iPoseProof (FairRA.blacks_unfold with "BLKS") as "[BLKS MYDUTY]".
+    { instantiate (1:=inr (inr (inr tid))). instantiate (1:=blks2). i. des.
+      { subst blks2. ss. des. esplits; eauto. ii; apply IN0. apply NatMapP.F.add_in_iff; auto. }
+      { subst blks2. ss. esplits; eauto. }
+    }
+    { subst blks2. ss. ii. des. clarify. apply H1. apply NatMapP.F.add_in_iff. auto. }
+    iPoseProof (black_to_duty with "MYDUTY") as "MYDUTY".
+    iPoseProof (ObligationRA.duty_alloc with "MYDUTY") as "MYDUTY".
+    iPoseProof ("MYDUTY" with "MYW") as "> MYDUTY".
+    iPoseProof (ObligationRA.duty_correl with "MYDUTY") as "MYCOR".
+    { ss. left; eauto. }
+
+    
     (* make (Auth.white singleton tid k) and update wobl *)
     (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
     (* need to make amp; need ObligationRA.black j ??? *)
     iMod ("K1" with "[TH B1 B2 MEM STGT I1 PEND]") as "A".
-    { unfold lock_will_unlock. iDestruct "I1" as "[BLKS [SUM CASES]]".
+    { unfold lock_will_unlock.
+      iDestruct "I1" as "[BLKS [SUM CASES]]".
       iExists own, mem, (NatMap.add tid k wobl), j. iFrame.
     
 
