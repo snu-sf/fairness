@@ -370,18 +370,11 @@ Section SIM.
     { msubtac. }
 
     (* induction *)
+    rred. remember ((Ord.omega ^ 2 × Ord.omega) ⊕ Ord.S Ord.O × Ord.omega)%ord as wd. clear Heqwd.
+    iStopProof. pattern wd. revert wd.
+    apply (well_founded_induction Ord.lt_well_founded). intros wd IH.
+    iIntros "[SIM [TAXES [DUTY [MYB MYW]]]]".
     rewrite OpenMod.unfold_iter. rred.
-
-        rred. iApply stsim_tauR.
-        iMod ("K0" with "[MEM ST]") as "_".
-        { iExists _. iFrame. }
-        iMod ("K1" with "[POINTL F]") as "_".
-        { iRight. iExists _. iFrame. auto. }
-        { msubtac. }
-        rred. iStopProof. pattern n. revert n.
-        apply (well_founded_induction Ord.lt_well_founded). intros o IH.
-        iIntros "[# [SHOTK [CORR BLACK]] [TH DUTY]]".
-        rewrite OpenMod.unfold_iter. rred.
 
 
   Abort.
