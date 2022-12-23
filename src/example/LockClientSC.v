@@ -299,21 +299,22 @@ Section SIM.
     iPoseProof (ObligationRA.white_split_eq with "MYW") as "[MYW YOUW]".
     iDestruct "I1" as "[BLKS [SUM CASES]]".
 
-    iAssert ((⌜~ NatMap.In tid wobl⌝) ∧
-               ((own_thread tid)
-                  ∗
-                  (natmap_prop_sum wobl (λ tid0 idx : nat,
-                       own_thread tid0 **
-                       (ObligationRA.correl (inr (inr (inr tid0))) idx (Ord.omega ^ 2)%ord **
-                       ObligationRA.pending idx 1))))
-            )%I with "[TH SUM]" as "[% [TH SUM]]".
-    { iSplit. 2: iFrame.
-      iAssert (⌜(NatMap.In tid wobl)⌝ ∨ ⌜(~ NatMap.In tid wobl)⌝)%I as "[IN | NN]".
+    (* iAssert ((⌜~ NatMap.In tid wobl⌝) ∧ *)
+    (*            ((own_thread tid) *)
+    (*               ∗ *)
+    (*               (natmap_prop_sum wobl (λ tid0 idx : nat, *)
+    (*                    own_thread tid0 ** *)
+    (*                    (ObligationRA.correl (inr (inr (inr tid0))) idx (Ord.omega ^ 2)%ord ** *)
+    (*                    ObligationRA.pending idx 1)))) *)
+    (*         )%I with "[TH SUM]" as "[% [TH SUM]]". *)
+    iAssert (⌜~ NatMap.In tid wobl⌝)%I as "%".
+    { iAssert (⌜(NatMap.In tid wobl)⌝ ∨ ⌜(~ NatMap.In tid wobl)⌝)%I as "%".
       { iPureIntro. pose NatMapP.F.In_dec. specialize (s _ wobl tid). destruct s; auto. }
+      destruct H as [IN | NI].
       2: auto.
       iPoseProof (natmap_prop_sum_impl with "SUM") as "SUM".
       { instantiate (1:= fun tid0 idx => own_thread tid0). i. iIntros "[F1 F2]". iFrame. }
-      iPure "IN" as IN. apply NatMapP.F.in_find_iff in IN.
+      apply NatMapP.F.in_find_iff in IN.
       destruct (NatMap.find tid wobl) eqn:FIND; ss.
       iPoseProof (natmap_prop_sum_in with "SUM") as "TH2". eauto.
       iPoseProof (own_thread_unique with "TH TH2") as "F". iPure "F" as F. ss.
@@ -405,24 +406,36 @@ Section SIM.
 
     (* someone is holding the lock *)
     { rred. iDestruct "I1" as "[BLKS [SUM CASES]]".
-      destruct (NatMap.find tid wobl) eqn:FIND.
-      2:{ iPoseProof (OwnM_Upd with "B1") as "OWN1".
-          { eapply Auth.auth_alloc. instantiate (1:=NatMapRA.singleton tid k).
-            instantiate (1:=Some (NatMap.add tid k wobl)). eapply NatMapRA.add_local_update.
-            auto.
-          }
-          iMod "OWN1" as "[OWNB1 MYSING]".
-          iAssert (OwnM ((Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat)))) with "[MYW MYSING]" as "CONTRA".
-          { iSplitL "MYW"; iFrame. }
-          iPoseProof (OwnM_valid with "CONTRA") as "CONTRA". iPure "CONTRA" as CONTRA.
-          exfalso. ur in CONTRA. apply NatMapRA.singleton_unique in CONTRA. ss.
+      iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
+      { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
+        { instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
+        eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H.
+        auto.
       }
-Auth.auth_included:
-  ∀ (M : URA.t) (a b : M), URA.wf (Auth.black a ⋅ Auth.white b) → << URA.extends b a >>
+      rename H into FIND.
 
-
-       iAssert (
-          (ObligationRA.amplifier j )
+      iAssert (
+            ((⌜true = false⌝ **
+             (OwnM (Auth.white (Excl.just j: Excl.t nat)) ** OwnM (Auth.black (Excl.just (): Excl.t unit))))
+            ∨ (⌜true = true⌝ **
+               (ObligationRA.pending j 1 **
+                (ObligationRA.black j Ord.omega **
+                 (ObligationRA.correl_thread j 1 **
+                  natmap_prop_sum wobl (λ _ idx : nat, ObligationRA.amplifier j idx 1))))))
+              ∗
+            (ObligationRA.amplifier j k 1)
+        )%I with "[CASES]" as "[CASES AMP]".
+      { iDestruct "CASES" as "[[C1 _] | [_ [PEND [BLK [COR SUM]]]]]". iPure "C1" as H. ss.
+        iPoseProof (natmap_prop_remove_find with "SUM") as "[# AMP SUMR]".
+        { eapply FIND. }
+        iSplitL.
+        2:{ iModIntro. iApply "AMP". }
+        iAssert (ObligationRA.amplifier j k 1)%I as "AMP2".
+        { iModIntro. iApply "AMP". }
+        iPoseProof (natmap_prop_sum_add with "SUMR AMP2") as "SUM".
+        erewrite <- nm_find_some_rm_add_eq; [|auto].
+        iRight. iFrame. iPureIntro. auto.
+      }
 
       iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM CASES]") as "_".
       { unfold lock_will_unlock. do 4 (iExists _). iFrame. }
@@ -431,6 +444,10 @@ Auth.auth_included:
       iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
       iIntros "DUTY WTH". rred.
       iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+
+      
+
+      iApply IH.
 
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
