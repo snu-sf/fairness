@@ -423,18 +423,20 @@ Section SIM.
                  (ObligationRA.correl_thread j 1 **
                   natmap_prop_sum wobl (λ _ idx : nat, ObligationRA.amplifier j idx 1))))))
               ∗
-            (ObligationRA.amplifier j k 1)
-        )%I with "[CASES]" as "[CASES AMP]".
-      { iDestruct "CASES" as "[[C1 _] | [_ [PEND [BLK [COR SUM]]]]]". iPure "C1" as H. ss.
+              (ObligationRA.amplifier j k 1)
+              ∗
+              (ObligationRA.correl_thread j 1)
+        )%I with "[CASES]" as "[CASES [AMP JCOR]]".
+      { iDestruct "CASES" as "[[C1 _] | [_ [PEND [BLK [#COR SUM]]]]]". iPure "C1" as H. ss.
         iPoseProof (natmap_prop_remove_find with "SUM") as "[# AMP SUMR]".
         { eapply FIND. }
         iSplitL.
-        2:{ iModIntro. iApply "AMP". }
+        2:{ iSplitL. iModIntro. iApply "AMP". iApply "COR". }
         iAssert (ObligationRA.amplifier j k 1)%I as "AMP2".
         { iModIntro. iApply "AMP". }
         iPoseProof (natmap_prop_sum_add with "SUMR AMP2") as "SUM".
         erewrite <- nm_find_some_rm_add_eq; [|auto].
-        iRight. iFrame. iPureIntro. auto.
+        iRight. iFrame. iSplitR; auto.
       }
 
       iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM CASES]") as "_".
@@ -445,10 +447,21 @@ Section SIM.
       iIntros "DUTY WTH". rred.
       iApply stsim_tauR. rred. iApply stsim_tauR. rred.
 
-      
+      (* we can dec after Yield, but then own can change: true: ind, false: exit! *)
+      iPoseProof (ObligationRA.correl_thread_correlate with "JCOR WTH") as "> DEC".
+      iDestruct "DEC" as "[DEC | DONE]".
+      { iPoseProof (ObligationRA.amplifier_amplify with "AMP DEC") as "> DEC".
+        iPoseProof (ObligationRA.black_white_decr with "MYB DEC") as "> [% [MYB %]]".
+        assert (RENEW: (o2 < wd)%ord).
+        { eapply Ord.lt_le_lt. 2: eauto. apply Hessenberg.add_lt_l.
+          rewrite <- Ord.from_nat_O. rewrite <- Jacobsthal.mult_from_nat.
+          apply OrdArith.lt_from_nat. ss.
+        }
+        iApply IH. eapply RENEW. eapply RENEW.
+        iFrame.
+      }
 
-      iApply IH.
-
+      (* own must be false; exit! *)
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
       
