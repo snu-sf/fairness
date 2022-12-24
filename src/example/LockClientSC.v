@@ -228,7 +228,7 @@ Section SIM.
         (ObligationRA.black i m).
 
 
-
+  (* At least (((Ord.omega ^ 2) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))%ord *)
   Lemma ABSLock_lock
         R_src R_tgt tid
         src tgt
@@ -242,7 +242,10 @@ Section SIM.
        ∗
        (ObligationRA.duty (inl tid) l)
        ∗
-       (ObligationRA.taxes l ((Ord.omega ^ 2) × (Ord.omega ⊕ Ord.omega))%ord))
+       (ObligationRA.taxes
+          l ((((Ord.omega ^ 2) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))
+               ⊕ 2)%ord))
+       (* (ObligationRA.taxes l ((Ord.omega ⊕ (Ord.omega ^ 2)) × (Ord.omega ⊕ Ord.omega))%ord)) *)
        (* (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord)) *)
       ∗
       (((own_thread tid)
@@ -264,13 +267,16 @@ Section SIM.
     iIntros "[[TH [DUTY TAXES]] SIM]".
     rewrite close_itree_call. ss. rred.
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "TAXES".
-    { eapply Jacobsthal.lt_mult_r. eapply Hessenberg.lt_add_r. eapply (Ord.omega_upperbound 1).
-      setoid_rewrite <- Ord.from_nat_O. etrans. eapply Ord.omega_upperbound.
-      remember (Ord.omega ^ 2)%ord as temp. rewrite <- OrdArith.expn_1_r. subst temp.
-      apply OrdArith.lt_expn_r. setoid_rewrite <- Ord.from_nat_1. eapply Ord.omega_upperbound.
-      setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto.
-      setoid_rewrite <- Ord.from_nat_O. eapply Ord.omega_upperbound.
-    }
+    { eapply Hessenberg.lt_add_r. apply OrdArith.lt_from_nat. instantiate (1:=1). auto. }
+    (* { eapply Jacobsthal.lt_mult_r. eapply Hessenberg.lt_add_r. eapply (Ord.omega_upperbound 1). *)
+    (*   setoid_rewrite <- Ord.from_nat_O. etrans. eapply Ord.omega_upperbound. *)
+    (*   apply Hessenberg.add_lt_l. setoid_rewrite <- Ord.from_nat_O. etrans. *)
+    (*   eapply Ord.omega_upperbound. *)
+    (*   remember (Ord.omega ^ 2)%ord as temp. rewrite <- OrdArith.expn_1_r. subst temp. *)
+    (*   apply OrdArith.lt_expn_r. setoid_rewrite <- Ord.from_nat_1. eapply Ord.omega_upperbound. *)
+    (*   setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto. *)
+    (*   setoid_rewrite <- Ord.from_nat_O. eapply Ord.omega_upperbound. *)
+    (* } *)
     iMod "TAXES". iDestruct "TAXES" as "[TAXES TAX]".
 
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
@@ -370,20 +376,29 @@ Section SIM.
     rred. iApply stsim_discard.
     { instantiate (1:=topset I). msubtac. }
     remember ((Ord.omega ^ 2 × Ord.omega) ⊕ Ord.S Ord.O × (Ord.omega ⊕ Ord.omega))%ord as wd.
-    remember (Ord.omega ^ 2 × Ord.omega ⊕ 1)%ord as credit.
+    remember (wd ⊕ 1)%ord as credit.
+    (* remember ((Ord.omega ⊕ (Ord.omega ^ 2)) × Ord.omega ⊕ 1)%ord as credit. *)
     assert (RICH: (wd < credit)%ord).
-    { subst credit. rewrite ClassicJacobsthal.mult_dist. subst. apply Hessenberg.lt_add_r.
-      rewrite Jacobsthal.mult_1_l. rewrite Jacobsthal.mult_1_r.
-      (*TODO 1*)
-      remember (Ord.omega ^ 2)%ord as temp. rewrite <- OrdArith.expn_1_r. subst.
-      apply OrdArith.lt_expn_r. setoid_rewrite <- Ord.from_nat_1. apply Ord.omega_upperbound.
-      setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto.
-      rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound.
+    { subst; apply Hessenberg.add_lt_l. rewrite <- Ord.from_nat_O.
+      apply OrdArith.lt_from_nat. auto.
     }
+    (* { subst credit. rewrite ClassicJacobsthal.mult_dist. subst. *)
+    (*   etrans. apply Hessenberg.lt_add_l. *)
+    (*   instantiate (1:=((Ord.omega ⊕ (Ord.omega ^ 2)) × Ord.omega)%ord). *)
+    (*   rewrite ClassicJacobsthal.mult_dist. *)
+    (*   apply Jacobsthal.lt_mult_r. *)
+
+    (*   etrans. apply Hessenberg.lt_add_r. *)
+    (*   rewrite Jacobsthal.mult_1_l. rewrite Jacobsthal.mult_1_r. *)
+    (*   remember (Ord.omega ^ 2)%ord as temp. rewrite <- OrdArith.expn_1_r. subst. *)
+    (*   apply OrdArith.lt_expn_r. setoid_rewrite <- Ord.from_nat_1. apply Ord.omega_upperbound. *)
+    (*   setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto. *)
+    (*   rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound. *)
+    (* } *)
     clear Heqwd Heqcredit.
-    clear own mem blks2 j H wobl.
-    iStopProof. revert credit RICH. pattern wd. revert wd.
-    apply (well_founded_induction Ord.lt_well_founded). intros wd IH. intros credit RICH.
+    clear own mem blks2 j H wobl. iClear "MYCOR".
+    iStopProof. revert l k credit RICH. pattern wd. revert wd.
+    apply (well_founded_induction Ord.lt_well_founded). intros wd IH. intros l k credit RICH.
     iIntros "[SIM [TAXES [DUTY [MYB MYW]]]]".
     rewrite OpenMod.unfold_iter. rred.
     iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
@@ -392,7 +407,23 @@ Section SIM.
     iApply stsim_tauR. rred. destruct own.
 
     (* someone is holding the lock *)
-    { rred. iDestruct "I1" as "[BLKS [SUM CASES]]".
+    { rred.
+      (* iDestruct "I1" as "[BLKS [SUM CASES]]". *)
+      (* iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM CASES]") as "_". *)
+      iMod ("K1" with "[B1 B2 MEM STGT I1]") as "_".
+      { unfold lock_will_unlock. do 4 (iExists _). iFrame. }
+      { msubtac. }
+      iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]". eauto.
+      iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
+      iIntros "DUTY WTH". rred.
+      iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+
+      (* after Yield, own = true -> induction, own = false -> exit *)
+      (* so open Inv and case analysis on j' *)
+      clear mem wobl j.
+      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iDestruct "I1" as "[B1 [B2 [MEM [STGT [BLKS [SUM CASES]]]]]]".
+
       iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
       { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
         { instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
@@ -401,40 +432,38 @@ Section SIM.
       }
       rename H into FIND.
 
-      iAssert ((ObligationRA.amplifier j k 1)
-                 ∗
-                 (ObligationRA.correl_thread j 1))%I with "[CASES]" as "#[AMP JCOR]".
-      { iDestruct "CASES" as "[[C1 _] | [_ [PEND [BLK [#COR SUM]]]]]". iPure "C1" as H. ss.
-        iPoseProof (natmap_prop_remove_find with "SUM") as "[# AMP SUMR]".
-        { eapply FIND. }
-        auto.
-      }
+      iDestruct "CASES" as "[[%OWNF [LOCK EXCL]] | [%OWNT [JPEND [JBLK [#JCOR AMPs]]]]]"; cycle 1.
 
-      iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM CASES]") as "_".
-      { unfold lock_will_unlock. do 4 (iExists _). iFrame. }
-      { msubtac. }
-      iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]". eauto.
-      iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
-      iIntros "DUTY WTH". rred.
-      iApply stsim_tauR. rred. iApply stsim_tauR. rred.
-
-      (* we can dec after Yield, but then own can change: true: ind, false: exit! *)
-      iPoseProof (ObligationRA.correl_thread_correlate with "JCOR WTH") as "> DEC".
-      iDestruct "DEC" as "[DEC | DONE]".
-      { iPoseProof (ObligationRA.amplifier_amplify with "AMP DEC") as "> DEC".
-        iPoseProof (ObligationRA.black_white_decr with "MYB DEC") as "> [% [MYB %]]".
-        assert (RENEW: (o2 < wd)%ord).
-        { eapply Ord.lt_le_lt. 2: eauto. apply Hessenberg.add_lt_l.
-          rewrite <- Ord.from_nat_O. rewrite <- Jacobsthal.mult_from_nat.
-          apply OrdArith.lt_from_nat. ss.
+      (* own = true, induction *)
+      { iAssert (ObligationRA.amplifier j k 1)%I with "[AMPs]" as "#AMP".
+        { iPoseProof (natmap_prop_remove_find with "AMPs") as "[# AMP AMPs]".
+          { eapply FIND. }
+          auto.
         }
-        iApply IH. eapply RENEW. eapply RENEW.
-        iFrame.
+
+        iPoseProof (ObligationRA.correl_thread_correlate with "JCOR WTH") as "> DEC".
+        iDestruct "DEC" as "[DEC | DONE]"; cycle 1.
+        { iPoseProof (ObligationRA.pending_not_shot with "JPEND DONE") as "CONTRA". auto. }
+        { iPoseProof (ObligationRA.amplifier_amplify with "AMP DEC") as "> DEC".
+          iPoseProof (ObligationRA.black_white_decr with "MYB DEC") as "> [% [MYB %]]".
+          assert (RENEW: (o2 < wd)%ord).
+          { eapply Ord.lt_le_lt. 2: eauto. apply Hessenberg.add_lt_l.
+            rewrite <- Ord.from_nat_O. rewrite <- Jacobsthal.mult_from_nat.
+            apply OrdArith.lt_from_nat. ss.
+          }
+          iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM JPEND JBLK AMPs]") as "_".
+          { unfold lock_will_unlock. do 4 (iExists _). iFrame.
+            iRight. iFrame. iSplit; auto.
+          }
+          { msubtac. }
+          iApply IH. eapply RENEW. eapply RENEW.
+          iFrame.
+        }
       }
 
-      (* own must be false; exit! *)
-      clear credit RICH wobl FIND IH. iClear "MYB TAXES". clear wd.
+      (* own = false, exit *)
       (*TODO*)
+      clear credit RICH wobl FIND IH. iClear "MYB TAXES AMP JCOR". clear wd.
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
 
