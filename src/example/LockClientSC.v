@@ -478,7 +478,36 @@ Section SIM.
       iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
       iApply stsim_tauR. rred.
 
-      (*TODO*)
+      iPoseProof (natmap_prop_remove_find with "SUM") as "[[MYTH [_ [MYPEND MYDUTY]]] SUM]".
+      eapply FIND. iPoseProof (ObligationRA.pending_shot with "MYPEND") as "> MYDONE".
+      iPoseProof (ObligationRA.duty_done with "MYDUTY MYDONE") as "> MYDUTY".
+      iApply (stsim_fairR with "[MYDUTY]").
+      4:{ instantiate (1:=[(inr (inr tid), [])]). ss. iFrame. }
+      { clear. i. unfold sum_fmap_r in *. des_ifs. ss. auto. }
+      { instantiate (1:= List.map (fun '(j, _) => inr (inr j)) (NatMap.elements (NatMap.remove tid (key_set wobl)))). clear. i. unfold sum_fmap_r.
+        assert (A: exists j, (i = inr (inr j)) /\ (NatMap.In j (NatMap.remove tid (key_set wobl)))).
+        { apply in_map_iff in IN. des. des_ifs. destruct u. esplits; eauto.
+          remember (NatMap.remove tid (key_set wobl)) as M. clear HeqM.
+          apply NatMapP.F.elements_in_iff. exists (). apply SetoidList.InA_alt.
+          exists (k, ()). ss.
+        }
+        des. subst. des_ifs. apply in_map_iff in IN. des. des_ifs. destruct u.
+        eapply SetoidList.In_InA in IN0. eapply NatMap.elements_2 in IN0.
+        apply NatMapP.F.remove_mapsto_iff in IN0. des; ss.
+        apply NatMapP.eqke_equiv.
+      }
+      { eapply FinFun.Injective_map_NoDup.
+        { unfold FinFun.Injective. i. des_ifs. destruct u, u0. ss. }
+        apply NoDupA_NoDup. apply NatMap.elements_3w.
+      }
+      iIntros "MYDUTY WHITES". rred.
+      iApply stsim_tauR. rred.
+      iApply stsim_tauR. rred.
+
+      (* close invariant *)
+      
+        (*TODO*)
+      
 Jacobsthal.mult_S: ∀ o0 o1 : Ord.t, ((o0 × Ord.S o1) == (o0 ⊕ o0 × o1))%ord
 Jacobsthal.lt_mult_r:
   ∀ o0 o1 o2 : Ord.t, (o1 < o2)%ord → (Ord.O < o0)%ord → ((o0 × o1) < (o0 × o2))%ord

@@ -1660,6 +1660,19 @@ Section AUX.
     split; auto. eapply PROP. eapply nm_elements_cons_find_some; eauto. eapply nm_elements_cons_find_some; eauto.
   Qed.
 
+
+  Lemma NoDupA_NoDup
+        elt l
+    :
+    SetoidList.NoDupA (NatMap.eq_key (elt:=elt)) l ->
+    List.NoDup l.
+  Proof.
+    induction l; ss.
+    { i; ss. econs. }
+    i; ss.
+    inv H. econs. 2: apply IHl; auto. ii. apply H2. apply In_InA; auto.
+  Qed.
+
 End AUX.
 
 
