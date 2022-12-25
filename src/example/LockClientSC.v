@@ -545,7 +545,7 @@ Section SIM.
       iPoseProof (ObligationRA.duty_correl_thread with "DUTY") as "#NEWCORTH".
       { ss. left; eauto. }
 
-      (* need amps; how? *)
+      (* need amps == need pendings; *)
         (*TODO*)
 
       iAssert (natmap_prop_sum new_wobl (fun (_:nat) idx => ObligationRA.amplifier k idx 1%ord))
