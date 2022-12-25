@@ -505,8 +505,52 @@ Section SIM.
       iApply stsim_tauR. rred.
 
       (* close invariant *)
+      iPoseProof (OwnM_Upd with "[B1 MYW]") as "> B1".
+      2:{ instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
+      { eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update. }
+      rewrite <- key_set_pull_rm_eq in *. remember (NatMap.remove tid wobl) as new_wobl.
+
+      iPoseProof (list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".
+      iPoseProof (duty_to_black with "MYDUTY") as "MYBEX".
+      iPoseProof (FairRA.blacks_fold with "[BLKS MYBEX]") as "BLKS".
+      2:{ iFrame. }
+      { instantiate (1:=
+         (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
+             ∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t new_wobl)).
+        i. ss. des. destruct (tid_dec t tid) eqn:DEC.
+        - clarify. auto.
+        - left. esplits; eauto. ii. apply IN0. subst. apply NatMapP.F.remove_in_iff.
+          split; auto.
+      }
+
+      iClear "MYB TAXES". clear Heqnew_wobl FIND wd k wobl.
+      iPoseProof (ObligationRA.alloc (Ord.omega ⊕ Ord.omega)%ord) as "> [% [[NEWB NEWW] NEWP]]".
+      iPoseProof (OwnM_Upd with "[B2 LOCK]") as "> B2".
+      2:{ instantiate (1:= (Auth.black (Excl.just j: Excl.t nat)) ⋅ (Auth.white (Excl.just j: Excl.t nat))). iSplitL "B2"; iFrame. }
+      { eapply Auth.auth_update. do 2 instantiate (1:=Excl.just k).
+        clear. ii. des. split.
+        - ur. ss.
+        - ur. ur in FRAME. des_ifs.
+      }
+      iDestruct "B2" as "[B2 LOCK]". clear j.
+
+      
+      
       
         (*TODO*)
+        (
+          ((⌜own = false⌝)
+             ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
+             ∗ (OwnM (Auth.black (Excl.just tt: Excl.t unit)))
+          )
+            ∨
+            ((⌜own = true⌝)
+               ∗ (ObligationRA.pending j 1)
+               ∗ (ObligationRA.black j (Ord.omega ⊕ Ord.omega)%ord)
+               ∗ (ObligationRA.correl_thread j 1%ord)
+               ∗ (natmap_prop_sum wobl (fun _ idx => ObligationRA.amplifier j idx 1%ord))
+            )
+        )
       
 Jacobsthal.mult_S: ∀ o0 o1 : Ord.t, ((o0 × Ord.S o1) == (o0 ⊕ o0 × o1))%ord
 Jacobsthal.lt_mult_r:
@@ -515,6 +559,10 @@ Jacobsthal.lt_mult_r:
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
 
+NatMapRA.remove_local_update:
+  ∀ (A : Type) (m : NatMap.t A) (k : nat) (a : A),
+    Auth.local_update (Some m) (NatMapRA.singleton k a) (Some (NatMap.remove (elt:=A) k m))
+      (NatMapRA.unit A)
 
   Abort.
 
