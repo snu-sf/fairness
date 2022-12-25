@@ -462,31 +462,24 @@ Section SIM.
       }
 
       (* own = false, exit *)
+      clear IH credit RICH.
+      rewrite OpenMod.unfold_iter. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
+      iApply stsim_tauR. rred.
+      subst own. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
+      iApply stsim_tauR. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
+      iApply stsim_tauR. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
+      iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
+      iApply stsim_tauR. rred.
+
       (*TODO*)
       clear credit RICH wobl FIND IH. iClear "MYB TAXES AMP JCOR". clear wd.
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
 
-      rewrite OpenMod.unfold_iter. rred.
-    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
-    iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
-    iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_tauR. rred. destruct own.
-      
-    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
-    iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
-    iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_tauR. rred. destruct own.
-
-    (* someone is holding the lock *)
-    { rred. iDestruct "I1" as "[BLKS [SUM CASES]]".
-      iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
-      { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
-        { instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
-        eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H.
-        auto.
-      }
-      rename H into FIND.
 
   Abort.
 
