@@ -545,12 +545,23 @@ Section SIM.
       iPoseProof (ObligationRA.duty_correl_thread with "DUTY") as "#NEWCORTH".
       { ss. left; eauto. }
 
+      (* need amps; how? *)
+        (*TODO*)
+
       iAssert (natmap_prop_sum new_wobl (fun (_:nat) idx => ObligationRA.amplifier k idx 1%ord))
         with "[NEWB WHITES SUM]" as "#AMPs".
       { iPoseProof (natmap_prop_sum_impl with "SUM") as "PENDs".
         { instantiate (1:=fun tid0 idx => ObligationRA.pending idx 1).
           i. iIntros "[_ [_ [Ps _]]]". iFrame. }
-        (*TODO*)
+        unfold key_set. rewrite <- list_map_elements_nm_map. rewrite List.map_map.
+        unfold natmap_prop_sum. remember (NatMap.elements new_wobl) as wl. clear new_wobl Heqwl.
+        iStopProof. pattern wl. induction wl.
+        { iIntros "[# [CORs CORTH] [BLK [WHITEs PENDs]]]". ss. }
+        iIntros "[# [CORs CORTH] [BLK [WHITEs PENDs]]]". ss. des_ifs.
+        iDestruct "WHITEs" as "[WH WHITEs]". iDestruct "PENDs" as "[PE PENDs]".
+        iSplitL ""
+        
+        
         iAssert (⌜forall k a, NatMap.find k new_wobl = Some a -> ⊤%I ⊢ (ObligationRA.amplifier k a 1)⌝)%I as "%".
         { 
         iApply (natmap_prop_sum_impl with "[NEWB WHITES PENDs]").
