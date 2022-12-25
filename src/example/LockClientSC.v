@@ -534,7 +534,47 @@ Section SIM.
       }
       iDestruct "B2" as "[B2 LOCK]". clear j.
 
+      iAssert (natmap_prop_sum new_wobl (fun tid0 idx => ObligationRA.correl (inr (inr (inr tid0))) idx (Ord.omega × Ord.omega)%ord)) with "[SUM]" as "#CORs".
+      { iApply natmap_prop_sum_impl. 2: iFrame.
+        i. iIntros "[_ [CORS _]]".  iFrame.
+      }
+      iPoseProof (ObligationRA.white_split_eq with "NEWW") as "[NEWW1 NEWW2]".
+      iPoseProof (ObligationRA.white_eq with "NEWW1") as "NEWW1".
+      { symmetry. apply Jacobsthal.mult_1_l. }
+      iPoseProof (ObligationRA.duty_alloc with "DUTY NEWW1") as "> DUTY".
+      iPoseProof (ObligationRA.duty_correl_thread with "DUTY") as "#NEWCORTH".
+      { ss. left; eauto. }
+
+      iAssert (natmap_prop_sum new_wobl (fun (_:nat) idx => ObligationRA.amplifier k idx 1%ord))
+        with "[NEWB WHITES SUM]" as "#AMPs".
+      { iPoseProof (natmap_prop_sum_impl with "SUM") as "PENDs".
+        { instantiate (1:=fun tid0 idx => ObligationRA.pending idx 1).
+          i. iIntros "[_ [_ [Ps _]]]". iFrame. }
+        (*TODO*)
+        iAssert (⌜forall k a, NatMap.find k new_wobl = Some a -> ⊤%I ⊢ (ObligationRA.amplifier k a 1)⌝)%I as "%".
+        { 
+        iApply (natmap_prop_sum_impl with "[NEWB WHITES PENDs]").
       
+Jacobsthal.mult_S: ∀ o0 o1 : Ord.t, ((o0 × Ord.S o1) == (o0 ⊕ o0 × o1))%ord
+Jacobsthal.lt_mult_r:
+  ∀ o0 o1 o2 : Ord.t, (o1 < o2)%ord → (Ord.O < o0)%ord → ((o0 × o1) < (o0 × o2))%ord
+      clear credit RICH wobl FIND IH. iClear "MYB TAXES AMP JCOR". clear wd.
+      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
+
+
+      iMod ("K1" with "[MEM EXCL STGT MYTH SUM WHITES B1 BLKS NEWB NEWP B2]") as "_".
+      { unfold lock_will_unlock. iExists own, mem, (NatMap.add tid k wobl), j. iFrame.
+        rewrite key_set_pull_add_eq. iFrame. iSplitL "SUM TH MYDUTY MYCOR PEND".
+        { iApply (natmap_prop_sum_add with "SUM"). iFrame. auto. }
+        iDestruct "CASES" as "[OWNF | [OT [PEND [JBLK [JCOR ALLAMP]]]]]". iFrame.
+        iRight. iPure "OT" as OT. iFrame. iSplit; auto.
+        iApply (natmap_prop_sum_add with "ALLAMP"). iApply "AMP". auto.
+      }
+      { msubtac. }
+      
+
+      iPoseProof ((natmap_prop_sum_impl (P1:=Ob)) with "SUM") as "#CORs".
       
       
         (*TODO*)
@@ -552,13 +592,6 @@ Section SIM.
             )
         )
       
-Jacobsthal.mult_S: ∀ o0 o1 : Ord.t, ((o0 × Ord.S o1) == (o0 ⊕ o0 × o1))%ord
-Jacobsthal.lt_mult_r:
-  ∀ o0 o1 o2 : Ord.t, (o1 < o2)%ord → (Ord.O < o0)%ord → ((o0 × o1) < (o0 × o2))%ord
-      clear credit RICH wobl FIND IH. iClear "MYB TAXES AMP JCOR". clear wd.
-      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
-      iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
-
 NatMapRA.remove_local_update:
   ∀ (A : Type) (m : NatMap.t A) (k : nat) (a : A),
     Auth.local_update (Some m) (NatMapRA.singleton k a) (Some (NatMap.remove (elt:=A) k m))

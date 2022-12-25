@@ -2484,6 +2484,26 @@ Section SUM.
     { iApply (IHl with "TL"). }
   Qed.
 
+  Lemma list_prop_sum_persistent A (P: A -> iProp) l
+        (PERSIST: forall a, Persistent (P a))
+    :
+    (list_prop_sum P l) -∗ (□ list_prop_sum P l).
+  Proof.
+    induction l.
+    { iIntros "_". ss. }
+    ss. iIntros "[#P Ps]". 
+    iApply intuitionistically_sep_2. iSplitL "P".
+    - iModIntro. auto.
+    - iApply IHl; iFrame.
+  Qed.
+
+  Global Program Instance Persistent_list_prop_sum
+         A (P: A -> iProp) l (PERSIST: forall a, Persistent (P a)) : Persistent (list_prop_sum P l).
+  Next Obligation.
+  Proof.
+    iIntros "Ps". iPoseProof (list_prop_sum_persistent with "Ps") as "Ps". auto.
+  Qed.
+
   Lemma list_map_forall2 A B (f: A -> B)
         l
     :
@@ -2582,4 +2602,21 @@ Section SUM.
       ss. iFrame.
     }
   Qed.
+
+  Lemma natmap_prop_sum_persistent A (P: nat -> A -> iProp) m
+        (PERSIST: forall n a, Persistent (P n a))
+    :
+    (natmap_prop_sum m P) -∗ (□ natmap_prop_sum m P).
+  Proof.
+    unfold natmap_prop_sum. apply list_prop_sum_persistent. i. des_ifs.
+  Qed.
+
+  Global Program Instance Persistent_natmap_prop_sum
+         A (P: nat -> A -> iProp) m
+         (PERSIST: forall n a, Persistent (P n a)) : Persistent (natmap_prop_sum m P).
+  Next Obligation.
+  Proof.
+    iIntros "Ps". iPoseProof (natmap_prop_sum_persistent with "Ps") as "Ps". auto.
+  Qed.
+
 End SUM.
