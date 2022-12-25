@@ -155,11 +155,13 @@ Section SIM.
                          (fun tid idx =>
                             (own_thread tid)
                               ∗
-                              (ObligationRA.correl (inr (inr (inr tid))) idx (Ord.omega ^ 2)%ord)
+                              (ObligationRA.correl (inr (inr (inr tid))) idx
+                                                   (Ord.omega × Ord.omega)%ord)
                               ∗
                               (ObligationRA.pending idx 1)
                               ∗
-                              (ObligationRA.duty (inr (inr (inr tid))) [(idx, (Ord.omega ^ 2)%ord)])
+                              (ObligationRA.duty (inr (inr (inr tid)))
+                                                 [(idx, (Ord.omega × Ord.omega)%ord)])
         ))
         ∗
         (
@@ -223,27 +225,26 @@ Section SIM.
     ∃ (tid: thread_id) (i: nat) m,
       (OwnM (Auth.white (NatMapRA.singleton tid i: NatMapRA.t nat)))
         ∗
-        (ObligationRA.correl (inr (inr (inr tid))) i (Ord.omega ^ 2)%ord)
+        (ObligationRA.correl (inr (inr (inr tid))) i (Ord.omega × Ord.omega)%ord)
+        (* (ObligationRA.correl (inr (inr (inr tid))) i (Ord.omega ^ 2)%ord) *)
         ∗
         (ObligationRA.black i m).
 
 
-  (* At least (((Ord.omega ^ 2) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))%ord *)
+  (* At least (((Ord.omega × Ord.omega) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))%ord *)
   Lemma ABSLock_lock
         R_src R_tgt tid
         src tgt
         r g
         (Q: R_src -> R_tgt -> iProp)
         (l: list (nat * Ord.t)%type)
-        (* K *)
-        (* (NONZERO: exists K', (K' < K)%ord) *)
     :
     ((own_thread tid)
        ∗
        (ObligationRA.duty (inl tid) l)
        ∗
        (ObligationRA.taxes
-          l ((((Ord.omega ^ 2) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))
+          l ((((Ord.omega × Ord.omega) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))
                ⊕ 2)%ord))
        (* (ObligationRA.taxes l ((Ord.omega ⊕ (Ord.omega ^ 2)) × (Ord.omega ⊕ Ord.omega))%ord)) *)
        (* (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord)) *)
@@ -294,7 +295,8 @@ Section SIM.
     iApply stsim_tauR. rred.
 
     iPoseProof (ObligationRA.alloc
-                  (((Ord.omega ^ 2) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))%ord) as "A".
+                  (((Ord.omega × Ord.omega) × Ord.omega)
+                     ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))%ord) as "A".
     iMod "A" as "[% [[MYB MYW] PEND]]".
     iPoseProof (ObligationRA.white_split_eq with "MYW") as "[MYW YOUW]".
     iDestruct "I1" as "[BLKS [SUM CASES]]".
@@ -375,7 +377,8 @@ Section SIM.
     (* induction *)
     rred. iApply stsim_discard.
     { instantiate (1:=topset I). msubtac. }
-    remember ((Ord.omega ^ 2 × Ord.omega) ⊕ Ord.S Ord.O × (Ord.omega ⊕ Ord.omega))%ord as wd.
+    remember (((Ord.omega × Ord.omega) × Ord.omega)
+                ⊕ Ord.S Ord.O × (Ord.omega ⊕ Ord.omega))%ord as wd.
     remember (wd ⊕ 1)%ord as credit.
     (* remember ((Ord.omega ⊕ (Ord.omega ^ 2)) × Ord.omega ⊕ 1)%ord as credit. *)
     assert (RICH: (wd < credit)%ord).
@@ -476,6 +479,9 @@ Section SIM.
       iApply stsim_tauR. rred.
 
       (*TODO*)
+Jacobsthal.mult_S: ∀ o0 o1 : Ord.t, ((o0 × Ord.S o1) == (o0 ⊕ o0 × o1))%ord
+Jacobsthal.lt_mult_r:
+  ∀ o0 o1 o2 : Ord.t, (o1 < o2)%ord → (Ord.O < o0)%ord → ((o0 × o1) < (o0 × o2))%ord
       clear credit RICH wobl FIND IH. iClear "MYB TAXES AMP JCOR". clear wd.
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
