@@ -210,14 +210,15 @@ Section SIM.
        (ObligationRA.taxes
           l ((((Ord.omega × Ord.omega) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))
                ⊕ 2)%ord))
-       (* (ObligationRA.taxes l ((Ord.omega ⊕ (Ord.omega ^ 2)) × (Ord.omega ⊕ Ord.omega))%ord)) *)
-       (* (ObligationRA.taxes l ((Ord.omega ^ 2) × K)%ord)) *)
       ∗
       (((own_thread tid)
           ∗
           (∃ j, (ObligationRA.duty (inl tid) ((j, (Ord.S Ord.O)) :: l))
                   ∗
-                  (ObligationRA.white j Ord.omega))
+                  (ObligationRA.white j Ord.omega)
+                  ∗
+                  (OwnM (Auth.white (Excl.just j: Excl.t nat)))
+          )
           ∗
           (OwnM (Auth.black (Excl.just tt: Excl.t unit))))
          -∗
@@ -529,7 +530,7 @@ Section SIM.
       { unfold lock_will_unlock. iExists true, mem, new_wobl, k. iFrame. iRight. iFrame. auto. }
       { msubtac. }
       iApply stsim_discard. instantiate (1:=topset I). msubtac.
-      iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL]") as "SIM".
+      iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL LOCK]") as "SIM".
       iFrame. iExists k. iFrame.
       iFrame.
     }
@@ -669,19 +670,23 @@ Section SIM.
       { unfold lock_will_unlock. iExists true, mem, new_wobl, k. iFrame. iRight. iFrame. auto. }
       { msubtac. }
       iApply stsim_discard. instantiate (1:=topset I). msubtac.
-      iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL]") as "SIM".
+      iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL LOCK]") as "SIM".
       iFrame. iExists k. iFrame.
       iFrame.
     }
   Qed.
 
-  Lemma ABSLock_unlock K
+  Lemma ABSLock_unlock
         R_src R_tgt src tgt tid
         r g
         (Q: R_src -> R_tgt -> iProp)
         l
     :
-    ((ObligationRA.duty (inl tid) l) ∗ (ObligationRA.taxes l Ord.omega) ∗ (OwnM (Auth.black (Excl.just tt))))
+    ((ObligationRA.duty (inl tid) l)
+       ∗ (ObligationRA.taxes l Ord.omega)
+       ∗ (OwnM (Auth.black (Excl.just tt: Excl.t unit)))
+       ∗ (∃ k, OwnM (Auth.white (Excl.just k: Excl.t nat)))
+    )
       ∗
       ((ObligationRA.duty (inl tid) l)
          -∗
@@ -691,9 +696,39 @@ Section SIM.
       ⊢
       (stsim I tid (topset I) r g Q
              (trigger Yield;;; src)
-             (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (OMod.call "unlock" ());;; tgt)).
+             (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (R:=unit) (OMod.call "unlock" ());;; tgt)).
   Proof.
-  Abort.
+    iIntros "[[DUTY [TAXES [EXCL LOCK]]] SIM]".
+    rewrite close_itree_call. ss. rred.
+    iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]".
+    { instantiate (1:=1). eapply Ord.omega_upperbound. }
+    iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
+    iIntros "DUTY _". rred.
+    unfold ABSLock.unlock_fun, Mod.wrap_fun. rred.
+    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+    iDestruct "I1" as "[B1 [B2 [MEM [STGT [BLKS [SUM [CONTRA | CASE]]]]]]]".
+    { iDestruct "CONTRA" as "[_ [_ EXCL2]]". iPoseProof (OwnM_valid with "[EXCL EXCL2]") as "%".
+      { instantiate (1:= (Auth.black (Excl.just (): Excl.t unit)) ⋅ (Auth.black (Excl.just (): Excl.t unit))). iSplitL "EXCL". all: iFrame. }
+      eapply Auth.auth_exclusive in H. inversion H.
+    }
+    iDestruct "CASE" as "[% [JPEND [JBLK [JCOR AMPs]]]]". subst own.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_tauR. rred.
+
+    iDestruct "LOCK" as "[% LOCK]". iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
+    iMod ("K1" with "[EXCL LOCK B1 B2 MEM BLKS SUM STGT]") as "_".
+    { unfold lock_will_unlock. iExists false, mem, wobl, k. iFrame.
+      iLeft. iFrame. auto.
+    }
+    { msubtac. }
+    iApply "SIM". iFrame.
+  Qed.
 
   Lemma correct_thread1 tid:
     (own_thread tid ∗ ObligationRA.duty (inl tid) []) ⊢

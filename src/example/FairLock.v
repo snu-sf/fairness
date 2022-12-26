@@ -16,8 +16,6 @@ Module ABSLock.
     fun _ =>
       tid <- trigger (GetTid);;
       '(own, ts) <- trigger (@Get _);;
-      (* if (NatMapP.F.In_dec ts tid) *)
-      (* then x <- trigger (Choose void);; (Empty_set_rec _ x) else *)
       let ts := NatMap.add tid tt ts in
       _ <- trigger (Put (own, ts));;
       _ <- (ITree.iter
