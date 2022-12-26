@@ -139,6 +139,8 @@ Section SIM.
             ∨
               (ObligationRA.shot k ∗ points_to loc_X const_42)).
 
+  Definition o_w_cor: Ord.t := (Ord.omega × Ord.omega)%ord.
+
   Definition lock_will_unlock : iProp :=
     ∃ (own: bool) (mem: SCMem.t) (wobl: NatMap.t nat) (j: nat),
       (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
@@ -155,13 +157,11 @@ Section SIM.
                          (fun tid idx =>
                             (own_thread tid)
                               ∗
-                              (ObligationRA.correl (inr (inr (inr tid))) idx
-                                                   (Ord.omega × Ord.omega)%ord)
+                              (ObligationRA.correl (inr (inr (inr tid))) idx o_w_cor)
                               ∗
                               (ObligationRA.pending idx 1)
                               ∗
-                              (ObligationRA.duty (inr (inr (inr tid)))
-                                                 [(idx, (Ord.omega × Ord.omega)%ord)])
+                              (ObligationRA.duty (inr (inr (inr tid))) [(idx, o_w_cor)])
         ))
         ∗
         (
@@ -172,7 +172,8 @@ Section SIM.
             ∨
             ((⌜own = true⌝)
                ∗ (ObligationRA.pending j 1)
-               ∗ (ObligationRA.black j (Ord.omega ⊕ Ord.omega)%ord)
+               ∗ (ObligationRA.black j o_w_cor)
+               (* ∗ (ObligationRA.black j (Ord.omega ⊕ (Ord.omega × Ord.omega))%ord) *)
                ∗ (ObligationRA.correl_thread j 1%ord)
                ∗ (natmap_prop_sum wobl (fun _ idx => ObligationRA.amplifier j idx 1%ord))
             )
@@ -189,33 +190,34 @@ Section SIM.
     ∃ (tid: thread_id) (i: nat) m,
       (OwnM (Auth.white (NatMapRA.singleton tid i: NatMapRA.t nat)))
         ∗
-        (ObligationRA.correl (inr (inr (inr tid))) i (Ord.omega × Ord.omega)%ord)
+        (ObligationRA.correl (inr (inr (inr tid))) i o_w_cor)
         (* (ObligationRA.correl (inr (inr (inr tid))) i (Ord.omega ^ 2)%ord) *)
         ∗
         (ObligationRA.black i m).
 
-
-  (* At least (((Ord.omega × Ord.omega) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))%ord *)
   Lemma ABSLock_lock
         R_src R_tgt tid
         src tgt
         r g
         (Q: R_src -> R_tgt -> iProp)
         (l: list (nat * Ord.t)%type)
+        (num_line: nat)
     :
     ((own_thread tid)
        ∗
        (ObligationRA.duty (inl tid) l)
        ∗
        (ObligationRA.taxes
-          l ((((Ord.omega × Ord.omega) × Ord.omega) ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))
+          l ((((Ord.omega × Ord.omega) × Ord.omega)
+                ⊕
+                ((Ord.S Ord.O) × (o_w_cor)))
                ⊕ 2)%ord))
       ∗
       (((own_thread tid)
           ∗
-          (∃ j, (ObligationRA.duty (inl tid) ((j, (Ord.S Ord.O)) :: l))
+          (∃ j, (ObligationRA.duty (inl tid) ((j, Ord.S Ord.O) :: l))
                   ∗
-                  (ObligationRA.white j Ord.omega)
+                  (ObligationRA.white j (Ord.omega × (Ord.from_nat num_line))%ord)
                   ∗
                   (OwnM (Auth.white (Excl.just j: Excl.t nat)))
           )
@@ -252,7 +254,7 @@ Section SIM.
 
     iPoseProof (ObligationRA.alloc
                   (((Ord.omega × Ord.omega) × Ord.omega)
-                     ⊕ ((Ord.S Ord.O) × (Ord.omega ⊕ Ord.omega)))%ord) as "A".
+                     ⊕ ((Ord.S Ord.O) × (o_w_cor)))%ord) as "A".
     iMod "A" as "[% [[MYB MYW] PEND]]".
     iPoseProof (ObligationRA.white_split_eq with "MYW") as "[MYW YOUW]".
     iDestruct "I1" as "[BLKS [SUM CASES]]".
@@ -300,7 +302,7 @@ Section SIM.
    (OwnM (Auth.white (Excl.just j: Excl.t nat)) ** OwnM (Auth.black (Excl.just (): Excl.t unit))))
    ∨ (⌜own = true⌝ **
                (ObligationRA.pending j 1 **
-                (ObligationRA.black j (Ord.omega ⊕ Ord.omega)%ord **
+                (ObligationRA.black j o_w_cor **
                  (ObligationRA.correl_thread j 1 **
             natmap_prop_sum wobl (λ _ idx : nat, ObligationRA.amplifier j idx 1))))))
     ∗
@@ -333,7 +335,7 @@ Section SIM.
     rred. iApply stsim_discard.
     { instantiate (1:=topset I). msubtac. }
     remember (((Ord.omega × Ord.omega) × Ord.omega)
-                ⊕ Ord.S Ord.O × (Ord.omega ⊕ Ord.omega))%ord as wd.
+                ⊕ Ord.S Ord.O × o_w_cor)%ord as wd.
     remember (wd ⊕ 1)%ord as credit.
     assert (RICH: (wd < credit)%ord).
     { subst; apply Hessenberg.add_lt_l. rewrite <- Ord.from_nat_O.
@@ -351,8 +353,7 @@ Section SIM.
     iApply stsim_tauR. rred. destruct own.
 
     (* someone is holding the lock *)
-    { rred.
-      iMod ("K1" with "[B1 B2 MEM STGT I1]") as "_".
+    { rred. iMod ("K1" with "[B1 B2 MEM STGT I1]") as "_".
       { unfold lock_will_unlock. do 4 (iExists _). iFrame. }
       { msubtac. }
       iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]". eauto.
@@ -461,7 +462,7 @@ Section SIM.
       }
 
       iClear "MYB TAXES". clear Heqnew_wobl FIND wd k wobl.
-      iPoseProof (ObligationRA.alloc (Ord.omega ⊕ Ord.omega)%ord) as "> [% [[NEWB NEWW] NEWP]]".
+      iPoseProof (ObligationRA.alloc o_w_cor) as "> [% [[NEWB NEWW] NEWP]]".
       iPoseProof (OwnM_Upd with "[B2 LOCK]") as "> B2".
       2:{ instantiate (1:= (Auth.black (Excl.just j: Excl.t nat)) ⋅ (Auth.white (Excl.just j: Excl.t nat))). iSplitL "B2"; iFrame. }
       { eapply Auth.auth_update. do 2 instantiate (1:=Excl.just k).
@@ -475,6 +476,13 @@ Section SIM.
       { iApply natmap_prop_sum_impl. 2: iFrame.
         i. iIntros "[_ [CORS _]]".  iFrame.
       }
+      iPoseProof (ObligationRA.white_mon with "NEWW") as "> NEWW".
+      { unfold o_w_cor. instantiate (1:= (Ord.omega × (Ord.S num_line))%ord). apply Ord.lt_le.
+        apply Jacobsthal.lt_mult_r. rewrite <- Ord.from_nat_S. apply Ord.omega_upperbound.
+        rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound.
+      }
+      iPoseProof (ObligationRA.white_eq with "NEWW") as "NEWW".
+      { apply Jacobsthal.mult_S. }
       iPoseProof (ObligationRA.white_split_eq with "NEWW") as "[NEWW1 NEWW2]".
       iPoseProof (ObligationRA.white_eq with "NEWW1") as "NEWW1".
       { symmetry. apply Jacobsthal.mult_1_l. }
@@ -501,27 +509,29 @@ Section SIM.
         iPoseProof (ObligationRA.pending_not_shot with "PEND SHOT") as "FALSE". ss.
       }
       iPoseProof "NEWB" as "#NEWB".
-      iPoseProof (natmap_prop_sum_impl with "WHITEs") as "WHITEs".
-      { i. ss. iIntros "WHI". iPoseProof (ObligationRA.white_mon with "WHI") as "WHI".
-        instantiate (1:=(1 × (Ord.omega ⊕ Ord.omega))%ord). apply Ord.lt_le.
-        rewrite Ord.from_nat_1. setoid_rewrite Jacobsthal.mult_1_l.
-        assert (A: ((Ord.omega ⊕ Ord.omega) == (Ord.omega ⊕ (Ord.omega × Ord.S Ord.O)))%ord).
-        { rewrite Jacobsthal.mult_1_r. reflexivity. }
-        rewrite A; clear A. rewrite <- Jacobsthal.mult_S. apply Jacobsthal.lt_mult_r.
-        setoid_rewrite <- Ord.from_nat_1. rewrite <- Ord.from_nat_S. apply Ord.omega_upperbound.
-        rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound.
-        iApply "WHI".
-      }
-      iPoseProof (natmap_prop_sum_pull_bupd_default with "WHITEs") as "> WHITEs".
+      (* iPoseProof (natmap_prop_sum_impl with "WHITEs") as "WHITEs". *)
+      (* { i. ss. iIntros "WHI". iPoseProof (ObligationRA.white_mon with "WHI") as "WHI". *)
+      (*   instantiate (1:=(1 × (Ord.omega ⊕ Ord.omega))%ord). apply Ord.lt_le. *)
+      (*   rewrite Ord.from_nat_1. setoid_rewrite Jacobsthal.mult_1_l. *)
+      (*   assert (A: ((Ord.omega ⊕ Ord.omega) == (Ord.omega ⊕ (Ord.omega × Ord.S Ord.O)))%ord). *)
+      (*   { rewrite Jacobsthal.mult_1_r. reflexivity. } *)
+      (*   rewrite A; clear A. rewrite <- Jacobsthal.mult_S. apply Jacobsthal.lt_mult_r. *)
+      (*   setoid_rewrite <- Ord.from_nat_1. rewrite <- Ord.from_nat_S. apply Ord.omega_upperbound. *)
+      (*   rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound. *)
+      (*   iApply "WHI". *)
+      (* } *)
+      (* iPoseProof (natmap_prop_sum_pull_bupd_default with "WHITEs") as "> WHITEs". *)
       iPoseProof (natmap_prop_sum_sepconj with "[WHITEs]") as "WHITEs".
       { iSplitR "WHITEs". 2: iApply "WHITEs".
-        instantiate (1:=fun _ _ => ObligationRA.black k (Ord.omega ⊕ Ord.omega)%ord).
+        instantiate (1:=fun _ _ => ObligationRA.black k o_w_cor).
         iClear "CORs NEWCORTH". unfold natmap_prop_sum. remember (NatMap.elements new_wobl) as ml.
         clear. iStopProof. induction ml; ss. auto.
         iIntros "#BLK". des_ifs. iSplit; auto. iApply IHml. auto.
       }
       iPoseProof (natmap_prop_sum_impl with "WHITEs") as "AMPs".
       { i. ss. iIntros "[BLK WHI]".
+        iPoseProof (ObligationRA.white_eq with "WHI") as "WHI".
+        { symmetry. apply Jacobsthal.mult_1_l. }
         iPoseProof (ObligationRA.amplifier_intro with "BLK WHI") as "AMP". iApply "AMP".
       }
       iPoseProof (natmap_prop_sum_pull_bupd with "AMPs") as "> AMPs".
@@ -601,7 +611,7 @@ Section SIM.
       }
 
       iClear "MYB". clear Heqnew_wobl FIND wd k wobl.
-      iPoseProof (ObligationRA.alloc (Ord.omega ⊕ Ord.omega)%ord) as "> [% [[NEWB NEWW] NEWP]]".
+      iPoseProof (ObligationRA.alloc o_w_cor) as "> [% [[NEWB NEWW] NEWP]]".
       iPoseProof (OwnM_Upd with "[B2 LOCK]") as "> B2".
       2:{ instantiate (1:= (Auth.black (Excl.just j: Excl.t nat)) ⋅ (Auth.white (Excl.just j: Excl.t nat))). iSplitL "B2"; iFrame. }
       { eapply Auth.auth_update. do 2 instantiate (1:=Excl.just k).
@@ -615,6 +625,13 @@ Section SIM.
       { iApply natmap_prop_sum_impl. 2: iFrame.
         i. iIntros "[_ [CORS _]]".  iFrame.
       }
+      iPoseProof (ObligationRA.white_mon with "NEWW") as "> NEWW".
+      { unfold o_w_cor. instantiate (1:= (Ord.omega × (Ord.S num_line))%ord). apply Ord.lt_le.
+        apply Jacobsthal.lt_mult_r. rewrite <- Ord.from_nat_S. apply Ord.omega_upperbound.
+        rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound.
+      }
+      iPoseProof (ObligationRA.white_eq with "NEWW") as "NEWW".
+      { apply Jacobsthal.mult_S. }
       iPoseProof (ObligationRA.white_split_eq with "NEWW") as "[NEWW1 NEWW2]".
       iPoseProof (ObligationRA.white_eq with "NEWW1") as "NEWW1".
       { symmetry. apply Jacobsthal.mult_1_l. }
@@ -641,27 +658,29 @@ Section SIM.
         iPoseProof (ObligationRA.pending_not_shot with "PEND SHOT") as "FALSE". ss.
       }
       iPoseProof "NEWB" as "#NEWB".
-      iPoseProof (natmap_prop_sum_impl with "WHITEs") as "WHITEs".
-      { i. ss. iIntros "WHI". iPoseProof (ObligationRA.white_mon with "WHI") as "WHI".
-        instantiate (1:=(1 × (Ord.omega ⊕ Ord.omega))%ord). apply Ord.lt_le.
-        rewrite Ord.from_nat_1. setoid_rewrite Jacobsthal.mult_1_l.
-        assert (A: ((Ord.omega ⊕ Ord.omega) == (Ord.omega ⊕ (Ord.omega × Ord.S Ord.O)))%ord).
-        { rewrite Jacobsthal.mult_1_r. reflexivity. }
-        rewrite A; clear A. rewrite <- Jacobsthal.mult_S. apply Jacobsthal.lt_mult_r.
-        setoid_rewrite <- Ord.from_nat_1. rewrite <- Ord.from_nat_S. apply Ord.omega_upperbound.
-        rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound.
-        iApply "WHI".
-      }
-      iPoseProof (natmap_prop_sum_pull_bupd_default with "WHITEs") as "> WHITEs".
+      (* iPoseProof (natmap_prop_sum_impl with "WHITEs") as "WHITEs". *)
+      (* { i. ss. iIntros "WHI". iPoseProof (ObligationRA.white_mon with "WHI") as "WHI". *)
+      (*   instantiate (1:=(1 × (Ord.omega ⊕ Ord.omega))%ord). apply Ord.lt_le. *)
+      (*   rewrite Ord.from_nat_1. setoid_rewrite Jacobsthal.mult_1_l. *)
+      (*   assert (A: ((Ord.omega ⊕ Ord.omega) == (Ord.omega ⊕ (Ord.omega × Ord.S Ord.O)))%ord). *)
+      (*   { rewrite Jacobsthal.mult_1_r. reflexivity. } *)
+      (*   rewrite A; clear A. rewrite <- Jacobsthal.mult_S. apply Jacobsthal.lt_mult_r. *)
+      (*   setoid_rewrite <- Ord.from_nat_1. rewrite <- Ord.from_nat_S. apply Ord.omega_upperbound. *)
+      (*   rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound. *)
+      (*   iApply "WHI". *)
+      (* } *)
+      (* iPoseProof (natmap_prop_sum_pull_bupd_default with "WHITEs") as "> WHITEs". *)
       iPoseProof (natmap_prop_sum_sepconj with "[WHITEs]") as "WHITEs".
       { iSplitR "WHITEs". 2: iApply "WHITEs".
-        instantiate (1:=fun _ _ => ObligationRA.black k (Ord.omega ⊕ Ord.omega)%ord).
+        instantiate (1:=fun _ _ => ObligationRA.black k o_w_cor).
         iClear "CORs NEWCORTH". unfold natmap_prop_sum. remember (NatMap.elements new_wobl) as ml.
         clear. iStopProof. induction ml; ss. auto.
         iIntros "#BLK". des_ifs. iSplit; auto. iApply IHml. auto.
       }
       iPoseProof (natmap_prop_sum_impl with "WHITEs") as "AMPs".
       { i. ss. iIntros "[BLK WHI]".
+        iPoseProof (ObligationRA.white_eq with "WHI") as "WHI".
+        { symmetry. apply Jacobsthal.mult_1_l. }
         iPoseProof (ObligationRA.amplifier_intro with "BLK WHI") as "AMP". iApply "AMP".
       }
       iPoseProof (natmap_prop_sum_pull_bupd with "AMPs") as "> AMPs".
@@ -682,10 +701,11 @@ Section SIM.
         (Q: R_src -> R_tgt -> iProp)
         l
     :
-    ((ObligationRA.duty (inl tid) l)
-       ∗ (ObligationRA.taxes l Ord.omega)
-       ∗ (OwnM (Auth.black (Excl.just tt: Excl.t unit)))
-       ∗ (∃ k, OwnM (Auth.white (Excl.just k: Excl.t nat)))
+    ((OwnM (Auth.black (Excl.just tt: Excl.t unit)))
+       ∗
+       (∃ k, (ObligationRA.duty (inl tid) ((k, Ord.S Ord.O) :: l))
+               ∗ (OwnM (Auth.white (Excl.just k: Excl.t nat)))
+               ∗ (ObligationRA.taxes ((k, Ord.S Ord.O) :: l) Ord.omega))
     )
       ∗
       ((ObligationRA.duty (inl tid) l)
@@ -698,7 +718,7 @@ Section SIM.
              (trigger Yield;;; src)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (R:=unit) (OMod.call "unlock" ());;; tgt)).
   Proof.
-    iIntros "[[DUTY [TAXES [EXCL LOCK]]] SIM]".
+    iIntros "[[EXCL [% [DUTY [LOCK TAXES]]]] SIM]".
     rewrite close_itree_call. ss. rred.
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]".
     { instantiate (1:=1). eapply Ord.omega_upperbound. }
@@ -721,12 +741,14 @@ Section SIM.
     iApply stsim_tauR. rred.
     iApply stsim_tauR. rred.
 
-    iDestruct "LOCK" as "[% LOCK]". iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
+    iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
     iMod ("K1" with "[EXCL LOCK B1 B2 MEM BLKS SUM STGT]") as "_".
     { unfold lock_will_unlock. iExists false, mem, wobl, k. iFrame.
       iLeft. iFrame. auto.
     }
     { msubtac. }
+    iPoseProof (ObligationRA.pending_shot with "JPEND") as "> SHOT".
+    iPoseProof (ObligationRA.duty_done with "DUTY SHOT") as "> DUTY".
     iApply "SIM". iFrame.
   Qed.
 
