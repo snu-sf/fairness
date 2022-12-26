@@ -546,67 +546,60 @@ Section SIM.
       { ss. left; eauto. }
 
       (* need amps == need pendings; *)
-        (*TODO*)
-
-      iAssert (natmap_prop_sum new_wobl (fun (_:nat) idx => ObligationRA.amplifier k idx 1%ord))
-        with "[NEWB WHITES SUM]" as "#AMPs".
-      { iPoseProof (natmap_prop_sum_impl with "SUM") as "PENDs".
-        { instantiate (1:=fun tid0 idx => ObligationRA.pending idx 1).
-          i. iIntros "[_ [_ [Ps _]]]". iFrame. }
-        unfold key_set. rewrite <- list_map_elements_nm_map. rewrite List.map_map.
-        unfold natmap_prop_sum. remember (NatMap.elements new_wobl) as wl. clear new_wobl Heqwl.
-        iStopProof. pattern wl. induction wl.
-        { iIntros "[# [CORs CORTH] [BLK [WHITEs PENDs]]]". ss. }
-        iIntros "[# [CORs CORTH] [BLK [WHITEs PENDs]]]". ss. des_ifs.
-        iDestruct "WHITEs" as "[WH WHITEs]". iDestruct "PENDs" as "[PE PENDs]".
-        iSplitL ""
-        
-        
-        iAssert (⌜forall k a, NatMap.find k new_wobl = Some a -> ⊤%I ⊢ (ObligationRA.amplifier k a 1)⌝)%I as "%".
-        { 
-        iApply (natmap_prop_sum_impl with "[NEWB WHITES PENDs]").
-      
-Jacobsthal.mult_S: ∀ o0 o1 : Ord.t, ((o0 × Ord.S o1) == (o0 ⊕ o0 × o1))%ord
-Jacobsthal.lt_mult_r:
-  ∀ o0 o1 o2 : Ord.t, (o1 < o2)%ord → (Ord.O < o0)%ord → ((o0 × o1) < (o0 × o2))%ord
-      clear credit RICH wobl FIND IH. iClear "MYB TAXES AMP JCOR". clear wd.
-      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
-      iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
-
-
-      iMod ("K1" with "[MEM EXCL STGT MYTH SUM WHITES B1 BLKS NEWB NEWP B2]") as "_".
-      { unfold lock_will_unlock. iExists own, mem, (NatMap.add tid k wobl), j. iFrame.
-        rewrite key_set_pull_add_eq. iFrame. iSplitL "SUM TH MYDUTY MYCOR PEND".
-        { iApply (natmap_prop_sum_add with "SUM"). iFrame. auto. }
-        iDestruct "CASES" as "[OWNF | [OT [PEND [JBLK [JCOR ALLAMP]]]]]". iFrame.
-        iRight. iPure "OT" as OT. iFrame. iSplit; auto.
-        iApply (natmap_prop_sum_add with "ALLAMP"). iApply "AMP". auto.
+      iAssert (natmap_prop_sum new_wobl (fun k _ => FairRA.white (inr (inr (inr k))) 1))%I with "[WHITES]" as "WHITES".
+      { unfold key_set. rewrite <- list_map_elements_nm_map. unfold natmap_prop_sum.
+        remember (NatMap.elements new_wobl) as ml. clear Heqml. rewrite List.map_map.
+        iClear "CORs NEWCORTH". clear. iStopProof. induction ml.
+        { iIntros "SUM". ss. }
+        ss. des_ifs. iIntros "[WH SUM]". iFrame. iApply IHml. auto.
       }
-      { msubtac. }
-      
+      iPoseProof (natmap_prop_sum_impl2 with "[WHITES]") as "CASES".
+      2:{ iSplitR "WHITES". iApply "CORs". iApply "WHITES". }
+      { i. ss. iIntros "[COR WH]". iApply (ObligationRA.correl_correlate with "COR WH"). }
+      Unshelve. 2,3: auto.
+      iPoseProof (natmap_prop_sum_pull_bupd with "CASES") as "CASES". iMod "CASES".
+      iPoseProof (natmap_prop_sum_or_cases_l with "CASES") as "[WHITEs|SHOT]"; cycle 1.
+      { iDestruct "SHOT" as "[% [% [%FIND SHOT]]]".
+        iPoseProof (natmap_prop_sum_in with "SUM") as "[_ [_ [PEND _]]]". eapply FIND.
+        iPoseProof (ObligationRA.pending_not_shot with "PEND SHOT") as "FALSE". ss.
+      }
+      iPoseProof "NEWB" as "#NEWB".
+      iPoseProof (natmap_prop_sum_impl with "WHITEs") as "WHITEs".
+      { i. ss. iIntros "WHI". iPoseProof (ObligationRA.white_mon with "WHI") as "WHI".
+        instantiate (1:=(1 × (Ord.omega ⊕ Ord.omega))%ord). apply Ord.lt_le.
+        rewrite Ord.from_nat_1. setoid_rewrite Jacobsthal.mult_1_l.
+        assert (A: ((Ord.omega ⊕ Ord.omega) == (Ord.omega ⊕ (Ord.omega × Ord.S Ord.O)))%ord).
+        { rewrite Jacobsthal.mult_1_r. reflexivity. }
+        rewrite A; clear A. rewrite <- Jacobsthal.mult_S. apply Jacobsthal.lt_mult_r.
+        setoid_rewrite <- Ord.from_nat_1. rewrite <- Ord.from_nat_S. apply Ord.omega_upperbound.
+        rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound.
+        iApply "WHI".
+      }
+      iPoseProof (natmap_prop_sum_pull_bupd_default with "WHITEs") as "> WHITEs".
+      iPoseProof (natmap_prop_sum_sepconj with "[WHITEs]") as "WHITEs".
+      { iSplitR "WHITEs". 2: iApply "WHITEs".
+        instantiate (1:=fun _ _ => ObligationRA.black k (Ord.omega ⊕ Ord.omega)%ord).
+        iClear "CORs NEWCORTH". unfold natmap_prop_sum. remember (NatMap.elements new_wobl) as ml.
+        clear. iStopProof. induction ml; ss. auto.
+        iIntros "#BLK". des_ifs. iSplit; auto. iApply IHml. auto.
+      }
+      iPoseProof (natmap_prop_sum_impl with "WHITEs") as "AMPs".
+      { i. ss. iIntros "[BLK WHI]".
+        iPoseProof (ObligationRA.amplifier_intro with "BLK WHI") as "AMP". iApply "AMP".
+      }
+      iPoseProof (natmap_prop_sum_pull_bupd with "AMPs") as "> AMPs".
 
-      iPoseProof ((natmap_prop_sum_impl (P1:=Ob)) with "SUM") as "#CORs".
-      
-      
+      iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM NEWP AMPs]") as "_".
+      { unfold lock_will_unlock. iExists true, mem, new_wobl, k. iFrame. iRight. iFrame. auto. }
+      { msubtac. }
+      iApply stsim_discard. instantiate (1:=topset I). msubtac.
+      iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL]") as "SIM".
+      iFrame. iExists k. iFrame.
+      iFrame.
+    }
+    
         (*TODO*)
-        (
-          ((⌜own = false⌝)
-             ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
-             ∗ (OwnM (Auth.black (Excl.just tt: Excl.t unit)))
-          )
-            ∨
-            ((⌜own = true⌝)
-               ∗ (ObligationRA.pending j 1)
-               ∗ (ObligationRA.black j (Ord.omega ⊕ Ord.omega)%ord)
-               ∗ (ObligationRA.correl_thread j 1%ord)
-               ∗ (natmap_prop_sum wobl (fun _ idx => ObligationRA.amplifier j idx 1%ord))
-            )
-        )
       
-NatMapRA.remove_local_update:
-  ∀ (A : Type) (m : NatMap.t A) (k : nat) (a : A),
-    Auth.local_update (Some m) (NatMapRA.singleton k a) (Some (NatMap.remove (elt:=A) k m))
-      (NatMapRA.unit A)
 
   Abort.
 
