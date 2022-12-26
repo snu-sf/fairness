@@ -2484,6 +2484,27 @@ Section SUM.
     { iApply (IHl with "TL"). }
   Qed.
 
+  Lemma list_prop_sum_sepconj A (P0 P1: A -> iProp) l
+    :
+    ((list_prop_sum P0 l) ∗ (list_prop_sum P1 l))
+      -∗
+      list_prop_sum (fun a => (P0 a) ∗ (P1 a)) l.
+  Proof.
+    induction l; ss; auto.
+    iIntros "[[HD1 TL1] [HD2 TL2]]". iFrame. iApply IHl. iFrame.
+  Qed.
+
+  Lemma list_prop_sum_impl2 A (P0 P1 Q: A -> iProp) l
+        (IMPL: forall a, (P0 a ∗ P1 a) -∗ Q a)
+    :
+    ((list_prop_sum P0 l) ∗ (list_prop_sum P1 l))
+      -∗
+      list_prop_sum Q l.
+  Proof.
+    iIntros "SUMs". iApply list_prop_sum_impl. 2: iApply list_prop_sum_sepconj; iFrame.
+    i. ss.
+  Qed.
+
   Lemma list_prop_sum_persistent A (P: A -> iProp) l
         (PERSIST: forall a, Persistent (P a))
     :
@@ -2528,6 +2549,57 @@ Section SUM.
     iIntros "[HD TL]". iSplitL "HD".
     { iApply (IMPL with "HD"); auto. }
     { iApply (IHFORALL with "TL"). auto. }
+  Qed.
+
+  Lemma list_prop_sum_or_cases_l
+        A (P0 P1: A -> iProp) l
+    :
+    (list_prop_sum (fun a => (P0 a ∨ P1 a)) l)
+      -∗
+      ((list_prop_sum P0 l) ∨ (∃ a, (⌜List.In a l⌝) ∗ (P1 a))).
+  Proof.
+    induction l.
+    { iIntros "_". iLeft. ss. }
+    ss. iIntros "[[C0|C1] SUM]".
+    - iPoseProof (IHl with "SUM") as "[S0|S1]". iLeft; iFrame.
+      iRight. iDestruct "S1" as "[% [%IN P1]]". iExists a0. iFrame. iPureIntro. auto.
+    - iRight. iExists a. iFrame. iPureIntro. auto.
+  Qed.
+
+  Lemma list_prop_sum_or_cases_r
+        A (P0 P1: A -> iProp) l
+    :
+    (list_prop_sum (fun a => (P0 a ∨ P1 a)) l)
+      -∗
+      ((list_prop_sum P1 l) ∨ (∃ a, (⌜List.In a l⌝) ∗ (P0 a))).
+  Proof.
+    iIntros "SUM". iApply list_prop_sum_or_cases_l. iApply list_prop_sum_impl. 2: iFrame.
+    i. iIntros "[C0|C1]"; iFrame.
+  Qed.
+
+  Lemma list_prop_sum_pull_bupd
+        Q
+        A (P: A -> iProp) l
+    :
+    (list_prop_sum (fun a => #=( Q )=> P a) l)
+      -∗
+      #=( Q )=>(list_prop_sum P l).
+  Proof.
+    induction l.
+    { iIntros "_". ss. }
+    ss. iIntros "[PA SUM]". iSplitL "PA"; iFrame. iApply IHl. iFrame.
+  Qed.
+
+  Lemma list_prop_sum_pull_bupd_default
+        A (P: A -> iProp) l
+    :
+    (list_prop_sum (fun a => #=> P a) l)
+      -∗
+      #=>(list_prop_sum P l).
+  Proof.
+    induction l.
+    { iIntros "_". ss. }
+    ss. iIntros "[PA SUM]". iSplitL "PA"; iFrame. iApply IHl. iFrame.
   Qed.
 
   Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
@@ -2617,6 +2689,169 @@ Section SUM.
   Next Obligation.
   Proof.
     iIntros "Ps". iPoseProof (natmap_prop_sum_persistent with "Ps") as "Ps". auto.
+  Qed.
+
+  Lemma natmap_prop_sum_in A P k a (m: NatMap.t A)
+        (FIND: NatMap.find k m = Some a)
+    :
+    (natmap_prop_sum m P)
+      -∗
+      (P k a).
+  Proof.
+    iIntros "MAP". iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eauto. }
+    eauto.
+  Qed.
+
+  Lemma natmap_prop_sum_impl A P0 P1 (m: NatMap.t A)
+        (IMPL: forall k a (IN: NatMap.find k m = Some a), P0 k a ⊢ P1 k a)
+    :
+    (natmap_prop_sum m P0)
+      -∗
+      (natmap_prop_sum m P1).
+  Proof.
+    revert IMPL. pattern m. eapply nm_ind.
+    { iIntros. iApply natmap_prop_sum_empty. }
+    i. iIntros "MAP".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    iPoseProof (IMPL with "H0") as "H0".
+    { rewrite nm_find_add_eq. auto. }
+    iApply (natmap_prop_sum_add with "[H1] H0").
+    iApply IH.
+    { i. eapply IMPL. rewrite NatMapP.F.add_o; eauto. des_ifs. }
+    { rewrite nm_find_none_rm_add_eq; auto. }
+  Qed.
+
+  Lemma natmap_prop_sum_wand (A: Type) P0 P1 (m: NatMap.t A)
+    :
+    (natmap_prop_sum m P0)
+      -∗
+      (natmap_prop_sum m (fun k v => P0 k v -* P1 k v))
+      -∗
+      (natmap_prop_sum m P1).
+  Proof.
+    pattern m. eapply nm_ind.
+    { iIntros. iApply natmap_prop_sum_empty. }
+    i. iIntros "MAP IMPL".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    iPoseProof (natmap_prop_remove_find with "IMPL") as "[G0 G1]".
+    { eapply nm_find_add_eq. }
+    iApply (natmap_prop_sum_add with "[H1 G1] [H0 G0]").
+    { rewrite nm_find_none_rm_add_eq; auto. iApply (IH with "H1 G1"). }
+    { iApply ("G0" with "H0"). }
+  Qed.
+
+  Lemma natmap_prop_sum_impl_strong (A: Type) P0 P1 Q (m: NatMap.t A)
+        (IMPL: forall k v, P0 k v ** Q ⊢ P1 k v ** Q)
+    :
+    (natmap_prop_sum m P0 ** Q)
+      -∗
+      (natmap_prop_sum m P1 ** Q).
+  Proof.
+    pattern m. eapply nm_ind.
+    { iIntros "[SUM H]". iFrame. }
+    i. iIntros "[MAP H]".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    rewrite nm_find_none_rm_add_eq; [|auto].
+    iPoseProof (IH with "[H1 H]") as "[H1 H]".
+    { iFrame. }
+    iPoseProof (IMPL with "[H0 H]") as "[H0 H]".
+    { iFrame. }
+    iFrame. iApply (natmap_prop_sum_add with "H1 H0").
+  Qed.
+
+  Lemma natmap_prop_sum_or_cases_l
+        A (P0 P1: nat -> A -> iProp) m
+    :
+    (natmap_prop_sum m (fun k a => (P0 k a ∨ P1 k a)))
+      -∗
+      ((natmap_prop_sum m P0) ∨ (∃ k a, (⌜NatMap.find k m = Some a⌝) ∗ (P1 k a))).
+  Proof.
+    unfold natmap_prop_sum. iIntros "SUM".
+    iPoseProof (list_prop_sum_or_cases_l with "[SUM]") as "SUM".
+    { iApply list_prop_sum_impl. 2: iFrame. i. ss. des_ifs. iIntros "[P0|P1]".
+      - iLeft. instantiate (1:=fun '(k, a) => P0 k a). ss.
+      - iRight. instantiate (1:=fun '(k, a) => P1 k a). ss.
+    }
+    iDestruct "SUM" as "[SUM|ELSE]".
+    { iFrame. }
+    iRight. iDestruct "ELSE" as "[% [IN P]]". des_ifs. do 2 iExists _. iFrame.
+    iPure "IN" as IN. iPureIntro. remember (NatMap.elements m) as ml.
+    assert (ND: SetoidList.NoDupA (NatMap.eq_key (elt:=_)) ml).
+    { subst. apply NatMap.elements_3w. }
+    rewrite NatMapP.F.elements_o. rewrite <- Heqml. clear m Heqml.
+    eapply SetoidList.In_InA in IN.
+    { eapply SetoidList.findA_NoDupA; eauto. }
+    econs; ss.
+    - econs; des; clarify.
+    - econs; des; clarify; auto. rewrite <- H0. auto. rewrite <- H1; auto.
+  Qed.
+
+  Lemma natmap_prop_sum_or_cases_r
+        A (P0 P1: nat -> A -> iProp) m
+    :
+    (natmap_prop_sum m (fun k a => (P0 k a ∨ P1 k a)))
+      -∗
+      ((natmap_prop_sum m P1) ∨ (∃ k a, (⌜NatMap.find k m = Some a⌝) ∗ (P0 k a))).
+  Proof.
+    iIntros "SUM". iApply natmap_prop_sum_or_cases_l. iApply natmap_prop_sum_impl. 2: iFrame.
+    i. iIntros "[C0|C1]"; iFrame.
+  Qed.
+
+  Lemma natmap_prop_sum_pull_bupd
+        Q
+        A (P: nat -> A -> iProp) m
+    :
+    (natmap_prop_sum m (fun k a => #=( Q )=> P k a))
+      -∗
+      #=( Q )=>(natmap_prop_sum m P).
+  Proof.
+    unfold natmap_prop_sum. iIntros "SUM".
+    iPoseProof (list_prop_sum_pull_bupd with "[SUM]") as "SUM".
+    { iApply list_prop_sum_impl. 2: iFrame. i. ss. des_ifs.
+      instantiate (1:=fun '(k, a) => P k a). ss.
+    }
+    iFrame.
+  Qed.
+
+  Lemma natmap_prop_sum_pull_bupd_default
+        A (P: nat -> A -> iProp) m
+    :
+    (natmap_prop_sum m (fun k a => #=> P k a))
+      -∗
+      #=>(natmap_prop_sum m P).
+  Proof.
+    unfold natmap_prop_sum. iIntros "SUM".
+    iPoseProof (list_prop_sum_pull_bupd_default with "[SUM]") as "SUM".
+    { iApply list_prop_sum_impl. 2: iFrame. i. ss. des_ifs.
+      instantiate (1:=fun '(k, a) => P k a). ss.
+    }
+    iFrame.
+  Qed.
+
+  Lemma natmap_prop_sum_sepconj A (P0 P1: nat -> A -> iProp) m
+    :
+    ((natmap_prop_sum m P0) ∗ (natmap_prop_sum m P1))
+      -∗
+      natmap_prop_sum m (fun k a => (P0 k a) ∗ (P1 k a)).
+  Proof.
+    unfold natmap_prop_sum . iIntros "SUM".
+    iPoseProof (list_prop_sum_sepconj with "SUM") as "SUM". iApply list_prop_sum_impl. 2: iFrame.
+    i. ss. des_ifs; ss.
+  Qed.
+
+  Lemma natmap_prop_sum_impl2 A (P0 P1 Q: nat -> A -> iProp) m
+        (IMPL: forall k a, (P0 k a ∗ P1 k a) -∗ Q k a)
+    :
+    ((natmap_prop_sum m P0) ∗ (natmap_prop_sum m P1))
+      -∗
+      natmap_prop_sum m Q.
+  Proof.
+    iIntros "SUMs". iApply natmap_prop_sum_impl. 2: iApply natmap_prop_sum_sepconj; iFrame.
+    i. ss.
   Qed.
 
 End SUM.
