@@ -670,7 +670,7 @@ Section SIM.
        ∗
        (∃ k, (ObligationRA.duty (inl tid) ((k, Ord.S Ord.O) :: l))
                ∗ (OwnM (Auth.white (Excl.just k: Excl.t nat)))
-               ∗ (ObligationRA.taxes ((k, Ord.S Ord.O) :: l) Ord.omega))
+               ∗ (ObligationRA.tax ((k, Ord.S Ord.O) :: l)))
     )
       ∗
       ((ObligationRA.duty (inl tid) l)
@@ -683,10 +683,8 @@ Section SIM.
              (trigger Yield;;; src)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) ABSLock.mod) (R:=unit) (OMod.call "unlock" ());;; tgt)).
   Proof.
-    iIntros "[[EXCL [% [DUTY [LOCK TAXES]]]] SIM]".
+    iIntros "[[EXCL [% [DUTY [LOCK TAX]]]] SIM]".
     rewrite close_itree_call. ss. rred.
-    iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]".
-    { instantiate (1:=1). eapply Ord.omega_upperbound. }
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
     unfold ABSLock.unlock_fun, Mod.wrap_fun. rred.
@@ -728,16 +726,22 @@ Section SIM.
     iApply ABSLock_lock. iFrame. iIntros "[MYTH [[% [DUTY [WHI LOCK]]] EXCL]]".
     instantiate (1:=2). rred.
     rewrite close_itree_call. ss. rred.
-    (* TODO: TAX *)
-    iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame.
+    iPoseProof (ObligationRA.white_eq with "WHI") as "WHI".
+    { rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity. }
+    iPoseProof (ObligationRA.white_split_eq with "WHI") as "[WHI1 WHI2]".
+    iApply (stsim_yieldR with "[DUTY WHI1]"). msubtac.
+    { iFrame. iApply ObligationRA.tax_cons_fold. iSplitL; auto.
+      iApply ObligationRA.white_eq. 2: iFrame. symmetry; apply Jacobsthal.mult_1_l.
+    }
     iIntros "DUTY _". rred. unfold Mod.wrap_fun.
 
-
-    ss. rred.
-    rewrite close_itree_call.
-    unfold ABSLock.lock_fun, Mod.wrap_fun. rred.
-    iApply stsim_tidR. rred. iApply stsim_tauR. rred.
     (*TODO*)
+memory_ra_store:
+  ∀ (Σ : GRA.t) (MEMRA : GRA.inG memRA Σ) (m0 : SCMem.t) (l v0 v1 : SCMem.val),
+    memory_black m0
+    ⊢ points_to l v0 -*
+      (∃ m1 : SCMem.t,
+         ⌜SCMem.store m0 l v1 = Some m1⌝ ** (#=> (memory_black m1 ** points_to l v1)))
 
   Abort.
 
