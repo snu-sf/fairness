@@ -179,42 +179,6 @@ Section SIM.
         )
   .
 
-  (* Definition lock_will_unlock : iProp := *)
-  (*   ∃ (own: bool) (mem: SCMem.t) (wait: TIdSet.t) (f: NatMap.t nat) (j: nat), *)
-  (*     (OwnM (Auth.black (Some f: NatMapRA.t nat))) *)
-  (*       ∗ *)
-  (*       (OwnM (Auth.black (Excl.just j: Excl.t nat))) *)
-  (*       ∗ *)
-  (*       (⌜nm_wf_pair f wait⌝) *)
-  (*       ∗ *)
-  (*       (memory_black mem) *)
-  (*       ∗ *)
-  (*       (St_tgt (tt, (mem, (own, wait)))) *)
-  (*       ∗ *)
-  (*       (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wait))) *)
-  (*       ∗ *)
-  (*       (natmap_prop_sum f (fun tid idx => *)
-  (*                             (ObligationRA.correl (inr (inr (inr tid))) idx (Ord.omega ^ 2)%ord) *)
-  (*                               ∗ *)
-  (*                               (ObligationRA.pending idx 1) *)
-  (*                               ∗ *)
-  (*                               (ObligationRA.duty (inr (inr (inr tid))) [(idx, Ord.omega)]) *)
-  (*       )) *)
-  (*       ∗ *)
-  (*       ( *)
-  (*         ((⌜own = false⌝) *)
-  (*            ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat))) *)
-  (*            ∗ (OwnM (Auth.black (Excl.just tt: Excl.t unit))) *)
-  (*         ) *)
-  (*           ∨ *)
-  (*           ((⌜own = true⌝) *)
-  (*              ∗ (ObligationRA.pending j 1) *)
-  (*              ∗ (ObligationRA.correl_thread j 1%ord) *)
-  (*              ∗ (natmap_prop_sum f (fun tid idx => ObligationRA.amplifier j idx 1%ord)) *)
-  (*           ) *)
-  (*       ) *)
-  (* . *)
-
   Let I: list iProp := [thread1_will_write; lock_will_unlock].
 
   Definition lock_holding: iProp :=
@@ -269,15 +233,6 @@ Section SIM.
     rewrite close_itree_call. ss. rred.
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "TAXES".
     { eapply Hessenberg.lt_add_r. apply OrdArith.lt_from_nat. instantiate (1:=1). auto. }
-    (* { eapply Jacobsthal.lt_mult_r. eapply Hessenberg.lt_add_r. eapply (Ord.omega_upperbound 1). *)
-    (*   setoid_rewrite <- Ord.from_nat_O. etrans. eapply Ord.omega_upperbound. *)
-    (*   apply Hessenberg.add_lt_l. setoid_rewrite <- Ord.from_nat_O. etrans. *)
-    (*   eapply Ord.omega_upperbound. *)
-    (*   remember (Ord.omega ^ 2)%ord as temp. rewrite <- OrdArith.expn_1_r. subst temp. *)
-    (*   apply OrdArith.lt_expn_r. setoid_rewrite <- Ord.from_nat_1. eapply Ord.omega_upperbound. *)
-    (*   setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto. *)
-    (*   setoid_rewrite <- Ord.from_nat_O. eapply Ord.omega_upperbound. *)
-    (* } *)
     iMod "TAXES". iDestruct "TAXES" as "[TAXES TAX]".
 
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
@@ -361,7 +316,6 @@ Section SIM.
       iIntros "OT". iFrame.
     }
     iMod "AMP".
-    (* iPoseProof "AMP" as "# AMP". *)
 
     (* now close invariant *)
     iMod ("K1" with "[TH OWNB1 B2 MEM SUM CASES STGT PEND BLKS MYDUTY MYCOR AMP]") as "_".
@@ -380,24 +334,10 @@ Section SIM.
     remember (((Ord.omega × Ord.omega) × Ord.omega)
                 ⊕ Ord.S Ord.O × (Ord.omega ⊕ Ord.omega))%ord as wd.
     remember (wd ⊕ 1)%ord as credit.
-    (* remember ((Ord.omega ⊕ (Ord.omega ^ 2)) × Ord.omega ⊕ 1)%ord as credit. *)
     assert (RICH: (wd < credit)%ord).
     { subst; apply Hessenberg.add_lt_l. rewrite <- Ord.from_nat_O.
       apply OrdArith.lt_from_nat. auto.
     }
-    (* { subst credit. rewrite ClassicJacobsthal.mult_dist. subst. *)
-    (*   etrans. apply Hessenberg.lt_add_l. *)
-    (*   instantiate (1:=((Ord.omega ⊕ (Ord.omega ^ 2)) × Ord.omega)%ord). *)
-    (*   rewrite ClassicJacobsthal.mult_dist. *)
-    (*   apply Jacobsthal.lt_mult_r. *)
-
-    (*   etrans. apply Hessenberg.lt_add_r. *)
-    (*   rewrite Jacobsthal.mult_1_l. rewrite Jacobsthal.mult_1_r. *)
-    (*   remember (Ord.omega ^ 2)%ord as temp. rewrite <- OrdArith.expn_1_r. subst. *)
-    (*   apply OrdArith.lt_expn_r. setoid_rewrite <- Ord.from_nat_1. apply Ord.omega_upperbound. *)
-    (*   setoid_rewrite <- Ord.from_nat_1. apply OrdArith.lt_from_nat. auto. *)
-    (*   rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound. *)
-    (* } *)
     clear Heqwd Heqcredit.
     clear own mem blks2 j H wobl. iClear "MYCOR".
     iStopProof. revert l k credit RICH. pattern wd. revert wd.
@@ -411,8 +351,6 @@ Section SIM.
 
     (* someone is holding the lock *)
     { rred.
-      (* iDestruct "I1" as "[BLKS [SUM CASES]]". *)
-      (* iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM CASES]") as "_". *)
       iMod ("K1" with "[B1 B2 MEM STGT I1]") as "_".
       { unfold lock_will_unlock. do 4 (iExists _). iFrame. }
       { msubtac. }
@@ -421,8 +359,6 @@ Section SIM.
       iIntros "DUTY WTH". rred.
       iApply stsim_tauR. rred. iApply stsim_tauR. rred.
 
-      (* after Yield, own = true -> induction, own = false -> exit *)
-      (* so open Inv and case analysis on j' *)
       clear mem wobl j.
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[B1 [B2 [MEM [STGT [BLKS [SUM CASES]]]]]]".
@@ -597,11 +533,147 @@ Section SIM.
       iFrame. iExists k. iFrame.
       iFrame.
     }
-    
-        (*TODO*)
-      
 
-  Abort.
+    { rred. iClear "TAXES".
+      clear IH credit RICH.
+      iApply stsim_getR. iSplit. iFrame. rred.
+      iApply stsim_tauR. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
+      iApply stsim_tauR. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
+      iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
+      iApply stsim_tauR. rred.
+
+      iDestruct "I1" as "[BLKS [SUM [[_ [LOCK EXCL]] | [%CONTRA _]]]]".
+      2:{ inversion CONTRA. }
+      iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
+      { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
+        { instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
+        eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H.
+        auto.
+      }
+      rename H into FIND.
+
+      iPoseProof (natmap_prop_remove_find with "SUM") as "[[MYTH [_ [MYPEND MYDUTY]]] SUM]".
+      eapply FIND. iPoseProof (ObligationRA.pending_shot with "MYPEND") as "> MYDONE".
+      iPoseProof (ObligationRA.duty_done with "MYDUTY MYDONE") as "> MYDUTY".
+      iApply (stsim_fairR with "[MYDUTY]").
+      4:{ instantiate (1:=[(inr (inr tid), [])]). ss. iFrame. }
+      { clear. i. unfold sum_fmap_r in *. des_ifs. ss. auto. }
+      { instantiate (1:= List.map (fun '(j, _) => inr (inr j)) (NatMap.elements (NatMap.remove tid (key_set wobl)))). clear. i. unfold sum_fmap_r.
+        assert (A: exists j, (i = inr (inr j)) /\ (NatMap.In j (NatMap.remove tid (key_set wobl)))).
+        { apply in_map_iff in IN. des. des_ifs. destruct u. esplits; eauto.
+          remember (NatMap.remove tid (key_set wobl)) as M. clear HeqM.
+          apply NatMapP.F.elements_in_iff. exists (). apply SetoidList.InA_alt.
+          exists (k, ()). ss.
+        }
+        des. subst. des_ifs. apply in_map_iff in IN. des. des_ifs. destruct u.
+        eapply SetoidList.In_InA in IN0. eapply NatMap.elements_2 in IN0.
+        apply NatMapP.F.remove_mapsto_iff in IN0. des; ss.
+        apply NatMapP.eqke_equiv.
+      }
+      { eapply FinFun.Injective_map_NoDup.
+        { unfold FinFun.Injective. i. des_ifs. destruct u, u0. ss. }
+        apply NoDupA_NoDup. apply NatMap.elements_3w.
+      }
+      iIntros "MYDUTY WHITES". rred.
+      iApply stsim_tauR. rred.
+      iApply stsim_tauR. rred.
+
+      (* close invariant *)
+      iPoseProof (OwnM_Upd with "[B1 MYW]") as "> B1".
+      2:{ instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
+      { eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update. }
+      rewrite <- key_set_pull_rm_eq in *. remember (NatMap.remove tid wobl) as new_wobl.
+
+      iPoseProof (list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".
+      iPoseProof (duty_to_black with "MYDUTY") as "MYBEX".
+      iPoseProof (FairRA.blacks_fold with "[BLKS MYBEX]") as "BLKS".
+      2:{ iFrame. }
+      { instantiate (1:=
+         (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
+             ∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t new_wobl)).
+        i. ss. des. destruct (tid_dec t tid) eqn:DEC.
+        - clarify. auto.
+        - left. esplits; eauto. ii. apply IN0. subst. apply NatMapP.F.remove_in_iff.
+          split; auto.
+      }
+
+      iClear "MYB". clear Heqnew_wobl FIND wd k wobl.
+      iPoseProof (ObligationRA.alloc (Ord.omega ⊕ Ord.omega)%ord) as "> [% [[NEWB NEWW] NEWP]]".
+      iPoseProof (OwnM_Upd with "[B2 LOCK]") as "> B2".
+      2:{ instantiate (1:= (Auth.black (Excl.just j: Excl.t nat)) ⋅ (Auth.white (Excl.just j: Excl.t nat))). iSplitL "B2"; iFrame. }
+      { eapply Auth.auth_update. do 2 instantiate (1:=Excl.just k).
+        clear. ii. des. split.
+        - ur. ss.
+        - ur. ur in FRAME. des_ifs.
+      }
+      iDestruct "B2" as "[B2 LOCK]". clear j.
+
+      iAssert (natmap_prop_sum new_wobl (fun tid0 idx => ObligationRA.correl (inr (inr (inr tid0))) idx (Ord.omega × Ord.omega)%ord)) with "[SUM]" as "#CORs".
+      { iApply natmap_prop_sum_impl. 2: iFrame.
+        i. iIntros "[_ [CORS _]]".  iFrame.
+      }
+      iPoseProof (ObligationRA.white_split_eq with "NEWW") as "[NEWW1 NEWW2]".
+      iPoseProof (ObligationRA.white_eq with "NEWW1") as "NEWW1".
+      { symmetry. apply Jacobsthal.mult_1_l. }
+      iPoseProof (ObligationRA.duty_alloc with "DUTY NEWW1") as "> DUTY".
+      iPoseProof (ObligationRA.duty_correl_thread with "DUTY") as "#NEWCORTH".
+      { ss. left; eauto. }
+
+      (* need amps == need pendings; *)
+      iAssert (natmap_prop_sum new_wobl (fun k _ => FairRA.white (inr (inr (inr k))) 1))%I with "[WHITES]" as "WHITES".
+      { unfold key_set. rewrite <- list_map_elements_nm_map. unfold natmap_prop_sum.
+        remember (NatMap.elements new_wobl) as ml. clear Heqml. rewrite List.map_map.
+        iClear "CORs NEWCORTH". clear. iStopProof. induction ml.
+        { iIntros "SUM". ss. }
+        ss. des_ifs. iIntros "[WH SUM]". iFrame. iApply IHml. auto.
+      }
+      iPoseProof (natmap_prop_sum_impl2 with "[WHITES]") as "CASES".
+      2:{ iSplitR "WHITES". iApply "CORs". iApply "WHITES". }
+      { i. ss. iIntros "[COR WH]". iApply (ObligationRA.correl_correlate with "COR WH"). }
+      Unshelve. 2,3: auto.
+      iPoseProof (natmap_prop_sum_pull_bupd with "CASES") as "CASES". iMod "CASES".
+      iPoseProof (natmap_prop_sum_or_cases_l with "CASES") as "[WHITEs|SHOT]"; cycle 1.
+      { iDestruct "SHOT" as "[% [% [%FIND SHOT]]]".
+        iPoseProof (natmap_prop_sum_in with "SUM") as "[_ [_ [PEND _]]]". eapply FIND.
+        iPoseProof (ObligationRA.pending_not_shot with "PEND SHOT") as "FALSE". ss.
+      }
+      iPoseProof "NEWB" as "#NEWB".
+      iPoseProof (natmap_prop_sum_impl with "WHITEs") as "WHITEs".
+      { i. ss. iIntros "WHI". iPoseProof (ObligationRA.white_mon with "WHI") as "WHI".
+        instantiate (1:=(1 × (Ord.omega ⊕ Ord.omega))%ord). apply Ord.lt_le.
+        rewrite Ord.from_nat_1. setoid_rewrite Jacobsthal.mult_1_l.
+        assert (A: ((Ord.omega ⊕ Ord.omega) == (Ord.omega ⊕ (Ord.omega × Ord.S Ord.O)))%ord).
+        { rewrite Jacobsthal.mult_1_r. reflexivity. }
+        rewrite A; clear A. rewrite <- Jacobsthal.mult_S. apply Jacobsthal.lt_mult_r.
+        setoid_rewrite <- Ord.from_nat_1. rewrite <- Ord.from_nat_S. apply Ord.omega_upperbound.
+        rewrite <- Ord.from_nat_O. apply Ord.omega_upperbound.
+        iApply "WHI".
+      }
+      iPoseProof (natmap_prop_sum_pull_bupd_default with "WHITEs") as "> WHITEs".
+      iPoseProof (natmap_prop_sum_sepconj with "[WHITEs]") as "WHITEs".
+      { iSplitR "WHITEs". 2: iApply "WHITEs".
+        instantiate (1:=fun _ _ => ObligationRA.black k (Ord.omega ⊕ Ord.omega)%ord).
+        iClear "CORs NEWCORTH". unfold natmap_prop_sum. remember (NatMap.elements new_wobl) as ml.
+        clear. iStopProof. induction ml; ss. auto.
+        iIntros "#BLK". des_ifs. iSplit; auto. iApply IHml. auto.
+      }
+      iPoseProof (natmap_prop_sum_impl with "WHITEs") as "AMPs".
+      { i. ss. iIntros "[BLK WHI]".
+        iPoseProof (ObligationRA.amplifier_intro with "BLK WHI") as "AMP". iApply "AMP".
+      }
+      iPoseProof (natmap_prop_sum_pull_bupd with "AMPs") as "> AMPs".
+
+      iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM NEWP AMPs]") as "_".
+      { unfold lock_will_unlock. iExists true, mem, new_wobl, k. iFrame. iRight. iFrame. auto. }
+      { msubtac. }
+      iApply stsim_discard. instantiate (1:=topset I). msubtac.
+      iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL]") as "SIM".
+      iFrame. iExists k. iFrame.
+      iFrame.
+    }
+  Qed.
 
   Lemma ABSLock_unlock K
         R_src R_tgt src tgt tid
