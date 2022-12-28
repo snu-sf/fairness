@@ -48,7 +48,9 @@ Module ClientImpl.
                if (b: bool) then Ret (inl tt) else Ret (inr tt)) tt;;
       x <- (OMod.call "load" loc_X);;
       match x with
-      | SCMem.val_nat n => _ <- trigger (Observe 0 [n]);; Ret tt
+      | SCMem.val_nat n => _ <- trigger (Observe 0 [n]);;
+                          _ <- trigger Yield;;
+                          Ret tt
       | _ => UB
       end.
 
@@ -837,8 +839,8 @@ Section SIM.
     iIntros "DUTY _". rred. unfold SCMem.load_fun, Mod.wrap_fun. rred.
 
     iopen 0 "I0" "K0". iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
-    { (* loop case *)
-      iDestruct "i0PEND" as "[i0PENDh i0PTR]".
+    (* iterate case *)
+    { iDestruct "i0PEND" as "[i0PENDh i0PTR]".
       iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
       { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
       apply OneShot.shot_agree in AGR. subst k0.
@@ -854,6 +856,7 @@ Section SIM.
       iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
       { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
       msubtac.
+      clear own mem wobl j0 LOAD PERM.
       iApply ABSLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
       { iFrame. iExists j. iFrame. iApply ObligationRA.tax_cons_fold. iSplitL; auto.
         iApply ObligationRA.white_eq. 2: iFrame.
@@ -865,19 +868,209 @@ Section SIM.
       rewrite close_itree_call. ss. rred.
       iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame. iIntros "DUTY OWHTH". rred.
       unfold Mod.wrap_fun, SCMem.compare_fun. rred.
-
+      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
       iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
-      iApply stsim_getR. iSplit. iFrame. rred.
-      iApply (stsim_putR with "i1STGT"). iIntros "i1STGT". rred. iApply stsim_tauR. rred.
-      iApply stsim_tauR. rred.
-      
-      
-    
+      iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+      iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
+      { unfold lock_will_unlock. iExists _, _, _, _. iFrame. }
+      msubtac.
+      iClear "i0KSHOT".
+      iPoseProof (ObligationRA.correl_thread_correlate with "KCOR OWHTH") as "> [KWHI|#KDONE]".
+      (* thread 1 not done; induction *)
+      { iPoseProof (ObligationRA.black_white_decr_one with "KBLK KWHI") as "> [% [#KBLK2 %DECR]]".
+        iClear "KBLK". iApply IH. apply DECR. iFrame. eauto.
+      }
 
-  (* TODO *)
+      (* thread 1 done; exit *)
+      { iClear "KBLK KCOR". clear n j own mem wobl j0 IH.
+        rewrite OpenMod.unfold_iter. rred.
+        iApply ABSLock_lock. iSplitL "MYTH DUTY".
+        { iFrame. }
+        iIntros "[MYTH [[% [DUTY [WHI LOCK]]] EXCL]]". instantiate (1:= 2). rred.
+
+        iopen 0 "I0" "K0". iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
+        { iDestruct "i0PEND" as "[i0PENDh i0PTR]".
+          iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+          { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+          apply OneShot.shot_agree in AGR. subst k0.
+          iPoseProof (ObligationRA.pending_not_shot with "i0PENDh KDONE") as "FALSE". ss.
+        }
+        iDestruct "i0SHOT" as "[_ i0PTR]".
+        iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+        { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+        apply OneShot.shot_agree in AGR. subst k0.
+
+        rewrite close_itree_call. ss. rred.
+        iMod ("K0" with "[i0BLK i0KCOR i0PTR]") as "_".
+        { unfold thread1_will_write. iExists _. iFrame. iSplitR; auto. }
+        msubtac.
+        iPoseProof (ObligationRA.white_eq with "WHI") as "WHI".
+        { rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity. }
+        iPoseProof (ObligationRA.white_split_eq with "WHI") as "[WHI1 WHI2]".
+        iApply (stsim_yieldR with "[DUTY WHI1]"). msubtac.
+        { iSplitL "DUTY". iFrame.
+          iApply ObligationRA.tax_cons_fold. iSplitL "WHI1"; auto.
+          iApply ObligationRA.white_eq. 2: iFrame. symmetry; apply Jacobsthal.mult_1_l.
+        }
+        iIntros "DUTY _". rred. unfold SCMem.load_fun, Mod.wrap_fun. rred.
+        iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+        iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
+        iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+        iopen 0 "I0" "K0". iClear "i0KSHOT".
+        iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
+        { iDestruct "i0PEND" as "[i0PENDh i0PTR]".
+          iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+          { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+          apply OneShot.shot_agree in AGR. subst k0.
+          iPoseProof (ObligationRA.pending_not_shot with "i0PENDh KDONE") as "FALSE". ss.
+        }
+        iDestruct "i0SHOT" as "[_ i0PTR]".
+        iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+        { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+        apply OneShot.shot_agree in AGR. subst k0.
+        iPoseProof (memory_ra_load with "i1MEM i0PTR") as "[%LOAD %PERM]".
+        rewrite LOAD. rred. iApply stsim_tauR. rred.
+
+        iMod ("K0" with "[i0BLK i0KCOR i0PTR]") as "_".
+        { unfold thread1_will_write. iExists _. iFrame. iSplitR; auto. }
+        iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
+        { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
+        msubtac.
+        clear own mem wobl j0 LOAD PERM.
+        iApply ABSLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
+        { iFrame. iExists j. iFrame. iApply ObligationRA.tax_cons_fold. iSplitL; auto.
+          iApply ObligationRA.white_eq. 2: iFrame.
+          rewrite Jacobsthal.mult_1_l. rewrite Ord.from_nat_1. rewrite Jacobsthal.mult_1_r.
+          reflexivity.
+        }
+        iIntros "DUTY". rred.
+
+        rewrite close_itree_call. ss. rred.
+        iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _". rred.
+        unfold Mod.wrap_fun, SCMem.compare_fun. rred.
+        iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+        iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
+        iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+        iApply stsim_tauR. rred.
+
+        rewrite close_itree_call. ss. rred.
+        iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
+        { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
+        msubtac.
+        iApply (stsim_sync with "[DUTY]"). msubtac.
+        { iFrame. }
+        iIntros "DUTY _". rred. unfold SCMem.load_fun, Mod.wrap_fun. rred.
+        iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+        iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
+        iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+        iopen 0 "I0" "K0". iClear "i0KSHOT".
+        iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
+        { iDestruct "i0PEND" as "[i0PENDh i0PTR]".
+          iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+          { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+          apply OneShot.shot_agree in AGR. subst k0.
+          iPoseProof (ObligationRA.pending_not_shot with "i0PENDh KDONE") as "FALSE". ss.
+        }
+        iDestruct "i0SHOT" as "[_ i0PTR]".
+        iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+        { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+        apply OneShot.shot_agree in AGR. subst k0.
+        iPoseProof (memory_ra_load with "i1MEM i0PTR") as "[%LOAD %PERM]".
+        rewrite LOAD. rred. iApply stsim_tauR. rred.
+
+        iApply stsim_observe. iIntros. rred.
+        iApply stsim_tauR. rred.
+        iMod ("K0" with "[i0BLK i0KCOR i0PTR]") as "_".
+        { unfold thread1_will_write. iExists _. iFrame. iSplitR; auto. }
+        iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
+        { unfold lock_will_unlock. do 4 iExists _. iFrame. }
+        msubtac.
+        iApply (stsim_sync with "[DUTY]"). msubtac. iFrame.
+        iIntros "DUTY _". rred.
+        iApply stsim_tauR. rred.
+        iApply stsim_ret.
+        iApply MUpd_intro. iFrame. auto.
+      }
+    }
+
+    { iDestruct "i0SHOT" as "[#KDONE i0PTR]".
+      iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+      { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+      apply OneShot.shot_agree in AGR. subst k0.
+
+      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
+      iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+      iPoseProof (memory_ra_load with "i1MEM i0PTR") as "[%LOAD %PERM]".
+      rewrite LOAD. rred. iApply stsim_tauR. rred.
+
+      iMod ("K0" with "[i0BLK i0KCOR i0PTR]") as "_".
+      { unfold thread1_will_write. iExists _. iFrame. iSplitR; auto. }
+      iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
+      { unfold lock_will_unlock. do 4 iExists _. iFrame. }
+      msubtac.
+      clear own mem wobl j0 LOAD PERM.
+      iApply ABSLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
+      { iFrame. iExists j. iFrame. iApply ObligationRA.tax_cons_fold. iSplitL; auto.
+        iApply ObligationRA.white_eq. 2: iFrame.
+        rewrite Jacobsthal.mult_1_l. rewrite Ord.from_nat_1. rewrite Jacobsthal.mult_1_r.
+        reflexivity.
+      }
+      iIntros "DUTY". rred.
+
+      rewrite close_itree_call. ss. rred.
+      iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _". rred.
+      unfold Mod.wrap_fun, SCMem.compare_fun. rred.
+      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
+      iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+      iApply stsim_tauR. rred.
+
+      rewrite close_itree_call. ss. rred.
+      iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
+      { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
+      msubtac.
+      iApply (stsim_sync with "[DUTY]"). msubtac.
+      { iFrame. }
+      iIntros "DUTY _". rred. unfold SCMem.load_fun, Mod.wrap_fun. rred.
+      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
+      iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+      iopen 0 "I0" "K0". iClear "i0KSHOT".
+      iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
+      { iDestruct "i0PEND" as "[i0PENDh i0PTR]".
+        iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+        { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+        apply OneShot.shot_agree in AGR. subst k0.
+        iPoseProof (ObligationRA.pending_not_shot with "i0PENDh KDONE") as "FALSE". ss.
+      }
+      iDestruct "i0SHOT" as "[_ i0PTR]".
+      iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
+      { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
+      apply OneShot.shot_agree in AGR. subst k0.
+      iPoseProof (memory_ra_load with "i1MEM i0PTR") as "[%LOAD %PERM]".
+      rewrite LOAD. rred. iApply stsim_tauR. rred.
+
+      iApply stsim_observe. iIntros. rred.
+      iApply stsim_tauR. rred.
+      iMod ("K0" with "[i0BLK i0KCOR i0PTR]") as "_".
+      { unfold thread1_will_write. iExists _. iFrame. iSplitR; auto. }
+      iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
+      { unfold lock_will_unlock. do 4 iExists _. iFrame. }
+      msubtac.
+      iApply (stsim_sync with "[DUTY]"). msubtac. iFrame.
+      iIntros "DUTY _". rred.
+      iApply stsim_tauR. rred.
+      iApply stsim_ret.
+      iApply MUpd_intro. iFrame. auto.
+    }
+  Qed.
+
 
   Let config := [("thread1", tt↑); ("thread2", tt↑)].
 
+  (* TODO *)
   Lemma client_correct:
     UserSim.sim ClientSpec.mod ClientImpl.mod
                 (prog2ths ClientSpec.mod config)
@@ -887,19 +1080,19 @@ Section SIM.
     { econs. exact 0. }
     { i. exists (S o0). ss. }
     ss.
-    cut (forall tid,
-            (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot5 ibot5 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) (example_spec_fun tt) (OMod.close_itree (example_omod) (SCMem.mod [1; 1]) (example_fun tt))).
-    { admit. }
-    iIntros (?) "[TH DUTY]". unfold example_spec_fun, example_fun.
-    lred. rred. rewrite close_itree_call. ss. rred.
-    iApply (stsim_yieldR with "[DUTY]"); [msubtac|iFrame|]. iIntros "DUTY _".
-    rred. unfold SCMem.cas_fun, Mod.wrap_fun. rred.
-    iopen 0 "[% [MEM ST]]" "K0".
-    iApply stsim_getR. iSplit.
-    { iFrame. }
-    rred. iApply stsim_tauR. rred.
-    unfold SCMem.cas.
-    iopen 1 "[[[POINTL POINTF] PEND]|[% H]]" "K1".
+    (* cut (forall tid, *)
+    (*         (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot5 ibot5 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) (example_spec_fun tt) (OMod.close_itree (example_omod) (SCMem.mod [1; 1]) (example_fun tt))). *)
+    (* { admit. } *)
+    (* iIntros (?) "[TH DUTY]". unfold example_spec_fun, example_fun. *)
+    (* lred. rred. rewrite close_itree_call. ss. rred. *)
+    (* iApply (stsim_yieldR with "[DUTY]"); [msubtac|iFrame|]. iIntros "DUTY _". *)
+    (* rred. unfold SCMem.cas_fun, Mod.wrap_fun. rred. *)
+    (* iopen 0 "[% [MEM ST]]" "K0". *)
+    (* iApply stsim_getR. iSplit. *)
+    (* { iFrame. } *)
+    (* rred. iApply stsim_tauR. rred. *)
+    (* unfold SCMem.cas. *)
+    (* iopen 1 "[[[POINTL POINTF] PEND]|[% H]]" "K1". *)
   Abort.
 
 End SIM.
