@@ -20,9 +20,10 @@ Module ABSLock.
       _ <- trigger (Put (own, ts));;
       _ <- (ITree.iter
              (fun (_: unit) =>
+                _ <- trigger Yield;;
                 '(own, ts) <- trigger (@Get _);;
                 if (Bool.eqb own true)
-                then _ <- trigger Yield;; Ret (inl tt)
+                then Ret (inl tt)
                 else Ret (inr tt)) tt);;
       '(_, ts) <- trigger (@Get _);;
       let ts := NatMap.remove tid ts in
