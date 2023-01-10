@@ -112,7 +112,11 @@ Section SIM.
   Definition ticket_lock_inv : iProp :=
     ∃ (mem: SCMem.t) (own: bool) (l: list thread_id) (tks: NatMap.t nat) (now next: nat),
       ((OwnM (Auth.black (Some tks: NatMapRA.t nat)))
-         (* ∗ (OwnM (Auth.black (Excl.just (list_nats now next): Excl.t (list nat)))) *)
+         ∗ (natmap_prop_sum tks
+                            (fun tid tk =>
+                               (own_thread tid)
+           ))
+      (* ∗ (OwnM (Auth.black (Excl.just (list_nats now next): Excl.t (list nat)))) *)
       )
         ∗
         ((memory_black mem)
