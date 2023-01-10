@@ -47,7 +47,6 @@ Module TicketLock.
   Definition unlock_fun:
     ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit :=
     fun _ =>
-      _ <- trigger Yield;;
       v <- (OMod.call "load" now_serving);;
       let v := SCMem.val_add v 1 in
       `_: unit <- (OMod.call "store" (now_serving, v));;
@@ -70,6 +69,7 @@ End TicketLock.
 
 From Fairness Require Import IProp IPM Weakest.
 From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
+From Fairness Require Import FairLock.
 
 Section SIM.
   Context `{Σ: GRA.t}.
@@ -92,6 +92,104 @@ Section SIM.
   Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
   Context `{AUTHRA: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}.
+
+  Definition ticket_lock_inv_unlocked
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
+    (OwnM (Excl.just tt: Excl.t unit))
+      ∗
+      (∃ (tkl: list nat),
+          (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats now next)⌝)
+      )
+  .
+
+  Definition ticket_lock_inv_locked
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
+      (∃ (tkl: list nat),
+          (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats (S now) next)⌝)
+      )
+  .
+
+  Definition ticket_lock_inv : iProp :=
+    ∃ (mem: SCMem.t) (own: bool) (l: list thread_id) (tks: NatMap.t nat) (now next: nat),
+      ((OwnM (Auth.black (Some tks: NatMapRA.t nat)))
+         (* ∗ (OwnM (Auth.black (Excl.just (list_nats now next): Excl.t (list nat)))) *)
+      )
+        ∗
+        ((memory_black mem)
+           ∗ (points_to TicketLock.now_serving (SCMem.val_nat now))
+           ∗ (points_to TicketLock.next_ticket (SCMem.val_nat next))
+        )
+        ∗
+        ((St_tgt (tt, mem)) ∗ (St_src (own, (key_set tks))))
+        ∗
+        ((⌜own = false⌝)
+           ∗ (ticket_lock_inv_unlocked l tks now next)
+        )
+        ∗
+        ((⌜own = true⌝)
+           ∗ (ticket_lock_inv_locked l tks now next)
+        )
+  .
+
+
+
+  Definition thread1_will_write : iProp :=
+    ∃ k, (∃ n, ObligationRA.black k n)
+           ∗
+           (ObligationRA.correl_thread k 1%ord)
+           ∗
+           (OwnM (OneShot.shot k))
+           ∗
+           ((ObligationRA.pending k (/2)%Qp ∗ points_to loc_X const_0)
+            ∨
+              (ObligationRA.shot k ∗ points_to loc_X const_42)).
+
+  Definition lock_will_unlock : iProp :=
+    ∃ (own: bool) (mem: SCMem.t) (wobl: NatMap.t nat) (j: nat),
+      (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
+        ∗
+        (OwnM (Auth.black (Excl.just j: Excl.t nat)))
+        ∗
+        (memory_black mem)
+        ∗
+        (St_tgt (tt, (mem, (own, key_set wobl))))
+        ∗
+        (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wobl)))
+        ∗
+        (natmap_prop_sum wobl
+                         (fun tid idx =>
+                            (own_thread tid)
+                              ∗
+                              (ObligationRA.correl (inr (inr (inr tid))) idx o_w_cor)
+                              ∗
+                              (ObligationRA.pending idx 1)
+                              ∗
+                              (ObligationRA.duty (inr (inr (inr tid))) [(idx, o_w_cor)])
+        ))
+        ∗
+        (
+          ((⌜own = false⌝)
+             ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
+             ∗ (OwnM (Excl.just tt: Excl.t unit))
+          )
+            ∨
+            ((⌜own = true⌝)
+               ∗ (ObligationRA.pending j 1)
+               ∗ (ObligationRA.black j o_w_cor)
+               ∗ (ObligationRA.correl_thread j 1%ord)
+               ∗ (natmap_prop_sum wobl (fun _ idx => ObligationRA.amplifier j idx 1%ord))
+            )
+        )
+  .
+
+  Let I: list iProp := [thread1_will_write; lock_will_unlock].
+
+
+
+
+
+
+
 
   Definition wait_set_wf (W: NatMap.t unit) (n: nat): iProp :=
     ((natmap_prop_sum W (fun tid _ => own_thread tid))
