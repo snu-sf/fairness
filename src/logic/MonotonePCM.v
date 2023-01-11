@@ -1583,10 +1583,10 @@ Module OneShot.
       }
     .
     Next Obligation.
-      unfold oneshot_add. des_ifs. f_equal. f_equal. eapply Qp_add_comm.
+      unfold oneshot_add. des_ifs. f_equal. f_equal. eapply Qp.add_comm.
     Qed.
     Next Obligation.
-      unfold oneshot_add. des_ifs. f_equal. f_equal. eapply Qp_add_assoc.
+      unfold oneshot_add. des_ifs. f_equal. f_equal. eapply Qp.add_assoc.
     Qed.
     Next Obligation.
       unseal "ra". unfold oneshot_add. des_ifs.
@@ -1596,7 +1596,7 @@ Module OneShot.
     Qed.
     Next Obligation.
       unseal "ra". unfold oneshot_add in *. des_ifs.
-      etrans; [|eauto]. apply Qp_le_add_l.
+      etrans; [|eauto]. apply Qp.le_add_l.
     Qed.
     Next Obligation.
       unseal "ra". unfold oneshot_add, oneshot_core. des_ifs.
@@ -1664,7 +1664,7 @@ Module OneShot.
       URA.updatable (pending 1) (shot a).
     Proof.
       ii. ur in H. ur. des_ifs.
-      apply Qp_not_add_le_l in H; auto.
+      apply Qp.not_add_le_l in H; auto.
     Qed.
   End ONESHOT.
 End OneShot.
@@ -1763,10 +1763,10 @@ Module Frac.
     }
   .
   Next Obligation.
-    des_ifs. f_equal. eapply Qp_add_comm.
+    des_ifs. f_equal. eapply Qp.add_comm.
   Qed.
   Next Obligation.
-    des_ifs. f_equal. eapply Qp_add_assoc.
+    des_ifs. f_equal. eapply Qp.add_assoc.
   Qed.
   Next Obligation.
     unseal "ra". des_ifs.
@@ -1776,7 +1776,7 @@ Module Frac.
   Qed.
   Next Obligation.
     unseal "ra". des_ifs.
-    etrans; [|eauto]. apply Qp_le_add_l.
+    etrans; [|eauto]. apply Qp.le_add_l.
   Qed.
   Next Obligation.
     unseal "ra". auto.
@@ -1815,10 +1815,10 @@ Module Consent.
       }
     .
     Next Obligation.
-      unfold consent_add. des_ifs. f_equal. f_equal. eapply Qp_add_comm.
+      unfold consent_add. des_ifs. f_equal. f_equal. eapply Qp.add_comm.
     Qed.
     Next Obligation.
-      unfold consent_add. des_ifs. f_equal. f_equal. eapply Qp_add_assoc.
+      unfold consent_add. des_ifs. f_equal. f_equal. eapply Qp.add_assoc.
     Qed.
     Next Obligation.
       unseal "ra". unfold consent_add. des_ifs.
@@ -1828,7 +1828,7 @@ Module Consent.
     Qed.
     Next Obligation.
       unseal "ra". unfold consent_add in *. des_ifs.
-      etrans; [|eauto]. apply Qp_le_add_l.
+      etrans; [|eauto]. apply Qp.le_add_l.
     Qed.
     Next Obligation.
       unseal "ra". unfold consent_add. auto.
@@ -1872,7 +1872,7 @@ Module Consent.
       URA.updatable (vote a0 1%Qp) (vote a1 1%Qp).
     Proof.
       unfold vote. ii. ur in H. ur. des_ifs.
-      apply Qp_not_add_le_l in H; auto.
+      apply Qp.not_add_le_l in H; auto.
     Qed.
   End CONSENT.
 End Consent.
@@ -1914,7 +1914,7 @@ Module ConsentP.
       -∗
       (voted a ** voted a).
   Proof.
-    iIntros "[% H]". erewrite <- (Qp_div_2 q).
+    iIntros "[% H]". erewrite <- (Qp.div_2 q).
     rewrite Consent.vote_sum.
     iDestruct "H" as "[H0 H1]". iSplitL "H0".
     { iExists _. iFrame. }
@@ -1948,7 +1948,7 @@ Module ConsentP.
       -∗
       (voted_singleton k a ** voted_singleton k a).
   Proof.
-    iIntros "[% H]". erewrite <- (Qp_div_2 q).
+    iIntros "[% H]". erewrite <- (Qp.div_2 q).
     rewrite Consent.vote_sum.
     rewrite <- FiniteMap.singleton_add.
     iDestruct "H" as "[H0 H1]". iSplitL "H0".

@@ -200,7 +200,18 @@ Section IPM.
     ii. rr. uipropall. i. rr. rr in H. uipropall.
     i. specialize (H a). rr in H. uipropall.
   Qed.
+
+  Global Instance iProp_bi_affine : BiAffine (iProp) | 0.
+  Proof. exact iProp_affine. Qed.
+
+  Global Instance iProp_bi_persistently_forall : BiPersistentlyForall iProp.
+  Proof.
+    ii. rr. uipropall. i. rr. rr in H. uipropall.
+    i. rr. uipropall. i. specialize (H x). rr in H. uipropall.
+  Qed.
+
 End IPM.
+Global Hint Immediate iProp_bi_affine : core.
 Arguments OwnM: simpl never.
 
 Section TEST.

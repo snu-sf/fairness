@@ -960,7 +960,7 @@ Module Fuel.
           fun (a: car) =>
             match a with
             | frag f => True
-            | excl e f q => le f e /\ (Qp_le q 1)%Qp
+            | excl e f q => le f e /\ (Qp.le q 1)%Qp
             | boom => False
             end.
 
@@ -983,7 +983,7 @@ Module Fuel.
       { f_equal.
         { eapply quotient_meet_comm. }
         { eapply quotient_add_comm. }
-        { rewrite Qp_add_comm. auto. }
+        { rewrite Qp.add_comm. auto. }
       }
     Qed.
     Next Obligation.
@@ -998,7 +998,7 @@ Module Fuel.
       { f_equal.
         { eapply quotient_meet_assoc. }
         { eapply quotient_add_assoc. }
-        { rewrite Qp_add_assoc. auto. }
+        { rewrite Qp.add_assoc. auto. }
       }
     Qed.
     Next Obligation.
@@ -1037,7 +1037,7 @@ Module Fuel.
           { eapply OrderedCM.add_base_l. }
           etrans; eauto. eapply OrderedCM.meet_l.
         }
-        { etrans; [|eauto]. eapply Qp_le_add_l. }
+        { etrans; [|eauto]. eapply Qp.le_add_l. }
       }
     Qed.
     Next Obligation.
@@ -1156,7 +1156,7 @@ Module Fuel.
           eapply OrderedCM.add_unit_le_r.
         }
       }
-      { des. exfalso. eapply Qp_not_add_le_l. eauto. }
+      { des. exfalso. eapply Qp.not_add_le_l. eauto. }
     Qed.
 
     Lemma decr_update `{OrderedCM.t A} a0 a1 q
@@ -3559,10 +3559,10 @@ Module ObligationRA.
       { ss. iFrame. }
       iPureIntro. ss. rewrite <- H3.
       clear H3. revert q0 q1. induction tl.
-      { i. ss. rewrite Qp_add_comm. auto. }
+      { i. ss. rewrite Qp.add_comm. auto. }
       { i. ss. destruct a as [? [[[? ?] ?] ?]]. rewrite <- IHtl.
-        rewrite Qp_add_assoc. rewrite Qp_add_assoc. f_equal.
-        apply Qp_add_comm.
+        rewrite Qp.add_assoc. rewrite Qp.add_assoc. f_equal.
+        apply Qp.add_comm.
       }
     Qed.
 
@@ -3576,10 +3576,10 @@ Module ObligationRA.
       iPoseProof "DUTY" as "[[WHITE OWN] DUTY]". iFrame.
       iPureIntro. rewrite <- H3.
       clear H3. revert q0 q1. induction tl.
-      { i. ss. apply Qp_add_comm. }
+      { i. ss. apply Qp.add_comm. }
       { i. ss. destruct a as [? [[[? ?] ?] ?]]. rewrite IHtl.
-        rewrite Qp_add_assoc. rewrite Qp_add_assoc. f_equal.
-        apply Qp_add_comm.
+        rewrite Qp.add_assoc. rewrite Qp.add_assoc. f_equal.
+        apply Qp.add_comm.
       }
     Qed.
 
@@ -3605,7 +3605,7 @@ Module ObligationRA.
         iPoseProof (H4 with "DUTY") as "DUTY".
         iApply (duty_list_fold with "[DUTY WHITE0 OWN0] WHITE1 OWN1").
         replace (q + q1 + q0)%Qp with ((q + q0) + q1)%Qp.
-        2:{ rewrite <- Qp_add_assoc. rewrite <- Qp_add_assoc. f_equal. apply Qp_add_comm. }
+        2:{ rewrite <- Qp.add_assoc. rewrite <- Qp.add_assoc. f_equal. apply Qp.add_comm. }
         iApply (duty_list_fold with "DUTY WHITE0 OWN0").
       }
       { i. iIntros "DUTY". iApply H6. iApply H4. auto. }
@@ -3732,7 +3732,7 @@ Module ObligationRA.
     Proof.
       iIntros "[% [% [[BLACK DUTY] %]]] SHOT".
       iPoseProof (FairRA.black_ex_split with "[BLACK]") as "[BLACK0 [% BLACK1]]".
-      { rewrite Qp_div_2. iFrame. }
+      { rewrite Qp.div_2. iFrame. }
       iPoseProof (@OwnM_unit (@FiniteMap.t (OneShot.t unit))) as "H".
       iPoseProof (OwnM_Upd_set with "H") as "> [% [% OWN]]".
       { eapply FiniteMap.singleton_alloc. eapply OneShot.pending_one_wf. }
@@ -3748,7 +3748,7 @@ Module ObligationRA.
       { iModIntro. iExists _, _. iSplit.
         { iSplitL "BLACK0"; [eauto|].
           iApply (duty_list_fold with "[DUTY] WHITE OWN").
-          rewrite Qp_div_2. eauto.
+          rewrite Qp.div_2. eauto.
         }
         iPureIntro. ss.
       }
@@ -3874,7 +3874,7 @@ Module ObligationRA.
         rewrite FiniteMap.singleton_add in H4.
         apply FiniteMap.singleton_wf in H4.
         rewrite <- OneShot.pending_sum in H4.
-        apply OneShot.pending_wf in H4. apply Qp_not_add_le_r in H4. ss.
+        apply OneShot.pending_wf in H4. apply Qp.not_add_le_r in H4. ss.
       }
     Qed.
 
@@ -3916,7 +3916,7 @@ Module ObligationRA.
         rewrite FiniteMap.singleton_add in H4.
         rewrite FiniteMap.singleton_wf in H4.
         rewrite <- OneShot.pending_sum in H4.
-        apply OneShot.pending_wf in H4. apply Qp_not_add_le_r in H4. ss.
+        apply OneShot.pending_wf in H4. apply Qp.not_add_le_r in H4. ss.
       }
       iSplitL "H".
       { eauto. }
@@ -3978,11 +3978,11 @@ Module ObligationRA.
         iPoseProof "TAX" as "[WHITE TAX]".
         replace (q0 + foldr (fun '(_, (_, _, q1, _)) q2 => (q1 + q2)%Qp) q rs)%Qp with (q + foldr (fun '(_, (_, _, q1, _)) q2 => (q1 + q2)%Qp) q0 rs)%Qp; cycle 1.
         { clear IHrs. revert q q0. induction rs; ss; i.
-          { apply Qp_add_comm. }
+          { apply Qp.add_comm. }
           { destruct a0 as [? [[[? ?] ?] ?]].
             rewrite (IHrs q1 q0). rewrite (IHrs q1 q).
-            rewrite Qp_add_assoc. rewrite Qp_add_assoc.
-            f_equal. apply Qp_add_comm.
+            rewrite Qp.add_assoc. rewrite Qp.add_assoc.
+            f_equal. apply Qp.add_comm.
           }
         }
         iPoseProof (FairRA.black_split with "BLACK") as "[BLACK0 BLACK1]".
@@ -4052,11 +4052,11 @@ Module ObligationRA.
         iPoseProof "TAX" as "[WHITE TAX]".
         replace (q0 + foldr (fun '(_, (_, _, q1, _)) q2 => (q1 + q2)%Qp) q rs)%Qp with (q + foldr (fun '(_, (_, _, q1, _)) q2 => (q1 + q2)%Qp) q0 rs)%Qp; cycle 1.
         { clear IHrs. revert q q0. induction rs; ss; i.
-          { apply Qp_add_comm. }
+          { apply Qp.add_comm. }
           { destruct a0 as [? [[[? ?] ?] ?]].
             rewrite (IHrs q1 q0). rewrite (IHrs q1 q).
-            rewrite Qp_add_assoc. rewrite Qp_add_assoc.
-            f_equal. apply Qp_add_comm.
+            rewrite Qp.add_assoc. rewrite Qp.add_assoc.
+            f_equal. apply Qp.add_comm.
           }
         }
         iPoseProof (FairRA.black_split with "BLACK") as "[BLACK0 BLACK1]".
