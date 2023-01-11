@@ -31,6 +31,7 @@ Module ABSLock.
       _ <- trigger (Fair (fun i => if tid_dec i tid then Flag.success
                                else if (NatMapP.F.In_dec ts i) then Flag.fail
                                     else Flag.emp));;
+      _ <- trigger Yield;;
       Ret tt.
 
   Definition unlock_fun
@@ -38,7 +39,7 @@ Module ABSLock.
     fun _ =>
       '(own, ts) <- trigger (@Get _);;
       if (Bool.eqb own true)
-      then _ <- trigger (Put (false, ts));; Ret tt
+      then _ <- trigger (Put (false, ts));; _ <- trigger Yield;; Ret tt
       else UB.
 
   Definition mod: Mod.t :=
