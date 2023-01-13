@@ -96,6 +96,7 @@ Section SIM.
   Definition ticket_lock_inv_unlocked
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
     (OwnM (Excl.just tt: Excl.t unit))
+      ∗ (OwnM (Auth.white (Excl.just now: Excl.t nat)))
       ∗
       (∃ (tkl: list nat),
           (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats now next)⌝)
@@ -122,17 +123,18 @@ Section SIM.
         ((memory_black mem)
            ∗ (points_to TicketLock.now_serving (SCMem.val_nat now))
            ∗ (points_to TicketLock.next_ticket (SCMem.val_nat next))
+           ∗ (OwnM (Auth.black (Excl.just now: Excl.t nat)))
         )
         ∗
         ((St_tgt (tt, mem)) ∗ (St_src (own, (key_set tks))))
         ∗
-        ((⌜own = false⌝)
-           ∗ (ticket_lock_inv_unlocked l tks now next)
-        )
-        ∗
-        ((⌜own = true⌝)
-           ∗ (ticket_lock_inv_locked l tks now next)
-        )
+        (((⌜own = false⌝)
+            ∗ (ticket_lock_inv_unlocked l tks now next)
+         )
+         ∨
+           ((⌜own = true⌝)
+              ∗ (ticket_lock_inv_locked l tks now next)
+        ))
   .
 
 
