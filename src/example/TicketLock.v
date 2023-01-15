@@ -10,6 +10,7 @@ Set Implicit Arguments.
 
 
 Module TicketLock.
+  Definition gvs : list nat := [1].
   Definition now_serving: SCMem.val := SCMem.val_ptr (0, 0).
   Definition next_ticket: SCMem.val := SCMem.val_ptr (0, 1).
 
