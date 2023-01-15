@@ -169,6 +169,7 @@ Section SIM.
            ∗ (points_to TicketLock.now_serving (SCMem.val_nat now))
            ∗ (points_to TicketLock.next_ticket (SCMem.val_nat next))
            ∗ (OwnM (Auth.black (Excl.just now: Excl.t nat)))
+           ∗ (monoBlack 2 Nat.le_preorder now)
         )
         ∗
         ((St_tgt (tt, mem)) ∗ (St_src (own, (key_set tks))))
