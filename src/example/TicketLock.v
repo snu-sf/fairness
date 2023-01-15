@@ -93,21 +93,67 @@ Section SIM.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
   Context `{AUTHRA: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}.
 
+  (* Definition ticket_lock_inv_unlocked *)
+  (*            (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp := *)
+  (*   (OwnM (Auth.white (Excl.just now: Excl.t nat))) *)
+  (*     ∗ *)
+  (*     (∃ (tkl: list nat), *)
+  (*         (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats now next)⌝) *)
+  (*     ) *)
+  (* . *)
+
+  (* Definition ticket_lock_inv_locked *)
+  (*            (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp := *)
+  (*   (OwnM (Auth.white (Excl.just now: Excl.t nat))) *)
+  (*     ∗ *)
+  (*     (∃ (tkl: list nat), *)
+  (*         (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats (S now) next)⌝) *)
+  (*     ) *)
+  (* . *)
+
+  Definition ticket_lock_inv_unlocking
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
+    ∃ (myt: thread_id),
+      (OwnM (Auth.white (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
+        ∗
+        (⌜list_map_natmap l tks = Some (list_nats (S now) next)⌝)
+        ∗
+        (∃ (k: nat) (o: Ord.t),
+            (monoBlack 0 FstOrdSndFix.le_PreOrder (now, k))
+              ∗ (monoBlack 1 FstOrdSndFix.le_PreOrder (now, false))
+              ∗ (ObligationRA.black k o)
+              ∗ (ObligationRA.pending k 1)
+              ∗ (ObligationRA.duty (inl myt) ((k, 1%ord) :: []))
+        )
+  .
+
   Definition ticket_lock_inv_unlocked
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
-    (OwnM (Excl.just tt: Excl.t unit))
-      ∗ (OwnM (Auth.white (Excl.just now: Excl.t nat)))
-      ∗
-      (∃ (tkl: list nat),
-          (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats now next)⌝)
-      )
+    match l with
+    | [] =>
+        (OwnM (Auth.white (Excl.just now: Excl.t nat)))
+          ∗
+          (⌜tks = NatMap.empty⌝)
+    | yourt :: _ =>
+        (OwnM (Auth.white (Excl.just now: Excl.t nat)))
+          ∗
+          (⌜list_map_natmap l tks = Some (list_nats now next)⌝)
+          ∗
+          (∃ (k: nat) (o: Ord.t),
+              (monoBlack 0 FstOrdSndFix.le_PreOrder (now, k))
+                ∗ (monoBlack 1 FstOrdSndFix.le_PreOrder (now, true))
+                ∗ (ObligationRA.black k o)
+                ∗ (ObligationRA.pending k 1)
+                ∗ (ObligationRA.duty (inl yourt) ((k, 1%ord) :: []))
+          )
+    end
   .
 
   Definition ticket_lock_inv_locked
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
-      (∃ (tkl: list nat),
-          (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats (S now) next)⌝)
-      )
+    (OwnM (Auth.white (Excl.just now: Excl.t nat)))
+      ∗
+      (⌜list_map_natmap l tks = Some (list_nats (S now) next)⌝)
   .
 
   Definition ticket_lock_inv : iProp :=
@@ -117,7 +163,6 @@ Section SIM.
                             (fun tid tk =>
                                (own_thread tid)
            ))
-      (* ∗ (OwnM (Auth.black (Excl.just (list_nats now next): Excl.t (list nat)))) *)
       )
         ∗
         ((memory_black mem)
