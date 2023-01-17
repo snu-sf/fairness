@@ -34,14 +34,11 @@ Section PCM_OWN.
       unfold IsOp, URA.add. unseal "ra". ss. des_ifs.
   Qed.
 
-  Lemma OwnE_not_disjoint `{@GRA.inG CoPset.t Σ} (E1 E2 : coPset) :
-    ¬ E1 ## E2 -> OwnE E1 ∗ OwnE E2 ⊢ False.
+  Lemma OwnE_disjoint' `{@GRA.inG CoPset.t Σ} (E1 E2 : coPset) :
+    OwnE E1 ∗ OwnE E2 ⊢ ⌜E1 ## E2⌝.
   Proof.
-    i. iIntros "H". iAssert (OwnM (None : CoPset.t)) with "[H]" as "H".
-    - iRevert "H". iApply from_sep. eapply from_sep_ownM.
-      unfold IsOp. unfold URA.add. unseal "ra". ss. des_ifs.
-    - iPoseProof (OwnM_valid with "H") as "H".
-      iRevert "H". iPureIntro. unfold URA.wf. unseal "ra". ss.
+    iIntros "[H1 H2]". iCombine "H1 H2" as "H". iPoseProof (OwnM_valid with "H") as "%WF".
+    iPureIntro. rewrite /URA.wf /URA.add in WF. unseal "ra". ss; des_ifs.
   Qed.
 
   Global Instance inv_persistent `{Interp} `{@GRA.inG (Auth.t (positive ==> URA.agree Var)%ra) Σ}
