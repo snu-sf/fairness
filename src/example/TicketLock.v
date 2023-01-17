@@ -179,8 +179,98 @@ Section TKQ.
     econs 2. instantiate (2:=hd). ss. rewrite nm_find_add_neq; auto.
     erewrite <- nm_find_none_add_rm_is_eq. eapply IHTQ.
     rewrite nm_find_rm_neq; auto. rewrite nm_find_add_neq; auto. apply nm_find_rm_eq.
-    instantiate (1:=inc).
-    (*TODO*)
+    instantiate (1:=inc). rewrite nm_add_rm_comm_eq; auto.
+    rewrite <- nm_find_some_rm_add_eq; auto. rewrite nm_find_add_neq; auto.
+  Qed.
+
+  Lemma tkqueue_dequeue
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+        hd tl
+        (HD: l = hd :: tl)
+    :
+    tkqueue tl (NatMap.remove hd tks) (S inc) exc.
+  Proof.
+    revert_until TQ. induction TQ; i; clarify; ss.
+  Qed.
+
+  Lemma tkqueue_range
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+    :
+    (<<LE: inc <= exc>>).
+  Proof.
+    red. induction TQ; i; clarify; ss. lia.
+  Qed.
+
+  Lemma tkqueue_val_range_l
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+        t v
+        (FIND: NatMap.find t tks = Some v)
+    :
+    (<<GE: inc <= v>>).
+  Proof.
+    red. revert_until TQ. induction TQ; i; clarify; ss.
+    destruct (tid_dec t hd) eqn:DEC; clarify.
+    hexploit (IHTQ t v). rewrite nm_find_rm_neq; auto. i. lia.
+  Qed.
+
+  Lemma tkqueue_val_range_r
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+        t v
+        (FIND: NatMap.find t tks = Some v)
+    :
+    (<<LT: v < exc>>).
+  Proof.
+    red. revert_until TQ. induction TQ; i; clarify; ss.
+    destruct (tid_dec t hd) eqn:DEC; clarify.
+    - eapply tkqueue_range in TQ. red in TQ. lia.
+    - hexploit (IHTQ t v). rewrite nm_find_rm_neq; auto. i. lia.
+  Qed.
+
+  Lemma tkqueue_inv_unique
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+        t0 t1 v
+        (FIND0: NatMap.find t0 tks = Some v)
+        (FIND1: NatMap.find t1 tks = Some v)
+    :
+    t0 = t1.
+  Proof.
+    revert_until TQ. induction TQ; i; clarify; ss.
+    destruct (tid_dec t0 hd) eqn:DEC0; clarify; eauto.
+    { destruct (tid_dec t1 hd) eqn:DEC1; clarify; eauto.
+      hexploit tkqueue_val_range_l. eapply TQ. erewrite nm_find_rm_neq.
+      2:{ ii. apply n. symmetry. eapply H. }
+      eapply FIND1. i. red in H. lia.
+    }
+    { destruct (tid_dec t1 hd) eqn:DEC1; clarify; eauto.
+      { hexploit tkqueue_val_range_l. eapply TQ. erewrite nm_find_rm_neq.
+        2:{ ii. apply n. symmetry. eapply H. }
+        eapply FIND0. i. red in H. lia.
+      }
+      eapply IHTQ; rewrite nm_find_rm_neq; eauto.
+    }
+  Qed.
+
+  Lemma tkqueue_inv_hd
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+        t
+        (FIND: NatMap.find t tks = Some inc)
+    :
+    exists tl, l = t :: tl.
+  Proof.
+    revert_until TQ. induction TQ; i; clarify; ss.
+    destruct (tid_dec t hd) eqn:DEC; clarify; eauto.
+    hexploit tkqueue_inv_unique. 2: eapply FIND. 2: eapply FIND0.
+    { instantiate (1:=exc). instantiate (1:=inc). instantiate (1:=hd :: tl).
+      econs 2; eauto.
+    }
+    i; clarify.
+  Qed.
 
 End TKQ.
 
