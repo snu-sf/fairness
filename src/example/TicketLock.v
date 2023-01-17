@@ -149,13 +149,13 @@ Section TKQ.
   Inductive tkqueue
             (l: list thread_id) (tks: NatMap.t TicketLock.tk) (inc exc: TicketLock.tk)
     : Prop :=
-  | tkqueue_empty
+  | tkqueue_nil
       (EMP1: l = [])
       (EMP2: tks = @NatMap.empty _)
       (EQ: inc = exc)
     :
     tkqueue l tks inc exc
-  | tkqueue_hd
+  | tkqueue_cons
       hd tl
       (QUEUE: l = hd :: tl)
       (FIND: NatMap.find hd tks = Some inc)
@@ -163,6 +163,24 @@ Section TKQ.
     :
     tkqueue l tks inc exc
   .
+
+  Lemma tkqueue_enqueue
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+        k
+        (FIND: NatMap.find k tks = None)
+    :
+    tkqueue (l ++ [k]) (NatMap.add k exc tks) inc (S exc).
+  Proof.
+    revert_until TQ. induction TQ; i; clarify; ss.
+    { econs 2. ss. apply nm_find_add_eq. econs 1; auto. rewrite nm_find_none_rm_add_eq; auto. }
+    assert (NEQ: hd <> k).
+    { ii. clarify. }
+    econs 2. instantiate (2:=hd). ss. rewrite nm_find_add_neq; auto.
+    erewrite <- nm_find_none_add_rm_is_eq. eapply IHTQ.
+    rewrite nm_find_rm_neq; auto. rewrite nm_find_add_neq; auto. apply nm_find_rm_eq.
+    instantiate (1:=inc).
+    (*TODO*)
 
 End TKQ.
 
@@ -184,8 +202,8 @@ Section SIM.
   Context `{MEMRA: @GRA.inG memRA Σ}.
 
   Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLock.tk)) Σ}.
-  Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
-  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * unit))) Σ}.
+  (* Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}. *)
+  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
   (* Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}. *)
   (* Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}. *)
 
@@ -194,35 +212,26 @@ Section SIM.
   Variable monok: nat.
 
   Definition ticket_lock_inv_unlocking
-             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
-    ∃ (myt: thread_id),
-      (OwnM (Auth.black (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
-        ∗
-        (own_thread myt)
-        ∗
-        (⌜tkqueue l tks (S now) next⌝)
-        ∗
-        (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
-        ∗
-        (list_prop_sum (fun th => ObligationRA.duty (inl th) []) l)
-        ∗
-        (∃ (k: nat) (o: Ord.t),
-            (monoBlack monok mypreord (now, Tkst.d k))
-              ∗ (ObligationRA.black k o)
-              ∗ (ObligationRA.pending k 1)
-              ∗ (ObligationRA.duty (inl myt) [(k, Ord.S Ord.O)])
-        )
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp :=
+    (own_thread myt)
+      ∗
+      (⌜tkqueue l tks (S now) next⌝)
+      ∗
+      (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
+      ∗
+      (list_prop_sum (fun th => ObligationRA.duty (inl th) []) l)
+      ∗
+      (∃ (k: nat) (o: Ord.t),
+          (monoBlack monok mypreord (now, Tkst.d k))
+            ∗ (ObligationRA.black k o)
+            ∗ (ObligationRA.pending k 1)
+            ∗ (ObligationRA.duty (inl myt) [(k, Ord.S Ord.O)])
+      )
   .
 
   Definition ticket_lock_inv_unlocked
-             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
-    (OwnM (Auth.white (Excl.just now: Excl.t nat)))
-      ∗
-      (∃ myt,
-          (OwnM (Auth.black (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
-            ∗
-            (OwnM (Auth.white (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
-      )
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp :=
+    (OwnM (Auth.white (Excl.just (now, myt): Excl.t (nat * nat)%type)))
       ∗
       (match l with
        | [] =>
@@ -248,14 +257,8 @@ Section SIM.
   .
 
   Definition ticket_lock_inv_locked
-             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
-    (OwnM (Auth.white (Excl.just now: Excl.t nat)))
-      ∗
-      (∃ myt,
-          (OwnM (Auth.black (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
-            ∗
-            (OwnM (Auth.white (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
-      )
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp :=
+    (OwnM (Auth.white (Excl.just (now, myt): Excl.t (nat * nat)%type)))
       ∗
       (⌜tkqueue l tks (S now) next⌝)
       ∗
@@ -269,7 +272,8 @@ Section SIM.
   .
 
   Definition ticket_lock_inv : iProp :=
-    ∃ (mem: SCMem.t) (own: bool) (l: list thread_id) (tks: NatMap.t nat) (now next: nat),
+    ∃ (mem: SCMem.t) (own: bool)
+      (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
       ((OwnM (Auth.black (Some tks: NatMapRA.t nat)))
          ∗ (FairRA.whites (fun id => (~ NatMap.In id tks)) Ord.omega)
          ∗ (natmap_prop_sum tks (fun tid tk => (own_thread tid)))
@@ -278,19 +282,19 @@ Section SIM.
         ((memory_black mem)
            ∗ (points_to TicketLock.now_serving (SCMem.val_nat now))
            ∗ (points_to TicketLock.next_ticket (SCMem.val_nat next))
-           ∗ (OwnM (Auth.black (Excl.just now: Excl.t nat)))
+           ∗ (OwnM (Auth.black (Excl.just (now, myt): Excl.t (nat * nat)%type)))
         )
         ∗
         ((St_tgt (tt, mem)) ∗ (St_src (own, (key_set tks))))
         ∗
         (((⌜own = true⌝)
-            ∗ (ticket_lock_inv_locked l tks now next)
+            ∗ (ticket_lock_inv_locked l tks now next myt)
          )
          ∨
            ((⌜own = false⌝)
-              ∗ ((ticket_lock_inv_unlocking l tks now next)
+              ∗ ((ticket_lock_inv_unlocking l tks now next myt)
                  ∨
-                   (ticket_lock_inv_unlocked l tks now next))
+                   (ticket_lock_inv_unlocked l tks now next myt))
         ))
   .
 
