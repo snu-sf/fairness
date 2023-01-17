@@ -227,6 +227,29 @@ Section FANCY_UPDATE.
     - eapply union_comm.
   Qed.
 
+  Lemma FUpd_mask_frame E1 E2 E P :
+    E1 ## E -> E2 ## E ->
+    FUpd E1 E2 P ⊢ FUpd (E1 ∪ E) (E2 ∪ E) P.
+  Proof.
+    rewrite /FUpd. iIntros (D1 D2) "H [WSAT EN]".
+    iPoseProof (OwnE_disjoint _ _ D1 with "EN") as "[EN1 EN]".
+    iPoseProof ("H" with "[WSAT EN1]") as ">(WSAT & EN2 & P)". iFrame.
+    iModIntro. iFrame. iApply (OwnE_disjoint _ _ D2). iFrame.
+  Qed.
+
+  Lemma FUpd_intro_mask E1 E2 P :
+    E2 ⊆ E1 -> FUpd E1 E1 P ⊢ FUpd E1 E2 (FUpd E2 E1 P).
+  Proof.
+    rewrite /FUpd. iIntros (HE) "H [WSAT EN]".
+    iPoseProof ("H" with "[WSAT EN]") as ">(WSAT & EN & P)". iFrame.
+    iModIntro.
+    rewrite (union_difference_L _ _ HE).
+    iPoseProof (OwnE_disjoint _ _ _ with "EN") as "[EN1 EN]".
+    iFrame. iIntros "[WSAT EN2]". iModIntro. iFrame.
+    iApply (OwnE_disjoint _ _ _). iFrame.
+    Unshelve. all: set_solver.
+  Qed.
+
   Global Instance from_modal_FUpd E P :
     FromModal True modality_id (FUpd E E P) (FUpd E E P) P.
   Proof. rewrite /FromModal /= /FUpd. iIntros. iModIntro. iFrame. iFrame. Qed.
@@ -242,10 +265,6 @@ Use [iApply MUpd_mask_intro] to introduce mask-changing update modalities")
   Proof. rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
          iIntros (_) "[P K] I". iMod "P". iApply ("K" with "P"). iFrame.
   Qed.
-
-  Global Instance elim_modal_FUpd_FUpd_gen p E0 E1 E2 E3 P Q :
-    ElimModal (E0 ⊆ E2) p false (FUpd E0 E1 P) P (FUpd E2 E3 Q) (FUpd (E1 ∪ E2 ∖ E0) E3 Q).
-  Admitted.
 
   Global Instance elim_modal_FUpd_FUpd p E1 E2 E3 P Q :
     ElimModal True p false (FUpd E1 E2 P) P (FUpd E1 E3 Q) (FUpd E2 E3 Q).
