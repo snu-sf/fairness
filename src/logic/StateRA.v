@@ -42,6 +42,19 @@ Section UPD.
     iOwnWf "H". ur in H. des.
     rr in H. des. ur in H. des_ifs.
   Qed.
+
+  Lemma white_white_excl a a'
+    :
+    (OwnM (Auth.white (Excl.just a: @Excl.t A)))
+      -∗
+      (OwnM (Auth.white (Excl.just a': @Excl.t A)))
+      -∗
+      ⌜False⌝.
+  Proof.
+    iIntros "H0 H1". iCombine "H0 H1" as "H".
+    iOwnWf "H". ur in H. ur in H. auto.
+  Qed.
+
 End UPD.
 
 

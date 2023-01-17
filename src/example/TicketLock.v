@@ -5,30 +5,30 @@ Unset Universe Checking.
 From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms OpenMod SCM Red IRed Wrapper WeakestAdequacy.
 From Ordinal Require Export ClassicalHessenberg.
 
-
 Set Implicit Arguments.
 
-
 Module TicketLock.
-  Definition gvs : list nat := [1].
+  Definition gvs : list nat := [2].
   Definition now_serving: SCMem.val := SCMem.val_ptr (0, 0).
   Definition next_ticket: SCMem.val := SCMem.val_ptr (0, 1).
+
+  Definition tk := nat.
 
   Definition lock_loop (myticket: SCMem.val):
     itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit
     :=
     ITree.iter
       (fun (_: unit) =>
-         next <- (OMod.call "load" (now_serving));;
-         b <- (OMod.call "compare" (next: SCMem.val, myticket: SCMem.val));;
+         now <- (OMod.call "load" (now_serving));;
+         b <- (OMod.call "compare" (now: SCMem.val, myticket: SCMem.val));;
          if (b: bool) then Ret (inr tt) else Ret (inl tt)) tt.
 
   Lemma lock_loop_red myticket
     :
     lock_loop myticket
     =
-      next <- (OMod.call "load" (now_serving));;
-      b <- (OMod.call "compare" (next: SCMem.val, myticket: SCMem.val));;
+      now <- (OMod.call "load" (now_serving));;
+      b <- (OMod.call "compare" (now: SCMem.val, myticket: SCMem.val));;
       if (b: bool)
       then Ret tt else tau;; lock_loop myticket.
   Proof.
@@ -48,9 +48,9 @@ Module TicketLock.
   Definition unlock_fun:
     ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit :=
     fun _ =>
-      v <- (OMod.call "load" now_serving);;
-      let v := SCMem.val_add v 1 in
-      `_: unit <- (OMod.call "store" (now_serving, v));;
+      upd <- (OMod.call "load" now_serving);;
+      let upd := SCMem.val_add upd 1 in
+      `_: unit <- (OMod.call "store" (now_serving, upd));;
       trigger Yield
   .
 
@@ -64,117 +64,206 @@ Module TicketLock.
   Definition mod: Mod.t :=
     OMod.close
       (omod)
-      (SCMem.mod [1; 1])
+      (SCMem.mod gvs)
   .
+
 End TicketLock.
+
+
 
 From Fairness Require Import IProp IPM Weakest.
 From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
 From Fairness Require Import FairLock.
 
+Section AUX.
+
+  Variant prod_le
+          {A B: Type} {RA: A -> A -> Prop} {RB: B -> B -> Prop}
+          (PRA: PartialOrder RA) (PRB: PreOrder RB) :
+    (A * B) -> (A * B) -> Prop :=
+    | prod_le_l
+        a0 a1 b0 b1
+        (ORD: RA a0 a1)
+        (NEQ: a0 <> a1)
+      :
+      prod_le PRA PRB (a0, b0) (a1, b1)
+    | prod_le_r
+        a b0 b1
+        (ORD: RB b0 b1)
+      :
+      prod_le PRA PRB (a, b0) (a, b1)
+  .
+
+  Global Program Instance prod_le_PreOrder
+         {A B: Type} {RA: A -> A -> Prop} {RB: B -> B -> Prop}
+         (PRA: PartialOrder RA) (PRB: PreOrder RB)
+    : PreOrder (prod_le PRA PRB).
+  Next Obligation.
+    ii. destruct x. econs 2. inv PRB. auto.
+  Qed.
+  Next Obligation.
+    ii. destruct x as [a0 b0], y as [a1 b1], z as [a2 b2].
+    inv H.
+    - inv H0.
+      + econs 1; inv PRA.
+        * inv partial_order_pre. eapply PreOrder_Transitive; eauto.
+        * ii. clarify. apply NEQ0. apply partial_order_anti_symm; auto.
+      + econs 1; auto.
+    - inv H0.
+      + econs 1; auto.
+      + econs 2. inv PRB. eapply PreOrder_Transitive; eauto.
+  Qed.
+
+End AUX.
+
+Module Tkst.
+
+  Definition t X := (nat * X)%type.
+
+  Definition le {X} (s0 s1: @t X): Prop :=
+    let '(n0, x0) := s0 in
+    let '(n1, x1) := s1 in
+    (n0 <= n1) /\ (n0 = n1 -> x0 = x1).
+
+  Global Program Instance le_PreOrder X: PreOrder (@le X).
+  Next Obligation.
+    ii. unfold le. des_ifs.
+  Qed.
+  Next Obligation.
+    ii. unfold le in *. des_ifs. des; clarify. split; auto; try lia.
+    i. clarify. assert (n0 = n1). lia. clarify. rewrite H2; auto.
+  Qed.
+
+
+  Definition a {X} x : t X := (1, x).
+  Definition b {X} x : t X := (2, x).
+  Definition c {X} x : t X := (3, x).
+  Definition d {X} x : t X := (4, x).
+
+End Tkst.
+
+Section TKQ.
+
+  Inductive tkqueue
+            (l: list thread_id) (tks: NatMap.t TicketLock.tk) (inc exc: TicketLock.tk)
+    : Prop :=
+  | tkqueue_empty
+      (EMP1: l = [])
+      (EMP2: tks = @NatMap.empty _)
+      (EQ: inc = exc)
+    :
+    tkqueue l tks inc exc
+  | tkqueue_hd
+      hd tl
+      (QUEUE: l = hd :: tl)
+      (FIND: NatMap.find hd tks = Some inc)
+      (TL: tkqueue tl (NatMap.remove hd tks) (S inc) exc)
+    :
+    tkqueue l tks inc exc
+  .
+
+End TKQ.
+
 Section SIM.
+
+  Let mypreord := prod_le_PreOrder nat_le_po (Tkst.le_PreOrder nat).
+
   Context `{Σ: GRA.t}.
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA (bool * NatMap.t unit)) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA (unit * SCMem.t)) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA (thread_id)) Σ}.
-  (* Context `{IDENTSRC: @GRA.inG (identSrcRA (id_sum thread_id void)) Σ}. *)
-  Context `{IDENTTGT: @GRA.inG (identTgtRA (void + SCMem.val)%type) Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA (Mod.state ABSLock.mod)) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA (Mod.ident ABSLock.mod)) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA (OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) Σ}.
+  (* Context `{IDENTTGT: @GRA.inG (identTgtRA (void + SCMem.val)%type) Σ}. *)
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{ARROWRA: @GRA.inG (ArrowRA (void + SCMem.val)%type) Σ}.
+  Context `{ARROWRA: @GRA.inG (ArrowRA (OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-
   Context `{MEMRA: @GRA.inG memRA Σ}.
-  Context `{EXCL: @GRA.inG (Excl.t unit) Σ}.
-  Context `{ONESHOTRA: @GRA.inG (OneShot.t thread_id) Σ}.
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t unit)) Σ}.
-  Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}.
-  Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
-  Context `{AUTHRA: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}.
 
-  (* Definition ticket_lock_inv_unlocked *)
-  (*            (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp := *)
-  (*   (OwnM (Auth.white (Excl.just now: Excl.t nat))) *)
-  (*     ∗ *)
-  (*     (∃ (tkl: list nat), *)
-  (*         (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats now next)⌝) *)
-  (*     ) *)
-  (* . *)
-
-  (* Definition ticket_lock_inv_locked *)
-  (*            (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp := *)
-  (*   (OwnM (Auth.white (Excl.just now: Excl.t nat))) *)
-  (*     ∗ *)
-  (*     (∃ (tkl: list nat), *)
-  (*         (⌜(list_map_natmap l tks = Some tkl) /\ (tkl = list_nats (S now) next)⌝) *)
-  (*     ) *)
-  (* . *)
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLock.tk)) Σ}.
+  Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
+  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * unit))) Σ}.
+  (* Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}. *)
+  (* Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}. *)
 
   Variable monok: nat.
 
   Definition ticket_lock_inv_unlocking
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
     ∃ (myt: thread_id),
-      (OwnM (Auth.white (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
+      (OwnM (Auth.black (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
         ∗
-        (⌜list_map_natmap l tks = Some (list_nats (S now) next)⌝)
+        (⌜tkqueue l tks (S now) next⌝)
+        (* (⌜list_map_natmap l tks = Some (list_nats (S now) next)⌝) *)
         ∗
-        (natmap_prop_sum tks (fun th tk => FairRA.white th (tk - (S now))))
+        (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
         ∗
         (list_prop_sum (fun th => ObligationRA.duty (inl th) []) l)
         ∗
         (∃ (k: nat) (o: Ord.t),
-            (monoBlack monok prod_le_PreOrder (now, tkst.d k))
+            (monoBlack monok mypreord (now, Tkst.d k))
               ∗ (ObligationRA.black k o)
               ∗ (ObligationRA.pending k 1)
-              ∗ (ObligationRA.duty (inl myt) ((k, 1%ord) :: []))
+              ∗ (ObligationRA.duty (inl myt) [(k, Ord.S Ord.O)])
         )
   .
 
   Definition ticket_lock_inv_unlocked
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
-    match l with
-    | [] =>
-        (OwnM (Auth.white (Excl.just now: Excl.t nat)))
-          ∗
-          (⌜(tks = NatMap.empty) /\ (now = next)⌝)
-          ∗
-          (∃ (k: nat),
-              (monoBlack monok prod_le_PreOrder (now, tkst.a k))
-          )
-    | yourt :: waits =>
-        (OwnM (Auth.white (Excl.just now: Excl.t nat)))
-          ∗
-          (⌜list_map_natmap l tks = Some (list_nats now next)⌝)
-          ∗
-          (natmap_prop_sum tks (fun th tk => FairRA.white th (tk - (now))))
-          ∗
-          (list_prop_sum (fun th => ObligationRA.duty (inl th) []) waits)
-          ∗
-          (∃ (k: nat) (o: Ord.t),
-              (monoBlack monok prod_le_PreOrder (now, tkst.b k))
-                ∗ (ObligationRA.black k o)
-                ∗ (ObligationRA.pending k 1)
-                ∗ (ObligationRA.duty (inl yourt) ((k, 1%ord) :: []))
-          )
-    end
+    (OwnM (Auth.white (Excl.just now: Excl.t nat)))
+      ∗
+      (∃ myt,
+          (OwnM (Auth.black (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
+            ∗
+            (OwnM (Auth.white (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
+      )
+      ∗
+      (match l with
+       | [] =>
+           (⌜(tks = @NatMap.empty _) /\ (now = next)⌝)
+             ∗
+             (∃ (k: nat),
+                 (monoBlack monok mypreord (now, Tkst.a k))
+             )
+       | yourt :: waits =>
+           (⌜tkqueue l tks now next⌝)
+           (* (⌜list_map_natmap l tks = Some (list_nats now next)⌝) *)
+             ∗
+             (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (now)))))
+             ∗
+             (list_prop_sum (fun th => ObligationRA.duty (inl th) []) waits)
+             ∗
+             (∃ (k: nat) (o: Ord.t),
+                 (monoBlack monok mypreord (now, Tkst.b k))
+                   ∗ (ObligationRA.black k o)
+                   ∗ (ObligationRA.pending k 1)
+                   ∗ (ObligationRA.duty (inl yourt) [(k, Ord.S Ord.O)])
+             )
+       end)
   .
 
   Definition ticket_lock_inv_locked
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat) : iProp :=
     (OwnM (Auth.white (Excl.just now: Excl.t nat)))
       ∗
-      (⌜list_map_natmap l tks = Some (list_nats (S now) next)⌝)
+      (∃ myt,
+          (OwnM (Auth.black (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
+            ∗
+            (OwnM (Auth.white (Excl.just (myt, tt): Excl.t (thread_id * unit)%type)))
+      )
       ∗
-      (natmap_prop_sum tks (fun th tk => FairRA.white th (tk - (S now))))
+      (⌜tkqueue l tks (S now) next⌝)
+      (* (⌜list_map_natmap l tks = Some (list_nats (S now) next)⌝) *)
+      ∗
+      (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
       ∗
       (list_prop_sum (fun th => ObligationRA.duty (inl th) []) l)
       ∗
       (∃ (k: nat),
-          (monoBlack monok prod_le_PreOrder (now, tkst.c k))
+          (monoBlack monok mypreord (now, Tkst.c k))
       )
   .
 
@@ -204,9 +293,7 @@ Section SIM.
         ))
   .
 
-
-
-  Let I: list iProp := [thread1_will_write; lock_will_unlock].
+  Let I: list iProp := [ticket_lock_inv].
 
 
 

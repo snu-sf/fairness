@@ -14,6 +14,7 @@ Module ABSLock.
   Definition lock_fun
     : ktree (((@eventE thread_id) +' cE) +' (sE (bool * NatMap.t unit)%type)) unit unit :=
     fun _ =>
+      _ <- trigger Yield;;
       tid <- trigger (GetTid);;
       '(own, ts) <- trigger (@Get _);;
       let ts := NatMap.add tid tt ts in
@@ -37,6 +38,7 @@ Module ABSLock.
   Definition unlock_fun
     : ktree (((@eventE thread_id) +' cE) +' (sE (bool * NatMap.t unit)%type)) unit unit :=
     fun _ =>
+      _ <- trigger Yield;;
       '(own, ts) <- trigger (@Get _);;
       if (Bool.eqb own true)
       then _ <- trigger (Put (false, ts));; _ <- trigger Yield;; Ret tt
