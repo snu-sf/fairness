@@ -95,7 +95,7 @@ Section WORLD_SATISFACTION.
   Qed.
 
   Lemma wsat_inv_alloc p :
-    wsat ∗ prop p ⊢ |==> ∃ i, inv i p ∗ wsat.
+    wsat ∗ prop p ⊢ |==> (∃ i, inv i p) ∗ wsat.
   Proof.
     iIntros "[[% [AUTH SAT]] P]".
     unfold inv_auth, inv_satall.
@@ -122,10 +122,12 @@ Section WORLD_SATISFACTION.
     }
     iMod (OwnM_Upd H3 with "AUTH") as "[AUTH NEW]". iModIntro.
 
-    iExists i. iFrame. unfold wsat. iExists I'. iFrame.
-    unfold inv_satall. subst I'.
-    iApply big_sepM_insert. { apply not_elem_of_dom_1; ss. }
-    iSplitL "P D"; ss. iLeft. iFrame.
+    iSplit.
+    - iExists i. iFrame.
+    - unfold wsat. iExists I'. iFrame.
+      unfold inv_satall. subst I'.
+      iApply big_sepM_insert. { apply not_elem_of_dom_1; ss. }
+      iSplitL "P D"; ss. iLeft. iFrame.
   Qed.
 
   Lemma wsat_inv_open i p :
@@ -192,6 +194,15 @@ Section FANCY_UPDATE.
 
   Definition FUpd (E1 E2 : coPset) (P : iProp) : iProp :=
     wsat ∗ OwnE E1 -∗ #=> (wsat ∗ OwnE E2 ∗ P).
+
+  Lemma FUpd_alloc E p :
+    prop p ⊢ FUpd E E (∃ i, inv i p).
+  Proof.
+    iIntros "P [WSAT EN]".
+    iMod (wsat_inv_alloc p with "[WSAT P]") as "[I WSAT]".
+    - iFrame.
+    - iModIntro. iFrame.
+  Qed.
 
   Lemma FUpd_open E i p (IN : i ∈ E) :
     inv i p ⊢ FUpd E (E∖{[i]}) (prop p ∗ (prop p -∗ FUpd (E∖{[i]}) E True)).
