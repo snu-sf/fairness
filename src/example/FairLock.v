@@ -9,7 +9,7 @@ From Ordinal Require Export ClassicalHessenberg.
 
 Set Implicit Arguments.
 
-Module ABSLock.
+Module AbsLock.
 
   Definition lock_fun
     : ktree (((@eventE thread_id) +' cE) +' (sE (bool * NatMap.t unit)%type)) unit unit :=
@@ -50,7 +50,7 @@ Module ABSLock.
       (Mod.get_funs [("lock", Mod.wrap_fun lock_fun);
                      ("unlock", Mod.wrap_fun unlock_fun)]).
 
-End ABSLock.
+End AbsLock.
 
 Module FairLock.
   Definition lock_fun: WMod.function bool unit void :=
