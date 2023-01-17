@@ -1142,6 +1142,19 @@ Module GRA.
     eapply UPD. ss.
   Qed.
 
+  Lemma embed_core M Σ `{@GRA.inG M Σ} (r : M) : GRA.embed (URA.core r) = URA.core (GRA.embed r).
+  Proof.
+    unfold URA.core at 2; unfold to_URA; ss.
+    extensionalities i. unfold embed. des_ifs.
+    - ss. destruct inG_prf. ss.
+    - symmetry. apply URA.unit_core.
+  Qed.
+
+  Lemma embed_unit M Σ `{@GRA.inG M Σ} : GRA.embed ε = ε.
+  Proof.
+    unfold embed. extensionalities n. des_ifs. ss. destruct inG_prf. ss.
+  Qed.
+
   Section GETSET.
     Variable ra: URA.t.
     Variable gra: t.
