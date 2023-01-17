@@ -227,4 +227,57 @@ Section FANCY_UPDATE.
     - eapply union_comm.
   Qed.
 
+  Global Instance from_modal_FUpd E P :
+    FromModal True modality_id (FUpd E E P) (FUpd E E P) P.
+  Proof. rewrite /FromModal /= /FUpd. iIntros. iModIntro. iFrame. iFrame. Qed.
+
+  Global Instance from_modal_FUpd_wrong_mask E1 E2 P :
+    FromModal (pm_error "Only non-mask-changing update modalities can be introduced directly.
+Use [iApply MUpd_mask_intro] to introduce mask-changing update modalities")
+              modality_id (FUpd E1 E2 P) (FUpd E1 E2 P) P | 100.
+  Proof. intros []. Qed.
+
+  Global Instance elim_modal_bupd_FUpd p E1 E2 P Q :
+    ElimModal True p false (|==> P) P (FUpd E1 E2 Q) (FUpd E1 E2 Q) | 10.
+  Proof. rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
+         iIntros (_) "[P K] I". iMod "P". iApply ("K" with "P"). iFrame.
+  Qed.
+
+  Global Instance elim_modal_FUpd_FUpd_gen p E0 E1 E2 E3 P Q :
+    ElimModal (E0 ⊆ E2) p false (FUpd E0 E1 P) P (FUpd E2 E3 Q) (FUpd (E1 ∪ E2 ∖ E0) E3 Q).
+  Admitted.
+
+  Global Instance elim_modal_FUpd_FUpd p E1 E2 E3 P Q :
+    ElimModal True p false (FUpd E1 E2 P) P (FUpd E1 E3 Q) (FUpd E2 E3 Q).
+  Proof. rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
+         iIntros (_) "[P K] I". iMod ("P" with "I") as "[WSAT [EN P]]".
+         iApply ("K" with "P"). iFrame.
+  Qed.
+
+  Global Instance elim_modal_FUpd_FUpd_wrong_mask p E0 E1 E2 E3 P Q :
+    ElimModal
+      (pm_error "Goal and eliminated modality must have the same mask.
+Use [iMod (MUpd_mask_subseteq E2)] to adjust the mask of your goal to [E2]")
+      p false
+      (FUpd E1 E2 P) False (FUpd E0 E3 Q) False | 100.
+  Proof. intros []. Qed.
+
+  Global Instance elim_acc_FUpd {X : Type} E1 E2 E (α β : X -> iProp) (mγ : X -> option iProp) (Q : iProp) :
+    ElimAcc True (FUpd E1 E2) (FUpd E2 E1) α β mγ (FUpd E1 E Q) (fun x : X => ((FUpd E2 E2 (β x)) ∗ (mγ x -∗? FUpd E1 E Q))%I).
+  Proof.
+    iIntros (_) "Hinner >[% [Hα Hclose]]".
+    iPoseProof ("Hinner" with "Hα") as "[>Hβ Hfin]".
+    iPoseProof ("Hclose" with "Hβ") as ">Hγ".
+    iApply "Hfin". iFrame.
+  Qed.
+
+  Global Instance into_acc_FUpd_inv E i p :
+    IntoAcc (inv i p) (i ∈ E) True (FUpd E (E ∖ {[i]})) (FUpd (E ∖ {[i]}) E) (fun _ : () => prop p) (fun _ : () => prop p) (fun _ : () => None).
+  Proof.
+    rewrite /IntoAcc. iIntros (iE) "INV _". rewrite /accessor.
+    iPoseProof (FUpd_open _ _ _ iE with "INV") as ">[open close]".
+    iModIntro. iExists tt. iFrame. iIntros "P". iPoseProof ("close" with "P") as ">_".
+    iModIntro. eauto.
+  Qed.
+
 End FANCY_UPDATE.
