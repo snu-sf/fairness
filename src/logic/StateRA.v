@@ -57,6 +57,61 @@ Section UPD.
 
 End UPD.
 
+Section UPDNATMAP.
+  Variable A: Type.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t A)) Σ}.
+
+  Lemma NatMapRA_find_some m k a
+    :
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+      -∗
+      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      -∗
+      (⌜NatMap.find k m = Some a⌝).
+  Proof.
+    iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
+    eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H. auto.
+  Qed.
+
+  Lemma NatMapRA_singleton_unique k0 k1 a0 a1
+    :
+    (OwnM (Auth.white (NatMapRA.singleton k0 a0: NatMapRA.t A)))
+      -∗
+      (OwnM (Auth.white (NatMapRA.singleton k1 a1: NatMapRA.t A)))
+      -∗
+      (⌜k0 <> k1⌝).
+  Proof.
+    iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
+    ur in H. eapply NatMapRA.singleton_unique in H. auto.
+  Qed.
+
+  Lemma NatMapRA_remove m k a
+    :
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+      -∗
+      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      -∗
+      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRA.t A))).
+  Proof.
+    iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
+    eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update.
+  Qed.
+
+  Lemma NatMapRA_add m k a
+        (NONE: NatMap.find k m = None)
+    :
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+      -∗
+      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRA.t A)
+                            ⋅ Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+         ).
+  Proof.
+    iIntros "B". iApply OwnM_Upd. 2: iFrame.
+    eapply Auth.auth_alloc. eapply NatMapRA.add_local_update. auto.
+  Qed.
+
+End UPDNATMAP.
+
 
 Section PAIR.
   Variable A: Type.
