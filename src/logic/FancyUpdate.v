@@ -253,7 +253,7 @@ Section FANCY_UPDATE.
 
   Global Instance from_modal_FUpd_wrong_mask E1 E2 P :
     FromModal (pm_error "Only non-mask-changing update modalities can be introduced directly.
-Use [iApply MUpd_mask_intro] to introduce mask-changing update modalities")
+Use [FUpd_mask_frame] and [FUpd_intro_mask]")
               modality_id (FUpd E1 E2 P) (FUpd E1 E2 P) P | 100.
   Proof. intros []. Qed.
 
@@ -273,7 +273,7 @@ Use [iApply MUpd_mask_intro] to introduce mask-changing update modalities")
   Global Instance elim_modal_FUpd_FUpd_wrong_mask p E0 E1 E2 E3 P Q :
     ElimModal
       (pm_error "Goal and eliminated modality must have the same mask.
-Use [iMod (MUpd_mask_subseteq E2)] to adjust the mask of your goal to [E2]")
+Use [FUpd_mask_frame] and [FUpd_intro_mask]")
       p false
       (FUpd E1 E2 P) False (FUpd E0 E3 Q) False | 100.
   Proof. intros []. Qed.
