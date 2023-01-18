@@ -612,6 +612,11 @@ Section SIM.
     iIntros "[MYTH DUTY]".
     iApply correct_lock_a. iSplitL. iFrame.
     iIntros "% MYTK".
+    rewrite TicketLock.lock_loop_red. rred. rewrite close_itree_call. rred.
+    iStopProof. revert mytk. eapply stsim_coind. msubtac.
+    iIntros "% %mytk". iIntros "#[_ CIH] MYTK".
+    (* TODO *)
+    
     
 
     
