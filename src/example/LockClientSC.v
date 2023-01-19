@@ -215,10 +215,12 @@ Section SIM.
           (OwnM (Excl.just tt: Excl.t unit)))
          -∗
          (stsim I tid (topset I) r g Q
+                false false
                 (trigger Yield;;; src)
                 (tgt)))
       ⊢
       (stsim I tid (topset I) r g Q
+             false false
              (trigger Yield;;; src)
              ((OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (R:=unit) (OMod.call "lock" ()));;; tgt)).
   Proof.
@@ -549,7 +551,7 @@ Section SIM.
       iApply stsim_tauR. rred. iApply stsim_tauR. rred.
       iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL LOCK]") as "SIM".
       iFrame. iExists k. iFrame.
-      iFrame.
+      iApply stsim_reset. iFrame.
     }
 
   Qed.
@@ -572,10 +574,12 @@ Section SIM.
       ((ObligationRA.duty (inl tid) l)
          -∗
          (stsim I tid (topset I) r g Q
+                false false
                 (trigger Yield;;; src)
                 (tgt)))
       ⊢
       (stsim I tid (topset I) r g Q
+             false false
              (trigger Yield;;; src)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (R:=unit) (OMod.call "unlock" ());;; tgt)).
   Proof.
@@ -624,7 +628,7 @@ Section SIM.
     }
     iIntros "DUTY _". rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
-    iApply "SIM". iFrame.
+    iApply stsim_reset. iApply "SIM". iFrame.
 
   Qed.
 
@@ -639,8 +643,9 @@ Section SIM.
             ∗ (ObligationRA.pending k (/ 2))
     )
       ⊢
-      (stsim I tid (topset I) ibot5 ibot5
+      (stsim I tid (topset I) ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             false false
              (ClientSpec.thread1 tt)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (ClientImpl.thread1 tt))).
   Proof.
@@ -698,7 +703,7 @@ Section SIM.
     iPoseProof (ObligationRA.duty_permutation with "DUTY") as "DUTY".
     { eapply perm_swap. }
     iPoseProof (ObligationRA.duty_done with "DUTY OBLKSHOT") as "> DUTY".
-    iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
+    iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
     { iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
       iApply ObligationRA.white_eq. 2: iFrame.
       rewrite Jacobsthal.mult_1_l. reflexivity.
@@ -707,6 +712,7 @@ Section SIM.
     iApply (stsim_sync with "[DUTY]"). msubtac. iFrame.
     iIntros "DUTY _". rred. iApply stsim_tauR. rred.
     iApply stsim_ret. iApply MUpd_intro. iFrame. auto.
+
   Qed.
 
   Lemma correct_thread2 tid:
@@ -714,8 +720,9 @@ Section SIM.
        ∗ (ObligationRA.duty (inl tid) [])
     )
       ⊢
-      (stsim I tid (topset I) ibot5 ibot5
+      (stsim I tid (topset I) ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             false false
              (ClientSpec.thread2 tt)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (ClientImpl.thread2 tt))).
   Proof.
@@ -765,7 +772,7 @@ Section SIM.
       { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
       msubtac.
       clear own mem wobl j0 LOAD PERM.
-      iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
+      iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
       { iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
         iApply ObligationRA.white_eq. 2: iFrame.
         rewrite Jacobsthal.mult_1_l. reflexivity.
@@ -786,13 +793,13 @@ Section SIM.
       iPoseProof (ObligationRA.correl_thread_correlate with "KCOR OWHTH") as "> [KWHI|#KDONE]".
       (* thread 1 not done; induction *)
       { iPoseProof (ObligationRA.black_white_decr_one with "KBLK KWHI") as "> [% [#KBLK2 %DECR]]".
-        iClear "KBLK". iApply IH. apply DECR. iFrame. eauto.
+        iClear "KBLK". iApply stsim_reset. iApply IH. apply DECR. iFrame. eauto.
       }
 
       (* thread 1 done; exit *)
       { iClear "KBLK KCOR". clear n j own mem wobl j0 IH.
         rewrite OpenMod.unfold_iter. rred.
-        iApply AbsLock_lock. iSplitL "MYTH DUTY".
+        iApply stsim_reset. iApply AbsLock_lock. iSplitL "MYTH DUTY".
         { iFrame. }
         iIntros "[MYTH [[% [DUTY [WHI LOCK]]] EXCL]]". instantiate (1:= 4). rred.
 
@@ -845,7 +852,7 @@ Section SIM.
         { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
         msubtac.
         clear own mem wobl j0 LOAD PERM.
-        iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
+        iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
         { iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
           iApply ObligationRA.white_eq. 2: iFrame.
           rewrite Jacobsthal.mult_1_l. reflexivity.
@@ -917,7 +924,7 @@ Section SIM.
       { unfold lock_will_unlock. do 4 iExists _. iFrame. }
       msubtac.
       clear own mem wobl j0 LOAD PERM.
-      iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
+      iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
       { iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
         iApply ObligationRA.white_eq. 2: iFrame.
         rewrite Jacobsthal.mult_1_l. reflexivity.

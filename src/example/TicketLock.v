@@ -410,8 +410,9 @@ Section SIM.
           (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk)))
         )
           -∗
-  (stsim I tid (topset I) ibot5 ibot5
-    (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+  (stsim I tid (topset I) ibot7 ibot7
+         (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+         false false
     (ITree.iter
         (λ _ : (),
            trigger Yield;;;
@@ -436,8 +437,9 @@ Section SIM.
   )
       )
       ⊢
-      (stsim I tid (topset I) ibot5 ibot5
+      (stsim I tid (topset I) ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             false false
              (AbsLock.lock_fun tt)
              (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
                                (TicketLock.lock_fun tt))).
@@ -501,7 +503,7 @@ Section SIM.
         iPoseProof (natmap_prop_sum_add with "INV2 MYTRI") as "INV2".
         iFrame. iApply list_prop_sum_add. iFrame.
       }
-      iApply "SIM". iFrame.
+      iApply stsim_reset. iApply "SIM". iFrame.
     }
 
     iDestruct "INV" as "[INV | INV]".
@@ -528,7 +530,7 @@ Section SIM.
         iPoseProof (natmap_prop_sum_add with "INV2 MYTRI") as "INV2".
         iFrame. iApply list_prop_sum_add. iFrame.
       }
-      iApply "SIM". iFrame.
+      iApply stsim_reset. iApply "SIM". iFrame.
     }
 
     iDestruct "INV" as "[INV | INV]".
@@ -564,7 +566,7 @@ Section SIM.
         }
         iSplitR. auto. iExists k, _. iFrame.
       }
-      iApply "SIM". iFrame.
+      iApply stsim_reset. iApply "SIM". iFrame.
     }
 
     { iPoseProof (FairRA.white_mon with "MYTRI") as ">MYTRI".
@@ -593,7 +595,7 @@ Section SIM.
         iPoseProof (natmap_prop_sum_add with "INV3 MYTRI") as "INV3".
         iFrame. iApply list_prop_sum_add. iFrame.
       }
-      iApply "SIM". iFrame.
+      iApply stsim_reset. iApply "SIM". iFrame.
     }
 
   Qed.
@@ -603,8 +605,9 @@ Section SIM.
        ∗ (ObligationRA.duty (inl tid) [])
     )
       ⊢
-      (stsim I tid (topset I) ibot5 ibot5
+      (stsim I tid (topset I) ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             false false
              (AbsLock.lock_fun tt)
              (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
                                (TicketLock.lock_fun tt))).
