@@ -2602,6 +2602,17 @@ Section SUM.
     ss. iIntros "[PA SUM]". iSplitL "PA"; iFrame. iApply IHl. iFrame.
   Qed.
 
+  Lemma list_prop_sum_in_split
+        A (P: A -> iProp) l a
+        (IN: In a l)
+    :
+    (list_prop_sum (fun a => P a) l)
+      -∗ ((P a) ∗ ((P a) -∗ (list_prop_sum (fun a => P a) l))).
+  Proof.
+    (* TODO *)
+(* in_split: ∀ [A : Type] (x : A) (l : list A), In x l → ∃ l1 l2 : list A, l = l1 ++ x :: l2 *)
+    
+
   Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
     list_prop_sum (fun '(k, v) => P k v) (NatMap.elements f).
 

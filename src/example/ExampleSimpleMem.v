@@ -109,7 +109,7 @@ Section SIM.
     { i. exists (S o0). ss. }
     { admit. }
     { cut (forall tid,
-              (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot5 ibot5 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) (example_spec_fun tt) (OMod.close_itree (example_omod) (SCMem.mod [1; 1]) (example_fun tt))).
+              (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot7 ibot7 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) false false (example_spec_fun tt) (OMod.close_itree (example_omod) (SCMem.mod [1; 1]) (example_fun tt))).
       { admit. }
       iIntros (?) "[TH DUTY]". unfold example_spec_fun, example_fun.
       lred. rred. rewrite close_itree_call. ss. rred.
@@ -325,4 +325,3 @@ Section SIM.
     }
   Admitted.
 End SIM.
-

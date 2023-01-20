@@ -396,7 +396,31 @@ Section SIM.
         ))
   .
 
+
+
   Let I: list iProp := [ticket_lock_inv].
+
+  Lemma get_duty tid mytk
+    :
+    ⊢
+      ((OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)))
+         -∗
+         (MUpd (nth_default True%I I) (fairI (ident_tgt:= OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) [0] []
+               (((ObligationRA.duty (inl tid) []) ∗ (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat))))
+                  ∗ ((ObligationRA.duty (inl tid) [])
+                       -∗ (MUpd (nth_default True%I I) (fairI (ident_tgt:= OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) [] [0] True%I)
+      ))))%I.
+  Proof.
+    iIntros "MYTH".
+    (iPoseProof (MUpd_open (nth_default True%I I) _ 0) as "> _H";
+     [ let x := eval cbn in ((nth_default True%I I) 0) in
+         change ((nth_default True%I I) 0) with x; msimpl; iDestruct "_H" as "[I K]" ]).
+    iModIntro.
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+
+    
+    
+
 
 
 
@@ -618,6 +642,32 @@ Section SIM.
     rewrite TicketLock.lock_loop_red. rred. rewrite close_itree_call. rred.
     iStopProof. revert mytk. eapply stsim_coind. msubtac.
     iIntros "% %mytk". iIntros "#[_ CIH] MYTK".
+    rewrite unfold_iter_eq. lred.
+
+    (* iopen 0 "I" "K". *)
+
+    iAssert ((OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)))
+               -∗
+         (MUpd (nth_default True%I I) (fairI (ident_tgt:= OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) [0] []
+               (((ObligationRA.duty (inl tid) []) ∗ (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat))))
+                  ∗ ((ObligationRA.duty (inl tid) [])
+                       -∗ (MUpd (nth_default True%I I) (fairI (ident_tgt:= OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) [] [0] True%I)
+            ))))%I as "TEMP".
+    { admit. }
+
+    iMod ("TEMP" with "MYTK") as "[[DUTY MYTK] CLOSE]".
+    iApply (stsim_yieldR_strong with "[DUTY]"). iFrame.
+    iIntros "DUTY _". iPoseProof ("CLOSE" with "DUTY") as "CLOSE".
+    iMod ("CLOSE") as "_". iModIntro.
+
+    iApply MUpd_intro.
+
+    iFrame.
+    
+    iMod 
+    
+    iApply (stsim_yieldR with ""
+    
     (* TODO *)
     
     
@@ -632,8 +682,9 @@ Section SIM.
        ∗ (ObligationRA.duty (inl tid) [])
     )
       ⊢
-      (stsim I tid (topset I) ibot5 ibot5
+      (stsim I tid (topset I) ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             false false
              (AbsLock.unlock_fun tt)
              (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
                                (TicketLock.unlock_fun tt))).
