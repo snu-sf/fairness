@@ -11,7 +11,7 @@ Import Mod.
 Import RelationClasses.
 
 
-
+Locate OMod.
 
 
 Section CLOSE_CONG_SIM.
@@ -431,30 +431,6 @@ Section CLOSE_CONG_SIM.
         eapply pind9_fold. econs. split; ss.
         eapply pind9_fold. eapply lsim_progress.
         gfinal. left. eapply CIH; eauto.
-    - destruct s.
-      + rewrite 2 close_itree_vis_put. ss.
-        rewrite <- 2 bind_trigger.
-        gstep.
-        eapply pind9_fold. eapply lsim_getL. esplit; ss.
-        eapply pind9_fold. eapply lsim_getR. esplit; ss.
-        rewrite <- 2 bind_trigger.
-        eapply pind9_fold. eapply lsim_putL. esplit; ss.
-        eapply pind9_fold. eapply lsim_putR. esplit; ss.
-        eapply pind9_fold. econs. split; ss.
-        eapply pind9_fold. econs. split; ss.
-        eapply pind9_fold. eapply lsim_progress.
-        gfinal. left. eapply CIH; eauto.
-        destruct st_src0, st_tgt0; ss. des; esplits; eauto.
-      + rewrite 2 close_itree_vis_get. ss.
-        rewrite <- 2 bind_trigger.
-        gstep.
-        eapply pind9_fold. eapply lsim_getL. esplit; ss.
-        eapply pind9_fold. eapply lsim_getR. esplit; ss.
-        eapply pind9_fold. econs. split; ss.
-        eapply pind9_fold. econs. split; ss.
-        eapply pind9_fold. eapply lsim_progress.
-        des. rewrite INV3.
-        gfinal. left. eapply CIH; eauto. esplits; eauto.
     - destruct c. rewrite 2 close_itree_vis_call. simpl.
       specialize (FSIM fn arg).
       des_ifs.
@@ -569,6 +545,30 @@ Section CLOSE_CONG_SIM.
           esplits; eauto.
       + rewrite <- 2 bind_trigger.
         gstep. eapply pind9_fold. econs; eauto.
+    - destruct s.
+      + rewrite 2 close_itree_vis_put. ss.
+        rewrite <- 2 bind_trigger.
+        gstep.
+        eapply pind9_fold. eapply lsim_getL. esplit; ss.
+        eapply pind9_fold. eapply lsim_getR. esplit; ss.
+        rewrite <- 2 bind_trigger.
+        eapply pind9_fold. eapply lsim_putL. esplit; ss.
+        eapply pind9_fold. eapply lsim_putR. esplit; ss.
+        eapply pind9_fold. econs. split; ss.
+        eapply pind9_fold. econs. split; ss.
+        eapply pind9_fold. eapply lsim_progress.
+        gfinal. left. eapply CIH; eauto.
+        destruct st_src0, st_tgt0; ss. des; esplits; eauto.
+      + rewrite 2 close_itree_vis_get. ss.
+        rewrite <- 2 bind_trigger.
+        gstep.
+        eapply pind9_fold. eapply lsim_getL. esplit; ss.
+        eapply pind9_fold. eapply lsim_getR. esplit; ss.
+        eapply pind9_fold. econs. split; ss.
+        eapply pind9_fold. econs. split; ss.
+        eapply pind9_fold. eapply lsim_progress.
+        des. rewrite INV3.
+        gfinal. left. eapply CIH; eauto. esplits; eauto.
   Qed.
 
 End CLOSE_CONG_SIM.

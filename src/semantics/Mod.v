@@ -17,16 +17,30 @@ Definition program := list (fname * Any.t)%type.
 
 Definition Val := nat.
 
-Variant cE: Type -> Type :=
-| Yield: cE unit
-| GetTid: cE thread_id
-(* | Spawn (fn: fname) (args: list Val): cE unit *)
-.
+Section EVENTS.
 
-Variant sE (State: Type): Type -> Type :=
-| Put (st: State): sE State unit
-| Get: sE State State
-.
+  Variant cE: Type -> Type :=
+  | Yield: cE unit
+  | GetTid: cE thread_id
+  (* | Spawn (fn: fname) (args: list Val): cE unit *)
+  .
+
+  Variant sE (State: Type): Type -> Type :=
+  | Put (st: State): sE State unit
+  | Get: sE State State
+  .
+
+  Variant callE: Type -> Type :=
+  | Call (fn: fname) (arg: Any.t): callE Any.t
+  .
+
+End EVENTS.
+
+Notation programE ident State :=
+  ((((@eventE ident) +' cE) (* +' callE *) ) +' sE State).
+
+Notation oprogramE ident State :=
+  ((((@eventE ident) +' cE) +' callE) +' sE State).
 
 Section TID.
 
@@ -88,8 +102,9 @@ Module Mod.
         state: Type;
         ident: ID;
         st_init: state;
-        funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t);
+        funs: fname -> option (ktree (programE ident state) Any.t Any.t);
       }.
+
 
   Program Definition wrap_fun {ident} {E} `{@eventE ident -< E} A R
           (f: ktree E A R):
@@ -186,11 +201,11 @@ Section ADD.
   Import Mod.
   Variable M1 M2 : Mod.t.
 
-  Definition embed_l {R} (itr : itree ((eventE +' cE) +' sE _) R) :=
+  Definition embed_l {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
     map_event (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident))))
       (embed_state (@fst M1.(state) M2.(state)) update_fst itr).
 
-  Definition embed_r {R} (itr : itree ((eventE +' cE) +' sE _) R) :=
+  Definition embed_r {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
     map_event (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident))))
       (embed_state (@snd M1.(state) M2.(state)) update_snd itr).
 

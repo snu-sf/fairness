@@ -14,7 +14,7 @@ Module TicketLock.
   Definition next_ticket: SCMem.val := SCMem.val_ptr (0, 1).
 
   Definition lock_loop (myticket: SCMem.val):
-    itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit
+    itree (oprogramE void unit) unit
     :=
     ITree.iter
       (fun (_: unit) =>
@@ -37,7 +37,7 @@ Module TicketLock.
   Qed.
 
   Definition lock_fun:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit :=
+    ktree (oprogramE void unit) unit unit :=
     fun _ =>
       myticket <- (OMod.call "faa" (next_ticket, 1));;
       _ <- lock_loop myticket;;
@@ -45,7 +45,7 @@ Module TicketLock.
   .
 
   Definition unlock_fun:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit :=
+    ktree (oprogramE void unit) unit unit :=
     fun _ =>
       _ <- trigger Yield;;
       v <- (OMod.call "load" now_serving);;
