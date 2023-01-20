@@ -2609,9 +2609,16 @@ Section SUM.
     (list_prop_sum (fun a => P a) l)
       -∗ ((P a) ∗ ((P a) -∗ (list_prop_sum (fun a => P a) l))).
   Proof.
-    (* TODO *)
-(* in_split: ∀ [A : Type] (x : A) (l : list A), In x l → ∃ l1 l2 : list A, l = l1 ++ x :: l2 *)
-    
+    iIntros "SUM". apply in_split in IN. des. rewrite cons_middle in IN. clarify.
+    iPoseProof (list_prop_sum_split with "SUM") as "[SL SR]".
+    iPoseProof (list_prop_sum_split with "SR") as "[SM SR]".
+    iSplitL "SM". ss. iDestruct "SM" as "[PA _]". iFrame.
+    iIntros "PA".
+    iAssert (list_prop_sum (fun a0 => P a0) (a :: (l1 ++ l2)))%I with "[SL SR PA]" as "SP".
+    { ss. iFrame. iApply list_prop_sum_combine. iFrame. }
+    iApply (list_prop_sum_perm with "SP"). rewrite app_assoc. rewrite app_comm_cons.
+    apply Permutation_app_tail. apply Permutation_cons_append.
+  Qed.
 
   Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
     list_prop_sum (fun '(k, v) => P k v) (NatMap.elements f).
@@ -2863,6 +2870,26 @@ Section SUM.
   Proof.
     iIntros "SUMs". iApply natmap_prop_sum_impl. 2: iApply natmap_prop_sum_sepconj; iFrame.
     i. ss.
+  Qed.
+
+  Lemma natmap_prop_sum_find_remove
+        A (P: nat -> A -> iProp) m k a
+        (FIND: NatMap.find k m = Some a)
+    :
+    (natmap_prop_sum m (fun k a => P k a))
+      -∗ ((P k a) ∗ ((P k a) -∗ (natmap_prop_sum m (fun k a => P k a)))).
+  Proof.
+    unfold natmap_prop_sum. set (P' := fun x => P (fst x) (snd x)). remember (k, a) as x.
+    cut 
+  (list_prop_sum (λ x, P' x) (NatMap.elements (elt:=A) m) -∗
+                 P' x ∗ (P' x -∗ list_prop_sum (λ x, P' x) (NatMap.elements (elt:=A) m))).
+    { subst. subst P'. ss. i. replace (λ '(k0, v), P k0 v) with (λ x : nat * A, P x.1 x.2). auto.
+      extensionality x. destruct x. ss.
+    }
+    iIntros "SUMs". iApply (list_prop_sum_in_split with "SUMs").
+    subst. apply InA_In'. rewrite NatMapP.F.elements_o in FIND.
+    apply SetoidList.findA_NoDupA in FIND; eauto.
+    apply NatMap.elements_3w.
   Qed.
 
 End SUM.

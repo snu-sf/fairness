@@ -272,6 +272,31 @@ Section TKQ.
     i; clarify.
   Qed.
 
+  Lemma tkqueue_find_in
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+        t v
+        (FIND: NatMap.find t tks = Some v)
+    :
+    In t l.
+  Proof.
+    revert_until TQ. induction TQ; i; clarify; ss.
+    destruct (tid_dec t hd) eqn:DEC; clarify; auto.
+    right. hexploit (IHTQ t v). rewrite nm_find_rm_neq; auto. i. auto.
+  Qed.
+
+  Lemma tkqueue_in_find
+        l tks inc exc
+        (TQ: tkqueue l tks inc exc)
+        t
+        (IN: In t l)
+    :
+    exists v, NatMap.find t tks = Some v.
+  Proof.
+    revert_until TQ. induction TQ; i; clarify; ss. des; clarify; eauto.
+    hexploit (IHTQ t IN). i. des. exists v. rewrite NatMapP.F.remove_o in H. des_ifs.
+  Qed.
+
 End TKQ.
 
 Section SIM.
@@ -417,6 +442,55 @@ Section SIM.
          change ((nth_default True%I I) 0) with x; msimpl; iDestruct "_H" as "[I K]" ]).
     iModIntro.
     do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iDestruct "TKS" as "[TKS0 TKS1]".
+    iPoseProof (NatMapRA_find_some with "TKS0 MYTH") as "%FIND".
+    iDestruct "CASES" as "[[CT INV]|[CF INV]]".
+    { unfold ticket_lock_inv_locked. iDestruct "INV" as "[INV0 [%INV1 [INV2 [INV3 INV4]]]]".
+      hexploit (tkqueue_find_in INV1 _ FIND). i.
+      iPoseProof (list_prop_sum_in_split with "INV3") as "[DUTY INV3]". eapply H.
+      iSplitL "DUTY MYTH". iFrame.
+      iIntros "DUTY". iApply "K".
+      unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt.
+      iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
+      iLeft. iFrame. iSplit. auto. iApply "INV3". iFrame.
+    }
+    iDestruct "INV" as "[INV | [INV | INV]]".
+    { unfold ticket_lock_inv_unlocking. iDestruct "INV" as "[INV0 [%INV1 [INV2 [INV3 INV4]]]]".
+      hexploit (tkqueue_find_in INV1 _ FIND). i.
+      iPoseProof (list_prop_sum_in_split with "INV3") as "[DUTY INV3]". eapply H.
+      iSplitL "DUTY MYTH". iFrame.
+      iIntros "DUTY". iApply "K".
+      unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt.
+      iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
+      iRight. iSplit. iFrame. iLeft. iFrame. iSplit; auto. iApply "INV3". iFrame.
+    }
+    { unfold ticket_lock_inv_unlocked0. iDestruct "INV" as "[INV0 [%INV1 INV2]]".
+      des; subst. rewrite NatMapP.F.empty_o in FIND. ss.
+    }
+    { unfold ticket_lock_inv_unlocked1.
+      do 2 iDestruct "INV" as "[% INV]".
+      iDestruct "INV" as "[INV0 [%INV1 [%INV2 [INV3 [INV4 INV5]]]]]".
+      (* TODO *)
+
+      
+      hexploit (tkqueue_find_in INV2 _ FIND). i.
+      iPoseProof (list_prop_sum_in_split with "INV4") as "[DUTY INV4]". eapply H.
+      iSplitL "DUTY MYTH". iFrame.
+      iIntros "DUTY". iApply "K".
+      unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt.
+      iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
+      iRight. iSplit. iFrame. iLeft. iFrame. iSplit; auto. iApply "INV3". iFrame.
+    }
+    
+      hexploit (tkqueue_find_in INV1 _ FIND). i.
+      iPoseProof (list_prop_sum_in_split with "INV3") as "[DUTY INV3]". eapply H.
+      iSplitL "DUTY MYTH". iFrame.
+      iIntros "DUTY". iApply "K".
+      unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt.
+      iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
+      iRight. iSplit. iFrame. iLeft. iFrame. iSplit; auto. iApply "INV3". iFrame.
+    }
+      
 
     
     
