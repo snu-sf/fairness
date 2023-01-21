@@ -320,6 +320,7 @@ Section SIM.
   Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLock.tk)) Σ}.
   Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
+  Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
   (* Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}. *)
   (* Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}. *)
 
@@ -336,7 +337,7 @@ Section SIM.
       (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
       ∗
       (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
-                                ∗ (∃ u, OwnM (Auth.black (Excl.just u: Excl.t nat))))%I) l)
+                                ∗ (∃ u, maps_to th (Auth.black (Excl.just u: Excl.t nat))))%I) l)
       ∗
       (∃ (k: nat) (o: Ord.t),
           (monoBlack monok mypreord (now, Tkst.d k))
@@ -369,7 +370,7 @@ Section SIM.
         (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (now)))))
         ∗
         (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
-                                  ∗ (∃ u, OwnM (Auth.black (Excl.just u: Excl.t nat))))%I) waits)
+                                  ∗ (∃ u, maps_to th (Auth.black (Excl.just u: Excl.t nat))))%I) waits)
         ∗
         (∃ (k: nat) (o: Ord.t) (u: nat),
             (monoBlack monok mypreord (now, Tkst.b k))
@@ -377,7 +378,7 @@ Section SIM.
               ∗ (ObligationRA.pending k 1)
               ∗ (ObligationRA.duty (inl yourt) [(k, Ord.S Ord.O)])
               ∗ (ObligationRA.white k (((Ord.S Ord.O) × Ord.omega) × (Ord.from_nat u))%ord)
-              ∗ (OwnM (Auth.black (Excl.just u: Excl.t nat)))
+              ∗ (maps_to yourt (Auth.black (Excl.just u: Excl.t nat)))
         )
   .
 
@@ -390,7 +391,7 @@ Section SIM.
       (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
       ∗
       (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
-                                ∗ (∃ u, OwnM (Auth.black (Excl.just u: Excl.t nat))))%I) l)
+                                ∗ (∃ u, maps_to th (Auth.black (Excl.just u: Excl.t nat))))%I) l)
       ∗
       (∃ (k: nat),
           (monoBlack monok mypreord (now, Tkst.c k))
@@ -402,6 +403,8 @@ Section SIM.
     ((OwnM (Auth.black (Some tks: NatMapRA.t nat)))
        ∗ (FairRA.whites (fun id => (~ NatMap.In id tks)) Ord.omega)
        ∗ (natmap_prop_sum tks (fun tid tk => (own_thread tid)))
+       ∗ (OwnMs (fun id => (~ NatMap.In id tks))
+                ((Auth.black (Excl.just 0: Excl.t nat)) ⋅ (Auth.white (Excl.just 0: Excl.t nat))))
     )
   .
 
@@ -504,7 +507,7 @@ Section SIM.
       (∀ mytk,
           (
             (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk)))
-              ∗ (OwnM (Auth.white (Excl.just 2: Excl.t nat)))
+              ∗ (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)))
           )
           -∗
   (stsim I tid (topset I) ibot7 ibot7
@@ -546,7 +549,7 @@ Section SIM.
     rewrite close_itree_call. rred.
     iApply (stsim_sync with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _".
     unfold Mod.wrap_fun, SCMem.faa_fun. rred.
-    iApply stsim_tidL. rred.
+    iApply stsim_tidL. lred.
 
     iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iDestruct "ST" as "[ST0 ST1]".
@@ -562,11 +565,11 @@ Section SIM.
 
     iAssert (⌜NatMap.find tid tks = None⌝)%I as "%FINDNONE".
     { destruct (NatMap.find tid tks) eqn:FIND; auto.
-      iDestruct "TKS" as "[_ [_ YTH]]". iPoseProof (natmap_prop_sum_in with "YTH") as "FALSE".
+      iDestruct "TKS" as "[_ [_ [YTH _]]]". iPoseProof (natmap_prop_sum_in with "YTH") as "FALSE".
       eauto. iPoseProof (own_thread_unique with "MYTH FALSE") as "%FALSE". auto.
     }
 
-    iDestruct "TKS" as "[TKS0 [TKS1 TKS2]]".
+    iDestruct "TKS" as "[TKS0 [TKS1 [TKS2 TKS3]]]".
     set (tks' := NatMap.add tid next tks).
     iPoseProof (NatMapRA_add with "TKS0") as ">[TKS0 MYTK]". eauto. instantiate (1:=next).
     iAssert (St_src (own, (key_set tks')))%I with "[ST1]" as "ST1".

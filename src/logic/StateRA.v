@@ -61,7 +61,6 @@ End UPD.
 Section OWNS.
 
   Variable (Id: Type).
-  Variable A: Type.
   Context `{R: URA.t}.
   Context `{IN1: @GRA.inG R Σ}.
   Context `{IN2: @GRA.inG (Id ==> R)%ra Σ}.
