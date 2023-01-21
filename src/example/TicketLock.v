@@ -299,6 +299,7 @@ Section TKQ.
 
 End TKQ.
 
+
 Section SIM.
 
   Context `{Σ: GRA.t}.
@@ -396,21 +397,36 @@ Section SIM.
       )
   .
 
+  Definition ticket_lock_inv_tks
+             (tks: NatMap.t nat) : iProp :=
+    ((OwnM (Auth.black (Some tks: NatMapRA.t nat)))
+       ∗ (FairRA.whites (fun id => (~ NatMap.In id tks)) Ord.omega)
+       ∗ (natmap_prop_sum tks (fun tid tk => (own_thread tid)))
+    )
+  .
+
+  Definition ticket_lock_inv_mem
+             (mem: SCMem.t) (now next: nat) (myt: thread_id) : iProp :=
+    ((memory_black mem)
+       ∗ (points_to TicketLock.now_serving (SCMem.val_nat now))
+       ∗ (points_to TicketLock.next_ticket (SCMem.val_nat next))
+       ∗ (OwnM (Auth.black (Excl.just (now, myt): Excl.t (nat * nat)%type)))
+    )
+  .
+
+  Definition ticket_lock_inv_state
+             (mem: SCMem.t) (own: bool) (tks: NatMap.t nat) : iProp :=
+    ((St_tgt (tt, mem)) ∗ (St_src (own, (key_set tks))))
+  .
+
   Definition ticket_lock_inv : iProp :=
     ∃ (mem: SCMem.t) (own: bool)
       (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
-      ((OwnM (Auth.black (Some tks: NatMapRA.t nat)))
-         ∗ (FairRA.whites (fun id => (~ NatMap.In id tks)) Ord.omega)
-         ∗ (natmap_prop_sum tks (fun tid tk => (own_thread tid)))
-      )
+      (ticket_lock_inv_tks tks)
         ∗
-        ((memory_black mem)
-           ∗ (points_to TicketLock.now_serving (SCMem.val_nat now))
-           ∗ (points_to TicketLock.next_ticket (SCMem.val_nat next))
-           ∗ (OwnM (Auth.black (Excl.just (now, myt): Excl.t (nat * nat)%type)))
-        )
+        (ticket_lock_inv_mem mem now next myt)
         ∗
-        ((St_tgt (tt, mem)) ∗ (St_src (own, (key_set tks))))
+        (ticket_lock_inv_state mem own tks)
         ∗
         (((⌜own = true⌝)
             ∗ (ticket_lock_inv_locked l tks now next myt)
@@ -430,76 +446,53 @@ Section SIM.
 
   Let I: list iProp := [ticket_lock_inv].
 
-  Lemma get_duty tid mytk
-    :
-    ⊢
-      ((OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)))
-         -∗
-         (MUpd (nth_default True%I I) (fairI (ident_tgt:= OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) [0] []
-               (((ObligationRA.duty (inl tid) []) ∗ (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat))))
-                  ∗ ((ObligationRA.duty (inl tid) [])
-                       -∗ (MUpd (nth_default True%I I) (fairI (ident_tgt:= OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) [] [0] True%I)
-      ))))%I.
-  Proof.
-    iIntros "MYTH".
-    (iPoseProof (MUpd_open (nth_default True%I I) _ 0) as "> _H";
-     [ let x := eval cbn in ((nth_default True%I I) 0) in
-         change ((nth_default True%I I) 0) with x; msimpl; iDestruct "_H" as "[I K]" ]).
-    iModIntro.
-    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
-    iDestruct "TKS" as "[TKS0 TKS1]".
-    iPoseProof (NatMapRA_find_some with "TKS0 MYTH") as "%FIND".
-    iDestruct "CASES" as "[[CT INV]|[CF INV]]".
-    { unfold ticket_lock_inv_locked. iDestruct "INV" as "[INV0 [%INV1 [INV2 [INV3 INV4]]]]".
-      hexploit (tkqueue_find_in INV1 _ FIND). i.
-      iPoseProof (list_prop_sum_in_split with "INV3") as "[DUTY INV3]". eapply H.
-      iSplitL "DUTY MYTH". iFrame.
-      iIntros "DUTY". iApply "K".
-      unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt.
-      iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
-      iLeft. iFrame. iSplit. auto. iApply "INV3". iFrame.
-    }
-    iDestruct "INV" as "[INV | [INV | INV]]".
-    { unfold ticket_lock_inv_unlocking. iDestruct "INV" as "[INV0 [%INV1 [INV2 [INV3 INV4]]]]".
-      hexploit (tkqueue_find_in INV1 _ FIND). i.
-      iPoseProof (list_prop_sum_in_split with "INV3") as "[DUTY INV3]". eapply H.
-      iSplitL "DUTY MYTH". iFrame.
-      iIntros "DUTY". iApply "K".
-      unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt.
-      iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
-      iRight. iSplit. iFrame. iLeft. iFrame. iSplit; auto. iApply "INV3". iFrame.
-    }
-    { unfold ticket_lock_inv_unlocked0. iDestruct "INV" as "[INV0 [%INV1 INV2]]".
-      des; subst. rewrite NatMapP.F.empty_o in FIND. ss.
-    }
-    { unfold ticket_lock_inv_unlocked1.
-      do 2 iDestruct "INV" as "[% INV]".
-      iDestruct "INV" as "[INV0 [%INV1 [%INV2 [INV3 [INV4 INV5]]]]]".
-      (* TODO *)
-
-      
-      hexploit (tkqueue_find_in INV2 _ FIND). i.
-      iPoseProof (list_prop_sum_in_split with "INV4") as "[DUTY INV4]". eapply H.
-      iSplitL "DUTY MYTH". iFrame.
-      iIntros "DUTY". iApply "K".
-      unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt.
-      iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
-      iRight. iSplit. iFrame. iLeft. iFrame. iSplit; auto. iApply "INV3". iFrame.
-    }
-    
-      hexploit (tkqueue_find_in INV1 _ FIND). i.
-      iPoseProof (list_prop_sum_in_split with "INV3") as "[DUTY INV3]". eapply H.
-      iSplitL "DUTY MYTH". iFrame.
-      iIntros "DUTY". iApply "K".
-      unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt.
-      iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
-      iRight. iSplit. iFrame. iLeft. iFrame. iSplit; auto. iApply "INV3". iFrame.
-    }
-      
-
-    
-    
-
+  (* Lemma get_duty tid mytk *)
+  (*   : *)
+  (*   ⊢ *)
+  (*     ((OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat))) *)
+  (*        -∗ *)
+  (*        (MUpd (nth_default True%I I) (fairI (ident_tgt:= OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) [0] [] *)
+  (*              (((ObligationRA.duty (inl tid) []) ∗ (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)))) *)
+  (*                 ∗ ((ObligationRA.duty (inl tid) []) *)
+  (*                      -∗ (MUpd (nth_default True%I I) (fairI (ident_tgt:= OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) [] [0] True%I) *)
+  (*     ))))%I. *)
+  (* Proof. *)
+  (*   iIntros "MYTH". *)
+  (*   (iPoseProof (MUpd_open (nth_default True%I I) _ 0) as "> _H"; *)
+  (*    [ let x := eval cbn in ((nth_default True%I I) 0) in *)
+  (*        change ((nth_default True%I I) 0) with x; msimpl; iDestruct "_H" as "[I K]" ]). *)
+  (*   iModIntro. *)
+  (*   do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]". *)
+  (*   iDestruct "TKS" as "[TKS0 TKS1]". *)
+  (*   iPoseProof (NatMapRA_find_some with "TKS0 MYTH") as "%FIND". *)
+  (*   iDestruct "CASES" as "[[CT INV]|[CF INV]]". *)
+  (*   { unfold ticket_lock_inv_locked. iDestruct "INV" as "[INV0 [%INV1 [INV2 [INV3 INV4]]]]". *)
+  (*     hexploit (tkqueue_find_in INV1 _ FIND). i. *)
+  (*     iPoseProof (list_prop_sum_in_split with "INV3") as "[DUTY INV3]". eapply H. *)
+  (*     iSplitL "DUTY MYTH". iFrame. *)
+  (*     iIntros "DUTY". iApply "K". *)
+  (*     unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt. *)
+  (*     iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame. *)
+  (*     iLeft. iFrame. iSplit. auto. iApply "INV3". iFrame. *)
+  (*   } *)
+  (*   iDestruct "INV" as "[INV | [INV | INV]]". *)
+  (*   { unfold ticket_lock_inv_unlocking. iDestruct "INV" as "[INV0 [%INV1 [INV2 [INV3 INV4]]]]". *)
+  (*     hexploit (tkqueue_find_in INV1 _ FIND). i. *)
+  (*     iPoseProof (list_prop_sum_in_split with "INV3") as "[DUTY INV3]". eapply H. *)
+  (*     iSplitL "DUTY MYTH". iFrame. *)
+  (*     iIntros "DUTY". iApply "K". *)
+  (*     unfold ticket_lock_inv. iExists mem, own, l, tks, now, next, myt. *)
+  (*     iSplitL "TKS0 TKS1". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame. *)
+  (*     iRight. iSplit. iFrame. iLeft. iFrame. iSplit; auto. iApply "INV3". iFrame. *)
+  (*   } *)
+  (*   { unfold ticket_lock_inv_unlocked0. iDestruct "INV" as "[INV0 [%INV1 INV2]]". *)
+  (*     des; subst. rewrite NatMapP.F.empty_o in FIND. ss. *)
+  (*   } *)
+  (*   { unfold ticket_lock_inv_unlocked1. *)
+  (*     do 2 iDestruct "INV" as "[% INV]". *)
+  (*     iDestruct "INV" as "[INV0 [%INV1 [%INV2 [INV3 [INV4 INV5]]]]]". *)
+  (*     (* TODO *) *)
+  (* Abort. *)
 
 
 
@@ -509,9 +502,10 @@ Section SIM.
     )
       ∗
       (∀ mytk,
-        (
-          (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk)))
-        )
+          (
+            (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk)))
+              ∗ (OwnM (Auth.white (Excl.just 2: Excl.t nat)))
+          )
           -∗
   (stsim I tid (topset I) ibot7 ibot7
          (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
