@@ -198,9 +198,9 @@ Section TKQ.
         l tks inc exc
         (TQ: tkqueue l tks inc exc)
     :
-    (<<LE: inc <= exc>>).
+    inc <= exc.
   Proof.
-    red. induction TQ; i; clarify; ss. lia.
+    induction TQ; i; clarify; ss. lia.
   Qed.
 
   Lemma tkqueue_val_range_l
@@ -209,9 +209,9 @@ Section TKQ.
         t v
         (FIND: NatMap.find t tks = Some v)
     :
-    (<<GE: inc <= v>>).
+    inc <= v.
   Proof.
-    red. revert_until TQ. induction TQ; i; clarify; ss.
+    revert_until TQ. induction TQ; i; clarify; ss.
     destruct (tid_dec t hd) eqn:DEC; clarify.
     hexploit (IHTQ t v). rewrite nm_find_rm_neq; auto. i. lia.
   Qed.
@@ -222,11 +222,11 @@ Section TKQ.
         t v
         (FIND: NatMap.find t tks = Some v)
     :
-    (<<LT: v < exc>>).
+    v < exc.
   Proof.
-    red. revert_until TQ. induction TQ; i; clarify; ss.
+    revert_until TQ. induction TQ; i; clarify; ss.
     destruct (tid_dec t hd) eqn:DEC; clarify.
-    - eapply tkqueue_range in TQ. red in TQ. lia.
+    - eapply tkqueue_range in TQ. lia.
     - hexploit (IHTQ t v). rewrite nm_find_rm_neq; auto. i. lia.
   Qed.
 
@@ -244,12 +244,12 @@ Section TKQ.
     { destruct (tid_dec t1 hd) eqn:DEC1; clarify; eauto.
       hexploit tkqueue_val_range_l. eapply TQ. erewrite nm_find_rm_neq.
       2:{ ii. apply n. symmetry. eapply H. }
-      eapply FIND1. i. red in H. lia.
+      eapply FIND1. i. lia.
     }
     { destruct (tid_dec t1 hd) eqn:DEC1; clarify; eauto.
       { hexploit tkqueue_val_range_l. eapply TQ. erewrite nm_find_rm_neq.
         2:{ ii. apply n. symmetry. eapply H. }
-        eapply FIND0. i. red in H. lia.
+        eapply FIND0. i. lia.
       }
       eapply IHTQ; rewrite nm_find_rm_neq; eauto.
     }
@@ -717,6 +717,103 @@ Section SIM.
       iApply stsim_reset. iApply "SIM". iFrame.
     }
 
+  Qed.
+
+  Lemma correct_lock_myturn
+        (g0 g1 : ∀ R_src R_tgt : Type,
+            (R_src → R_tgt → iProp)
+            → bool
+            → bool
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree
+                ((eventE +' cE) +'
+                                   sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
+            → iProp)
+        (ps pt: bool)
+        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) unit)
+        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
+        (tid mytk k u: nat):
+    (
+      (OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk))))
+        ∗ (maps_to tid (Auth.white (Excl.just (S u): Excl.t nat)))
+        ∗ (monoWhite monok mypreord (mytk, Tkst.b k))
+    )
+      ∗
+      (
+      ((OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk))))
+        ∗ (maps_to tid (Auth.white (Excl.just u: Excl.t nat)))
+        ∗ (monoWhite monok mypreord (mytk, Tkst.b k)))
+        -∗
+  (stsim I tid (topset I) g0 g1
+    (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    ps true
+    (trigger Yield;;; src)
+    (tgt))
+
+      )
+      ⊢
+  (stsim I tid (topset I) g0 g1
+    (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    ps pt
+    (trigger Yield;;; src)
+    (trigger Yield;;; tgt)).
+  Proof.
+    iIntros "[[MYTK [MYNW MYTURN]] SIM]".
+    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iAssert (⌜NatMap.find tid tks = Some mytk⌝)%I as "%FIND".
+    { iDestruct "TKS" as "[TKS0 _]". iApply (NatMapRA_find_some with "TKS0 MYTK"). }
+    iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
+    - iDestruct "I" as "[_ [%I2 [_ [_ [% MONOB]]]]]".
+      iPoseProof (black_white_compare with "MYTURN MONOB") as "%LE". inv LE.
+      { exfalso. hexploit (tkqueue_val_range_l I2 _ FIND). i. lia. }
+      { exfalso. hexploit (tkqueue_val_range_l I2 _ FIND). i. lia. }
+    - iDestruct "I" as "[_ [%I2 [_ [_ I5]]]]". iDestruct "I5" as "[% [% [MONOB _]]]".
+      iPoseProof (black_white_compare with "MYTURN MONOB") as "%LE". inv LE.
+      { exfalso. hexploit (tkqueue_val_range_l I2 _ FIND). i. lia. }
+      { exfalso. hexploit (tkqueue_val_range_l I2 _ FIND). i. lia. }
+    - iDestruct "I" as "[_ [%I2 _]]". exfalso. des;  clarify.
+    - do 2 iDestruct "I" as "[% I]". iDestruct "I" as "[I0 [% [%I2 [I3 [I4 I5]]]]]".
+      do 3 iDestruct "I5" as "[% I5]". iDestruct "I5" as "[I5 I6]".
+      iPoseProof (black_white_compare with "MYTURN I5") as "%LE". inv LE.
+      { exfalso. hexploit (tkqueue_val_range_l I2 _ FIND). i. lia. }
+      inv ORD. assert (k = k0). auto. clear H H0. subst k0.
+      iDestruct "I6" as "[I6 [I7 [I8 [I9 I10]]]]".
+      hexploit (tkqueue_inv_hd I2 _ FIND). i. des. inv H.
+
+      iCombine "I10 MYNW" as "MYNUM".
+      iPoseProof (OwnM_valid with "MYNUM") as "%EQ".
+      assert (u0 = S u).
+      { clear -EQ. ur in EQ. specialize (EQ tid). unfold maps_to_res in EQ.
+        des_ifs. ur in EQ. des. rr in EQ. des. ur in EQ. des_ifs.
+      }
+      subst u0. clear EQ.
+      iPoseProof (OwnM_Upd with "MYNUM") as "> MYNUM".
+      { rewrite maps_to_res_add. eapply maps_to_updatable. eapply Auth.auth_update.
+        instantiate (1:=Excl.just u). instantiate (1:=Excl.just u).
+        ii. des. ur in FRAME. des_ifs. split; ur; ss.
+      }
+      rewrite <- maps_to_res_add. iDestruct "MYNUM" as "[I10 MYNW]".
+
+      iPoseProof (ObligationRA.white_eq with "I9") as "I9".
+      { rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity. }
+      iPoseProof (ObligationRA.white_split_eq with "I9") as "[TAX I9]".
+      iApply (stsim_yieldR_strong with "[I8 TAX]").
+      { iFrame. iApply ObligationRA.tax_cons_fold. iFrame. }
+      iIntros "I8 _".
+      iMod ("K" with "[TKS MEM ST I0 I3 I4 I5 I6 I7 I8 I9 I10]") as "_".
+      { iExists mem, false, (tid :: tl), tks, now, next, myt.
+        remember (
+    (⌜false = true⌝ ** ticket_lock_inv_locked (tid :: tl) tks now next myt)
+    ∨ (⌜false = false⌝ **
+       ticket_lock_inv_unlocking (tid :: tl) tks now next myt
+       ∨ ticket_lock_inv_unlocked0 (tid :: tl) tks now next myt
+       ∨ ticket_lock_inv_unlocked1 (tid :: tl) tks now next myt))%I as temp.
+        iFrame. subst temp.
+        iRight. iSplit. auto. iRight. iRight.
+        iExists tid, tl. iFrame. iSplit. auto. iSplit. auto.
+        iExists k, o, u. iFrame.
+      }
+      iModIntro. iApply "SIM". iFrame.
   Qed.
 
   (* tid : nat *)
