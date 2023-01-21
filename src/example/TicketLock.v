@@ -577,11 +577,27 @@ Section SIM.
     iPoseProof ((FairRA.whites_unfold (fun id => ~ NatMap.In id tks') _ (i:=tid)) with "TKS1") as "[TKS1 MYTRI]".
     { subst tks'. i. ss. des; clarify.
       - ii. apply IN. destruct (tid_dec j tid); clarify.
-        apply NatMapP.F.not_find_in_iff in H; clarify.
-        apply NatMapP.F.add_in_iff; auto.
+        apply NatMapP.F.not_find_in_iff in H; clarify. apply NatMapP.F.add_in_iff; auto.
       - apply NatMapP.F.not_find_in_iff; auto.
     }
     { subst tks'. ii. apply H. apply NatMapP.F.add_in_iff. auto. }
+
+    iPoseProof ((OwnMs_unfold (fun id => ~ NatMap.In id tks') _ (i:=tid)) with "TKS3") as "[TKS3 MYNUM]".
+    { subst tks'. i. ss. des; clarify.
+      - ii. apply IN. destruct (tid_dec j tid); clarify.
+        apply NatMapP.F.not_find_in_iff in H; clarify. apply NatMapP.F.add_in_iff; auto.
+      - apply NatMapP.F.not_find_in_iff; auto.
+    }
+    { subst tks'. ii. apply H. apply NatMapP.F.add_in_iff. auto. }
+    iPoseProof (OwnM_Upd with "MYNUM") as "> MYNUM".
+    { eapply maps_to_updatable. apply Auth.auth_update.
+      instantiate (1:=Excl.just 2). instantiate (1:=Excl.just 2).
+      ii. des. ur in FRAME. des_ifs. split.
+      { ur. ss. }
+      { ur. ss. }
+    }
+    rewrite <- maps_to_res_add. iDestruct "MYNUM" as "[MYNB MYNW]".
+
     iAssert (natmap_prop_sum tks' (λ tid0 _ : nat, own_thread tid0))%I with "[MYTH TKS2]" as "TKS2".
     { subst tks'. iApply (natmap_prop_sum_add with "TKS2"). iFrame. }
 
@@ -590,7 +606,7 @@ Section SIM.
       { instantiate (1:=Ord.from_nat (next - (S now))). ss.
         apply Ord.lt_le. apply Ord.omega_upperbound.
       }
-      iMod ("K" with "[DUTY TKS0 TKS1 TKS2 MEM0 MEM1 MEM2 MEM3 INV ST0 ST1 MYTRI]") as "_".
+      iMod ("K" with "[DUTY TKS0 TKS1 TKS2 TKS3 MEM0 MEM1 MEM2 MEM3 INV ST0 ST1 MYTRI MYNB]") as "_".
       { subst tks'. unfold ticket_lock_inv.
         iExists m1, true, (l ++ [tid]), (NatMap.add tid next tks), now, (S next), myt.
         iFrame.
@@ -600,8 +616,8 @@ Section SIM.
         iDestruct "INV" as "[INV0 [INV1 [INV2 [INV3 INV4]]]]". iFrame.
         iSplit.
         { iPure "INV1" as ?. iPureIntro. apply tkqueue_enqueue; auto. }
-        iPoseProof (natmap_prop_sum_add with "INV2 MYTRI") as "INV2".
-        iFrame. iApply list_prop_sum_add. iFrame.
+        iPoseProof (natmap_prop_sum_add with "INV2 MYTRI") as "INV2". iFrame.
+        iApply list_prop_sum_add. iFrame. iExists 2. iFrame.
       }
       iApply stsim_reset. iApply "SIM". iFrame.
     }
@@ -611,7 +627,7 @@ Section SIM.
       { instantiate (1:=Ord.from_nat (next - (S now))). ss.
         apply Ord.lt_le. apply Ord.omega_upperbound.
       }
-      iMod ("K" with "[DUTY TKS0 TKS1 TKS2 MEM0 MEM1 MEM2 MEM3 INV ST0 ST1 MYTRI]") as "_".
+      iMod ("K" with "[DUTY TKS0 TKS1 TKS2 TKS3 MEM0 MEM1 MEM2 MEM3 INV ST0 ST1 MYTRI MYNB]") as "_".
       { subst tks'. unfold ticket_lock_inv.
         iExists m1, false, (l ++ [tid]), (NatMap.add tid next tks), now, (S next), myt.
     remember ((⌜false = true⌝ **
@@ -627,8 +643,8 @@ Section SIM.
         iDestruct "INV" as "[INV0 [INV1 [INV2 [INV3 INV4]]]]". iFrame.
         iSplit.
         { iPure "INV1" as ?. iPureIntro. apply tkqueue_enqueue; auto. }
-        iPoseProof (natmap_prop_sum_add with "INV2 MYTRI") as "INV2".
-        iFrame. iApply list_prop_sum_add. iFrame.
+        iPoseProof (natmap_prop_sum_add with "INV2 MYTRI") as "INV2". iFrame.
+        iApply list_prop_sum_add. iFrame. iExists 2. iFrame.
       }
       iApply stsim_reset. iApply "SIM". iFrame.
     }
@@ -638,13 +654,16 @@ Section SIM.
       { instantiate (1:=Ord.from_nat (next - (now))). ss.
         apply Ord.lt_le. apply Ord.omega_upperbound.
       }
-      iPoseProof (ObligationRA.alloc ((Ord.S Ord.O) × Ord.omega)%ord) as "> [% [[OBLK OWHI] OPEND]]".
+      iPoseProof (ObligationRA.alloc (((Ord.S Ord.O) × Ord.omega) × (Ord.from_nat 3))%ord) as "> [% [[OBLK OWHI] OPEND]]".
+      iPoseProof (ObligationRA.white_eq with "OWHI") as "OWHI".
+      { rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity. }
+      iPoseProof (ObligationRA.white_split_eq with "OWHI") as "[OWHI TAX]".
       iPoseProof (ObligationRA.duty_alloc with "DUTY OWHI") as "> DUTY".
       unfold ticket_lock_inv_unlocked0. iDestruct "INV" as "[INV0 [% [% INV2]]]".
       iPoseProof ((black_updatable _ _ _ (now, Tkst.b k)) with "INV2") as ">INV2".
       { econs 2. ss. split; auto. i; ss. }
 
-      iMod ("K" with "[DUTY TKS0 TKS1 TKS2 MEM0 MEM1 MEM2 MEM3 INV0 INV2 ST0 ST1 MYTRI OBLK OPEND]") as "_".
+      iMod ("K" with "[DUTY TKS0 TKS1 TKS2 TKS3 MEM0 MEM1 MEM2 MEM3 INV0 INV2 ST0 ST1 MYTRI MYNB OBLK OPEND TAX]") as "_".
       { subst tks'. unfold ticket_lock_inv.
         iExists m1, false, (l ++ [tid]), (NatMap.add tid next tks), now, (S next), myt.
     remember ((⌜false = true⌝ **
@@ -657,14 +676,14 @@ Section SIM.
         iSplitL "MEM2".
         { ss. replace (S next) with (next + 1). iFrame. lia. }
         iRight. iSplit; auto. iRight. iRight.
-        unfold ticket_lock_inv_unlocked0, ticket_lock_inv_unlocked1.
+        unfold ticket_lock_inv_unlocked1.
         des; clarify. ss. iExists tid, []. ss. iFrame.
         iSplit; auto.
         iSplit.
         { iPureIntro. econs 2; eauto. apply NatMapP.F.add_eq_o; auto. econs 1; auto.
           apply nm_find_none_rm_add_eq. apply NatMapP.F.empty_o.
         }
-        iSplitR. auto. iExists k, _. iFrame.
+        iSplitR. auto. iExists k, _, 2. iFrame.
       }
       iApply stsim_reset. iApply "SIM". iFrame.
     }
@@ -673,7 +692,7 @@ Section SIM.
       { instantiate (1:=Ord.from_nat (next - (now))). ss.
         apply Ord.lt_le. apply Ord.omega_upperbound.
       }
-      iMod ("K" with "[DUTY TKS0 TKS1 TKS2 MEM0 MEM1 MEM2 MEM3 INV ST0 ST1 MYTRI]") as "_".
+      iMod ("K" with "[DUTY TKS0 TKS1 TKS2 TKS3 MEM0 MEM1 MEM2 MEM3 INV ST0 ST1 MYTRI MYNB]") as "_".
       { subst tks'. unfold ticket_lock_inv.
         iExists m1, false, (l ++ [tid]), (NatMap.add tid next tks), now, (S next), myt.
     remember ((⌜false = true⌝ **
@@ -692,8 +711,8 @@ Section SIM.
         iSplit. auto.
         iSplit.
         { iPure "INV2" as ?. iPureIntro. rewrite app_comm_cons. apply tkqueue_enqueue; auto. }
-        iPoseProof (natmap_prop_sum_add with "INV3 MYTRI") as "INV3".
-        iFrame. iApply list_prop_sum_add. iFrame.
+        iPoseProof (natmap_prop_sum_add with "INV3 MYTRI") as "INV3". iFrame.
+        iApply list_prop_sum_add. iFrame. iExists 2. iFrame.
       }
       iApply stsim_reset. iApply "SIM". iFrame.
     }
