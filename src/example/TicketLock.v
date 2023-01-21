@@ -317,7 +317,7 @@ Section SIM.
   Context `{MEMRA: @GRA.inG memRA Σ}.
 
   Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLock.tk)) Σ}.
-  (* Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}. *)
+  Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
   (* Context `{REGIONRA: @GRA.inG (Region.t (thread_id * nat)) Σ}. *)
   (* Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}. *)
@@ -334,7 +334,8 @@ Section SIM.
       ∗
       (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
       ∗
-      (list_prop_sum (fun th => ObligationRA.duty (inl th) []) l)
+      (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
+                                ∗ (∃ u, OwnM (Auth.black (Excl.just u: Excl.t nat))))%I) l)
       ∗
       (∃ (k: nat) (o: Ord.t),
           (monoBlack monok mypreord (now, Tkst.d k))
@@ -366,13 +367,16 @@ Section SIM.
         ∗
         (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (now)))))
         ∗
-        (list_prop_sum (fun th => ObligationRA.duty (inl th) []) waits)
+        (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
+                                  ∗ (∃ u, OwnM (Auth.black (Excl.just u: Excl.t nat))))%I) waits)
         ∗
-        (∃ (k: nat) (o: Ord.t),
+        (∃ (k: nat) (o: Ord.t) (u: nat),
             (monoBlack monok mypreord (now, Tkst.b k))
               ∗ (ObligationRA.black k o)
               ∗ (ObligationRA.pending k 1)
               ∗ (ObligationRA.duty (inl yourt) [(k, Ord.S Ord.O)])
+              ∗ (ObligationRA.white k (((Ord.S Ord.O) × Ord.omega) × (Ord.from_nat u))%ord)
+              ∗ (OwnM (Auth.black (Excl.just u: Excl.t nat)))
         )
   .
 
@@ -384,7 +388,8 @@ Section SIM.
       ∗
       (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
       ∗
-      (list_prop_sum (fun th => ObligationRA.duty (inl th) []) l)
+      (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
+                                ∗ (∃ u, OwnM (Auth.black (Excl.just u: Excl.t nat))))%I) l)
       ∗
       (∃ (k: nat),
           (monoBlack monok mypreord (now, Tkst.c k))
