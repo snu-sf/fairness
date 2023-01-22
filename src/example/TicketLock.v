@@ -1017,19 +1017,42 @@ Section SIM.
       }
       iPoseProof (FairRA.white_split with "WHI") as "[WHI1 WHI2]". iFrame.
     }
-    (* TODO *)
+    iPoseProof (natmap_prop_sepconj_sum with "I3") as "[I3 TAX]".
 
-      
-      
-    
-natmap_prop_sum_impl:
-  ∀ (Σ : GRA.t) (A : Type) (P0 P1 : NatMap.key → A → iProp) (m : NatMap.t A),
-    (∀ (k : NatMap.key) (a : A), NatMap.find (elt:=A) k m = Some a → P0 k a ⊢ P1 k a)
-    → natmap_prop_sum m P0 ⊢ natmap_prop_sum m P1
-natmap_prop_sum_sepconj:
-  ∀ (Σ : GRA.t) (A : Type) (P0 P1 : nat → A → iProp) (m : NatMap.t A),
-    (natmap_prop_sum m P0 ** natmap_prop_sum m P1)
-    ⊢ natmap_prop_sum m (λ (k : nat) (a : A), P0 k a ** P1 k a)
+    iApply (stsim_fairL with "[TAX]").
+    { i. ss. instantiate (1:= (NatSet.elements (key_set tks'))). des_ifs. 
+      eapply NatSetIn_In. auto.
+    }
+    { instantiate (1:=[tid]). i; ss. des; clarify. des_ifs. }
+    { unfold natmap_prop_sum. unfold NatSet.elements. unfold nm_proj1.
+      unfold key_set. rewrite <- list_map_elements_nm_map. unfold unit1. rewrite List.map_map.
+      iPoseProof (list_prop_sum_map with "TAX") as "TAX".
+      2: iFrame.
+      ss. i. destruct a; ss.
+    }
+    instantiate (1:= Ord.omega). iIntros "[MYW _]".
+    iPoseProof (FairRA.whites_fold with "[TKS1 MYW]") as "TKS1".
+    2:{ iSplitL "TKS1". iFrame. iFrame. }
+    { instantiate (1:= fun id => ~ NatMap.In id tks'). ss. i. destruct (tid_dec j tid); auto.
+      left. ii. apply IN. subst tks'. rewrite NatMapP.F.remove_neq_in_iff; auto.
+    }
+
+    iMod ("K" with "[I0 I4 ST MEM TKS0 TKS2 TKS3 I5 I3 TKS1]") as "_".
+    { iExists mem, true, tl, tks', mytk, next, myt.
+      remember 
+    ((⌜true = true⌝ ** ticket_lock_inv_locked tl tks' mytk next myt)
+    ∨ (⌜true = false⌝ **
+       ticket_lock_inv_unlocking tl tks' mytk next myt
+       ∨ ticket_lock_inv_unlocked0 tl tks' mytk next myt
+       ∨ ticket_lock_inv_unlocked1 tl tks' mytk next myt))%I as temp.
+      iFrame. subst temp. iLeft. iSplit. auto.
+      iFrame. iSplit. auto. iExists k. iFrame.
+    }
+    iApply (stsim_sync with "[DUTY]"). msubtac. iFrame.
+    iIntros "DUTY _". rred.
+    iApply stsim_tauR. iApply stsim_ret. iModIntro. iFrame. auto.
+
+  Qed.
 
   Lemma lock_myturn1
         (g0 g1 : ∀ R_src R_tgt : Type,
@@ -1104,12 +1127,10 @@ natmap_prop_sum_sepconj:
     iPoseProof (unlocked1_mono with "I") as "#MYMW". iDestruct "MYMW" as "[% [% [MYMW _]]]".
     iMod ("K" with "[TKS MEM ST I]") as "_".
     { iExists mem, own, l, tks, mytk, next, myt. iFrame. iRight. iSplit; auto. }
-    iApply lock_myturn_yield. iSplitL. iFrame. auto.
+    iApply lock_myturn_yieldR. iSplitL. iFrame. auto.
     iIntros "[MYTK [MYN _]]". rred.
-
-    (* TODO *)
-    iStopProof.
-
+    iApply lock_myturn0. iFrame. eauto.
+  Qed.
 
 
   (* Lemma get_duty tid mytk *)

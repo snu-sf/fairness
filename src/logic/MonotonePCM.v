@@ -2630,6 +2630,22 @@ Section SUM.
     apply Permutation_app_tail. apply Permutation_cons_append.
   Qed.
 
+  Lemma list_prop_sum_map
+        A (P0: A -> iProp)
+        B (P1: B -> iProp)
+        l (f: A -> B)
+        (MAP: forall a, (P0 a) -∗ (P1 (f a)))
+    :
+    (list_prop_sum P0 l)
+      -∗
+      (list_prop_sum P1 (List.map f l)).
+  Proof.
+    induction l; ss.
+    iIntros "[HD TL]". iSplitL "HD".
+    { iApply (MAP with "HD"). }
+    { iApply (IHl with "TL"). }
+  Qed.
+
   Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
     list_prop_sum (fun '(k, v) => P k v) (NatMap.elements f).
 
