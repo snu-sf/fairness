@@ -2494,6 +2494,16 @@ Section SUM.
     iIntros "[[HD1 TL1] [HD2 TL2]]". iFrame. iApply IHl. iFrame.
   Qed.
 
+  Lemma list_prop_sepconj_sum A (P0 P1: A -> iProp) l
+    :
+    (list_prop_sum (fun a => (P0 a) ∗ (P1 a)) l)
+      -∗
+      ((list_prop_sum P0 l) ∗ (list_prop_sum P1 l)).
+  Proof.
+    induction l; ss; auto.
+    iIntros "[[HD1 HD2] TL]". iFrame. iApply IHl. iFrame.
+  Qed.
+
   Lemma list_prop_sum_impl2 A (P0 P1 Q: A -> iProp) l
         (IMPL: forall a, (P0 a ∗ P1 a) -∗ Q a)
     :
@@ -2859,6 +2869,20 @@ Section SUM.
     unfold natmap_prop_sum . iIntros "SUM".
     iPoseProof (list_prop_sum_sepconj with "SUM") as "SUM". iApply list_prop_sum_impl. 2: iFrame.
     i. ss. des_ifs; ss.
+  Qed.
+
+  Lemma natmap_prop_sepconj_sum A (P0 P1: nat -> A -> iProp) m
+    :
+    (natmap_prop_sum m (fun k a => (P0 k a) ∗ (P1 k a)))
+      -∗
+      ((natmap_prop_sum m P0) ∗ (natmap_prop_sum m P1)).
+  Proof.
+    unfold natmap_prop_sum. iIntros "SUM".
+    iPoseProof (list_prop_sepconj_sum with "[SUM]") as "SUM".
+    { iApply list_prop_sum_impl. 2: iFrame. i. destruct a.
+      instantiate (1:=fun '(k, a) => P1 k a). instantiate (1:=fun '(k, a) => P0 k a). ss.
+    }
+    iFrame.
   Qed.
 
   Lemma natmap_prop_sum_impl2 A (P0 P1 Q: nat -> A -> iProp) m

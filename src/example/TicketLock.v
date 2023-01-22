@@ -994,9 +994,42 @@ Section SIM.
       destruct (tid_dec j tid); auto. left. ii. apply IN.
       rewrite NatMapP.F.remove_neq_in_iff; auto.
     }
-    
 
+    iClear "I6 I9". iPoseProof (ObligationRA.pending_shot with "I7") as ">I7".
+    iPoseProof (ObligationRA.duty_done with "I8 I7") as ">DUTY".
+    iPoseProof (black_updatable with "I5") as ">I5".
+    { instantiate (1:=(mytk, Tkst.c k)). econs 2. ss. split; ss. lia. }
+    hexploit (tkqueue_dequeue I2).
+    { reflexivity. }
+    i. rename I2 into I2Old, H into I2. unfold TicketLock.tk in I2. rewrite <- Heqtks' in I2.
+    iPoseProof (natmap_prop_remove with "I3") as "I3". rewrite <- Heqtks'.
+
+    iPoseProof (natmap_prop_sum_impl with "I3") as "I3".
+    { instantiate (1:= fun th tk =>
+                         ((FairRA.white th (Ord.from_nat (tk - (S mytk))))
+                            ∗ (FairRA.white th Ord.one))%I).
+      i. ss. iIntros "WHI". erewrite FairRA.white_eq.
+      2:{ instantiate (1:= (OrderedCM.add (Ord.from_nat (a - (S mytk))) (Ord.one))).
+          rewrite <- Ord.from_nat_1. ss. rewrite <- Hessenberg.add_from_nat. rr. ss.
+          hexploit (tkqueue_val_range_l I2 _ IN). i. split.
+          { apply OrdArith.le_from_nat. lia. }
+          { apply OrdArith.le_from_nat. lia. }
+      }
+      iPoseProof (FairRA.white_split with "WHI") as "[WHI1 WHI2]". iFrame.
+    }
+    (* TODO *)
+
+      
+      
     
+natmap_prop_sum_impl:
+  ∀ (Σ : GRA.t) (A : Type) (P0 P1 : NatMap.key → A → iProp) (m : NatMap.t A),
+    (∀ (k : NatMap.key) (a : A), NatMap.find (elt:=A) k m = Some a → P0 k a ⊢ P1 k a)
+    → natmap_prop_sum m P0 ⊢ natmap_prop_sum m P1
+natmap_prop_sum_sepconj:
+  ∀ (Σ : GRA.t) (A : Type) (P0 P1 : nat → A → iProp) (m : NatMap.t A),
+    (natmap_prop_sum m P0 ** natmap_prop_sum m P1)
+    ⊢ natmap_prop_sum m (λ (k : nat) (a : A), P0 k a ** P1 k a)
 
   Lemma lock_myturn1
         (g0 g1 : ∀ R_src R_tgt : Type,
