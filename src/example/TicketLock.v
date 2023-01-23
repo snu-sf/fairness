@@ -1475,6 +1475,7 @@ Section SIM.
     rewrite unfold_iter_eq. iApply "CIH". iFrame.
   Qed.
 
+  (* TODO *)
   Lemma lock_yourturn_ind0
         (g0 g1 : ∀ R_src R_tgt : Type,
             (R_src → R_tgt → iProp)
@@ -1589,17 +1590,18 @@ Section SIM.
     (* iIntros "[MYTK [MYN [TKS [MEM [ST [I K]]]]]]". *)
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iPoseProof (unlocking_mono with "I") as "[%TKQ #[% [% [MONOW OBLB]]]]".
+    iDestruct "I" as "[I0 [%I1 [I2 [I3 I4]]]]".
+    do 2 iDestruct "I4" as "[% I4]". iDestruct "I4" as "[I4 [#I5 [I6 I7]]]".
     assert (LT: now < mytk).
-    { hexploit (tkqueue_val_range_l TKQ _ FIND). i. lia. }
-    clear FIND TKQ.
-    remember (mytk - now, o) as ind. remember (Tkst.d k) as xx.
-    assert (TKST: Tkst.le xx (Tkst.d k)).
-    { subst xx. ss. }
-    clear Heqxx.
+    { hexploit (tkqueue_val_range_l I1 _ FIND). i. lia. }
+    clear FIND.
+    remember (mytk - now, o) as ind.
     iStopProof. move ind before I. revert_until ind. pattern ind. revert ind.
     apply (well_founded_induction (prod_lt_well_founded Nat.lt_wf_0 Ord.lt_well_founded)).
     intros ind IH. intros.
-    iIntros "[#[CIH [MONOW OBLK]] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
+    iIntros "[#[CIH OBLK] [MYN [MYTK [TKS [MEM [ST IK]]]]]]".
+    iDestruct "IK" as "[I0 [I2 [I3 [I4 [I6 [I7 K]]]]]]".
+    iPoseProof (black_white with "I4") as "#MONOW".
 
     unfold Mod.wrap_fun, SCMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
@@ -1611,13 +1613,13 @@ Section SIM.
     rewrite TicketLock.lock_loop_red. rred. rewrite close_itree_call. rred.
     iAssert (ticket_lock_inv_mem mem now next myt)%I with "[MEM0 MEM1 MEM2 MEM3]" as "MEM". iFrame.
     iAssert (ticket_lock_inv_state mem false tks)%I with "[ST0 ST1]" as "ST". iFrame.
-    iMod ("K" with "[TKS MEM ST I]") as "_".
+    iMod ("K" with "[TKS MEM ST I0 I2 I3 I4 I6 I7]") as "_".
     { do 7 iExists _. iSplitL "TKS". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
-      iRight. iSplit. auto. iFrame.
+      iRight. iSplit. auto. iLeft. iFrame. iSplit. auto. do 2 iExists _. iFrame. auto.
     }
 
     (* iApply stsim_reset. clear mem l tks next myt now_old NEQ NEQ2 n ps pt. *)
-    clear mem l tks next myt now_old NEQ NEQ2 n pt.
+    clear mem l tks next myt now_old NEQ NEQ2 I1 n pt.
     (* subst ind. *)
     (* iAssert (⌜ind = (mytk - now, o)⌝)%I as "IND". auto. clear Heqind. *)
     (* iStopProof. revert mytk. eapply stsim_coind. msubtac. *)
