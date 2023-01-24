@@ -1683,14 +1683,6 @@ Section SIM.
     iIntros "[#[CIH MONOTK] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iPoseProof (unlocking_mono with "I") as "[%TKQ #[% [% [MONOW OBLB]]]]".
-    (* iDestruct "I" as "[I0 [%I1 [I2 [I3 I4]]]]". *)
-    (* do 2 iDestruct "I4" as "[% I4]". iDestruct "I4" as "[I4 [#I5 [I6 I7]]]". *)
-    (* assert (LT: now < mytk). *)
-    (* { hexploit (tkqueue_val_range_l I1 _ FIND). i. lia. } *)
-    (* clear FIND. *)
-    (* remember (mytk - now, o) as ind. *)
-    (* iStopProof. move ind before I. revert_until ind. pattern ind. revert ind. *)
-    (* apply (well_founded_induction (prod_lt_well_founded Nat.lt_wf_0 Ord.lt_well_founded)). *)
     clear FIND TKQ.
     iStopProof. move o before IH. revert_until o. pattern o. revert o.
     apply (well_founded_induction Ord.lt_well_founded).
@@ -1938,7 +1930,18 @@ Section SIM.
       iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
       iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "I". iFrame. iFrame.
     }
-    { subst.
+    { subst. iApply lock_yourturn_ind0. apply LT. apply IH. auto.
+      iSplit.
+      { iClear "MYN MYTK TKS MEM ST I K".
+        iModIntro. iSplit. iApply "CIH". auto.
+      }
+      iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
+      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitR "K". 2: iFrame.
+      iFrame.
+    }
+    { iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
+      iPoseProof (unlocked0_contra with "I") as "%FF". eauto. inv FF.
+    }
 
     (* TODO *)
 
