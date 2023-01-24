@@ -570,6 +570,18 @@ Section SIM.
     iApply (NatMapRA_find_some with "TKS0 MYTK").
   Qed.
 
+  Lemma ticket_lock_inv_mem_mono
+        mem now next myt
+    :
+    (ticket_lock_inv_mem mem now next myt)
+      -∗
+      (monoWhite tk_mono Nat.le_preorder now).
+  Proof.
+    iIntros "MEM". iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
+    iPoseProof (black_white with "MEM4") as "#MONOTK".
+    auto.
+  Qed.
+
 
   (* Simulations *)
   Lemma lock_enqueue tid:
@@ -1559,10 +1571,10 @@ Section SIM.
             → bool
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
-        (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
   (now : nat)
+  (LT : now < mytk)
   (IH : ∀ y : nat,
          y < mytk - now
          → ∀ now_old : nat,
@@ -1596,7 +1608,7 @@ Section SIM.
                                   (ident_tgt:=OMod.closed_ident TicketLock.omod
                                                 (SCMem.mod TicketLock.gvs))) [] [0] True) **
                             ticket_lock_inv_mem mem now next myt)))))))
-                     ⊢ stsim I tid [] ibot7 g1
+                     ⊢ stsim I tid [] g0 g1
                          (λ r_src r_tgt : (),
                             (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
                          false true
@@ -1609,7 +1621,6 @@ Section SIM.
   (l : list nat)
   (tks : NatMap.t nat)
   (next myt : nat)
-  (LT : now < mytk)
     :
   (□ ((∀ a : TicketLock.tk,
         (OwnM (Auth.white (NatMapRA.singleton tid a: NatMapRA.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
@@ -1634,7 +1645,7 @@ Section SIM.
   )
   ⊢ (stsim I tid [] g0 g1
       (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
-      ps pt
+      false true
       (trigger Yield;;;
        ` x : () + () <-
        (` x_0 : bool * NatMap.t () <- trigger (Get (bool * NatMap.t ()));;
@@ -1672,18 +1683,19 @@ Section SIM.
     iIntros "[#[CIH MONOTK] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iPoseProof (unlocking_mono with "I") as "[%TKQ #[% [% [MONOW OBLB]]]]".
-    iDestruct "I" as "[I0 [%I1 [I2 [I3 I4]]]]".
-    do 2 iDestruct "I4" as "[% I4]". iDestruct "I4" as "[I4 [#I5 [I6 I7]]]".
-    assert (LT: now < mytk).
-    { hexploit (tkqueue_val_range_l I1 _ FIND). i. lia. }
-    clear FIND.
-    remember (mytk - now, o) as ind.
-    iStopProof. move ind before I. revert_until ind. pattern ind. revert ind.
-    apply (well_founded_induction (prod_lt_well_founded Nat.lt_wf_0 Ord.lt_well_founded)).
-    intros ind IH. intros.
-    iIntros "[#[CIH OBLK] [MYN [MYTK [TKS [MEM [ST IK]]]]]]".
-    iDestruct "IK" as "[I0 [I2 [I3 [I4 [I6 [I7 K]]]]]]".
-    iPoseProof (black_white with "I4") as "#MONOW".
+    (* iDestruct "I" as "[I0 [%I1 [I2 [I3 I4]]]]". *)
+    (* do 2 iDestruct "I4" as "[% I4]". iDestruct "I4" as "[I4 [#I5 [I6 I7]]]". *)
+    (* assert (LT: now < mytk). *)
+    (* { hexploit (tkqueue_val_range_l I1 _ FIND). i. lia. } *)
+    (* clear FIND. *)
+    (* remember (mytk - now, o) as ind. *)
+    (* iStopProof. move ind before I. revert_until ind. pattern ind. revert ind. *)
+    (* apply (well_founded_induction (prod_lt_well_founded Nat.lt_wf_0 Ord.lt_well_founded)). *)
+    clear FIND TKQ.
+    iStopProof. move o before IH. revert_until o. pattern o. revert o.
+    apply (well_founded_induction Ord.lt_well_founded).
+    intros o IHo. intros.
+    iIntros "[#[CIH [MONOTK [MONOW BLK]]] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
 
     unfold Mod.wrap_fun, SCMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
@@ -1695,19 +1707,12 @@ Section SIM.
     rewrite TicketLock.lock_loop_red. rred. rewrite close_itree_call. rred.
     iAssert (ticket_lock_inv_mem mem now next myt)%I with "[MEM0 MEM1 MEM2 MEM3]" as "MEM". iFrame.
     iAssert (ticket_lock_inv_state mem false tks)%I with "[ST0 ST1]" as "ST". iFrame.
-    iMod ("K" with "[TKS MEM ST I0 I2 I3 I4 I6 I7]") as "_".
+    iMod ("K" with "[TKS MEM ST I]") as "_".
     { do 7 iExists _. iSplitL "TKS". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
-      iRight. iSplit. auto. iLeft. iFrame. iSplit. auto. do 2 iExists _. iFrame. auto.
+      iRight. iSplit. auto. iLeft. iFrame.
     }
-
-    (* iApply stsim_reset. clear mem l tks next myt now_old NEQ NEQ2 n ps pt. *)
-    clear mem l tks next myt now_old NEQ NEQ2 I1 n pt.
-    (* subst ind. *)
-    (* iAssert (⌜ind = (mytk - now, o)⌝)%I as "IND". auto. clear Heqind. *)
-    (* iStopProof. revert mytk. eapply stsim_coind. msubtac. *)
-    (* iIntros "% %mytk". iIntros "#[_ CIH] [#[PMONOW [POBLK PIND]] [MYN MYTK]]". *)
-    rename now into now_past, k into k_past, o into o_past.
-    (* clear g1. *)
+    clear mem l tks next myt now_old NEQ n.
+    rename now into now_past, LT into LTPAST, k into k_past, o into o_past.
 
     iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
@@ -1741,8 +1746,7 @@ Section SIM.
       iApply lock_myturn0. 2: iFrame; auto. lia.
     }
 
-    rename n into NEQ.
-    unfold Mod.wrap_fun, SCMem.load_fun. rred.
+    rename n into NEQ. unfold Mod.wrap_fun, SCMem.load_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred.
@@ -1764,125 +1768,82 @@ Section SIM.
       iFrame.
     }
 
-    rename n into NEQ2. iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
+    iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
+    rename n into NEQ2. iPoseProof (yourturn_range with "CASES") as "%LT". eapply FIND. auto.
+    clear NEQ2. iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
     { subst own. iApply lock_yourturn_coind. auto. iSplit. iApply "CIH".
       iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
       iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "I". iFrame. iFrame.
     }
 
-    { iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
-      iPoseProof (unlocking_mono with "I") as "[%TKQ #[% [% [MONOW2 OBLK2]]]]".
+    { iPoseProof (ticket_lock_inv_mem_mono with "MEM") as "#MONOTK2".
       iDestruct "I" as "[I0 [%I1 [I2 [I3 I4]]]]".
       do 2 iDestruct "I4" as "[% I4]". iDestruct "I4" as "[I4 [I5 [I6 I7]]]".
       iPoseProof (black_white_compare with "MONOW I4") as "%LE".
       inv LE.
-      { remember (mytk - now, o) as ind. specialize (IH ind).
+      { remember (mytk - now) as ind. specialize (IH ind).
         iApply IH.
-        { subst ind. econs 1. lia. }
+        { subst ind. lia. }
         { auto. }
-        { eapply NEQ2. }
-        { hexploit (tkqueue_val_range_l TKQ _ FIND). i. lia. }
+        { eapply LT. }
         { eapply Heqind. }
-        { reflexivity. }
         iSplit.
         { iClear "MYN MYTK RIGHT TKS MEM ST I0 I2 I3 I4 I5 I6 I7 K".
+          iModIntro. iSplit. iApply "CIH". auto.
+        }
+        iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
+        iSplitL "ST". iFrame. iSplitR "K MEM". 2: iFrame.
+        iRight. iSplit. auto. iLeft. iFrame. iSplit. auto. iExists _, _. iFrame.
+      }
+      { inv ORD. hexploit H0. lia. i. clear H H0. subst k.
+        iClear "MONOTK2".
+        iPoseProof (ObligationRA.duty_correl_thread with "I7") as "#COR".
+        { ss. left; eauto. }
+        iPoseProof (ObligationRA.correl_thread_correlate with "COR RIGHT") as ">[DROP | FF]".
+        2:{ iPoseProof (ObligationRA.pending_not_shot with "I6 FF") as "%FF". inv FF. }
+        iPoseProof (ObligationRA.black_white_decr with "BLK DROP") as ">[%o_now [#OBLK2 %DROP]]".
+        iClear "BLK".
+        specialize (IHo o_now).
+        iApply IHo.
+        { rewrite Hessenberg.add_S_r in DROP. rewrite Hessenberg.add_O_r in DROP.
+          eapply Ord.lt_le_lt. 2: eapply DROP. apply Ord.S_lt.
+        }
+        { auto. }
+        iSplit.
+        { iClear "MYN MYTK TKS MEM ST I0 I2 I3 I4 I5 I6 I7 K".
           iModIntro. iSplit. iApply "CIH". iSplit; auto.
         }
         iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
         iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitR "K". 2: iFrame.
         iFrame. iSplit. auto. iExists _, _. iFrame.
       }
-      { destruct xx. inv ORD. inv TKST.
-        hexploit H0. lia. i. clear H H0. subst k0.
-        iClear "MONOW2 OBLK2 I5".
-        iPoseProof (ObligationRA.duty_correl_thread with "I7") as "#COR".
-        { ss. left; eauto. }
-        iPoseProof (ObligationRA.correl_thread_correlate with "COR RIGHT") as ">[DROP | FF]".
-        2:{ iPoseProof (ObligationRA.pending_not_shot with "I6 FF") as "%FF". inv FF. }
-        iPoseProof (ObligationRA.black_white_decr with "OBLK DROP") as ">[%o_now [#OBLK2 %DROP]]".
-        iClear "OBLK".
-        remember (mytk - now, o_now) as ind. specialize (IH ind).
-        iApply IH.
-        { subst ind. econs 2. left; auto.
-          rewrite Hessenberg.add_S_r in DROP. rewrite Hessenberg.add_O_r in DROP.
-          eapply Ord.lt_le_lt. 2: eapply DROP. apply Ord.S_lt.
-        }
-        { auto. }
-        { eapply NEQ2. }
-        { auto. }
-        { eapply Heqind. }
-        iSplit.
-        { iClear "MYN MYTK TKS MEM ST I0 I2 I3 I4 I6 I7 K".
-          iModIntro. iSplit. iApply "CIH". iSplit; auto.
-        }
-        iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
-        iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitR "K". 2: iFrame.
-        iFrame. iSplit. auto. iExists _, _. iFrame. auto.
-      }
     }
-    { iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
-      iPoseProof (unlocked0_contra with "I") as "%FF". eauto. inv FF.
-    }
+    { iPoseProof (unlocked0_contra with "I") as "%FF". eauto. inv FF. }
 
-    { iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
-      iPoseProof (unlocked1_mono with "I") as "[%TKQ #[% [% [MONOW2 OBLK2]]]]".
+    { iPoseProof (ticket_lock_inv_mem_mono with "MEM") as "#MONOTK2".
       do 2 iDestruct "I" as "[% I]". iDestruct "I" as "[I0 [I1 [%I2 [I3 [I4 I5]]]]]".
       do 3 iDestruct "I5" as "[% I5]". iDestruct "I5" as "[I5 [I6 [I7 [I8 [I9 I10]]]]]".
       iPoseProof (black_white_compare with "MONOW I5") as "%LE".
       inv LE.
-      { remember (mytk - now, o) as ind. specialize (IH ind).
+      { remember (mytk - now) as ind. specialize (IH ind).
         iApply IH.
-        { subst ind. econs 1. lia. }
+        { subst ind. lia. }
         { auto. }
-        { eapply NEQ2. }
-        { hexploit (tkqueue_val_range_l TKQ _ FIND). i. lia. }
+        { eapply LT. }
         { eapply Heqind. }
         iSplit.
         { iClear "MYN MYTK RIGHT TKS MEM ST I0 I1 I3 I4 I5 I6 I7 I8 I9 I10 K".
-          iModIntro. iSplit. iApply "CIH". iSplit. 2: auto.
-          (* TODO *)
+          iModIntro. iSplit. iApply "CIH". auto.
         }
         iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
-        iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitR "K". 2: iFrame.
-        iFrame. iSplit. auto. iExists k0, o0. iFrame.
+        iSplitL "ST". iFrame. iSplitR "K MEM". 2: iFrame.
+        iRight. iSplit. auto. iRight. iRight. iFrame.
+        iExists yourt, waits. iSplit. auto. iSplit. auto. iFrame.
+        iExists k, o, u. iFrame.
       }
-      { inv ORD. hexploit H0. lia. i. clear H H0. subst k0.
-        iClear "MONOW2 OBLK2 I5".
-        iPoseProof (ObligationRA.duty_correl_thread with "I7") as "#COR".
-        { ss. left; eauto. }
-        iPoseProof (ObligationRA.correl_thread_correlate with "COR RIGHT") as ">[DROP | FF]".
-        2:{ iPoseProof (ObligationRA.pending_not_shot with "I6 FF") as "%FF". inv FF. }
-        iPoseProof (ObligationRA.black_white_decr with "OBLK DROP") as ">[%o_now [#OBLK2 %DROP]]".
-        iClear "OBLK".
-        remember (mytk - now, o_now) as ind. specialize (IH ind).
-        iApply IH.
-        { subst ind. econs 2. left; auto.
-          rewrite Hessenberg.add_S_r in DROP. rewrite Hessenberg.add_O_r in DROP.
-          eapply Ord.lt_le_lt. 2: eapply DROP. apply Ord.S_lt.
-        }
-        { auto. }
-        { eapply NEQ2. }
-        { auto. }
-        { eapply Heqind. }
-        iSplit.
-        { iClear "MYN MYTK TKS MEM ST I0 I2 I3 I4 I6 I7 K".
-          iModIntro. iSplit. iApply "CIH". iSplit; auto.
-        }
-        iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
-        iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitR "K". 2: iFrame.
-        iFrame. iSplit. auto. iExists _, _. iFrame. auto.
-      }
+      { exfalso. inv ORD. lia. }
     }
-    
-      
-        
-        
-
-        
-
-
-
-  Abort.
+  Qed.
 
   Lemma correct_lock tid:
     ((own_thread tid)
