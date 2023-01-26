@@ -37,9 +37,6 @@ Section EVENTS.
 End EVENTS.
 
 Notation programE ident State :=
-  ((((@eventE ident) +' cE) (* +' callE *) ) +' sE State).
-
-Notation oprogramE ident State :=
   ((((@eventE ident) +' cE) +' callE) +' sE State).
 
 Section TID.
@@ -202,11 +199,11 @@ Section ADD.
   Variable M1 M2 : Mod.t.
 
   Definition embed_l {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
-    map_event (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident))))
+    map_event (embed_left (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident)))))
       (embed_state (@fst M1.(state) M2.(state)) update_fst itr).
 
   Definition embed_r {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
-    map_event (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident))))
+    map_event (embed_left (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident)))))
       (embed_state (@snd M1.(state) M2.(state)) update_snd itr).
 
   Definition add_funs : fname -> option (ktree _ Any.t Any.t) :=
@@ -214,7 +211,7 @@ Section ADD.
       match M1.(funs) fn, M2.(funs) fn with
       | Some fn_body, None => Some (fun args => embed_l (fn_body args))
       | None, Some fn_body => Some (fun args => embed_r (fn_body args))
-      | Some _, Some _ => Some (fun args => Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
+      | Some _, Some _ => Some (fun args => Vis (inl1 (inl1 (inl1 Undefined))) (Empty_set_rect _))
       | None , None => None
       end.
 

@@ -23,8 +23,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Let shared := shared state_src state_tgt ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
@@ -32,14 +32,14 @@ Section PROOF.
 
   Definition lift_wf (wf: WF): WF := sum_WF wf (option_WF wf).
 
-  Definition mk_o {El Er} (wf: WF) R (o: wf.(T)) (pf: bool) (itr: itree ((El +' cE) +' Er) R): (lift_wf wf).(T) :=
+  Definition mk_o {El Er} (wf: WF) R (o: wf.(T)) (pf: bool) (itr: itree (((El +' cE) +' callE) +' Er) R): (lift_wf wf).(T) :=
     if pf
     then match (observe itr) with
-         | VisF ((|Yield)|)%sum _ => (inr (Some o))
+         | VisF (((|Yield)|)|)%sum _ => (inr (Some o))
          | _ => (inr None)
          end
     else match (observe itr) with
-         | VisF ((|Yield)|)%sum _ => (inl o)
+         | VisF (((|Yield)|)|)%sum _ => (inl o)
          | _ => (inr None)
          end.
 
@@ -218,8 +218,8 @@ Section MODSIM.
     inv MDSIM.
     set (ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := ((@eventE ident_src +' cE) +' sE state_src)).
-    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (srcE := programE ident_src state_src).
+    set (tgtE := programE _ident_tgt state_tgt).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
     set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
@@ -282,8 +282,8 @@ Section USERSIM.
     inv MDSIM.
     set (ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := ((@eventE ident_src +' cE) +' sE state_src)).
-    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (srcE := programE ident_src state_src).
+    set (tgtE := programE _ident_tgt state_tgt).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
     set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).

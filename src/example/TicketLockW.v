@@ -19,7 +19,7 @@ Module TicketLock.
   Definition const_1: Const.t := Const.of_Z (BinIntDef.Z.of_nat 1).
 
   Definition lock_loop (myticket: Const.t) (tvw: TView.t):
-    itree (oprogramE void unit) TView.t
+    itree (programE void unit) TView.t
     :=
     ITree.iter
       (fun (tvw: TView.t) =>
@@ -42,7 +42,7 @@ Module TicketLock.
   Qed.
 
   Definition lock_fun:
-    ktree (oprogramE void unit) TView.t TView.t :=
+    ktree (programE void unit) TView.t TView.t :=
     fun tvw =>
       '(tvw, myticket) <- (OMod.call "faa" (tvw, next_ticket, const_1, Ordering.plain, Ordering.acqrel));;
       _ <- lock_loop myticket tvw;;
@@ -51,7 +51,7 @@ Module TicketLock.
   .
 
   Definition unlock_fun:
-    ktree (oprogramE void unit) TView.t TView.t :=
+    ktree (programE void unit) TView.t TView.t :=
     fun tvw =>
       _ <- trigger Yield;;
       '(tvw, v) <- (OMod.call "load" (tvw, next_ticket, Ordering.relaxed));;

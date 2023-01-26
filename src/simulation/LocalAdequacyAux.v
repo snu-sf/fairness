@@ -29,8 +29,8 @@ Section AUX.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Notation srcE := (programE _ident_src state_src).
+  Notation tgtE := (programE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
 
@@ -60,7 +60,7 @@ Section AUX.
       fs ft,
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
       (lsim wf_stt I tid (local_RR I RR tid)
-            fs ft r_ctx0 (o, Vis (inl1 (inr1 Yield)) (fun _ => src)) tgt
+            fs ft r_ctx0 (o, Vis (inl1 (inl1 (inr1 Yield))) (fun _ => src)) tgt
             (ths0, im_src0, im_tgt1, st_src0, st_tgt0)).
 
   Definition th_wf_pair {elt1 elt2} := @nm_wf_pair elt1 elt2.

@@ -25,8 +25,8 @@ Section GENORDER.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE _ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
@@ -437,8 +437,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE _ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Let shared :=
     (TIdSet.t *
@@ -456,11 +456,11 @@ Section PROOF.
   Definition mk_o (wf: WF) R (o: wf.(T)) (ps: bool) (itr_src: itree srcE R): (lift_wf wf).(T) :=
     if ps
     then match (observe itr_src) with
-         | VisF ((|Yield)|)%sum _ => (inr (Some o))
+         | VisF (((|Yield)|)|)%sum _ => (inr (Some o))
          | _ => (inr None)
          end
     else match (observe itr_src) with
-         | VisF ((|Yield)|)%sum _ => (inl o)
+         | VisF (((|Yield)|)|)%sum _ => (inl o)
          | _ => (inr None)
          end.
 
@@ -605,8 +605,8 @@ Section MODSIM.
     inv MDSIM.
     set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
-    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (srcE := programE _ident_src state_src).
+    set (tgtE := programE _ident_tgt state_tgt).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
@@ -640,8 +640,8 @@ Section USERSIM.
     inv MDSIM.
     set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
-    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (srcE := programE _ident_src state_src).
+    set (tgtE := programE _ident_tgt state_tgt).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).

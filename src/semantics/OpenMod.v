@@ -17,7 +17,7 @@ Module OMod.
         ident: ID;
         st_init: state;
         funs: fname ->
-              option (ktree (oprogramE ident state) Any.t Any.t);
+              option (ktree (programE ident state) Any.t Any.t);
       }.
 
   Section CLOSED.
@@ -29,36 +29,37 @@ Module OMod.
     Definition closed_st_init: closed_state := (omd.(st_init), md.(Mod.st_init)).
 
     Definition embed_itree {R}:
-      (itree (((@eventE md.(Mod.ident)) +' cE) +' sE (Mod.state md)) R) ->
-      (itree (((@eventE closed_ident) +' cE) +' sE closed_state) R).
+      (itree (programE (Mod.ident md) (Mod.state md)) R) ->
+      (itree (programE closed_ident closed_state) R).
     Proof.
       eapply ITree.iter. intros body. destruct (observe body).
       - exact (Ret (inr r)).
       - exact (Ret (inl t0)).
-      - destruct e as [[eE|cE]|stE].
-        + exact (Vis ((embed_event_r eE|)|)%sum (fun x => Ret (inl (k x)))).
-        + exact (Vis ((|cE)|)%sum (fun x => Ret (inl (k x)))).
+      - destruct e as [[[eE|cE]|caE]|stE].
+        + exact (Vis (((embed_event_r eE|)|)|)%sum (fun x => Ret (inl (k x)))).
+        + exact (Vis (((|cE)|)|)%sum (fun x => Ret (inl (k x)))).
+        + exact (Vis ((|caE)|)%sum (fun x => Ret (inl (k x)))).
         + eapply embed_state. instantiate (1:=md.(Mod.state)). exact snd. exact update_snd.
           exact (Vis (|stE)%sum (fun x => Ret (inl (k x)))).
     Defined.
 
     Definition close_itree {R}:
-      (itree ((((@eventE omd.(ident)) +' cE) +' callE) +' (sE omd.(state))) R) ->
-      (itree ((((@eventE closed_ident) +' cE) +' (sE closed_state))) R).
+      (itree (programE omd.(ident) omd.(state)) R) ->
+      (itree (programE closed_ident closed_state) R).
     Proof.
       (*ub for undefined fn call*)
       eapply ITree.iter. intros itr. destruct (observe itr).
       - exact (Ret (inr r)).
       - exact (Ret (inl t0)).
       - destruct e as [[[eE|cE]|caE]|stE].
-        + exact (Vis ((embed_event_l eE|)|)%sum (fun x => Ret (inl (k x)))).
-        + exact (Vis ((|cE)|)%sum (fun x => Ret (inl (k x)))).
+        + exact (Vis (((embed_event_l eE|)|)|)%sum (fun x => Ret (inl (k x)))).
+        + exact (Vis (((|cE)|)|)%sum (fun x => Ret (inl (k x)))).
         + destruct caE.
           destruct (md.(Mod.funs) fn) eqn:FUN.
           { clear FUN. specialize (k0 arg). eapply ITree.bind.
-            exact (Vis ((|Yield)|)%sum (fun _ => embed_itree k0)).
+            exact (Vis (((|Yield)|)|)%sum (fun _ => embed_itree k0)).
             intros rv. exact (Ret (inl (k rv))). }
-          { exact (Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)). }
+          { exact (Vis (((embed_event_l Undefined|)|)|)%sum (Empty_set_rect _)). }
         + eapply embed_state. instantiate (1:=omd.(state)). exact fst. exact update_fst.
           exact (Vis (|stE)%sum (fun x => Ret (inl (k x)))).
     Defined.
@@ -134,8 +135,8 @@ Section RED.
         R
         X (ee: @eventE _ X) ktr
     :
-    @embed_itree omd md R (Vis ((ee|)|)%sum ktr) =
-      Vis ((embed_event_r ee|)|)%sum (fun x => tau;; embed_itree omd md (ktr x)).
+    @embed_itree omd md R (Vis (((ee|)|)|)%sum ktr) =
+      Vis (((embed_event_r ee|)|)|)%sum (fun x => tau;; embed_itree omd md (ktr x)).
   Proof.
     unfold embed_itree at 1. rewrite unfold_iter. grind.
     apply observe_eta. ss. f_equal. extensionality x. grind.
@@ -155,8 +156,8 @@ Section RED.
         R
         X (ce: @cE X) ktr
     :
-    @embed_itree omd md R (Vis ((|ce)|)%sum ktr) =
-      Vis ((|ce)|)%sum (fun x => tau;; embed_itree omd md (ktr x)).
+    @embed_itree omd md R (Vis (((|ce)|)|)%sum ktr) =
+      Vis (((|ce)|)|)%sum (fun x => tau;; embed_itree omd md (ktr x)).
   Proof.
     unfold embed_itree at 1. rewrite unfold_iter. grind.
     apply observe_eta. ss. f_equal. extensionality x. grind.
@@ -170,6 +171,17 @@ Section RED.
     @embed_itree omd md R (trigger ce >>= ktr) =
       x <- trigger ce;; tau;; (embed_itree omd md (ktr x)).
   Proof. rewrite ! bind_trigger. apply embed_itree_vis_cE. Qed.
+
+  Lemma embed_itree_vis_callE
+    omd md
+    R
+    X (cae : callE X) ktr
+    : @embed_itree omd md R (Vis ((|cae)|)%sum ktr) =
+        Vis ((|cae)|)%sum (fun x => tau;; embed_itree omd md (ktr x)).
+  Proof.
+    unfold embed_itree at 1. rewrite unfold_iter. grind.
+    apply observe_eta. ss. f_equal. extensionality x. grind.
+  Qed.
 
   Lemma embed_itree_vis_sE
         omd md
@@ -254,13 +266,18 @@ Section RED.
     { rewrite ! embed_itree_tau. rewrite bind_tau.
       gstep. eapply EqTau. gbase. eauto.
     }
-    { revert k. destruct e as [[|]|[]]; i.
+    { revert k. destruct e as [[[]|]|[]]; i.
       { rewrite ! embed_itree_vis_eventE.
         ired. gstep. eapply EqVis. i. ss.
         ired. gstep. eapply EqTau.
         gbase. eauto.
       }
       { rewrite ! embed_itree_vis_cE.
+        ired. gstep. eapply EqVis. i. ss.
+        ired. gstep. eapply EqTau.
+        gbase. eauto.
+      }
+      { rewrite ! embed_itree_vis_callE.
         ired. gstep. eapply EqVis. i. ss.
         ired. gstep. eapply EqTau.
         gbase. eauto.
@@ -371,7 +388,7 @@ Section RED.
         X (ee: @eventE _ X) ktr
     :
     @close_itree omd md R (Vis (((ee|)|)|)%sum ktr) =
-      Vis ((embed_event_l ee|)|)%sum (fun x => tau;; close_itree omd md (ktr x)).
+      Vis (((embed_event_l ee|)|)|)%sum (fun x => tau;; close_itree omd md (ktr x)).
   Proof.
     unfold close_itree at 1. rewrite unfold_iter. grind.
     apply observe_eta. ss. f_equal. extensionality x. grind.
@@ -392,7 +409,7 @@ Section RED.
         X (ce: @cE X) ktr
     :
     @close_itree omd md R (Vis (((|ce)|)|)%sum ktr) =
-      Vis ((|ce)|)%sum (fun x => tau;; close_itree omd md (ktr x)).
+      Vis (((|ce)|)|)%sum (fun x => tau;; close_itree omd md (ktr x)).
   Proof.
     unfold close_itree at 1. rewrite unfold_iter. grind.
     apply observe_eta. ss. f_equal. extensionality x. grind.
@@ -481,8 +498,8 @@ Section RED.
     @close_itree omd md R (Vis ((|Call fn args)|)%sum ktr) =
       match (md.(Mod.funs) fn) with
       | Some body =>
-          Vis ((|Yield)|)%sum (fun _ => rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv))
-      | None => Vis ((embed_event_l Undefined|)|)%sum (Empty_set_rect _)
+          Vis (((|Yield)|)|)%sum (fun _ => rv <- embed_itree omd md (body args);; tau;; close_itree omd md (ktr rv))
+      | None => Vis (((embed_event_l Undefined|)|)|)%sum (Empty_set_rect _)
       end.
   Proof.
     unfold close_itree. rewrite unfold_iter. grind.

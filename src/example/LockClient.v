@@ -19,7 +19,7 @@ Module ClientImpl.
   Definition const_42: Const.t := Const.of_Z (BinIntDef.Z.of_nat 42).
 
   Definition thread1:
-    ktree (oprogramE void unit) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       let tvw := TView.bot in
@@ -29,7 +29,7 @@ Module ClientImpl.
       Ret tt.
 
   Definition thread2:
-    ktree (oprogramE void unit) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       let tvw := TView.bot in

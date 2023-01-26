@@ -19,8 +19,8 @@ Section SIM.
 
   Variable wf_src: WF.
 
-  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE ident_src state_src.
+  Let tgtE := programE ident_tgt state_tgt.
 
   Let shared_rel := TIdSet.t -> (@imap ident_src wf_src) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
 
@@ -678,8 +678,8 @@ Section STATE.
   Variable ident_src: ID.
   Variable ident_tgt: ID.
 
-  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE ident_src state_src.
+  Let tgtE := programE ident_tgt state_tgt.
 
   Let shared_rel := TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
 

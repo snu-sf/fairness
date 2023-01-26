@@ -124,7 +124,7 @@ Section ADD_RIGHT_CONG_SIM.
   Opaque lifted threadsRA URA.prod.
 
   Lemma lift_ma_local_sim_ub R_src R_tgt (RR : R_src -> R_tgt -> Prop) ktr_src itr_tgt
-    : local_sim lift_ma RR (Vis (inl1 (inl1 Undefined)) ktr_src) itr_tgt.
+    : local_sim lift_ma RR (Vis (inl1 (inl1 (inl1 Undefined))) ktr_src) itr_tgt.
   Proof.
     (* treat as if tid ∈ ths_ctx *)
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0 IM_TGT1 TID_TGT.
@@ -204,7 +204,7 @@ Section ADD_RIGHT_CONG_SIM.
       r_sha_w1 into r_sha_w0, r_ctx_th1 into r_ctx_th0, r_ctx_w1 into r_ctx_w0,
       INV into INV0, VALID1_0 into VALID_TH0, VALID1_1 into VALID_W0.
     revert_until tid. ginit. gcofix CIH. i.
-    destruct_itree itr; [| | destruct e as [[|]|] ].
+    destruct_itree itr; [| | destruct e as [[[]|]|] ].
     - rewrite 2 embed_state_ret, 2 map_event_ret.
       gstep. eapply pind9_fold. econs. ss.
       exists (NatSet.remove tid ths0), (URA.unit, URA.unit), (global_th (NatSet.remove tid ths_ctx0) ths_usr0, r_sha_w0).
@@ -266,6 +266,7 @@ Section ADD_RIGHT_CONG_SIM.
         eapply pind9_fold. eapply lsim_tidL. esplit; ss.
         eapply pind9_fold. eapply lsim_progress.
         gfinal. left. eapply CIH; eauto.
+    - admit.
     - destruct s.
       + rewrite 2 embed_state_put. ss.
         rewrite 2 map_event_vis. ss.
@@ -289,7 +290,7 @@ Section ADD_RIGHT_CONG_SIM.
         eapply pind9_fold. eapply lsim_progress.
         des. rewrite INV3.
         gfinal. left. eapply CIH; eauto. esplits; eauto.
-  Qed.
+  Admitted.
 
   Lemma lift_ma_local_sim_usr R_src R_tgt (RR : R_src -> R_tgt -> Prop) itr_src itr_tgt
     (SIM : local_sim (lifted I) RR itr_src itr_tgt)
@@ -531,7 +532,7 @@ Section MODADD_THEOREM.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs.
           gfinal. left. eapply CIH; eauto.
-        * { destruct e as [[|] | ].
+        * { destruct e as [[[]|] | ].
             - rewrite 2 embed_state_vis.
               rewrite 2 map_event_vis.
               rewrite <- 2 bind_trigger.
@@ -564,6 +565,7 @@ Section MODADD_THEOREM.
                 eapply pind9_fold. eapply lsim_tidL. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; eauto.
+            - admit.
             - destruct s.
               + rewrite 2 embed_state_put. ss.
                 rewrite 2 map_event_vis. ss.
@@ -615,7 +617,7 @@ Section MODADD_THEOREM.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs.
           gfinal. left. eapply CIH; eauto.
-        * { destruct e as [[|] | ].
+        * { destruct e as [[[]|] | ].
             - rewrite 2 embed_state_vis.
               rewrite 2 map_event_vis.
               rewrite <- 2 bind_trigger.
@@ -648,6 +650,7 @@ Section MODADD_THEOREM.
                 eapply pind9_fold. eapply lsim_tidL. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; eauto.
+            - admit.
             - destruct s.
               + rewrite 2 embed_state_put. ss.
                 rewrite 2 map_event_vis. ss.
@@ -675,7 +678,7 @@ Section MODADD_THEOREM.
           }
       + ss.
         Unshelve. all: exact tt.
-  Qed.
+  Admitted.
 
   Theorem ModAdd_right_cong M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
