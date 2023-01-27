@@ -266,7 +266,11 @@ Section ADD_RIGHT_CONG_SIM.
         eapply pind9_fold. eapply lsim_tidL. esplit; ss.
         eapply pind9_fold. eapply lsim_progress.
         gfinal. left. eapply CIH; eauto.
-    - admit.
+    - rewrite 2 embed_state_vis.
+      rewrite 2 map_event_vis. ss.
+      rewrite <- 2 bind_trigger.
+      destruct c. gstep. eapply pind9_fold. eapply lsim_call.
+      i. gfinal. left. eapply CIH; eauto.
     - destruct s.
       + rewrite 2 embed_state_put. ss.
         rewrite 2 map_event_vis. ss.
@@ -290,7 +294,7 @@ Section ADD_RIGHT_CONG_SIM.
         eapply pind9_fold. eapply lsim_progress.
         des. rewrite INV3.
         gfinal. left. eapply CIH; eauto. esplits; eauto.
-  Admitted.
+  Qed.
 
   Lemma lift_ma_local_sim_usr R_src R_tgt (RR : R_src -> R_tgt -> Prop) itr_src itr_tgt
     (SIM : local_sim (lifted I) RR itr_src itr_tgt)
@@ -567,7 +571,11 @@ Section MODADD_THEOREM.
                 eapply pind9_fold. eapply lsim_tidL. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; eauto.
-            - admit.
+            - rewrite 2 embed_state_vis.
+              rewrite 2 map_event_vis. ss.
+              rewrite <- 2 bind_trigger.
+              destruct c. gstep. eapply pind9_fold.
+              eapply lsim_call. i. gfinal. left. eapply CIH; eauto.
             - destruct s.
               + rewrite 2 embed_state_put. ss.
                 rewrite 2 map_event_vis. ss.
@@ -652,7 +660,11 @@ Section MODADD_THEOREM.
                 eapply pind9_fold. eapply lsim_tidL. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; eauto.
-            - admit.
+            - rewrite 2 embed_state_vis.
+              rewrite 2 map_event_vis. ss.
+              rewrite <- 2 bind_trigger.
+              destruct c. gstep. eapply pind9_fold.
+              eapply lsim_call. i. gfinal. left. eapply CIH; eauto.
             - destruct s.
               + rewrite 2 embed_state_put. ss.
                 rewrite 2 map_event_vis. ss.
@@ -680,7 +692,7 @@ Section MODADD_THEOREM.
           }
       + ss.
         Unshelve. all: exact tt.
-  Admitted.
+  Qed.
 
   Theorem ModAdd_right_cong M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
