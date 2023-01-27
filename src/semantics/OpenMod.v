@@ -11,22 +11,14 @@ From Fairness Require Export Mod.
 Set Implicit Arguments.
 
 Module OMod.
-  Record t: Type :=
-    mk {
-        state: Type;
-        ident: ID;
-        st_init: state;
-        funs: fname ->
-              option (ktree (programE ident state) Any.t Any.t);
-      }.
 
   Section CLOSED.
-    Variable omd: t.
+    Variable omd: Mod.t.
     Variable md: Mod.t.
 
-    Definition closed_state: Type := omd.(state) * md.(Mod.state).
-    Definition closed_ident: ID := id_sum omd.(ident) md.(Mod.ident).
-    Definition closed_st_init: closed_state := (omd.(st_init), md.(Mod.st_init)).
+    Definition closed_state: Type := omd.(Mod.state) * md.(Mod.state).
+    Definition closed_ident: ID := id_sum omd.(Mod.ident) md.(Mod.ident).
+    Definition closed_st_init: closed_state := (omd.(Mod.st_init), md.(Mod.st_init)).
 
     Definition embed_itree {R}:
       (itree (programE (Mod.ident md) (Mod.state md)) R) ->
@@ -34,7 +26,7 @@ Module OMod.
     Proof.
       eapply ITree.iter. intros body. destruct (observe body).
       - exact (Ret (inr r)).
-      - exact (Ret (inl t0)).
+      - exact (Ret (inl t)).
       - destruct e as [[[eE|cE]|caE]|stE].
         + exact (Vis (((embed_event_r eE|)|)|)%sum (fun x => Ret (inl (k x)))).
         + exact (Vis (((|cE)|)|)%sum (fun x => Ret (inl (k x)))).
@@ -44,13 +36,13 @@ Module OMod.
     Defined.
 
     Definition close_itree {R}:
-      (itree (programE omd.(ident) omd.(state)) R) ->
+      (itree (programE omd.(Mod.ident) omd.(Mod.state)) R) ->
       (itree (programE closed_ident closed_state) R).
     Proof.
       (*ub for undefined fn call*)
       eapply ITree.iter. intros itr. destruct (observe itr).
       - exact (Ret (inr r)).
-      - exact (Ret (inl t0)).
+      - exact (Ret (inl t)).
       - destruct e as [[[eE|cE]|caE]|stE].
         + exact (Vis (((embed_event_l eE|)|)|)%sum (fun x => Ret (inl (k x)))).
         + exact (Vis (((|cE)|)|)%sum (fun x => Ret (inl (k x)))).
@@ -60,20 +52,20 @@ Module OMod.
             exact (Vis (((|Yield)|)|)%sum (fun _ => embed_itree k0)).
             intros rv. exact (Ret (inl (k rv))). }
           { exact (Vis (((embed_event_l Undefined|)|)|)%sum (Empty_set_rect _)). }
-        + eapply embed_state. instantiate (1:=omd.(state)). exact fst. exact update_fst.
+        + eapply embed_state. instantiate (1:=omd.(Mod.state)). exact fst. exact update_fst.
           exact (Vis (|stE)%sum (fun x => Ret (inl (k x)))).
     Defined.
 
     Definition closed_funs: fname -> option (ktree _ Any.t Any.t) :=
       fun fn =>
-        match (omd.(funs) fn) with
+        match (omd.(Mod.funs) fn) with
         | None => None
         | Some body => Some (fun args => close_itree (body args))
         end.
 
   End CLOSED.
 
-  Definition close (om: t) (m: Mod.t): Mod.t :=
+  Definition close (om: Mod.t) (m: Mod.t): Mod.t :=
     @Mod.mk
       (closed_state om m)
       (closed_ident om m)
@@ -434,7 +426,7 @@ Section RED.
   Lemma close_itree_vis_sE
         omd md
         R
-        X (se: @sE omd.(OMod.state) X) ktr
+        X (se: @sE omd.(Mod.state) X) ktr
     :
     @close_itree omd md R (Vis (|se)%sum ktr) =
       lr <- embed_state fst update_fst (Vis (|se)%sum (fun x => Ret (inl (ktr x))));;

@@ -43,8 +43,8 @@ Module ClientImpl.
       _ <- trigger (Observe 0 [42]);;
       Ret tt.
 
-  Definition omod: OMod.t :=
-    OMod.mk
+  Definition omod: Mod.t :=
+    Mod.mk
       tt
       (Mod.get_funs [("thread1", Mod.wrap_fun thread1);
                      ("thread2", Mod.wrap_fun thread2)])

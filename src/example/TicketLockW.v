@@ -61,8 +61,8 @@ Module TicketLock.
       Ret tvw
   .
 
-  Definition omod: OMod.t :=
-    OMod.mk
+  Definition omod: Mod.t :=
+    Mod.mk
       tt
       (Mod.get_funs [("lock", Mod.wrap_fun lock_fun);
                      ("unlock", Mod.wrap_fun unlock_fun)])

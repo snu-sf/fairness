@@ -16,7 +16,7 @@ Locate OMod.
 
 Section CLOSE_CONG_SIM.
 
-  Context {M1: OMod.t} {M2_src M2_tgt : Mod.t}.
+  Context {M1: Mod.t} {M2_src M2_tgt : Mod.t}.
   Context {wf_src : WF}.
   Context `{world : URA.t}.
 
