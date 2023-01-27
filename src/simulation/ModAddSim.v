@@ -421,6 +421,8 @@ Section ADD_RIGHT_CONG_SIM.
         specialize (FAIR (inr (inl i))). ss.
     - rewrite 2 embed_state_trigger, 2 map_event_trigger. econs. i. specialize (LSIM ret). pclearbot.
       gfinal. left. eapply CIH; eauto.
+    - rewrite 2 embed_state_trigger, 2 map_event_trigger. econs. i. specialize (LSIM ret). pclearbot.
+      gfinal. left. eapply CIH; eauto.
     - rewrite 2 embed_state_trigger, 2 map_event_trigger.
       match goal with [ |- __lsim _ _ _ _ _ _ _ _ _ (_ <- trigger (?EMB _);; _) _ ] => set EMB as emb end.
       eapply lsim_yieldL. split; ss.

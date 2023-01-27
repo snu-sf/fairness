@@ -105,6 +105,8 @@ Section PROOF.
       right. eapply CIH; eauto. eapply ModSimStid.lsim_set_prog. auto.
     }
 
+    { pfold. eapply pind9_fold. eapply lsim_call. }
+
     { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL.
       des. esplits; eauto.
       split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND.

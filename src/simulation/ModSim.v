@@ -159,6 +159,13 @@ Section PRIMIVIESIM.
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
+  | lsim_call
+      f_src f_tgt r_ctx
+      ths im_src im_tgt st_src st_tgt
+      fn args ktr_src ktr_tgt
+      (LSIM : forall ret, lsim _ _ RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
+    : __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Call fn args) >>= ktr_src) (trigger (Call fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+
   | lsim_yieldL
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
@@ -372,6 +379,8 @@ Section PRIMIVIESIM.
 
     { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_base. auto. }
 
+    { eapply pind9_fold. eapply lsim_call. i. eapply rclo9_base. auto. }
+
     { des. eapply pind9_fold. eapply lsim_yieldL. split; ss.
       destruct LSIM0 as [LSIM IND]. hexploit IH; eauto.
     }
@@ -493,6 +502,8 @@ Section PRIMIVIESIM.
 
     { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_clo_base. econs; eauto. }
 
+    { eapply pind9_fold. eapply lsim_call. i. eapply rclo9_clo_base. econs; eauto. }
+
     { des. eapply pind9_fold. eapply lsim_yieldL. split; ss.
       destruct LSIM0 as [LSIM IND]. hexploit IH; eauto.
     }
@@ -610,6 +621,13 @@ Section PRIMIVIESIM.
     }
 
     { gfinal. left. eapply pind9_fold. eapply lsim_observe. i.
+      eapply rclo9_clo. left. econs; eauto.
+      eapply rclo9_clo_base. right. guclo lsim_monoC_spec. econs.
+      2:{ gbase. eauto. }
+      { eauto. }
+    }
+
+    { gfinal. left. eapply pind9_fold. eapply lsim_call. i.
       eapply rclo9_clo. left. econs; eauto.
       eapply rclo9_clo_base. right. guclo lsim_monoC_spec. econs.
       2:{ gbase. eauto. }
@@ -755,6 +773,10 @@ Section PRIMIVIESIM.
       eapply rclo9_clo_base. left. econs; eauto.
     }
 
+    { gfinal. left. eapply pind9_fold. eapply lsim_call. i.
+      eapply rclo9_clo_base. left. econs; eauto.
+    }
+
     { des. guclo lsim_indC_spec. eapply lsim_yieldL.
       destruct LSIM0 as [LSIM IND]. hexploit IH; eauto.
       rewrite ! bind_bind. eauto.
@@ -881,6 +903,8 @@ Section PRIMIVIESIM.
 
     { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
 
+    { pfold. eapply pind9_fold. eapply lsim_call. i. eapply upaco9_mon_bot; eauto. }
+
     { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
       destruct LSIM0 as [LSIM IND]. hexploit IH; eauto. i. punfold H.
     }
@@ -1006,6 +1030,7 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
   Qed.
 
   Lemma lsim_rev_tau
@@ -1031,6 +1056,7 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { inv LSIM0. eapply lsim_flag_any. pfold. eauto. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
@@ -1069,6 +1095,7 @@ Section PRIMIVIESIM.
     { eapply trigger_eq_rev in H4. des. subst.
       i. specialize (LSIM0 x). inv LSIM0.
       eapply lsim_flag_any. pfold. eauto. }
+    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
     { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
     { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
     { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
@@ -1120,30 +1147,17 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; ss.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply trigger_eq_rev in H4. des. subst.
       inv LSIM0. eapply lsim_flag_any. pfold. eauto. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
   Qed.
 
   Lemma lsim_rev_UB
@@ -1170,31 +1184,18 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply trigger_eq_rev in H4. des. exfalso.
       clear - H4 H0 H1. subst. dependent destruction H0.
     }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact 0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact 0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
   Qed.
 
   Lemma lsim_rev_yield
@@ -1233,6 +1234,7 @@ Section PRIMIVIESIM.
     { eapply trigger_eq_rev in H4. des. exfalso.
       eapply nat_not_unit; eauto.
     }
+    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
@@ -1287,6 +1289,7 @@ Section PRIMIVIESIM.
     { eapply trigger_eq_rev in H4. des. exfalso.
       clear - H4 H0 H1. subst. dependent destruction H0.
     }
+    { eapply f_equal with (f:=observe) in H3. ss. }
   Qed.
 
   Lemma lsim_rev_put
@@ -1330,9 +1333,8 @@ Section PRIMIVIESIM.
     { eapply trigger_eq_rev in H4. des. exfalso.
       eapply nat_not_unit; eauto.
     }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
   Qed.
@@ -1379,9 +1381,8 @@ Section PRIMIVIESIM.
     { eapply trigger_eq_rev in H4. des. exfalso.
       eapply nat_not_unit; eauto.
     }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
   Qed.

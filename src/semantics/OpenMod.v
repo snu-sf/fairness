@@ -183,6 +183,13 @@ Section RED.
     apply observe_eta. ss. f_equal. extensionality x. grind.
   Qed.
 
+  Lemma embed_itree_trigger_callE
+    omd md
+    R X (cae : callE X) ktr
+    :
+    @embed_itree omd md R (trigger cae >>= ktr) = x <- trigger cae;; tau;; embed_itree omd md (ktr x).
+  Proof. rewrite ! bind_trigger. apply embed_itree_vis_callE. Qed.
+
   Lemma embed_itree_vis_sE
         omd md
         R

@@ -358,6 +358,9 @@ Section PROOF.
       specialize (LSIM0 ret). pclearbot. right. eapply CIH; auto.
     }
 
+    { clear IH rr. clarify.
+      pfold. eapply pind10_fold. eapply ksim_call. }
+
     { clear IH rr. clarify. rewrite ! bind_trigger.
       pfold. eapply pind10_fold. eapply ksim_sync; eauto.
       { instantiate (1:=r_own). instantiate (1:=r_shared). unfold resources_wf.

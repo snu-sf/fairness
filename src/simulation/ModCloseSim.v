@@ -242,6 +242,11 @@ Section CLOSE_CONG_SIM.
       muclo lsim_indC_spec. cbn. econs; eauto.
       muclo lsim_indC_spec. cbn. econs; eauto.
       gfinal. left. eapply CIH; eauto.
+    - rewrite 2 embed_itree_trigger_callE. apply lsim_call.
+      i. specialize (LSIM ret). pclearbot.
+      muclo lsim_indC_spec. ss. econs.
+      muclo lsim_indC_spec. ss. econs.
+      gfinal. left. eapply CIH; eauto.
     - rewrite 2 embed_itree_trigger_cE.
       eapply lsim_yieldL. split; ss.
       rewrite <- embed_itree_trigger_cE.

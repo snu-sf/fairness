@@ -368,6 +368,17 @@ Section KSIM.
                  (Vis (inl1 (inl1 (inl1 (Observe fn args)))) ktr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
 
+    | ksim_call
+        tid f_src f_tgt
+        sf fn args ktr_src itr_tgt
+        rs_local
+        im_src im_tgt st_src st_tgt o
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
+                 (sf, (trigger (Call fn args) >>= ktr_src))
+                 itr_tgt
+                 (im_src, im_tgt, st_src, st_tgt) o
+
     | ksim_progress
         tid
         sf itr_src itr_tgt
@@ -520,6 +531,8 @@ Section KSIM.
       right; eapply CIH; eauto.
     }
 
+    { pfold. eapply pind10_fold. eapply ksim_call. }
+
     { hexploit SRC; ss; i; clarify. hexploit TGT; ss; i; clarify.
       pfold. eapply pind10_fold. eapply ksim_progress. pclearbot.
       right; eapply CIH; eauto.
@@ -621,6 +634,8 @@ Section KSIM.
     { pfold. eapply pind10_fold. eapply ksim_observe. i. specialize (KSIM0 ret). pclearbot.
       right; eapply CIH; eauto.
     }
+
+    { pfold. eapply pind10_fold. eapply ksim_call. }
 
     { pclearbot. eapply paco10_mon_bot; eauto. eapply ksim_reset_prog. eauto. all: auto. }
 

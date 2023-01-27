@@ -283,7 +283,7 @@ Section SCHEDULE.
         * (* GetTid *)
           exact (Ret (inl (tid, k tid))).
       + (* callE *)
-        exact UB.
+        exact (Vis (inl1 Undefined) (Empty_set_rect _)).
       + (* E *)
         exact (Vis (inr1 e) (fun x => Ret (inl (tid, k x)))).
   Defined.
@@ -370,6 +370,12 @@ Section SCHEDULE.
     interp_thread (tid, x <- trigger (inl1 (inr1 Yield));; ktr x) =
       Ret (inl (ktr tt)).
   Proof. rewrite bind_trigger. apply interp_thread_vis_yield. Qed.
+
+  Lemma interp_thread_call R tid fn args (ktr : ktree Es0 Any.t R) :
+    interp_thread (tid, trigger (Call fn args) >>= ktr) = Vis (inl1 Undefined) (Empty_set_rect _).
+  Proof. unfold interp_thread at 1, interp_thread_aux. rewrite unfold_iter. grind.
+         rewrite map_event_vis. eapply observe_eta. ss. f_equal. extensionalities x. ss.
+  Qed.
 
   Lemma interp_sched_ret RT R (ths : threads RT) (r : R) :
     interp_sched (ths, Ret r) = Ret r.
@@ -610,6 +616,16 @@ Section INTERP.
     destruct x.
     - rewrite ! nm_add_add_eq. rewrite ! key_set_pull_add_eq. auto.
     - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
+  Qed.
+
+  Lemma interp_all_call
+    st (ths: @threads _Ident (sE State) R) tid
+    fn args ktr
+    : interp_all st (Th.add tid (trigger (Call fn args) >>= ktr) ths) tid = trigger Undefined >>= Empty_set_rect _.
+  Proof.
+    unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
+    rewrite interp_thread_call. rewrite bind_vis. rewrite interp_state_vis. rewrite ! bind_trigger.
+    eapply observe_eta. ss. f_equal. extensionalities s. ss.
   Qed.
 
 End INTERP.

@@ -171,17 +171,10 @@ Section PROOF.
         + right. ss. do 2 econs.
     }
 
-    { des. destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 16; eauto.
-      esplits; eauto.
-      clear - LT. unfold mk_o. des_ifs; try reflexivity.
-      - ss. do 2 econs. auto.
-      - ss. do 1 econs. auto.
-    }
+    { guclo lsim_indC_spec. econs 16. }
 
-    { guclo lsim_indC_spec. econs 17; eauto. i.
-      specialize (GENOS _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
-      destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
+    { des. destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
+      guclo lsim_indC_spec. econs 17; eauto.
       esplits; eauto.
       clear - LT. unfold mk_o. des_ifs; try reflexivity.
       - ss. do 2 econs. auto.
@@ -191,6 +184,15 @@ Section PROOF.
     { guclo lsim_indC_spec. econs 18; eauto. i.
       specialize (GENOS _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
       destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
+      esplits; eauto.
+      clear - LT. unfold mk_o. des_ifs; try reflexivity.
+      - ss. do 2 econs. auto.
+      - ss. do 1 econs. auto.
+    }
+
+    { guclo lsim_indC_spec. econs 19; eauto. i.
+      specialize (GENOS _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
+      destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
     }
 
     { eapply gensim_genos in GENOS. des.
@@ -198,7 +200,7 @@ Section PROOF.
       guclo lsim_ord_weakRC_spec. econs.
       instantiate (1:=mk_o (@wf_ot R0 R1) ot0 false src).
       instantiate (1:=mk_o (@wf_ot R0 R1) os0 false tgt).
-      gfinal. right. pfold. eapply pind9_fold. econs 19. right. eapply CIH. auto.
+      gfinal. right. pfold. eapply pind9_fold. econs 20. right. eapply CIH. auto.
       - ss. des_ifs; try reflexivity. right. ss. do 2 econs.
       - ss. des_ifs; try reflexivity. right. ss. do 2 econs.
     }

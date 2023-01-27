@@ -669,6 +669,8 @@ Section PROOF.
       Unshelve. all: exact o1.
     }
 
+    { rewrite interp_all_call. gfold. eapply sim_ub. }
+
     { clear rr IH. gfold. eapply sim_progress. right; eapply CIH; eauto. pclearbot. eapply KSIM0. all: auto. }
 
   Qed.
@@ -840,6 +842,8 @@ Section PROOF.
       destruct KSIM0; ss. punfold p.
       Unshelve. all: exact o1.
     }
+
+    { rewrite interp_all_call. gfold. eapply sim_ub. }
 
     { clear rr IH. gfold. eapply sim_progress. right; eapply CIH; eauto. destruct KSIM0; ss. eapply p. all: auto. }
 

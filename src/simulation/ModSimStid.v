@@ -159,6 +159,12 @@ Section PRIMIVIESIM.
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
+  | lsim_call
+      f_src f_tgt r_ctx
+      ths im_src im_tgt st_src st_tgt
+      fn args ktr_src itr_tgt
+    : __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Call fn args) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+
   | lsim_yieldL
       f_src f_tgt r_ctx
       ths im_src0 im_tgt st_src st_tgt
@@ -327,6 +333,8 @@ Section PRIMIVIESIM.
 
     { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_base. auto. }
 
+    { eapply pind9_fold. eapply lsim_call. }
+
     { des. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
       destruct LSIM as [LSIM IND]. hexploit IH; eauto.
     }
@@ -451,6 +459,8 @@ Section PRIMIVIESIM.
 
     { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
 
+    { pfold. eapply pind9_fold. eapply lsim_call. }
+
     { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
       destruct LSIM as [LSIM IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
@@ -558,6 +568,8 @@ Section PRIMIVIESIM.
 
     { eapply pind9_fold. eapply lsim_observe. i.
       eapply rclo9_clo. econs; eauto. eapply rclo9_base; auto. }
+
+    { eapply pind9_fold. eapply lsim_call. }
 
     { des. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
       destruct LSIM as [LSIM IND]. hexploit IH; eauto.
