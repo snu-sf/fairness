@@ -12,7 +12,7 @@ Require Import Coq.Numbers.BinNums.
 Set Implicit Arguments.
 
 
-Module TicketLock.
+Module TicketLockW.
   Definition now_serving: Loc.t := Loc.of_nat 0.
   Definition next_ticket: Loc.t := Loc.of_nat 1.
 
@@ -23,16 +23,16 @@ Module TicketLock.
     :=
     ITree.iter
       (fun (tvw: TView.t) =>
-         '(tvw, next) <- (OMod.call "load" (tvw, now_serving, Ordering.acqrel));;
-         b <- unwrap (Const.eqb myticket next);;
+         '(tvw, now) <- (OMod.call "load" (tvw, now_serving, Ordering.acqrel));;
+         b <- unwrap (Const.eqb myticket now);;
          if (b: bool) then Ret (inr tvw) else Ret (inl tvw)) tvw.
 
   Lemma lock_loop_red myticket tvw
     :
     lock_loop myticket tvw
     =
-      '(tvw, next) <- (OMod.call "load" (tvw, now_serving, Ordering.acqrel));;
-      b <- unwrap (Const.eqb myticket next);;
+      '(tvw, now) <- (OMod.call "load" (tvw, now_serving, Ordering.acqrel));;
+      b <- unwrap (Const.eqb myticket now);;
       if (b: bool)
       then Ret tvw else tau;; lock_loop myticket tvw.
   Proof.
@@ -45,7 +45,7 @@ Module TicketLock.
     ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) TView.t TView.t :=
     fun tvw =>
       '(tvw, myticket) <- (OMod.call "faa" (tvw, next_ticket, const_1, Ordering.plain, Ordering.acqrel));;
-      _ <- lock_loop myticket tvw;;
+      tvw <- lock_loop myticket tvw;;
       _ <- trigger Yield;;
       Ret tvw
   .
@@ -53,10 +53,9 @@ Module TicketLock.
   Definition unlock_fun:
     ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) TView.t TView.t :=
     fun tvw =>
-      _ <- trigger Yield;;
-      '(tvw, v) <- (OMod.call "load" (tvw, next_ticket, Ordering.relaxed));;
+      '(tvw, v) <- (OMod.call "load" (tvw, now_serving, Ordering.relaxed));;
       let v := Const.add v const_1 in
-      tvw <- (OMod.call "store" (tvw: TView.t, next_ticket, v, Ordering.acqrel));;
+      tvw <- (OMod.call "store" (tvw: TView.t, now_serving, v, Ordering.acqrel));;
       _ <- trigger Yield;;
       Ret tvw
   .
@@ -73,12 +72,13 @@ Module TicketLock.
       (omod)
       (WMem.mod)
   .
-End TicketLock.
+
+End TicketLockW.
 
 From Fairness Require Import FairLock ModSim.
 
 Section SIM.
   Lemma ticketlock_fair:
-    ModSim.mod_sim FairLockW.mod TicketLock.mod.
+    ModSim.mod_sim FairLockW.mod TicketLockW.mod.
   Admitted.
 End SIM.

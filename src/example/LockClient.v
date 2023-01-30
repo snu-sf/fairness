@@ -2,7 +2,9 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 Unset Universe Checking.
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms OpenMod WMM Red IRed Wrapper WeakestAdequacy FairLock Concurrency.
+From Fairness Require Export
+     ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
+     OpenMod WMM Red IRed Wrapper WeakestAdequacy FairLock Concurrency.
 From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import TView.
 From Ordinal Require Export ClassicalHessenberg.
@@ -34,14 +36,16 @@ Module ClientImpl.
     fun _ =>
       let tvw := TView.bot in
       _ <- ITree.iter
-             (fun (tvw: TView.t) =>
-                tvw <- (OMod.call "lock" (tvw: TView.t));;
-                '(tvw, x) <- (OMod.call "load" (tvw: TView.t, loc_X, Ordering.plain));;
-                `tvw: TView.t <- (OMod.call "unlock" (tvw: TView.t));;
-                      b <- unwrap (Const.eqb const_0 x);;
-                      if (b: bool) then Ret (inl tvw) else Ret (inr tvw)) tvw;;
-      _ <- trigger (Observe 0 [42]);;
-      Ret tt.
+            (fun (tvw: TView.t) =>
+               tvw <- (OMod.call "lock" (tvw: TView.t));;
+               '(tvw, x) <- (OMod.call "load" (tvw: TView.t, loc_X, Ordering.plain));;
+               `tvw: TView.t <- (OMod.call "unlock" (tvw: TView.t));;
+                     b <- unwrap (Const.eqb const_0 x);;
+                     if (b: bool) then Ret (inl tvw) else Ret (inr tvw)) tvw;;
+      `x: (TView.t * Const.t)%type <- (OMod.call "load" (tvw: TView.t, loc_X, Ordering.plain));;
+          b <- unwrap (Const.eqb const_42 (snd x));;
+          if (b: bool) then _ <- trigger (Observe 0 [42]);; Ret tt
+          else UB.
 
   Definition omod: OMod.t :=
     OMod.mk
@@ -55,21 +59,23 @@ Module ClientImpl.
       (omod)
       (ModAdd WMem.mod FairLockW.mod)
   .
-End ClientImpl.
 
+End ClientImpl.
 
 Module ClientSpec.
   Definition thread1:
     ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
     :=
     fun _ =>
-      Ret tt.
+      _ <- trigger Yield;; Ret tt.
 
   Definition thread2:
     ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
     :=
     fun _ =>
+      _ <- trigger Yield;;
       _ <- trigger (Observe 0 [42]);;
+      _ <- trigger Yield;;
       Ret tt.
 
   Definition mod: Mod.t :=
@@ -78,10 +84,13 @@ Module ClientSpec.
       (Mod.get_funs [("thread1", Mod.wrap_fun thread1);
                      ("thread2", Mod.wrap_fun thread2)])
   .
+
 End ClientSpec.
 
 
-From Fairness Require Import ModSim.
+
+From Fairness Require Import
+     IProp IPM Weakest ModSim PCM MonotonePCM StateRA FairRA.
 
 Section SIM.
   Let config := [("thread1", tt↑); ("thread2", tt↑)].
