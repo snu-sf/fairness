@@ -10,7 +10,7 @@ Section ALL.
     OMod.close ClientImpl.omod (ModAdd WMem.mod FairLockW.mod).
 
   Definition client_ticket_lock :=
-    OMod.close ClientImpl.omod (ModAdd WMem.mod TicketLock.mod ).
+    OMod.close ClientImpl.omod (ModAdd WMem.mod TicketLockW.mod ).
 
   Theorem client_all
     :
