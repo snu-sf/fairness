@@ -124,6 +124,10 @@ Section SIM.
   (* Context `{AUTHNMNN: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}. *)
 
   Definition thread1_will_write : iProp :=
+    exists tvw, Auth.black (Excl.just tvw) /\ (wpoints_to _ _ tvw)
+           ((ObligationRA.pending k (/2)%Qp ∗ points_to loc_X const_0 tvw)
+            ∨
+              (ObligationRA.shot k ∗ points_to loc_X const_42 tvw)).
     ∃ k, (∃ n, ObligationRA.black k n)
            ∗
            (ObligationRA.correl_thread k 1%ord)
@@ -137,6 +141,8 @@ Section SIM.
   Definition o_w_cor: Ord.t := (Ord.omega × Ord.omega)%ord.
 
   Definition lock_will_unlock : iProp :=
+    (unlocked -> exists tvw, Auth.white (Excl.just tvw) /\ (lock_has tvw))
+      \/ (locked -> _)
     ∃ (own: bool) (mem: SCMem.t) (wobl: NatMap.t nat) (j: nat),
       (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
         ∗
