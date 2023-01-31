@@ -97,7 +97,7 @@ Section IMAP_OPERATIONS.
 
 End IMAP_OPERATIONS.
 
-Section ADD_RIGHT_CONG_SIM.
+Section ADD_RIGHT_MONO_SIM.
 
   Context {M1 M2_src M2_tgt : Mod.t}.
   Context {wf_src : WF}.
@@ -478,7 +478,7 @@ Section ADD_RIGHT_CONG_SIM.
     - econs. pclearbot. gfinal. left. eapply CIH; eauto.
   Qed.
 
-End ADD_RIGHT_CONG_SIM.
+End ADD_RIGHT_MONO_SIM.
 
 Section MODADD_THEOREM.
 
@@ -694,7 +694,7 @@ Section MODADD_THEOREM.
         Unshelve. all: exact tt.
   Qed.
 
-  Theorem ModAdd_right_cong M1 M2_src M2_tgt :
+  Theorem ModAdd_right_mono M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
