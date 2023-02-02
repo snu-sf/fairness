@@ -193,8 +193,6 @@ Section CLOSE_MONO_SIM.
       eapply IH; eauto.
     - rewrite embed_itree_trigger_rmw. econs. split; ss.
       destruct st_src0; ss; subst.
-      unfold apply_lens, Lens.view, Lens.set; ss.
-      destruct (rmw s0); ss.
       destruct LSIM. eapply IH; eauto.
     - rewrite embed_itree_trigger_cE. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
@@ -213,8 +211,6 @@ Section CLOSE_MONO_SIM.
       destruct LSIM. eapply IH; eauto.
     - rewrite embed_itree_trigger_rmw. econs. split; ss.
       destruct st_tgt0; ss; subst.
-      unfold apply_lens, Lens.view, Lens.set; ss.
-      destruct (rmw s0); ss.
       destruct LSIM. eapply IH; eauto.
     - rewrite embed_itree_trigger_cE. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
@@ -541,8 +537,6 @@ Section CLOSE_MONO_SIM.
       eapply pind9_fold. eapply lsim_tauR. split; ss.
       eapply pind9_fold. eapply lsim_progress.
       des. destruct st_src0, st_tgt0; ss; subst.
-      unfold apply_lens, Lens.view, Lens.set; ss.
-      destruct (rmw s1); ss.
       gbase. eapply CIH; eauto. esplits; eauto.
   Qed.
 
@@ -868,8 +862,6 @@ Section MODADD_THEOREM.
                         eapply pind9_fold. eapply lsim_progress.
                         gbase.
                         des. destruct st_src0 as [s0 []], st_tgt0 as [[] s2]; ss; subst.
-                        unfold apply_lens, Lens.view, Lens.set; ss.
-                        destruct (rmw s2); ss.
                         eapply CIH; ss.
                   }
                   i. destruct shr as [[[[ths2 im_src] im_tgt] st_src] st_tgt]. destruct SAT. subst.
@@ -895,8 +887,6 @@ Section MODADD_THEOREM.
                 eapply pind9_fold. eapply lsim_tauR. split; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 des. destruct st_src1 as [s0 []], st_tgt1 as [[] s2]; ss; subst.
-                unfold apply_lens, Lens.view, Lens.set; ss.
-                destruct (rmw s4); ss.
                 gbase. eapply CIH; ss.
           }
           i. destruct shr as [[[[ths2 im_src] im_tgt] st_src] st_tgt]. destruct SAT. subst.
@@ -919,8 +909,6 @@ Section MODADD_THEOREM.
         eapply pind9_fold. eapply lsim_tauR. split; ss.
         eapply pind9_fold. eapply lsim_progress.
         des. destruct st_src2 as [s0 []], st_tgt2 as [[] s2]; ss; subst.
-        unfold apply_lens, Lens.view, Lens.set; ss.
-        destruct (rmw s3); ss.
         gbase. eapply CIH; ss.
         Unshelve. all: exact tt.
   Qed.

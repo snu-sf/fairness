@@ -1434,7 +1434,7 @@ Section STATE.
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
-    rewrite get_as_rmw. iApply isim_rmwL.
+    rewrite get_rmw. iApply isim_rmwL.
     iAssert (⌜st_src = st⌝)%I as "%".
     { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_src with "D"); eauto. }
     subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
@@ -1451,7 +1451,7 @@ Section STATE.
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
-    rewrite get_as_rmw. iApply isim_rmwR.
+    rewrite get_rmw. iApply isim_rmwR.
     iAssert (⌜st_tgt = st⌝)%I as "%".
     { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_tgt with "D"); eauto. }
     subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.

@@ -25,6 +25,7 @@ Section EVENTS.
   (* | Spawn (fn: fname) (args: list Val): cE unit *)
   .
 
+  (* sE is just state monad *)
   Variant sE (S : Type) (V : Type) : Type :=
   | Rmw (rmw : S -> S * V) : sE S V
   .
@@ -35,11 +36,22 @@ Section EVENTS.
 
   Definition Get {S} {X} (p : S -> X) : sE S X := Rmw (fun x => (x, p x)).
   Definition Put {S} (x' : S) : sE S () := Rmw (fun x => (x', tt)).
+  Definition Modify {S} (f : S -> S) : sE S () := Rmw (fun x => (f x, tt)).
 
-  Lemma get_as_rmw {S X} (p : S -> X) : Get p = Rmw (fun x => (x, p x)).
+  Lemma get_rmw {S X} (p : S -> X) : Get p = Rmw (fun x => (x, p x)).
+  Proof. reflexivity. Qed.
+
+  Lemma put_rmw {S} (x' : S) : Put x' = Rmw (fun x => (x', tt)).
+  Proof. reflexivity. Qed.
+
+  Lemma modify_rmw {S} (f : S -> S) : Modify f = Rmw (fun x => (f x, tt)).
   Proof. reflexivity. Qed.
 
 End EVENTS.
+
+Global Opaque Get.
+Global Opaque Put.
+Global Opaque Modify.
 
 Notation programE ident State :=
   ((((@eventE ident) +' cE) +' callE) +' sE State).
@@ -135,9 +147,8 @@ Section LENS.
   Variable l : Lens.t S V.
 
   Definition apply_lens X : (V -> V * X) -> (S -> S * X) :=
-    fun state s =>
-      let '(v', x) := state (Lens.view l s)
-      in (Lens.set l v' s, x).
+    fun rmw s =>
+      (Lens.set l (fst (rmw (Lens.view l s))) s, snd (rmw (Lens.view l s))).
 
   Definition embed_lens X (se : sE V X) : sE S X :=
     match se with

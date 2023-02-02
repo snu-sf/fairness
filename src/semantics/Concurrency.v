@@ -152,7 +152,7 @@ Section STATE.
     =
       tau;; interp_state (state, ktr state).
   Proof.
-    unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. grind.
+    unfold interp_state, interp_state_aux. rewrite get_rmw, unfold_iter. ss. grind.
   Qed.
 
   Lemma interp_state_get

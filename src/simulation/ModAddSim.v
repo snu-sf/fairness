@@ -276,9 +276,7 @@ Section ADD_RIGHT_MONO_SIM.
       eapply pind9_fold. eapply lsim_rmwR. esplit; ss.
       eapply pind9_fold. eapply lsim_progress.
       gbase. des. destruct st_src0, st_tgt0; ss. subst.
-      unfold apply_lens, Lens.view, Lens.set; ss. destruct (rmw s1). ss.
-      unfold map_lens in CIH. eapply CIH; eauto.
-      esplits; eauto.
+      eapply CIH; eauto. esplits; eauto.
   Qed.
 
   Lemma lift_ma_local_sim_usr R_src R_tgt (RR : R_src -> R_tgt -> Prop) itr_src itr_tgt
@@ -369,8 +367,8 @@ Section ADD_RIGHT_MONO_SIM.
       des. destruct LSIM. exists x. split; ss. eapply IH; eauto.
     - unfold map_lens. rewrite ! map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
-      + destruct st_src0, st_tgt0. unfold apply_lens, Lens.view, Lens.set in *; ss. destruct (rmw s0); ss.
-      + destruct st_src0. unfold apply_lens, Lens.view, Lens.set in *; ss. destruct (rmw s0); ss.
+      + destruct st_src0, st_tgt0; ss.
+      + destruct st_src0; ss.
     - unfold map_lens. rewrite ! map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
     - unfold map_lens. rewrite ! map_event_trigger. econs.
@@ -388,8 +386,8 @@ Section ADD_RIGHT_MONO_SIM.
       destruct LSIM. eapply IH; eauto.
     - unfold map_lens. rewrite ! map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
-      + destruct st_src0, st_tgt0. unfold apply_lens, Lens.view, Lens.set; ss. destruct (rmw s2); ss.
-      + destruct st_tgt0. unfold apply_lens, Lens.view, Lens.set; ss. destruct (rmw s0); ss.
+      + destruct st_src0, st_tgt0; ss.
+      + destruct st_tgt0; ss.
     - unfold map_lens. rewrite ! map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
     - unfold map_lens. rewrite ! map_event_trigger. econs. intros IM_TGT1 FAIR. split; ss.
@@ -563,8 +561,6 @@ Section MODADD_THEOREM.
               eapply pind9_fold. eapply lsim_progress.
               gfinal. left.
               des; destruct st_src2, st_tgt2; ss; subst.
-              unfold apply_lens, Lens.view, Lens.set; ss.
-              destruct (rmw s2); ss.
               eapply CIH; eauto.
           }
       + ii. exists tt, tt. splits; ss.
@@ -631,8 +627,6 @@ Section MODADD_THEOREM.
               eapply pind9_fold. eapply lsim_progress.
               gfinal. left.
               des; destruct st_src2, st_tgt2; ss; subst.
-              unfold apply_lens, Lens.view, Lens.set; ss.
-              destruct (rmw s1); ss.
               eapply CIH; eauto.
           }
       + ss.
