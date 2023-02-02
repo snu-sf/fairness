@@ -575,25 +575,29 @@ Section SIM.
         r g
         (Q: R_src -> R_tgt -> iProp)
         l
+        (tvw0: TView.t)
     :
-    ((OwnM (Excl.just tt: Excl.t unit))
+    ((OwnM (Auth.white (Excl.just tvw0: Excl.t TView.t)))
        ∗
        (∃ k, (ObligationRA.duty (inl tid) ((k, Ord.S Ord.O) :: l))
                ∗ (OwnM (Auth.white (Excl.just k: Excl.t nat)))
                ∗ (ObligationRA.taxes ((k, Ord.S Ord.O) :: l) 3%ord))
     )
       ∗
-      ((ObligationRA.duty (inl tid) l)
-         -∗
-         (stsim I tid (topset I) r g Q
-                false false
-                (trigger Yield;;; src)
-                (tgt)))
+      (∀ tvw1,
+          ((ObligationRA.duty (inl tid) l)
+             ∗ (⌜TView.le tvw0 tvw1⌝)
+          )
+            -∗
+            (stsim I tid (topset I) r g Q
+                   false false
+                   (trigger Yield;;; src)
+                   (tgt tvw1)))
       ⊢
       (stsim I tid (topset I) r g Q
              false false
              (trigger Yield;;; src)
-             (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (R:=unit) (OMod.call "unlock" ());;; tgt)).
+             (tvw' <- OMod.close_itree ClientImpl.omod (ModAdd (WMem.mod) AbsLockW.mod) (R:=TView.t) (OMod.call "unlock" tvw0);; (tgt tvw0))).
   Proof.
     iIntros "[[EXCL [% [DUTY [LOCK TAXES]]]] SIM]".
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]".
@@ -605,16 +609,14 @@ Section SIM.
     rewrite close_itree_call. ss. rred.
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
-    unfold AbsLock.unlock_fun, Mod.wrap_fun. rred.
+    unfold AbsLockW.unlock_fun, Mod.wrap_fun. rred.
     iApply (stsim_yieldR with "[DUTY TAX1]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
     iApply stsim_tauR. rred.
     iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT [BLKS [SUM [CONTRA | CASE]]]]]]]".
-    { iDestruct "CONTRA" as "[_ [_ EXCL2]]". iPoseProof (OwnM_valid with "[EXCL EXCL2]") as "%".
-      { instantiate (1:= (Excl.just (): Excl.t unit) ⋅ (Excl.just (): Excl.t unit)).
-        iSplitL "EXCL". all: iFrame. }
-      eapply Excl.wf in H. inversion H.
+    { iDestruct "CONTRA" as "[% [_ [_ EXCL2]]]".
+      iPoseProof (white_white_excl with "EXCL EXCL2") as "%FF". inversion FF.
     }
     iDestruct "CASE" as "[% [JPEND [JBLK [JCOR AMPs]]]]". subst own.
     iApply stsim_getR. iSplit. iFrame. rred.
@@ -627,8 +629,8 @@ Section SIM.
 
     iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
     iMod ("K1" with "[EXCL LOCK B1 B2 MEM BLKS SUM STGT]") as "_".
-    { unfold lock_will_unlock. iExists false, mem, wobl, k. iFrame.
-      iLeft. iFrame. auto.
+    { unfold lock_will_unlock. iExists (Some tvw0), mem, wobl, k. iFrame.
+      iLeft. iExists tvw0. iFrame. auto.
     }
     { msubtac. }
     iPoseProof (ObligationRA.pending_shot with "JPEND") as "> SHOT".
@@ -641,6 +643,7 @@ Section SIM.
     iIntros "DUTY _". rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
     iApply stsim_reset. iApply "SIM". iFrame.
+    iPureIntro. reflexivity.
 
   Qed.
 
