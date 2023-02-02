@@ -63,20 +63,13 @@ Section GENORDER.
       (GENO: exists x, geno true f_tgt r_ctx (o, ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
-  | geno_putL
+  | geno_rmwL
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
-      st ktr_src itr_tgt
-      (GENO: geno true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt))
+      X rmw ktr_src itr_tgt
+      (GENO: geno true f_tgt r_ctx (o, ktr_src (snd (rmw st_src) : X)) itr_tgt (ths, im_src, im_tgt, fst (rmw st_src), st_tgt))
     :
-    _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
-  | geno_getL
-      f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt
-      ktr_src itr_tgt
-      (GENO: geno true f_tgt r_ctx (o, ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
-    :
-    _geno tid RR geno f_src f_tgt r_ctx (o, trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+    _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Rmw rmw) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | geno_tidL
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
@@ -114,20 +107,13 @@ Section GENORDER.
       (GENO: forall x, geno f_src true r_ctx (o, itr_src) (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | geno_putR
+  | geno_rmwR
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
-      st itr_src ktr_tgt
-      (GENO: geno f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st))
+      X rmw itr_src ktr_tgt
+      (GENO: geno f_src true r_ctx (o, itr_src) (ktr_tgt (snd (rmw st_tgt) : X)) (ths, im_src, im_tgt, st_src, fst (rmw st_tgt)))
     :
-    _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | geno_getR
-      f_src f_tgt r_ctx o
-      ths im_src im_tgt st_src st_tgt
-      itr_src ktr_tgt
-      (GENO: geno f_src true r_ctx (o, itr_src) (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-    :
-    _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+    _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (Rmw rmw) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | geno_tidR
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
@@ -233,67 +219,61 @@ Section GENORDER.
     eapply pind6_unfold in GENO; eauto with paco.
     inv GENO.
 
-    { eapply pind6_fold. econs 1; eauto. }
-    { eapply pind6_fold. econs 2; eauto.
+    { eapply pind6_fold. eapply geno_ret; eauto. }
+    { eapply pind6_fold. eapply geno_tauL; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. econs 3; eauto.
+    { eapply pind6_fold. eapply geno_chooseL; eauto.
       des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. esplits; eauto.
       split; ss; eauto.
     }
-    { eapply pind6_fold. econs 4; eauto.
+    { eapply pind6_fold. eapply geno_rmwL; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. econs 5; eauto.
+    { eapply pind6_fold. eapply geno_tidL; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. econs 6; eauto.
-      destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
-    }
-    { eapply pind6_fold. econs 7; eauto. }
-    { eapply pind6_fold. econs 8; eauto.
+    { eapply pind6_fold. eapply geno_UB; eauto. }
+    { eapply pind6_fold. eapply geno_fairL; eauto.
       des. destruct GENO as [GENO IND]. eapply IH in IND; eauto. esplits; eauto.
       split; ss; eauto.
     }
 
-    { eapply pind6_fold. econs 9; eauto.
+    { eapply pind6_fold. eapply geno_tauR; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. econs 10; eauto.
+    { eapply pind6_fold. eapply geno_chooseR; eauto.
       i. specialize (GENO0 x).
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. econs 11; eauto.
+    { eapply pind6_fold. eapply geno_rmwR; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. econs 12; eauto.
+    { eapply pind6_fold. eapply geno_tidR; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. econs 13; eauto.
-      destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
-    }
-    { eapply pind6_fold. econs 14; eauto.
+    { eapply pind6_fold. eapply geno_fairR; eauto.
       i. specialize (GENO0 _ FAIR).
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. econs 15; eauto.
+    { eapply pind6_fold. eapply geno_observe; eauto.
       i. specialize (GENO0 ret).
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
 
-    { eapply pind6_fold. econs 16; eauto. }
+    { eapply pind6_fold. eapply geno_call; eauto. }
 
-    { eapply pind6_fold. econs 17; eauto.
+    { eapply pind6_fold. eapply geno_yieldR; eauto.
       i. specialize (GENO0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des. esplits; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
 
-    { eapply pind6_fold. econs 18; eauto.
+    { eapply pind6_fold. eapply geno_yieldL; eauto.
       des. esplits; eauto.
       eapply upind6_mon; eauto. ss.
     }
 
-    { eapply pind6_fold. econs 19; eauto. }
+    { eapply pind6_fold. eapply geno_progress; eauto. }
 
   Qed.
 
@@ -312,32 +292,29 @@ Section GENORDER.
     set (fzero:= fun _: (A R0 R1) => @ord_tree_base (A R0 R1)). set (one:= ord_tree_cons fzero).
     inv LSIM.
 
-    { exists one. eapply pind6_fold. econs 1; eauto.
+    { exists one. eapply pind6_fold. eapply geno_ret; eauto.
       instantiate (1:=fzero (ps, pt, r_ctx, Ret r_src, Ret r_tgt, (ths, im_src, im_tgt, st_src, st_tgt))); ss.
     }
 
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind6_fold. econs 2; eauto. split; ss.
+      exists o. eapply pind6_fold. eapply geno_tauL; eauto. split; ss.
     }
     { des. destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind6_fold. econs 3; eauto. eexists. split; ss. eauto.
+      exists o. eapply pind6_fold. eapply geno_chooseL; eauto. eexists. split; ss. eauto.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind6_fold. econs 4; eauto. split; ss.
+      exists o. eapply pind6_fold. eapply geno_rmwL; eauto. split; ss.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind6_fold. econs 5; auto. split; ss.
+      exists o. eapply pind6_fold. eapply geno_tidL; auto. split; ss.
     }
-    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind6_fold. econs 6; auto. split; ss.
-    }
-    { exists one. eapply pind6_fold. econs 7; eauto. }
+    { exists one. eapply pind6_fold. eapply geno_UB; eauto. }
     { des. destruct LSIM as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind6_fold. econs 8; eauto. esplits; eauto. split; ss.
+      exists o. eapply pind6_fold. eapply geno_fairL; eauto. esplits; eauto. split; ss.
     }
 
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind6_fold. econs 9; eauto. ss.
+      eapply pind6_fold. eapply geno_tauR; eauto. ss.
     }
 
     { hexploit ord_tree_join.
@@ -349,7 +326,7 @@ Section GENORDER.
         eauto.
       }
       intro JOIN. des. exists o1.
-      eapply pind6_fold. econs 10.
+      eapply pind6_fold. eapply geno_chooseR.
       i. specialize (LSIM0 x). destruct LSIM0 as [LSIM IND].
       specialize (JOIN (ps, true, r_ctx, src, (ktr_tgt x), (ths, im_src, im_tgt, st_src, st_tgt))).
       destruct JOIN; auto. des. split; ss.
@@ -357,13 +334,10 @@ Section GENORDER.
     }
 
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind6_fold. econs 11; eauto. ss.
+      eapply pind6_fold. eapply geno_rmwR; eauto. ss.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind6_fold. econs 12; eauto. ss.
-    }
-    { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind6_fold. econs 13; eauto. ss.
+      eapply pind6_fold. eapply geno_tidR; eauto. ss.
     }
 
     { hexploit ord_tree_join.
@@ -375,7 +349,7 @@ Section GENORDER.
         eauto.
       }
       intro JOIN. des. exists o1.
-      eapply pind6_fold. econs 14.
+      eapply pind6_fold. eapply geno_fairR.
       i. specialize (LSIM0 _ FAIR). destruct LSIM0 as [LSIM IND].
       specialize (JOIN (ps, true, r_ctx, src, (ktr_tgt ()), (ths, im_src, im_tgt1, st_src, st_tgt))).
       destruct JOIN; auto. des. split; ss.
@@ -391,7 +365,7 @@ Section GENORDER.
         eauto.
       }
       intro JOIN. des. exists o1.
-      eapply pind6_fold. econs 15.
+      eapply pind6_fold. eapply geno_observe.
       i. specialize (LSIM0 ret). destruct LSIM0 as [LSIM IND].
       specialize (JOIN (true, true, r_ctx, ktr_src ret, ktr_tgt ret, (ths, im_src, im_tgt, st_src, st_tgt))).
       destruct JOIN; auto. des. split; ss.
@@ -408,7 +382,7 @@ Section GENORDER.
       }
       intro JOIN. des.
       set (fo1:= fun _: A R0 R1 => o1). exists (ord_tree_cons fo1).
-      eapply pind6_fold. econs 16.
+      eapply pind6_fold. eapply geno_call.
     }
 
     { hexploit ord_tree_join.
@@ -421,7 +395,7 @@ Section GENORDER.
       }
       intro JOIN. des.
       set (fo1:= fun _: A R0 R1 => o1). exists (ord_tree_cons fo1).
-      eapply pind6_fold. econs 17.
+      eapply pind6_fold. eapply geno_yieldR.
       1,2: eauto.
       { instantiate (1:=fo1 (ps, pt, r_ctx, (x <- trigger Yield;; ktr_src x), (x <- trigger Yield;; ktr_tgt x), (ths0, im_src0, im_tgt0, st_src0, st_tgt0))). ss.
       }
@@ -431,11 +405,11 @@ Section GENORDER.
     }
 
     { des. destruct LSIM as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind6_fold. econs 18; eauto. esplits; eauto.
+      eapply pind6_fold. eapply geno_yieldL; eauto. esplits; eauto.
       split; ss. eauto.
     }
 
-    { exists one. eapply pind6_fold. econs 19. pclearbot. auto. }
+    { exists one. eapply pind6_fold. eapply geno_progress. pclearbot. auto. }
 
   Qed.
 
@@ -546,16 +520,9 @@ Section PROOF.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
-    { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 6; eauto.
-      guclo lsim_ord_weakC_spec. econs; eauto.
-      unfold mk_o. des_ifs; try reflexivity.
-      - right. ss. do 2 econs.
-      - right. ss. do 2 econs.
-    }
-    { guclo lsim_indC_spec. econs 7; eauto. }
+    { guclo lsim_indC_spec. econs 6; eauto. }
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 8; eauto. esplits; eauto.
+      guclo lsim_indC_spec. econs 7; eauto. esplits; eauto.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
@@ -563,25 +530,22 @@ Section PROOF.
     }
 
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 9; eauto.
+      guclo lsim_indC_spec. econs 8; eauto.
     }
-    { guclo lsim_indC_spec. econs 10; eauto. i. specialize (GENO x).
+    { guclo lsim_indC_spec. econs 9; eauto. i. specialize (GENO x).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
+    }
+    { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
+      guclo lsim_indC_spec. econs 10; eauto.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
       guclo lsim_indC_spec. econs 11; eauto.
     }
-    { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 12; eauto.
-    }
-    { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 13; eauto.
-    }
-    { guclo lsim_indC_spec. econs 14; eauto. i. specialize (GENO _ FAIR).
+    { guclo lsim_indC_spec. econs 12; eauto. i. specialize (GENO _ FAIR).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
     }
 
-    { guclo lsim_indC_spec. econs 15; eauto. i. specialize (GENO ret).
+    { guclo lsim_indC_spec. econs 13; eauto. i. specialize (GENO ret).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
       guclo lsim_ord_weakC_spec. econs; eauto.
       unfold mk_o. ss. des_ifs; try reflexivity.
@@ -589,9 +553,9 @@ Section PROOF.
       - right. ss. do 2 econs.
     }
 
-    { guclo lsim_indC_spec. econs 16. }
+    { guclo lsim_indC_spec. econs 14. }
 
-    { guclo lsim_indC_spec. econs 17; eauto.
+    { guclo lsim_indC_spec. econs 15; eauto.
       2:{ i. specialize (GENO _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
           destruct GENO as [GENO IND]. eapply IH in IND; eauto.
           esplits.
@@ -604,13 +568,13 @@ Section PROOF.
     }
 
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 18; eauto.
+      guclo lsim_indC_spec. econs 16; eauto.
     }
 
     { eapply nosync_geno in GENO. des.
       guclo lsim_ord_weakC_spec. econs.
       instantiate (1:=mk_o (@wf_ot R0 R1) o0 false src).
-      gfinal. right. pfold. eapply pind6_fold. econs 19. right. eapply CIH. auto.
+      gfinal. right. pfold. eapply pind6_fold. econs 17. right. eapply CIH. auto.
       ss. des_ifs; try reflexivity. right. ss. do 2 econs.
     }
 

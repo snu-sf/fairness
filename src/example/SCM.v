@@ -150,7 +150,7 @@ Module SCMem.
   Definition alloc_fun:
     ktree (programE ident t) nat val :=
     fun sz =>
-      m <- trigger (@Get _);;
+      m <- trigger (Get id);;
       let (m, v) := alloc m sz in
       _ <- trigger (Put m);;
       Ret v
@@ -159,7 +159,7 @@ Module SCMem.
   Definition store_fun:
     ktree (programE ident t) (val * val) unit :=
     fun '(vptr, v) =>
-      m <- trigger (@Get _);;
+      m <- trigger (Get id);;
       m <- unwrap (store m vptr v);;
       _ <- trigger (Put m);;
       Ret tt
@@ -168,7 +168,7 @@ Module SCMem.
   Definition load_fun:
     ktree (programE ident t) val val :=
     fun vptr =>
-      m <- trigger (@Get _);;
+      m <- trigger (Get id);;
       v <- unwrap (load m vptr);;
       Ret v
   .
@@ -176,7 +176,7 @@ Module SCMem.
   Definition faa_fun:
     ktree (programE ident  t) (val * nat) val :=
     fun '(vptr, addend) =>
-      m <- trigger (@Get _);;
+      m <- trigger (Get id);;
       '(m, v) <- unwrap (faa m vptr addend);;
       _ <- trigger (Put m);;
       Ret v
@@ -185,7 +185,7 @@ Module SCMem.
   Definition cas_fun:
     ktree (programE ident t) (val * val * val) bool :=
     fun '(vptr, v_old, v_new) =>
-      m <- trigger (@Get _);;
+      m <- trigger (Get id);;
       mb <- unwrap (cas m vptr v_old v_new);;
       match mb with
       | inl m =>
@@ -199,7 +199,7 @@ Module SCMem.
   Definition cas_weak_fun:
     ktree (programE ident t) (val * val * val) bool :=
     fun '(vptr, v_old, v_new) =>
-      m <- trigger (@Get _);;
+      m <- trigger (Get id);;
       b <- trigger (Choose bool);;
       if (b: bool)
       then
@@ -222,7 +222,7 @@ Module SCMem.
   Definition compare_fun:
     ktree (programE ident t) (val * val) bool :=
     fun '(v0, v1) =>
-      m <- trigger (@Get _);;
+      m <- trigger (Get id);;
       b <- unwrap (compare m v0 v1);;
       Ret b
   .

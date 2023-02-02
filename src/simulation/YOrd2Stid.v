@@ -270,15 +270,9 @@ Section PROOF.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
-    { pfold. eapply pind9_fold. econs 6; eauto.
-      split; [|ss]. destruct LSIM0 as [LSIM IND].
-      eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto.
-    }
-    { pfold. eapply pind9_fold. econs 7; eauto. }
+    { pfold. eapply pind9_fold. econs 6; eauto. }
 
-    { pfold. eapply pind9_fold. econs 8; eauto.
+    { pfold. eapply pind9_fold. econs 7; eauto.
       des.
       exists (fun idx => match idx with
                  | inl t => inl (im_src_th t)
@@ -295,14 +289,20 @@ Section PROOF.
       all: ss; eauto.
     }
 
+    { pfold. eapply pind9_fold. econs 8; eauto.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
+    }
     { pfold. eapply pind9_fold. econs 9; eauto.
+      i. specialize (LSIM0 x).
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 10; eauto.
-      i. specialize (LSIM0 x).
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
@@ -314,20 +314,8 @@ Section PROOF.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
-    { pfold. eapply pind9_fold. econs 12; eauto.
-      split; [|ss]. destruct LSIM0 as [LSIM IND].
-      eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto.
-    }
-    { pfold. eapply pind9_fold. econs 13; eauto.
-      split; [|ss]. destruct LSIM0 as [LSIM IND].
-      eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto.
-    }
 
-    { pfold. eapply pind9_fold. econs 14; eauto.
+    { pfold. eapply pind9_fold. econs 12; eauto.
       i. specialize (LSIM0 _ FAIR).
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
@@ -338,14 +326,14 @@ Section PROOF.
       clear - FAIR. specialize (FAIR (inl tid)). ss.
     }
 
-    { pfold. eapply pind9_fold. econs 15; eauto.
+    { pfold. eapply pind9_fold. econs 13; eauto.
       i. specialize (LSIM0 ret). pclearbot.
       right. eapply CIH; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 16. }
+    { pfold. eapply pind9_fold. econs 14. }
 
-    { pfold. eapply pind9_fold. econs 17; eauto.
+    { pfold. eapply pind9_fold. econs 15; eauto.
       des. unfold Is in INVS. des. subst.
       set (ost':= NatMap.add tid (os1, ot1) ost).
       assert (WFOST': nm_wf_pair ths ost').
@@ -400,7 +388,7 @@ Section PROOF.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 18; eauto. instantiate (1:=(ths_r, r_shared)).
+    { pfold. eapply pind9_fold. econs 16; eauto. instantiate (1:=(ths_r, r_shared)).
       { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
       { ur. auto. }
@@ -425,7 +413,7 @@ Section PROOF.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 19; eauto. instantiate (1:=(ths_r, r_shared)).
+    { pfold. eapply pind9_fold. econs 17; eauto. instantiate (1:=(ths_r, r_shared)).
       { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
       { ur. auto. }
@@ -490,7 +478,7 @@ Section PROOF.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 20; eauto. pclearbot. right. eapply CIH; eauto. }
+    { pfold. eapply pind9_fold. econs 18; eauto. pclearbot. right. eapply CIH; eauto. }
 
   Qed.
 

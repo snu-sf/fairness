@@ -480,7 +480,7 @@ Section ADEQ.
       specialize (funs0 _ _ _ _ _ _ _ INV _ _ THS VALID _ UPD). des.
       esplits; eauto. i. specialize (funs0 _ _ _ _ _ _ _ INV1 VALID1 _ TGT). des.
       esplits. eapply SRC. i. instantiate (1:=o).
-      pfold. eapply pind6_fold. rewrite <- bind_trigger. econs 7.
+      pfold. eapply pind6_fold. rewrite <- bind_trigger. eapply lsim_UB.
     }
     rewrite nm_find_add_neq in FIND1, FIND2; auto.
     specialize (IHp (S k)). eapply nm_forall2_implies_find_some in IHp; eauto.

@@ -599,12 +599,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply IH; eauto.
-    }
-
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
@@ -636,12 +631,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
-      eapply IH; eauto.
-    }
-
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }
@@ -773,12 +763,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply IH; eauto.
-    }
-
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
@@ -810,12 +795,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
-      eapply IH; eauto.
-    }
-
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }

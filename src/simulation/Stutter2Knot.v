@@ -299,12 +299,7 @@ Section PROOF.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_putL. split; [|ss].
-      hexploit IH; eauto. i. punfold H.
-    }
-
-    { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_getL. split; [|ss].
+      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_rmwL. split; [|ss].
       hexploit IH; eauto. i. punfold H.
     }
 
@@ -333,12 +328,7 @@ Section PROOF.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_putR. split; [|ss].
-      hexploit IH; eauto. i. punfold H.
-    }
-
-    { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_getR. split; [|ss].
+      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_rmwR. split; [|ss].
       hexploit IH; eauto. i. punfold H.
     }
 

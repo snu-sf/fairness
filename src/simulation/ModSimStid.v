@@ -68,20 +68,13 @@ Section PRIMIVIESIM.
       (LSIM: exists x, _lsim _ _ RR true f_tgt r_ctx (ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_putL
+  | lsim_rmwL
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
-      st ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt))
+      X rmw ktr_src itr_tgt
+      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src (snd (rmw st_src) : X)) itr_tgt (ths, im_src, im_tgt, fst (rmw st_src), st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_getL
-      f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt
-      ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
-    :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Rmw rmw) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_tidL
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
@@ -119,20 +112,13 @@ Section PRIMIVIESIM.
       (LSIM: forall x, _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_putR
+  | lsim_rmwR
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
-      st itr_src ktr_tgt
-      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st))
+      X rmw itr_src ktr_tgt
+      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt (snd (rmw st_tgt) : X)) (ths, im_src, im_tgt, st_src, fst (rmw st_tgt)))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_getR
-      f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt
-      itr_src ktr_tgt
-      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-    :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Rmw rmw) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_tidR
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
@@ -288,11 +274,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_putL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { eapply pind9_fold. eapply lsim_getL. split; ss.
+    { eapply pind9_fold. eapply lsim_rmwL. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -315,11 +297,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_putR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { eapply pind9_fold. eapply lsim_getR. split; ss.
+    { eapply pind9_fold. eapply lsim_rmwR. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -414,11 +392,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
 
-    { pfold. eapply pind9_fold. eapply lsim_putL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
-    }
-
-    { pfold. eapply pind9_fold. eapply lsim_getL. split; ss.
+    { pfold. eapply pind9_fold. eapply lsim_rmwL. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
 
@@ -441,11 +415,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
 
-    { pfold. eapply pind9_fold. eapply lsim_putR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
-    }
-
-    { pfold. eapply pind9_fold. eapply lsim_getR. split; ss.
+    { pfold. eapply pind9_fold. eapply lsim_rmwR. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
 
@@ -523,11 +493,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_putL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { eapply pind9_fold. eapply lsim_getL. split; ss.
+    { eapply pind9_fold. eapply lsim_rmwL. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -550,11 +516,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_putR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { eapply pind9_fold. eapply lsim_getR. split; ss.
+    { eapply pind9_fold. eapply lsim_rmwR. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 

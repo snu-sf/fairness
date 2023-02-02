@@ -47,26 +47,25 @@ Definition prog2ths (m: Mod.t) (p: program): @threads (Mod.ident m) (sE (Mod.sta
 
 Section STATE.
 
-  Variable State: Type.
+  Variable S: Type.
   Variable E: Type -> Type.
 
-  Let Es := E +' (sE State).
+  Let Es := E +' (sE S).
 
   Definition interp_state_aux {R} :
-    (State * (itree Es R)) -> itree E (State * R).
+    (S * (itree Es R)) -> itree E (S * R).
   Proof.
     eapply ITree.iter. intros [state itr]. destruct (observe itr).
     - exact (Ret (inr (state, r))).
     - exact (Ret (inl (state, t))).
     - destruct e.
       + exact (Vis e (fun x => Ret (inl (state, k x)))).
-      + destruct s.
-        * exact (Ret (inl (st, k tt))).
-        * exact (Ret (inl (state, k state))).
+      + destruct s as [f].
+        exact (Ret (inl (fst (f state), k (snd (f state))))).
   Defined.
 
   Definition interp_state {R}:
-    (State * (itree Es R)) -> itree E R :=
+    (S * (itree Es R)) -> itree E R :=
     fun x => r <- interp_state_aux x;;
           Ret (snd r).
 
@@ -80,12 +79,9 @@ Section STATE.
          apply observe_eta. ss. f_equal. extensionality x. grind.
   Qed.
 
-  Lemma interp_state_aux_put R st st' (ktr : ktree Es unit R) :
-    interp_state_aux (st, Vis (inr1 (Put st')) ktr) = tau;; interp_state_aux (st', ktr tt).
-  Proof. unfold interp_state_aux. rewrite unfold_iter. grind. Qed.
-
-  Lemma interp_state_aux_get R st (ktr : ktree Es State R) :
-    interp_state_aux (st, Vis (inr1 (Get _)) ktr) = tau;; interp_state_aux (st, ktr st).
+  Lemma interp_state_aux_rmw R st X rmw (ktr : ktree Es X R) :
+    interp_state_aux (st, Vis (inr1 (Rmw rmw)) ktr) =
+      tau;; interp_state_aux (fst (rmw st), ktr (snd (rmw st))).
   Proof. unfold interp_state_aux. rewrite unfold_iter. grind. Qed.
 
   Lemma interp_state_aux_tau R st (itr : itree Es R) :
@@ -109,11 +105,8 @@ Section STATE.
       + rewrite 2 interp_state_aux_vis. grind.
         pfold. econs. intros. grind. left.
         pfold. econs. right. eapply CIH.
-      + destruct s.
-        * rewrite 2 interp_state_aux_put. grind.
-          pfold. econs. right. eapply CIH.
-        * rewrite 2 interp_state_aux_get. grind.
-          pfold. econs. right. eapply CIH.
+      + destruct s. rewrite ! interp_state_aux_rmw. grind.
+        pfold. econs. right. eapply CIH.
   Qed.
 
   Lemma unfold_interp_state R st (itr : itree Es R) :
@@ -125,7 +118,7 @@ Section STATE.
   Proof. unfold interp_state. rewrite interp_state_aux_bind. grind. Qed.
 
   Lemma interp_state_ret
-        R (r: R) (state: State)
+        R (r: R) (state: S)
     :
     interp_state (state, Ret r) = Ret r.
   Proof.
@@ -133,37 +126,29 @@ Section STATE.
   Qed.
 
   Lemma interp_state_tau
-        R (state: State) (itr: itree Es R)
+        R (state: S) (itr: itree Es R)
     :
     interp_state (state, tau;; itr) = tau;; interp_state (state, itr).
   Proof.
     unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. grind.
   Qed.
 
-  Lemma interp_state_put_vis
-        R (state0 state1: State) (ktr: unit -> itree Es R)
-    :
-    interp_state (state0, Vis (inr1 (Put state1)) ktr)
-    =
-      tau;; interp_state (state1, ktr tt).
-  Proof.
-    unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. grind.
-  Qed.
+  Lemma interp_state_rmw_vis
+    R st X rmw (ktr : ktree Es X R)
+    : interp_state (st, Vis (|Rmw rmw)%sum ktr) =
+        tau;; interp_state (fst (rmw st), ktr (snd (rmw st))).
+  Proof. unfold interp_state. rewrite interp_state_aux_rmw. grind. Qed.
 
-  Lemma interp_state_put
-        R (state0 state1: State) (ktr: unit -> itree Es R)
-    :
-    interp_state (state0, trigger (inr1 (Put state1)) >>= ktr)
-    =
-      tau;; interp_state (state1, ktr tt).
-  Proof.
-    rewrite bind_trigger. apply interp_state_put_vis.
-  Qed.
+  Lemma interp_state_rmw
+    R st X rmw (ktr : ktree Es X R)
+    : interp_state (st, trigger (Rmw rmw) >>= ktr) =
+        tau;; interp_state (fst (rmw st), ktr (snd (rmw st))).
+  Proof. rewrite bind_trigger. eapply interp_state_rmw_vis. Qed.
 
   Lemma interp_state_get_vis
-        R (state: State) (ktr: State -> itree Es R)
+        R (state: S) (ktr: S -> itree Es R)
     :
-    interp_state (state, Vis (inr1 (@Get _)) ktr)
+    interp_state (state, Vis (inr1 (Get id)) ktr)
     =
       tau;; interp_state (state, ktr state).
   Proof.
@@ -171,9 +156,9 @@ Section STATE.
   Qed.
 
   Lemma interp_state_get
-        R (state: State) (ktr: State -> itree Es R)
+        R (state: S) (ktr: S -> itree Es R)
     :
-    interp_state (state, trigger (inr1 (@Get _)) >>= ktr)
+    interp_state (state, trigger (inr1 (Get id)) >>= ktr)
     =
       tau;; interp_state (state, ktr state).
   Proof.
@@ -181,7 +166,7 @@ Section STATE.
   Qed.
 
   Lemma interp_state_vis
-        R (state: State) X (e: E X) (ktr: X -> itree Es R)
+        R (state: S) X (e: E X) (ktr: X -> itree Es R)
     :
     interp_state (state, Vis (inl1 e) ktr)
     =
@@ -193,7 +178,7 @@ Section STATE.
   Qed.
 
   Lemma interp_state_trigger
-        R (state: State) X (e: E X) (ktr: X -> itree Es R)
+        R (state: S) X (e: E X) (ktr: X -> itree Es R)
     :
     interp_state (state, trigger (inl1 e) >>= ktr)
     =
@@ -231,12 +216,9 @@ Section STATE_PROP.
         rewrite map_event_tau.
         pfold. econs. right. eapply CIH.
       + ss. destruct s.
-        * rewrite 2 interp_state_aux_put.
-          rewrite map_event_tau.
-          pfold. econs. right. eapply CIH.
-        * rewrite 2 interp_state_aux_get.
-          rewrite map_event_tau.
-          pfold. econs. right. eapply CIH.
+        rewrite ! interp_state_aux_rmw.
+        rewrite ! map_event_tau.
+        pfold. econs. right. eapply CIH.
   Qed.
 
 End STATE_PROP.
@@ -573,16 +555,16 @@ Section INTERP.
     - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
   Qed.
 
-  Lemma interp_all_put
-        st (ths: @threads _Ident (sE State) R) tid
-        st0 ktr
-    :
-    (interp_all st (Th.add tid (Vis (|Mod.Put st0)%sum ktr) ths) tid) =
-      (tau;; tau;; interp_all st0 (Th.add tid (ktr tt) ths) tid).
+  Lemma interp_all_rmw
+    st (ths : @threads _Ident (sE State) R) tid
+    X rmw ktr
+    : interp_all st (Th.add tid (Vis (|Rmw rmw)%sum ktr) ths) tid =
+        tau;; tau;; interp_all (fst (rmw st)) (Th.add tid (ktr (snd (rmw st) : X)) ths) tid .
   Proof.
     unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
-    rewrite interp_thread_vis. rewrite bind_vis. rewrite interp_state_put_vis. rewrite bind_tau. rewrite interp_state_tau.
-    repeat f_equal. extensionality x.
+    rewrite interp_thread_vis. rewrite bind_vis. rewrite interp_state_rmw_vis.
+    rewrite bind_tau. rewrite interp_state_tau.
+    repeat f_equal. extensionalities x.
     destruct x.
     - rewrite ! nm_add_add_eq. rewrite ! key_set_pull_add_eq. auto.
     - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
@@ -592,7 +574,7 @@ Section INTERP.
         st (ths: @threads _Ident (sE State) R) tid
         ktr
     :
-    (interp_all st (Th.add tid (Vis (|@Mod.Get State)%sum ktr) ths) tid) =
+    (interp_all st (Th.add tid (Vis (|Mod.Get id)%sum ktr) ths) tid) =
       (tau;; tau;; interp_all st (Th.add tid (ktr st) ths) tid).
   Proof.
     unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.

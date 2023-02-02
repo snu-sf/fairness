@@ -35,7 +35,7 @@ Module WMem.
   Definition load_fun:
     ktree (programE ident t) (TView.t * Loc.t * Ordering.t) (TView.t * Const.t) :=
     fun '(tvw0, loc, ord) =>
-      msc <- trigger (@Get _);;
+      msc <- trigger (Get id);;
       '(exist _ (lc1, val, to) _) <- trigger (Choose (sig (fun '(lc1, val, to) =>
                                                              exists released,
                                                                Local.read_step
@@ -54,7 +54,7 @@ Module WMem.
   Definition store_fun:
     ktree (programE ident t) (TView.t * Loc.t * Const.t * Ordering.t) (TView.t) :=
     fun '(tvw0, loc, val, ord) =>
-      msc <- trigger (@Get _);;
+      msc <- trigger (Get id);;
       '(exist _ (lc1, to, sc1, mem1) _) <- trigger (Choose (sig (fun '(lc1, to, sc1, mem1) =>
                                                                    exists from released kind,
                                                                      Local.write_step
@@ -80,7 +80,7 @@ Module WMem.
   Definition faa_fun:
     ktree (programE ident t) (TView.t * Loc.t * Const.t * Ordering.t * Ordering.t) (TView.t * Const.t) :=
     fun '(tvw0, loc, addendum, ordr, ordw) =>
-      msc <- trigger (@Get _);;
+      msc <- trigger (Get id);;
       '(exist _ (lc1, to, val, sc1, mem1) _) <- trigger (Choose (sig (fun '(lc2, from, val, sc1, mem1) =>
                                                                    exists lc1 to releasedr releasedw kind,
 

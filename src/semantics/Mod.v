@@ -4,7 +4,7 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Any.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Any Lens.
 
 Set Implicit Arguments.
 
@@ -25,14 +25,19 @@ Section EVENTS.
   (* | Spawn (fn: fname) (args: list Val): cE unit *)
   .
 
-  Variant sE (State: Type): Type -> Type :=
-  | Put (st: State): sE State unit
-  | Get: sE State State
+  Variant sE (S : Type) (V : Type) : Type :=
+  | Rmw (rmw : S -> S * V) : sE S V
   .
 
   Variant callE: Type -> Type :=
   | Call (fn: fname) (arg: Any.t): callE Any.t
   .
+
+  Definition Get {S} {X} (p : S -> X) : sE S X := Rmw (fun x => (x, p x)).
+  Definition Put {S} (x' : S) : sE S () := Rmw (fun x => (x', tt)).
+
+  Lemma get_as_rmw {S X} (p : S -> X) : Get p = Rmw (fun x => (x, p x)).
+  Proof. reflexivity. Qed.
 
 End EVENTS.
 
@@ -122,76 +127,27 @@ Module Mod.
     end.
 End Mod.
 
-Definition update_fst {A B}: A * B -> A -> A * B :=
-  fun '(_, b) a => (a, b).
-
-Definition update_snd {A B}: A * B -> B -> A * B :=
-  fun '(a, _) b => (a, b).
-
 Section LENS.
+
   Variable S: Type.
   Variable V: Type.
-  Variable E: Type -> Type.
 
-  Variable get: S -> V.
-  Variable put: S -> V -> S.
+  Variable l : Lens.t S V.
 
-  Definition embed_state:
-    forall R (itr: itree (E +' sE V) R),
-      itree (E +' sE S) R.
-    cofix embed_itree.
-    intros R itr.
-    destruct (observe itr) as [r|itr0|? [e|[v|]] ktr].
-    { exact (Ret r). }
-    { exact (Tau (embed_itree _ itr0)). }
-    { exact (Vis (inl1 e) (fun x => embed_itree _ (ktr x))). }
-    { exact (Vis (inr1 (@Get _)) (fun s => Vis (inr1 (Put (put s v))) (fun _ => embed_itree _ (ktr tt)))). }
-    { exact (Vis (inr1 (@Get _)) (fun s => embed_itree _ (ktr (get s)))). }
-  Defined.
+  Definition apply_lens X : (V -> V * X) -> (S -> S * X) :=
+    fun state s =>
+      let '(v', x) := state (Lens.view l s)
+      in (Lens.set l v' s, x).
 
-  Lemma embed_state_ret R (r : R) :
-    embed_state (Ret r) = Ret r.
-  Proof. eapply observe_eta. ss. Qed.
+  Definition embed_lens X (se : sE V X) : sE S X :=
+    match se with
+    | Rmw state => Rmw (apply_lens state)
+    end.
 
-  Lemma embed_state_tau R (itr : itree (E +'sE V) R) :
-    embed_state (Tau itr) = Tau (embed_state itr).
-  Proof. eapply observe_eta. ss. Qed.
-
-  Lemma embed_state_vis R X e (ktr : ktree (E +' sE V) X R) :
-    embed_state (Vis (inl1 e) ktr) = Vis (inl1 e) (fun x => embed_state (ktr x)).
-  Proof. eapply observe_eta. ss. Qed.
-
-  Lemma embed_state_get R (ktr : ktree (E +' sE V) V R) :
-    embed_state (Vis (inr1 (Get _)) ktr) = Vis (inr1 (Get _)) (fun s => embed_state (ktr (get s))).
-  Proof. eapply observe_eta. ss. Qed.
-
-  Lemma embed_state_put R v (ktr : ktree (E +' sE V) unit R) :
-    embed_state (Vis (inr1 (Put v)) ktr) =
-      Vis (inr1 (Get _)) (fun s => Vis (inr1 (Put (put s v))) (fun _ => embed_state (ktr tt))).
-  Proof. eapply observe_eta. ss. Qed.
-
-  Lemma embed_state_trigger E' `[E' -< E] R X (e : E' X) (ktr : ktree (E +' sE V) X R) :
-    embed_state (x <- trigger e;; ktr x) = x <- trigger e;; embed_state (ktr x).
-  Proof.
-    rewrite 2 bind_trigger. apply embed_state_vis.
-  Qed.
-
-  Lemma embed_state_get' R (ktr : ktree (E +' sE V) V R) :
-    embed_state (x <- trigger (Get _);; ktr x) = x <- trigger (Get _);; (embed_state (ktr (get x))).
-  Proof. rewrite 2 bind_trigger. eapply embed_state_get. Qed.
-
-  Lemma embed_state_put' R v (ktr : ktree (E +' sE V) unit R) :
-    embed_state (x <- trigger (Put v);; ktr x) = s <- trigger (Get _);; _ <- trigger (Put (put s v));; (embed_state (ktr tt)).
-  Proof.
-    rewrite 2 bind_trigger.
-    match goal with [ |- embed_state (go (VisF ?e _)) = _ ] => replace e with (@inr1 E _ _ (Put v)) by ss end.
-    rewrite embed_state_put. f_equal. f_equal. extensionalities s.
-    rewrite bind_trigger. ss.
-  Qed.
+  Definition map_lens {E} : forall R, itree (E +' sE V) R -> itree (E +' sE S) R :=
+    map_event (embed_right embed_lens).
 
 End LENS.
-
-Global Opaque embed_state.
 
 Section ADD.
 
@@ -200,11 +156,11 @@ Section ADD.
 
   Definition embed_l {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
     map_event (embed_left (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident)))))
-      (embed_state (@fst M1.(state) M2.(state)) update_fst itr).
+      (map_lens (@fstl M1.(state) M2.(state)) itr).
 
   Definition embed_r {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
     map_event (embed_left (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident)))))
-      (embed_state (@snd M1.(state) M2.(state)) update_snd itr).
+      (map_lens (@sndl M1.(state) M2.(state)) itr).
 
   Definition add_funs : fname -> option (ktree _ Any.t Any.t) :=
     fun fn =>
