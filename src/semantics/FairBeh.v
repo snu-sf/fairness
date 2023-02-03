@@ -158,7 +158,6 @@ Section IDENT.
   (* Definition id_sum (A B: ID): ID := mk_id (sum A.(id) B.(id)). *)
 
 End IDENT.
-Global Opaque ID.
 
 
 Section EVENT.

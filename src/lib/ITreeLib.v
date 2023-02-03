@@ -419,62 +419,6 @@ Ltac destruct_itree itr :=
   apply bisim_is_eq in E;
   subst itr.
 
-Section EMBED_EVENT.
-
-  CoFixpoint map_event {E1 E2} (embed : forall X, E1 X -> E2 X) R : itree E1 R -> itree E2 R :=
-    fun itr =>
-      match observe itr with
-      | RetF r => Ret r
-      | TauF itr => Tau (map_event embed itr)
-      | VisF e ktr => Vis (embed _ e) (fun x => map_event embed (ktr x))
-      end.
-
-  Lemma map_event_ret E1 E2 (embed : forall X, E1 X -> E2 X) R (r : R) :
-    map_event embed (Ret r) = Ret r.
-  Proof. eapply observe_eta. ss. Qed.
-
-  Lemma map_event_tau E1 E2 (embed : forall X, E1 X -> E2 X) R (itr : itree E1 R) :
-    map_event embed (Tau itr) = Tau (map_event embed itr).
-  Proof. eapply observe_eta. ss. Qed.
-
-  Lemma map_event_vis E1 E2 (embed : forall X, E1 X -> E2 X) R X (e : E1 X) (ktr : ktree E1 X R) :
-    map_event embed (Vis e ktr) = Vis (embed _ e) (fun x => map_event embed (ktr x)).
-  Proof. eapply observe_eta. ss. Qed.
-
-  Lemma map_event_trigger E1 E2 (embed : forall X, E1 X -> E2 X) E' `[E' -< E1] R X (e : E' X) (ktr : ktree E1 X R) :
-    map_event embed (x <- trigger e;; ktr x) = x <- trigger (embed _ (subevent X e));; map_event embed (ktr x).
-  Proof. rewrite 2 bind_trigger. apply map_event_vis. Qed.
-
-  Lemma map_event_bind E1 E2 (embed : forall X, E1 X -> E2 X) A B (itr : itree E1 A) (ktr : A -> itree E1 B) :
-    map_event embed (itr >>= ktr) = map_event embed itr >>= fun x => map_event embed (ktr x).
-  Proof.
-    eapply bisim_is_eq.
-    revert itr ktr. pcofix CIH. i.
-    destruct_itree itr.
-    - rewrite ! map_event_ret. grind.
-      eapply paco2_mon. eapply eq_is_bisim. reflexivity. ss.
-    - grind. rewrite ! map_event_tau. grind.
-      pfold. econs. right. eapply CIH.
-    - grind. rewrite ! map_event_vis. grind.
-      pfold. econs. i. right. eapply CIH.
-  Qed.
-
-  Definition embed_left {E1 E2} (embed : forall X, E1 X -> E2 X) {E} X (e : (E1 +' E) X) : (E2 +' E) X :=
-    match e with
-    | inl1 e => inl1 (embed _ e)
-    | inr1 e => inr1 e
-    end.
-
-  Definition embed_right {E1 E2} (embed : forall X, E1 X -> E2 X) {E} X (e : (E +' E1) X) : (E +' E2) X :=
-    match e with
-    | inl1 e => inl1 e
-    | inr1 e => inr1 (embed _ e)
-    end.
-
-End EMBED_EVENT.
-
-Global Opaque map_event.
-
 Lemma unfold_iter_eq A E B
   : forall (f : A -> itree E (A + B)) (x : A),
     ITree.iter f x = lr <- f x;; match lr with

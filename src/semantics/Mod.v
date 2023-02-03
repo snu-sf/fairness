@@ -4,7 +4,7 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Any Lens.
+From Fairness Require Export ITreeLib EventCategory WFLib FairBeh NatStructs Any Lens.
 
 Set Implicit Arguments.
 
@@ -155,7 +155,7 @@ Section LENS.
     | Rmw state => Rmw (apply_lens state)
     end.
 
-  Definition map_lens {E} : forall R, itree (E +' sE V) R -> itree (E +' sE S) R :=
+  Definition map_lens {E R} : itree (E +' sE V) R -> itree (E +' sE S) R :=
     map_event (embed_right embed_lens).
 
 End LENS.
@@ -167,11 +167,11 @@ Section ADD.
 
   Definition embed_l {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
     map_event (embed_left (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident)))))
-      (map_lens (@fstl M1.(state) M2.(state)) itr).
+      (map_event (embed_right (embed_lens (@fstl M1.(state) M2.(state)))) itr).
 
   Definition embed_r {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
     map_event (embed_left (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident)))))
-      (map_lens (@sndl M1.(state) M2.(state)) itr).
+      (map_event (embed_right (embed_lens (@sndl M1.(state) M2.(state)))) itr).
 
   Definition add_funs : fname -> option (ktree _ Any.t Any.t) :=
     fun fn =>

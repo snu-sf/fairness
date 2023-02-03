@@ -34,7 +34,7 @@ Module OMod.
     Definition embed_itree {R}:
       (itree (programE (Mod.ident md) (Mod.state md)) R) ->
       (itree (programE closed_ident closed_state) R) :=
-      @map_event _ _ embed_callee R.
+      map_event embed_callee.
 
     Definition close_itree {R}:
       (itree (programE omd.(Mod.ident) omd.(Mod.state)) R) ->
@@ -53,7 +53,7 @@ Module OMod.
             exact (Vis (((|Yield)|)|)%sum (fun _ => embed_itree k0)).
             intros rv. exact (Ret (inl (k rv))). }
           { exact (Vis (((embed_event_l Undefined|)|)|)%sum (Empty_set_rect _)). }
-        + eapply map_lens. instantiate (1:=omd.(Mod.state)). exact fstl.
+        + eapply (map_event (embed_right (embed_lens fstl))).
           exact (Vis (|stE)%sum (fun x => Ret (inl (k x)))).
     Defined.
 
@@ -318,7 +318,7 @@ Section RED.
       Vis (inr1 (embed_lens fstl se)) (fun x => tau;; close_itree omd md (ktr x)).
   Proof.
     unfold close_itree at 1. rewrite unfold_iter. grind.
-    unfold map_lens. rewrite map_event_vis. grind.
+    rewrite map_event_vis. grind.
     apply observe_eta. ss. f_equal. extensionalities x. rewrite map_event_ret. grind.
   Qed.
 
