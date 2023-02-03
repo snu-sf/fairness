@@ -147,17 +147,17 @@ Section MEMRA.
   Admitted.
 
   Lemma wmemory_ra_load
-        m l v vw0 vw1
+        m l v0 v1 vw0 vw1
         ord lc1 to released
-        (READ: Local.read_step (Local.mk vw0 Memory.bot) m.(WMem.memory) l to v released ord lc1)
+        (READ: Local.read_step (Local.mk vw0 Memory.bot) m.(WMem.memory) l to v1 released ord lc1)
         (VIEW: vw1 = lc1.(Local.tview))
         (ORD: ord = Ordering.plain)
     :
     (wmemory_black m)
       -∗
-      (wpoints_to l v vw0)
+      (wpoints_to l v0 vw0)
       -∗
-      ((wmemory_black m) ∗ (⌜TView.le vw0 vw1⌝) ∗ #=>(wpoints_to l v vw1)).
+      ((wmemory_black m) ∗ (⌜(TView.le vw0 vw1) /\ (v0 = v1)⌝) ∗ #=>(wpoints_to l v0 vw1)).
   Proof.
   Admitted.
 

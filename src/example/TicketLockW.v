@@ -78,7 +78,10 @@ End TicketLockW.
 From Fairness Require Import FairLock ModSim.
 
 Section SIM.
+  (* Lemma ticketlock_fair: *)
+  (*   ModSim.mod_sim FairLockW.mod TicketLockW.mod. *)
+  (* Admitted. *)
   Lemma ticketlock_fair:
-    ModSim.mod_sim FairLockW.mod TicketLockW.mod.
+    ModSim.mod_sim AbsLockW.mod TicketLockW.mod.
   Admitted.
 End SIM.
