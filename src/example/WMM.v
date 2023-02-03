@@ -134,6 +134,7 @@ Section MEMRA.
   Definition wmemory_black (m: WMem.t): iProp.
   Admitted.
 
+  (* normal points-to *)
   Definition wpoints_to (l: Loc.t) (v: Const.t) (vw: TView.t): iProp.
   Admitted.
 
@@ -177,6 +178,29 @@ Section MEMRA.
   Proof.
   Admitted.
 
+
+  (* faa points-to *)
+  Definition wpoints_to_faa (l: Loc.t) (v: Const.t): iProp.
+  Admitted.
+
+  Lemma wmemory_ra_faa
+        v
+        tvw0 loc addendum ordr ordw
+        msc
+        lc2 from val sc1 mem1
+        lc1 to releasedr releasedw kind
+        (READ: Local.read_step (Local.mk tvw0 Memory.bot) (msc.(WMem.memory)) loc from val releasedr ordr lc1)
+        (WRITE: Local.write_step lc1 (msc.(WMem.sc)) (msc.(WMem.memory)) loc from to (Const.add val addendum) releasedr releasedw ordw lc2 sc1 mem1 kind)
+    :
+    (wmemory_black msc)
+      -∗
+      (wpoints_to_faa loc v)
+      -∗
+      ((⌜(TView.le tvw0 lc2.(Local.tview)) /\ (v = val)⌝)
+         ∗ #=>((wmemory_black (WMem.mk mem1 sc1)) ∗ wpoints_to_faa loc (Const.add v addendum))).
+  Proof.
+  Admitted.
+
 End MEMRA.
 
-Global Opaque wpoints_to wmemory_black.
+Global Opaque wmemory_black wpoints_to wpoints_to_faa.
