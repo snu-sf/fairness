@@ -26,8 +26,8 @@ Section EVENTS.
   .
 
   (* sE is just state monad *)
-  Variant sE (S : Type) (V : Type) : Type :=
-  | Rmw (rmw : S -> S * V) : sE S V
+  Variant sE (S : Type) (X : Type) : Type :=
+  | Rmw (rmw : S -> S * X) : sE S X
   .
 
   Variant callE: Type -> Type :=

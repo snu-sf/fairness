@@ -1,3 +1,4 @@
+From sflib Require Import sflib.
 From Coq Require Import Program.
 
 Module Store.
@@ -40,6 +41,44 @@ Module Lens.
   Proof. reflexivity. Qed.
 
 End Lens.
+
+Module Prism.
+
+  Set Implicit Arguments.
+
+  Record t S A :=
+    mkPrism
+      { review : A -> S
+      ; preview : S -> option A
+      }.
+
+  Record isPrism {S A} (p : t S A) : Prop :=
+    { preview_review : forall a, preview p (review p a) = Some a
+    ; review_preview : forall s a, preview p s = Some a -> review p a = s
+    }.
+
+End Prism.
+
+Section PRISM_LENS.
+
+  Definition plens {S A} T : Prism.t S A -> Lens.t (S -> T) (A -> T) :=
+    fun p f => (fun a => f (Prism.review p a), fun g s => match Prism.preview p s with
+                                           | None => f s
+                                           | Some a => g a
+                                           end).
+
+  Lemma plens_isLens S A T (p : Prism.t S A) : Prism.isPrism p -> Lens.isLens (plens T p).
+  Proof.
+    i. inv H. econs.
+    - unfold Store.counit, plens, compose. extensionalities f s.
+      des_ifs. rewrite (review_preview _ _ Heq). ss.
+    - unfold Store.map, Store.cojoin, plens, compose.
+      extensionalities f. f_equal. extensionalities g. f_equal.
+      + extensionalities a. rewrite preview_review. ss.
+      + extensionalities g' s. des_ifs.
+  Qed.
+
+End PRISM_LENS.
 
 Declare Scope lens_scope.
 Delimit Scope lens_scope with lens.
