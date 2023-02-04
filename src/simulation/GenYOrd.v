@@ -125,7 +125,7 @@ Section PRIMIVIESIM.
       ths im_src im_tgt0 st_src st_tgt
       f itr_src ktr_tgt
       (LSIM: forall im_tgt1
-                   (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
+                   (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inrp f)),
           (<<LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
@@ -163,7 +163,7 @@ Section PRIMIVIESIM.
                     (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                     (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                     im_tgt2
-                    (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+                    (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           _lsim _ _ RR f_src true r_ctx1 (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
@@ -178,7 +178,7 @@ Section PRIMIVIESIM.
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
-               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+               (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           (<<LSIM: _lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
@@ -429,7 +429,7 @@ Section GENORDER.
       f_src f_tgt r_ctx os ot
       ths im_src im_tgt0 st_src st_tgt
       f itr_src ktr_tgt
-      (GENOS: forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
+      (GENOS: forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inrp f)),
           (<<GENOS: genos _ _ RR f_src true r_ctx (os, itr_src) (ot, ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
     :
     _genos tid genos RR f_src f_tgt r_ctx (os, itr_src) (ot, trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
@@ -469,7 +469,7 @@ Section GENORDER.
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
-               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+               (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
         exists os1 ot1,
           (<<GENOS: genos _ _ RR f_src true r_ctx1 (os1, trigger (Yield) >>= ktr_src) (ot1, ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>) /\
             (<<LT: (wf_stt R0 R1).(lt) ot1 ot>>))
@@ -486,7 +486,7 @@ Section GENORDER.
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
-               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+               (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
         exists os1 ot1,
           (<<GENOS: genos _ _ RR true true r_ctx1 (os1, ktr_src tt) (ot1, ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
     :

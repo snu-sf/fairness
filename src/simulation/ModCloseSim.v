@@ -46,7 +46,7 @@ Section CLOSE_MONO_SIM.
     { extensionalities i. specialize (TID_TGT (inr (inl i))). ss. }
     assert (USR_TGT : chop_ctx ths_usr0 IM_TGT0 = chop_ctx ths_usr0 IM_TGT1).
     { extensionalities i. destruct i as [i|i].
-      - specialize (TID_TGT (inl i)). ss. des_ifs. exfalso.
+      - specialize (TID_TGT (inl i)). unfold prism_fmap in *; ss. des_ifs. exfalso.
         eapply inv_add_new in THS0. des. eapply THS0.
         eapply Partition_In_right in INV0_1. eapply INV0_1.
         ss.
@@ -85,7 +85,7 @@ Section CLOSE_MONO_SIM.
            (THS: TIdSet.add_new tid ths0 ths1)
            (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
     forall im_tgt1
-           (TID_TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))),
+           (TID_TGT: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))),
     exists r_shared1 r_own : URA.prod threadsRA world,
       (<<INV: lift_ma (ths1, im_src0, im_tgt1, st_src0, st_tgt0) r_shared1 >>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0) >>) /\
@@ -94,7 +94,7 @@ Section CLOSE_MONO_SIM.
                 (INV: lift_ma (ths, im_src1, im_tgt2, st_src2, st_tgt2) r_shared2)
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
           forall im_tgt3
-                 (TGT: fair_update im_tgt2 im_tgt3 (sum_fmap_l (tids_fmap tid ths))),
+                 (TGT: fair_update im_tgt2 im_tgt3 (prism_fmap inlp (tids_fmap tid ths))),
             (<<LSIM:
               forall fs ft : bool,
                 lsim lift_ma tid (fun (r_src: R_src) (r_tgt: R_tgt) (r_ctx: URA.car) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1) =>
@@ -115,9 +115,9 @@ Section CLOSE_MONO_SIM.
     { eapply inv_add_new. split; ss. eapply inv_add_new in THS0. des.
       eapply Partition_In_right in INV0_1. eauto.
     }
-    assert (TID_TGT' : fair_update (chop_ctx ths_usr0 IM_TGT0) (chop_ctx (NatSet.add tid ths_usr0) im_tgt1) (sum_fmap_l (fun i => if Nat.eq_dec i tid then Flag.success else Flag.emp))).
+    assert (TID_TGT' : fair_update (chop_ctx ths_usr0 IM_TGT0) (chop_ctx (NatSet.add tid ths_usr0) im_tgt1) (prism_fmap inlp (fun i => if Nat.eq_dec i tid then Flag.success else Flag.emp))).
     { ii. destruct i as [i|i]; ss.
-      - specialize (TID_TGT (inl i)). ss. destruct (Nat.eq_dec i tid); ss.
+      - specialize (TID_TGT (inl i)). unfold prism_fmap in *; ss. destruct (Nat.eq_dec i tid); ss.
         assert (H : tid <> i) by lia.
         eapply NatMapP.F.add_neq_in_iff with (m := ths_usr0) (e := tt) in H.
         des_ifs; tauto.
@@ -143,7 +143,7 @@ Section CLOSE_MONO_SIM.
     }
     intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
     simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. unfold_prod VALID2_0.
-    assert (TGT' : @fair_update _ nat_wf (chop_ctx ths_usr2 IM_TGT2) (chop_ctx ths_usr2 IM_TGT2') (sum_fmap_l (tids_fmap tid ths_usr2))).
+    assert (TGT' : @fair_update _ nat_wf (chop_ctx ths_usr2 IM_TGT2) (chop_ctx ths_usr2 IM_TGT2') (prism_fmap inlp (tids_fmap tid ths_usr2))).
     { eapply chop_ctx_fair_thread2.
       - eapply Partition_In_right in INV2_1. eapply INV2_1.
       - eauto.
@@ -215,7 +215,7 @@ Section CLOSE_MONO_SIM.
     - rewrite map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
     - rewrite map_event_trigger. econs. intros IM_TGT1 FAIR. split; ss.
-      assert (FAIR' : fair_update (chop_ctx ths_usr0 IM_TGT0) (chop_ctx ths_usr0 IM_TGT1) (sum_fmap_r f)).
+      assert (FAIR' : fair_update (chop_ctx ths_usr0 IM_TGT0) (chop_ctx ths_usr0 IM_TGT1) (prism_fmap inrp f)).
       { ii. destruct i as [i|i]; ss.
         - specialize (FAIR (inl i)). ss. des_ifs.
         - specialize (FAIR (inr (inr i))). ss.
@@ -244,9 +244,9 @@ Section CLOSE_MONO_SIM.
       { instantiate (1 := (local_th_user tid, r_own)). unfold_prod. split; ss. }
       intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT2 TGT.
       split; ss. des. unfold_prod VALID1_0.
-      assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (sum_fmap_l (tids_fmap tid ths_usr1))).
+      assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (prism_fmap inlp (tids_fmap tid ths_usr1))).
       { ii. destruct i as [i|i]; ss.
-        - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). ss.
+        - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). unfold prism_fmap in *; ss.
           unfold tids_fmap in *. destruct (Nat.eq_dec i tid); ss. des_ifs.
           exfalso. tauto.
         - specialize (TGT (inr (inr i))). ss.
@@ -265,9 +265,9 @@ Section CLOSE_MONO_SIM.
       { instantiate (1 := (local_th_user tid, r_own)). unfold_prod. split; ss. }
       intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT2 TGT.
       ss. des. unfold_prod VALID1_0.
-      assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (sum_fmap_l (tids_fmap tid ths_usr1))).
+      assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (prism_fmap inlp (tids_fmap tid ths_usr1))).
       { ii. destruct i as [i|i]; ss.
-        - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). ss.
+        - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). unfold prism_fmap in *; ss.
           unfold tids_fmap in *. destruct (Nat.eq_dec i tid); ss. des_ifs.
           exfalso. tauto.
         - specialize (TGT (inr (inr i))). ss.
@@ -306,7 +306,7 @@ Section CLOSE_MONO_SIM.
     { extensionalities i. specialize (TID_TGT (inr (inl i))). ss. }
     assert (USR_TGT : chop_ctx ths_usr0 IM_TGT0 = chop_ctx ths_usr0 IM_TGT1).
     { extensionalities i. destruct i as [i|i].
-      - specialize (TID_TGT (inl i)). ss. des_ifs. exfalso.
+      - specialize (TID_TGT (inl i)). unfold prism_fmap in *; ss. des_ifs. exfalso.
         eapply inv_add_new in THS0. des. eapply THS0.
         eapply Partition_In_right in INV0_1. eapply INV0_1.
         ss.
@@ -518,7 +518,7 @@ Section CLOSE_MONO_SIM.
         hexploit lift_ma_pop_push; eauto. i. des.
         muclo lsim_bindC'_spec. cbn. econs; eauto.
         * hexploit lift_ma_local_sim_usr; eauto.
-          { instantiate (1:=im_tgt1). ii. unfold sum_fmap_l. des_ifs. }
+          { instantiate (1:=im_tgt1). ii. unfold prism_fmap; ss. des_ifs. }
           i. des. hexploit H1; eauto. i.
           gfinal. right. eapply paco9_mon; [eapply H|]; ss.
         * i. destruct r_ctx as [r_ctx0 r_ctx2]. destruct shr as [[[[shr0 shr1] shr2] shr3] shr4].
@@ -646,7 +646,7 @@ Section MODADD_THEOREM.
         * gstep. eapply pind9_fold. eapply lsim_fairR. i. split; ss.
           eapply pind9_fold. eapply lsim_fairL. exists (conv_im im_tgt1). split.
           { des. rewrite INV_CIH2. ii. destruct i as [|[|]].
-            unfold sum_fmap_r, sum_fmap_l in *. ss.
+            unfold prism_fmap in *. ss.
             - specialize (FAIR (inr (inl (inl i)))). ss.
             - specialize (FAIR (inr (inl (inr i)))). ss.
             - specialize (FAIR (inr (inr i))). ss.
@@ -740,7 +740,7 @@ Section MODADD_THEOREM.
                 * gstep. eapply pind9_fold. eapply lsim_fairR. i. split; ss.
                   eapply pind9_fold. eapply lsim_fairL. exists (conv_im im_tgt1). split.
                   { des. rewrite INV_CIH3. ii. destruct i as [|[|]].
-                    unfold sum_fmap_r, sum_fmap_l in *. ss.
+                    unfold prism_fmap in *. ss.
                     - specialize (FAIR (inr (inl (inl i)))). ss.
                     - specialize (FAIR (inr (inl (inr i)))). ss.
                     - specialize (FAIR (inr (inr i))). ss.
@@ -825,7 +825,7 @@ Section MODADD_THEOREM.
                         * gstep. eapply pind9_fold. eapply lsim_fairR. i. split; ss.
                           eapply pind9_fold. eapply lsim_fairL. exists (conv_im im_tgt1). split.
                           { des. rewrite INV_CIH2. ii. destruct i as [|[|]].
-                            unfold sum_fmap_r, sum_fmap_l in *. ss.
+                            unfold prism_fmap in *. ss.
                             - specialize (FAIR (inr (inl (inl i)))). ss.
                             - specialize (FAIR (inr (inl (inr i)))). ss.
                             - specialize (FAIR (inr (inr i))). ss.

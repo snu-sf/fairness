@@ -87,7 +87,7 @@ Section KSIM.
                     (nm_pop tid0 thsr = Some (th_tgt, thsr0)) /\
                     ((b = true) ->
                      (forall im_tgt0
-                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr0)))),
+                        (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr0)))),
                          (sim_knot thsl0 thsr0 tid0
                                    (snd (get_resource tid0 rs_local0))
                                    true true
@@ -96,9 +96,9 @@ Section KSIM.
                                    (im_src, im_tgt0, st_src, st_tgt) o0))) /\
                     ((b = false) ->
                      (forall im_tgt0
-                        (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr0)))),
+                        (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr0)))),
                        exists im_src0,
-                         (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl0)))) /\
+                         (fair_update im_src im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl0)))) /\
                            (sim_knot thsl0 thsr0 tid0
                                      (snd (get_resource tid0 rs_local0))
                                      true true
@@ -128,7 +128,7 @@ Section KSIM.
                   (nm_pop tid0 thsl0 = Some ((b, th_src), thsl1)) /\
                     (nm_pop tid0 thsr0 = Some (th_tgt, thsr1)) /\
                     ((b = true) ->
-                     (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
+                     (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr1)))),
                        exists o0, ((wf_stt R0 R1).(lt) o0 o) /\
                                (sim_knot thsl1 thsr1 tid0
                                          (snd (get_resource tid0 rs_local0))
@@ -137,9 +137,9 @@ Section KSIM.
                                          (th_tgt)
                                          (im_src, im_tgt0, st_src, st_tgt) o0))) /\
                     ((b = false) ->
-                     (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1)))),
+                     (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr1)))),
                        exists im_src0 o0,
-                         (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl1)))) /\
+                         (fair_update im_src im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl1)))) /\
                            ((wf_stt R0 R1).(lt) o0 o) /\
                            (sim_knot thsl1 thsr1 tid0
                                      (snd (get_resource tid0 rs_local0))
@@ -159,7 +159,7 @@ Section KSIM.
         rs_local
         im_src im_tgt st_src st_tgt o
         (KSIM: exists im_src0 o0,
-            (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (key_set thsl)))) /\
+            (fair_update im_src im_src0 (prism_fmap inlp (tids_fmap tid (key_set thsl)))) /\
               (_sim_knot thsl thsr tid rs_local true f_tgt
                          (false, ktr_src tt)
                          itr_tgt
@@ -242,7 +242,7 @@ Section KSIM.
         rs_local
         im_src im_tgt st_src st_tgt o
         (KSIM: exists im_src0,
-            (<<FAIR: fair_update im_src im_src0 (sum_fmap_r fm)>>) /\
+            (<<FAIR: fair_update im_src im_src0 (prism_fmap inrp fm)>>) /\
               (_sim_knot thsl thsr tid rs_local true f_tgt
                          (sf, ktr_src tt)
                          itr_tgt
@@ -314,7 +314,7 @@ Section KSIM.
         sf itr_src fm ktr_tgt
         rs_local
         im_src im_tgt st_src st_tgt o
-        (KSIM: forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_r fm)),
+        (KSIM: forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inrp fm)),
             (_sim_knot thsl thsr tid rs_local f_src true
                        (sf, itr_src)
                        (ktr_tgt tt)

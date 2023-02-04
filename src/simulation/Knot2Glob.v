@@ -136,15 +136,15 @@ Section PROOF.
                     nm_pop tid0 ths_tgt = Some (th_tgt, thsr0) /\
                     (b = true ->
                      forall im_tgt0 : imap ident_tgt wf_tgt,
-                       fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr0))) ->
+                       fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr0))) ->
                          upaco10 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl0 thsr0 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_local))) true true
                                 (b, Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) th_tgt
                                 (ms, im_tgt0, st_src, st_tgt) o1) /\
                     (b = false ->
                      forall im_tgt0 : imap ident_tgt wf_tgt,
-                       fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr0))) ->
+                       fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr0))) ->
                        exists (im_src0 : imap ident_src wf_src),
-                         fair_update ms im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl0))) /\
+                         fair_update ms im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl0))) /\
                            (upaco10 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl0 thsr0 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_local))) true true
                                       (b, th_src) th_tgt
                                       (im_src0, im_tgt0, st_src, st_tgt) o1))))
@@ -341,7 +341,7 @@ Section PROOF.
                     nm_pop tid0 (Th.add tid (ktr_tgt ()) ths_tgt) = Some (th_tgt, thsr1) /\
                     (b = true ->
                      (forall im_tgt0 : imap ident_tgt wf_tgt,
-                         fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1))) ->
+                         fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr1))) ->
                          exists (o0 : T (wf_stt R0 R1)),
                            lt (wf_stt R0 R1) o0 o /\
                              upaco10
@@ -350,9 +350,9 @@ Section PROOF.
                                (ms, im_tgt0, st_src, st_tgt) o0)) /\
                     (b = false ->
                      (forall im_tgt0 : imap ident_tgt wf_tgt,
-                         fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1))) ->
+                         fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr1))) ->
                          exists (im_src0 : imap ident_src wf_src) o0,
-                           fair_update ms im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl1))) /\
+                           fair_update ms im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl1))) /\
                              lt (wf_stt R0 R1) o0 o /\
                              (upaco10
                                 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl1 thsr1 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))) true true

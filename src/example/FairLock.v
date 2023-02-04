@@ -17,7 +17,7 @@ Module FairLock.
       (fun (_: unit) st next =>
          match st with
          | true => next = WMod.disabled
-         | false => next = WMod.normal true tt (sum_fmap_l (fun _ => Flag.fail))
+         | false => next = WMod.normal true tt (prism_fmap inlp (fun _ => Flag.fail))
          end).
 
   Definition unlock_fun: WMod.function bool unit void :=
@@ -26,7 +26,7 @@ Module FairLock.
       (fun (_: unit) st next =>
          match st with
          | false => next = WMod.stuck
-         | true => next = WMod.normal false tt (sum_fmap_l (fun _ => Flag.emp))
+         | true => next = WMod.normal false tt (prism_fmap inlp (fun _ => Flag.emp))
          end).
 
   Definition wmod: WMod.t :=
@@ -50,7 +50,7 @@ Module FairLockW.
          match st with
          | None => next = WMod.disabled
          | Some tvw_lock =>
-             next = WMod.normal None (TView.join tvw tvw_lock) (sum_fmap_l (fun _ => Flag.fail))
+             next = WMod.normal None (TView.join tvw tvw_lock) (prism_fmap inlp (fun _ => Flag.fail))
          end).
 
   Definition unlock_fun: WMod.function (option TView.t) unit void :=
@@ -59,7 +59,7 @@ Module FairLockW.
       (fun (tvw: TView.t) st next =>
          match st with
          | Some _ => next = WMod.stuck
-         | None => next = WMod.normal (Some tvw) tvw (sum_fmap_l (fun _ => Flag.emp))
+         | None => next = WMod.normal (Some tvw) tvw (prism_fmap inlp (fun _ => Flag.emp))
          end).
 
   Definition wmod: WMod.t :=

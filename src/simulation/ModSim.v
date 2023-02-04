@@ -131,7 +131,7 @@ Section PRIMIVIESIM.
       ths im_src im_tgt0 st_src st_tgt
       f itr_src ktr_tgt
       (LSIM: forall im_tgt1
-                   (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
+                   (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inrp f)),
           (<<LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
@@ -170,7 +170,7 @@ Section PRIMIVIESIM.
                     (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                     (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                     im_tgt2
-                    (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+                    (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           _lsim _ _ RR f_src true r_ctx1 (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
@@ -185,7 +185,7 @@ Section PRIMIVIESIM.
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
-               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+               (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           (<<LSIM: lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
@@ -1176,7 +1176,7 @@ Section PRIMIVIESIM.
         (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (Fair f) >>= tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     forall im_tgt1
-           (FAIR: fair_update im_tgt im_tgt1 (sum_fmap_r f)),
+           (FAIR: fair_update im_tgt im_tgt1 (prism_fmap inrp f)),
       (<<LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>).
   Proof.
     eapply lsim_reset_prog in LSIM.
@@ -1228,14 +1228,14 @@ Section PRIMIVIESIM.
            (THS: TIdSet.add_new tid ths0 ths1)
            (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
     forall im_tgt1
-      (TID_TGT : fair_update im_tgt0 im_tgt1 (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp))),
+      (TID_TGT : fair_update im_tgt0 im_tgt1 (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp))),
     exists r_shared1 r_own,
       (<<INV: I (ths1, im_src0, im_tgt1, st_src0, st_tgt0) r_shared1>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
         (forall ths im_src1 im_tgt2 st_src2 st_tgt2 r_shared2 r_ctx2
            (INV: I (ths, im_src1, im_tgt2, st_src2, st_tgt2) r_shared2)
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
-          forall im_tgt3 (TGT: fair_update im_tgt2 im_tgt3 (sum_fmap_l (tids_fmap tid ths))),
+          forall im_tgt3 (TGT: fair_update im_tgt2 im_tgt3 (prism_fmap inlp (tids_fmap tid ths))),
             (<<LSIM: forall fs ft,
                 lsim
                   tid
@@ -1250,7 +1250,7 @@ Section PRIMIVIESIM.
     forall ths im_src im_tgt st_src st_tgt r_shared r_ctx
            (INV: I (ths, im_src, im_tgt, st_src, st_tgt) r_shared)
            (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx)),
-    forall im_tgt1 (FAIR: fair_update im_tgt im_tgt1 (sum_fmap_l (tids_fmap tid ths))),
+    forall im_tgt1 (FAIR: fair_update im_tgt im_tgt1 (prism_fmap inlp (tids_fmap tid ths))),
     forall fs ft,
       lsim
         tid

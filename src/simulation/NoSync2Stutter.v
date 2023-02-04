@@ -88,7 +88,7 @@ Section GENORDER.
       ths im_src0 im_tgt st_src st_tgt
       f ktr_src itr_tgt
       (GENO: exists im_src1,
-             (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_r f)>>) /\
+             (<<FAIR: fair_update im_src0 im_src1 (prism_fmap inrp f)>>) /\
                (<<GENO: geno true f_tgt r_ctx (o, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt)>>))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Fair f) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt)
@@ -125,7 +125,7 @@ Section GENORDER.
       f_src f_tgt r_ctx o
       ths im_src im_tgt0 st_src st_tgt
       f itr_src ktr_tgt
-      (GENO: forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
+      (GENO: forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inrp f)),
           (<<GENO: geno f_src true r_ctx (o, itr_src) (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
@@ -159,7 +159,7 @@ Section GENORDER.
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
-               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+               (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           (<<GENO: geno f_src true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
     :
     _geno tid RR geno f_src f_tgt r_ctx0 (o0, trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
@@ -169,7 +169,7 @@ Section GENORDER.
       ths im_src0 im_tgt st_src st_tgt
       ktr_src itr_tgt
       (GENO: exists im_src1 o1,
-          (<<FAIR: fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths))>>) /\
+          (<<FAIR: fair_update im_src0 im_src1 (prism_fmap inlp (tids_fmap tid ths))>>) /\
             (<<GENO: geno true f_tgt r_ctx (o1, ktr_src tt) itr_tgt (ths, im_src1, im_tgt, st_src, st_tgt)>>))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o0, trigger (Yield) >>= ktr_src) itr_tgt (ths, im_src0, im_tgt, st_src, st_tgt)

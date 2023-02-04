@@ -46,8 +46,8 @@ Section AUX.
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
       (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0)),
-    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
-    exists im_src1, (fair_update im_src0 im_src1 (sum_fmap_l (tids_fmap tid ths0))) /\
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths0))),
+    exists im_src1, (fair_update im_src0 im_src1 (prism_fmap inlp (tids_fmap tid ths0))) /\
                  (forall fs ft,
                      lsim wf_stt I tid (local_RR I RR tid)
                           fs ft r_ctx0 (o, src) tgt
@@ -58,7 +58,7 @@ Section AUX.
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
       (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0))
       fs ft,
-    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths0))),
+    forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths0))),
       (lsim wf_stt I tid (local_RR I RR tid)
             fs ft r_ctx0 (o, Vis (inl1 (inl1 (inr1 Yield))) (fun _ => src)) tgt
             (ths0, im_src0, im_tgt1, st_src0, st_tgt0)).

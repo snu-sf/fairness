@@ -10,68 +10,6 @@ From Fairness Require Export Mod.
 
 Set Implicit Arguments.
 
-Section LENS.
-
-  Variable S: Type.
-  Variable V: Type.
-
-  Variable l : Lens.t S V.
-
-  Definition lens_rmw X : (V -> V * X) -> (S -> S * X) :=
-    fun rmw s =>
-      (Lens.set l (fst (rmw (Lens.view l s))) s, snd (rmw (Lens.view l s))).
-
-  Definition map_lens X (se : sE V X) : sE S X :=
-    match se with
-    | Rmw rmw => Rmw (lens_rmw rmw)
-    end.
-
-End LENS.
-
-Section PRISM.
-
-  Variable S : Type.
-  Variable A : Type.
-
-  Variable p : Prism.t S A.
-
-  Definition prism_fmap : fmap A -> fmap S :=
-    fun fm i =>
-      match Prism.preview p i with
-      | None => Flag.emp
-      | Some j => fm j
-      end.
-
-  Definition map_prism X : @eventE A X -> @eventE S X :=
-    fun e =>
-      match e with
-      | Choose X => Choose X
-      | Fair fm => Fair (prism_fmap fm)
-      | Observe fn args => Observe fn args
-      | Undefined => Undefined
-      end.
-
-End PRISM.
-
-Section PROGRAM_EVENT.
-
-  Variable ident ident' : Type.
-  Variable state state' : Type.
-
-  Variable p : Prism.t ident' ident.
-  Variable l : Lens.t state' state.
-
-  Definition plmap X : programE ident state X -> programE ident' state' X.
-  Proof.
-    intro e. destruct e as [[[e|e]|e]|e].
-    - exact ((((map_prism p e)|)|)|)%sum.
-    - exact (((|e)|)|)%sum.
-    - exact ((|e)|)%sum.
-    - exact (|map_lens l e)%sum.
-  Defined.
-
-End PROGRAM_EVENT.
-
 Section ADD.
 
   Import Mod.
@@ -288,7 +226,7 @@ Section RED.
       match (md.(Mod.funs) fn) with
       | Some body =>
           Vis (((|Yield)|)|)%sum (fun _ => rv <- map_event (OMod.emb_callee omd md) (body args);; tau;; close_itree omd md (ktr rv))
-      | None => Vis (((embed_event_l Undefined|)|)|)%sum (Empty_set_rect _)
+      | None => Vis (((Undefined|)|)|)%sum (Empty_set_rect _)
       end.
   Proof.
     unfold close_itree. rewrite unfold_iter. grind.
@@ -305,7 +243,7 @@ Section RED.
       match (md.(Mod.funs) fn) with
       | Some body =>
           _ <- trigger (Yield);; rv <- map_event (OMod.emb_callee omd md) (body args);; tau;; close_itree omd md (ktr rv)
-      | None => trigger (embed_event_l Undefined) >>= (Empty_set_rect _)
+      | None => trigger (Undefined) >>= (Empty_set_rect _)
       end.
   Proof.
     rewrite bind_trigger. setoid_rewrite close_itree_vis_call. des_ifs.

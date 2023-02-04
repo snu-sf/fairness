@@ -59,14 +59,14 @@ Module WMod.
         '(st, ts) <- trigger (Get id);;
         let ts := NatMap.add tid f.(type) ts in
         _ <- trigger (Put (st, ts));;
-        _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
+        _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
 
         ITree.iter
           (fun (_: unit) =>
              b <- trigger (Choose bool);;
              if (b: bool)
              then
-               _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
+               _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
                _ <- trigger Yield;; Ret (inl tt)
              else
                '(st, ts) <- trigger (Get id);;
@@ -87,7 +87,7 @@ Module WMod.
       '(st, ts) <- trigger (Get id);;
       let ts := NatMap.add tid i ts in
       _ <- trigger (Put (st, ts));;
-      _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
+      _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
       Ret tt
     .
 
@@ -98,7 +98,7 @@ Module WMod.
         (fun (_: unit) =>
            b <- trigger (Choose bool);;
            if (b: bool) then
-             _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
+             _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
              _ <- trigger Yield;; Ret (inl tt)
            else
              '(st, ts) <- trigger (Get id);;
@@ -135,7 +135,7 @@ Module WMod.
       =
         b <- trigger (Choose bool);;
         if (b: bool) then
-          _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
+          _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
           _ <- trigger Yield;;
           tau;; interp_fun_body tid step
         else

@@ -1,60 +1,16 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-
-Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Any.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Any Event.
 
 Set Implicit Arguments.
 
 Module TIdSet := NatSet.
 
-Notation fname := string (only parsing).
-Notation thread_id := nat (only parsing).
-
 Definition program := list (fname * Any.t)%type.
 
 Definition Val := nat.
-
-Section EVENTS.
-
-  Variant cE: Type -> Type :=
-  | Yield: cE unit
-  | GetTid: cE thread_id
-  (* | Spawn (fn: fname) (args: list Val): cE unit *)
-  .
-
-  (* sE is just state monad *)
-  Variant sE (S : Type) (X : Type) : Type :=
-  | Rmw (rmw : S -> S * X) : sE S X
-  .
-
-  Variant callE: Type -> Type :=
-  | Call (fn: fname) (arg: Any.t): callE Any.t
-  .
-
-  Definition Get {S} {X} (p : S -> X) : sE S X := Rmw (fun x => (x, p x)).
-  Definition Put {S} (x' : S) : sE S () := Rmw (fun x => (x', tt)).
-  Definition Modify {S} (f : S -> S) : sE S () := Rmw (fun x => (f x, tt)).
-
-  Lemma get_rmw {S X} (p : S -> X) : Get p = Rmw (fun x => (x, p x)).
-  Proof. reflexivity. Qed.
-
-  Lemma put_rmw {S} (x' : S) : Put x' = Rmw (fun x => (x', tt)).
-  Proof. reflexivity. Qed.
-
-  Lemma modify_rmw {S} (f : S -> S) : Modify f = Rmw (fun x => (f x, tt)).
-  Proof. reflexivity. Qed.
-
-End EVENTS.
-
-Global Opaque Get.
-Global Opaque Put.
-Global Opaque Modify.
-
-Notation programE ident State :=
-  ((((@eventE ident) +' cE) +' callE) +' sE State).
 
 Section TID.
 

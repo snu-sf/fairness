@@ -2555,7 +2555,7 @@ Module FairRA.
                tid ths0 ths1
                (THS: TIdSet.add_new tid ths0 ths1)
                (f0 f1: imap Id nat_wf)
-               (UPD: fair_update f0 f1 (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp)))
+               (UPD: fair_update f0 f1 (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp)))
       :
       (sat_target f0 ths0)
         -∗
@@ -2587,15 +2587,15 @@ Module FairRA.
       }
       iPoseProof (whites_update with "WHITES [BLACK]") as "> [[[WHITES BLACK] FAIL] SUCCESS]".
       { instantiate (1:=f1). instantiate (1:=1).
-        instantiate (1:=sum_fmap_l (fun i: thread_id => if tid_dec i tid then Flag.success else Flag.emp)).
-        i. specialize (UPD i). revert UPD. unfold sum_fmap_l. des_ifs.
+        instantiate (1:=prism_fmap inlp (fun i: thread_id => if tid_dec i tid then Flag.success else Flag.emp)).
+        i. specialize (UPD i). revert UPD. unfold prism_fmap; ss.
       }
       { iExists (fun i =>
                    match i with
                    | inl tid' => if tid_dec tid' tid then Some n else None
                    | _ => None
                    end). iSplit.
-        { iPureIntro. i. unfold sum_fmap_l. des_ifs.
+        { iPureIntro. i. unfold prism_fmap; ss. unfold is_inl; ss. des_ifs.
           { split; i; ss. inv H0. ss. }
           { split; i; ss. inv H0. ss. }
         }
@@ -2605,7 +2605,7 @@ Module FairRA.
         }
       }
       iModIntro. iSplitR "BLACK".
-      2:{ iApply (blacks_black with "BLACK"). ss. des_ifs. }
+      2:{ iApply (blacks_black with "BLACK"). unfold prism_fmap; ss. des_ifs. }
       unfold sat_target. iFrame.
       iExists f2. iSplit; auto.
       iPureIntro. i. unfold f2. hexploit (H i). i.
@@ -2636,7 +2636,7 @@ Module FairRA.
     Definition target_update_thread
                tid ths
                (f0 f1: imap Id nat_wf)
-               (UPD: fair_update f0 f1 (sum_fmap_l (tids_fmap tid ths)))
+               (UPD: fair_update f0 f1 (prism_fmap inlp (tids_fmap tid ths)))
       :
       (sat_target f0 ths)
         -∗
@@ -2671,18 +2671,18 @@ Module FairRA.
                 end): Id -> option nat).
       iPoseProof (whites_update with "WHITES [BLACKS BLACK]") as "> [[[WHITES [% [% BLACK]]] FAIL] SUCCESS]".
       { instantiate (1:=f1). instantiate (1:=1).
-        instantiate (1:=sum_fmap_l
+        instantiate (1:=prism_fmap inlp
                           (fun i: thread_id =>
                              if tid_dec i tid then Flag.success
                              else
                                if NatMap.find i ths
                                then Flag.fail
                                else Flag.success)).
-        i. specialize (UPD i). revert UPD. unfold f2, sum_fmap_l, tids_fmap. des_ifs.
+        i. specialize (UPD i). revert UPD. unfold f2, prism_fmap, tids_fmap; ss. des_ifs.
         i. exfalso. eapply n2. eapply NatMapP.F.in_find_iff. ii. clarify.
       }
       { iExists f2. iCombine "BLACKS BLACK" as "BLACKS". iSplit.
-        { iPureIntro. i. unfold f2, sum_fmap_l.
+        { iPureIntro. i. unfold f2, prism_fmap; ss. unfold is_inl; ss.
           specialize (H i). revert H. des_ifs; i.
           { rewrite H. split; i; ss. des. clarify. exfalso. eapply NIN.
             eapply NatMapP.F.in_find_iff. ii. clarify.
@@ -2700,7 +2700,7 @@ Module FairRA.
       }
       iSplitR "FAIL SUCCESS".
       { hexploit (proj2 (H0 (inl tid))).
-        { unfold sum_fmap_l. des_ifs. }
+        { unfold prism_fmap; ss. des_ifs. }
         i. inv H1.
         set (f4 := (fun i =>
                       match i with
@@ -2721,7 +2721,7 @@ Module FairRA.
         iModIntro. iSplitR "BLACK".
         { iSplitL "WHITES"; auto. iExists _.
           iSplit; [|iApply "BLACKS"]. iPureIntro. i.
-          unfold f4. specialize (H0 i). unfold sum_fmap_l in H0. ss. des_ifs.
+          unfold f4. specialize (H0 i). unfold prism_fmap in H0; ss. unfold is_inl in H0; ss. des_ifs.
           { split; i; ss.
             { inv H1. ss. }
             { des. clarify. }
@@ -2737,10 +2737,10 @@ Module FairRA.
         { iExists _. iFrame. }
       }
       { iModIntro. iIntros (tid'). destruct (tid_dec tid' tid).
-        { subst. iApply (whites_white with "SUCCESS"). ss. des_ifs. }
+        { subst. iApply (whites_white with "SUCCESS"). unfold prism_fmap in *; ss. des_ifs. }
         destruct (NatMap.find tid' ths) eqn:EQ.
-        { iApply (whites_white with "FAIL"). ss. des_ifs. }
-        { iApply (whites_white with "SUCCESS"). ss. des_ifs. }
+        { iApply (whites_white with "FAIL"). unfold prism_fmap in *; ss. des_ifs. }
+        { iApply (whites_white with "SUCCESS"). unfold prism_fmap in *; ss. des_ifs. }
       }
     Qed.
 
@@ -2748,18 +2748,18 @@ Module FairRA.
                ths
                (f0 f1: imap Id nat_wf)
                (fm: fmap _Id)
-               (UPD: fair_update f0 f1 (sum_fmap_r fm))
+               (UPD: fair_update f0 f1 (prism_fmap inrp fm))
       :
       (sat_target f0 ths)
         -∗
-        (blacks (fun i => (sum_fmap_r fm) i = Flag.success))
+        (blacks (fun i => (prism_fmap inrp fm) i = Flag.success))
         -∗
         (#=>
            ((sat_target f1 ths)
               **
-              (blacks (fun i => (sum_fmap_r fm) i = Flag.success))
+              (blacks (fun i => (prism_fmap inrp fm) i = Flag.success))
               **
-              (whites (fun i => (sum_fmap_r fm) i = Flag.fail) 1))).
+              (whites (fun i => (prism_fmap inrp fm) i = Flag.fail) 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]] BLACK".
       iPoseProof (whites_update with "WHITES BLACK") as "> [[[WHITES BLACK] FAIL] _]".
@@ -2777,7 +2777,7 @@ Module FairRA.
                ths
                (f0 f1: imap Id nat_wf)
                (fm: fmap _Id)
-               (UPD: fair_update f0 f1 (sum_fmap_r fm))
+               (UPD: fair_update f0 f1 (prism_fmap inrp fm))
                (SUCCESS: forall i (IN: fm i = Flag.success), List.In i ls)
                (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
                (NODUP: List.NoDup lf)
@@ -2806,13 +2806,13 @@ Module FairRA.
         { iApply (list_prop_sum_forall2 with "[WHITES]").
           { apply Forall2_flip. apply list_map_forall2. }
           2:{ iApply (whites_white_list with "WHITES"). instantiate (1:=inr).
-              { i. s. apply in_map_iff in IN. des. clarify. ss. auto. }
+              { i. s. apply in_map_iff in IN. des. clarify. unfold prism_fmap; ss. auto. }
               { apply injective_map_NoDup_strong; auto. i. clarify. }
           }
           { i. apply in_map_iff in INA. des. ss. clarify. }
         }
       }
-      { i. ss. unfold sum_fmap_r in IN. des_ifs. apply in_map_iff. eauto. }
+      { i. ss. unfold prism_fmap in IN; ss. unfold is_inr in IN; ss. des_ifs. apply in_map_iff. eauto. }
       { iApply (list_prop_sum_forall2 with "BLACK").
         { apply list_map_forall2. }
         { i. ss. subst. reflexivity. }
@@ -4301,7 +4301,7 @@ Module ObligationRA.
           (tid: thread_id) l
           ths
           (f0 f1: imap Id nat_wf)
-          (UPD: fair_update f0 f1 (sum_fmap_l (tids_fmap tid ths)))
+          (UPD: fair_update f0 f1 (prism_fmap inlp (tids_fmap tid ths)))
       :
       (FairRA.sat_target f0 ths)
         -∗
@@ -4330,7 +4330,7 @@ Module ObligationRA.
           lf ls ths
           (f0 f1: imap Id nat_wf)
           (fm: fmap _Id)
-          (UPD: fair_update f0 f1 (sum_fmap_r fm))
+          (UPD: fair_update f0 f1 (prism_fmap inrp fm))
           (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
           (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
           (NODUP: List.NoDup lf)

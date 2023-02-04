@@ -272,7 +272,7 @@ Section SCHEDULE.
 
   Definition interp_thread {R} :
     thread_id * thread R -> itree (eventE2 +' E) (thread R + R) :=
-    fun x => map_event (embed_left embed_event_r) (interp_thread_aux x).
+    fun x => map_event (embed_left (map_prism inrp)) (interp_thread_aux x).
 
   Definition interp_sched RT R : threads RT * scheduler RT R -> itree (eventE2 +' E) R.
   Proof.
@@ -288,11 +288,11 @@ Section SCHEDULE.
                | inr r => Ret (inl (Th.remove n ts, ktr (Some r)))
                end).
       * exact (Vis (inl1 Undefined) (Empty_set_rect _)).
-    - exact (Vis (inl1 (embed_event_l e)) (fun x => Ret (inl (ts, ktr x)))).
+    - exact (Vis (inl1 (map_prism inlp e)) (fun x => Ret (inl (ts, ktr x)))).
   Defined.
 
   Lemma unfold_interp_thread {R} tid (itr : thread R) :
-    interp_thread (tid, itr) = map_event (embed_left embed_event_r) (interp_thread_aux (tid, itr)).
+    interp_thread (tid, itr) = map_event (embed_left (map_prism inrp)) (interp_thread_aux (tid, itr)).
   Proof. ss. Qed.
 
   Lemma interp_thread_ret {R} tid (r : R) :
@@ -318,15 +318,15 @@ Section SCHEDULE.
 
   Lemma interp_thread_vis_eventE R tid X (e : eventE1 X) (ktr : ktree Es0 X R) :
     interp_thread (tid, Vis (inl1 (inl1 (inl1 e))) ktr) =
-      Vis (inl1 (embed_event_r e)) (fun x => tau;; interp_thread (tid, ktr x)).
+      Vis (inl1 (map_prism inrp e)) (fun x => tau;; interp_thread (tid, ktr x)).
   Proof.
     unfold interp_thread at 1, interp_thread_aux. rewrite unfold_iter. grind. rewrite map_event_vis.
-    eapply (f_equal (fun x => Vis (inl1 (embed_event_r e)) x)). extensionality x. grind. rewrite map_event_tau. grind.
+    eapply (f_equal (fun x => Vis (inl1 (map_prism inrp e)) x)). extensionality x. grind. rewrite map_event_tau. grind.
   Qed.
 
   Lemma interp_thread_trigger_eventE R tid X (e : eventE1 X) (ktr : ktree Es0 X R) :
     interp_thread (tid, x <- trigger (inl1 (inl1 e));; ktr x) =
-      x <- trigger (inl1 (embed_event_r e));; tau;; interp_thread (tid, ktr x).
+      x <- trigger (inl1 (map_prism inrp e));; tau;; interp_thread (tid, ktr x).
   Proof. rewrite ! bind_trigger. eapply interp_thread_vis_eventE. Qed.
 
   Lemma interp_thread_vis_gettid R tid (ktr : ktree Es0 thread_id R) :
@@ -387,7 +387,7 @@ Section SCHEDULE.
 
   Lemma interp_sched_vis RT R ths X (e : eventE0 X) (ktr : X -> scheduler RT R) :
     interp_sched (ths, Vis (inr1 e) ktr) =
-      Vis (inl1 (embed_event_l e)) (fun x => tau;; interp_sched (ths, ktr x)).
+      Vis (inl1 (map_prism inlp e)) (fun x => tau;; interp_sched (ths, ktr x)).
   Proof. unfold interp_sched. rewrite unfold_iter. grind.
          eapply observe_eta. ss. f_equal. extensionality x. grind.
   Qed.
@@ -543,7 +543,7 @@ Section INTERP.
         X (e: @eventE _Ident X) ktr
     :
     (interp_all st (Th.add tid (Vis (((e|)|)|)%sum ktr) ths) tid) =
-      (Vis (embed_event_r e) (fun x => tau;; tau;; interp_all st (Th.add tid (ktr x) ths) tid)).
+      (Vis (map_prism inrp e) (fun x => tau;; tau;; interp_all st (Th.add tid (ktr x) ths) tid)).
   Proof.
     unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
     rewrite interp_thread_vis_eventE. rewrite bind_vis. rewrite interp_state_vis.
@@ -574,7 +574,7 @@ Section INTERP.
         st (ths: @threads _Ident (sE State) R) tid
         ktr
     :
-    (interp_all st (Th.add tid (Vis (|Mod.Get id)%sum ktr) ths) tid) =
+    (interp_all st (Th.add tid (Vis (|Get id)%sum ktr) ths) tid) =
       (tau;; tau;; interp_all st (Th.add tid (ktr st) ths) tid).
   Proof.
     unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.

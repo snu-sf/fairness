@@ -306,7 +306,8 @@ Section SIM.
                           end) as gm_src0.
           exists gm_src0. splits.
           { subst. intros []; ss.
-            rewrite M_SRC1. specialize (FAIR (inr _i)); ss. destruct (m _i); eauto using monotone_weak. rewrite FAIR. auto.
+            rewrite M_SRC1. specialize (FAIR (inr _i)); ss. unfold prism_fmap in *; ss.
+            destruct (m _i); eauto using monotone_weak. rewrite FAIR. auto.
           }
           econs; eauto.
           guclo sim_imap_ctxR_spec; ss. econs; cycle 1.

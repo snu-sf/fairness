@@ -1,8 +1,8 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import Axioms WFLib ITreeLib.
-
-Require Import Coq.Classes.RelationClasses.
+From Fairness Require Export Event.
+From Coq Require Import Classes.RelationClasses.
 
 Set Implicit Arguments.
 
@@ -114,102 +114,6 @@ End Tr.
 #[export] Hint Unfold Tr.eq: core.
 #[export] Hint Resolve Tr.eq_mon: paco.
 #[export] Hint Resolve cpn3_wcompat: paco.
-
-
-
-Module Flag.
-
-  Variant t: Type :=
-  | fail
-  | emp
-  | success
-  .
-
-  Definition le: t -> t -> Prop :=
-    fun f0 f1 =>
-      match f0, f1 with
-      | fail, _ => True
-      | _, fail => False
-      | emp, _ => True
-      | _, emp => False
-      | success, _ => True
-      end.
-
-  Global Program Instance le_PreOrder: PreOrder le.
-  Next Obligation.
-    ii. destruct x; ss.
-  Qed.
-  Next Obligation.
-    ii. destruct x, y, z; ss.
-  Qed.
-
-End Flag.
-
-Section IDENT.
-
-  Definition ID := Type.
-
-  Definition id_prod (A B: ID): ID := (prod A B).
-  Definition id_sum (A B: ID): ID := (sum A B).
-
-  (* Class ID : Type := mk_id { id: Type }. *)
-
-  (* Definition id_prod (A B: ID): ID := mk_id (prod A.(id) B.(id)). *)
-  (* Definition id_sum (A B: ID): ID := mk_id (sum A.(id) B.(id)). *)
-
-End IDENT.
-
-
-Section EVENT.
-
-  (* Context {Ident: ID}. *)
-
-  Definition fmap (id: ID) := id -> Flag.t.
-
-  Variant eventE {id: ID}: Type -> Type :=
-    | Choose (X: Type): eventE X
-    | Fair (m: @fmap id): eventE unit
-    | Observe (fn: nat) (args: list nat): eventE nat
-    | Undefined: eventE void
-  .
-
-  Definition UB {id: ID} {E} `{@eventE id -< E} {R}:
-    itree E R :=
-    f <- trigger Undefined;;
-    match (f: void) with end.
-
-  Definition unwrap {id: ID} {E} `{@eventE id -< E} {R}
-             (r: option R): itree E R :=
-    match r with
-    | Some r => Ret r
-    | None => UB
-    end.
-
-  Definition sum_fmap_l {A B: ID} (fm: @fmap A): @fmap (id_sum A B) :=
-    fun sa => match sa with | inl a => (fm a) | inr _ => Flag.emp end.
-
-  Definition sum_fmap_r {A B: ID} (fm: @fmap B): @fmap (id_sum A B) :=
-    fun sb => match sb with | inl _ => Flag.emp | inr b => (fm b) end.
-
-  Definition embed_event_l {A B : ID} X : @eventE A X -> @eventE (id_sum A B) X :=
-    fun e => match e with
-          | Choose X => Choose X
-          | Fair m => Fair (sum_fmap_l m)
-          | Observe fn args => Observe fn args
-          | Undefined => Undefined
-          end.
-
-  Definition embed_event_r {A B : ID} X : @eventE B X -> @eventE (id_sum A B) X :=
-    fun e => match e with
-          | Choose X => Choose X
-          | Fair m => Fair (sum_fmap_r m)
-          | Observe fn args => Observe fn args
-          | Undefined => Undefined
-          end.
-
-End EVENT.
-
-
 
 Section STS.
 
@@ -427,7 +331,7 @@ Section BEHAVES.
     { econs 1. eapply rclo3_clo_base. econs 1; eauto. }
     { econs 2. eapply rclo3_clo_base. econs 1; eauto. }
     { econs 3. eapply rclo3_clo_base. econs 1. eauto.
-      instantiate (1:=fun i => match fmap0 i with
+      instantiate (1:=fun i => match fmap i with
                             | Flag.fail => match excluded_middle_informative (x1 i = imap1 i) with
                                           | left _ => idx1 i
                                           | right _ => imap1 i
@@ -473,7 +377,7 @@ Section BEHAVES.
     }
     { econs. eapply rclo4_clo_base. econs; eauto. }
     { econs. eapply IHBEH.
-      instantiate (1:=fun i => match fmap0 i with
+      instantiate (1:=fun i => match fmap i with
                             | Flag.fail => match excluded_middle_informative (x1 i = imap0 i) with
                                           | left _ => imap1 i
                                           | right _ => imap0 i
@@ -766,7 +670,7 @@ Section IMAPAUX1.
   Lemma imap_proj_update_l
         id1 id2 f
         (im0 im1: @imap (id_sum id1 id2) wf)
-        (UPD: fair_update im0 im1 (sum_fmap_l f))
+        (UPD: fair_update im0 im1 (prism_fmap inlp f))
     :
     (<<LEFT: fair_update (imap_proj_id1 im0) (imap_proj_id1 im1) f>>) /\
       (<<RIGHT: imap_proj_id2 im0 = imap_proj_id2 im1>>)
@@ -774,17 +678,17 @@ Section IMAPAUX1.
   Proof.
     split.
     { ii. specialize (UPD (inl i)).
-      unfold sum_fmap_l in UPD. des_ifs.
+      unfold prism_fmap in UPD; ss.
     }
     { rr. extensionality i. specialize (UPD (inr i)).
-      unfold sum_fmap_l in UPD. ss.
+      unfold prism_fmap in UPD; ss.
     }
   Qed.
 
   Lemma imap_proj_update_r
         id1 id2 f
         (im0 im1: @imap (id_sum id1 id2) wf)
-        (UPD: fair_update im0 im1 (sum_fmap_r f))
+        (UPD: fair_update im0 im1 (prism_fmap inrp f))
     :
     (<<RIGHT: fair_update (imap_proj_id2 im0) (imap_proj_id2 im1) f>>) /\
       (<<LEFT: imap_proj_id1 im0 = imap_proj_id1 im1>>)
@@ -792,10 +696,10 @@ Section IMAPAUX1.
   Proof.
     split.
     { ii. specialize (UPD (inr i)).
-      unfold sum_fmap_r in UPD. des_ifs.
+      unfold prism_fmap in UPD; ss.
     }
     { rr. extensionality i. specialize (UPD (inl i)).
-      unfold sum_fmap_r in UPD. ss.
+      unfold prism_fmap in UPD; ss.
     }
   Qed.
 End IMAPAUX1.

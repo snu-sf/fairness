@@ -380,7 +380,7 @@ Section SIM.
         itr_src ktr_tgt ths im_src im_tgt0 st_src st_tgt
     :
     bi_entails
-      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 (sum_fmap_r f)⌝ -* isim r g Q itr_src (ktr_tgt tt) ths im_src im_tgt1 st_src st_tgt)
+      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 (prism_fmap inrp f)⌝ -* isim r g Q itr_src (ktr_tgt tt) ths im_src im_tgt1 st_src st_tgt)
       (isim r g Q itr_src (trigger (Fair f) >>= ktr_tgt) ths im_src im_tgt0 st_src st_tgt)
   .
   Proof.
@@ -445,7 +445,7 @@ Section SIM.
         ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
     :
     bi_entails
-      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))⌝ -* isim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
+      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))⌝ -* isim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
       (isim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
   .
   Proof.
@@ -481,7 +481,7 @@ Section SIM.
         ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
     :
     bi_entails
-      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))⌝ -* isim g g Q (ktr_src tt) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
+      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))⌝ -* isim g g Q (ktr_src tt) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
       (isim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
   .
   Proof.

@@ -159,7 +159,7 @@ Section INVARIANT.
   Definition default_I_past (tid: thread_id): TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
     fun ths im_src im_tgt st_src st_tgt =>
       (∃ im_tgt0,
-          (⌜fair_update im_tgt0 im_tgt (sum_fmap_l (tids_fmap tid ths))⌝)
+          (⌜fair_update im_tgt0 im_tgt (prism_fmap inlp (tids_fmap tid ths))⌝)
             ** (default_I ths im_src im_tgt0 st_src st_tgt))%I.
 
   Definition own_thread (tid: thread_id): iProp :=
@@ -231,7 +231,7 @@ Section INVARIANT.
   Lemma default_I_thread_alloc ths0 im_src im_tgt0 st_src st_tgt
         tid ths1 im_tgt1
         (THS: TIdSet.add_new tid ths0 ths1)
-        (TID_TGT : fair_update im_tgt0 im_tgt1 (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp)))
+        (TID_TGT : fair_update im_tgt0 im_tgt1 (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp)))
     :
     (default_I ths0 im_src im_tgt0 st_src st_tgt)
       -∗
@@ -249,7 +249,7 @@ Section INVARIANT.
 
   Lemma default_I_update_ident_thread ths im_src im_tgt0 st_src st_tgt
         tid im_tgt1 l
-        (UPD: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths)))
+        (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
     :
     (default_I ths im_src im_tgt0 st_src st_tgt)
       -∗
@@ -265,7 +265,7 @@ Section INVARIANT.
   Lemma default_I_update_ident_target lf ls
         ths im_src im_tgt0 st_src st_tgt
         fm im_tgt1
-        (UPD: fair_update im_tgt0 im_tgt1 (sum_fmap_r fm))
+        (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap inrp fm))
         (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
@@ -393,7 +393,7 @@ Section INVARIANT.
   Lemma default_I_past_update_ident_target tid lf ls
         ths im_src im_tgt0 st_src st_tgt
         fm im_tgt1
-        (UPD: fair_update im_tgt0 im_tgt1 (sum_fmap_r fm))
+        (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap inrp fm))
         (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
@@ -416,14 +416,14 @@ Section INVARIANT.
                          | inr i => im_tgt1 (inr i)
                          end)).
       ii. specialize (UPD i). specialize (H i).
-      unfold sum_fmap_l, tids_fmap in *. des_ifs.
+      unfold prism_fmap, tids_fmap in *; ss. unfold is_inl, is_inr in *; ss. des_ifs.
       { rewrite <- H. auto. }
       { rewrite UPD. auto. }
     }
     iModIntro. iFrame.
     unfold default_I_past. iExists _. iSplit; eauto. iPureIntro.
     ii. specialize (UPD i). specialize (H i).
-    unfold sum_fmap_l, tids_fmap in *. des_ifs.
+    unfold prism_fmap, tids_fmap in *; ss. unfold is_inl in *; ss. des_ifs.
     { rewrite UPD. auto. }
     { rewrite <- H. auto. }
   Qed.

@@ -95,8 +95,8 @@ Section NAT.
     : local_sim to_shared_rel_nat RR src tgt.
   Proof.
     ii. move SIM at bottom.
-    assert (TID_TGT' : @fair_update _ wf_tgt (wfemb ∘ im_tgt0) (wfemb ∘ im_tgt1) (sum_fmap_l (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))).
-    { ii. specialize (TID_TGT i). destruct i as [i|i]; ss.
+    assert (TID_TGT' : @fair_update _ wf_tgt (wfemb ∘ im_tgt0) (wfemb ∘ im_tgt1) (prism_fmap inlp (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))).
+    { ii. specialize (TID_TGT i). unfold prism_fmap in *; ss. destruct i as [i|i]; ss.
       - des_ifs. unfold compose. f_equal. ss.
       - unfold compose. f_equal. ss.
     }
