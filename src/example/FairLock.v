@@ -81,7 +81,8 @@ Module AbsLockW.
                                else if (NatMapP.F.In_dec ts i) then Flag.fail
                                     else Flag.emp));;
       _ <- trigger Yield;;
-      Ret (TView.join tvw tvw_lock).
+      '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le (TView.join tvw tvw_lock) tvw')));;
+      Ret tvw'.
 
   Definition unlock_fun
     : ktree (((@eventE thread_id) +' cE) +' (sE ((option TView.t) * NatMap.t unit)%type))
@@ -90,7 +91,11 @@ Module AbsLockW.
       _ <- trigger Yield;;
       '(own, ts) <- trigger (@Get _);;
       match own with
-      | None => _ <- trigger (Put (Some tvw, ts));; _ <- trigger Yield;; Ret tvw
+      | None =>
+          _ <- trigger (Put (Some tvw, ts));;
+          _ <- trigger Yield;;
+      '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le tvw tvw')));;
+      Ret tvw'
       | Some _ => UB
       end.
 

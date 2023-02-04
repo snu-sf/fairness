@@ -392,7 +392,6 @@ Section SIM.
           { eapply FIND. }
           auto.
         }
-
         iPoseProof (ObligationRA.correl_thread_correlate with "JCOR WTH") as "> DEC".
         iDestruct "DEC" as "[DEC | DONE]"; cycle 1.
         { iPoseProof (ObligationRA.pending_not_shot with "JPEND DONE") as "CONTRA". auto. }
@@ -559,13 +558,15 @@ Section SIM.
         iFrame.
       }
       iIntros "DUTY _". rred.
+      iApply stsim_tauR. rred.
+      iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred.
       iApply stsim_tauR. rred. iApply stsim_tauR. rred.
 
       iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL LOCK]") as "SIM".
-      { instantiate (1:= TView.join tvw0 tvw). iFrame. iSplit.
-        { iPureIntro. apply TView.join_l. }
+      { instantiate (1:= tvw'). iFrame. iSplit.
+        { iPureIntro. etrans. 2: eapply l0. apply TView.join_l. }
         iSplitL "DUTY NEWW2 LOCK". iExists k. iFrame.
-        iExists tvw. iFrame. iPureIntro. apply TView.join_r.
+        iExists tvw. iFrame. iPureIntro. etrans. 2: eapply l0. apply TView.join_r.
       }
       iApply stsim_reset. iFrame.
     }
@@ -645,9 +646,11 @@ Section SIM.
       iPoseProof (ObligationRA.tax_cons_unfold with "TAX2") as "[_ TAX2]". iFrame.
     }
     iIntros "DUTY _". rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
     iApply stsim_reset. iApply "SIM". iFrame.
-    iPureIntro. reflexivity.
+    iPureIntro. auto.
 
   Qed.
 
