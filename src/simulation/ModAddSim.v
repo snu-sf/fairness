@@ -57,7 +57,7 @@ Section IMAP_OPERATIONS.
   Qed.
 
   Lemma chop_ctx_fair_ctx ths_usr IM_TGT0 IM_TGT1 m
-    (FAIR : fair_update IM_TGT0 IM_TGT1 (sum_fmap_r (sum_fmap_l m)))
+    (FAIR : fair_update IM_TGT0 IM_TGT1 (sum_fmap_r (prism_fmap inlp m)))
     : chop_ctx ths_usr IM_TGT0 = chop_ctx ths_usr IM_TGT1.
   Proof.
     extensionalities i. destruct i as [i|i]; ss.
@@ -157,7 +157,7 @@ Section ADD_RIGHT_MONO_SIM.
   Qed.
 
   Lemma lift_ma_local_sim_ctx R (itr : itree _ R)
-    : local_sim lift_ma eq (embed_l M1 M2_src itr) (embed_l M1 M2_tgt itr).
+    : local_sim lift_ma eq (map_event (emb_l M1 M2_src) itr) (map_event (emb_l M1 M2_tgt) itr).
   Proof.
     (* tid ∈ ths_ctx *)
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0 IM_TGT1 TID_TGT.
@@ -189,7 +189,7 @@ Section ADD_RIGHT_MONO_SIM.
     intros ths1 IM_SRC1 IM_TGT2 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0.
     intros IM_TGT2' TGT fs ft.
     simpl in INV1_0. des. subst r_sha_th1. unfold_prod VALID1_0.
-    unfold embed_l, embed_r.
+    unfold emb_l, emb_r.
     assert (INV : lift_ma (ths1, IM_SRC1, IM_TGT2', st_src1, st_tgt1) (global_th ths_ctx1 ths_usr1, r_sha_w1)).
     { ss. exists im_src1, ths_ctx1, ths_usr1. splits; ss.
       - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
@@ -205,7 +205,7 @@ Section ADD_RIGHT_MONO_SIM.
       INV into INV0, VALID1_0 into VALID_TH0, VALID1_1 into VALID_W0.
     revert_until tid. ginit. gcofix CIH. i.
     destruct_itree itr; [| | destruct e as [[[]|]|] ].
-    - unfold map_lens. rewrite ! map_event_ret.
+    - rewrite ! map_event_ret.
       gstep. eapply pind9_fold. econs. ss.
       exists (NatSet.remove tid ths0), (URA.unit, URA.unit), (global_th (NatSet.remove tid ths_ctx0) ths_usr0, r_sha_w0).
       splits; ss.
@@ -217,13 +217,13 @@ Section ADD_RIGHT_MONO_SIM.
         eapply local_th_context_in_context in VALID_TH0.
         eauto using NatMapP.Partition_sym, Partition_remove.
       }
-    - unfold map_lens. rewrite ! map_event_tau.
+    - rewrite ! map_event_tau.
       gstep.
       eapply pind9_fold. econs. split; ss.
       eapply pind9_fold. econs. split; ss.
       eapply pind9_fold. econs.
       gfinal. left. eapply CIH; eauto.
-    - unfold map_lens. rewrite ! map_event_vis.
+    - rewrite ! map_event_vis.
       rewrite <- 2 bind_trigger.
       gstep. destruct e; ss.
       + eapply pind9_fold. eapply lsim_chooseR. i. esplit; ss.
@@ -234,7 +234,8 @@ Section ADD_RIGHT_MONO_SIM.
         eapply pind9_fold. eapply lsim_fairL.
         des. inversion INV2. subst ths_ctx1 ths_usr1. exists (add_ctx (pick_ctx IM_TGT1) im_src0). split.
         { subst. ii. destruct i; ss.
-          specialize (FAIR (inr (inl i))). unfold pick_ctx. ss. des_ifs.
+          specialize (FAIR (inr (inl i))). unfold pick_ctx. ss.
+          unfold prism_fmap in *. ss. des_ifs.
           + econs. ss.
           + f_equal. ss.
         }
@@ -245,7 +246,7 @@ Section ADD_RIGHT_MONO_SIM.
       + eapply pind9_fold. eapply lsim_observe. i.
         gfinal. left. eapply CIH; eauto.
       + eapply pind9_fold. eapply lsim_UB.
-    - unfold map_lens. rewrite ! map_event_vis. simpl.
+    - rewrite ! map_event_vis. simpl.
       rewrite <- 2 bind_trigger.
       gstep. destruct c.
       + eapply pind9_fold. eapply lsim_sync.
@@ -264,12 +265,12 @@ Section ADD_RIGHT_MONO_SIM.
         eapply pind9_fold. eapply lsim_tidL. esplit; ss.
         eapply pind9_fold. eapply lsim_progress.
         gfinal. left. eapply CIH; eauto.
-    - unfold map_lens. rewrite ! map_event_vis. ss.
+    - rewrite ! map_event_vis. ss.
       rewrite <- 2 bind_trigger.
       destruct c. gstep. eapply pind9_fold. eapply lsim_call.
       i. gfinal. left. eapply CIH; eauto.
     - destruct s.
-      unfold map_lens. rewrite ! map_event_vis. ss.
+      rewrite ! map_event_vis. ss.
       rewrite <- 2 bind_trigger.
       gstep.
       eapply pind9_fold. eapply lsim_rmwL. esplit; ss.
@@ -281,7 +282,7 @@ Section ADD_RIGHT_MONO_SIM.
 
   Lemma lift_ma_local_sim_usr R_src R_tgt (RR : R_src -> R_tgt -> Prop) itr_src itr_tgt
     (SIM : local_sim (lifted I) RR itr_src itr_tgt)
-    : local_sim lift_ma RR (embed_r M1 M2_src itr_src) (embed_r M1 M2_tgt itr_tgt).
+    : local_sim lift_ma RR (map_event (emb_r M1 M2_src) itr_src) (map_event (emb_r M1 M2_tgt) itr_tgt).
   Proof.
     (* tid ∈ ths_usr *)
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0. i.
@@ -325,7 +326,7 @@ Section ADD_RIGHT_MONO_SIM.
       - eauto.
     }
     specialize (SIM ths_usr2 im_src2 (chop_ctx ths_usr2 IM_TGT2) (snd st_src2) (snd st_tgt2) r_sha_w2 r_ctx_w2 INV2_4 VALID2_1 (chop_ctx ths_usr2 IM_TGT2') TGT' fs ft).
-    unfold embed_l, embed_r.
+    unfold emb_r.
 
     eapply pick_ctx_fair_thread in TGT. rewrite TGT in INV2_0.
     clear - INV2_0 INV2_1 INV2_3 VALID2_0 VALID2_1 SIM.
@@ -344,7 +345,7 @@ Section ADD_RIGHT_MONO_SIM.
     clear DEC. subst RR_MEM SHA_MEM.
     eapply pind9_unfold in PR; eauto with paco. eapply pind9_fold. inv PR.
     - clear - LSIM VALID_TH0 VALID_W0 INV1 INV2.
-      unfold map_lens. rewrite ! map_event_ret. econs.
+      rewrite ! map_event_ret. econs.
       ss. des. subst.
       exists (NatMap.remove tid ths0), (URA.unit, r_own), (global_th ths_ctx0 (NatMap.remove tid ths_usr0), r_shared).
       splits; ss.
@@ -361,36 +362,36 @@ Section ADD_RIGHT_MONO_SIM.
               + pose proof (@NatMapP.F.remove_neq_in_iff _ ths_usr0 tid i H). des_ifs; try tauto; reflexivity.
             - des_ifs. left. ss.
           }
-    - unfold map_lens. rewrite ! map_event_tau. econs. split; ss.
+    - rewrite ! map_event_tau. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
-    - unfold map_lens. rewrite ! map_event_trigger. econs.
+    - rewrite ! map_event_trigger. econs.
       des. destruct LSIM. exists x. split; ss. eapply IH; eauto.
-    - unfold map_lens. rewrite ! map_event_trigger. econs. split; ss.
+    - rewrite ! map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
       + destruct st_src0, st_tgt0; ss.
       + destruct st_src0; ss.
-    - unfold map_lens. rewrite ! map_event_trigger. econs. split; ss.
+    - rewrite ! map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
-    - unfold map_lens. rewrite ! map_event_trigger. econs.
-    - unfold map_lens. rewrite ! map_event_trigger. econs.
+    - rewrite ! map_event_trigger. econs.
+    - rewrite ! map_event_trigger. econs.
       des. destruct LSIM0. exists (add_ctx (pick_ctx IM_TGT0) im_src1). splits.
       { clear - FAIR. ii. destruct i as [i|i]; ss.
-        specialize (FAIR i). des_ifs.
+        unfold prism_fmap; ss. specialize (FAIR i). des_ifs.
         - econs. ss.
         - f_equal. ss.
       }
       split; ss. eapply IH; eauto.
-    - unfold map_lens. rewrite ! map_event_tau. econs. split; ss.
+    - rewrite ! map_event_tau. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
-    - unfold map_lens. rewrite ! map_event_trigger. econs. i. specialize (LSIM x). split; ss.
+    - rewrite ! map_event_trigger. econs. i. specialize (LSIM x). split; ss.
       destruct LSIM. eapply IH; eauto.
-    - unfold map_lens. rewrite ! map_event_trigger. econs. split; ss.
+    - rewrite ! map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
       + destruct st_src0, st_tgt0; ss.
       + destruct st_tgt0; ss.
-    - unfold map_lens. rewrite ! map_event_trigger. econs. split; ss.
+    - rewrite ! map_event_trigger. econs. split; ss.
       destruct LSIM. eapply IH; eauto.
-    - unfold map_lens. rewrite ! map_event_trigger. econs. intros IM_TGT1 FAIR. split; ss.
+    - rewrite ! map_event_trigger. econs. intros IM_TGT1 FAIR. split; ss.
       assert (FAIR' : fair_update (chop_ctx ths_usr0 IM_TGT0) (chop_ctx ths_usr0 IM_TGT1) (sum_fmap_r f)).
       { ii. destruct i as [i|i]; ss.
         - specialize (FAIR (inl i)). ss. des_ifs.
@@ -400,25 +401,17 @@ Section ADD_RIGHT_MONO_SIM.
       destruct LSIM. eapply IH; eauto.
       + extensionalities i. destruct i; ss. f_equal.
         specialize (FAIR (inr (inl i))). ss.
-    - unfold map_lens. rewrite ! map_event_trigger. econs. i. specialize (LSIM ret). pclearbot.
+    - rewrite ! map_event_trigger. econs. i. specialize (LSIM ret). pclearbot.
       gfinal. left. eapply CIH; eauto.
-    - unfold map_lens. rewrite ! map_event_trigger. econs. i. specialize (LSIM ret). pclearbot.
+    - rewrite ! map_event_trigger. econs. i. specialize (LSIM ret). pclearbot.
       gfinal. left. eapply CIH; eauto.
-    - unfold map_lens.
-      match goal with
-      | [ |- __lsim _ _ _ _ _ _ _ _ _ (map_event ?EMB1 (map_event ?EMB2 _)) _ ] =>
-          set EMB1 as emb1; set EMB2 as emb2
-      end.
+    - match goal with [ |- __lsim _ _ _ _ _ _ _ _ _ (map_event ?EMB _) _ ] => set EMB as emb end.
       rewrite ! map_event_trigger.
       eapply lsim_yieldL. split; ss.
-      replace (trigger Yield) with (trigger (emb1 unit (subevent unit (emb2 unit (subevent unit Yield))))) by ss.
+      replace (trigger Yield) with (trigger (emb unit (subevent unit Yield))) by ss.
       rewrite <- ! map_event_trigger.
       destruct LSIM. eapply IH; eauto.
-    - unfold map_lens.
-      match goal with
-      | [ |- __lsim _ _ _ _ _ _ _ _ (map_event ?EMB1 (map_event ?EMB2 _)) _ _ ] =>
-          set EMB1 as emb1; set EMB2 as emb2
-      end.
+    - match goal with [ |- __lsim _ _ _ _ _ _ _ _ (map_event ?EMB _) _ _ ] => set EMB as emb end.
       rewrite ! map_event_trigger.
       eapply lsim_yieldR.
       { instantiate (1 := (global_th ths_ctx0 ths_usr0, r_shared)).
@@ -435,13 +428,13 @@ Section ADD_RIGHT_MONO_SIM.
         - specialize (TGT (inr (inr i))). ss.
       }
       specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
-      replace (trigger Yield) with (trigger (emb1 unit (subevent unit (emb2 unit (subevent unit Yield))))) by ss.
+      replace (trigger Yield) with (trigger (emb unit (subevent unit Yield))) by ss.
       rewrite <- ! map_event_trigger.
       destruct LSIM. eapply IH; eauto.
       + subst. extensionalities i. destruct i as [i|i]; ss. f_equal.
         specialize (TGT (inr (inl i))). ss.
       + subst. ss.
-    - unfold map_lens. rewrite ! map_event_trigger. eapply lsim_sync.
+    - rewrite ! map_event_trigger. eapply lsim_sync.
       { instantiate (1 := (global_th ths_ctx0 ths_usr0, r_shared)).
         ss. exists im_src0, ths_ctx0, ths_usr0. splits; ss.
       }
@@ -502,7 +495,7 @@ Section MODADD_THEOREM.
           - i. specialize (TID_TGT (inr (inr i))). specialize (INV1 i). ss. rewrite TID_TGT. ss.
           - i. specialize (TID_TGT (inr (inl i))). specialize (INV2 i). ss. rewrite TID_TGT. ss.
         }
-        i. unfold embed_l, embed_r. remember (k args) as itr.
+        i. unfold emb_l, emb_r. remember (k args) as itr.
         assert (INV_CIH : I (ths, im_src1, im_tgt3, st_src2, st_tgt2) tt).
         { des. ss. splits; ss.
           - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. rewrite TGT. ss.
@@ -512,17 +505,17 @@ Section MODADD_THEOREM.
         rename INV_CIH into INV, VALID0 into VALID, im_src1 into im_src0, im_tgt3 into im_tgt0.
         revert_until tid. ginit. gcofix CIH. i.
         destruct_itree itr.
-        * unfold map_lens. rewrite ! map_event_ret.
+        * rewrite ! map_event_ret.
           gstep. eapply pind9_fold.
           econs. inv INV. des. ss. esplits; eauto.
-        * unfold map_lens. rewrite ! map_event_tau.
+        * rewrite ! map_event_tau.
           gstep.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs.
           gfinal. left. eapply CIH; eauto.
         * { destruct e as [[[]|] | ].
-            - unfold map_lens. rewrite ! map_event_vis, <- ! bind_trigger.
+            - rewrite ! map_event_vis, <- ! bind_trigger.
               gstep. destruct e; ss.
               + eapply pind9_fold. eapply lsim_chooseR. i. esplit; ss.
                 eapply pind9_fold. eapply lsim_chooseL. exists x. esplit; ss.
@@ -540,7 +533,7 @@ Section MODADD_THEOREM.
               + eapply pind9_fold. eapply lsim_observe. i.
                 gfinal. left. eapply CIH; eauto.
               + eapply pind9_fold. eapply lsim_UB.
-            - unfold map_lens. rewrite ! map_event_vis, <- ! bind_trigger. ss.
+            - rewrite ! map_event_vis, <- ! bind_trigger. ss.
               gstep. destruct c.
               + eapply pind9_fold. eapply lsim_sync; eauto.
                 gfinal. left. eapply CIH; eauto. ss; des; splits; ss.
@@ -550,11 +543,11 @@ Section MODADD_THEOREM.
                 eapply pind9_fold. eapply lsim_tidL. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; eauto.
-            - unfold map_lens. rewrite ! map_event_vis, <- ! bind_trigger. ss.
+            - rewrite ! map_event_vis, <- ! bind_trigger. ss.
               destruct c. gstep. eapply pind9_fold.
               eapply lsim_call. i. gfinal. left. eapply CIH; eauto.
             - destruct s.
-              unfold map_lens. rewrite ! map_event_vis, <- ! bind_trigger. ss.
+              rewrite ! map_event_vis, <- ! bind_trigger. ss.
               gstep.
               eapply pind9_fold. eapply lsim_rmwL. esplit; ss.
               eapply pind9_fold. eapply lsim_rmwR. esplit; ss.
@@ -568,7 +561,7 @@ Section MODADD_THEOREM.
           - i. specialize (TID_TGT (inr (inr i))). specialize (INV1 i). ss. rewrite TID_TGT. ss.
           - i. specialize (TID_TGT (inr (inl i))). specialize (INV2 i). ss. rewrite TID_TGT. ss.
         }
-        i. unfold embed_l, embed_r. remember (k args) as itr.
+        i. unfold emb_l, emb_r. remember (k args) as itr.
         assert (INV_CIH : I (ths, im_src1, im_tgt3, st_src2, st_tgt2) tt).
         { des. ss. splits; ss.
           - ii. specialize (TGT (inr (inr i))). specialize (INV2 i). ss. rewrite TGT. ss.
@@ -578,17 +571,17 @@ Section MODADD_THEOREM.
         rename INV_CIH into INV, VALID0 into VALID, im_src1 into im_src0, im_tgt3 into im_tgt0.
         revert_until tid. ginit. gcofix CIH. i.
         destruct_itree itr.
-        * unfold map_lens. rewrite ! map_event_ret.
+        * rewrite ! map_event_ret.
           gstep. eapply pind9_fold.
           econs. inv INV. des. ss. esplits; eauto.
-        * unfold map_lens. rewrite ! map_event_tau.
+        * rewrite ! map_event_tau.
           gstep.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs. split; ss.
           eapply pind9_fold. econs.
           gfinal. left. eapply CIH; eauto.
         * { destruct e as [[[]|] | ].
-            - unfold map_lens. rewrite ! map_event_vis, <- ! bind_trigger.
+            - rewrite ! map_event_vis, <- ! bind_trigger.
               gstep. destruct e; ss.
               + eapply pind9_fold. eapply lsim_chooseR. i. esplit; ss.
                 eapply pind9_fold. eapply lsim_chooseL. exists x. esplit; ss.
@@ -606,7 +599,7 @@ Section MODADD_THEOREM.
               + eapply pind9_fold. eapply lsim_observe. i.
                 gfinal. left. eapply CIH; eauto.
               + eapply pind9_fold. eapply lsim_UB.
-            - unfold map_lens. rewrite ! map_event_vis, <- ! bind_trigger. ss.
+            - rewrite ! map_event_vis, <- ! bind_trigger. ss.
               gstep. destruct c.
               + eapply pind9_fold. eapply lsim_sync; eauto.
                 gfinal. left. eapply CIH; eauto. ss; des; splits; ss.
@@ -616,11 +609,11 @@ Section MODADD_THEOREM.
                 eapply pind9_fold. eapply lsim_tidL. esplit; ss.
                 eapply pind9_fold. eapply lsim_progress.
                 gfinal. left. eapply CIH; eauto.
-            - unfold map_lens. rewrite ! map_event_vis, <- ! bind_trigger. ss.
+            - rewrite ! map_event_vis, <- ! bind_trigger. ss.
               destruct c. gstep. eapply pind9_fold.
               eapply lsim_call. i. gfinal. left. eapply CIH; eauto.
             - destruct s.
-              unfold map_lens. rewrite ! map_event_vis, <- ! bind_trigger. ss.
+              rewrite ! map_event_vis, <- ! bind_trigger. ss.
               gstep.
               eapply pind9_fold. eapply lsim_rmwL. esplit; ss.
               eapply pind9_fold. eapply lsim_rmwR. esplit; ss.

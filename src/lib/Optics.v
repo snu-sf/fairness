@@ -93,6 +93,29 @@ Section PRODUCT_LENS.
 
 End PRODUCT_LENS.
 
+Section SUM_PRISM.
+
+  Context {A B : Type}.
+
+  Definition is_inl : A + B -> option A :=
+    fun x =>
+      match x with
+      | inl a => Some a
+      | inr _ => None
+      end.
+
+  Definition is_inr : A + B -> option B :=
+    fun x =>
+      match x with
+      | inl _ => None
+      | inr b => Some b
+      end.
+
+  Definition inlp : Prism.t (A + B) A := {| Prism.review := inl; Prism.preview := is_inl |}.
+  Definition inrp : Prism.t (A + B) B := {| Prism.review := inr; Prism.preview := is_inr |}.
+
+End SUM_PRISM.
+
 Section TEST.
 
   Let lens1 : Lens.t ((nat * nat) * nat) nat := (fstl ⋅ fstl)%lens.
