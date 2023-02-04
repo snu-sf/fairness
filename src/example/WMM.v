@@ -81,37 +81,36 @@ Module WMem.
     ktree (((@eventE ident) +' cE) +' sE t) (TView.t * Loc.t * Const.t * Ordering.t * Ordering.t) (TView.t * Const.t) :=
     fun '(tvw0, loc, addendum, ordr, ordw) =>
       msc <- trigger (@Get _);;
-      '(exist _ (lc1, to, val, sc1, mem1) _) <- trigger (Choose (sig (fun '(lc2, from, val, sc1, mem1) =>
-                                                                   exists lc1 to releasedr releasedw kind,
-
-
-                                                                     (Local.read_step
-                                                                        (Local.mk tvw0 Memory.bot)
-                                                                        (msc.(memory))
-                                                                        loc
-                                                                        from
-                                                                        val
-                                                                        releasedr
-                                                                        ordr
-                                                                        lc1) /\
-                                                                       (Local.write_step
-                                                                          lc1
-                                                                          (msc.(sc))
-                                                                          (msc.(memory))
-                                                                          loc
-                                                                          from
-                                                                          to
-                                                                          (Const.add val addendum)
-                                                                          releasedr
-                                                                          releasedw
-                                                                          ordw
-                                                                          lc1
-                                                                          sc1
-                                                                          mem1
-                                                                          kind))));;
+      '(exist _ (lc2, to, val, sc1, mem1) _) <-
+        trigger (Choose (sig (fun '(lc2, to, val, sc1, mem1) =>
+                                exists lc1 from releasedr releasedw kind,
+                                  (Local.read_step
+                                     (Local.mk tvw0 Memory.bot)
+                                     (msc.(memory))
+                                     loc
+                                     from
+                                     val
+                                     releasedr
+                                     ordr
+                                     lc1) /\
+                                    (Local.write_step
+                                       lc1
+                                       (msc.(sc))
+                                       (msc.(memory))
+                                       loc
+                                       from
+                                       to
+                                       (Const.add val addendum)
+                                       releasedr
+                                       releasedw
+                                       ordw
+                                       lc2
+                                       sc1
+                                       mem1
+                                       kind))));;
       _ <- trigger (Fair (missed msc loc to));;
       _ <- trigger (Put (mk mem1 sc1));;
-      Ret (lc1.(Local.tview), val)
+      Ret (lc2.(Local.tview), val)
   .
 
   Definition mod: Mod.t :=
@@ -121,9 +120,10 @@ Module WMem.
                      ("load", Mod.wrap_fun load_fun);
                      ("faa", Mod.wrap_fun faa_fun)
       ]).
+
 End WMem.
 
-From Fairness Require Import PCM IProp IPM StateRA MonotonePCM.
+From Fairness Require Import PCM IProp IPM FairRA StateRA MonotonePCM.
 
 Section MEMRA.
   Definition wmemRA: URA.t.
@@ -184,13 +184,14 @@ Section MEMRA.
   Admitted.
 
   Lemma wmemory_ra_faa
-        v
+        v msc
         tvw0 loc addendum ordr ordw
-        msc
-        lc2 from val sc1 mem1
-        lc1 to releasedr releasedw kind
+        lc1 from releasedr releasedw kind
+        lc2 to val sc1 mem1
         (READ: Local.read_step (Local.mk tvw0 Memory.bot) (msc.(WMem.memory)) loc from val releasedr ordr lc1)
         (WRITE: Local.write_step lc1 (msc.(WMem.sc)) (msc.(WMem.memory)) loc from to (Const.add val addendum) releasedr releasedw ordw lc2 sc1 mem1 kind)
+        (ORDR: ordr = Ordering.plain)
+        (ORDW: ordw = Ordering.acqrel)
     :
     (wmemory_black msc)
       -∗
@@ -201,6 +202,92 @@ Section MEMRA.
   Proof.
   Admitted.
 
+
+  (* full points-to *)
+  Definition wProp := Const.t -> TView.t -> iProp.
+  Definition wor (P Q: wProp): wProp := fun c vw => ((P c vw) ∨ (Q c vw))%I.
+
+  Definition lift_wProp (P: wProp) (c: Const.t) (vw: TView.t): iProp :=
+    ∃ vw', (P c vw') ∗ (⌜TView.le vw' vw⌝).
+
+  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+
+  Definition wpoints_to_full (l: Loc.t) (V: TView.t) (k: nat) (P Q: wProp) : iProp.
+  Admitted.
+
+  Lemma wmemory_ra_load_acq
+        l V k (P Q: wProp)
+        m val vw0 vw1
+        ord lc1 to released
+        (READ: Local.read_step (Local.mk vw0 Memory.bot) m.(WMem.memory) l to val released ord lc1)
+        (VIEW: vw1 = lc1.(Local.tview))
+        (ORD: ord = Ordering.acqrel)
+    :
+    (wmemory_black m)
+      -∗
+      (wpoints_to_full l V k P Q)
+      -∗
+      ((⌜TView.le vw0 vw1⌝)
+         ∗ (wmemory_black m)
+         ∗ (wpoints_to_full l V k P Q)
+         ∗ (((lift_wProp P val vw1) ∗ (⌜(TView.le vw1 V) /\ (vw1 <> V)⌝))
+            ∨ ((lift_wProp Q val vw1) ∗ (⌜TView.le V vw1⌝)))
+      ).
+  Proof.
+  Admitted.
+
+  Lemma wmemory_ra_load_rlx
+        l V k (P Q: wProp)
+        m val vw0 vw1
+        ord lc1 to released
+        (READ: Local.read_step (Local.mk vw0 Memory.bot) m.(WMem.memory) l to val released ord lc1)
+        (VIEW: vw1 = lc1.(Local.tview))
+        (ORD: ord = Ordering.relaxed)
+    :
+    (wmemory_black m)
+      -∗
+      (wpoints_to_full l V k P Q)
+      -∗
+      (⌜TView.le V vw0⌝)
+      -∗
+      ((⌜TView.le vw0 vw1⌝)
+         ∗ (wmemory_black m)
+         ∗ (wpoints_to_full l V k P Q)
+         ∗ (lift_wProp Q val vw1)
+      ).
+  Proof.
+  Admitted.
+
+  Lemma wmemory_ra_store_rel
+        l V k (P Q R: wProp)
+        m0 vw0 m1 val vw1
+        lc1 to sc1 mem1 ord from released kind
+        (WRITE: Local.write_step (Local.mk vw0 Memory.bot) m0.(WMem.sc) m0.(WMem.memory) l from to val None released ord lc1 sc1 mem1 kind)
+        (VIEW: vw1 = lc1.(Local.tview))
+        (MEM: m1 = WMem.mk mem1 sc1)
+        (ORD: ord = Ordering.acqrel)
+    :
+    (wmemory_black m0)
+      -∗
+      (wpoints_to_full l V k P Q)
+      -∗
+      (⌜TView.le V vw0⌝)
+      -∗
+      (R val vw0)
+      -∗
+      ((⌜TView.le vw0 vw1⌝)
+         ∗ #=>((wmemory_black m1))
+         ∗ (∃ V' k' o,
+               #=>((wpoints_to_full l V' k' (wor P Q) R)
+                     ∗ (ObligationRA.black k' o)
+                     ∗ (ObligationRA.white k' o)
+                     ∗ (ObligationRA.pending k' 1)
+                  )
+           )
+      ).
+  Proof.
+  Admitted.
+
 End MEMRA.
 
-Global Opaque wmemory_black wpoints_to wpoints_to_faa.
+Global Opaque wmemory_black wpoints_to wpoints_to_faa wpoints_to_full.

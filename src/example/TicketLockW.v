@@ -2,7 +2,9 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 Unset Universe Checking.
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms OpenMod WMM Red IRed Wrapper WeakestAdequacy.
+From Fairness Require Export
+     ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
+     OpenMod WMM Red IRed Wrapper WeakestAdequacy.
 From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import TView.
 From Ordinal Require Export ClassicalHessenberg.
@@ -13,6 +15,9 @@ Set Implicit Arguments.
 
 
 Module TicketLockW.
+
+  Definition tk := nat.
+
   Definition now_serving: Loc.t := Loc.of_nat 0.
   Definition next_ticket: Loc.t := Loc.of_nat 1.
 
@@ -75,6 +80,10 @@ Module TicketLockW.
 
 End TicketLockW.
 
+
+
+From Fairness Require Import IProp IPM Weakest.
+From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
 From Fairness Require Import FairLock ModSim.
 
 Section SIM.
