@@ -211,8 +211,9 @@ Section MEMRA.
     ∃ vw', (P c vw') ∗ (⌜TView.le vw' vw⌝).
 
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+  (* Context `{ARROWRA: @GRA.inG (ArrowRA (WMem.ident)%type) Σ}. *)
 
-  Definition wpoints_to_full (l: Loc.t) (V: TView.t) (k: nat) (P Q: wProp) : iProp.
+  Definition wpoints_to_full (l: Loc.t) (V: TView.t) (k: WMem.ident) (P Q: wProp) : iProp.
   Admitted.
 
   Lemma wmemory_ra_load_acq
@@ -230,7 +231,8 @@ Section MEMRA.
       ((⌜TView.le vw0 vw1⌝)
          ∗ (wmemory_black m)
          ∗ (wpoints_to_full l V k P Q)
-         ∗ (((lift_wProp P val vw1) ∗ (⌜(TView.le vw1 V) /\ (vw1 <> V)⌝))
+         (* ∗ (((lift_wProp P val vw1) ∗ (⌜(TView.le vw1 V) /\ (vw1 <> V)⌝)) *)
+         ∗ (((lift_wProp P val vw1) ∗ (⌜WMem.missed m.(WMem.memory) l to k = Flag.fail⌝))
             ∨ ((lift_wProp Q val vw1) ∗ (⌜TView.le V vw1⌝)))
       ).
   Proof.
@@ -277,11 +279,10 @@ Section MEMRA.
       -∗
       ((⌜TView.le vw0 vw1⌝)
          ∗ #=>((wmemory_black m1))
-         ∗ (∃ V' k' o,
+         ∗ (∃ V' k' j o,
                #=>((wpoints_to_full l V' k' (wor P Q) R)
-                     ∗ (ObligationRA.black k' o)
-                     ∗ (ObligationRA.white k' o)
-                     ∗ (ObligationRA.pending k' 1)
+                     ∗ (ObligationRA.black j o)
+                     ∗ (ObligationRA.correl k' j (Ord.from_nat 1))
                   )
            )
       ).
