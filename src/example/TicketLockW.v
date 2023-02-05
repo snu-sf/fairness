@@ -84,9 +84,16 @@ End TicketLockW.
 
 From Fairness Require Import IProp IPM Weakest.
 From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
-From Fairness Require Import FairLock ModSim.
+From Fairness Require Import FairLock.
 
 Section SIM.
+
+
+
+
+
+
+
   (* Lemma ticketlock_fair: *)
   (*   ModSim.mod_sim FairLockW.mod TicketLockW.mod. *)
   (* Admitted. *)
