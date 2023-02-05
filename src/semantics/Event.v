@@ -1,5 +1,5 @@
 From sflib Require Import sflib.
-From Fairness Require Export ITreeLib Any Optics.
+From Fairness Require Export ITreeLib Any Optics EventCategory.
 From Coq Require Import Classes.RelationClasses Program.
 From Coq Require Export Strings.String.
 
@@ -177,3 +177,22 @@ Section PROGRAM_EVENT.
   Defined.
 
 End PROGRAM_EVENT.
+
+Section PRISM_PROPERTIES.
+
+  Lemma prism_fmap_compose A B C (p1 : Prism.t A B) (p2 : Prism.t B C) fm : prism_fmap (p1 ⋅ p2)%prism fm = prism_fmap p1 (prism_fmap p2 fm).
+  Proof.
+    extensionalities i. unfold prism_fmap, Prism.preview at 1; ss.
+    des_ifs.
+  Qed.
+
+  Lemma plmap_compose
+    I J K A B C (p1 : Prism.t I J) (p2 : Prism.t J K) (l1 : Lens.t A B) (l2 : Lens.t B C)
+    : plmap (p1 ⋅ p2)%prism (l1 ⋅ l2)%lens = (plmap p1 l1 ∘ plmap p2 l2)%event.
+  Proof.
+    extensionalities X e. destruct e as [[[e|e]|e]|e]; ss.
+    - destruct e; ss. rewrite prism_fmap_compose. ss.
+    - destruct e; ss.
+  Qed.
+
+End PRISM_PROPERTIES.
