@@ -321,9 +321,9 @@ Section SIM.
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA (Mod.state AbsLock.mod)) Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA (Mod.state AbsLockW.mod)) Σ}.
   Context `{STATETGT: @GRA.inG (stateTgtRA (OMod.closed_state TicketLockW.omod (WMem.mod))) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA (Mod.ident AbsLock.mod)) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA (Mod.ident AbsLockW.mod)) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA (OMod.closed_ident TicketLockW.omod (WMem.mod))) Σ}.
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{ARROWRA: @GRA.inG (ArrowRA (OMod.closed_ident TicketLockW.omod (WMem.mod))) Σ}.
@@ -333,7 +333,8 @@ Section SIM.
 
   Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLockW.tk)) Σ}.
   Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
-  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * TView.t) * nat))) Σ}.
+  (* Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * TView.t) * nat))) Σ}. *)
+  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * TView.t)))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
 
   Let mypreord := prod_le_PreOrder nat_le_po (Tkst.le_PreOrder nat).
@@ -363,8 +364,8 @@ Section SIM.
 
   Definition ticket_lock_inv_unlocked0
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
-             (myt: thread_id) (V: TView.t) (wk: nat) : iProp :=
-    (OwnM (Auth.white (Excl.just (now, myt, V, wk): Excl.t (nat * nat * TView.t * nat)%type)))
+             (myt: thread_id) (V: TView.t) : iProp :=
+    (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * TView.t)%type)))
       ∗
       (⌜(l = []) /\ (tks = @NatMap.empty _) /\ (now = next)⌝)
       ∗
@@ -375,9 +376,9 @@ Section SIM.
 
   Definition ticket_lock_inv_unlocked1
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
-             (myt: thread_id) (V: TView.t) (wk: nat) : iProp :=
+             (myt: thread_id) (V: TView.t): iProp :=
     ∃ yourt waits,
-      (OwnM (Auth.white (Excl.just (now, myt, V, wk): Excl.t (nat * nat * TView.t * nat)%type)))
+      (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * TView.t)%type)))
         ∗
         (⌜(l = yourt :: waits)⌝)
         ∗
@@ -400,8 +401,8 @@ Section SIM.
 
   Definition ticket_lock_inv_locked
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
-             (myt: thread_id) (V: TView.t) (wk: nat) : iProp :=
-    (OwnM (Auth.white (Excl.just (now, myt, V, wk): Excl.t (nat * nat * TView.t * nat)%type)))
+             (myt: thread_id) (V: TView.t) : iProp :=
+    (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * TView.t)%type)))
       ∗
       (⌜tkqueue l tks (S now) next⌝)
       ∗
@@ -433,8 +434,7 @@ Section SIM.
     ((wmemory_black mem)
        ∗ (wpoints_to_full TicketLockW.now_serving V wk (wP now) (wQ now))
        ∗ (wpoints_to_faa TicketLockW.next_ticket (nat2c next))
-       ∗ (OwnM (Auth.black
-                  (Excl.just (now, myt, V, wk): Excl.t (((nat * nat) * TView.t) * nat)%type)))
+       ∗ (OwnM (Auth.black (Excl.just (now, myt, V): Excl.t (((nat * nat) * TView.t))%type)))
        ∗ (monoBlack tk_mono Nat.le_preorder now)
        ∗ (monoBlack wm_mono wmpreord (now, wk))
        ∗ (∃ o, ObligationRA.black wk o)
@@ -456,20 +456,22 @@ Section SIM.
         ((ticket_lock_inv_state mem own V tks))
         ∗
         (((⌜own = true⌝)
-            ∗ (ticket_lock_inv_locked l tks now next myt V wk)
+            ∗ (ticket_lock_inv_locked l tks now next myt V)
          )
          ∨
            ((⌜own = false⌝)
               ∗ ((ticket_lock_inv_unlocking l tks now next myt)
                  ∨
-                   ((ticket_lock_inv_unlocked0 l tks now next myt V wk)
+                   ((ticket_lock_inv_unlocked0 l tks now next myt V)
                     ∨
-                      (ticket_lock_inv_unlocked1 l tks now next myt V wk))
+                      (ticket_lock_inv_unlocked1 l tks now next myt V))
                 )
         ))
   .
 
   Let I: list iProp := [ticket_lock_inv].
+
+  (* TODO *)
 
   (* Properties *)
   Lemma unlocking_mono
@@ -827,13 +829,13 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree
                 ((eventE +' cE) +'
                                    sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) unit)
+        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) unit)
         (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) unit)
         (tid mytk u: nat)
         x
@@ -917,13 +919,13 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree
                 ((eventE +' cE) +'
                                    sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) unit)
+        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) unit)
         (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) unit)
         (tid mytk now: nat)
         tks mem next l myt own
@@ -1026,7 +1028,7 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
@@ -1211,7 +1213,7 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
@@ -1297,7 +1299,7 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
@@ -1376,7 +1378,7 @@ Section SIM.
     iFrame.
   Qed.
 
-  Let src_code_coind tid: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) () :=
+  Let src_code_coind tid: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) () :=
           ((` lr : () + () <-
             (trigger Yield;;;
              ` x_0 : bool * NatMap.t () <- trigger (Get (bool * NatMap.t ()));;
@@ -1424,7 +1426,7 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
@@ -1538,7 +1540,7 @@ Section SIM.
       hexploit (tkqueue_val_range_l I1 _ FIND). i. iPureIntro. lia. }
   Qed.
 
-  Let src_code_ind tid: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) () :=
+  Let src_code_ind tid: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) () :=
                          (trigger Yield;;;
                           ` x : () + () <-
                           (` x_0 : bool * NatMap.t () <- trigger (Get (bool * NatMap.t ()));;
@@ -1588,7 +1590,7 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLockW.tk)
@@ -1861,7 +1863,7 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLockW.tk)
