@@ -178,21 +178,34 @@ Section PROGRAM_EVENT.
 
 End PROGRAM_EVENT.
 
-Section PRISM_PROPERTIES.
+Section OPTICS_PROPERTIES.
 
-  Lemma prism_fmap_compose A B C (p1 : Prism.t A B) (p2 : Prism.t B C) fm : prism_fmap (p1 ⋅ p2)%prism fm = prism_fmap p1 (prism_fmap p2 fm).
+  Lemma lens_rmw_compose A B C (l1 : Lens.t A B) (l2 : Lens.t B C) X (rmw : C -> C * X) :
+    lens_rmw (l1 ⋅ l2)%lens rmw = lens_rmw l1 (lens_rmw l2 rmw).
+  Proof. ss. Qed.
+
+  Lemma prism_fmap_compose A B C (p1 : Prism.t A B) (p2 : Prism.t B C) fm :
+      prism_fmap (p1 ⋅ p2)%prism fm = prism_fmap p1 (prism_fmap p2 fm).
   Proof.
     extensionalities i. unfold prism_fmap, Prism.preview at 1; ss.
     des_ifs.
   Qed.
+
+  Lemma map_lens_compose A B C (l1 : Lens.t A B) (l2 : Lens.t B C) :
+    map_lens (l1 ⋅ l2)%lens = (map_lens l1 ∘ map_lens l2)%event.
+  Proof. extensionalities X e. destruct e; ss. Qed.
+
+  Lemma map_prism_compose A B C (p1 : Prism.t A B) (p2 : Prism.t B C) :
+    map_prism (p1 ⋅ p2)%prism = (map_prism p1 ∘ map_prism p2)%event.
+  Proof. extensionalities X e. destruct e; ss. rewrite prism_fmap_compose. ss. Qed.
 
   Lemma plmap_compose
     I J K A B C (p1 : Prism.t I J) (p2 : Prism.t J K) (l1 : Lens.t A B) (l2 : Lens.t B C)
     : plmap (p1 ⋅ p2)%prism (l1 ⋅ l2)%lens = (plmap p1 l1 ∘ plmap p2 l2)%event.
   Proof.
     extensionalities X e. destruct e as [[[e|e]|e]|e]; ss.
-    - destruct e; ss. rewrite prism_fmap_compose. ss.
-    - destruct e; ss.
+    - rewrite map_prism_compose. ss.
+    - rewrite map_lens_compose. ss.
   Qed.
 
-End PRISM_PROPERTIES.
+End OPTICS_PROPERTIES.
