@@ -806,10 +806,7 @@ Section MODADD_THEOREM.
                     gfinal. right.
                     unfold emb_callee. rewrite <- map_event_compose, <- plmap_compose.
                     eapply paco9_mon. eapply lsim_refl.
-                    - eauto using isPrism_compose, isPrism_inrp.
-                    - eapply isPrism_inrp.
                     - firstorder.
-                      + destruct st_src as [? []], st_tgt as [[] ?]; ss.
                       + destruct st_src as [? []], st_tgt as [[] ?]; ss.
                         unfold Lens.set in *; ss. subst; ss.
                       + destruct st_src as [? []], st_tgt as [[] ?]; ss.

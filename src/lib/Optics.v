@@ -1,5 +1,14 @@
 From sflib Require Import sflib.
 From Coq Require Import Program.
+From Fairness Require Import Axioms.
+
+Set Implicit Arguments.
+
+Tactic Notation "hspecialize" hyp(H) "with" uconstr(x) :=
+  apply (fun H => equal_f H x) in H.
+
+Tactic Notation "cong" uconstr(f) "in" hyp(H) :=
+  eapply (f_equal f) in H.
 
 Module Store.
 
@@ -18,41 +27,56 @@ End Store.
 
 Module Lens.
 
-  Definition t S V := S -> Store.t V S.
-  Definition view {S V} : t S V -> S -> V := fun l s => fst (l s).
-  Definition set {S V} : t S V -> V -> S -> S := fun l a s => snd (l s) a.
-
   (* Lens is just a coalgebra of the Store comonad *)
-  Record isLens {S V} (l : t S V) : Prop :=
-    { counit : forall s, Store.counit (l s) = s
-    ; coaction : forall s, Store.map l (l s) = Store.cojoin (l s)
+
+  Record isLens {S V} (l : S -> Store.t V S) : Prop :=
+    { counit : Store.counit ∘ l = id
+    ; coaction : Store.map l ∘ l = Store.cojoin ∘ l
     }.
+
+  Definition t S V := {l : S -> Store.t V S | isLens l}.
+
+  Definition view {S V} : t S V -> S -> V := fun l s => fst (`l s).
+  Definition set {S V} : t S V -> V -> S -> S := fun l a s => snd (`l s) a.
+
+  Lemma view_set {S V} (l : t S V) : forall v s, view l (set l v s) = v.
+  Proof.
+    destruct l as [l [H1 H2]]. unfold view, set; ss.
+    i. hspecialize H2 with s. cong snd in H2. hspecialize H2 with v. ss.
+    unfold compose in H2. rewrite H2. ss.
+  Qed.
+
+  Lemma set_view {S V} (l : t S V) : forall s, set l (view l s) s = s.
+  Proof.
+    destruct l as [l [H1 H2]]. unfold view, set; ss.
+    i. hspecialize H1 with s. ss.
+  Qed.
+
+  Lemma set_set {S V} (l : t S V) : forall v v' s, set l v' (set l v s) = set l v' s.
+  Proof.
+    destruct l as [l [H1 H2]]. unfold view, set; ss.
+    i. hspecialize H2 with s. cong snd in H2. hspecialize H2 with v. ss.
+    unfold compose in H2. rewrite H2. ss.
+  Qed.
 
   Definition compose {A B C} : t A B -> t B C -> t A C.
   Proof.
     intros l1 l2.
-    intro a. split.
-    - exact (view l2 (view l1 a)).
-    - intro c. exact (set l1 (set l2 c (view l1 a)) a).
+    exists (fun a => (view l2 (view l1 a), fun c => set l1 (set l2 c (view l1 a)) a)).
+    constructor.
+    - extensionalities s. cbn. rewrite ! set_view. ss.
+    - extensionalities s. unfold Store.map, Store.cojoin, compose; ss. f_equal.
+      extensionalities c. f_equal.
+      + rewrite ! view_set. ss.
+      + extensionalities c'. rewrite view_set, ! set_set. ss.
   Defined.
 
   Lemma compose_assoc A B C D (l1 : t A B) (l2 : t B C) (l3 : t C D) :
     (compose (compose l1 l2) l3) = compose l1 (compose l2 l3).
-  Proof. reflexivity. Qed.
-
-  Lemma view_set {S V} (l : t S V) (H : isLens l) : forall v s, view l (set l v s) = v.
   Proof.
-    destruct H as [_ H]. i. specialize (H s). eapply (f_equal snd) in H. cbn in H.
-    unfold view, set. eapply equal_f in H. unfold Basics.compose in H. rewrite H. ss.
-  Qed.
-
-  Lemma set_view {S V} (l : t S V) (H : isLens l) : forall s, set l (view l s) s = s.
-  Proof. firstorder. Qed.
-
-  Lemma set_set {S V} (l : t S V) (H : isLens l) : forall v v' s, set l v' (set l v s) = set l v' s.
-  Proof.
-    destruct H as [_ H]. i. specialize (H s). eapply (f_equal snd) in H. cbn in H.
-    unfold view, set. eapply equal_f in H. unfold Basics.compose in H. rewrite H. ss.
+    eapply eq_sig_hprop.
+    - i. eapply proof_irrelevance.
+    - ss.
   Qed.
 
 End Lens.
@@ -61,25 +85,33 @@ Module Prism.
 
   Set Implicit Arguments.
 
-  Record t S A :=
-    mkPrism
-      { review : A -> S
-      ; preview : S -> option A
-      }.
-
-  Record isPrism {S A} (p : t S A) : Prop :=
-    { preview_review : forall a, preview p (review p a) = Some a
-    ; review_preview : forall s a, preview p s = Some a -> review p a = s
+  Record isPrism {S A} (p : (A -> S) * (S -> option A)) : Prop :=
+    { _preview_review : forall a, snd p (fst p a) = Some a
+    ; _review_preview : forall s a, snd p s = Some a -> fst p a = s
     }.
 
+  Definition t S A := { p : (A -> S) * (S -> option A) | isPrism p }.
+
+  Definition review {S A} (p : t S A) : A -> S := fst (`p).
+  Definition preview {S A} (p : t S A) : S -> option A := snd (`p).
+
+  Lemma preview_review S A (p : t S A) a : preview p (review p a) = Some a.
+  Proof. unfold review, preview. eapply _preview_review. destruct p; ss. Qed.
+
+  Lemma review_preview S A (p : t S A) s a : preview p s = Some a -> review p a = s.
+  Proof. unfold review, preview. eapply _review_preview. destruct p; ss. Qed.
+         
   Definition compose {A B C} : t A B -> t B C -> t A C.
   Proof.
-    intros p1 p2. split.
-    - exact (review p1 ∘ review p2).
-    - exact (fun a => match preview p1 a with
-                   | Some b => preview p2 b
-                   | None => None
-                   end).
+    intros p1 p2.
+    exists (review p1 ∘ review p2, fun a => match preview p1 a with
+                                    | Some b => preview p2 b
+                                    | None => None
+                                    end).
+    constructor.
+    - i. unfold compose; ss. rewrite ! preview_review. ss.
+    - i. unfold compose; ss. des_ifs.
+      eapply review_preview in Heq. eapply review_preview in H. subst; ss.
   Defined.
 
 End Prism.
@@ -91,38 +123,23 @@ Delimit Scope prism_scope with prism.
 Infix "⋅" := (Lens.compose) (at level 50, left associativity) : lens_scope.
 Infix "⋅" := (Prism.compose) (at level 50, left associativity) : prism_scope.
 
-Section PRISM_COMPOSE.
-
-  Lemma isPrism_compose A B C (p1 : Prism.t A B) (p2 : Prism.t B C) (H1 : Prism.isPrism p1) (H2 : Prism.isPrism p2)
-    : Prism.isPrism (p1 ⋅ p2)%prism.
-  Proof.
-    econs.
-    - i. unfold Prism.review, Prism.preview; ss. unfold Basics.compose; ss.
-      rewrite Prism.preview_review; eauto. eapply Prism.preview_review; eauto.
-    - i. unfold Prism.review, Prism.preview in *; ss. unfold Basics.compose; des_ifs.
-      eapply Prism.review_preview in Heq; eauto. eapply Prism.review_preview in H; eauto. subst; ss.
-  Qed.
-
-End PRISM_COMPOSE.
-
 Section PRISM_LENS.
 
-  Definition plens {S A} T : Prism.t S A -> Lens.t (S -> T) (A -> T) :=
-    fun p f => (fun a => f (Prism.review p a), fun g s => match Prism.preview p s with
-                                           | None => f s
-                                           | Some a => g a
-                                           end).
-
-  Lemma isLens_plens S A T (p : Prism.t S A) : Prism.isPrism p -> Lens.isLens (plens T p).
+  Definition prisml {S A T} : Prism.t S A -> Lens.t (S -> T) (A -> T).
   Proof.
-    i. inv H. econs.
-    - unfold Store.counit, plens. intros f. extensionalities s. ss.
-      des_ifs. rewrite (review_preview _ _ Heq). ss.
-    - unfold Store.map, Store.cojoin, plens, compose. intros f.
+    intro p.
+    exists (fun f => (fun a => f (Prism.review p a), fun g s => match Prism.preview p s with
+                                                  | None => f s
+                                                  | Some a => g a
+                                                  end)).
+    constructor.
+    - unfold Store.counit, compose; ss. extensionalities f s.
+      des_ifs. eapply Prism.review_preview in Heq. rewrite Heq. ss.
+    - unfold Store.map, Store.cojoin, compose; ss. extensionalities f.
       f_equal. extensionalities g. f_equal.
-      + extensionalities a. ss. rewrite preview_review. ss.
-      + extensionalities g' s. ss. des_ifs.
-  Qed.
+      + extensionalities a. rewrite Prism.preview_review. ss.
+      + extensionalities g' s. des_ifs.
+  Defined.
 
 End PRISM_LENS.
 
@@ -130,8 +147,21 @@ Section PRODUCT_LENS.
 
   Context {A B : Type}.
 
-  Definition fstl : Lens.t (A * B) A := fun '(a, b) => (a, fun a' => (a', b)).
-  Definition sndl : Lens.t (A * B) B := fun '(a, b) => (b, fun b' => (a, b')).
+  Definition fstl : Lens.t (A * B) A.
+  Proof.
+    exists (fun x => (fst x, fun a => (a, snd x))).
+    constructor.
+    - extensionalities x. destruct x; ss.
+    - ss.
+  Defined.
+
+  Definition sndl : Lens.t (A * B) B.
+  Proof.
+    exists (fun x => (snd x, fun b => (fst x, b))).
+    constructor.
+    - extensionalities x. destruct x; ss.
+    - ss.
+  Defined.
 
 End PRODUCT_LENS.
 
@@ -153,22 +183,21 @@ Section SUM_PRISM.
       | inr b => Some b
       end.
 
-  Definition inlp : Prism.t (A + B) A := {| Prism.review := inl; Prism.preview := is_inl |}.
-  Definition inrp : Prism.t (A + B) B := {| Prism.review := inr; Prism.preview := is_inr |}.
-
-  Lemma isPrism_inlp : Prism.isPrism inlp.
+  Definition inlp : Prism.t (A + B) A.
   Proof.
-    econs.
-    - i. ss.
+    exists (inl, is_inl).
+    constructor.
+    - ss.
     - i. destruct s; ss. inv H; ss.
-  Qed.
+  Defined.
 
-  Lemma isPrism_inrp : Prism.isPrism inrp.
+  Definition inrp : Prism.t (A + B) B.
   Proof.
-    econs.
-    - i. ss.
+    exists (inr, is_inr).
+    constructor.
+    - ss.
     - i. destruct s; ss. inv H; ss.
-  Qed.
+  Defined.
 
 End SUM_PRISM.
 

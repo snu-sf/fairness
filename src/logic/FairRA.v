@@ -2595,9 +2595,9 @@ Module FairRA.
                    | inl tid' => if tid_dec tid' tid then Some n else None
                    | _ => None
                    end). iSplit.
-        { iPureIntro. i. unfold prism_fmap; ss. unfold is_inl; ss. des_ifs.
-          { split; i; ss. inv H0. ss. }
-          { split; i; ss. inv H0. ss. }
+        { iPureIntro. i. unfold prism_fmap. destruct i; ss; des_ifs.
+          - split; i; ss. inv H0. inv H1.
+          - split; i; ss. inv H0. inv H1.
         }
         { iApply (OwnM_extends with "BLACK").
           eapply pointwise_extends. i. unfold maps_to_res.
@@ -2682,15 +2682,11 @@ Module FairRA.
         i. exfalso. eapply n2. eapply NatMapP.F.in_find_iff. ii. clarify.
       }
       { iExists f2. iCombine "BLACKS BLACK" as "BLACKS". iSplit.
-        { iPureIntro. i. unfold f2, prism_fmap; ss. unfold is_inl; ss.
-          specialize (H i). revert H. des_ifs; i.
-          { rewrite H. split; i; ss. des. clarify. exfalso. eapply NIN.
-            eapply NatMapP.F.in_find_iff. ii. clarify.
-          }
-          { rewrite H. split; i; ss. esplits; eauto. ii.
-            eapply NatMapP.F.in_find_iff in H1. ss.
-          }
-          { rewrite H. split; i; ss. des; ss. }
+        { iPureIntro. i. unfold f2, prism_fmap. specialize (H i).
+          destruct i; ss; des_ifs; rewrite H; split; ss; i.
+          - des. clarify. exfalso. eapply NIN. eapply NatMapP.F.in_find_iff. ii. clarify.
+          - esplits; ss. ii. eapply NatMapP.F.in_find_iff in H1. ss.
+          - des. clarify.
         }
         iApply (OwnM_extends with "BLACKS").
         erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
@@ -2721,7 +2717,7 @@ Module FairRA.
         iModIntro. iSplitR "BLACK".
         { iSplitL "WHITES"; auto. iExists _.
           iSplit; [|iApply "BLACKS"]. iPureIntro. i.
-          unfold f4. specialize (H0 i). unfold prism_fmap in H0; ss. unfold is_inl in H0; ss. des_ifs.
+          unfold f4. specialize (H0 i). unfold prism_fmap in H0. destruct i; ss; des_ifs.
           { split; i; ss.
             { inv H1. ss. }
             { des. clarify. }
@@ -2812,7 +2808,7 @@ Module FairRA.
           { i. apply in_map_iff in INA. des. ss. clarify. }
         }
       }
-      { i. ss. unfold prism_fmap in IN; ss. unfold is_inr in IN; ss. des_ifs. apply in_map_iff. eauto. }
+      { i. ss. unfold prism_fmap in IN. destruct i; ss. apply in_map_iff. eauto. }
       { iApply (list_prop_sum_forall2 with "BLACK").
         { apply list_map_forall2. }
         { i. ss. subst. reflexivity. }
