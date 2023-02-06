@@ -297,9 +297,11 @@ Section MEMRA.
       ((⌜TView.le vw0 vw1⌝)
          ∗ #=>((wmemory_black m1))
          ∗ (∃ V' k' o,
-               #=>((wpoints_to_full l V' k' (wor P Q) R)
-                     ∗ (ObligationRA.black k' o)
-                  )
+               (⌜TView.le V' vw1⌝)
+                 ∗
+                 #=>((wpoints_to_full l V' k' (wor P Q) R)
+                       ∗ (ObligationRA.black k' o)
+                    )
            )
       ).
   Proof.

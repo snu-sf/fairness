@@ -13,6 +13,13 @@ Require Import Coq.Numbers.BinNums.
 
 Set Implicit Arguments.
 
+Section INIT.
+
+  Definition nat2c (n: nat): Const.t := Const.of_Z (BinIntDef.Z.of_nat n).
+
+  Definition const_1: Const.t := nat2c 1.
+
+End INIT.
 
 Module TicketLockW.
 
@@ -20,8 +27,6 @@ Module TicketLockW.
 
   Definition now_serving: Loc.t := Loc.of_nat 0.
   Definition next_ticket: Loc.t := Loc.of_nat 1.
-
-  Definition const_1: Const.t := Const.of_Z (BinIntDef.Z.of_nat 1).
 
   Definition lock_loop (myticket: Const.t) (tvw: TView.t):
     itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) TView.t
@@ -31,20 +36,6 @@ Module TicketLockW.
          '(tvw, now) <- (OMod.call "load" (tvw, now_serving, Ordering.acqrel));;
          b <- unwrap (Const.eqb myticket now);;
          if (b: bool) then Ret (inr tvw) else Ret (inl tvw)) tvw.
-
-  Lemma lock_loop_red myticket tvw
-    :
-    lock_loop myticket tvw
-    =
-      '(tvw, now) <- (OMod.call "load" (tvw, now_serving, Ordering.acqrel));;
-      b <- unwrap (Const.eqb myticket now);;
-      if (b: bool)
-      then Ret tvw else tau;; lock_loop myticket tvw.
-  Proof.
-    unfold lock_loop. etransitivity.
-    { apply unfold_iter_eq. }
-    grind.
-  Qed.
 
   Definition lock_fun:
     ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) TView.t TView.t :=
@@ -77,6 +68,20 @@ Module TicketLockW.
       (omod)
       (WMem.mod)
   .
+
+  Lemma lock_loop_red myticket tvw
+    :
+    lock_loop myticket tvw
+    =
+      '(tvw, now) <- (OMod.call "load" (tvw, now_serving, Ordering.acqrel));;
+      b <- unwrap (Const.eqb myticket now);;
+      if (b: bool)
+      then Ret tvw else tau;; lock_loop myticket tvw.
+  Proof.
+    unfold lock_loop. etransitivity.
+    { apply unfold_iter_eq. }
+    grind.
+  Qed.
 
 End TicketLockW.
 
@@ -416,28 +421,28 @@ Section SIM.
   .
 
   Definition ticket_lock_inv_mem
-             (mem: SCMem.t) (now next: nat) (myt: thread_id) : iProp :=
+             (mem: WMem.t) (V: TView.t) (now next: nat) (myt: thread_id) : iProp :=
     ((memory_black mem)
-       ∗ (points_to TicketLock.now_serving (SCMem.val_nat now))
-       ∗ (points_to TicketLock.next_ticket (SCMem.val_nat next))
+       ∗ (wpoints_to_full TicketLock.now_serving V (nat2c now))
+       ∗ (wpoints_to_faa TicketLockW.next_ticket (nat2c next))
        ∗ (OwnM (Auth.black (Excl.just (now, myt): Excl.t (nat * nat)%type)))
        ∗ (monoBlack tk_mono Nat.le_preorder now)
     )
   .
 
   Definition ticket_lock_inv_state
-             (mem: SCMem.t) (own: bool) (tks: NatMap.t nat) : iProp :=
-    ((St_tgt (tt, mem)) ∗ (St_src (own, (key_set tks))))
+             (mem: WMem.t) (own: bool) (svw: TView.t) (tks: NatMap.t nat) : iProp :=
+    ((St_tgt (tt, mem)) ∗ (St_src ((own, svw), (key_set tks))))
   .
 
   Definition ticket_lock_inv : iProp :=
-    ∃ (mem: SCMem.t) (own: bool)
+    ∃ (mem: WMem.t) (own: bool) (V svw: TView.t)
       (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
       (ticket_lock_inv_tks tks)
         ∗
-        (ticket_lock_inv_mem mem now next myt)
+        (ticket_lock_inv_mem mem V now next myt)
         ∗
-        (ticket_lock_inv_state mem own tks)
+        ((ticket_lock_inv_state mem own svw tks) ∗ (⌜TView.le svw V⌝))
         ∗
         (((⌜own = true⌝)
             ∗ (ticket_lock_inv_locked l tks now next myt)
@@ -619,9 +624,9 @@ Section SIM.
                 if NatMapP.F.In_dec (NatMap.remove (elt:=()) tid ts0) i
                 then Flag.fail
                 else Flag.emp));;; trigger Yield;;; Ret ()))
-    (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-       (TicketLock.lock_loop (SCMem.val_nat mytk));;;
-     OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))
+    (OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+       (TicketLock.lock_loop (WMem.val_nat mytk));;;
+     OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs) (trigger Yield))
   )
       )
       ⊢
@@ -629,14 +634,14 @@ Section SIM.
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLock.lock_fun tt)
-             (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
+             (OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
                                (TicketLock.lock_fun tt))).
   Proof.
     iIntros "[[MYTH DUTY] SIM]".
     unfold AbsLock.lock_fun, TicketLock.lock_fun. rred.
     rewrite close_itree_call. rred.
     iApply (stsim_sync with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _".
-    unfold Mod.wrap_fun, SCMem.faa_fun. rred.
+    unfold Mod.wrap_fun, WMem.faa_fun. rred.
     iApply stsim_tidL. lred.
 
     iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
@@ -814,11 +819,11 @@ Section SIM.
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
             → itree
                 ((eventE +' cE) +'
-                                   sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
+                                   sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt
             → iProp)
         (ps pt: bool)
         (src: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) unit)
-        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
+        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) unit)
         (tid mytk u: nat)
         x
     :
@@ -904,11 +909,11 @@ Section SIM.
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
             → itree
                 ((eventE +' cE) +'
-                                   sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
+                                   sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt
             → iProp)
         (ps pt: bool)
         (src: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) unit)
-        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
+        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) unit)
         (tid mytk now: nat)
         tks mem next l myt own
         (NEQ: mytk <> now)
@@ -924,7 +929,7 @@ Section SIM.
              ∨ ticket_lock_inv_unlocked1 l tks now next myt) **
         (ticket_lock_inv -*
          MUpd (nth_default True%I I)
-           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
+           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (WMem.mod TicketLock.gvs))) []
            [0] True))))))
       ∗
       (((OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t nat))))
@@ -1011,7 +1016,7 @@ Section SIM.
             → bool
             → bool
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLockW.tk)
@@ -1051,13 +1056,13 @@ Section SIM.
                  then Flag.fail
                  else Flag.emp));;; trigger Yield;;; Ret ()))
       (` r : Any.t <-
-       OMod.embed_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (Mod.wrap_fun SCMem.load_fun (Any.upcast TicketLock.now_serving));;
-       ` x : SCMem.val <- (tau;; unwrap (Any.downcast r));;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (` b : bool <- OMod.call "compare" (x, SCMem.val_nat mytk);;
-          (if b then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk)));;;
-         OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield)).
+       OMod.embed_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (Mod.wrap_fun WMem.load_fun (Any.upcast TicketLock.now_serving));;
+       ` x : WMem.val <- (tau;; unwrap (Any.downcast r));;
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (` b : bool <- OMod.call "compare" (x, WMem.val_nat mytk);;
+          (if b then Ret () else tau;; TicketLock.lock_loop (WMem.val_nat mytk)));;;
+         OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs) (trigger Yield)).
   Proof.
     iIntros "[#MYTN [MYTK MYNU]]". 
     iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
@@ -1068,7 +1073,7 @@ Section SIM.
     { iPoseProof (unlocked0_contra with "I") as "%FF". eauto. inv FF. }
     iPoseProof (unlocked1_myturn with "MYTN I") as "%EQ". eauto. subst now.
 
-    unfold Mod.wrap_fun, SCMem.load_fun. rred.
+    unfold Mod.wrap_fun, WMem.load_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred.
@@ -1093,7 +1098,7 @@ Section SIM.
     { iPoseProof (unlocked0_contra with "I") as "%FF". eauto. inv FF. }
     iPoseProof (unlocked1_myturn with "MYTN I") as "%EQ". eauto. subst now.
 
-    unfold Mod.wrap_fun, SCMem.compare_fun. rred.
+    unfold Mod.wrap_fun, WMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
@@ -1196,11 +1201,11 @@ Section SIM.
             → bool
             → bool
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLockW.tk)
-        (mem : SCMem.t)
+        (mem : WMem.t)
         (own : bool)
         (l : list nat)
         (tks : NatMap.t nat)
@@ -1218,7 +1223,7 @@ Section SIM.
              ∨ ticket_lock_inv_unlocked1 l tks mytk next myt) **
         (ticket_lock_inv -*
          MUpd (nth_default True%I I)
-           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
+           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (WMem.mod TicketLock.gvs))) []
            [0] True)))))))
   ⊢ (stsim I tid [] g0 g1
       (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
@@ -1250,15 +1255,15 @@ Section SIM.
                  then Flag.fail
                  else Flag.emp));;; trigger Yield;;; Ret ()))
       (trigger Yield;;;
-       ` x : SCMem.val <-
+       ` x : WMem.val <-
        (` rv : Any.t <-
-        OMod.embed_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-          (Mod.wrap_fun SCMem.load_fun (Any.upcast TicketLock.now_serving));;
+        OMod.embed_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+          (Mod.wrap_fun WMem.load_fun (Any.upcast TicketLock.now_serving));;
         (tau;; unwrap (Any.downcast rv)));;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (` b : bool <- OMod.call "compare" (x, SCMem.val_nat mytk);;
-          (if b then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk)));;;
-         OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (` b : bool <- OMod.call "compare" (x, WMem.val_nat mytk);;
+          (if b then Ret () else tau;; TicketLock.lock_loop (WMem.val_nat mytk)));;;
+         OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
     iIntros "[MYTK [MYN [TKS [MEM [ST [CASES K]]]]]]".
     iAssert (⌜NatMap.find tid tks = Some mytk⌝)%I as "%FIND".
@@ -1282,11 +1287,11 @@ Section SIM.
             → bool
             → bool
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLockW.tk)
-        (mem : SCMem.t)
+        (mem : WMem.t)
         (own : bool)
         (l : list nat)
         (tks : NatMap.t nat)
@@ -1306,7 +1311,7 @@ Section SIM.
              ∨ ticket_lock_inv_unlocked1 l tks mytk next myt) **
         (ticket_lock_inv -*
          MUpd (nth_default True%I I)
-           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
+           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (WMem.mod TicketLock.gvs))) []
            [0] True)))))))
   ⊢ (stsim I tid [] g0 g1
     (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
@@ -1338,15 +1343,15 @@ Section SIM.
                then Flag.fail
                else Flag.emp));;; trigger Yield;;; Ret ()))
     (` r : Any.t <-
-     OMod.embed_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-       (Mod.wrap_fun SCMem.compare_fun (Any.upcast (SCMem.val_nat now_old, SCMem.val_nat mytk)));;
+     OMod.embed_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+       (Mod.wrap_fun WMem.compare_fun (Any.upcast (WMem.val_nat now_old, WMem.val_nat mytk)));;
      ` x : bool <- (tau;; unwrap (Any.downcast r));;
-     OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-       (if x then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk));;;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
+     OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+       (if x then Ret () else tau;; TicketLock.lock_loop (WMem.val_nat mytk));;;
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
     iIntros "[MYTK [MYN [TKS [MEM [ST [CASES K]]]]]]".
-    unfold Mod.wrap_fun, SCMem.compare_fun. rred.
+    unfold Mod.wrap_fun, WMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
@@ -1390,18 +1395,18 @@ Section SIM.
 
   Let tgt_code_coind a :=
           (trigger Yield;;;
-           ` x : SCMem.val <-
+           ` x : WMem.val <-
            (` rv : Any.t <-
-            OMod.embed_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-              (` arg : SCMem.val <- unwrap (Any.downcast (Any.upcast TicketLock.now_serving));;
-               ` ret : SCMem.val <-
-               (` m : SCMem.t <- trigger (Get SCMem.t);;
-                ` v : SCMem.val <- unwrap (SCMem.load m arg);; Ret v);; 
+            OMod.embed_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+              (` arg : WMem.val <- unwrap (Any.downcast (Any.upcast TicketLock.now_serving));;
+               ` ret : WMem.val <-
+               (` m : WMem.t <- trigger (Get WMem.t);;
+                ` v : WMem.val <- unwrap (WMem.load m arg);; Ret v);; 
                Ret (Any.upcast ret));; (tau;; unwrap (Any.downcast rv)));;
-           OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-             (` b : bool <- OMod.call "compare" (x, SCMem.val_nat a);;
-              (if b then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat a)));;;
-           OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield)).
+           OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+             (` b : bool <- OMod.call "compare" (x, WMem.val_nat a);;
+              (if b then Ret () else tau;; TicketLock.lock_loop (WMem.val_nat a)));;;
+           OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs) (trigger Yield)).
 
   Lemma lock_yourturn_coind
         (g0 g1 : ∀ R_src R_tgt : Type,
@@ -1409,11 +1414,11 @@ Section SIM.
             → bool
             → bool
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLockW.tk)
-        (mem : SCMem.t)
+        (mem : WMem.t)
         (l : list nat)
         (tks : NatMap.t nat)
         (now next myt : nat)
@@ -1436,7 +1441,7 @@ Section SIM.
         (ticket_lock_inv_locked l tks now next myt **
          (ticket_lock_inv -*
           MUpd (nth_default True%I I)
-            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
+            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (WMem.mod TicketLock.gvs))) []
             [0] True)))))))
   )
   ⊢ (stsim I tid [] g0 g1
@@ -1469,15 +1474,15 @@ Section SIM.
                  then Flag.fail
                  else Flag.emp));;; trigger Yield;;; Ret ()))
       (` r : Any.t <-
-       OMod.embed_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (Mod.wrap_fun SCMem.compare_fun (Any.upcast (SCMem.val_nat now_old, SCMem.val_nat mytk)));;
+       OMod.embed_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (Mod.wrap_fun WMem.compare_fun (Any.upcast (WMem.val_nat now_old, WMem.val_nat mytk)));;
        ` x : bool <- (tau;; unwrap (Any.downcast r));;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (if x then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk));;;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (if x then Ret () else tau;; TicketLock.lock_loop (WMem.val_nat mytk));;;
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
     iIntros "[#CIH [MYTK [MYN [TKS [MEM [ST [I K]]]]]]]".
-    unfold Mod.wrap_fun, SCMem.compare_fun. rred.
+    unfold Mod.wrap_fun, WMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
@@ -1556,15 +1561,15 @@ Section SIM.
 
   Let tgt_code_ind mytk now_old :=
                          (` r : Any.t <-
-                          OMod.embed_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-                            (Mod.wrap_fun SCMem.compare_fun
-                               (Any.upcast (SCMem.val_nat now_old, SCMem.val_nat mytk)));;
+                          OMod.embed_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+                            (Mod.wrap_fun WMem.compare_fun
+                               (Any.upcast (WMem.val_nat now_old, WMem.val_nat mytk)));;
                           ` x : bool <- (tau;; unwrap (Any.downcast r));;
-                          OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
+                          OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
                             (if x
                              then Ret ()
-                             else tau;; TicketLock.lock_loop (SCMem.val_nat mytk));;;
-                          OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
+                             else tau;; TicketLock.lock_loop (WMem.val_nat mytk));;;
+                          OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
                             (trigger Yield)).
 
   Lemma lock_yourturn_ind0
@@ -1573,7 +1578,7 @@ Section SIM.
             → bool
             → bool
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLockW.tk)
   (now : nat)
@@ -1582,7 +1587,7 @@ Section SIM.
          y < mytk - now
          → ∀ now_old : nat,
              mytk ≠ now_old
-             → ∀ (mem : SCMem.t) (own : bool) (l : list nat) (tks : NatMap.t nat)
+             → ∀ (mem : WMem.t) (own : bool) (l : list nat) (tks : NatMap.t nat)
                  (now next myt : nat),
                  now < mytk
                  → y = mytk - now
@@ -1609,7 +1614,7 @@ Section SIM.
                              MUpd (nth_default True%I I)
                                (fairI
                                   (ident_tgt:=OMod.closed_ident TicketLock.omod
-                                                (SCMem.mod TicketLock.gvs))) [] [0] True) **
+                                                (WMem.mod TicketLock.gvs))) [] [0] True) **
                             ticket_lock_inv_mem mem now next myt)))))))
                      ⊢ stsim I tid [] g0 g1
                          (λ r_src r_tgt : (),
@@ -1620,7 +1625,7 @@ Section SIM.
   )
   (now_old : nat)
   (NEQ : mytk ≠ now_old)
-  (mem : SCMem.t)
+  (mem : WMem.t)
   (l : list nat)
   (tks : NatMap.t nat)
   (next myt : nat)
@@ -1643,7 +1648,7 @@ Section SIM.
         (ticket_lock_inv_unlocking l tks now next myt **
          (ticket_lock_inv -*
           MUpd (nth_default True%I I)
-            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
+            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (WMem.mod TicketLock.gvs))) []
             [0] True)))))))
   )
   ⊢ (stsim I tid [] g0 g1
@@ -1676,12 +1681,12 @@ Section SIM.
                  then Flag.fail
                  else Flag.emp));;; trigger Yield;;; Ret ()))
       (` r : Any.t <-
-       OMod.embed_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (Mod.wrap_fun SCMem.compare_fun (Any.upcast (SCMem.val_nat now_old, SCMem.val_nat mytk)));;
+       OMod.embed_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (Mod.wrap_fun WMem.compare_fun (Any.upcast (WMem.val_nat now_old, WMem.val_nat mytk)));;
        ` x : bool <- (tau;; unwrap (Any.downcast r));;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (if x then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk));;;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (if x then Ret () else tau;; TicketLock.lock_loop (WMem.val_nat mytk));;;
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
     iIntros "[#[CIH MONOTK] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
@@ -1692,7 +1697,7 @@ Section SIM.
     intros o IHo. intros.
     iIntros "[#[CIH [MONOTK [MONOW BLK]]] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
 
-    unfold Mod.wrap_fun, SCMem.compare_fun. rred.
+    unfold Mod.wrap_fun, WMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
@@ -1741,7 +1746,7 @@ Section SIM.
       iApply lock_myturn0. 2: iFrame; auto. lia.
     }
 
-    rename n into NEQ. unfold Mod.wrap_fun, SCMem.load_fun. rred.
+    rename n into NEQ. unfold Mod.wrap_fun, WMem.load_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred.
@@ -1846,7 +1851,7 @@ Section SIM.
             → bool
             → bool
             → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (WMem.mod TicketLock.gvs))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLockW.tk)
   (now : nat)
@@ -1855,7 +1860,7 @@ Section SIM.
          y < mytk - now
          → ∀ now_old : nat,
              mytk ≠ now_old
-             → ∀ (mem : SCMem.t) (own : bool) (l : list nat) (tks : NatMap.t nat)
+             → ∀ (mem : WMem.t) (own : bool) (l : list nat) (tks : NatMap.t nat)
                  (now next myt : nat),
                  now < mytk
                  → y = mytk - now
@@ -1882,7 +1887,7 @@ Section SIM.
                              MUpd (nth_default True%I I)
                                (fairI
                                   (ident_tgt:=OMod.closed_ident TicketLock.omod
-                                                (SCMem.mod TicketLock.gvs))) [] [0] True) **
+                                                (WMem.mod TicketLock.gvs))) [] [0] True) **
                             ticket_lock_inv_mem mem now next myt)))))))
                      ⊢ stsim I tid [] g0 g1
                          (λ r_src r_tgt : (),
@@ -1893,7 +1898,7 @@ Section SIM.
   )
   (now_old : nat)
   (NEQ : mytk ≠ now_old)
-  (mem : SCMem.t)
+  (mem : WMem.t)
   (l : list nat)
   (tks : NatMap.t nat)
   (next myt : nat)
@@ -1916,7 +1921,7 @@ Section SIM.
         (ticket_lock_inv_unlocked1 l tks now next myt **
          (ticket_lock_inv -*
           MUpd (nth_default True%I I)
-            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
+            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (WMem.mod TicketLock.gvs))) []
             [0] True)))))))
   )
   ⊢ (stsim I tid [] g0 g1
@@ -1949,12 +1954,12 @@ Section SIM.
                  then Flag.fail
                  else Flag.emp));;; trigger Yield;;; Ret ()))
       (` r : Any.t <-
-       OMod.embed_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (Mod.wrap_fun SCMem.compare_fun (Any.upcast (SCMem.val_nat now_old, SCMem.val_nat mytk)));;
+       OMod.embed_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (Mod.wrap_fun WMem.compare_fun (Any.upcast (WMem.val_nat now_old, WMem.val_nat mytk)));;
        ` x : bool <- (tau;; unwrap (Any.downcast r));;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
-         (if x then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk));;;
-       OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
+         (if x then Ret () else tau;; TicketLock.lock_loop (WMem.val_nat mytk));;;
+       OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
     iIntros "[#[CIH MONOTK] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
@@ -1965,7 +1970,7 @@ Section SIM.
     intros o IHo. intros.
     iIntros "[#[CIH [MONOTK [MONOW BLK]]] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
 
-    unfold Mod.wrap_fun, SCMem.compare_fun. rred.
+    unfold Mod.wrap_fun, WMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
@@ -2014,7 +2019,7 @@ Section SIM.
       iApply lock_myturn0. 2: iFrame; auto. lia.
     }
 
-    rename n into NEQ. unfold Mod.wrap_fun, SCMem.load_fun. rred.
+    rename n into NEQ. unfold Mod.wrap_fun, WMem.load_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred.
@@ -2117,7 +2122,7 @@ Section SIM.
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLock.lock_fun tt)
-             (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
+             (OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
                                (TicketLock.lock_fun tt))).
   Proof.
     iIntros "[MYTH DUTY]".
@@ -2160,7 +2165,7 @@ Section SIM.
     }
 
     rename n into NEQ.
-    unfold Mod.wrap_fun, SCMem.load_fun. rred.
+    unfold Mod.wrap_fun, WMem.load_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred.
@@ -2232,7 +2237,7 @@ Section SIM.
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLock.unlock_fun tt)
-             (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
+             (OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
                                (TicketLock.unlock_fun tt))).
   Proof.
     iIntros "[MYTH DUTY]".
@@ -2263,7 +2268,7 @@ Section SIM.
     clear BEQ.
     iApply (stsim_putL with "ST1"). iIntros "ST1".
 
-    unfold Mod.wrap_fun, SCMem.load_fun. rred.
+    unfold Mod.wrap_fun, WMem.load_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred.
@@ -2309,7 +2314,7 @@ Section SIM.
       iPoseProof (white_white_excl with "HOLD I") as "%FF". inv FF. }
     { iDestruct "I" as "[I _]". iPoseProof (white_white_excl with "HOLD I") as "%FF". inv FF. }
 
-    unfold Mod.wrap_fun, SCMem.store_fun. rred.
+    unfold Mod.wrap_fun, WMem.store_fun. rred.
     iDestruct "ST" as "[ST0 ST1]". iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
     iApply stsim_getR. iSplit. auto. rred.
     iApply stsim_tauR. rred.

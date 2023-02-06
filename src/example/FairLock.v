@@ -78,7 +78,7 @@ Module AbsLockW.
       '((_, tvw_lock), ts) <- trigger (@Get _);;
       let ts := NatMap.remove tid ts in
       '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le (TView.join tvw tvw_lock) tvw')));;
-      _ <- trigger (Put ((true, tvw'), ts));;
+      _ <- trigger (Put ((true, tvw_lock), ts));;
       _ <- trigger (Fair (fun i => if tid_dec i tid then Flag.success
                                else if (NatMapP.F.In_dec ts i) then Flag.fail
                                     else Flag.emp));;
@@ -95,8 +95,9 @@ Module AbsLockW.
         if (own: bool)
         then '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le tvw tvw')));;
              _ <- trigger (Put ((false, tvw'), ts));;
+             '(exist _ tvw'' _) <- trigger (Choose (sig (fun tvw'' => TView.le tvw' tvw'')));;
              _ <- trigger Yield;;
-             Ret tvw'
+             Ret tvw''
         else UB
       else UB.
 
