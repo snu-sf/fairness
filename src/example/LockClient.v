@@ -167,7 +167,9 @@ Section SIM.
         (
           ((⌜own = false⌝)
              ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
+             (* points_to view *)
              ∗ (OwnM (Auth.white (Excl.just tvw: Excl.t TView.t)))
+             (* argument-passing view *)
              ∗ (OwnM (Auth.white (Excl.just (tvw, tt): Excl.t (TView.t * unit)%type)))
           )
           ∨
@@ -220,7 +222,7 @@ Section SIM.
              (∃ tvw,
                  (OwnM (Auth.white (Excl.just tvw: Excl.t TView.t)))
                    ∗ (OwnM (Auth.white (Excl.just (tvw, tt): Excl.t (TView.t * unit))))
-                   ∗ (⌜TView.le tvw tvw1⌝)
+                   ∗ (⌜(TView.le tvw tvw1)⌝)
              )
           )
             -∗
@@ -309,7 +311,10 @@ Section SIM.
     iAssert (
         (
   (⌜own = false⌝ **
-               (OwnM (Auth.white (Excl.just j: Excl.t nat)) ** OwnM (Auth.white (Excl.just tvw: Excl.t TView.t))))
+               (OwnM (Auth.white (Excl.just j: Excl.t nat))
+                     ** (OwnM (Auth.white (Excl.just tvw: Excl.t TView.t))
+                     ** OwnM (Auth.white (Excl.just (tvw, tt): Excl.t (TView.t * unit))))
+  ))
    ∨ (⌜own = true⌝ **
                (ObligationRA.pending j 1 **
                 (ObligationRA.black j o_w_cor **
@@ -320,7 +325,7 @@ Section SIM.
       )%I
       with "[CASES YOUW]" as "[CASES AMP]".
     { iDestruct "CASES" as "[OWNF | [OT [PEND [JBLK [JCOR ALLAMP]]]]]".
-      { iDestruct "OWNF" as "[% OW]". iSplitL "OW". iLeft. auto.
+      { iDestruct "OWNF" as "[% OW]". iSplitL "OW". iLeft. iFrame. auto.
         iModIntro. iIntros "OT". iPure "OT" as OT. clarify.
       }
       iPoseProof ("JBLK") as "# JBLK". iSplitR "YOUW".
@@ -484,6 +489,7 @@ Section SIM.
 
       iClear "MYB".
       clear Heqnew_wobl FIND wd k wobl.
+      iDestruct "B2" as "[B2 B3]".
       iPoseProof (ObligationRA.alloc o_w_cor) as "> [% [[NEWB NEWW] NEWP]]".
       iPoseProof (OwnM_Upd with "[B2 LOCK]") as "> B2".
       2:{ instantiate (1:= (Auth.black (Excl.just j: Excl.t nat)) ⋅ (Auth.white (Excl.just j: Excl.t nat))). iSplitL "B2"; iFrame. }
@@ -550,7 +556,11 @@ Section SIM.
       }
       iPoseProof (natmap_prop_sum_pull_bupd with "AMPs") as "> AMPs".
 
-      iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM NEWP AMPs]") as "_".
+      iDestruct "EXCL" as "[EXCL EXCL2]".
+      iPoseProof (black_white_update with "B3 EXCL2") as ">[B3 EXCL2]".
+      instantiate (1:= (tvw', tt)).
+
+      iMod ("K1" with "[B1 B2 B3 MEM STGT BLKS SUM NEWP AMPs]") as "_".
       { unfold lock_will_unlock. iExists true, tvw', mem, new_wobl, k. iFrame.
         iRight. iFrame. auto. }
       { msubtac. }
@@ -562,14 +572,37 @@ Section SIM.
         iFrame.
       }
       iIntros "DUTY _". rred.
-      iApply stsim_tauR. rred.
-      iApply stsim_tauR. rred.
+      iApply stsim_tauR. rred. iApply stsim_tauR. rred.
 
-      iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL LOCK]") as "SIM".
+      iopen 0 "I0" "K0". iDestruct "I0" as "[% [I0B I0]]".
+      iDestruct "I0" as "[% I0]". iDestruct "I0" as "[I01 [I02 [I03 I04]]]".
+      iPoseProof (black_white_equal with "I0B EXCL") as "%". subst.
+      iAssert (
+          ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw1)
+           ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw1))
+            -∗
+            ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw')
+             ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw'))
+        )%I with "[]" as "I04a".
+      { iIntros "I". iDestruct "I" as "[[A B] | [A B]]".
+        - iLeft. iFrame. iApply wpoints_to_view_mon. 2: iFrame.
+          etrans. 2: eapply l0. apply TView.join_r.
+        - iRight. iFrame. iApply wpoints_to_view_mon. 2: iFrame.
+          etrans. 2: eapply l0. apply TView.join_r.
+      }
+      iPoseProof ("I04a" with "I04") as "I04".
+      iPoseProof (black_white_update with "I0B EXCL") as ">[I0B EXCL]".
+      instantiate (1:= tvw').
+
+      iMod ("K0" with "[I0B I01 I02 I03 I04]") as "_".
+      { iExists tvw'. iFrame. unfold thread1_will_write. iExists k0. iFrame. }
+      msubtac.
+
+      iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL EXCL2 LOCK]") as "SIM".
       { instantiate (1:= tvw'). iFrame. iSplit.
         { iPureIntro. etrans. 2: eapply l0. apply TView.join_l. }
         iSplitL "DUTY NEWW2 LOCK". iExists k. iFrame.
-        iExists tvw1. iFrame. iPureIntro. etrans. 2: eapply l0. apply TView.join_r.
+        iExists tvw'. iFrame. iPureIntro. reflexivity.
       }
       iApply stsim_reset. iFrame.
     }
@@ -583,9 +616,11 @@ Section SIM.
         r g
         (Q: R_src -> R_tgt -> iProp)
         l
-        (tvw0: TView.t)
+        (tvw0 lvw: TView.t)
     :
     ((OwnM (Auth.white (Excl.just tvw0: Excl.t TView.t)))
+       ∗
+       ((OwnM (Auth.white (Excl.just (lvw, tt): Excl.t (TView.t * unit)))) ∗ (⌜TView.le lvw tvw0⌝))
        ∗
        (∃ k, (ObligationRA.duty (inl tid) ((k, Ord.S Ord.O) :: l))
                ∗ (OwnM (Auth.white (Excl.just k: Excl.t nat)))
@@ -607,7 +642,7 @@ Section SIM.
              (trigger Yield;;; src)
              (tvw' <- OMod.close_itree ClientImpl.omod (ModAdd (WMem.mod) AbsLockW.mod) (R:=TView.t) (OMod.call "unlock" tvw0);; (tgt tvw'))).
   Proof.
-    iIntros "[[EXCL [% [DUTY [LOCK TAXES]]]] SIM]".
+    iIntros "[[EXCL [[EXCL2 %LVW] [% [DUTY [LOCK TAXES]]]]] SIM]".
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]".
     { instantiate (1:= 2%ord). apply OrdArith.lt_from_nat. lia. }
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX1]".
@@ -623,17 +658,21 @@ Section SIM.
     iApply stsim_tauR. rred.
     iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT [BLKS [SUM [CONTRA | CASE]]]]]]]".
-    { iDestruct "CONTRA" as "[_ [_ EXCL2]]".
-      iPoseProof (white_white_excl with "EXCL EXCL2") as "%FF". inversion FF.
+    { iDestruct "CONTRA" as "[_ [_ [EXCL3 _]]]".
+      iPoseProof (white_white_excl with "EXCL EXCL3") as "%FF". inversion FF.
     }
     iDestruct "CASE" as "[% [JPEND [JBLK [JCOR AMPs]]]]". subst own.
     iApply stsim_getR. iSplit. iFrame. rred.
     iApply stsim_tauR. rred.
 
-    destruct (excluded_middle_informative (TView.le tvw tvw0)) eqn:EXCL.
+    iDestruct "B2" as "[B2 B3]".
+    iPoseProof (black_white_equal with "B3 EXCL2") as "%EQ". inv EQ.
+    destruct (excluded_middle_informative (TView.le lvw tvw0)).
+    2:{ rred. exfalso. clarify. }
 
-
-
+    rred.
+    iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred.
+    iApply stsim_tauR. rred.
     iApply stsim_getR. iSplit. iFrame. rred.
     iApply stsim_tauR. rred.
     iApply stsim_getR. iSplit. iFrame. rred.
@@ -641,9 +680,31 @@ Section SIM.
     iApply stsim_tauR. rred.
 
     iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
-    iMod ("K1" with "[EXCL LOCK B1 B2 MEM BLKS SUM STGT]") as "_".
-    { unfold lock_will_unlock. iExists (Some tvw0), mem, wobl, k. iFrame.
-      iLeft. iExists tvw0. iFrame. auto.
+    iPoseProof (black_white_update with "B3 EXCL2") as ">[B3 EXCL2]".
+    instantiate (1:= (tvw', tt)).
+    iopen 0 "I0" "K0". iDestruct "I0" as "[% [I0B I0]]".
+    iDestruct "I0" as "[% I0]". iDestruct "I0" as "[I01 [I02 [I03 I04]]]".
+    iPoseProof (black_white_equal with "I0B EXCL") as "%". subst.
+    iAssert (
+  ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw0)
+   ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw0))
+    -∗
+  ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw')
+   ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw'))
+      )%I with "[]" as "I04a".
+    { iIntros "I". iDestruct "I" as "[[A B] | [A B]]".
+      - iLeft. iFrame. iApply wpoints_to_view_mon. 2: iFrame. auto.
+      - iRight. iFrame. iApply wpoints_to_view_mon. 2: iFrame. auto.
+    }
+    iPoseProof ("I04a" with "I04") as "I04".
+    iPoseProof (black_white_update with "I0B EXCL") as ">[I0B EXCL]".
+    instantiate (1:= tvw').
+
+    iMod ("K0" with "[I0B I01 I02 I03 I04]") as "_".
+    { iExists tvw'. iFrame. unfold thread1_will_write. iExists k0. iFrame. }
+    iMod ("K1" with "[EXCL EXCL2 LOCK B1 B2 B3 MEM BLKS SUM STGT]") as "_".
+    { unfold lock_will_unlock. iExists false, tvw', mem, wobl, k. iFrame.
+      iLeft. iSplit. auto. iFrame.
     }
     { msubtac. }
     iPoseProof (ObligationRA.pending_shot with "JPEND") as "> SHOT".
@@ -654,8 +715,6 @@ Section SIM.
       iPoseProof (ObligationRA.tax_cons_unfold with "TAX2") as "[_ TAX2]". iFrame.
     }
     iIntros "DUTY _". rred.
-    iApply stsim_tauR. rred.
-    iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
     iApply stsim_reset. iApply "SIM". iFrame.
     iPureIntro. auto.
@@ -684,7 +743,7 @@ Section SIM.
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]".
     { apply Hessenberg.lt_add_r. instantiate (1:=9). apply OrdArith.lt_from_nat. auto. }
     iApply AbsLock_lock. iFrame.
-    iIntros "% [%VW0 [MYTH [[% [DUTY [WHI LOCK]]] [% [EXCL %VW1]]]]]".
+    iIntros "% [%VW0 [MYTH [[% [DUTY [WHI LOCK]]] [% [EXCL [EXCL2 %VW1]]]]]]".
     instantiate (1:=4). rred.
     rewrite close_itree_call. ss. rred.
     iPoseProof (ObligationRA.white_eq with "WHI") as "WHI".
@@ -714,7 +773,7 @@ Section SIM.
     apply OneShot.shot_agree in AGR. subst k0.
     iPoseProof (ObligationRA.pending_sum with "KPENDh i0PENDh") as "KPEND".
 
-    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+    iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
 
     iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
@@ -751,14 +810,16 @@ Section SIM.
       unfold thread1_will_write. iExists k. iFrame. iSplitR; auto. }
 
     iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
-    { unfold lock_will_unlock. iExists own, _, wobl, j0. iFrame. }
+    { unfold lock_will_unlock. iExists own, tvw0, _, wobl, j0. iFrame. }
     msubtac.
 
     iPoseProof (ObligationRA.duty_permutation with "DUTY") as "DUTY".
     { eapply perm_swap. }
     iPoseProof (ObligationRA.duty_done with "DUTY OBLKSHOT") as "> DUTY".
-    iApply stsim_reset. iApply AbsLock_unlock. iSplitL "EXCL LOCK WHI2 DUTY".
-    { iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
+    iApply stsim_reset. iApply AbsLock_unlock. iSplitL "EXCL EXCL2 LOCK WHI2 DUTY".
+    { iSplitL "EXCL". iFrame. iSplitL "EXCL2".
+      { iFrame. iPureIntro. etrans. eapply VW1. auto. }
+      iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
       iApply ObligationRA.white_eq. 2: iFrame.
       rewrite Jacobsthal.mult_1_l. reflexivity.
     }
@@ -798,7 +859,8 @@ Section SIM.
     rewrite OpenMod.unfold_iter. rred.
     iApply AbsLock_lock. iSplitL "MYTH DUTY".
     { iFrame. }
-    iIntros "% [%VW0 [MYTH [[% [DUTY [WHI LOCK]]] [% [EXCL %VW1]]]]]". instantiate (1:= 4). rred.
+    iIntros "% [%VW0 [MYTH [[% [DUTY [WHI LOCK]]] [% [EXCL [EXCL2 %VW1]]]]]]".
+    instantiate (1:= 4). rred.
 
     rewrite close_itree_call. ss. rred.
     iPoseProof (ObligationRA.white_eq with "WHI") as "WHI".
@@ -821,7 +883,7 @@ Section SIM.
       { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
       apply OneShot.shot_agree in AGR. subst k0.
 
-      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
       iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
       iApply stsim_chooseR. iIntros "%".
@@ -846,11 +908,13 @@ Section SIM.
       iMod ("K0" with "[EXCLB i0BLK i0KCOR i0PTR i0PENDh]") as "_".
       { iExists tview. iFrame. unfold thread1_will_write. iExists k. iFrame. iSplitR; auto. iLeft; iFrame. }
       iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
-      { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
+      { unfold lock_will_unlock. iExists own, tvw0, mem, wobl, j0. iFrame. }
       msubtac.
       clear own mem wobl j0 released READ.
-      iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
-      { iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
+      iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL EXCL2 WHI2 DUTY".
+      { iSplitL "EXCL". iFrame. iSplitL "EXCL2".
+        { iFrame. iPureIntro. etrans. 2: eauto. auto. }
+        iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
         iApply ObligationRA.white_eq. 2: iFrame.
         rewrite Jacobsthal.mult_1_l. reflexivity.
       }
@@ -867,7 +931,8 @@ Section SIM.
         rewrite OpenMod.unfold_iter. rred.
         iApply stsim_reset. iApply AbsLock_lock. iSplitL "MYTH DUTY".
         { iFrame. }
-        iIntros "% [%VW0 [MYTH [[% [DUTY [WHI LOCK]]] [% [EXCL %VW2]]]]]". instantiate (1:= 4). rred.
+        iIntros "% [%VW0 [MYTH [[% [DUTY [WHI LOCK]]] [% [EXCL [EXCL2 %VW2]]]]]]".
+        instantiate (1:= 4). rred.
 
         iopen 0 "I0" "K0". iDestruct "I0" as "[% [EXCLB I0]]".
         iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
@@ -895,7 +960,7 @@ Section SIM.
           iApply ObligationRA.white_eq. 2: iFrame. symmetry; apply Jacobsthal.mult_1_l.
         }
         iIntros "DUTY _". rred. unfold WMem.load_fun, Mod.wrap_fun. rred.
-        iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+        iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
         iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
         iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
         iClear "i0KSHOT". iopen 0 "I0" "K0". iDestruct "I0" as "[% [EXCLB I0]]".
@@ -910,7 +975,7 @@ Section SIM.
         iPoseProof (OwnM_valid with "[KSHOT i0KSHOT]") as "%AGR".
         { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
         apply OneShot.shot_agree in AGR. subst k0.
-        iPoseProof (black_white_equal with "EXCLB EXCL") as "%EQ". subst tvw3.
+        iPoseProof (black_white_equal with "EXCLB EXCL") as "%EQ". subst tvw4.
 
         iApply stsim_chooseR. iIntros "%".
         destruct x. destruct x as [[lc1 val] to]. des. rename y into READ. rred.
@@ -933,11 +998,13 @@ Section SIM.
         iMod ("K0" with "[EXCLB i0BLK i0KCOR i0PTR]") as "_".
         { iExists _. iFrame. unfold thread1_will_write. iExists _. iFrame. iSplitR; auto. }
         iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
-        { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
+        { unfold lock_will_unlock. iExists own, tvw3, mem, wobl, j0. iFrame. }
         msubtac.
         clear own mem wobl j0 promises to released READ.
-        iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
-        { iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
+        iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL EXCL2 WHI2 DUTY".
+        { iSplitL "EXCL". iFrame. iSplitL "EXCL2".
+          { iFrame. iPureIntro. etrans. 2: eauto. auto. }
+          iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
           iApply ObligationRA.white_eq. 2: iFrame.
           rewrite Jacobsthal.mult_1_l. reflexivity.
         }
@@ -960,7 +1027,7 @@ Section SIM.
       { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
       apply OneShot.shot_agree in AGR. subst k0.
 
-      iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+      iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
       iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
       iApply stsim_chooseR. iIntros "%".
@@ -984,11 +1051,13 @@ Section SIM.
       iMod ("K0" with "[EXCLB i0BLK i0KCOR i0PTR]") as "_".
       { iExists _. iFrame. unfold thread1_will_write. iExists _. iFrame. iSplitR; auto. }
       iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
-      { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
+      { unfold lock_will_unlock. iExists own, tvw0, mem, wobl, j0. iFrame. }
       msubtac.
       clear own mem wobl j0 promises to released READ.
-      iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL WHI2 DUTY".
-      { iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
+      iApply stsim_reset. iApply AbsLock_unlock. iSplitL "LOCK EXCL EXCL2 WHI2 DUTY".
+      { iSplitL "EXCL". iFrame. iSplitL "EXCL2".
+        { iFrame. iPureIntro. etrans. 2: eauto. auto. }
+        iFrame. iExists j. iFrame. iApply ObligationRA.taxes_cons_fold. iSplitL; auto.
         iApply ObligationRA.white_eq. 2: iFrame.
         rewrite Jacobsthal.mult_1_l. reflexivity.
       }
