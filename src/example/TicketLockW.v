@@ -431,18 +431,18 @@ Section SIM.
   .
 
   Definition ticket_lock_inv_state
-             (mem: WMem.t) (own: bool) (svw: TView.t) (tks: NatMap.t nat) : iProp :=
-    ((St_tgt (tt, mem)) ∗ (St_src ((own, svw), (key_set tks))))
+             (mem: WMem.t) (own: bool) (V: TView.t) (tks: NatMap.t nat) : iProp :=
+    ((St_tgt (tt, mem)) ∗ (St_src ((own, V), (key_set tks))))
   .
 
   Definition ticket_lock_inv : iProp :=
-    ∃ (mem: WMem.t) (own: bool) (V svw: TView.t)
+    ∃ (mem: WMem.t) (own: bool) (V: TView.t)
       (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
       (ticket_lock_inv_tks tks)
         ∗
         (ticket_lock_inv_mem mem V now next myt)
         ∗
-        ((ticket_lock_inv_state mem own svw tks) ∗ (⌜TView.le svw V⌝))
+        ((ticket_lock_inv_state mem own V tks))
         ∗
         (((⌜own = true⌝)
             ∗ (ticket_lock_inv_locked l tks now next myt)

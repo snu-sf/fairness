@@ -210,20 +210,30 @@ Section MEMRA.
   Definition lift_wProp (P: wProp) (c: Const.t) (vw: TView.t): iProp :=
     ∃ vw', (P c vw') ∗ (⌜TView.le vw' vw⌝).
 
+  Lemma lift_wProp_mon
+        P c vw0 vw1
+        (LE: TView.le vw0 vw1)
+    :
+    (lift_wProp P c vw0) -∗ (lift_wProp P c vw1).
+  Proof.
+    unfold lift_wProp. iIntros "[% [A %B]]". iExists vw'. iFrame.
+    iPureIntro. etrans. eapply B. auto.
+  Qed.
+
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{ARROWRA: @GRA.inG (Region.t ((void + WMem.ident) * nat * Ord.t * Qp * nat)) Σ}.
 
   Definition wpoints_to_full (l: Loc.t) (V: TView.t) (k: nat) (P Q: wProp) : iProp.
   Admitted.
 
-  Lemma wpoints_to_full_get_time
-        l V k P Q
-    :
-    (wpoints_to_full l V k P Q)
-      -∗ (∃ (ts: Time.t),
-             ObligationRA.correl (inr (l, ts)) k (Ord.from_nat 1)).
-  Proof.
-  Admitted.
+  (* Lemma wpoints_to_full_get_time *)
+  (*       l V k P Q *)
+  (*   : *)
+  (*   (wpoints_to_full l V k P Q) *)
+  (*     -∗ (∃ (ts: Time.t), *)
+  (*            ObligationRA.correl (inr (l, ts)) k (Ord.from_nat 1)). *)
+  (* Proof. *)
+  (* Admitted. *)
 
   Lemma wpoints_to_full_not_shot
         l V k P Q
@@ -248,8 +258,8 @@ Section MEMRA.
          ∗ (wmemory_black m)
          ∗ (wpoints_to_full l V k P Q)
          ∗ (((lift_wProp P val vw1)
-               ∗ (∀ ts n, (ObligationRA.correl (inr (l, ts)) k n)
-                            -∗ ⌜WMem.missed m.(WMem.memory) l to (l, ts) = Flag.fail⌝))
+               ∗ (∃ ts, (ObligationRA.correl (inr (l, ts)) k (Ord.S Ord.O))
+                          ∗ (⌜WMem.missed m.(WMem.memory) l to (l, ts) = Flag.fail⌝)))
             ∨ ((lift_wProp Q val vw1) ∗ (⌜TView.le V vw1⌝)))
       ).
   Proof.
