@@ -206,6 +206,7 @@ Section MEMRA.
   (* full points-to *)
   Definition wProp := Const.t -> TView.t -> iProp.
   Definition wor (P Q: wProp): wProp := fun c vw => ((P c vw) ∨ (Q c vw))%I.
+  Definition wimpl (P Q: wProp): iProp := (∀ c vw, (P c vw) -∗ (Q c vw))%I.
 
   Definition lift_wProp (P: wProp) (c: Const.t) (vw: TView.t): iProp :=
     ∃ vw', (P c vw') ∗ (⌜TView.le vw' vw⌝).
@@ -226,19 +227,18 @@ Section MEMRA.
   Definition wpoints_to_full (l: Loc.t) (V: TView.t) (k: nat) (P Q: wProp) : iProp.
   Admitted.
 
-  (* Lemma wpoints_to_full_get_time *)
-  (*       l V k P Q *)
-  (*   : *)
-  (*   (wpoints_to_full l V k P Q) *)
-  (*     -∗ (∃ (ts: Time.t), *)
-  (*            ObligationRA.correl (inr (l, ts)) k (Ord.from_nat 1)). *)
-  (* Proof. *)
-  (* Admitted. *)
-
   Lemma wpoints_to_full_not_shot
         l V k P Q
     :
     (wpoints_to_full l V k P Q) ∗ (ObligationRA.shot k) -∗ ⌜False⌝.
+  Proof.
+  Admitted.
+
+  Lemma wpoints_to_full_impl
+        l V k P P' Q
+    :
+    ((wimpl P P') ∗ (wpoints_to_full l V k P Q))
+      -∗ (wpoints_to_full l V k P' Q).
   Proof.
   Admitted.
 
