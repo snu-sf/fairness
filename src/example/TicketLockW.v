@@ -333,12 +333,14 @@ Section SIM.
 
   Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLockW.tk)) Σ}.
   Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
-  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
+  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * TView.t) * nat))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
 
   Let mypreord := prod_le_PreOrder nat_le_po (Tkst.le_PreOrder nat).
+  Let wmpreord := prod_le_PreOrder nat_le_po (base.PreOrder_instance_0 nat).
   Variable monok: nat.
   Variable tk_mono: nat.
+  Variable wm_mono: nat.
 
   Definition ticket_lock_inv_unlocking
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp :=
@@ -360,8 +362,9 @@ Section SIM.
   .
 
   Definition ticket_lock_inv_unlocked0
-             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp :=
-    (OwnM (Auth.white (Excl.just (now, myt): Excl.t (nat * nat)%type)))
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
+             (myt: thread_id) (V: TView.t) (wk: nat) : iProp :=
+    (OwnM (Auth.white (Excl.just (now, myt, V, wk): Excl.t (nat * nat * TView.t * nat)%type)))
       ∗
       (⌜(l = []) /\ (tks = @NatMap.empty _) /\ (now = next)⌝)
       ∗
@@ -371,9 +374,10 @@ Section SIM.
   .
 
   Definition ticket_lock_inv_unlocked1
-             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp :=
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
+             (myt: thread_id) (V: TView.t) (wk: nat) : iProp :=
     ∃ yourt waits,
-      (OwnM (Auth.white (Excl.just (now, myt): Excl.t (nat * nat)%type)))
+      (OwnM (Auth.white (Excl.just (now, myt, V, wk): Excl.t (nat * nat * TView.t * nat)%type)))
         ∗
         (⌜(l = yourt :: waits)⌝)
         ∗
@@ -395,8 +399,9 @@ Section SIM.
   .
 
   Definition ticket_lock_inv_locked
-             (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp :=
-    (OwnM (Auth.white (Excl.just (now, myt): Excl.t (nat * nat)%type)))
+             (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
+             (myt: thread_id) (V: TView.t) (wk: nat) : iProp :=
+    (OwnM (Auth.white (Excl.just (now, myt, V, wk): Excl.t (nat * nat * TView.t * nat)%type)))
       ∗
       (⌜tkqueue l tks (S now) next⌝)
       ∗
@@ -420,13 +425,19 @@ Section SIM.
     )
   .
 
+  Definition wP (n: nat): wProp := fun c _ => (⌜exists m, (c = nat2c m) /\ (m < n)⌝)%I.
+  Definition wQ (n: nat): wProp := fun c _ => (⌜c = nat2c n⌝)%I.
+
   Definition ticket_lock_inv_mem
-             (mem: WMem.t) (V: TView.t) (now next: nat) (myt: thread_id) : iProp :=
-    ((memory_black mem)
-       ∗ (wpoints_to_full TicketLock.now_serving V (nat2c now))
+             (mem: WMem.t) (V: TView.t) (wk: nat) (now next: nat) (myt: thread_id) : iProp :=
+    ((wmemory_black mem)
+       ∗ (wpoints_to_full TicketLockW.now_serving V wk (wP now) (wQ now))
        ∗ (wpoints_to_faa TicketLockW.next_ticket (nat2c next))
-       ∗ (OwnM (Auth.black (Excl.just (now, myt): Excl.t (nat * nat)%type)))
+       ∗ (OwnM (Auth.black
+                  (Excl.just (now, myt, V, wk): Excl.t (((nat * nat) * TView.t) * nat)%type)))
        ∗ (monoBlack tk_mono Nat.le_preorder now)
+       ∗ (monoBlack wm_mono wmpreord (now, wk))
+       ∗ (∃ o, ObligationRA.black wk o)
     )
   .
 
@@ -436,24 +447,24 @@ Section SIM.
   .
 
   Definition ticket_lock_inv : iProp :=
-    ∃ (mem: WMem.t) (own: bool) (V: TView.t)
+    ∃ (mem: WMem.t) (own: bool) (V: TView.t) (wk: nat)
       (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
       (ticket_lock_inv_tks tks)
         ∗
-        (ticket_lock_inv_mem mem V now next myt)
+        (ticket_lock_inv_mem mem V wk now next myt)
         ∗
         ((ticket_lock_inv_state mem own V tks))
         ∗
         (((⌜own = true⌝)
-            ∗ (ticket_lock_inv_locked l tks now next myt)
+            ∗ (ticket_lock_inv_locked l tks now next myt V wk)
          )
          ∨
            ((⌜own = false⌝)
               ∗ ((ticket_lock_inv_unlocking l tks now next myt)
                  ∨
-                   ((ticket_lock_inv_unlocked0 l tks now next myt)
+                   ((ticket_lock_inv_unlocked0 l tks now next myt V wk)
                     ∨
-                      (ticket_lock_inv_unlocked1 l tks now next myt))
+                      (ticket_lock_inv_unlocked1 l tks now next myt V wk))
                 )
         ))
   .

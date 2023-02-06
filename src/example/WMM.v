@@ -221,7 +221,7 @@ Section MEMRA.
   Qed.
 
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{ARROWRA: @GRA.inG (Region.t ((void + WMem.ident) * nat * Ord.t * Qp * nat)) Σ}.
+  Context `{ARROWRA: @GRA.inG (ArrowRA (void + WMem.ident)%type) Σ}.
 
   Definition wpoints_to_full (l: Loc.t) (V: TView.t) (k: nat) (P Q: wProp) : iProp.
   Admitted.
@@ -258,7 +258,7 @@ Section MEMRA.
          ∗ (wmemory_black m)
          ∗ (wpoints_to_full l V k P Q)
          ∗ (((lift_wProp P val vw1)
-               ∗ (∃ ts, (ObligationRA.correl (inr (l, ts)) k (Ord.S Ord.O))
+               ∗ (∃ ts, (ObligationRA.correl (inr (inr (l, ts))) k (Ord.S Ord.O))
                           ∗ (⌜WMem.missed m.(WMem.memory) l to (l, ts) = Flag.fail⌝)))
             ∨ ((lift_wProp Q val vw1) ∗ (⌜TView.le V vw1⌝)))
       ).
