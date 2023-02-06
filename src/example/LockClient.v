@@ -140,14 +140,14 @@ Section SIM.
   Definition o_w_cor: Ord.t := (Ord.omega × Ord.omega)%ord.
 
   Definition lock_will_unlock : iProp :=
-    ∃ (own: option TView.t) (mem: WMem.t) (wobl: NatMap.t nat) (j: nat),
+    ∃ (own: bool) (tvw: TView.t) (mem: WMem.t) (wobl: NatMap.t nat) (j: nat),
       (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
         ∗
         (OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗
         (wmemory_black mem)
         ∗
-        (St_tgt (tt, (mem, (own, key_set wobl))))
+        (St_tgt (tt, (mem, ((own, tvw), key_set wobl))))
         ∗
         (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wobl)))
         ∗
@@ -163,13 +163,12 @@ Section SIM.
         ))
         ∗
         (
-          (∃ tvw,
-              (⌜own = Some tvw⌝)
-                ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
-                ∗ (OwnM (Auth.white (Excl.just tvw: Excl.t TView.t)))
+          ((⌜own = false⌝)
+             ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
+             ∗ (OwnM (Auth.white (Excl.just tvw: Excl.t TView.t)))
           )
-            ∨
-            ((⌜own = None⌝)
+          ∨
+            ((⌜own = true⌝)
                ∗ (ObligationRA.pending j 1)
                ∗ (ObligationRA.black j o_w_cor)
                ∗ (ObligationRA.correl_thread j 1%ord)
@@ -248,7 +247,7 @@ Section SIM.
     iIntros "DUTY _". rred.
     iApply stsim_tauR. rred.
     iApply stsim_tidR. rred. iApply stsim_tauR. rred.
-    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+    iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
     iApply stsim_getR. iSplit. iFrame. rred.
     iApply stsim_tauR. rred.
@@ -305,20 +304,19 @@ Section SIM.
     (* need to make amp; need ObligationRA.black j *)
     iAssert (
         (
-  (∃ tvw : TView.t,
-               ⌜own = Some tvw⌝ **
+  (⌜own = false⌝ **
                (OwnM (Auth.white (Excl.just j: Excl.t nat)) ** OwnM (Auth.white (Excl.just tvw: Excl.t TView.t))))
-   ∨ (⌜own = None⌝ **
+   ∨ (⌜own = true⌝ **
                (ObligationRA.pending j 1 **
                 (ObligationRA.black j o_w_cor **
                  (ObligationRA.correl_thread j 1 **
             natmap_prop_sum wobl (λ _ idx : nat, ObligationRA.amplifier j idx 1))))))
     ∗
-    #=( ObligationRA.edges_sat )=>((⌜own = None⌝) -∗ (ObligationRA.amplifier j k 1))
+    #=( ObligationRA.edges_sat )=>((⌜own = true⌝) -∗ (ObligationRA.amplifier j k 1))
       )%I
       with "[CASES YOUW]" as "[CASES AMP]".
     { iDestruct "CASES" as "[OWNF | [OT [PEND [JBLK [JCOR ALLAMP]]]]]".
-      { iDestruct "OWNF" as "[% [% OW]]". iSplitL "OW". iLeft. iExists tvw. auto.
+      { iDestruct "OWNF" as "[% OW]". iSplitL "OW". iLeft. auto.
         iModIntro. iIntros "OT". iPure "OT" as OT. clarify.
       }
       iPoseProof ("JBLK") as "# JBLK". iSplitR "YOUW".
@@ -331,7 +329,7 @@ Section SIM.
 
     (* now close invariant *)
     iMod ("K1" with "[TH OWNB1 B2 MEM SUM CASES STGT PEND BLKS MYDUTY MYCOR AMP]") as "_".
-    { unfold lock_will_unlock. iExists own, mem, (NatMap.add tid k wobl), j. iFrame.
+    { unfold lock_will_unlock. iExists own, tvw, mem, (NatMap.add tid k wobl), j. iFrame.
       rewrite key_set_pull_add_eq. iFrame. iSplitL "SUM TH MYDUTY MYCOR PEND".
       { iApply (natmap_prop_sum_add with "SUM"). iFrame. auto. }
       iDestruct "CASES" as "[OWNF | [OT [PEND [JBLK [JCOR ALLAMP]]]]]". iFrame.
@@ -365,14 +363,13 @@ Section SIM.
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
     iIntros "DUTY WTH". rred.
     iApply stsim_tauR. rred.
-    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+    iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
     iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_tauR. rred. destruct own; cycle 1.
+    iApply stsim_tauR. rred. destruct own.
 
     (* someone is holding the lock *)
-    { rred.
-      iApply stsim_tauR. rred.
+    { rred. iApply stsim_tauR. rred.
 
       iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
       { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
@@ -383,7 +380,7 @@ Section SIM.
       rename H into FIND.
 
       iDestruct "I1" as "[BLKS [SUM CASES]]".
-      iDestruct "CASES" as "[[% [%OWNF [LOCK EXCL]]] | [%OWNT [JPEND [JBLK [#JCOR AMPs]]]]]".
+      iDestruct "CASES" as "[[%OWNF [LOCK EXCL]] | [%OWNT [JPEND [JBLK [#JCOR AMPs]]]]]".
       { inversion OWNF. }
 
       (* induction *)
@@ -403,7 +400,7 @@ Section SIM.
             apply OrdArith.lt_from_nat. ss.
           }
           iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM JPEND JBLK AMPs]") as "_".
-          { unfold lock_will_unlock. iExists None, mem, wobl, j. iFrame.
+          { unfold lock_will_unlock. iExists true, tvw1, mem, wobl, j. iFrame.
             iRight. iFrame. iSplit; auto.
           }
           { msubtac. }
@@ -418,13 +415,15 @@ Section SIM.
       iClear "TAXES". clear IH credit RICH.
       iApply stsim_getR. iSplit. iFrame. rred.
       iApply stsim_tauR. rred.
+      iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred.
+      iApply stsim_tauR. rred.
       iApply stsim_getR. iSplit. iFrame. rred.
       iApply stsim_tauR. rred.
       iApply stsim_getR. iSplit. iFrame. rred.
       iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
       iApply stsim_tauR. rred.
 
-      iDestruct "I1" as "[BLKS [SUM [[% [%VW [LOCK EXCL]]] | [%CONTRA _]]]]".
+      iDestruct "I1" as "[BLKS [SUM [[%VW [LOCK EXCL]] | [%CONTRA _]]]]".
       2:{ inversion CONTRA. }
       inv VW.
       iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
@@ -548,7 +547,8 @@ Section SIM.
       iPoseProof (natmap_prop_sum_pull_bupd with "AMPs") as "> AMPs".
 
       iMod ("K1" with "[B1 B2 MEM STGT BLKS SUM NEWP AMPs]") as "_".
-      { unfold lock_will_unlock. iExists None, mem, new_wobl, k. iFrame. iRight. iFrame. auto. }
+      { unfold lock_will_unlock. iExists true, tvw', mem, new_wobl, k. iFrame.
+        iRight. iFrame. auto. }
       { msubtac. }
       iApply stsim_discard. instantiate (1:=topset I). msubtac.
 
@@ -559,14 +559,13 @@ Section SIM.
       }
       iIntros "DUTY _". rred.
       iApply stsim_tauR. rred.
-      iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred.
-      iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+      iApply stsim_tauR. rred.
 
       iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL LOCK]") as "SIM".
       { instantiate (1:= tvw'). iFrame. iSplit.
         { iPureIntro. etrans. 2: eapply l0. apply TView.join_l. }
         iSplitL "DUTY NEWW2 LOCK". iExists k. iFrame.
-        iExists tvw. iFrame. iPureIntro. etrans. 2: eapply l0. apply TView.join_r.
+        iExists tvw1. iFrame. iPureIntro. etrans. 2: eapply l0. apply TView.join_r.
       }
       iApply stsim_reset. iFrame.
     }
@@ -618,14 +617,19 @@ Section SIM.
     iApply (stsim_yieldR with "[DUTY TAX1]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
     iApply stsim_tauR. rred.
-    iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+    iopen 1 "I1" "K1". do 5 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT [BLKS [SUM [CONTRA | CASE]]]]]]]".
-    { iDestruct "CONTRA" as "[% [_ [_ EXCL2]]]".
+    { iDestruct "CONTRA" as "[_ [_ EXCL2]]".
       iPoseProof (white_white_excl with "EXCL EXCL2") as "%FF". inversion FF.
     }
     iDestruct "CASE" as "[% [JPEND [JBLK [JCOR AMPs]]]]". subst own.
     iApply stsim_getR. iSplit. iFrame. rred.
     iApply stsim_tauR. rred.
+
+    destruct (excluded_middle_informative (TView.le tvw tvw0)) eqn:EXCL.
+
+
+
     iApply stsim_getR. iSplit. iFrame. rred.
     iApply stsim_tauR. rred.
     iApply stsim_getR. iSplit. iFrame. rred.
