@@ -556,12 +556,12 @@ Section SIM.
       }
       iPoseProof (natmap_prop_sum_pull_bupd with "AMPs") as "> AMPs".
 
-      iDestruct "EXCL" as "[EXCL EXCL2]".
-      iPoseProof (black_white_update with "B3 EXCL2") as ">[B3 EXCL2]".
-      instantiate (1:= (tvw', tt)).
+      (* iDestruct "EXCL" as "[EXCL EXCL2]". *)
+      (* iPoseProof (black_white_update with "B3 EXCL2") as ">[B3 EXCL2]". *)
+      (* instantiate (1:= (tvw', tt)). *)
 
       iMod ("K1" with "[B1 B2 B3 MEM STGT BLKS SUM NEWP AMPs]") as "_".
-      { unfold lock_will_unlock. iExists true, tvw', mem, new_wobl, k. iFrame.
+      { unfold lock_will_unlock. iExists true, tvw1, mem, new_wobl, k. iFrame.
         iRight. iFrame. auto. }
       { msubtac. }
       iApply stsim_discard. instantiate (1:=topset I). msubtac.
@@ -573,36 +573,37 @@ Section SIM.
       }
       iIntros "DUTY _". rred.
       iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+      iDestruct "EXCL" as "[EXCL EXCL2]".
 
-      iopen 0 "I0" "K0". iDestruct "I0" as "[% [I0B I0]]".
-      iDestruct "I0" as "[% I0]". iDestruct "I0" as "[I01 [I02 [I03 I04]]]".
-      iPoseProof (black_white_equal with "I0B EXCL") as "%". subst.
-      iAssert (
-          ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw1)
-           ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw1))
-            -∗
-            ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw')
-             ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw'))
-        )%I with "[]" as "I04a".
-      { iIntros "I". iDestruct "I" as "[[A B] | [A B]]".
-        - iLeft. iFrame. iApply wpoints_to_view_mon. 2: iFrame.
-          etrans. 2: eapply l0. apply TView.join_r.
-        - iRight. iFrame. iApply wpoints_to_view_mon. 2: iFrame.
-          etrans. 2: eapply l0. apply TView.join_r.
-      }
-      iPoseProof ("I04a" with "I04") as "I04".
-      iPoseProof (black_white_update with "I0B EXCL") as ">[I0B EXCL]".
-      instantiate (1:= tvw').
-
-      iMod ("K0" with "[I0B I01 I02 I03 I04]") as "_".
-      { iExists tvw'. iFrame. unfold thread1_will_write. iExists k0. iFrame. }
-      msubtac.
+      (* iopen 0 "I0" "K0". iDestruct "I0" as "[% [I0B I0]]". *)
+      (* iDestruct "I0" as "[% I0]". iDestruct "I0" as "[I01 [I02 [I03 I04]]]". *)
+      (* iPoseProof (black_white_equal with "I0B EXCL") as "%". subst. *)
+      (* iAssert ( *)
+      (*     ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw1) *)
+      (*      ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw1)) *)
+      (*       -∗ *)
+      (*       ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw') *)
+      (*        ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw')) *)
+      (*   )%I with "[]" as "I04a". *)
+      (* { iIntros "I". iDestruct "I" as "[[A B] | [A B]]". *)
+      (*   - iLeft. iFrame. iApply wpoints_to_view_mon. 2: iFrame. *)
+      (*     etrans. 2: eapply l0. apply TView.join_r. *)
+      (*   - iRight. iFrame. iApply wpoints_to_view_mon. 2: iFrame. *)
+      (*     etrans. 2: eapply l0. apply TView.join_r. *)
+      (* } *)
+      (* iPoseProof ("I04a" with "I04") as "I04". *)
+      (* iPoseProof (black_white_update with "I0B EXCL") as ">[I0B EXCL]". *)
+      (* instantiate (1:= tvw'). *)
+      (* iMod ("K0" with "[I0B I01 I02 I03 I04]") as "_". *)
+      (* { iExists tvw'. iFrame. unfold thread1_will_write. iExists k0. iFrame. } *)
+      (* msubtac. *)
 
       iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL EXCL2 LOCK]") as "SIM".
       { instantiate (1:= tvw'). iFrame. iSplit.
         { iPureIntro. etrans. 2: eapply l0. apply TView.join_l. }
         iSplitL "DUTY NEWW2 LOCK". iExists k. iFrame.
-        iExists tvw'. iFrame. iPureIntro. reflexivity.
+        iExists tvw1. iFrame. iPureIntro.
+        etrans. 2: eapply l0. apply TView.join_r.
       }
       iApply stsim_reset. iFrame.
     }
@@ -710,6 +711,9 @@ Section SIM.
     iPoseProof (ObligationRA.pending_shot with "JPEND") as "> SHOT".
     iPoseProof (ObligationRA.duty_done with "DUTY SHOT") as "> DUTY".
 
+    iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw''. rred.
+    iApply stsim_tauR. rred.
+
     iApply (stsim_yieldR with "[DUTY TAX2]"). msubtac.
     { iSplitL "DUTY". iFrame.
       iPoseProof (ObligationRA.tax_cons_unfold with "TAX2") as "[_ TAX2]". iFrame.
@@ -717,7 +721,7 @@ Section SIM.
     iIntros "DUTY _". rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
     iApply stsim_reset. iApply "SIM". iFrame.
-    iPureIntro. auto.
+    iPureIntro. etrans. 2: eapply l2. auto.
 
   Qed.
 
