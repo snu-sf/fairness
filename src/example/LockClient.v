@@ -124,6 +124,7 @@ Section SIM.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
   Context `{AUTHNRA: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   Context `{AUTHVWRA: @GRA.inG (Auth.t (Excl.t TView.t)) Σ}.
+  Context `{AUTHVWRA2: @GRA.inG (Auth.t (Excl.t (TView.t * unit))) Σ}.
   Context `{AUTHNMNRA: @GRA.inG (Auth.t (NatMapRA.t nat)) Σ}.
 
   Definition thread1_will_write (tvw: TView.t) : iProp :=
@@ -143,7 +144,8 @@ Section SIM.
     ∃ (own: bool) (tvw: TView.t) (mem: WMem.t) (wobl: NatMap.t nat) (j: nat),
       (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
         ∗
-        (OwnM (Auth.black (Excl.just j: Excl.t nat)))
+        ((OwnM (Auth.black (Excl.just j: Excl.t nat)))
+        ∗ (OwnM (Auth.black (Excl.just (tvw, tt): Excl.t (TView.t * unit)%type))))
         ∗
         (wmemory_black mem)
         ∗
@@ -166,6 +168,7 @@ Section SIM.
           ((⌜own = false⌝)
              ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
              ∗ (OwnM (Auth.white (Excl.just tvw: Excl.t TView.t)))
+             ∗ (OwnM (Auth.white (Excl.just (tvw, tt): Excl.t (TView.t * unit)%type)))
           )
           ∨
             ((⌜own = true⌝)
@@ -214,8 +217,9 @@ Section SIM.
                      (OwnM (Auth.white (Excl.just j: Excl.t nat)))
              )
              ∗
-             (∃ tvw, 
+             (∃ tvw,
                  (OwnM (Auth.white (Excl.just tvw: Excl.t TView.t)))
+                   ∗ (OwnM (Auth.white (Excl.just (tvw, tt): Excl.t (TView.t * unit))))
                    ∗ (⌜TView.le tvw tvw1⌝)
              )
           )
