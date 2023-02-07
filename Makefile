@@ -1,6 +1,7 @@
 COQMODULE    := Fairness
 COQTHEORIES  := \
 	pico/*.v \
+	coq/*.v \
 	src/lib/*.v \
 	src/semantics/*.v \
 	src/simulation/*.v \
@@ -24,6 +25,7 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-Q src/logic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
+	 echo "-Q coq $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq
