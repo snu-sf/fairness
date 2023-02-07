@@ -315,6 +315,20 @@ Section TKQ.
 
 End TKQ.
 
+Section AUX.
+
+  Definition ord_ge: Ord.t -> Ord.t -> Prop := fun o1 o2 => Ord.le o2 o1.
+
+  Global Program Instance ord_ge_PreOrder: PreOrder ord_ge.
+  Next Obligation.
+    ii. unfold ord_ge. reflexivity.
+  Qed.
+  Next Obligation.
+    ii. unfold ord_ge in *. etrans; eauto.
+  Qed.
+
+End AUX.
+
 Section SIM.
 
   Context `{Σ: GRA.t}.
@@ -336,12 +350,15 @@ Section SIM.
   (* Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * TView.t) * nat))) Σ}. *)
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * TView.t)))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
+  (* Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t (nat * Ord.t))))%ra Σ}. *)
 
   Let mypreord := prod_le_PreOrder nat_le_po (Tkst.le_PreOrder nat).
   Let wmpreord := prod_le_PreOrder nat_le_po (base.PreOrder_instance_0 nat).
+  Let wopreord := prod_le_PreOrder nat_le_po (ord_ge_PreOrder).
   Variable monok: nat.
   Variable tk_mono: nat.
   Variable wm_mono: nat.
+  Variable wo_mono: nat.
 
   (* Definition ticket_lock_inv_unlocking *)
   (*            (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp := *)
@@ -392,7 +409,7 @@ Section SIM.
 
   Definition ticket_lock_inv_unlocked1
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
-             (myt: thread_id) (V: TView.t): iProp :=
+             (myt: thread_id) (V: TView.t) (wo: Ord.t): iProp :=
     ∃ yourt waits,
       (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * TView.t)%type)))
         ∗
@@ -412,6 +429,7 @@ Section SIM.
               ∗ (ObligationRA.duty (inl yourt) [(k, Ord.S Ord.O)])
               ∗ (ObligationRA.white k (((Ord.S Ord.O) × Ord.omega) × (Ord.from_nat u))%ord)
               ∗ (maps_to yourt (Auth.black (Excl.just u: Excl.t nat)))
+              ∗ (ObligationRA.white k (((Ord.S Ord.O) × Ord.omega) × wo)%ord)
         )
   .
 
@@ -446,14 +464,16 @@ Section SIM.
   Definition wQ (n: nat): wProp := fun c _ => (⌜c = nat2c n⌝)%I.
 
   Definition ticket_lock_inv_mem
-             (mem: WMem.t) (V: TView.t) (wk: nat) (now next: nat) (myt: thread_id) : iProp :=
+             (mem: WMem.t) (V: TView.t) (wk: nat) (wo: Ord.t) (now next: nat) (myt: thread_id) : iProp :=
     ((wmemory_black mem)
        ∗ (wpoints_to_full TicketLockW.now_serving V wk (wP now) (wQ now))
        ∗ (wpoints_to_faa TicketLockW.next_ticket (nat2c next))
        ∗ (OwnM (Auth.black (Excl.just (now, myt, V): Excl.t (((nat * nat) * TView.t))%type)))
        ∗ (monoBlack tk_mono Nat.le_preorder now)
        ∗ (monoBlack wm_mono wmpreord (now, wk))
-       ∗ (∃ o, ObligationRA.black wk o)
+       ∗ (monoBlack wo_mono wopreord (now, wo))
+       ∗ (ObligationRA.black wk wo)
+       (* ∗ (∃ o, ObligationRA.black wk o) *)
     )
   .
 
@@ -463,11 +483,11 @@ Section SIM.
   .
 
   Definition ticket_lock_inv : iProp :=
-    ∃ (mem: WMem.t) (own ing: bool) (V svw: TView.t) (wk: nat)
+    ∃ (mem: WMem.t) (own ing: bool) (V svw: TView.t) (wk: nat) (wo: Ord.t)
       (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
       (ticket_lock_inv_tks tks)
         ∗
-        ((ticket_lock_inv_mem mem V wk now next myt) ∗ (⌜TView.le V svw⌝))
+        ((ticket_lock_inv_mem mem V wk wo now next myt) ∗ (⌜TView.le V svw⌝))
         ∗
         ((ticket_lock_inv_state mem own svw ing tks))
         ∗
@@ -484,7 +504,7 @@ Section SIM.
               ∗ 
               ((ticket_lock_inv_unlocked0 l tks now next myt V)
                ∨
-                 (ticket_lock_inv_unlocked1 l tks now next myt V))
+                 (ticket_lock_inv_unlocked1 l tks now next myt V wo))
         ))
   .
 
