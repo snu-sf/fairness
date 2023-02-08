@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 Unset Universe Checking.
 From Fairness Require Export
      ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
-     OpenMod WMM Red IRed Wrapper WeakestAdequacy FairLock Concurrency.
+     OpenMod WMM Red IRed WeakestAdequacy FairLock Concurrency.
 From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import TView.
 From Ordinal Require Export ClassicalHessenberg.
