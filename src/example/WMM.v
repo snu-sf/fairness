@@ -309,6 +309,8 @@ Section MEMRA.
          ∗ (∃ V' k' o,
                (⌜TView.le V' vw1⌝)
                  ∗
+                 (⌜TView.le vw0 V'⌝)
+                 ∗
                  #=>((wpoints_to_full l V' k' (wor P Q) R)
                        ∗ (ObligationRA.black k' o)
                     )

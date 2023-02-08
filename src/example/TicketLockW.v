@@ -10,6 +10,8 @@ From PromisingSEQ Require Import TView.
 From Ordinal Require Export ClassicalHessenberg.
 Require Import Coq.Numbers.BinNums.
 
+TODO
+
 Set Implicit Arguments.
 
 Section INIT.
@@ -1363,6 +1365,7 @@ Section SIM.
     iApply stsim_getL. iSplit. auto. lred.
     iApply stsim_getL. iSplit. auto. destruct lc1. ss.
     iApply stsim_chooseL.
+    (* TODO *)
     assert (SIG: TView.le (TView.join tvw svw) tview0).
     { apply TView.join_spec. etrans. eapply TVLE. auto. etrans. eapply WQ1. auto. }
     iExists (@exist TView.t _ tview0 SIG). lred.
@@ -2276,7 +2279,7 @@ Section SIM.
 
   Qed.
 
-  Lemma correct_unlock tid:
+  Lemma correct_unlock tid tvw:
     ((own_thread tid)
        ∗ (ObligationRA.duty (inl tid) [])
     )
@@ -2284,45 +2287,192 @@ Section SIM.
       (stsim I tid (topset I) ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
              false false
-             (AbsLock.unlock_fun tt)
-             (OMod.close_itree TicketLock.omod (WMem.mod TicketLock.gvs)
-                               (TicketLock.unlock_fun tt))).
+             (AbsLockW.unlock_fun tvw)
+             (OMod.close_itree TicketLockW.omod (WMem.mod)
+                               (TicketLockW.unlock_fun tvw))).
   Proof.
     iIntros "[MYTH DUTY]".
-    unfold AbsLock.unlock_fun, TicketLock.unlock_fun. rred.
+    unfold AbsLockW.unlock_fun, TicketLockW.unlock_fun. rred.
     rewrite close_itree_call. rred.
     iApply (stsim_sync with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _".
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
-    iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]"; cycle 1.
-    { subst own. iDestruct "ST" as "[ST0 ST1]".
-      iApply stsim_getL. iSplit. auto. rred.
-      destruct (Bool.eqb false true) eqn:BEQ. exfalso. inv BEQ.
-      iApply stsim_UB.
+    iopen 0 "I" "K". do 12 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [%CF2 [I | I]]]]"; cycle 1.
+    { subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred.
+      destruct (excluded_middle_informative (TView.le svw tvw)).
+      iApply stsim_UB. iApply stsim_UB.
     }
-    { subst own. iDestruct "ST" as "[ST0 ST1]".
-      iApply stsim_getL. iSplit. auto. rred.
-      destruct (Bool.eqb false true) eqn:BEQ. exfalso. inv BEQ.
-      iApply stsim_UB.
+    { subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred.
+      destruct (excluded_middle_informative (TView.le svw tvw)).
+      iApply stsim_UB. iApply stsim_UB.
     }
-    { subst own. iDestruct "ST" as "[ST0 ST1]".
-      iApply stsim_getL. iSplit. auto. rred.
-      destruct (Bool.eqb false true) eqn:BEQ. exfalso. inv BEQ.
-      iApply stsim_UB.
+    { subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred.
+      destruct (excluded_middle_informative (TView.le svw tvw)).
+      iApply stsim_UB. iApply stsim_UB.
     }
 
-    subst own. iDestruct "ST" as "[ST0 ST1]".
-    iApply stsim_getL. iSplit. auto. rred.
-    destruct (Bool.eqb true true) eqn:BEQ. 2: exfalso; inv BEQ.
-    clear BEQ.
-    iApply (stsim_putL with "ST1"). iIntros "ST1".
+    subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred.
+    destruct (excluded_middle_informative (TView.le svw tvw)).
+    2: iApply stsim_UB.
+    rename l0 into ARGLE. iApply (stsim_putL with "ST1"). iIntros "ST1".
 
     unfold Mod.wrap_fun, WMem.load_fun. rred.
-    iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
+    iDestruct "MEM" as "[MEM %SVLE]". iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]".
     iApply stsim_getR. iSplit. eauto. rred.
     iApply stsim_tauR. rred.
-    iPoseProof (memory_ra_load with "MEM0 MEM1") as "%LOAD". des. rewrite LOAD. rred.
+    iApply stsim_chooseR. iIntros. destruct x. destruct x as [[lc1 val] to]. des. rred. rename y into READ.
     iApply stsim_tauR. rred.
-    rewrite close_itree_call. rred.
+    assert (ARGLE2: TView.le V tvw).
+    { etrans. eapply SVLE. auto. }
+    iAssert (⌜TView.le V tvw⌝)%I as "ARGLE3". auto.
+    iPoseProof (wmemory_ra_load_rlx with "MEM0 MEM1 ARGLE3") as "[%RXLE [MEM0 [MEM1 %WQ]]]".
+    eapply READ. eauto. auto.
+    iApply stsim_fairR.
+    { i. instantiate (1:= []). ss. clear - IN. unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs. }
+    { i. instantiate (1:=[]) in IN. inv IN. }
+    { econs. }
+    { auto. }
+    iIntros "_ _". rred.
+    iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+
+    rewrite close_itree_call. unfold Mod.wrap_fun, WMem.store_fun. rred.
+    iDestruct "I" as "[I0 [I1 [I2 [I3 [% I5]]]]]".
+    iDestruct "MEM3" as "[MEM3 MEM4]".
+    iPoseProof (black_white_update with "MEM3 I0") as ">[MEM3 I0]". instantiate (1:=(now, tid, V)).
+    iMod ("K" with "[MYTH TKS MEM0 MEM1 MEM2 MEM3 MEM4 ST0 ST1 I1 I2 I3 I5]") as "_".
+    { unfold ticket_lock_inv. iExists mem, true, true, V, svw, wk, wo. iExists l, tks, now, next, tid.
+      remember (
+    (⌜true = true⌝ **
+     (⌜true = false⌝ ** ticket_lock_inv_locked l tks now next tid V)
+     ∨ (⌜true = true⌝ ** ticket_lock_inv_unlocking l tks now next tid))
+    ∨ (⌜true = false⌝ **
+       (⌜true = false⌝ ** ticket_lock_inv_unlocked0 l tks now next tid V ∨ ticket_lock_inv_unlocked1 l tks now next tid V wo))
+        )%I as temp.
+      iFrame. iSplit. auto. subst temp.
+      iLeft. iSplit. auto. iRight. iSplit. auto. iFrame. iExists k. iFrame.
+    }
+    iClear "ARGLE3".
+    iApply (stsim_sync with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _".
+    destruct lc1. ss. move ARGLE2 before tid. move RXLE before ARGLE2. des. subst val.
+    clear_upto RXLE.
+
+    iopen 0 "I" "K". do 12 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [%CF2 [I | I]]]]"; cycle 2.
+    { subst. iDestruct "I" as "[C I]". iPoseProof (white_white_excl with "I0 C") as "%FF". inv FF. }
+    { subst. do 2 iDestruct "I" as "[% I]". iDestruct "I" as "[C I]". iPoseProof (white_white_excl with "I0 C") as "%FF". inv FF. }
+    { subst. iDestruct "I" as "[C I]". iPoseProof (white_white_excl with "I0 C") as "%FF". inv FF. }
+    iDestruct "MEM" as "[MEM %SVLE]". iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
+    iPoseProof (black_white_equal with "MEM3 I0") as "%EQ". inv EQ.
+
+    iDestruct "ST" as "[ST0 ST1]".
+    unfold Mod.wrap_fun, WMem.store_fun. rred.
+
+    iApply stsim_getR. iSplit. auto. rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_chooseR. iIntros. destruct x. destruct x as [[[lc1 to] sc1] mem1]. des. rred. rename y into WRITE.
+    iApply stsim_tauR. rred.
+    iApply stsim_fairR.
+    { i. instantiate (1:= []). ss. clear - IN. unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs. }
+    { i. instantiate (1:=[]) in IN. inv IN. }
+    { econs. }
+    { auto. }
+    iIntros "_ _". rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_getR. iSplit. auto. rred.
+    iApply (stsim_putR with "ST0"). iIntros "ST0". rred.
+    iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+
+    remember (S now) as now'.
+    destruct lc1. ss.
+    assert (REL1: TView.le V tview).
+    { etrans. eapply ARGLE2. auto. }
+    iAssert (⌜TView.le V tview⌝)%I as "WREL1". auto.
+    (* TODO *)
+
+    
+    iAssert (wQ (now') tview (BinIntDef.Z.of_nat now + 1)%Z tview)%I as "WQ".
+    { unfold wQ. 
+    iPoseProof (wmemory_ra_store_rel with "MEM0 MEM1") as ""
+
+    iApply stsim_tauR. rred.
+    iPoseProof (wmemory_ra_load_acq with "MEM0 MEM1") as "[%RVLE [MEM0 [MEM1 WCASES]]]".
+    eapply READ. eauto. auto.
+
+    iApply stsim_tauR. rred.
+    
+    iIntros. destruct x. destruct x as [[lc1 val] to]. des. rred. rename y into READ.
+    iApply stsim_tauR. rred.
+    assert (ARGLE2: TView.le V tvw).
+    { etrans. eapply SVLE. auto. }
+    iAssert (⌜TView.le V tvw⌝)%I as "ARGLE3". auto.
+    iPoseProof (wmemory_ra_load_rlx with "MEM0 MEM1 ARGLE3") as "[%RXLE [MEM0 [MEM1 _]]]".
+    eapply READ. eauto. auto.
+    iApply stsim_fairR.
+    { i. instantiate (1:= []). ss. clear - IN. unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs. }
+    { i. instantiate (1:=[]) in IN. inv IN. }
+    { econs. }
+    { auto. }
+    iIntros "_ _". rred.
+    iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+
+
+    iApply stsim_getL. iSplit. auto. rred.
+    iApply stsim_chooseL.
+    assert (SIG: TView.le (TView.join tvw svw) tview0).
+    { apply TView.join_spec. etrans. eapply TVLE. auto. etrans. eapply WQ1. auto. }
+    iExists (@exist TView.t _ tview0 SIG). lred.
+    iApply (stsim_putL with "ST1"). iIntros "ST1".
+
+
+    iIntros. destruct x. destruct x as [[lc1 val] to]. des. rred. rename y into READ.
+    iApply stsim_tauR. rred.
+    assert (ARGLE2: TView.le V tvw).
+    { etrans. eapply SVLE. auto. }
+    iAssert (⌜TView.le V tvw⌝)%I as "ARGLE3". auto.
+    iPoseProof (wmemory_ra_load_rlx with "MEM0 MEM1 ARGLE3") as "[%RXLE [MEM0 [MEM1 _]]]".
+    eapply READ. eauto. auto.
+    iApply stsim_fairR.
+    { i. instantiate (1:= []). ss. clear - IN. unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs. }
+    { i. instantiate (1:=[]) in IN. inv IN. }
+    { econs. }
+    { auto. }
+    iIntros "_ _". rred.
+    iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+
+
+    iApply stsim_tauR.
+
+    
+
+    
+    iPoseProof (black_updatable with "I5") as ">I5".
+    { instantiate (1:=(now, Tkst.d k)). econs 2. ss. split; try lia. }
+    iPoseProof (black_white_update with "MEM3 I0") as ">[MEM3 HOLD]". instantiate (1:=(now, tid)).
+
+    iApply (stsim_yieldR_strong with "[DUTY TAX]").
+    { iSplitL "DUTY". iFrame. iApply ObligationRA.tax_cons_fold. iSplit. 2: auto.
+      iApply ObligationRA.white_eq. 2: iFrame.
+      rewrite Ord.from_nat_1. rewrite Jacobsthal.mult_1_r. reflexivity.
+    }
+    iIntros "DUTY _".
+    iMod ("K" with "[MYTH TKS MEM0 MEM1 MEM2 MEM3 MEM4 ST0 ST1 I1 I2 I3 I5 OBLK OPEND DUTY]") as "_".
+    { iExists mem, false, l, tks, now, next, tid.
+      remember (
+    (⌜false = true⌝ ** ticket_lock_inv_locked l tks now next tid)
+    ∨ (⌜false = false⌝ **
+       ticket_lock_inv_unlocking l tks now next tid
+       ∨ ticket_lock_inv_unlocked0 l tks now next tid
+       ∨ ticket_lock_inv_unlocked1 l tks now next tid))%I as temp.
+      iFrame. subst temp.
+      iRight. iSplit. auto. iLeft. iFrame.
+      iExists _, _. iFrame.
+    }
+    iModIntro. clear_upto tid.
+
+
+
+    do 2 iDestruct "I5" as "[% I5]". iDestruct "I5" as "[I5 [_ [OPEND DUTY]]]".
+    
+
 
     iPoseProof (ObligationRA.alloc (((Ord.S Ord.O) × Ord.omega) × (Ord.from_nat 2))%ord) as "> [% [[OBLK OWHI] OPEND]]".
     iPoseProof (ObligationRA.white_eq with "OWHI") as "OWHI".
