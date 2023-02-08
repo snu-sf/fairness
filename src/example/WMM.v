@@ -9,6 +9,20 @@ From PromisingSEQ Require Import Time View TView Cell Memory Local.
 Set Implicit Arguments.
 
 Module WMem.
+  Program Definition init_cell: Cell.t :=
+    @Cell.mk (LocMap.singleton Time.bot (Time.bot, Message.concrete (Const.of_Z (BinIntDef.Z.of_nat 0)) None)) _.
+  Next Obligation.
+  Proof.
+    econs.
+    { i. eapply LocMap.singleton_find_inv in GET. des; clarify. auto. }
+    { i. eapply LocMap.singleton_find_inv in GET. des; clarify. auto. }
+    { i. eapply LocMap.singleton_find_inv in GET1.
+      eapply LocMap.singleton_find_inv in GET2. des; clarify.
+    }
+  Qed.
+
+  Definition init_mem: Memory.t := fun _ => init_cell.
+
   Record t :=
     mk
       {
@@ -16,7 +30,7 @@ Module WMem.
         sc: TimeMap.t;
       }.
 
-  Definition init: t := mk Memory.init TimeMap.bot.
+  Definition init: t := mk init_mem TimeMap.bot.
 
   Let ident := (Loc.t * Time.t)%type.
 
@@ -124,19 +138,40 @@ Module WMem.
 End WMem.
 
 From Fairness Require Import PCM IProp IPM FairRA StateRA MonotonePCM.
+From PromisingSEQ Require Import MemoryProps.
 
 Section MEMRA.
-  Definition wmemRA: URA.t.
-  Admitted.
+  Definition wmemRA: URA.t := (Loc.t ==> (Auth.t (Excl.t Cell.t)))%ra.
 
   Context `{WMEMRA: @GRA.inG wmemRA Σ}.
 
-  Definition wmemory_black (m: WMem.t): iProp.
-  Admitted.
+  Definition memory_resource_black (m: WMem.t): wmemRA :=
+    fun loc =>
+      Auth.black (Excl.just (m.(WMem.memory) loc): Excl.t Cell.t).
+
+  Definition points_to_white (loc: Loc.t) (c: Cell.t): wmemRA :=
+    fun loc' =>
+      if (Loc.eq_dec loc' loc)
+      then Auth.white (Excl.just c: Excl.t Cell.t)
+      else URA.unit
+  .
+
+  Definition points_to (loc: Loc.t) (c: Cell.t): iProp :=
+    OwnM (points_to_white loc c).
+
+  Definition wmemory_black (m: WMem.t): iProp :=
+    OwnM (memory_resource_black m).
 
   (* normal points-to *)
-  Definition wpoints_to (l: Loc.t) (v: Const.t) (vw: TView.t): iProp.
-  Admitted.
+  Definition wpoints_to (l: Loc.t) (v: Const.t) (vw: TView.t): iProp :=
+    ∃ c,
+      (points_to l c)
+        **
+        (⌜exists from released,
+              (<<GET: Cell.get (Cell.max_ts c) c = Some (from, Message.concrete v released)>>) /\
+                (<<DEFINED: v <> Const.undef>>) /\
+                (<<VIEW: View.le (View.singleton_ur l (Cell.max_ts c)) vw.(TView.cur) >>)⌝)
+  .
 
   Lemma wpoints_to_view_mon l v vw0 vw1
         (LE: TView.le vw0 vw1)
@@ -145,7 +180,62 @@ Section MEMRA.
       ⊢
       (wpoints_to l v vw1).
   Proof.
-  Admitted.
+    unfold wpoints_to.
+    iIntros "[% [OWN %]]". des. iExists _. iSplit; [iFrame|].
+    iPureIntro. esplits; eauto. etrans; eauto. eapply LE.
+  Qed.
+
+  Lemma wmemory_ra_get
+        m l c
+    :
+    (wmemory_black m)
+      -∗
+      (points_to l c)
+      -∗
+      ⌜m.(WMem.memory) l = c⌝.
+  Proof.
+    iIntros "BLACK WHITE".
+    unfold wmemory_black, points_to.
+    iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN". iPureIntro.
+    ur in H. specialize (H l).
+    unfold memory_resource_black, points_to_white in H. des_ifs.
+    ur in H. ur in H. des_ifs. des. rr in H. des. ur in H. des_ifs.
+  Qed.
+
+  Lemma pointwise_updatabable M K (a b: URA.pointwise K M)
+        (POINTWISE: forall k, URA.updatable (a k) (b k))
+    :
+    URA.updatable a b.
+  Proof.
+    ii. ur. ur in H. i. eapply POINTWISE; eauto.
+  Qed.
+
+  Lemma wmemory_ra_set
+        m l c0 c1
+    :
+    (wmemory_black m)
+      -∗
+      (points_to l c0)
+      -∗
+      (#=> (wmemory_black (WMem.mk (LocFun.add l c1 m.(WMem.memory)) m.(WMem.sc)) ** points_to l c1)).
+  Proof.
+    iIntros "BLACK WHITE".
+    unfold wmemory_black, points_to.
+    iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN".
+    ur in H. specialize (H l).
+    unfold memory_resource_black, points_to_white in H. des_ifs.
+    ur in H. ur in H. des_ifs. des. rr in H. des. ur in H. des_ifs.
+    iAssert (#=> OwnM (memory_resource_black (WMem.mk (LocFun.add l c1 m.(WMem.memory)) m.(WMem.sc)) ⋅ points_to_white l c1)) with "[OWN]" as "> [BLACK WHITE]".
+    { iApply (OwnM_Upd with "OWN").
+      ur. apply pointwise_updatabable. i.
+      unfold memory_resource_black, points_to_white. ss.
+      setoid_rewrite LocFun.add_spec. des_ifs.
+      eapply Auth.auth_update. ii. des. split; ss.
+      { ur. ss. }
+      { ur in FRAME. ur. des_ifs. }
+    }
+    { iModIntro. iFrame. }
+  Qed.
 
   Lemma wmemory_ra_load
         m l v0 v1 vw0 vw1
@@ -160,7 +250,35 @@ Section MEMRA.
       -∗
       ((wmemory_black m) ∗ (⌜(TView.le vw0 vw1) /\ (v0 = v1)⌝) ∗ #=>(wpoints_to l v0 vw1)).
   Proof.
-  Admitted.
+    iIntros "BLACK [% [WHITE %]]". des. subst.
+    iPoseProof (wmemory_ra_get with "BLACK WHITE") as "%". subst.
+    iSplitL "BLACK"; [auto|]. inv READ. ss. iSplit.
+    { iPureIntro. split.
+      { econs; ss.
+        { i. reflexivity. }
+        { etrans; [|eapply View.join_l]. eapply View.join_l. }
+        { etrans; [|eapply View.join_l]. eapply View.join_l. }
+      }
+      { assert (to = (Cell.max_ts (WMem.memory m l))).
+        { eapply TimeFacts.antisym.
+          { eapply Memory.max_ts_spec in GET0. des. clarify. }
+          { inv READABLE. etrans; eauto.
+            inv VIEW0. ss. specialize (PLN0 l).
+            unfold TimeMap.singleton in PLN0.
+            setoid_rewrite LocFun.add_spec_eq in PLN0. auto.
+          }
+        }
+        subst. setoid_rewrite GET in GET0. clarify.
+        inv VAL; ss.
+        destruct v1, val'; ss. apply Z.eqb_eq in H0. subst. auto.
+      }
+    }
+    { iModIntro. iExists _. iFrame. iPureIntro. esplits; eauto.
+      ss. unfold View.singleton_ur_if. des_ifs.
+      etrans; eauto.
+      etrans; [|eapply View.join_l]. eapply View.join_l.
+    }
+  Qed.
 
   Lemma wmemory_ra_store
         m0 l v0 vw0 m1 v1 vw1
@@ -169,6 +287,7 @@ Section MEMRA.
         (VIEW: vw1 = lc1.(Local.tview))
         (MEM: m1 = WMem.mk mem1 sc1)
         (ORD: ord = Ordering.plain)
+        (DEFINED: v1 <> Const.undef)
     :
     (wmemory_black m0)
       -∗
@@ -176,6 +295,136 @@ Section MEMRA.
       -∗
       ((⌜TView.le vw0 vw1⌝) ∗ #=>((wmemory_black m1) ∗ (wpoints_to l v1 vw1))).
   Proof.
+    iIntros "BLACK [% [WHITE %]]". des. subst.
+    iPoseProof (wmemory_ra_get with "BLACK WHITE") as "%". subst.
+    inv WRITE. ss. hexploit memory_write_bot_add; eauto. i. subst.
+    inv WRITE0. inv PROMISE. clear REMOVE PROMISES ATTACH TS.
+    assert (MAX: Cell.max_ts (mem1 l) = to).
+    { hexploit Memory.max_ts_spec.
+      { eapply Memory.add_get1; eauto. }
+      i. des. erewrite Memory.add_o in GET0; eauto. des_ifs; ss.
+      { des; clarify. }
+      { des; ss. eapply Memory.max_ts_spec in GET0. des.
+        hexploit Memory.max_ts_spec.
+        { eapply Memory.add_get0; eauto. }
+        i. des. rr in WRITABLE. inv WRITALBLE.
+
+
+        eapply Memory.max_ts_spec in
+
+
+eapply Memory.max_ts_spec in MAX0. des.
+        exfalso.
+
+        admit.
+      }
+    }
+    subst. iSplit.
+    { iPureIntro. econs; ss.
+      { i. des_ifs. erewrite LocFun.add_spec. des_ifs.
+        { eapply View.join_l. }
+        { reflexivity. }
+      }
+      { eapply View.join_l. }
+      { eapply View.join_l. }
+    }
+    iPoseProof (wmemory_ra_set with "BLACK WHITE") as "> [BLACK WHITE]".
+    instantiate (1:=mem1 l). iModIntro. iSplitL "BLACK".
+    { assert (EQ: mem1 = (LocFun.add l (mem1 l) (WMem.memory m0))).
+      { inv MEM. extensionality l0. setoid_rewrite LocFun.add_spec. des_ifs.
+        setoid_rewrite LocFun.add_spec_eq. auto.
+      }
+      iEval (rewrite EQ). auto.
+    }
+    iExists _. iSplit; [iFrame|]. iPureIntro. esplits; eauto.
+    { eapply Memory.add_get0; eauto. }
+    { ss. eapply View.join_r. }
+  Qed.
+
+rr.
+
+
+; auto.
+
+
+
+    iModIntro. iSplit; eauto.
+
+    assert (View.le (View.singleton_ur l (Cell.max_ts (mem1 l)))
+                    (TView.cur (TView.write_tview vw0 (WMem.sc m0) l to Ordering.plain))).
+    { subst. nss. etrans; [|eapply View.join_r]. subst. reflexivity. }
+
+      cut (TimeMap.le (TimeMap.singleton l (Cell.max_ts (mem1 l))) (TimeMap.singleton l to)).
+      { i. econs; ss. } subst. refle
+      eapply TimeMap.singleton_spec. unfold TimeMap.singleton.
+      setoid_rewrite LocFun.add_spec. des_ifs. inv WRITABLE.
+      hexploit Memory.max_ts_spec.
+      { eapply Memory.add_get1; eauto. }
+      i. des. erewrite Memory.add_o in GET0; eauto. des_ifs; ss.
+      { des; clarify. reflexivity. }
+      { des; ss. }eapply Memory.max_ts_spec in GET0. des; clarify.
+        etrans; eauto.
+
+ des; s
+      }{
+
+ in GET. des.
+
+
+      etrans; [|left; eauto]. inv VIEW0. ss. etrans; eauto.
+      unfold TimeMap.singleton.
+      setoid_rewrite LocFun.add_spec. des_ifs.
+      eapply Memory.max_ts_spec in GET. des.
+
+
+
+      admit.
+    }
+    { zadmi
+
+
+reflexvity.
+
+
+
+ss
+
+ss.
+
+
+     eauinv WR
+
+TView.le
+
+    iSplitL "BLACK"; [auto|]. inv READ. ss. iSplit.
+    { iPureIntro. split.
+      { econs; ss.
+        { i. reflexivity. }
+        { etrans; [|eapply View.join_l]. eapply View.join_l. }
+        { etrans; [|eapply View.join_l]. eapply View.join_l. }
+      }
+      { assert (to = (Cell.max_ts (WMem.memory m l))).
+        { eapply TimeFacts.antisym.
+          { eapply Memory.max_ts_spec in GET0. des. clarify. }
+          { inv READABLE. etrans; eauto.
+            inv VIEW0. ss. specialize (PLN0 l).
+            unfold TimeMap.singleton in PLN0.
+            setoid_rewrite LocFun.add_spec_eq in PLN0. auto.
+          }
+        }
+        subst. setoid_rewrite GET in GET0. clarify.
+        inv VAL; ss.
+        destruct v1, val'; ss. apply Z.eqb_eq in H0. subst. auto.
+      }
+    }
+    { iModIntro. iExists _. iFrame. iPureIntro. esplits; eauto.
+      ss. unfold View.singleton_ur_if. des_ifs.
+      etrans; eauto.
+      etrans; [|eapply View.join_l]. eapply View.join_l.
+    }
+  Qed.
+
+
   Admitted.
 
 
