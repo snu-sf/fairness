@@ -145,21 +145,9 @@ Module Flag.
 
 End Flag.
 
-Section IDENT.
-
-  Definition ID := Type.
-
-  Definition id_prod (A B: ID): ID := (prod A B).
-  Definition id_sum (A B: ID): ID := (sum A B).
-
-  (* Class ID : Type := mk_id { id: Type }. *)
-
-  (* Definition id_prod (A B: ID): ID := mk_id (prod A.(id) B.(id)). *)
-  (* Definition id_sum (A B: ID): ID := mk_id (sum A.(id) B.(id)). *)
-
-End IDENT.
-Global Opaque ID.
-
+Notation ID := (Type) (only parsing).
+Notation id_prod A B := (prod A B) (only parsing).
+Notation id_sum A B := (sum A B) (only parsing).
 
 Section EVENT.
 
