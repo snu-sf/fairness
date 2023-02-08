@@ -62,9 +62,9 @@ Module WSim.
                           (fun tid '(th_src, th_tgt) =>
                              stsim
                                I_whole tid (topset I_whole)
-                               ibot5 ibot5
+                               ibot7 ibot7
                                (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
-                               th_src th_tgt)))))
+                               false false th_src th_tgt)))))
           }.
 
       Lemma whole_sim_implies_usersim
@@ -103,9 +103,9 @@ Module WSim.
                 -∗
                 (stsim
                    I_ctx tid (topset I_ctx)
-                   ibot5 ibot5
+                   ibot7 ibot7
                    (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
-                   (fn2th md_src fn arg) (fn2th md_tgt fn arg))
+                   false false (fn2th md_src fn arg) (fn2th md_tgt fn arg))
           }.
 
       Lemma context_sim_implies_modsim

@@ -4,6 +4,7 @@ From Fairness Require Import PCM ITreeLib pind.
 Require Import Program.
 From Fairness Require Import IProp IPM.
 From Fairness Require Import PCM MonotonePCM NatMapRA Mod FairBeh.
+From Fairness Require Import Axioms.
 
 Set Implicit Arguments.
 
@@ -42,7 +43,229 @@ Section UPD.
     iOwnWf "H". ur in H. des.
     rr in H. des. ur in H. des_ifs.
   Qed.
+
+  Lemma white_white_excl a a'
+    :
+    (OwnM (Auth.white (Excl.just a: @Excl.t A)))
+      -∗
+      (OwnM (Auth.white (Excl.just a': @Excl.t A)))
+      -∗
+      ⌜False⌝.
+  Proof.
+    iIntros "H0 H1". iCombine "H0 H1" as "H".
+    iOwnWf "H". ur in H. ur in H. auto.
+  Qed.
+
 End UPD.
+
+Section OWNS.
+
+  Variable (Id: Type).
+  Context `{R: URA.t}.
+  Context `{IN1: @GRA.inG R Σ}.
+  Context `{IN2: @GRA.inG (Id ==> R)%ra Σ}.
+  (* Context `{IN: @GRA.inG (Id ==> (Auth.t (Excl.t A)))%ra Σ}. *)
+
+  Definition OwnMs (s: Id -> Prop) (u: R): iProp :=
+    (OwnM ((fun i =>
+              if (excluded_middle_informative (s i))
+              then u
+              else ε): (Id ==> R)%ra)).
+
+  (* Definition OwnMs (s: Id -> Prop) (u: Id -> R): iProp := *)
+  (*   (OwnM ((fun i => *)
+  (*             if (excluded_middle_informative (s i)) *)
+  (*             then (u i) *)
+  (*             else ε): (Id ==> R)%ra)). *)
+
+(* End OWNS. *)
+
+(* Section TEST. *)
+
+(*   Variable (Id: Type). *)
+(*   Variable A: Type. *)
+(*   Context `{IN: @GRA.inG (Id ==> (Auth.t (Excl.t (Id * A))))%ra Σ}. *)
+
+(*   Definition owns_auth (s: Id -> Prop) (a: A): iProp := *)
+(*     OwnMs *)
+(*       s *)
+(*       (fun i => (Auth.black (Excl.just (i, a): Excl.t (Id * A))) *)
+(*                ⋅ (Auth.white (Excl.just (i, a): Excl.t (Id * A)))). *)
+
+(*   Definition owns (s: Id -> Prop) (u: A): iProp := *)
+(*     (OwnM ((fun i => *)
+(*               if (excluded_middle_informative (s i)) *)
+(*               then ((Auth.black (Excl.just u: Excl.t A)) ⋅ (Auth.white (Excl.just u: Excl.t A))) *)
+(*               else ε): (Id ==> (Auth.t (Excl.t A)))%ra)). *)
+
+(* End TEST. *)
+
+  Lemma OwnMs_impl (s0 s1: Id -> Prop) u
+        (IMPL: forall i (IN: s0 i), s1 i)
+    :
+    (OwnMs s1 u)
+      -∗
+      (OwnMs s0 u).
+  Proof.
+    iIntros "OWNMS".
+    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
+    i. des_ifs; try by reflexivity.
+    { exfalso. eauto. }
+    { eexists _. rewrite URA.unit_idl. ss. }
+  Qed.
+
+  Lemma OwnMs_empty s u
+        (EMPTY: forall i, ~ s i)
+    :
+    ⊢ OwnMs s u.
+  Proof.
+    iIntros. iApply (OwnM_extends with "[]").
+    2:{ iApply (@OwnM_unit (Id ==> R)%ra). }
+    apply pointwise_extends. i. des_ifs.
+    { exfalso. eapply EMPTY; eauto. }
+    eexists _. rewrite URA.unit_idl. eauto.
+  Qed.
+
+  Lemma OwnMs_fold (s0 s1: Id -> Prop) i u
+        (IMPL: forall j (IN: s0 j), s1 j \/ j = i)
+    :
+    ((OwnMs s1 u) ** (maps_to i u))
+      -∗
+      (OwnMs s0 u).
+  Proof.
+    iIntros "[OWNMS OWN]".
+    iCombine "OWNMS OWN" as "OWNMS".
+    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
+    i. erewrite ! (@unfold_pointwise_add Id R). unfold maps_to_res.
+    des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
+    { eexists. apply URA.add_comm. }
+    { hexploit IMPL; eauto. i. des; ss. }
+    { eexists. rewrite URA.unit_idl. ss. }
+    { eexists. rewrite URA.unit_idl. ss. }
+    { eexists. rewrite URA.unit_idl. ss. }
+  Qed.
+
+  Definition OwnMs_unfold (s0 s1: Id -> Prop) i u
+             (IMPL: forall j (IN: s0 j \/ j = i), s1 j)
+             (NIN: ~ s0 i)
+    :
+    (OwnMs s1 u)
+      -∗
+      (OwnMs s0 u ** maps_to i u).
+  Proof.
+    iIntros "OWNMS".
+    iPoseProof (OwnM_extends with "OWNMS") as "[OWNMS0 OWNMS1]".
+    { instantiate (1:=maps_to_res i (u: R): (Id ==> R)%ra).
+      instantiate (1:=(fun i =>
+                         if (excluded_middle_informative (s0 i))
+                         then u
+                         else ε)).
+      erewrite ! (@unfold_pointwise_add Id R). unfold maps_to_res.
+      apply pointwise_extends. i.
+      des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
+      { exfalso. eapply n0. auto. }
+      { exfalso. eapply n0. auto. }
+      { eexists. rewrite URA.unit_idl. ss. }
+    }
+    iFrame.
+  Qed.
+
+  Definition OwnMs_combine (s0 s1: Id -> Prop) u
+    :
+    (OwnMs s0 u ** OwnMs s1 u)
+      -∗
+      (OwnMs (fun i => s0 i \/ s1 i) u).
+  Proof.
+    iIntros "[OWNMS0 OWNMS1]".
+    iCombine "OWNMS0 OWNMS1" as "OWNMS".
+    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
+    i. erewrite ! (@unfold_pointwise_add Id R).
+    des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
+    { eexists. eauto. }
+    { des; ss. }
+    { eexists. rewrite URA.unit_idl. ss. }
+    { eexists. rewrite URA.unit_idl. ss. }
+    { eexists. rewrite URA.unit_idl. ss. }
+  Qed.
+
+  Definition OwnMs_split (s0 s1: Id -> Prop) u
+             (DISJOINT: forall i (IN0: s0 i) (IN1: s1 i), False)
+    :
+    (OwnMs (fun i => s0 i \/ s1 i) u)
+      -∗
+      (OwnMs s0 u ** OwnMs s1 u).
+  Proof.
+    iIntros "OWNMS".
+    iPoseProof (OwnM_extends with "OWNMS") as "[OWNMS0 OWNMS1]".
+    2:{ iSplitL "OWNMS0"; [iExact "OWNMS0"|iExact "OWNMS1"]. }
+    { apply pointwise_extends.
+      i. erewrite ! (@unfold_pointwise_add Id R).
+      des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
+      { exfalso. eapply DISJOINT; eauto. }
+      { exfalso. eapply n; eauto. }
+      { exfalso. eapply n0; eauto. }
+      { exfalso. eapply n0; eauto. }
+      { des; ss. }
+    }
+  Qed.
+
+End OWNS.
+
+
+Section UPDNATMAP.
+  Variable A: Type.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t A)) Σ}.
+
+  Lemma NatMapRA_find_some m k a
+    :
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+      -∗
+      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      -∗
+      (⌜NatMap.find k m = Some a⌝).
+  Proof.
+    iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
+    eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H. auto.
+  Qed.
+
+  Lemma NatMapRA_singleton_unique k0 k1 a0 a1
+    :
+    (OwnM (Auth.white (NatMapRA.singleton k0 a0: NatMapRA.t A)))
+      -∗
+      (OwnM (Auth.white (NatMapRA.singleton k1 a1: NatMapRA.t A)))
+      -∗
+      (⌜k0 <> k1⌝).
+  Proof.
+    iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
+    ur in H. eapply NatMapRA.singleton_unique in H. auto.
+  Qed.
+
+  Lemma NatMapRA_remove m k a
+    :
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+      -∗
+      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      -∗
+      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRA.t A))).
+  Proof.
+    iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
+    eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update.
+  Qed.
+
+  Lemma NatMapRA_add m k a
+        (NONE: NatMap.find k m = None)
+    :
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+      -∗
+      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRA.t A)
+                            ⋅ Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+         ).
+  Proof.
+    iIntros "B". iApply OwnM_Upd. 2: iFrame.
+    eapply Auth.auth_alloc. eapply NatMapRA.add_local_update. auto.
+  Qed.
+
+End UPDNATMAP.
 
 
 Section PAIR.

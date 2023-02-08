@@ -686,6 +686,30 @@ Section NATMAP.
   Proof.
     eapply eq_ext_is_eq. ii. rewrite update_mapsto_iff. pose proof empty_1. firstorder.
   Qed.
+
+  Lemma nm_add_rm_comm_equal
+        (m: t elt) k0 k1 e
+        (NEQ: k0 <> k1)
+    :
+    Equal (add k0 e (remove k1 m)) (remove k1 (add k0 e m)). 
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply F.remove_mapsto_iff. split; auto. apply F.add_mapsto_iff. auto.
+      + eapply F.remove_mapsto_iff in H0. des; clarify. eapply F.remove_mapsto_iff. split; auto.
+        eapply F.add_mapsto_iff. auto.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      eapply F.add_mapsto_iff in H0. des; clarify.
+      + eapply F.add_mapsto_iff. auto.
+      + eapply F.add_mapsto_iff. right. split; auto. apply F.remove_mapsto_iff. auto.
+  Qed.
+  Lemma nm_add_rm_comm_eq
+        (m: t elt) k0 k1 e
+        (NEQ: k0 <> k1)
+    :
+    (add k0 e (remove k1 m)) = (remove k1 (add k0 e m)). 
+  Proof. eapply nm_eq_is_equal, nm_add_rm_comm_equal; auto. Qed.
+
 End NATMAP.
 
 Ltac solve_andb :=
@@ -1656,6 +1680,19 @@ Section AUX.
         i. eapply PROP. rewrite F.remove_o in FIND1. des_ifs. rewrite F.remove_o in FIND2. des_ifs.
     }
     split; auto. eapply PROP. eapply nm_elements_cons_find_some; eauto. eapply nm_elements_cons_find_some; eauto.
+  Qed.
+
+
+  Lemma NoDupA_NoDup
+        elt l
+    :
+    SetoidList.NoDupA (NatMap.eq_key (elt:=elt)) l ->
+    List.NoDup l.
+  Proof.
+    induction l; ss.
+    { i; ss. econs. }
+    i; ss.
+    inv H. econs. 2: apply IHl; auto. ii. apply H2. apply In_InA; auto.
   Qed.
 
 End AUX.

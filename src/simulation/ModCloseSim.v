@@ -465,7 +465,6 @@ Section CLOSE_CONG_SIM.
         eapply local_sim_wft_mono with (wft_lt := lt (wf_clos_trans nat_wf)) in FSIM; cycle 1.
         { i; econs; ss. eauto. }
 
-        (*** TODO: somehow exploit FSIM ***)
         i.
 
         Set Nested Proofs Allowed.
