@@ -37,6 +37,7 @@ Section ALL.
     eapply Adequacy.improves_trans.
     { eapply modsim_adequacy. eapply ModClose_cong.
       eapply ModAdd_right_cong. eapply ticketlock_fair.
+      all: exact 0.
     }
     { eapply usersim_adequacy. eapply client_correct. }
     Unshelve.

@@ -751,7 +751,8 @@ Section SIM.
 
     iApply stsim_getR. iSplit. iFrame. rred.
     iApply stsim_tauR. rred.
-    iApply stsim_chooseR. iIntros "%". rename x into tvw_V. rred.
+    iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw_V. rred.
+    (* iApply stsim_chooseR. iIntros "%". rename x into tvw_V. rred. *)
     iApply stsim_tauR. rred.
     iApply stsim_getR. iSplit. iFrame. rred.
     iApply stsim_tauR. rred.
@@ -764,7 +765,7 @@ Section SIM.
 
     iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
     iPoseProof (black_white_update with "B3 EXCL2") as ">[B3 EXCL2]".
-    instantiate (1:= (tvw', tt)).
+    instantiate (1:= (tvw_V, tt)).
     iopen 0 "I0" "K0". iDestruct "I0" as "[% [I0B I0]]".
     iDestruct "I0" as "[% I0]". iDestruct "I0" as "[I01 [I02 [I03 I04]]]".
     iPoseProof (black_white_equal with "I0B EXCL") as "%". subst.
@@ -772,19 +773,19 @@ Section SIM.
   ((ObligationRA.pending k (/ 2) ** wpoints_to loc_X const_0 tvw0)
    ∨ (ObligationRA.shot k ** wpoints_to loc_X const_42 tvw0))
     -∗
-  ((ObligationRA.pending k (/ 2) ** wpoints_to loc_X const_0 tvw')
-   ∨ (ObligationRA.shot k ** wpoints_to loc_X const_42 tvw'))
+  ((ObligationRA.pending k (/ 2) ** wpoints_to loc_X const_0 tvw_V)
+   ∨ (ObligationRA.shot k ** wpoints_to loc_X const_42 tvw_V))
       )%I with "[]" as "I04a".
     { iIntros "I". iDestruct "I" as "[[A B] | [A B]]".
-      - iLeft. iFrame. iApply wpoints_to_view_mon. 2: iFrame. etrans. 2:eauto. apply TView.join_l.
-      - iRight. iFrame. iApply wpoints_to_view_mon. 2: iFrame. etrans. 2:eauto. apply TView.join_l.
+      - iLeft. iFrame. iApply wpoints_to_view_mon. 2: iFrame. auto.
+      - iRight. iFrame. iApply wpoints_to_view_mon. 2: iFrame. auto.
     }
     iPoseProof ("I04a" with "I04") as "I04".
     iPoseProof (black_white_update with "I0B EXCL") as ">[I0B EXCL]".
-    instantiate (1:= tvw').
+    instantiate (1:= tvw_V).
 
     iMod ("K0" with "[I0B I01 I02 I03 I04]") as "_".
-    { iExists tvw'. iFrame. unfold thread1_will_write. iExists k. iFrame. }
+    { iExists tvw_V. iFrame. unfold thread1_will_write. iExists k. iFrame. }
     iMod ("K1" with "[INGEXCL EXCLTT EXCL EXCL2 LOCK B1 B2 B3 MEM BLKS SUM STGT]") as "_".
     { unfold lock_will_unlock. iExists false, tvw_V, false, mem0, wobl0, j. iFrame. iSplitR "INGEXCL".
       - iLeft. iSplit. auto. iFrame.
@@ -804,7 +805,7 @@ Section SIM.
     iIntros "DUTY _". rred.
     iApply stsim_tauR. rred. iApply stsim_tauR. rred.
     iApply stsim_reset. iApply "SIM". iFrame.
-    iPureIntro. etrans. 2: eapply l1. reflexivity.
+    iPureIntro. etrans. 2: eapply l2. auto.
 
   Qed.
 

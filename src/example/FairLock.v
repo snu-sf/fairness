@@ -104,9 +104,11 @@ Module AbsLockW.
             _ <- trigger (Put (((own, lvw), true), ts));;
             _ <- trigger Yield;;
             '(((_, _), _), ts) <- trigger (@Get _);;
-            tvw_V <- trigger (Choose (TView.t));;
+            (* tvw_V <- trigger (Choose (TView.t));; *)
+            '(exist _ tvw_V _) <- trigger (Choose (sig (fun tvw' => TView.le tvw tvw')));;
             _ <- trigger (Put (((false, tvw_V), false), ts));;
-            '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le (TView.join tvw tvw_V) tvw')));;
+            (* '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le (TView.join tvw tvw_V) tvw')));; *)
+            '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le tvw_V tvw')));;
             _ <- trigger Yield;;
             Ret tvw'
         | _, _ => UB
