@@ -82,7 +82,10 @@ Module AbsLockW.
       else
         let ts := NatMap.remove tid ts in
         '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le (TView.join tvw tvw_lock) tvw')));;
-        _ <- trigger (Put (((true, tvw'), false), ts));;
+        (* to prove weak mem ticket lock, needs to store tvw_lock, not tvw'; 
+           this is related to now_serving's points_to's V and Q, which is not updated at lock
+         *)
+        _ <- trigger (Put (((true, tvw_lock), false), ts));;
         _ <- trigger (Fair (fun i => if tid_dec i tid then Flag.success
                                  else if (NatMapP.F.In_dec ts i) then Flag.fail
                                       else Flag.emp));;
