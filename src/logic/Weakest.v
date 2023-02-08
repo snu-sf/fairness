@@ -46,7 +46,7 @@ Section SIM.
   Variable tid: thread_id.
   Variable I: shared_rel.
 
-  Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel).
+  Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel).
 
   Let gf := (fun r => pind9 ((@__lsim (to_LURA Σ)) _ _ _ _ _ _ (liftI I) tid r) top9).
   Let gf_mon: monotone9 gf.
@@ -70,10 +70,8 @@ Section SIM.
          state_tgt) -> Prop :=
     | unlift_intro
         R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_ctx r_own
-        (REL: r R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_own)
+        (REL: r R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_own)
         (WF: URA.wf (r_own ⋅ r_ctx))
-        (PS: ps = false)
-        (PT: pt = false)
       :
       unlift r (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   .
@@ -81,11 +79,11 @@ Section SIM.
   Program Definition isim: rel -> rel -> rel :=
     fun
       r g
-      R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+      R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
       iProp_intro
         (fun r_own =>
            forall r_ctx (WF: URA.wf (r_own ⋅ r_ctx)),
-             gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _.
+             gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _.
   Next Obligation.
   Proof.
     ii. ss. eapply H.
@@ -97,11 +95,11 @@ Section SIM.
 
   Lemma isim_upd r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (#=> (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
-      (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (#=> (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
+      (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -112,10 +110,10 @@ Section SIM.
   Global Instance isim_elim_upd
          r g R_src R_tgt
          (Q: R_src -> R_tgt -> shared_rel)
-         itr_src itr_tgt ths im_src im_tgt st_src st_tgt p
+         ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt p
          P
     :
-    ElimModal True p false (#=> P) P (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt) (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+    ElimModal True p false (#=> P) P (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt) (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -141,12 +139,12 @@ Section SIM.
 
   Lemma isim_wand r g R_src R_tgt
         (Q0 Q1: R_src -> R_tgt -> shared_rel)
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
       ((∀ r_src r_tgt ths im_src im_tgt st_src st_tgt,
-           ((Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt) -∗ #=> (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt))) ** (isim r g Q0 itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
-      (isim r g Q1 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+           ((Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt) -∗ #=> (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt))) ** (isim r g Q0 ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
+      (isim r g Q1 ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -180,11 +178,11 @@ Section SIM.
             bi_entails
               (Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt)
               (#=> (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt)))
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q0 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q1 itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q0 ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q1 ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     iIntros. iApply isim_wand. iFrame.
@@ -193,13 +191,13 @@ Section SIM.
 
   Lemma isim_frame r g R_src R_tgt
         P (Q: R_src -> R_tgt -> shared_rel)
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (P ** isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (P ** isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
       (isim r g (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
                    P ** Q r_src r_tgt ths im_src im_tgt st_src st_tgt)
-            itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+            ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     iIntros "[H0 H1]". iApply isim_wand. iFrame.
@@ -208,14 +206,15 @@ Section SIM.
 
   Lemma isim_bind r g R_src R_tgt S_src S_tgt
         (Q: R_src -> R_tgt -> shared_rel)
+        ps pt
         (itr_src: itree srcE S_src) (itr_tgt: itree tgtE S_tgt)
         ktr_src ktr_tgt
         ths im_src im_tgt st_src st_tgt
     :
     bi_entails
       (isim r g (fun s_src s_tgt ths im_src im_tgt st_src st_tgt =>
-                   isim r g Q (ktr_src s_src) (ktr_tgt s_tgt) ths im_src im_tgt st_src st_tgt) itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+                   isim r g Q false false (ktr_src s_src) (ktr_tgt s_tgt) ths im_src im_tgt st_src st_tgt) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -233,11 +232,12 @@ Section SIM.
 
   Lemma isim_ret r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
+        ps pt
         r_src r_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
       (Q r_src r_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q (Ret r_src) (Ret r_tgt) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (Ret r_src) (Ret r_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -247,11 +247,11 @@ Section SIM.
 
   Lemma isim_tauL r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q (Tau itr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q true pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (Tau itr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -261,11 +261,11 @@ Section SIM.
 
   Lemma isim_tauR r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q itr_src (Tau itr_tgt) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps true itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt itr_src (Tau itr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -275,43 +275,43 @@ Section SIM.
 
   Lemma isim_chooseL X r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (∃ x, isim r g Q (ktr_src x) itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q (trigger (Choose X) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (∃ x, isim r g Q true pt (ktr_src x) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (trigger (Choose X) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
     ii. muclo lsim_indC_spec.
     eapply lsim_chooseL.
     rr in H. autorewrite with iprop in H. des.
-    esplits; eauto. muclo lsim_resetC_spec. econs; eauto.
+    esplits; eauto.
   Qed.
 
   Lemma isim_chooseR X r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (∀ x, isim r g Q itr_src (ktr_tgt x) ths im_src im_tgt st_src st_tgt)
-      (isim r g Q itr_src (trigger (Choose X) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      (∀ x, isim r g Q ps true itr_src (ktr_tgt x) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt itr_src (trigger (Choose X) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
     ii. muclo lsim_indC_spec.
     eapply lsim_chooseR.
     rr in H. autorewrite with iprop in H.
-    i. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    i. econs; [eapply H|..]; eauto.
   Qed.
 
   Lemma isim_putL st r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q (ktr_src tt) itr_tgt ths im_src im_tgt st st_tgt)
-      (isim r g Q (trigger (Put st) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q true pt (ktr_src tt) itr_tgt ths im_src im_tgt st st_tgt)
+      (isim r g Q ps pt (trigger (Put st) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -321,11 +321,11 @@ Section SIM.
 
   Lemma isim_putR st r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q itr_src (ktr_tgt tt) ths im_src im_tgt st_src st)
-      (isim r g Q itr_src (trigger (Put st) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps true itr_src (ktr_tgt tt) ths im_src im_tgt st_src st)
+      (isim r g Q ps pt itr_src (trigger (Put st) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -335,11 +335,11 @@ Section SIM.
 
   Lemma isim_getL r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q (ktr_src st_src) itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q (trigger (@Get _) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q true pt (ktr_src st_src) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (trigger (@Get _) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -349,11 +349,11 @@ Section SIM.
 
   Lemma isim_getR r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q itr_src (ktr_tgt st_tgt) ths im_src im_tgt st_src st_tgt)
-      (isim r g Q itr_src (trigger (@Get _) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps true itr_src (ktr_tgt st_tgt) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt itr_src (trigger (@Get _) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -363,11 +363,11 @@ Section SIM.
 
   Lemma isim_tidL r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q (ktr_src tid) itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q (trigger GetTid >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q true pt (ktr_src tid) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (trigger GetTid >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -377,11 +377,11 @@ Section SIM.
 
   Lemma isim_tidR r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q itr_src (ktr_tgt tid) ths im_src im_tgt st_src st_tgt)
-      (isim r g Q itr_src (trigger GetTid >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps true itr_src (ktr_tgt tid) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt itr_src (trigger GetTid >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -391,11 +391,11 @@ Section SIM.
 
   Lemma isim_fairL f r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src itr_tgt ths im_src0 im_tgt st_src st_tgt
+        ps pt ktr_src itr_tgt ths im_src0 im_tgt st_src st_tgt
     :
     bi_entails
-      (∃ im_src1, ⌜fair_update im_src0 im_src1 f⌝ ∧ isim r g Q (ktr_src tt) itr_tgt ths im_src1 im_tgt st_src st_tgt)
-      (isim r g Q (trigger (Fair f) >>= ktr_src) itr_tgt ths im_src0 im_tgt st_src st_tgt)
+      (∃ im_src1, ⌜fair_update im_src0 im_src1 f⌝ ∧ isim r g Q true pt (ktr_src tt) itr_tgt ths im_src1 im_tgt st_src st_tgt)
+      (isim r g Q ps pt (trigger (Fair f) >>= ktr_src) itr_tgt ths im_src0 im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -404,16 +404,16 @@ Section SIM.
     rr in H. autorewrite with iprop in H. des.
     rr in H. autorewrite with iprop in H. des.
     rr in H. autorewrite with iprop in H.
-    esplits; eauto. muclo lsim_resetC_spec. econs; [eapply H0|..]; eauto.
+    esplits; eauto.
   Qed.
 
   Lemma isim_fairR f r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src ktr_tgt ths im_src im_tgt0 st_src st_tgt
+        ps pt itr_src ktr_tgt ths im_src im_tgt0 st_src st_tgt
     :
     bi_entails
-      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 (sum_fmap_r f)⌝ -* isim r g Q itr_src (ktr_tgt tt) ths im_src im_tgt1 st_src st_tgt)
-      (isim r g Q itr_src (trigger (Fair f) >>= ktr_tgt) ths im_src im_tgt0 st_src st_tgt)
+      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 (sum_fmap_r f)⌝ -* isim r g Q ps true itr_src (ktr_tgt tt) ths im_src im_tgt1 st_src st_tgt)
+      (isim r g Q ps pt itr_src (trigger (Fair f) >>= ktr_tgt) ths im_src im_tgt0 st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -430,11 +430,11 @@ Section SIM.
 
   Lemma isim_UB r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
       (True)
-      (isim r g Q (trigger Undefined >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (trigger Undefined >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -444,11 +444,11 @@ Section SIM.
 
   Lemma isim_observe fn args r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src ktr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt ktr_src ktr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (∀ ret, isim g g Q (ktr_src ret) (ktr_tgt ret) ths im_src im_tgt st_src st_tgt)
-      (isim r g Q (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      (∀ ret, isim g g Q true true (ktr_src ret) (ktr_tgt ret) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -460,11 +460,11 @@ Section SIM.
 
   Lemma isim_yieldL r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src ktr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt ktr_src ktr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (isim r g Q (ktr_src tt) (trigger (Yield) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
-      (isim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q true pt (ktr_src tt) (trigger (Yield) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -474,11 +474,11 @@ Section SIM.
 
   Lemma isim_yieldR r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
+        ps pt ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
     :
     bi_entails
-      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))⌝ -* isim r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
-      (isim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
+      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))⌝ -* isim r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
+      (isim r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -510,11 +510,11 @@ Section SIM.
 
   Lemma isim_sync r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
+        ps pt ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
     :
     bi_entails
-      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))⌝ -* isim g g Q (ktr_src tt) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
-      (isim r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
+      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))⌝ -* isim g g Q true true (ktr_src tt) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
+      (isim r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -547,23 +547,50 @@ Section SIM.
 
   Lemma isim_base r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (@r _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r g Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (@r _ _ Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop.
     ii. gbase. econs; eauto.
   Qed.
 
+  Lemma isim_reset r g R_src R_tgt
+        (Q: R_src -> R_tgt -> shared_rel)
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+    :
+    bi_entails
+      (isim r g Q false false itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    rr. autorewrite with iprop. i.
+    ii. rr in H. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+  Qed.
+
+  Lemma isim_progress r g R_src R_tgt
+        (Q: R_src -> R_tgt -> shared_rel)
+        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+    :
+    bi_entails
+      (isim g g Q false false itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q true true itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    rr. autorewrite with iprop. i.
+    ii. gstep. rr. eapply pind9_fold.
+    eapply lsim_progress; eauto.
+  Qed.
+
   Lemma unlift_mon (r0 r1: rel)
         (MON: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
-                     itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+                     ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
             bi_entails
-              (@r0 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-              (#=> (@r1 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)))
+              (@r0 _ _ Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+              (#=> (@r1 _ _ Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)))
     :
     unlift r0 <9= unlift r1.
   Proof.
@@ -578,21 +605,21 @@ Section SIM.
 
   Lemma isim_mono_knowledge (r0 g0 r1 g1: rel) R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
-        itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
         (MON0: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
-                      itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+                      ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
             bi_entails
-              (@r0 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-              (#=> (@r1 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)))
+              (@r0 _ _ Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+              (#=> (@r1 _ _ Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)))
         (MON1: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
-                      itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+                      ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
             bi_entails
-              (@g0 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-              (#=> (@g1 _ _ Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)))
+              (@g0 _ _ Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+              (#=> (@g1 _ _ Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)))
     :
     bi_entails
-      (isim r0 g0 Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      (isim r1 g1 Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r0 g0 Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r1 g1 Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
     rr. autorewrite with iprop. i.
@@ -606,6 +633,7 @@ Section SIM.
         (R_src: forall (a: A), Prop)
         (R_tgt: forall (a: A), Prop)
         (Q: forall (a: A), R_src a -> R_tgt a -> shared_rel)
+        (ps pt: forall (a: A), bool)
         (itr_src : forall (a: A), itree srcE (R_src a))
         (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
         (ths: forall (a: A), TIdSet.t)
@@ -616,19 +644,19 @@ Section SIM.
         (P: forall (a: A), iProp)
         (r g0: rel)
         (COIND: forall (g1: rel) a, bi_entails (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
-                                                     itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
-                                                      @g0 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* @g1 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+                                                     ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+                                                      @g0 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* @g1 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
                                                     **
-                                                    (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))) ** P a) (isim r g1 (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a)))
+                                                    (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))) ** P a) (isim r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a)))
     :
-    (forall a, bi_entails (P a) (isim r g0 (Q a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))).
+    (forall a, bi_entails (P a) (isim r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))).
   Proof.
     i. rr. autorewrite with iprop. ii. clear WF.
     revert a r0 H r_ctx WF0. gcofix CIH. i.
     epose (fun R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
-               itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+               ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
              @iProp_intro _ (fun r_own => forall r_ctx (WF: URA.wf (r_own ⋅ r_ctx)),
-                                 gpaco9 gf (cpn9 gf) r0 r0 R_src R_tgt (liftRR Q) false false r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _).
+                                 gpaco9 gf (cpn9 gf) r0 r0 R_src R_tgt (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _).
     hexploit (COIND i a). subst i. clear COIND. i.
     rr in H. autorewrite with iprop in H. hexploit H.
     { instantiate (1:=r1). eapply URA.wf_mon; eauto. }
@@ -664,6 +692,7 @@ Section SIM.
       eapply URA.wf_extends; eauto. eapply URA.extends_add; eauto.
     }
   Qed.
+
 End SIM.
 
 From Fairness Require Export NatMapRA StateRA FairRA MonotonePCM.
@@ -764,78 +793,6 @@ Section STATE.
     iModIntro. iFrame. destruct v. iApply (natmap_prop_sum_add with "SUM OWN1").
   Qed.
 
-  Lemma natmap_prop_sum_in A P k a (m: NatMap.t A)
-        (FIND: NatMap.find k m = Some a)
-    :
-    (natmap_prop_sum m P)
-      -∗
-      (P k a).
-  Proof.
-    iIntros "MAP". iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
-    { eauto. }
-    eauto.
-  Qed.
-
-  Lemma natmap_prop_sum_impl A P0 P1 (m: NatMap.t A)
-        (IMPL: forall k a (IN: NatMap.find k m = Some a), P0 k a ⊢ P1 k a)
-    :
-    (natmap_prop_sum m P0)
-      -∗
-      (natmap_prop_sum m P1).
-  Proof.
-    revert IMPL. pattern m. eapply nm_ind.
-    { iIntros. iApply natmap_prop_sum_empty. }
-    i. iIntros "MAP".
-    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
-    { eapply nm_find_add_eq. }
-    iPoseProof (IMPL with "H0") as "H0".
-    { rewrite nm_find_add_eq. auto. }
-    iApply (natmap_prop_sum_add with "[H1] H0").
-    iApply IH.
-    { i. eapply IMPL. rewrite NatMapP.F.add_o; eauto. des_ifs. }
-    { rewrite nm_find_none_rm_add_eq; auto. }
-  Qed.
-
-  Lemma natmap_prop_sum_wand (A: Type) P0 P1 (m: NatMap.t A)
-    :
-    (natmap_prop_sum m P0)
-      -∗
-      (natmap_prop_sum m (fun k v => P0 k v -* P1 k v))
-      -∗
-      (natmap_prop_sum m P1).
-  Proof.
-    pattern m. eapply nm_ind.
-    { iIntros. iApply natmap_prop_sum_empty. }
-    i. iIntros "MAP IMPL".
-    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
-    { eapply nm_find_add_eq. }
-    iPoseProof (natmap_prop_remove_find with "IMPL") as "[G0 G1]".
-    { eapply nm_find_add_eq. }
-    iApply (natmap_prop_sum_add with "[H1 G1] [H0 G0]").
-    { rewrite nm_find_none_rm_add_eq; auto. iApply (IH with "H1 G1"). }
-    { iApply ("G0" with "H0"). }
-  Qed.
-
-  Lemma natmap_prop_sum_impl_strong (A: Type) P0 P1 Q (m: NatMap.t A)
-        (IMPL: forall k v, P0 k v ** Q ⊢ P1 k v ** Q)
-    :
-    (natmap_prop_sum m P0 ** Q)
-      -∗
-      (natmap_prop_sum m P1 ** Q).
-  Proof.
-    pattern m. eapply nm_ind.
-    { iIntros "[SUM H]". iFrame. }
-    i. iIntros "[MAP H]".
-    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
-    { eapply nm_find_add_eq. }
-    rewrite nm_find_none_rm_add_eq; [|auto].
-    iPoseProof (IH with "[H1 H]") as "[H1 H]".
-    { iFrame. }
-    iPoseProof (IMPL with "[H0 H]") as "[H0 H]".
-    { iFrame. }
-    iFrame. iApply (natmap_prop_sum_add with "H1 H0").
-  Qed.
-
   Lemma default_initial_res_init
     :
     (Own (default_initial_res))
@@ -892,37 +849,37 @@ Section STATE.
         fun ths im_src im_tgt st_src st_tgt =>
           default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset.
 
-  Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> iProp), itree srcE R_src -> itree tgtE R_tgt -> iProp).
+  Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> iProp), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> iProp).
 
   Variable tid: thread_id.
 
   Let unlift_rel
-      (r: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel): rel :=
-        fun R_src R_tgt Q itr_src itr_tgt =>
+      (r: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel): rel :=
+        fun R_src R_tgt Q ps pt itr_src itr_tgt =>
           (∀ ths im_src im_tgt st_src st_tgt,
               (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
                 -*
-                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt) itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
+                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
 
   Let lift_rel (rr: rel):
-    forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
-        fun R_src R_tgt QQ itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+    forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+        fun R_src R_tgt QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
           (∃ (Q: R_src -> R_tgt -> iProp)
              (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
                           (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)),
-              rr R_src R_tgt Q itr_src itr_tgt ** (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset))%I.
+              rr R_src R_tgt Q ps pt itr_src itr_tgt ** (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset))%I.
 
   Let unlift_rel_base r
     :
-    forall R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
-      (r R_src R_tgt Q itr_src itr_tgt)
+    forall R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+      (r R_src R_tgt Q ps pt itr_src itr_tgt)
         -∗
         (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
         -∗
         (lift_rel
            r
            (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
-           itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+           ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
     unfold lift_rel, unlift_rel. i.
     iIntros "H D". iExists _, _. Unshelve.
@@ -932,39 +889,39 @@ Section STATE.
 
   Let unlift_lift r
     :
-    forall R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
-      (lift_rel (unlift_rel r) Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-        ⊢ (r R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+    forall R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+      (lift_rel (unlift_rel r) Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+        ⊢ (r R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
     unfold lift_rel, unlift_rel. i.
     iIntros "[% [% [H D]]]". subst.
     iApply ("H" with "D").
   Qed.
 
-  Let lift_unlift (r0: rel) (r1: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+  Let lift_unlift (r0: rel) (r1: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
     :
     bi_entails
-      (∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel) itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
-          @lift_rel r0 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* r1 R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      (∀ R_src R_tgt Q itr_src itr_tgt, r0 R_src R_tgt Q itr_src itr_tgt -* unlift_rel r1 Q itr_src itr_tgt).
+      (∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+          @lift_rel r0 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* r1 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (∀ R_src R_tgt Q ps pt itr_src itr_tgt, r0 R_src R_tgt Q ps pt itr_src itr_tgt -* unlift_rel r1 Q ps pt itr_src itr_tgt).
   Proof.
     unfold lift_rel, unlift_rel.
-    iIntros "IMPL" (? ? ? ? ?) "H". iIntros (? ? ? ? ?) "D".
+    iIntros "IMPL" (? ? ? ? ? ? ?) "H". iIntros (? ? ? ? ?) "D".
     iApply "IMPL". iExists _, _. Unshelve.
     { iFrame. }
     { auto. }
   Qed.
 
   Let lift_rel_mon (rr0 rr1: rel)
-      (MON: forall R_src R_tgt Q itr_src itr_tgt,
+      (MON: forall R_src R_tgt Q ps pt itr_src itr_tgt,
           bi_entails
-            (rr0 R_src R_tgt Q itr_src itr_tgt)
-            (#=> rr1 R_src R_tgt Q itr_src itr_tgt))
+            (rr0 R_src R_tgt Q ps pt itr_src itr_tgt)
+            (#=> rr1 R_src R_tgt Q ps pt itr_src itr_tgt))
     :
-    forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel) itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
+    forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
       bi_entails
-        (lift_rel rr0 QQ itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-        (#=> lift_rel rr1 QQ itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
+        (lift_rel rr0 QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+        (#=> lift_rel rr1 QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
     unfold lift_rel. i.
     iIntros "[% [% [H D]]]". subst.
@@ -976,7 +933,7 @@ Section STATE.
 
   Definition stsim (E: mset): rel -> rel -> rel :=
     fun r g
-        R_src R_tgt Q itr_src itr_tgt =>
+        R_src R_tgt Q ps pt itr_src itr_tgt =>
       (∀ ths im_src im_tgt st_src st_tgt,
           (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) E)
             -*
@@ -986,7 +943,7 @@ Section STATE.
                (lift_rel r)
                (lift_rel g)
                (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
-               itr_src itr_tgt
+               ps pt itr_src itr_tgt
                ths im_src im_tgt st_src st_tgt))%I
   .
 
@@ -1007,12 +964,12 @@ Section STATE.
 
   Lemma stsim_discard E1 E0 r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
         (TOP: mset_sub E0 E1)
     :
-    (stsim E0 r g Q itr_src itr_tgt)
+    (stsim E0 r g Q ps pt itr_src itr_tgt)
       -∗
-      (stsim E1 r g Q itr_src itr_tgt)
+      (stsim E1 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D I]".
@@ -1026,12 +983,12 @@ Section STATE.
 
   Lemma stsim_base E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
         (TOP: mset_sub topset E)
     :
-    (@r _ _ Q itr_src itr_tgt)
+    (@r _ _ Q ps pt itr_src itr_tgt)
       -∗
-      (stsim E r g Q itr_src itr_tgt)
+      (stsim E r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     rewrite <- stsim_discard; [|eassumption].
@@ -1042,21 +999,21 @@ Section STATE.
 
   Lemma stsim_mono_knowledge E (r0 g0 r1 g1: rel) R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
         (MON0: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
-                      itr_src itr_tgt,
-            (@r0 _ _ Q itr_src itr_tgt)
+                      ps pt itr_src itr_tgt,
+            (@r0 _ _ Q ps pt itr_src itr_tgt)
               -∗
-              (#=> (@r1 _ _ Q itr_src itr_tgt)))
+              (#=> (@r1 _ _ Q ps pt itr_src itr_tgt)))
         (MON1: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
-                      itr_src itr_tgt,
-            (@g0 _ _ Q itr_src itr_tgt)
+                      ps pt itr_src itr_tgt,
+            (@g0 _ _ Q ps pt itr_src itr_tgt)
               -∗
-              (#=> (@g1 _ _ Q itr_src itr_tgt)))
+              (#=> (@g1 _ _ Q ps pt itr_src itr_tgt)))
     :
     bi_entails
-      (stsim E r0 g0 Q itr_src itr_tgt)
-      (stsim E r1 g1 Q itr_src itr_tgt)
+      (stsim E r0 g0 Q ps pt itr_src itr_tgt)
+      (stsim E r1 g1 Q ps pt itr_src itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1070,6 +1027,7 @@ Section STATE.
         (R_src: forall (a: A), Prop)
         (R_tgt: forall (a: A), Prop)
         (Q: forall (a: A), R_src a -> R_tgt a -> iProp)
+        (ps pt: forall (a: A), bool)
         (itr_src : forall (a: A), itree srcE (R_src a))
         (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
         (P: forall (a: A), iProp)
@@ -1077,22 +1035,22 @@ Section STATE.
         (TOP: mset_sub topset E)
         (COIND: forall (g1: rel) a,
             (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
-                  itr_src itr_tgt,
-                   @g0 R_src R_tgt Q itr_src itr_tgt -* @g1 R_src R_tgt Q itr_src itr_tgt)
+                  ps pt itr_src itr_tgt,
+                   @g0 R_src R_tgt Q ps pt itr_src itr_tgt -* @g1 R_src R_tgt Q ps pt itr_src itr_tgt)
                  **
-                 (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a))))
+                 (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))
               -∗
               (P a)
               -∗
-              (stsim topset r g1 (Q a) (itr_src a) (itr_tgt a)))
+              (stsim topset r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a)))
     :
-    (forall a, bi_entails (P a) (stsim E r g0 (Q a) (itr_src a) (itr_tgt a))).
+    (forall a, bi_entails (P a) (stsim E r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))).
   Proof.
     cut (forall (m: mytype A),
             bi_entails
               ((fun m => P m.(comp_a) ** (default_I_past tid m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ** mset_all (nth_default True%I Invs) topset)) m)
               (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q m.(comp_a) r_src r_tgt) m)
-                    ((fun m => itr_src m.(comp_a)) m) ((fun m => itr_tgt m.(comp_a)) m) (comp_ths m) (comp_im_src m) (comp_im_tgt m) (comp_st_src m) (comp_st_tgt m))).
+                    ((fun m => ps m.(comp_a)) m) ((fun m => pt m.(comp_a)) m) ((fun m => itr_src m.(comp_a)) m) ((fun m => itr_tgt m.(comp_a)) m) (comp_ths m) (comp_im_src m) (comp_im_tgt m) (comp_st_src m) (comp_st_tgt m))).
     { ss. i. rewrite <- stsim_discard; [|eassumption].
       unfold stsim. iIntros "H" (? ? ? ? ?) "D".
       specialize (H (mk_mytype a ths im_src im_tgt st_src st_tgt)). ss.
@@ -1101,10 +1059,10 @@ Section STATE.
     eapply isim_coind. i. iIntros "[# CIH [H D]]".
     unfold stsim in COIND.
     iAssert (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
-                  itr_src itr_tgt,
-                   @g0 R_src R_tgt Q itr_src itr_tgt -* @unlift_rel g1 R_src R_tgt Q itr_src itr_tgt)
+                  ps pt itr_src itr_tgt,
+                   @g0 R_src R_tgt Q ps pt itr_src itr_tgt -* @unlift_rel g1 R_src R_tgt Q ps pt itr_src itr_tgt)
                  **
-                 (∀ a, P a -* @unlift_rel g1 (R_src a) (R_tgt a) (Q a) (itr_src a) (itr_tgt a))))%I with "[CIH]" as "CIH'".
+                 (∀ a, P a -* @unlift_rel g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))%I with "[CIH]" as "CIH'".
     { iPoseProof "CIH" as "# [CIH0 CIH1]". iModIntro. iSplitL.
       { iApply (lift_unlift with "CIH0"). }
       { iIntros. unfold unlift_rel. iIntros.
@@ -1120,11 +1078,11 @@ Section STATE.
 
   Lemma stsim_upd E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
     :
-    (#=> (stsim E r g Q itr_src itr_tgt))
+    (#=> (stsim E r g Q ps pt itr_src itr_tgt))
       -∗
-      (stsim E r g Q itr_src itr_tgt)
+      (stsim E r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D". iMod "H".
@@ -1134,21 +1092,21 @@ Section STATE.
   Global Instance stsim_elim_upd
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt p
+         ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (#=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
+    ElimModal True p false (#=> P) P (stsim E r g Q ps pt itr_src itr_tgt) (stsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     typeclasses eauto.
   Qed.
 
   Lemma stsim_mupd E0 E1 r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
     :
-    (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E1 (stsim E1 r g Q itr_src itr_tgt))
+    (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E1 (stsim E1 r g Q ps pt itr_src itr_tgt))
       -∗
-      (stsim E0 r g Q itr_src itr_tgt)
+      (stsim E0 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[[% [% [[D X0] X1]]] C]".
@@ -1160,12 +1118,12 @@ Section STATE.
 
   Lemma stsim_mupd_weaken E0 E1 r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
         (SUB: mset_sub E0 E1)
     :
-    (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E0 (stsim E1 r g Q itr_src itr_tgt))
+    (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E0 (stsim E1 r g Q ps pt itr_src itr_tgt))
       -∗
-      (stsim E1 r g Q itr_src itr_tgt)
+      (stsim E1 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     iIntros "H". iApply stsim_mupd. iApply MUpd_mask_mono; eauto.
@@ -1174,10 +1132,10 @@ Section STATE.
   Global Instance stsim_elim_mupd_gen
          E0 E1 E2 r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt p
+         ps pt itr_src itr_tgt p
          P
     :
-    ElimModal (mset_sub E0 E2) p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim (NatSort.sort (E1 ++ mset_minus E2 E0)) r g Q itr_src itr_tgt).
+    ElimModal (mset_sub E0 E2) p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E0 E1 P) P (stsim E2 r g Q ps pt itr_src itr_tgt) (stsim (NatSort.sort (E1 ++ mset_minus E2 E0)) r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1194,10 +1152,10 @@ Section STATE.
   Global Instance stsim_elim_mupd_eq
          E1 E2 r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt p
+         ps pt itr_src itr_tgt p
          P
     :
-    ElimModal (mset_sub E1 E2) p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E1 E1 P) P (stsim E2 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
+    ElimModal (mset_sub E1 E2) p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E1 E1 P) P (stsim E2 r g Q ps pt itr_src itr_tgt) (stsim E2 r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1209,10 +1167,10 @@ Section STATE.
   Global Instance stsim_elim_mupd
          E1 E2 r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt p
+         ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E1 E2 P) P (stsim E1 r g Q itr_src itr_tgt) (stsim E2 r g Q itr_src itr_tgt).
+    ElimModal True p false (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E1 E2 P) P (stsim E1 r g Q ps pt itr_src itr_tgt) (stsim E2 r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1223,10 +1181,10 @@ Section STATE.
   Global Instance stsim_add_modal_mupd
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt
+         ps pt itr_src itr_tgt
          P
     :
-    AddModal (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E E P) P (stsim E r g Q itr_src itr_tgt).
+    AddModal (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E E P) P (stsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold AddModal. iIntros "[> H0 H1]". iApply ("H1" with "H0").
   Qed.
@@ -1234,10 +1192,10 @@ Section STATE.
   Global Instance stsim_elim_iupd_edge
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt p
+         ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
+    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (stsim E r g Q ps pt itr_src itr_tgt) (stsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] C]".
@@ -1249,10 +1207,10 @@ Section STATE.
   Global Instance stsim_elim_iupd_arrow
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
-         itr_src itr_tgt p
+         ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (stsim E r g Q itr_src itr_tgt) (stsim E r g Q itr_src itr_tgt).
+    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (stsim E r g Q ps pt itr_src itr_tgt) (stsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] C]".
@@ -1287,14 +1245,14 @@ Section STATE.
 
   Lemma stsim_wand E r g R_src R_tgt
         (Q0 Q1: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
     :
-    (stsim E r g Q0 itr_src itr_tgt)
+    (stsim E r g Q0 ps pt itr_src itr_tgt)
       -∗
       (∀ r_src r_tgt,
           ((Q0 r_src r_tgt) -∗ #=> (Q1 r_src r_tgt)))
       -∗
-      (stsim E r g Q1 itr_src itr_tgt)
+      (stsim E r g Q1 ps pt itr_src itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "D".
@@ -1310,11 +1268,11 @@ Section STATE.
             (Q0 r_src r_tgt)
               -∗
               (#=> (Q1 r_src r_tgt)))
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
     :
-    (stsim E r g Q0 itr_src itr_tgt)
+    (stsim E r g Q0 ps pt itr_src itr_tgt)
       -∗
-      (stsim E r g Q1 itr_src itr_tgt)
+      (stsim E r g Q1 ps pt itr_src itr_tgt)
   .
   Proof.
     iIntros "H". iApply (stsim_wand with "H").
@@ -1323,13 +1281,13 @@ Section STATE.
 
   Lemma stsim_frame E r g R_src R_tgt
         P (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
     :
-    (stsim E r g Q itr_src itr_tgt)
+    (stsim E r g Q ps pt itr_src itr_tgt)
       -∗
       P
       -∗
-      (stsim E r g (fun r_src r_tgt => P ** Q r_src r_tgt) itr_src itr_tgt)
+      (stsim E r g (fun r_src r_tgt => P ** Q r_src r_tgt) ps pt itr_src itr_tgt)
   .
   Proof.
     iIntros "H0 H1". iApply (stsim_wand with "H0").
@@ -1338,12 +1296,12 @@ Section STATE.
 
   Lemma stsim_bind_top E r g R_src R_tgt S_src S_tgt
         (Q: R_src -> R_tgt -> iProp)
-        (itr_src: itree srcE S_src) (itr_tgt: itree tgtE S_tgt)
+        ps pt (itr_src: itree srcE S_src) (itr_tgt: itree tgtE S_tgt)
         ktr_src ktr_tgt
     :
-    (stsim E r g (fun s_src s_tgt => stsim topset r g Q (ktr_src s_src) (ktr_tgt s_tgt)) itr_src itr_tgt)
+    (stsim E r g (fun s_src s_tgt => stsim topset r g Q false false (ktr_src s_src) (ktr_tgt s_tgt)) ps pt itr_src itr_tgt)
       -∗
-      (stsim E r g Q (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt))
+      (stsim E r g Q ps pt (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1355,11 +1313,11 @@ Section STATE.
 
   Lemma stsim_ret E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        r_src r_tgt
+        ps pt r_src r_tgt
     :
     (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset (Q r_src r_tgt))
       -∗
-      (stsim E r g Q (Ret r_src) (Ret r_tgt))
+      (stsim E r g Q ps pt (Ret r_src) (Ret r_tgt))
   .
   Proof.
     iIntros "> H".
@@ -1369,11 +1327,11 @@ Section STATE.
 
   Lemma stsim_tauL E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
     :
-    (stsim E r g Q itr_src itr_tgt)
+    (stsim E r g Q true pt itr_src itr_tgt)
       -∗
-      (stsim E r g Q (Tau itr_src) itr_tgt)
+      (stsim E r g Q ps pt (Tau itr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1383,11 +1341,11 @@ Section STATE.
 
   Lemma stsim_tauR E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
     :
-    (stsim E r g Q itr_src itr_tgt)
+    (stsim E r g Q ps true itr_src itr_tgt)
       -∗
-      (stsim E r g Q itr_src (Tau itr_tgt))
+      (stsim E r g Q ps pt itr_src (Tau itr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1397,11 +1355,11 @@ Section STATE.
 
   Lemma stsim_chooseL E X r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src itr_tgt
+        ps pt ktr_src itr_tgt
     :
-    (∃ x, stsim E r g Q (ktr_src x) itr_tgt)
+    (∃ x, stsim E r g Q true pt (ktr_src x) itr_tgt)
       -∗
-      (stsim E r g Q (trigger (Choose X) >>= ktr_src) itr_tgt)
+      (stsim E r g Q ps pt (trigger (Choose X) >>= ktr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "[% H]" (? ? ? ? ?) "D".
@@ -1411,11 +1369,11 @@ Section STATE.
 
   Lemma stsim_chooseR E X r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src ktr_tgt
+        ps pt itr_src ktr_tgt
     :
-    (∀ x, stsim E r g Q itr_src (ktr_tgt x))
+    (∀ x, stsim E r g Q ps true itr_src (ktr_tgt x))
       -∗
-      (stsim E r g Q itr_src (trigger (Choose X) >>= ktr_tgt))
+      (stsim E r g Q ps pt itr_src (trigger (Choose X) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1425,14 +1383,14 @@ Section STATE.
 
   Lemma stsim_putL E st r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src itr_tgt st_src
+        ps pt ktr_src itr_tgt st_src
     :
     (St_src st_src)
       -∗
       ((St_src st)
-         -∗ (stsim E r g Q (ktr_src tt) itr_tgt))
+         -∗ (stsim E r g Q true pt (ktr_src tt) itr_tgt))
       -∗
-      (stsim E r g Q (trigger (Put st) >>= ktr_src) itr_tgt)
+      (stsim E r g Q ps pt (trigger (Put st) >>= ktr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]".
@@ -1442,14 +1400,14 @@ Section STATE.
 
   Lemma stsim_putR E st r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src ktr_tgt st_tgt
+        ps pt itr_src ktr_tgt st_tgt
     :
     (St_tgt st_tgt)
       -∗
       ((St_tgt st)
-         -∗ (stsim E r g Q itr_src (ktr_tgt tt)))
+         -∗ (stsim E r g Q ps true itr_src (ktr_tgt tt)))
       -∗
-      (stsim E r g Q itr_src (trigger (Put st) >>= ktr_tgt))
+      (stsim E r g Q ps pt itr_src (trigger (Put st) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]".
@@ -1459,12 +1417,12 @@ Section STATE.
 
   Lemma stsim_getL E st r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src itr_tgt
+        ps pt ktr_src itr_tgt
     :
     ((St_src st) ∧
-       (stsim E r g Q (ktr_src st) itr_tgt))
+       (stsim E r g Q true pt (ktr_src st) itr_tgt))
       -∗
-      (stsim E r g Q (trigger (@Get _) >>= ktr_src) itr_tgt)
+      (stsim E r g Q ps pt (trigger (@Get _) >>= ktr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". iApply isim_getL.
@@ -1475,12 +1433,12 @@ Section STATE.
 
   Lemma stsim_getR E st r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src ktr_tgt
+        ps pt itr_src ktr_tgt
     :
     ((St_tgt st) ∧
-       (stsim E r g Q itr_src (ktr_tgt st)))
+       (stsim E r g Q ps true itr_src (ktr_tgt st)))
       -∗
-      (stsim E r g Q itr_src (trigger (@Get _) >>= ktr_tgt))
+      (stsim E r g Q ps pt itr_src (trigger (@Get _) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". iApply isim_getR.
@@ -1491,11 +1449,11 @@ Section STATE.
 
   Lemma stsim_tidL E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src itr_tgt
+        ps pt ktr_src itr_tgt
     :
-    (stsim E r g Q (ktr_src tid) itr_tgt)
+    (stsim E r g Q true pt (ktr_src tid) itr_tgt)
       -∗
-      (stsim E r g Q (trigger GetTid >>= ktr_src) itr_tgt)
+      (stsim E r g Q ps pt (trigger GetTid >>= ktr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1504,11 +1462,11 @@ Section STATE.
 
   Lemma stsim_tidR E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src ktr_tgt
+        ps pt itr_src ktr_tgt
     :
-    (stsim E r g Q itr_src (ktr_tgt tid))
+    (stsim E r g Q ps true itr_src (ktr_tgt tid))
       -∗
-      (stsim E r g Q itr_src (trigger GetTid >>= ktr_tgt))
+      (stsim E r g Q ps pt itr_src (trigger GetTid >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1518,15 +1476,15 @@ Section STATE.
   Lemma stsim_fairL o lf ls
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src itr_tgt
+        ps pt ktr_src itr_tgt
         (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
         (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
     (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
       -∗
-      ((list_prop_sum (fun i => FairRA.white i o) ls) -∗ (stsim E r g Q (ktr_src tt) itr_tgt))
+      ((list_prop_sum (fun i => FairRA.white i o) ls) -∗ (stsim E r g Q true pt (ktr_src tt) itr_tgt))
       -∗
-      (stsim E r g Q (trigger (Fair fm) >>= ktr_src) itr_tgt).
+      (stsim E r g Q ps pt (trigger (Fair fm) >>= ktr_src) itr_tgt).
   Proof.
     unfold stsim. iIntros "OWN H" (? ? ? ? ?) "[D C]".
     iPoseProof (default_I_past_update_ident_source with "D OWN") as "> [% [[% WHITES] D]]".
@@ -1540,7 +1498,7 @@ Section STATE.
   Lemma stsim_fairR lf ls
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src ktr_tgt
+        ps pt itr_src ktr_tgt
         (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
@@ -1551,9 +1509,9 @@ Section STATE.
          -*
          (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
          -*
-         stsim E r g Q itr_src (ktr_tgt tt))
+         stsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
-      (stsim E r g Q itr_src (trigger (Fair fm) >>= ktr_tgt))
+      (stsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "OWN H"  (? ? ? ? ?) "[D C]".
@@ -1567,9 +1525,9 @@ Section STATE.
 
   Lemma stsim_UB E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src itr_tgt
+        ps pt ktr_src itr_tgt
     :
-    ⊢ (stsim E r g Q (trigger Undefined >>= ktr_src) itr_tgt)
+    ⊢ (stsim E r g Q ps pt (trigger Undefined >>= ktr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros (? ? ? ? ?) "D".
@@ -1578,11 +1536,11 @@ Section STATE.
 
   Lemma stsim_observe E fn args r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt
+        ps pt ktr_src ktr_tgt
     :
-    (∀ ret, stsim E g g Q (ktr_src ret) (ktr_tgt ret))
+    (∀ ret, stsim E g g Q true true (ktr_src ret) (ktr_tgt ret))
       -∗
-      (stsim E r g Q (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt))
+      (stsim E r g Q ps pt (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1591,11 +1549,11 @@ Section STATE.
 
   Lemma stsim_yieldL E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt
+        ps pt ktr_src ktr_tgt
     :
-    (stsim E r g Q (ktr_src tt) (trigger (Yield) >>= ktr_tgt))
+    (stsim E r g Q true pt (ktr_src tt) (trigger (Yield) >>= ktr_tgt))
       -∗
-      (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1604,7 +1562,7 @@ Section STATE.
 
   Lemma stsim_yieldR_strong E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt l
+        ps pt ktr_src ktr_tgt l
     :
     (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
       -∗
@@ -1613,9 +1571,9 @@ Section STATE.
          (FairRA.white_thread (_Id:=_))
          -*
          (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset
-               (stsim topset r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+               (stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
       -∗
-      (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     iIntros "H K".
@@ -1631,7 +1589,7 @@ Section STATE.
 
   Lemma stsim_sync_strong E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt l
+        ps pt ktr_src ktr_tgt l
     :
     (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
       -∗
@@ -1640,9 +1598,9 @@ Section STATE.
          (FairRA.white_thread (_Id:=_))
          -*
          (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset
-               (stsim topset g g Q (ktr_src tt) (ktr_tgt tt))))
+               (stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt))))
       -∗
-      (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "H K".
     unfold stsim. iIntros (? ? ? ? ?) "[D C]".
@@ -1657,7 +1615,7 @@ Section STATE.
 
   Lemma stsim_yieldR E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt l
+        ps pt ktr_src ktr_tgt l
         (TOP: mset_sub topset E)
     :
     (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
@@ -1666,9 +1624,9 @@ Section STATE.
          -*
          (FairRA.white_thread (_Id:=_))
          -*
-         stsim topset r g Q (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
+         stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
       -∗
-      (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     iIntros "H K". iApply stsim_discard; [eassumption|].
@@ -1678,7 +1636,7 @@ Section STATE.
 
   Lemma stsim_sync E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        ktr_src ktr_tgt l
+        ps pt ktr_src ktr_tgt l
         (TOP: mset_sub topset E)
     :
     (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
@@ -1687,9 +1645,9 @@ Section STATE.
          -*
          (FairRA.white_thread (_Id:=_))
          -*
-         stsim topset g g Q (ktr_src tt) (ktr_tgt tt))
+         stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt))
       -∗
-      (stsim E r g Q (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "H K". iApply stsim_discard; [eassumption|].
     iApply (stsim_sync_strong with "H"). iIntros "DUTY WHITE".
@@ -1698,18 +1656,46 @@ Section STATE.
 
   Lemma stsim_sort E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
-        itr_src itr_tgt
+        ps pt itr_src itr_tgt
     :
-    (stsim (NatSort.sort E) r g Q itr_src itr_tgt)
+    (stsim (NatSort.sort E) r g Q ps pt itr_src itr_tgt)
       -∗
-      (stsim E r g Q itr_src itr_tgt)
+      (stsim E r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     iApply stsim_discard.
     rewrite <- NatSort.Permuted_sort. reflexivity.
   Qed.
 
+  Lemma stsim_reset E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src itr_tgt
+    :
+    (stsim E r g Q false false itr_src itr_tgt)
+      -∗
+      (stsim E r g Q ps pt itr_src itr_tgt)
+  .
+  Proof.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
+    iApply isim_reset. iApply ("H" with "D").
+  Qed.
+
+  Lemma stsim_progress E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        itr_src itr_tgt
+    :
+    (stsim E g g Q false false itr_src itr_tgt)
+      -∗
+      (stsim E r g Q true true itr_src itr_tgt)
+  .
+  Proof.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "D".
+    iApply isim_progress. iApply ("H" with "D").
+  Qed.
+
   Definition ibot5 { T0 T1 T2 T3 T4} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := False.
+  Definition ibot7 { T0 T1 T2 T3 T4 T5 T6} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5): iProp := False.
+
 End STATE.
 
 From Fairness Require Export Red IRed.
