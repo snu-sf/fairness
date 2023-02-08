@@ -598,10 +598,10 @@ Section SIM.
 
       iDestruct "EXCL" as "[EXCL [EXCL2 EXCL3]]".
       iPoseProof (black_white_update with "B3 EXCL2") as ">[B3 EXCL2]".
-      instantiate (1:= (tvw', tt)).
+      instantiate (1:= (tvw1, tt)).
 
       iMod ("K1" with "[B1 B2 B3 MEM STGT BLKS SUM NEWP AMPs INGEX]") as "_".
-      { unfold lock_will_unlock. iExists true, tvw', false, mem, new_wobl, k. iFrame. iSplitR "INGEX".
+      { unfold lock_will_unlock. iExists true, tvw1, false, mem, new_wobl, k. iFrame. iSplitR "INGEX".
         - iRight. iFrame. auto.
         - iLeft. iFrame. auto.
       }
@@ -616,35 +616,35 @@ Section SIM.
       iIntros "DUTY _". rred.
       iApply stsim_tauR. rred. iApply stsim_tauR. rred.
 
-      iopen 0 "I0" "K0". iDestruct "I0" as "[% [I0B I0]]".
-      iDestruct "I0" as "[% I0]". iDestruct "I0" as "[I01 [I02 [I03 I04]]]".
-      iPoseProof (black_white_equal with "I0B EXCL") as "%". subst.
-      iAssert (
-          ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw1)
-           ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw1))
-            -∗
-            ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw')
-             ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw'))
-        )%I with "[]" as "I04a".
-      { iIntros "I". iDestruct "I" as "[[A B] | [A B]]".
-        - iLeft. iFrame. iApply wpoints_to_view_mon. 2: iFrame.
-          etrans. 2: eapply l0. apply TView.join_r.
-        - iRight. iFrame. iApply wpoints_to_view_mon. 2: iFrame.
-          etrans. 2: eapply l0. apply TView.join_r.
-      }
-      iPoseProof ("I04a" with "I04") as "I04".
-      iPoseProof (black_white_update with "I0B EXCL") as ">[I0B EXCL]".
-      instantiate (1:= tvw').
-      iMod ("K0" with "[I0B I01 I02 I03 I04]") as "_".
-      { iExists tvw'. iFrame. unfold thread1_will_write. iExists k0. iFrame. }
-      msubtac.
+      (* iopen 0 "I0" "K0". iDestruct "I0" as "[% [I0B I0]]". *)
+      (* iDestruct "I0" as "[% I0]". iDestruct "I0" as "[I01 [I02 [I03 I04]]]". *)
+      (* iPoseProof (black_white_equal with "I0B EXCL") as "%". subst. *)
+      (* iAssert ( *)
+      (*     ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw1) *)
+      (*      ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw1)) *)
+      (*       -∗ *)
+      (*       ((ObligationRA.pending k0 (/ 2) ** wpoints_to loc_X const_0 tvw') *)
+      (*        ∨ (ObligationRA.shot k0 ** wpoints_to loc_X const_42 tvw')) *)
+      (*   )%I with "[]" as "I04a". *)
+      (* { iIntros "I". iDestruct "I" as "[[A B] | [A B]]". *)
+      (*   - iLeft. iFrame. iApply wpoints_to_view_mon. 2: iFrame. *)
+      (*     etrans. 2: eapply l0. apply TView.join_r. *)
+      (*   - iRight. iFrame. iApply wpoints_to_view_mon. 2: iFrame. *)
+      (*     etrans. 2: eapply l0. apply TView.join_r. *)
+      (* } *)
+      (* iPoseProof ("I04a" with "I04") as "I04". *)
+      (* iPoseProof (black_white_update with "I0B EXCL") as ">[I0B EXCL]". *)
+      (* instantiate (1:= tvw1). *)
+      (* iMod ("K0" with "[I0B I01 I02 I03 I04]") as "_". *)
+      (* { iExists tvw1. iFrame. unfold thread1_will_write. iExists k0. iFrame. } *)
+      (* msubtac. *)
 
       iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL EXCL2 EXCL3 LOCK]") as "SIM".
       { instantiate (1:= tvw'). iFrame. iSplit.
         { iPureIntro. etrans. 2: eapply l0. apply TView.join_l. }
         iSplitL "DUTY NEWW2 LOCK". iExists k. iFrame.
-        iExists tvw'. iFrame. iPureIntro. reflexivity.
-        (* etrans. 2: eapply l0. apply TView.join_r. *)
+        iExists _. iFrame. iPureIntro.
+        etrans. 2: eapply l0. apply TView.join_r.
       }
       iApply stsim_reset. iFrame.
     }
