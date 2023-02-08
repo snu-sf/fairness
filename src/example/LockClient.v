@@ -1,7 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-Unset Universe Checking.
 From Fairness Require Export
      ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
      OpenMod WMM Red IRed WeakestAdequacy FairLock Concurrency.
@@ -98,7 +97,7 @@ End ClientSpec.
 
 
 From Fairness Require Import
-     IProp IPM Weakest ModSim PCM MonotonePCM StateRA FairRA.
+     IProp IPM Weakest ModSim PCM MonotonePCM StateRA FairRA NatStructsLow NatMapRALow.
 
 Section LEMMA.
 
@@ -514,7 +513,7 @@ Section SIM.
       { eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update. }
       rewrite <- key_set_pull_rm_eq in *. remember (NatMap.remove tid wobl) as new_wobl.
 
-      iPoseProof (list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".
+      iPoseProof (MonotonePCM.list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".
       iPoseProof (duty_to_black with "MYDUTY") as "MYBEX".
       iPoseProof (FairRA.blacks_fold with "[BLKS MYBEX]") as "BLKS".
       2:{ iFrame. }

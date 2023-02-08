@@ -1,7 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-Unset Universe Checking.
 From Fairness Require Export
      ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
      OpenMod WMM Red IRed WeakestAdequacy.
@@ -9,6 +8,7 @@ From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import TView.
 From Ordinal Require Export ClassicalHessenberg.
 Require Import Coq.Numbers.BinNums.
+From Fairness Require Import NatStructsLow NatMapRALow.
 
 Set Implicit Arguments.
 
@@ -89,6 +89,7 @@ End TicketLockW.
 From Fairness Require Import IProp IPM Weakest.
 From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
 From Fairness Require Import FairLock.
+From Fairness Require Import NatStructsLow NatMapRALow.
 
 Section AUX.
 

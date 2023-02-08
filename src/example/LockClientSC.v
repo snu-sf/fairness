@@ -1,12 +1,12 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-Unset Universe Checking.
 
 From Fairness Require Export
-     ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
+     ITreeLib WFLib FairBeh Mod pind Axioms
      OpenMod SCM Red IRed WeakestAdequacy FairLock Concurrency.
 From Ordinal Require Export ClassicalHessenberg.
+From Fairness Require Import NatStructsLow.
 
 Set Implicit Arguments.
 
@@ -98,7 +98,9 @@ End ClientSpec.
 
 
 From Fairness Require Import
-     IProp IPM Weakest ModSim PCM MonotonePCM StateRA FairRA.
+     IProp IPM Weakest ModSim PCM MonotonePCM StateRA FairRA NatMapRALow.
+
+Import NatStructsLow.
 
 Section SIM.
 
@@ -145,8 +147,8 @@ Section SIM.
   Definition o_w_cor: Ord.t := (Ord.omega × Ord.omega)%ord.
 
   Definition lock_will_unlock : iProp :=
-    ∃ (own: bool) (mem: SCMem.t) (wobl: NatMap.t nat) (j: nat),
-      (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
+    ∃ (own: bool) (mem: SCMem.t) (wobl: NatStructsLow.NatMap.t nat) (j: nat),
+      (OwnM (Auth.black (Some wobl: NatMapRALow.NatMapRA.t nat)))
         ∗
         (OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗
@@ -456,7 +458,7 @@ Section SIM.
       { eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update. }
       rewrite <- key_set_pull_rm_eq in *. remember (NatMap.remove tid wobl) as new_wobl.
 
-      iPoseProof (list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".
+      iPoseProof (MonotonePCM.list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".
       iPoseProof (duty_to_black with "MYDUTY") as "MYBEX".
       iPoseProof (FairRA.blacks_fold with "[BLKS MYBEX]") as "BLKS".
       2:{ iFrame. }

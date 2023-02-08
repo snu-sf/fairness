@@ -1,16 +1,15 @@
 From sflib Require Import sflib.
 
-From Fairness Require Import Axioms.
-From Coq Require Import FMapList FMapFacts OrderedTypeEx.
+From Fairness Require Import Axioms FMapListLow FMapFactsLow OrderedTypeExLow WFLibLow.
 
 From Coq Require Import
   Permutation
   SetoidList
   SetoidPermutation
-  Lists.List
+  List
   Lia.
 
-Module NatMap := FMapList.Make(Nat_as_OT).
+Module NatMap := FMapListLow.Make(Nat_as_OT).
 Module NatMapP := WProperties_fun Nat_as_OT NatMap.
 
 Set Implicit Arguments.
@@ -63,7 +62,7 @@ Section NATMAP.
 
   Definition disjoint {elt} (x y : NatMap.t elt) : bool := NatMap.is_empty (NatMapP.restrict x y).
 
-  Import FMapFacts.
+  Import FMapFactsLow.
   Import NatMap.
 
   Lemma Disjoint_empty elt (x : NatMap.t elt) : NatMapP.Disjoint x (NatMap.empty elt).
@@ -687,6 +686,30 @@ Section NATMAP.
   Proof.
     eapply eq_ext_is_eq. ii. rewrite update_mapsto_iff. pose proof empty_1. firstorder.
   Qed.
+
+  Lemma nm_add_rm_comm_equal
+        (m: t elt) k0 k1 e
+        (NEQ: k0 <> k1)
+    :
+    Equal (add k0 e (remove k1 m)) (remove k1 (add k0 e m)). 
+  Proof.
+    eapply F.Equal_mapsto_iff. i. split; i.
+    - eapply F.add_mapsto_iff in H. des; clarify.
+      + eapply F.remove_mapsto_iff. split; auto. apply F.add_mapsto_iff. auto.
+      + eapply F.remove_mapsto_iff in H0. des; clarify. eapply F.remove_mapsto_iff. split; auto.
+        eapply F.add_mapsto_iff. auto.
+    - eapply F.remove_mapsto_iff in H. des; clarify.
+      eapply F.add_mapsto_iff in H0. des; clarify.
+      + eapply F.add_mapsto_iff. auto.
+      + eapply F.add_mapsto_iff. right. split; auto. apply F.remove_mapsto_iff. auto.
+  Qed.
+  Lemma nm_add_rm_comm_eq
+        (m: t elt) k0 k1 e
+        (NEQ: k0 <> k1)
+    :
+    (add k0 e (remove k1 m)) = (remove k1 (add k0 e m)). 
+  Proof. eapply nm_eq_is_equal, nm_add_rm_comm_equal; auto. Qed.
+
 End NATMAP.
 
 Ltac solve_andb :=
@@ -739,13 +762,15 @@ Section NATSET.
     exfalso. eapply H. econs. ss.
   Qed.
 
+  (*
   Lemma Empty_nil_neg s : ~ NatSet.Empty s -> NatSet.elements s <> [].
   Proof.
     destruct s as [s SORTED]. ii.
     eapply map_eq_nil in H0. ss. subst.
     eapply H. ii. eapply InA_nil; eauto.
   Qed.
-
+   *)
+  
   Lemma In_NatSetIn x s : In x (NatSet.elements s) -> NatSet.In x s.
   Proof.
     i. exists tt. unfold NatSet.elements, nm_proj1 in *. destruct s as [s SORTED]; ss. clear SORTED.
@@ -1659,10 +1684,21 @@ Section AUX.
     split; auto. eapply PROP. eapply nm_elements_cons_find_some; eauto. eapply nm_elements_cons_find_some; eauto.
   Qed.
 
+  Lemma NoDupA_NoDup
+        elt l
+    :
+    SetoidList.NoDupA (NatMap.eq_key (elt:=elt)) l ->
+    List.NoDup l.
+  Proof.
+    induction l; ss.
+    { i; ss. econs. }
+    i; ss.
+    inv H. econs. 2: apply IHl; auto. ii. apply H2. apply In_InA; auto.
+  Qed.
+
 End AUX.
 
 
-From Fairness Require Import WFLib.
 Section NMWF.
 
   Import NatMap.
