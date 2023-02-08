@@ -1,4 +1,3 @@
-Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
