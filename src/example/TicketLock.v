@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 Unset Universe Checking.
 From Fairness Require Export ITreeLib WFLib FairBeh NatStructs pind Axioms
-     Mod OpenMod SCM Red IRed Wrapper WeakestAdequacy.
+     Mod OpenMod SCM Red IRed WeakestAdequacy.
 From Ordinal Require Export ClassicalHessenberg.
 
 Set Implicit Arguments.
