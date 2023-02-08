@@ -351,9 +351,9 @@ Section SIM.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
   (* Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t (nat * Ord.t))))%ra Σ}. *)
 
-  Let mypreord := prod_le_PreOrder nat_le_po (Tkst.le_PreOrder nat).
-  Let wmpreord := prod_le_PreOrder nat_le_po (base.PreOrder_instance_0 nat).
-  Let wopreord := prod_le_PreOrder nat_le_po (ord_ge_PreOrder).
+  Let mypreord := prod_le_PreOrder Nat.le_po (Tkst.le_PreOrder nat).
+  Let wmpreord := prod_le_PreOrder Nat.le_po (base.PreOrder_instance_0 nat).
+  Let wopreord := prod_le_PreOrder Nat.le_po (ord_ge_PreOrder).
   Variable monok: nat.
   Variable tk_mono: nat.
   Variable wm_mono: nat.

@@ -322,7 +322,7 @@ Section SIM.
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
 
-  Let mypreord := prod_le_PreOrder nat_le_po (Tkst.le_PreOrder nat).
+  Let mypreord := prod_le_PreOrder Nat.le_po (Tkst.le_PreOrder nat).
   Variable monok: nat.
   Variable tk_mono: nat.
 

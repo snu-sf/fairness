@@ -690,7 +690,7 @@ Section SIM.
     iApply (stsim_putR with "i1STGT"). iIntros "i1STGT". rred. iApply stsim_tauR. rred.
     iApply stsim_tauR. rred.
 
-    rewrite Qp_inv_half_half.
+    rewrite Qp.inv_half_half.
     iPoseProof (ObligationRA.pending_shot with "KPEND") as "> #OBLKSHOT".
 
     iMod ("K0" with "[i0BLK i0KCOR i0PTR]") as "_".
