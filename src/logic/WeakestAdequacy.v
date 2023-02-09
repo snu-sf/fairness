@@ -36,6 +36,115 @@ Proof.
   f_equal. auto.
 Qed.
 
+
+Section DISJOINTWF.
+  Context `{Σ: GRA.t}.
+
+  Definition disjoint_GRA (r0 r1: Σ): Prop :=
+    forall n, r0 n = URA.unit \/ r1 n = URA.unit.
+
+  Definition disjoint_GRA_sym r0 r1
+             (DISJ: disjoint_GRA r0 r1)
+    :
+    disjoint_GRA r1 r0.
+  Proof.
+    ii. exploit DISJ; auto. i. des; eauto.
+  Qed.
+
+  Definition disjoint_GRA_unit_r r
+    :
+    disjoint_GRA r URA.unit.
+  Proof.
+    ii. auto.
+  Qed.
+
+  Definition disjoint_GRA_unit_l r
+    :
+    disjoint_GRA URA.unit r.
+  Proof.
+    ii. auto.
+  Qed.
+
+  Lemma disjoint_GRA_dist_r r0 r1 r2
+        (DISJ0: disjoint_GRA r0 r1)
+        (DISJ1: disjoint_GRA r0 r2)
+    :
+    disjoint_GRA r0 (r1 ⋅ r2).
+  Proof.
+    Local Transparent GRA.to_URA.
+    ii. hexploit (DISJ0 n); auto. i.
+    hexploit (DISJ1 n); auto. i. des; auto.
+    right. rewrite URA.unfold_add. ss.
+    rewrite H. rewrite H0. apply URA.unit_id.
+  Qed.
+
+  Lemma disjoint_GRA_dist_l r0 r1 r2
+        (DISJ0: disjoint_GRA r0 r1)
+        (DISJ1: disjoint_GRA r0 r2)
+    :
+    disjoint_GRA (r1 ⋅ r2) r0.
+  Proof.
+    eapply disjoint_GRA_sym. eapply disjoint_GRA_dist_r; auto.
+  Qed.
+
+  Lemma disjoint_GRA_embed M0 M1
+        `{ING0: @GRA.inG M0 Σ}
+        `{ING1: @GRA.inG M1 Σ}
+        (r0: M0) (r1: M1)
+        (DIFF: ING0.(GRA.inG_id) <> ING1.(GRA.inG_id))
+    :
+    disjoint_GRA (GRA.embed r0) (GRA.embed r1).
+  Proof.
+    Local Transparent GRA.to_URA.
+    ii. revert r0 r1. dependent destruction ING0.
+    dependent destruction ING1.
+    ss. unfold GRA.embed. des_ifs; ss; auto.
+    i. dependent destruction e. ss.
+  Qed.
+
+  Lemma res_wf_disjoint (r0 r1: Σ)
+        (WF0: URA.wf r0)
+        (WF1: URA.wf r1)
+        (DISJ: disjoint_GRA r0 r1)
+    :
+    URA.wf (r0 ⋅ r1).
+  Proof.
+    Local Transparent GRA.to_URA.
+    ur. i. ur in WF0. ur in WF1.
+    specialize (WF0 k). specialize (WF1 k).
+    exploit DISJ. i. des.
+    { rewrite x0. rewrite URA.unit_idl. auto. }
+    { rewrite x0. rewrite URA.unit_id. auto. }
+  Qed.
+End DISJOINTWF.
+
+Ltac disj_tac :=
+  try
+    match goal with
+    | |- disjoint_GRA (@URA.add _ _ _) _ =>
+        eapply disjoint_GRA_dist_l;[disj_tac|disj_tac]
+    | |- disjoint_GRA _ (@URA.add _ _ _) =>
+        eapply disjoint_GRA_dist_r;[disj_tac|disj_tac]
+    | |- disjoint_GRA (@GRA.embed _ _ _ _) (@GRA.embed _ _ _ _) =>
+        eapply disjoint_GRA_embed; (try by ss)
+    end.
+
+Ltac grawf_tac :=
+  try
+    match goal with
+    | |- @URA.wf _ (@URA.add _ _ _) =>
+        eapply res_wf_disjoint;
+        [grawf_tac|grawf_tac|disj_tac]
+    | |- @URA.wf _ (@GRA.embed _ _ _ _) =>
+        eapply GRA.wf_embed
+    end.
+
+Ltac ndtac :=
+  try match goal with
+      | |- NoDup _ => econs; ii; ss; des; ss; ndtac
+      end.
+
+
 Module WSim.
   Section WSIM.
     Variable md_src: Mod.t.
@@ -78,104 +187,6 @@ Module WSim.
     Context `{ARROWRA: @GRA.inG (ArrowRA md_tgt.(Mod.ident)) Σ}.
     Context `{EDGERA: @GRA.inG EdgeRA Σ}.
     Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-
-    Definition disjoint_GRA (r0 r1: Σ): Prop :=
-      forall n, r0 n = URA.unit \/ r1 n = URA.unit.
-
-    Definition disjoint_GRA_sym r0 r1
-               (DISJ: disjoint_GRA r0 r1)
-      :
-      disjoint_GRA r1 r0.
-    Proof.
-      ii. exploit DISJ; auto. i. des; eauto.
-    Qed.
-
-    Definition disjoint_GRA_unit_r r
-      :
-      disjoint_GRA r URA.unit.
-    Proof.
-      ii. auto.
-    Qed.
-
-    Definition disjoint_GRA_unit_l r
-      :
-      disjoint_GRA URA.unit r.
-    Proof.
-      ii. auto.
-    Qed.
-
-    Lemma disjoint_GRA_dist_r r0 r1 r2
-          (DISJ0: disjoint_GRA r0 r1)
-          (DISJ1: disjoint_GRA r0 r2)
-      :
-      disjoint_GRA r0 (r1 ⋅ r2).
-    Proof.
-      Local Transparent GRA.to_URA.
-      ii. hexploit (DISJ0 n); auto. i.
-      hexploit (DISJ1 n); auto. i. des; auto.
-      right. rewrite URA.unfold_add. ss.
-      rewrite H. rewrite H0. apply URA.unit_id.
-    Qed.
-
-    Lemma disjoint_GRA_dist_l r0 r1 r2
-          (DISJ0: disjoint_GRA r0 r1)
-          (DISJ1: disjoint_GRA r0 r2)
-      :
-      disjoint_GRA (r1 ⋅ r2) r0.
-    Proof.
-      eapply disjoint_GRA_sym. eapply disjoint_GRA_dist_r; auto.
-    Qed.
-
-    Lemma disjoint_GRA_embed M0 M1
-          `{ING0: @GRA.inG M0 Σ}
-          `{ING1: @GRA.inG M1 Σ}
-          (r0: M0) (r1: M1)
-          (DIFF: ING0.(GRA.inG_id) <> ING1.(GRA.inG_id))
-      :
-      disjoint_GRA (GRA.embed r0) (GRA.embed r1).
-    Proof.
-      Local Transparent GRA.to_URA.
-      ii. revert r0 r1. dependent destruction ING0.
-      dependent destruction ING1.
-      ss. unfold GRA.embed. des_ifs; ss; auto.
-      i. dependent destruction e. ss.
-    Qed.
-
-    Lemma res_wf_disjoint (r0 r1: Σ)
-          (WF0: URA.wf r0)
-          (WF1: URA.wf r1)
-          (DISJ: disjoint_GRA r0 r1)
-      :
-      URA.wf (r0 ⋅ r1).
-    Proof.
-      Local Transparent GRA.to_URA.
-      ur. i. ur in WF0. ur in WF1.
-      specialize (WF0 k). specialize (WF1 k).
-      exploit DISJ. i. des.
-      { rewrite x0. rewrite URA.unit_idl. auto. }
-      { rewrite x0. rewrite URA.unit_id. auto. }
-    Qed.
-
-    Ltac disj_tac :=
-      try
-        match goal with
-        | |- disjoint_GRA (@URA.add _ _ _) _ =>
-            eapply disjoint_GRA_dist_l;[disj_tac|disj_tac]
-        | |- disjoint_GRA _ (@URA.add _ _ _) =>
-            eapply disjoint_GRA_dist_r;[disj_tac|disj_tac]
-        | |- disjoint_GRA (@GRA.embed _ _ _ _) (@GRA.embed _ _ _ _) =>
-            eapply disjoint_GRA_embed; (try by ss)
-        end.
-
-    Ltac grawf_tac :=
-      try
-        match goal with
-        | |- @URA.wf _ (@URA.add _ _ _) =>
-            eapply res_wf_disjoint;
-            [grawf_tac|grawf_tac|disj_tac]
-        | |- @URA.wf _ (@GRA.embed _ _ _ _) =>
-            eapply GRA.wf_embed
-        end.
 
     Definition initial_res_wf (init_res: Σ): Prop :=
       (<<INITDISJ: (disjoint_GRA init_res (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _))>>) /\
@@ -504,9 +515,6 @@ Module WSim.
       Qed.
 
       (* TODO: Change Ord.omega to user defined values *)
-
-
-      (* TODO: Change Ord.omega to user defined values *)
       Record whole_sim: Prop :=
         mk_whole_sim {
             init_res: Σ;
@@ -515,8 +523,8 @@ Module WSim.
             (Own init_res) (* INIT *)
               -∗
               (#=>
-                 ∃ (I_whole: list iProp),
-                   ((initial_prop TIdSet.empty Ord.omega)
+                 ∃ (I_whole: list iProp) (o: Ord.t),
+                   ((initial_prop (key_set (prog2ths md_src c)) o)
                       -∗
                       MUpd
                       (nth_default True%I I_whole) (fairI (ident_tgt:=md_tgt.(Mod.ident))) [] []
@@ -559,7 +567,7 @@ Module WSim.
         { eapply iProp_satisfable.
           { eapply reswf_gen; eauto. }
           iIntros "[H0 H1]".
-          iPoseProof (init_inv with "H0") as "> [% init_ctx]".
+          iPoseProof (init_inv with "H0") as "> [% [% init_ctx]]".
           iModIntro. iExists I_whole. iIntros (?).
           iPoseProof (default_initial_res_init with "H1") as "H1".
           iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[[[X Y] Z] B] C] D] E] F] G]]".
@@ -639,7 +647,7 @@ Module WSim.
             (Own init_res) (* INIT *)
               -∗
               (#=>
-                 ∃ (I_ctx: list iProp),
+                 ∃ (I_ctx: list iProp) (o: Ord.t),
                    (⌜forall fn args,
                          match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                          | Some ktr_src, Some ktr_tgt =>
@@ -657,7 +665,7 @@ Module WSim.
                          | _, _ => False
                          end⌝)
                    ∧
-                     ((initial_prop TIdSet.empty Ord.omega)
+                     ((initial_prop TIdSet.empty o)
                         -∗
                         MUpd
                         (nth_default True%I I_ctx) (fairI (ident_tgt:=md_tgt.(Mod.ident))) [] []
@@ -699,7 +707,7 @@ Module WSim.
         { eapply iProp_satisfable.
           { eapply reswf_gen; eauto. }
           iIntros "[H0 H1]".
-          iPoseProof (init_inv with "H0") as "> [% [% init_ctx]]".
+          iPoseProof (init_inv with "H0") as "> [% [% [% init_ctx]]]".
           iModIntro. iExists I_ctx. iSplit; [auto|]. iIntros (?).
           iPoseProof (default_initial_res_init with "H1") as "H1".
           iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[[[X Y] Z] B] C] D] E] F] G]]".

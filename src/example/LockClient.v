@@ -229,6 +229,18 @@ Section SIM.
                  (NatStructs.NatMap.add tid2 tt
                     (NatStructs.NatMap.empty unit))).
 
+
+    Program Instance
+            mupd_elim_iupd_arrow
+            (P Q: iProp) (E1 E2 : mset) (p : bool) (Inv : nat → iProp)
+            x
+      :
+      ElimModal True p x (#=( ObligationRA.arrows_sat (Id:=sum_tid (OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod))) )=> P)
+                P (MUpd Inv (fairI (ident_tgt:=OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod))) E1 E2 Q)
+                (MUpd Inv (fairI (ident_tgt:=OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod))) E1 E2 Q).
+    Next Obligation.    Admitted.
+
+
     Lemma init_sat Invs (H_TID : tid1 <> tid2) :
         (
             OwnM (OneShot.pending nat 1)
@@ -246,7 +258,7 @@ Section SIM.
         ∗
         WSim.initial_prop ClientSpec.mod ClientImpl.mod init_ths init_ord
         ⊢
-        MUpd Invs True [] [] (
+        MUpd Invs (fairI (ident_tgt:=Mod.ident ClientImpl.mod)) [] [] (
             (∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t))) ∗ (thread1_will_write tvw))
             ∗
             (lock_will_unlock)
@@ -316,7 +328,7 @@ Section SIM.
       Check FairRA.blacks_unfold s1 s0.
        *)
       (* iPoseProof (FairRA.blacks_unfold s1 s0 with "BLACK") as "BLACK". *)
-      
+
       (* FairRA.blacks_unfold *)
       (* black_to_duty *)
 
@@ -338,11 +350,12 @@ Section SIM.
 
       iSplitL "OBLIG2 OBPEND2 TH1 DU1".
       { iExists k. iSplitL "TH1"; ss.
-        iPoseProof (ObligationRA.duty_alloc with "DU1") as "H".
+        iPoseProof (ObligationRA.duty_alloc with "DU1 []") as "> H".
+        { admit. }
         unfold init_ord.
         admit.
       }
-      { iFrame. ss. }
+      (* { iFrame. ss. } *)
     Admitted.
 
       (*
@@ -1416,9 +1429,77 @@ Module LockClientCorrect.
   Local Instance AUTHVWRA2: @GRA.inG (Auth.t (Excl.t (View.t * unit))) Σ := (@GRA.InG _ _ 18 (@eq_refl _ _)).
   Local Instance AUTHNMNRA: @GRA.inG (Auth.t (NatMapRA.t nat)) Σ := (@GRA.InG _ _ 19 (@eq_refl _ _)).
 
+
+  Let init_res :=
+        (GRA.embed (OneShot.pending nat 1))
+          ⋅ GRA.embed (Auth.black (Some (NatMap.empty nat) : NatMapRA.t nat))
+          ⋅ GRA.embed (Auth.black (Excl.just 0 : Excl.t nat) ⋅ Auth.white (Excl.just 0 : Excl.t nat))
+          ⋅ GRA.embed (Auth.black (Excl.just View.bot : Excl.t View.t) ⋅ Auth.white (Excl.just View.bot : Excl.t View.t))
+          ⋅ GRA.embed (Auth.black (Excl.just (View.bot, ()) : Excl.t (View.t * unit))
+                                  ⋅ Auth.white (Excl.just (View.bot, ()) : Excl.t (View.t * unit)))
+          ⋅ GRA.embed (Excl.just (tt,tt): Excl.t (unit * unit))
+          ⋅ GRA.embed (Excl.just () : Excl.t unit).
+
   Lemma correct:
     UserSim.sim ClientSpec.mod ClientImpl.mod (prog2ths ClientSpec.mod config) (prog2ths ClientImpl.mod config).
   Proof.
     eapply WSim.whole_sim_implies_usersim. econs.
+    { instantiate (1:=init_res). rr. splits.
+      { unfold init_res, default_initial_res. disj_tac. }
+      { ndtac. }
+      { unfold init_res. grawf_tac.
+        { ur. auto. }
+        { ur. split; auto.
+          { eexists. eapply URA.unit_idl. }
+          { ur. auto. }
+        }
+        { ur. split.
+          { eexists _. rewrite URA.unit_idl. eapply URA.unit_id. }
+          { ur. ss. }
+        }
+        { ur. split.
+          { eexists _. rewrite URA.unit_idl. eapply URA.unit_id. }
+          { ur. ss. }
+        }
+        { ur. split.
+          { eexists _. rewrite URA.unit_idl. eapply URA.unit_id. }
+          { ur. ss. }
+        }
+        { ur. ss. }
+        { ur. ss. }
+      }
+    }
+    unfold init_res. repeat rewrite <- GRA.embed_add.
+    iIntros "[[[[[[A B] [C0 C1]] [D0 D1]] [E0 E1]] F] G]".
+    iModIntro.
+    iExists [(∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t)))
+                       ∗ (thread1_will_write tvw))%I;
+             lock_will_unlock], _.
+    iIntros "INIT".
+    iPoseProof (init_sat with "[A B C0 C1 D0 D1 E0 E1 F G INIT]") as "H".
+    { instantiate (1:=0). instantiate (1:=1). ss. }
+    { iFrame. }
+
+
+
+    repeat rewrite <- GRA.embed_add.
+    rewrite <- GRA.embed_add.
+    rewrite <- GRA.embed_add.
+
+auto. }
+        { ur. auto. }
+        { ur. auto. }
+        { ur. auto. }
+        { ur. auto. }
+        { ur. auto. }
+        { ur. auto. }
+        { ur. auto. }
+        { ur. auto. }
+        { ur. auto. }
+        { ur. auto. }
+
+econs.
+        { ii. ss; des; ss.
+
   Admitted.
 End LockClientCorrect.
