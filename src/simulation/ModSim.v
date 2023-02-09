@@ -1386,6 +1386,19 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
   Qed.
 
+  Lemma lsim_monoR
+        tid
+        R0 R1 (RR0 RR1: R0 -> R1 -> URA.car -> shared_rel)
+        p_src p_tgt st ps pt r_ctx
+        (LSIM: lsim tid RR0 ps pt r_ctx p_src p_tgt st)
+        (MON: forall r_src r_tgt r_ctx shr (RET: RR0 r_src r_tgt r_ctx shr),
+            RR1 r_src r_tgt r_ctx shr)
+    :
+    lsim tid RR1 ps pt r_ctx p_src p_tgt st.
+  Proof.
+    ginit. guclo lsim_monoC_spec. econs; eauto. gfinal. auto.
+  Qed.
+
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid:
     R0 -> R1 -> URA.car -> shared_rel :=
     fun (r_src: R0) (r_tgt: R1) (r_ctx: URA.car) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1) =>
