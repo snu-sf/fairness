@@ -229,18 +229,6 @@ Section SIM.
                  (NatStructs.NatMap.add tid2 tt
                     (NatStructs.NatMap.empty unit))).
 
-
-    Program Instance
-            mupd_elim_iupd_arrow
-            (P Q: iProp) (E1 E2 : mset) (p : bool) (Inv : nat → iProp)
-            x
-      :
-      ElimModal True p x (#=( ObligationRA.arrows_sat (Id:=sum_tid (OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod))) )=> P)
-                P (MUpd Inv (fairI (ident_tgt:=OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod))) E1 E2 Q)
-                (MUpd Inv (fairI (ident_tgt:=OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod))) E1 E2 Q).
-    Next Obligation.    Admitted.
-
-
     Lemma init_sat Invs (H_TID : tid1 <> tid2) :
         (
             OwnM (OneShot.pending nat 1)
@@ -254,6 +242,7 @@ Section SIM.
               ∗ OwnM (Auth.white (Excl.just (View.bot, ()) : Excl.t (View.t * unit)))
               ∗ OwnM (Excl.just (tt,tt): Excl.t (unit * unit))
               ∗ OwnM (Excl.just () : Excl.t unit)
+              ∗ OwnM (WMM.memory_resource_black WMem.init)
           )
         ∗
         WSim.initial_prop ClientSpec.mod ClientImpl.mod init_ths init_ord
@@ -273,9 +262,9 @@ Section SIM.
             ((own_thread tid2) ∗ (ObligationRA.duty (inl tid2) []))
         ).
     Proof.
-      iIntros "(PEND & (B1 & B2 & W2 & B3 & W3 & B4 & W4 & E1 & E2) & INIT)".
+      iIntros "(PEND & (B1 & B2 & W2 & B3 & W3 & B4 & W4 & E1 & E2 & E3) & INIT)".
 
-      iMod (ObligationRA.alloc init_ord) as "[% [[OBLIG1 OBLIG2] OBLIG3]]".
+      iMod (ObligationRA.alloc ((1 × Ord.omega) ⊕ ((1 × Ord.omega) × init_ord))%ord) as "[% [[OBLIG1 OBLIG2] OBLIG3]]".
       iMod (OwnM_Upd (OneShot.pending_shot k) with "PEND") as "#SHOT".
       rewrite <- Qp.inv_half_half.
       iPoseProof (ObligationRA.pending_split _ (/ 2)%Qp (/ 2)%Qp with "OBLIG3") as "[OBPEND1 OBPEND2]".
@@ -283,7 +272,7 @@ Section SIM.
       iSplitL "B3 OBLIG1 SHOT OBPEND1".
       { unfold thread1_will_write.
         iModIntro. iExists View.bot. iFrame. iExists k.
-        iSplitL "OBLIG1". { iExists init_ord. iFrame. }
+        iSplitL "OBLIG1". { iExists _. iFrame. }
         iSplitR. { admit. }
         iSplitL "SHOT". { iApply "SHOT". }
         iLeft. iFrame. admit.
@@ -332,12 +321,11 @@ Section SIM.
       (* FairRA.blacks_unfold *)
       (* black_to_duty *)
 
-      iSplitL "B1 B2 W2 W3 B4 W4 E1 E2 INIT1 INIT5".
+      iSplitL "B1 B2 W2 W3 B4 W4 E1 E2 E3 INIT1 INIT5".
       { unfold lock_will_unlock.
         iExists false, View.bot, false, WMem.init, (NatMap.empty nat), 0.
         iModIntro.
         iFrame.
-        iSplitR. { admit. }
         iSplitL "INIT5". { ss. unfold OMod.closed_st_init, OMod.st_init. ss.
                            rewrite key_set_empty_empty_eq. iFrame. }
         iSplitL "INIT1". { iApply FairRA.blacks_impl.
@@ -350,12 +338,11 @@ Section SIM.
 
       iSplitL "OBLIG2 OBPEND2 TH1 DU1".
       { iExists k. iSplitL "TH1"; ss.
-        iPoseProof (ObligationRA.duty_alloc with "DU1 []") as "> H".
-        { admit. }
-        unfold init_ord.
-        admit.
+        iPoseProof (ObligationRA.white_split_eq with "OBLIG2") as "[O0 O1]".
+        iPoseProof (ObligationRA.duty_alloc with "DU1 O0") as "> H"; cycle 1.
+        { iModIntro. iFrame. auto. }
       }
-      (* { iFrame. ss. } *)
+      iModIntro. iFrame.
     Admitted.
 
       (*

@@ -163,6 +163,41 @@ Section MEMRA.
   Definition wmemory_black (m: WMem.t): iProp :=
     OwnM (memory_resource_black m).
 
+  (* TODO: multiple locs *)
+  Definition init_res (l0 l1: Loc.t): wmemRA :=
+    points_to_white l0 WMem.init_cell ⋅ points_to_white l1 WMem.init_cell ⋅ memory_resource_black WMem.init.
+
+  Lemma wmem_init_res_wf l0 l1
+        (DISJ: l0 <> l1)
+    :
+    URA.wf (init_res l0 l1).
+  Proof.
+    unfold init_res, points_to_white, points_to, Auth.white.
+    Local Transparent URA.unit.
+    ur. i. ur. des_ifs.
+    { splits.
+      { eexists (URA.unit). ur. ss. }
+      { ur. ss. }
+    }
+    { splits.
+      { eexists (URA.unit). ur. ss. }
+      { ur. ss. }
+    }
+    { splits.
+      { eexists (Excl.just (WMem.init_mem k)). ur. ss. }
+      { ur. ss. }
+    }
+  Qed.
+
+  Lemma wmem_init_res_prop l0 l1
+    :
+    (OwnM (init_res l0 l1))
+      -∗
+      (points_to l0 WMem.init_cell ** points_to l1 WMem.init_cell ** wmemory_black WMem.init).
+  Proof.
+    iIntros "[[H0 H1] H2]". iFrame.
+  Qed.
+
   (* normal points-to *)
   Definition wpoints_to (l: Loc.t) (v: Const.t) (vw: View.t): iProp :=
     ∃ c,
@@ -173,6 +208,51 @@ Section MEMRA.
                 (<<DEFINED: v <> Const.undef>>) /\
                 (<<VIEW: View.le (View.singleton_ur l (Cell.max_ts c)) vw >>)⌝)
   .
+
+  Lemma init_cell_max_ts
+    :
+    Cell.max_ts WMem.init_cell = Time.bot.
+  Proof.
+    auto.
+  Qed.
+
+  Lemma init_cell_get
+    :
+    Cell.get (Cell.max_ts WMem.init_cell) WMem.init_cell =
+      Some (Time.bot, Message.concrete (BinIntDef.Z.of_nat 0) None).
+  Proof.
+    ss.
+  Qed.
+
+  Lemma init_cell_get_if to from msg
+        (GET: Cell.get to WMem.init_cell = Some (from, msg))
+    :
+    (<<TO: to = Time.bot>>) /\
+      (<<FROM: from = Time.bot>>) /\
+      (<<MSG: msg = Message.concrete (BinIntDef.Z.of_nat 0) None>>).
+  Proof.
+    hexploit Cell.max_ts_spec; eauto. i. des.
+    rewrite init_cell_max_ts in *. inv MAX.
+    { inv H. }
+    { inv H. setoid_rewrite init_cell_get in GET. clarify. }
+  Qed.
+
+  Lemma init_points_to_wpoints_to l v
+    :
+    (points_to l WMem.init_cell)
+      -∗
+      wpoints_to l (Const.of_Z (BinIntDef.Z.of_nat 0)) v.
+  Proof.
+    iIntros "H". iExists _. iFrame. iPureIntro. esplits.
+    { rewrite init_cell_get. eauto. }
+    { ss. }
+    { econs.
+      { ss. eapply TimeMap.singleton_spec.
+        rewrite init_cell_max_ts. eapply Time.bot_spec. }
+      { ss. eapply TimeMap.singleton_spec.
+        rewrite init_cell_max_ts. eapply Time.bot_spec. }
+    }
+  Qed.
 
   Lemma wpoints_to_view_mon l v vw0 vw1
         (LE: View.le vw0 vw1)
@@ -359,6 +439,20 @@ Section MEMRA.
                 (<<DEFINED: v <> Const.undef>>)⌝)
   .
 
+  Lemma init_points_to_wpoints_to_faa l
+    :
+    (points_to l WMem.init_cell)
+      -∗
+      wpoints_to_faa l (Const.of_Z (BinIntDef.Z.of_nat 0)).
+  Proof.
+    iIntros "H". iExists _. iFrame. iPureIntro. esplits.
+    { rewrite init_cell_get. eauto. }
+    { i. hexploit init_cell_get_if; eauto. i. des; clarify.
+      right. rewrite init_cell_max_ts. auto.
+    }
+    { ss. }
+  Qed.
+
   Lemma wmemory_ra_faa
         v msc
         vw0 loc addendum ordr ordw
@@ -527,7 +621,7 @@ Section MEMRA.
       (points_to l c)
         **
         (∃ v released,
-              (ObligationRA.duty (inr (inr (l, (Cell.max_ts c)))) [(k,Ord.S Ord.O)])
+            (ObligationRA.duty (inr (inr (l, (Cell.max_ts c)))) [(k,Ord.S Ord.O)])
               **
               (ObligationRA.pending k 1%Qp)
               **
@@ -544,6 +638,22 @@ Section MEMRA.
                        (LT: Time.lt to (Cell.max_ts c)),
                     (P v' View.bot) /\ (<<DEFINED: v' <> Const.undef>>)⌝))
   .
+
+  (* Lemma init_points_to_wpoints_to_full l V k P Q *)
+  (*   : *)
+  (*   (points_to l WMem.init_cell) *)
+  (*     -∗ *)
+  (*     wpoints_to_full l V k P Q. *)
+  (* Proof. *)
+  (*   iIntros "H". iExists _. iFrame. iExists _, _. iSplitL. *)
+  (*   { iPureIntro. esplits. *)
+  (*   { rewrite init_cell_get. eauto. } *)
+  (*   { i. hexploit init_cell_get_if; eauto. i. des; clarify. *)
+  (*     right. rewrite init_cell_max_ts. auto. *)
+  (*   } *)
+  (*   { ss. } *)
+  (* Qed. *)
+
 
   Lemma wpoints_to_full_not_shot
         l V k P Q
