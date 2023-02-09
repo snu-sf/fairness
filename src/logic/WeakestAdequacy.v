@@ -458,28 +458,6 @@ Module WSim.
       Definition fun_pairs :=
         (NatMapP.of_list (numbering (List.map (fun '(fn, arg) => (fn2th md_src fn arg, fn2th md_tgt fn arg)) c))).
 
-      (* TODO: Change Ord.omega to user defined values *)
-      Record whole_sim: Prop :=
-        mk_whole_sim {
-            init_res: Σ;
-            init_res_cond: initial_res_wf init_res;
-            I_whole: list iProp;
-            init_whole:
-            (Own init_res ** (initial_prop (NatMapP.of_list (numbering (List.map (fun _ => tt) c))) Ord.omega) (* INIT *)
-                 -∗
-                 (#=>
-                    ((mset_all (nth_default True%I I_whole) (topset I_whole)) (* I *)
-                       **
-                       (natmap_prop_sum
-                          fun_pairs
-                          (fun tid '(th_src, th_tgt) =>
-                             stsim
-                               I_whole tid (topset I_whole)
-                               ibot7 ibot7
-                               (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
-                               false false th_src th_tgt)))))
-          }.
-
       Lemma natmap_prop_sum_resmap A (P: nat -> A -> iProp) (m: NatMap.t A) rs
             (SAT: natmap_prop_sum m P rs)
             (WF: URA.wf rs)
@@ -525,46 +503,88 @@ Module WSim.
         }
       Qed.
 
+      (* TODO: Change Ord.omega to user defined values *)
+
+
+      (* TODO: Change Ord.omega to user defined values *)
+      Record whole_sim: Prop :=
+        mk_whole_sim {
+            init_res: Σ;
+            init_res_cond: initial_res_wf init_res;
+            init_inv:
+            (Own init_res) (* INIT *)
+              -∗
+              (#=>
+                 ∃ (I_whole: list iProp),
+                   ((initial_prop TIdSet.empty Ord.omega)
+                      -∗
+                      MUpd
+                      (nth_default True%I I_whole) (fairI (ident_tgt:=md_tgt.(Mod.ident))) [] []
+                      ((mset_all (nth_default True%I I_whole) (topset I_whole))
+                         **
+                         (natmap_prop_sum
+                            fun_pairs
+                            (fun tid '(th_src, th_tgt) =>
+                               stsim
+                                 I_whole tid (topset I_whole)
+                                 ibot7 ibot7
+                                 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+                                 false false th_src th_tgt))
+              )));
+          }.
+
       Lemma whole_sim_implies_usersim
             (SIM: whole_sim)
         :
         UserSim.sim md_src md_tgt (prog2ths md_src c) (prog2ths md_tgt c).
       Proof.
         inv SIM.
-        apply (@UserSim.mk
-                 md_src md_tgt (prog2ths md_src c) (prog2ths md_tgt c) owf nat_wf (inhabits 0) NUNBOUND (to_LURA Σ)
-                 (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I I_whole) (topset I_whole)%I))).
-        i.
         assert (exists (r: Σ),
-                   (<<SAT: (∃ im_src, ((mset_all (nth_default True%I I_whole) (topset I_whole) **
-                                                 natmap_prop_sum fun_pairs
-                                                 (λ (tid : nat) '(th_src, th_tgt),
-                                                   stsim I_whole tid (topset I_whole) ibot7 ibot7
-                                                         (λ r_src r_tgt : Any.t,
-                                                             (own_thread tid ** ObligationRA.duty (inl tid) []) **                                                                                                    ⌜r_src = r_tgt⌝) false false th_src th_tgt))
-                                         **
-                                         (default_I (key_set (prog2ths md_src c)) im_src im_tgt
-                                                    (Mod.st_init md_src) (Mod.st_init md_tgt))))%I
-                                                                                                r>>) /\
+                   (<<SAT:
+                     (∃ (I_whole: list iProp),
+                         (∀ im_tgt,
+                             #=>
+                               (∃ im_src,
+                                   ((default_I (key_set (prog2ths md_src c)) im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt) ** (mset_all (nth_default True%I I_whole) (topset I_whole)))
+                                      **
+                                      (natmap_prop_sum
+                                         fun_pairs
+                                         (fun tid '(th_src, th_tgt) =>
+                                            stsim
+                                              I_whole tid (topset I_whole)
+                                              ibot7 ibot7
+                                              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+                                              false false th_src th_tgt))))))%I r>>) /\
                      (<<WF: URA.wf r>>)).
         { eapply iProp_satisfable.
           { eapply reswf_gen; eauto. }
           iIntros "[H0 H1]".
+          iPoseProof (init_inv with "H0") as "> [% init_ctx]".
+          iModIntro. iExists I_whole. iIntros (?).
           iPoseProof (default_initial_res_init with "H1") as "H1".
-          iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[A B] C] D] E] F] G]]".
-          iPoseProof (init_whole with "[H0 B C D E F G]") as "> H".
+          iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[[[X Y] Z] B] C] D] E] F] G]]".
+          iPoseProof ("init_ctx" with "[B C D E F G] [Y Z]") as "> [[[Y Z] W] [D H]]".
           { iFrame. }
-          iModIntro. iExists _. iSplitL "H"; [auto|].
-          rewrite THSEQ. eauto.
+          { ss. unfold fairI. iFrame. }
+          iModIntro. iExists _. iFrame.
         }
-        des. rr in SAT. unseal "iProp". des.
-        rr in SAT. unseal "iProp". des. subst.
-        rr in SAT0. unseal "iProp". des. subst.
+        des. rr in SAT. unseal "iProp". des. rename x into I_whole.
+        rr in SAT. unseal "iProp".
+        apply (@UserSim.mk
+                 md_src md_tgt (prog2ths md_src c) (prog2ths md_tgt c) owf nat_wf (inhabits 0) NUNBOUND (to_LURA Σ)
+                 (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I I_whole) (topset I_whole)%I))).
+        i. specialize (SAT im_tgt).
+        rr in SAT. unseal "iProp". hexploit SAT.
+        { rewrite URA.unit_id. auto. }
+        i. des.
+        rr in H0. unseal "iProp". des. rename x into im_src.
+        rr in H0. unseal "iProp". des. subst.
+        rr in H1. unseal "iProp". des. subst.
         hexploit natmap_prop_sum_resmap.
         { eauto. }
-        { eapply URA.wf_mon. instantiate (1:=a0 ⋅ b). r_wf WF. }
+        { eapply URA.wf_mon. instantiate (1:=a0 ⋅ b0). r_wf H. }
         i. des. eexists _, rm, _. splits.
-        { ss. rr. unseal "iProp". esplits; [|eauto|eauto]. eauto. }
+        { ss. rr. unseal "iProp". esplits; eauto. }
         { apply nm_find_some_implies_forall3.
           { eapply prog2ths_nm_wf_pair. }
           { etrans; [|apply PAIR].
@@ -584,16 +604,16 @@ Module WSim.
           { auto. }
           i. ii. eapply stsim_local_sim_init; eauto.
         }
-        { cut (URA.wf ((b ⋅ a0) ⋅ (NatMap.fold (fun _ r s => r ⋅ s) rm URA.unit))).
+        { cut (URA.wf ((a0 ⋅ b0) ⋅ (NatMap.fold (fun _ r s => r ⋅ s) rm URA.unit))).
           { i. rewrite LPCM.URA.unfold_wf. s.
             rewrite LPCM.URA.unfold_add. s.
             change (@LPCM.URA.unit (to_LURA (GRA.to_URA Σ))) with (@URA.unit Σ).
-            rewrite URA.unfold_wf in H.
-            rewrite URA.unfold_add in H.
+            rewrite URA.unfold_wf in H1.
+            rewrite URA.unfold_add in H1.
             rewrite URA.unfold_add. auto.
           }
-          eapply URA.wf_extends; [|apply WF].
-          rr in EXT. des. exists ctx. rewrite <- EXT. r_solve.
+          eapply URA.wf_extends; [|apply H].
+          rr in EXT. des. subst. exists ctx. r_solve.
         }
       Qed.
 
