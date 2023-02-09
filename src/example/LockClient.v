@@ -220,6 +220,197 @@ Section SIM.
                    ∗ (thread1_will_write tvw))%I;
          lock_will_unlock].
 
+  Section INITIAL.
+
+    Variable tid1 tid2 : nat.
+    Let init_ord := (((((Ord.omega × Ord.omega) × Ord.omega) ⊕ ((Ord.S Ord.O) × (o_w_cor))) ⊕ 10)%ord).
+    Let init_ths :=
+              (NatStructs.NatMap.add tid1 tt
+                 (NatStructs.NatMap.add tid2 tt
+                    (NatStructs.NatMap.empty unit))).
+
+    Lemma init_sat Invs (H_TID : tid1 <> tid2) :
+        (
+            OwnM (OneShot.pending nat 1)
+        ) ∗ (
+            OwnM (Auth.black (Some (NatMap.empty nat) : NatMapRA.t nat))
+              ∗ OwnM (Auth.black (Excl.just 0 : Excl.t nat))
+              ∗ OwnM (Auth.white (Excl.just 0 : Excl.t nat))
+              ∗ OwnM (Auth.black (Excl.just View.bot : Excl.t View.t))
+              ∗ OwnM (Auth.white (Excl.just View.bot : Excl.t View.t))
+              ∗ OwnM (Auth.black (Excl.just (View.bot, ()) : Excl.t (View.t * unit)))
+              ∗ OwnM (Auth.white (Excl.just (View.bot, ()) : Excl.t (View.t * unit)))
+              ∗ OwnM (Excl.just (tt,tt): Excl.t (unit * unit))
+              ∗ OwnM (Excl.just () : Excl.t unit)
+          )
+        ∗
+        WSim.initial_prop ClientSpec.mod ClientImpl.mod init_ths init_ord
+        ⊢
+        MUpd Invs True [] [] (
+            (∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t))) ∗ (thread1_will_write tvw))
+            ∗
+            (lock_will_unlock)
+            ∗
+            (∃ k, (own_thread tid1)
+                    ∗ (ObligationRA.duty (inl tid1) [(k, Ord.from_nat 1)])
+                    ∗ (ObligationRA.taxes [(k, Ord.from_nat 1)] init_ord)
+                    ∗ (OwnM (OneShot.shot k))
+                    ∗ (ObligationRA.pending k (/ 2))
+            )
+            ∗
+            ((own_thread tid2) ∗ (ObligationRA.duty (inl tid2) []))
+        ).
+    Proof.
+      iIntros "(PEND & (B1 & B2 & W2 & B3 & W3 & B4 & W4 & E1 & E2) & INIT)".
+
+      iMod (ObligationRA.alloc init_ord) as "[% [[OBLIG1 OBLIG2] OBLIG3]]".
+      iMod (OwnM_Upd (OneShot.pending_shot k) with "PEND") as "#SHOT".
+      rewrite <- Qp.inv_half_half.
+      iPoseProof (ObligationRA.pending_split _ (/ 2)%Qp (/ 2)%Qp with "OBLIG3") as "[OBPEND1 OBPEND2]".
+
+      iSplitL "B3 OBLIG1 SHOT OBPEND1".
+      { unfold thread1_will_write.
+        iModIntro. iExists View.bot. iFrame. iExists k.
+        iSplitL "OBLIG1". { iExists init_ord. iFrame. }
+        iSplitR. { admit. }
+        iSplitL "SHOT". { iApply "SHOT". }
+        iLeft. iFrame. admit.
+      }
+
+      unfold WSim.initial_prop.
+      iDestruct "INIT" as "[[[[[INIT0 INIT1] INIT2] INIT3] INIT4] INIT5]".
+      (* make thread_own, duty *)
+      assert (NatStructs.NatMap.find tid1 init_ths = Some tt).
+      { unfold init_ths. apply NatStructs.nm_find_add_eq. }
+      iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU1 INIT2]".
+      iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH1 INIT3]".
+      clear H.
+      assert (NatStructs.NatMap.find tid2 (NatStructs.NatMap.remove tid1 init_ths) = Some tt).
+      { unfold init_ths.
+        rewrite NatStructs.NatMapP.F.remove_neq_o; ss.
+        rewrite NatStructs.nm_find_add_neq; ss.
+        rewrite NatStructs.nm_find_add_eq. ss.
+      }
+      iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU2 INIT2]".
+      iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH2 INIT3]".
+      clear H.
+
+      (*
+      Check FairRA.blacks_unfold.
+      Search FairRA.blacks.
+      set (s0 := λ i : nat + OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod),
+               match i with
+               | inl _ => False%type
+               | inr _ => True%type
+               end).
+      set (s1 := λ i : nat + OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod),
+               match i with
+               | inl _ => i = inl tid1
+               | inr _ => True%type
+               end).
+      set (s2 := λ i : nat + OMod.closed_ident ClientImpl.omod (ModAdd WMem.mod AbsLockW.mod),
+               match i with
+               | inl _ => i = inl tid1 \/ i = inl tid2
+               | inr _ => True%type
+               end).
+      Check FairRA.blacks_unfold s1 s0.
+       *)
+      (* iPoseProof (FairRA.blacks_unfold s1 s0 with "BLACK") as "BLACK". *)
+      
+      (* FairRA.blacks_unfold *)
+      (* black_to_duty *)
+
+      iSplitL "B1 B2 W2 W3 B4 W4 E1 E2 INIT1 INIT5".
+      { unfold lock_will_unlock.
+        iExists false, View.bot, false, WMem.init, (NatMap.empty nat), 0.
+        iModIntro.
+        iFrame.
+        iSplitR. { admit. }
+        iSplitL "INIT5". { ss. unfold OMod.closed_st_init, OMod.st_init. ss.
+                           rewrite key_set_empty_empty_eq. iFrame. }
+        iSplitL "INIT1". { iApply FairRA.blacks_impl.
+                           2: { iFrame. }
+                           i. des. subst. ss. }
+        iSplitR. { ss. }
+        iSplitL "W2 W3 W4 E2". { iLeft. iFrame. ss. }
+        { iLeft. iFrame. ss. }
+      }
+
+      iSplitL "OBLIG2 OBPEND2 TH1 DU1".
+      { iExists k. iSplitL "TH1"; ss.
+        iPoseProof (ObligationRA.duty_alloc with "DU1") as "H".
+        unfold init_ord.
+        admit.
+      }
+      { iFrame. ss. }
+    Admitted.
+
+      (*
+    Definition thread1_will_write (tvw: View.t) : iProp :=
+      ∃ k, (∃ n, ObligationRA.black k n)
+             ∗
+             (ObligationRA.correl_thread k 1%ord)
+             ∗
+             (OwnM (OneShot.shot k))
+             ∗
+             ((ObligationRA.pending k (/2)%Qp ∗ wpoints_to loc_X const_0 tvw)
+              ∨
+                (ObligationRA.shot k ∗ wpoints_to loc_X const_42 tvw)).
+
+
+    Definition lock_will_unlock : iProp :=
+      ∃ (own: bool) (tvw: View.t) (ing: bool) (mem: WMem.t) (wobl: NatMap.t nat) (j: nat),
+        (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
+          ∗
+          ((OwnM (Auth.black (Excl.just j: Excl.t nat)))
+          ∗ (OwnM (Auth.black (Excl.just (tvw, tt): Excl.t (View.t * unit)%type))))
+          ∗
+          (wmemory_black mem)
+          ∗
+          (St_tgt (tt, (mem, (((own, tvw), ing), key_set wobl))))
+          ∗
+          (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wobl)))
+          ∗
+          (natmap_prop_sum wobl
+                           (fun tid idx =>
+                              (own_thread tid)
+                                ∗
+                                (ObligationRA.correl (inr (inr (inr tid))) idx o_w_cor)
+                                ∗
+                                (ObligationRA.pending idx 1)
+                                ∗
+                                (ObligationRA.duty (inr (inr (inr tid))) [(idx, o_w_cor)])
+          ))
+          ∗
+          (
+            ((⌜own = false⌝)
+               ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
+               ∗ (OwnM (Auth.white (Excl.just tvw: Excl.t View.t)))
+               ∗ (OwnM (Auth.white (Excl.just (tvw, tt): Excl.t (View.t * unit)%type)))
+               ∗ (OwnM (Excl.just tt: Excl.t unit))
+            )
+            ∨
+              (* ((⌜own = true⌝) *)
+              (*    ∗ (ObligationRA.pending j 1) *)
+              (*    ∗ (ObligationRA.black j o_w_cor) *)
+              (*    ∗ (ObligationRA.correl_thread j 1%ord) *)
+              (*    ∗ (natmap_prop_sum wobl (fun _ idx => ObligationRA.amplifier j idx 1%ord)) *)
+              (* ) *)
+          )
+          ∗
+          (
+            ((⌜ing = false⌝)
+               ∗ (OwnM (Excl.just (tt, tt): Excl.t (unit * unit)%type))
+            )
+            ∨
+              (* ((⌜ing = true⌝) *)
+              (*    ∗ (OwnM (Excl.just tt: Excl.t unit)) *)
+              (* ) *)
+          )
+    .
+      *)
+  End INITIAL.
+
   Lemma AbsLock_lock
         R_src R_tgt tid
         (src: thread void (sE unit) R_src)
