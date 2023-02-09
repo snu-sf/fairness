@@ -154,8 +154,8 @@ Module WSim.
       { instantiate (1:=r_ctx). r_wf WF. }
       i. eapply lsim_flag_any. eapply lsim_monoR.
       { ginit. ss. refine (@eq_rect _ _ id H0 _ _).
-        repeat f_equal.
-        { repeat (let x := fresh "x" in extensionality x).
+        f_equal; cycle 1.
+        { i. subst. f_equal. repeat (let x := fresh "x" in extensionality x).
           eapply propositional_extensionality. split; i; ss.
           dependent destruction H1. rr in REL. unseal "iProp". des.
           rr in REL. unseal "iProp". des. subst.
@@ -170,6 +170,7 @@ Module WSim.
           rr in REL0. unseal "iProp". ss.
         }
         { reflexivity. }
+        { i. auto. clarify. rewrite H13. rewrite H11. rewrite H10. auto. }
       }
       { i. ss. des_ifs. des.
         rr in RET0. unseal "iProp". des. subst.
@@ -392,13 +393,13 @@ Module WSim.
         inv SIM.
         apply (@UserSim.mk
                  md_src md_tgt (prog2ths md_src c) (prog2ths md_tgt c) owf nat_wf (inhabits 0) NUNBOUND (to_LURA Σ)
-                 (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I I_whole0) (topset I_whole0)%I))).
+                 (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I I_whole) (topset I_whole)%I))).
         i.
         assert (exists (r: Σ),
-                   (<<SAT: (∃ im_src, ((mset_all (nth_default True%I I_whole0) (topset I_whole0) **
+                   (<<SAT: (∃ im_src, ((mset_all (nth_default True%I I_whole) (topset I_whole) **
                                                  natmap_prop_sum fun_pairs
                                                  (λ (tid : nat) '(th_src, th_tgt),
-                                                   stsim I_whole0 tid (topset I_whole0) ibot7 ibot7
+                                                   stsim I_whole tid (topset I_whole) ibot7 ibot7
                                                          (λ r_src r_tgt : Any.t,
                                                              (own_thread tid ** ObligationRA.duty (inl tid) []) **                                                                                                    ⌜r_src = r_tgt⌝) false false th_src th_tgt))
                                          **
@@ -411,7 +412,7 @@ Module WSim.
           iIntros "[H0 H1]".
           iPoseProof (default_initial_res_init with "H1") as "H1".
           iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[A B] C] D] E] F] G]]".
-          iPoseProof (init_whole0 with "[H0 B C D E F G]") as "> H".
+          iPoseProof (init_whole with "[H0 B C D E F G]") as "> H".
           { iFrame. }
           iModIntro. iExists _. iSplitL "H"; [auto|].
           rewrite THSEQ. eauto.
@@ -504,16 +505,16 @@ Module WSim.
         inv SIM.
         apply (@ModSim.mk
                  md_src md_tgt owf nat_wf (inhabits 0) NUNBOUND (to_LURA Σ)
-                 (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I I_ctx0) (topset I_ctx0)%I))).
+                 (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I I_ctx) (topset I_ctx)%I))).
         { i. assert (exists (r: Σ),
-                        (<<SAT: (∃ im_src, ((mset_all (nth_default True%I I_ctx0) (topset I_ctx0) ** (default_I NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt)))))%I r>>) /\
+                        (<<SAT: (∃ im_src, ((mset_all (nth_default True%I I_ctx) (topset I_ctx) ** (default_I NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt)))))%I r>>) /\
                           (<<WF: URA.wf r>>)).
           { eapply iProp_satisfable.
             { eapply RESWF. }
             iIntros "[H0 H1]".
             iPoseProof (default_initial_res_init with "H1") as "H1".
             iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[A B] C] D] E] F] G]]".
-            iPoseProof (init_ctx0 with "[H0 B C D E F G]") as "> H".
+            iPoseProof (init_ctx with "[H0 B C D E F G]") as "> H".
             { iFrame. }
             iModIntro. iExists _. iSplitL "H"; [auto|].
             eauto.
@@ -524,7 +525,7 @@ Module WSim.
           { ss. rr. unseal "iProp". esplits; [|eauto|eauto]. eauto. }
           { rewrite LPCM.URA.unfold_wf. rewrite URA.add_comm. rewrite URA.unfold_wf in WF. auto. }
         }
-        { i. specialize (funs_ctx0 fn args). des_ifs.
+        { i. specialize (funs_ctx fn args). des_ifs.
           eapply stsim_local_sim; eauto.
         }
       Qed.
