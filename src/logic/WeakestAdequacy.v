@@ -78,8 +78,145 @@ Module WSim.
     Context `{ARROWRA: @GRA.inG (ArrowRA md_tgt.(Mod.ident)) Σ}.
     Context `{EDGERA: @GRA.inG EdgeRA Σ}.
     Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-    Variable init_res: Σ.
-    Hypothesis RESWF: URA.wf (init_res ⋅ (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _)).
+
+    Definition disjoint_GRA (r0 r1: Σ): Prop :=
+      forall n, r0 n = URA.unit \/ r1 n = URA.unit.
+
+    Definition disjoint_GRA_sym r0 r1
+               (DISJ: disjoint_GRA r0 r1)
+      :
+      disjoint_GRA r1 r0.
+    Proof.
+      ii. exploit DISJ; auto. i. des; eauto.
+    Qed.
+
+    Definition disjoint_GRA_unit_r r
+      :
+      disjoint_GRA r URA.unit.
+    Proof.
+      ii. auto.
+    Qed.
+
+    Definition disjoint_GRA_unit_l r
+      :
+      disjoint_GRA URA.unit r.
+    Proof.
+      ii. auto.
+    Qed.
+
+    Lemma disjoint_GRA_dist_r r0 r1 r2
+          (DISJ0: disjoint_GRA r0 r1)
+          (DISJ1: disjoint_GRA r0 r2)
+      :
+      disjoint_GRA r0 (r1 ⋅ r2).
+    Proof.
+      Local Transparent GRA.to_URA.
+      ii. hexploit (DISJ0 n); auto. i.
+      hexploit (DISJ1 n); auto. i. des; auto.
+      right. rewrite URA.unfold_add. ss.
+      rewrite H. rewrite H0. apply URA.unit_id.
+    Qed.
+
+    Lemma disjoint_GRA_dist_l r0 r1 r2
+          (DISJ0: disjoint_GRA r0 r1)
+          (DISJ1: disjoint_GRA r0 r2)
+      :
+      disjoint_GRA (r1 ⋅ r2) r0.
+    Proof.
+      eapply disjoint_GRA_sym. eapply disjoint_GRA_dist_r; auto.
+    Qed.
+
+    Lemma disjoint_GRA_embed M0 M1
+          `{ING0: @GRA.inG M0 Σ}
+          `{ING1: @GRA.inG M1 Σ}
+          (r0: M0) (r1: M1)
+          (DIFF: ING0.(GRA.inG_id) <> ING1.(GRA.inG_id))
+      :
+      disjoint_GRA (GRA.embed r0) (GRA.embed r1).
+    Proof.
+      Local Transparent GRA.to_URA.
+      ii. revert r0 r1. dependent destruction ING0.
+      dependent destruction ING1.
+      ss. unfold GRA.embed. des_ifs; ss; auto.
+      i. dependent destruction e. ss.
+    Qed.
+
+    Lemma res_wf_disjoint (r0 r1: Σ)
+          (WF0: URA.wf r0)
+          (WF1: URA.wf r1)
+          (DISJ: disjoint_GRA r0 r1)
+      :
+      URA.wf (r0 ⋅ r1).
+    Proof.
+      Local Transparent GRA.to_URA.
+      ur. i. ur in WF0. ur in WF1.
+      specialize (WF0 k). specialize (WF1 k).
+      exploit DISJ. i. des.
+      { rewrite x0. rewrite URA.unit_idl. auto. }
+      { rewrite x0. rewrite URA.unit_id. auto. }
+    Qed.
+
+    Ltac disj_tac :=
+      try
+        match goal with
+        | |- disjoint_GRA (@URA.add _ _ _) _ =>
+            eapply disjoint_GRA_dist_l;[disj_tac|disj_tac]
+        | |- disjoint_GRA _ (@URA.add _ _ _) =>
+            eapply disjoint_GRA_dist_r;[disj_tac|disj_tac]
+        | |- disjoint_GRA (@GRA.embed _ _ _ _) (@GRA.embed _ _ _ _) =>
+            eapply disjoint_GRA_embed; (try by ss)
+        end.
+
+    Ltac grawf_tac :=
+      try
+        match goal with
+        | |- @URA.wf _ (@URA.add _ _ _) =>
+            eapply res_wf_disjoint;
+            [grawf_tac|grawf_tac|disj_tac]
+        | |- @URA.wf _ (@GRA.embed _ _ _ _) =>
+            eapply GRA.wf_embed
+        end.
+
+    Definition initial_res_wf (init_res: Σ): Prop :=
+      (<<INITDISJ: (disjoint_GRA init_res (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _))>>) /\
+        (<<DEFAULTDISJ:
+          (NoDup [THDRA.(GRA.inG_id);
+                  STATESRC.(GRA.inG_id);
+                  STATETGT.(GRA.inG_id);
+                  IDENTSRC.(GRA.inG_id);
+                  IDENTTGT.(GRA.inG_id);
+                  OBLGRA.(GRA.inG_id);
+                  ARROWRA.(GRA.inG_id);
+                  EDGERA.(GRA.inG_id)])>>) /\
+        (<<INITRES: URA.wf init_res>>).
+
+    Lemma reswf_gen
+          init_res
+          (WF: initial_res_wf init_res)
+      : URA.wf (init_res ⋅ (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _)).
+    Proof.
+      r in WF. des. inv DEFAULTDISJ. ss.
+      inv H2. ss. inv H4. inv H5. ss. inv H6. ss. inv H7. ss. inv H8; ss.
+      grawf_tac; auto.
+      unfold default_initial_res.
+      grawf_tac; (try match goal with | |- _ <> _ => auto 10 end).
+      { ur. split; auto.
+        { eexists. eapply URA.unit_idl. }
+        { ur. auto. }
+      }
+      { ur. split; auto.
+        { eexists _. erewrite URA.unit_idl. eapply URA.unit_id. }
+        { ur. ss. }
+      }
+      { ur. split; auto.
+        { eexists _. erewrite URA.unit_idl. eapply URA.unit_id. }
+        { ur. ss. }
+      }
+      { eapply FairRA.source_init_resource_wf. }
+      { ur. i. ur. split; auto. reflexivity. }
+      { ur. i. ur. auto. }
+      { ur. i. ur. auto. }
+    Qed.
 
     Definition initial_prop (ths: TIdSet.t) o: iProp :=
       ((FairRA.whites (fun _ => True: Prop) o)
@@ -133,6 +270,7 @@ Module WSim.
             eq tid)) fs ft r_ctx th0 th1
                      (ths, im_src, im_tgt1, st_src, st_tgt).
     Proof.
+      Local Opaque GRA.to_URA.
       ii. rr in SIM. unseal "iProp". specialize (SIM ths).
       rr in SIM. unseal "iProp". specialize (SIM im_src).
       rr in SIM. unseal "iProp". specialize (SIM im_tgt1).
@@ -323,6 +461,8 @@ Module WSim.
       (* TODO: Change Ord.omega to user defined values *)
       Record whole_sim: Prop :=
         mk_whole_sim {
+            init_res: Σ;
+            init_res_cond: initial_res_wf init_res;
             I_whole: list iProp;
             init_whole:
             (Own init_res ** (initial_prop (NatMapP.of_list (numbering (List.map (fun _ => tt) c))) Ord.omega) (* INIT *)
@@ -408,7 +548,7 @@ Module WSim.
                                                                                                 r>>) /\
                      (<<WF: URA.wf r>>)).
         { eapply iProp_satisfable.
-          { eapply RESWF. }
+          { eapply reswf_gen; eauto. }
           iIntros "[H0 H1]".
           iPoseProof (default_initial_res_init with "H1") as "H1".
           iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[A B] C] D] E] F] G]]".
@@ -473,6 +613,8 @@ Module WSim.
       (* TODO: Change Ord.omega to user defined values *)
       Record context_sim: Prop :=
         mk_context_sim {
+            init_res: Σ;
+            init_res_cond: initial_res_wf init_res;
             I_ctx: list iProp;
             init_ctx:
             ((initial_prop TIdSet.empty Ord.omega) (* INIT *)
@@ -510,7 +652,7 @@ Module WSim.
                         (<<SAT: (∃ im_src, ((mset_all (nth_default True%I I_ctx) (topset I_ctx) ** (default_I NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt)))))%I r>>) /\
                           (<<WF: URA.wf r>>)).
           { eapply iProp_satisfable.
-            { eapply RESWF. }
+            { eapply reswf_gen; eauto. }
             iIntros "[H0 H1]".
             iPoseProof (default_initial_res_init with "H1") as "H1".
             iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[A B] C] D] E] F] G]]".
