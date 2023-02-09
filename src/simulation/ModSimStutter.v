@@ -880,17 +880,18 @@ Module ModSim.
 
           world: URA.t;
 
-          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop;
-          init: forall im_tgt, exists im_src r_shared,
-            (I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared) /\
-              (URA.wf r_shared);
-
+          (* I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop; *)
           wf_stt : Type -> Type -> WF;
-          funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
-                           | Some ktr_src, Some ktr_tgt => local_sim wf_stt I (@eq Any.t) (ktr_src args) (ktr_tgt args)
-                           | None        , None         => True
-                           | _           , _            => False
-                           end;
+          init: forall im_tgt,
+          exists (I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop),
+          (exists im_src r_shared,
+            (I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared) /\
+              (URA.wf r_shared)) /\
+              (forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
+                          | Some ktr_src, Some ktr_tgt => local_sim wf_stt I (@eq Any.t) (ktr_src args) (ktr_tgt args)
+                          | None        , None         => True
+                          | _           , _            => False
+                          end);
         }.
   End MODSIM.
 End ModSim.
@@ -913,15 +914,15 @@ Module UserSim.
 
           world: URA.t;
 
-          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop;
           wf_stt : Type -> Type -> WF;
           funs: forall im_tgt,
+          exists (I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop),
           exists im_src rs r_shared os,
             (<<INIT: I (key_set p_src, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared>>) /\
               (<<SIM: Forall4
                         (fun '(t1, src) '(t2, tgt) '(t3, r) '(t4, o) =>
                            t1 = t2 /\ t1 = t3 /\ t1 = t4 /\
-                           @local_sim_init _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt wf_stt I _ _ (@eq Any.t) r t1 src tgt o)
+                             @local_sim_init _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt wf_stt I _ _ (@eq Any.t) r t1 src tgt o)
                         (Th.elements p_src) (Th.elements p_tgt) (NatMap.elements rs) (NatMap.elements os)>>) /\
               (<<WF: URA.wf (r_shared ⋅ NatMap.fold (fun _ r s => r ⋅ s) rs ε)>>)
         }.

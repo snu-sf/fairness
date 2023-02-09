@@ -578,15 +578,16 @@ Section MODADD_THEOREM.
     ModSim.mod_sim (close M1 M2_src) (close M1 M2_tgt).
   Proof.
     i. eapply modsim_nat_modsim_exist in H. inv H.
-    pose (I' := @lift_ma M1 M2_src M2_tgt _ _ I).
-    constructor 1 with _ _ _ I'.
-    { econs. exact 0. }
+    (* pose (I' := @lift_ma M1 M2_src M2_tgt _ _ I). *)
+    econstructor 1 with (world:=URA.prod threadsRA world).
+    (* constructor 1 with _ _ _ I'. *)
+    { instantiate (1:=nat_wf). econs. exact 0. }
     { i. exists (S o0). ss. }
-    { clear - init.
-      intro IM_TGT. specialize (init (chop_ctx NatSet.empty IM_TGT)).
-      destruct init as [im_src [r_shared [init R_SHARED]]].
-      pose (pick_ctx IM_TGT) as im_ctx.
-      exists (add_ctx im_ctx im_src), (global_th NatSet.empty NatSet.empty, r_shared). ss. split.
+    intro IM_TGT. specialize (init (chop_ctx NatSet.empty IM_TGT)). des.
+    pose (I' := @lift_ma M1 M2_src M2_tgt _ _ I). exists I'.
+    pose (pick_ctx IM_TGT) as im_ctx.
+    split.
+    { exists (add_ctx im_ctx im_src), (global_th NatSet.empty NatSet.empty, r_shared). ss. split.
       - exists im_src. exists NatSet.empty, NatSet.empty. splits; ss.
         + eapply Partition_empty.
         + exists (chop_ctx NatSet.empty IM_TGT). split; ss. ii. left. ss.

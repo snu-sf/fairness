@@ -45,7 +45,7 @@ Section PROOF.
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
-  Variable I: shared -> URA.car -> Prop.
+  (* Variable I: shared -> URA.car -> Prop. *)
 
   Variable St: wf_tgt.(T) -> wf_tgt.(T).
   Hypothesis lt_succ_diag_r_t: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
@@ -61,7 +61,9 @@ Section PROOF.
         sf src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
-        (LSIM: forall im_tgt, exists im_src (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
+        (LSIM: forall im_tgt,
+          exists (I: shared -> URA.car -> Prop),
+          exists im_src (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
             (<<RSWF: Th.find tid rs_ctx = None>>) /\
               (<<OSWF: (forall tid', Th.In tid' ths_src -> Th.In tid' os) /\ (Th.find tid os = None)>>) /\
               (<<LSIM:
@@ -91,7 +93,7 @@ Section PROOF.
                         | Flag.emp => im_tgt i
                         | Flag.success => im_tgt i
                         end) as im_tgt1.
-    specialize (LSIM im_tgt1). des.
+    specialize (LSIM im_tgt1). des. move I after St.
     assert (FAIR: fair_update im_tgt1 im_tgt (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))).
     { rewrite Heqim_tgt1. unfold fair_update. i. des_ifs. }
     specialize (LSIM im_tgt FAIR). des. clear LSIM Heqim_tgt1 FAIR im_tgt1.
