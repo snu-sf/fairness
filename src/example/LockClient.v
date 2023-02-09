@@ -6,7 +6,7 @@ From Fairness Require Export
      ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
      OpenMod WMM Red IRed WeakestAdequacy FairLock Concurrency.
 From PromisingLib Require Import Loc Event.
-From PromisingSEQ Require Import TView.
+From PromisingSEQ Require Import View.
 From Ordinal Require Export ClassicalHessenberg.
 Require Import Coq.Numbers.BinNums.
 
@@ -211,7 +211,7 @@ Section SIM.
             ((⌜ing = true⌝)
                ∗ (OwnM (Excl.just tt: Excl.t unit))
             (* ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat))) *)
-            (* ∗ (∃ tvw', (OwnM (Auth.white (Excl.just tvw': Excl.t TView.t))) ∗ (⌜TView.le tvw tvw'⌝)) *)
+            (* ∗ (∃ tvw', (OwnM (Auth.white (Excl.just tvw': Excl.t View.t))) ∗ (⌜View.le tvw tvw'⌝)) *)
             )
         )
   .
@@ -871,10 +871,10 @@ Section SIM.
     destruct x. destruct x as [[[lc1 to] sc1] mem1]. des. rename y into WRITE.
     iPoseProof (wpoints_to_view_mon with "i0PTR") as "i0PTR". eapply VW1.
     iPoseProof (wmemory_ra_store with "i1MEM i0PTR") as "[%VW2 >[i1MEM i0PTR]]".
-    eapply WRITE. eauto. eauto. eauto.
+    eapply WRITE. eauto. eauto. eauto. eauto.
 
     iPoseProof (black_white_update with "EXCLB EXCL") as ">[EXCLB EXCL]".
-    instantiate (1:= Local.Local.tview lc1). destruct lc1. ss. rred.
+    instantiate (1:= TView.TView.cur (Local.Local.tview lc1)). destruct lc1. ss. rred.
     iApply stsim_fairR.
     { i. instantiate (1:= []). ss. clear - IN.
       unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs.
@@ -895,7 +895,7 @@ Section SIM.
     iPoseProof (ObligationRA.pending_shot with "KPEND") as "> #OBLKSHOT".
 
     iMod ("K0" with "[EXCLB i0BLK i0KCOR i0PTR]") as "_".
-    { iExists tview. iFrame.
+    { iExists (TView.TView.cur tview). iFrame.
       unfold thread1_will_write. iExists k. iFrame. iSplitR; auto. }
 
     iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
@@ -987,7 +987,7 @@ Section SIM.
       iApply stsim_tauR. rred.
 
       iPoseProof (black_white_update with "EXCLB EXCL") as ">[EXCLB EXCL]".
-      instantiate (1:= Local.Local.tview lc1). destruct lc1. ss. rred.
+      instantiate (1:= TView.TView.cur (Local.Local.tview lc1)). destruct lc1. ss. rred.
       iApply stsim_fairR.
       { i. instantiate (1:= []). ss. clear - IN.
         unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs.
@@ -999,7 +999,7 @@ Section SIM.
       iApply stsim_tauR. rred. iApply stsim_tauR. rred.
 
       iMod ("K0" with "[EXCLB i0BLK i0KCOR i0PTR i0PENDh]") as "_".
-      { iExists tview. iFrame. unfold thread1_will_write. iExists k. iFrame. iSplitR; auto. iLeft; iFrame. }
+      { iExists (TView.TView.cur tview). iFrame. unfold thread1_will_write. iExists k. iFrame. iSplitR; auto. iLeft; iFrame. }
       iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
       { unfold lock_will_unlock. iExists own, tvw0, ing, mem, wobl, j0. iFrame. }
       msubtac.
@@ -1080,7 +1080,7 @@ Section SIM.
         eapply READ. eauto. eauto. des. subst val.
         iApply stsim_tauR. rred.
         iPoseProof (black_white_update with "EXCLB EXCL") as ">[EXCLB EXCL]".
-        instantiate (1:= Local.Local.tview lc1). destruct lc1. ss. rred.
+        instantiate (1:= TView.TView.cur (Local.Local.tview lc1)). destruct lc1. ss. rred.
         iApply stsim_fairR.
         { i. instantiate (1:= []). ss. clear - IN.
           unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs.
@@ -1135,7 +1135,7 @@ Section SIM.
       eapply READ. eauto. eauto. des. subst val.
       iApply stsim_tauR. rred.
       iPoseProof (black_white_update with "EXCLB EXCL") as ">[EXCLB EXCL]".
-      instantiate (1:= Local.Local.tview lc1). destruct lc1. ss. rred.
+      instantiate (1:= TView.TView.cur (Local.Local.tview lc1)). destruct lc1. ss. rred.
       iApply stsim_fairR.
       { i. instantiate (1:= []). ss. clear - IN.
         unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs.

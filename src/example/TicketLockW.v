@@ -6,7 +6,7 @@ From Fairness Require Export
      ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
      OpenMod WMM Red IRed WeakestAdequacy.
 From PromisingLib Require Import Loc Event.
-From PromisingSEQ Require Import TView.
+From PromisingSEQ Require Import View.
 From Ordinal Require Export ClassicalHessenberg.
 Require Import Coq.Numbers.BinNums.
 
@@ -27,17 +27,17 @@ Module TicketLockW.
   Definition now_serving: Loc.t := Loc.of_nat 0.
   Definition next_ticket: Loc.t := Loc.of_nat 1.
 
-  Definition lock_loop (myticket: Const.t) (tvw: TView.t):
-    itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) TView.t
+  Definition lock_loop (myticket: Const.t) (tvw: View.t):
+    itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) View.t
     :=
     ITree.iter
-      (fun (tvw: TView.t) =>
+      (fun (tvw: View.t) =>
          '(tvw, now) <- (OMod.call "load" (tvw, now_serving, Ordering.acqrel));;
          b <- unwrap (Const.eqb myticket now);;
          if (b: bool) then Ret (inr tvw) else Ret (inl tvw)) tvw.
 
   Definition lock_fun:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) TView.t TView.t :=
+    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) View.t View.t :=
     fun tvw =>
       '(tvw, myticket) <- (OMod.call "faa" (tvw, next_ticket, const_1, Ordering.plain, Ordering.acqrel));;
       tvw <- lock_loop myticket tvw;;
@@ -46,11 +46,11 @@ Module TicketLockW.
   .
 
   Definition unlock_fun:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) TView.t TView.t :=
+    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) View.t View.t :=
     fun tvw =>
       '(tvw, v) <- (OMod.call "load" (tvw, now_serving, Ordering.relaxed));;
       let v := Const.add v const_1 in
-      tvw <- (OMod.call "store" (tvw: TView.t, now_serving, v, Ordering.acqrel));;
+      tvw <- (OMod.call "store" (tvw: View.t, now_serving, v, Ordering.acqrel));;
       _ <- trigger Yield;;
       Ret tvw
   .
@@ -346,8 +346,8 @@ Section SIM.
 
   Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLockW.tk)) Σ}.
   Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
-  (* Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * TView.t) * nat))) Σ}. *)
-  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * TView.t)))) Σ}.
+  (* Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * View.t) * nat))) Σ}. *)
+  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * View.t)))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
   (* Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t (nat * Ord.t))))%ra Σ}. *)
 
@@ -377,8 +377,8 @@ Section SIM.
 
   Definition ticket_lock_inv_unlocked0
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
-             (myt: thread_id) (V: TView.t) : iProp :=
-    (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * TView.t)%type)))
+             (myt: thread_id) (V: View.t) : iProp :=
+    (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * View.t)%type)))
       ∗
       (⌜(l = []) /\ (tks = @NatMap.empty _) /\ (now = next)⌝)
       ∗
@@ -389,9 +389,9 @@ Section SIM.
 
   Definition ticket_lock_inv_unlocked1
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
-             (myt: thread_id) (V: TView.t) (wo: Ord.t): iProp :=
+             (myt: thread_id) (V: View.t) (wo: Ord.t): iProp :=
     ∃ yourt waits,
-      (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * TView.t)%type)))
+      (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * View.t)%type)))
         ∗
         (⌜(l = yourt :: waits)⌝)
         ∗
@@ -415,8 +415,8 @@ Section SIM.
 
   Definition ticket_lock_inv_locked
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat)
-             (myt: thread_id) (V: TView.t) : iProp :=
-    (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * TView.t)%type)))
+             (myt: thread_id) (V: View.t) : iProp :=
+    (OwnM (Auth.white (Excl.just (now, myt, V): Excl.t (nat * nat * View.t)%type)))
       ∗
       (⌜tkqueue l tks (S now) next⌝)
       ∗
@@ -440,17 +440,17 @@ Section SIM.
     )
   .
 
-  Definition wP (n: nat): wProp := fun c _ => (⌜exists m, (c = nat2c m) /\ (m < n)⌝)%I.
-  Definition wQ (n: nat): wProp := fun c _ => (⌜(c = nat2c n)⌝)%I.
-  (* Definition wQ (n: nat) (svw: TView.t): wProp := fun c vw => (⌜(c = nat2c n) /\ (TView.le svw vw)⌝)%I. *)
+  Definition wP (n: nat): wProp := fun c _ => (exists m, (c = nat2c m) /\ (m < n)).
+  Definition wQ (n: nat): wProp := fun c _ => ((c = nat2c n)).
+  (* Definition wQ (n: nat) (svw: View.t): wProp := fun c vw => (⌜(c = nat2c n) /\ (View.le svw vw)⌝)%I. *)
 
   Definition ticket_lock_inv_mem
-             (mem: WMem.t) (V: TView.t) (wk: nat) (wo: Ord.t) (svw: TView.t) (now next: nat) (myt: thread_id) : iProp :=
-    ((wmemory_black mem)
+             (mem: WMem.t) (V: View.t) (wk: nat) (wo: Ord.t) (svw: View.t) (now next: nat) (myt: thread_id) : iProp :=
+    ((wmemory_black_strong mem)
        (* ∗ (wpoints_to_full TicketLockW.now_serving V wk (wP now) (wQ now svw)) *)
        ∗ (wpoints_to_full TicketLockW.now_serving V wk (wP now) (wQ now))
        ∗ (wpoints_to_faa TicketLockW.next_ticket (nat2c next))
-       ∗ (OwnM (Auth.black (Excl.just (now, myt, V): Excl.t (((nat * nat) * TView.t))%type)))
+       ∗ (OwnM (Auth.black (Excl.just (now, myt, V): Excl.t (((nat * nat) * View.t))%type)))
        ∗ (monoBlack tk_mono Nat.le_preorder now)
        ∗ (monoBlack wm_mono wmpreord (now, wk))
        ∗ (monoBlack wo_mono wopreord (now, wo))
@@ -460,17 +460,17 @@ Section SIM.
   .
 
   Definition ticket_lock_inv_state
-             (mem: WMem.t) (own: bool) (svw: TView.t) (ing: bool) (tks: NatMap.t nat) : iProp :=
+             (mem: WMem.t) (own: bool) (svw: View.t) (ing: bool) (tks: NatMap.t nat) : iProp :=
     ((St_tgt (tt, mem)) ∗ (St_src (((own, svw), ing), (key_set tks))))
   .
 
   Definition ticket_lock_inv : iProp :=
-    ∃ (mem: WMem.t) (own ing: bool) (V svw: TView.t) (wk: nat) (wo: Ord.t)
+    ∃ (mem: WMem.t) (own ing: bool) (V svw: View.t) (wk: nat) (wo: Ord.t)
       (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
       (ticket_lock_inv_tks tks)
         ∗
         ((ticket_lock_inv_mem mem V wk wo svw now next myt) ∗ (⌜V = svw⌝))
-        (* ((ticket_lock_inv_mem mem V wk wo svw now next myt) ∗ (⌜TView.le V svw⌝)) *)
+        (* ((ticket_lock_inv_mem mem V wk wo svw now next myt) ∗ (⌜View.le V svw⌝)) *)
         ∗
         ((ticket_lock_inv_state mem own svw ing tks))
         ∗
@@ -484,7 +484,7 @@ Section SIM.
            ((⌜own = false⌝)
               ∗
               (⌜ing = false⌝)
-              ∗ 
+              ∗
               ((ticket_lock_inv_unlocked0 l tks now next myt V)
                ∨
                  (ticket_lock_inv_unlocked1 l tks now next myt V wo))
@@ -687,26 +687,26 @@ Section SIM.
           (
             (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t TicketLockW.tk)))
               ∗ (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)))
-              ∗ (⌜TView.le tvw tview⌝)
+              ∗ (⌜View.le tvw tview⌝)
           )
             -∗
   (stsim I tid (topset I) ibot7 ibot7
-         (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+         (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
          false false
     (ITree.iter
        (λ _ : (),
           trigger Yield;;;
-          ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+          ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
           (let (y, _) := x_ in let (y1, _) := y in let (own, _) := y1 in if own then Ret (inl ()) else Ret (inr ()))) ();;;
-     ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+     ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
      (let (y, ts) := x_ in
       let (y0, ing) := y in
       let (_, tvw_lock) := y0 in
       if ing
-      then ` x : _ <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) TView.t) x
+      then ` x : _ <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) View.t) x
       else
-       ` x_0 : {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'} <-
-       trigger (Choose {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'});;
+       ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
+       trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
        (let (tvw', _) := x_0 in
         trigger (Put (true, tvw_lock, false, NatMap.remove (elt:=()) tid ts));;;
         trigger
@@ -716,7 +716,7 @@ Section SIM.
                 then Flag.success
                 else if NatMapP.F.In_dec (NatMap.remove (elt:=()) tid ts) i then Flag.fail else Flag.emp));;;
         trigger Yield;;; Ret tvw')))
-    (` a : TView.t <- OMod.close_itree TicketLockW.omod WMem.mod (TicketLockW.lock_loop (nat2c mytk) tview);;
+    (` a : View.t <- OMod.close_itree TicketLockW.omod WMem.mod (TicketLockW.lock_loop (nat2c mytk) tview);;
      OMod.close_itree TicketLockW.omod WMem.mod (trigger Yield;;; Ret a))
   )
       )
@@ -744,8 +744,8 @@ Section SIM.
     iApply stsim_chooseR. iIntros "%".
     destruct x. destruct x as [[[[lc2 to] val] sc1] mem1]. des. rename y into READ, y0 into WRITE. rred.
 
-    iPoseProof (wmemory_ra_faa with "MEM0 MEM2") as "[%FAA >[MEM0 MEM2]]".
-    eapply READ. eapply WRITE. auto. auto.
+    iPoseProof (wmemory_ra_faa_strong with "MEM0 MEM2") as "[%FAA >[MEM0 MEM2]]".
+    eapply READ. eapply WRITE. auto. auto. auto.
     iApply stsim_tauR. rred.
     iApply stsim_fairR.
     { i. instantiate (1:= []). ss. clear - IN. unfold sum_fmap_r, sum_fmap_l, WMem.missed in IN. des_ifs. }
@@ -937,8 +937,8 @@ Section SIM.
                                    sE (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) TView.t)
-        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) TView.t)
+        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) View.t)
+        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t)
         (tid mytk u: nat)
         x
     :
@@ -954,14 +954,14 @@ Section SIM.
         ∗ (monoWhite monok mypreord (mytk, x)))
         -∗
   (stsim I tid (topset I) g0 g1
-    (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps true
     (trigger Yield;;; src)
     (tgt))
       )
       ⊢
   (stsim I tid (topset I) g0 g1
-    (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps pt
     (trigger Yield;;; src)
     (trigger Yield;;; tgt)).
@@ -1029,11 +1029,11 @@ Section SIM.
                                    sE (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) TView.t)
-        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) TView.t)
+        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) View.t)
+        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t)
         (tid mytk now: nat)
         tks mem next l myt own V wk svw ing
-        (* (VW: TView.le V svw) *)
+        (* (VW: View.le V svw) *)
         (vw: V = svw)
         (NEQ: mytk <> now)
         wo
@@ -1056,14 +1056,14 @@ Section SIM.
           ∗ (FairRA.white_thread (_Id:=_)))
         -∗
   (stsim I tid (topset I) g0 g1
-    (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps true
     (trigger Yield;;; src)
     (tgt))
       )
       ⊢
   (stsim I tid [] g0 g1
-    (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps pt
     (trigger Yield;;; src)
     (trigger Yield;;; tgt)).
@@ -1145,8 +1145,8 @@ Section SIM.
         x
         (* tx *)
         (* (TX: 1 <= tx) *)
-        (tvw tview : TView.t)
-        (TVLE : TView.le tvw tview)
+        (tvw tview : View.t)
+        (TVLE : View.le tvw tview)
         ph
     :
     ((monoWhite monok mypreord (now, x))
@@ -1154,31 +1154,31 @@ Section SIM.
        ∗ (maps_to tid (Auth.white (Excl.just ph: Excl.t nat))))
        (* ∗ (maps_to tid (Auth.white (Excl.just tx: Excl.t nat)))) *)
   ⊢ stsim I tid (topset I) g0 g1
-      (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
       ps pt
       (trigger Yield;;;
        ` x : () + () <-
-       (` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+       (` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
         (let (y, _) := x_ in let (y1, _) := y in let (own0, _) := y1 in if own0 then Ret (inl ()) else Ret (inr ())));;
        match x with
        | inl l0 =>
            tau;; ITree.iter
                    (λ _ : (),
                       trigger Yield;;;
-                      ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+                      ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
                       (let (y, _) := x_ in let (y1, _) := y in let (own0, _) := y1 in if own0 then Ret (inl ()) else Ret (inr ())))
                    l0
        | inr r0 => Ret r0
        end;;;
-       ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+       ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
        (let (y, ts) := x_ in
         let (y0, ing0) := y in
         let (_, tvw_lock) := y0 in
         if ing0
-        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) TView.t) x1
+        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) View.t) x1
         else
-         ` x_0 : {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'} <-
-         trigger (Choose {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'});;
+         ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
+         trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
          (let (tvw', _) := x_0 in
           trigger (Put (true, tvw_lock, false, NatMap.remove (elt:=()) tid ts));;;
           trigger
@@ -1191,8 +1191,8 @@ Section SIM.
       (` r : Any.t <-
        OMod.embed_itree TicketLockW.omod WMem.mod
          (Mod.wrap_fun WMem.load_fun (Any.upcast (tview, TicketLockW.now_serving, Ordering.acqrel)));;
-       ` x : TView.t * Const.t <- (tau;; unwrap (Any.downcast r));;
-       ` x0 : TView.t <-
+       ` x : View.t * Const.t <- (tau;; unwrap (Any.downcast r));;
+       ` x0 : View.t <-
        OMod.close_itree TicketLockW.omod WMem.mod
          (let (tvw0, now0) := x in
           ` b : bool <- unwrap match now0 with
@@ -1256,7 +1256,7 @@ Section SIM.
       { ss. }
       iIntros "_ RIGHT". iDestruct "RIGHT" as "[RIGHT _]". clear MISSED.
       rred. iApply stsim_tauR. rred. iApply stsim_tauR. rred.
-      des. subst val. rred.
+      des. rr in WP. des. subst val. rred.
       destruct (BinIntDef.Z.of_nat now =? BinIntDef.Z.of_nat m)%Z eqn:IF.
       { exfalso. clear - IF WP1. apply Z.eqb_eq in IF. apply Nat2Z.inj_iff in IF. lia. }
       rred. iApply stsim_tauR. rred.
@@ -1323,7 +1323,7 @@ Section SIM.
     { ss. }
     iIntros "_ _".
     rred. iApply stsim_tauR. rred. iApply stsim_tauR. rred.
-    des. subst val. rred.
+    des. rr in WQ. des. subst val. rred.
     destruct (BinIntDef.Z.of_nat now =? BinIntDef.Z.of_nat now)%Z eqn:IF.
     2:{ exfalso. clear - IF. apply Z.eqb_neq in IF. apply IF. auto. }
     rred.
@@ -1333,9 +1333,9 @@ Section SIM.
     iApply stsim_getL. iSplit. auto. destruct lc1. ss.
     iApply stsim_chooseL.
     (* TODO *)
-    assert (SIG: TView.le (TView.join tvw svw) tview0).
-    { apply TView.join_spec. etrans. eapply TVLE. auto. subst. auto. (* etrans. eapply WQ1. auto. *) }
-    iExists (@exist TView.t _ tview0 SIG). lred.
+    assert (SIG: View.le (View.join tvw svw) (TView.TView.cur tview0)).
+    { apply View.join_spec. etrans. eapply TVLE. auto. subst. auto. (* etrans. eapply WQ1. auto. *) }
+    iExists (@exist View.t _ (TView.TView.cur tview0) SIG). lred.
     iApply (stsim_putL with "ST1"). iIntros "ST1".
 
     remember (NatMap.remove tid tks) as tks'.
@@ -1432,16 +1432,16 @@ Section SIM.
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
-        (tvw: TView.t)
+        (tvw: View.t)
         (now : TicketLockW.tk)
         (mem : WMem.t)
         (own ing : bool)
         (l : list nat)
         (tks : NatMap.t nat)
         (next myt : nat)
-        (tview : TView.t)
-        (TVLE : TView.le tvw tview)
-        (V svw : TView.t)
+        (tview : View.t)
+        (TVLE : View.le tvw tview)
+        (V svw : View.t)
         (wk : nat)
         wo
     :
@@ -1457,31 +1457,31 @@ Section SIM.
            (⌜ing = false⌝ ** ticket_lock_inv_unlocked0 l tks now next myt V ∨ ticket_lock_inv_unlocked1 l tks now next myt V wo)) **
         (ticket_lock_inv -* MUpd (nth_default True%I I) (fairI (ident_tgt:=OMod.closed_ident TicketLockW.omod WMem.mod)) [] [0] True)))))))
   ⊢ (stsim I tid [] g0 g1
-      (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
       ps pt
       (trigger Yield;;;
        ` x : () + () <-
-       (` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+       (` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
         (let (y, _) := x_ in let (y1, _) := y in let (own0, _) := y1 in if own0 then Ret (inl ()) else Ret (inr ())));;
        match x with
        | inl l0 =>
            tau;; ITree.iter
                    (λ _ : (),
                       trigger Yield;;;
-                      ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+                      ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
                       (let (y, _) := x_ in let (y1, _) := y in let (own0, _) := y1 in if own0 then Ret (inl ()) else Ret (inr ())))
                    l0
        | inr r0 => Ret r0
        end;;;
-       ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+       ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
        (let (y, ts) := x_ in
         let (y0, ing0) := y in
         let (_, tvw_lock) := y0 in
         if ing0
-        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) TView.t) x1
+        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) View.t) x1
         else
-         ` x_0 : {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'} <-
-         trigger (Choose {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'});;
+         ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
+         trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
          (let (tvw', _) := x_0 in
           trigger (Put (true, tvw_lock, false, NatMap.remove (elt:=()) tid ts));;;
           trigger
@@ -1492,12 +1492,12 @@ Section SIM.
                   else if NatMapP.F.In_dec (NatMap.remove (elt:=()) tid ts) i then Flag.fail else Flag.emp));;;
           trigger Yield;;; Ret tvw')))
       (trigger Yield;;;
-       ` x : TView.t * Const.t <-
+       ` x : View.t * Const.t <-
        (` rv : Any.t <-
         OMod.embed_itree TicketLockW.omod WMem.mod
           (Mod.wrap_fun WMem.load_fun (Any.upcast (tview, TicketLockW.now_serving, Ordering.acqrel)));;
         (tau;; unwrap (Any.downcast rv)));;
-       ` x0 : TView.t <-
+       ` x0 : View.t <-
        OMod.close_itree TicketLockW.omod WMem.mod
          (let (tvw0, now0) := x in
           ` b : bool <- unwrap match now0 with
@@ -1530,15 +1530,15 @@ Section SIM.
             → itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) R_src
             → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
         (ps pt: bool)
-        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) TView.t)
+        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) View.t)
         tgt
         (tid : nat)
         (mem : WMem.t)
         (now next myt : nat)
         mytk
         (LT: now < mytk)
-        (tview : TView.t)
-        (V svw : TView.t)
+        (tview : View.t)
+        (V svw : View.t)
         (wk : nat)
         (wo : Ord.t)
         own ing tks
@@ -1547,28 +1547,28 @@ Section SIM.
       ∗ (ticket_lock_inv_state mem own svw ing tks))
       ∗
      (∀ tview0 val,
-         ((⌜TView.le tview tview0⌝)
+         ((⌜View.le tview tview0⌝)
             ∗ (⌜val <> mytk⌝)
          ∗ (ticket_lock_inv_mem mem V wk wo svw now next myt)
       ∗ (ticket_lock_inv_state mem own svw ing tks)
-         (* ∗ (wmemory_black m) *)
+         (* ∗ (wmemory_black_strong m) *)
          (* ∗ (wpoints_to_full l V k P Q) *)
          )
            -∗
      (stsim I tid [] g0 g1
-    (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps true
     (src)
     (tgt (tview0, nat2c val)))
       )
       ⊢
-    (stsim I tid [] g0 g1 (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) ps
+    (stsim I tid [] g0 g1 (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) ps
            pt
            src
     (` r : Any.t <-
      OMod.embed_itree TicketLockW.omod WMem.mod
        (Mod.wrap_fun WMem.load_fun (Any.upcast (tview, TicketLockW.now_serving, Ordering.acqrel)));;
-     ` x : TView.t * Const.t <- (tau;; unwrap (Any.downcast r));; (tgt x))).
+     ` x : View.t * Const.t <- (tau;; unwrap (Any.downcast r));; (tgt x))).
   Proof.
     iIntros "[[MEM ST] SIM]".
     unfold Mod.wrap_fun, WMem.load_fun. rred.
@@ -1588,35 +1588,35 @@ Section SIM.
     iApply stsim_tauR. rred.
     iApply stsim_tauR. rred.
     iDestruct "WCASES" as "[[%WP [% [#WCOR %MISSED]]] | [%WQ %VVLE]]".
-    { des. subst. iApply "SIM". iFrame. iSplit; auto. iPureIntro. clear - WP1 LT. lia. }
-    { des. subst. iApply "SIM". iFrame. iSplit; auto. iPureIntro. clear - LT. lia. }
+    { des. rr in WP. des. subst. iApply "SIM". iFrame. iSplit; auto. iPureIntro. clear - WP1 LT. lia. }
+    { des. rr in WQ. des. subst. iApply "SIM". iFrame. iSplit; auto. iPureIntro. clear - LT. lia. }
   Qed.
 
-  Let src_code_coind tid tvw: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) TView.t :=
+  Let src_code_coind tid tvw: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) View.t :=
            ((` lr : () + () <-
              (trigger Yield;;;
-              ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+              ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
               (let (y, _) := x_ in let (y1, _) := y in let (own, _) := y1 in if own then Ret (inl ()) else Ret (inr ())));;
              match lr with
              | inl l0 =>
                  tau;; ITree.iter
                          (λ _ : (),
                             trigger Yield;;;
-                            ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+                            ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
                             (let (y, _) := x_ in
                              let (y1, _) := y in let (own, _) := y1 in if own then Ret (inl ()) else Ret (inr ()))) l0
              | inr r0 => Ret r0
              end);;;
-            ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+            ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
             (let (y, ts) := x_ in
              let (y0, ing0) := y in
              let (_, tvw_lock) := y0 in
              if ing0
              then
-              ` x : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) TView.t) x
+              ` x : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) View.t) x
              else
-              ` x_0 : {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'} <-
-              trigger (Choose {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'});;
+              ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
+              trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
               (let (tvw', _) := x_0 in
                trigger (Put (true, tvw_lock, false, NatMap.remove (elt:=()) tid ts));;;
                trigger
@@ -1627,14 +1627,14 @@ Section SIM.
                        else if NatMapP.F.In_dec (NatMap.remove (elt:=()) tid ts) i then Flag.fail else Flag.emp));;;
                  trigger Yield;;; Ret tvw'))).
 
-  Let tgt_code_coind (a: TView.t) mytk: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) TView.t :=
+  Let tgt_code_coind (a: View.t) mytk: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t :=
            (trigger Yield;;;
-            ` x : TView.t * Const.t <-
+            ` x : View.t * Const.t <-
             (` rv : Any.t <-
              OMod.embed_itree TicketLockW.omod WMem.mod
                (Mod.wrap_fun WMem.load_fun (Any.upcast (a, TicketLockW.now_serving, Ordering.acqrel)));;
              (tau;; unwrap (Any.downcast rv)));;
-            ` x0 : TView.t <-
+            ` x0 : View.t <-
             OMod.close_itree TicketLockW.omod WMem.mod
               (let (tvw0, now0) := x in
                ` b : bool <-
@@ -1659,17 +1659,17 @@ Section SIM.
         (tks : NatMap.t nat)
         (now next myt : nat)
         (LT: now < mytk)
-        (tvw tview : TView.t)
-        (TVLE : TView.le tvw tview)
+        (tvw tview : View.t)
+        (TVLE : View.le tvw tview)
         (ing : bool)
-        (V svw : TView.t)
+        (V svw : View.t)
         (wk : nat)
         (wo : Ord.t)
         (SVLE : V = svw)
     :
-  (□ (∀ a : TView.t,
-         (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜TView.le tvw a⌝)) -*
-         g1 TView.t TView.t (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
+  (□ (∀ a : View.t,
+         (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
+         g1 View.t View.t (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
            false
           (src_code_coind tid tvw)
           (tgt_code_coind a mytk)
@@ -1684,30 +1684,30 @@ Section SIM.
          (ticket_lock_inv -*
                           MUpd (nth_default True%I I) (fairI (ident_tgt:=OMod.closed_ident TicketLockW.omod WMem.mod)) [] [0] True)))))))
   )
-  ⊢ (stsim I tid [] g0 g1 (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) ps
+  ⊢ (stsim I tid [] g0 g1 (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) ps
       pt
       (trigger Yield;;;
        ` x : () + () <-
-       (` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+       (` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
         (let (y, _) := x_ in let (y1, _) := y in let (own, _) := y1 in if own then Ret (inl ()) else Ret (inr ())));;
        match x with
        | inl l0 =>
            tau;; ITree.iter
                    (λ _ : (),
                       trigger Yield;;;
-                      ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+                      ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
                       (let (y, _) := x_ in let (y1, _) := y in let (own, _) := y1 in if own then Ret (inl ()) else Ret (inr ()))) l0
        | inr r0 => Ret r0
        end;;;
-       ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+       ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
        (let (y, ts) := x_ in
         let (y0, ing0) := y in
         let (_, tvw_lock) := y0 in
         if ing0
-        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) TView.t) x1
+        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) View.t) x1
         else
-         ` x_0 : {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'} <-
-         trigger (Choose {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'});;
+         ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
+         trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
          (let (tvw', _) := x_0 in
           trigger (Put (true, tvw_lock, false, NatMap.remove (elt:=()) tid ts));;;
           trigger
@@ -1720,8 +1720,8 @@ Section SIM.
       (` r : Any.t <-
        OMod.embed_itree TicketLockW.omod WMem.mod
          (Mod.wrap_fun WMem.load_fun (Any.upcast (tview, TicketLockW.now_serving, Ordering.acqrel)));;
-       ` x : TView.t * Const.t <- (tau;; unwrap (Any.downcast r));;
-       ` x0 : TView.t <-
+       ` x : View.t * Const.t <- (tau;; unwrap (Any.downcast r));;
+       ` x0 : View.t <-
        OMod.close_itree TicketLockW.omod WMem.mod
          (let (tvw0, now0) := x in
           ` b : bool <- unwrap match now0 with
@@ -1776,10 +1776,10 @@ Section SIM.
       hexploit (tkqueue_val_range_l I1 _ FIND). i. iPureIntro. lia. }
   Qed.
 
-  Let src_code_ind tid tvw: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) TView.t :=
+  Let src_code_ind tid tvw: itree ((eventE +' cE) +' sE (Mod.state AbsLockW.mod)) View.t :=
                            (trigger Yield;;;
                             ` x : () + () <-
-                            (` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+                            (` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
                              (let (y0, _) := x_ in
                               let (y1, _) := y0 in let (own0, _) := y1 in if own0 then Ret (inl ()) else Ret (inr ())));;
                             match x with
@@ -1787,24 +1787,24 @@ Section SIM.
                                 tau;; ITree.iter
                                         (λ _ : (),
                                            trigger Yield;;;
-                                           ` x_ : bool * TView.t * bool * NatMap.t () <-
-                                           trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+                                           ` x_ : bool * View.t * bool * NatMap.t () <-
+                                           trigger (Get (bool * View.t * bool * NatMap.t ()));;
                                            (let (y0, _) := x_ in
                                             let (y1, _) := y0 in let (own0, _) := y1 in if own0 then Ret (inl ()) else Ret (inr ())))
                                         l0
                             | inr r0 => Ret r0
                             end;;;
-                            ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+                            ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
                             (let (y0, ts) := x_ in
                              let (y1, ing0) := y0 in
                              let (_, tvw_lock) := y1 in
                              if ing0
                              then
                               ` x1 : void <- trigger (Choose void);;
-                              Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) TView.t) x1
+                              Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) View.t) x1
                              else
-                              ` x_0 : {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'} <-
-                              trigger (Choose {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'});;
+                              ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
+                              trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
                               (let (tvw', _) := x_0 in
                                trigger (Put (true, tvw_lock, false, NatMap.remove (elt:=()) tid ts));;;
                                trigger
@@ -1815,12 +1815,12 @@ Section SIM.
                                        else if NatMapP.F.In_dec (NatMap.remove (elt:=()) tid ts) i then Flag.fail else Flag.emp));;;
                                  trigger Yield;;; Ret tvw'))).
 
-  Let tgt_code_ind (tview: TView.t) mytk: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) TView.t :=
+  Let tgt_code_ind (tview: View.t) mytk: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t :=
                            (` r : Any.t <-
                             OMod.embed_itree TicketLockW.omod WMem.mod
                               (Mod.wrap_fun WMem.load_fun (Any.upcast (tview, TicketLockW.now_serving, Ordering.acqrel)));;
-                            ` x : TView.t * Const.t <- (tau;; unwrap (Any.downcast r));;
-                            ` x0 : TView.t <-
+                            ` x : View.t * Const.t <- (tau;; unwrap (Any.downcast r));;
+                            ` x0 : View.t <-
                             OMod.close_itree TicketLockW.omod WMem.mod
                               (let (tvw0, now0) := x in
                                ` b : bool <-
@@ -1844,18 +1844,18 @@ Section SIM.
   (LT : now < mytk)
   (IH : ∀ y : nat,
          y < mytk - now
-         → ∀ tvw tview : TView.t,
-             TView.le tvw tview
-             → ∀ (mem : WMem.t) (own ing : bool) (V svw : TView.t) (wk : nat) (wo : Ord.t) (l : list nat)
+         → ∀ tvw tview : View.t,
+             View.le tvw tview
+             → ∀ (mem : WMem.t) (own ing : bool) (V svw : View.t) (wk : nat) (wo : Ord.t) (l : list nat)
                  (tks : NatMap.t nat) (now next myt : nat),
                  now < mytk
                  → V = svw
                    → y = mytk - now
-                     → (□ ((∀ a : TView.t,
+                     → (□ ((∀ a : View.t,
                               (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
-                               (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜TView.le tvw a⌝)) -*
-                              g1 TView.t TView.t
-                                (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+                               (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
+                              g1 View.t View.t
+                                (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
                                 false false
                                 (src_code_coind tid tvw)
                                 (tgt_code_coind a mytk)
@@ -1876,15 +1876,15 @@ Section SIM.
                                MUpd (nth_default True%I I) (fairI (ident_tgt:=OMod.closed_ident TicketLockW.omod WMem.mod)) [] [0]
                                  True))))))))
                        ⊢ stsim I tid [] g0 g1
-                           (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
+                           (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
                            true
                            (src_code_ind tid tvw)
                            (tgt_code_ind tview mytk)
   )
-  (tvw tview : TView.t)
-  (TVLE : TView.le tvw tview)
+  (tvw tview : View.t)
+  (TVLE : View.le tvw tview)
   (mem : WMem.t)
-  (V svw : TView.t)
+  (V svw : View.t)
   (wk : nat)
   (wo : Ord.t)
   (l : list nat)
@@ -1892,9 +1892,9 @@ Section SIM.
   (next myt : nat)
   (SVLE : V = svw)
     :
-  (□ ((∀ a : TView.t,
-         (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜TView.le tvw a⌝)) -*
-         g1 TView.t TView.t (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
+  (□ ((∀ a : View.t,
+         (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
+         g1 View.t View.t (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
            false
           (src_code_coind tid tvw)
           (tgt_code_coind a mytk))
@@ -1911,30 +1911,30 @@ Section SIM.
                MUpd (nth_default True%I I) (fairI (ident_tgt:=OMod.closed_ident TicketLockW.omod WMem.mod)) [] [0] True)))))))
   )
   ⊢ (stsim I tid [] g0 g1
-      (λ r_src r_tgt : TView.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
       false true
       (trigger Yield;;;
        ` x : () + () <-
-       (` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+       (` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
         (let (y, _) := x_ in let (y1, _) := y in let (own, _) := y1 in if own then Ret (inl ()) else Ret (inr ())));;
        match x with
        | inl l0 =>
            tau;; ITree.iter
                    (λ _ : (),
                       trigger Yield;;;
-                      ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+                      ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
                       (let (y, _) := x_ in let (y1, _) := y in let (own, _) := y1 in if own then Ret (inl ()) else Ret (inr ()))) l0
        | inr r0 => Ret r0
        end;;;
-       ` x_ : bool * TView.t * bool * NatMap.t () <- trigger (Get (bool * TView.t * bool * NatMap.t ()));;
+       ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get (bool * View.t * bool * NatMap.t ()));;
        (let (y, ts) := x_ in
         let (y0, ing) := y in
         let (_, tvw_lock) := y0 in
         if ing
-        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) TView.t) x1
+        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree ((eventE +' cE) +' sE AbsLockW.st) View.t) x1
         else
-         ` x_0 : {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'} <-
-         trigger (Choose {tvw' : TView.t | TView.le (TView.join tvw tvw_lock) tvw'});;
+         ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
+         trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
          (let (tvw', _) := x_0 in
           trigger (Put (true, tvw_lock, false, NatMap.remove (elt:=()) tid ts));;;
           trigger
@@ -1947,8 +1947,8 @@ Section SIM.
       (` r : Any.t <-
        OMod.embed_itree TicketLockW.omod WMem.mod
          (Mod.wrap_fun WMem.load_fun (Any.upcast (tview, TicketLockW.now_serving, Ordering.acqrel)));;
-       ` x : TView.t * Const.t <- (tau;; unwrap (Any.downcast r));;
-       ` x0 : TView.t <-
+       ` x : View.t * Const.t <- (tau;; unwrap (Any.downcast r));;
+       ` x0 : View.t <-
        OMod.close_itree TicketLockW.omod WMem.mod
          (let (tvw0, now0) := x in
           ` b : bool <- unwrap match now0 with
@@ -2168,20 +2168,20 @@ Section SIM.
     iopen 0 "I" "K". do 12 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [%CF2 [I | I]]]]"; cycle 1.
     { subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred.
-      destruct (excluded_middle_informative (TView.le svw tvw)).
+      destruct (excluded_middle_informative (View.le svw tvw)).
       iApply stsim_UB. iApply stsim_UB.
     }
     { subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred.
-      destruct (excluded_middle_informative (TView.le svw tvw)).
+      destruct (excluded_middle_informative (View.le svw tvw)).
       iApply stsim_UB. iApply stsim_UB.
     }
     { subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred.
-      destruct (excluded_middle_informative (TView.le svw tvw)).
+      destruct (excluded_middle_informative (View.le svw tvw)).
       iApply stsim_UB. iApply stsim_UB.
     }
 
     subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred.
-    destruct (excluded_middle_informative (TView.le svw tvw)).
+    destruct (excluded_middle_informative (View.le svw tvw)).
     2: iApply stsim_UB.
     rename l0 into ARGLE. iApply (stsim_putL with "ST1"). iIntros "ST1".
 
@@ -2191,10 +2191,10 @@ Section SIM.
     iApply stsim_tauR. rred.
     iApply stsim_chooseR. iIntros. destruct x. destruct x as [[lc1 val] to]. des. rred. rename y into READ.
     iApply stsim_tauR. rred.
-    assert (ARGLE2: TView.le V tvw).
+    assert (ARGLE2: View.le V tvw).
     { subst V. auto. }
     (* { etrans. eapply SVLE. auto. } *)
-    iAssert (⌜TView.le V tvw⌝)%I as "ARGLE3". auto.
+    iAssert (⌜View.le V tvw⌝)%I as "ARGLE3". auto.
     iPoseProof (wmemory_ra_load_rlx with "MEM0 MEM1 ARGLE3") as "[%RXLE [MEM0 [MEM1 %WQ]]]".
     eapply READ. eauto. auto.
     iApply stsim_fairR.
@@ -2223,7 +2223,7 @@ Section SIM.
     }
     iClear "ARGLE3".
     iApply (stsim_sync with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _".
-    destruct lc1. ss. move ARGLE2 before tid. move RXLE before ARGLE2. des. subst val.
+    destruct lc1. ss. move ARGLE2 before tid. move RXLE before ARGLE2. des. rr in WQ. subst val.
     clear_upto RXLE.
 
     iopen 0 "I" "K". do 12 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
@@ -2254,40 +2254,41 @@ Section SIM.
 
     remember (S now) as now'.
     destruct lc1. ss.
-    assert (REL1: TView.le V tview).
+    assert (REL1: View.le V (TView.TView.cur tview)).
     { etrans. eapply ARGLE2. auto. }
-    iAssert (⌜TView.le V tview⌝)%I as "WREL1". auto.
-    iAssert (wQ (now') (BinIntDef.Z.of_nat now + 1)%Z tview)%I as "WQ".
-    { unfold wQ. iPureIntro. subst now'. 
+    iAssert (⌜View.le V (TView.TView.cur tview)⌝)%I as "WREL1". auto.
+    assert (WQ: wQ (now') (BinIntDef.Z.of_nat now + 1)%Z View.bot).
+    { unfold wQ. subst now'.
       replace (nat2c (S now)) with (Const.add (nat2c now) const_1). ss.
       clear. unfold nat2c. ss. unfold BinIntDef.Z.of_nat. des_ifs. ss. rewrite Z.add_comm. rewrite Pos2Z.add_pos_pos.
       rewrite Pplus_one_succ_l. econs.
     }
-    iPoseProof (wmemory_ra_store_rel with "MEM0 MEM1 WREL1 WQ") as "[%RVLE >[MEM0 REL]]".
-    eapply WRITE. eauto. eauto. auto.
+    iPoseProof (wmemory_ra_store_rel with "MEM0 MEM1 WREL1 []") as "[%RVLE >[MEM0 REL]]".
+    eapply WRITE. eauto. eauto. auto. auto.
+    { iPureIntro. eapply WQ. }
     do 3 iDestruct "REL" as "[% REL]". ss. iDestruct "REL" as "[%WRLE1 [%WRLE2 >[MEM1 #WOBL]]]".
     iApply stsim_getL. iSplit. auto. lred.
     iApply stsim_chooseL.
-    assert (SIG: TView.le (tvw) V').
+    assert (SIG: View.le (tvw) V').
     { etrans. 2: eapply WRLE2. auto. }
-    iExists (@exist TView.t _ V' SIG). lred.
+    iExists (@exist View.t _ V' SIG). lred.
     iApply (stsim_putL with "ST1"). iIntros "ST1".
     iApply stsim_chooseL.
-    assert (SIG2: TView.le V' tview0).
+    assert (SIG2: View.le V' (TView.TView.cur tview0)).
     { auto. }
-    iExists (@exist TView.t _ tview0 SIG2). lred.
+    iExists (@exist View.t _ (TView.TView.cur tview0) SIG2). lred.
 
     (* iApply stsim_tauR. rred. *)
     (* iPoseProof (wmemory_ra_load_acq with "MEM0 MEM1") as "[%RVLE [MEM0 [MEM1 WCASES]]]". *)
     (* eapply READ. eauto. auto. *)
 
     (* iApply stsim_tauR. rred. *)
-    
+
     (* iIntros. destruct x. destruct x as [[lc1 val] to]. des. rred. rename y into READ. *)
     (* iApply stsim_tauR. rred. *)
-    (* assert (ARGLE2: TView.le V tvw). *)
+    (* assert (ARGLE2: View.le V tvw). *)
     (* { etrans. eapply SVLE. auto. } *)
-    (* iAssert (⌜TView.le V tvw⌝)%I as "ARGLE3". auto. *)
+    (* iAssert (⌜View.le V tvw⌝)%I as "ARGLE3". auto. *)
     (* iPoseProof (wmemory_ra_load_rlx with "MEM0 MEM1 ARGLE3") as "[%RXLE [MEM0 [MEM1 _]]]". *)
     (* eapply READ. eauto. auto. *)
     (* iApply stsim_fairR. *)
@@ -2301,17 +2302,17 @@ Section SIM.
 
     (* iApply stsim_getL. iSplit. auto. rred. *)
     (* iApply stsim_chooseL. *)
-    (* assert (SIG: TView.le (TView.join tvw svw) tview0). *)
-    (* { apply TView.join_spec. etrans. eapply TVLE. auto. etrans. eapply WQ1. auto. } *)
-    (* iExists (@exist TView.t _ tview0 SIG). lred. *)
+    (* assert (SIG: View.le (View.join tvw svw) tview0). *)
+    (* { apply View.join_spec. etrans. eapply TVLE. auto. etrans. eapply WQ1. auto. } *)
+    (* iExists (@exist View.t _ tview0 SIG). lred. *)
     (* iApply (stsim_putL with "ST1"). iIntros "ST1". *)
 
 
     (* iIntros. destruct x. destruct x as [[lc1 val] to]. des. rred. rename y into READ. *)
     (* iApply stsim_tauR. rred. *)
-    (* assert (ARGLE2: TView.le V tvw). *)
+    (* assert (ARGLE2: View.le V tvw). *)
     (* { etrans. eapply SVLE. auto. } *)
-    (* iAssert (⌜TView.le V tvw⌝)%I as "ARGLE3". auto. *)
+    (* iAssert (⌜View.le V tvw⌝)%I as "ARGLE3". auto. *)
     (* iPoseProof (wmemory_ra_load_rlx with "MEM0 MEM1 ARGLE3") as "[%RXLE [MEM0 [MEM1 _]]]". *)
     (* eapply READ. eauto. auto. *)
     (* iApply stsim_fairR. *)
@@ -2325,9 +2326,9 @@ Section SIM.
 
     (* iApply stsim_tauR. *)
 
-    
 
-    
+
+
     (* iPoseProof (black_updatable with "I5") as ">I5". *)
     (* { instantiate (1:=(now, Tkst.d k)). econs 2. ss. split; try lia. } *)
     (* iPoseProof (black_white_update with "MEM3 I0") as ">[MEM3 HOLD]". instantiate (1:=(now, tid)). *)
@@ -2439,7 +2440,8 @@ Section SIM.
       { instantiate (1:=(now', Tkst.a k')). econs 1; try lia. }
       iAssert (ticket_lock_inv_mem {| WMem.memory := mem1; WMem.sc := sc1 |} V' k' o V' now' next tid)%I with "[MEM0 MEM1 MEM2 MEM3 MEM4 MEM5 MEM6]" as "MEM".
       { iFrame. iSplitL. 2: auto. iApply wpoints_to_full_impl. iFrame.
-        unfold wimpl, wor. iPureIntro. ss. i. subst now'. clear - H. des; eauto.
+        unfold wimpl, wor. iPureIntro. ss. i. subst now'. clear - H.
+        unfold wP, wQ in *. des; eauto.
       }
       iAssert (ticket_lock_inv_state {| WMem.memory := mem1; WMem.sc := sc1 |} false V' false tks)%I with "[ST0 ST1]" as "ST". iFrame.
       iMod ("K" with "[TKS MEM ST I3 I4 I5 HOLD]") as "_".
@@ -2467,7 +2469,8 @@ Section SIM.
     { instantiate (1:=(now', Tkst.b k0)). econs 1; try lia. }
     iAssert (ticket_lock_inv_mem {| WMem.memory := mem1; WMem.sc := sc1 |} V' k' o V' now' next tid)%I with "[MEM0 MEM1 MEM2 MEM3 MEM4 MEM5 MEM6]" as "MEM".
     { iFrame. iSplitL. 2: auto. iApply wpoints_to_full_impl. iFrame.
-      unfold wimpl, wor. iPureIntro. ss. i. subst now'. clear - H. des; eauto.
+      unfold wimpl, wor. iPureIntro. ss. i. subst now'. clear - H.
+      unfold wP, wQ in *. des; eauto.
     }
     iAssert (ticket_lock_inv_state {| WMem.memory := mem1; WMem.sc := sc1 |} false V' false tks)%I with "[ST0 ST1]" as "ST". iFrame.
     iMod ("K" with "[TKS MEM ST I3 HOLD YMAPS I4 OBLK OPEND YTAX YDUTY I5 WW]") as "_".

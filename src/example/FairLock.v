@@ -5,7 +5,7 @@ Unset Universe Checking.
 From Fairness Require Export
      ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
      OpenMod SCM Red IRed.
-From PromisingSEQ Require Import TView.
+From PromisingSEQ Require Import View.
 From Ordinal Require Export ClassicalHessenberg.
 
 

@@ -147,12 +147,6 @@ Section MEMRA.
 
   Context `{WMEMRA: @GRA.inG wmemRA Σ}.
 
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{ARROWRA: @GRA.inG (ArrowRA (void + WMem.ident)%type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA (void + WMem.ident)%type) Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-
   Definition memory_resource_black (m: WMem.t): wmemRA :=
     fun loc =>
       Auth.black (Excl.just (m.(WMem.memory) loc): Excl.t Cell.t).
@@ -168,8 +162,7 @@ Section MEMRA.
     OwnM (points_to_white loc c).
 
   Definition wmemory_black (m: WMem.t): iProp :=
-    OwnM (memory_resource_black m) **
-         (FairRA.blacks (fun id => exists loc to, id = (inr (inr (loc, to))) /\ Memory.get loc to m.(WMem.memory) = None)).
+    OwnM (memory_resource_black m).
 
   (* normal points-to *)
   Definition wpoints_to (l: Loc.t) (v: Const.t) (vw: View.t): iProp :=
@@ -203,7 +196,7 @@ Section MEMRA.
       -∗
       ⌜m.(WMem.memory) l = c⌝.
   Proof.
-    iIntros "[BLACK BLACKS] WHITE".
+    iIntros "BLACK WHITE".
     unfold wmemory_black, points_to.
     iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN". iPureIntro.
     ur in H. specialize (H l).
@@ -228,9 +221,9 @@ Section MEMRA.
       -∗
       (points_to l c)
       -∗
-      (#=> (wmemory_black (WMem.mk m1 m0.(WMem.sc)) ** points_to l (m1 l) ** FairRA.black_ex (inr (inr (l, to))) 1%Qp)).
+      (#=> (wmemory_black (WMem.mk m1 m0.(WMem.sc)) ** points_to l (m1 l))).
   Proof.
-    iIntros "[BLACK BLACKS] WHITE".
+    iIntros "BLACK WHITE".
     unfold wmemory_black, points_to.
     iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN".
     ur in H. specialize (H l).
@@ -247,13 +240,7 @@ Section MEMRA.
         f_equal. symmetry. apply LocFun.add_spec_eq.
       }
     }
-    { iModIntro. iFrame. iApply (FairRA.blacks_unfold with "BLACKS").
-      { i. ss. des; subst.
-        { erewrite Memory.add_o in IN0; eauto. des_ifs. esplits; eauto. }
-        { esplits; eauto. eapply Memory.add_get0. eauto. }
-      }
-      { ii. des. clarify. ss. eapply Memory.add_get0 in WRITE. des; clarify. }
-    }
+    { iModIntro. iFrame. }
   Qed.
 
   Lemma memory_write_max_ts m0 loc from to msg m1
@@ -351,7 +338,7 @@ Section MEMRA.
     }
     subst. iSplit.
     { iPureIntro. eapply View.join_l. }
-    iPoseProof (wmemory_ra_write with "BLACK WHITE") as "> [[BLACK WHITE] FAIRBLACK]".
+    iPoseProof (wmemory_ra_write with "BLACK WHITE") as "> [BLACK WHITE]".
     { eauto. }
     iModIntro. iSplitL "BLACK"; [auto|].
     iExists _. iSplit; [iFrame|]. iPureIntro. esplits; eauto.
@@ -435,7 +422,7 @@ Section MEMRA.
         }
       }
     }
-    iPoseProof (wmemory_ra_write with "BLACK WHITE") as "> [[BLACK WHITE] FAIRBLACK]".
+    iPoseProof (wmemory_ra_write with "BLACK WHITE") as "> [BLACK WHITE]".
     { eauto. }
     iModIntro. iSplitL "BLACK"; [auto|].
     iExists _. iSplit; [iFrame|]. iPureIntro. esplits; eauto.
@@ -472,6 +459,69 @@ Section MEMRA.
 
 
 
+
+
+  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+  Context `{ARROWRA: @GRA.inG (ArrowRA (void + WMem.ident)%type) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA (void + WMem.ident)%type) Σ}.
+  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
+  Context `{ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+
+  Definition wmemory_black_strong m: iProp :=
+    wmemory_black m ** (FairRA.blacks (fun id => exists loc to, id = (inr (inr (loc, to))) /\ Memory.get loc to m.(WMem.memory) = None)).
+
+  Lemma wmemory_ra_write_strong
+        m0 m1 l c
+        from to msg
+        (WRITE: Memory.add m0.(WMem.memory) l from to msg m1)
+    :
+    (wmemory_black_strong m0)
+      -∗
+      (points_to l c)
+      -∗
+      (#=> (wmemory_black_strong (WMem.mk m1 m0.(WMem.sc)) ** points_to l (m1 l) ** FairRA.black_ex (inr (inr (l, to))) 1%Qp)).
+  Proof.
+    iIntros "[BLACK BLACKS] WHITE".
+    iPoseProof (wmemory_ra_write with "BLACK WHITE") as "> [BLACK WHITE]"; [eauto|..].
+    iModIntro. iFrame. iApply (FairRA.blacks_unfold with "BLACKS").
+    { i. ss. des; subst.
+      { erewrite Memory.add_o in IN0; eauto. des_ifs. esplits; eauto. }
+      { esplits; eauto. eapply Memory.add_get0. eauto. }
+    }
+    { ii. des. clarify. ss. eapply Memory.add_get0 in WRITE. des; clarify. }
+  Qed.
+
+  Lemma wmemory_ra_faa_strong
+        v msc
+        vw0 loc addendum ordr ordw
+        lc1 from releasedr releasedw kind
+        lc2 to val sc1 mem1
+        (READ: Local.read_step (WMem.view_to_local vw0) (msc.(WMem.memory)) loc from val releasedr ordr lc1)
+        (WRITE: Local.write_step lc1 (msc.(WMem.sc)) (msc.(WMem.memory)) loc from to (Const.add val addendum) releasedr releasedw ordw lc2 sc1 mem1 kind)
+        (ORDR: ordr = Ordering.plain)
+        (ORDW: ordw = Ordering.acqrel)
+        (DEFINED: addendum <> Const.undef)
+    :
+    (wmemory_black_strong msc)
+      -∗
+      (wpoints_to_faa loc v)
+      -∗
+      ((⌜(View.le vw0 lc2.(Local.tview).(TView.cur)) /\ (v = val)⌝)
+         ∗ #=>((wmemory_black_strong (WMem.mk mem1 sc1)) ∗ wpoints_to_faa loc (Const.add v addendum))).
+  Proof.
+    iIntros "[BLACK BLACKS] WHITE".
+    iPoseProof (wmemory_ra_faa with "BLACK WHITE") as "[% H]"; eauto.
+    iSplitR; [auto|]. iPoseProof ("H") as "> [H0 H1]".
+    iModIntro. unfold wmemory_black_strong. iFrame.
+    inv READ. inv WRITE. hexploit memory_write_bot_add; eauto. i. subst. ss.
+    inv WRITE0. inv PROMISE. ss.
+    iPoseProof (FairRA.blacks_unfold with "BLACKS") as "[H0 H1]"; [..|iApply "H0"].
+    { i. ss. des; subst.
+      { erewrite Memory.add_o in IN0; eauto. des_ifs. esplits; eauto. }
+      { esplits; eauto. eapply Memory.add_get0. eauto. }
+    }
+    { ii. des. clarify. eapply Memory.add_get0 in MEM. des; clarify. }
+  Qed.
 
   Definition wpoints_to_full (l: Loc.t) (V: View.t) (k: nat) (P Q: wProp) : iProp :=
     ∃ c,
@@ -517,6 +567,18 @@ Section MEMRA.
     hexploit H0; eauto. i. des. split; auto.
   Qed.
 
+  Lemma wmemory_ra_get_strong
+        m l c
+    :
+    (wmemory_black_strong m)
+      -∗
+      (points_to l c)
+      -∗
+      ⌜m.(WMem.memory) l = c⌝.
+  Proof.
+    iIntros "[BLACK _] WHITE". iApply (wmemory_ra_get with "BLACK WHITE").
+  Qed.
+
   Lemma wmemory_ra_load_acq
         l V k (P Q: wProp)
         m val vw0 vw1
@@ -525,12 +587,12 @@ Section MEMRA.
         (VIEW: vw1 = lc1.(Local.tview).(TView.cur))
         (ORD: ord = Ordering.acqrel)
     :
-    (wmemory_black m)
+    (wmemory_black_strong m)
       -∗
       (wpoints_to_full l V k P Q)
       -∗
       ((⌜View.le vw0 vw1⌝)
-         ∗ (wmemory_black m)
+         ∗ (wmemory_black_strong m)
          ∗ (wpoints_to_full l V k P Q)
          ∗ (((lift_wProp P val vw1)
                ∗ (∃ ts, (ObligationRA.correl (inr (inr (l, ts))) k (Ord.S Ord.O))
@@ -539,7 +601,7 @@ Section MEMRA.
       ).
   Proof.
     iIntros "BLACK [% [WHITE [% [% [[[[X Y] %] %] %]]]]]". des. subst.
-    iPoseProof (wmemory_ra_get with "BLACK WHITE") as "%". subst.
+    iPoseProof (wmemory_ra_get_strong with "BLACK WHITE") as "%". subst.
     inv READ. ss. iSplit.
     { iPureIntro. aggrtac. }
     iPoseProof (ObligationRA.duty_correl with "X") as "#CORREL".
@@ -600,20 +662,20 @@ Section MEMRA.
         (VIEW: vw1 = lc1.(Local.tview).(TView.cur))
         (ORD: ord = Ordering.relaxed)
     :
-    (wmemory_black m)
+    (wmemory_black_strong m)
       -∗
       (wpoints_to_full l V k P Q)
       -∗
       (⌜View.le V vw0⌝)
       -∗
       ((⌜View.le vw0 vw1⌝)
-         ∗ (wmemory_black m)
+         ∗ (wmemory_black_strong m)
          ∗ (wpoints_to_full l V k P Q)
          ∗ (lift_wProp Q val vw1)
       ).
   Proof.
     iIntros "BLACK [% [WHITE [% [% [[[X %] %] Z]]]]] %". des. subst.
-    iPoseProof (wmemory_ra_get with "BLACK WHITE") as "%". subst.
+    iPoseProof (wmemory_ra_get_strong with "BLACK WHITE") as "%". subst.
     inv READ. ss.
     assert (TO: to = Cell.max_ts (WMem.memory m l)).
     { eapply TimeFacts.antisym.
@@ -647,7 +709,7 @@ Section MEMRA.
         (ORD: ord = Ordering.acqrel)
         (DEFINED: val <> Const.undef)
     :
-    (wmemory_black m0)
+    (wmemory_black_strong m0)
       -∗
       (wpoints_to_full l V k P Q)
       -∗
@@ -656,7 +718,7 @@ Section MEMRA.
       (⌜R val View.bot⌝)
       -∗
       ((⌜View.le vw0 vw1⌝)
-         ∗ #=( ObligationRA.arrows_sat (Id:=sum_tid (void + WMem.ident)%type) )=> ((wmemory_black m1))
+         ∗ #=( ObligationRA.arrows_sat (Id:=sum_tid (void + WMem.ident)%type) )=> ((wmemory_black_strong m1))
          ∗ (∃ V' k' o,
                (⌜View.le V' vw1⌝)
                  ∗
@@ -669,12 +731,12 @@ Section MEMRA.
       ).
   Proof.
     iIntros "BLACK [% [WHITE [% [% [[[[_ Y] %] %] %]]]]] % %". des. subst.
-    iPoseProof (wmemory_ra_get with "BLACK WHITE") as "%". subst.
+    iPoseProof (wmemory_ra_get_strong with "BLACK WHITE") as "%". subst.
     inv WRITE. ss. iSplit.
     { iPureIntro. aggrtac. }
     hexploit memory_write_bot_add; eauto. i. subst.
     inv WRITE0. inv PROMISE. clear REMOVE PROMISES ATTACH TS.
-    iPoseProof (wmemory_ra_write with "BLACK WHITE") as "> [[BLACK WHITE] FAIRBLACK]".
+    iPoseProof (wmemory_ra_write_strong with "BLACK WHITE") as "> [[BLACK WHITE] FAIRBLACK]".
     { eauto. }
     assert (TS: Time.lt (Cell.max_ts (WMem.memory m0 l)) to).
     { inv WRITABLE. eapply TimeFacts.le_lt_lt; [|eauto].
