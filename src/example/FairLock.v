@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export
      ITreeLib WFLib FairBeh Mod pind Axioms
      OpenMod SCM Red IRed.
-From PromisingSEQ Require Import TView.
+From PromisingSEQ Require Import View.
 From Ordinal Require Export ClassicalHessenberg.
 From Fairness Require Import NatStructsLow.
 
@@ -56,10 +56,10 @@ End AbsLock.
 
 Module AbsLockW.
 
-  Definition st := (((bool * TView.t) * bool) * NatMap.t unit)%type.
+  Definition st := (((bool * View.t) * bool) * NatMap.t unit)%type.
 
   Definition lock_fun
-    : ktree (((@eventE thread_id) +' cE) +' (sE st)) TView.t TView.t :=
+    : ktree (((@eventE thread_id) +' cE) +' (sE st)) View.t View.t :=
     fun tvw =>
       _ <- trigger Yield;;
       tid <- trigger (GetTid);;
@@ -81,8 +81,8 @@ Module AbsLockW.
       then trigger (Choose (void)) >>= (Empty_set_rect _)
       else
         let ts := NatMap.remove tid ts in
-        '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le (TView.join tvw tvw_lock) tvw')));;
-        (* to prove weak mem ticket lock, needs to store tvw_lock, not tvw'; 
+        '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => View.le (View.join tvw tvw_lock) tvw')));;
+        (* to prove weak mem ticket lock, needs to store tvw_lock, not tvw';
            this is related to now_serving's points_to's V and Q, which is not updated at lock
          *)
         _ <- trigger (Put (((true, tvw_lock), false), ts));;
@@ -93,22 +93,22 @@ Module AbsLockW.
         Ret tvw'.
 
   Definition unlock_fun
-    : ktree (((@eventE thread_id) +' cE) +' (sE st)) TView.t TView.t :=
+    : ktree (((@eventE thread_id) +' cE) +' (sE st)) View.t View.t :=
     fun tvw =>
       _ <- trigger Yield;;
       '(((own, lvw), ing), ts) <- trigger (@Get _);;
-      if (excluded_middle_informative (TView.le lvw tvw))
+      if (excluded_middle_informative (View.le lvw tvw))
       then
         match own, ing with
         | true, false =>
             _ <- trigger (Put (((own, lvw), true), ts));;
             _ <- trigger Yield;;
             '(((_, _), _), ts) <- trigger (@Get _);;
-            (* tvw_V <- trigger (Choose (TView.t));; *)
-            '(exist _ tvw_V _) <- trigger (Choose (sig (fun tvw' => TView.le tvw tvw')));;
+            (* tvw_V <- trigger (Choose (View.t));; *)
+            '(exist _ tvw_V _) <- trigger (Choose (sig (fun tvw' => View.le tvw tvw')));;
             _ <- trigger (Put (((false, tvw_V), false), ts));;
-            (* '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le (TView.join tvw tvw_V) tvw')));; *)
-            '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => TView.le tvw_V tvw')));;
+            (* '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => View.le (View.join tvw tvw_V) tvw')));; *)
+            '(exist _ tvw' _) <- trigger (Choose (sig (fun tvw' => View.le tvw_V tvw')));;
             _ <- trigger Yield;;
             Ret tvw'
         | _, _ => UB
@@ -117,7 +117,7 @@ Module AbsLockW.
 
   Definition mod: Mod.t :=
     Mod.mk
-      (((false, TView.bot), false), NatMap.empty unit)
+      (((false, View.bot), false), NatMap.empty unit)
       (Mod.get_funs [("lock", Mod.wrap_fun lock_fun);
                      ("unlock", Mod.wrap_fun unlock_fun)]).
 
@@ -157,20 +157,20 @@ End AbsLockW.
 (* From Fairness Require Export WMM. *)
 
 (* Module FairLockW. *)
-(*   Definition lock_fun: WMod.function (option TView.t) unit void := *)
+(*   Definition lock_fun: WMod.function (option View.t) unit void := *)
 (*     WMod.mk_fun *)
 (*       tt *)
-(*       (fun (tvw: TView.t) st next => *)
+(*       (fun (tvw: View.t) st next => *)
 (*          match st with *)
 (*          | None => next = WMod.disabled *)
 (*          | Some tvw_lock => *)
-(*              next = WMod.normal None (TView.join tvw tvw_lock) (sum_fmap_l (fun _ => Flag.fail)) *)
+(*              next = WMod.normal None (View.join tvw tvw_lock) (sum_fmap_l (fun _ => Flag.fail)) *)
 (*          end). *)
 
-(*   Definition unlock_fun: WMod.function (option TView.t) unit void := *)
+(*   Definition unlock_fun: WMod.function (option View.t) unit void := *)
 (*     WMod.mk_fun *)
 (*       tt *)
-(*       (fun (tvw: TView.t) st next => *)
+(*       (fun (tvw: View.t) st next => *)
 (*          match st with *)
 (*          | Some _ => next = WMod.stuck *)
 (*          | None => next = WMod.normal (Some tvw) tvw (sum_fmap_l (fun _ => Flag.emp)) *)
@@ -178,7 +178,7 @@ End AbsLockW.
 
 (*   Definition wmod: WMod.t := *)
 (*     WMod.mk *)
-(*       (Some TView.bot) *)
+(*       (Some View.bot) *)
 (*       [("lock", lock_fun); *)
 (*        ("unlock", unlock_fun) *)
 (*       ]. *)
