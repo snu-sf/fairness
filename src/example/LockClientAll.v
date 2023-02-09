@@ -1,6 +1,5 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-Unset Universe Checking.
 From Fairness Require Export FairBeh Mod OpenMod WMM FairLock Concurrency LockClient FIFOSched SchedSim FIFOSched FIFOSchedSim ModAdequacy TicketLockW ModCloseSim ModAddSim.
 
 Section ALL.

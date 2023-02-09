@@ -1,4 +1,3 @@
-Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.

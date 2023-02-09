@@ -1,7 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-Unset Universe Checking.
 From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind OpenMod SCM Red IRed.
 From Ordinal Require Export ClassicalHessenberg.
 
@@ -141,7 +140,7 @@ Section SIM.
         iMod ("K0" with "[MEM ST]") as "_".
         { iExists _. iFrame. }
         iPoseProof (ObligationRA.pending_split with "[OBL]") as "[OBL0 OBL1]".
-        { rewrite Qp_inv_half_half. iFrame. }
+        { rewrite Qp.inv_half_half. iFrame. }
         iMod ("K1" with "[POINTF POINTL OBL1]") as "_".
         { iRight. iExists _. iFrame. iSplitR.
           { iSplit; [iSplit; [iApply "SHOTP"|iApply "CORR"]|eauto]. }
@@ -190,7 +189,7 @@ Section SIM.
             iMod ("K0" with "[MEM ST]") as "_".
             { iExists _. iFrame. }
             iPoseProof (ObligationRA.pending_shot with "[OBL0 PEND]") as "> # OSHOT".
-            { rewrite <- Qp_inv_half_half. iApply (ObligationRA.pending_sum with "OBL0 PEND"). }
+            { rewrite <- Qp.inv_half_half. iApply (ObligationRA.pending_sum with "OBL0 PEND"). }
             iMod ("K1" with "[POINTF H OSHOT]") as "_".
             { iRight. iExists _. iFrame. iRight. iFrame. auto. }
             { msubtac. }

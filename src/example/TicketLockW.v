@@ -1,7 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-Unset Universe Checking.
 From Fairness Require Export
      ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
      OpenMod WMM Red IRed WeakestAdequacy.
@@ -9,6 +8,7 @@ From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import View.
 From Ordinal Require Export ClassicalHessenberg.
 Require Import Coq.Numbers.BinNums.
+From Fairness Require Import NatStructsLow NatMapRALow.
 
 Set Implicit Arguments.
 
@@ -89,6 +89,7 @@ End TicketLockW.
 From Fairness Require Import IProp IPM Weakest.
 From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
 From Fairness Require Import FairLock.
+From Fairness Require Import NatStructsLow NatMapRALow.
 
 Section AUX.
 
@@ -351,9 +352,9 @@ Section SIM.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
   (* Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t (nat * Ord.t))))%ra Σ}. *)
 
-  Let mypreord := prod_le_PreOrder nat_le_po (Tkst.le_PreOrder nat).
-  Let wmpreord := prod_le_PreOrder nat_le_po (base.PreOrder_instance_0 nat).
-  Let wopreord := prod_le_PreOrder nat_le_po (ord_ge_PreOrder).
+  Let mypreord := prod_le_PreOrder Nat.le_po (Tkst.le_PreOrder nat).
+  Let wmpreord := prod_le_PreOrder Nat.le_po (base.PreOrder_instance_0 nat).
+  Let wopreord := prod_le_PreOrder Nat.le_po (ord_ge_PreOrder).
   Variable monok: nat.
   Variable tk_mono: nat.
   Variable wm_mono: nat.

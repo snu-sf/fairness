@@ -1,15 +1,15 @@
 From sflib Require Import sflib.
 
-From Fairness Require Import Axioms FMapList FMapFacts OrderedTypeEx.
+From Fairness Require Import Axioms FMapListLow FMapFactsLow OrderedTypeExLow WFLibLow.
 
 From Coq Require Import
   Permutation
   SetoidList
   SetoidPermutation
-  Lists.List
+  List
   Lia.
 
-Module NatMap := FMapList.Make(Nat_as_OT).
+Module NatMap := FMapListLow.Make(Nat_as_OT).
 Module NatMapP := WProperties_fun Nat_as_OT NatMap.
 
 Set Implicit Arguments.
@@ -62,7 +62,7 @@ Section NATMAP.
 
   Definition disjoint {elt} (x y : NatMap.t elt) : bool := NatMap.is_empty (NatMapP.restrict x y).
 
-  Import FMapFacts.
+  Import FMapFactsLow.
   Import NatMap.
 
   Lemma Disjoint_empty elt (x : NatMap.t elt) : NatMapP.Disjoint x (NatMap.empty elt).
@@ -762,13 +762,15 @@ Section NATSET.
     exfalso. eapply H. econs. ss.
   Qed.
 
+  (*
   Lemma Empty_nil_neg s : ~ NatSet.Empty s -> NatSet.elements s <> [].
   Proof.
     destruct s as [s SORTED]. ii.
     eapply map_eq_nil in H0. ss. subst.
     eapply H. ii. eapply InA_nil; eauto.
   Qed.
-
+   *)
+  
   Lemma In_NatSetIn x s : In x (NatSet.elements s) -> NatSet.In x s.
   Proof.
     i. exists tt. unfold NatSet.elements, nm_proj1 in *. destruct s as [s SORTED]; ss. clear SORTED.
@@ -1682,7 +1684,6 @@ Section AUX.
     split; auto. eapply PROP. eapply nm_elements_cons_find_some; eauto. eapply nm_elements_cons_find_some; eauto.
   Qed.
 
-
   Lemma NoDupA_NoDup
         elt l
     :
@@ -1698,7 +1699,6 @@ Section AUX.
 End AUX.
 
 
-From Fairness Require Import WFLib.
 Section NMWF.
 
   Import NatMap.

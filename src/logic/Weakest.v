@@ -1,4 +1,3 @@
-Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
@@ -630,8 +629,8 @@ Section SIM.
   Qed.
 
   Lemma isim_coind A
-        (R_src: forall (a: A), Prop)
-        (R_tgt: forall (a: A), Prop)
+        (R_src: forall (a: A), Type)
+        (R_tgt: forall (a: A), Type)
         (Q: forall (a: A), R_src a -> R_tgt a -> shared_rel)
         (ps pt: forall (a: A), bool)
         (itr_src : forall (a: A), itree srcE (R_src a))
@@ -1024,8 +1023,8 @@ Section STATE.
   Qed.
 
   Lemma stsim_coind E A
-        (R_src: forall (a: A), Prop)
-        (R_tgt: forall (a: A), Prop)
+        (R_src: forall (a: A), Type)
+        (R_tgt: forall (a: A), Type)
         (Q: forall (a: A), R_src a -> R_tgt a -> iProp)
         (ps pt: forall (a: A), bool)
         (itr_src : forall (a: A), itree srcE (R_src a))

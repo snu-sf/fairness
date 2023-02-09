@@ -1,10 +1,10 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-Unset Universe Checking.
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs pind Axioms
+From Fairness Require Export ITreeLib WFLib FairBeh pind Axioms
      Mod OpenMod SCM Red IRed WeakestAdequacy.
 From Ordinal Require Export ClassicalHessenberg.
+From Fairness Require Import NatStructsLow NatMapRALow.
 
 Set Implicit Arguments.
 
@@ -13,7 +13,7 @@ Module TicketLock.
   Definition now_serving: SCMem.val := SCMem.val_ptr (0, 0).
   Definition next_ticket: SCMem.val := SCMem.val_ptr (0, 1).
 
-  Definition tk := nat.
+  Notation tk := nat.
 
   Definition lock_loop (myticket: SCMem.val):
     itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit
@@ -75,6 +75,7 @@ End TicketLock.
 From Fairness Require Import IProp IPM Weakest.
 From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
 From Fairness Require Import FairLock.
+From Fairness Require Import NatStructsLow NatMapRALow.
 
 Section AUX.
 
@@ -322,7 +323,7 @@ Section SIM.
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
 
-  Let mypreord := prod_le_PreOrder nat_le_po (Tkst.le_PreOrder nat).
+  Let mypreord := prod_le_PreOrder Nat.le_po (Tkst.le_PreOrder nat).
   Variable monok: nat.
   Variable tk_mono: nat.
 
@@ -975,7 +976,7 @@ Section SIM.
       iDestruct "INV" as "[INV0 [%INV1 [%INV2 [INV3 [INV4 INV5]]]]]".
       hexploit (tkqueue_dequeue INV2). eapply INV1. i.
       assert (NOTMT: tid <> yourt).
-      { ii. clarify. inv INV2; ss. clarify. setoid_rewrite FIND in FIND0. inv FIND0. ss. }
+      { ii. clarify. inv INV2; ss. clarify. } (* setoid_rewrite FIND in FIND0. inv FIND0. ss. } *)
       hexploit (tkqueue_find_in H).
       { instantiate (1:=mytk). instantiate (1:=tid). rewrite nm_find_rm_neq; auto. }
       intro IN.
@@ -1128,7 +1129,7 @@ Section SIM.
     { instantiate (1:=(mytk, Tkst.c k)). econs 2. ss. split; ss. lia. }
     hexploit (tkqueue_dequeue I2).
     { reflexivity. }
-    i. rename I2 into I2Old, H into I2. unfold TicketLock.tk in I2. rewrite <- Heqtks' in I2.
+    i. rename I2 into I2Old, H into I2. (* unfold TicketLock.tk in I2. *) rewrite <- Heqtks' in I2.
     iPoseProof (natmap_prop_remove with "I3") as "I3". rewrite <- Heqtks'.
 
     iPoseProof (natmap_prop_sum_impl with "I3") as "I3".
