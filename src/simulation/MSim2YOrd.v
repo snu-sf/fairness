@@ -225,7 +225,8 @@ Section MODSIM.
     set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
     econs; eauto. instantiate (1:=wf_stt).
     { i. exact (inr None). }
-    i. specialize (funs fn args). des_ifs.
+    i. specialize (init im_tgt). des. exists I. esplits; eauto.
+    rename init0 into funs. i. specialize (funs fn args). des_ifs.
     unfold ModSim.local_sim in funs.
     ii. specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID _ UPD).
     des. do 2 eexists. exists (inr None), (inr None). splits. 1,2: eauto.

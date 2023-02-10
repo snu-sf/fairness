@@ -148,6 +148,7 @@ Section MODSIM.
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
     econs; eauto.
+    i. specialize (init im_tgt). des. rename init0 into funs. exists I. esplits; eauto.
     i. specialize (funs fn args). des_ifs.
     unfold ModSimStid.local_sim in funs.
     ii. specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID _ UPD).

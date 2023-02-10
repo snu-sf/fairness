@@ -612,6 +612,7 @@ Section MODSIM.
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
     set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
     econs; eauto. instantiate (1:=wf_stt).
+    i. specialize (init im_tgt). des. rename init0 into funs. exists I. esplits; eauto.
     i. specialize (funs fn args). des_ifs.
     unfold ModSimNoSync.local_sim in funs.
     ii. specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID _ UPD).
@@ -646,8 +647,8 @@ Section USERSIM.
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
     set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
-    econs; eauto. instantiate (1:=wf_stt). instantiate (1:=I).
-    i. specialize (funs im_tgt). des. esplits; eauto.
+    econs; eauto. instantiate (1:=wf_stt).
+    i. specialize (funs im_tgt). des. exists I. esplits; eauto.
     instantiate (1:=NatMap.map (fun _ => inr None) p_src).
     eapply nm_find_some_implies_forall4.
     { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_2; eauto. clear. i. des. des_ifs. des; clarify. }

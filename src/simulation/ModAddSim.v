@@ -490,15 +490,17 @@ Section MODADD_THEOREM.
                  /\ (forall i, m_src (inl i) = m_tgt (inr (inr i)))
                  /\ (forall i, m_src (inr i) = m_tgt (inr (inl i)))
          ).
-    constructor 1 with nat_wf nat_wf Unit I.
+    constructor 1 with nat_wf nat_wf Unit.
     - econs. exact 0.
     - i. exists (S o0). ss.
-    - i. exists (conv im_tgt). exists tt. ss.
+    (* - i. exists (conv im_tgt). exists tt. ss. *)
     - i.
+      exists I. split.
+      { exists (conv im_tgt). exists tt. ss. }
       destruct M1 as [state1 ident1 st_init1 funs1].
       destruct M2 as [state2 ident2 st_init2 funs2].
       ss. unfold add_funs. ss.
-      destruct (funs1 fn), (funs2 fn).
+      i. destruct (funs1 fn), (funs2 fn).
       + ii. exists tt, tt. splits; ss.
         { des. splits; ss.
           - i. specialize (TID_TGT (inr (inr i))). specialize (INV1 i). ss. rewrite TID_TGT. ss.
@@ -682,20 +684,23 @@ Section MODADD_THEOREM.
     ModSim.mod_sim (ModAdd M1 M2_src) (ModAdd M1 M2_tgt).
   Proof.
     i. eapply modsim_nat_modsim_exist in H. inv H.
-    pose (I' := @lift_ma M1 M2_src M2_tgt _ _ I).
-    constructor 1 with _ _ _ I'.
-    { econs. exact 0. }
+    (* econs. *)
+    econstructor 1 with (world:=URA.prod threadsRA world).
+    (* pose (I' := @lift_ma M1 M2_src M2_tgt _ _ I). *)
+    (* constructor 1 with _ _ _ I'. *)
+    { instantiate (1:=nat_wf). econs. exact 0. }
     { i. exists (S o0). ss. }
-    { clear - init.
-      intro IM_TGT. specialize (init (chop_ctx NatSet.empty IM_TGT)).
-      destruct init as [im_src [r_shared [init R_SHARED]]].
-      pose (pick_ctx IM_TGT) as im_ctx.
-      exists (add_ctx im_ctx im_src), (global_th NatSet.empty NatSet.empty, r_shared). ss. split.
+    intro IM_TGT. specialize (init (chop_ctx NatSet.empty IM_TGT)). des.
+    pose (I' := @lift_ma M1 M2_src M2_tgt _ _ I). exists I'.
+    pose (pick_ctx IM_TGT) as im_ctx.
+    split.
+    { exists (add_ctx im_ctx im_src), (global_th NatSet.empty NatSet.empty, r_shared). ss. split.
       - exists im_src. exists NatSet.empty, NatSet.empty. splits; ss.
         + eapply Partition_empty.
         + exists (chop_ctx NatSet.empty IM_TGT). split; ss. ii. left. ss.
       - unfold_prod. split; ss. rewrite URA.unfold_wf. econs; ss. eapply Disjoint_empty.
     }
+    rename init0 into funs0.
     i. specialize (funs0 fn args).
     unfold ModAdd, add_funs; ss. des_ifs.
     - eapply lift_ma_local_sim_ub.

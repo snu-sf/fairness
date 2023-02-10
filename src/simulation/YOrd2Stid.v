@@ -562,14 +562,22 @@ Section MODSIM.
     set (ident_src2 := sum_tid ident_src).
     set (wf_src_th := fun R0 R1 => clos_trans_WF (prod_WF (prod_WF (wf_stt R0 R1) wf_tgt) (nmo_wf (wf_stt R0 R1)))).
     set (wf_src2 := fun R0 R1 => sum_WF (@wf_src_th R0 R1) wf_src).
-    set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))).
+    (* set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))). *)
     set (M2 := fun R0 R1 => URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
     set (St := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
     assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
     { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
     ss.
-    eapply (@ModSim.mk _ _ (wf_src2 Any.t Any.t) _ wf_tgt_inhabited wf_tgt_open (M2 Any.t Any.t) (I2 Any.t Any.t)).
-    { i. move init after im_tgt. specialize (init im_tgt). des.
+    (* eapply (@ModSim.mk _ _ (wf_src2 Any.t Any.t) _ wf_tgt_inhabited wf_tgt_open (M2 Any.t Any.t) (I2 Any.t Any.t)). *)
+    eapply (@ModSim.mk _ _ (wf_src2 Any.t Any.t) _ wf_tgt_inhabited wf_tgt_open (M2 Any.t Any.t)).
+    i. specialize (init im_tgt). des. rename init0 into funs.
+    set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))).
+    exists (I2 Any.t Any.t). split.
+    (* assert (im_src_th: imap thread_id (@wf_src_th Any.t Any.t)). *)
+    (* { exact (fun t => ((wf_stt0 Any.t Any.t, im_tgt (inl t)), nm_proj_v1 ost)). } *)
+    (* exists (imap_comb im_src_th im_src). exists (shared_thsRA wf_stt wf_stt0 ost, r_shared). *)
+    { i.
+      (* move init after im_tgt. specialize (init im_tgt). des. *)
       set (ost:= @NatMap.empty (prod (wf_stt Any.t Any.t).(T) (wf_stt Any.t Any.t).(T))).
       assert (im_src_th: imap thread_id (@wf_src_th Any.t Any.t)).
       { exact (fun t => ((wf_stt0 Any.t Any.t, im_tgt (inl t)), nm_proj_v1 ost)). }
@@ -585,13 +593,14 @@ Section MODSIM.
     i. specialize (funs fn args). des_ifs.
     unfold ModSimYOrd.local_sim in funs.
     ii. unfold I2 in INV. unfold YOrd2Stid.I2 in INV.
+    rename r_shared into r_shared1.
     destruct r_shared0 as [shared_r r_shared], r_ctx0 as [ctx_r r_ctx].
     ur in VALID. des.
     specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID0 _ UPD).
     move funs after UPD. des. rename funs1 into LSIM. move LSIM before M2.
     unfold Is in INVS. des. clarify.
     set (ost':= NatMap.add tid (os, ot) ost).
-    exists (shared_thsRA wf_stt wf_stt0 ost', r_shared1), (tid |-> (os, ot), r_own).
+    exists (shared_thsRA wf_stt wf_stt0 ost', r_shared0), (tid |-> (os, ot), r_own).
     set (im_src_th':= fun t => match (NatMap.find t ost') with
                             | None => (im_src_th t)
                             | Some (_, ot) => ((ot, St (im_tgt0' (inl t))), nm_proj_v1 ost')
@@ -818,10 +827,11 @@ Section USERSIM.
                            | None => ((wf_stt0 Any.t Any.t, St (im_tgt (inl t))), nm_proj_v1 ost)
                            | Some (_, ot) => ((ot, St (im_tgt (inl t))), nm_proj_v1 ost)
                            end).
+    exists (@I2 _ _ _ _ _ _ _ I wf_stt wf_stt0 Any.t Any.t).
     exists (@imap_comb _ _ (wf_src_th Any.t Any.t) _ im_src_th im_src).
     set (rowns:= NatMap.mapi (fun t rst => (t |-> (snd rst), fst rst)) rsost).
     exists rowns. exists (shared_thsRA wf_stt wf_stt0 ost, r_shared).
-    instantiate (1:=@I2 _ _ _ _ _ _ _ I wf_stt wf_stt0 Any.t Any.t).
+    (* instantiate (1:=@I2 _ _ _ _ _ _ _ I wf_stt wf_stt0 Any.t Any.t). *)
 
     esplits.
     { unfold I2. esplits; eauto. unfold Is. exists ost. splits; auto.

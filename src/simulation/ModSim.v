@@ -1471,16 +1471,17 @@ Module ModSim.
 
           world: URA.t;
 
-          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop;
-          init: forall im_tgt, exists im_src r_shared,
+          (* I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop; *)
+          init: forall im_tgt,
+          exists (I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop),
+          (exists im_src r_shared,
             (I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared) /\
-              (URA.wf r_shared);
-
-          funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
+              (URA.wf r_shared)) /\
+          (forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                            | Some ktr_src, Some ktr_tgt => local_sim I (@eq Any.t) (ktr_src args) (ktr_tgt args)
                            | None, None => True
                            | _, _ => False
-                           end;
+                           end);
         }.
   End MODSIM.
 End ModSim.
@@ -1503,8 +1504,9 @@ Module UserSim.
 
           world: URA.t;
 
-          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop;
+          (* I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop; *)
           funs: forall im_tgt,
+            exists (I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop),
           exists im_src rs r_shared,
             (<<INIT: I (key_set p_src, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared>>) /\
               (<<SIM: Forall3

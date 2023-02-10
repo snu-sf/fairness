@@ -24,16 +24,17 @@ Module ModSimN.
 
           world: URA.t;
 
-          I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src nat_wf) -> world -> Prop;
-          init: forall im_tgt, exists im_src r_shared,
+          (* I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src nat_wf) -> world -> Prop; *)
+          init: forall im_tgt,
+            exists (I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src nat_wf) -> world -> Prop),
+          (exists im_src r_shared,
             I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared
-            /\ (URA.wf r_shared);
-
-          funs: forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
+            /\ (URA.wf r_shared)) /\
+          (forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                                 | Some ktr_src, Some ktr_tgt => local_sim I (@eq Any.t) (ktr_src args) (ktr_tgt args)
                                 | None, None => True
                                 | _, _ => False
-                                end;
+                                end);
         }.
   End MODSIMNAT.
 End ModSimN.
@@ -151,14 +152,18 @@ Section MODSIMNAT.
   Proof.
     destruct SIM.
     pose (wfemb wf_tgt wf_tgt_inhabited) as wf_emb.
+    constructor 1 with wf_src world.
+    i. specialize (init (wf_emb ∘ im_tgt)). des.
     pose (I' := to_shared_rel_nat wf_tgt_inhabited I).
     pose (fun '(ths, im_src0, im_tgt0, st_src, st_tgt) w =>
             exists im_tgt'0,
               << LE : forall i, le succ_wf' (im_tgt0 i) (im_tgt'0 i) >>
             /\ << INV : I' (ths, im_src0, im_tgt'0, st_src, st_tgt) w >>
          ) as I''.
-    constructor 1 with wf_src world I''.
-    { i. specialize (init (wf_emb ∘ im_tgt)). des. esplits; eauto. ss. esplits; [reflexivity|eauto]. }
+    exists I''. esplits; eauto.
+    (* constructor 1 with wf_src world I''. *)
+    { ss. esplits; [reflexivity|eauto]. }
+    rename init0 into funs0.
     i. specialize (funs0 fn args). des_ifs. rename funs0 into SIM.
     eapply local_sim_wft_mono with (wft_lt' := Peano.lt) (wft_lt := clos_trans_n1 _ succ_rel).
     { eapply succ_clos_trans. }

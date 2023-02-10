@@ -991,10 +991,10 @@ Section SIM.
                 (prog2ths ClientSpec.mod config)
                 (prog2ths ClientImpl.mod config).
   Proof.
-    refine (@UserSim.mk _ _ _ _ ord_wf nat_wf _ _ Σ _ _).
-    { econs. exact 0. }
-    { i. exists (S o0). ss. }
-    ss.
+    (* refine (@UserSim.mk _ _ _ _ ord_wf nat_wf _ _ Σ _ _). *)
+    (* { econs. exact 0. } *)
+    (* { i. exists (S o0). ss. } *)
+    (* ss. *)
     (* cut (forall tid, *)
     (*         (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot5 ibot5 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) (example_spec_fun tt) (OMod.close_itree (example_omod) (SCMem.mod [1; 1]) (example_fun tt))). *)
     (* { admit. } *)

@@ -48,7 +48,7 @@ Section LADEQ.
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
-  Variable I: shared -> URA.car -> Prop.
+  (* Variable I: shared -> URA.car -> Prop. *)
 
   Variable St: wf_tgt.(T) -> wf_tgt.(T).
   Hypothesis lt_succ_diag_r_t: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
@@ -64,7 +64,9 @@ Section LADEQ.
         src tgt
         (st_src: state_src) (st_tgt: state_tgt)
         ps pt
-        (LSIM: forall im_tgt, exists im_src (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
+        (LSIM: forall im_tgt,
+          exists (I: shared -> URA.car -> Prop),
+          exists im_src (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
             (<<RSWF: Th.find tid rs_ctx = None>>) /\
               (<<OSWF: (forall tid', Th.In tid' ths_src -> Th.In tid' os) /\ (Th.find tid os = None)>>) /\
               (<<LSIM:
@@ -73,15 +75,15 @@ Section LADEQ.
                 exists im_src0,
                   (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
                     (ModSimStutter.lsim (wf_stt) I tid (local_RR I RR tid)
-                          ps pt (sum_of_resources rs_ctx) (o, src) tgt
-                          (NatSet.add tid (key_set ths_src),
-                            im_src0, im_tgt0, st_src, st_tgt))>>) /\
+                                        ps pt (sum_of_resources rs_ctx) (o, src) tgt
+                                        (NatSet.add tid (key_set ths_src),
+                                          im_src0, im_tgt0, st_src, st_tgt))>>) /\
               (<<LOCAL: forall tid (src: itree srcE R0) (tgt: itree tgtE R1) o r_own
                           (OWN: r_own = fst (get_resource tid rs_ctx))
                           (LSRC: Th.find tid ths_src = Some src)
                           (LTGT: Th.find tid ths_tgt = Some tgt)
                           (ORD: Th.find tid os = Some o),
-                    (local_sim_pick wf_stt I RR src tgt tid o r_own)>>))
+                  (local_sim_pick wf_stt I RR src tgt tid o r_own)>>))
     :
     gsim wf_src wf_tgt RR
          (interp_all st_src (Th.add tid src ths_src) tid)
@@ -111,6 +113,7 @@ Section LADEQ.
   Qed.
 
   Definition ModSimStutter_local_sim_threads
+             (I: shared -> URA.car -> Prop)
              R0 R1 (RR: R0 -> R1 -> Prop)
              (ths_src: threads_src1 R0)
              (ths_tgt: threads_tgt R1)
@@ -123,12 +126,14 @@ Section LADEQ.
         R0 R1 (RR: R0 -> R1 -> Prop)
         (ths_src: threads_src1 R0)
         (ths_tgt: threads_tgt R1)
-        (LOCAL: ModSimStutter_local_sim_threads RR ths_src ths_tgt)
+        (* (LOCAL: ModSimStutter_local_sim_threads RR ths_src ths_tgt) *)
         (st_src: state_src) (st_tgt: state_tgt)
-        (INV: forall im_tgt, exists im_src r_shared,
-            (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
+        (INV: forall im_tgt, exists (I: shared -> URA.car -> Prop), exists im_src r_shared,
+            (ModSimStutter_local_sim_threads I RR ths_src ths_tgt) /\
+              (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
     :
     forall im_tgt,
+    exists (I: shared -> URA.car -> Prop),
     exists (im_src0 : imap ident_src wf_src) r_shared0 (os: (nm_wf_stt R0 R1).(T)) (rs_local: local_resources),
       (I (key_set ths_src, im_src0, im_tgt, st_src, st_tgt) r_shared0) /\
         (resources_wf r_shared0 rs_local) /\
@@ -138,18 +143,20 @@ Section LADEQ.
                  (Th.elements (elt:=thread _ident_tgt (sE state_tgt) R1) ths_tgt)
                  (Th.elements rs_local) (Th.elements os)).
   Proof.
+    i. specialize (INV im_tgt). des. rename INV into LOCAL. exists I. move I after St.
     unfold ModSimStutter_local_sim_threads in LOCAL.
     match goal with
     | FA: List.Forall2 _ ?_ml1 ?_ml2 |- _ => remember _ml1 as tl_src; remember _ml2 as tl_tgt
     end.
     move LOCAL before RR. revert_until LOCAL. induction LOCAL; i.
-    { specialize (INV im_tgt). des.
+    {
+      (* specialize (INV im_tgt). des. *)
       symmetry in Heqtl_src; apply NatMapP.elements_Empty in Heqtl_src.
       symmetry in Heqtl_tgt; apply NatMapP.elements_Empty in Heqtl_tgt.
       apply nm_empty_eq in Heqtl_src, Heqtl_tgt. clarify.
       esplits; ss; eauto.
       - unfold NatSet.empty in *. rewrite !key_set_empty_empty_eq. eauto.
-      - instantiate (1:=@NatMap.empty _). unfold resources_wf. r_wf INV0.
+      - instantiate (1:=@NatMap.empty _). unfold resources_wf. r_wf INV1.
         rewrite sum_of_resources_empty. r_solve.
       - instantiate (1:=NatMap.empty _). econs.
     }
@@ -158,7 +165,8 @@ Section LADEQ.
     hexploit nm_elements_cons_rm. eapply Heqtl_src. intro RESS.
     hexploit nm_elements_cons_rm. eapply Heqtl_tgt. intro REST.
     hexploit IHLOCAL; clear IHLOCAL; eauto. intro IND.
-    des. clear INV.
+    des.
+    (* clear INV. *)
     unfold ModSimStutter.local_sim in H0.
     specialize (H0 _ _ _ _ _ _ (sum_of_resources rs_local) IND tid1 (key_set ths_src)).
     hexploit H0; clear H0.
@@ -167,7 +175,8 @@ Section LADEQ.
       rewrite <- nm_find_some_rm_add_eq; auto. eapply nm_elements_cons_find_some; eauto.
     }
     { r_wf IND0. }
-    { instantiate (2:=im_tgt). instantiate (1:=im_tgt). clear. ii. unfold sum_fmap_l. des_ifs. }
+    { instantiate (1:=im_tgt). clear. ii. unfold sum_fmap_l. des_ifs. }
+    (* { instantiate (2:=im_tgt). instantiate (1:=im_tgt). clear. ii. unfold sum_fmap_l. des_ifs. } *)
     i; des.
     assert (WFPAIR: nm_wf_pair (NatMap.remove (elt:=thread _ident_src (sE state_src) R0) tid1 ths_src) rs_local).
     { hexploit list_forall4_implies_forall2_3. eauto.
@@ -224,6 +233,7 @@ Section LADEQ.
         tid
     :
     (forall im_tgt,
+      exists (I: shared -> URA.car -> Prop),
       exists (im_src0 : imap ident_src wf_src) r_shared0 (os: (nm_wf_stt R0 R1).(T)) (rs_local: local_resources),
         (I (key_set ths_src, im_src0, im_tgt, st_src, st_tgt) r_shared0) /\
           (resources_wf r_shared0 rs_local) /\
@@ -290,7 +300,9 @@ Section LADEQ.
     { eapply nm_pop_res_find_none; eauto. }
     { eapply nm_pop_res_find_none; eauto. }
 
-    cut (forall im_tgt0, exists im_src0 r_shared0 (os0: (nm_wf_stt R0 R1).(T)) rs_ctx0,
+    cut (forall im_tgt0,
+            exists (I: shared -> URA.car -> Prop),
+          exists im_src0 r_shared0 (os0: (nm_wf_stt R0 R1).(T)) rs_ctx0,
             (I (key_set ths_src, im_src0, im_tgt0, st_src, st_tgt) r_shared0) /\
               (resources_wf r_shared0 rs_ctx0) /\
               (nm_wf_pair ths_src os0) /\
@@ -305,7 +317,7 @@ Section LADEQ.
       assert (POPOS: exists o os, nm_pop tid os0 = Some (o, os)).
       { hexploit nm_wf_pair_pop_cases. eapply H1. instantiate (1:=tid). i; des; eauto.
         unfold nm_pop in H3. rewrite FINDS in H3. ss. }
-      des. exists im_src0, os, (snd (get_resource tid rs_ctx0)), o. splits.
+      des. exists I, im_src0, os, (snd (get_resource tid rs_ctx0)), o. splits.
       - eapply get_resource_snd_find_eq_none.
       - i. eapply nm_wf_pair_pop_cases in H1. des. erewrite POPS in H1. ss.
         rewrite POPS in H1; rewrite POPOS in H4. clarify.
@@ -333,7 +345,9 @@ Section LADEQ.
         eapply find_some_aux; eauto. eapply find_some_aux; eauto. eapply find_some_aux; eauto.
     }
 
-    cut (forall im_tgt, exists (im_src0 : imap ident_src wf_src) r_shared0 (os0: (nm_wf_stt R0 R1).(T)) rs_ctx0,
+    cut (forall im_tgt,
+            exists (I: shared -> URA.car -> Prop),
+          exists (im_src0 : imap ident_src wf_src) r_shared0 (os0: (nm_wf_stt R0 R1).(T)) rs_ctx0,
             (I (key_set ths_src, im_src0, im_tgt, st_src, st_tgt) r_shared0) /\
               (resources_wf r_shared0 rs_ctx0) /\
               (Forall3 (fun '(t1, src) '(t2, tgt) '(t3, o) =>
@@ -351,7 +365,7 @@ Section LADEQ.
     }
 
     i. rename USIM into FAALL. specialize (FAALL im_tgt). des.
-    exists im_src0, r_shared0, os, rs_local. splits; auto.
+    exists I, im_src0, r_shared0, os, rs_local. splits; auto.
     clear - FAALL1.
     eapply nm_find_some_implies_forall3.
     { hexploit list_forall4_implies_forall2_2. eauto.
@@ -380,10 +394,11 @@ Section LADEQ.
           R0 R1 (RR: R0 -> R1 -> Prop)
           (ths_src: threads_src1 R0)
           (ths_tgt: threads_tgt R1)
-          (LOCAL: ModSimStutter_local_sim_threads RR ths_src ths_tgt)
+          (* (LOCAL: ModSimStutter_local_sim_threads RR ths_src ths_tgt) *)
           (st_src: state_src) (st_tgt: state_tgt)
-          (INV: forall im_tgt, exists im_src r_shared,
-              (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
+          (INV: forall im_tgt, exists (I: shared -> URA.car -> Prop), exists im_src r_shared,
+              (ModSimStutter_local_sim_threads I RR ths_src ths_tgt) /\
+                (I (NatSet.empty, im_src, im_tgt, st_src, st_tgt) r_shared) /\ (URA.wf r_shared))
           tid
     :
     gsim wf_src wf_tgt RR
@@ -444,6 +459,7 @@ Section ADEQ.
       }
       unfold interp_all. erewrite unfold_interp_sched_nondet_Some.
       2: eauto.
+      rename init0 into funs.
       assert (UB: i = (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))).
       { revert_until funs. clear. i. unfold prog2ths, numbering in FIND.
         remember 0 as k. clear Heqk. move p after tid. revert_until p. induction p; i; ss.
@@ -457,10 +473,11 @@ Section ADEQ.
     }
 
     des. rename fn into fn0, ktr into ktr0, H into SOME0.
-    eapply ModSimStutter_local_sim_implies_gsim. 3: eapply init.
+    eapply ModSimStutter_local_sim_implies_gsim.
     instantiate (1:= fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
     { i. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
     instantiate (1:=wf_stt).
+    i. specialize (init im_tgt). des. esplits; eauto.
     unfold ModSimStutter_local_sim_threads, prog2ths. unfold numbering.
     remember 0 as k. clear Heqk. move p before k. revert_until p.
     induction p; i.
@@ -474,6 +491,7 @@ Section ADEQ.
     }
     i. destruct (tid_dec k k0); clarify.
     { clear IHp. rewrite nm_find_add_eq in FIND1, FIND2. clarify. unfold fn2th.
+      rename init0 into funs.
       dup funs. specialize (funs0 fn0 ([]: list Val)↑). rewrite SOME0 in funs0.
       specialize (funs fn args). des_ifs; ss.
       unfold local_sim in funs0. ii.
@@ -512,8 +530,7 @@ Section USERADEQ.
     assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
     { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
     eapply forall4_implies_gsim. eauto.
-    instantiate (1:=wf_stt). instantiate (1:=I).
-    i. specialize (funs im_tgt). des. esplits; eauto.
+    instantiate (1:=wf_stt). i. specialize (funs im_tgt). des. exists I. esplits; eauto.
   Qed.
 
 End USERADEQ.
