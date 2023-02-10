@@ -645,19 +645,28 @@ Section MEMRA.
     (points_to l WMem.init_cell)
       -∗
       #=( ObligationRA.arrows_sat (Id:=sum_tid (void + WMem.ident)%type) )=>
-          (∃ V k , wpoints_to_full l V k P Q ** ObligationRA.white k Ord.O).
+          (∃ k, wpoints_to_full l View.bot k P Q ** ObligationRA.black k Ord.O).
   Proof.
     iIntros "H".
     iPoseProof (ObligationRA.alloc) as "> [% [[B W] PENDING]]".
-    iModIntro. iExists _, _. iSplitR "W"; [|iApply "W"]. iExists _.
+    iModIntro. iExists _. iSplitR "B"; [|iApply "B"]. iExists _.
     iSplitL "H"; [iApply "H"|]. iExists _, _. iSplitL.
     { iSplitL.
       { iSplit; [|eauto]. iSplitR.
         { iLeft. iPureIntro. apply init_cell_max_ts. }
         { iApply "PENDING". }
       }
-      { iPureIntro. esplits; eauto. i.
-        rewrite init_cell_max_ts in H. inv H.
+      { iPureIntro. esplits; eauto.
+        { eapply View.antisym.
+          { eapply View.bot_spec. }
+          { ss. eapply View.join_spec.
+            { reflexivity. }
+            { rewrite init_cell_max_ts.
+              econs; ss; eapply TimeMap.singleton_spec; eapply Time.bot_spec.
+            }
+          }
+        }
+        { i. rewrite init_cell_max_ts in H. inv H. }
       }
     }
     { iPureIntro. i. apply init_cell_get_if in GET. des. clarify.

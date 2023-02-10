@@ -24,8 +24,8 @@ Module TicketLockW.
 
   Definition tk := nat.
 
-  Definition now_serving: Loc.t := Loc.of_nat 0.
-  Definition next_ticket: Loc.t := Loc.of_nat 1.
+  Definition now_serving: Loc.t := Loc.of_nat 1.
+  Definition next_ticket: Loc.t := Loc.of_nat 2.
 
   Definition lock_loop (myticket: Const.t) (tvw: View.t):
     itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) View.t
@@ -355,6 +355,8 @@ Section SIM.
   Let mypreord := prod_le_PreOrder Nat.le_po (Tkst.le_PreOrder nat).
   Let wmpreord := prod_le_PreOrder Nat.le_po (base.PreOrder_instance_0 nat).
   Let wopreord := prod_le_PreOrder Nat.le_po (ord_ge_PreOrder).
+
+  Section VARIABLES.
   Variable monok: nat.
   Variable tk_mono: nat.
   Variable wm_mono: nat.
@@ -2486,17 +2488,57 @@ Section SIM.
 
   Qed.
 
+  End VARIABLES.
 
 
-
-
-
-
-  (* Lemma ticketlock_fair: *)
-  (*   ModSim.mod_sim FairLockW.mod TicketLockW.mod. *)
-  (* Admitted. *)
-  Lemma ticketlock_fair:
-    ModSim.mod_sim AbsLockW.mod TicketLockW.mod.
+  Lemma init_sat:
+    ((OwnM (wmem_init_res TicketLockW.now_serving TicketLockW.next_ticket)
+           ∗ OwnM (Auth.white (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type) ⋅ Auth.black (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type))
+           ∗ OwnM (Auth.black (Some (NatMap.empty nat): NatMapRA.t nat))
+           ∗ OwnM ((fun _ => (Auth.black (Excl.just 0: Excl.t nat)) ⋅ (Auth.white (Excl.just 0: Excl.t nat))): (thread_id ==> (Auth.t (Excl.t nat)))%ra))
+       ∗
+       WSim.initial_prop AbsLockW.mod TicketLockW.mod TIdSet.empty Ord.omega)
+      ⊢
+      #=>
+      (∃ monok tk_mono wm_mono wo_mono,
+          MUpd (nth_default True%I [ticket_lock_inv monok tk_mono wm_mono wo_mono]) (fairI (ident_tgt:=Mod.ident TicketLockW.mod)) [] [] (ticket_lock_inv monok tk_mono wm_mono wo_mono)).
+  Proof.
+    iIntros "[[MEM [[OWN0 OWN1] [OWN2 OWN3]]] [[[[[INIT0 INIT1] INIT2] INIT3] INIT4] INIT5]]".
+    iPoseProof (@monoBlack_alloc _ _ _ _ mypreord) as "> [%monok MONO0]".
+    iPoseProof (@monoBlack_alloc _ _ _ _ Nat.le_preorder 0) as "> [%tk_mono MONO1]".
+    iPoseProof (@monoBlack_alloc _ _ _ _ wopreord (0, _)) as "> [%wo_mono MONO3]".
+    iPoseProof (@monoBlack_alloc _ _ _ _ wmpreord (0, _)) as "> [%wm_mono MONO2]".
+    iModIntro. iExists monok, tk_mono, wm_mono, wo_mono.
+    iPoseProof (wmem_init_res_prop with "MEM") as "[[NOW NEXT] MBLACK]".
+    iPoseProof (init_points_to_wpoints_to_faa with "NEXT") as "NEXT".
+    iPoseProof (init_points_to_wpoints_to_full with "NOW") as "> [% [NOW BLACK]]".
+    { instantiate (1:=wQ 0). ss. }
+    iModIntro. unfold ticket_lock_inv. ss.
+    iExists WMem.init, false, false, View.bot, _, _, _.
+    iExists [], (NatMap.empty nat), 0, 0, 0.
+    iSplitL "OWN2 OWN3 INIT0".
+    { unfold ticket_lock_inv_tks. iFrame. iSplitL "INIT0".
+      { iApply (FairRA.whites_impl with "INIT0"). i. ss. }
+      iSplitR.
+      { ss. }
+      { unfold OwnMs. iApply (OwnM_extends with "OWN3").
+        eapply pointwise_extends. i. des_ifs.
+        { reflexivity. }
+        { eexists _. eapply URA.unit_idl. }
+      }
+    }
+    iSplitL "MONO2 INIT1 MBLACK NEXT NOW OWN1 MONO3 MONO1 BLACK".
+    { iSplit; [|eauto]. unfold ticket_lock_inv_mem. iFrame.
+      iSplitR "MONO2".
+      { iApply (FairRA.blacks_impl with "INIT1"). i. des. subst. ss. }
+      { eauto. admit. }
+    }
+    iSplitL "INIT4 INIT5".
+    { unfold ticket_lock_inv_state. rewrite key_set_empty_empty_eq. iFrame. }
+    { iRight. iSplit; auto. iSplit; auto. iLeft.
+      unfold ticket_lock_inv_unlocked0. iFrame. iSplitR; [auto|].
+      iExists _. iApply "MONO0".
+    }
   Admitted.
 End SIM.
 
@@ -2537,11 +2579,65 @@ Module TicketLockFair.
   Local Instance AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * View.t)))) Σ := (@GRA.InG _ _ 13 (@eq_refl _ _)).
   Local Instance IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ := (@GRA.InG _ _ 14 (@eq_refl _ _)).
 
-  Let init_res: Σ. Admitted.
+  Let init_res: Σ :=
+        (GRA.embed (wmem_init_res TicketLockW.now_serving TicketLockW.next_ticket)
+                   ⋅ GRA.embed (Auth.white (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type) ⋅ Auth.black (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type))
+                   ⋅ GRA.embed (Auth.black (Some (NatMap.empty nat): NatMapRA.t nat))
+                   ⋅ GRA.embed ((fun _ => (Auth.black (Excl.just 0: Excl.t nat)) ⋅ (Auth.white (Excl.just 0: Excl.t nat))): (thread_id ==> (Auth.t (Excl.t nat)))%ra)).
 
   Lemma ticketlock_fair:
     ModSim.mod_sim AbsLockW.mod TicketLockW.mod.
   Proof.
+    eapply WSim.context_sim_implies_modsim. econs.
+    { instantiate (1:=init_res). rr. splits.
+      { unfold init_res, default_initial_res. disj_tac. }
+      { ndtac. }
+      { unfold init_res. grawf_tac.
+        { apply wmem_init_res_wf. ss. }
+        { ur. split; auto.
+          { rewrite URA.unit_id. reflexivity. }
+          { ur. auto. }
+        }
+        { ur. split.
+          { eexists _. apply URA.unit_idl. }
+          { ur. ss. }
+        }
+        { ur. i. rewrite URA.unit_idl. ur. split; auto.
+          { reflexivity. }
+          { ur. ss. }
+        }
+      }
+    }
+    unfold init_res. repeat rewrite <- GRA.embed_add.
+    iIntros "[[[A B] C] D]".
+    iModIntro.
+    iExists [(∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t)))
+                       ∗ (thread1_will_write tvw))%I;
+             lock_will_unlock], _.
+    iIntros "INIT".
+    iPoseProof (init_sat with "[A B C0 C1 D0 D1 E0 E1 F G INIT M]") as "> [[% [H0 H1]] [H2 [[% [H3 [H5 [H6 [H7 H8]]]]] H4]]]".
+    { instantiate (1:=1). instantiate (1:=0). ss. }
+    { iFrame. }
+    iModIntro. ss. iFrame. iSplitL "H0 H1".
+    { unfold nth_default. ss. iExists _. iFrame. }
+    unfold MonotonePCM.natmap_prop_sum. ss.
+    iSplitL "H3 H5 H6 H7 H8".
+    { unfold fn2th. ss. unfold Mod.wrap_fun. lred. rred.
+      iApply stsim_bind_top. iApply (stsim_wand with "[H3 H5 H6 H7 H8]").
+      { iApply correct_thread1. iExists k. iFrame. }
+      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+        iFrame. subst. auto.
+      }
+    }
+    { unfold fn2th. ss. unfold Mod.wrap_fun. iSplitL; auto. lred. rred.
+      iApply stsim_bind_top. iApply (stsim_wand with "[H4]").
+      { iApply correct_thread2. iFrame. }
+      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+        iFrame. subst. auto.
+      }
+    }
+  Qed.
+
     eapply WSim.context_sim_implies_modsim. econs.
     {
   Admitted.
