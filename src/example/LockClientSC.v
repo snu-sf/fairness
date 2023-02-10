@@ -274,9 +274,9 @@ Section SIM.
     }
 
     (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
-    set (blks2 := 
+    set (blks2 :=
            (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
-               (∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t (NatMap.add tid k wobl))%type)).    
+               (∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t (NatMap.add tid k wobl))%type)).
     iPoseProof (FairRA.blacks_unfold with "BLKS") as "[BLKS MYDUTY]".
     { instantiate (1:=inr (inr (inr tid))). instantiate (1:=blks2). i. des.
       { subst blks2. ss. des. esplits; eauto. ii; apply IN0. apply NatMapP.F.add_in_iff; auto. }
@@ -984,30 +984,4 @@ Section SIM.
 
 
   Let config := [("thread1", tt↑); ("thread2", tt↑)].
-
-  (* TODO *)
-  Lemma client_correct:
-    UserSim.sim ClientSpec.mod ClientImpl.mod
-                (prog2ths ClientSpec.mod config)
-                (prog2ths ClientImpl.mod config).
-  Proof.
-    (* refine (@UserSim.mk _ _ _ _ ord_wf nat_wf _ _ Σ _ _). *)
-    (* { econs. exact 0. } *)
-    (* { i. exists (S o0). ss. } *)
-    (* ss. *)
-    (* cut (forall tid, *)
-    (*         (own_thread tid ** ObligationRA.duty (inl tid) []) ⊢ stsim I tid [0; 1] ibot5 ibot5 (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝) (example_spec_fun tt) (OMod.close_itree (example_omod) (SCMem.mod [1; 1]) (example_fun tt))). *)
-    (* { admit. } *)
-    (* iIntros (?) "[TH DUTY]". unfold example_spec_fun, example_fun. *)
-    (* lred. rred. rewrite close_itree_call. ss. rred. *)
-    (* iApply (stsim_yieldR with "[DUTY]"); [msubtac|iFrame|]. iIntros "DUTY _". *)
-    (* rred. unfold SCMem.cas_fun, Mod.wrap_fun. rred. *)
-    (* iopen 0 "[% [MEM ST]]" "K0". *)
-    (* iApply stsim_getR. iSplit. *)
-    (* { iFrame. } *)
-    (* rred. iApply stsim_tauR. rred. *)
-    (* unfold SCMem.cas. *)
-    (* iopen 1 "[[[POINTL POINTF] PEND]|[% H]]" "K1". *)
-  Abort.
-
 End SIM.

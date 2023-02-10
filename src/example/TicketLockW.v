@@ -2504,15 +2504,15 @@ Section SIM.
           MUpd (nth_default True%I [ticket_lock_inv monok tk_mono wm_mono wo_mono]) (fairI (ident_tgt:=Mod.ident TicketLockW.mod)) [] [] (ticket_lock_inv monok tk_mono wm_mono wo_mono)).
   Proof.
     iIntros "[[MEM [[OWN0 OWN1] [OWN2 OWN3]]] [[[[[INIT0 INIT1] INIT2] INIT3] INIT4] INIT5]]".
+    iPoseProof (wmem_init_res_prop with "MEM") as "[[NOW NEXT] MBLACK]".
+    iPoseProof (init_points_to_wpoints_to_faa with "NEXT") as "NEXT".
+    iPoseProof (init_points_to_wpoints_to_full with "NOW") as "> [% [NOW BLACK]]".
+    { instantiate (1:=wQ 0). ss. }
     iPoseProof (@monoBlack_alloc _ _ _ _ mypreord) as "> [%monok MONO0]".
     iPoseProof (@monoBlack_alloc _ _ _ _ Nat.le_preorder 0) as "> [%tk_mono MONO1]".
     iPoseProof (@monoBlack_alloc _ _ _ _ wopreord (0, _)) as "> [%wo_mono MONO3]".
     iPoseProof (@monoBlack_alloc _ _ _ _ wmpreord (0, _)) as "> [%wm_mono MONO2]".
     iModIntro. iExists monok, tk_mono, wm_mono, wo_mono.
-    iPoseProof (wmem_init_res_prop with "MEM") as "[[NOW NEXT] MBLACK]".
-    iPoseProof (init_points_to_wpoints_to_faa with "NEXT") as "NEXT".
-    iPoseProof (init_points_to_wpoints_to_full with "NOW") as "> [% [NOW BLACK]]".
-    { instantiate (1:=wQ 0). ss. }
     iModIntro. unfold ticket_lock_inv. ss.
     iExists WMem.init, false, false, View.bot, _, _, _.
     iExists [], (NatMap.empty nat), 0, 0, 0.
@@ -2529,9 +2529,7 @@ Section SIM.
     }
     iSplitL "MONO2 INIT1 MBLACK NEXT NOW OWN1 MONO3 MONO1 BLACK".
     { iSplit; [|eauto]. unfold ticket_lock_inv_mem. iFrame.
-      iSplitR "MONO2".
-      { iApply (FairRA.blacks_impl with "INIT1"). i. des. subst. ss. }
-      { eauto. admit. }
+      iApply (FairRA.blacks_impl with "INIT1"). i. des. subst. ss.
     }
     iSplitL "INIT4 INIT5".
     { unfold ticket_lock_inv_state. rewrite key_set_empty_empty_eq. iFrame. }
@@ -2539,7 +2537,8 @@ Section SIM.
       unfold ticket_lock_inv_unlocked0. iFrame. iSplitR; [auto|].
       iExists _. iApply "MONO0".
     }
-  Admitted.
+    Unshelve. ss.
+  Qed.
 End SIM.
 
 From Fairness Require Import WeakestAdequacy.
@@ -2609,36 +2608,36 @@ Module TicketLockFair.
       }
     }
     unfold init_res. repeat rewrite <- GRA.embed_add.
-    iIntros "[[[A B] C] D]".
-    iModIntro.
-    iExists [(∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t)))
-                       ∗ (thread1_will_write tvw))%I;
-             lock_will_unlock], _.
-    iIntros "INIT".
-    iPoseProof (init_sat with "[A B C0 C1 D0 D1 E0 E1 F G INIT M]") as "> [[% [H0 H1]] [H2 [[% [H3 [H5 [H6 [H7 H8]]]]] H4]]]".
-    { instantiate (1:=1). instantiate (1:=0). ss. }
-    { iFrame. }
-    iModIntro. ss. iFrame. iSplitL "H0 H1".
-    { unfold nth_default. ss. iExists _. iFrame. }
-    unfold MonotonePCM.natmap_prop_sum. ss.
-    iSplitL "H3 H5 H6 H7 H8".
-    { unfold fn2th. ss. unfold Mod.wrap_fun. lred. rred.
-      iApply stsim_bind_top. iApply (stsim_wand with "[H3 H5 H6 H7 H8]").
-      { iApply correct_thread1. iExists k. iFrame. }
-      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
-        iFrame. subst. auto.
+    exists Ord.omega.
+    iIntros "[[[[A0 [A1 A2]] B] C] D]".
+    iPoseProof (init_sat with "[A0 A1 A2 B C D]") as "> [% [% [% [% H]]]]".
+    { iFrame. iSplitL "A1"; auto. }
+    iModIntro. iExists [ticket_lock_inv monok tk_mono wm_mono wo_mono].
+    iMod "H". iModIntro. iSplit.
+    { unfold nth_default. ss. iFrame. }
+    { iPureIntro. i. ss. unfold OMod.closed_funs, Mod.wrap_fun. ss. des_ifs.
+      { i. iIntros "OWN DUTY". unfold Mod.wrap_fun. lred. rred.
+        unfold unwrap. des_ifs.
+        { lred. rred.
+          iApply stsim_bind_top. iApply (stsim_wand with "[OWN DUTY]").
+          { iApply correct_lock. iFrame. }
+          { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+            iFrame. subst. auto.
+          }
+        }
+        { unfold UB. lred. rred. iApply stsim_UB. }
       }
-    }
-    { unfold fn2th. ss. unfold Mod.wrap_fun. iSplitL; auto. lred. rred.
-      iApply stsim_bind_top. iApply (stsim_wand with "[H4]").
-      { iApply correct_thread2. iFrame. }
-      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
-        iFrame. subst. auto.
+      { i. iIntros "OWN DUTY". unfold Mod.wrap_fun. lred. rred.
+        unfold unwrap. des_ifs.
+        { lred. rred.
+          iApply stsim_bind_top. iApply (stsim_wand with "[OWN DUTY]").
+          { iApply correct_unlock. iFrame. }
+          { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+            iFrame. subst. auto.
+          }
+        }
+        { unfold UB. lred. rred. iApply stsim_UB. }
       }
     }
   Qed.
-
-    eapply WSim.context_sim_implies_modsim. econs.
-    {
-  Admitted.
 End TicketLockFair.

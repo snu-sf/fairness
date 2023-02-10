@@ -644,8 +644,8 @@ Section MEMRA.
     :
     (points_to l WMem.init_cell)
       -∗
-      #=( ObligationRA.arrows_sat (Id:=sum_tid (void + WMem.ident)%type) )=>
-          (∃ k, wpoints_to_full l View.bot k P Q ** ObligationRA.black k Ord.O).
+      #=>
+      (∃ k, wpoints_to_full l View.bot k P Q ** ObligationRA.black k Ord.O).
   Proof.
     iIntros "H".
     iPoseProof (ObligationRA.alloc) as "> [% [[B W] PENDING]]".

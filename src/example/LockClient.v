@@ -1461,15 +1461,15 @@ Module LockClientCorrect.
       }
     }
     unfold init_res. repeat rewrite <- GRA.embed_add.
-    iIntros "[[[[[[[A B] [C0 C1]] [D0 D1]] [E0 E1]] F] G] M]".
+    eexists _. iIntros "[[[[[[[[A B] [C0 C1]] [D0 D1]] [E0 E1]] F] G] H] M]".
     iModIntro.
     iExists [(∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t)))
                        ∗ (thread1_will_write tvw))%I;
-             lock_will_unlock], _.
-    iIntros "INIT".
-    iPoseProof (init_sat with "[A B C0 C1 D0 D1 E0 E1 F G INIT M]") as "> [[% [H0 H1]] [H2 [[% [H3 [H5 [H6 [H7 H8]]]]] H4]]]".
+             lock_will_unlock].
+    iPoseProof (init_sat with "[A B C0 C1 D0 D1 E0 E1 F G H M]") as "> [[% [H0 H1]] [H2 [[% [H3 [H5 [H6 [H7 H8]]]]] H4]]]".
     { instantiate (1:=1). instantiate (1:=0). ss. }
     { iFrame. }
+    iIntros "INIT".
     iModIntro. ss. iFrame. iSplitL "H0 H1".
     { unfold nth_default. ss. iExists _. iFrame. }
     unfold MonotonePCM.natmap_prop_sum. ss.
