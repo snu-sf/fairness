@@ -164,15 +164,15 @@ Section MEMRA.
     OwnM (memory_resource_black m).
 
   (* TODO: multiple locs *)
-  Definition init_res (l0 l1: Loc.t): wmemRA :=
+  Definition wmem_init_res (l0 l1: Loc.t): wmemRA :=
     points_to_white l0 WMem.init_cell ⋅ points_to_white l1 WMem.init_cell ⋅ memory_resource_black WMem.init.
 
   Lemma wmem_init_res_wf l0 l1
         (DISJ: l0 <> l1)
     :
-    URA.wf (init_res l0 l1).
+    URA.wf (wmem_init_res l0 l1).
   Proof.
-    unfold init_res, points_to_white, points_to, Auth.white.
+    unfold wmem_init_res, points_to_white, points_to, Auth.white.
     Local Transparent URA.unit.
     ur. i. ur. des_ifs.
     { splits.
@@ -191,7 +191,7 @@ Section MEMRA.
 
   Lemma wmem_init_res_prop l0 l1
     :
-    (OwnM (init_res l0 l1))
+    (OwnM (wmem_init_res l0 l1))
       -∗
       (points_to l0 WMem.init_cell ** points_to l1 WMem.init_cell ** wmemory_black WMem.init).
   Proof.
@@ -621,7 +621,7 @@ Section MEMRA.
       (points_to l c)
         **
         (∃ v released,
-            (ObligationRA.duty (inr (inr (l, (Cell.max_ts c)))) [(k,Ord.S Ord.O)])
+            (⌜Cell.max_ts c = Time.bot⌝ ∨ ObligationRA.duty (inr (inr (l, (Cell.max_ts c)))) [(k,Ord.S Ord.O)])
               **
               (ObligationRA.pending k 1%Qp)
               **
@@ -639,21 +639,31 @@ Section MEMRA.
                     (P v' View.bot) /\ (<<DEFINED: v' <> Const.undef>>)⌝))
   .
 
-  (* Lemma init_points_to_wpoints_to_full l V k P Q *)
-  (*   : *)
-  (*   (points_to l WMem.init_cell) *)
-  (*     -∗ *)
-  (*     wpoints_to_full l V k P Q. *)
-  (* Proof. *)
-  (*   iIntros "H". iExists _. iFrame. iExists _, _. iSplitL. *)
-  (*   { iPureIntro. esplits. *)
-  (*   { rewrite init_cell_get. eauto. } *)
-  (*   { i. hexploit init_cell_get_if; eauto. i. des; clarify. *)
-  (*     right. rewrite init_cell_max_ts. auto. *)
-  (*   } *)
-  (*   { ss. } *)
-  (* Qed. *)
-
+  Lemma init_points_to_wpoints_to_full l (P Q: wProp)
+        (SAT: Q (Const.of_Z (BinIntDef.Z.of_nat 0)) View.bot)
+    :
+    (points_to l WMem.init_cell)
+      -∗
+      #=( ObligationRA.arrows_sat (Id:=sum_tid (void + WMem.ident)%type) )=>
+          (∃ V k , wpoints_to_full l V k P Q ** ObligationRA.white k Ord.O).
+  Proof.
+    iIntros "H".
+    iPoseProof (ObligationRA.alloc) as "> [% [[B W] PENDING]]".
+    iModIntro. iExists _, _. iSplitR "W"; [|iApply "W"]. iExists _.
+    iSplitL "H"; [iApply "H"|]. iExists _, _. iSplitL.
+    { iSplitL.
+      { iSplit; [|eauto]. iSplitR.
+        { iLeft. iPureIntro. apply init_cell_max_ts. }
+        { iApply "PENDING". }
+      }
+      { iPureIntro. esplits; eauto. i.
+        rewrite init_cell_max_ts in H. inv H.
+      }
+    }
+    { iPureIntro. i. apply init_cell_get_if in GET. des. clarify.
+      rewrite init_cell_max_ts in LT. inv LT.
+    }
+  Qed.
 
   Lemma wpoints_to_full_not_shot
         l V k P Q
@@ -713,8 +723,11 @@ Section MEMRA.
     iPoseProof (wmemory_ra_get_strong with "BLACK WHITE") as "%". subst.
     inv READ. ss. iSplit.
     { iPureIntro. aggrtac. }
-    iPoseProof (ObligationRA.duty_correl with "X") as "#CORREL".
-    { ss. eauto. }
+    iAssert (⌜Cell.max_ts (WMem.memory m l) = Time.bot⌝
+             ∨ (ObligationRA.correl _ _ _))%I with "[X]" as "#CORREL".
+    { iPoseProof "X" as "[X|X]"; [auto|].
+      iRight. iApply (ObligationRA.duty_correl with "X"). ss. eauto.
+    }
     iSplitL "BLACK"; [auto|]. iSplitL.
     { iExists _. iFrame. iExists _, _. iSplit.
       { iSplit.
@@ -751,7 +764,11 @@ Section MEMRA.
         { iPureIntro. eapply H1; eauto. }
         { iPureIntro. apply View.bot_spec. }
       }
-      iExists _. iSplitR; auto. iPureIntro.
+      iExists _. iSplitR.
+      { iPoseProof "CORREL" as "[%BOT|CORR]"; [|auto].
+        setoid_rewrite BOT in H0. inv H0.
+      }
+      iPureIntro.
       destruct (LocSet.Facts.eq_dec l l); ss.
       destruct (Time.le_lt_dec (Cell.max_ts (WMem.memory m l)) to).
       { exfalso. eapply Time.lt_strorder.

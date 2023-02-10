@@ -242,8 +242,7 @@ Section SIM.
               ∗ OwnM (Auth.white (Excl.just (View.bot, ()) : Excl.t (View.t * unit)))
               ∗ OwnM (Excl.just (tt,tt): Excl.t (unit * unit))
               ∗ OwnM (Excl.just () : Excl.t unit)
-              ∗ OwnM (WMM.memory_resource_black WMem.init)
-          )
+              ∗ OwnM (wmem_init_res loc_X (Loc.of_nat 5)))
         ∗
         WSim.initial_prop ClientSpec.mod ClientImpl.mod init_ths init_ord
         ⊢
@@ -263,20 +262,12 @@ Section SIM.
         ).
     Proof.
       iIntros "(PEND & (B1 & B2 & W2 & B3 & W3 & B4 & W4 & E1 & E2 & E3) & INIT)".
+      iPoseProof (wmem_init_res_prop with "E3") as "[[WPOINTS _] MBLACK]".
 
       iMod (ObligationRA.alloc ((1 × Ord.omega) ⊕ ((1 × Ord.omega) × init_ord))%ord) as "[% [[OBLIG1 OBLIG2] OBLIG3]]".
       iMod (OwnM_Upd (OneShot.pending_shot k) with "PEND") as "#SHOT".
       rewrite <- Qp.inv_half_half.
       iPoseProof (ObligationRA.pending_split _ (/ 2)%Qp (/ 2)%Qp with "OBLIG3") as "[OBPEND1 OBPEND2]".
-
-      iSplitL "B3 OBLIG1 SHOT OBPEND1".
-      { unfold thread1_will_write.
-        iModIntro. iExists View.bot. iFrame. iExists k.
-        iSplitL "OBLIG1". { iExists _. iFrame. }
-        iSplitR. { admit. }
-        iSplitL "SHOT". { iApply "SHOT". }
-        iLeft. iFrame. admit.
-      }
 
       unfold WSim.initial_prop.
       iDestruct "INIT" as "[[[[[INIT0 INIT1] INIT2] INIT3] INIT4] INIT5]".
@@ -295,6 +286,20 @@ Section SIM.
       iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU2 INIT2]".
       iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH2 INIT3]".
       clear H.
+
+      iPoseProof (ObligationRA.white_split_eq with "OBLIG2") as "[O0 O1]".
+      iPoseProof (ObligationRA.duty_alloc with "DU1 O0") as "> DU".
+      iPoseProof (ObligationRA.duty_correl with "DU") as "#CORREL".
+      { ss. eauto. }
+
+      iSplitL "B3 OBLIG1 SHOT OBPEND1 WPOINTS".
+      { unfold thread1_will_write.
+        iModIntro. iExists View.bot. iFrame. iExists k.
+        iSplitL "OBLIG1". { iExists _. iFrame. }
+        iSplitR. { iExists _.  eauto. }
+        iSplitL "SHOT". { iApply "SHOT". }
+        iLeft. iFrame. iApply (init_points_to_wpoints_to with "WPOINTS").
+      }
 
       (*
       Check FairRA.blacks_unfold.
@@ -321,7 +326,7 @@ Section SIM.
       (* FairRA.blacks_unfold *)
       (* black_to_duty *)
 
-      iSplitL "B1 B2 W2 W3 B4 W4 E1 E2 E3 INIT1 INIT5".
+      iSplitL "B1 B2 W2 W3 B4 W4 E1 E2 MBLACK INIT1 INIT5".
       { unfold lock_will_unlock.
         iExists false, View.bot, false, WMem.init, (NatMap.empty nat), 0.
         iModIntro.
@@ -336,14 +341,10 @@ Section SIM.
         { iLeft. iFrame. ss. }
       }
 
-      iSplitL "OBLIG2 OBPEND2 TH1 DU1".
-      { iExists k. iSplitL "TH1"; ss.
-        iPoseProof (ObligationRA.white_split_eq with "OBLIG2") as "[O0 O1]".
-        iPoseProof (ObligationRA.duty_alloc with "DU1 O0") as "> H"; cycle 1.
-        { iModIntro. iFrame. auto. }
-      }
+      iSplitL "O1 OBPEND2 TH1 DU".
+      { iExists k. iSplitL "TH1"; ss. iModIntro. iFrame. auto. }
       iModIntro. iFrame.
-    Admitted.
+    Qed.
 
       (*
     Definition thread1_will_write (tvw: View.t) : iProp :=
@@ -1425,7 +1426,9 @@ Module LockClientCorrect.
           ⋅ GRA.embed (Auth.black (Excl.just (View.bot, ()) : Excl.t (View.t * unit))
                                   ⋅ Auth.white (Excl.just (View.bot, ()) : Excl.t (View.t * unit)))
           ⋅ GRA.embed (Excl.just (tt,tt): Excl.t (unit * unit))
-          ⋅ GRA.embed (Excl.just () : Excl.t unit).
+          ⋅ GRA.embed (Excl.just () : Excl.t unit)
+          ⋅ GRA.embed  (wmem_init_res loc_X (Loc.of_nat 5))
+  .
 
   Lemma correct:
     UserSim.sim ClientSpec.mod ClientImpl.mod (prog2ths ClientSpec.mod config) (prog2ths ClientImpl.mod config).
@@ -1454,39 +1457,36 @@ Module LockClientCorrect.
         }
         { ur. ss. }
         { ur. ss. }
+        { apply wmem_init_res_wf. ss. }
       }
     }
     unfold init_res. repeat rewrite <- GRA.embed_add.
-    iIntros "[[[[[[A B] [C0 C1]] [D0 D1]] [E0 E1]] F] G]".
+    iIntros "[[[[[[[A B] [C0 C1]] [D0 D1]] [E0 E1]] F] G] M]".
     iModIntro.
     iExists [(∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t)))
                        ∗ (thread1_will_write tvw))%I;
              lock_will_unlock], _.
     iIntros "INIT".
-    iPoseProof (init_sat with "[A B C0 C1 D0 D1 E0 E1 F G INIT]") as "H".
-    { instantiate (1:=0). instantiate (1:=1). ss. }
+    iPoseProof (init_sat with "[A B C0 C1 D0 D1 E0 E1 F G INIT M]") as "> [[% [H0 H1]] [H2 [[% [H3 [H5 [H6 [H7 H8]]]]] H4]]]".
+    { instantiate (1:=1). instantiate (1:=0). ss. }
     { iFrame. }
-
-
-
-    repeat rewrite <- GRA.embed_add.
-    rewrite <- GRA.embed_add.
-    rewrite <- GRA.embed_add.
-
-auto. }
-        { ur. auto. }
-        { ur. auto. }
-        { ur. auto. }
-        { ur. auto. }
-        { ur. auto. }
-        { ur. auto. }
-        { ur. auto. }
-        { ur. auto. }
-        { ur. auto. }
-        { ur. auto. }
-
-econs.
-        { ii. ss; des; ss.
-
-  Admitted.
+    iModIntro. ss. iFrame. iSplitL "H0 H1".
+    { unfold nth_default. ss. iExists _. iFrame. }
+    unfold MonotonePCM.natmap_prop_sum. ss.
+    iSplitL "H3 H5 H6 H7 H8".
+    { unfold fn2th. ss. unfold Mod.wrap_fun. lred. rred.
+      iApply stsim_bind_top. iApply (stsim_wand with "[H3 H5 H6 H7 H8]").
+      { iApply correct_thread1. iExists k. iFrame. }
+      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+        iFrame. subst. auto.
+      }
+    }
+    { unfold fn2th. ss. unfold Mod.wrap_fun. iSplitL; auto. lred. rred.
+      iApply stsim_bind_top. iApply (stsim_wand with "[H4]").
+      { iApply correct_thread2. iFrame. }
+      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+        iFrame. subst. auto.
+      }
+    }
+  Qed.
 End LockClientCorrect.
