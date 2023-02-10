@@ -22,8 +22,8 @@ Section PRIMIVIESIM.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE _ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Variable wf_stt: Type -> Type -> WF.
 
@@ -157,6 +157,12 @@ Section PRIMIVIESIM.
           lsim true true r_ctx (o, ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+
+  | lsim_call
+      f_src f_tgt r_ctx o
+      ths im_src im_tgt st_src st_tgt
+      fn args ktr_src itr_tgt
+    : __lsim tid RR lsim _lsim f_src f_tgt r_ctx (o, trigger (Call fn args) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
 
   | lsim_yieldR
       f_src f_tgt r_ctx0 o0
@@ -340,6 +346,12 @@ Section PRIMIVIESIM.
       :
       lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
+    | lsim_indC_call
+        f_src f_tgt r_ctx o
+        ths im_src im_tgt st_src st_tgt
+        fn args ktr_src itr_tgt
+      : lsim_indC tid RR r f_src f_tgt r_ctx (o, trigger (Call fn args) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+
     | lsim_indC_yieldR
         f_src f_tgt r_ctx0 o0
         ths0 im_src0 im_tgt0 st_src0 st_tgt0
@@ -446,15 +458,16 @@ Section PRIMIVIESIM.
     { econs 15; eauto. i. specialize (LSIM ret).
       eapply rclo6_base; auto.
     }
-    { econs 16; eauto. i. specialize (LSIM _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
+    { econs 16. }
+    { econs 17; eauto. i. specialize (LSIM _ _ _ _ _ _ _ INV0 VALID0 _ TGT).
       des. esplits; eauto.
       eapply rclo6_base; auto.
     }
-    { des. econs 17; eauto. esplits; eauto. split; ss.
+    { des. econs 18; eauto. esplits; eauto. split; ss.
       eapply GF in LSIM0. eapply pind6_mon_gen; ss. eauto.
       i. eapply __lsim_mon. 2: eauto. i. eapply rclo6_base; auto.
     }
-    { econs 18; eauto. eapply rclo6_base; auto. }
+    { econs 19; eauto. eapply rclo6_base; auto. }
   Qed.
 
   Lemma lsim_indC_spec tid R0 R1 (RR: R0 -> R1 -> _ -> _):
@@ -554,6 +567,8 @@ Section PRIMIVIESIM.
     }
 
     { eapply pind6_fold. eapply lsim_observe. i. eapply rclo6_base. auto. }
+
+    { eapply pind6_fold. eapply lsim_call. }
 
     { eapply pind6_fold. eapply lsim_yieldR; eauto. i.
       hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. des. esplits; eauto.
@@ -672,6 +687,8 @@ Section PRIMIVIESIM.
 
     { pfold. eapply pind6_fold. eapply lsim_observe. i. eapply upaco6_mon_bot; eauto. }
 
+    { pfold. eapply pind6_fold. eapply lsim_call. }
+
     { pfold. eapply pind6_fold. eapply lsim_yieldR; eauto. i.
       hexploit LSIM0; eauto. clear LSIM0. intros LSIM0. des. esplits; eauto.
       eapply upaco6_mon_bot; eauto.
@@ -767,6 +784,8 @@ Section PRIMIVIESIM.
       i. specialize (LSIM0 ret).
       eapply rclo6_clo_base. econs; eauto. right. auto.
     }
+
+    { eapply pind6_fold. eapply lsim_call. }
 
     { eapply pind6_fold. eapply lsim_yieldR; eauto.
       i. hexploit LSIM0; clear LSIM0; eauto; intro LSIM. des. esplits; eauto.

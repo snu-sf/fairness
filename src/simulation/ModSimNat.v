@@ -129,6 +129,7 @@ Section NAT.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM (wfemb ∘ im_tgt1) (wfemb_mono FAIR)). split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
+    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_yieldR; eauto. i. move LSIM at bottom.
       specialize (LSIM ths1 im_src0 (wfemb ∘ im_tgt1) st_src1 st_tgt1 r_shared1 r_ctx1 INV0 VALID0 (wfemb ∘ im_tgt2) (wfemb_mono TGT)).

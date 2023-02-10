@@ -26,7 +26,7 @@ End INIT.
 Module ClientImpl.
 
   Definition thread1:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       `_: unit <- (OMod.call "lock" tt);;
@@ -36,7 +36,7 @@ Module ClientImpl.
       Ret tt.
 
   Definition thread2:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       _ <- ITree.iter
@@ -54,8 +54,8 @@ Module ClientImpl.
       | _ => UB
       end.
 
-  Definition omod: OMod.t :=
-    OMod.mk
+  Definition omod: Mod.t :=
+    Mod.mk
       tt
       (Mod.get_funs [("thread1", Mod.wrap_fun thread1);
                      ("thread2", Mod.wrap_fun thread2)])
@@ -72,13 +72,13 @@ End ClientImpl.
 
 Module ClientSpec.
   Definition thread1:
-    ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;; Ret tt.
 
   Definition thread2:
-    ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;;
@@ -275,7 +275,7 @@ Section SIM.
 
     (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
     set (blks2 :=
-           (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
+           (λ id : nat + (Mod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
                (∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t (NatMap.add tid k wobl))%type)).
     iPoseProof (FairRA.blacks_unfold with "BLKS") as "[BLKS MYDUTY]".
     { instantiate (1:=inr (inr (inr tid))). instantiate (1:=blks2). i. des.
@@ -463,7 +463,7 @@ Section SIM.
       iPoseProof (FairRA.blacks_fold with "[BLKS MYBEX]") as "BLKS".
       2:{ iFrame. }
       { instantiate (1:=
-         (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
+         (λ id : nat + (Mod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
              ∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t new_wobl)).
         i. ss. des. destruct (tid_dec t tid) eqn:DEC.
         - clarify. auto.

@@ -17,16 +17,27 @@ Definition program := list (fname * Any.t)%type.
 
 Definition Val := nat.
 
-Variant cE: Type -> Type :=
-| Yield: cE unit
-| GetTid: cE thread_id
-(* | Spawn (fn: fname) (args: list Val): cE unit *)
-.
+Section EVENTS.
 
-Variant sE (State: Type): Type -> Type :=
-| Put (st: State): sE State unit
-| Get: sE State State
-.
+  Variant cE: Type -> Type :=
+  | Yield: cE unit
+  | GetTid: cE thread_id
+  (* | Spawn (fn: fname) (args: list Val): cE unit *)
+  .
+
+  Variant sE (State: Type): Type -> Type :=
+  | Put (st: State): sE State unit
+  | Get: sE State State
+  .
+
+  Variant callE: Type -> Type :=
+  | Call (fn: fname) (arg: Any.t): callE Any.t
+  .
+
+End EVENTS.
+
+Notation programE ident State :=
+  ((((@eventE ident) +' cE) +' callE) +' sE State).
 
 Section TID.
 
@@ -88,8 +99,9 @@ Module Mod.
         state: Type;
         ident: ID;
         st_init: state;
-        funs: fname -> option (ktree (((@eventE ident) +' cE) +' sE state) Any.t Any.t);
+        funs: fname -> option (ktree (programE ident state) Any.t Any.t);
       }.
+
 
   Program Definition wrap_fun {ident} {E} `{@eventE ident -< E} A R
           (f: ktree E A R):
@@ -278,12 +290,12 @@ Section ADD.
   Import Mod.
   Variable M1 M2 : Mod.t.
 
-  Definition embed_l {R} (itr : itree ((eventE +' cE) +' sE _) R) :=
-    map_event (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident))))
+  Definition embed_l {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
+    map_event (embed_left (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident)))))
       (embed_state (@fst M1.(state) M2.(state)) update_fst itr).
 
-  Definition embed_r {R} (itr : itree ((eventE +' cE) +' sE _) R) :=
-    map_event (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident))))
+  Definition embed_r {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
+    map_event (embed_left (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident)))))
       (embed_state (@snd M1.(state) M2.(state)) update_snd itr).
 
   Definition add_funs : fname -> option (ktree _ Any.t Any.t) :=
@@ -291,7 +303,7 @@ Section ADD.
       match M1.(funs) fn, M2.(funs) fn with
       | Some fn_body, None => Some (fun args => embed_l (fn_body args))
       | None, Some fn_body => Some (fun args => embed_r (fn_body args))
-      | Some _, Some _ => Some (fun args => Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))
+      | Some _, Some _ => Some (fun args => Vis (inl1 (inl1 (inl1 Undefined))) (Empty_set_rect _))
       | None , None => None
       end.
 
@@ -318,12 +330,17 @@ Section EMBEDS.
     embed_l M1 M2 (tau;; itr) = tau;; (embed_l M1 M2 itr).
   Proof. eapply observe_eta. ss. Qed.
 
-  Lemma embed_l_vis_eventE R X e (ktr : ktree _ X R) :
-    embed_l M1 M2 (Vis (inl1 (inl1 e)) ktr) =
-      Vis (inl1 (inl1 (@embed_event_l M1.(ident) M2.(ident) _ e))) (fun x => embed_l M1 M2 (ktr x)).
+  Lemma embed_l_vis_eventE R X (e : eventE X) (ktr : ktree _ X R) :
+    embed_l M1 M2 (Vis (inl1 (inl1 (inl1 e))) ktr) =
+      Vis (inl1 (inl1 (inl1 (@embed_event_l M1.(ident) M2.(ident) _ e)))) (fun x => embed_l M1 M2 (ktr x)).
   Proof. eapply observe_eta. ss. Qed.
 
-  Lemma embed_l_vis_cE R X e (ktr : ktree _ X R) :
+  Lemma embed_l_vis_cE R X (e : cE X) (ktr : ktree _ X R) :
+    embed_l M1 M2 (Vis (inl1 (inl1 (inr1 e))) ktr) =
+      Vis (inl1 (inl1 (inr1 e))) (fun x => embed_l M1 M2 (ktr x)).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_l_vis_callE R X (e : callE X) (ktr : ktree _ X R) :
     embed_l M1 M2 (Vis (inl1 (inr1 e)) ktr) =
       Vis (inl1 (inr1 e)) (fun x => embed_l M1 M2 (ktr x)).
   Proof. eapply observe_eta. ss. Qed.
@@ -357,12 +374,16 @@ Section EMBEDS.
     { rewrite ! embed_l_tau. rewrite bind_tau.
       gstep. eapply EqTau. gbase. eauto.
     }
-    { revert k. destruct e as [[|]|[|]]; i.
+    { revert k. destruct e as [[[]|]|[|]]; i.
       { rewrite ! embed_l_vis_eventE.
         ired. gstep. eapply EqVis.
         i. gbase. eauto.
       }
       { rewrite ! embed_l_vis_cE.
+        ired. gstep. eapply EqVis.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_l_vis_callE.
         ired. gstep. eapply EqVis.
         i. gbase. eauto.
       }
@@ -479,12 +500,17 @@ Section EMBEDS.
     embed_r M1 M2 (tau;; itr) = tau;; (embed_r M1 M2 itr).
   Proof. eapply observe_eta. ss. Qed.
 
-  Lemma embed_r_vis_eventE R X e (ktr : ktree _ X R) :
-    embed_r M1 M2 (Vis (inl1 (inl1 e)) ktr) =
-      Vis (inl1 (inl1 (@embed_event_r M1.(ident) M2.(ident) _ e))) (fun x => embed_r M1 M2 (ktr x)).
+  Lemma embed_r_vis_eventE R X (e : eventE X) (ktr : ktree _ X R) :
+    embed_r M1 M2 (Vis (inl1 (inl1 (inl1 e))) ktr) =
+      Vis (inl1 (inl1 (inl1 (@embed_event_r M1.(ident) M2.(ident) _ e)))) (fun x => embed_r M1 M2 (ktr x)).
   Proof. eapply observe_eta. ss. Qed.
 
-  Lemma embed_r_vis_cE R X e (ktr : ktree _ X R) :
+  Lemma embed_r_vis_cE R X (e : cE X) (ktr : ktree _ X R) :
+    embed_r M1 M2 (Vis (inl1 (inl1 (inr1 e))) ktr) =
+      Vis (inl1 (inl1 (inr1 e))) (fun x => embed_r M1 M2 (ktr x)).
+  Proof. eapply observe_eta. ss. Qed.
+
+  Lemma embed_r_vis_callE R X (e : callE X) (ktr : ktree _ X R) :
     embed_r M1 M2 (Vis (inl1 (inr1 e)) ktr) =
       Vis (inl1 (inr1 e)) (fun x => embed_r M1 M2 (ktr x)).
   Proof. eapply observe_eta. ss. Qed.
@@ -518,12 +544,16 @@ Section EMBEDS.
     { rewrite ! embed_r_tau. rewrite bind_tau.
       gstep. eapply EqTau. gbase. eauto.
     }
-    { revert k. destruct e as [[|]|[|]]; i.
+    { revert k. destruct e as [[[]|]|[|]]; i.
       { rewrite ! embed_r_vis_eventE.
         ired. gstep. eapply EqVis.
         i. gbase. eauto.
       }
       { rewrite ! embed_r_vis_cE.
+        ired. gstep. eapply EqVis.
+        i. gbase. eauto.
+      }
+      { rewrite ! embed_r_vis_callE.
         ired. gstep. eapply EqVis.
         i. gbase. eauto.
       }

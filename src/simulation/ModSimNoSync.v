@@ -25,8 +25,8 @@ Section PRIMIVIESIM.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE _ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Definition shared :=
     (TIdSet.t *
@@ -158,6 +158,12 @@ Section PRIMIVIESIM.
           _lsim _ _ RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+
+  | lsim_call
+      f_src f_tgt r_ctx
+      ths im_src im_tgt st_src st_tgt
+      fn args ktr_src itr_tgt
+    : __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Call fn args) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
 
   | lsim_yieldR
       f_src f_tgt r_ctx0
@@ -311,6 +317,8 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
+    { eapply pind9_fold. eapply lsim_call. }
+
     { eapply pind9_fold. eapply lsim_yieldR; eauto. i.
       hexploit LSIM0; eauto. clear LSIM0. intros LSIM0.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. split; ss; eauto.
@@ -431,6 +439,8 @@ Section PRIMIVIESIM.
     { pfold. eapply pind9_fold. eapply lsim_observe. i. split; ss. specialize (LSIM0 ret).
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H. eapply lsim_mon.
     }
+
+    { pfold. eapply pind9_fold. eapply lsim_call. }
 
     { pfold. eapply pind9_fold. eapply lsim_yieldR; eauto. i.
       hexploit LSIM0; eauto. clear LSIM0. intros LSIM0.

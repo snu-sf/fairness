@@ -1351,6 +1351,7 @@ Section UNIT.
   Proof. unfold URA.wf. unseal "ra". ss. Qed.
 
 End UNIT.
+Global Opaque Unit.
 
 Section URA_PROD.
 

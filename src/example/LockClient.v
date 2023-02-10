@@ -24,7 +24,7 @@ End INIT.
 Module ClientImpl.
 
   Definition thread1:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       let tvw := View.bot in
@@ -35,7 +35,7 @@ Module ClientImpl.
       Ret tt.
 
   Definition thread2:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       let tvw := View.bot in
@@ -54,8 +54,8 @@ Module ClientImpl.
         Ret tt
       else UB.
 
-  Definition omod: OMod.t :=
-    OMod.mk
+  Definition omod: Mod.t :=
+    Mod.mk
       tt
       (Mod.get_funs [("thread1", Mod.wrap_fun thread1);
                      ("thread2", Mod.wrap_fun thread2)])
@@ -71,13 +71,13 @@ End ClientImpl.
 
 Module ClientSpec.
   Definition thread1:
-    ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;; Ret tt.
 
   Definition thread2:
-    ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;;
@@ -331,7 +331,7 @@ Section SIM.
         iExists false, View.bot, false, WMem.init, (NatMap.empty nat), 0.
         iModIntro.
         iFrame.
-        iSplitL "INIT5". { ss. unfold OMod.closed_st_init, OMod.st_init. ss.
+        iSplitL "INIT5". { ss. unfold OMod.closed_st_init, Mod.st_init. ss.
                            rewrite key_set_empty_empty_eq. iFrame. }
         iSplitL "INIT1". { iApply FairRA.blacks_impl.
                            2: { iFrame. }
@@ -512,7 +512,7 @@ Section SIM.
 
     (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
     set (blks2 :=
-           (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (WMem.mod) + NatMap.key)),
+           (λ id : nat + (Mod.ident ClientImpl.omod + (Mod.ident (WMem.mod) + NatMap.key)),
                (∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t (NatMap.add tid k wobl))%type)).
     iPoseProof (FairRA.blacks_unfold with "BLKS") as "[BLKS MYDUTY]".
     { instantiate (1:=inr (inr (inr tid))). instantiate (1:=blks2). i. des.
@@ -710,7 +710,7 @@ Section SIM.
       iPoseProof (FairRA.blacks_fold with "[BLKS MYBEX]") as "BLKS".
       2:{ iFrame. }
       { instantiate (1:=
-         (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (WMem.mod) + NatMap.key)),
+         (λ id : nat + (Mod.ident ClientImpl.omod + (Mod.ident (WMem.mod) + NatMap.key)),
              ∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t new_wobl)).
         i. ss. des. destruct (tid_dec t tid) eqn:DEC.
         - clarify. auto.

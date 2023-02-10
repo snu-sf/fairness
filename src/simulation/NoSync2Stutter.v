@@ -25,8 +25,8 @@ Section GENORDER.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE _ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
@@ -153,6 +153,13 @@ Section GENORDER.
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
+  | geno_call
+      f_src f_tgt r_ctx o
+      ths im_src im_tgt st_src st_tgt
+      fn args ktr_src itr_tgt
+    :
+    _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Call fn args) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+
   | geno_yieldR
       f_src f_tgt r_ctx0 o0
       ths0 im_src0 im_tgt0 st_src0 st_tgt0
@@ -274,17 +281,19 @@ Section GENORDER.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
 
-    { eapply pind6_fold. econs 16; eauto.
+    { eapply pind6_fold. econs 16; eauto. }
+
+    { eapply pind6_fold. econs 17; eauto.
       i. specialize (GENO0 _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des. esplits; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
 
-    { eapply pind6_fold. econs 17; eauto.
+    { eapply pind6_fold. econs 18; eauto.
       des. esplits; eauto.
       eapply upind6_mon; eauto. ss.
     }
 
-    { eapply pind6_fold. econs 18; eauto. }
+    { eapply pind6_fold. econs 19; eauto. }
 
   Qed.
 
@@ -400,6 +409,19 @@ Section GENORDER.
       intro JOIN. des.
       set (fo1:= fun _: A R0 R1 => o1). exists (ord_tree_cons fo1).
       eapply pind6_fold. econs 16.
+    }
+
+    { hexploit ord_tree_join.
+      { instantiate (2:=A R0 R1).
+        instantiate (2:= fun '(ps, pt, rs, src, tgt, shr) => @rr R0 R1 RR ps pt rs src tgt shr).
+        i. ss. des_ifs. eapply IH in SAT.
+        instantiate (1:= fun '(ps, pt, rs, src, tgt, shr) o =>
+                           geno tid RR ps pt rs (o, src) tgt shr).
+        eauto.
+      }
+      intro JOIN. des.
+      set (fo1:= fun _: A R0 R1 => o1). exists (ord_tree_cons fo1).
+      eapply pind6_fold. econs 17.
       1,2: eauto.
       { instantiate (1:=fo1 (ps, pt, r_ctx, (x <- trigger Yield;; ktr_src x), (x <- trigger Yield;; ktr_tgt x), (ths0, im_src0, im_tgt0, st_src0, st_tgt0))). ss.
       }
@@ -409,11 +431,11 @@ Section GENORDER.
     }
 
     { des. destruct LSIM as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind6_fold. econs 17; eauto. esplits; eauto.
+      eapply pind6_fold. econs 18; eauto. esplits; eauto.
       split; ss. eauto.
     }
 
-    { exists one. eapply pind6_fold. econs 18. pclearbot. auto. }
+    { exists one. eapply pind6_fold. econs 19. pclearbot. auto. }
 
   Qed.
 
@@ -437,8 +459,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE _ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Let shared :=
     (TIdSet.t *
@@ -456,11 +478,11 @@ Section PROOF.
   Definition mk_o (wf: WF) R (o: wf.(T)) (ps: bool) (itr_src: itree srcE R): (lift_wf wf).(T) :=
     if ps
     then match (observe itr_src) with
-         | VisF ((|Yield)|)%sum _ => (inr (Some o))
+         | VisF (((|Yield)|)|)%sum _ => (inr (Some o))
          | _ => (inr None)
          end
     else match (observe itr_src) with
-         | VisF ((|Yield)|)%sum _ => (inl o)
+         | VisF (((|Yield)|)|)%sum _ => (inl o)
          | _ => (inr None)
          end.
 
@@ -567,7 +589,9 @@ Section PROOF.
       - right. ss. do 2 econs.
     }
 
-    { guclo lsim_indC_spec. econs 16; eauto.
+    { guclo lsim_indC_spec. econs 16. }
+
+    { guclo lsim_indC_spec. econs 17; eauto.
       2:{ i. specialize (GENO _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
           destruct GENO as [GENO IND]. eapply IH in IND; eauto.
           esplits.
@@ -580,13 +604,13 @@ Section PROOF.
     }
 
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 17; eauto.
+      guclo lsim_indC_spec. econs 18; eauto.
     }
 
     { eapply nosync_geno in GENO. des.
       guclo lsim_ord_weakC_spec. econs.
       instantiate (1:=mk_o (@wf_ot R0 R1) o0 false src).
-      gfinal. right. pfold. eapply pind6_fold. econs 18. right. eapply CIH. auto.
+      gfinal. right. pfold. eapply pind6_fold. econs 19. right. eapply CIH. auto.
       ss. des_ifs; try reflexivity. right. ss. do 2 econs.
     }
 
@@ -605,8 +629,8 @@ Section MODSIM.
     inv MDSIM.
     set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
-    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (srcE := programE _ident_src state_src).
+    set (tgtE := programE _ident_tgt state_tgt).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
@@ -641,8 +665,8 @@ Section USERSIM.
     inv MDSIM.
     set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
-    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (srcE := programE _ident_src state_src).
+    set (tgtE := programE _ident_tgt state_tgt).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).

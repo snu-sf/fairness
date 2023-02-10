@@ -27,8 +27,8 @@ Section KSIM.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Notation srcE := (programE _ident_src state_src).
+  Notation tgtE := (programE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
 
@@ -91,7 +91,7 @@ Section KSIM.
                          (sim_knot thsl0 thsr0 tid0
                                    (snd (get_resource tid0 rs_local0))
                                    true true
-                                   (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
+                                   (b, Vis (inl1 (inl1 (inr1 Yield))) (fun _ => th_src))
                                    (th_tgt)
                                    (im_src, im_tgt0, st_src, st_tgt) o0))) /\
                     ((b = false) ->
@@ -133,7 +133,7 @@ Section KSIM.
                                (sim_knot thsl1 thsr1 tid0
                                          (snd (get_resource tid0 rs_local0))
                                          true true
-                                         (b, Vis (inl1 (inr1 Yield)) (fun _ => th_src))
+                                         (b, Vis (inl1 (inl1 (inr1 Yield))) (fun _ => th_src))
                                          (th_tgt)
                                          (im_src, im_tgt0, st_src, st_tgt) o0))) /\
                     ((b = false) ->
@@ -149,8 +149,8 @@ Section KSIM.
                                      (im_src0, im_tgt0, st_src, st_tgt) o0)))))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
-                 (sf, Vis (inl1 (inr1 Yield)) ktr_src)
-                 (Vis (inl1 (inr1 Yield)) ktr_tgt)
+                 (sf, Vis (inl1 (inl1 (inr1 Yield))) ktr_src)
+                 (Vis (inl1 (inl1 (inr1 Yield))) ktr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
 
     | ksim_yieldL
@@ -166,7 +166,7 @@ Section KSIM.
                          (im_src0, im_tgt, st_src, st_tgt) o0))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
-                 (sf, Vis (inl1 (inr1 Yield)) ktr_src)
+                 (sf, Vis (inl1 (inl1 (inr1 Yield))) ktr_src)
                  (itr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
 
@@ -195,7 +195,7 @@ Section KSIM.
                               (im_src, im_tgt, st_src, st_tgt) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
-                 (sf, Vis (inl1 (inl1 (Choose X))) ktr_src)
+                 (sf, Vis (inl1 (inl1 (inl1 (Choose X)))) ktr_src)
                  (itr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
     | ksim_putL
@@ -237,7 +237,7 @@ Section KSIM.
                          (im_src, im_tgt, st_src, st_tgt) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
-                 (sf, Vis (inl1 (inr1 GetTid)) ktr_src)
+                 (sf, Vis (inl1 (inl1 (inr1 GetTid))) ktr_src)
                  (itr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
     | ksim_UB
@@ -247,7 +247,7 @@ Section KSIM.
         im_src im_tgt st_src st_tgt o
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
-                 (sf, Vis (inl1 (inl1 Undefined)) ktr_src)
+                 (sf, Vis (inl1 (inl1 (inl1 Undefined))) ktr_src)
                  (itr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
     | ksim_fairL
@@ -263,7 +263,7 @@ Section KSIM.
                          (im_src0, im_tgt, st_src, st_tgt) o))
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
-                 (sf, Vis (inl1 (inl1 (Fair fm))) ktr_src)
+                 (sf, Vis (inl1 (inl1 (inl1 (Fair fm)))) ktr_src)
                  (itr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
 
@@ -293,7 +293,7 @@ Section KSIM.
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, itr_src)
-                 (Vis (inl1 (inl1 (Choose X))) ktr_tgt)
+                 (Vis (inl1 (inl1 (inl1 (Choose X)))) ktr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
     | ksim_putR
         tid f_src f_tgt
@@ -335,7 +335,7 @@ Section KSIM.
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, itr_src)
-                 (Vis (inl1 (inr1 GetTid)) ktr_tgt)
+                 (Vis (inl1 (inl1 (inr1 GetTid))) ktr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
     | ksim_fairR
         tid f_src f_tgt
@@ -350,7 +350,7 @@ Section KSIM.
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, itr_src)
-                 (Vis (inl1 (inl1 (Fair fm))) ktr_tgt)
+                 (Vis (inl1 (inl1 (inl1 (Fair fm)))) ktr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
 
     | ksim_observe
@@ -364,8 +364,19 @@ Section KSIM.
                                (im_src, im_tgt, st_src, st_tgt) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
-                 (sf, Vis (inl1 (inl1 (Observe fn args))) ktr_src)
-                 (Vis (inl1 (inl1 (Observe fn args))) ktr_tgt)
+                 (sf, Vis (inl1 (inl1 (inl1 (Observe fn args)))) ktr_src)
+                 (Vis (inl1 (inl1 (inl1 (Observe fn args)))) ktr_tgt)
+                 (im_src, im_tgt, st_src, st_tgt) o
+
+    | ksim_call
+        tid f_src f_tgt
+        sf fn args ktr_src itr_tgt
+        rs_local
+        im_src im_tgt st_src st_tgt o
+      :
+      __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
+                 (sf, (trigger (Call fn args) >>= ktr_src))
+                 itr_tgt
                  (im_src, im_tgt, st_src, st_tgt) o
 
     | ksim_progress
@@ -520,6 +531,8 @@ Section KSIM.
       right; eapply CIH; eauto.
     }
 
+    { pfold. eapply pind10_fold. eapply ksim_call. }
+
     { hexploit SRC; ss; i; clarify. hexploit TGT; ss; i; clarify.
       pfold. eapply pind10_fold. eapply ksim_progress. pclearbot.
       right; eapply CIH; eauto.
@@ -621,6 +634,8 @@ Section KSIM.
     { pfold. eapply pind10_fold. eapply ksim_observe. i. specialize (KSIM0 ret). pclearbot.
       right; eapply CIH; eauto.
     }
+
+    { pfold. eapply pind10_fold. eapply ksim_call. }
 
     { pclearbot. eapply paco10_mon_bot; eauto. eapply ksim_reset_prog. eauto. all: auto. }
 

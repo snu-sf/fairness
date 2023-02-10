@@ -343,7 +343,9 @@ Section PROOF.
       right. eapply CIH; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 16; eauto.
+    { pfold. eapply pind9_fold. econs 16. }
+
+    { pfold. eapply pind9_fold. econs 17; eauto.
       des. unfold Is in INVS. des. subst.
       set (ost':= NatMap.add tid (os1, ot1) ost).
       assert (WFOST': nm_wf_pair ths ost').
@@ -398,7 +400,7 @@ Section PROOF.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 17; eauto. instantiate (1:=(ths_r, r_shared)).
+    { pfold. eapply pind9_fold. econs 18; eauto. instantiate (1:=(ths_r, r_shared)).
       { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
       { ur. auto. }
@@ -423,7 +425,7 @@ Section PROOF.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 18; eauto. instantiate (1:=(ths_r, r_shared)).
+    { pfold. eapply pind9_fold. econs 19; eauto. instantiate (1:=(ths_r, r_shared)).
       { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
       { ur. auto. }
@@ -488,7 +490,7 @@ Section PROOF.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 19; eauto. pclearbot. right. eapply CIH; eauto. }
+    { pfold. eapply pind9_fold. econs 20; eauto. pclearbot. right. eapply CIH; eauto. }
 
   Qed.
 

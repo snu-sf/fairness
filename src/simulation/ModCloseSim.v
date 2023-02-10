@@ -9,13 +9,9 @@ Import OMod.
 Import Mod.
 Import RelationClasses.
 
+Section CLOSE_MONO_SIM.
 
-
-
-
-Section CLOSE_CONG_SIM.
-
-  Context {M1: OMod.t} {M2_src M2_tgt : Mod.t}.
+  Context {M1: Mod.t} {M2_src M2_tgt : Mod.t}.
   Context {wf_src : WF}.
   Context `{world : URA.t}.
 
@@ -40,7 +36,7 @@ Section CLOSE_CONG_SIM.
   Opaque lifted threadsRA URA.prod.
 
   Lemma lift_ma_local_sim_ub R_src R_tgt (RR : R_src -> R_tgt -> Prop) ktr_src itr_tgt
-    : local_sim lift_ma RR (Vis (inl1 (inl1 Undefined)) ktr_src) itr_tgt.
+    : local_sim lift_ma RR (Vis (inl1 (inl1 (inl1 Undefined))) ktr_src) itr_tgt.
   Proof.
     (* treat as if tid ∈ ths_ctx *)
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0 IM_TGT1 TID_TGT.
@@ -241,6 +237,11 @@ Section CLOSE_CONG_SIM.
       muclo lsim_indC_spec. cbn. econs; eauto.
       muclo lsim_indC_spec. cbn. econs; eauto.
       gfinal. left. eapply CIH; eauto.
+    - rewrite 2 embed_itree_trigger_callE. apply lsim_call.
+      i. specialize (LSIM ret). pclearbot.
+      muclo lsim_indC_spec. ss. econs.
+      muclo lsim_indC_spec. ss. econs.
+      gfinal. left. eapply CIH; eauto.
     - rewrite 2 embed_itree_trigger_cE.
       eapply lsim_yieldL. split; ss.
       rewrite <- embed_itree_trigger_cE.
@@ -430,30 +431,6 @@ Section CLOSE_CONG_SIM.
         eapply pind9_fold. econs. split; ss.
         eapply pind9_fold. eapply lsim_progress.
         gfinal. left. eapply CIH; eauto.
-    - destruct s.
-      + rewrite 2 close_itree_vis_put. ss.
-        rewrite <- 2 bind_trigger.
-        gstep.
-        eapply pind9_fold. eapply lsim_getL. esplit; ss.
-        eapply pind9_fold. eapply lsim_getR. esplit; ss.
-        rewrite <- 2 bind_trigger.
-        eapply pind9_fold. eapply lsim_putL. esplit; ss.
-        eapply pind9_fold. eapply lsim_putR. esplit; ss.
-        eapply pind9_fold. econs. split; ss.
-        eapply pind9_fold. econs. split; ss.
-        eapply pind9_fold. eapply lsim_progress.
-        gfinal. left. eapply CIH; eauto.
-        destruct st_src0, st_tgt0; ss. des; esplits; eauto.
-      + rewrite 2 close_itree_vis_get. ss.
-        rewrite <- 2 bind_trigger.
-        gstep.
-        eapply pind9_fold. eapply lsim_getL. esplit; ss.
-        eapply pind9_fold. eapply lsim_getR. esplit; ss.
-        eapply pind9_fold. econs. split; ss.
-        eapply pind9_fold. econs. split; ss.
-        eapply pind9_fold. eapply lsim_progress.
-        des. rewrite INV3.
-        gfinal. left. eapply CIH; eauto. esplits; eauto.
     - destruct c. rewrite 2 close_itree_vis_call. simpl.
       specialize (FSIM fn arg).
       des_ifs.
@@ -567,13 +544,37 @@ Section CLOSE_CONG_SIM.
           esplits; eauto.
       + rewrite <- 2 bind_trigger.
         gstep. eapply pind9_fold. econs; eauto.
+    - destruct s.
+      + rewrite 2 close_itree_vis_put. ss.
+        rewrite <- 2 bind_trigger.
+        gstep.
+        eapply pind9_fold. eapply lsim_getL. esplit; ss.
+        eapply pind9_fold. eapply lsim_getR. esplit; ss.
+        rewrite <- 2 bind_trigger.
+        eapply pind9_fold. eapply lsim_putL. esplit; ss.
+        eapply pind9_fold. eapply lsim_putR. esplit; ss.
+        eapply pind9_fold. econs. split; ss.
+        eapply pind9_fold. econs. split; ss.
+        eapply pind9_fold. eapply lsim_progress.
+        gfinal. left. eapply CIH; eauto.
+        destruct st_src0, st_tgt0; ss. des; esplits; eauto.
+      + rewrite 2 close_itree_vis_get. ss.
+        rewrite <- 2 bind_trigger.
+        gstep.
+        eapply pind9_fold. eapply lsim_getL. esplit; ss.
+        eapply pind9_fold. eapply lsim_getR. esplit; ss.
+        eapply pind9_fold. econs. split; ss.
+        eapply pind9_fold. econs. split; ss.
+        eapply pind9_fold. eapply lsim_progress.
+        des. rewrite INV3.
+        gfinal. left. eapply CIH; eauto. esplits; eauto.
   Qed.
 
-End CLOSE_CONG_SIM.
+End CLOSE_MONO_SIM.
 
 Section MODADD_THEOREM.
 
-  Theorem ModClose_cong M1 M2_src M2_tgt :
+  Theorem ModClose_mono M1 M2_src M2_tgt :
     ModSim.mod_sim M2_src M2_tgt ->
     ModSim.mod_sim (close M1 M2_src) (close M1 M2_tgt).
   Proof.
@@ -595,6 +596,496 @@ Section MODADD_THEOREM.
     }
     i. unfold close, closed_funs; ss. des_ifs.
     - eapply lift_ma_local_sim_ctx; eauto.
+  Qed.
+
+  Tactic Notation "muclo" uconstr(H) :=
+    eapply gpaco9_uclo; [auto with paco|apply H|].
+
+  Theorem ModClose_assoc M1 M2 M3 :
+    ModSim.mod_sim (close M1 (close M2 M3)) (close (close M1 M2) M3).
+  Proof.
+    econstructor 1 with (world := Unit).
+    { instantiate (1 := nat_wf). econs. exact 0. }
+    { i. exists (S o0). ss. }
+    intro IM_TGT.
+    pose Unit_wf as VALID.
+    pose (conv_im :=
+            (fun im_tgt i =>
+               match i with
+               | inl i => im_tgt (inr (inl (inl i)))
+               | inr (inl i) => im_tgt (inr (inl (inr i)))
+               | inr (inr i) => im_tgt (inr (inr i))
+               end)
+            : @imap (ident_tgt (close (close M1 M2) M3).(ident)) nat_wf ->
+              @imap (close M1 (close M2 M3)).(ident) nat_wf).
+    pose (I := fun (x : @shared
+                        (close M1 (close M2 M3)).(state) (close (close M1 M2) M3).(state)
+                        (close M1 (close M2 M3)).(ident) (close (close M1 M2) M3).(ident)
+                        nat_wf nat_wf)
+                 (w : Unit)
+               => let '(ths, im_src, im_tgt, st_src, st_tgt) := x in
+                 (fst st_src : state M1) = fst (fst st_tgt)
+                 /\ (fst (snd st_src) : state M2) = snd (fst st_tgt)
+                 /\ (snd (snd st_src) : state M3) = snd st_tgt
+                 /\ im_src = conv_im im_tgt
+         ).
+    exists I. split.
+    { exists (conv_im IM_TGT), tt. splits; ss. }
+    i. do 2 (ss; unfold closed_funs). destruct (funs M1 fn); ss.
+    remember (k args) as itr; clear k args Heqitr.
+    ii. exists tt, tt. splits; ss.
+    { des. splits; ss.
+      rewrite INV2. extensionalities i. destruct i as [|[|]].
+      - specialize (TID_TGT (inr (inl (inl i)))); ss.
+      - specialize (TID_TGT (inr (inl (inr i)))); ss.
+      - specialize (TID_TGT (inr (inr i))); ss.
+    }
+    i.
+    assert (INV_CIH : I (ths, im_src1, im_tgt3, st_src2, st_tgt2) tt).
+    { des. ss. splits; ss.
+      rewrite INV3. extensionalities i. destruct i as [|[|]].
+      - specialize (TGT (inr (inl (inl i)))); ss.
+      - specialize (TGT (inr (inl (inr i)))); ss.
+      - specialize (TGT (inr (inr i))); ss.
+    }
+    clear - INV_CIH. move itr after tid. revert_until tid.
+    pose proof Unit_wf as VALID.
+    ginit. gcofix CIH. i. destruct_itree itr.
+    - rewrite ! close_itree_ret.
+      gstep. eapply pind9_fold. eapply lsim_ret.
+      ss. eexists. exists tt, tt. des. splits; ss.
+    - rewrite ! close_itree_tau.
+      gstep.
+      eapply pind9_fold. eapply lsim_tauL. split; ss.
+      eapply pind9_fold. eapply lsim_tauR. split; ss.
+      eapply pind9_fold. eapply lsim_progress.
+      gfinal. left. eapply CIH. des. splits; ss.
+    - destruct e as [[[e|ce]|cae]|s].
+      + rewrite ! close_itree_vis_eventE.
+        rewrite <- ! bind_trigger.
+        destruct e.
+        * gstep. eapply pind9_fold. eapply lsim_chooseR. i. split; ss.
+          eapply pind9_fold. eapply lsim_chooseL. exists x. split; ss.
+          eapply pind9_fold. eapply lsim_tauL. split; ss.
+          rewrite close_itree_tau.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_progress.
+          gfinal. left. eapply CIH. des. splits; ss.
+        * gstep. eapply pind9_fold. eapply lsim_fairR. i. split; ss.
+          eapply pind9_fold. eapply lsim_fairL. exists (conv_im im_tgt1). split.
+          { des. rewrite INV_CIH2. ii. destruct i as [|[|]].
+            unfold sum_fmap_r, sum_fmap_l in *. ss.
+            - specialize (FAIR (inr (inl (inl i)))). ss.
+            - specialize (FAIR (inr (inl (inr i)))). ss.
+            - specialize (FAIR (inr (inr i))). ss.
+          }
+          split; ss.
+          eapply pind9_fold. eapply lsim_tauL. split; ss.
+          rewrite close_itree_tau.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_progress.
+          gfinal. left. eapply CIH. des. splits; ss.
+        * gstep. eapply pind9_fold. eapply lsim_observe. i.
+          gstep. eapply pind9_fold. eapply lsim_tauL. split; ss.
+          rewrite close_itree_tau.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_progress.
+          gfinal. left. eapply CIH. des. splits; ss.
+        * gstep. eapply pind9_fold. eapply lsim_UB.
+      + rewrite ! close_itree_vis_cE.
+        rewrite <- ! bind_trigger.
+        destruct ce.
+        * gstep. eapply pind9_fold. eapply lsim_sync; ss. i.
+          gstep. eapply pind9_fold. eapply lsim_tauL. split; ss.
+          rewrite close_itree_tau.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_progress.
+          gfinal. left. eapply CIH. des. splits; ss.
+          { rewrite INV2. extensionalities i. destruct i as [|[|]].
+            - specialize (TGT (inr (inl (inl i)))). ss.
+            - specialize (TGT (inr (inl (inr i)))). ss.
+            - specialize (TGT (inr (inr i))). ss.
+          }
+        * gstep. eapply pind9_fold. eapply lsim_tidR. split; ss.
+          eapply pind9_fold. eapply lsim_tidL. split; ss.
+          eapply pind9_fold. eapply lsim_tauL. split; ss.
+          rewrite close_itree_tau.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_progress.
+          gfinal. left. eapply CIH. des. splits; ss.
+      + destruct cae. rewrite ! close_itree_vis_call.
+        ss. unfold closed_funs. destruct (funs M2 fn).
+        * rewrite close_itree_vis_cE.
+          rewrite <- ! bind_trigger.
+          rewrite close_itree_bind.
+          gstep. eapply pind9_fold. eapply lsim_sync; ss.
+          i.
+          assert (INV_CIH2 : I (ths1, im_src0, im_tgt2, st_src1, st_tgt1) tt).
+          { des. ss. splits; ss.
+            rewrite INV2.
+            extensionalities i. destruct i as [|[|]].
+            - specialize (TGT (inr (inl (inl i)))). ss.
+            - specialize (TGT (inr (inl (inr i)))). ss.
+            - specialize (TGT (inr (inr i))). ss.
+          }
+          clear - CIH INV_CIH2.
+          gstep. eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_progress. split; ss.
+          muclo lsim_bindC'_spec. econs.
+          { instantiate (1 := fun r_src r_tgt r_ctx shr => r_src = r_tgt /\ I shr tt).
+            remember (k0 arg) as itr; clear - INV_CIH2.
+            revert_until r. gcofix CIH. i.
+            pose Unit_wf as VALID.
+            destruct_itree itr.
+            - rewrite ! close_itree_ret.
+              rewrite ! embed_itree_ret.
+              rewrite ! close_itree_ret.
+              gstep. eapply pind9_fold. eapply lsim_ret. esplits; ss.
+            - rewrite ! close_itree_tau.
+              rewrite ! embed_itree_tau.
+              rewrite ! close_itree_tau.
+              gstep. eapply pind9_fold. eapply lsim_tauL. split; ss.
+              eapply pind9_fold. eapply lsim_tauR. split; ss.
+              eapply pind9_fold. eapply lsim_progress.
+              gfinal. left. eapply CIH; ss.
+            - destruct e as [[[e|ce]|cae]|s].
+              + rewrite ! close_itree_vis_eventE.
+                rewrite ! embed_itree_vis_eventE.
+                rewrite ! close_itree_vis_eventE.
+                rewrite <- ! bind_trigger.
+                destruct e.
+                * gstep. eapply pind9_fold. eapply lsim_chooseR. i. split; ss.
+                  eapply pind9_fold. eapply lsim_chooseL. exists x. split; ss.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  rewrite embed_itree_tau.
+                  rewrite close_itree_tau.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  gfinal. left. eapply CIH; ss.
+                * gstep. eapply pind9_fold. eapply lsim_fairR. i. split; ss.
+                  eapply pind9_fold. eapply lsim_fairL. exists (conv_im im_tgt1). split.
+                  { des. rewrite INV_CIH3. ii. destruct i as [|[|]].
+                    unfold sum_fmap_r, sum_fmap_l in *. ss.
+                    - specialize (FAIR (inr (inl (inl i)))). ss.
+                    - specialize (FAIR (inr (inl (inr i)))). ss.
+                    - specialize (FAIR (inr (inr i))). ss.
+                  }
+                  split; ss.
+                  rewrite embed_itree_tau.
+                  rewrite close_itree_tau.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  gfinal. left. eapply CIH; ss.
+                * gstep. eapply pind9_fold. eapply lsim_observe. i.
+                  rewrite embed_itree_tau.
+                  rewrite close_itree_tau.
+                  gstep.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  gfinal. left. eapply CIH; ss.
+                * gstep. eapply pind9_fold. eapply lsim_UB.
+              + rewrite ! close_itree_vis_cE.
+                rewrite ! embed_itree_vis_cE.
+                rewrite ! close_itree_vis_cE.
+                rewrite <- ! bind_trigger.
+                destruct ce.
+                * gstep. eapply pind9_fold. eapply lsim_sync; ss. i.
+                  rewrite embed_itree_tau.
+                  rewrite close_itree_tau.
+                  gstep.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  gfinal. left. des. eapply CIH; ss.
+                  { rewrite INV2. extensionalities i. destruct i as [|[|]].
+                    - specialize (TGT (inr (inl (inl i)))). ss.
+                    - specialize (TGT (inr (inl (inr i)))). ss.
+                    - specialize (TGT (inr (inr i))). ss.
+                  }
+                * gstep. eapply pind9_fold. eapply lsim_tidR. split; ss.
+                  eapply pind9_fold. eapply lsim_tidL. split; ss.
+                  rewrite embed_itree_tau.
+                  rewrite close_itree_tau.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  gfinal. left. des. eapply CIH; ss.
+              + destruct cae.
+                rewrite ! embed_itree_vis_callE.
+                rewrite ! close_itree_vis_call.
+                destruct (funs M3 fn).
+                * rewrite embed_itree_vis_cE.
+                  rewrite <- ! bind_trigger.
+                  gstep. eapply pind9_fold. eapply lsim_sync; ss. i.
+                  assert (INV_CIH4 : I (ths0, im_src1, im_tgt0, st_src0, st_tgt0) tt).
+                  { des. ss. splits; ss.
+                    rewrite INV2.
+                    extensionalities i. destruct i as [|[|]].
+                    - specialize (TGT (inr (inl (inl i)))). ss.
+                    - specialize (TGT (inr (inl (inr i)))). ss.
+                    - specialize (TGT (inr (inr i))). ss.
+                  }
+                  clear - CIH INV_CIH4.
+                  gstep. eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  rewrite embed_itree_bind.
+                  muclo lsim_bindC'_spec. econs.
+                  { instantiate (1 := fun r_src r_tgt r_ctx shr => r_src = r_tgt /\ I shr tt).
+                    remember (k0 arg) as itr; clear - INV_CIH4.
+                    revert_until r0. gcofix CIH. i.
+                    pose Unit_wf as VALID.
+                    destruct_itree itr.
+                    - rewrite ! embed_itree_ret.
+                      gstep. eapply pind9_fold. eapply lsim_ret. esplits; ss.
+                    - rewrite ! embed_itree_tau.
+                      gstep. eapply pind9_fold. eapply lsim_tauL. split; ss.
+                      eapply pind9_fold. eapply lsim_tauR. split; ss.
+                      eapply pind9_fold. eapply lsim_progress.
+                      gfinal. left. eapply CIH; ss.
+                    - destruct e as [[[e|ce]|cae]|s].
+                      + rewrite ! embed_itree_vis_eventE.
+                        rewrite <- ! bind_trigger.
+                        destruct e.
+                        * gstep. eapply pind9_fold. eapply lsim_chooseR. i. split; ss.
+                          eapply pind9_fold. eapply lsim_chooseL. exists x. split; ss.
+                          rewrite embed_itree_tau.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauR. split; ss.
+                          eapply pind9_fold. eapply lsim_progress.
+                          gfinal. left. eapply CIH; ss.
+                        * gstep. eapply pind9_fold. eapply lsim_fairR. i. split; ss.
+                          eapply pind9_fold. eapply lsim_fairL. exists (conv_im im_tgt1). split.
+                          { des. rewrite INV_CIH2. ii. destruct i as [|[|]].
+                            unfold sum_fmap_r, sum_fmap_l in *. ss.
+                            - specialize (FAIR (inr (inl (inl i)))). ss.
+                            - specialize (FAIR (inr (inl (inr i)))). ss.
+                            - specialize (FAIR (inr (inr i))). ss.
+                          }
+                          split; ss.
+                          rewrite embed_itree_tau.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauR. split; ss.
+                          eapply pind9_fold. eapply lsim_progress.
+                          gfinal. left. eapply CIH; ss.
+                        * gstep. eapply pind9_fold. eapply lsim_observe. i.
+                          rewrite embed_itree_tau.
+                          gstep. eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauR. split; ss.
+                          eapply pind9_fold. eapply lsim_progress.
+                          gfinal. left. eapply CIH; ss.
+                        * gstep. eapply pind9_fold. eapply lsim_UB.
+                      + rewrite ! embed_itree_vis_cE.
+                        rewrite <- ! bind_trigger.
+                        destruct ce.
+                        * gstep. eapply pind9_fold. eapply lsim_sync; ss. i.
+                          rewrite embed_itree_tau.
+                          gstep.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauR. split; ss.
+                          eapply pind9_fold. eapply lsim_progress.
+                          gfinal. left. des. eapply CIH; ss.
+                          { rewrite INV2. extensionalities i. destruct i as [|[|]].
+                            - specialize (TGT (inr (inl (inl i)))). ss.
+                            - specialize (TGT (inr (inl (inr i)))). ss.
+                            - specialize (TGT (inr (inr i))). ss.
+                          }
+                        * gstep. eapply pind9_fold. eapply lsim_tidR. split; ss.
+                          eapply pind9_fold. eapply lsim_tidL. split; ss.
+                          rewrite embed_itree_tau.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauR. split; ss.
+                          eapply pind9_fold. eapply lsim_progress.
+                          gfinal. left. des. eapply CIH; ss.
+                      + rewrite ! embed_itree_vis_callE.
+                        rewrite <- ! bind_trigger.
+                        destruct cae.
+                        gstep. eapply pind9_fold. eapply lsim_call. i.
+                        rewrite embed_itree_tau.
+                        gstep.
+                        eapply pind9_fold. eapply lsim_tauL. split; ss.
+                        eapply pind9_fold. eapply lsim_tauL. split; ss.
+                        eapply pind9_fold. eapply lsim_tauR. split; ss.
+                        eapply pind9_fold. eapply lsim_progress.
+                        gfinal. left. des. eapply CIH; ss.
+                      + destruct s.
+                        * rewrite ! embed_itree_vis_sE.
+                          rewrite ! embed_state_put. grind.
+                          rewrite embed_itree_vis_sE.
+                          rewrite ! embed_state_get. grind.
+                          rewrite <- ! bind_trigger.
+                          gstep.
+                          eapply pind9_fold. eapply lsim_getR. split; ss.
+                          eapply pind9_fold. eapply lsim_getL. split; ss.
+                          rewrite ! embed_state_ret. grind.
+                          rewrite embed_itree_vis_sE.
+                          rewrite ! embed_state_put. grind.
+                          rewrite <- ! bind_trigger.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_getL. split; ss.
+                          rewrite <- ! bind_trigger. grind.
+                          eapply pind9_fold. eapply lsim_putR. split; ss.
+                          eapply pind9_fold. eapply lsim_putL. split; ss.
+                          rewrite ! embed_state_ret. grind.
+                          rewrite embed_itree_tau.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauR. split; ss.
+                          eapply pind9_fold. eapply lsim_progress.
+                          gfinal. left. des.
+                          destruct st_src0 as [s0 []], st_tgt0 as [[] s2]. ss. subst.
+                          eapply CIH; ss.
+                        * rewrite ! embed_itree_vis_sE.
+                          rewrite ! embed_state_get. grind.
+                          rewrite embed_itree_vis_sE.
+                          rewrite ! embed_state_get. grind.
+                          rewrite <- ! bind_trigger.
+                          gstep.
+                          eapply pind9_fold. eapply lsim_getR. split; ss.
+                          eapply pind9_fold. eapply lsim_getL. split; ss.
+                          rewrite ! embed_state_ret. grind.
+                          rewrite embed_itree_tau.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauL. split; ss.
+                          eapply pind9_fold. eapply lsim_tauR. split; ss.
+                          eapply pind9_fold. eapply lsim_progress.
+                          gfinal. left. des.
+                          destruct st_src0 as [s0 []], st_tgt0 as [[] s2]. ss. subst.
+                          eapply CIH; ss.
+                  }
+                  i. destruct shr as [[[[ths2 im_src] im_tgt] st_src] st_tgt]. destruct SAT. subst.
+                  rewrite embed_itree_tau.
+                  rewrite close_itree_tau.
+                  gstep. eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  gfinal. left. des. eapply CIH; ss.
+                * rewrite embed_itree_vis_eventE.
+                  rewrite <- ! bind_trigger.
+                  gstep. eapply pind9_fold. eapply lsim_UB.
+              + destruct s.
+                * rewrite embed_itree_vis_sE, close_itree_vis_sE.
+                  rewrite ! embed_state_put. grind.
+                  rewrite embed_itree_vis_sE, close_itree_vis_sE.
+                  rewrite ! embed_state_get. grind.
+                  rewrite <- ! bind_trigger.
+                  gstep.
+                  eapply pind9_fold. eapply lsim_getR. split; ss.
+                  eapply pind9_fold. eapply lsim_getL. split; ss.
+                  rewrite ! embed_state_ret. grind.
+                  rewrite embed_itree_vis_sE, close_itree_vis_sE.
+                  rewrite ! embed_state_put. grind.
+                  rewrite <- ! bind_trigger.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_getR. split; ss.
+                  eapply pind9_fold. eapply lsim_getL. split; ss.
+                  grind. rewrite <- ! bind_trigger.
+                  eapply pind9_fold. eapply lsim_putR. split; ss.
+                  eapply pind9_fold. eapply lsim_putL. split; ss.
+                  rewrite ! embed_state_ret. grind.
+                  rewrite embed_itree_tau.
+                  rewrite close_itree_tau.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  gfinal. left. des.
+                  destruct st_src1 as [s0 []], st_tgt1 as [[] s2]. ss. subst.
+                  eapply CIH; ss.
+                * rewrite embed_itree_vis_sE, close_itree_vis_sE.
+                  rewrite ! embed_state_get. grind.
+                  rewrite embed_itree_vis_sE, close_itree_vis_sE.
+                  rewrite ! embed_state_get. grind.
+                  rewrite <- ! bind_trigger.
+                  gstep.
+                  eapply pind9_fold. eapply lsim_getR. split; ss.
+                  eapply pind9_fold. eapply lsim_getL. split; ss.
+                  rewrite ! embed_state_ret. grind.
+                  rewrite embed_itree_tau.
+                  rewrite close_itree_tau.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauL. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_tauR. split; ss.
+                  eapply pind9_fold. eapply lsim_progress.
+                  gfinal. left. des.
+                  destruct st_src1 as [s0 []], st_tgt1 as [[] s2]. ss. subst.
+                  eapply CIH; ss.
+          }
+          i. destruct shr as [[[[ths2 im_src] im_tgt] st_src] st_tgt]. destruct SAT. subst.
+          rewrite close_itree_tau.
+          gstep. eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_tauL. split; ss.
+          eapply pind9_fold. eapply lsim_progress.
+          gfinal. left. eapply CIH. des. splits; ss.
+        * rewrite ! close_itree_vis_eventE.
+          rewrite <- ! bind_trigger.
+          gstep. eapply pind9_fold. eapply lsim_UB.
+      + destruct s.
+        * rewrite ! close_itree_vis_sE.
+          rewrite ! embed_state_put. grind.
+          rewrite ! close_itree_vis_sE.
+          rewrite ! embed_state_get. grind.
+          rewrite <- ! bind_trigger.
+          gstep. eapply pind9_fold. eapply lsim_getR. split; ss.
+          eapply pind9_fold. eapply lsim_getL. split; ss.
+          rewrite ! embed_state_ret. grind.
+          rewrite close_itree_vis_sE.
+          rewrite embed_state_put. grind.
+          rewrite <- ! bind_trigger.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_getR. split; ss.
+          rewrite <- ! bind_trigger.
+          rewrite ! embed_state_ret. grind.
+          eapply pind9_fold. eapply lsim_putR. split; ss.
+          eapply pind9_fold. eapply lsim_putL. split; ss.
+          eapply pind9_fold. eapply lsim_tauL. split; ss.
+          rewrite close_itree_tau.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_progress.
+          gfinal. left. eapply CIH.
+          des. destruct st_src2 as [s1 []], st_tgt2 as [[] s2]. splits; ss.
+        * rewrite ! close_itree_vis_sE.
+          rewrite ! embed_state_get. grind.
+          rewrite ! close_itree_vis_sE.
+          rewrite ! embed_state_get. grind.
+          rewrite <- ! bind_trigger.
+          gstep. eapply pind9_fold. eapply lsim_getR. split; ss.
+          eapply pind9_fold. eapply lsim_getL. split; ss.
+          rewrite ! embed_state_ret. grind.
+          eapply pind9_fold. eapply lsim_tauL. split; ss.
+          rewrite close_itree_tau.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_tauR. split; ss.
+          eapply pind9_fold. eapply lsim_progress.
+          gfinal. left. destruct st_src2 as [s1 []], st_tgt2 as [[] s2]. des; ss; subst.
+          eapply CIH. splits; ss.
+          Unshelve. all: exact tt.
   Qed.
 
 End MODADD_THEOREM.

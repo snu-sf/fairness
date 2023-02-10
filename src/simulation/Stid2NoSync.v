@@ -26,8 +26,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE _ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Let shared :=
         (TIdSet.t *
@@ -105,6 +105,8 @@ Section PROOF.
       right. eapply CIH; eauto. eapply ModSimStid.lsim_set_prog. auto.
     }
 
+    { pfold. eapply pind9_fold. eapply lsim_call. }
+
     { pfold. eapply pind9_fold. eapply ModSimNoSync.lsim_yieldL.
       des. esplits; eauto.
       split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND.
@@ -142,8 +144,8 @@ Section MODSIM.
     inv MDSIM.
     set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
-    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
+    set (srcE := programE _ident_src state_src).
+    set (tgtE := programE _ident_tgt state_tgt).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
@@ -171,8 +173,6 @@ Section USERSIM.
     inv MDSIM.
     set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := ((@eventE _ident_src +' cE) +' sE state_src)).
-    set (tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt)).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).

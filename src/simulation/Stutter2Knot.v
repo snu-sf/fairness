@@ -31,8 +31,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Notation srcE := (programE _ident_src state_src).
+  Notation tgtE := (programE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
 
@@ -359,6 +359,9 @@ Section PROOF.
       pfold. eapply pind10_fold. eapply ksim_observe. i.
       specialize (LSIM0 ret). pclearbot. right. eapply CIH; auto.
     }
+
+    { clear IH rr. clarify.
+      pfold. eapply pind10_fold. eapply ksim_call. }
 
     { clear IH rr. clarify. rewrite ! bind_trigger.
       pfold. eapply pind10_fold. eapply ksim_sync; eauto.

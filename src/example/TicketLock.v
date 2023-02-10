@@ -16,7 +16,7 @@ Module TicketLock.
   Notation tk := nat.
 
   Definition lock_loop (myticket: SCMem.val):
-    itree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit
+    itree (programE void unit) unit
     :=
     ITree.iter
       (fun (_: unit) =>
@@ -39,7 +39,7 @@ Module TicketLock.
   Qed.
 
   Definition lock_fun:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit :=
+    ktree (programE void unit) unit unit :=
     fun _ =>
       myticket <- (OMod.call "faa" (next_ticket, 1));;
       _ <- lock_loop myticket;;
@@ -47,7 +47,7 @@ Module TicketLock.
   .
 
   Definition unlock_fun:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit :=
+    ktree (programE void unit) unit unit :=
     fun _ =>
       upd <- (OMod.call "load" now_serving);;
       let upd := SCMem.val_add upd 1 in
@@ -55,8 +55,8 @@ Module TicketLock.
       trigger Yield
   .
 
-  Definition omod: OMod.t :=
-    OMod.mk
+  Definition omod: Mod.t :=
+    Mod.mk
       tt
       (Mod.get_funs [("lock", Mod.wrap_fun lock_fun);
                      ("unlock", Mod.wrap_fun unlock_fun)])
@@ -803,14 +803,13 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree (programE _ (Mod.state AbsLock.mod)) R_src
             → itree
-                ((eventE +' cE) +'
-                                   sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
+                (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) unit)
-        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
+        (src: itree (programE _ (Mod.state AbsLock.mod)) unit)
+        (tgt: itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
         (tid mytk u: nat)
         x
     :
@@ -893,14 +892,13 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
+            → itree (programE _ (Mod.state AbsLock.mod)) R_src
             → itree
-                ((eventE +' cE) +'
-                                   sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
+                (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) unit)
-        (tgt: itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
+        (src: itree (programE _ (Mod.state AbsLock.mod)) unit)
+        (tgt: itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
         (tid mytk now: nat)
         tks mem next l myt own
         (NEQ: mytk <> now)
@@ -1002,8 +1000,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (programE _ (Mod.state AbsLock.mod)) R_src
+            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
@@ -1187,8 +1185,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (programE _ (Mod.state AbsLock.mod)) R_src
+            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
@@ -1273,8 +1271,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (programE _(Mod.state AbsLock.mod)) R_src
+            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
@@ -1352,7 +1350,7 @@ Section SIM.
     iFrame.
   Qed.
 
-  Let src_code_coind tid: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) () :=
+  Let src_code_coind tid: itree (programE _ (Mod.state AbsLock.mod)) () :=
           ((` lr : () + () <-
             (trigger Yield;;;
              ` x_0 : bool * NatMap.t () <- trigger (Get (bool * NatMap.t ()));;
@@ -1400,8 +1398,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (programE _ (Mod.state AbsLock.mod)) R_src
+            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
@@ -1514,7 +1512,7 @@ Section SIM.
       hexploit (tkqueue_val_range_l I1 _ FIND). i. iPureIntro. lia. }
   Qed.
 
-  Let src_code_ind tid: itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) () :=
+  Let src_code_ind tid: itree (programE _ (Mod.state AbsLock.mod)) () :=
                          (trigger Yield;;;
                           ` x : () + () <-
                           (` x_0 : bool * NatMap.t () <- trigger (Get (bool * NatMap.t ()));;
@@ -1564,8 +1562,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (programE _ (Mod.state AbsLock.mod)) R_src
+            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLock.tk)
   (now : nat)
@@ -1837,8 +1835,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree ((eventE +' cE) +' sE (Mod.state AbsLock.mod)) R_src
-            → itree ((eventE +' cE) +' sE (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (programE _ (Mod.state AbsLock.mod)) R_src
+            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLock.tk)
   (now : nat)

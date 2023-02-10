@@ -177,6 +177,7 @@ Section TRANS_CLOS.
     - econs. i. pose proof (fair_break LE FAIR). des.
       specialize (LSIM im_tgt'0 FAIR0). split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
+    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_yieldR; eauto. { exists im_tgt'3. split; eauto. } i. ss. des.
       pose proof (fair_break INV_LE TGT). des. move LSIM at bottom.
@@ -256,6 +257,7 @@ Section WFT_MONO.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM im_tgt1 (fair_mono FAIR)). split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_yieldR; eauto. i. move LSIM at bottom.

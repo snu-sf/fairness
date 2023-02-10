@@ -50,7 +50,7 @@ Module WMod.
         end.
 
     Definition interp_fun (f: function m.(state) m.(ident) m.(mident))
-      : ktree (((@eventE interp_ident) +' cE) +' sE interp_state) f.(A) f.(R) :=
+      : ktree (programE interp_ident interp_state) f.(A) f.(R) :=
       fun (arg: f.(A)) =>
         _ <- trigger Yield;;
 
@@ -82,7 +82,7 @@ Module WMod.
                end) tt
     .
 
-    Definition interp_fun_register (tid: thread_id) (i: m.(ident)): itree (((@eventE interp_ident) +' cE) +' sE interp_state) unit :=
+    Definition interp_fun_register (tid: thread_id) (i: m.(ident)): itree (programE interp_ident interp_state) unit :=
       '(st, ts) <- trigger (@Get _);;
       let ts := NatMap.add tid i ts in
       _ <- trigger (Put (st, ts));;
@@ -92,7 +92,7 @@ Module WMod.
 
     Definition interp_fun_body R (tid: thread_id)
                (step: m.(state) -> output m.(state) m.(ident) m.(mident) R -> Prop)
-      : itree (((@eventE interp_ident) +' cE) +' sE interp_state) R :=
+      : itree (programE interp_ident interp_state) R :=
       ITree.iter
         (fun (_: unit) =>
            b <- trigger (Choose bool);;

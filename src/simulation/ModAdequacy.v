@@ -36,8 +36,8 @@ Section LADEQ.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Notation srcE := (programE _ident_src state_src).
+  Notation tgtE := (programE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
   Let nm_wf_stt: Type -> Type -> WF := nm_wf_stt wf_stt.
@@ -460,7 +460,7 @@ Section ADEQ.
       unfold interp_all. erewrite unfold_interp_sched_nondet_Some.
       2: eauto.
       rename init0 into funs.
-      assert (UB: i = (Vis (inl1 (inl1 Undefined)) (Empty_set_rect _))).
+      assert (UB: i = (Vis (inl1 (inl1 (inl1 Undefined))) (Empty_set_rect _))).
       { revert_until funs. clear. i. unfold prog2ths, numbering in FIND.
         remember 0 as k. clear Heqk. move p after tid. revert_until p. induction p; i; ss.
         destruct a as [fn args]. unfold NatMapP.uncurry in FIND. ss.

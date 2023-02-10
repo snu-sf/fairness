@@ -32,8 +32,8 @@ Section ALL.
       }
     }
     eapply Adequacy.improves_trans.
-    { eapply modsim_adequacy. eapply ModClose_cong.
-      eapply ModAdd_right_cong. eapply TicketLockFair.ticketlock_fair.
+    { eapply modsim_adequacy. eapply ModClose_mono.
+      eapply ModAdd_right_mono. eapply TicketLockFair.ticketlock_fair.
     }
     { eapply usersim_adequacy. eapply LockClientCorrect.correct. }
     Unshelve. all: econs.
