@@ -1219,9 +1219,9 @@ Section STATE.
   Qed.
 
   Global Instance mupd_elim_iupd_edge
-         P E1 E2 p Inv
+         P Q E1 E2 p Inv
     :
-    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 P) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 P).
+    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1231,9 +1231,9 @@ Section STATE.
   Qed.
 
   Global Instance mupd_elim_iupd_arrow
-         P E1 E2 p Inv
+         P Q E1 E2 p Inv
     :
-    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 P) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 P).
+    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".

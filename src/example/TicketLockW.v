@@ -2499,3 +2499,50 @@ Section SIM.
     ModSim.mod_sim AbsLockW.mod TicketLockW.mod.
   Admitted.
 End SIM.
+
+From Fairness Require Import WeakestAdequacy.
+
+Module TicketLockFair.
+  Local Instance Σ: GRA.t:=
+    GRA.of_list [monoRA;
+                 ThreadRA;
+                 (stateSrcRA (Mod.state AbsLockW.mod));
+                 (stateTgtRA (OMod.closed_state TicketLockW.omod (WMem.mod)));
+                 (identSrcRA (Mod.ident AbsLockW.mod));
+                 (identTgtRA (OMod.closed_ident TicketLockW.omod (WMem.mod)));
+                 ObligationRA.t;
+                 (ArrowRA (OMod.closed_ident TicketLockW.omod (WMem.mod)));
+                 EdgeRA;
+                 (@FiniteMap.t (OneShot.t unit));
+                 wmemRA;
+                 (Auth.t (NatMapRA.t TicketLockW.tk));
+                 (Auth.t (Excl.t nat));
+                 (Auth.t (Excl.t (((nat * nat) * View.t))));
+                 (thread_id ==> (Auth.t (Excl.t nat)))%ra].
+
+  Local Instance MONORA: @GRA.inG monoRA Σ := (@GRA.InG _ _ 0 (@eq_refl _ _)).
+  Local Instance THDRA: @GRA.inG ThreadRA Σ := (@GRA.InG _ _ 1 (@eq_refl _ _)).
+  Local Instance STATESRC: @GRA.inG (stateSrcRA (Mod.state AbsLockW.mod)) Σ := (@GRA.InG _ _ 2 (@eq_refl _ _)).
+  Local Instance STATETGT: @GRA.inG (stateTgtRA (OMod.closed_state TicketLockW.omod (WMem.mod))) Σ := (@GRA.InG _ _ 3 (@eq_refl _ _)).
+  Local Instance IDENTSRC: @GRA.inG (identSrcRA (Mod.ident AbsLockW.mod)) Σ := (@GRA.InG _ _ 4 (@eq_refl _ _)).
+  Local Instance IDENTTGT: @GRA.inG (identTgtRA (OMod.closed_ident TicketLockW.omod (WMem.mod))) Σ := (@GRA.InG _ _ 5 (@eq_refl _ _)).
+  Local Instance OBLGRA: @GRA.inG ObligationRA.t Σ := (@GRA.InG _ _ 6 (@eq_refl _ _)).
+  Local Instance ARROWRA: @GRA.inG (ArrowRA (OMod.closed_ident TicketLockW.omod (WMem.mod))) Σ := (@GRA.InG _ _ 7 (@eq_refl _ _)).
+  Local Instance EDGERA: @GRA.inG EdgeRA Σ := (@GRA.InG _ _ 8 (@eq_refl _ _)).
+  Local Instance ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ := (@GRA.InG _ _ 9 (@eq_refl _ _)).
+  Local Instance WMEMRA: @GRA.inG wmemRA Σ := (@GRA.InG _ _ 10 (@eq_refl _ _)).
+
+  Local Instance NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLockW.tk)) Σ := (@GRA.InG _ _ 11 (@eq_refl _ _)).
+  Local Instance AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ := (@GRA.InG _ _ 12 (@eq_refl _ _)).
+  Local Instance AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * View.t)))) Σ := (@GRA.InG _ _ 13 (@eq_refl _ _)).
+  Local Instance IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ := (@GRA.InG _ _ 14 (@eq_refl _ _)).
+
+  Let init_res: Σ. Admitted.
+
+  Lemma ticketlock_fair:
+    ModSim.mod_sim AbsLockW.mod TicketLockW.mod.
+  Proof.
+    eapply WSim.context_sim_implies_modsim. econs.
+    {
+  Admitted.
+End TicketLockFair.
