@@ -4,7 +4,7 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib EventCategory WFLib FairBeh NatStructs Any Lens.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Any.
 
 Set Implicit Arguments.
 
@@ -138,56 +138,3 @@ Module Mod.
         if string_dec fn fn_hd then Some body_hd else get_funs tl fn
     end.
 End Mod.
-
-Section LENS.
-
-  Variable S: Type.
-  Variable V: Type.
-
-  Variable l : Lens.t S V.
-
-  Definition apply_lens X : (V -> V * X) -> (S -> S * X) :=
-    fun rmw s =>
-      (Lens.set l (fst (rmw (Lens.view l s))) s, snd (rmw (Lens.view l s))).
-
-  Definition embed_lens X (se : sE V X) : sE S X :=
-    match se with
-    | Rmw state => Rmw (apply_lens state)
-    end.
-
-  Definition map_lens {E R} : itree (E +' sE V) R -> itree (E +' sE S) R :=
-    map_event (embed_right embed_lens).
-
-End LENS.
-
-Section ADD.
-
-  Import Mod.
-  Variable M1 M2 : Mod.t.
-
-  Definition embed_l {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
-    map_event (embed_left (embed_left (embed_left (@embed_event_l M1.(ident) M2.(ident)))))
-      (map_event (embed_right (embed_lens (@fstl M1.(state) M2.(state)))) itr).
-
-  Definition embed_r {R} (itr : itree (programE _ _) R) : itree (programE _ _) R :=
-    map_event (embed_left (embed_left (embed_left (@embed_event_r M1.(ident) M2.(ident)))))
-      (map_event (embed_right (embed_lens (@sndl M1.(state) M2.(state)))) itr).
-
-  Definition add_funs : fname -> option (ktree _ Any.t Any.t) :=
-    fun fn =>
-      match M1.(funs) fn, M2.(funs) fn with
-      | Some fn_body, None => Some (fun args => embed_l (fn_body args))
-      | None, Some fn_body => Some (fun args => embed_r (fn_body args))
-      | Some _, Some _ => Some (fun args => Vis (inl1 (inl1 (inl1 Undefined))) (Empty_set_rect _))
-      | None , None => None
-      end.
-
-  Definition ModAdd : Mod.t :=
-    {|
-      state := state M1 * state M2;
-      ident := id_sum (ident M1) (ident M2);
-      st_init := (st_init M1, st_init M2);
-      funs := add_funs;
-    |}.
-
-End ADD.
