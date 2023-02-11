@@ -270,22 +270,16 @@ Section PROOF.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
-    { pfold. eapply pind9_fold. econs 6; eauto.
-      split; [|ss]. destruct LSIM0 as [LSIM IND].
-      eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto.
-    }
-    { pfold. eapply pind9_fold. econs 7; eauto. }
+    { pfold. eapply pind9_fold. econs 6; eauto. }
 
-    { pfold. eapply pind9_fold. econs 8; eauto.
+    { pfold. eapply pind9_fold. econs 7; eauto.
       des.
       exists (fun idx => match idx with
                  | inl t => inl (im_src_th t)
                  | inr i => inr (im_src1 i)
                  end).
       esplits.
-      { clear - FAIR. ii. destruct i; ss. specialize (FAIR i). des_ifs.
+      { clear - FAIR. ii. destruct i; ss. specialize (FAIR i). unfold prism_fmap in *; ss. des_ifs.
         - econs 2. auto.
         - rewrite FAIR. auto.
       }
@@ -295,14 +289,20 @@ Section PROOF.
       all: ss; eauto.
     }
 
+    { pfold. eapply pind9_fold. econs 8; eauto.
+      split; [|ss]. destruct LSIM0 as [LSIM IND].
+      eapply IH in IND. punfold IND.
+      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
+      all: eauto.
+    }
     { pfold. eapply pind9_fold. econs 9; eauto.
+      i. specialize (LSIM0 x).
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 10; eauto.
-      i. specialize (LSIM0 x).
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
@@ -314,20 +314,8 @@ Section PROOF.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
-    { pfold. eapply pind9_fold. econs 12; eauto.
-      split; [|ss]. destruct LSIM0 as [LSIM IND].
-      eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto.
-    }
-    { pfold. eapply pind9_fold. econs 13; eauto.
-      split; [|ss]. destruct LSIM0 as [LSIM IND].
-      eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
-      all: eauto.
-    }
 
-    { pfold. eapply pind9_fold. econs 14; eauto.
+    { pfold. eapply pind9_fold. econs 12; eauto.
       i. specialize (LSIM0 _ FAIR).
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
@@ -338,14 +326,14 @@ Section PROOF.
       clear - FAIR. specialize (FAIR (inl tid)). ss.
     }
 
-    { pfold. eapply pind9_fold. econs 15; eauto.
+    { pfold. eapply pind9_fold. econs 13; eauto.
       i. specialize (LSIM0 ret). pclearbot.
       right. eapply CIH; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 16. }
+    { pfold. eapply pind9_fold. econs 14. }
 
-    { pfold. eapply pind9_fold. econs 17; eauto.
+    { pfold. eapply pind9_fold. econs 15; eauto.
       des. unfold Is in INVS. des. subst.
       set (ost':= NatMap.add tid (os1, ot1) ost).
       assert (WFOST': nm_wf_pair ths ost').
@@ -362,7 +350,7 @@ Section PROOF.
                  end).
       splits.
       { clear - LT IMSRC VALS WFOST WFOST'.
-        ii. destruct i; ss. destruct (tids_fmap tid ths n) eqn:FM; auto.
+        ii. unfold prism_fmap in *; ss. destruct i; ss. destruct (tids_fmap tid ths n) eqn:FM; auto.
         - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
           des_ifs.
           2:{ exfalso. eapply NatMapP.F.in_find_iff; eauto.
@@ -400,7 +388,7 @@ Section PROOF.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 18; eauto. instantiate (1:=(ths_r, r_shared)).
+    { pfold. eapply pind9_fold. econs 16; eauto. instantiate (1:=(ths_r, r_shared)).
       { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
       { ur. auto. }
@@ -414,7 +402,7 @@ Section PROOF.
       { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto. instantiate (1:=shared_thsRA ost').
 
-      - exists ost'. splits; auto. i. specialize (IMSRC _ IN). destruct (tid_dec tid0 tid); clarify.
+      - exists ost'. splits; auto. i. specialize (IMSRC _ IN). unfold prism_fmap in *; ss. destruct (tid_dec tid0 tid); clarify.
         + hexploit IMSRC. eapply shared_thsRA_th_has_wf_find; eauto.
           i. subst ost'. rewrite nm_find_add_eq in FIND. clarify.
           eapply clos_trans_n1_trans. 2: eapply H. econs 1. econs 1. econs 1. auto.
@@ -425,7 +413,7 @@ Section PROOF.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 19; eauto. instantiate (1:=(ths_r, r_shared)).
+    { pfold. eapply pind9_fold. econs 17; eauto. instantiate (1:=(ths_r, r_shared)).
       { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
       { ur. auto. }
@@ -452,7 +440,7 @@ Section PROOF.
       splits.
 
       { clear - IMSRC VALID TGT WFOST WFOST'.
-        ii. destruct i; ss. destruct (tids_fmap tid ths1 n) eqn:FM; auto.
+        ii. unfold prism_fmap in *; ss. destruct i; ss. destruct (tids_fmap tid ths1 n) eqn:FM; auto.
         - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss.
           des_ifs.
           2:{ exfalso. eapply NatMapP.F.in_find_iff; eauto.
@@ -484,13 +472,13 @@ Section PROOF.
         revert IMSRC VALID TGT WFOST WFOST'. clear_upto tid. i. subst.
         i. econs 1. des_ifs; ss.
         + subst ost'. rewrite nm_find_add_eq in FIND. clarify. econs 1. econs 2; auto.
-        + rewrite FIND in Heq. clarify. econs 1. econs 2; auto.
+        + unfold prism_fmap in *; ss. rewrite FIND in Heq. clarify. econs 1. econs 2; auto.
           clear - n IN TGT. specialize (TGT (inl tid0)). ss. unfold tids_fmap in TGT. des_ifs.
         + rewrite FIND in Heq. ss.
       - eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
-    { pfold. eapply pind9_fold. econs 20; eauto. pclearbot. right. eapply CIH; eauto. }
+    { pfold. eapply pind9_fold. econs 18; eauto. pclearbot. right. eapply CIH; eauto. }
 
   Qed.
 
@@ -506,10 +494,10 @@ Section PROOF.
         os ot
         (INVS: Is (ths, im_src_th1, im_tgt1) ths_r)
         (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
-        (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths)))
+        (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths)))
     :
     exists im_src_th2,
-      (<<SRC: fair_update im_src1 (imap_comb im_src_th2 im_src_us) (sum_fmap_l (tids_fmap tid ths))>>) /\
+      (<<SRC: fair_update im_src1 (imap_comb im_src_th2 im_src_us) (prism_fmap inlp (tids_fmap tid ths))>>) /\
         (<<INVS: Is (ths, im_src_th2, im_tgt2) ths_r>>).
   Proof.
     unfold Is in INVS. des. clarify.
@@ -525,7 +513,7 @@ Section PROOF.
                else (im_src_th1 t)).
     splits.
 
-    - ii. destruct i; ss. unfold tids_fmap. destruct (Nat.eq_dec n tid) eqn:EQT; clarify.
+    - ii. destruct i; ss. unfold tids_fmap, prism_fmap in *; ss. destruct (Nat.eq_dec n tid) eqn:EQT; clarify.
       destruct (NatMapP.F.In_dec ths n) eqn:INT; ss; clarify.
       2:{ des_ifs; ss. }
       clear EQT INT.
@@ -536,7 +524,7 @@ Section PROOF.
       }
       des_ifs. specialize (IMSRC _ i _ _ FIND). econs 1. eapply IMSRC.
 
-    - exists ost. splits; auto. i. des_ifs.
+    - exists ost. splits; auto. i. unfold prism_fmap in *; ss. des_ifs.
       + ss. hexploit shared_thsRA_th_has_wf_find. eapply VALS. intro FIND2.
         ss; rewrite FIND in FIND2; clarify.
         econs 1. econs 1. econs 2; auto.

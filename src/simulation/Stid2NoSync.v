@@ -70,36 +70,30 @@ Section PROOF.
     { pfold. eapply pind9_fold. econs 5; eauto.
       split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
     }
-    { pfold. eapply pind9_fold. econs 6; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 7; eauto. }
-    { pfold. eapply pind9_fold. econs 8; eauto.
+    { pfold. eapply pind9_fold. econs 6; eauto. }
+    { pfold. eapply pind9_fold. econs 7; eauto.
       des. esplits; eauto.
       split; ss. destruct LSIM as [LSIM IND]. eapply IH in IND. punfold IND.
     }
+    { pfold. eapply pind9_fold. econs 8; eauto.
+      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
+    }
     { pfold. eapply pind9_fold. econs 9; eauto.
+      i. specialize (LSIM0 x).
       split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
     }
     { pfold. eapply pind9_fold. econs 10; eauto.
-      i. specialize (LSIM0 x).
       split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
     }
     { pfold. eapply pind9_fold. econs 11; eauto.
       split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
     }
     { pfold. eapply pind9_fold. econs 12; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 13; eauto.
-      split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
-    }
-    { pfold. eapply pind9_fold. econs 14; eauto.
       i. specialize (LSIM0 _ FAIR).
       split; ss. destruct LSIM0 as [LSIM IND]. eapply IH in IND. punfold IND.
     }
 
-    { pfold. eapply pind9_fold. econs 15; eauto.
+    { pfold. eapply pind9_fold. econs 13; eauto.
       i. specialize (LSIM0 ret). pclearbot.
       split; ss. eapply pind9_fold. eapply ModSimNoSync.lsim_progress.
       right. eapply CIH; eauto. eapply ModSimStid.lsim_set_prog. auto.

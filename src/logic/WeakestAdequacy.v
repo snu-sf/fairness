@@ -252,7 +252,7 @@ Module WSim.
                          ((own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
           (INV: (default_I ths im_src im_tgt0 st_src st_tgt **
                               mset_all (nth_default True%I I) (topset I)) r_shared)
-          (FUPD: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap tid ths)))
+          (FUPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
           (WF: URA.wf ((r_shared ⋅ r) ⋅ r_ctx))
       :
       (@lsim

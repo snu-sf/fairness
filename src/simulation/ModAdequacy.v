@@ -71,9 +71,9 @@ Section LADEQ.
               (<<OSWF: (forall tid', Th.In tid' ths_src -> Th.In tid' os) /\ (Th.find tid os = None)>>) /\
               (<<LSIM:
                 forall im_tgt0
-                  (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
+                  (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inlp (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
                 exists im_src0,
-                  (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
+                  (fair_update im_src im_src0 (prism_fmap inlp (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
                     (ModSimStutter.lsim (wf_stt) I tid (local_RR I RR tid)
                                         ps pt (sum_of_resources rs_ctx) (o, src) tgt
                                         (NatSet.add tid (key_set ths_src),
@@ -175,8 +175,7 @@ Section LADEQ.
       rewrite <- nm_find_some_rm_add_eq; auto. eapply nm_elements_cons_find_some; eauto.
     }
     { r_wf IND0. }
-    { instantiate (1:=im_tgt). clear. ii. unfold sum_fmap_l. des_ifs. }
-    (* { instantiate (2:=im_tgt). instantiate (1:=im_tgt). clear. ii. unfold sum_fmap_l. des_ifs. } *)
+    { instantiate (1:=im_tgt). clear. ii. unfold prism_fmap; ss. des_ifs. }
     i; des.
     assert (WFPAIR: nm_wf_pair (NatMap.remove (elt:=thread _ident_src (sE state_src) R0) tid1 ths_src) rs_local).
     { hexploit list_forall4_implies_forall2_3. eauto.
@@ -498,7 +497,7 @@ Section ADEQ.
       specialize (funs0 _ _ _ _ _ _ _ INV _ _ THS VALID _ UPD). des.
       esplits; eauto. i. specialize (funs0 _ _ _ _ _ _ _ INV1 VALID1 _ TGT). des.
       esplits. eapply SRC. i. instantiate (1:=o).
-      pfold. eapply pind6_fold. rewrite <- bind_trigger. econs 7.
+      pfold. eapply pind6_fold. rewrite <- bind_trigger. eapply lsim_UB.
     }
     rewrite nm_find_add_neq in FIND1, FIND2; auto.
     specialize (IHp (S k)). eapply nm_forall2_implies_find_some in IHp; eauto.

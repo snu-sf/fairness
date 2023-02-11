@@ -96,8 +96,8 @@ Section NAT.
     : local_sim to_shared_rel_nat RR src tgt.
   Proof.
     ii. move SIM at bottom.
-    assert (TID_TGT' : @fair_update _ wf_tgt (wfemb ∘ im_tgt0) (wfemb ∘ im_tgt1) (sum_fmap_l (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))).
-    { ii. specialize (TID_TGT i). destruct i as [i|i]; ss.
+    assert (TID_TGT' : @fair_update _ wf_tgt (wfemb ∘ im_tgt0) (wfemb ∘ im_tgt1) (prism_fmap inlp (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))).
+    { ii. specialize (TID_TGT i). unfold prism_fmap in *; ss. destruct i as [i|i]; ss.
       - des_ifs. unfold compose. f_equal. ss.
       - unfold compose. f_equal. ss.
     }
@@ -119,12 +119,10 @@ Section NAT.
     - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs.
     - econs. des. exists im_src0. splits; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM x). split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM (wfemb ∘ im_tgt1) (wfemb_mono FAIR)). split; ss. eapply IH; ss. destruct LSIM. ss.
