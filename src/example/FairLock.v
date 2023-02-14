@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export
      ITreeLib WFLib FairBeh Mod pind Axioms
-     OpenMod SCM Red IRed.
+     Linking SCM Red IRed.
 From PromisingSEQ Require Import View.
 From Ordinal Require Export ClassicalHessenberg.
 From Fairness Require Import NatStructsLow.
@@ -14,21 +14,21 @@ Set Implicit Arguments.
 Module AbsLock.
 
   Definition lock_fun
-    : ktree (((@eventE thread_id) +' cE) +' (sE (bool * NatMap.t unit)%type)) unit unit :=
+    : ktree (programE thread_id (bool * NatMap.t unit)%type) unit unit :=
     fun _ =>
       _ <- trigger Yield;;
       tid <- trigger (GetTid);;
-      '(own, ts) <- trigger (@Get _);;
+      '(own, ts) <- trigger (Get id);;
       let ts := NatMap.add tid tt ts in
       _ <- trigger (Put (own, ts));;
       _ <- (ITree.iter
              (fun (_: unit) =>
                 _ <- trigger Yield;;
-                '(own, ts) <- trigger (@Get _);;
+                '(own, ts) <- trigger (Get id);;
                 if (Bool.eqb own true)
                 then Ret (inl tt)
                 else Ret (inr tt)) tt);;
-      '(_, ts) <- trigger (@Get _);;
+      '(_, ts) <- trigger (Get id);;
       let ts := NatMap.remove tid ts in
       _ <- trigger (Put (true, ts));;
       _ <- trigger (Fair (fun i => if tid_dec i tid then Flag.success
@@ -38,10 +38,10 @@ Module AbsLock.
       Ret tt.
 
   Definition unlock_fun
-    : ktree (((@eventE thread_id) +' cE) +' (sE (bool * NatMap.t unit)%type)) unit unit :=
+    : ktree (programE thread_id (bool * NatMap.t unit)%type) unit unit :=
     fun _ =>
       _ <- trigger Yield;;
-      '(own, ts) <- trigger (@Get _);;
+      '(own, ts) <- trigger (Get id);;
       if (Bool.eqb own true)
       then _ <- trigger (Put (false, ts));; _ <- trigger Yield;; Ret tt
       else UB.
@@ -59,23 +59,23 @@ Module AbsLockW.
   Definition st := (((bool * View.t) * bool) * NatMap.t unit)%type.
 
   Definition lock_fun
-    : ktree (((@eventE thread_id) +' cE) +' (sE st)) View.t View.t :=
+    : ktree (programE thread_id st) View.t View.t :=
     fun tvw =>
       _ <- trigger Yield;;
       tid <- trigger (GetTid);;
-      '(own_lvw, ts) <- trigger (@Get _);;
+      '(own_lvw, ts) <- trigger (Get id);;
       let ts := NatMap.add tid tt ts in
       _ <- trigger (Put (own_lvw, ts));;
       _ <- (ITree.iter
              (fun (_: unit) =>
                 _ <- trigger Yield;;
-                '(((own, _), _), _) <- trigger (@Get _);;
+                '(((own, _), _), _) <- trigger (Get id);;
                 match own with
                 | true => Ret (inl tt)
                 | false => Ret (inr tt)
                 end)
              tt);;
-      '(((_, tvw_lock), ing), ts) <- trigger (@Get _);;
+      '(((_, tvw_lock), ing), ts) <- trigger (Get id);;
       if (ing: bool)
       (* then UB *)
       then trigger (Choose (void)) >>= (Empty_set_rect _)
@@ -93,17 +93,17 @@ Module AbsLockW.
         Ret tvw'.
 
   Definition unlock_fun
-    : ktree (((@eventE thread_id) +' cE) +' (sE st)) View.t View.t :=
+    : ktree (programE thread_id st) View.t View.t :=
     fun tvw =>
       _ <- trigger Yield;;
-      '(((own, lvw), ing), ts) <- trigger (@Get _);;
+      '(((own, lvw), ing), ts) <- trigger (Get id);;
       if (excluded_middle_informative (View.le lvw tvw))
       then
         match own, ing with
         | true, false =>
             _ <- trigger (Put (((own, lvw), true), ts));;
             _ <- trigger Yield;;
-            '(((_, _), _), ts) <- trigger (@Get _);;
+            '(((_, _), _), ts) <- trigger (Get id);;
             (* tvw_V <- trigger (Choose (View.t));; *)
             '(exist _ tvw_V _) <- trigger (Choose (sig (fun tvw' => View.le tvw tvw')));;
             _ <- trigger (Put (((false, tvw_V), false), ts));;

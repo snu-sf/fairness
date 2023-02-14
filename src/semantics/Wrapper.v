@@ -50,25 +50,25 @@ Module WMod.
         end.
 
     Definition interp_fun (f: function m.(state) m.(ident) m.(mident))
-      : ktree (((@eventE interp_ident) +' cE) +' sE interp_state) f.(A) f.(R) :=
+      : ktree (programE interp_ident interp_state) f.(A) f.(R) :=
       fun (arg: f.(A)) =>
         _ <- trigger Yield;;
 
         tid <- trigger (GetTid);;
-        '(st, ts) <- trigger (@Get _);;
+        '(st, ts) <- trigger (Get id);;
         let ts := NatMap.add tid f.(type) ts in
         _ <- trigger (Put (st, ts));;
-        _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
+        _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
 
         ITree.iter
           (fun (_: unit) =>
              b <- trigger (Choose bool);;
              if (b: bool)
              then
-               _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
+               _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
                _ <- trigger Yield;; Ret (inl tt)
              else
-               '(st, ts) <- trigger (@Get _);;
+               '(st, ts) <- trigger (Get id);;
                next <- trigger (Choose (sig (f.(body) arg st)));;
                match proj1_sig next with
                | normal st r fm =>
@@ -82,25 +82,25 @@ Module WMod.
                end) tt
     .
 
-    Definition interp_fun_register (tid: thread_id) (i: m.(ident)): itree (((@eventE interp_ident) +' cE) +' sE interp_state) unit :=
-      '(st, ts) <- trigger (@Get _);;
+    Definition interp_fun_register (tid: thread_id) (i: m.(ident)): itree (programE interp_ident interp_state) unit :=
+      '(st, ts) <- trigger (Get id);;
       let ts := NatMap.add tid i ts in
       _ <- trigger (Put (st, ts));;
-      _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
+      _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp)));;
       Ret tt
     .
 
     Definition interp_fun_body R (tid: thread_id)
                (step: m.(state) -> output m.(state) m.(ident) m.(mident) R -> Prop)
-      : itree (((@eventE interp_ident) +' cE) +' sE interp_state) R :=
+      : itree (programE interp_ident interp_state) R :=
       ITree.iter
         (fun (_: unit) =>
            b <- trigger (Choose bool);;
            if (b: bool) then
-             _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
+             _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
              _ <- trigger Yield;; Ret (inl tt)
            else
-             '(st, ts) <- trigger (@Get _);;
+             '(st, ts) <- trigger (Get id);;
              next <- trigger (Choose (sig (step st)));;
              match proj1_sig next with
              | normal st r fm =>
@@ -134,11 +134,11 @@ Module WMod.
       =
         b <- trigger (Choose bool);;
         if (b: bool) then
-          _ <- trigger (Fair (sum_fmap_l (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
+          _ <- trigger (Fair (prism_fmap inlp (fun i => if tid_dec i tid then Flag.fail else Flag.emp)));;
           _ <- trigger Yield;;
           tau;; interp_fun_body tid step
         else
-          '(st, ts) <- trigger (@Get _);;
+          '(st, ts) <- trigger (Get id);;
           next <- trigger (Choose (sig (step st)));;
           match proj1_sig next with
           | normal st r fm =>

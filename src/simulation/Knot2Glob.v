@@ -31,8 +31,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Notation srcE := (programE _ident_src state_src).
+  Notation tgtE := (programE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
 
@@ -136,15 +136,15 @@ Section PROOF.
                     nm_pop tid0 ths_tgt = Some (th_tgt, thsr0) /\
                     (b = true ->
                      forall im_tgt0 : imap ident_tgt wf_tgt,
-                       fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr0))) ->
+                       fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr0))) ->
                          upaco10 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl0 thsr0 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_local))) true true
-                                (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
+                                (b, Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) th_tgt
                                 (ms, im_tgt0, st_src, st_tgt) o1) /\
                     (b = false ->
                      forall im_tgt0 : imap ident_tgt wf_tgt,
-                       fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr0))) ->
+                       fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr0))) ->
                        exists (im_src0 : imap ident_src wf_src),
-                         fair_update ms im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl0))) /\
+                         fair_update ms im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl0))) /\
                            (upaco10 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl0 thsr0 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_local))) true true
                                       (b, th_src) th_tgt
                                       (im_src0, im_tgt0, st_src, st_tgt) o1))))
@@ -199,13 +199,13 @@ Section PROOF.
 
     - hexploit KSIM2; clear KSIM2 KSIM3; ss.
       eauto. i.
-      assert (CHANGE: src_temp = interp_all st_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0)) tid0).
+      assert (CHANGE: src_temp = interp_all st_src (Th.add tid0 (Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0)) tid0).
       { unfold interp_all. erewrite unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
         rewrite interp_thread_vis_yield. ired. rewrite TEMP.
         assert (RA: Th.remove tid (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)) = nm_proj_v2 ths_src).
         { rewrite nm_find_none_rm_add_eq; auto. unfold nm_proj_v2. rewrite NatMapP.F.map_o. rewrite THSRC. ss. }
         rewrite ! RA.
-        assert (RA1: Th.add tid0 th_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0)) = nm_proj_v2 ths_src).
+        assert (RA1: Th.add tid0 th_src (Th.add tid0 (Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0)) = nm_proj_v2 ths_src).
         { rewrite nm_add_add_eq. unfold nm_proj_v2. replace th_src with (snd (true, th_src)); auto.
           rewrite nm_map_add_comm_eq. f_equal. apply nm_pop_res_is_add_eq in KSIM0. auto. }
         rewrite ! RA1.
@@ -213,7 +213,7 @@ Section PROOF.
         { rewrite key_set_pull_add_eq. unfold NatSet.remove, nm_proj_v2, key_set. rewrite nm_find_none_rm_add_eq; auto.
           rewrite 2 NatMapP.F.map_o. rewrite THSRC. ss. }
         rewrite RA2.
-        assert (RA3: (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0))))) = key_set (nm_proj_v2 ths_src)).
+        assert (RA3: (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0))))) = key_set (nm_proj_v2 ths_src)).
         { rewrite key_set_pull_add_eq. unfold NatSet.add, NatSet.remove, nm_proj_v2, key_set.
           rewrite nm_add_rm_eq. rewrite nm_add_add_eq. apply nm_pop_res_is_add_eq in KSIM0. rewrite KSIM0.
           rewrite <- 2 nm_map_add_comm_eq. ss. }
@@ -341,18 +341,18 @@ Section PROOF.
                     nm_pop tid0 (Th.add tid (ktr_tgt ()) ths_tgt) = Some (th_tgt, thsr1) /\
                     (b = true ->
                      (forall im_tgt0 : imap ident_tgt wf_tgt,
-                         fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1))) ->
+                         fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr1))) ->
                          exists (o0 : T (wf_stt R0 R1)),
                            lt (wf_stt R0 R1) o0 o /\
                              upaco10
                                (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl1 thsr1 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))) true true
-                               (b, Vis ((|Yield)|)%sum (fun _ : () => th_src)) th_tgt
+                               (b, Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) th_tgt
                                (ms, im_tgt0, st_src, st_tgt) o0)) /\
                     (b = false ->
                      (forall im_tgt0 : imap ident_tgt wf_tgt,
-                         fair_update mt im_tgt0 (sum_fmap_l (tids_fmap tid0 (key_set thsr1))) ->
+                         fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr1))) ->
                          exists (im_src0 : imap ident_src wf_src) o0,
-                           fair_update ms im_src0 (sum_fmap_l (tids_fmap tid0 (key_set thsl1))) /\
+                           fair_update ms im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl1))) /\
                              lt (wf_stt R0 R1) o0 o /\
                              (upaco10
                                 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl1 thsr1 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))) true true
@@ -360,8 +360,8 @@ Section PROOF.
                                 (im_src0, im_tgt0, st_src, st_tgt) o0)))))
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
-           (interp_all st_src (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
-           (interp_all st_tgt (Th.add tid (Vis ((|Yield)|)%sum ktr_tgt) ths_tgt) tid).
+           (interp_all st_src (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src)) tid)
+           (interp_all st_tgt (Th.add tid (Vis (((|Yield)|)|)%sum ktr_tgt) ths_tgt) tid).
   Proof.
     match goal with
     | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src_temp _ => remember _src_temp as src_temp eqn:TEMP
@@ -375,14 +375,14 @@ Section PROOF.
     rewrite interp_state_tau.
     do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
     specialize (KSIM0 tid0). revert IHo; des; i.
-    { assert (POPT: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (x <- ITree.trigger ((|Yield)|)%sum;; ktr_tgt x) ths_tgt)))) = None).
+    { assert (POPT: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (x <- ITree.trigger (((|Yield)|)|)%sum;; ktr_tgt x) ths_tgt)))) = None).
       { rewrite key_set_pull_add_eq. unfold NatSet.remove, NatSet.add. rewrite nm_find_none_rm_add_eq.
         erewrite <- key_set_pull_add_eq. unfold key_set. eapply nm_pop_none_map1; eauto.
         unfold key_set. rewrite NatMapP.F.map_o. rewrite THTGT. ss. }
       rewrite POPT; clear POPT.
       rewrite ! bind_trigger. rewrite interp_sched_vis. ss. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseR. intro x; destruct x. }
-    assert (POPT: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (x <- ITree.trigger ((|Yield)|)%sum;; ktr_tgt x) ths_tgt)))) = Some (tt, key_set thsr1)).
+    assert (POPT: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (x <- ITree.trigger (((|Yield)|)|)%sum;; ktr_tgt x) ths_tgt)))) = Some (tt, key_set thsr1)).
     { rewrite key_set_pull_add_eq. unfold NatSet.remove, NatSet.add. rewrite nm_find_none_rm_add_eq.
       erewrite <- key_set_pull_add_eq. unfold key_set. eapply nm_pop_some_map1 in KSIM1. erewrite KSIM1. ss.
       unfold key_set. rewrite NatMapP.F.map_o. rewrite THTGT. ss.
@@ -395,16 +395,16 @@ Section PROOF.
 
     - hexploit KSIM2; clear KSIM2 KSIM3; ss. eauto.
       i. revert IHo; des; i.
-      assert (CHANGE: src_temp = interp_all st_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)) tid0).
+      assert (CHANGE: src_temp = interp_all st_src (Th.add tid0 (Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)) tid0).
       { rewrite TEMP. unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; auto using nm_find_add_eq.
         rewrite ! interp_thread_vis_yield. ired.
-        assert (RA: Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)) = Th.add tid0 th_src (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1))).
+        assert (RA: Th.add tid (ktr_src ()) (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src)) = Th.add tid0 th_src (Th.add tid0 (Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1))).
         { rewrite ! nm_add_add_eq. unfold nm_proj_v2. apply nm_pop_res_is_add_eq in KSIM0.
           replace (ktr_src ()) with (snd (true, ktr_src ())); auto. replace th_src with (snd (true, th_src)); auto.
           rewrite ! nm_map_add_comm_eq. rewrite KSIM0. ss.
         }
         rewrite ! RA.
-        assert (RA1: (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis ((|Yield)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)))))).
+        assert (RA1: (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)))))).
         { unfold NatSet.add, NatSet.remove. rewrite <- !key_set_pull_rm_eq. erewrite <- !key_set_pull_add_eq. f_equal.
           rewrite ! nm_add_rm_eq. rewrite ! nm_add_add_eq. unfold nm_proj_v2. apply nm_pop_res_is_add_eq in KSIM0.
           rewrite ! nm_map_add_comm_eq. rewrite KSIM0. ss.
@@ -417,7 +417,7 @@ Section PROOF.
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid0 th_tgt thsr1) tid0)
       end.
       2:{ unfold interp_all.
-          replace (Th.add tid (ktr_tgt ()) (Th.add tid (Vis ((|Yield)|)%sum (fun x : () => ktr_tgt x)) ths_tgt)) with (Th.add tid0 th_tgt thsr1).
+          replace (Th.add tid (ktr_tgt ()) (Th.add tid (Vis (((|Yield)|)|)%sum (fun x : () => ktr_tgt x)) ths_tgt)) with (Th.add tid0 th_tgt thsr1).
           2:{ rewrite nm_add_add_eq. apply nm_pop_res_is_add_eq in KSIM1. auto. }
           replace (NatSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr1))) with (key_set thsr1).
           2:{ rewrite key_set_pull_add_eq. unfold NatSet.remove. rewrite nm_find_none_rm_add_eq. auto.
@@ -450,7 +450,7 @@ Section PROOF.
       rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis.
       rewrite <- bind_trigger. guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid0.
-      assert (POPS: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = Some (tt, key_set thsl1)).
+      assert (POPS: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = Some (tt, key_set thsl1)).
       { rewrite key_set_pull_add_eq. unfold NatSet.remove, NatSet.add. rewrite nm_find_none_rm_add_eq.
         erewrite <- key_set_pull_add_eq. unfold key_set, nm_proj_v2. rewrite nm_map_add_comm_eq.
         rewrite nm_map_map_eq. erewrite nm_pop_some_map1; eauto.
@@ -466,7 +466,7 @@ Section PROOF.
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid0 th_tgt thsr1) tid0)
       end.
       2:{ unfold interp_all.
-          replace (Th.add tid (ktr_tgt ()) (Th.add tid (Vis ((|Yield)|)%sum (fun x : () => ktr_tgt x)) ths_tgt)) with (Th.add tid0 th_tgt thsr1).
+          replace (Th.add tid (ktr_tgt ()) (Th.add tid (Vis (((|Yield)|)|)%sum (fun x : () => ktr_tgt x)) ths_tgt)) with (Th.add tid0 th_tgt thsr1).
           2:{ rewrite nm_add_add_eq. apply nm_pop_res_is_add_eq in KSIM1. auto. }
           replace (NatSet.remove tid0 (key_set (Th.add tid0 th_tgt thsr1))) with (key_set thsr1).
           2:{ rewrite key_set_pull_add_eq. unfold NatSet.remove. rewrite nm_find_none_rm_add_eq. auto.
@@ -478,7 +478,7 @@ Section PROOF.
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid0 th_src (nm_proj_v2 thsl1)) tid0)
       end.
       2:{ unfold interp_all.
-          replace (Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid0 th_src (nm_proj_v2 thsl1)).
+          replace (Th.add tid (ktr_src ()) (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid0 th_src (nm_proj_v2 thsl1)).
           2:{ rewrite nm_add_add_eq. apply nm_pop_res_is_add_eq in KSIM0. unfold nm_proj_v2.
               replace (ktr_src ()) with (snd (true, ktr_src ())); auto. replace th_src with (snd (false, th_src)); auto.
               rewrite ! nm_map_add_comm_eq. rewrite KSIM0. ss.
@@ -564,7 +564,7 @@ Section PROOF.
       rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid.
-      replace (nm_pop tid (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (tt, NatSet.remove tid (key_set ths_src))).
+      replace (nm_pop tid (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (tt, NatSet.remove tid (key_set ths_src))).
       2:{ rewrite key_set_pull_add_eq. unfold NatSet.add, NatSet.remove. rewrite nm_add_rm_eq. rewrite nm_add_add_eq.
           rewrite nm_pop_add_eq. unfold key_set, nm_proj_v2. rewrite nm_map_unit1_map_eq. auto. }
       rewrite interp_state_tau. do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
@@ -578,7 +578,7 @@ Section PROOF.
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)) tid)
       end.
       2:{ unfold interp_all.
-          replace (Th.add tid (ktr_src ()) (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)).
+          replace (Th.add tid (ktr_src ()) (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)).
           2:{ rewrite nm_add_add_eq. auto. }
           replace (NatSet.remove tid (key_set (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)))) with (NatSet.remove tid (key_set ths_src)).
           2:{ rewrite key_set_pull_add_eq. unfold NatSet.remove. rewrite nm_rm_add_rm_eq.
@@ -599,12 +599,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply IH; eauto.
-    }
-
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
@@ -636,12 +631,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
-      eapply IH; eauto.
-    }
-
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }
@@ -668,6 +658,8 @@ Section PROOF.
       destruct KSIM0; ss. punfold p.
       Unshelve. all: exact o1.
     }
+
+    { rewrite interp_all_call. gfold. eapply sim_ub. }
 
     { clear rr IH. gfold. eapply sim_progress. right; eapply CIH; eauto. pclearbot. eapply KSIM0. all: auto. }
 
@@ -727,7 +719,7 @@ Section PROOF.
       rewrite interp_thread_vis_yield. ired. rewrite interp_state_tau. guclo sim_indC_spec; eapply sim_indC_tauL.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid.
-      replace (nm_pop tid (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (tt, key_set ths_src)).
+      replace (nm_pop tid (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src)))))) with (Some (tt, key_set ths_src)).
       2:{ rewrite key_set_pull_add_eq. unfold NatSet.add, NatSet.remove. rewrite nm_add_rm_eq. rewrite nm_add_add_eq.
           rewrite nm_pop_add_eq. unfold key_set, nm_proj_v2. rewrite nm_map_unit1_map_eq.
           rewrite nm_map_rm_comm_eq. rewrite nm_find_none_rm_eq; auto. }
@@ -748,7 +740,7 @@ Section PROOF.
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
       end.
       2:{ unfold interp_all.
-          replace (Th.add tid src (Th.add tid (Vis ((|Yield)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid src (nm_proj_v2 ths_src)).
+          replace (Th.add tid src (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src))) with (Th.add tid src (nm_proj_v2 ths_src)).
           2:{ rewrite nm_add_add_eq. auto. }
           replace (NatSet.remove tid (key_set (Th.add tid src (nm_proj_v2 ths_src)))) with (key_set ths_src).
           2:{ rewrite key_set_pull_add_eq. unfold NatSet.remove. rewrite nm_rm_add_rm_eq.
@@ -771,12 +763,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
-      eapply IH; eauto.
-    }
-
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
@@ -808,12 +795,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_put.
-      do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
-      eapply IH; eauto.
-    }
-
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_get.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }
@@ -840,6 +822,8 @@ Section PROOF.
       destruct KSIM0; ss. punfold p.
       Unshelve. all: exact o1.
     }
+
+    { rewrite interp_all_call. gfold. eapply sim_ub. }
 
     { clear rr IH. gfold. eapply sim_progress. right; eapply CIH; eauto. destruct KSIM0; ss. eapply p. all: auto. }
 

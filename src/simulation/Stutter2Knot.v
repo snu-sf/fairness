@@ -31,8 +31,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := ((@eventE _ident_src +' cE) +' sE state_src).
-  Notation tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Notation srcE := (programE _ident_src state_src).
+  Notation tgtE := (programE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
 
@@ -68,9 +68,9 @@ Section PROOF.
               (<<OSWF: (forall tid', Th.In tid' ths_src -> Th.In tid' os) /\ (Th.find tid os = None)>>) /\
               (<<LSIM:
                 forall im_tgt0
-                  (FAIR: fair_update im_tgt im_tgt0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
+                  (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inlp (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))),
                 exists im_src0,
-                  (fair_update im_src im_src0 (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
+                  (fair_update im_src im_src0 (prism_fmap inlp (tids_fmap tid (NatSet.add tid (key_set ths_src))))) /\
                     (lsim (wf_stt) I tid (local_RR I RR tid)
                           gps gpt (sum_of_resources rs_ctx) (o, src) tgt
                           (NatSet.add tid (key_set ths_src),
@@ -88,13 +88,13 @@ Section PROOF.
                 RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
                 (im_src, im_tgt, st_src, st_tgt) os).
   Proof.
-    ii. remember (fun i => match sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))) i with
+    ii. remember (fun i => match prism_fmap inlp (tids_fmap tid (NatSet.add tid (key_set ths_tgt))) i with
                         | Flag.fail => St (im_tgt i)
                         | Flag.emp => im_tgt i
                         | Flag.success => im_tgt i
                         end) as im_tgt1.
     specialize (LSIM im_tgt1). des. move I after St.
-    assert (FAIR: fair_update im_tgt1 im_tgt (sum_fmap_l (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))).
+    assert (FAIR: fair_update im_tgt1 im_tgt (prism_fmap inlp (tids_fmap tid (NatSet.add tid (key_set ths_tgt))))).
     { rewrite Heqim_tgt1. unfold fair_update. i. des_ifs. }
     specialize (LSIM im_tgt FAIR). des. clear LSIM Heqim_tgt1 FAIR im_tgt1.
     clear im_src; rename im_src0 into im_src.
@@ -301,12 +301,7 @@ Section PROOF.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_putL. split; [|ss].
-      hexploit IH; eauto. i. punfold H.
-    }
-
-    { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_getL. split; [|ss].
+      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_rmwL. split; [|ss].
       hexploit IH; eauto. i. punfold H.
     }
 
@@ -335,12 +330,7 @@ Section PROOF.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_putR. split; [|ss].
-      hexploit IH; eauto. i. punfold H.
-    }
-
-    { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_getR. split; [|ss].
+      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_rmwR. split; [|ss].
       hexploit IH; eauto. i. punfold H.
     }
 
@@ -359,6 +349,9 @@ Section PROOF.
       pfold. eapply pind10_fold. eapply ksim_observe. i.
       specialize (LSIM0 ret). pclearbot. right. eapply CIH; auto.
     }
+
+    { clear IH rr. clarify.
+      pfold. eapply pind10_fold. eapply ksim_call. }
 
     { clear IH rr. clarify. rewrite ! bind_trigger.
       pfold. eapply pind10_fold. eapply ksim_sync; eauto.

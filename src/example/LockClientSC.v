@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 
 From Fairness Require Export
      ITreeLib WFLib FairBeh Mod pind Axioms
-     OpenMod SCM Red IRed WeakestAdequacy FairLock Concurrency.
+     Linking SCM Red IRed WeakestAdequacy FairLock Concurrency.
 From Ordinal Require Export ClassicalHessenberg.
 From Fairness Require Import NatStructsLow.
 
@@ -26,7 +26,7 @@ End INIT.
 Module ClientImpl.
 
   Definition thread1:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       `_: unit <- (OMod.call "lock" tt);;
@@ -36,7 +36,7 @@ Module ClientImpl.
       Ret tt.
 
   Definition thread2:
-    ktree ((((@eventE void) +' cE) +' (sE unit)) +' OpenMod.callE) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       _ <- ITree.iter
@@ -54,8 +54,8 @@ Module ClientImpl.
       | _ => UB
       end.
 
-  Definition omod: OMod.t :=
-    OMod.mk
+  Definition omod: Mod.t :=
+    Mod.mk
       tt
       (Mod.get_funs [("thread1", Mod.wrap_fun thread1);
                      ("thread2", Mod.wrap_fun thread2)])
@@ -72,13 +72,13 @@ End ClientImpl.
 
 Module ClientSpec.
   Definition thread1:
-    ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;; Ret tt.
 
   Definition thread2:
-    ktree ((((@eventE void) +' cE) +' (sE unit))) unit unit
+    ktree (programE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;;
@@ -226,8 +226,9 @@ Section SIM.
              (trigger Yield;;; src)
              ((OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (R:=unit) (OMod.call "lock" ()));;; tgt)).
   Proof.
+    Opaque key_set.
     iIntros "[[TH [DUTY TAXES]] SIM]".
-    rewrite close_itree_call. ss. rred.
+    rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_r. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "TAXES".
     { eapply Hessenberg.lt_add_r. apply OrdArith.lt_from_nat. instantiate (1:=8). auto. }
     iMod "TAXES". iDestruct "TAXES" as "[TAXES TAX]".
@@ -241,17 +242,11 @@ Section SIM.
 
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
-    iApply stsim_tauR. rred.
-    iApply stsim_tidR. rred. iApply stsim_tauR. rred.
+    iApply stsim_tidR. rred.
     iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
-    iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_tauR. rred.
-    iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_tauR. rred.
-    iApply stsim_getR. iSplit. iFrame. rred.
-    iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
-    iApply stsim_tauR. rred.
+    iApply stsim_getR. iSplit. iFrame. rred. rewrite put_rmw. rred.
+    iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
 
     iPoseProof (ObligationRA.alloc
                   (((Ord.omega × Ord.omega) × Ord.omega)
@@ -275,7 +270,7 @@ Section SIM.
 
     (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
     set (blks2 :=
-           (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
+           (λ id : nat + (Mod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
                (∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t (NatMap.add tid k wobl))%type)).
     iPoseProof (FairRA.blacks_unfold with "BLKS") as "[BLKS MYDUTY]".
     { instantiate (1:=inr (inr (inr tid))). instantiate (1:=blks2). i. des.
@@ -351,16 +346,15 @@ Section SIM.
     iStopProof. revert l k credit RICH. pattern wd. revert wd.
     apply (well_founded_induction Ord.lt_well_founded). intros wd IH. intros l k credit RICH.
     iIntros "[SIM [DUTY [MYB [MYW [TAXES TAXKEEP]]]]]".
-    rewrite OpenMod.unfold_iter. rred.
+    rewrite unfold_iter_eq. rred.
 
     iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]". eauto.
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
     iIntros "DUTY WTH". rred.
-    iApply stsim_tauR. rred.
     iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
     iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_tauR. rred. destruct own.
+    destruct own.
 
     (* someone is holding the lock *)
     { rred.
@@ -409,13 +403,8 @@ Section SIM.
     (* no one is holding the lock *)
     { rred.
       iClear "TAXES". clear IH credit RICH.
-      iApply stsim_getR. iSplit. iFrame. rred.
-      iApply stsim_tauR. rred.
-      iApply stsim_getR. iSplit. iFrame. rred.
-      iApply stsim_tauR. rred.
-      iApply stsim_getR. iSplit. iFrame. rred.
-      iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
-      iApply stsim_tauR. rred.
+      iApply stsim_getR. iSplit. iFrame. rred. rewrite put_rmw. rred.
+      iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
 
       iDestruct "I1" as "[BLKS [SUM [[_ [LOCK EXCL]] | [%CONTRA _]]]]".
       2:{ inversion CONTRA. }
@@ -432,25 +421,22 @@ Section SIM.
       iPoseProof (ObligationRA.duty_done with "MYDUTY MYDONE") as "> MYDUTY".
       iApply (stsim_fairR with "[MYDUTY]").
       4:{ instantiate (1:=[(inr (inr tid), [])]). ss. iFrame. }
-      { clear. i. unfold sum_fmap_r in *. des_ifs. ss. auto. }
-      { instantiate (1:= List.map (fun '(j, _) => inr (inr j)) (NatMap.elements (NatMap.remove tid (key_set wobl)))). clear. i. unfold sum_fmap_r.
+      { clear. i. unfold prism_fmap in *. des_ifs. eapply Prism.review_preview in Heq. ss. auto. }
+      { instantiate (1:= List.map (fun '(j, _) => inr (inr j)) (NatMap.elements (NatMap.remove tid (key_set wobl)))). clear. i. unfold prism_fmap.
         assert (A: exists j, (i = inr (inr j)) /\ (NatMap.In j (NatMap.remove tid (key_set wobl)))).
         { apply in_map_iff in IN. des. des_ifs. destruct u. esplits; eauto.
           remember (NatMap.remove tid (key_set wobl)) as M. clear HeqM.
           apply NatMapP.F.elements_in_iff. exists (). apply SetoidList.InA_alt.
           exists (k, ()). ss.
         }
-        des. subst. des_ifs. apply in_map_iff in IN. des. des_ifs. destruct u.
-        eapply SetoidList.In_InA in IN0. eapply NatMap.elements_2 in IN0.
-        apply NatMapP.F.remove_mapsto_iff in IN0. des; ss.
-        apply NatMapP.eqke_equiv.
+        des. subst. unfold Prism.preview; ss. des_ifs.
+        exfalso. eapply NatMap.remove_1. ss. eapply A0.
       }
       { eapply FinFun.Injective_map_NoDup.
         { unfold FinFun.Injective. i. des_ifs. destruct u, u0. ss. }
         apply NoDupA_NoDup. apply NatMap.elements_3w.
       }
       iIntros "MYDUTY WHITES". rred.
-      iApply stsim_tauR. rred.
 
       (* close invariant *)
       iPoseProof (OwnM_Upd with "[B1 MYW]") as "> B1".
@@ -463,7 +449,7 @@ Section SIM.
       iPoseProof (FairRA.blacks_fold with "[BLKS MYBEX]") as "BLKS".
       2:{ iFrame. }
       { instantiate (1:=
-         (λ id : nat + (OMod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
+         (λ id : nat + (Mod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
              ∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t new_wobl)).
         i. ss. des. destruct (tid_dec t tid) eqn:DEC.
         - clarify. auto.
@@ -471,7 +457,7 @@ Section SIM.
           split; auto.
       }
 
-      iClear "MYB".
+      ss. repeat (unfold Lens.set; ss). iClear "MYB".
       clear Heqnew_wobl FIND wd k wobl.
       iPoseProof (ObligationRA.alloc o_w_cor) as "> [% [[NEWB NEWW] NEWP]]".
       iPoseProof (OwnM_Upd with "[B2 LOCK]") as "> B2".
@@ -507,7 +493,7 @@ Section SIM.
 
       (* need amps == need pendings; *)
       iAssert (natmap_prop_sum new_wobl (fun k _ => FairRA.white (inr (inr (inr k))) 1))%I with "[WHITES]" as "WHITES".
-      { unfold key_set. rewrite <- list_map_elements_nm_map. unfold natmap_prop_sum.
+      { Transparent key_set. unfold key_set. rewrite <- list_map_elements_nm_map. unfold natmap_prop_sum.
         remember (NatMap.elements new_wobl) as ml. clear Heqml. rewrite List.map_map.
         iClear "CORs NEWCORTH". clear. iStopProof. induction ml.
         { iIntros "SUM". ss. }
@@ -550,7 +536,7 @@ Section SIM.
         iFrame.
       }
       iIntros "DUTY _". rred.
-      iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+      iApply stsim_tauR. rred.
       iPoseProof ("SIM" with "[MYTH DUTY NEWW2 EXCL LOCK]") as "SIM".
       iFrame. iExists k. iFrame.
       iApply stsim_reset. iFrame.
@@ -592,13 +578,12 @@ Section SIM.
     { instantiate (1:= 1%ord). apply OrdArith.lt_from_nat. lia. }
     iPoseProof (ObligationRA.taxes_single_is_tax with "TAXES") as "TAX2".
 
-    rewrite close_itree_call. ss. rred.
+    rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_r. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
     iApply (stsim_yieldR with "[DUTY TAX]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
     unfold AbsLock.unlock_fun, Mod.wrap_fun. rred.
     iApply (stsim_yieldR with "[DUTY TAX1]"). msubtac. iFrame.
     iIntros "DUTY _". rred.
-    iApply stsim_tauR. rred.
     iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT [BLKS [SUM [CONTRA | CASE]]]]]]]".
     { iDestruct "CONTRA" as "[_ [_ EXCL2]]". iPoseProof (OwnM_valid with "[EXCL EXCL2]") as "%".
@@ -607,13 +592,8 @@ Section SIM.
       eapply Excl.wf in H. inversion H.
     }
     iDestruct "CASE" as "[% [JPEND [JBLK [JCOR AMPs]]]]". subst own.
-    iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_tauR. rred.
-    iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_tauR. rred.
-    iApply stsim_getR. iSplit. iFrame. rred.
-    iApply (stsim_putR with "STGT"). iIntros "STGT". rred.
-    iApply stsim_tauR. rred.
+    iApply stsim_getR. iSplit. iFrame. rred. rewrite put_rmw. rred.
+    iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
 
     iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
     iMod ("K1" with "[EXCL LOCK B1 B2 MEM BLKS SUM STGT]") as "_".
@@ -629,7 +609,7 @@ Section SIM.
       iPoseProof (ObligationRA.tax_cons_unfold with "TAX2") as "[_ TAX2]". iFrame.
     }
     iIntros "DUTY _". rred.
-    iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+    iApply stsim_tauR. rred.
     iApply stsim_reset. iApply "SIM". iFrame.
 
   Qed.
@@ -657,7 +637,7 @@ Section SIM.
     { apply Hessenberg.lt_add_r. instantiate (1:=9). apply OrdArith.lt_from_nat. auto. }
     iApply AbsLock_lock. iFrame. iIntros "[MYTH [[% [DUTY [WHI LOCK]]] EXCL]]".
     instantiate (1:=4). rred.
-    rewrite close_itree_call. ss. rred.
+    rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_l. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
     iPoseProof (ObligationRA.white_eq with "WHI") as "WHI".
     { rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity. }
     iPoseProof (ObligationRA.white_split_eq with "WHI") as "[WHI1 WHI2]".
@@ -684,13 +664,10 @@ Section SIM.
     iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
 
-    iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
-    iPoseProof (memory_ra_store with "i1MEM i0PTR") as "[% [%STORE > [i1MEM i0PTR]]]".
-    rewrite STORE. rred.
-    iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
     iApply stsim_getR. iSplit. iFrame. rred.
-    iApply (stsim_putR with "i1STGT"). iIntros "i1STGT". rred. iApply stsim_tauR. rred.
-    iApply stsim_tauR. rred.
+    iPoseProof (memory_ra_store with "i1MEM i0PTR") as "[% [%STORE > [i1MEM i0PTR]]]".
+    rewrite STORE. rred. rewrite put_rmw. rred.
+    iApply (stsim_rmwR with "i1STGT"). iIntros "i1STGT". rred. iApply stsim_tauR. rred.
 
     rewrite Qp.inv_half_half.
     iPoseProof (ObligationRA.pending_shot with "KPEND") as "> #OBLKSHOT".
@@ -739,12 +716,12 @@ Section SIM.
     iStopProof. revert tid k. pattern n. revert n.
     apply (well_founded_induction Ord.lt_well_founded). intros n IH. intros.
     iIntros "[#[KBLK [KCOR KSHOT]] [MYTH DUTY]]".
-    rewrite OpenMod.unfold_iter. rred.
+    rewrite unfold_iter_eq. rred.
     iApply AbsLock_lock. iSplitL "MYTH DUTY".
     { iFrame. }
     iIntros "[MYTH [[% [DUTY [WHI LOCK]]] EXCL]]". instantiate (1:= 4). rred.
 
-    rewrite close_itree_call. ss. rred.
+    rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_l. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
     iPoseProof (ObligationRA.white_eq with "WHI") as "WHI".
     { rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity. }
     iPoseProof (ObligationRA.white_split_eq with "WHI") as "[WHI1 WHI2]".
@@ -764,7 +741,7 @@ Section SIM.
 
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
-      iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
       iPoseProof (memory_ra_load with "i1MEM i0PTR") as "[%LOAD %PERM]".
       rewrite LOAD. rred. iApply stsim_tauR. rred.
 
@@ -781,13 +758,13 @@ Section SIM.
       }
       iIntros "DUTY". rred.
 
-      rewrite close_itree_call. ss. rred.
+      rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_l. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
       iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame. iIntros "DUTY OWHTH". rred.
       unfold Mod.wrap_fun, SCMem.compare_fun. rred.
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
       iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
-      iApply stsim_tauR. rred. iApply stsim_tauR. rred.
+      iApply stsim_tauR. rred.
       iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
       { unfold lock_will_unlock. iExists _, _, _, _. iFrame. }
       msubtac.
@@ -800,7 +777,7 @@ Section SIM.
 
       (* thread 1 done; exit *)
       { iClear "KBLK KCOR". clear n j own mem wobl j0 IH.
-        rewrite OpenMod.unfold_iter. rred.
+        rewrite unfold_iter_eq. rred.
         iApply stsim_reset. iApply AbsLock_lock. iSplitL "MYTH DUTY".
         { iFrame. }
         iIntros "[MYTH [[% [DUTY [WHI LOCK]]] EXCL]]". instantiate (1:= 4). rred.
@@ -817,7 +794,7 @@ Section SIM.
         { instantiate (1:= (OneShot.shot k) ⋅ (OneShot.shot k0)). iSplitL "KSHOT"; auto. }
         apply OneShot.shot_agree in AGR. subst k0.
 
-        rewrite close_itree_call. ss. rred.
+        rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_l. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
         iMod ("K0" with "[i0BLK i0KCOR i0PTR]") as "_".
         { unfold thread1_will_write. iExists _. iFrame. iSplitR; auto. }
         msubtac.
@@ -832,7 +809,7 @@ Section SIM.
         iIntros "DUTY _". rred. unfold SCMem.load_fun, Mod.wrap_fun. rred.
         iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
         iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
-        iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+        iApply stsim_getR. iSplit. iFrame. rred.
         iopen 0 "I0" "K0". iClear "i0KSHOT".
         iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
         { iDestruct "i0PEND" as "[i0PENDh i0PTR]".
@@ -861,15 +838,14 @@ Section SIM.
         }
         iIntros "DUTY". rred.
 
-        rewrite close_itree_call. ss. rred.
+        rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_l. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
         iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _". rred.
         unfold Mod.wrap_fun, SCMem.compare_fun. rred.
         iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
         iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
         iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
-        iApply stsim_tauR. rred.
 
-        rewrite close_itree_call. ss. rred.
+        rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_l. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
         iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
         { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
         msubtac.
@@ -878,7 +854,7 @@ Section SIM.
         iIntros "DUTY _". rred. unfold SCMem.load_fun, Mod.wrap_fun. rred.
         iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
         iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
-        iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+        iApply stsim_getR. iSplit. iFrame. rred.
         iopen 0 "I0" "K0". iClear "i0KSHOT".
         iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
         { iDestruct "i0PEND" as "[i0PENDh i0PTR]".
@@ -916,7 +892,7 @@ Section SIM.
 
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
-      iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
       iPoseProof (memory_ra_load with "i1MEM i0PTR") as "[%LOAD %PERM]".
       rewrite LOAD. rred. iApply stsim_tauR. rred.
 
@@ -933,15 +909,14 @@ Section SIM.
       }
       iIntros "DUTY". rred.
 
-      rewrite close_itree_call. ss. rred.
+      rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_l. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
       iApply (stsim_yieldR with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _". rred.
       unfold Mod.wrap_fun, SCMem.compare_fun. rred.
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
       iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
-      iApply stsim_tauR. rred.
 
-      rewrite close_itree_call. ss. rred.
+      rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_l. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
       iMod ("K1" with "[i1B1 i1B2 i1MEM i1STGT I1]") as "_".
       { unfold lock_will_unlock. iExists own, mem, wobl, j0. iFrame. }
       msubtac.
@@ -950,7 +925,7 @@ Section SIM.
       iIntros "DUTY _". rred. unfold SCMem.load_fun, Mod.wrap_fun. rred.
       iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
       iDestruct "I1" as "[i1B1 [i1B2 [i1MEM [i1STGT I1]]]]".
-      iApply stsim_getR. iSplit. iFrame. rred. iApply stsim_tauR. rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
       iopen 0 "I0" "K0". iClear "i0KSHOT".
       iDestruct "I0" as "[% [i0BLK [i0KCOR [#i0KSHOT [i0PEND | i0SHOT]]]]]".
       { iDestruct "i0PEND" as "[i0PENDh i0PTR]".

@@ -451,6 +451,23 @@ Section ILEMMAS.
     red. uipropall. ii. etrans; eauto.
   Qed.
 
+  Lemma Own_persistently (r : Σ) : Own r ⊢ <pers> Own (URA.core r).
+  Proof.
+    uipropall. i. rr; uipropall. apply URA.extends_core. ss.
+  Qed.
+
+  Lemma OwnM_persistently {M : URA.t} `{@GRA.inG M Σ} (r : M) : OwnM r ⊢ <pers> OwnM (URA.core r).
+  Proof.
+    unfold OwnM. rewrite GRA.embed_core. apply Own_persistently.
+  Qed.
+
+  Lemma OwnM_unit {M : URA.t} `{@GRA.inG M Σ} : ⊢ OwnM ε.
+  Proof.
+    Local Transparent GRA.to_URA.
+    rr; uipropall. i. rr; uipropall. rr. exists r.
+    rewrite GRA.embed_unit. rewrite URA.unit_idl. ss.
+  Qed.
+
   Lemma OwnM_Upd_set (M: URA.t) `{@GRA.inG M Σ}
         (r1: M) B
         (UPD: URA.updatable_set r1 B)

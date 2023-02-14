@@ -48,9 +48,9 @@ Module WMem.
       else Flag.emp.
 
   Definition load_fun:
-    ktree (((@eventE ident) +' cE) +' sE t) (View.t * Loc.t * Ordering.t) (View.t * Const.t) :=
+    ktree (programE ident t) (View.t * Loc.t * Ordering.t) (View.t * Const.t) :=
     fun '(vw0, loc, ord) =>
-      msc <- trigger (@Get _);;
+      msc <- trigger (Get id);;
       '(exist _ (lc1, val, to) _) <- trigger (Choose (sig (fun '(lc1, val, to) =>
                                                              exists released,
                                                                Local.read_step
@@ -67,9 +67,9 @@ Module WMem.
   .
 
   Definition store_fun:
-    ktree (((@eventE ident) +' cE) +' sE t) (View.t * Loc.t * Const.t * Ordering.t) (View.t) :=
+    ktree (programE ident t) (View.t * Loc.t * Const.t * Ordering.t) (View.t) :=
     fun '(vw0, loc, val, ord) =>
-      msc <- trigger (@Get _);;
+      msc <- trigger (Get id);;
       '(exist _ (lc1, to, sc1, mem1) _) <- trigger (Choose (sig (fun '(lc1, to, sc1, mem1) =>
                                                                    exists from released kind,
                                                                      Local.write_step
@@ -93,9 +93,9 @@ Module WMem.
   .
 
   Definition faa_fun:
-    ktree (((@eventE ident) +' cE) +' sE t) (View.t * Loc.t * Const.t * Ordering.t * Ordering.t) (View.t * Const.t) :=
+    ktree (programE ident t) (View.t * Loc.t * Const.t * Ordering.t * Ordering.t) (View.t * Const.t) :=
     fun '(vw0, loc, addendum, ordr, ordw) =>
-      msc <- trigger (@Get _);;
+      msc <- trigger (Get id);;
       '(exist _ (lc2, to, val, sc1, mem1) _) <-
         trigger (Choose (sig (fun '(lc2, to, val, sc1, mem1) =>
                                 exists lc1 from releasedr releasedw kind,

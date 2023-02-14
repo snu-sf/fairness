@@ -25,8 +25,8 @@ Section PRIMIVIESIM.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := ((@eventE ident_src +' cE) +' sE state_src).
-  Let tgtE := ((@eventE _ident_tgt +' cE) +' sE state_tgt).
+  Let srcE := programE ident_src state_src.
+  Let tgtE := programE _ident_tgt state_tgt.
 
   Definition shared :=
     (TIdSet.t *
@@ -68,20 +68,13 @@ Section PRIMIVIESIM.
       (LSIM: exists x, _lsim _ _ RR true f_tgt r_ctx (ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_putL
+  | lsim_rmwL
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
-      st ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src tt) itr_tgt (ths, im_src, im_tgt, st, st_tgt))
+      X rmw ktr_src itr_tgt
+      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src (snd (rmw st_src) : X)) itr_tgt (ths, im_src, im_tgt, fst (rmw st_src), st_tgt))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Put st) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_getL
-      f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt
-      ktr_src itr_tgt
-      (LSIM: _lsim _ _ RR true f_tgt r_ctx (ktr_src st_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
-    :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (@Get _) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Rmw rmw) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_tidL
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
@@ -119,20 +112,13 @@ Section PRIMIVIESIM.
       (LSIM: forall x, _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_putR
+  | lsim_rmwR
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
-      st itr_src ktr_tgt
-      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt, st_src, st))
+      X rmw itr_src ktr_tgt
+      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt (snd (rmw st_tgt) : X)) (ths, im_src, im_tgt, st_src, fst (rmw st_tgt)))
     :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Put st) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | lsim_getR
-      f_src f_tgt r_ctx
-      ths im_src im_tgt st_src st_tgt
-      itr_src ktr_tgt
-      (LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-    :
-    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (@Get _) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+    __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Rmw rmw) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | lsim_tidR
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
@@ -145,7 +131,7 @@ Section PRIMIVIESIM.
       ths im_src im_tgt0 st_src st_tgt
       f itr_src ktr_tgt
       (LSIM: forall im_tgt1
-                   (FAIR: fair_update im_tgt0 im_tgt1 (sum_fmap_r f)),
+                   (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inrp f)),
           (<<LSIM: _lsim _ _ RR f_src true r_ctx itr_src (ktr_tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx itr_src (trigger (Fair f) >>= ktr_tgt) (ths, im_src, im_tgt0, st_src, st_tgt)
@@ -158,6 +144,13 @@ Section PRIMIVIESIM.
           lsim _ _ RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+
+  | lsim_call
+      f_src f_tgt r_ctx
+      ths im_src im_tgt st_src st_tgt
+      fn args ktr_src ktr_tgt
+      (LSIM : forall ret, lsim _ _ RR true true r_ctx (ktr_src ret) (ktr_tgt ret) (ths, im_src, im_tgt, st_src, st_tgt))
+    : __lsim tid lsim _lsim RR f_src f_tgt r_ctx (trigger (Call fn args) >>= ktr_src) (trigger (Call fn args) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
 
   | lsim_yieldL
       f_src f_tgt r_ctx
@@ -177,7 +170,7 @@ Section PRIMIVIESIM.
                     (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                     (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                     im_tgt2
-                    (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+                    (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           _lsim _ _ RR f_src true r_ctx1 (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
@@ -192,7 +185,7 @@ Section PRIMIVIESIM.
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
                (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
-               (TGT: fair_update im_tgt1 im_tgt2 (sum_fmap_l (tids_fmap tid ths1))),
+               (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           (<<LSIM: lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
     :
     __lsim tid lsim _lsim RR f_src f_tgt r_ctx0 (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) (ths0, im_src0, im_tgt0, st_src0, st_tgt0)
@@ -327,11 +320,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_putL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { eapply pind9_fold. eapply lsim_getL. split; ss.
+    { eapply pind9_fold. eapply lsim_rmwL. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -354,11 +343,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_putR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { eapply pind9_fold. eapply lsim_getR. split; ss.
+    { eapply pind9_fold. eapply lsim_rmwR. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -371,6 +356,8 @@ Section PRIMIVIESIM.
     }
 
     { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_base. auto. }
+
+    { eapply pind9_fold. eapply lsim_call. i. eapply rclo9_base. auto. }
 
     { des. eapply pind9_fold. eapply lsim_yieldL. split; ss.
       destruct LSIM0 as [LSIM IND]. hexploit IH; eauto.
@@ -448,11 +435,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_putL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { eapply pind9_fold. eapply lsim_getL. split; ss.
+    { eapply pind9_fold. eapply lsim_rmwL. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -475,11 +458,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { eapply pind9_fold. eapply lsim_putR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { eapply pind9_fold. eapply lsim_getR. split; ss.
+    { eapply pind9_fold. eapply lsim_rmwR. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -492,6 +471,8 @@ Section PRIMIVIESIM.
     }
 
     { eapply pind9_fold. eapply lsim_observe. i. eapply rclo9_clo_base. econs; eauto. }
+
+    { eapply pind9_fold. eapply lsim_call. i. eapply rclo9_clo_base. econs; eauto. }
 
     { des. eapply pind9_fold. eapply lsim_yieldL. split; ss.
       destruct LSIM0 as [LSIM IND]. hexploit IH; eauto.
@@ -566,11 +547,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { guclo lsim_indC_spec. eapply lsim_putL.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { guclo lsim_indC_spec. eapply lsim_getL.
+    { guclo lsim_indC_spec. eapply lsim_rmwL.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -593,11 +570,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { guclo lsim_indC_spec. eapply lsim_putR.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { guclo lsim_indC_spec. eapply lsim_getR.
+    { guclo lsim_indC_spec. eapply lsim_rmwR.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -610,6 +583,13 @@ Section PRIMIVIESIM.
     }
 
     { gfinal. left. eapply pind9_fold. eapply lsim_observe. i.
+      eapply rclo9_clo. left. econs; eauto.
+      eapply rclo9_clo_base. right. guclo lsim_monoC_spec. econs.
+      2:{ gbase. eauto. }
+      { eauto. }
+    }
+
+    { gfinal. left. eapply pind9_fold. eapply lsim_call. i.
       eapply rclo9_clo. left. econs; eauto.
       eapply rclo9_clo_base. right. guclo lsim_monoC_spec. econs.
       2:{ gbase. eauto. }
@@ -708,11 +688,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { guclo lsim_indC_spec. eapply lsim_putL.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { guclo lsim_indC_spec. eapply lsim_getL.
+    { guclo lsim_indC_spec. eapply lsim_rmwL.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -735,11 +711,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
-    { guclo lsim_indC_spec. eapply lsim_putR.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
-    }
-
-    { guclo lsim_indC_spec. eapply lsim_getR.
+    { guclo lsim_indC_spec. eapply lsim_rmwR.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto.
     }
 
@@ -752,6 +724,10 @@ Section PRIMIVIESIM.
     }
 
     { gfinal. left. eapply pind9_fold. eapply lsim_observe. i.
+      eapply rclo9_clo_base. left. econs; eauto.
+    }
+
+    { gfinal. left. eapply pind9_fold. eapply lsim_call. i.
       eapply rclo9_clo_base. left. econs; eauto.
     }
 
@@ -836,11 +812,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
-    { pfold. eapply pind9_fold. eapply lsim_putL. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
-
-    { pfold. eapply pind9_fold. eapply lsim_getL. split; ss.
+    { pfold. eapply pind9_fold. eapply lsim_rmwL. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
@@ -863,11 +835,7 @@ Section PRIMIVIESIM.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
-    { pfold. eapply pind9_fold. eapply lsim_putR. split; ss.
-      destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
-    }
-
-    { pfold. eapply pind9_fold. eapply lsim_getR. split; ss.
+    { pfold. eapply pind9_fold. eapply lsim_rmwR. split; ss.
       destruct LSIM0 as [LSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
@@ -880,6 +848,8 @@ Section PRIMIVIESIM.
     }
 
     { pfold. eapply pind9_fold. eapply lsim_observe. i. eapply upaco9_mon_bot; eauto. }
+
+    { pfold. eapply pind9_fold. eapply lsim_call. i. eapply upaco9_mon_bot; eauto. }
 
     { des. pfold. eapply pind9_fold. eapply lsim_yieldL. esplits; eauto. split; ss.
       destruct LSIM0 as [LSIM IND]. hexploit IH; eauto. i. punfold H.
@@ -996,7 +966,6 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
@@ -1024,7 +993,6 @@ Section PRIMIVIESIM.
     punfold LSIM. eapply pind9_unfold in LSIM; auto.
     2:{ eapply _lsim_mon. }
     inv LSIM; auto.
-    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
@@ -1059,7 +1027,6 @@ Section PRIMIVIESIM.
     2:{ eapply _lsim_mon. }
     inv LSIM; auto.
     { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
@@ -1118,32 +1085,17 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; ss.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply trigger_eq_rev in H4. des. subst.
       inv LSIM0. eapply lsim_flag_any. pfold. eauto. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
   Qed.
 
   Lemma lsim_rev_UB
@@ -1168,33 +1120,18 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
+    { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply trigger_eq_rev in H4. des. exfalso.
       clear - H4 H0 H1. subst. dependent destruction H0.
     }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact 0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact 0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply inhabited_not_void; [|eapply H4]. econs. exact tt.
-    }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
   Qed.
 
   Lemma lsim_rev_yield
@@ -1219,120 +1156,14 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-  Qed.
-
-  Lemma lsim_rev_get
-        tid
-        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
-        r_src tgt ths im_src im_tgt st_src st_tgt ps pt r_ctx
-        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (@Get _) >>= tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-    :
-    lsim tid RR ps pt r_ctx (Ret r_src) (tgt st_tgt) (ths, im_src, im_tgt, st_src, st_tgt).
-  Proof.
-    eapply lsim_reset_prog in LSIM.
-    2:{ i. reflexivity. }
-    2:{ i. reflexivity. }
-    eapply lsim_set_prog in LSIM.
-    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
-    punfold LSIM. eapply pind9_unfold in LSIM; auto.
-    2:{ eapply _lsim_mon. }
-    inv LSIM; auto.
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
+    { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. subst.
-      inv LSIM0. eapply lsim_flag_any. pfold. eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-  Qed.
-
-  Lemma lsim_rev_put
-        tid
-        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
-        r_src tgt ths im_src im_tgt st_src st_tgt ps pt r_ctx
-        st
-        (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (Put st) >>= tgt) (ths, im_src, im_tgt, st_src, st_tgt))
-    :
-    lsim tid RR ps pt r_ctx (Ret r_src) (tgt tt) (ths, im_src, im_tgt, st_src, st).
-  Proof.
-    eapply lsim_reset_prog in LSIM.
-    2:{ i. reflexivity. }
-    2:{ i. reflexivity. }
-    eapply lsim_set_prog in LSIM.
-    instantiate (1:=false) in LSIM. instantiate (1:=false) in LSIM.
-    punfold LSIM. eapply pind9_unfold in LSIM; auto.
-    2:{ eapply _lsim_mon. }
-    inv LSIM; auto.
-    { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H4. ss. }
-    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0.
-      inv LSIM0. eapply lsim_flag_any. pfold. eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; ss.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      eapply nat_not_unit; eauto.
-    }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
   Qed.
@@ -1345,7 +1176,7 @@ Section PRIMIVIESIM.
         (LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (trigger (Fair f) >>= tgt) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     forall im_tgt1
-           (FAIR: fair_update im_tgt im_tgt1 (sum_fmap_r f)),
+           (FAIR: fair_update im_tgt im_tgt1 (prism_fmap inrp f)),
       (<<LSIM: lsim tid RR ps pt r_ctx (Ret r_src) (tgt tt) (ths, im_src, im_tgt1, st_src, st_tgt)>>).
   Proof.
     eapply lsim_reset_prog in LSIM.
@@ -1362,13 +1193,9 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
-    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H4. ss. }
     { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
     { eapply trigger_eq_rev in H4. des. subst. dependent destruction H0. }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
     { eapply trigger_eq_rev in H4. des. exfalso.
       eapply nat_not_unit; ss.
     }
@@ -1379,9 +1206,8 @@ Section PRIMIVIESIM.
     { eapply trigger_eq_rev in H4. des. exfalso.
       eapply nat_not_unit; eauto.
     }
-    { eapply trigger_eq_rev in H4. des. exfalso.
-      clear - H4 H0 H1. subst. dependent destruction H0.
-    }
+    { eapply f_equal with (f:=observe) in H3. ss. }
+    { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
   Qed.
@@ -1415,14 +1241,14 @@ Section PRIMIVIESIM.
            (THS: TIdSet.add_new tid ths0 ths1)
            (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
     forall im_tgt1
-      (TID_TGT : fair_update im_tgt0 im_tgt1 (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp))),
+      (TID_TGT : fair_update im_tgt0 im_tgt1 (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp))),
     exists r_shared1 r_own,
       (<<INV: I (ths1, im_src0, im_tgt1, st_src0, st_tgt0) r_shared1>>) /\
         (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
         (forall ths im_src1 im_tgt2 st_src2 st_tgt2 r_shared2 r_ctx2
            (INV: I (ths, im_src1, im_tgt2, st_src2, st_tgt2) r_shared2)
                 (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
-          forall im_tgt3 (TGT: fair_update im_tgt2 im_tgt3 (sum_fmap_l (tids_fmap tid ths))),
+          forall im_tgt3 (TGT: fair_update im_tgt2 im_tgt3 (prism_fmap inlp (tids_fmap tid ths))),
             (<<LSIM: forall fs ft,
                 lsim
                   tid
@@ -1437,7 +1263,7 @@ Section PRIMIVIESIM.
     forall ths im_src im_tgt st_src st_tgt r_shared r_ctx
            (INV: I (ths, im_src, im_tgt, st_src, st_tgt) r_shared)
            (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx)),
-    forall im_tgt1 (FAIR: fair_update im_tgt im_tgt1 (sum_fmap_l (tids_fmap tid ths))),
+    forall im_tgt1 (FAIR: fair_update im_tgt im_tgt1 (prism_fmap inlp (tids_fmap tid ths))),
     forall fs ft,
       lsim
         tid

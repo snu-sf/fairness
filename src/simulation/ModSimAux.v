@@ -36,7 +36,7 @@ Section SHARED_REL_WF.
     forall ths im_src0 im_tgt0 st_src st_tgt r_shared
       (INV: I (ths, im_src0, im_tgt0, st_src, st_tgt) r_shared),
     forall im_tgt1
-      (TGT: fair_update im_tgt0 im_tgt1 (sum_fmap_l (tids_fmap_all ths))),
+      (TGT: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap_all ths))),
       (<<INV: I (ths, im_src0, im_tgt1, st_src, st_tgt) r_shared>>).
 
   Definition wf_clos_trans : WF := {| wf := clos_trans_well_founded (wf wf_tgt) |}.
@@ -68,7 +68,7 @@ Section SHARED_REL_WF.
   Lemma shared_rel_wf_lifted : shared_rel_wf lifted.
   Proof.
     ii. eapply lifted_drop_imap; eauto.
-    i. specialize (TGT i). unfold le, tids_fmap_all in *.
+    i. specialize (TGT i). unfold le, tids_fmap_all in *. unfold prism_fmap in *; ss. unfold is_inl in *; ss.
     destruct i as [i|i]; ss; des_ifs; eauto.
   Qed.
 
@@ -139,12 +139,13 @@ Section TRANS_CLOS.
                        | inl i => if tid_dec i tid then im_tgt1 (inl i) else im_tgt'0 (inl i)
                        | inr i => im_tgt'0 (inr i)
                        end).
-    assert (TID_TGT' : @fair_update _ wf_tgt im_tgt'0 im_tgt'1 (sum_fmap_l (fun i => if tid_dec i tid then Flag.success else Flag.emp))).
-    { ii. subst im_tgt'1. specialize (TID_TGT i). specialize (INV_LE i). destruct i as [i|i]; ss; des_ifs. }
+    assert (TID_TGT' : @fair_update _ wf_tgt im_tgt'0 im_tgt'1 (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp))).
+    { ii. subst im_tgt'1. specialize (TID_TGT i). specialize (INV_LE i). unfold prism_fmap in *; ss. unfold is_inl in *; ss. destruct i as [i|i]; ss; des_ifs. }
     specialize (SIM ths0 im_src0 im_tgt'0 st_src0 st_tgt0 r_shared0 r_ctx0 INV0 tid ths1 THS VALID im_tgt'1 TID_TGT').
     des. exists r_shared1, r_own. splits; ss.
     { exists im_tgt'1. splits; ss.
-      subst im_tgt'1. i. specialize (TID_TGT i). specialize (INV_LE i). destruct i as [i|i]; ss.
+      subst im_tgt'1. i. specialize (TID_TGT i). specialize (INV_LE i).
+      unfold prism_fmap in *; ss. unfold is_inl in *; ss. destruct i as [i|i]; ss.
       - des_ifs.
         + reflexivity.
         + rewrite TID_TGT. ss.
@@ -166,16 +167,15 @@ Section TRANS_CLOS.
     - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs.
     - econs. des. exists im_src0. splits; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM x). split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. pose proof (fair_break LE FAIR). des.
       specialize (LSIM im_tgt'0 FAIR0). split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_yieldR; eauto. { exists im_tgt'3. split; eauto. } i. ss. des.
@@ -228,8 +228,8 @@ Section WFT_MONO.
     : local_sim I' RR src tgt.
   Proof.
     ii. ss. move SIM at bottom.
-    assert (TID_TGT' : @fair_update _ wf_tgt im_tgt0 im_tgt1 (sum_fmap_l (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))).
-    { ii. specialize (TID_TGT i). destruct i as [i|i]; ss. des_ifs. }
+    assert (TID_TGT' : @fair_update _ wf_tgt im_tgt0 im_tgt1 (prism_fmap inlp (fun i : thread_id => if tid_dec i tid then Flag.success else Flag.emp))).
+    { ii. specialize (TID_TGT i). unfold prism_fmap in *; ss. unfold is_inl in *; ss. destruct i as [i|i]; ss. des_ifs. }
     specialize (SIM ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0 INV tid ths1 THS VALID im_tgt1 TID_TGT').
     des. exists r_shared1, r_own. splits; ss. i. move SIM1 at bottom.
     specialize (SIM1 ths im_src1 im_tgt2 st_src2 st_tgt2 r_shared2 r_ctx2 INV1 VALID1 im_tgt3 (fair_mono TGT) fs ft).
@@ -247,15 +247,14 @@ Section WFT_MONO.
     - econs. des. exists x. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs.
     - econs. des. exists im_src0. splits; ss. split; ss. eapply IH; ss. destruct LSIM0. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM x). split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
-    - econs. split; ss. eapply IH; ss. destruct LSIM. ss.
     - econs. i. specialize (LSIM im_tgt1 (fair_mono FAIR)). split; ss. eapply IH; ss. destruct LSIM. ss.
+    - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - econs. i. specialize (LSIM ret). gfinal. left. eapply CIH; ss. pclearbot. eapply LSIM.
     - eapply lsim_yieldL. split; ss. eapply IH; ss. destruct LSIM. ss.
     - eapply lsim_yieldR; eauto. i. move LSIM at bottom.

@@ -7,6 +7,7 @@ Require Import ClassicalChoice ChoiceFacts.
 Require Import Coq.Classes.RelationClasses.
 Require Import Lia.
 Require Import Program.
+From stdpp Require coPset gmap.
 From Fairness Require Import Axioms.
 
 Set Implicit Arguments.
@@ -119,9 +120,9 @@ Module RA.
     wf := fun '(a0, a1) => wf a0 /\ wf a1;
   }
   .
-  Next Obligation. f_equal; rewrite add_comm; ss. Qed.
-  Next Obligation. f_equal; rewrite add_assoc; ss. Qed.
-  Next Obligation. split; eapply wf_mon; eauto. Qed.
+  Next Obligation. i. destruct a, b; ss. f_equal; rewrite add_comm; ss. Qed.
+  Next Obligation. i. destruct a, b, c; ss. f_equal; rewrite add_assoc; ss. Qed.
+  Next Obligation. i. destruct a, b; ss. des. split; eapply wf_mon; eauto. Qed.
 
   Theorem prod_updatable
           M0 M1
@@ -142,9 +143,9 @@ Module RA.
     wf := fun a => (a <= denom)%positive;
   }
   .
-  Next Obligation. lia. Qed.
-  Next Obligation. lia. Qed.
-  Next Obligation. lia. Qed.
+  Next Obligation. ss. lia. Qed.
+  Next Obligation. ss. lia. Qed.
+  Next Obligation. ss. lia. Qed.
 
   Theorem frac_updatable
           denom M
@@ -162,9 +163,9 @@ Module RA.
     wf := fun a => a <> None;
   }
   .
-  Next Obligation. des_ifs. Qed.
-  Next Obligation. des_ifs. Qed.
-  Next Obligation. des_ifs. Qed.
+  Next Obligation. i. ss. des_ifs. Qed.
+  Next Obligation. i. ss. des_ifs. Qed.
+  Next Obligation. i. ss. des_ifs. Qed.
 
   Theorem agree_unupdatable
           A
@@ -174,7 +175,7 @@ Module RA.
   .
   Proof.
     ii. ss. rr in H. specialize (H (Some a0)). ss. des_ifs.
-    exfalso. eapply H; eauto. ss.
+    exfalso. eapply H; eauto.
   Qed.
 
   Program Instance excl (A: Type): t := {
@@ -183,6 +184,9 @@ Module RA.
     wf := fun a => a <> None;
   }
   .
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
 
   Theorem excl_updatable
           A
@@ -212,7 +216,7 @@ Module RA.
   .
   Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_comm. Qed.
   Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_assoc. Qed.
-  Next Obligation. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed.
+  Next Obligation. i. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed.
 
   Program Instance pointwise K (M: t): t := {
     car := K -> car;
@@ -220,9 +224,9 @@ Module RA.
     wf := fun f => forall k, wf (f k);
   }
   .
-  Next Obligation. apply func_ext. ii. rewrite add_comm. ss. Qed.
-  Next Obligation. apply func_ext. ii. rewrite add_assoc. ss. Qed.
-  Next Obligation. eapply wf_mon; ss. Qed.
+  Next Obligation. i. apply func_ext. ii. rewrite add_comm. ss. Qed.
+  Next Obligation. i. apply func_ext. ii. rewrite add_assoc. ss. Qed.
+  Next Obligation. ss. i. eapply wf_mon; ss. Qed.
 
   Local Program Instance empty: t := {
     car := False;
@@ -230,6 +234,8 @@ Module RA.
     wf := fun _ => False;
   }
   .
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
   Next Obligation. ss. Qed.
 
 End RA.
@@ -944,9 +950,107 @@ Proof.
   ginduction n; ii; ss; des_ifs. ss. eapply IHn; eauto.
 Qed.
 
+Module Gset.
+  Import gmap.
 
+  Definition add (x y : option (gset positive)) : option (gset positive) :=
+    match x, y with
+    | Some x, Some y => if decide (x ## y) then Some (x ∪ y) else None
+    | _, _ => None
+    end.
 
+  Program Instance t : URA.t :=
+    {|
+      URA.car := option (gset positive);
+      URA.unit := Some ∅;
+      URA._wf := fun x => match x with Some _ => True | None => False end;
+      URA._add := add;
+      URA.core := fun x => Some ∅;
+    |}.
+  Next Obligation.
+    unfold add. intros [] []; des_ifs. f_equal. set_solver.
+  Qed.
+  Next Obligation.
+    unfold add. intros [] [] []; des_ifs.
+    { f_equal. set_solver. }
+    all: set_solver.
+  Qed.
+  Next Obligation.
+    unseal "ra". unfold add. intros []; des_ifs.
+    { f_equal. set_solver. }
+    set_solver.
+  Qed.
+  Next Obligation.
+    unseal "ra". ss.
+  Qed.
+  Next Obligation.
+    unseal "ra". ss. intros [] []; ss.
+  Qed.
+  Next Obligation.
+    unseal "ra". ss. intros []; des_ifs.
+    { f_equal. set_solver. }
+    set_solver.
+  Qed.
+  Next Obligation.
+    intros []; ss.
+  Qed.
+  Next Obligation.
+    unseal "ra". i. exists (Some ∅). ss. des_ifs.
+    { f_equal. set_solver. }
+    set_solver.
+  Qed.
 
+End Gset.
+
+Module CoPset.
+  Import coPset.
+
+  Definition add (x y : option coPset) : option coPset :=
+    match x, y with
+    | Some x, Some y => if decide (x ## y) then Some (x ∪ y) else None
+    | _, _ => None
+    end.
+
+  Program Instance t : URA.t :=
+    {|
+      URA.car := option coPset;
+      URA.unit := Some ∅;
+      URA._wf := fun x => match x with Some _ => True | None => False end;
+      URA._add := add;
+      URA.core := fun x => Some ∅;
+    |}.
+  Next Obligation.
+    intros [] []; ss. des_ifs. f_equal. set_solver.
+  Qed.
+  Next Obligation.
+    unfold add. intros [] [] []; des_ifs.
+    { f_equal. set_solver. }
+    all: set_solver.
+  Qed.
+  Next Obligation.
+    unseal "ra". unfold add. intros []; des_ifs.
+    - f_equal. set_solver.
+    - set_solver.
+  Qed.
+  Next Obligation.
+    unseal "ra". ss.
+  Qed.
+  Next Obligation.
+    unseal "ra". intros [] []; ss.
+  Qed.
+  Next Obligation.
+    unseal "ra". unfold add. intros []; des_ifs.
+    - f_equal. set_solver.
+    - set_solver.
+  Qed.
+  Next Obligation.
+    intros []; ss.
+  Qed.
+  Next Obligation.
+    unseal "ra". i. exists (Some ∅). ss. f_equal. set_solver.
+  Qed.
+
+End CoPset.
 
 Module GRA.
   Class t: Type := __GRA__INTERNAL__: (nat -> URA.t).
@@ -1038,6 +1142,19 @@ Module GRA.
     eapply UPD. ss.
   Qed.
 
+  Lemma embed_core M Σ `{@GRA.inG M Σ} (r : M) : GRA.embed (URA.core r) = URA.core (GRA.embed r).
+  Proof.
+    unfold URA.core at 2; unfold to_URA; ss.
+    extensionalities i. unfold embed. des_ifs.
+    - ss. destruct inG_prf. ss.
+    - symmetry. apply URA.unit_core.
+  Qed.
+
+  Lemma embed_unit M Σ `{@GRA.inG M Σ} : GRA.embed ε = ε.
+  Proof.
+    unfold embed. extensionalities n. des_ifs. ss. destruct inG_prf. ss.
+  Qed.
+
   Section GETSET.
     Variable ra: URA.t.
     Variable gra: t.
@@ -1053,7 +1170,7 @@ Module GRA.
     Program Definition get_lifted: URA.car (t:=gra) :=
       fun n => if Nat.eq_dec n inG_id then _ else URA.unit.
     Next Obligation.
-      apply (cast_ra inG_prf get).
+      i. subst. apply (cast_ra inG_prf get).
     Defined.
 
     (* Program Definition set_lifted: URA.car (t:=construction gra) -> unit := *)
@@ -1234,6 +1351,7 @@ Section UNIT.
   Proof. unfold URA.wf. unseal "ra". ss. Qed.
 
 End UNIT.
+Global Opaque Unit.
 
 Section URA_PROD.
 
