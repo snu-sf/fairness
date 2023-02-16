@@ -85,13 +85,9 @@ Section EVENTS.
   .
 
   Definition Get {S} {X} (p : S -> X) : sE S X := Rmw (fun x => (x, p x)).
-  Definition Put {S} (x' : S) : sE S () := Rmw (fun x => (x', tt)).
   Definition Modify {S} (f : S -> S) : sE S () := Rmw (fun x => (f x, tt)).
 
   Lemma get_rmw {S X} (p : S -> X) : Get p = Rmw (fun x => (x, p x)).
-  Proof. reflexivity. Qed.
-
-  Lemma put_rmw {S} (x' : S) : Put x' = Rmw (fun x => (x', tt)).
   Proof. reflexivity. Qed.
 
   Lemma modify_rmw {S} (f : S -> S) : Modify f = Rmw (fun x => (f x, tt)).
@@ -100,8 +96,8 @@ Section EVENTS.
 End EVENTS.
 
 Global Opaque Get.
-Global Opaque Put.
 Global Opaque Modify.
+Notation Put x := (Modify (fun _ => x)).
 
 Notation programE ident State :=
   ((((@eventE ident) +' cE) +' callE) +' sE State).
@@ -179,6 +175,12 @@ Section OPTICS_PROPERTIES.
   Proof.
     rewrite ! get_rmw; ss. f_equal. extensionalities s.
     unfold lens_rmw; ss. rewrite Lens.set_view. ss.
+  Qed.
+
+  Lemma map_lens_Modify S V (l : Lens.t S V) (f : V -> V) :
+    map_lens l (Modify f) = Modify (Lens.modify l f).
+  Proof.
+    rewrite ! modify_rmw; ss.
   Qed.
 
   Lemma lens_rmw_compose A B C (l1 : Lens.t A B) (l2 : Lens.t B C) X (rmw : C -> C * X) :

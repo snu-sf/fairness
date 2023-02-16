@@ -450,6 +450,15 @@ Section MAP_EVENT_RED.
     eapply map_event_ret.
   Qed.
 
+  Lemma map_event_plmap_modify_nocont
+    (f : state -> state)
+    : map_event (plmap p l) (trigger (Modify f)) = trigger (Modify (Lens.modify l f)).
+  Proof.
+    unfold trigger. rewrite map_event_vis. rewrite <- map_lens_Modify.
+    eapply observe_eta; ss. f_equal. extensionalities x.
+    eapply map_event_ret.
+  Qed.
+
   Lemma map_event_plmap_UB
     R :  map_event (plmap p l) (UB : itree _ R) = UB.
   Proof.
@@ -487,6 +496,7 @@ Global Program Instance close_itree_rdb: red_database (mk_box (@OMod.close_itree
     (mk_box close_itree_trigger_get)
     (mk_box close_itree_UB)
     (mk_box close_itree_UB)
+    (mk_box close_itree_UB)
     (mk_box close_itree_unwrap)
     (mk_box close_itree_UB)
     (mk_box close_itree_UB)
@@ -507,6 +517,7 @@ Global Program Instance map_event_plmap_rdb: red_database (mk_box (@map_event)) 
     (mk_box map_event_plmap_cE_nocont)
     (mk_box map_event_plmap_rmw_nocont)
     (mk_box map_event_plmap_get_nocont)
+    (mk_box map_event_plmap_modify_nocont)
     (mk_box map_event_plmap_UB)
     (mk_box map_event_plmap_UB)
     (mk_box map_event_plmap_unwrap)

@@ -482,8 +482,8 @@ Section SIM.
     iApply stsim_tidR. rred.
     iopen 1 "I1" "K1". do 6 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
-    iApply stsim_getR. iSplit. iFrame. rred. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply (stsim_modifyR with "STGT"). iIntros "STGT". rred.
 
     iPoseProof (ObligationRA.alloc
                   (((Ord.omega × Ord.omega) × Ord.omega)
@@ -651,8 +651,8 @@ Section SIM.
       2:{ iDestruct "EXCL" as "[_ [_ EXCL]]". iPoseProof (excl_unique with "EXCL CONTRA") as "%C". inv C. }
       subst. rred.
 
-      iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred. rewrite put_rmw. rred.
-      iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
+      iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred.
+      iApply (stsim_modifyR with "STGT"). iIntros "STGT". rred.
 
       iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
       { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
@@ -703,7 +703,7 @@ Section SIM.
           split; auto.
       }
 
-      ss. repeat (unfold Lens.set; ss).
+      ss. repeat (unfold Lens.modify, Lens.set; ss).
       iClear "MYB".
       clear Heqnew_wobl FIND wd k wobl.
       iDestruct "B2" as "[B2 B3]".
@@ -893,8 +893,8 @@ Section SIM.
 
     rred. iDestruct "INGS" as "[[%INGF INGEXCL] | [_ CONTRA]]".
     2:{ iPoseProof (excl_unique with "EXCLTT CONTRA") as "%FF". inv FF. }
-    subst ing. rred. ss. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred. ss. repeat (unfold Lens.set; ss).
+    subst ing. rred. ss.
+    iApply (stsim_modifyR with "STGT"). iIntros "STGT". rred. ss. repeat (unfold Lens.set; ss).
 
     iPoseProof (black_white_equal with "B2 LOCK") as "%EQ". subst k.
     iMod ("K1" with "[EXCLTT B1 B2 B3 MEM BLKS SUM STGT JPEND JBLK JCOR AMPs]") as "_".
@@ -920,9 +920,9 @@ Section SIM.
     subst ing. rred.
 
     iApply stsim_getR. iSplit. iFrame. rred.
-    iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw_V. rewrite put_rmw. rred.
+    iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw_V. rred.
     (* iApply stsim_chooseR. iIntros "%". rename x into tvw_V. rred. *)
-    iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
+    iApply (stsim_modifyR with "STGT"). iIntros "STGT". rred.
 
     iApply stsim_chooseR. iIntros "%". destruct x. rename x into tvw'. rred.
 
@@ -1046,8 +1046,8 @@ Section SIM.
     (* inv IN; ss. des_ifs. *)
     { econs. }
     { auto. }
-    iIntros "_ _". rred. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "i1STGT"). iIntros "i1STGT". rred. iApply stsim_tauR. rred.
+    iIntros "_ _". rred.
+    iApply (stsim_modifyR with "i1STGT"). iIntros "i1STGT". rred. iApply stsim_tauR. rred.
 
     rewrite Qp.inv_half_half.
     iPoseProof (ObligationRA.pending_shot with "KPEND") as "> #OBLKSHOT".

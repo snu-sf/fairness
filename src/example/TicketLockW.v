@@ -740,7 +740,7 @@ Section SIM.
 
     iopen 0 "I" "K". do 12 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iDestruct "ST" as "[ST0 ST1]".
-    iApply stsim_getL. iSplit. auto. ss. rewrite put_rmw. iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    iApply stsim_getL. iSplit. auto. iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     iApply stsim_getR. iSplit. auto. rred.
     iDestruct "MEM" as "[MEM %VWLE]". iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]".
@@ -754,8 +754,8 @@ Section SIM.
     { i. instantiate (1:=[]) in IN. inv IN. }
     { econs. }
     { auto. }
-    iIntros "_ _". rred. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "ST0"). iIntros "ST0". rred.
+    iIntros "_ _". rred.
+    iApply (stsim_modifyR with "ST0"). iIntros "ST0". rred.
     iApply stsim_tauR. rred.
 
     iAssert (⌜NatMap.find tid tks = None⌝)%I as "%FINDNONE".
@@ -1331,8 +1331,8 @@ Section SIM.
     (* TODO *)
     assert (SIG: View.le (View.join tvw svw) (TView.TView.cur tview0)).
     { apply View.join_spec. etrans. eapply TVLE. auto. subst. auto. (* etrans. eapply WQ1. auto. *) }
-    iExists (@exist View.t _ (TView.TView.cur tview0) SIG). lred. rewrite put_rmw.
-    iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    iExists (@exist View.t _ (TView.TView.cur tview0) SIG). lred.
+    iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     remember (NatMap.remove tid tks) as tks'.
     rewrite <- key_set_pull_rm_eq. rewrite <- Heqtks'.
@@ -2176,7 +2176,7 @@ Section SIM.
     subst. iDestruct "ST" as "[ST0 ST1]". iApply stsim_getL. iSplit. auto. rred. ss.
     destruct (excluded_middle_informative (View.le svw tvw)).
     2: iApply stsim_UB.
-    rename l0 into ARGLE. rewrite put_rmw. iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    rename l0 into ARGLE. iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     unfold Mod.wrap_fun, WMem.load_fun. rred.
     iDestruct "MEM" as "[MEM %SVLE]". iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]".
@@ -2235,8 +2235,8 @@ Section SIM.
     { i. instantiate (1:=[]) in IN. inv IN. }
     { econs. }
     { auto. }
-    iIntros "_ _". rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "ST0"). iIntros "ST0". rred.
+    iIntros "_ _". unfold OMod.emb_callee. rred.
+    iApply (stsim_modifyR with "ST0"). iIntros "ST0". rred.
     iApply stsim_tauR. rred.
 
     remember (S now) as now'.
@@ -2258,8 +2258,8 @@ Section SIM.
     iApply stsim_chooseL.
     assert (SIG: View.le (tvw) V').
     { etrans. 2: eapply WRLE2. auto. }
-    iExists (@exist View.t _ V' SIG). rewrite put_rmw.
-    iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    iExists (@exist View.t _ V' SIG).
+    iApply (stsim_modifyL with "ST1"). iIntros "ST1".
     iApply stsim_chooseL.
     assert (SIG2: View.le V' (TView.TView.cur tview0)).
     { auto. }

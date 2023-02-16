@@ -104,6 +104,7 @@ Class red_database (interp: Box) := mk_rdb {
   rdb_trigger1: Box;
   rdb_trigger2: Box;
   rdb_trigger3: Box;
+  rdb_trigger4: Box;
   rdb_UB: Box;
   rdb_NB: Box;
   rdb_unwrapU: Box;
@@ -122,6 +123,7 @@ Arguments rdb_trigger0 [interp].
 Arguments rdb_trigger1 [interp].
 Arguments rdb_trigger2 [interp].
 Arguments rdb_trigger3 [interp].
+Arguments rdb_trigger4 [interp].
 Arguments rdb_UB [interp].
 Arguments rdb_NB [interp].
 Arguments rdb_unwrapU [interp].
@@ -215,6 +217,7 @@ Ltac __red_interp f term :=
      (pose (rdb_trigger1 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) ||
      (pose (rdb_trigger2 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) ||
      (pose (rdb_trigger3 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) ||
+     (pose (rdb_trigger4 tc) as name; cbn in name; match goal with | name := mk_box ?lemma |- _ => apply lemma; fail 2 end) ||
      fail 3
     )
   | UB =>

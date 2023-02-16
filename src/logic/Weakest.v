@@ -1414,6 +1414,28 @@ Section STATE.
     subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
   Qed.
 
+  Lemma stsim_modifyL E f r g R_src R_tgt
+    (Q : R_src -> R_tgt -> iProp)
+    ps pt ktr_src itr_tgt st_src
+    :
+    (St_src st_src)
+    -∗ (St_src (f st_src) -∗ stsim E r g Q true pt (ktr_src tt) itr_tgt)
+    -∗ stsim E r g Q ps pt (trigger (Modify f) >>= ktr_src) itr_tgt.
+  Proof.
+    rewrite modify_rmw. iIntros "H1 H2". iApply (stsim_rmwL with "H1"). ss.
+  Qed.
+
+  Lemma stsim_modifyR E f r g R_src R_tgt
+    (Q : R_src -> R_tgt -> iProp)
+    ps pt itr_src ktr_tgt st_tgt
+    :
+    (St_tgt st_tgt)
+    -∗ (St_tgt (f st_tgt) -∗ stsim E r g Q ps true itr_src (ktr_tgt tt))
+    -∗ stsim E r g Q ps pt itr_src (trigger (Modify f) >>= ktr_tgt).
+  Proof.
+    rewrite modify_rmw. iIntros "H1 H2". iApply (stsim_rmwR with "H1"). ss.
+  Qed.
+
   Lemma stsim_tidL E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt

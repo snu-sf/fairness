@@ -245,8 +245,8 @@ Section SIM.
     iApply stsim_tidR. rred.
     iopen 1 "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
     iDestruct "I1" as "[B1 [B2 [MEM [STGT I1]]]]".
-    iApply stsim_getR. iSplit. iFrame. rred. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply (stsim_modifyR with "STGT"). iIntros "STGT". rred.
 
     iPoseProof (ObligationRA.alloc
                   (((Ord.omega × Ord.omega) × Ord.omega)
@@ -403,8 +403,8 @@ Section SIM.
     (* no one is holding the lock *)
     { rred.
       iClear "TAXES". clear IH credit RICH.
-      iApply stsim_getR. iSplit. iFrame. rred. rewrite put_rmw. rred.
-      iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
+      iApply stsim_getR. iSplit. iFrame. rred.
+      iApply (stsim_modifyR with "STGT"). iIntros "STGT". rred.
 
       iDestruct "I1" as "[BLKS [SUM [[_ [LOCK EXCL]] | [%CONTRA _]]]]".
       2:{ inversion CONTRA. }
@@ -457,7 +457,7 @@ Section SIM.
           split; auto.
       }
 
-      ss. repeat (unfold Lens.set; ss). iClear "MYB".
+      ss. repeat (unfold Lens.modify, Lens.set; ss). iClear "MYB".
       clear Heqnew_wobl FIND wd k wobl.
       iPoseProof (ObligationRA.alloc o_w_cor) as "> [% [[NEWB NEWW] NEWP]]".
       iPoseProof (OwnM_Upd with "[B2 LOCK]") as "> B2".
@@ -592,8 +592,8 @@ Section SIM.
       eapply Excl.wf in H. inversion H.
     }
     iDestruct "CASE" as "[% [JPEND [JBLK [JCOR AMPs]]]]". subst own.
-    iApply stsim_getR. iSplit. iFrame. rred. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "STGT"). iIntros "STGT". rred.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply (stsim_modifyR with "STGT"). iIntros "STGT". rred.
 
     iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
     iMod ("K1" with "[EXCL LOCK B1 B2 MEM BLKS SUM STGT]") as "_".
@@ -666,8 +666,8 @@ Section SIM.
 
     iApply stsim_getR. iSplit. iFrame. rred.
     iPoseProof (memory_ra_store with "i1MEM i0PTR") as "[% [%STORE > [i1MEM i0PTR]]]".
-    rewrite STORE. rred. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "i1STGT"). iIntros "i1STGT". rred. iApply stsim_tauR. rred.
+    rewrite STORE. rred.
+    iApply (stsim_modifyR with "i1STGT"). iIntros "i1STGT". rred. iApply stsim_tauR. rred.
 
     rewrite Qp.inv_half_half.
     iPoseProof (ObligationRA.pending_shot with "KPEND") as "> #OBLKSHOT".

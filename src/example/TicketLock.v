@@ -633,13 +633,13 @@ Section SIM.
 
     iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iDestruct "ST" as "[ST0 ST1]".
-    iApply stsim_getL. iSplit. auto. ss. rewrite put_rmw. iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    iApply stsim_getL. iSplit. auto. iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     iApply stsim_getR. iSplit. auto. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]".
     iPoseProof (memory_ra_faa with "MEM0 MEM2") as "[% [%FAA >[MEM0 MEM2]]]".
-    erewrite FAA. rred. unfold OMod.emb_callee. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "ST0"). iIntros "ST0". rred.
+    erewrite FAA. rred. unfold OMod.emb_callee.
+    iApply (stsim_modifyR with "ST0"). iIntros "ST0". rred.
     iApply stsim_tauR. rred.
 
     iAssert (⌜NatMap.find tid tks = None⌝)%I as "%FINDNONE".
@@ -1091,8 +1091,8 @@ Section SIM.
 
     iApply stsim_yieldL. lred.
     iApply stsim_getL. iSplit. auto. lred.
-    iApply stsim_getL. iSplit. auto. ss. rewrite put_rmw.
-    iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    iApply stsim_getL. iSplit. auto.
+    iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     remember (NatMap.remove tid tks) as tks'.
     rewrite <- key_set_pull_rm_eq. rewrite <- Heqtks'.
@@ -2245,8 +2245,8 @@ Section SIM.
     subst own. iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getL. iSplit. auto. rred.
     destruct (Bool.eqb true true) eqn:BEQ. 2: exfalso; inv BEQ.
-    clear BEQ. ss. rewrite put_rmw.
-    iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    clear BEQ.
+    iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     unfold Mod.wrap_fun, SCMem.load_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
@@ -2297,8 +2297,8 @@ Section SIM.
     iDestruct "ST" as "[ST0 ST1]". iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
     iApply stsim_getR. iSplit. auto. rred.
     iPoseProof (memory_ra_store with "MEM0 MEM1") as "[% [%STORE >[MEM0 MEM1]]]".
-    rewrite STORE. rred. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "ST0"). iIntros "ST0". rred.
+    rewrite STORE. rred.
+    iApply (stsim_modifyR with "ST0"). iIntros "ST0". rred.
     iApply stsim_tauR. rred.
 
     iPoseProof (black_white_equal with "MEM3 HOLD") as "%EQ". inv EQ.
