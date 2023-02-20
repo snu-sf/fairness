@@ -301,7 +301,7 @@ Section PROOF.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_rmwL. split; [|ss].
+      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_stateL. split; [|ss].
       hexploit IH; eauto. i. punfold H.
     }
 
@@ -330,7 +330,7 @@ Section PROOF.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_rmwR. split; [|ss].
+      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_stateR. split; [|ss].
       hexploit IH; eauto. i. punfold H.
     }
 

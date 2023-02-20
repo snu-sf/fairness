@@ -24,10 +24,10 @@ Section SIM.
   Let eventE2 := @eventE (sum_tid _Ident).
 
   Variable wf : WF.
-  Variable State : Type.
+  Variable S : Type.
   Variable R : Type.
 
-  Let thread R := thread _Ident (sE State) R.
+  Let thread R := thread _Ident (sE S) R.
   Import Th.
 
   Theorem ssim_nondet_fifo
@@ -145,7 +145,7 @@ Section SIM.
              rewrite H2 in H0. inversion H0. subst. lia.
   Qed.
 
-  Theorem gsim_nondet_fifo tid st (ths : @threads _Ident (sE State) R)
+  Theorem gsim_nondet_fifo tid st (ths : @threads _Ident (sE S) R)
     : gsim nat_wf nat_wf eq
            (interp_all st ths tid)
            (interp_all_fifo st ths tid).

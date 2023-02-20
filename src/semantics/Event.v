@@ -77,20 +77,20 @@ Section EVENTS.
 
   (* sE is just state monad *)
   Variant sE (S : Type) (X : Type) : Type :=
-  | Rmw (rmw : S -> S * X) : sE S X
+  | State (run : S -> S * X) : sE S X
   .
 
   Variant callE: Type -> Type :=
   | Call (fn: fname) (arg: Any.t): callE Any.t
   .
 
-  Definition Get {S} {X} (p : S -> X) : sE S X := Rmw (fun x => (x, p x)).
-  Definition Modify {S} (f : S -> S) : sE S () := Rmw (fun x => (f x, tt)).
+  Definition Get {S} {X} (p : S -> X) : sE S X := State (fun x => (x, p x)).
+  Definition Modify {S} (f : S -> S) : sE S () := State (fun x => (f x, tt)).
 
-  Lemma get_rmw {S X} (p : S -> X) : Get p = Rmw (fun x => (x, p x)).
+  Lemma Get_State {S X} (p : S -> X) : Get p = State (fun x => (x, p x)).
   Proof. reflexivity. Qed.
 
-  Lemma modify_rmw {S} (f : S -> S) : Modify f = Rmw (fun x => (f x, tt)).
+  Lemma Modify_State {S} (f : S -> S) : Modify f = State (fun x => (f x, tt)).
   Proof. reflexivity. Qed.
 
 End EVENTS.
@@ -99,8 +99,8 @@ Global Opaque Get.
 Global Opaque Modify.
 Notation Put x := (Modify (fun _ => x)).
 
-Notation programE ident State :=
-  ((((@eventE ident) +' cE) +' callE) +' sE State).
+Notation programE ident state :=
+  ((((@eventE ident) +' cE) +' callE) +' sE state).
 
 Section LENS.
 
@@ -109,13 +109,13 @@ Section LENS.
 
   Variable l : Lens.t S V.
 
-  Definition lens_rmw X : (V -> V * X) -> (S -> S * X) :=
-    fun rmw s =>
-      (Lens.set l (fst (rmw (Lens.view l s))) s, snd (rmw (Lens.view l s))).
+  Definition lens_state X : (V -> V * X) -> (S -> S * X) :=
+    fun run s =>
+      (Lens.set l (fst (run (Lens.view l s))) s, snd (run (Lens.view l s))).
 
   Definition map_lens X (se : sE V X) : sE S X :=
     match se with
-    | Rmw rmw => Rmw (lens_rmw rmw)
+    | State run => State (lens_state run)
     end.
 
 End LENS.
@@ -166,25 +166,25 @@ End PROGRAM_EVENT.
 
 Section OPTICS_PROPERTIES.
 
-  Lemma map_lens_Rmw S V (l : Lens.t S V) X (rmw : V -> V * X) :
-    map_lens l (Rmw rmw) = Rmw (lens_rmw l rmw).
+  Lemma map_lens_State S V (l : Lens.t S V) X (run : V -> V * X) :
+    map_lens l (State run) = State (lens_state l run).
   Proof. ss. Qed.
 
   Lemma map_lens_Get S V (l : Lens.t S V) X (p : V -> X) :
     map_lens l (Get p) = Get (p ∘ Lens.view l).
   Proof.
-    rewrite ! get_rmw; ss. f_equal. extensionalities s.
-    unfold lens_rmw; ss. rewrite Lens.set_view. ss.
+    rewrite ! Get_State; ss. f_equal. extensionalities s.
+    unfold lens_state; ss. rewrite Lens.set_view. ss.
   Qed.
 
   Lemma map_lens_Modify S V (l : Lens.t S V) (f : V -> V) :
     map_lens l (Modify f) = Modify (Lens.modify l f).
   Proof.
-    rewrite ! modify_rmw; ss.
+    rewrite ! Modify_State; ss.
   Qed.
 
-  Lemma lens_rmw_compose A B C (l1 : Lens.t A B) (l2 : Lens.t B C) X (rmw : C -> C * X) :
-    lens_rmw (l1 ⋅ l2)%lens rmw = lens_rmw l1 (lens_rmw l2 rmw).
+  Lemma lens_state_compose A B C (l1 : Lens.t A B) (l2 : Lens.t B C) X (run : C -> C * X) :
+    lens_state (l1 ⋅ l2)%lens run = lens_state l1 (lens_state l2 run).
   Proof. ss. Qed.
 
   Lemma prism_fmap_compose A B C (p1 : Prism.t A B) (p2 : Prism.t B C) fm :

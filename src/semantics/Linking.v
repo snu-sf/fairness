@@ -197,13 +197,13 @@ Section RED.
     apply observe_eta. ss. f_equal. extensionalities x. rewrite map_event_ret. grind.
   Qed.
 
-  Lemma close_itree_vis_rmw
+  Lemma close_itree_vis_state
         omd md
         R
-        X (rmw: omd.(Mod.state) -> omd.(Mod.state) * X) ktr
+        X (run: omd.(Mod.state) -> omd.(Mod.state) * X) ktr
     :
-    @close_itree omd md R (Vis (|Rmw rmw)%sum ktr) =
-      Vis (inr1 (Rmw (lens_rmw fstl rmw))) (fun x => tau;; close_itree omd md (ktr x)).
+    @close_itree omd md R (Vis (|State run)%sum ktr) =
+      Vis (inr1 (State (lens_state fstl run))) (fun x => tau;; close_itree omd md (ktr x)).
   Proof. eapply close_itree_vis_sE. Qed.
 
   Lemma close_itree_vis_get
@@ -215,15 +215,15 @@ Section RED.
       Vis (|Get (p ∘ Lens.view fstl))%sum (fun x => tau;; close_itree omd md (ktr x)).
   Proof. rewrite close_itree_vis_sE. rewrite map_lens_Get. ss. Qed.
 
-  Lemma close_itree_trigger_rmw
+  Lemma close_itree_trigger_state
         omd md
         R
-        X (rmw : omd.(Mod.state) -> omd.(Mod.state) * X) ktr
+        X (run : omd.(Mod.state) -> omd.(Mod.state) * X) ktr
     :
-    @close_itree omd md R (trigger (Rmw rmw) >>= ktr) =
-      x <- trigger (Rmw (lens_rmw fstl rmw));; tau;; close_itree omd md (ktr x).
+    @close_itree omd md R (trigger (State run) >>= ktr) =
+      x <- trigger (State (lens_state fstl run));; tau;; close_itree omd md (ktr x).
   Proof.
-    rewrite ! bind_trigger. eapply close_itree_vis_rmw.
+    rewrite ! bind_trigger. eapply close_itree_vis_state.
   Qed.
 
   Lemma close_itree_trigger_get
@@ -305,7 +305,7 @@ Section RED.
         }
         { ired. gstep. eapply EqVis. i. ss. }
       }
-      { rewrite ! close_itree_vis_rmw.
+      { rewrite ! close_itree_vis_state.
         ired. gstep. econs. i.
         ired. gstep. econs.
         gbase. eapply CIH.
@@ -432,9 +432,9 @@ Section MAP_EVENT_RED.
     eapply map_event_ret.
   Qed.
 
-  Lemma map_event_plmap_rmw_nocont
-    X (rmw : state -> state * X)
-    : map_event (plmap p l) (trigger (Rmw rmw)) = trigger (Rmw (lens_rmw l rmw)).
+  Lemma map_event_plmap_state_nocont
+    X (run : state -> state * X)
+    : map_event (plmap p l) (trigger (State run)) = trigger (State (lens_state l run)).
   Proof.
     unfold trigger. rewrite map_event_vis.
     eapply observe_eta; ss. f_equal. extensionalities x.
@@ -492,7 +492,7 @@ Global Program Instance close_itree_rdb: red_database (mk_box (@OMod.close_itree
     (mk_box close_itree_ret)
     (mk_box close_itree_trigger_eventE2)
     (mk_box close_itree_trigger_cE2)
-    (mk_box close_itree_trigger_rmw)
+    (mk_box close_itree_trigger_state)
     (mk_box close_itree_trigger_get)
     (mk_box close_itree_UB)
     (mk_box close_itree_UB)
@@ -515,7 +515,7 @@ Global Program Instance map_event_plmap_rdb: red_database (mk_box (@map_event)) 
     (mk_box map_event_ret)
     (mk_box map_event_plmap_eventE_nocont)
     (mk_box map_event_plmap_cE_nocont)
-    (mk_box map_event_plmap_rmw_nocont)
+    (mk_box map_event_plmap_state_nocont)
     (mk_box map_event_plmap_get_nocont)
     (mk_box map_event_plmap_modify_nocont)
     (mk_box map_event_plmap_UB)

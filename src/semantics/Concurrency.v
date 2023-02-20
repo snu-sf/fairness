@@ -79,9 +79,9 @@ Section STATE.
          apply observe_eta. ss. f_equal. extensionality x. grind.
   Qed.
 
-  Lemma interp_state_aux_rmw R st X rmw (ktr : ktree Es X R) :
-    interp_state_aux (st, Vis (inr1 (Rmw rmw)) ktr) =
-      tau;; interp_state_aux (fst (rmw st), ktr (snd (rmw st))).
+  Lemma interp_state_aux_state R st X run (ktr : ktree Es X R) :
+    interp_state_aux (st, Vis (inr1 (State run)) ktr) =
+      tau;; interp_state_aux (fst (run st), ktr (snd (run st))).
   Proof. unfold interp_state_aux. rewrite unfold_iter. grind. Qed.
 
   Lemma interp_state_aux_tau R st (itr : itree Es R) :
@@ -105,7 +105,7 @@ Section STATE.
       + rewrite 2 interp_state_aux_vis. grind.
         pfold. econs. intros. grind. left.
         pfold. econs. right. eapply CIH.
-      + destruct s. rewrite ! interp_state_aux_rmw. grind.
+      + destruct s. rewrite ! interp_state_aux_state. grind.
         pfold. econs. right. eapply CIH.
   Qed.
 
@@ -133,17 +133,17 @@ Section STATE.
     unfold interp_state, interp_state_aux. rewrite unfold_iter. ss. grind.
   Qed.
 
-  Lemma interp_state_rmw_vis
-    R st X rmw (ktr : ktree Es X R)
-    : interp_state (st, Vis (|Rmw rmw)%sum ktr) =
-        tau;; interp_state (fst (rmw st), ktr (snd (rmw st))).
-  Proof. unfold interp_state. rewrite interp_state_aux_rmw. grind. Qed.
+  Lemma interp_state_state_vis
+    R st X run (ktr : ktree Es X R)
+    : interp_state (st, Vis (|State run)%sum ktr) =
+        tau;; interp_state (fst (run st), ktr (snd (run st))).
+  Proof. unfold interp_state. rewrite interp_state_aux_state. grind. Qed.
 
-  Lemma interp_state_rmw
-    R st X rmw (ktr : ktree Es X R)
-    : interp_state (st, trigger (Rmw rmw) >>= ktr) =
-        tau;; interp_state (fst (rmw st), ktr (snd (rmw st))).
-  Proof. rewrite bind_trigger. eapply interp_state_rmw_vis. Qed.
+  Lemma interp_state_state
+    R st X run (ktr : ktree Es X R)
+    : interp_state (st, trigger (State run) >>= ktr) =
+        tau;; interp_state (fst (run st), ktr (snd (run st))).
+  Proof. rewrite bind_trigger. eapply interp_state_state_vis. Qed.
 
   Lemma interp_state_get_vis
         R (state: S) (ktr: S -> itree Es R)
@@ -152,7 +152,7 @@ Section STATE.
     =
       tau;; interp_state (state, ktr state).
   Proof.
-    unfold interp_state, interp_state_aux. rewrite get_rmw, unfold_iter. ss. grind.
+    unfold interp_state, interp_state_aux. rewrite Get_State, unfold_iter. ss. grind.
   Qed.
 
   Lemma interp_state_get
@@ -193,9 +193,9 @@ Global Opaque interp_state_aux interp_state.
 
 Section STATE_PROP.
 
-  Variable State: Type.
+  Variable S : Type.
 
-  Lemma interp_state_aux_map_event E1 E2 R (embed : forall X, E1 X -> E2 X) st (itr : itree (E1 +' sE State) R) :
+  Lemma interp_state_aux_map_event E1 E2 R (embed : forall X, E1 X -> E2 X) st (itr : itree (E1 +' sE S) R) :
     interp_state_aux (st, map_event (embed_left embed) itr) = map_event embed (interp_state_aux (st, itr)).
   Proof.
     eapply bisim_is_eq. revert st itr. pcofix CIH. i.
@@ -216,7 +216,7 @@ Section STATE_PROP.
         rewrite map_event_tau.
         pfold. econs. right. eapply CIH.
       + ss. destruct s.
-        rewrite ! interp_state_aux_rmw.
+        rewrite ! interp_state_aux_state.
         rewrite ! map_event_tau.
         pfold. econs. right. eapply CIH.
   Qed.
@@ -517,16 +517,16 @@ Global Opaque sched_nondet_body sched_nondet.
 
 Section INTERP.
 
-  Variable State: Type.
+  Variable S : Type.
   Variable _Ident: ID.
   Variable R: Type.
 
   Definition interp_all
-    st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
+    st (ths: @threads _Ident (sE S) R) tid : itree (@eventE (sum_tid _Ident)) R :=
     interp_state (st, interp_sched (ths, sched_nondet _ (tid, NatSet.remove tid (key_set ths)))).
 
   Lemma interp_all_tau
-        st (ths: @threads _Ident (sE State) R) tid
+        st (ths: @threads _Ident (sE S) R) tid
         itr
     :
     (interp_all st (Th.add tid (Tau itr) ths) tid) = (Tau (interp_all st (Th.add tid itr ths) tid)).
@@ -539,7 +539,7 @@ Section INTERP.
   Qed.
 
   Lemma interp_all_vis
-        st (ths: @threads _Ident (sE State) R) tid
+        st (ths: @threads _Ident (sE S) R) tid
         X (e: @eventE _Ident X) ktr
     :
     (interp_all st (Th.add tid (Vis (((e|)|)|)%sum ktr) ths) tid) =
@@ -555,14 +555,14 @@ Section INTERP.
     - erewrite 1 nm_rm_add_eq. rewrite ! key_set_pull_add_eq. eauto.
   Qed.
 
-  Lemma interp_all_rmw
-    st (ths : @threads _Ident (sE State) R) tid
-    X rmw ktr
-    : interp_all st (Th.add tid (Vis (|Rmw rmw)%sum ktr) ths) tid =
-        tau;; tau;; interp_all (fst (rmw st)) (Th.add tid (ktr (snd (rmw st) : X)) ths) tid .
+  Lemma interp_all_state
+    st (ths : @threads _Ident (sE S) R) tid
+    X run ktr
+    : interp_all st (Th.add tid (Vis (|State run)%sum ktr) ths) tid =
+        tau;; tau;; interp_all (fst (run st)) (Th.add tid (ktr (snd (run st) : X)) ths) tid .
   Proof.
     unfold interp_all. erewrite ! unfold_interp_sched_nondet_Some; eauto using nm_find_add_eq.
-    rewrite interp_thread_vis. rewrite bind_vis. rewrite interp_state_rmw_vis.
+    rewrite interp_thread_vis. rewrite bind_vis. rewrite interp_state_state_vis.
     rewrite bind_tau. rewrite interp_state_tau.
     repeat f_equal. extensionalities x.
     destruct x.
@@ -571,7 +571,7 @@ Section INTERP.
   Qed.
 
   Lemma interp_all_get
-        st (ths: @threads _Ident (sE State) R) tid
+        st (ths: @threads _Ident (sE S) R) tid
         ktr
     :
     (interp_all st (Th.add tid (Vis (|Get id)%sum ktr) ths) tid) =
@@ -586,7 +586,7 @@ Section INTERP.
   Qed.
 
   Lemma interp_all_tid
-        st (ths: @threads _Ident (sE State) R) tid
+        st (ths: @threads _Ident (sE S) R) tid
         ktr
     :
     (interp_all st (Th.add tid (Vis (((|GetTid)|)|)%sum ktr) ths) tid) =
@@ -601,7 +601,7 @@ Section INTERP.
   Qed.
 
   Lemma interp_all_call
-    st (ths: @threads _Ident (sE State) R) tid
+    st (ths: @threads _Ident (sE S) R) tid
     fn args ktr
     : interp_all st (Th.add tid (trigger (Call fn args) >>= ktr) ths) tid = trigger Undefined >>= Empty_set_rect _.
   Proof.

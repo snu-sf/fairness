@@ -304,28 +304,28 @@ Section SIM.
     i. econs; [eapply H|..]; eauto.
   Qed.
 
-  Lemma isim_rmwL X rmw r g R_src R_tgt
+  Lemma isim_stateL X run r g R_src R_tgt
     (Q : R_src -> R_tgt -> shared_rel)
     ps pt ktr_src itr_tgt ths im_src im_tgt st_src st_tgt
     : bi_entails
-        (isim r g Q true pt (ktr_src (snd (rmw st_src) : X)) itr_tgt ths im_src im_tgt (fst (rmw st_src)) st_tgt)
-        (isim r g Q ps pt (trigger (Rmw rmw) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt).
+        (isim r g Q true pt (ktr_src (snd (run st_src) : X)) itr_tgt ths im_src im_tgt (fst (run st_src)) st_tgt)
+        (isim r g Q ps pt (trigger (State run) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
     rr. autorewrite with iprop. i.
     ii. muclo lsim_indC_spec.
-    eapply lsim_rmwL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    eapply lsim_stateL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
 
-  Lemma isim_rmwR X rmw r g R_src R_tgt
+  Lemma isim_stateR X run r g R_src R_tgt
     (Q : R_src -> R_tgt -> shared_rel)
     ps pt itr_src ktr_tgt ths im_src im_tgt st_src st_tgt
     : bi_entails
-        (isim r g Q ps true itr_src (ktr_tgt (snd (rmw st_tgt) : X)) ths im_src im_tgt st_src (fst (rmw st_tgt)))
-        (isim r g Q ps pt itr_src (trigger (Rmw rmw) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt).
+        (isim r g Q ps true itr_src (ktr_tgt (snd (run st_tgt) : X)) ths im_src im_tgt st_src (fst (run st_tgt)))
+        (isim r g Q ps pt itr_src (trigger (State run) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt).
   Proof.
     rr. autorewrite with iprop. i.
     ii. muclo lsim_indC_spec.
-    eapply lsim_rmwR. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    eapply lsim_stateR. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
 
   Lemma isim_tidL r g R_src R_tgt
@@ -1348,15 +1348,15 @@ Section STATE.
     iPoseProof ("H" $! _ _ _ _ _ _ with "D") as "H". iFrame.
   Qed.
 
-  Lemma stsim_rmwL E X rmw r g R_src R_tgt
+  Lemma stsim_stateL E X run r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
     ps pt ktr_src itr_tgt st_src
     :
     (St_src st_src)
-    -∗ (St_src (fst (rmw st_src)) -∗ stsim E r g Q true pt (ktr_src (snd (rmw st_src) : X)) itr_tgt)
-    -∗ stsim E r g Q ps pt (trigger (Rmw rmw) >>= ktr_src) itr_tgt.
+    -∗ (St_src (fst (run st_src)) -∗ stsim E r g Q true pt (ktr_src (snd (run st_src) : X)) itr_tgt)
+    -∗ stsim E r g Q ps pt (trigger (State run) >>= ktr_src) itr_tgt.
   Proof.
-    unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]". iApply isim_rmwL.
+    unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]". iApply isim_stateL.
     iAssert (⌜st_src0 = st_src⌝)%I as "%".
     { iApply (default_I_past_get_st_src with "D H0"); eauto. }
     subst.
@@ -1364,15 +1364,15 @@ Section STATE.
     iApply ("H1" with "D [H0 C]"). iFrame.
   Qed.
 
-  Lemma stsim_rmwR E X rmw r g R_src R_tgt
+  Lemma stsim_stateR E X run r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
     ps pt itr_src ktr_tgt st_tgt
     :
     (St_tgt st_tgt)
-    -∗ (St_tgt (fst (rmw st_tgt)) -∗ stsim E r g Q ps true itr_src (ktr_tgt (snd (rmw st_tgt) : X)))
-    -∗ stsim E r g Q ps pt itr_src (trigger (Rmw rmw) >>= ktr_tgt).
+    -∗ (St_tgt (fst (run st_tgt)) -∗ stsim E r g Q ps true itr_src (ktr_tgt (snd (run st_tgt) : X)))
+    -∗ stsim E r g Q ps pt itr_src (trigger (State run) >>= ktr_tgt).
   Proof.
-    unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]". iApply isim_rmwR.
+    unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]". iApply isim_stateR.
     iAssert (⌜st_tgt0 = st_tgt⌝)%I as "%".
     { iApply (default_I_past_get_st_tgt with "D H0"); eauto. }
     subst.
@@ -1391,7 +1391,7 @@ Section STATE.
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
-    rewrite get_rmw. iApply isim_rmwL.
+    rewrite Get_State. iApply isim_stateL.
     iAssert (⌜st_src = st⌝)%I as "%".
     { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_src with "D"); eauto. }
     subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
@@ -1408,7 +1408,7 @@ Section STATE.
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
-    rewrite get_rmw. iApply isim_rmwR.
+    rewrite Get_State. iApply isim_stateR.
     iAssert (⌜st_tgt = st⌝)%I as "%".
     { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_tgt with "D"); eauto. }
     subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
@@ -1422,7 +1422,7 @@ Section STATE.
     -∗ (St_src (f st_src) -∗ stsim E r g Q true pt (ktr_src tt) itr_tgt)
     -∗ stsim E r g Q ps pt (trigger (Modify f) >>= ktr_src) itr_tgt.
   Proof.
-    rewrite modify_rmw. iIntros "H1 H2". iApply (stsim_rmwL with "H1"). ss.
+    rewrite Modify_State. iIntros "H1 H2". iApply (stsim_stateL with "H1"). ss.
   Qed.
 
   Lemma stsim_modifyR E f r g R_src R_tgt
@@ -1433,7 +1433,7 @@ Section STATE.
     -∗ (St_tgt (f st_tgt) -∗ stsim E r g Q ps true itr_src (ktr_tgt tt))
     -∗ stsim E r g Q ps pt itr_src (trigger (Modify f) >>= ktr_tgt).
   Proof.
-    rewrite modify_rmw. iIntros "H1 H2". iApply (stsim_rmwR with "H1"). ss.
+    rewrite Modify_State. iIntros "H1 H2". iApply (stsim_stateR with "H1"). ss.
   Qed.
 
   Lemma stsim_tidL E r g R_src R_tgt

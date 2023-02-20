@@ -231,8 +231,8 @@ Section SIM_REFLEXIVE.
           gbase. eapply CIH; eauto.
         + eapply pind9_fold. eapply lsim_call. i.
           gbase. eapply CIH; eauto.
-        + eapply pind9_fold. eapply lsim_rmwL. esplit; ss.
-          eapply pind9_fold. eapply lsim_rmwR. esplit; ss.
+        + eapply pind9_fold. eapply lsim_stateL. esplit; ss.
+          eapply pind9_fold. eapply lsim_stateR. esplit; ss.
           eapply pind9_fold. eapply lsim_progress.
           eapply I_update_state in INV. des. rewrite INV.
           gbase. eapply CIH; eauto.
@@ -432,8 +432,8 @@ Section ADD_RIGHT_MONO_SIM.
       rewrite ! map_event_vis. ss.
       rewrite <- 2 bind_trigger.
       gstep.
-      eapply pind9_fold. eapply lsim_rmwL. esplit; ss.
-      eapply pind9_fold. eapply lsim_rmwR. esplit; ss.
+      eapply pind9_fold. eapply lsim_stateL. esplit; ss.
+      eapply pind9_fold. eapply lsim_stateR. esplit; ss.
       eapply pind9_fold. eapply lsim_progress.
       gbase. des. destruct st_src0, st_tgt0; ss. subst.
       eapply CIH; eauto. esplits; eauto.

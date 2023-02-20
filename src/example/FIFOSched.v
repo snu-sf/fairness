@@ -62,12 +62,12 @@ End SCHEDULE.
 
 Section INTERP.
 
-  Variable State : Type.
-  Variable _Ident : ID.
-  Let eventE2 := @eventE (sum_tid _Ident).
+  Variable user_state : Type.
+  Variable user_ident : ID.
+  Let eventE2 := @eventE (sum_tid user_ident).
 
   Definition interp_all_fifo
-    {R} st (ths: @threads _Ident (sE State) R) tid : itree (@eventE (sum_tid _Ident)) R :=
+    {R} st (ths: @threads user_ident (sE user_state) R) tid : itree (@eventE (sum_tid user_ident)) R :=
     interp_state (st, interp_sched (ths, sched_fifo _ (tid, TIdSet.elements (TIdSet.remove tid (key_set ths))))).
 
 End INTERP.

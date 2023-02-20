@@ -198,18 +198,18 @@ Section KSIM.
                  (sf, Vis (inl1 (inl1 (inl1 (Choose X)))) ktr_src)
                  (itr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
-    | ksim_rmwL
+    | ksim_stateL
         tid f_src f_tgt
-        sf X rmw ktr_src itr_tgt
+        sf X run ktr_src itr_tgt
         rs_local
         im_src im_tgt st_src st_tgt o
         (KSIM: _sim_knot thsl thsr tid rs_local true f_tgt
-                         (sf, ktr_src (snd (rmw st_src) : X))
+                         (sf, ktr_src (snd (run st_src) : X))
                          itr_tgt
-                         (im_src, im_tgt, fst (rmw st_src), st_tgt) o)
+                         (im_src, im_tgt, fst (run st_src), st_tgt) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
-                 (sf, Vis (inr1 (Rmw rmw)) ktr_src)
+                 (sf, Vis (inr1 (State run)) ktr_src)
                  (itr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
     | ksim_tidL
@@ -281,19 +281,19 @@ Section KSIM.
                  (sf, itr_src)
                  (Vis (inl1 (inl1 (inl1 (Choose X)))) ktr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
-    | ksim_rmwR
+    | ksim_stateR
         tid f_src f_tgt
-        sf itr_src X rmw ktr_tgt
+        sf itr_src X run ktr_tgt
         rs_local
         im_src im_tgt st_src st_tgt o
         (KSIM: _sim_knot thsl thsr tid rs_local f_src true
                          (sf, itr_src)
-                         (ktr_tgt (snd (rmw st_tgt) : X))
-                         (im_src, im_tgt, st_src, fst (rmw st_tgt)) o)
+                         (ktr_tgt (snd (run st_tgt) : X))
+                         (im_src, im_tgt, st_src, fst (run st_tgt)) o)
       :
       __sim_knot RR sim_knot _sim_knot thsl thsr tid rs_local f_src f_tgt
                  (sf, itr_src)
-                 (Vis (inr1 (Rmw rmw)) ktr_tgt)
+                 (Vis (inr1 (State run)) ktr_tgt)
                  (im_src, im_tgt, st_src, st_tgt) o
     | ksim_tidR
         tid f_src f_tgt
@@ -457,7 +457,7 @@ Section KSIM.
       destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
-    { pfold. eapply pind10_fold. eapply ksim_rmwL. split; ss.
+    { pfold. eapply pind10_fold. eapply ksim_stateL. split; ss.
       destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
@@ -479,7 +479,7 @@ Section KSIM.
       destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
-    { pfold. eapply pind10_fold. eapply ksim_rmwR. split; ss.
+    { pfold. eapply pind10_fold. eapply ksim_stateR. split; ss.
       destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
@@ -553,7 +553,7 @@ Section KSIM.
       destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
-    { pfold. eapply pind10_fold. eapply ksim_rmwL. split; ss.
+    { pfold. eapply pind10_fold. eapply ksim_stateL. split; ss.
       destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
@@ -575,7 +575,7 @@ Section KSIM.
       destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 
-    { pfold. eapply pind10_fold. eapply ksim_rmwR. split; ss.
+    { pfold. eapply pind10_fold. eapply ksim_stateR. split; ss.
       destruct KSIM0 as [KSIM0 IND]. hexploit IH; eauto. i. punfold H.
     }
 

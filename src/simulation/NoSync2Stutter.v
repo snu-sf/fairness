@@ -63,13 +63,13 @@ Section GENORDER.
       (GENO: exists x, geno true f_tgt r_ctx (o, ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
-  | geno_rmwL
+  | geno_stateL
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
-      X rmw ktr_src itr_tgt
-      (GENO: geno true f_tgt r_ctx (o, ktr_src (snd (rmw st_src) : X)) itr_tgt (ths, im_src, im_tgt, fst (rmw st_src), st_tgt))
+      X run ktr_src itr_tgt
+      (GENO: geno true f_tgt r_ctx (o, ktr_src (snd (run st_src) : X)) itr_tgt (ths, im_src, im_tgt, fst (run st_src), st_tgt))
     :
-    _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Rmw rmw) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+    _geno tid RR geno f_src f_tgt r_ctx (o, trigger (State run) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | geno_tidL
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
@@ -107,13 +107,13 @@ Section GENORDER.
       (GENO: forall x, geno f_src true r_ctx (o, itr_src) (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | geno_rmwR
+  | geno_stateR
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
-      X rmw itr_src ktr_tgt
-      (GENO: geno f_src true r_ctx (o, itr_src) (ktr_tgt (snd (rmw st_tgt) : X)) (ths, im_src, im_tgt, st_src, fst (rmw st_tgt)))
+      X run itr_src ktr_tgt
+      (GENO: geno f_src true r_ctx (o, itr_src) (ktr_tgt (snd (run st_tgt) : X)) (ths, im_src, im_tgt, st_src, fst (run st_tgt)))
     :
-    _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (Rmw rmw) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+    _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (State run) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | geno_tidR
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
@@ -227,7 +227,7 @@ Section GENORDER.
       des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. esplits; eauto.
       split; ss; eauto.
     }
-    { eapply pind6_fold. eapply geno_rmwL; eauto.
+    { eapply pind6_fold. eapply geno_stateL; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
     { eapply pind6_fold. eapply geno_tidL; eauto.
@@ -246,7 +246,7 @@ Section GENORDER.
       i. specialize (GENO0 x).
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. eapply geno_rmwR; eauto.
+    { eapply pind6_fold. eapply geno_stateR; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
     { eapply pind6_fold. eapply geno_tidR; eauto.
@@ -303,7 +303,7 @@ Section GENORDER.
       exists o. eapply pind6_fold. eapply geno_chooseL; eauto. eexists. split; ss. eauto.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind6_fold. eapply geno_rmwL; eauto. split; ss.
+      exists o. eapply pind6_fold. eapply geno_stateL; eauto. split; ss.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
       exists o. eapply pind6_fold. eapply geno_tidL; auto. split; ss.
@@ -334,7 +334,7 @@ Section GENORDER.
     }
 
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind6_fold. eapply geno_rmwR; eauto. ss.
+      eapply pind6_fold. eapply geno_stateR; eauto. ss.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
       eapply pind6_fold. eapply geno_tidR; eauto. ss.

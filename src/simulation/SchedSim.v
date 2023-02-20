@@ -218,9 +218,9 @@ Section SIM.
   Let eventE1 := @eventE _Ident.
   Let eventE2 := @eventE (sum_tid _Ident).
 
-  Variable State : Type.
+  Variable S : Type.
 
-  Let thread R := thread _Ident (sE State) R.
+  Let thread R := thread _Ident (sE S) R.
   Import Th.
 
   Lemma nth_error_Some' A (l : list A) x i : nth_error l i = Some x -> i < List.length l.
@@ -237,7 +237,7 @@ Section SIM.
   Theorem ssim_implies_gsim
     RT R0 R1 RR p_src p_tgt sched_src sched_tgt
     (SSIM : forall m_tgt, exists m_src, @ssim wf_src wf_tgt RT R0 R1 RR p_src m_src p_tgt m_tgt sched_src sched_tgt)
-    st (ths : @threads _Ident (sE State) RT)
+    st (ths : @threads _Ident (sE S) RT)
     : gsim wf_src wf_tgt RR
         (interp_state (st, interp_sched (ths, sched_src)))
         (interp_state (st, interp_sched (ths, sched_tgt))).
