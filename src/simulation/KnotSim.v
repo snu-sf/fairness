@@ -27,8 +27,8 @@ Section KSIM.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := (programE _ident_src state_src).
-  Notation tgtE := (programE _ident_tgt state_tgt).
+  Notation srcE := (threadE _ident_src state_src).
+  Notation tgtE := (threadE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
 

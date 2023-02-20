@@ -16,11 +16,11 @@ Section ADD.
   Variable M1 M2 : Mod.t.
 
   Definition emb_l
-    : forall X, programE (ident M1) (state M1) X -> programE (ident M1 + ident M2)%type (state M1 * state M2) X :=
+    : forall X, threadE (ident M1) (state M1) X -> threadE (ident M1 + ident M2)%type (state M1 * state M2) X :=
     plmap inlp fstl.
 
   Definition emb_r
-    : forall X, programE (ident M2) (state M2) X -> programE (ident M1 + ident M2)%type (state M1 * state M2) X :=
+    : forall X, threadE (ident M2) (state M2) X -> threadE (ident M1 + ident M2)%type (state M1 * state M2) X :=
     plmap inrp sndl.
 
   Definition add_funs : fname -> option (ktree _ Any.t Any.t) :=
@@ -54,12 +54,12 @@ Module OMod.
     Definition closed_st_init: closed_state := (omd.(Mod.st_init), md.(Mod.st_init)).
 
     Definition emb_callee
-      : forall X, programE (Mod.ident md) (Mod.state md) X -> programE closed_ident closed_state X :=
+      : forall X, threadE (Mod.ident md) (Mod.state md) X -> threadE closed_ident closed_state X :=
       plmap inrp sndl.
     
     Definition close_itree {R}:
-      (itree (programE omd.(Mod.ident) omd.(Mod.state)) R) ->
-      (itree (programE closed_ident closed_state) R).
+      (itree (threadE omd.(Mod.ident) omd.(Mod.state)) R) ->
+      (itree (threadE closed_ident closed_state) R).
     Proof.
       (*ub for undefined fn call*)
       eapply ITree.iter. intros itr. destruct (observe itr).

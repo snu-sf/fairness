@@ -24,7 +24,7 @@ End INIT.
 Module ClientImpl.
 
   Definition thread1:
-    ktree (programE void unit) unit unit
+    ktree (threadE void unit) unit unit
     :=
     fun _ =>
       let tvw := View.bot in
@@ -35,7 +35,7 @@ Module ClientImpl.
       Ret tt.
 
   Definition thread2:
-    ktree (programE void unit) unit unit
+    ktree (threadE void unit) unit unit
     :=
     fun _ =>
       let tvw := View.bot in
@@ -71,13 +71,13 @@ End ClientImpl.
 
 Module ClientSpec.
   Definition thread1:
-    ktree (programE void unit) unit unit
+    ktree (threadE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;; Ret tt.
 
   Definition thread2:
-    ktree (programE void unit) unit unit
+    ktree (threadE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;;

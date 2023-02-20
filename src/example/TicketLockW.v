@@ -28,7 +28,7 @@ Module TicketLockW.
   Definition next_ticket: Loc.t := Loc.of_nat 2.
 
   Definition lock_loop (myticket: Const.t) (tvw: View.t):
-    itree (programE void unit) View.t
+    itree (threadE void unit) View.t
     :=
     ITree.iter
       (fun (tvw: View.t) =>
@@ -37,7 +37,7 @@ Module TicketLockW.
          if (b: bool) then Ret (inr tvw) else Ret (inl tvw)) tvw.
 
   Definition lock_fun:
-    ktree (programE void unit) View.t View.t :=
+    ktree (threadE void unit) View.t View.t :=
     fun tvw =>
       '(tvw, myticket) <- (OMod.call "faa" (tvw, next_ticket, const_1, Ordering.plain, Ordering.acqrel));;
       tvw <- lock_loop myticket tvw;;
@@ -46,7 +46,7 @@ Module TicketLockW.
   .
 
   Definition unlock_fun:
-    ktree (programE void unit) View.t View.t :=
+    ktree (threadE void unit) View.t View.t :=
     fun tvw =>
       '(tvw, v) <- (OMod.call "load" (tvw, now_serving, Ordering.relaxed));;
       let v := Const.add v const_1 in
@@ -706,7 +706,7 @@ Section SIM.
       let (y0, ing) := y in
       let (_, tvw_lock) := y0 in
       if ing
-      then ` x : _ <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (programE _ AbsLockW.st) View.t) x
+      then ` x : _ <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (threadE _ AbsLockW.st) View.t) x
       else
        ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
        trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
@@ -931,13 +931,13 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _  (Mod.state AbsLockW.mod)) R_src
+            → itree (threadE _  (Mod.state AbsLockW.mod)) R_src
             → itree
-                (programE _ (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt
+                (threadE _ (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree (programE _  (Mod.state AbsLockW.mod)) View.t)
-        (tgt: itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t)
+        (src: itree (threadE _  (Mod.state AbsLockW.mod)) View.t)
+        (tgt: itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t)
         (tid mytk u: nat)
         x
     :
@@ -1022,13 +1022,13 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _  (Mod.state AbsLockW.mod)) R_src
+            → itree (threadE _  (Mod.state AbsLockW.mod)) R_src
             → itree
-                (programE _ (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt
+                (threadE _ (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree (programE _  (Mod.state AbsLockW.mod)) View.t)
-        (tgt: itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t)
+        (src: itree (threadE _  (Mod.state AbsLockW.mod)) View.t)
+        (tgt: itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t)
         (tid mytk now: nat)
         tks mem next l myt own V wk svw ing
         (* (VW: View.le V svw) *)
@@ -1135,8 +1135,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _  (Mod.state AbsLockW.mod)) R_src
-            → itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
+            → itree (threadE _  (Mod.state AbsLockW.mod)) R_src
+            → itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
         (ps pt: bool)
         (tid: nat)
         (now: TicketLockW.tk)
@@ -1173,7 +1173,7 @@ Section SIM.
         let (y0, ing0) := y in
         let (_, tvw_lock) := y0 in
         if ing0
-        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (programE _  AbsLockW.st) View.t) x1
+        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (threadE _  AbsLockW.st) View.t) x1
         else
          ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
          trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
@@ -1424,8 +1424,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _  (Mod.state AbsLockW.mod)) R_src
-            → itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
+            → itree (threadE _  (Mod.state AbsLockW.mod)) R_src
+            → itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (tvw: View.t)
@@ -1474,7 +1474,7 @@ Section SIM.
         let (y0, ing0) := y in
         let (_, tvw_lock) := y0 in
         if ing0
-        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (programE _  AbsLockW.st) View.t) x1
+        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (threadE _  AbsLockW.st) View.t) x1
         else
          ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
          trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
@@ -1523,10 +1523,10 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _  (Mod.state AbsLockW.mod)) R_src
-            → itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
+            → itree (threadE _  (Mod.state AbsLockW.mod)) R_src
+            → itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
         (ps pt: bool)
-        (src: itree (programE _  (Mod.state AbsLockW.mod)) View.t)
+        (src: itree (threadE _  (Mod.state AbsLockW.mod)) View.t)
         tgt
         (tid : nat)
         (mem : WMem.t)
@@ -1585,7 +1585,7 @@ Section SIM.
     { des. rr in WQ. des. subst. iApply "SIM". iFrame. iSplit; auto. iPureIntro. clear - LT. lia. }
   Qed.
 
-  Let src_code_coind tid tvw: itree (programE _  (Mod.state AbsLockW.mod)) View.t :=
+  Let src_code_coind tid tvw: itree (threadE _  (Mod.state AbsLockW.mod)) View.t :=
            ((` lr : () + () <-
              (trigger Yield;;;
               ` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get id);;
@@ -1606,7 +1606,7 @@ Section SIM.
              let (_, tvw_lock) := y0 in
              if ing0
              then
-              ` x : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (programE _  AbsLockW.st) View.t) x
+              ` x : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (threadE _  AbsLockW.st) View.t) x
              else
               ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
               trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
@@ -1620,7 +1620,7 @@ Section SIM.
                        else if NatMapP.F.In_dec (NatMap.remove (elt:=()) tid ts) i then Flag.fail else Flag.emp));;;
                  trigger Yield;;; Ret tvw'))).
 
-  Let tgt_code_coind (a: View.t) mytk: itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t :=
+  Let tgt_code_coind (a: View.t) mytk: itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t :=
            (trigger Yield;;;
             ` x : View.t * Const.t <-
             (` rv : Any.t <-
@@ -1642,8 +1642,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _  (Mod.state AbsLockW.mod)) R_src
-            → itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
+            → itree (threadE _  (Mod.state AbsLockW.mod)) R_src
+            → itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLockW.tk)
@@ -1697,7 +1697,7 @@ Section SIM.
         let (y0, ing0) := y in
         let (_, tvw_lock) := y0 in
         if ing0
-        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (programE _  AbsLockW.st) View.t) x1
+        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (threadE _  AbsLockW.st) View.t) x1
         else
          ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
          trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
@@ -1769,7 +1769,7 @@ Section SIM.
       hexploit (tkqueue_val_range_l I1 _ FIND). i. iPureIntro. lia. }
   Qed.
 
-  Let src_code_ind tid tvw: itree (programE _  (Mod.state AbsLockW.mod)) View.t :=
+  Let src_code_ind tid tvw: itree (threadE _  (Mod.state AbsLockW.mod)) View.t :=
                            (trigger Yield;;;
                             ` x : () + () <-
                             (` x_ : bool * View.t * bool * NatMap.t () <- trigger (Get id);;
@@ -1794,7 +1794,7 @@ Section SIM.
                              if ing0
                              then
                               ` x1 : void <- trigger (Choose void);;
-                              Empty_set_rect (λ _ : void, itree (programE _  AbsLockW.st) View.t) x1
+                              Empty_set_rect (λ _ : void, itree (threadE _  AbsLockW.st) View.t) x1
                              else
                               ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
                               trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;
@@ -1808,7 +1808,7 @@ Section SIM.
                                        else if NatMapP.F.In_dec (NatMap.remove (elt:=()) tid ts) i then Flag.fail else Flag.emp));;;
                                  trigger Yield;;; Ret tvw'))).
 
-  Let tgt_code_ind (tview: View.t) mytk: itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t :=
+  Let tgt_code_ind (tview: View.t) mytk: itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t :=
                            (` r : Any.t <-
                             map_event (OMod.emb_callee TicketLockW.omod WMem.mod)
                               (Mod.wrap_fun WMem.load_fun (Any.upcast (tview, TicketLockW.now_serving, Ordering.acqrel)));;
@@ -1829,8 +1829,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _  (Mod.state AbsLockW.mod)) R_src
-            → itree (programE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
+            → itree (threadE _  (Mod.state AbsLockW.mod)) R_src
+            → itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLockW.tk)
   (now : nat)
@@ -1924,7 +1924,7 @@ Section SIM.
         let (y0, ing) := y in
         let (_, tvw_lock) := y0 in
         if ing
-        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (programE _  AbsLockW.st) View.t) x1
+        then ` x1 : void <- trigger (Choose void);; Empty_set_rect (λ _ : void, itree (threadE _  AbsLockW.st) View.t) x1
         else
          ` x_0 : {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'} <-
          trigger (Choose {tvw' : View.t | View.le (View.join tvw tvw_lock) tvw'});;

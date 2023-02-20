@@ -14,7 +14,7 @@ Set Implicit Arguments.
 Module AbsLock.
 
   Definition lock_fun
-    : ktree (programE thread_id (bool * NatMap.t unit)%type) unit unit :=
+    : ktree (threadE thread_id (bool * NatMap.t unit)%type) unit unit :=
     fun _ =>
       _ <- trigger Yield;;
       tid <- trigger (GetTid);;
@@ -38,7 +38,7 @@ Module AbsLock.
       Ret tt.
 
   Definition unlock_fun
-    : ktree (programE thread_id (bool * NatMap.t unit)%type) unit unit :=
+    : ktree (threadE thread_id (bool * NatMap.t unit)%type) unit unit :=
     fun _ =>
       _ <- trigger Yield;;
       '(own, ts) <- trigger (Get id);;
@@ -59,7 +59,7 @@ Module AbsLockW.
   Definition st := (((bool * View.t) * bool) * NatMap.t unit)%type.
 
   Definition lock_fun
-    : ktree (programE thread_id st) View.t View.t :=
+    : ktree (threadE thread_id st) View.t View.t :=
     fun tvw =>
       _ <- trigger Yield;;
       tid <- trigger (GetTid);;
@@ -93,7 +93,7 @@ Module AbsLockW.
         Ret tvw'.
 
   Definition unlock_fun
-    : ktree (programE thread_id st) View.t View.t :=
+    : ktree (threadE thread_id st) View.t View.t :=
     fun tvw =>
       _ <- trigger Yield;;
       '(((own, lvw), ing), ts) <- trigger (Get id);;

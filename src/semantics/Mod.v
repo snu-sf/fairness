@@ -72,7 +72,7 @@ Module Mod.
         state: Type;
         ident: ID;
         st_init: state;
-        funs: fname -> option (ktree (programE ident state) Any.t Any.t);
+        funs: fname -> option (ktree (threadE ident state) Any.t Any.t);
       }.
 
 

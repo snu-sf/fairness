@@ -22,8 +22,8 @@ Section PRIMIVIESIM.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := programE _ident_src state_src.
-  Let tgtE := programE _ident_tgt state_tgt.
+  Let srcE := threadE _ident_src state_src.
+  Let tgtE := threadE _ident_tgt state_tgt.
 
   Variable wf_stt: Type -> Type -> WF.
 

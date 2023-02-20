@@ -24,8 +24,8 @@ Section PRIMIVIESIM.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := programE ident_src state_src.
-  Let tgtE := programE _ident_tgt state_tgt.
+  Let srcE := threadE ident_src state_src.
+  Let tgtE := threadE _ident_tgt state_tgt.
 
   Let shared := shared state_src state_tgt ident_src _ident_tgt wf_src wf_tgt.
 
@@ -329,8 +329,8 @@ Section GENORDER.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := programE ident_src state_src.
-  Let tgtE := programE _ident_tgt state_tgt.
+  Let srcE := threadE ident_src state_src.
+  Let tgtE := threadE _ident_tgt state_tgt.
 
   Let shared := shared state_src state_tgt ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.

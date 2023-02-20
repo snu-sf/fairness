@@ -180,7 +180,7 @@ Section SIM_REFLEXIVE.
         RR r r w' (ths, im_src, im_tgt, st_src, st_tgt).
 
     Lemma lsim_refl :
-      forall tid (itr : itree (programE J A) R)
+      forall tid (itr : itree (threadE J A) R)
         fs ft r_ctx ths im_src im_tgt st_src st_tgt
         (INV : I (ths, im_src, im_tgt, st_src, st_tgt) tt),
         lsim I tid RR fs ft r_ctx
@@ -241,7 +241,7 @@ Section SIM_REFLEXIVE.
 
   End LSIM.
 
-  Lemma local_sim_refl R (itr : itree (programE J A) R) :
+  Lemma local_sim_refl R (itr : itree (threadE J A) R) :
     local_sim I eq (map_event (plmap p_src l_src) itr) (map_event (plmap p_tgt l_tgt) itr).
   Proof.
     ii. exists tt, tt. splits; eauto using Unit_wf.

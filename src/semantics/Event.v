@@ -99,7 +99,7 @@ Global Opaque Get.
 Global Opaque Modify.
 Notation Put x := (Modify (fun _ => x)).
 
-Notation programE ident state :=
+Notation threadE ident state :=
   ((((@eventE ident) +' cE) +' callE) +' sE state).
 
 Section LENS.
@@ -153,7 +153,7 @@ Section PROGRAM_EVENT.
   Variable p : Prism.t ident' ident.
   Variable l : Lens.t state' state.
 
-  Definition plmap X : programE ident state X -> programE ident' state' X.
+  Definition plmap X : threadE ident state X -> threadE ident' state' X.
   Proof.
     intro e. destruct e as [[[e|e]|e]|e].
     - exact ((((map_prism p e)|)|)|)%sum.

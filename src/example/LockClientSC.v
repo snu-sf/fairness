@@ -26,7 +26,7 @@ End INIT.
 Module ClientImpl.
 
   Definition thread1:
-    ktree (programE void unit) unit unit
+    ktree (threadE void unit) unit unit
     :=
     fun _ =>
       `_: unit <- (OMod.call "lock" tt);;
@@ -36,7 +36,7 @@ Module ClientImpl.
       Ret tt.
 
   Definition thread2:
-    ktree (programE void unit) unit unit
+    ktree (threadE void unit) unit unit
     :=
     fun _ =>
       _ <- ITree.iter
@@ -72,13 +72,13 @@ End ClientImpl.
 
 Module ClientSpec.
   Definition thread1:
-    ktree (programE void unit) unit unit
+    ktree (threadE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;; Ret tt.
 
   Definition thread2:
-    ktree (programE void unit) unit unit
+    ktree (threadE void unit) unit unit
     :=
     fun _ =>
       _ <- trigger Yield;;
