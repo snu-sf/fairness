@@ -191,7 +191,7 @@ Module WSim.
     Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
     Context `{COPSETRA : @GRA.inG CoPset.t Σ}.
     Context `{GSETRA : @GRA.inG Gset.t Σ}.
-    Context `{INVSETRA : @GRA.inG InvSetRA Σ}.
+    Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
 
     Definition initial_res_wf (init_res: Σ): Prop :=
       (<<INITDISJ: (disjoint_GRA init_res (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _ _ _ _))>>) /\
@@ -554,6 +554,7 @@ Module WSim.
         :
         UserSim.sim md_src md_tgt (prog2ths md_src c) (prog2ths md_tgt c).
       Proof.
+        Local Transparent FUpd.
         inv SIM. des.
         assert (forall im_tgt,
                  exists (r: Σ),
@@ -652,10 +653,10 @@ Module WSim.
                 -∗
                 (FUpd
                        (fairI (ident_tgt:=md_tgt.(Mod.ident))) ⊤ ⊤
-                       ((⌜forall fn args,
+                       (□(∀ fn args,
                                 match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                                 | Some ktr_src, Some ktr_tgt =>
-                                    forall tid,
+                                    ∀ tid,
                                       (own_thread tid)
                                         -∗
                                         (ObligationRA.duty (inl tid) [])
@@ -667,7 +668,7 @@ Module WSim.
                                            false false (ktr_src args) (ktr_tgt args))
                                 | None, None => True
                                 | _, _ => False
-                                end⌝)));
+                                end)));
           }.
 
       Lemma context_sim_implies_modsim
@@ -675,6 +676,7 @@ Module WSim.
         :
         ModSim.mod_sim md_src md_tgt.
       Proof.
+        Local Transparent FUpd.
         inv SIM. des.
         i. assert (forall im_tgt,
                     exists (r: Σ),
@@ -682,10 +684,10 @@ Module WSim.
                         ((∃ im_src,
                              ((default_I NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt) ** (wsat ** OwnE ⊤)))
                              ∧
-                               (⌜forall fn args,
+                               (□ ∀ fn args,
                                      match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                                      | Some ktr_src, Some ktr_tgt =>
-                                         forall tid,
+                                         ∀ tid,
                                            (own_thread tid)
                                              -∗
                                              (ObligationRA.duty (inl tid) [])
@@ -697,7 +699,7 @@ Module WSim.
                                                 false false (ktr_src args) (ktr_tgt args))
                                      | None, None => True
                                      | _, _ => False
-                                     end⌝))%I) r>>) /\
+                                     end))%I) r>>) /\
                         (<<WF: URA.wf r>>)).
         { i. eapply iProp_satisfable.
           { eapply reswf_gen; eauto. }
