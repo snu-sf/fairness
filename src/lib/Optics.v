@@ -80,6 +80,9 @@ Module Lens.
     - ss.
   Qed.
 
+  Definition Disjoint {S V1 V2} (l1 : t S V1) (l2 : t S V2) : Prop :=
+    forall s v1 v2, set l2 v2 (set l1 v1 s) = set l1 v1 (set l2 v2 s).
+
 End Lens.
 
 Module Prism.
@@ -124,6 +127,27 @@ Delimit Scope prism_scope with prism.
 Infix "⋅" := (Lens.compose) (at level 50, left associativity) : lens_scope.
 Infix "⋅" := (Prism.compose) (at level 50, left associativity) : prism_scope.
 
+Section DISJOINT_LENS.
+
+  Context {S V1 V2 : Type}.
+  Variable (l1 : Lens.t S V1).
+  Variable (l2 : Lens.t S V2).
+
+  Definition prodl : Lens.Disjoint l1 l2 -> Lens.t S (V1 * V2).
+  Proof.
+    i. exists (fun s => ((Lens.view l1 s, Lens.view l2 s), fun '(v1, v2) => Lens.set l2 v2 (Lens.set l1 v1 s))).
+    constructor.
+    - extensionalities x. unfold compose. ss. rewrite ! Lens.set_view. ss.
+    - extensionalities x. unfold Store.map, Store.cojoin, compose. ss. f_equal.
+      extensionalities v. destruct v as [v1 v2]. f_equal.
+      + rewrite Lens.view_set. rewrite H. rewrite Lens.view_set. ss.
+      + extensionalities u. destruct u as [u1 u2].
+        rewrite H. rewrite Lens.set_set.
+        rewrite H. rewrite Lens.set_set. ss.
+  Defined.
+
+End DISJOINT_LENS.
+
 Section PRISM_LENS.
 
   Definition prisml {S A T} : Prism.t S A -> Lens.t (S -> T) (A -> T).
@@ -163,6 +187,9 @@ Section PRODUCT_LENS.
     - extensionalities x. destruct x; ss.
     - ss.
   Defined.
+
+  Lemma Disjoint_fstl_sndl : Lens.Disjoint fstl sndl.
+  Proof. ss. Qed.
 
 End PRODUCT_LENS.
 
