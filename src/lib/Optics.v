@@ -60,6 +60,16 @@ Module Lens.
     unfold compose in H2. rewrite H2. ss.
   Qed.
 
+  Lemma view_modify {S V} (l : t S V) : forall f s, view l (modify l f s) = f (view l s).
+  Proof.
+    i. unfold modify. apply view_set.
+  Qed.
+
+  Definition id {S} : Lens.t S S.
+  Proof.
+    exists (fun s => (s, fun s' => s')). constructor; ss.
+  Defined.
+
   Definition compose {A B C} : t A B -> t B C -> t A C.
   Proof.
     intros l1 l2.
