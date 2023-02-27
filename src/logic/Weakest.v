@@ -703,6 +703,12 @@ Section STATE.
   Definition St_tgt (st_tgt: state_tgt): iProp :=
     OwnM (Auth.white (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA state_tgt).
 
+  Definition St_src' {V} (l : Lens.t state_src V) (v : V) : iProp :=
+    ∃ st, St_src st ∧ ⌜Lens.view l st = v⌝.
+
+  Definition St_tgt' {V} (l : Lens.t state_tgt V) (v : V) : iProp :=
+    ∃ st, St_tgt st ∧ ⌜Lens.view l st = v⌝.
+
   Definition default_initial_res
     : Σ :=
     (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRALarge.t unit)))
@@ -1394,6 +1400,20 @@ Section STATE.
     iApply ("H1" with "D [H0 C E]"). iFrame.
   Qed.
 
+  Lemma stsim_stateL' E V (l : Lens.t _ V) X run r g R_src R_tgt
+    (Q : R_src -> R_tgt -> iProp)
+    ps pt ktr_src itr_tgt st
+    :
+    (St_src' l st)
+    -∗ (St_src' l (fst (run st)) -∗ stsim E r g Q true pt (ktr_src (snd (run st) : X)) itr_tgt)
+    -∗ stsim E r g Q ps pt (trigger (map_lens l (State run)) >>= ktr_src) itr_tgt.
+  Proof.
+    iIntros "[% [S %EQ]] H". rewrite map_lens_State. iApply (stsim_stateL with "S").
+    iIntros "S". ss. rewrite EQ. iApply "H".
+    iExists (Lens.set l (fst (run st)) st0). iFrame.
+    iPureIntro. eapply Lens.view_set.
+  Qed.
+
   Lemma stsim_stateR E X run r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
     ps pt itr_src ktr_tgt st_tgt
@@ -1410,6 +1430,40 @@ Section STATE.
     iApply ("H1" with "D [H0 C E]"). iFrame.
   Qed.
 
+  Lemma stsim_stateR' E V (l : Lens.t _ V) X run r g R_src R_tgt
+    (Q : R_src -> R_tgt -> iProp)
+    ps pt itr_src ktr_tgt st
+    :
+    (St_tgt' l st)
+    -∗ (St_tgt' l (fst (run st)) -∗ stsim E r g Q ps true itr_src (ktr_tgt (snd (run st) : X)))
+    -∗ stsim E r g Q ps pt itr_src (trigger (map_lens l (State run)) >>= ktr_tgt).
+  Proof.
+    iIntros "[% [S %EQ]] H". rewrite map_lens_State. iApply (stsim_stateR with "S").
+    iIntros "S". ss. rewrite EQ. iApply "H".
+    iExists (Lens.set l (fst (run st)) st0). iFrame.
+    iPureIntro. eapply Lens.view_set.
+  Qed.
+
+  Lemma stsim_getL' V (l : Lens.t _ V) X (p : V -> X) E st r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src itr_tgt
+    :
+    ((St_src' l st) ∧
+       (stsim E r g Q true pt (ktr_src (p st)) itr_tgt))
+      -∗
+      (stsim E r g Q ps pt (trigger (map_lens l (Get p)) >>= ktr_src) itr_tgt)
+  .
+  Proof.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
+    rewrite map_lens_Get. rewrite Get_State. iApply isim_stateL. ss.
+    iAssert (⌜Lens.view l st_src = st⌝)%I as "%".
+    { iDestruct "H" as "[[% [H1 %H2]] _]". subst.
+      iPoseProof (default_I_past_get_st_src with "D H1") as "%H". subst.
+      ss.
+    }
+    rewrite H. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
+  Qed.
+
   Lemma stsim_getL X (p : state_src -> X) E st r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt
@@ -1420,11 +1474,30 @@ Section STATE.
       (stsim E r g Q ps pt (trigger (Get p) >>= ktr_src) itr_tgt)
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "(D & C & E)".
-    rewrite Get_State. iApply isim_stateL.
-    iAssert (⌜st_src = st⌝)%I as "%".
-    { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_src with "D"); eauto. }
-    subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C E]"). iFrame.
+    iIntros "H". replace (Get p) with (map_lens Lens.id (Get p)) by ss. iApply stsim_getL'.
+    iSplit.
+    - iExists st. iDestruct "H" as "[H _]". iFrame. ss.
+    - iDestruct "H" as "[_ H]". ss.
+  Qed.
+
+  Lemma stsim_getR' V (l : Lens.t _ V) X (p : V -> X) E st r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt
+    :
+    ((St_tgt' l st) ∧
+       (stsim E r g Q ps true itr_src (ktr_tgt (p st))))
+      -∗
+      (stsim E r g Q ps pt itr_src (trigger (map_lens l (Get p)) >>= ktr_tgt))
+  .
+  Proof.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
+    rewrite map_lens_Get. rewrite Get_State. iApply isim_stateR. ss.
+    iAssert (⌜Lens.view l st_tgt = st⌝)%I as "%".
+    { iDestruct "H" as "[[% [H1 %H2]] _]". subst.
+      iPoseProof (default_I_past_get_st_tgt with "D H1") as "%H". subst.
+      ss.
+    }
+    rewrite H. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
   Qed.
 
   Lemma stsim_getR X (p : state_tgt -> X) E st r g R_src R_tgt
@@ -1437,11 +1510,10 @@ Section STATE.
       (stsim E r g Q ps pt itr_src (trigger (Get p) >>= ktr_tgt))
   .
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "(D & C & E)".
-    rewrite Get_State. iApply isim_stateR.
-    iAssert (⌜st_tgt = st⌝)%I as "%".
-    { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_tgt with "D"); eauto. }
-    subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C E]"). iFrame.
+    iIntros "H". replace (Get p) with (map_lens Lens.id (Get p)) by ss. iApply stsim_getR'.
+    iSplit.
+    - iExists st. iDestruct "H" as "[H _]". iFrame. ss.
+    - iDestruct "H" as "[_ H]". ss.
   Qed.
 
   Lemma stsim_modifyL E f r g R_src R_tgt
@@ -1455,6 +1527,20 @@ Section STATE.
     rewrite Modify_State. iIntros "H1 H2". iApply (stsim_stateL with "H1"). ss.
   Qed.
 
+  Lemma stsim_modifyL' E V (l : Lens.t _ V) f r g R_src R_tgt
+    (Q : R_src -> R_tgt -> iProp)
+    ps pt ktr_src itr_tgt st
+    :
+    (St_src' l st)
+    -∗ (St_src' l (f st) -∗ stsim E r g Q true pt (ktr_src tt) itr_tgt)
+    -∗ stsim E r g Q ps pt (trigger (map_lens l (Modify f)) >>= ktr_src) itr_tgt.
+  Proof.
+    rewrite map_lens_Modify.
+    iIntros "[% [H1 %H]] H2". iApply (stsim_modifyL with "H1").
+    iIntros "H". iApply "H2". iExists (Lens.modify l f st0). iFrame. iPureIntro.
+    subst. apply Lens.view_modify.
+  Qed.
+
   Lemma stsim_modifyR E f r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
     ps pt itr_src ktr_tgt st_tgt
@@ -1464,6 +1550,20 @@ Section STATE.
     -∗ stsim E r g Q ps pt itr_src (trigger (Modify f) >>= ktr_tgt).
   Proof.
     rewrite Modify_State. iIntros "H1 H2". iApply (stsim_stateR with "H1"). ss.
+  Qed.
+
+  Lemma stsim_modifyR' E V (l : Lens.t _ V) f r g R_src R_tgt
+    (Q : R_src -> R_tgt -> iProp)
+    ps pt itr_src ktr_tgt st
+    :
+    (St_tgt' l st)
+    -∗ (St_tgt' l (f st) -∗ stsim E r g Q ps true itr_src (ktr_tgt tt))
+    -∗ stsim E r g Q ps pt itr_src (trigger (map_lens l (Modify f)) >>= ktr_tgt).
+  Proof.
+    rewrite map_lens_Modify.
+    iIntros "[% [H1 %H]] H2". iApply (stsim_modifyR with "H1").
+    iIntros "H". iApply "H2". iExists (Lens.modify l f st0). iFrame. iPureIntro.
+    subst. unfold Lens.modify. rewrite Lens.view_set. ss.
   Qed.
 
   Lemma stsim_tidL E r g R_src R_tgt
