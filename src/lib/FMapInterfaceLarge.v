@@ -12,7 +12,7 @@
 
 (** This file proposes interfaces for finite maps *)
 
-Require Export Bool DecidableType Fairness.OrderedTypeLow.
+Require Export Bool DecidableType Fairness.OrderedTypeLarge.
 Set Implicit Arguments.
 Unset Strict Implicit.
 
@@ -269,7 +269,7 @@ End WS.
 
 (** ** Maps on ordered keys, functorial signature *)
 
-Module Type Sfun (E : OrderedType).
+Module Type Sfun (E : OrderedTypeLarge).
   Include WSfun E.
   Section elt.
   Variable elt:Type.
@@ -287,7 +287,7 @@ End Sfun.
 (** ** Maps on ordered keys, self-contained signature *)
 
 Module Type S.
-  Declare Module E : OrderedType.
+  Declare Module E : OrderedTypeLarge.
   Include Sfun E.
 End S.
 
@@ -297,7 +297,7 @@ End S.
 
 Module Type Sord.
 
-  Declare Module Data : OrderedType.
+  Declare Module Data : OrderedTypeLarge.
   Declare Module MapS : S.
   Import MapS.
 

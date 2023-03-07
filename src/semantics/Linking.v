@@ -5,7 +5,7 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib EventCategory FairBeh NatStructs Optics.
+From Fairness Require Export ITreeLib EventCategory FairBeh NatStructsLarge Optics.
 From Fairness Require Export Mod.
 
 Set Implicit Arguments.

@@ -3,7 +3,7 @@ From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Import
-  Axioms ITreeLib WFLib FairBeh pind_internal pind3 SelectBeh.
+  Axioms ITreeLib WFLibLarge FairBeh pind_internal pind3 SelectBeh.
 
 From Paco Require Import paco.
 

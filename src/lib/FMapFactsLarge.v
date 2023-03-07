@@ -10,13 +10,13 @@
 
 (** * Finite maps library *)
 
-(** This functor derives additional facts from [FMapInterface.S]. These
-  facts are mainly the specifications of [FMapInterface.S] written using
+(** This functor derives additional facts from [FMapInterfaceLarge.S]. These
+  facts are mainly the specifications of [FMapInterfaceLarge.S] written using
   different styles: equivalence and boolean equalities.
 *)
 
-Require Import Bool DecidableType DecidableTypeEx Fairness.OrderedTypeLow Morphisms.
-Require Export Fairness.FMapInterfaceLow.
+Require Import Bool DecidableType DecidableTypeEx Fairness.OrderedTypeLarge Morphisms.
+Require Export Fairness.FMapInterfaceLarge.
 Set Implicit Arguments.
 Unset Strict Implicit.
 
@@ -1783,8 +1783,8 @@ Module Properties := WProperties.
 (** * Properties specific to maps with ordered keys *)
 
 Module OrdProperties (M:S).
- Module Import ME := OrderedTypeFacts M.E.
- Module Import O:=KeyOrderedType M.E.
+ Module Import ME := OrderedTypeLargeFacts M.E.
+ Module Import O:=KeyOrderedTypeLarge M.E.
  Module Import P:=Properties M.
  Import F.
  Import M.

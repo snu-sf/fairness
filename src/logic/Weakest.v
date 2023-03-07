@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
-From Fairness Require LPCM.
+From Fairness Require PCMLarge.
 Require Import Program.
 
 Set Implicit Arguments.
@@ -120,20 +120,20 @@ Section SIM.
     iApply "H1". iFrame.
   Qed.
 
-  Lemma Ladd (a b: Σ): @LPCM.URA.add (to_LURA Σ) a b = URA.add a b.
+  Lemma Ladd (a b: Σ): @PCMLarge.URA.add (to_LURA Σ) a b = URA.add a b.
   Proof.
-    unfold LPCM.URA.add. LPCM.unseal "ra". ur. auto.
+    unfold PCMLarge.URA.add. PCMLarge.unseal "ra". ur. auto.
   Qed.
 
-  Lemma Lwf (a: Σ): @LPCM.URA.wf (to_LURA Σ) a = URA.wf a.
+  Lemma Lwf (a: Σ): @PCMLarge.URA.wf (to_LURA Σ) a = URA.wf a.
   Proof.
-    unfold LPCM.URA.wf. LPCM.unseal "ra". ur. auto.
+    unfold PCMLarge.URA.wf. PCMLarge.unseal "ra". ur. auto.
   Qed.
 
-  Lemma Lunit: @LPCM.URA.unit (to_LURA Σ) = URA.unit.
+  Lemma Lunit: @PCMLarge.URA.unit (to_LURA Σ) = URA.unit.
   Proof.
-    Local Transparent LPCM.URA.unit.
-    unfold LPCM.URA.unit. LPCM.unseal "ra". ur. auto.
+    Local Transparent PCMLarge.URA.unit.
+    unfold PCMLarge.URA.unit. PCMLarge.unseal "ra". ur. auto.
   Qed.
 
   Lemma isim_wand r g R_src R_tgt
@@ -662,7 +662,7 @@ Section SIM.
 
 End SIM.
 
-From Fairness Require Export NatMapRA StateRA FairRA MonotonePCM.
+From Fairness Require Export NatMapRALarge StateRA FairRA MonotonePCM.
 Require Import Coq.Sorting.Mergesort.
 
 Section STATE.
@@ -702,7 +702,7 @@ Section STATE.
 
   Definition default_initial_res
     : Σ :=
-    (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit)))
+    (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRALarge.t unit)))
       ⋅
       (@GRA.embed _ _ STATESRC (Auth.black (Excl.just None: @Excl.t (option state_src)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_src)): stateSrcRA state_src)))
       ⋅
@@ -744,10 +744,10 @@ Section STATE.
 
   Lemma own_threads_init ths
     :
-    (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit)))
+    (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRALarge.t unit)))
       -∗
       (#=>
-         ((OwnM (Auth.black (Some ths: NatMapRA.t unit)))
+         ((OwnM (Auth.black (Some ths: NatMapRALarge.t unit)))
             **
             (natmap_prop_sum ths (fun tid _ => own_thread tid)))).
   Proof.
@@ -756,7 +756,7 @@ Section STATE.
     i. iIntros "OWN".
     iPoseProof (IH with "OWN") as "> [OWN SUM]".
     iPoseProof (OwnM_Upd with "OWN") as "> [OWN0 OWN1]".
-    { eapply Auth.auth_alloc. eapply (@NatMapRA.add_local_update unit m k v); eauto. }
+    { eapply Auth.auth_alloc. eapply (@NatMapRALarge.add_local_update unit m k v); eauto. }
     iModIntro. iFrame. destruct v. iApply (natmap_prop_sum_add with "SUM OWN1").
   Qed.
 

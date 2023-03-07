@@ -1,5 +1,5 @@
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM MonotonePCM WFLib Mod.
+From Fairness Require Import PCM IProp IPM MonotonePCM WFLibLarge Mod.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
