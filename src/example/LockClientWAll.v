@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Export FairBeh Mod Linking WMM FairLock Concurrency LockClient FIFOSched SchedSim FIFOSched FIFOSchedSim ModAdequacy TicketLockW ModCloseSim ModAddSim.
+From Fairness Require Export FairBeh Mod Linking WMM FairLock Concurrency LockClientW FIFOSched SchedSim FIFOSched FIFOSchedSim ModAdequacy TicketLockW ModCloseSim ModAddSim.
 
 Section ALL.
   Definition client_spec := ClientSpec.mod.
@@ -35,7 +35,7 @@ Section ALL.
     { eapply modsim_adequacy. eapply ModClose_mono.
       eapply ModAdd_right_mono. eapply TicketLockFair.ticketlock_fair.
     }
-    { eapply usersim_adequacy. eapply LockClientCorrect.correct. }
+    { eapply usersim_adequacy. eapply LockClientWCorrect.correct. }
     Unshelve. all: econs.
   Qed.
 End ALL.

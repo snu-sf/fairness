@@ -1335,7 +1335,7 @@ End SIM.
 
 From Fairness Require Import WeakestAdequacy.
 
-Module LockClientCorrect.
+Module LockClientWCorrect.
   Definition config := [("thread1", tt↑); ("thread2", tt↑)].
 
   Local Instance Σ: GRA.t:=
@@ -1453,4 +1453,4 @@ Module LockClientCorrect.
       }
     }
   Qed.
-End LockClientCorrect.
+End LockClientWCorrect.
