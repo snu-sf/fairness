@@ -11,7 +11,7 @@ Section ALL.
   Definition client_ticket_lock :=
     OMod.close ClientImpl.omod (ModAdd WMem.mod TicketLockW.mod ).
 
-  Theorem client_all
+  Lemma client_all_aux
     :
     Adequacy.improves
       (interp_all
@@ -38,4 +38,23 @@ Section ALL.
     { eapply usersim_adequacy. eapply LockClientWCorrect.correct. }
     Unshelve. all: econs.
   Qed.
+
+  Theorem client_all
+    :
+    Adequacy.improves
+      (interp_concurrency
+         (prog2ths client_spec [("thread1", tt↑); ("thread2", tt↑)])
+         (sched_nondet _)
+         (client_spec.(Mod.st_init))
+      )
+      (interp_concurrency
+         (prog2ths client_ticket_lock [("thread1", tt↑); ("thread2", tt↑)])
+         (sched_fifo_set _)
+         (client_ticket_lock.(Mod.st_init))
+      )
+  .
+  Proof.
+    eapply client_all_aux.
+  Qed.
+
 End ALL.
