@@ -397,6 +397,7 @@ Global Opaque interp_thread_aux interp_thread interp_sched.
 
 
 
+Notation schedulerT R := ((thread_id * TIdSet.t) -> scheduler R R).
 Section SCHEDULE_NONDET.
 
   Definition sched_nondet_body {R} q tid r : scheduler R (thread_id * TIdSet.t + R) :=
@@ -422,7 +423,7 @@ Section SCHEDULE_NONDET.
           end
     end.
 
-  Definition sched_nondet R0 : thread_id * TIdSet.t -> scheduler R0 R0 :=
+  Definition sched_nondet R0 : schedulerT R0 :=
     ITree.iter (fun '(tid, q) =>
                   r <- ITree.trigger (inl1 (Execute _ tid));;
                   sched_nondet_body q tid r).
@@ -513,6 +514,20 @@ Section SCHEDULE_NONDET.
 End SCHEDULE_NONDET.
 Global Opaque sched_nondet_body sched_nondet.
 
+
+
+Section INTERPC.
+
+  Variable State: Type.
+  Variable _Ident: ID.
+  Variable R: Type.
+
+  Definition interp_concurrency
+             (ths: @threads _Ident (sE State) R) (sch: schedulerT R) st :
+    itree (@eventE (sum_tid _Ident)) R :=
+    interp_state (st, interp_sched (ths, sch (0, NatSet.remove 0 (key_set ths)))).
+
+End INTERPC.
 
 
 Section INTERP.

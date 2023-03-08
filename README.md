@@ -15,30 +15,33 @@ make build -j
 ## Code Structure
 ### Definitions
 #### Section 4
-- In `src/semantics`
+##### In `src/semantics`
 - `eventE` in `Event.v`: FL language (Sec 4.1, Fig.3)
 - `RawTr.t` in `SelectBeh.v`: Trace (Sec 4.1, Fig.3)
 - `Tr.t` in `FairBeh.v`: Behavior (Sec 4.1, Fig.3)
 - `RawTr.is_fair` in `SelectBeh.v`: FairTr (Sec 4.1, Fig.3)
 - `imap` in `FairBeh.v`: cmap (Sec 4.2, Fig.4)
-- In `src/simulation`
+##### In `src/simulation`
 - `improves` in `Adequacy.v`: whole-program refinement (Sec 4.1)
 - `sim` in `FairSim.v`: simulation relation (Sec 4.2)
 #### Section 5
-- In `src/semantics`
+##### In `src/semantics`
 - `cE` and `sE` in `Event.v`: TFL language (Sec 5.1, Fig.5)
 - `schedulerE` in `Concurrency.v`: SFL language (Sec 5.1, Fig.5)
 - `interp_thread` and `interp_state` in `Concurrency.v`: TI (Sec 5.1, Fig.5)
 - `interp_sched` in `Concurrency.v`: SI (Sec 5.1, Fig.5)
+- `interp_concurrency` in `Concurrency.v`: CI (Sec 5.1, Fig.5)
 - `sched_nondet` in `Concurrency.v`: FAIRSch (Sec 5.2, Fig.6)
-- CI (Sec 5.1, Fig.5) and IsFairSch (Definition 5.1) unfold into combination of the above definitions
+##### In `src/simulation`
+- `isFairSch` in `SchedSim.v`: IsFairSch (Sec 5.2, Definition 5.1)
 #### Section 6
-- In `src/semantics`
+##### In `src/semantics`
 - This artifact contains an improved version of the module system compared to the paper. We will revise the paper accordingly.
 - `Mod.t` in `Mod.v`: Mod (Sec 6, Fig.7)
 - `ModAdd` and `OMod.close` in `Linking.v`: addition and close operations (Sec 6, Fig.7)
 - `WMM.v`: FWMM (Sec 6.1, Fair Weak Memory Module)
 #### Section 7
+##### In `src/logic`
 - `Weakest.v`: Sec 7 (Program Logic for Fairness) (See lemmas for `stsim`)
 
 ### Theorems
@@ -58,7 +61,7 @@ make build -j
 - `TicketLockSC.v`: TicketLock (Sec 3.1); SC memory version
 - `TicketLockW.v`: TicketLock (Sec 3.1); weak memory version
 - `FIFOSched.v`: FIFOSch (Sec 5.2, Fig.6)
-- `Theorem gsim_nondet_fifo` in `FIFOSchedSim.v`: Theorem 5.2 (FIFOSch is fair)
+- `Theorem fifo_is_fair` in `FIFOSchedSim.v`: Theorem 5.2 (FIFOSch is fair)
 - `Lemma ticketlock_fair` in `TicketlockW.v`: Theorem 6.2 (TicketLock is Fair); weak memory
 - `Lemma correct` in `LockClientW.v`: Module simulation between client modules; weak memory
 - `Theorem client_all` in `LockClientWAll.v`: Case Study (Sec 8)
