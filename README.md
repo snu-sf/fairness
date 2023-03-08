@@ -35,26 +35,35 @@ make build -j
 ##### In `src/simulation`
 - `isFairSch` in `SchedSim.v`: IsFairSch (Sec 5.2, Definition 5.1)
 #### Section 6
+##### Remark on Section 6
+This artifact contains an improved version of the module system compared to the paper. We will revise the paper accordingly. We list main differences here:
+- Mod is extended to include OMod (Sec 6, Fig.7), and OMod is removed.
 ##### In `src/semantics`
-- This artifact contains an improved version of the module system compared to the paper. We will revise the paper accordingly.
+- `programE` in `EventE`: OTFL (Sec 6, Fig.7)
+- `program` in `Mod.v`: corresponds to Config (Sec 6, Fig.7)
+- `prog2ths` in `Concurrency.v`: corresponds to Load (Sec 6, Fig.7)
 - `Mod.t` in `Mod.v`: Mod (Sec 6, Fig.7)
-- `ModAdd` and `OMod.close` in `Linking.v`: addition and close operations (Sec 6, Fig.7)
+- `ModAdd` and `OMod.close` in `Linking.v`: linking and close operations (Sec 6, Fig.7)
+##### In `src/simulation`
+- `Theorem ModAdd_comm` and `Theorem ModAdd_right_mono` in `ModAddSim.v`: properties of the module linking operation (Sec 6, Fig.7)
+- `Theorem ModClose_mono` in `ModCloseSim.v`: properties of the module close operation (Sec 6, Fig.7)
+##### In `src/example`
 - `WMM.v`: FWMM (Sec 6.1, Fair Weak Memory Module)
 #### Section 7
 ##### In `src/logic`
-- `Weakest.v`: Sec 7 (Program Logic for Fairness) (See lemmas for `stsim`)
+- `Weakest.v`: Program Logic for Fairness (Sec 7); see lemmas for `isim`. For example, `isim_yieldL` corresponds to YIELD-SRC and `isim_yieldR` to YIELD-TGT. Also, see lemmas for `stsim` which provides a more user-friendly interface.
 
 ### Theorems
-- In `src/simulation`
+##### In `src/simulation`
 - `Theorem adequacy` in `Adequacy.v`: Theorem 4.1 (Adequacy)
 - `Theorem modsim_adequacy` in `ModAdequacy.v`: Theorem 6.1 (Adequacy of module simulation)
 - `Theorem usersim_adequacy` in `ModAdequacy.v`: Theorem 7.2 (Whole program adequacy)
-- In `src/logic`
+##### In `src/logic`
 - `Lemma context_sim_implies_contextual_refinement` in `WeakestAdequacy.v`: Theorem 7.1 (Contextual adequacy)
 - `Lemma whole_sim_implies_refinement` in `WeakestAdequacy.v`: Theorem 7.2 (Whole program adequacy)
 
 ### Examples
-- In `src/example`
+##### In `src/example`
 - `LockClientSC.v`: CL<sub>I</sub> and CL<sub>S</sub> (Sec 1, Sec 3, Sec 8); SC memory version (*the paper has typos, code in Sec 1 is the correct one*)
 - `LockClientW.v`: CL<sub>I</sub> and CL<sub>S</sub> (Sec 1, Sec 3, Sec 8); weak memory version (*the paper has typos, code in Sec 1 is the correct one*)
 - `FairLock.v`: ABSLock (Sec 3.1, Fig.2); `AbsLock` corresponds to the SC memory version, `AbsLockW` to the weak memory version.
