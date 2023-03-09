@@ -1650,58 +1650,50 @@ Section STATE.
     iModIntro. iApply ("K" with "DUTY WHITE").
   Qed.
 
-  (* Lemma stsim_yieldR_simple E r g R_src R_tgt *)
-  (*       (Q: R_src -> R_tgt -> iProp) *)
-  (*       ps pt ktr_src ktr_tgt l *)
-  (*   : *)
-  (*   (ObligationRA.duty (inl tid) l ** ObligationRA.tax l) *)
-  (*     -∗ *)
-  (*     ((ObligationRA.duty (inl tid) l) *)
-  (*        -* *)
-  (*        (FairRA.white_thread (_Id:=_)) *)
-  (*        -* *)
-  (*        (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset *)
-  (*              (stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))) *)
-  (*     -∗ *)
-  (*     (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)) *)
-  (* . *)
-  (* Proof. *)
-  (*   iIntros "H K". *)
-  (*   unfold stsim. iIntros (? ? ? ? ?) "[D C]". *)
-  (*   iPoseProof (default_I_past_update_ident_thread with "D H") as "> [[B W] [[[[[[D0 D1] D2] D3] D4] D5] D6]]". *)
-  (*   iAssert ((fairI (ident_tgt:=ident_tgt)) ** mset_all (nth_default True%I Invs) E) with "[C D5 D6]" as "C". *)
-  (*   { iFrame. } *)
-  (*   iPoseProof ("K" with "B W C") as "> [[[D5 D6] C] K]". *)
-  (*   iApply isim_yieldR. unfold I. iFrame. *)
-  (*   iIntros (? ? ? ? ? ?) "[D C] %". *)
-  (*   iApply ("K" with "[D C]"). iFrame. iExists _. eauto. *)
-  (* Qed. *)
+  Lemma stsim_yieldR_simple E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (TOP: mset_sub topset E)
+    :
+    (FairRA.black_ex (inl tid) 1)
+      -∗
+      ((FairRA.black_ex (inl tid) 1)
+         -*
+         (FairRA.white_thread (_Id:=_))
+         -*
+         stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
+      -∗
+      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "H K". iApply (stsim_yieldR with "[H]").
+    { auto. }
+    { iPoseProof (black_to_duty with "H") as "H". iFrame. }
+    iIntros "B W". iApply ("K" with "[B] [W]"); ss.
+    { iApply duty_to_black. auto. }
+  Qed.
 
-  (* Lemma stsim_sync_simple E r g R_src R_tgt *)
-  (*       (Q: R_src -> R_tgt -> iProp) *)
-  (*       ps pt ktr_src ktr_tgt l *)
-  (*   : *)
-  (*   (ObligationRA.duty (inl tid) l ** ObligationRA.tax l) *)
-  (*     -∗ *)
-  (*     ((ObligationRA.duty (inl tid) l) *)
-  (*        -* *)
-  (*        (FairRA.white_thread (_Id:=_)) *)
-  (*        -* *)
-  (*        (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset *)
-  (*              (stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt)))) *)
-  (*     -∗ *)
-  (*     (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)). *)
-  (* Proof. *)
-  (*   iIntros "H K". *)
-  (*   unfold stsim. iIntros (? ? ? ? ?) "[D C]". *)
-  (*   iPoseProof (default_I_past_update_ident_thread with "D H") as "> [[B W] [[[[[[D0 D1] D2] D3] D4] D5] D6]]". *)
-  (*   iAssert ((fairI (ident_tgt:=ident_tgt)) ** mset_all (nth_default True%I Invs) E) with "[C D5 D6]" as "C". *)
-  (*   { iFrame. } *)
-  (*   iPoseProof ("K" with "B W C") as "> [[[D5 D6] C] K]". *)
-  (*   iApply isim_sync. unfold I. iFrame. *)
-  (*   iIntros (? ? ? ? ? ?) "[D C] %". *)
-  (*   iApply ("K" with "[D C]"). iFrame. iExists _. eauto. *)
-  (* Qed. *)
+  Lemma stsim_sync_simple E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (TOP: mset_sub topset E)
+    :
+    (FairRA.black_ex (inl tid) 1)
+      -∗
+      ((FairRA.black_ex (inl tid) 1)
+         -*
+         (FairRA.white_thread (_Id:=_))
+         -*
+         stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt))
+      -∗
+      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "H K". iApply (stsim_sync with "[H]").
+    { auto. }
+    { iPoseProof (black_to_duty with "H") as "H". iFrame. }
+    iIntros "B W". iApply ("K" with "[B] [W]"); ss.
+    { iApply duty_to_black. auto. }
+  Qed.
 
   Lemma stsim_sort E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
