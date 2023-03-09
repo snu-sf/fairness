@@ -1,5 +1,14 @@
 # Fair Operational Semantics
-Coq Development for Fair Operational Semantics
+
+This artifact contains Coq development for the paper *Fair Operational Semantics*.
+- `fairness-source.zip` contains source code.
+- `fairness.zip` contains a docker image (`fairness.tar`) where you can find the pre-compiled Coq development.
+Use following commands to run the image:
+```
+sudo docker load < fairness.tar
+docker run -it pldi2023ae /bin/bash
+cd fairness # in the container
+```
 
 ## Build
 Requirement: opam (>=2.0.0), Coq 8.15.0
@@ -55,8 +64,8 @@ make build -j
 - `stsim_fairL` in `Weakest.v`: WIN-SRC and LOSE-SRC (Sec 7, Fig.8)
 - `stsim_fairR_simple` in `Weakest.v`: WIN-TGT and LOSE-TGT (Sec 7, Fig.8)
 - `stsim_yieldL` in `Weakest.v`: YIELD-SRC (Sec 7, Fig.8)
-- : YIELD-TGT (Sec 7, Fig.8)
-- `Weakest.v`: full program logic for fairness (Sec 7); see lemmas about `stsim`
+- `stsim_yieldR_simple` and `stsim_sync_simple` in `Weakest.v`: YIELD-TGT (Sec 7, Fig.8)
+- `Weakest.v`: full program logic for fairness (Sec 7); see lemmas for `stsim`
 
 ### Theorems
 ##### In `src/simulation`
@@ -64,8 +73,8 @@ make build -j
 - `Theorem modsim_adequacy` in `ModAdequacy.v`: Theorem 6.1 (Adequacy of module simulation)
 - `Theorem usersim_adequacy` in `ModAdequacy.v`: Theorem 7.2 (Whole program adequacy)
 ##### In `src/logic`
-- `Lemma context_sim_implies_contextual_refinement` in `WeakestAdequacy.v`: Theorem 7.1 (Contextual adequacy)
-- `Lemma whole_sim_implies_refinement` in `WeakestAdequacy.v`: Theorem 7.2 (Whole program adequacy)
+- `Theorem context_sim_simple_implies_contextual_refinement` in `WeakestAdequacy.v`: Theorem 7.1 (Contextual adequacy)
+- `Theorem whole_sim_simple_implies_refinement` in `WeakestAdequacy.v`: Theorem 7.2 (Whole program adequacy)
 
 ### Examples
 ##### In `src/example`
@@ -84,4 +93,4 @@ make build -j
 ### Remark on Section 6
 This artifact contains an improved version of the module system compared to the paper. We will revise the paper accordingly. The main difference is that Mod is extended to include OMod (Sec 6, Fig.7) and OMod is removed.
 ### Remark on Section 7
-The paper is currently missing update modalities for MONO and DEC rules in Sec 7, Fig.8. We will correct the paper. We also developed various lemmas for `stsim` to reduce proof complexity, as can be found in `src/logic/Weakest.v`.
+The paper is currently missing update modalities for MONO and DEC rules in Sec 7, Fig.8. We will correct the paper. We also developed additional lemmas for `stsim` to reduce proof complexity, as can be found in `src/logic/Weakest.v`. Proof of the case study is based on those lemmas, as can be found in files in `src/example`.
