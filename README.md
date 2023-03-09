@@ -48,9 +48,9 @@ make build -j
 - `WMM.v`: FWMM (Sec 6.1, Fair Weak Memory Module)
 #### Section 7
 ##### In `src/logic`
-- `FairRA.white` in `FairRA.v`: &#8885; (Sec 7, Fig.8); also see related lemmas for the rules
-- `FairRA.black` in `FairRA.v`: &#9830; (Sec 7, Fig.8); also see related lemmas for the rules
-- `FairRA.white i 1` in `FairaRA.v`: &#9826;(i) (Sec 7, Fig.8); actually a simple wrapper of &#8885;
+- `FairRA.white` in `FairRA.v`: &#8885; (⊵) (Sec 7, Fig.8); also see related lemmas for the rules
+- `FairRA.black` in `FairRA.v`: &#9830; (♦) (Sec 7, Fig.8); also see related lemmas for the rules
+- `FairRA.white i 1` in `FairaRA.v`: &#9826;(i) (♢(i)) (Sec 7, Fig.8); actually a simple wrapper of &#8885;
 - `stsim` in `Weakest.v`: sim (Sec 7, Fig.8)
 - `stsim_fairL` in `Weakest.v`: WIN-SRC and LOSE-SRC (Sec 7, Fig.8)
 - `stsim_fairR_simple` in `Weakest.v`: WIN-TGT and LOSE-TGT (Sec 7, Fig.8)
