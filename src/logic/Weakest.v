@@ -1650,23 +1650,28 @@ Section STATE.
     iModIntro. iApply ("K" with "DUTY WHITE").
   Qed.
 
+
+  (* Note:  *)
+  (*   MUpd _ fairI topset topset P *)
+  (*        is a generalized version of I * (I -* P) *)
   Lemma stsim_yieldR_simple E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
         (TOP: mset_sub topset E)
     :
-    (FairRA.black_ex (inl tid) 1)
-      -∗
-      ((FairRA.black_ex (inl tid) 1)
-         -*
-         (FairRA.white_thread (_Id:=_))
-         -*
-         stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
-      -∗
-      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+    MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) topset topset
+         ((FairRA.black_ex (inl tid) 1)
+            **
+            ((FairRA.black_ex (inl tid) 1)
+               -*
+               (FairRA.white_thread (_Id:=_))
+               -*
+               stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
+         -∗
+         (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    iIntros "H K". iApply (stsim_yieldR with "[H]").
+    iIntros "> [H K]". iApply (stsim_yieldR with "[H]").
     { auto. }
     { iPoseProof (black_to_duty with "H") as "H". iFrame. }
     iIntros "B W". iApply ("K" with "[B] [W]"); ss.
@@ -1678,17 +1683,18 @@ Section STATE.
         ps pt ktr_src ktr_tgt
         (TOP: mset_sub topset E)
     :
-    (FairRA.black_ex (inl tid) 1)
-      -∗
-      ((FairRA.black_ex (inl tid) 1)
-         -*
-         (FairRA.white_thread (_Id:=_))
-         -*
-         stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt))
+    MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) topset topset
+         ((FairRA.black_ex (inl tid) 1)
+            **
+            ((FairRA.black_ex (inl tid) 1)
+               -*
+               (FairRA.white_thread (_Id:=_))
+               -*
+               stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt)))
       -∗
       (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
-    iIntros "H K". iApply (stsim_sync with "[H]").
+    iIntros "> [H K]". iApply (stsim_sync with "[H]").
     { auto. }
     { iPoseProof (black_to_duty with "H") as "H". iFrame. }
     iIntros "B W". iApply ("K" with "[B] [W]"); ss.

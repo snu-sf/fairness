@@ -669,8 +669,8 @@ Module WSim.
         iApply black_to_duty. auto.
       Qed.
 
-      Lemma whole_sim_simple_implies_refinement
-            (SIM: whole_sim_simple)
+      Theorem whole_sim_simple_implies_refinement
+              (SIM: whole_sim_simple)
         :
         Adequacy.improves (interp_all md_src.(Mod.st_init) (prog2ths md_src c) 0)
                           (interp_all md_tgt.(Mod.st_init) (prog2ths md_tgt c) 0).
@@ -832,8 +832,8 @@ Module WSim.
         }
       Qed.
 
-      Lemma context_sim_simple_implies_contextual_refinement
-            (SIM: context_sim_simple)
+      Theorem context_sim_simple_implies_contextual_refinement
+              (SIM: context_sim_simple)
         :
         forall p,
           Adequacy.improves (interp_all md_src.(Mod.st_init) (prog2ths md_src p) 0)
