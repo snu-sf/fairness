@@ -1490,6 +1490,35 @@ Section STATE.
     iApply ("H" with "DUTY WHITE"). iFrame.
   Qed.
 
+  Lemma stsim_fairR_simple lf ls
+        E fm r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt
+        (SUCCESS: forall i (IN: fm i = Flag.success), List.In i ls)
+        (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+        (NODUP: List.NoDup lf)
+    :
+    (list_prop_sum (fun i => FairRA.black_ex (inr i) 1) ls)
+      -∗
+      ((list_prop_sum (fun i => FairRA.black_ex (inr i) 1) ls)
+         -*
+         (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
+         -*
+         stsim E r g Q ps true itr_src (ktr_tgt tt))
+      -∗
+      (stsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "A B". iApply (stsim_fairR with "[A]"); eauto.
+    { instantiate (1:= List.map (fun i => (i, [])) ls). i. specialize (SUCCESS _ IN). rewrite List.map_map. ss.
+      replace (List.map (λ x : ident_tgt, x) ls) with ls; auto. clear. induction ls; ss; eauto. f_equal. auto.
+    }
+    { iApply list_prop_sum_map. 2: iFrame. i. ss. iIntros "BLK". iSplitL; auto. iApply black_to_duty. auto. }
+    { iIntros "S F". iApply ("B" with "[S]"). 2: iFrame. iApply list_prop_sum_map_inv. 2: iFrame.
+      i; ss. iIntros "D". iApply duty_to_black. iFrame.
+    }
+  Qed.
+
   Lemma stsim_UB E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt
@@ -1620,6 +1649,59 @@ Section STATE.
     iApply (stsim_sync_strong with "H"). iIntros "DUTY WHITE".
     iModIntro. iApply ("K" with "DUTY WHITE").
   Qed.
+
+  (* Lemma stsim_yieldR_simple E r g R_src R_tgt *)
+  (*       (Q: R_src -> R_tgt -> iProp) *)
+  (*       ps pt ktr_src ktr_tgt l *)
+  (*   : *)
+  (*   (ObligationRA.duty (inl tid) l ** ObligationRA.tax l) *)
+  (*     -∗ *)
+  (*     ((ObligationRA.duty (inl tid) l) *)
+  (*        -* *)
+  (*        (FairRA.white_thread (_Id:=_)) *)
+  (*        -* *)
+  (*        (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset *)
+  (*              (stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))) *)
+  (*     -∗ *)
+  (*     (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)) *)
+  (* . *)
+  (* Proof. *)
+  (*   iIntros "H K". *)
+  (*   unfold stsim. iIntros (? ? ? ? ?) "[D C]". *)
+  (*   iPoseProof (default_I_past_update_ident_thread with "D H") as "> [[B W] [[[[[[D0 D1] D2] D3] D4] D5] D6]]". *)
+  (*   iAssert ((fairI (ident_tgt:=ident_tgt)) ** mset_all (nth_default True%I Invs) E) with "[C D5 D6]" as "C". *)
+  (*   { iFrame. } *)
+  (*   iPoseProof ("K" with "B W C") as "> [[[D5 D6] C] K]". *)
+  (*   iApply isim_yieldR. unfold I. iFrame. *)
+  (*   iIntros (? ? ? ? ? ?) "[D C] %". *)
+  (*   iApply ("K" with "[D C]"). iFrame. iExists _. eauto. *)
+  (* Qed. *)
+
+  (* Lemma stsim_sync_simple E r g R_src R_tgt *)
+  (*       (Q: R_src -> R_tgt -> iProp) *)
+  (*       ps pt ktr_src ktr_tgt l *)
+  (*   : *)
+  (*   (ObligationRA.duty (inl tid) l ** ObligationRA.tax l) *)
+  (*     -∗ *)
+  (*     ((ObligationRA.duty (inl tid) l) *)
+  (*        -* *)
+  (*        (FairRA.white_thread (_Id:=_)) *)
+  (*        -* *)
+  (*        (MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) E topset *)
+  (*              (stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt)))) *)
+  (*     -∗ *)
+  (*     (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)). *)
+  (* Proof. *)
+  (*   iIntros "H K". *)
+  (*   unfold stsim. iIntros (? ? ? ? ?) "[D C]". *)
+  (*   iPoseProof (default_I_past_update_ident_thread with "D H") as "> [[B W] [[[[[[D0 D1] D2] D3] D4] D5] D6]]". *)
+  (*   iAssert ((fairI (ident_tgt:=ident_tgt)) ** mset_all (nth_default True%I Invs) E) with "[C D5 D6]" as "C". *)
+  (*   { iFrame. } *)
+  (*   iPoseProof ("K" with "B W C") as "> [[[D5 D6] C] K]". *)
+  (*   iApply isim_sync. unfold I. iFrame. *)
+  (*   iIntros (? ? ? ? ? ?) "[D C] %". *)
+  (*   iApply ("K" with "[D C]"). iFrame. iExists _. eauto. *)
+  (* Qed. *)
 
   Lemma stsim_sort E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)

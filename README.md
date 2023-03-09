@@ -35,14 +35,11 @@ make build -j
 ##### In `src/simulation`
 - `isFairSch` in `SchedSim.v`: IsFairSch (Sec 5.2, Definition 5.1)
 #### Section 6
-##### Remark on Section 6
-This artifact contains an improved version of the module system compared to the paper. We will revise the paper accordingly. We list main differences here:
-- Mod is extended to include OMod (Sec 6, Fig.7), and OMod is removed.
 ##### In `src/semantics`
 - `programE` in `EventE`: OTFL (Sec 6, Fig.7)
 - `program` in `Mod.v`: corresponds to Config (Sec 6, Fig.7)
 - `prog2ths` in `Concurrency.v`: corresponds to Load (Sec 6, Fig.7)
-- `Mod.t` in `Mod.v`: Mod (Sec 6, Fig.7)
+- `Mod.t` in `Mod.v`: Mod (also OMod) (Sec 6, Fig.7); see the guide below
 - `ModAdd` and `OMod.close` in `Linking.v`: linking and close operations (Sec 6, Fig.7)
 ##### In `src/simulation`
 - `Theorem ModAdd_comm` and `Theorem ModAdd_right_mono` in `ModAddSim.v`: properties of the module linking operation (Sec 6, Fig.7)
@@ -51,7 +48,15 @@ This artifact contains an improved version of the module system compared to the 
 - `WMM.v`: FWMM (Sec 6.1, Fair Weak Memory Module)
 #### Section 7
 ##### In `src/logic`
-- `Weakest.v`: Program Logic for Fairness (Sec 7); see lemmas for `isim`. For example, `isim_yieldL` corresponds to YIELD-SRC and `isim_yieldR` to YIELD-TGT. Also, see lemmas for `stsim` which provides a more user-friendly interface.
+- `FairRA.white` in `FairRA.v`: &#8885; (Sec 7, Fig.8); also see related lemmas for the rules
+- `FairRA.black` in `FairRA.v`: &#9830; (Sec 7, Fig.8); also see related lemmas for the rules
+- `FairRA.white i 1` in `FairaRA.v`: &#9826;(i) (Sec 7, Fig.8); actually a simple wrapper of &#8885;
+- `stsim` in `Weakest.v`: sim (Sec 7, Fig.8)
+- `stsim_fairL` in `Weakest.v`: WIN-SRC and LOSE-SRC (Sec 7, Fig.8)
+- `stsim_fairR_simple` in `Weakest.v`: WIN-TGT and LOSE-TGT (Sec 7, Fig.8)
+- `stsim_yieldL` in `Weakest.v`: YIELD-SRC (Sec 7, Fig.8)
+- : YIELD-TGT (Sec 7, Fig.8)
+- `Weakest.v`: full program logic for fairness (Sec 7); see lemmas about `stsim`
 
 ### Theorems
 ##### In `src/simulation`
@@ -75,6 +80,8 @@ This artifact contains an improved version of the module system compared to the 
 - `Lemma correct` in `LockClientW.v`: Module simulation between client modules; weak memory
 - `Theorem client_all` in `LockClientWAll.v`: Case Study (Sec 8)
 
-## Guides for Readers
-minor diffs
-
+## Guide for Readers
+### Remark on Section 6
+This artifact contains an improved version of the module system compared to the paper. We will revise the paper accordingly. The main difference is that Mod is extended to include OMod (Sec 6, Fig.7) and OMod is removed.
+### Remark on Section 7
+The paper is currently missing update modalities for MONO and DEC rules in Sec 7, Fig.8. We will correct the paper. We also developed various lemmas for `stsim` to reduce proof complexity, as can be found in `src/logic/Weakest.v`.
