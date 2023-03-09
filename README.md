@@ -60,12 +60,12 @@ make build -j
 - `FairRA.white` in `FairRA.v`: &#8885; (⊵) (Sec 7, Fig.8); also see related lemmas for the rules
 - `FairRA.black` in `FairRA.v`: &#9830; (♦) (Sec 7, Fig.8); also see related lemmas for the rules
 - `FairRA.white i 1` in `FairaRA.v`: &#9826;(i) (♢(i)) (Sec 7, Fig.8); actually a simple wrapper of &#8885;
-- `stsim` in `Weakest.v`: sim (Sec 7, Fig.8)
+- `stsim` in `Weakest.v`: corresponds to sim (Sec 7, Fig.8)
 - `stsim_fairL` in `Weakest.v`: WIN-SRC and LOSE-SRC (Sec 7, Fig.8)
 - `stsim_fairR_simple` in `Weakest.v`: WIN-TGT and LOSE-TGT (Sec 7, Fig.8)
 - `stsim_yieldL` in `Weakest.v`: YIELD-SRC (Sec 7, Fig.8)
 - `stsim_yieldR_simple` and `stsim_sync_simple` in `Weakest.v`: YIELD-TGT (Sec 7, Fig.8)
-- `Weakest.v`: full program logic for fairness (Sec 7); see lemmas for `stsim`
+- `Weakest.v`: contains full program logic for fairness (Sec 7); see lemmas for `stsim`
 
 ### Theorems
 ##### In `src/simulation`
@@ -93,4 +93,4 @@ make build -j
 ### Remark on Section 6
 This artifact contains an improved version of the module system compared to the paper. We will revise the paper accordingly. The main difference is that Mod is extended to include OMod (Sec 6, Fig.7) and OMod is removed.
 ### Remark on Section 7
-The paper is currently missing update modalities for MONO and DEC rules in Sec 7, Fig.8. We will correct the paper. We also developed additional lemmas for `stsim` to reduce proof complexity, as can be found in `src/logic/Weakest.v`. Proof of the case study is based on those lemmas, as can be found in files in `src/example`.
+The paper is currently missing update modalities for MONO and DEC rules in Sec 7, Fig.8. We will correct the paper. We also developed additional lemmas for `stsim` to reduce proof complexity, as can be found in `src/logic/Weakest.v`. Proof of the case study is based on those lemmas, as can be found in `src/example/`.
