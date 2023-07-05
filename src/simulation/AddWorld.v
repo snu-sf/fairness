@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
-From Fairness Require Import Axioms NatStructs.
-From Fairness Require Import LPCM World.
+From Fairness Require Import Axioms NatStructsLarge.
+From Fairness Require Import PCMLarge World.
 From Fairness Require Import Mod.
 Require Import String Lia Program.
 

@@ -7,10 +7,7 @@ Require Import SetoidList.
 Require Import SetoidPermutation.
 Require Import Lists.List.
 Require Import Lia.
-From Fairness Require Import
-  Mod
-  FairSim
-  Concurrency.
+From Fairness Require Import Mod FairSim Concurrency Adequacy.
 From ExtLib Require Import FMapAList.
 
 Set Implicit Arguments.
@@ -213,11 +210,6 @@ End SSIM.
 Section SIM.
 
   Context {_Ident : ID}.
-  Variable E : Type -> Type.
-
-  Let eventE1 := @eventE _Ident.
-  Let eventE2 := @eventE (sum_tid _Ident).
-
   Variable State : Type.
 
   Let thread R := thread _Ident (sE State) R.
@@ -366,3 +358,44 @@ Section SIM.
   Qed.
 
 End SIM.
+
+Section ADEQ.
+
+  Context {_Ident : ID}.
+  Variable State : Type.
+
+  Let thread R := thread _Ident (sE State) R.
+  Let threads R := @threads _Ident (sE State) R.
+  Import Th.
+
+  Definition isFairSch R (sch: schedulerT R) : Prop :=
+    forall (ths: threads R) (st: State),
+      Adequacy.improves
+        (interp_concurrency ths (sched_nondet R) st)
+        (interp_concurrency ths sch st).
+
+  Variable wf_tgt : WF.
+  Variable wf_src : WF.
+  Variable wf_emb : wf_tgt.(T) -> wf_src.(T).
+  Hypothesis EMB_MON : forall x y, lt wf_tgt x y -> lt wf_src (wf_emb x) (wf_emb y).
+
+  Hypothesis wft_inhabited: inhabited wf_tgt.(T).
+  Hypothesis wft_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1.
+
+  Theorem ssim_isFairSch
+          R p_src p_tgt
+          (sch: schedulerT R)
+          (SSIM : forall (ths: threads R) m_tgt, exists m_src,
+              @ssim wf_src wf_tgt R R R (@eq R) p_src m_src p_tgt m_tgt
+                    (sched_nondet R (0, NatSet.remove 0 (key_set ths)))
+                    (sch (0, NatSet.remove 0 (key_set ths)))
+          )
+    :
+    isFairSch sch.
+  Proof.
+    unfold isFairSch. i. specialize (SSIM ths).
+    eapply Adequacy.adequacy. all: eauto.
+    eapply ssim_implies_gsim; eauto.
+  Qed.
+
+End ADEQ.

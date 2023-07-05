@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
-From Fairness Require LPCM.
+From Fairness Require PCMLarge.
 Require Import Program.
 
 Set Implicit Arguments.
@@ -120,20 +120,20 @@ Section SIM.
     iApply "H1". iFrame.
   Qed.
 
-  Lemma Ladd (a b: Σ): @LPCM.URA.add (to_LURA Σ) a b = URA.add a b.
+  Lemma Ladd (a b: Σ): @PCMLarge.URA.add (to_LURA Σ) a b = URA.add a b.
   Proof.
-    unfold LPCM.URA.add. LPCM.unseal "ra". ur. auto.
+    unfold PCMLarge.URA.add. PCMLarge.unseal "ra". ur. auto.
   Qed.
 
-  Lemma Lwf (a: Σ): @LPCM.URA.wf (to_LURA Σ) a = URA.wf a.
+  Lemma Lwf (a: Σ): @PCMLarge.URA.wf (to_LURA Σ) a = URA.wf a.
   Proof.
-    unfold LPCM.URA.wf. LPCM.unseal "ra". ur. auto.
+    unfold PCMLarge.URA.wf. PCMLarge.unseal "ra". ur. auto.
   Qed.
 
-  Lemma Lunit: @LPCM.URA.unit (to_LURA Σ) = URA.unit.
+  Lemma Lunit: @PCMLarge.URA.unit (to_LURA Σ) = URA.unit.
   Proof.
-    Local Transparent LPCM.URA.unit.
-    unfold LPCM.URA.unit. LPCM.unseal "ra". ur. auto.
+    Local Transparent PCMLarge.URA.unit.
+    unfold PCMLarge.URA.unit. PCMLarge.unseal "ra". ur. auto.
   Qed.
 
   Lemma isim_wand r g R_src R_tgt
@@ -662,7 +662,7 @@ Section SIM.
 
 End SIM.
 
-From Fairness Require Export NatMapRA StateRA FairRA MonotonePCM.
+From Fairness Require Export NatMapRALarge StateRA FairRA MonotonePCM.
 Require Import Coq.Sorting.Mergesort.
 
 Section STATE.
@@ -702,7 +702,7 @@ Section STATE.
 
   Definition default_initial_res
     : Σ :=
-    (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit)))
+    (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRALarge.t unit)))
       ⋅
       (@GRA.embed _ _ STATESRC (Auth.black (Excl.just None: @Excl.t (option state_src)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_src)): stateSrcRA state_src)))
       ⋅
@@ -744,10 +744,10 @@ Section STATE.
 
   Lemma own_threads_init ths
     :
-    (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit)))
+    (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRALarge.t unit)))
       -∗
       (#=>
-         ((OwnM (Auth.black (Some ths: NatMapRA.t unit)))
+         ((OwnM (Auth.black (Some ths: NatMapRALarge.t unit)))
             **
             (natmap_prop_sum ths (fun tid _ => own_thread tid)))).
   Proof.
@@ -756,7 +756,7 @@ Section STATE.
     i. iIntros "OWN".
     iPoseProof (IH with "OWN") as "> [OWN SUM]".
     iPoseProof (OwnM_Upd with "OWN") as "> [OWN0 OWN1]".
-    { eapply Auth.auth_alloc. eapply (@NatMapRA.add_local_update unit m k v); eauto. }
+    { eapply Auth.auth_alloc. eapply (@NatMapRALarge.add_local_update unit m k v); eauto. }
     iModIntro. iFrame. destruct v. iApply (natmap_prop_sum_add with "SUM OWN1").
   Qed.
 
@@ -1490,6 +1490,35 @@ Section STATE.
     iApply ("H" with "DUTY WHITE"). iFrame.
   Qed.
 
+  Lemma stsim_fairR_simple lf ls
+        E fm r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt
+        (SUCCESS: forall i (IN: fm i = Flag.success), List.In i ls)
+        (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+        (NODUP: List.NoDup lf)
+    :
+    (list_prop_sum (fun i => FairRA.black_ex (inr i) 1) ls)
+      -∗
+      ((list_prop_sum (fun i => FairRA.black_ex (inr i) 1) ls)
+         -*
+         (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
+         -*
+         stsim E r g Q ps true itr_src (ktr_tgt tt))
+      -∗
+      (stsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "A B". iApply (stsim_fairR with "[A]"); eauto.
+    { instantiate (1:= List.map (fun i => (i, [])) ls). i. specialize (SUCCESS _ IN). rewrite List.map_map. ss.
+      replace (List.map (λ x : ident_tgt, x) ls) with ls; auto. clear. induction ls; ss; eauto. f_equal. auto.
+    }
+    { iApply list_prop_sum_map. 2: iFrame. i. ss. iIntros "BLK". iSplitL; auto. iApply black_to_duty. auto. }
+    { iIntros "S F". iApply ("B" with "[S]"). 2: iFrame. iApply list_prop_sum_map_inv. 2: iFrame.
+      i; ss. iIntros "D". iApply duty_to_black. iFrame.
+    }
+  Qed.
+
   Lemma stsim_UB E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt
@@ -1619,6 +1648,57 @@ Section STATE.
     iIntros "H K". iApply stsim_discard; [eassumption|].
     iApply (stsim_sync_strong with "H"). iIntros "DUTY WHITE".
     iModIntro. iApply ("K" with "DUTY WHITE").
+  Qed.
+
+
+  (* Note:  *)
+  (*   MUpd _ fairI topset topset P *)
+  (*        is a generalized version of I * (I -* P) *)
+  Lemma stsim_yieldR_simple E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (TOP: mset_sub topset E)
+    :
+    MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) topset topset
+         ((FairRA.black_ex (inl tid) 1)
+            **
+            ((FairRA.black_ex (inl tid) 1)
+               -*
+               (FairRA.white_thread (_Id:=_))
+               -*
+               stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
+         -∗
+         (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "> [H K]". iApply (stsim_yieldR with "[H]").
+    { auto. }
+    { iPoseProof (black_to_duty with "H") as "H". iFrame. }
+    iIntros "B W". iApply ("K" with "[B] [W]"); ss.
+    { iApply duty_to_black. auto. }
+  Qed.
+
+  Lemma stsim_sync_simple E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (TOP: mset_sub topset E)
+    :
+    MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) topset topset
+         ((FairRA.black_ex (inl tid) 1)
+            **
+            ((FairRA.black_ex (inl tid) 1)
+               -*
+               (FairRA.white_thread (_Id:=_))
+               -*
+               stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt)))
+      -∗
+      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "> [H K]". iApply (stsim_sync with "[H]").
+    { auto. }
+    { iPoseProof (black_to_duty with "H") as "H". iFrame. }
+    iIntros "B W". iApply ("K" with "[B] [W]"); ss.
+    { iApply duty_to_black. auto. }
   Qed.
 
   Lemma stsim_sort E r g R_src R_tgt

@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM Weakest Concurrency ModAdequacy Axioms.
 Require Import Coq.Logic.PropExtensionality.
-From Fairness Require LPCM.
+From Fairness Require PCMLarge.
 Require Import Program.
 
 Set Implicit Arguments.
@@ -349,8 +349,8 @@ Module WSim.
         { eauto. }
         2:{ rr. unseal "iProp". esplits; eauto. }
         { instantiate (1:=URA.unit).
-          rewrite LPCM.URA.unfold_wf.
-          rewrite LPCM.URA.unfold_add. ss.
+          rewrite PCMLarge.URA.unfold_wf.
+          rewrite PCMLarge.URA.unfold_add. ss.
           cut (URA.wf (((b1 ⋅ b) ⋅ ε) ⋅ r_ctx0)).
           { intros WFH. rewrite URA.unfold_wf in WFH.
             rewrite URA.unfold_add in WFH.
@@ -381,8 +381,8 @@ Module WSim.
                         mset_all (nth_default True%I I) (topset I))) Any.t Any.t eq r tid th0 th1.
     Proof.
       ii. assert (WF: URA.wf ((r_shared ⋅ r) ⋅ r_ctx)).
-      { rewrite LPCM.URA.unfold_wf in VALID.
-        rewrite LPCM.URA.unfold_add in VALID.
+      { rewrite PCMLarge.URA.unfold_wf in VALID.
+        rewrite PCMLarge.URA.unfold_add in VALID.
         rewrite URA.unfold_wf.
         rewrite URA.unfold_add. auto.
       }
@@ -413,8 +413,8 @@ Module WSim.
                         mset_all (nth_default True%I I) (topset I))) Any.t Any.t eq th0 th1.
     Proof.
       ii. assert (WF: URA.wf (r_shared0 ⋅ r_ctx0)).
-      { rewrite LPCM.URA.unfold_wf in VALID.
-        rewrite LPCM.URA.unfold_add in VALID.
+      { rewrite PCMLarge.URA.unfold_wf in VALID.
+        rewrite PCMLarge.URA.unfold_add in VALID.
         rewrite URA.unfold_wf.
         rewrite URA.unfold_add. auto.
       }
@@ -447,8 +447,8 @@ Module WSim.
       rr in H1. unseal "iProp". des. subst.
       exists a, b. splits.
       { r. auto. }
-      { rewrite LPCM.URA.unfold_wf.
-        rewrite LPCM.URA.unfold_add. ss.
+      { rewrite PCMLarge.URA.unfold_wf.
+        rewrite PCMLarge.URA.unfold_add. ss.
         rewrite URA.unfold_wf in H0.
         rewrite URA.unfold_add in H0. auto.
       }
@@ -456,8 +456,8 @@ Module WSim.
       { eauto. }
       { eapply INV0. }
       { eauto. }
-      { rewrite LPCM.URA.unfold_wf in VALID0.
-        rewrite LPCM.URA.unfold_add in VALID0. ss.
+      { rewrite PCMLarge.URA.unfold_wf in VALID0.
+        rewrite PCMLarge.URA.unfold_add in VALID0. ss.
         rewrite URA.unfold_wf.
         rewrite URA.unfold_add. auto.
       }
@@ -514,7 +514,6 @@ Module WSim.
         }
       Qed.
 
-      (* TODO: Change Ord.omega to user defined values *)
       Record whole_sim: Prop :=
         mk_whole_sim {
             init_res: Σ;
@@ -609,9 +608,9 @@ Module WSim.
           i. ii. eapply stsim_local_sim_init; eauto.
         }
         { cut (URA.wf ((a0 ⋅ b0) ⋅ (NatMap.fold (fun _ r s => r ⋅ s) rm URA.unit))).
-          { i. rewrite LPCM.URA.unfold_wf. s.
-            rewrite LPCM.URA.unfold_add. s.
-            change (@LPCM.URA.unit (to_LURA (GRA.to_URA Σ))) with (@URA.unit Σ).
+          { i. rewrite PCMLarge.URA.unfold_wf. s.
+            rewrite PCMLarge.URA.unfold_add. s.
+            change (@PCMLarge.URA.unit (to_LURA (GRA.to_URA Σ))) with (@URA.unit Σ).
             rewrite URA.unfold_wf in H.
             rewrite URA.unfold_add in H.
             rewrite URA.unfold_add. auto.
@@ -629,12 +628,62 @@ Module WSim.
       Proof.
         eapply usersim_adequacy. eapply whole_sim_implies_usersim. auto.
       Qed.
+
+      Record whole_sim_simple: Prop :=
+        mk_whole_sim_simple {
+
+            whole_sim_simple_invariant: iProp; (* I *)
+
+            whole_sim_funs_simple:
+            exists (r: Σ),
+              (<<WF: initial_res_wf r>>) /\
+                (<<SIM: ((Own r ** (initial_prop (key_set (prog2ths md_src c)) Ord.omega))
+                           ⊢ #=>
+                           (whole_sim_simple_invariant
+                              **
+                              (natmap_prop_sum
+                                 fun_pairs
+                                 (fun tid '(th_src, th_tgt) =>
+                                    stsim
+                                      [whole_sim_simple_invariant] tid [0]
+                                      ibot7 ibot7
+                                      (fun r_src r_tgt => own_thread tid ** FairRA.black_ex (inl tid) 1 ** ⌜r_src = r_tgt⌝)
+                                      false false th_src th_tgt))))>>);
+          }.
+
+      Lemma whole_sim_simple_whole_sim
+            (SIM: whole_sim_simple)
+        :
+        whole_sim.
+      Proof.
+        inv SIM. des. econs.
+        { eauto. }
+        exists Ord.omega. iIntros "H".
+        iPoseProof (SIM with "H") as "> [H0 H1]". iModIntro.
+        iExists [whole_sim_simple_invariant]. iModIntro.
+        iSplitL "H0".
+        { iFrame. }
+        iApply (natmap_prop_sum_impl with "H1"). i. des_ifs.
+        iApply (stsim_mono). i.
+        iIntros "[[H0 H1] H2]". iModIntro. iFrame.
+        iApply black_to_duty. auto.
+      Qed.
+
+      Theorem whole_sim_simple_implies_refinement
+              (SIM: whole_sim_simple)
+        :
+        Adequacy.improves (interp_all md_src.(Mod.st_init) (prog2ths md_src c) 0)
+                          (interp_all md_tgt.(Mod.st_init) (prog2ths md_tgt c) 0).
+      Proof.
+        apply whole_sim_implies_refinement.
+        apply whole_sim_simple_whole_sim. auto.
+      Qed.
+
     End WHOLE_PROGRAM_SIM.
 
 
     Section CONTEXT_SIM.
 
-      (* TODO: Change Ord.omega to user defined values *)
       Record context_sim: Prop :=
         mk_context_sim {
             init_res: Σ;
@@ -718,7 +767,7 @@ Module WSim.
         exists (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I I_ctx) (topset I_ctx)%I)).
         esplits.
         { ss. eauto. }
-        { rewrite LPCM.URA.unfold_wf. rewrite URA.unfold_wf in WF. auto. }
+        { rewrite PCMLarge.URA.unfold_wf. rewrite URA.unfold_wf in WF. auto. }
         { i. specialize (SAT0 fn args). des_ifs.
           eapply stsim_local_sim; eauto.
         }
@@ -733,6 +782,67 @@ Module WSim.
       Proof.
         eapply modsim_adequacy. eapply context_sim_implies_modsim. auto.
       Qed.
+
+      Record context_sim_simple: Prop :=
+        mk_context_sim_simple {
+
+            context_sim_simple_invariant: iProp; (* I *)
+
+            init_satisfied:
+            exists (r: Σ),
+              (<<WF: initial_res_wf r>>) /\
+                (<<SAT: ((Own r ** (initial_prop TIdSet.empty Ord.omega))
+                           ⊢ #=> context_sim_simple_invariant)%I>>);
+
+            sim_funs:
+            forall fn args,
+              match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
+              | Some ktr_src, Some ktr_tgt =>
+                  forall tid,
+                      (FairRA.black_ex (inl tid) 1)
+                      -∗
+                      (stsim
+                         [context_sim_simple_invariant] tid [0]
+                         ibot7 ibot7
+                         (fun r_src r_tgt => FairRA.black_ex (inl tid) 1 ** ⌜r_src = r_tgt⌝)
+                         false false (ktr_src args) (ktr_tgt args))
+              | None, None => True
+              | _, _ => False
+              end;
+          }.
+
+      Lemma context_sim_simple_context_sim
+            (SIM: context_sim_simple)
+        :
+        context_sim.
+      Proof.
+        inv SIM. des. econs.
+        { eauto. }
+        { exists Ord.omega. iIntros "H".
+          iPoseProof (SAT with "H") as "> SAT". iModIntro.
+          iExists [context_sim_simple_invariant]. iModIntro. iSplit.
+          { ss. iFrame. }
+          iPureIntro. auto.
+          i. specialize (sim_funs fn args). des_ifs.
+          i. iIntros "H B". iPoseProof (sim_funs with "[B]") as "B".
+          { iApply duty_to_black. auto. }
+          iApply (stsim_wand with "B [H]").
+          iIntros (? ?) "[H0 H1]". iModIntro. iFrame.
+          iApply black_to_duty. auto.
+        }
+      Qed.
+
+      Theorem context_sim_simple_implies_contextual_refinement
+              (SIM: context_sim_simple)
+        :
+        forall p,
+          Adequacy.improves (interp_all md_src.(Mod.st_init) (prog2ths md_src p) 0)
+                            (interp_all md_tgt.(Mod.st_init) (prog2ths md_tgt p) 0).
+      Proof.
+        apply context_sim_implies_contextual_refinement.
+        apply context_sim_simple_context_sim. auto.
+      Qed.
+
     End CONTEXT_SIM.
   End WSIM.
 End WSim.

@@ -1535,35 +1535,35 @@ End AUX.
 
 (* TODO: make lemmas for RA and turn it into URA at the last *)
 
-From Fairness Require LPCM.
+From Fairness Require PCMLarge.
 
-Program Definition to_LURA (M: URA.t): LPCM.URA.t :=
-  @LPCM.URA.mk M.(URA.car) M.(URA.unit) M.(URA._add) M.(URA._wf) M.(URA._add_comm) M.(URA._add_assoc) _ _ _ M.(URA.core) _ _ _.
+Program Definition to_LURA (M: URA.t): PCMLarge.URA.t :=
+  @PCMLarge.URA.mk M.(URA.car) M.(URA.unit) M.(URA._add) M.(URA._wf) M.(URA._add_comm) M.(URA._add_assoc) _ _ _ M.(URA.core) _ _ _.
 Next Obligation.
-  i. LPCM.unseal "ra".
+  i. PCMLarge.unseal "ra".
   hexploit URA.unit_id. i. ur in H. eauto.
 Qed.
 Next Obligation.
-  i. LPCM.unseal "ra".
+  i. PCMLarge.unseal "ra".
   hexploit URA.wf_unit. i. ur in H. eauto.
 Qed.
 Next Obligation.
-  i. LPCM.unseal "ra".
+  i. PCMLarge.unseal "ra".
   hexploit URA.wf_mon.
   { ur. eauto. }
   i. ur in H0. eauto.
 Qed.
 Next Obligation.
-  i. LPCM.unseal "ra".
+  i. PCMLarge.unseal "ra".
   hexploit URA.core_id. i. ur in H. eauto.
 Qed.
 Next Obligation.
-  i. LPCM.unseal "ra".
+  i. PCMLarge.unseal "ra".
   hexploit URA.core_idem. i. ur in H. eauto.
 Qed.
 Next Obligation.
-  i. LPCM.unseal "ra".
+  i. PCMLarge.unseal "ra".
   hexploit URA.core_mono. i. ur in H. eauto.
 Qed.
 
-Coercion to_LURA: URA.t >-> LPCM.URA.t.
+Coercion to_LURA: URA.t >-> PCMLarge.URA.t.

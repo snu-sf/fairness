@@ -4,7 +4,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
-From Fairness Require Import ITreeLib WFLib.
+From Fairness Require Import ITreeLib WFLibLarge.
 From Fairness Require Import FairBeh.
 From Fairness Require Import FairSim.
 

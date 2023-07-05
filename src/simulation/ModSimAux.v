@@ -8,12 +8,12 @@ From Fairness Require Export
   FairBeh
   Mod
   pind
-  LPCM
+  PCMLarge
   ModSim.
 
 From Coq Require Import Relations.Relation_Operators.
 From Coq Require Import Relations.Operators_Properties.
-From Fairness Require Import WFLib Axioms.
+From Fairness Require Import WFLibLarge Axioms.
 
 Set Implicit Arguments.
 
