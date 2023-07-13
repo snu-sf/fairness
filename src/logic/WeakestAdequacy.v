@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM Weakest Concurrency ModAdequacy Axioms.
+From Fairness Require Import ITreeLib IProp IPM ModSim ModSimPers PCM Weakest Concurrency ModAdequacy Axioms.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require LPCM.
 Require Import Program.
@@ -405,16 +405,17 @@ Module WSim.
     Lemma stsim_local_sim
           (th0: thread (Mod.ident md_src) (sE (Mod.state md_src)) Any.t)
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
+          r_arg
           (SIM: forall tid,
               ((own_thread tid)
-                 ⊢
+                 -∗
                  (ObligationRA.duty (inl tid) [])
                  -∗
                  (stsim tid ⊤ ibot7 ibot7
                         (fun r_src r_tgt =>
-                           ((own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I)
+                           ((own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I r_arg)
       :
-      @local_sim
+      @local_sim_arg
         (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
         (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
         (liftI
@@ -423,18 +424,18 @@ Module WSim.
                 (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
                 (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
               default_I ths im_src im_tgt st_src st_tgt **
-                        (wsat ** OwnE ⊤))) Any.t Any.t eq th0 th1.
+                        (wsat ** OwnE ⊤))) Any.t Any.t eq th0 th1 r_arg.
     Proof.
-      ii. assert (WF: URA.wf (r_shared0 ⋅ r_ctx0)).
+      ii. assert (WF: URA.wf (r_shared0 ⋅ (r_ctx0 ⋅ r_arg))).
       { rewrite LPCM.URA.unfold_wf in VALID.
         rewrite LPCM.URA.unfold_add in VALID.
         rewrite URA.unfold_wf.
-        rewrite URA.unfold_add. auto.
+        rewrite ! URA.unfold_add. auto.
       }
       specialize (SIM tid). r in INV.
       assert (IMPL:
-               (default_I ths0 im_src0 im_tgt0 st_src0 st_tgt0 **
-                          (wsat ** OwnE ⊤))
+               ((Own r_arg) ** (default_I ths0 im_src0 im_tgt0 st_src0 st_tgt0 **
+                                          (wsat ** OwnE ⊤)))
                  ⊢
                  #=> ((default_I ths1 im_src0 im_tgt1 st_src0 st_tgt0)
                         **
@@ -444,18 +445,23 @@ Module WSim.
                         (λ r_src r_tgt : Any.t,
                             (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
                         false false th0 th1)).
-      { iIntros "[D SAT]".
+      { iIntros "[ARG [D SAT]]".
         iPoseProof (default_I_thread_alloc with "D") as "> [[OWN DUTY] D]".
         { eauto. }
         { eauto. }
-        iModIntro. iFrame. iApply (SIM with "OWN DUTY").
+        iModIntro. iFrame.
+        iRevert "OWN DUTY". iStopProof.
+        rr. unseal "iProp". i.
+        rr in H. unseal "iProp". eapply iProp_mono; eauto.
       }
       rr in IMPL. unseal "iProp".
       hexploit IMPL; [|eauto|..].
-      { eapply URA.wf_mon. instantiate (1:=r_ctx0). r_wf WF. }
+      { instantiate (1:=r_arg ⋅ r_shared0).
+        eapply URA.wf_mon. instantiate (1:=r_ctx0). r_wf WF. }
+      { rr. unseal "iProp". esplits; eauto. rr. unseal "iProp". reflexivity. }
       i. rr in H. unseal "iProp".
       hexploit H.
-      { eauto. }
+      { instantiate (1:=r_ctx0). r_wf WF. }
       i. des.
       rr in H1. unseal "iProp". des. subst.
       exists a, b. splits.
@@ -463,7 +469,7 @@ Module WSim.
       { rewrite LPCM.URA.unfold_wf.
         rewrite LPCM.URA.unfold_add. ss.
         rewrite URA.unfold_wf in H0.
-        rewrite URA.unfold_add in H0. auto.
+        rewrite ! URA.unfold_add in H0. eauto.
       }
       i. ss. eapply stsim_lsim.
       { eauto. }
@@ -676,6 +682,7 @@ Module WSim.
         :
         ModSim.mod_sim md_src md_tgt.
       Proof.
+        eapply ModSimPers.imply_mod_sim.
         Local Transparent FUpd.
         inv SIM. des.
         i. assert (forall im_tgt,
@@ -712,19 +719,26 @@ Module WSim.
           { iFrame. }
           iModIntro. iExists _. iFrame. iFrame.
         }
-        apply (@ModSim.mk
+        apply (@ModSimPers.mk
                  md_src md_tgt owf nat_wf (inhabits 0) NUNBOUND (to_LURA Σ)).
         i. specialize (H im_tgt). des.
         rr in SAT. unseal "iProp". des. rename x into im_src.
         rr in SAT. unseal "iProp". des.
         rr in SAT0. unseal "iProp".
+        des. rr in SAT1. unseal "iProp".
+        rr in SAT1. unseal "iProp".
         exists (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ** (wsat ** OwnE ⊤))).
         esplits.
         { ss. eauto. }
         { rewrite LPCM.URA.unfold_wf. rewrite URA.unfold_wf in WF. auto. }
-        { i. specialize (SAT0 fn args). des_ifs.
-          eapply stsim_local_sim; eauto.
+        i. rr in SAT1. unseal "iProp". specialize (SAT1 fn).
+        rr in SAT1. unseal "iProp". specialize (SAT1 args).
+        des_ifs; ss.
+        { eapply stsim_local_sim; eauto. i.
+          rr in SAT1. unseal "iProp". specialize (SAT1 tid). auto.
         }
+        { rr in SAT1. unseal "iProp". ss. }
+        { rr in SAT1. unseal "iProp". ss. }
       Qed.
 
       Lemma context_sim_implies_contextual_refinement
