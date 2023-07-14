@@ -597,7 +597,7 @@ Section SIM.
   Context `{ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
   Context `{COPSETRA : @GRA.inG CoPset.t Σ}.
   Context `{GSETRA : @GRA.inG Gset.t Σ}.
-  Context `{INVSETRA : @GRA.inG InvSetRA Σ}.
+  Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
   Context `{MEMRA: @GRA.inG memRA Σ}.
 
   Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLock.tk)) Σ}.
@@ -974,7 +974,7 @@ Section SIM.
       iApply (stsim_yieldR_strong with "[DUTY]"). iFrame. iIntros "DUTY RIGHT".
       iMod ("K" with "[TKS MEM ST CT INV0 INV2 INV4 MAPS INV3 DUTY]") as "_".
       { iExists mem, own, l, tks, now, next, myt.
-        remember 
+        remember
     ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
     ∨ (⌜own = false⌝ **
        ticket_lock_inv_unlocking monok l tks now next myt
@@ -991,7 +991,7 @@ Section SIM.
       iApply (stsim_yieldR_strong with "[DUTY]"). iFrame. iIntros "DUTY RIGHT".
       iMod ("K" with "[TKS MEM ST CF INV0 INV2 INV4 MAPS INV3 DUTY]") as "_".
       { iExists mem, own, l, tks, now, next, myt.
-        remember 
+        remember
     ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
     ∨ (⌜own = false⌝ **
        ticket_lock_inv_unlocking monok l tks now next myt
@@ -1014,7 +1014,7 @@ Section SIM.
       iApply (stsim_yieldR_strong with "[DUTY]"). iFrame. iIntros "DUTY RIGHT".
       iMod ("K" with "[TKS MEM ST CF INV0 INV3 INV5 MAPS INV4 DUTY]") as "_".
       { iExists mem, own, l, tks, now, next, myt.
-        remember 
+        remember
     ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
     ∨ (⌜own = false⌝ **
        ticket_lock_inv_unlocking monok l tks now next myt
@@ -1180,7 +1180,7 @@ Section SIM.
     iPoseProof (natmap_prop_sepconj_sum with "I3") as "[I3 TAX]".
 
     iApply (stsim_fairL with "[TAX]").
-    { i. ss. instantiate (1:= (NatSet.elements (key_set tks'))). des_ifs. 
+    { i. ss. instantiate (1:= (NatSet.elements (key_set tks'))). des_ifs.
       eapply NatSetIn_In. auto.
     }
     { instantiate (1:=[tid]). i; ss. des; clarify. des_ifs. }
@@ -1199,7 +1199,7 @@ Section SIM.
 
     iMod ("K" with "[I0 I4 ST MEM TKS0 TKS2 TKS3 I5 I3 TKS1]") as "_".
     { iExists mem, true, tl, tks', mytk, next, myt.
-      remember 
+      remember
     ((⌜true = true⌝ ** ticket_lock_inv_locked monok tl tks' mytk next myt)
     ∨ (⌜true = false⌝ **
        ticket_lock_inv_unlocking monok tl tks' mytk next myt
@@ -1421,7 +1421,7 @@ Section SIM.
               (` arg : SCMem.val <- unwrap (Any.downcast (Any.upcast TicketLock.now_serving));;
                ` ret : SCMem.val <-
                (` m : SCMem.t <- trigger (Get id);;
-                ` v : SCMem.val <- unwrap (SCMem.load m arg);; Ret v);; 
+                ` v : SCMem.val <- unwrap (SCMem.load m arg);; Ret v);;
                Ret (Any.upcast ret));; (tau;; unwrap (Any.downcast rv)));;
            OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
              (` b : bool <- OMod.call "compare" (x, SCMem.val_nat a);;

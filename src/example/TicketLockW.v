@@ -2633,8 +2633,21 @@ Module TicketLockFair.
     iPoseProof (init_sat with "[A0 A1 A2 B C D]") as "H".
     { i. eapply (Build_InvIn Invs _ (monok, tk_mono, wm_mono, wo_mono)). ss. }
     { iFrame. iSplitL "A1"; auto. }
-    iMod "H" as "[% [% [% [% H]]]]". instantiate (1 := ticket_lock_namespace).
-    iModIntro.
+    iMod "H" as "[% [% [% [% # H]]]]". instantiate (1 := ticket_lock_namespace).
+    iModIntro. iModIntro. iIntros. ss. des_ifs.
+    { iIntros (?) "OWN DUTY". unfold Mod.wrap_fun. lred. rred.
+      unfold unwrap. des_ifs.
+      { lred. rred.
+        iApply stsim_bind_top. iApply (stsim_wand with "[OWN DUTY]").
+        { iApply correct_lock. iFrame. }
+        { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+          iFrame. subst. auto.
+        }
+      }
+      { unfold UB. lred. rred. iApply stsim_UB. }
+    }
+
+
     iExists [ticket_lock_inv monok tk_mono wm_mono wo_mono].
     iMod "H". iModIntro. iSplit.
     { unfold nth_default. ss. iFrame. }
