@@ -138,7 +138,7 @@ Section WORLD_SATISFACTION.
       rr. subst I'.
       unfold URA.add. unseal "ra". ss.
       extensionalities j. unfold maps_to_res. des_ifs.
-      - rewrite lookup_insert. rewrite not_elem_of_dom_1; ss. 
+      - rewrite lookup_insert. rewrite not_elem_of_dom_1; ss.
         unfold URA.add. unseal "ra". ss.
       - rewrite URA.unit_idl. rewrite lookup_insert_ne; eauto.
     }
@@ -354,6 +354,13 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
     iModIntro. iExists tt. iFrame.
   Qed.
 
+  Global Instance elim_modal_iupd_FUpd p A E1 E2 P Q :
+    ElimModal True p false (#=(A)=> P) P (FUpd A E1 E2 Q) (FUpd A E1 E2 Q) | 10.
+  Proof.
+    rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
+    iIntros (_) "[P K] [A I]".
+    iMod ("P" with "A") as "[A P]". iApply ("K" with "P"). iFrame.
+  Qed.
 End FANCY_UPDATE.
 
 Global Opaque FUpd.

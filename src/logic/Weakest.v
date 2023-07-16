@@ -1204,10 +1204,34 @@ Section STATE.
     iMod "H0". iApply ("H1" with "H0").
   Qed.
 
-  Global Instance mupd_elim_iupd_arrow
+  Global Instance mupd_elim_upd_arrow
          P Q E1 E2 p Inv
     :
     ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
+  Proof.
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]".
+    iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
+    { iApply SubIProp_sep_r. }
+    iMod "H0". iApply ("H1" with "H0").
+  Qed.
+
+  Global Instance mupd_elim_fupd_edge
+         P Q E1 E2 p
+    :
+    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
+  Proof.
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    i. iIntros "[H0 H1]".
+    iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
+    { iApply SubIProp_sep_l. }
+    iMod "H0". iApply ("H1" with "H0").
+  Qed.
+
+  Global Instance mupd_elim_fupd_arrow
+         P Q E1 E2 p
+    :
+    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
