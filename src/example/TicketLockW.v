@@ -333,7 +333,7 @@ Section SIM.
 
   Context `{Σ: GRA.t}.
 
-  Variable Invs : @InvSet Σ.
+  Context `{Invs : @InvSet Σ}.
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
@@ -2594,7 +2594,7 @@ Module TicketLockFair.
   Local Instance AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ := (@GRA.InG _ _ 15 (@eq_refl _ _)).
   Local Instance AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * View.t)))) Σ := (@GRA.InG _ _ 16 (@eq_refl _ _)).
   Local Instance IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ := (@GRA.InG _ _ 17 (@eq_refl _ _)).
-  Local Instance Invs : InvSet := {| Var := nat * nat * nat * nat; prop := (fun '(monok, tk_mono, wm_mono, wo_mono) => (ticket_lock_inv monok tk_mono wm_mono wo_mono)) |}.
+  Local Instance Invs : @InvSet _ := {| Var := nat * nat * nat * nat; prop := (fun '(monok, tk_mono, wm_mono, wo_mono) => (ticket_lock_inv monok tk_mono wm_mono wo_mono)) |}.
   Import stdpp.namespaces.
   Definition ticket_lock_namespace := nroot .@ "TicketLock".
 
@@ -2603,6 +2603,27 @@ Module TicketLockFair.
                    ⋅ GRA.embed (Auth.white (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type) ⋅ Auth.black (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type))
                    ⋅ GRA.embed (Auth.black (Some (NatMap.empty nat): NatMapRA.t nat))
                    ⋅ GRA.embed ((fun _ => (Auth.black (Excl.just 0: Excl.t nat)) ⋅ (Auth.white (Excl.just 0: Excl.t nat))): (thread_id ==> (Auth.t (Excl.t nat)))%ra)).
+
+
+  Lemma close_itree_wrap_fun omd md A B
+        (ktr : ktree
+                 (threadE (Mod.ident omd)
+                          (Mod.state omd)) A B)
+        arg
+    :
+    OMod.close_itree omd md (Mod.wrap_fun ktr arg)
+    =
+      Mod.wrap_fun (fun arg => OMod.close_itree omd md (ktr arg)) arg.
+  Proof.
+    unfold Mod.wrap_fun. rewrite ! close_itree_bind.
+    rewrite close_itree_unwrap. grind.
+    rewrite ! close_itree_bind. grind.
+    rewrite close_itree_ret. auto.
+  Qed.
+
+  Arguments stsim_bind_top {_ _ _ _ _ _}.
+  Arguments stsim_wand {_ _ _ _ _ _}.
+  Arguments stsim_ret {_ _ _ _ _ _}.
 
   Lemma ticketlock_fair:
     ModSim.mod_sim AbsLockW.mod TicketLockW.mod.
@@ -2630,50 +2651,30 @@ Module TicketLockFair.
     unfold init_res. repeat rewrite <- GRA.embed_add.
     exists Ord.omega.
     iIntros "[[[[A0 [A1 A2]] B] C] D]".
-    iPoseProof (init_sat with "[A0 A1 A2 B C D]") as "H".
-    { i. eapply (Build_InvIn Invs _ (monok, tk_mono, wm_mono, wo_mono)). ss. }
+    iPoseProof ((init_sat (Invs:=Invs) ticket_lock_namespace) with "[A0 A1 A2 B C D]") as "H".
     { iFrame. iSplitL "A1"; auto. }
-    iMod "H" as "[% [% [% [% # H]]]]". instantiate (1 := ticket_lock_namespace).
-    iModIntro. iModIntro. iIntros. ss. des_ifs.
-    { iIntros (?) "OWN DUTY". unfold Mod.wrap_fun. lred. rred.
-      unfold unwrap. des_ifs.
-      { lred. rred.
-        iApply stsim_bind_top. iApply (stsim_wand with "[OWN DUTY]").
-        { iApply correct_lock. iFrame. }
-        { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
-          iFrame. subst. auto.
-        }
-      }
-      { unfold UB. lred. rred. iApply stsim_UB. }
-    }
-
-
-    iExists [ticket_lock_inv monok tk_mono wm_mono wo_mono].
-    iMod "H". iModIntro. iSplit.
-    { unfold nth_default. ss. iFrame. }
-    { iPureIntro. i. ss. unfold OMod.closed_funs, Mod.wrap_fun. ss. des_ifs.
-      { i. iIntros "OWN DUTY". unfold Mod.wrap_fun. lred. rred.
-        unfold unwrap. des_ifs.
-        { lred. rred.
-          iApply stsim_bind_top. iApply (stsim_wand with "[OWN DUTY]").
-          { iApply correct_lock. iFrame. }
-          { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
-            iFrame. subst. auto.
-          }
-        }
-        { unfold UB. lred. rred. iApply stsim_UB. }
-      }
-      { i. iIntros "OWN DUTY". unfold Mod.wrap_fun. lred. rred.
-        unfold unwrap. des_ifs.
-        { lred. rred.
-          iApply stsim_bind_top. iApply (stsim_wand with "[OWN DUTY]").
-          { iApply correct_unlock. iFrame. }
-          { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
-            iFrame. subst. auto.
-          }
-        }
-        { unfold UB. lred. rred. iApply stsim_UB. }
+    iMod "H" as "[% [% [% [% # INV]]]]".
+    iModIntro. iModIntro. iIntros. ss.
+    unfold OMod.closed_funs. ss. des_ifs.
+    { iIntros (?) "OWN DUTY". unfold Mod.wrap_fun, unwrap. des_ifs.
+      2:{ unfold UB. lred. iApply stsim_UB. }
+      lred. rred. iApply stsim_bind_top.
+      iApply (stsim_wand with "[INV OWN DUTY]").
+      { iApply correct_lock. iFrame. iApply "INV". }
+      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+        iFrame. subst. auto.
       }
     }
+    { iIntros (?) "OWN DUTY". unfold Mod.wrap_fun, unwrap. des_ifs.
+      2:{ unfold UB. lred. iApply stsim_UB. }
+      lred. rred. iApply stsim_bind_top.
+      iApply (stsim_wand with "[INV OWN DUTY]").
+      { iApply correct_unlock. iFrame. iApply "INV". }
+      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
+        iFrame. subst. auto.
+      }
+    }
+    Unshelve.
+    { i. eapply (Build_InvIn Invs _ (monok, tk_mono, wm_mono, wo_mono)). ss. }
   Qed.
 End TicketLockFair.
