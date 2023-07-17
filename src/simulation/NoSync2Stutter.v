@@ -25,8 +25,8 @@ Section GENORDER.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := programE _ident_src state_src.
-  Let tgtE := programE _ident_tgt state_tgt.
+  Let srcE := threadE _ident_src state_src.
+  Let tgtE := threadE _ident_tgt state_tgt.
 
   Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
@@ -63,13 +63,13 @@ Section GENORDER.
       (GENO: exists x, geno true f_tgt r_ctx (o, ktr_src x) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Choose X) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
-  | geno_rmwL
+  | geno_stateL
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
-      X rmw ktr_src itr_tgt
-      (GENO: geno true f_tgt r_ctx (o, ktr_src (snd (rmw st_src) : X)) itr_tgt (ths, im_src, im_tgt, fst (rmw st_src), st_tgt))
+      X run ktr_src itr_tgt
+      (GENO: geno true f_tgt r_ctx (o, ktr_src (snd (run st_src) : X)) itr_tgt (ths, im_src, im_tgt, fst (run st_src), st_tgt))
     :
-    _geno tid RR geno f_src f_tgt r_ctx (o, trigger (Rmw rmw) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
+    _geno tid RR geno f_src f_tgt r_ctx (o, trigger (State run) >>= ktr_src) itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   | geno_tidL
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
@@ -107,13 +107,13 @@ Section GENORDER.
       (GENO: forall x, geno f_src true r_ctx (o, itr_src) (ktr_tgt x) (ths, im_src, im_tgt, st_src, st_tgt))
     :
     _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (Choose X) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
-  | geno_rmwR
+  | geno_stateR
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
-      X rmw itr_src ktr_tgt
-      (GENO: geno f_src true r_ctx (o, itr_src) (ktr_tgt (snd (rmw st_tgt) : X)) (ths, im_src, im_tgt, st_src, fst (rmw st_tgt)))
+      X run itr_src ktr_tgt
+      (GENO: geno f_src true r_ctx (o, itr_src) (ktr_tgt (snd (run st_tgt) : X)) (ths, im_src, im_tgt, st_src, fst (run st_tgt)))
     :
-    _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (Rmw rmw) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
+    _geno tid RR geno f_src f_tgt r_ctx (o, itr_src) (trigger (State run) >>= ktr_tgt) (ths, im_src, im_tgt, st_src, st_tgt)
   | geno_tidR
       f_src f_tgt r_ctx o
       ths im_src im_tgt st_src st_tgt
@@ -227,7 +227,7 @@ Section GENORDER.
       des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. esplits; eauto.
       split; ss; eauto.
     }
-    { eapply pind6_fold. eapply geno_rmwL; eauto.
+    { eapply pind6_fold. eapply geno_stateL; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
     { eapply pind6_fold. eapply geno_tidL; eauto.
@@ -246,7 +246,7 @@ Section GENORDER.
       i. specialize (GENO0 x).
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
-    { eapply pind6_fold. eapply geno_rmwR; eauto.
+    { eapply pind6_fold. eapply geno_stateR; eauto.
       destruct GENO0 as [GENO IND]. eapply IH in IND; eauto. split; ss.
     }
     { eapply pind6_fold. eapply geno_tidR; eauto.
@@ -303,7 +303,7 @@ Section GENORDER.
       exists o. eapply pind6_fold. eapply geno_chooseL; eauto. eexists. split; ss. eauto.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
-      exists o. eapply pind6_fold. eapply geno_rmwL; eauto. split; ss.
+      exists o. eapply pind6_fold. eapply geno_stateL; eauto. split; ss.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des.
       exists o. eapply pind6_fold. eapply geno_tidL; auto. split; ss.
@@ -334,7 +334,7 @@ Section GENORDER.
     }
 
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
-      eapply pind6_fold. eapply geno_rmwR; eauto. ss.
+      eapply pind6_fold. eapply geno_stateR; eauto. ss.
     }
     { destruct LSIM0 as [LSIM IND]. eapply IH in IND. des. exists o.
       eapply pind6_fold. eapply geno_tidR; eauto. ss.
@@ -433,8 +433,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Let srcE := programE _ident_src state_src.
-  Let tgtE := programE _ident_tgt state_tgt.
+  Let srcE := threadE _ident_src state_src.
+  Let tgtE := threadE _ident_tgt state_tgt.
 
   Let shared :=
     (TIdSet.t *
@@ -593,8 +593,8 @@ Section MODSIM.
     inv MDSIM.
     set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := programE _ident_src state_src).
-    set (tgtE := programE _ident_tgt state_tgt).
+    set (srcE := threadE _ident_src state_src).
+    set (tgtE := threadE _ident_tgt state_tgt).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
@@ -629,8 +629,8 @@ Section USERSIM.
     inv MDSIM.
     set (_ident_src := Mod.ident md_src). set (_ident_tgt := Mod.ident md_tgt).
     set (state_src := Mod.state md_src). set (state_tgt := Mod.state md_tgt).
-    set (srcE := programE _ident_src state_src).
-    set (tgtE := programE _ident_tgt state_tgt).
+    set (srcE := threadE _ident_src state_src).
+    set (tgtE := threadE _ident_tgt state_tgt).
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).

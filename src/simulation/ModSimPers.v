@@ -1,0 +1,212 @@
+From sflib Require Import sflib.
+From Paco Require Import paco.
+Require Export Coq.Strings.String.
+Require Import Coq.Classes.RelationClasses.
+
+From Fairness Require Export ITreeLib FairBeh Mod.
+From Fairness Require Import pind.
+From Fairness Require Import PCMLarge.
+From Fairness Require Import PindTac.
+From Fairness Require Import ModSim.
+
+Set Implicit Arguments.
+
+
+
+Section PRIMIVIESIM.
+  Context `{M: URA.t}.
+
+  Variable state_src: Type.
+  Variable state_tgt: Type.
+
+  Variable ident_src: ID.
+  Variable _ident_tgt: ID.
+
+  Variable wf_src: WF.
+  Variable wf_tgt: WF.
+
+  Let srcE := threadE ident_src state_src.
+  Let tgtE := threadE _ident_tgt state_tgt.
+
+  Variable I: shared state_src state_tgt ident_src _ident_tgt wf_src wf_tgt -> URA.car -> Prop.
+
+  Definition local_sim_arg {R0 R1} (RR: R0 -> R1 -> Prop) src tgt r_arg :=
+    forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
+           (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
+           tid ths1
+           (THS: TIdSet.add_new tid ths0 ths1)
+           (VALID: URA.wf (r_shared0 ⋅ (r_ctx0 ⋅ r_arg))),
+    forall im_tgt1
+           (TID_TGT : fair_update im_tgt0 im_tgt1 (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp))),
+    exists r_shared1 r_own,
+      (<<INV: I (ths1, im_src0, im_tgt1, st_src0, st_tgt0) r_shared1>>) /\
+        (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
+        (forall ths im_src1 im_tgt2 st_src2 st_tgt2 r_shared2 r_ctx2
+                (INV: I (ths, im_src1, im_tgt2, st_src2, st_tgt2) r_shared2)
+                (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
+          forall im_tgt3 (TGT: fair_update im_tgt2 im_tgt3 (prism_fmap inlp (tids_fmap tid ths))),
+            (<<LSIM: forall fs ft,
+                @lsim
+                  _
+                  state_src state_tgt ident_src _ident_tgt wf_src wf_tgt
+                  I
+                  tid
+                  R0 R1
+                  (@local_RR _ state_src state_tgt ident_src _ident_tgt wf_src wf_tgt  I R0 R1 RR tid)
+                  fs ft
+                  r_ctx2
+                  src tgt
+                  (ths, im_src1, im_tgt3, st_src2, st_tgt2)
+                  >>)).
+
+End PRIMIVIESIM.
+
+
+Module ModSimPers.
+  Section MODSIM.
+
+    Variable md_src: Mod.t.
+    Variable md_tgt: Mod.t.
+
+    Record mod_sim: Prop :=
+      mk {
+          wf_src : WF;
+          wf_tgt : WF;
+          wf_tgt_inhabited: inhabited wf_tgt.(T);
+          wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
+
+          world: URA.t;
+
+          (* I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop; *)
+          init: forall im_tgt,
+          exists (I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop),
+          (exists im_src r_shared,
+            (I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared) /\
+              (URA.wf r_shared)
+            /\
+              (forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
+                               | Some ktr_src, Some ktr_tgt => local_sim_arg I (@eq Any.t) (ktr_src args) (ktr_tgt args) (URA.core r_shared)
+                               | None, None => True
+                               | _, _ => False
+                               end));
+        }.
+
+    Ltac pind_gen := patterning 9; refine (@lsim_acc_gen
+                                             _ _ _ _ _ _ _ _
+                                             _ _ _
+                                             _ _ _ _ _ _ _ _ _
+                                             _ _ _).
+    Ltac pinduction n := currying n pind_gen.
+
+    Lemma imply_mod_sim (SIM: mod_sim):
+      ModSim.mod_sim md_src md_tgt.
+    Proof.
+      inv SIM.
+      eapply (@ModSim.mk _ _ wf_src wf_tgt wf_tgt_inhabited wf_tgt_open world).
+      i. specialize (init im_tgt). des.
+      assert (DUP: URA.core r_shared = URA.core r_shared ⋅ URA.core r_shared).
+      { rewrite <- URA.core_id at 1. rewrite URA.core_idem. auto. }
+      eexists (fun sh r => exists r0, I sh r0 /\ URA.core r_shared ⋅ r0 = r).
+      split.
+      { esplits; eauto. rewrite URA.core_id. auto. }
+      i. specialize (init1 fn args). des_ifs.
+      ii. des. subst. exploit init1; eauto.
+      { instantiate (1:=r_ctx0 ⋅ URA.core r_shared).
+        rewrite <- URA.add_assoc. rewrite <- DUP. r_wf VALID.
+      }
+      i. des. esplits; eauto.
+      { instantiate (1:=r_own). r_wf VALID0. }
+      i. des. subst. hexploit x0; eauto.
+      { instantiate (1:=r_ctx2 ⋅ URA.core r_shared). r_wf VALID1. }
+      ii. specialize (H fs ft).
+
+      ginit. revert H. generalize (k args), (k0 args).
+      generalize (ths, im_src1, im_tgt3, st_src2, st_tgt2). clear.
+      revert fs ft r_ctx2. gcofix CIH.
+      i. punfold H0. revert p i i0 fs ft r_ctx2 H0. pinduction 6.
+      i. eapply pind9_unfold in PR.
+      2:{ eauto with paco. }
+      inv PR.
+
+      { guclo lsim_indC_spec. econs 1; eauto.
+        rr in LSIM. des. rr. esplits; eauto. instantiate (1:=r_own). r_wf VALID.
+      }
+
+      { guclo lsim_indC_spec. econs 2; eauto.
+        rr in LSIM. des. eapply IH. auto.
+      }
+
+      { guclo lsim_indC_spec. econs 3; eauto.
+        rr in LSIM. des. rr in LSIM. des. esplits. eapply IH. eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 4; eauto.
+        rr in LSIM. des. eapply IH. eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 5; eauto.
+        rr in LSIM. des. eapply IH. eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 6; eauto. }
+
+      { guclo lsim_indC_spec. econs 7; eauto.
+        rr in LSIM. des. rr in LSIM0. des. esplits; eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 8; eauto.
+        rr in LSIM. des. eapply IH. eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 9; eauto. i.
+        hexploit LSIM; eauto. intros SIM. rr in SIM. des. esplits; eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 10; eauto.
+        rr in LSIM. des. eapply IH. eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 11; eauto.
+        rr in LSIM. des. eapply IH. eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 12; eauto. i.
+        hexploit LSIM; eauto. intros SIM. rr in SIM. des. esplits; eauto.
+      }
+
+      { gstep. eapply pind9_fold. econs 13; eauto. i.
+        hexploit LSIM; eauto. intros SIM. rr in SIM. des; ss.
+        gbase. eapply CIH; eauto.
+      }
+
+      { gstep. eapply pind9_fold. econs 14; eauto. i.
+        hexploit LSIM; eauto. intros SIM. rr in SIM. des; ss.
+        gbase. eapply CIH; eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 15; eauto.
+        rr in LSIM. des. eapply IH. eauto.
+      }
+
+      { guclo lsim_indC_spec. econs 16; eauto.
+        { instantiate (1:=r_own). r_wf VALID. }
+        { i. des. subst. hexploit LSIM; eauto.
+          { instantiate (1:=r_ctx1 ⋅ URA.core r_shared). r_wf VALID0. }
+          { i. rr in H. des. eapply IH; eauto. }
+        }
+      }
+
+      { gstep. eapply pind9_fold. econs 17; eauto.
+        { instantiate (1:=r_own). r_wf VALID. }
+        { i. des. subst. hexploit LSIM; eauto.
+          { instantiate (1:=r_ctx1 ⋅ URA.core r_shared). r_wf VALID0. }
+          { i. rr in H. des; ss. gbase. eapply CIH; eauto. }
+        }
+      }
+
+      { gstep. eapply pind9_fold. econs 18; eauto. i.
+        rr in LSIM. des; ss. gbase. eapply CIH; eauto.
+      }
+    Qed.
+  End MODSIM.
+End ModSimPers.

@@ -180,7 +180,7 @@ Section SIM_REFLEXIVE.
         RR r r w' (ths, im_src, im_tgt, st_src, st_tgt).
 
     Lemma lsim_refl :
-      forall tid (itr : itree (programE J A) R)
+      forall tid (itr : itree (threadE J A) R)
         fs ft r_ctx ths im_src im_tgt st_src st_tgt
         (INV : I (ths, im_src, im_tgt, st_src, st_tgt) tt),
         lsim I tid RR fs ft r_ctx
@@ -231,8 +231,8 @@ Section SIM_REFLEXIVE.
           gbase. eapply CIH; eauto.
         + eapply pind9_fold. eapply lsim_call. i.
           gbase. eapply CIH; eauto.
-        + eapply pind9_fold. eapply lsim_rmwL. esplit; ss.
-          eapply pind9_fold. eapply lsim_rmwR. esplit; ss.
+        + eapply pind9_fold. eapply lsim_stateL. esplit; ss.
+          eapply pind9_fold. eapply lsim_stateR. esplit; ss.
           eapply pind9_fold. eapply lsim_progress.
           eapply I_update_state in INV. des. rewrite INV.
           gbase. eapply CIH; eauto.
@@ -241,7 +241,7 @@ Section SIM_REFLEXIVE.
 
   End LSIM.
 
-  Lemma local_sim_refl R (itr : itree (programE J A) R) :
+  Lemma local_sim_refl R (itr : itree (threadE J A) R) :
     local_sim I eq (map_event (plmap p_src l_src) itr) (map_event (plmap p_tgt l_tgt) itr).
   Proof.
     ii. exists tt, tt. splits; eauto using Unit_wf.
@@ -432,8 +432,8 @@ Section ADD_RIGHT_MONO_SIM.
       rewrite ! map_event_vis. ss.
       rewrite <- 2 bind_trigger.
       gstep.
-      eapply pind9_fold. eapply lsim_rmwL. esplit; ss.
-      eapply pind9_fold. eapply lsim_rmwR. esplit; ss.
+      eapply pind9_fold. eapply lsim_stateL. esplit; ss.
+      eapply pind9_fold. eapply lsim_stateR. esplit; ss.
       eapply pind9_fold. eapply lsim_progress.
       gbase. des. destruct st_src0, st_tgt0; ss. subst.
       eapply CIH; eauto. esplits; eauto.

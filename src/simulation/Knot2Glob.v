@@ -31,8 +31,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := (programE _ident_src state_src).
-  Notation tgtE := (programE _ident_tgt state_tgt).
+  Notation srcE := (threadE _ident_src state_src).
+  Notation tgtE := (threadE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
 
@@ -599,7 +599,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_state.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
@@ -631,7 +631,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_state.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }
@@ -763,7 +763,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_state.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauL).
       eapply IH; eauto.
     }
@@ -795,7 +795,7 @@ Section PROOF.
       eapply IH; eauto.
     }
 
-    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_rmw.
+    { destruct KSIM0 as [KSIM0 IND]. rewrite interp_all_state.
       do 2 (guclo sim_indC_spec; eapply sim_indC_tauR).
       eapply IH; eauto.
     }

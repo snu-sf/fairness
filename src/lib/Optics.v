@@ -38,6 +38,7 @@ Module Lens.
 
   Definition view {S V} : t S V -> S -> V := fun l s => fst (`l s).
   Definition set {S V} : t S V -> V -> S -> S := fun l a s => snd (`l s) a.
+  Definition modify {S V} : t S V -> (V -> V) -> (S -> S) := fun l f s => Lens.set l (f (Lens.view l s)) s.
 
   Lemma view_set {S V} (l : t S V) : forall v s, view l (set l v s) = v.
   Proof.
@@ -212,5 +213,6 @@ Section TEST.
   Goal Lens.set lens1 4 (1,2,3) = (4,2,3). reflexivity. Qed.
   Goal Lens.set lens2 4 (1,2,3) = (1,4,3). reflexivity. Qed.
   Goal Lens.set lens3 4 (1,2,3) = (1,2,4). reflexivity. Qed.
+  Goal Lens.modify lens3 (fun x => x+1) (1,2,3) = (1,2,4). reflexivity. Qed.
 
 End TEST.

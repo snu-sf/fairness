@@ -31,8 +31,8 @@ Section PROOF.
   Variable wf_src: WF.
   Variable wf_tgt: WF.
 
-  Notation srcE := (programE _ident_src state_src).
-  Notation tgtE := (programE _ident_tgt state_tgt).
+  Notation srcE := (threadE _ident_src state_src).
+  Notation tgtE := (threadE _ident_tgt state_tgt).
 
   Variable wf_stt: Type -> Type -> WF.
 
@@ -301,7 +301,7 @@ Section PROOF.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_rmwL. split; [|ss].
+      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_stateL. split; [|ss].
       hexploit IH; eauto. i. punfold H.
     }
 
@@ -330,7 +330,7 @@ Section PROOF.
     }
 
     { clarify. destruct LSIM0 as [LSIM0 IND]. clear LSIM0.
-      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_rmwR. split; [|ss].
+      pfold. eapply pind10_fold. rewrite bind_trigger. eapply ksim_stateR. split; [|ss].
       hexploit IH; eauto. i. punfold H.
     }
 

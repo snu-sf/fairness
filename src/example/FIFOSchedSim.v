@@ -20,10 +20,10 @@ Section SIM.
   Context {_Ident : ID}.
 
   Variable wf : WF.
-  Variable State : Type.
+  Variable S : Type.
   Variable R : Type.
 
-  Let thread R := thread _Ident (sE State) R.
+  Let thread R := thread _Ident (sE S) R.
   Import Th.
 
   Theorem ssim_nondet_fifo
@@ -141,11 +141,11 @@ Section SIM.
              rewrite H2 in H0. inversion H0. subst. lia.
   Qed.
 
-  Lemma gsim_nondet_fifo tid st (ths : @threads _Ident (sE State) R)
+  Theorem gsim_nondet_fifo tid st (ths : @threads _Ident (sE S) R)
     : gsim nat_wf nat_wf eq
            (interp_all st ths tid)
            (interp_all_fifo st ths tid).
-  Proof. 
+  Proof.
     eapply ssim_implies_gsim.
     { instantiate (1 := fun x => x). ss. }
     eapply ssim_nondet_fifo; ss.
@@ -163,7 +163,7 @@ Section SIM.
     4:{ i. eapply ssim_nondet_fifo. apply Permutation_refl. eapply NatMap.remove_1. ss. }
     { instantiate (1:=id). auto. }
     { econs. exact 0. }
-    { i. exists (S o0). ss. }
+    { i. exists (Datatypes.S o0). ss. }
     Unshelve. all: exact true.
   Qed.
 

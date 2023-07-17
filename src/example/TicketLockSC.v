@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From stdpp Require namespaces.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export ITreeLib WFLibLarge FairBeh pind Axioms
      Mod Linking SCM Red IRed WeakestAdequacy.
@@ -16,7 +17,7 @@ Module TicketLock.
   Notation tk := nat.
 
   Definition lock_loop (myticket: SCMem.val):
-    itree (programE void unit) unit
+    itree (threadE void unit) unit
     :=
     ITree.iter
       (fun (_: unit) =>
@@ -39,7 +40,7 @@ Module TicketLock.
   Qed.
 
   Definition lock_fun:
-    ktree (programE void unit) unit unit :=
+    ktree (threadE void unit) unit unit :=
     fun _ =>
       myticket <- (OMod.call "faa" (next_ticket, 1));;
       _ <- lock_loop myticket;;
@@ -47,7 +48,7 @@ Module TicketLock.
   .
 
   Definition unlock_fun:
-    ktree (programE void unit) unit unit :=
+    ktree (threadE void unit) unit unit :=
     fun _ =>
       upd <- (OMod.call "load" now_serving);;
       let upd := SCMem.val_add upd 1 in
@@ -301,8 +302,7 @@ Section TKQ.
 
 End TKQ.
 
-
-Section SIM.
+Section INVARIANT.
 
   Context `{Σ: GRA.t}.
 
@@ -323,9 +323,10 @@ Section SIM.
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
 
-  Let mypreord := prod_le_PreOrder Nat.le_po (Tkst.le_PreOrder nat).
   Variable monok: nat.
   Variable tk_mono: nat.
+
+  Definition mypreord := prod_le_PreOrder Nat.le_po (Tkst.le_PreOrder nat).
 
   Definition ticket_lock_inv_unlocking
              (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id) : iProp :=
@@ -444,8 +445,6 @@ Section SIM.
                 )
         ))
   .
-
-  Let I: list iProp := [ticket_lock_inv].
 
   (* Properties *)
   Lemma unlocking_mono
@@ -578,8 +577,41 @@ Section SIM.
     auto.
   Qed.
 
+End INVARIANT.
+
+Section SIM.
+
+  Context `{Σ: GRA.t}.
+
+  Variable Invs : @InvSet Σ.
+
+  Context `{MONORA: @GRA.inG monoRA Σ}.
+  Context `{THDRA: @GRA.inG ThreadRA Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA (Mod.state AbsLock.mod)) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA (Mod.ident AbsLock.mod)) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA (OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) Σ}.
+  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+  Context `{ARROWRA: @GRA.inG (ArrowRA (OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) Σ}.
+  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
+  Context `{ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+  Context `{COPSETRA : @GRA.inG CoPset.t Σ}.
+  Context `{GSETRA : @GRA.inG Gset.t Σ}.
+  Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
+  Context `{MEMRA: @GRA.inG memRA Σ}.
+
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRALarge.t TicketLock.tk)) Σ}.
+  Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
+  Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
+  Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
+
+  Variable monok: nat.
+  Variable tk_mono: nat.
+  Variable N : stdpp.namespaces.namespace.
+
   (* Simulations *)
-  Lemma lock_enqueue tid:
+  Lemma lock_enqueue tid :
+    (inv N (ticket_lock_inv monok tk_mono)) ∗
     ((own_thread tid)
        ∗ (ObligationRA.duty (inl tid) [])
     )
@@ -590,7 +622,7 @@ Section SIM.
               ∗ (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)))
           )
           -∗
-  (stsim I tid (topset I) ibot7 ibot7
+  (stsim tid ⊤ ibot7 ibot7
          (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
          false false
     (ITree.iter
@@ -617,29 +649,29 @@ Section SIM.
   )
       )
       ⊢
-      (stsim I tid (topset I) ibot7 ibot7
+      (stsim tid ⊤ ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLock.lock_fun tt)
              (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
                                (TicketLock.lock_fun tt))).
   Proof.
-    iIntros "[[MYTH DUTY] SIM]".
+    iIntros "(#LOCK_INV & [MYTH DUTY] & SIM)".
     unfold AbsLock.lock_fun, TicketLock.lock_fun. rred.
     rewrite close_itree_call. rred.
     iApply (stsim_sync with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _".
     unfold Mod.wrap_fun, SCMem.faa_fun. rred.
     iApply stsim_tidL. lred.
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iDestruct "ST" as "[ST0 ST1]".
-    iApply stsim_getL. iSplit. auto. ss. rewrite put_rmw. iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    iApply stsim_getL. iSplit. auto. iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     iApply stsim_getR. iSplit. auto. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]".
     iPoseProof (memory_ra_faa with "MEM0 MEM2") as "[% [%FAA >[MEM0 MEM2]]]".
-    erewrite FAA. rred. unfold OMod.emb_callee. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "ST0"). iIntros "ST0". rred.
+    erewrite FAA. rred. unfold OMod.emb_callee.
+    iApply (stsim_modifyR with "ST0"). iIntros "ST0". rred.
     iApply stsim_tauR. rred.
 
     iAssert (⌜NatMap.find tid tks = None⌝)%I as "%FINDNONE".
@@ -710,11 +742,11 @@ Section SIM.
       { subst tks'. unfold ticket_lock_inv.
         iExists m1, false, (l ++ [tid]), (NatMap.add tid next tks), now, (S next), myt.
     remember ((⌜false = true⌝ **
-     ticket_lock_inv_locked (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt)
+     ticket_lock_inv_locked monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt)
     ∨ (⌜false = false⌝ **
-       ticket_lock_inv_unlocking (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
-       ∨ ticket_lock_inv_unlocked0 (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
-         ∨ ticket_lock_inv_unlocked1 (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt))%I as temp.
+       ticket_lock_inv_unlocking monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
+       ∨ ticket_lock_inv_unlocked0 monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
+         ∨ ticket_lock_inv_unlocked1 monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt))%I as temp.
         iFrame. subst temp.
         iSplitL "MEM2".
         { ss. replace (S next) with (next + 1). iFrame. lia. }
@@ -746,11 +778,11 @@ Section SIM.
       { subst tks'. unfold ticket_lock_inv.
         iExists m1, false, (l ++ [tid]), (NatMap.add tid next tks), now, (S next), myt.
     remember ((⌜false = true⌝ **
-     ticket_lock_inv_locked (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt)
+     ticket_lock_inv_locked monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt)
     ∨ (⌜false = false⌝ **
-       ticket_lock_inv_unlocking (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
-       ∨ ticket_lock_inv_unlocked0 (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
-         ∨ ticket_lock_inv_unlocked1 (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt))%I as temp.
+       ticket_lock_inv_unlocking monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
+       ∨ ticket_lock_inv_unlocked0 monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
+         ∨ ticket_lock_inv_unlocked1 monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt))%I as temp.
         iFrame. subst temp.
         iSplitL "MEM2".
         { ss. replace (S next) with (next + 1). iFrame. lia. }
@@ -775,11 +807,11 @@ Section SIM.
       { subst tks'. unfold ticket_lock_inv.
         iExists m1, false, (l ++ [tid]), (NatMap.add tid next tks), now, (S next), myt.
     remember ((⌜false = true⌝ **
-     ticket_lock_inv_locked (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt)
+     ticket_lock_inv_locked monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt)
     ∨ (⌜false = false⌝ **
-       ticket_lock_inv_unlocking (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
-       ∨ ticket_lock_inv_unlocked0 (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
-         ∨ ticket_lock_inv_unlocked1 (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt))%I as temp.
+       ticket_lock_inv_unlocking monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
+       ∨ ticket_lock_inv_unlocked0 monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt
+         ∨ ticket_lock_inv_unlocked1 monok (l ++ [tid]) (NatMap.add tid next tks) now (S next) myt))%I as temp.
         iFrame. subst temp.
         iSplitL "MEM2".
         { ss. replace (S next) with (next + 1). iFrame. lia. }
@@ -802,16 +834,18 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _ (Mod.state AbsLock.mod)) R_src
+            → itree (threadE _ (Mod.state AbsLock.mod)) R_src
             → itree
-                (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
+                (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree (programE _ (Mod.state AbsLock.mod)) unit)
-        (tgt: itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
+        (src: itree (threadE _ (Mod.state AbsLock.mod)) unit)
+        (tgt: itree (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
         (tid mytk u: nat)
         x
     :
+    (inv N (ticket_lock_inv monok tk_mono))
+      ∗
     (
       (OwnM (Auth.white ((NatMapRALarge.singleton tid mytk: NatMapRALarge.t TicketLock.tk))))
         ∗ (maps_to tid (Auth.white (Excl.just (S u): Excl.t nat)))
@@ -823,21 +857,21 @@ Section SIM.
         ∗ (maps_to tid (Auth.white (Excl.just u: Excl.t nat)))
         ∗ (monoWhite monok mypreord (mytk, x)))
         -∗
-  (stsim I tid (topset I) g0 g1
+  (stsim tid ⊤ g0 g1
     (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps true
     (trigger Yield;;; src)
     (tgt))
       )
       ⊢
-  (stsim I tid (topset I) g0 g1
+  (stsim tid ⊤ g0 g1
     (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps pt
     (trigger Yield;;; src)
     (trigger Yield;;; tgt)).
   Proof.
-    iIntros "[[MYTK [MYNW MYTURN]] SIM]".
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iIntros "(LOCK_INV & [MYTK [MYNW MYTURN]] & SIM)".
+    iInv "LOCK_INV" as "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
     { iPoseProof (locked_myturn with "MYTURN I") as "%FF". eauto. inv FF. }
@@ -873,11 +907,11 @@ Section SIM.
     iMod ("K" with "[TKS MEM ST I0 I3 I4 I5 I6 I7 I8 I9 I10]") as "_".
     { iExists mem, false, (tid :: tl), tks, now, next, myt.
       remember (
-          (⌜false = true⌝ ** ticket_lock_inv_locked (tid :: tl) tks now next myt)
+          (⌜false = true⌝ ** ticket_lock_inv_locked monok (tid :: tl) tks now next myt)
           ∨ (⌜false = false⌝ **
-                           ticket_lock_inv_unlocking (tid :: tl) tks now next myt
-             ∨ ticket_lock_inv_unlocked0 (tid :: tl) tks now next myt
-             ∨ ticket_lock_inv_unlocked1 (tid :: tl) tks now next myt))%I as temp.
+                           ticket_lock_inv_unlocking monok (tid :: tl) tks now next myt
+             ∨ ticket_lock_inv_unlocked0 monok (tid :: tl) tks now next myt
+             ∨ ticket_lock_inv_unlocked1 monok (tid :: tl) tks now next myt))%I as temp.
       iFrame. subst temp.
       iRight. iSplit. auto. iRight. iRight.
       iExists tid, tl. iFrame. iSplit. auto. iSplit. auto.
@@ -891,42 +925,41 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _ (Mod.state AbsLock.mod)) R_src
+            → itree (threadE _ (Mod.state AbsLock.mod)) R_src
             → itree
-                (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
+                (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt
             → iProp)
         (ps pt: bool)
-        (src: itree (programE _ (Mod.state AbsLock.mod)) unit)
-        (tgt: itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
+        (src: itree (threadE _ (Mod.state AbsLock.mod)) unit)
+        (tgt: itree (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) unit)
         (tid mytk now: nat)
         tks mem next l myt own
         (NEQ: mytk <> now)
     :
   (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
     (ticket_lock_inv_tks tks **
-     (ticket_lock_inv_mem mem now next myt **
+     (ticket_lock_inv_mem tk_mono mem now next myt **
       (ticket_lock_inv_state mem own tks **
-       ((⌜own = true⌝ ** ticket_lock_inv_locked l tks now next myt)
+       ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
         ∨ (⌜own = false⌝ **
-           ticket_lock_inv_unlocking l tks now next myt
-           ∨ ticket_lock_inv_unlocked0 l tks now next myt
-             ∨ ticket_lock_inv_unlocked1 l tks now next myt) **
-        (ticket_lock_inv -*
-         MUpd (nth_default True%I I)
-           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
-           [0] True))))))
+           ticket_lock_inv_unlocking monok l tks now next myt
+           ∨ ticket_lock_inv_unlocked0 monok l tks now next myt
+             ∨ ticket_lock_inv_unlocked1 monok l tks now next myt) **
+        (ticket_lock_inv monok tk_mono -*
+         FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs)))
+           (⊤∖↑N) ⊤ emp))))))
       ∗
       (((OwnM (Auth.white ((NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat))))
           ∗ (FairRA.white_thread (_Id:=_)))
         -∗
-  (stsim I tid (topset I) g0 g1
+  (stsim tid ⊤ g0 g1
     (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps true
     (trigger Yield;;; src)
     (tgt))
       )
       ⊢
-  (stsim I tid [] g0 g1
+  (stsim tid (⊤ ∖ ↑N) g0 g1
     (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps pt
     (trigger Yield;;; src)
@@ -941,12 +974,12 @@ Section SIM.
       iApply (stsim_yieldR_strong with "[DUTY]"). iFrame. iIntros "DUTY RIGHT".
       iMod ("K" with "[TKS MEM ST CT INV0 INV2 INV4 MAPS INV3 DUTY]") as "_".
       { iExists mem, own, l, tks, now, next, myt.
-        remember 
-    ((⌜own = true⌝ ** ticket_lock_inv_locked l tks now next myt)
+        remember
+    ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
     ∨ (⌜own = false⌝ **
-       ticket_lock_inv_unlocking l tks now next myt
-       ∨ ticket_lock_inv_unlocked0 l tks now next myt
-       ∨ ticket_lock_inv_unlocked1 l tks now next myt))%I as temp. iFrame. subst temp.
+       ticket_lock_inv_unlocking monok l tks now next myt
+       ∨ ticket_lock_inv_unlocked0 monok l tks now next myt
+       ∨ ticket_lock_inv_unlocked1 monok l tks now next myt))%I as temp. iFrame. subst temp.
         iLeft. iSplit. auto. iFrame. iSplit. auto. iApply "INV3". iFrame.
       }
       iModIntro. iApply "SIM". iFrame.
@@ -958,12 +991,12 @@ Section SIM.
       iApply (stsim_yieldR_strong with "[DUTY]"). iFrame. iIntros "DUTY RIGHT".
       iMod ("K" with "[TKS MEM ST CF INV0 INV2 INV4 MAPS INV3 DUTY]") as "_".
       { iExists mem, own, l, tks, now, next, myt.
-        remember 
-    ((⌜own = true⌝ ** ticket_lock_inv_locked l tks now next myt)
+        remember
+    ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
     ∨ (⌜own = false⌝ **
-       ticket_lock_inv_unlocking l tks now next myt
-       ∨ ticket_lock_inv_unlocked0 l tks now next myt
-       ∨ ticket_lock_inv_unlocked1 l tks now next myt))%I as temp. iFrame. subst temp.
+       ticket_lock_inv_unlocking monok l tks now next myt
+       ∨ ticket_lock_inv_unlocked0 monok l tks now next myt
+       ∨ ticket_lock_inv_unlocked1 monok l tks now next myt))%I as temp. iFrame. subst temp.
         iRight. iSplit. auto. iLeft. iFrame. iSplit. auto. iApply "INV3". iFrame.
       }
       iModIntro. iApply "SIM". iFrame.
@@ -981,12 +1014,12 @@ Section SIM.
       iApply (stsim_yieldR_strong with "[DUTY]"). iFrame. iIntros "DUTY RIGHT".
       iMod ("K" with "[TKS MEM ST CF INV0 INV3 INV5 MAPS INV4 DUTY]") as "_".
       { iExists mem, own, l, tks, now, next, myt.
-        remember 
-    ((⌜own = true⌝ ** ticket_lock_inv_locked l tks now next myt)
+        remember
+    ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
     ∨ (⌜own = false⌝ **
-       ticket_lock_inv_unlocking l tks now next myt
-       ∨ ticket_lock_inv_unlocked0 l tks now next myt
-       ∨ ticket_lock_inv_unlocked1 l tks now next myt))%I as temp. iFrame. subst temp.
+       ticket_lock_inv_unlocking monok l tks now next myt
+       ∨ ticket_lock_inv_unlocked0 monok l tks now next myt
+       ∨ ticket_lock_inv_unlocked1 monok l tks now next myt))%I as temp. iFrame. subst temp.
         iRight. iSplit. auto. iRight. iRight. iFrame. iExists yourt, waits.
         iSplit. auto. iSplit. auto. iFrame. iApply "INV4". iFrame.
       }
@@ -999,18 +1032,19 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _ (Mod.state AbsLock.mod)) R_src
-            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (threadE _ (Mod.state AbsLock.mod)) R_src
+            → itree (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
         x tx
         (TX: 1 <= tx)
     :
+    (inv N (ticket_lock_inv monok tk_mono)) ∗
     ((monoWhite monok mypreord (mytk, x))
        ∗ (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)))
        ∗ (maps_to tid (Auth.white (Excl.just tx: Excl.t nat))))
-  ⊢ stsim I tid (topset I) g0 g1
+  ⊢ stsim tid ⊤ g0 g1
       (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
       ps pt
       (trigger Yield;;;
@@ -1048,8 +1082,9 @@ Section SIM.
           (if b then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk)));;;
          OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield)).
   Proof.
-    iIntros "[#MYTN [MYTK MYNU]]". 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iIntros "[#LOCK_INV [#MYTN [MYTK MYNU]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
     { iPoseProof (locked_myturn with "MYTN I") as "%FF". eauto. inv FF. }
@@ -1070,10 +1105,11 @@ Section SIM.
     assert (exists tx0, tx = S tx0).
     { inv TX; eauto. }
     des. subst tx.
-    iApply lock_myturn_yieldR. iSplitL. iFrame. auto.
+    iApply lock_myturn_yieldR. iSplitR. iApply "LOCK_INV". iSplitL. iFrame. auto.
     iIntros "[MYTK [MYNUM _]]". rred.
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
     { iPoseProof (locked_myturn with "MYTN I") as "%FF". eauto. inv FF. }
@@ -1091,13 +1127,13 @@ Section SIM.
 
     iApply stsim_yieldL. lred.
     iApply stsim_getL. iSplit. auto. lred.
-    iApply stsim_getL. iSplit. auto. ss. rewrite put_rmw.
-    iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    iApply stsim_getL. iSplit. auto.
+    iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     remember (NatMap.remove tid tks) as tks'.
     rewrite <- key_set_pull_rm_eq. rewrite <- Heqtks'.
     iAssert (ticket_lock_inv_state mem true tks')%I with "[ST0 ST1]" as "ST". iFrame.
-    iAssert (ticket_lock_inv_mem mem mytk next myt)%I with "[MEM0 MEM1 MEM2 MEM3]" as "MEM". iFrame.
+    iAssert (ticket_lock_inv_mem tk_mono mem mytk next myt)%I with "[MEM0 MEM1 MEM2 MEM3]" as "MEM". iFrame.
     iDestruct "TKS" as "[TKS0 [TKS1 [TKS2 TKS3]]]".
     do 2 iDestruct "I" as "[% I]". iDestruct "I" as "[I0 [% [%I2 [I3 [I4 I5]]]]]".
     do 3 iDestruct "I5" as "[% I5]". iDestruct "I5" as "[I5 [I6 [I7 [I8 [I9 I10]]]]]".
@@ -1144,7 +1180,7 @@ Section SIM.
     iPoseProof (natmap_prop_sepconj_sum with "I3") as "[I3 TAX]".
 
     iApply (stsim_fairL with "[TAX]").
-    { i. ss. instantiate (1:= (NatSet.elements (key_set tks'))). des_ifs. 
+    { i. ss. instantiate (1:= (NatSet.elements (key_set tks'))). des_ifs.
       eapply NatSetIn_In. auto.
     }
     { instantiate (1:=[tid]). i; ss. des; clarify. des_ifs. }
@@ -1163,12 +1199,12 @@ Section SIM.
 
     iMod ("K" with "[I0 I4 ST MEM TKS0 TKS2 TKS3 I5 I3 TKS1]") as "_".
     { iExists mem, true, tl, tks', mytk, next, myt.
-      remember 
-    ((⌜true = true⌝ ** ticket_lock_inv_locked tl tks' mytk next myt)
+      remember
+    ((⌜true = true⌝ ** ticket_lock_inv_locked monok tl tks' mytk next myt)
     ∨ (⌜true = false⌝ **
-       ticket_lock_inv_unlocking tl tks' mytk next myt
-       ∨ ticket_lock_inv_unlocked0 tl tks' mytk next myt
-       ∨ ticket_lock_inv_unlocked1 tl tks' mytk next myt))%I as temp.
+       ticket_lock_inv_unlocking monok tl tks' mytk next myt
+       ∨ ticket_lock_inv_unlocked0 monok tl tks' mytk next myt
+       ∨ ticket_lock_inv_unlocked1 monok tl tks' mytk next myt))%I as temp.
       iFrame. subst temp. iLeft. iSplit. auto.
       iFrame. iSplit. auto. iExists k. iFrame.
     }
@@ -1183,8 +1219,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _ (Mod.state AbsLock.mod)) R_src
-            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (threadE _ (Mod.state AbsLock.mod)) R_src
+            → itree (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
@@ -1194,21 +1230,21 @@ Section SIM.
         (tks : NatMap.t nat)
         (next myt : nat)
     :
+    (inv N (ticket_lock_inv monok tk_mono)) ∗
   (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
     (ticket_lock_inv_tks tks **
-     (ticket_lock_inv_mem mem mytk next myt **
+     (ticket_lock_inv_mem tk_mono mem mytk next myt **
       (ticket_lock_inv_state mem own tks **
-       ((⌜own = true⌝ ** ticket_lock_inv_locked l tks mytk next myt)
+       ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks mytk next myt)
         ∨ (⌜own = false⌝ **
-           ticket_lock_inv_unlocking l tks mytk next myt
-           ∨ ticket_lock_inv_unlocked0 l tks mytk next myt
-             ∨ ticket_lock_inv_unlocked1 l tks mytk next myt) **
-        (ticket_lock_inv -*
-         MUpd (nth_default True%I I)
-           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
-           [0] True)))))))
-  ⊢ (stsim I tid [] g0 g1
+           ticket_lock_inv_unlocking monok l tks mytk next myt
+           ∨ ticket_lock_inv_unlocked0 monok l tks mytk next myt
+             ∨ ticket_lock_inv_unlocked1 monok l tks mytk next myt) **
+        (ticket_lock_inv monok tk_mono -*
+           FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs)))
+           (⊤∖↑N) ⊤ emp)))))))
+  ⊢ (stsim tid (⊤∖↑N) g0 g1
       (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
       ps pt
       (trigger Yield;;;
@@ -1248,7 +1284,7 @@ Section SIM.
           (if b then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk)));;;
          OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
-    iIntros "[MYTK [MYN [TKS [MEM [ST [CASES K]]]]]]".
+    iIntros "[#LOCK_INV [MYTK [MYN [TKS [MEM [ST [CASES K]]]]]]]".
     iAssert (⌜NatMap.find tid tks = Some mytk⌝)%I as "%FIND".
     { iDestruct "TKS" as "[TKS0 _]". iApply (NatMapRALarge_find_some with "TKS0 MYTK"). }
     iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
@@ -1259,7 +1295,8 @@ Section SIM.
     iDestruct "MYMW" as "[% [% [MYMW _]]]".
     iMod ("K" with "[TKS MEM ST I]") as "_".
     { iExists mem, own, l, tks, mytk, next, myt. iFrame. iRight. iSplit; auto. }
-    iApply lock_myturn_yieldR. iSplitL. iFrame. auto.
+    iApply stsim_FUpd. instantiate (1 := ⊤). iModIntro.
+    iApply lock_myturn_yieldR. iSplitR. iApply "LOCK_INV". iSplitL. iFrame. auto.
     iIntros "[MYTK [MYN _]]". rred.
     iApply lock_myturn0. 2: iFrame; auto. lia.
   Qed.
@@ -1269,8 +1306,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _(Mod.state AbsLock.mod)) R_src
-            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (threadE _(Mod.state AbsLock.mod)) R_src
+            → itree (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
@@ -1282,21 +1319,21 @@ Section SIM.
         now_old
         (NEQ: mytk <> now_old)
     :
+    (inv N (ticket_lock_inv monok tk_mono)) ∗
   (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
     (ticket_lock_inv_tks tks **
-     (ticket_lock_inv_mem mem mytk next myt **
+     (ticket_lock_inv_mem tk_mono mem mytk next myt **
       (ticket_lock_inv_state mem own tks **
-       ((⌜own = true⌝ ** ticket_lock_inv_locked l tks mytk next myt)
+       ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks mytk next myt)
         ∨ (⌜own = false⌝ **
-           ticket_lock_inv_unlocking l tks mytk next myt
-           ∨ ticket_lock_inv_unlocked0 l tks mytk next myt
-             ∨ ticket_lock_inv_unlocked1 l tks mytk next myt) **
-        (ticket_lock_inv -*
-         MUpd (nth_default True%I I)
-           (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
-           [0] True)))))))
-  ⊢ (stsim I tid [] g0 g1
+           ticket_lock_inv_unlocking monok l tks mytk next myt
+           ∨ ticket_lock_inv_unlocked0 monok l tks mytk next myt
+             ∨ ticket_lock_inv_unlocked1 monok l tks mytk next myt) **
+        (ticket_lock_inv monok tk_mono -*
+           FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs)))
+           (⊤∖↑N) ⊤ emp)))))))
+  ⊢ (stsim tid (⊤∖↑N) g0 g1
     (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
     ps pt
     (trigger Yield;;;
@@ -1333,7 +1370,7 @@ Section SIM.
        (if x then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk));;;
        OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
-    iIntros "[MYTK [MYN [TKS [MEM [ST [CASES K]]]]]]".
+    iIntros "[#LOCK_INV [MYTK [MYN [TKS [MEM [ST [CASES K]]]]]]]".
     unfold Mod.wrap_fun, SCMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getR. iSplit. eauto. rred.
@@ -1343,12 +1380,12 @@ Section SIM.
     rred. iApply stsim_tauR.
     rewrite TicketLock.lock_loop_red. rred. rewrite close_itree_call. rred.
     iApply lock_myturn1.
-    iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
+    iSplitR. iApply "LOCK_INV". iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
     iSplitL "MEM0 MEM1 MEM2 MEM3". iFrame. iSplitL "ST0 ST1". iFrame. iSplitL "CASES". iFrame.
     iFrame.
   Qed.
 
-  Let src_code_coind tid: itree (programE _ (Mod.state AbsLock.mod)) () :=
+  Let src_code_coind tid: itree (threadE _ (Mod.state AbsLock.mod)) () :=
           ((` lr : () + () <-
             (trigger Yield;;;
              ` x_0 : bool * NatMap.t () <- trigger (Get id);;
@@ -1384,7 +1421,7 @@ Section SIM.
               (` arg : SCMem.val <- unwrap (Any.downcast (Any.upcast TicketLock.now_serving));;
                ` ret : SCMem.val <-
                (` m : SCMem.t <- trigger (Get id);;
-                ` v : SCMem.val <- unwrap (SCMem.load m arg);; Ret v);; 
+                ` v : SCMem.val <- unwrap (SCMem.load m arg);; Ret v);;
                Ret (Any.upcast ret));; (tau;; unwrap (Any.downcast rv)));;
            OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
              (` b : bool <- OMod.call "compare" (x, SCMem.val_nat a);;
@@ -1396,8 +1433,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _ (Mod.state AbsLock.mod)) R_src
-            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (threadE _ (Mod.state AbsLock.mod)) R_src
+            → itree (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (ps pt: bool)
         (tid : nat)
         (mytk : TicketLock.tk)
@@ -1419,15 +1456,14 @@ Section SIM.
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
     (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
      (ticket_lock_inv_tks tks **
-      (ticket_lock_inv_mem mem now next myt **
+      (ticket_lock_inv_mem tk_mono mem now next myt **
        (ticket_lock_inv_state mem true tks **
-        (ticket_lock_inv_locked l tks now next myt **
-         (ticket_lock_inv -*
-          MUpd (nth_default True%I I)
-            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
-            [0] True)))))))
+        (ticket_lock_inv_locked monok l tks now next myt **
+         (ticket_lock_inv monok tk_mono -*
+            FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs)))
+            (⊤∖↑N) ⊤ emp)))))))
   )
-  ⊢ (stsim I tid [] g0 g1
+  ⊢ (stsim tid (⊤∖↑N) g0 g1
       (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
       ps pt
       (trigger Yield;;;
@@ -1483,7 +1519,7 @@ Section SIM.
       iSplitL "ST0 ST1". iFrame.
       iLeft. iSplit. auto. iFrame.
     }
-    iApply stsim_progress. iApply stsim_base. msubtac.
+    iApply stsim_progress. iApply stsim_base. ss.
     rewrite unfold_iter_eq. iApply "CIH". iFrame.
   Qed.
 
@@ -1492,11 +1528,11 @@ Section SIM.
         (FIND : NatMap.find tid tks = Some mytk)
         (NEQ : mytk ≠ now)
     :
-    ((⌜own = true⌝ ∗ ticket_lock_inv_locked l tks now next myt)
+    ((⌜own = true⌝ ∗ ticket_lock_inv_locked monok l tks now next myt)
      ∨ (⌜own = false⌝ ∗
-                    (ticket_lock_inv_unlocking l tks now next myt
-                     ∨ ticket_lock_inv_unlocked0 l tks now next myt
-                     ∨ ticket_lock_inv_unlocked1 l tks now next myt)))
+                    (ticket_lock_inv_unlocking monok l tks now next myt
+                     ∨ ticket_lock_inv_unlocked0 monok l tks now next myt
+                     ∨ ticket_lock_inv_unlocked1 monok l tks now next myt)))
       ⊢
       (⌜now < mytk⌝).
   Proof.
@@ -1510,7 +1546,7 @@ Section SIM.
       hexploit (tkqueue_val_range_l I1 _ FIND). i. iPureIntro. lia. }
   Qed.
 
-  Let src_code_ind tid: itree (programE _ (Mod.state AbsLock.mod)) () :=
+  Let src_code_ind tid: itree (threadE _ (Mod.state AbsLock.mod)) () :=
                          (trigger Yield;;;
                           ` x : () + () <-
                           (` x_0 : bool * NatMap.t () <- trigger (Get id);;
@@ -1560,8 +1596,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _ (Mod.state AbsLock.mod)) R_src
-            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (threadE _ (Mod.state AbsLock.mod)) R_src
+            → itree (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLock.tk)
   (now : nat)
@@ -1575,6 +1611,7 @@ Section SIM.
                  now < mytk
                  → y = mytk - now
                    → (□ ((∀ a : TicketLock.tk,
+                             (□ inv N (ticket_lock_inv monok tk_mono)) ∗
                             (OwnM (Auth.white (NatMapRALarge.singleton tid a: NatMapRALarge.t nat)) **
                              maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
                             g1 ()%type ()%type
@@ -1583,23 +1620,27 @@ Section SIM.
                                  ⌜r_src = r_tgt⌝) false false
                               (src_code_coind tid)
                               (tgt_code_coind a)
-                         ) ∧ monoWhite tk_mono Nat.le_preorder now) **
+                         )
+                         ∧ (inv N (ticket_lock_inv monok tk_mono))
+                         ∧ monoWhite tk_mono Nat.le_preorder now
+                        ) **
                       (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
                        (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
                         (ticket_lock_inv_tks tks **
                          (ticket_lock_inv_state mem own tks **
-                          ((⌜own = true⌝ ** ticket_lock_inv_locked l tks now next myt)
+                          ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
                            ∨ (⌜own = false⌝ **
-                              ticket_lock_inv_unlocking l tks now next myt
-                              ∨ ticket_lock_inv_unlocked0 l tks now next myt
-                                ∨ ticket_lock_inv_unlocked1 l tks now next myt) **
-                           ((ticket_lock_inv -*
-                             MUpd (nth_default True%I I)
+                              ticket_lock_inv_unlocking monok l tks now next myt
+                              ∨ ticket_lock_inv_unlocked0 monok l tks now next myt
+                                ∨ ticket_lock_inv_unlocked1 monok l tks now next myt) **
+                           ((ticket_lock_inv monok tk_mono -*
+                               FUpd
                                (fairI
                                   (ident_tgt:=OMod.closed_ident TicketLock.omod
-                                                (SCMem.mod TicketLock.gvs))) [] [0] True) **
-                            ticket_lock_inv_mem mem now next myt)))))))
-                     ⊢ stsim I tid [] g0 g1
+                                                (SCMem.mod TicketLock.gvs)))
+                               (⊤∖↑N) ⊤ emp) **
+                            ticket_lock_inv_mem tk_mono mem now next myt)))))))
+                     ⊢ stsim tid (⊤∖↑N) g0 g1
                          (λ r_src r_tgt : (),
                             (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
                          false true
@@ -1613,7 +1654,9 @@ Section SIM.
   (tks : NatMap.t nat)
   (next myt : nat)
     :
+    (inv N (ticket_lock_inv monok tk_mono)) ∗
   (□ ((∀ a : TicketLock.tk,
+    (□ inv N (ticket_lock_inv monok tk_mono)) ∗
         (OwnM (Auth.white (NatMapRALarge.singleton tid a: NatMapRALarge.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
         g1 ()%type ()%type
           (λ r_src r_tgt : (),
@@ -1626,15 +1669,15 @@ Section SIM.
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
     (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
      (ticket_lock_inv_tks tks **
-      (ticket_lock_inv_mem mem now next myt **
+      (ticket_lock_inv_mem tk_mono mem now next myt **
        (ticket_lock_inv_state mem false tks **
-        (ticket_lock_inv_unlocking l tks now next myt **
-         (ticket_lock_inv -*
-          MUpd (nth_default True%I I)
-            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
-            [0] True)))))))
+        (ticket_lock_inv_unlocking monok l tks now next myt **
+         (ticket_lock_inv monok tk_mono -*
+            FUpd
+            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs)))
+            (⊤∖↑N) ⊤ emp)))))))
   )
-  ⊢ (stsim I tid [] g0 g1
+  ⊢ (stsim tid (⊤∖↑N) g0 g1
       (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
       false true
       (trigger Yield;;;
@@ -1671,14 +1714,14 @@ Section SIM.
          (if x then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk));;;
        OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
-    iIntros "[#[CIH MONOTK] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
+    iIntros "[#LOCK_INV [#[CIH MONOTK] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iPoseProof (unlocking_mono with "I") as "[%TKQ #[% [% [MONOW OBLB]]]]".
     clear FIND TKQ.
     iStopProof. move o before IH. revert_until o. pattern o. revert o.
     apply (well_founded_induction Ord.lt_well_founded).
     intros o IHo. intros.
-    iIntros "[#[CIH [MONOTK [MONOW BLK]]] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
+    iIntros "[#[LOCK_INV [CIH [MONOTK [MONOW BLK]]]] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
 
     unfold Mod.wrap_fun, SCMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
@@ -1688,7 +1731,7 @@ Section SIM.
     { exfalso. clarify. }
     rred. iApply stsim_tauR.
     rewrite TicketLock.lock_loop_red. rred. rewrite close_itree_call. rred.
-    iAssert (ticket_lock_inv_mem mem now next myt)%I with "[MEM0 MEM1 MEM2 MEM3]" as "MEM". iFrame.
+    iAssert (ticket_lock_inv_mem tk_mono mem now next myt)%I with "[MEM0 MEM1 MEM2 MEM3]" as "MEM". iFrame.
     iAssert (ticket_lock_inv_state mem false tks)%I with "[ST0 ST1]" as "ST". iFrame.
     iMod ("K" with "[TKS MEM ST I]") as "_".
     { do 7 iExists _. iSplitL "TKS". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
@@ -1697,13 +1740,14 @@ Section SIM.
     clear mem l tks next myt now_old NEQ n.
     rename now into now_past, LT into LTPAST, k into k_past, o into o_past.
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iApply stsim_FUpd. instantiate (1 := ⊤). iModIntro.
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH".
       iApply lock_myturn1.
-      iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
-      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame.
-      iFrame.
+      iSplitR. ss. iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
+      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame. iFrame.
     }
 
     rename n into NEQ.
@@ -1713,7 +1757,8 @@ Section SIM.
     iSplitL "ST". iFrame. iSplitL "CASES". iFrame. iFrame.
     iIntros "[MYTK _]". rred.
     clear mem own l tks now next myt NEQ.
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH".
       iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
@@ -1742,18 +1787,19 @@ Section SIM.
     iIntros "[MYTK RIGHT]". rred.
     rename now into now_old. clear mem own l tks next myt LOAD LOAD0.
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH". iApply lock_myturn2. auto.
-      iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
-      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame.
-      iFrame.
+      iSplitR. ss. iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
+      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame. iFrame.
     }
 
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     rename n into NEQ2. iPoseProof (yourturn_range with "CASES") as "%LT". eapply FIND. auto.
     clear NEQ2. iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
-    { subst own. iApply lock_yourturn_coind. auto. iSplit. iApply "CIH".
+    { subst own. iApply lock_yourturn_coind. auto. iSplit.
+      { iModIntro. iIntros (a) "[H1 H2]". iApply "CIH". iFrame. iApply "LOCK_INV". }
       iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
       iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "I". iFrame. iFrame.
     }
@@ -1793,7 +1839,7 @@ Section SIM.
         { auto. }
         iSplit.
         { iClear "MYN MYTK TKS MEM ST I0 I2 I3 I4 I5 I6 I7 K".
-          iModIntro. iSplit. iApply "CIH". iSplit; auto.
+          iModIntro. iSplit. ss. iSplit. iApply "CIH". iSplit; auto.
         }
         iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
         iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitR "K". 2: iFrame.
@@ -1832,8 +1878,8 @@ Section SIM.
             (R_src → R_tgt → iProp)
             → bool
             → bool
-            → itree (programE _ (Mod.state AbsLock.mod)) R_src
-            → itree (programE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
+            → itree (threadE _ (Mod.state AbsLock.mod)) R_src
+            → itree (threadE _ (OMod.closed_state TicketLock.omod (SCMem.mod TicketLock.gvs))) R_tgt → iProp)
         (tid : nat)
         (mytk : TicketLock.tk)
   (now : nat)
@@ -1847,6 +1893,7 @@ Section SIM.
                  now < mytk
                  → y = mytk - now
                    → (□ ((∀ a : TicketLock.tk,
+                             (□ inv N (ticket_lock_inv monok tk_mono)) ∗
                             (OwnM (Auth.white (NatMapRALarge.singleton tid a: NatMapRALarge.t nat)) **
                              maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
                             g1 ()%type ()%type
@@ -1855,23 +1902,26 @@ Section SIM.
                                  ⌜r_src = r_tgt⌝) false false
                               (src_code_coind tid)
                               (tgt_code_coind a)
-                         ) ∧ monoWhite tk_mono Nat.le_preorder now) **
+                         )
+                         ∧ (inv N (ticket_lock_inv monok tk_mono))
+                         ∧ monoWhite tk_mono Nat.le_preorder now) **
                       (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
                        (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
                         (ticket_lock_inv_tks tks **
                          (ticket_lock_inv_state mem own tks **
-                          ((⌜own = true⌝ ** ticket_lock_inv_locked l tks now next myt)
+                          ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
                            ∨ (⌜own = false⌝ **
-                              ticket_lock_inv_unlocking l tks now next myt
-                              ∨ ticket_lock_inv_unlocked0 l tks now next myt
-                                ∨ ticket_lock_inv_unlocked1 l tks now next myt) **
-                           ((ticket_lock_inv -*
-                             MUpd (nth_default True%I I)
+                              ticket_lock_inv_unlocking monok l tks now next myt
+                              ∨ ticket_lock_inv_unlocked0 monok l tks now next myt
+                                ∨ ticket_lock_inv_unlocked1 monok l tks now next myt) **
+                           ((ticket_lock_inv monok tk_mono -*
+                               FUpd
                                (fairI
                                   (ident_tgt:=OMod.closed_ident TicketLock.omod
-                                                (SCMem.mod TicketLock.gvs))) [] [0] True) **
-                            ticket_lock_inv_mem mem now next myt)))))))
-                     ⊢ stsim I tid [] g0 g1
+                                                (SCMem.mod TicketLock.gvs)))
+                               (⊤∖↑N) ⊤ emp) **
+                            ticket_lock_inv_mem tk_mono mem now next myt)))))))
+                     ⊢ stsim tid (⊤∖↑N) g0 g1
                          (λ r_src r_tgt : (),
                             (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
                          false true
@@ -1885,7 +1935,9 @@ Section SIM.
   (tks : NatMap.t nat)
   (next myt : nat)
     :
+    (inv N (ticket_lock_inv monok tk_mono)) ∗
   (□ ((∀ a : TicketLock.tk,
+          (□ inv N (ticket_lock_inv monok tk_mono)) ∗
         (OwnM (Auth.white (NatMapRALarge.singleton tid a: NatMapRALarge.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
         g1 ()%type ()%type
           (λ r_src r_tgt : (),
@@ -1898,15 +1950,15 @@ Section SIM.
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
     (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
      (ticket_lock_inv_tks tks **
-      (ticket_lock_inv_mem mem now next myt **
+      (ticket_lock_inv_mem tk_mono mem now next myt **
        (ticket_lock_inv_state mem false tks **
-        (ticket_lock_inv_unlocked1 l tks now next myt **
-         (ticket_lock_inv -*
-          MUpd (nth_default True%I I)
-            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs))) []
-            [0] True)))))))
+        (ticket_lock_inv_unlocked1 monok l tks now next myt **
+         (ticket_lock_inv monok tk_mono -*
+            FUpd
+            (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs)))
+            (⊤∖↑N) ⊤ emp)))))))
   )
-  ⊢ (stsim I tid [] g0 g1
+  ⊢ (stsim tid (⊤∖↑N) g0 g1
       (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
       false true
       (trigger Yield;;;
@@ -1943,14 +1995,14 @@ Section SIM.
          (if x then Ret () else tau;; TicketLock.lock_loop (SCMem.val_nat mytk));;;
        OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs) (trigger Yield))).
   Proof.
-    iIntros "[#[CIH MONOTK] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
+    iIntros "[#LOCK_INV [#[CIH MONOTK] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]]".
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iPoseProof (unlocked1_mono with "I") as "[%TKQ #[% [% [MONOW OBLB]]]]".
     clear FIND TKQ.
     iStopProof. move o before IH. revert_until o. pattern o. revert o.
     apply (well_founded_induction Ord.lt_well_founded).
     intros o IHo. intros.
-    iIntros "[#[CIH [MONOTK [MONOW BLK]]] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
+    iIntros "[#[LOCK_INV [CIH [MONOTK [MONOW BLK]]]] [MYN [MYTK [TKS [MEM [ST [I K]]]]]]]".
 
     unfold Mod.wrap_fun, SCMem.compare_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 MEM3]]]". iDestruct "ST" as "[ST0 ST1]".
@@ -1960,7 +2012,7 @@ Section SIM.
     { exfalso. clarify. }
     rred. iApply stsim_tauR.
     rewrite TicketLock.lock_loop_red. rred. rewrite close_itree_call. rred.
-    iAssert (ticket_lock_inv_mem mem now next myt)%I with "[MEM0 MEM1 MEM2 MEM3]" as "MEM". iFrame.
+    iAssert (ticket_lock_inv_mem tk_mono mem now next myt)%I with "[MEM0 MEM1 MEM2 MEM3]" as "MEM". iFrame.
     iAssert (ticket_lock_inv_state mem false tks)%I with "[ST0 ST1]" as "ST". iFrame.
     iMod ("K" with "[TKS MEM ST I]") as "_".
     { do 7 iExists _. iSplitL "TKS". iFrame. iSplitL "MEM". iFrame. iSplitL "ST". iFrame.
@@ -1969,13 +2021,13 @@ Section SIM.
     clear mem l tks next myt now_old NEQ n.
     rename now into now_past, LT into LTPAST, k into k_past, o into o_past.
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH".
       iApply lock_myturn1.
-      iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
-      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame.
-      iFrame.
+      iSplitR. ss. iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
+      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame. iFrame.
     }
 
     rename n into NEQ.
@@ -1985,7 +2037,8 @@ Section SIM.
     iSplitL "ST". iFrame. iSplitL "CASES". iFrame. iFrame.
     iIntros "[MYTK _]". rred.
     clear mem own l tks now next myt NEQ.
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH".
       iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
@@ -2014,10 +2067,11 @@ Section SIM.
     iIntros "[MYTK RIGHT]". rred.
     rename now into now_old. clear mem own l tks next myt LOAD LOAD0.
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH". iApply lock_myturn2. auto.
-      iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
+      iSplitR. ss. iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
       iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame.
       iFrame.
     }
@@ -2025,7 +2079,8 @@ Section SIM.
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     rename n into NEQ2. iPoseProof (yourturn_range with "CASES") as "%LT". eapply FIND. auto.
     clear NEQ2. iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
-    { subst own. iApply lock_yourturn_coind. auto. iSplit. iApply "CIH".
+    { subst own. iApply lock_yourturn_coind. auto. iSplit.
+      { iModIntro. iIntros (a) "[H1 H2]". iApply "CIH". iFrame. iApply "LOCK_INV". }
       iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
       iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "I". iFrame. iFrame.
     }
@@ -2040,6 +2095,7 @@ Section SIM.
         intros y H. eapply IH. lia.
       }
       auto.
+      iSplit. ss.
       iSplit.
       { iClear "MYN MYTK RIGHT TKS MEM ST I K". iModIntro. iSplit. iApply "CIH". auto. }
       iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame. iSplitL "MEM". iFrame.
@@ -2084,7 +2140,7 @@ Section SIM.
         { auto. }
         iSplit.
         { iClear "MYN MYTK TKS MEM ST I0 I3 I4 I5 I6 I7 I8 I9 I10 K".
-          iModIntro. iSplit. iApply "CIH". auto.
+          iModIntro. iSplitR. ss. iSplit. iApply "CIH". auto.
         }
         iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
         iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitR "K". 2: iFrame.
@@ -2095,31 +2151,32 @@ Section SIM.
   Qed.
 
   Lemma correct_lock tid:
+    inv N (ticket_lock_inv monok tk_mono) ∗
     ((own_thread tid)
        ∗ (ObligationRA.duty (inl tid) [])
     )
       ⊢
-      (stsim I tid (topset I) ibot7 ibot7
+      (stsim tid ⊤ ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLock.lock_fun tt)
              (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
                                (TicketLock.lock_fun tt))).
   Proof.
-    iIntros "[MYTH DUTY]".
-    iApply lock_enqueue. iSplitL. iFrame.
+    iIntros "[#LOCK_INV [MYTH DUTY]]".
+    iApply lock_enqueue. iSplitR. ss. iSplitL. iFrame.
     iIntros "% [MYTK MYN]".
     rewrite TicketLock.lock_loop_red. rred. rewrite close_itree_call. rred.
-    iStopProof. revert mytk. eapply stsim_coind. msubtac.
-    iIntros "% %mytk". iIntros "#[_ CIH] [MYTK MYN]".
+    iStopProof. revert mytk. eapply stsim_coind. ss. msubtac.
+    iIntros "% %mytk". iIntros "#[_ CIH] [#LOCK_INV [MYTK MYN]]".
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH".
       rewrite unfold_iter_eq. lred. iApply lock_myturn1.
-      iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
-      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame.
-      iFrame.
+      iSplitR. ss. iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
+      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame. iFrame.
     }
 
     rename n into NEQ. rewrite unfold_iter_eq. lred.
@@ -2129,7 +2186,8 @@ Section SIM.
     iSplitL "ST". iFrame. iSplitL "CASES". iFrame. iFrame.
     iIntros "[MYTK _]". rred.
     clear mem own l tks now next myt NEQ.
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH".
       iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
@@ -2159,19 +2217,19 @@ Section SIM.
     iIntros "[MYTK _]". rred.
     rename now into now_old. clear mem own l tks next myt LOAD LOAD0.
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     destruct (Nat.eq_dec mytk now); subst.
     { iClear "CIH". iApply lock_myturn2. auto.
-      iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
-      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame.
-      iFrame.
+      iSplitR. ss. iSplitL "MYTK". iFrame. iSplitL "MYN". iFrame. iSplitL "TKS". iFrame.
+      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "CASES". iFrame. iFrame.
     }
 
     rename n into NEQ2.
     iPoseProof (mytk_find_some with "[MYTK TKS]") as "%FIND". iFrame.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
     iPoseProof (black_white with "MEM4") as "#MONOTK".
-    iAssert (ticket_lock_inv_mem mem now next myt)%I with "[MEM0 MEM1 MEM2 MEM3 MEM4]" as "MEM".
+    iAssert (ticket_lock_inv_mem tk_mono mem now next myt)%I with "[MEM0 MEM1 MEM2 MEM3 MEM4]" as "MEM".
     iFrame.
     iPoseProof (yourturn_range with "CASES") as "%LT". eapply FIND. auto.
     clear FIND NEQ2.
@@ -2179,14 +2237,16 @@ Section SIM.
     iStopProof. move ind before mytk. revert_until ind. pattern ind. revert ind.
     apply (well_founded_induction Nat.lt_wf_0).
     intros ind IH. intros.
-    iIntros "[#[CIH MONOTK] [MYN [MYTK [TKS [ST [CASES [K MEM]]]]]]]".
+    iIntros "[#[CIH [LOCK_INV MONOTK]] [MYN [MYTK [TKS [ST [CASES [K MEM]]]]]]]".
 
     iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]".
-    { subst own. iApply lock_yourturn_coind. auto. iSplit. iApply "CIH".
-      iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
-      iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "I". iFrame. iFrame.
+    { subst own. iApply lock_yourturn_coind. auto. iSplit.
+      - iModIntro. iIntros (a). iSpecialize ("CIH" $! a). iIntros. iApply "CIH". iFrame. ss.
+      - iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
+        iSplitL "MEM". iFrame. iSplitL "ST". iFrame. iSplitL "I". iFrame. iFrame.
     }
     { subst. iApply lock_yourturn_ind0. apply LT. apply IH. auto.
+      iSplit. iApply "LOCK_INV".
       iSplit.
       { iClear "MYN MYTK TKS MEM ST I K".
         iModIntro. iSplit. iApply "CIH". auto.
@@ -2199,6 +2259,7 @@ Section SIM.
       iPoseProof (unlocked0_contra with "I") as "%FF". eauto. inv FF.
     }
     { subst. iApply lock_yourturn_ind1. apply LT. apply IH. auto.
+      iSplit. iApply "LOCK_INV".
       iSplit.
       { iClear "MYN MYTK TKS MEM ST I K". iModIntro. iSplit. iApply "CIH". auto. }
       iSplitL "MYN". iFrame. iSplitL "MYTK". iFrame. iSplitL "TKS". iFrame.
@@ -2209,22 +2270,25 @@ Section SIM.
   Qed.
 
   Lemma correct_unlock tid:
+    inv N (ticket_lock_inv monok tk_mono) ∗
     ((own_thread tid)
        ∗ (ObligationRA.duty (inl tid) [])
     )
       ⊢
-      (stsim I tid (topset I) ibot7 ibot7
+      (stsim tid ⊤ ibot7 ibot7
              (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLock.unlock_fun tt)
              (OMod.close_itree TicketLock.omod (SCMem.mod TicketLock.gvs)
                                (TicketLock.unlock_fun tt))).
   Proof.
-    iIntros "[MYTH DUTY]".
+    iIntros "[#LOCK_INV [MYTH DUTY]]".
     unfold AbsLock.unlock_fun, TicketLock.unlock_fun. rred.
     rewrite close_itree_call. rred.
     iApply (stsim_sync with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _".
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]"; cycle 1.
     { subst own. iDestruct "ST" as "[ST0 ST1]".
       iApply stsim_getL. iSplit. auto. rred.
@@ -2245,8 +2309,8 @@ Section SIM.
     subst own. iDestruct "ST" as "[ST0 ST1]".
     iApply stsim_getL. iSplit. auto. rred.
     destruct (Bool.eqb true true) eqn:BEQ. 2: exfalso; inv BEQ.
-    clear BEQ. ss. rewrite put_rmw.
-    iApply (stsim_rmwL with "ST1"). iIntros "ST1".
+    clear BEQ.
+    iApply (stsim_modifyL with "ST1"). iIntros "ST1".
 
     unfold Mod.wrap_fun, SCMem.load_fun. rred.
     iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
@@ -2275,18 +2339,19 @@ Section SIM.
     iMod ("K" with "[MYTH TKS MEM0 MEM1 MEM2 MEM3 MEM4 ST0 ST1 I1 I2 I3 I5 OBLK OPEND DUTY]") as "_".
     { iExists mem, false, l, tks, now, next, tid.
       remember (
-    (⌜false = true⌝ ** ticket_lock_inv_locked l tks now next tid)
+    (⌜false = true⌝ ** ticket_lock_inv_locked monok l tks now next tid)
     ∨ (⌜false = false⌝ **
-       ticket_lock_inv_unlocking l tks now next tid
-       ∨ ticket_lock_inv_unlocked0 l tks now next tid
-       ∨ ticket_lock_inv_unlocked1 l tks now next tid))%I as temp.
+       ticket_lock_inv_unlocking monok l tks now next tid
+       ∨ ticket_lock_inv_unlocked0 monok l tks now next tid
+       ∨ ticket_lock_inv_unlocked1 monok l tks now next tid))%I as temp.
       iFrame. subst temp.
       iRight. iSplit. auto. iLeft. iFrame.
       iExists _, _. iFrame.
     }
     iModIntro. clear_upto tid.
 
-    iopen 0 "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
+    iInv "LOCK_INV" as "I" "K".
+    do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iDestruct "CASES" as "[[%CT I] | [%CF [I | [I | I]]]]"; cycle 2.
     { iDestruct "I" as "[I _]". iPoseProof (white_white_excl with "HOLD I") as "%FF". inv FF. }
     { do 2 iDestruct "I" as "[% I]". iDestruct "I" as "[I _]".
@@ -2297,8 +2362,8 @@ Section SIM.
     iDestruct "ST" as "[ST0 ST1]". iDestruct "MEM" as "[MEM0 [MEM1 [MEM2 [MEM3 MEM4]]]]".
     iApply stsim_getR. iSplit. auto. rred.
     iPoseProof (memory_ra_store with "MEM0 MEM1") as "[% [%STORE >[MEM0 MEM1]]]".
-    rewrite STORE. rred. rewrite put_rmw. rred.
-    iApply (stsim_rmwR with "ST0"). iIntros "ST0". rred.
+    rewrite STORE. rred.
+    iApply (stsim_modifyR with "ST0"). iIntros "ST0". rred.
     iApply stsim_tauR. rred.
 
     iPoseProof (black_white_equal with "MEM3 HOLD") as "%EQ". inv EQ.
@@ -2315,7 +2380,7 @@ Section SIM.
     destruct l as [ | yourt waits].
     { iPoseProof (black_updatable with "I5") as ">I5".
       { instantiate (1:=(now', Tkst.a k)). econs 1; try lia. }
-      iAssert (ticket_lock_inv_mem m1 now' next tid)%I with "[MEM0 MEM1 MEM2 MEM3 MEM4]" as "MEM".
+      iAssert (ticket_lock_inv_mem tk_mono m1 now' next tid)%I with "[MEM0 MEM1 MEM2 MEM3 MEM4]" as "MEM".
       iFrame.
       iAssert (ticket_lock_inv_state m1 false tks)%I with "[ST0 ST1]" as "ST". iFrame.
       iMod ("K" with "[TKS MEM ST I3 I4 I5 HOLD]") as "_".
@@ -2338,7 +2403,7 @@ Section SIM.
 
     iPoseProof (black_updatable with "I5") as ">I5".
     { instantiate (1:=(now', Tkst.b k0)). econs 1; try lia. }
-    iAssert (ticket_lock_inv_mem m1 now' next tid)%I with "[MEM0 MEM1 MEM2 MEM3 MEM4]" as "MEM".
+    iAssert (ticket_lock_inv_mem tk_mono m1 now' next tid)%I with "[MEM0 MEM1 MEM2 MEM3 MEM4]" as "MEM".
     iFrame.
     iAssert (ticket_lock_inv_state m1 false tks)%I with "[ST0 ST1]" as "ST". iFrame.
     iMod ("K" with "[TKS MEM ST I3 HOLD YMAPS I4 OBLK OPEND YTAX YDUTY I5]") as "_".

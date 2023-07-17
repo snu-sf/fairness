@@ -531,10 +531,10 @@ Section CLOSE_MONO_SIM.
       + rewrite <- 2 bind_trigger.
         gstep. eapply pind9_fold. econs; eauto.
     - destruct s.
-      rewrite ! close_itree_vis_rmw, <- ! bind_trigger.
+      rewrite ! close_itree_vis_state, <- ! bind_trigger.
       gstep.
-      eapply pind9_fold. eapply lsim_rmwL. split; ss.
-      eapply pind9_fold. eapply lsim_rmwR. split; ss.
+      eapply pind9_fold. eapply lsim_stateL. split; ss.
+      eapply pind9_fold. eapply lsim_stateR. split; ss.
       eapply pind9_fold. eapply lsim_tauL. split; ss.
       eapply pind9_fold. eapply lsim_tauR. split; ss.
       eapply pind9_fold. eapply lsim_progress.
@@ -835,12 +835,12 @@ Section MODADD_THEOREM.
                   gstep. eapply pind9_fold. eapply lsim_UB.
               + destruct s.
                 rewrite ! map_event_vis. unfold emb_callee; ss.
-                rewrite ! close_itree_vis_rmw.
+                rewrite ! close_itree_vis_state.
                 rewrite ! map_event_vis.
                 rewrite <- ! bind_trigger.
                 gstep.
-                eapply pind9_fold. eapply lsim_rmwL. split; ss.
-                eapply pind9_fold. eapply lsim_rmwR. split; ss.
+                eapply pind9_fold. eapply lsim_stateL. split; ss.
+                eapply pind9_fold. eapply lsim_stateR. split; ss.
                 rewrite ! map_event_tau.
                 eapply pind9_fold. eapply lsim_tauL. split; ss.
                 eapply pind9_fold. eapply lsim_tauR. split; ss.
@@ -858,10 +858,10 @@ Section MODADD_THEOREM.
           rewrite <- ! bind_trigger.
           gstep. eapply pind9_fold. eapply lsim_UB.
       + destruct s.
-        rewrite ! close_itree_vis_rmw, <- ! bind_trigger.
+        rewrite ! close_itree_vis_state, <- ! bind_trigger.
         gstep.
-        eapply pind9_fold. eapply lsim_rmwL. split; ss.
-        eapply pind9_fold. eapply lsim_rmwR. split; ss.
+        eapply pind9_fold. eapply lsim_stateL. split; ss.
+        eapply pind9_fold. eapply lsim_stateR. split; ss.
         rewrite ! close_itree_tau.
         eapply pind9_fold. eapply lsim_tauL. split; ss.
         eapply pind9_fold. eapply lsim_tauR. split; ss.
