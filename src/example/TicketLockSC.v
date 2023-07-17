@@ -600,7 +600,7 @@ Section SIM.
   Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
   Context `{MEMRA: @GRA.inG memRA Σ}.
 
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLock.tk)) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRALarge.t TicketLock.tk)) Σ}.
   Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.

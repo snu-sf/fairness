@@ -5,7 +5,7 @@ Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
 From Fairness Require Import pind.
-From Fairness Require Import LPCM.
+From Fairness Require Import PCMLarge.
 From Fairness Require Import PindTac.
 From Fairness Require Import ModSim.
 

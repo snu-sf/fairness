@@ -659,7 +659,7 @@ Module WSim.
                                  fun_pairs
                                  (fun tid '(th_src, th_tgt) =>
                                     stsim
-                                      [whole_sim_simple_invariant] tid [0]
+                                      tid ⊤
                                       ibot7 ibot7
                                       (fun r_src r_tgt => own_thread tid ** FairRA.black_ex (inl tid) 1 ** ⌜r_src = r_tgt⌝)
                                       false false th_src th_tgt))))>>);
@@ -674,9 +674,6 @@ Module WSim.
         { eauto. }
         exists Ord.omega. iIntros "H".
         iPoseProof (SIM with "H") as "> [H0 H1]". iModIntro.
-        iExists [whole_sim_simple_invariant]. iModIntro.
-        iSplitL "H0".
-        { iFrame. }
         iApply (natmap_prop_sum_impl with "H1"). i. des_ifs.
         iApply (stsim_mono). i.
         iIntros "[[H0 H1] H2]". iModIntro. iFrame.
@@ -819,7 +816,7 @@ Module WSim.
                       (FairRA.black_ex (inl tid) 1)
                       -∗
                       (stsim
-                         [context_sim_simple_invariant] tid [0]
+                         tid ⊤
                          ibot7 ibot7
                          (fun r_src r_tgt => FairRA.black_ex (inl tid) 1 ** ⌜r_src = r_tgt⌝)
                          false false (ktr_src args) (ktr_tgt args))
@@ -837,11 +834,8 @@ Module WSim.
         { eauto. }
         { exists Ord.omega. iIntros "H".
           iPoseProof (SAT with "H") as "> SAT". iModIntro.
-          iExists [context_sim_simple_invariant]. iModIntro. iSplit.
-          { ss. iFrame. }
-          iPureIntro. auto.
-          i. specialize (sim_funs fn args). des_ifs.
-          i. iIntros "H B". iPoseProof (sim_funs with "[B]") as "B".
+          iModIntro. iIntros. specialize (sim_funs0 fn args). des_ifs.
+          iIntros (?) "H B". iPoseProof (sim_funs0 with "[B]") as "B".
           { iApply duty_to_black. auto. }
           iApply (stsim_wand with "B [H]").
           iIntros (? ?) "[H0 H1]". iModIntro. iFrame.

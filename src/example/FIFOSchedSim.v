@@ -163,7 +163,7 @@ Section SIM.
     4:{ i. eapply ssim_nondet_fifo. apply Permutation_refl. eapply NatMap.remove_1. ss. }
     { instantiate (1:=id). auto. }
     { econs. exact 0. }
-    { i. exists (S o0). ss. }
+    { i. exists (Datatypes.S o0). ss. }
     Unshelve. all: exact true.
   Qed.
 

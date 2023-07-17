@@ -663,7 +663,7 @@ Section SIM.
 
 End SIM.
 
-From Fairness Require Export NatMapRALarge StateRA FairRA MonotonePCM.
+From Fairness Require Export NatMapRALarge StateRA FairRA MonotonePCM FancyUpdate.
 Require Import Coq.Sorting.Mergesort.
 
 Section STATE.
@@ -1705,21 +1705,20 @@ Section STATE.
   (* Note:  *)
   (*   MUpd _ fairI topset topset P *)
   (*        is a generalized version of I * (I -* P) *)
-  Lemma stsim_yieldR_simple E r g R_src R_tgt
+  Lemma stsim_yieldR_simple r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (TOP: mset_sub topset E)
     :
-    MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) topset topset
+    FUpd (fairI (ident_tgt:=ident_tgt)) ⊤ ⊤
          ((FairRA.black_ex (inl tid) 1)
             **
             ((FairRA.black_ex (inl tid) 1)
                -*
                (FairRA.white_thread (_Id:=_))
                -*
-               stsim topset r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
+               stsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
          -∗
-         (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+         (stsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     iIntros "> [H K]". iApply (stsim_yieldR with "[H]").
@@ -1729,21 +1728,20 @@ Section STATE.
     { iApply duty_to_black. auto. }
   Qed.
 
-  Lemma stsim_sync_simple E r g R_src R_tgt
+  Lemma stsim_sync_simple r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (TOP: mset_sub topset E)
     :
-    MUpd (nth_default True%I Invs) (fairI (ident_tgt:=ident_tgt)) topset topset
+    FUpd (fairI (ident_tgt:=ident_tgt)) ⊤ ⊤
          ((FairRA.black_ex (inl tid) 1)
             **
             ((FairRA.black_ex (inl tid) 1)
                -*
                (FairRA.white_thread (_Id:=_))
                -*
-               stsim topset g g Q true true (ktr_src tt) (ktr_tgt tt)))
+               stsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
       -∗
-      (stsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+      (stsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "> [H K]". iApply (stsim_sync with "[H]").
     { auto. }
