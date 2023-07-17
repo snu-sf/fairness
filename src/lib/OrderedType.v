@@ -28,7 +28,7 @@ Arguments GT [X lt eq x y] _.
 
 Create HintDb ordered_type.
 
-Module Type MiniOrderedType.
+Module Type MiniOrderedTypeLarge.
 
   Parameter Inline t : Type.
 
@@ -49,18 +49,18 @@ Module Type MiniOrderedType.
   #[global]
   Hint Resolve eq_refl eq_trans lt_not_eq lt_trans : ordered_type.
 
-End MiniOrderedType.
+End MiniOrderedTypeLarge.
 
-Module Type OrderedType.
-  Include MiniOrderedType.
+Module Type OrderedTypeLarge.
+  Include MiniOrderedTypeLarge.
 
   (** A [eq_dec] can be deduced from [compare] below. But adding this
-     redundant field allows seeing an OrderedType as a DecidableType. *)
+     redundant field allows seeing an OrderedTypeLarge as a DecidableType. *)
   Parameter eq_dec : forall x y, { eq x y } + { ~ eq x y }.
 
-End OrderedType.
+End OrderedTypeLarge.
 
-Module MOT_to_OT (Import O : MiniOrderedType) <: OrderedType.
+Module MOT_to_OT (Import O : MiniOrderedTypeLarge) <: OrderedTypeLarge.
   Include O.
 
   Definition eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
@@ -74,9 +74,9 @@ End MOT_to_OT.
 (** * Ordered types properties *)
 
 (** Additional properties that can be derived from signature
-    [OrderedType]. *)
+    [OrderedTypeLarge]. *)
 
-Module OrderedTypeFacts (Import O: OrderedType).
+Module OrderedTypeLargeFacts (Import O: OrderedTypeLarge).
 
 #[global]
   Instance eq_equiv : Equivalence eq.
@@ -261,11 +261,11 @@ Hint Resolve ListIn_In Sort_NoDup Inf_lt : ordered_type.
 #[global]
 Hint Immediate In_eq Inf_lt : ordered_type.
 
-End OrderedTypeFacts.
+End OrderedTypeLargeFacts.
 
-Module KeyOrderedType(O:OrderedType).
+Module KeyOrderedTypeLarge(O:OrderedTypeLarge).
  Import O.
- Module MO:=OrderedTypeFacts(O).
+ Module MO:=OrderedTypeLargeFacts(O).
  Import MO.
 
  Section Elt.
@@ -519,6 +519,6 @@ Module KeyOrderedType(O:OrderedType).
  #[global]
  Hint Resolve In_inv_2 In_inv_3 : ordered_type.
 
-End KeyOrderedType.
+End KeyOrderedTypeLarge.
 
 

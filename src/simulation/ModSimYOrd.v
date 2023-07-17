@@ -4,7 +4,7 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind LPCM PindTac.
+From Fairness Require Import pind PCMLarge PindTac.
 
 From Paco Require Import pacotac_internal.
 

@@ -11,19 +11,19 @@
 (** * Finite map library *)
 
 (** This file proposes an implementation of the non-dependent interface
- [FMapInterface.S] using lists of pairs ordered (increasing) with respect to
+ [FMapInterfaceLarge.S] using lists of pairs ordered (increasing) with respect to
  left projection. *)
 
-Require Import Fairness.FMapInterfaceLow.
+Require Import Fairness.FMapInterfaceLarge.
 Require Import FunInd.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Module Raw (X:OrderedType).
+Module Raw (X:OrderedTypeLarge).
 
-Module Import MX := OrderedTypeFacts X.
-Module Import PX := KeyOrderedType X.
+Module Import MX := OrderedTypeLargeFacts X.
+Module Import PX := KeyOrderedTypeLarge X.
 
 Definition key := X.t.
 Definition t (elt:Type) := list (X.t * elt).
@@ -1026,7 +1026,7 @@ Qed.
 End Elt3.
 End Raw.
 
-Module Make (X: OrderedType) <: S with Module E := X.
+Module Make (X: OrderedTypeLarge) <: S with Module E := X.
 Module Raw := Raw X.
 Module E := X.
 
@@ -1163,7 +1163,7 @@ Section Elt.
 
 End Make.
 
-Module Make_ord (X: OrderedType)(D : OrderedType) <:
+Module Make_ord (X: OrderedTypeLarge)(D : OrderedTypeLarge) <:
 Sord with Module Data := D
         with Module MapS.E := X.
 
@@ -1171,7 +1171,7 @@ Module Data := D.
 Module MapS := Make(X).
 Import MapS.
 
-Module MD := OrderedTypeFacts(D).
+Module MD := OrderedTypeLargeFacts(D).
 Import MD.
 
 Definition t := MapS.t D.t.

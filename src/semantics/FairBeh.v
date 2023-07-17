@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import Axioms WFLib ITreeLib.
+From Fairness Require Import Axioms WFLibLarge ITreeLib.
 From Fairness Require Export Event.
 From Coq Require Import Classes.RelationClasses.
 

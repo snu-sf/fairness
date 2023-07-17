@@ -4,7 +4,7 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind LPCM.
+From Fairness Require Import pind PCMLarge.
 
 Set Implicit Arguments.
 

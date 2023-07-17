@@ -2,13 +2,13 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export
-     ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
+     ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind Axioms
      Linking WMM Red IRed WeakestAdequacy.
 From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import View.
 From Ordinal Require Export ClassicalHessenberg.
 Require Import Coq.Numbers.BinNums.
-From Fairness Require Import NatStructsLow NatMapRALow.
+From Fairness Require Import NatStructs NatMapRA.
 
 Set Implicit Arguments.
 
@@ -89,7 +89,7 @@ End TicketLockW.
 From Fairness Require Import IProp IPM Weakest.
 From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
 From Fairness Require Import FairLock.
-From Fairness Require Import NatStructsLow NatMapRALow.
+From Fairness Require Import NatStructs NatMapRA.
 
 Section AUX.
 
@@ -350,7 +350,7 @@ Section SIM.
   Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
   Context `{WMEMRA: @GRA.inG wmemRA Σ}.
 
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLockW.tk)) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRALarge.t TicketLockW.tk)) Σ}.
   Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   (* Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * View.t) * nat))) Σ}. *)
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * View.t)))) Σ}.
@@ -441,7 +441,7 @@ Section SIM.
 
   Definition ticket_lock_inv_tks
              (tks: NatMap.t nat) : iProp :=
-    ((OwnM (Auth.black (Some tks: NatMapRA.t nat)))
+    ((OwnM (Auth.black (Some tks: NatMapRALarge.t nat)))
        ∗ (FairRA.whites (fun id => (~ NatMap.In id tks)) Ord.omega)
        ∗ (natmap_prop_sum tks (fun tid tk => (own_thread tid)))
        ∗ (OwnMs (fun id => (~ NatMap.In id tks))
@@ -597,12 +597,12 @@ Section SIM.
   Qed.
 
   Lemma mytk_find_some tid mytk tks:
-    (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)))
+    (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)))
       ∗ (ticket_lock_inv_tks tks)
       -∗ ⌜NatMap.find tid tks = Some mytk⌝.
   Proof.
     iIntros "[MYTK TKS]". iDestruct "TKS" as "[TKS0 _]".
-    iApply (NatMapRA_find_some with "TKS0 MYTK").
+    iApply (NatMapRALarge_find_some with "TKS0 MYTK").
   Qed.
 
   Lemma ticket_lock_inv_mem_mono
@@ -695,7 +695,7 @@ Section SIM.
       ∗
       (∀ mytk tview,
           (
-            (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t TicketLockW.tk)))
+            (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t TicketLockW.tk)))
               ∗ (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)))
               ∗ (⌜View.le tvw tview⌝)
           )
@@ -774,7 +774,7 @@ Section SIM.
 
     iDestruct "TKS" as "[TKS0 [TKS1 [TKS2 TKS3]]]".
     set (tks' := NatMap.add tid next tks).
-    iPoseProof (NatMapRA_add with "TKS0") as ">[TKS0 MYTK]". eauto. instantiate (1:=next).
+    iPoseProof (NatMapRALarge_add with "TKS0") as ">[TKS0 MYTK]". eauto. instantiate (1:=next).
     iAssert (St_src (own, svw, ing, (key_set tks')))%I with "[ST1]" as "ST1".
     { subst tks'. rewrite key_set_pull_add_eq. iFrame. }
     iPoseProof ((FairRA.whites_unfold (fun id => ~ NatMap.In id tks') _ (i:=tid)) with "TKS1") as "[TKS1 MYTRI]".
@@ -951,13 +951,13 @@ Section SIM.
     :
     (inv N ticket_lock_inv) ∗
     (
-      (OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t TicketLockW.tk))))
+      (OwnM (Auth.white ((NatMapRALarge.singleton tid mytk: NatMapRALarge.t TicketLockW.tk))))
         ∗ (maps_to tid (Auth.white (Excl.just (S u): Excl.t nat)))
         ∗ (monoWhite monok mypreord (mytk, x))
     )
       ∗
       (
-      ((OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t TicketLockW.tk))))
+      ((OwnM (Auth.white ((NatMapRALarge.singleton tid mytk: NatMapRALarge.t TicketLockW.tk))))
         ∗ (maps_to tid (Auth.white (Excl.just u: Excl.t nat)))
         ∗ (monoWhite monok mypreord (mytk, x)))
         -∗
@@ -1046,7 +1046,7 @@ Section SIM.
         (NEQ: mytk <> now)
         wo
     :
-  (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+  (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
     (ticket_lock_inv_tks tks **
      (ticket_lock_inv_mem mem V wk wo svw now next myt **
       (ticket_lock_inv_state mem own svw ing tks **
@@ -1059,7 +1059,7 @@ Section SIM.
            FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLockW.omod (WMem.mod)))
            (⊤∖↑N) ⊤ emp))))))
       ∗
-      (((OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t nat))))
+      (((OwnM (Auth.white ((NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat))))
           ∗ (FairRA.white_thread (_Id:=_)))
         -∗
   (stsim tid ⊤ g0 g1
@@ -1158,7 +1158,7 @@ Section SIM.
     :
     (inv N ticket_lock_inv) ∗
     ((monoWhite monok mypreord (now, x))
-       ∗ (OwnM (Auth.white (NatMapRA.singleton tid now: NatMapRA.t nat)))
+       ∗ (OwnM (Auth.white (NatMapRALarge.singleton tid now: NatMapRALarge.t nat)))
        ∗ (maps_to tid (Auth.white (Excl.just ph: Excl.t nat))))
        (* ∗ (maps_to tid (Auth.white (Excl.just tx: Excl.t nat)))) *)
   ⊢ stsim tid ⊤ g0 g1
@@ -1354,7 +1354,7 @@ Section SIM.
     hexploit (tkqueue_inv_hd I2 _ FIND). i. des.
     subst l. inversion H0; clear H0. subst yourt waits.
 
-    iPoseProof (NatMapRA_remove with "TKS0 MYTK") as ">TKS0". rewrite <- Heqtks'.
+    iPoseProof (NatMapRALarge_remove with "TKS0 MYTK") as ">TKS0". rewrite <- Heqtks'.
     iPoseProof (natmap_prop_remove_find with "TKS2") as "[MYTH TKS2]". eauto. rewrite <- Heqtks'.
     iCombine "I10 MYNU" as "MYNUM". rewrite maps_to_res_add.
     iPoseProof (OwnM_Upd with "MYNUM") as "> MYNUM".
@@ -1452,7 +1452,7 @@ Section SIM.
         wo
     :
     (inv N ticket_lock_inv) ∗
-  (OwnM (Auth.white (NatMapRA.singleton tid now: NatMapRA.t nat)) **
+  (OwnM (Auth.white (NatMapRALarge.singleton tid now: NatMapRALarge.t nat)) **
    (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) **
     (ticket_lock_inv_tks tks **
      ((ticket_lock_inv_mem mem V wk wo svw now next myt ** ⌜V = svw⌝) **
@@ -1516,7 +1516,7 @@ Section SIM.
   Proof.
     iIntros "[#LOCK_INV [MYTK [MYN [TKS [MEM [ST [CASES K]]]]]]]".
     iAssert (⌜NatMap.find tid tks = Some now⌝)%I as "%FIND".
-    { iDestruct "TKS" as "[TKS0 _]". iApply (NatMapRA_find_some with "TKS0 MYTK"). }
+    { iDestruct "TKS" as "[TKS0 _]". iApply (NatMapRALarge_find_some with "TKS0 MYTK"). }
     iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [% [I | I]]]]".
     { iPoseProof (locked_contra with "I") as "%F". eauto. inv F. }
     { iPoseProof (unlocking_contra with "I") as "%F". eauto. inv F. }
@@ -1673,14 +1673,14 @@ Section SIM.
         (SVLE : V = svw)
     :
   (□ (∀ a : View.t,
-         (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
+         (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
          g1 View.t View.t (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
            false
           (src_code_coind tid tvw)
           (tgt_code_coind a mytk)
      ) **
    (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) **
-    (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+    (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
      (ticket_lock_inv_tks tks **
       (ticket_lock_inv_mem mem V wk wo svw now next myt **
        (ticket_lock_inv_state mem true svw ing tks **
@@ -1858,7 +1858,7 @@ Section SIM.
                    → y = mytk - now
                      → (□ ((∀ a : View.t,
                                (□ inv N ticket_lock_inv) ∗
-                              (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+                              (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
                                (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
                               g1 View.t View.t
                                 (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
@@ -1869,7 +1869,7 @@ Section SIM.
                            ∧ (inv N ticket_lock_inv)
                            ∧ monoWhite tk_mono Nat.le_preorder now) **
                         (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) **
-                         (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+                         (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
                           (ticket_lock_inv_tks tks **
                            (ticket_lock_inv_mem mem V wk wo svw now next myt **
                             (ticket_lock_inv_state mem own svw ing tks **
@@ -1901,7 +1901,7 @@ Section SIM.
     :
     (inv N ticket_lock_inv) ∗
   (□ ((∀ a : View.t,
-         (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
+         (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
          g1 View.t View.t (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
            false
           (src_code_coind tid tvw)
@@ -1910,7 +1910,7 @@ Section SIM.
   (monoWhite tk_mono Nat.le_preorder now)
      ) **
    (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) **
-    (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+    (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
      (ticket_lock_inv_tks tks **
       (ticket_lock_inv_mem mem V wk wo svw now next myt **
        (ticket_lock_inv_state mem false svw false tks **
@@ -2504,7 +2504,7 @@ Section SIM.
   Lemma init_sat N :
     ((OwnM (wmem_init_res TicketLockW.now_serving TicketLockW.next_ticket)
            ∗ OwnM (Auth.white (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type) ⋅ Auth.black (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type))
-           ∗ OwnM (Auth.black (Some (NatMap.empty nat): NatMapRA.t nat))
+           ∗ OwnM (Auth.black (Some (NatMap.empty nat): NatMapRALarge.t nat))
            ∗ OwnM ((fun _ => (Auth.black (Excl.just 0: Excl.t nat)) ⋅ (Auth.white (Excl.just 0: Excl.t nat))): (thread_id ==> (Auth.t (Excl.t nat)))%ra))
        ∗
        WSim.initial_prop AbsLockW.mod TicketLockW.mod TIdSet.empty Ord.omega)
@@ -2570,7 +2570,7 @@ Module TicketLockFair.
                  Gset.t;
                  (InvSetRA (nat * nat * nat * nat));
                  wmemRA;
-                 (Auth.t (NatMapRA.t TicketLockW.tk));
+                 (Auth.t (NatMapRALarge.t TicketLockW.tk));
                  (Auth.t (Excl.t nat));
                  (Auth.t (Excl.t (((nat * nat) * View.t))));
                  (thread_id ==> (Auth.t (Excl.t nat)))%ra].
@@ -2590,7 +2590,7 @@ Module TicketLockFair.
   Local Instance INVSETRA : @GRA.inG (InvSetRA (nat * nat * nat * nat)) Σ := (@GRA.InG _ _ 12 (@eq_refl _ _)).
   Local Instance WMEMRA: @GRA.inG wmemRA Σ := (@GRA.InG _ _ 13 (@eq_refl _ _)).
 
-  Local Instance NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLockW.tk)) Σ := (@GRA.InG _ _ 14 (@eq_refl _ _)).
+  Local Instance NATMAPRA: @GRA.inG (Auth.t (NatMapRALarge.t TicketLockW.tk)) Σ := (@GRA.InG _ _ 14 (@eq_refl _ _)).
   Local Instance AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ := (@GRA.InG _ _ 15 (@eq_refl _ _)).
   Local Instance AUTHRA2: @GRA.inG (Auth.t (Excl.t (((nat * nat) * View.t)))) Σ := (@GRA.InG _ _ 16 (@eq_refl _ _)).
   Local Instance IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ := (@GRA.InG _ _ 17 (@eq_refl _ _)).
@@ -2601,7 +2601,7 @@ Module TicketLockFair.
   Let init_res: Σ :=
         (GRA.embed (wmem_init_res TicketLockW.now_serving TicketLockW.next_ticket)
                    ⋅ GRA.embed (Auth.white (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type) ⋅ Auth.black (Excl.just (0, 0, View.bot): Excl.t (nat * nat * View.t)%type))
-                   ⋅ GRA.embed (Auth.black (Some (NatMap.empty nat): NatMapRA.t nat))
+                   ⋅ GRA.embed (Auth.black (Some (NatMap.empty nat): NatMapRALarge.t nat))
                    ⋅ GRA.embed ((fun _ => (Auth.black (Excl.just 0: Excl.t nat)) ⋅ (Auth.white (Excl.just 0: Excl.t nat))): (thread_id ==> (Auth.t (Excl.t nat)))%ra)).
 
 

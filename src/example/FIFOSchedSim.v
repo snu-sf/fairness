@@ -18,10 +18,6 @@ From ExtLib Require Import FMapAList.
 Section SIM.
 
   Context {_Ident : ID}.
-  Variable E : Type -> Type.
-
-  Let eventE1 := @eventE _Ident.
-  Let eventE2 := @eventE (sum_tid _Ident).
 
   Variable wf : WF.
   Variable S : Type.
@@ -149,11 +145,25 @@ Section SIM.
     : gsim nat_wf nat_wf eq
            (interp_all st ths tid)
            (interp_all_fifo st ths tid).
-  Proof. 
+  Proof.
     eapply ssim_implies_gsim.
     { instantiate (1 := fun x => x). ss. }
     eapply ssim_nondet_fifo; ss.
     eapply NatMap.remove_1; ss.
+    Unshelve. all: exact true.
+  Qed.
+
+
+  Definition sched_fifo_set: schedulerT R :=
+    fun '(tid, tset) => @sched_fifo R (tid, TIdSet.elements tset).
+
+  Theorem fifo_is_fair: isFairSch (_Ident:=_Ident) R (sched_fifo_set).
+  Proof.
+    eapply ssim_isFairSch.
+    4:{ i. eapply ssim_nondet_fifo. apply Permutation_refl. eapply NatMap.remove_1. ss. }
+    { instantiate (1:=id). auto. }
+    { econs. exact 0. }
+    { i. exists (S o0). ss. }
     Unshelve. all: exact true.
   Qed.
 

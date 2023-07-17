@@ -2,11 +2,11 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export
-     ITreeLib WFLib FairBeh Mod pind Axioms
+     ITreeLib WFLibLarge FairBeh Mod pind Axioms
      Linking SCM Red IRed.
 From PromisingSEQ Require Import View.
 From Ordinal Require Export ClassicalHessenberg.
-From Fairness Require Import NatStructsLow.
+From Fairness Require Import NatStructs.
 
 
 Set Implicit Arguments.

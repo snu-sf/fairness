@@ -4,9 +4,9 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
-From Fairness Require Export ITreeLib FairBeh NatStructs.
+From Fairness Require Export ITreeLib FairBeh NatStructsLarge.
 From Fairness Require Export Mod ModSimStutter Concurrency.
-From Fairness Require Import pind LPCM World.
+From Fairness Require Import pind PCMLarge World.
 
 Set Implicit Arguments.
 

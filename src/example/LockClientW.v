@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export
-     ITreeLib WFLib FairBeh NatStructs Mod pind Axioms
+     ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind Axioms
      Linking WMM Red IRed WeakestAdequacy FairLock Concurrency.
 From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import View.
@@ -97,7 +97,7 @@ End ClientSpec.
 
 
 From Fairness Require Import
-     IProp IPM Weakest ModSim PCM MonotonePCM StateRA FairRA NatStructsLow NatMapRALow.
+     IProp IPM Weakest ModSim PCM MonotonePCM StateRA FairRA NatStructs NatMapRA.
 
 Section LEMMA.
 
@@ -151,7 +151,7 @@ Section SIM.
   Context `{AUTHNRA: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   Context `{AUTHVWRA: @GRA.inG (Auth.t (Excl.t View.t)) Σ}.
   Context `{AUTHVWRA2: @GRA.inG (Auth.t (Excl.t (View.t * unit))) Σ}.
-  Context `{AUTHNMNRA: @GRA.inG (Auth.t (NatMapRA.t nat)) Σ}.
+  Context `{AUTHNMNRA: @GRA.inG (Auth.t (NatMapRALarge.t nat)) Σ}.
 
   Definition thread1_will_write (tvw: View.t) : iProp :=
     ∃ k, (∃ n, ObligationRA.black k n)
@@ -168,7 +168,7 @@ Section SIM.
 
   Definition lock_will_unlock : iProp :=
     ∃ (own: bool) (tvw: View.t) (ing: bool) (mem: WMem.t) (wobl: NatMap.t nat) (j: nat),
-      (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
+      (OwnM (Auth.black (Some wobl: NatMapRALarge.t nat)))
         ∗
         ((OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗ (OwnM (Auth.black (Excl.just (tvw, tt): Excl.t (View.t * unit)%type))))
@@ -226,15 +226,15 @@ Section SIM.
     Variable tid1 tid2 : nat.
     Let init_ord := (((((Ord.omega × Ord.omega) × Ord.omega) ⊕ ((Ord.S Ord.O) × (o_w_cor))) ⊕ 10)%ord).
     Let init_ths :=
-              (NatStructs.NatMap.add tid1 tt
-                 (NatStructs.NatMap.add tid2 tt
-                    (NatStructs.NatMap.empty unit))).
+              (NatStructsLarge.NatMap.add tid1 tt
+                 (NatStructsLarge.NatMap.add tid2 tt
+                    (NatStructsLarge.NatMap.empty unit))).
 
     Lemma init_sat E (H_TID : tid1 <> tid2) :
         (
             OwnM (OneShot.pending nat 1)
         ) ∗ (
-            OwnM (Auth.black (Some (NatMap.empty nat) : NatMapRA.t nat))
+            OwnM (Auth.black (Some (NatMap.empty nat) : NatMapRALarge.t nat))
               ∗ OwnM (Auth.black (Excl.just 0 : Excl.t nat))
               ∗ OwnM (Auth.white (Excl.just 0 : Excl.t nat))
               ∗ OwnM (Auth.black (Excl.just View.bot : Excl.t View.t))
@@ -273,16 +273,16 @@ Section SIM.
       unfold WSim.initial_prop.
       iDestruct "INIT" as "[[[[[INIT0 INIT1] INIT2] INIT3] INIT4] INIT5]".
       (* make thread_own, duty *)
-      assert (NatStructs.NatMap.find tid1 init_ths = Some tt).
-      { unfold init_ths. apply NatStructs.nm_find_add_eq. }
+      assert (NatStructsLarge.NatMap.find tid1 init_ths = Some tt).
+      { unfold init_ths. apply NatStructsLarge.nm_find_add_eq. }
       iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU1 INIT2]".
       iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH1 INIT3]".
       clear H.
-      assert (NatStructs.NatMap.find tid2 (NatStructs.NatMap.remove tid1 init_ths) = Some tt).
+      assert (NatStructsLarge.NatMap.find tid2 (NatStructsLarge.NatMap.remove tid1 init_ths) = Some tt).
       { unfold init_ths.
-        rewrite NatStructs.NatMapP.F.remove_neq_o; ss.
-        rewrite NatStructs.nm_find_add_neq; ss.
-        rewrite NatStructs.nm_find_add_eq. ss.
+        rewrite NatStructsLarge.NatMapP.F.remove_neq_o; ss.
+        rewrite NatStructsLarge.nm_find_add_neq; ss.
+        rewrite NatStructsLarge.nm_find_add_eq. ss.
       }
       iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU2 INIT2]".
       iPoseProof (MonotonePCM.natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH2 INIT3]".
@@ -362,7 +362,7 @@ Section SIM.
 
     Definition lock_will_unlock : iProp :=
       ∃ (own: bool) (tvw: View.t) (ing: bool) (mem: WMem.t) (wobl: NatMap.t nat) (j: nat),
-        (OwnM (Auth.black (Some wobl: NatMapRA.t nat)))
+        (OwnM (Auth.black (Some wobl: NatMapRALarge.t nat)))
           ∗
           ((OwnM (Auth.black (Excl.just j: Excl.t nat)))
           ∗ (OwnM (Auth.black (Excl.just (tvw, tt): Excl.t (View.t * unit)%type))))
@@ -534,8 +534,8 @@ Section SIM.
 
     (* make (Auth.white singleton tid k) and update wobl *)
     iPoseProof (OwnM_Upd with "B1") as "OWN1".
-    { eapply Auth.auth_alloc. instantiate (1:=NatMapRA.singleton tid k).
-      instantiate (1:=Some (NatMap.add tid k wobl)). eapply NatMapRA.add_local_update.
+    { eapply Auth.auth_alloc. instantiate (1:=NatMapRALarge.singleton tid k).
+      instantiate (1:=Some (NatMap.add tid k wobl)). eapply NatMapRALarge.add_local_update.
       eapply NatMapP.F.not_find_in_iff; auto.
     }
     iMod "OWN1" as "[OWNB1 MYSING]".
@@ -612,8 +612,8 @@ Section SIM.
 
       iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
       { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
-        { instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
-        eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H.
+        { instantiate (1:= (Auth.black (Some wobl: NatMapRALarge.t nat)) ⋅ (Auth.white (NatMapRALarge.singleton tid k: NatMapRALarge.t nat))). iSplitL "B1"; iFrame. }
+        eapply Auth.auth_included in H. eapply NatMapRALarge.extends_singleton_iff in H.
         auto.
       }
       rename H into FIND.
@@ -664,8 +664,8 @@ Section SIM.
 
       iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
       { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
-        { instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
-        eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H.
+        { instantiate (1:= (Auth.black (Some wobl: NatMapRALarge.t nat)) ⋅ (Auth.white (NatMapRALarge.singleton tid k: NatMapRALarge.t nat))). iSplitL "B1"; iFrame. }
+        eapply Auth.auth_included in H. eapply NatMapRALarge.extends_singleton_iff in H.
         auto.
       }
       rename H into FIND.
@@ -694,8 +694,8 @@ Section SIM.
 
       (* close invariant *)
       iPoseProof (OwnM_Upd with "[B1 MYW]") as "> B1".
-      2:{ instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
-      { eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update. }
+      2:{ instantiate (1:= (Auth.black (Some wobl: NatMapRALarge.t nat)) ⋅ (Auth.white (NatMapRALarge.singleton tid k: NatMapRALarge.t nat))). iSplitL "B1"; iFrame. }
+      { eapply Auth.auth_dealloc. eapply NatMapRALarge.remove_local_update. }
       rewrite <- key_set_pull_rm_eq in *. remember (NatMap.remove tid wobl) as new_wobl.
 
       iPoseProof (MonotonePCM.list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".
@@ -1351,7 +1351,7 @@ End SIM.
 
 From Fairness Require Import WeakestAdequacy.
 
-Module LockClientCorrect.
+Module LockClientWCorrect.
   Definition config := [("thread1", tt↑); ("thread2", tt↑)].
 
   Local Instance Σ: GRA.t:=
@@ -1374,7 +1374,7 @@ Module LockClientCorrect.
                  (Auth.t (Excl.t nat));
                  (Auth.t (Excl.t View.t));
                  (Auth.t (Excl.t (View.t * unit)));
-                 (Auth.t (NatMapRA.t nat));
+                 (Auth.t (NatMapRALarge.t nat));
                  CoPset.t;
                  Gset.t;
                  InvSetRA (bool)
@@ -1400,7 +1400,7 @@ Module LockClientCorrect.
   Local Instance AUTHNRA: @GRA.inG (Auth.t (Excl.t nat)) Σ := (@GRA.InG _ _ 16 (@eq_refl _ _)).
   Local Instance AUTHVWRA: @GRA.inG (Auth.t (Excl.t View.t)) Σ := (@GRA.InG _ _ 17 (@eq_refl _ _)).
   Local Instance AUTHVWRA2: @GRA.inG (Auth.t (Excl.t (View.t * unit))) Σ := (@GRA.InG _ _ 18 (@eq_refl _ _)).
-  Local Instance AUTHNMNRA: @GRA.inG (Auth.t (NatMapRA.t nat)) Σ := (@GRA.InG _ _ 19 (@eq_refl _ _)).
+  Local Instance AUTHNMNRA: @GRA.inG (Auth.t (NatMapRALarge.t nat)) Σ := (@GRA.InG _ _ 19 (@eq_refl _ _)).
 
   Local Instance COPSETRA: @GRA.inG CoPset.t Σ := (@GRA.InG _ _ 20 (@eq_refl _ _)).
   Local Instance GSETRA : @GRA.inG Gset.t Σ := (@GRA.InG _ _ 21 (@eq_refl _ _)).
@@ -1414,7 +1414,7 @@ Module LockClientCorrect.
 
   Let init_res :=
         (GRA.embed (OneShot.pending nat 1))
-          ⋅ GRA.embed (Auth.black (Some (NatMap.empty nat) : NatMapRA.t nat))
+          ⋅ GRA.embed (Auth.black (Some (NatMap.empty nat) : NatMapRALarge.t nat))
           ⋅ GRA.embed (Auth.black (Excl.just 0 : Excl.t nat) ⋅ Auth.white (Excl.just 0 : Excl.t nat))
           ⋅ GRA.embed (Auth.black (Excl.just View.bot : Excl.t View.t) ⋅ Auth.white (Excl.just View.bot : Excl.t View.t))
           ⋅ GRA.embed (Auth.black (Excl.just (View.bot, ()) : Excl.t (View.t * unit))
@@ -1500,4 +1500,4 @@ Module LockClientCorrect.
       }
     }
   Qed.
-End LockClientCorrect.
+End LockClientWCorrect.

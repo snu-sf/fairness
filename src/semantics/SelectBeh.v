@@ -1,5 +1,5 @@
 From sflib Require Import sflib.
-From Fairness Require Import pind3 WFLib.
+From Fairness Require Import pind3 WFLibLarge.
 From Paco Require Import paco.
 
 Require Import Coq.Classes.RelationClasses.

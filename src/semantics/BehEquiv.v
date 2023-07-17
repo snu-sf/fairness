@@ -4,7 +4,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Import
-  ITreeLib WFLib FairBeh SelectBeh.
+  ITreeLib WFLibLarge FairBeh SelectBeh.
 
 From Fairness Require Import Axioms.
 

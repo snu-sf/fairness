@@ -4,11 +4,11 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export
-  ITreeLib FairBeh Mod pind LPCM ModSim ModSimAux.
+  ITreeLib FairBeh Mod pind PCMLarge ModSim ModSimAux.
 
 From Coq Require Import Relations.Relation_Operators.
 From Coq Require Import Relations.Operators_Properties.
-From Fairness Require Import WFLib Axioms.
+From Fairness Require Import WFLibLarge Axioms.
 
 Set Implicit Arguments.
 

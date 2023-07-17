@@ -17,10 +17,10 @@ Require Import Compare_dec.
 
 (** * Examples of Ordered Type structures. *)
 
-(** First, a particular case of [OrderedType] where
+(** First, a particular case of [OrderedTypeLarge] where
     the equality is the usual one of Coq. *)
 
-Module Type UsualOrderedType.
+Module Type UsualOrderedTypeLarge.
  Parameter Inline t : Type.
  Definition eq := @eq t.
  Parameter Inline lt : t -> t -> Prop.
@@ -31,15 +31,15 @@ Module Type UsualOrderedType.
  Axiom lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
  Parameter compare : forall x y : t, Compare lt eq x y.
  Parameter eq_dec : forall x y : t, { eq x y } + { ~ eq x y }.
-End UsualOrderedType.
+End UsualOrderedTypeLarge.
 
-(** a [UsualOrderedType] is in particular an [OrderedType]. *)
+(** a [UsualOrderedTypeLarge] is in particular an [OrderedTypeLarge]. *)
 
-Module UOT_to_OT (U:UsualOrderedType) <: OrderedType := U.
+Module UOT_to_OT (U:UsualOrderedTypeLarge) <: OrderedTypeLarge := U.
 
 (** [nat] is an ordered type with respect to the usual order on natural numbers. *)
 
-Module Nat_as_OT <: UsualOrderedType.
+Module Nat_as_OT <: UsualOrderedTypeLarge.
 
   Definition t := nat.
 
@@ -73,7 +73,7 @@ End Nat_as_OT.
 
 Local Open Scope Z_scope.
 
-Module Z_as_OT <: UsualOrderedType.
+Module Z_as_OT <: UsualOrderedTypeLarge.
 
   Definition t := Z.
   Definition eq := @eq Z.
@@ -105,7 +105,7 @@ End Z_as_OT.
 
 Local Open Scope positive_scope.
 
-Module Positive_as_OT <: UsualOrderedType.
+Module Positive_as_OT <: UsualOrderedTypeLarge.
   Definition t:=positive.
   Definition eq:=@eq positive.
   Definition eq_refl := @eq_refl t.
@@ -136,7 +136,7 @@ End Positive_as_OT.
 
 (** [N] is an ordered type with respect to the usual order on natural numbers. *)
 
-Module N_as_OT <: UsualOrderedType.
+Module N_as_OT <: UsualOrderedTypeLarge.
   Definition t:=N.
   Definition eq:=@eq N.
   Definition eq_refl := @eq_refl t.
@@ -160,12 +160,12 @@ Module N_as_OT <: UsualOrderedType.
 End N_as_OT.
 
 
-(** From two ordered types, we can build a new OrderedType
+(** From two ordered types, we can build a new OrderedTypeLarge
    over their cartesian product, using the lexicographic order. *)
 
-Module PairOrderedType(O1 O2:OrderedType) <: OrderedType.
- Module MO1:=OrderedTypeFacts(O1).
- Module MO2:=OrderedTypeFacts(O2).
+Module PairOrderedTypeLarge(O1 O2:OrderedTypeLarge) <: OrderedTypeLarge.
+ Module MO1:=OrderedTypeLargeFacts(O1).
+ Module MO2:=OrderedTypeLargeFacts(O2).
 
  Definition t := prod O1.t O2.t.
 
@@ -224,7 +224,7 @@ Module PairOrderedType(O1 O2:OrderedType) <: OrderedType.
  assert (~ eq y x); auto using lt_not_eq, eq_sym.
  Defined.
 
-End PairOrderedType.
+End PairOrderedTypeLarge.
 
 
 (** Even if [positive] can be seen as an ordered type with respect to the
@@ -232,7 +232,7 @@ End PairOrderedType.
   (lower bits are considered first). This is more natural when using
   [positive] as indexes for sets or maps (see FSetPositive and FMapPositive. *)
 
-Module PositiveOrderedTypeBits <: UsualOrderedType.
+Module PositiveOrderedTypeLargeBits <: UsualOrderedTypeLarge.
   Definition t:=positive.
   Definition eq:=@eq positive.
   Definition eq_refl := @eq_refl t.
@@ -315,9 +315,9 @@ Module PositiveOrderedTypeBits <: UsualOrderedType.
   - right. intro. subst y. now rewrite (Pos.compare_refl x) in *.
   Qed.
 
-End PositiveOrderedTypeBits.
+End PositiveOrderedTypeLargeBits.
 
-Module Ascii_as_OT <: UsualOrderedType.
+Module Ascii_as_OT <: UsualOrderedTypeLarge.
   Definition t := ascii.
 
   Definition eq := @eq ascii.
@@ -394,7 +394,7 @@ End Ascii_as_OT.
 
 (** [String] is an ordered type with respect to the usual lexical order. *)
 
-Module String_as_OT <: UsualOrderedType.
+Module String_as_OT <: UsualOrderedTypeLarge.
 
   Definition t := string.
 

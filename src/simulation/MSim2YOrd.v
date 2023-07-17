@@ -5,7 +5,7 @@ Require Import Coq.Classes.RelationClasses.
 From Coq Require Import Program.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind LPCM WFLib.
+From Fairness Require Import pind PCMLarge WFLibLarge.
 From Fairness Require Import ModSim ModSimYOrd GenYOrd.
 
 Set Implicit Arguments.

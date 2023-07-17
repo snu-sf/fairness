@@ -2375,7 +2375,7 @@ Definition maps_to {Σ} {A: Type} {M: URA.t} `{ING: @GRA.inG (A ==> M)%ra Σ}
            (a: A) (m: M): iProp :=
   OwnM (maps_to_res a m).
 
-From Fairness Require Import NatStructs.
+From Fairness Require Import NatStructsLarge.
 
 Section SUM.
   Context `{Σ: GRA.t}.
@@ -2639,6 +2639,22 @@ Section SUM.
     (list_prop_sum P0 l)
       -∗
       (list_prop_sum P1 (List.map f l)).
+  Proof.
+    induction l; ss.
+    iIntros "[HD TL]". iSplitL "HD".
+    { iApply (MAP with "HD"). }
+    { iApply (IHl with "TL"). }
+  Qed.
+
+  Lemma list_prop_sum_map_inv
+        A (P0: A -> iProp)
+        B (P1: B -> iProp)
+        l (f: A -> B)
+        (MAP: forall a, (P1 (f a)) -∗ (P0 a))
+    :
+    (list_prop_sum P1 (List.map f l))
+      -∗
+    (list_prop_sum P0 l).
   Proof.
     induction l; ss.
     iIntros "[HD TL]". iSplitL "HD".
