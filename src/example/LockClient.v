@@ -1463,41 +1463,40 @@ Module LockClientCorrect.
     iPoseProof (init_sat with "[A B C0 C1 D0 D1 E0 E1 F G H INIT]") as "> [[% [H0 H1]] [H2 [[% [H3 [H5 [H6 [H7 H8]]]]] H4]]]".
     { instantiate (1:=1). instantiate (1:=0). ss. }
     { iFrame. }
+    iMod (FUpd_alloc with "H2") as "# LOCK_INV".
+    { econs. instantiate (1:=true). ss. }
+    iMod (FUpd_alloc with "[H0 H1]") as "# CLIENT_INV".
+    { econs. instantiate (2:=false). ss. }
+    { iExists _. iFrame. }
     iModIntro. unfold MonotonePCM.natmap_prop_sum. ss.
     iSplitL "H3 H5 H6 H7 H8".
     { unfold fn2th. ss. unfold Mod.wrap_fun. lred. rred.
       iApply stsim_bind_top. iApply (stsim_wand with "[H3 H5 H6 H7 H8]").
-      { iApply correct_thread1. iExists k. iFrame. }
-      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
-        iFrame. subst. auto.
+      { iApply correct_thread1.
+        { instantiate (1:=lock_namespace). instantiate (1:=client_namespace).
+          eapply ndot_ne_disjoint. ss.
+        }
+        { eauto. }
+        { eauto. }
+        iExists _. iFrame.
+      }
+      { iIntros (? ?) "[[H0  H1] %]". subst. iModIntro.
+        lred. rred. iApply stsim_ret. iModIntro. iFrame. iPureIntro. auto.
       }
     }
-
-
-    ss.
-
-    iModIntro.
-    iExists [(∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t)))
-                       ∗ (thread1_will_write tvw))%I;
-             lock_will_unlock].
-    { iFrame. }
-    iIntros "INIT".
-    iModIntro. ss. iFrame. iSplitL "H0 H1".
-    { unfold nth_default. ss. iExists _. iFrame. }
-    unfold MonotonePCM.natmap_prop_sum. ss.
-    iSplitL "H3 H5 H6 H7 H8".
+    iSplit; [|auto]. iDestruct "H4" as "[H0 H1]".
     { unfold fn2th. ss. unfold Mod.wrap_fun. lred. rred.
-      iApply stsim_bind_top. iApply (stsim_wand with "[H3 H5 H6 H7 H8]").
-      { iApply correct_thread1. iExists k. iFrame. }
-      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
-        iFrame. subst. auto.
+      iApply stsim_bind_top. iApply (stsim_wand with "[H0 H1]").
+      { iApply correct_thread2.
+        { instantiate (1:=lock_namespace). instantiate (1:=client_namespace).
+          eapply ndot_ne_disjoint. ss.
+        }
+        { eauto. }
+        { eauto. }
+        iFrame.
       }
-    }
-    { unfold fn2th. ss. unfold Mod.wrap_fun. iSplitL; auto. lred. rred.
-      iApply stsim_bind_top. iApply (stsim_wand with "[H4]").
-      { iApply correct_thread2. iFrame. }
-      { iIntros (? ?) "[H %]". iModIntro. rred. iApply stsim_ret. iModIntro.
-        iFrame. subst. auto.
+      { iIntros (? ?) "[[H0  H1] %]". subst. iModIntro.
+        lred. rred. iApply stsim_ret. iModIntro. iFrame. iPureIntro. auto.
       }
     }
   Qed.
