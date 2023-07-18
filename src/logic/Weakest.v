@@ -757,21 +757,33 @@ Section STATE.
   Definition St_src (st_src: state_src): iProp :=
     OwnM (Auth.white (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA state_src).
 
-  Definition St_tgt (st_tgt: state_tgt): iProp :=
-    OwnM (Auth.white (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA state_tgt).
-
-
-  Definition Vw_src {V} (l : Lens.t state_src V) (v : V) : iProp :=
-    ∃ st, St_src st ∧ ⌜Lens.view l st = v⌝.
-
-
-
-  Definition Vw_tgt {V} (l : Lens.t state_tgt V) (v : V) : iProp :=
-    ∃ st, St_tgt st ∧ ⌜Lens.view l st = v⌝.
-
+  Definition Vw_src (st: state_src) {V} (l : Lens.t state_src V) (v : V) : iProp :=
+    St_src (Lens.set l v st).
 
   Definition src_interp_as {V} (l: Lens.t state_src V) (VI: V -> iProp) :=
     (∃ SI, (inv N_state_src (∃ st, St_src st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
+
+  Global Program Instance src_interp_as_persistent {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as l VI).
+
+  Global Program Instance src_interp_as_acc A E {V} (l: Lens.t state_src V) (VI: V -> iProp):
+    IntoAcc
+      (src_interp_as l VI)
+      (↑N_state_src ⊆ E) True
+      (FUpd A E (E ∖ E_state_src)) (FUpd A (E ∖ E_state_src) E) (fun (st: state_src) => ∃ vw, Vw_src st l vw ** VI vw)%I (fun (st: state_src) => ∃ vw, Vw_src st l vw ** VI vw)%I (fun _ => None).
+  Next Obligation.
+  Proof.
+    iIntros "[% [INV %]] _".
+    iInv "INV" as "[% [ST INTERP]]" "K". iModIntro.
+    iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
+    iExists _. iSplitL "ST INTERP".
+    { iFrame. iExists _. iFrame.
+      unfold Vw_src. iEval (rewrite Lens.set_view). auto.
+    }
+    iIntros "[% [ST INTERP]]".
+    iPoseProof ("SET" with "INTERP") as "INTERP".
+    iApply ("K" with "[ST INTERP]").
+    iExists _. iFrame.
+  Qed.
 
   Lemma src_interp_as_id A E (SI: state_src -> iProp)
         (IN: InvIn (∃ st, St_src st ** SI st)):
@@ -794,109 +806,60 @@ Section STATE.
     iPureIntro. typeclasses eauto.
   Qed.
 
-  Global Program Instance src_interp_as_persistent {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as l VI).
-
-  Global Program Instance src_interp_as_acc A E {V} (l: Lens.t state_src V) (VI: V -> iProp):
-    IntoAcc
-      (src_interp_as l VI)
-      (↑N_state_src ⊆ E) True
-      (FUpd A E (E ∖ E_state_src)) (FUpd A (E ∖ E_state_src) E) (fun vw: V => Vw_src l vw ** VI vw) (fun vw: V => Vw_src l vw ** VI vw) (fun _ => None).
-  Next Obligation.
-  Proof.
-    iIntros "[% [INV %]] _".
-    iInv "INV" as "[% [ST INTERP]]" "K". iModIntro.
-    iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
-    iExists _. iSplitL "ST INTERP".
-    { iFrame. iExists _. iFrame. iPureIntro. auto. }
-    iIntros "[[% [ST %]] INTERP]".
-    iPoseProof ("SET" with "INTERP") as "INTERP".
-    iApply ("K" with "[ST INTERP]").
-    iExists _. iSplitL "ST"; [auto|].
-    replace st0 with(Lens.set l (Lens.view l st) st); auto.
 
 
+  Definition St_tgt (st_tgt: state_tgt): iProp :=
+    OwnM (Auth.white (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA state_tgt).
 
+  Definition Vw_tgt (st: state_tgt) {V} (l : Lens.t state_tgt V) (v : V) : iProp :=
+    St_tgt (Lens.set l v st).
 
   Definition tgt_interp_as {V} (l: Lens.t state_tgt V) (VI: V -> iProp) :=
     (∃ SI, (inv N_state_tgt (∃ st, St_tgt st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
 
   Global Program Instance tgt_interp_as_persistent {V} (l: Lens.t state_tgt V) (VI: V -> iProp): Persistent (tgt_interp_as l VI).
 
-
-    iFrame. rewrite Lens.set_view.
-    clear - H1.
-    eauto.
-
-                         view_interp with "INTERP") as "[INTERP SET]".
-    iExists
-
-    iPoseProof ("K" with "[ST INTERP]") as "> ".
-
-    iPoseProof ("K" with "H") as "> H". iModIntro.
-
-[ST INTERP
-
-
-
-                     Global Instance into_acc_FUpd_inv A E N P :
-    IntoAcc (inv N P) (↑N ⊆ E) True (FUpd A E (E ∖ ↑N)) (FUpd A (E ∖ ↑N) E) (fun _ : () => P) (fun _ : () => P) (fun _ : () => None).
+  Global Program Instance tgt_interp_as_acc A E {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
+    IntoAcc
+      (tgt_interp_as l VI)
+      (↑N_state_tgt ⊆ E) True
+      (FUpd A E (E ∖ E_state_tgt)) (FUpd A (E ∖ E_state_tgt) E) (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I (fun _ => None).
+  Next Obligation.
   Proof.
-
-                                                                                            Persistent (src_interp_as l VI).
-
-
-
-Class IntoAcc {PROP : bi} {X : Type} (Pacc : PROP) (φ : Prop) (Pin : PROP)
-      (M1 M2 : PROP → PROP) (α β : X → PROP) (mγ : X → option PROP) :=
-  into_acc : φ → Pacc -∗ Pin -∗ accessor M1 M2 α β mγ.
-
-
-  Global Instance elim_src_interp_as_FUpd {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
-
-         {X : Type} A E1 E2 E (α β : X -> iProp) (mγ : X -> option iProp) (Q : iProp) :
-    ElimAcc True (FUpd A E1 E2) (FUpd A E2 E1) α β mγ (FUpd A E1 E Q) (fun x : X => ((FUpd A E2 E2 (β x)) ∗ (mγ x -∗? FUpd A E1 E Q))%I).
-  Proof.
-    iIntros (_) "Hinner >[% [Hα Hclose]]".
-    iPoseProof ("Hinner" with "Hα") as "[>Hβ Hfin]".
-    iPoseProof ("Hclose" with "Hβ") as ">Hγ".
-    iApply "Hfin". iFrame.
+    iIntros "[% [INV %]] _".
+    iInv "INV" as "[% [ST INTERP]]" "K". iModIntro.
+    iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
+    iExists _. iSplitL "ST INTERP".
+    { iFrame. iExists _. iFrame.
+      unfold Vw_tgt. iEval (rewrite Lens.set_view). auto.
+    }
+    iIntros "[% [ST INTERP]]".
+    iPoseProof ("SET" with "INTERP") as "INTERP".
+    iApply ("K" with "[ST INTERP]").
+    iExists _. iFrame.
   Qed.
 
-  Global Instance into_acc_FUpd_inv A E N P :
-    IntoAcc (inv N P) (↑N ⊆ E) True (FUpd A E (E ∖ ↑N)) (FUpd A (E ∖ ↑N) E) (fun _ : () => P) (fun _ : () => P) (fun _ : () => None).
+  Lemma tgt_interp_as_id A E (SI: state_tgt -> iProp)
+        (IN: InvIn (∃ st, St_tgt st ** SI st)):
+    (∃ st, St_tgt st ** SI st) ⊢ FUpd A E E (tgt_interp_as Lens.id (SI)).
   Proof.
-    rewrite /IntoAcc. iIntros (iE) "INV _". rewrite /accessor.
-    iPoseProof (FUpd_open _ _ _ iE with "INV") as ">[open close]".
-    iModIntro. iExists tt. iFrame.
+    iIntros "H". iPoseProof (FUpd_alloc with "H") as "> H".
+    iModIntro. iExists _. iSplit; eauto. iPureIntro. typeclasses eauto.
   Qed.
 
-
-  Global Instance elim_acc_FUpd {X : Type} A E1 E2 E (α β : X -> iProp) (mγ : X -> option iProp) (Q : iProp) :
-    ElimAcc True (FUpd A E1 E2) (FUpd A E2 E1) α β mγ (FUpd A E1 E Q) (fun x : X => ((FUpd A E2 E2 (β x)) ∗ (mγ x -∗? FUpd A E1 E Q))%I).
+  Lemma tgt_interp_as_compose A B
+        {la: Lens.t state_tgt A}
+        {lb: Lens.t A B}
+        (SA: A -> iProp)
+        (SB: B -> iProp)
+        `{VAB: ViewInterp _ _ lb SA SB}
+    :
+    tgt_interp_as la SA ⊢ tgt_interp_as (Lens.compose la lb) SB.
   Proof.
-    iIntros (_) "Hinner >[% [Hα Hclose]]".
-    iPoseProof ("Hinner" with "Hα") as "[>Hβ Hfin]".
-    iPoseProof ("Hclose" with "Hβ") as ">Hγ".
-    iApply "Hfin". iFrame.
+    iIntros "[% [H %]]". iExists _. iSplit; [eauto|].
+    iPureIntro. typeclasses eauto.
   Qed.
 
-  Global Instance into_acc_FUpd_inv A E N P :
-    IntoAcc (inv N P) (↑N ⊆ E) True (FUpd A E (E ∖ ↑N)) (FUpd A (E ∖ ↑N) E) (fun _ : () => P) (fun _ : () => P) (fun _ : () => None).
-  Proof.
-    rewrite /IntoAcc. iIntros (iE) "INV _". rewrite /accessor.
-    iPoseProof (FUpd_open _ _ _ iE with "INV") as ">[open close]".
-    iModIntro. iExists tt. iFrame.
-  Qed.
-
-
-
-  Global Program Instance inv_ex_persistent {A} N (P: A -> iProp): Persistent (inv_ex N P).
-
-  Definition src_interp_as {V} (l: Lens.t state_src V) (VI: V -> iProp) :=
-    (∃ SI, (inv N_state (∃ st, St_src st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
-
-  Global Instance src_interp_as_persistent {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as l VI).
-  Proof.
 
   Definition default_initial_res
     : Σ :=
@@ -1573,21 +1536,6 @@ Class IntoAcc {PROP : bi} {X : Type} (Pacc : PROP) (φ : Prop) (Pin : PROP)
     iPoseProof ("H" $! _ _ _ _ _ _ with "D") as "H". iFrame.
   Qed.
 
-  Lemma stsim_interp (E: coPset) r g R_src R_tgt
-        (Q: R_src -> R_tgt -> iProp)
-        ps pt itr_src itr_tgt
-        (MASK: E_state ⊆ E)
-    :
-    (FUpd (fairI (ident_tgt:=ident_tgt)) E (E ∖ E_state)
-          (stsim E r g Q ps pt itr_src itr_tgt))
-      -∗
-      (stsim E r g Q ps pt itr_src itr_tgt)
-  .
-  Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "D". iMod "H".
-    iApply "H". auto.
-  Qed.
-
   Lemma stsim_stateL E X run r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
     ps pt ktr_src itr_tgt st_src
@@ -1606,16 +1554,16 @@ Class IntoAcc {PROP : bi} {X : Type} (Pacc : PROP) (φ : Prop) (Pin : PROP)
 
   Lemma stsim_lens_stateL E V (l : Lens.t _ V) X run r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
-    ps pt ktr_src itr_tgt st
+    ps pt ktr_src itr_tgt st v
     :
-    (Vw_src l st)
-    -∗ (Vw_src l (fst (run st)) -∗ stsim E r g Q true pt (ktr_src (snd (run st) : X)) itr_tgt)
+    (Vw_src st l v)
+    -∗ (Vw_src st l (fst (run v)) -∗ stsim E r g Q true pt (ktr_src (snd (run v) : X)) itr_tgt)
     -∗ stsim E r g Q ps pt (trigger (map_lens l (State run)) >>= ktr_src) itr_tgt.
   Proof.
-    iIntros "[% [S %EQ]] H". rewrite map_lens_State. iApply (stsim_stateL with "S").
-    iIntros "S". ss. rewrite EQ. iApply "H".
-    iExists (Lens.set l (fst (run st)) st0). iFrame.
-    iPureIntro. eapply Lens.view_set.
+    iIntros "S H". rewrite map_lens_State. iApply (stsim_stateL with "S").
+    iIntros "S". ss. unfold Vw_src.
+    rewrite Lens.view_set. rewrite Lens.set_set.
+    iApply ("H" with "S").
   Qed.
 
   Lemma stsim_stateR E X run r g R_src R_tgt
@@ -1636,34 +1584,34 @@ Class IntoAcc {PROP : bi} {X : Type} (Pacc : PROP) (φ : Prop) (Pin : PROP)
 
   Lemma stsim_lens_stateR E V (l : Lens.t _ V) X run r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
-    ps pt itr_src ktr_tgt st
+    ps pt itr_src ktr_tgt st v
     :
-    (Vw_tgt l st)
-    -∗ (Vw_tgt l (fst (run st)) -∗ stsim E r g Q ps true itr_src (ktr_tgt (snd (run st) : X)))
+    (Vw_tgt st l v)
+    -∗ (Vw_tgt st l (fst (run v)) -∗ stsim E r g Q ps true itr_src (ktr_tgt (snd (run v) : X)))
     -∗ stsim E r g Q ps pt itr_src (trigger (map_lens l (State run)) >>= ktr_tgt).
   Proof.
-    iIntros "[% [S %EQ]] H". rewrite map_lens_State. iApply (stsim_stateR with "S").
-    iIntros "S". ss. rewrite EQ. iApply "H".
-    iExists (Lens.set l (fst (run st)) st0). iFrame.
-    iPureIntro. eapply Lens.view_set.
+    iIntros "S H". rewrite map_lens_State. iApply (stsim_stateR with "S").
+    iIntros "S". ss. unfold Vw_tgt.
+    rewrite Lens.view_set. rewrite Lens.set_set.
+    iApply ("H" with "S").
   Qed.
 
-  Lemma stsim_lens_getL V (l : Lens.t _ V) X (p : V -> X) E st r g R_src R_tgt
+  Lemma stsim_lens_getL V (l : Lens.t _ V) X (p : V -> X) E st v r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt
     :
-    ((Vw_src l st) ∧
-       (stsim E r g Q true pt (ktr_src (p st)) itr_tgt))
+    ((Vw_src st l v) ∧
+       (stsim E r g Q true pt (ktr_src (p v)) itr_tgt))
       -∗
       (stsim E r g Q ps pt (trigger (map_lens l (Get p)) >>= ktr_src) itr_tgt)
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
     rewrite map_lens_Get. rewrite Get_State. iApply isim_stateL. ss.
-    iAssert (⌜Lens.view l st_src = st⌝)%I as "%".
-    { iDestruct "H" as "[[% [H1 %H2]] _]". subst.
+    iAssert (⌜Lens.view l st_src = v⌝)%I as "%".
+    { iDestruct "H" as "[H1 _]". subst.
       iPoseProof (default_I_past_get_st_src with "D H1") as "%H". subst.
-      ss.
+      rewrite Lens.view_set. auto.
     }
     rewrite H. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
   Qed.
@@ -1678,28 +1626,29 @@ Class IntoAcc {PROP : bi} {X : Type} (Pacc : PROP) (φ : Prop) (Pin : PROP)
       (stsim E r g Q ps pt (trigger (Get p) >>= ktr_src) itr_tgt)
   .
   Proof.
-    iIntros "H". replace (Get p) with (map_lens Lens.id (Get p)) by ss. iApply stsim_lens_getL.
-    iSplit.
-    - iExists st. iDestruct "H" as "[H _]". iFrame. ss.
+    iIntros "H". replace (Get p) with (map_lens Lens.id (Get p)) by ss.
+    iApply stsim_lens_getL. iSplit.
+    - iDestruct "H" as "[H _]". iApply "H".
     - iDestruct "H" as "[_ H]". ss.
+    Unshelve. all: eauto.
   Qed.
 
-  Lemma stsim_lens_getR V (l : Lens.t _ V) X (p : V -> X) E st r g R_src R_tgt
+  Lemma stsim_lens_getR V (l : Lens.t _ V) X (p : V -> X) E st v r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src ktr_tgt
     :
-    ((Vw_tgt l st) ∧
-       (stsim E r g Q ps true itr_src (ktr_tgt (p st))))
+    ((Vw_tgt st l v) ∧
+       (stsim E r g Q ps true itr_src (ktr_tgt (p v))))
       -∗
       (stsim E r g Q ps pt itr_src (trigger (map_lens l (Get p)) >>= ktr_tgt))
   .
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
     rewrite map_lens_Get. rewrite Get_State. iApply isim_stateR. ss.
-    iAssert (⌜Lens.view l st_tgt = st⌝)%I as "%".
-    { iDestruct "H" as "[[% [H1 %H2]] _]". subst.
+    iAssert (⌜Lens.view l st_tgt = v⌝)%I as "%".
+    { iDestruct "H" as "[H1 _]". subst.
       iPoseProof (default_I_past_get_st_tgt with "D H1") as "%H". subst.
-      ss.
+      rewrite Lens.view_set. auto.
     }
     rewrite H. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
   Qed.
@@ -1714,10 +1663,11 @@ Class IntoAcc {PROP : bi} {X : Type} (Pacc : PROP) (φ : Prop) (Pin : PROP)
       (stsim E r g Q ps pt itr_src (trigger (Get p) >>= ktr_tgt))
   .
   Proof.
-    iIntros "H". replace (Get p) with (map_lens Lens.id (Get p)) by ss. iApply stsim_lens_getR.
-    iSplit.
-    - iExists st. iDestruct "H" as "[H _]". iFrame. ss.
+    iIntros "H". replace (Get p) with (map_lens Lens.id (Get p)) by ss.
+    iApply stsim_lens_getR. iSplit.
+    - iDestruct "H" as "[H _]". iApply "H".
     - iDestruct "H" as "[_ H]". ss.
+    Unshelve. all: eauto.
   Qed.
 
   Lemma stsim_modifyL E f r g R_src R_tgt
@@ -1733,16 +1683,18 @@ Class IntoAcc {PROP : bi} {X : Type} (Pacc : PROP) (φ : Prop) (Pin : PROP)
 
   Lemma stsim_lens_modifyL E V (l : Lens.t _ V) f r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
-    ps pt ktr_src itr_tgt st
+    ps pt ktr_src itr_tgt st v
     :
-    (Vw_src l st)
-    -∗ (Vw_src l (f st) -∗ stsim E r g Q true pt (ktr_src tt) itr_tgt)
+    (Vw_src st l v)
+    -∗ (Vw_src st l (f v) -∗ stsim E r g Q true pt (ktr_src tt) itr_tgt)
     -∗ stsim E r g Q ps pt (trigger (map_lens l (Modify f)) >>= ktr_src) itr_tgt.
   Proof.
     rewrite map_lens_Modify.
-    iIntros "[% [H1 %H]] H2". iApply (stsim_modifyL with "H1").
-    iIntros "H". iApply "H2". iExists (Lens.modify l f st0). iFrame. iPureIntro.
-    subst. apply Lens.view_modify.
+    iIntros "H1 H2". iApply (stsim_modifyL with "H1").
+    iIntros "H". iApply "H2".
+    unfold Lens.modify.
+    rewrite Lens.view_set. rewrite Lens.set_set.
+    iApply "H".
   Qed.
 
   Lemma stsim_modifyR E f r g R_src R_tgt
@@ -1758,16 +1710,18 @@ Class IntoAcc {PROP : bi} {X : Type} (Pacc : PROP) (φ : Prop) (Pin : PROP)
 
   Lemma stsim_lens_modifyR E V (l : Lens.t _ V) f r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
-    ps pt itr_src ktr_tgt st
+    ps pt itr_src ktr_tgt st v
     :
-    (Vw_tgt l st)
-    -∗ (Vw_tgt l (f st) -∗ stsim E r g Q ps true itr_src (ktr_tgt tt))
+    (Vw_tgt st l v)
+    -∗ (Vw_tgt st l (f v) -∗ stsim E r g Q ps true itr_src (ktr_tgt tt))
     -∗ stsim E r g Q ps pt itr_src (trigger (map_lens l (Modify f)) >>= ktr_tgt).
   Proof.
     rewrite map_lens_Modify.
-    iIntros "[% [H1 %H]] H2". iApply (stsim_modifyR with "H1").
-    iIntros "H". iApply "H2". iExists (Lens.modify l f st0). iFrame. iPureIntro.
-    subst. unfold Lens.modify. rewrite Lens.view_set. ss.
+    iIntros "H1 H2". iApply (stsim_modifyR with "H1").
+    iIntros "H". iApply "H2".
+    unfold Lens.modify.
+    rewrite Lens.view_set. rewrite Lens.set_set.
+    iApply "H".
   Qed.
 
   Lemma stsim_tidL E r g R_src R_tgt
