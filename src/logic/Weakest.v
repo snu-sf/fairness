@@ -1751,6 +1751,29 @@ Section STATE.
   Qed.
 
   Lemma stsim_fairL o lf ls
+        A (p : Prism.t _ A)
+        E fm r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src itr_tgt
+        (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
+        (SUCCESS: forall i (IN: List.In i ls), prism_fmap p fm i = Flag.success)
+    :
+    (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
+      -∗
+      ((list_prop_sum (fun i => FairRA.white i o) ls) -∗ (stsim E r g Q true pt (ktr_src tt) itr_tgt))
+      -∗
+      (stsim E r g Q ps pt (trigger (Fair (prism_fmap p fm)) >>= ktr_src) itr_tgt).
+  Proof.
+    unfold stsim. iIntros "OWN H" (? ? ? ? ?) "(D & C & E)".
+    iPoseProof (default_I_past_update_ident_source with "D OWN") as "> [% [[% WHITES] D]]".
+    { eauto. }
+    { eauto. }
+    iPoseProof ("H" with "WHITES [D C E]") as "H".
+    { iFrame. }
+    iApply isim_fairL. iExists _. iSplit; eauto.
+  Qed.
+
+  Lemma stsim_fairL o lf ls
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt

@@ -1,5 +1,5 @@
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM MonotonePCM WFLibLarge Mod.
+From Fairness Require Import PCM IProp IPM MonotonePCM WFLibLarge Mod Optics.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
@@ -1498,23 +1498,27 @@ From Fairness Require Import FairBeh.
 
 Module FairRA.
   Section FAIR.
-    Variable (Id: Type).
+    Variable (S: Type).
     Variable (A: Type).
     Context `{L: OrderedCM.t A}.
 
     Definition t: URA.t :=
-      (Id ==> @Fuel.t A _)%ra.
+      (S ==> @Fuel.t A _)%ra.
 
     Context `{ING: @GRA.inG t Σ}.
 
+    Section PRISM.
+    Variable (Id: Type).
+    Variable (p: Prism.t S Id).
+
     Definition black (i: Id) (a: A) (q: Qp): iProp :=
-      maps_to i (Fuel.black a q: Fuel.t A).
+      maps_to (Prism.review p i) (Fuel.black a q: Fuel.t A).
 
     Definition black_ex (i: Id) (q: Qp): iProp :=
       ∃ a, black i a q.
 
     Definition white (i: Id) (a: A): iProp :=
-      maps_to i (Fuel.white a: Fuel.t A).
+      maps_to (Prism.review p i) (Fuel.white a: Fuel.t A).
 
     Lemma white_sum i a0 a1
       :
@@ -1669,10 +1673,14 @@ Module FairRA.
         (⌜forall i, is_Some (f i) <-> s i⌝)
           **
           (OwnM ((fun i =>
-                    match (f i) with
-                    | Some a => Fuel.black a 1
+                    match @Prism.preview _ _ p i with
+                    | Some i =>
+                        match (f i) with
+                        | Some a => Fuel.black a 1
+                        | None => ε
+                        end
                     | None => ε
-                    end): (Id ==> Fuel.t A)%ra)).
+                    end): (S ==> Fuel.t A)%ra)).
 
     Lemma blacks_impl (s0 s1: Id -> Prop)
                (IMPL: forall i (IN: s0 i), s1 i)
@@ -1702,7 +1710,12 @@ Module FairRA.
         { inv H. ss. }
         { exfalso. eapply EMPTY; eauto. }
       }
-      iApply (@OwnM_unit (Id ==> Fuel.t A)%ra).
+      iApply (OwnM_extends with "[]").
+      2:{ iApply (@OwnM_unit (S ==> Fuel.t A)%ra). }
+      apply pointwise_extends.
+      i. eexists. des_ifs.
+      { rewrite URA.unit_idl. eauto. }
+      { rewrite URA.unit_idl. eauto. }
     Qed.
 
     Lemma blacks_fold (s0 s1: Id -> Prop) i
@@ -1724,17 +1737,24 @@ Module FairRA.
         { split; i; ss. inv H1. ss. }
       }
       iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
-      i. erewrite ! (@unfold_pointwise_add Id (Fuel.t A)). unfold maps_to_res.
+      i. erewrite ! (@unfold_pointwise_add S (Fuel.t A)). unfold maps_to_res.
       des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
       { eexists. apply URA.add_comm. }
+      { rewrite Prism.preview_review in *. clarify. }
+      { eapply Prism.review_preview in Heq. clarify. }
+      { eapply Prism.review_preview in Heq. clarify. }
+      { rewrite Prism.preview_review in *. clarify.
+        eexists. rewrite URA.unit_idl. ss. }
+      { eapply Prism.review_preview in Heq. clarify.
+        eexists. rewrite URA.unit_idl. ss. }
       { eexists. rewrite URA.unit_idl. ss. }
       { eexists. rewrite URA.unit_idl. ss. }
       { eexists. rewrite URA.unit_idl. ss. }
     Qed.
 
     Lemma blacks_unfold (s0 s1: Id -> Prop) i
-               (IMPL: forall j (IN: s0 j \/ j = i), s1 j)
-               (NIN: ~ s0 i)
+          (IMPL: forall j (IN: s0 j \/ j = i), s1 j)
+          (NIN: ~ s0 i)
       :
       (blacks s1)
         -∗
@@ -1746,16 +1766,25 @@ Module FairRA.
       i. inv H0.
       set (f1 :=fun i => if (excluded_middle_informative (s0 i)) then f i else None).
       iPoseProof (OwnM_extends with "BLACKS") as "[BLACKS0 BLACKS1]".
-      { instantiate (1:=maps_to_res i (Fuel.black x 1: Fuel.t A): (Id ==> Fuel.t A)%ra).
+      { instantiate (1:=maps_to_res (Prism.review p i) (Fuel.black x 1: Fuel.t A): (S ==> Fuel.t A)%ra).
         instantiate (1:=(fun i =>
-                           match (f1 i) with
-                           | Some a => Fuel.black a 1
+                           match Prism.preview p i with
+                           | Some i =>
+                               match (f1 i) with
+                               | Some a => Fuel.black a 1
+                               | None => ε
+                               end
                            | None => ε
                            end)).
-        erewrite ! (@unfold_pointwise_add Id (Fuel.t A)). unfold maps_to_res, f1.
+        erewrite ! (@unfold_pointwise_add S (Fuel.t A)). unfold maps_to_res, f1.
         apply pointwise_extends. i.
         des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
-        eexists. rewrite URA.unit_idl. ss.
+        { rewrite Prism.preview_review in *. clarify. }
+        { rewrite Prism.preview_review in *. clarify. reflexivity. }
+        { rewrite Prism.preview_review in *. clarify. }
+        { rewrite Prism.preview_review in *. clarify. }
+        { eexists. rewrite URA.unit_idl. ss. }
+        { rewrite Prism.preview_review in *. clarify. }
       }
       iSplitL "BLACKS0".
       { iExists f1. iSplit; auto. iPureIntro. i.
@@ -1784,7 +1813,7 @@ Module FairRA.
         { split; auto. i. des; ss. inv H1. ss. }
       }
       iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
-      i. erewrite ! (@unfold_pointwise_add Id (Fuel.t A)).
+      i. erewrite ! (@unfold_pointwise_add S (Fuel.t A)).
       des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
       { eexists. eauto. }
     Qed.
@@ -1813,7 +1842,7 @@ Module FairRA.
         }
       }
       { apply pointwise_extends.
-        i. erewrite ! (@unfold_pointwise_add Id (Fuel.t A)).
+        i. erewrite ! (@unfold_pointwise_add S (Fuel.t A)).
         des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
         { exfalso. eapply DISJOINT; eauto. }
         { eexists. rewrite URA.unit_idl. eauto. }
@@ -1822,9 +1851,13 @@ Module FairRA.
 
     Definition whites (s: Id -> Prop) (u: A): iProp :=
       (OwnM ((fun i =>
-                if (excluded_middle_informative (s i))
-                then Fuel.white u
-                else ε): (Id ==> Fuel.t A)%ra)).
+                match @Prism.preview _ _ p i with
+                | Some i =>
+                    if (excluded_middle_informative (s i))
+                    then Fuel.white u
+                    else ε
+                | None => ε
+                end): (S ==> Fuel.t A)%ra)).
 
     Lemma whites_impl (s0 s1: Id -> Prop) u
                (IMPL: forall i (IN: s0 i), s1 i)
@@ -1846,10 +1879,11 @@ Module FairRA.
       ⊢ whites s u.
     Proof.
       iIntros. iApply (OwnM_extends with "[]").
-      2:{ iApply (@OwnM_unit (Id ==> Fuel.t A)%ra). }
+      2:{ iApply (@OwnM_unit (S ==> Fuel.t A)%ra). }
       apply pointwise_extends. i. des_ifs.
       { exfalso. eapply EMPTY; eauto. }
-      eexists _. rewrite URA.unit_idl. eauto.
+      { eexists _. rewrite URA.unit_idl. eauto. }
+      { eexists _. rewrite URA.unit_idl. eauto. }
     Qed.
 
     Lemma whites_fold (s0 s1: Id -> Prop) i u
@@ -1862,10 +1896,12 @@ Module FairRA.
       iIntros "[WHITES WHITE]".
       iCombine "WHITES WHITE" as "WHITES".
       iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
-      i. erewrite ! (@unfold_pointwise_add Id (Fuel.t A)). unfold maps_to_res.
+      i. erewrite ! (@unfold_pointwise_add S (Fuel.t A)). unfold maps_to_res.
       des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
       { eexists. apply URA.add_comm. }
-      { hexploit IMPL; eauto. i. des; ss. }
+      { eapply Prism.review_preview in Heq.
+        hexploit IMPL; eauto. i. des; clarify. }
+      { eexists. rewrite URA.unit_idl. ss. }
       { eexists. rewrite URA.unit_idl. ss. }
       { eexists. rewrite URA.unit_idl. ss. }
       { eexists. rewrite URA.unit_idl. ss. }
@@ -1881,17 +1917,26 @@ Module FairRA.
     Proof.
       iIntros "WHITES".
       iPoseProof (OwnM_extends with "WHITES") as "[WHITES0 WHITES1]".
-      { instantiate (1:=maps_to_res i (Fuel.white u: Fuel.t A): (Id ==> Fuel.t A)%ra).
+      { instantiate (1:=maps_to_res (Prism.review p i) (Fuel.white u: Fuel.t A): (S ==> Fuel.t A)%ra).
         instantiate (1:=(fun i =>
-                           if (excluded_middle_informative (s0 i))
-                           then Fuel.white u
-                           else ε)).
-        erewrite ! (@unfold_pointwise_add Id (Fuel.t A)). unfold maps_to_res.
+                           match Prism.preview p i with
+                           | Some i =>
+                               if (excluded_middle_informative (s0 i))
+                               then Fuel.white u
+                               else ε
+                           | None => ε
+                           end)).
+        erewrite ! (@unfold_pointwise_add S (Fuel.t A)). unfold maps_to_res.
         apply pointwise_extends. i.
         des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
-        { exfalso. eapply n0. auto. }
-        { exfalso. eapply n0. auto. }
+        { rewrite Prism.preview_review in *. clarify. }
+        { rewrite Prism.preview_review in *. clarify. }
+        { eapply Prism.review_preview in Heq.
+          exfalso. eapply n0. auto. }
+        { rewrite Prism.preview_review in *. clarify.
+          exfalso. eapply n0. auto. }
         { eexists. rewrite URA.unit_idl. ss. }
+        { rewrite Prism.preview_review in *. clarify. }
       }
       iFrame.
     Qed.
@@ -1905,7 +1950,7 @@ Module FairRA.
       iIntros "[WHITES0 WHITES1]".
       iCombine "WHITES0 WHITES1" as "WHITES".
       iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
-      i. erewrite ! (@unfold_pointwise_add Id (Fuel.t A)).
+      i. erewrite ! (@unfold_pointwise_add S (Fuel.t A)).
       des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
       { eexists. eauto. }
       { des; ss. }
@@ -1925,7 +1970,7 @@ Module FairRA.
       iPoseProof (OwnM_extends with "WHITES") as "[WHITES0 WHITES1]".
       2:{ iSplitL "WHITES0"; [iExact "WHITES0"|iExact "WHITES1"]. }
       { apply pointwise_extends.
-        i. erewrite ! (@unfold_pointwise_add Id (Fuel.t A)).
+        i. erewrite ! (@unfold_pointwise_add S (Fuel.t A)).
         des_ifs; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try by reflexivity.
         { exfalso. eapply DISJOINT; eauto. }
         { exfalso. eapply n; eauto. }
@@ -1946,8 +1991,11 @@ Module FairRA.
       unfold maps_to_res. eapply pointwise_extends.
       i. des_ifs; ss.
       { reflexivity. }
-      { exists (Fuel.white u). rewrite URA.unit_idl. auto. }
-      { reflexivity. }
+      { rewrite Prism.preview_review in Heq. clarify. }
+      { rewrite Prism.preview_review in Heq. clarify. }
+      { eexists. rewrite URA.unit_idl. auto. }
+      { eexists. rewrite URA.unit_idl. auto. }
+      { eexists. rewrite URA.unit_idl. auto. }
     Qed.
 
     Lemma blacks_black (s: Id -> Prop) i
@@ -1963,9 +2011,12 @@ Module FairRA.
       iExists a. iApply (OwnM_extends with "H").
       unfold maps_to_res. eapply pointwise_extends.
       i. des_ifs; ss.
-      { reflexivity. }
-      { exists (Fuel.black a1 1). rewrite URA.unit_idl. auto. }
-      { reflexivity. }
+      { rewrite Prism.preview_review in Heq. clarify. reflexivity. }
+      { rewrite Prism.preview_review in Heq. clarify. }
+      { rewrite Prism.preview_review in Heq. clarify. }
+      { eexists. rewrite URA.unit_idl. auto. }
+      { eexists. rewrite URA.unit_idl. auto. }
+      { eexists. rewrite URA.unit_idl. auto. }
     Qed.
 
     Lemma black_ex_list_blacks (l: list Id) (P: Id -> Prop)
@@ -2021,18 +2072,194 @@ Module FairRA.
       { ii. des; ss. }
     Qed.
 
+    Definition blacks_of (l: list Id): iProp :=
+      list_prop_sum (fun i => black_ex i 1) l.
+
+    Definition whites_of (l: list Id) (u: A): iProp :=
+      list_prop_sum (fun i => white i u) l.
+
+    End PRISM.
+
+    Section PRISM.
+    Variable (Id: Type).
+    Variable (p: Prism.t S Id).
+
+    Lemma whites_prism_id P o
+      :
+      (whites p P o)
+        -∗
+        (whites Prism.id (fun s => exists i, Prism.review p i = s /\ P i) o).
+    Proof.
+      iIntros "WHITES".
+      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      i. ss. des_ifs; try by reflexivity.
+      { des; clarify. rewrite Prism.preview_review in *. clarify. }
+      { des; clarify. rewrite Prism.preview_review in *. clarify. }
+      { eexists _. rewrite URA.unit_idl. ss. }
+    Qed.
+
+    Lemma whites_prism_id_rev P o
+      :
+      (whites Prism.id (fun s => exists i, Prism.review p i = s /\ P i) o)
+        -∗
+      (whites p P o).
+    Proof.
+      iIntros "WHITES".
+      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      i. ss. des_ifs; try by reflexivity.
+      { des; clarify. eapply Prism.review_preview in Heq. clarify.
+        exfalso. eauto.
+      }
+      { eexists _. rewrite URA.unit_idl. ss. }
+      { eexists _. rewrite URA.unit_idl. ss. }
+    Qed.
+
+    Lemma blacks_prism_id P
+      :
+      (blacks p P)
+        -∗
+        (blacks Prism.id (fun s => exists i, Prism.review p i = s /\ P i)).
+    Proof.
+      iIntros "[% [% BLACKS]]".
+      unfold blacks.
+      iExists (fun s => match Prism.preview p s with
+                        | Some i => f i
+                        | None => None
+                        end). iSplit.
+      { iPureIntro. i. ss. split.
+        { i. des_ifs; ss.
+          { eapply Prism.review_preview in Heq. esplits; eauto. eapply H; auto. }
+          { rr in H0. des. ss. }
+        }
+        { i. des. des_ifs.
+          { rewrite Prism.preview_review in Heq. clarify. eapply H; eauto. }
+          { rewrite Prism.preview_review in Heq. clarify. }
+        }
+      }
+      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
+      i. ss. des_ifs; try by reflexivity.
+    Qed.
+
+    Lemma blacks_prism_id_rev P
+      :
+      (blacks Prism.id (fun s => exists i, Prism.review p i = s /\ P i))
+        -∗
+        (blacks p P).
+    Proof.
+      iIntros "[% [% BLACKS]]".
+      unfold blacks.
+      iExists (fun i => f (Prism.review p i)). iSplit.
+      { iPureIntro. i. split.
+        { i. dup H0. eapply H in H0. des; eauto.
+          eapply f_equal with (f:=Prism.preview p) in H0.
+          rewrite ! Prism.preview_review in H0. clarify.
+        }
+        { i. eapply H. esplits; eauto. }
+      }
+      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
+      i. ss. des_ifs; try by reflexivity.
+      { eapply Prism.review_preview in Heq. clarify. reflexivity. }
+      { eapply Prism.review_preview in Heq. clarify. }
+      { eexists _. rewrite URA.unit_idl. ss. }
+      { eexists _. rewrite URA.unit_idl. ss. }
+    Qed.
+
+    Lemma white_prism_id i o
+      :
+      (white p i o)
+        -∗
+        (white Prism.id (Prism.review p i) o).
+    Proof. auto. Qed.
+
+    Lemma white_prism_id_rev i o
+      :
+      (white Prism.id (Prism.review p i) o)
+        -∗
+        (white p i o).
+    Proof. auto. Qed.
+
+    Lemma black_prism_id i o q
+      :
+      (black p i o q)
+        -∗
+        (black Prism.id (Prism.review p i) o q).
+    Proof. auto. Qed.
+
+    Lemma black_prism_id_rev i o q
+      :
+      (black Prism.id (Prism.review p i) o q)
+        -∗
+        (black p i o q).
+    Proof. auto. Qed.
+
+    Lemma black_ex_prism_id i q
+      :
+      (black_ex p i q)
+        -∗
+        (black_ex Prism.id (Prism.review p i) q).
+    Proof.
+      iIntros "[% BLACK]". iExists _. auto.
+    Qed.
+
+    Lemma black_ex_prism_id_rev i q
+      :
+      (black_ex Prism.id (Prism.review p i) q)
+        -∗
+        (black_ex p i q).
+    Proof.
+      iIntros "[% BLACK]". iExists _. auto.
+    Qed.
+
+    Lemma whites_of_prism_id l o
+      :
+      (whites_of p l o)
+        -∗
+        (whites_of Prism.id (List.map (Prism.review p) l) o).
+    Proof.
+      eapply list_prop_sum_map. i. eapply white_prism_id.
+    Qed.
+
+    Lemma whites_of_prism_id_rev l o
+      :
+      (whites_of Prism.id (List.map (Prism.review p) l) o)
+        -∗
+        (whites_of p l o).
+    Proof.
+      eapply list_prop_sum_map_inv. i. eapply white_prism_id_rev.
+    Qed.
+
+    Lemma blacks_of_prism_id l
+      :
+      (blacks_of p l)
+        -∗
+        (blacks_of Prism.id (List.map (Prism.review p) l)).
+    Proof.
+      eapply list_prop_sum_map. i. eapply black_ex_prism_id.
+    Qed.
+
+    Lemma blacks_of_prism_id_rev l
+      :
+      (blacks_of Prism.id (List.map (Prism.review p) l))
+        -∗
+        (blacks_of p l).
+    Proof.
+      eapply list_prop_sum_map_inv. i. eapply black_ex_prism_id_rev.
+    Qed.
+    End PRISM.
+
+
     (* Target *)
-    Definition whites_all (f: Id -> A): iProp :=
-      OwnM ((fun i => Fuel.white (f i)): (Id ==> Fuel.t A)%ra).
+    Definition whites_all (f: S -> A): iProp :=
+      OwnM ((fun i => Fuel.white (f i)): (S ==> Fuel.t A)%ra).
 
     (* Source *)
-    Definition blacks_all (f: Id -> A): iProp :=
-      OwnM ((fun i => Fuel.black (f i) 1%Qp): (Id ==> Fuel.t A)%ra).
+    Definition blacks_all (f: S -> A): iProp :=
+      OwnM ((fun i => Fuel.black (f i) 1%Qp): (S ==> Fuel.t A)%ra).
 
     Definition whites_update
-               (f0 f1: Id -> A)
+               (f0 f1: S -> A)
                (u: A)
-               (fm: fmap Id)
+               (fm: fmap S)
                (UPDATE: forall i,
                    match fm i with
                    | Flag.emp => f1 i = f0 i
@@ -2042,23 +2269,23 @@ Module FairRA.
       :
       (whites_all f0)
         -∗
-        (blacks (fun i => fm i = Flag.success))
+        (blacks Prism.id (fun i => fm i = Flag.success))
         -∗
         (#=>
            ((whites_all f1)
               **
-              (blacks (fun i => fm i = Flag.success))
+              (blacks Prism.id (fun i => fm i = Flag.success))
               **
-              (whites (fun i => fm i = Flag.fail) u)
+              (whites Prism.id (fun i => fm i = Flag.fail) u)
               **
-              (whites (fun i => fm i = Flag.success) u))).
+              (whites Prism.id (fun i => fm i = Flag.success) u))).
     Proof.
       iIntros "WHITE [% [% BLACK]]".
       iCombine "WHITE BLACK" as "OWN".
       iPoseProof (OwnM_Upd_set with "OWN") as "> [% [% OWN]]".
       { eapply updatable_set_impl; cycle 1.
         { eapply pointwise_updatable_set. i.
-          instantiate (1:=fun (i: Id) (a: Fuel.t A) =>
+          instantiate (1:=fun (i: S) (a: Fuel.t A) =>
                             match (fm i) with
                             | Flag.emp => a = Fuel.white (f1 i)
                             | Flag.success =>
@@ -2106,7 +2333,7 @@ Module FairRA.
           { ii. rewrite UPDATE. esplits; eauto. }
         }
         { instantiate (1:=fun r =>
-                            exists (f: Id -> option A),
+                            exists (f: S -> option A),
                               (forall i,
                                   (fun i fi =>
                                      (is_Some fi <-> fm i = Flag.success) /\
@@ -2146,25 +2373,25 @@ Module FairRA.
       }
       ss. des.
       assert (b =
-                (((fun i => Fuel.white (f1 i)): (Id ==> Fuel.t A)%ra)
+                (((fun i => Fuel.white (f1 i)): (S ==> Fuel.t A)%ra)
                    ⋅
                    ((fun i =>
                        match f2 i with
                        | Some a => Fuel.black a 1
                        | None => ε
-                       end): (Id ==> Fuel.t A)%ra)
+                       end): (S ==> Fuel.t A)%ra)
                    ⋅
                    ((fun i =>
                        if (excluded_middle_informative (fm i = Flag.fail))
                        then Fuel.white u
-                       else ε): (Id ==> Fuel.t A)%ra)
+                       else ε): (S ==> Fuel.t A)%ra)
                    ⋅
                    ((fun i =>
                        if (excluded_middle_informative (fm i = Flag.success))
                        then Fuel.white u
-                       else ε): (Id ==> Fuel.t A)%ra))).
+                       else ε): (S ==> Fuel.t A)%ra))).
       { extensionality i. specialize (H0 i). des.
-        rewrite H1. erewrite ! (@unfold_pointwise_add Id (Fuel.t A)). auto.
+        rewrite H1. erewrite ! (@unfold_pointwise_add S (Fuel.t A)). auto.
       }
       subst. iPoseProof "OWN" as "[[[OWN0 OWN1] OWN2] OWN3]".
       iModIntro. iFrame. iExists _. iSplit.
@@ -2173,13 +2400,13 @@ Module FairRA.
     Qed.
 
     Definition blacks_update
-               (f0: Id -> A)
+               (f0: S -> A)
                (u n: A)
-               (fm: fmap Id)
+               (fm: fmap S)
       :
       (blacks_all f0)
         -∗
-        (whites (fun i => fm i = Flag.fail) u)
+        (whites Prism.id (fun i => fm i = Flag.fail) u)
         -∗
         (#=>
            (∃ f1,
@@ -2192,14 +2419,14 @@ Module FairRA.
                  **
                  (blacks_all f1)
                  **
-                 (whites (fun i => fm i = Flag.success) n))).
+                 (whites Prism.id (fun i => fm i = Flag.success) n))).
     Proof.
       iIntros "BLACK WHITE".
       iCombine "BLACK WHITE" as "OWN".
       iPoseProof (OwnM_Upd_set with "OWN") as "> [% [% OWN]]".
       { eapply updatable_set_impl; cycle 1.
         { eapply pointwise_updatable_set. i.
-          instantiate (1:=fun (i: Id) (a: Fuel.t A) =>
+          instantiate (1:=fun (i: S) (a: Fuel.t A) =>
                             exists o,
                               (a = (Fuel.black o 1: Fuel.t A) ⋅ (if (excluded_middle_informative (fm i = Flag.success))
                                                                  then Fuel.white n
@@ -2209,18 +2436,25 @@ Module FairRA.
                                  | Flag.fail => OrderedCM.le (OrderedCM.add u o) (f0 i)
                                  | Flag.success => True
                                  end)).
-          erewrite ! (@unfold_pointwise_add Id (Fuel.t A)).
+          erewrite ! (@unfold_pointwise_add S (Fuel.t A)).
           destruct (fm a) eqn:FM.
-          { des_ifs. ii.
-            exploit Fuel.decr_update; eauto. i. des. subst.
-            esplits; eauto. rewrite URA.unit_id. auto.
+          { des_ifs; ss.
+            { ii. exploit Fuel.decr_update; eauto. i. des. subst.
+              esplits; eauto. rewrite URA.unit_id. auto.
+            }
+            { compute in Heq. clarify. }
           }
-          { des_ifs. ii. esplits; eauto. }
-          { des_ifs. rewrite URA.unit_id. ii.
+          { des_ifs.
+            { compute in Heq. clarify. rewrite FM in *. ss. }
+            { ii. esplits; eauto. }
+          }
+          { des_ifs.
+            { compute in Heq. clarify. rewrite FM in *. ss. }
+            rewrite URA.unit_id. ii.
             exploit Fuel.success_update; eauto. i. esplits; eauto. }
         }
         { instantiate (1 := fun r =>
-                              exists (f1: Id -> A),
+                              exists (f1: S -> A),
                                 (forall i,
                                     (fun i fi =>
                                        ((match fm i with
@@ -2243,100 +2477,94 @@ Module FairRA.
       }
       ss. des.
       assert (b =
-                (((fun i => Fuel.black (f1 i) 1): (Id ==> Fuel.t A)%ra)
+                (((fun i => Fuel.black (f1 i) 1): (S ==> Fuel.t A)%ra)
                    ⋅
                    (fun i =>
                       if (excluded_middle_informative (fm i = Flag.success))
                       then Fuel.white n
                       else ε))).
       { extensionality i. specialize (H i). des.
-        rewrite H0. erewrite ! (@unfold_pointwise_add Id (Fuel.t A)). auto.
+        rewrite H0. erewrite ! (@unfold_pointwise_add S (Fuel.t A)). auto.
       }
       subst. iPoseProof "OWN" as "[OWN0 OWN1]".
       iModIntro. iFrame. iExists _. iSplit.
       2:{ iFrame. }
       iPureIntro. i. specialize (H i). des.
-      erewrite ! (@unfold_pointwise_add Id (Fuel.t A)) in H0. des_ifs.
+      erewrite ! (@unfold_pointwise_add S (Fuel.t A)) in H0. des_ifs.
     Qed.
-
-    Definition blacks_of (l: list Id): iProp :=
-      list_prop_sum (fun i => black_ex i 1) l.
-
-    Definition whites_of (l: list Id) (u: A): iProp :=
-      list_prop_sum (fun i => white i u) l.
   End FAIR.
 
   Section SOURCE.
-    Variable (Id: Type).
-    Definition srct: URA.t := @t Id Ord.t _.
+    Variable (S: Type).
+    Definition srct: URA.t := @t S Ord.t _.
     Context `{ING: @GRA.inG srct Σ}.
 
-    Definition sat_source (f: imap Id owf) :=
+    Definition sat_source (f: imap S owf) :=
       blacks_all f.
 
     Definition source_update
                (o: Ord.t)
-               (ls lf: list Id)
-               (f0: imap Id owf)
-               (fm: fmap Id)
+               (ls lf: list S)
+               (f0: imap S owf)
+               (fm: fmap S)
                (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
                (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
       :
       (sat_source f0)
         -∗
-        (whites_of lf Ord.one)
+        (whites_of Prism.id lf Ord.one)
         -∗
         (#=>
            (∃ f1,
-               (⌜fair_update f0 f1 fm⌝)
+               (⌜fair_update f0 f1 (prism_fmap Prism.id fm)⌝)
                  **
                  (sat_source f1)
                  **
-                 (whites_of ls o))).
+                 (whites_of Prism.id ls o))).
     Proof.
       iIntros "SAT WHITE".
       iPoseProof (blacks_update with "SAT [> WHITE]") as "> [% [[% BLACK] WHITE]]".
       { instantiate (1:=Ord.one). instantiate (1:=fm).
-        iStopProof. cut (forall l (P: Id -> Prop) (COMPLETE: forall i (IN: P i), List.In i l), whites_of l Ord.one ⊢ #=> whites P Ord.one).
+        iStopProof. cut (forall l (P: S -> Prop) (COMPLETE: forall i (IN: P i), List.In i l), whites_of Prism.id l Ord.one ⊢ #=> whites Prism.id P Ord.one).
         { i. eapply H. auto. }
-          induction l; ss; i.
-          { iIntros "H". iApply (OwnM_Upd with "[]").
-            { instantiate (1:=URA.unit). apply pointwise_updatable.
-              i. des_ifs. exfalso. eauto.
-            }
-            { iApply (@OwnM_unit _ _ ING). }
+        induction l; ss; i.
+        { iIntros "H". iApply (OwnM_Upd with "[]").
+          { instantiate (1:=URA.unit). apply pointwise_updatable.
+            i. des_ifs. exfalso. eauto.
           }
-          iIntros "[WHITE WHITES]".
-          iPoseProof ((@IHl (fun i => P i /\ a <> i)) with "WHITES") as "> WHITES".
-          { i. des. hexploit COMPLETE; eauto. i. des; ss. }
-          iCombine "WHITE WHITES" as "WHITES". iApply (OwnM_Upd with "WHITES").
-          erewrite ! (@unfold_pointwise_add Id (Fuel.t Ord.t)).
-          apply pointwise_updatable. i. unfold maps_to_res.
-          des_ifs; des; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss.
-          { ii. eapply URA.wf_mon. instantiate (1:=Fuel.white Ord.one). r_wf H. }
-          { exfalso. eapply n0; ss. auto. }
+          { iApply (@OwnM_unit _ _ ING). }
+        }
+        iIntros "[WHITE WHITES]".
+        iPoseProof ((@IHl (fun i => P i /\ a <> i)) with "WHITES") as "> WHITES".
+        { i. des. hexploit COMPLETE; eauto. i. des; ss. }
+        iCombine "WHITE WHITES" as "WHITES". iApply (OwnM_Upd with "WHITES").
+        erewrite ! (@unfold_pointwise_add S (Fuel.t Ord.t)).
+        apply pointwise_updatable. i. unfold maps_to_res. ss.
+        des_ifs; des; ss; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss.
+        { ii. eapply URA.wf_mon. instantiate (1:=Fuel.white Ord.one). r_wf H. }
+        { exfalso. eapply n0; ss. auto. }
       }
       { iExists f1. iFrame. iSplitR.
-        { iPureIntro. ii. specialize (H i). des_ifs.
+        { iPureIntro. ii. specialize (H i). unfold prism_fmap. ss. des_ifs.
           ss. eapply Ord.lt_le_lt; [|eauto].
           unfold Ord.one. rewrite Hessenberg.add_S_l.
           rewrite Hessenberg.add_O_l. eapply Ord.S_lt.
         }
         { instantiate (1:=Jacobsthal.mult o (Ord.from_nat (List.length ls))).
-          iStopProof. cut (forall l (P: Id -> Prop) (SOUND: forall i (IN: List.In i l), P i), whites P (o × List.length l)%ord ⊢ #=> whites_of l o).
+          iStopProof. cut (forall l (P: S -> Prop) (SOUND: forall i (IN: List.In i l), P i), whites Prism.id P (o × List.length l)%ord ⊢ #=> whites_of Prism.id l o).
           { i. eapply H0. auto. }
           induction l; ss; i.
           { iIntros "H". auto. }
           iIntros "H".
           iPoseProof (OwnM_Upd with "H") as "> H".
-          { instantiate (1:=(maps_to_res a (Fuel.white o: Fuel.t Ord.t): (Id ==> Fuel.t Ord.t)%ra)
+          { instantiate (1:=(maps_to_res a (Fuel.white o: Fuel.t Ord.t): (S ==> Fuel.t Ord.t)%ra)
                               ⋅
                               (fun i =>
                                  if (excluded_middle_informative (P i))
                                  then (Fuel.white (o × List.length l)%ord: Fuel.t Ord.t)
-                                 else ε): (Id ==> Fuel.t Ord.t)%ra).
-            erewrite ! (@unfold_pointwise_add Id (Fuel.t Ord.t)).
-            apply pointwise_updatable. i. unfold maps_to_res. des_ifs.
+                                 else ε): (S ==> Fuel.t Ord.t)%ra).
+            erewrite ! (@unfold_pointwise_add S (Fuel.t Ord.t)).
+            apply pointwise_updatable. i. unfold maps_to_res. ss. des_ifs.
             { rewrite (@Fuel.white_sum Ord.t _ o (o × (Ord.from_nat (List.length l)))%ord).
               apply Fuel.white_mon. ss.
               rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity.
@@ -2370,9 +2598,9 @@ Module FairRA.
            (∃ f,
                (sat_source f)
                  **
-                 (whites (fun _ => True: Prop) o))).
+                 (whites Prism.id (fun _ => True: Prop) o))).
     Proof.
-      transitivity (blacks_all (fun (_: Id) => Ord.O)); [auto|].
+      transitivity (blacks_all (fun (_: S) => Ord.O)); [auto|].
       iIntros "BLACKS".
       iPoseProof (blacks_update with "BLACKS []") as "> [% [[% BLACKS] WHITES]]".
       { iApply (OwnM_extends with "[]").
@@ -2382,7 +2610,7 @@ Module FairRA.
           eapply pointwise_extends. i. des_ifs.
           eexists. rewrite URA.unit_idl. eauto.
         }
-        { iApply (@OwnM_unit (Id ==> Fuel.t Ord.t)%ra). }
+        { iApply (@OwnM_unit (S ==> Fuel.t Ord.t)%ra). }
       }
       iModIntro. iExists _. iFrame.
       iApply (OwnM_extends with "WHITES").
@@ -2400,7 +2628,7 @@ Module FairRA.
     Definition sat_target (f: imap Id nat_wf) (ths: TIdSet.t): iProp :=
       ((whites_all f)
          **
-         (blacks (fun i => exists j, (<<NIN: ~ TIdSet.In j ths>>) /\ (<<EQ: i = inl j>>))))
+         (blacks Prism.id (fun i => exists j, (<<NIN: ~ TIdSet.In j ths>>) /\ (<<EQ: i = inl j>>))))
     .
 
     Definition target_init_resource (f: imap Id nat_wf): tgtt :=
@@ -2423,9 +2651,9 @@ Module FairRA.
         -∗
         ((sat_target f ths)
            **
-           (natmap_prop_sum ths (fun tid _ => black_ex (inl tid) 1))
+           (natmap_prop_sum ths (fun tid _ => black_ex Prism.id (inl tid) 1))
            **
-           (blacks (fun i => match i with | inr _ => True | _ => False end: Prop))).
+           (blacks Prism.id (fun i => match i with | inr _ => True | _ => False end: Prop))).
     Proof.
       iIntros "[WHITES BLACKS]". unfold sat_target. iFrame.
       set (f0 :=
@@ -2497,6 +2725,7 @@ Module FairRA.
         apply pointwise_extends. i. unfold maps_to_res. ss.
         unfold tgtt, t.
         erewrite (@unfold_pointwise_add Id (Fuel.t nat)).
+        unfold Prism.review in *. ss.
         des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; try by reflexivity.
         { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
         { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
@@ -2514,7 +2743,7 @@ Module FairRA.
       :
       (sat_target f ths)
         -∗
-        (black_ex (inl tid) 1)
+        (black_ex Prism.id (inl tid) 1)
         -∗
         (#=>
            (sat_target f (NatMap.remove tid ths))).
@@ -2547,8 +2776,11 @@ Module FairRA.
       iApply (OwnM_Upd with "BLACK").
       apply pointwise_updatable. i.
       erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
-      unfold maps_to_res. des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss.
-      apply URA.extends_updatable. exists (Fuel.black n 1). apply URA.add_comm.
+      unfold maps_to_res. ss.
+      des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss.
+      { apply URA.extends_updatable. exists (Fuel.black n 1). apply URA.add_comm. }
+      { compute in Heq1. clarify. }
+      { compute in Heq1. clarify. }
     Qed.
 
     Definition target_add_thread
@@ -2562,7 +2794,7 @@ Module FairRA.
         (#=>
            ((sat_target f1 ths1)
               **
-              (black_ex (inl tid) 1))).
+              (black_ex Prism.id (inl tid) 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]]".
       hexploit (proj2 (H (inl tid))).
@@ -2582,7 +2814,7 @@ Module FairRA.
                          end): (Id ==> Fuel.t nat)%ra) ⋅ (maps_to_res (inl tid) (Fuel.black n 1: Fuel.t nat)))) with "[BLACKS]" as "[BLACKS BLACK]".
       { iApply (OwnM_extends with "BLACKS").
         erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
-        eapply pointwise_extends. i. unfold f2, maps_to_res.
+        eapply pointwise_extends. i. unfold f2, maps_to_res. ss.
         des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; reflexivity.
       }
       iPoseProof (whites_update with "WHITES [BLACK]") as "> [[[WHITES BLACK] FAIL] SUCCESS]".
@@ -2600,7 +2832,7 @@ Module FairRA.
           - split; i; ss. inv H0. inv H1.
         }
         { iApply (OwnM_extends with "BLACK").
-          eapply pointwise_extends. i. unfold maps_to_res.
+          eapply pointwise_extends. i. unfold maps_to_res. ss.
           des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; reflexivity.
         }
       }

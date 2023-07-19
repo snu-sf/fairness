@@ -65,22 +65,38 @@ Module Lens.
     i. unfold modify. apply view_set.
   Qed.
 
-  Definition id {S} : Lens.t S S.
-  Proof.
-    exists (fun s => (s, fun s' => s')). constructor; ss.
-  Defined.
+  Program Definition id {S} : Lens.t S S :=
+    exist _ (fun s => (s, fun s' => s')) _.
+  Next Obligation.
+    constructor; ss.
+  Qed.
 
-  Definition compose {A B C} : t A B -> t B C -> t A C.
-  Proof.
-    intros l1 l2.
-    exists (fun a => (view l2 (view l1 a), fun c => set l1 (set l2 c (view l1 a)) a)).
+  Program Definition compose {A B C} (l1: t A B) (l2: t B C): t A C :=
+    exist _ (fun a => (view l2 (view l1 a), fun c => set l1 (set l2 c (view l1 a)) a)) _.
+  Next Obligation.
     constructor.
     - extensionalities s. cbn. rewrite ! set_view. ss.
     - extensionalities s. unfold Store.map, Store.cojoin, compose; ss. f_equal.
       extensionalities c. f_equal.
       + rewrite ! view_set. ss.
       + extensionalities c'. rewrite view_set, ! set_set. ss.
-  Defined.
+  Qed.
+
+  Lemma left_unit A B (l : t A B):
+    (compose id l) = l.
+  Proof.
+    eapply eq_sig_hprop.
+    - i. eapply proof_irrelevance.
+    - ss. extensionality a. eapply injective_projections; ss.
+  Qed.
+
+  Lemma right_unit A B (l : t A B):
+    (compose l id) = l.
+  Proof.
+    eapply eq_sig_hprop.
+    - i. eapply proof_irrelevance.
+    - ss. extensionality a. eapply injective_projections; ss.
+  Qed.
 
   Lemma compose_assoc A B C D (l1 : t A B) (l2 : t B C) (l3 : t C D) :
     (compose (compose l1 l2) l3) = compose l1 (compose l2 l3).
@@ -114,19 +130,52 @@ Module Prism.
 
   Lemma review_preview S A (p : t S A) s a : preview p s = Some a -> review p a = s.
   Proof. unfold review, preview. eapply _review_preview. destruct p; ss. Qed.
-         
-  Definition compose {A B C} : t A B -> t B C -> t A C.
-  Proof.
-    intros p1 p2.
-    exists (review p1 ∘ review p2, fun a => match preview p1 a with
-                                    | Some b => preview p2 b
-                                    | None => None
-                                    end).
+
+  Program Definition id {S} : Prism.t S S :=
+    exist _ (id, Some) _.
+  Next Obligation.
+    constructor; ss. i. clarify.
+  Qed.
+
+  Program Definition compose {A B C} (p1: t A B) (p2: t B C): t A C :=
+    exist _ (review p1 ∘ review p2, (fun a : A =>
+                                       match @preview A B p1 a return (option C) with
+                                       | Some b => @preview B C p2 b
+                                       | None => @None C
+                                       end)) _.
+  Next Obligation.
     constructor.
     - i. unfold compose; ss. rewrite ! preview_review. ss.
     - i. unfold compose; ss. des_ifs.
       eapply review_preview in Heq. eapply review_preview in H. subst; ss.
-  Defined.
+  Qed.
+
+  Lemma left_unit A B (p : t A B):
+    (compose id p) = p.
+  Proof.
+    eapply eq_sig_hprop.
+    - i. eapply proof_irrelevance.
+    - ss. eapply injective_projections; ss.
+  Qed.
+
+  Lemma right_unit A B (p : t A B):
+    (compose p id) = p.
+  Proof.
+    eapply eq_sig_hprop.
+    - i. eapply proof_irrelevance.
+    - ss. eapply injective_projections; ss.
+      extensionality a. des_ifs.
+  Qed.
+
+  Lemma compose_assoc A B C D (l1 : t A B) (l2 : t B C) (l3 : t C D) :
+    (compose (compose l1 l2) l3) = compose l1 (compose l2 l3).
+  Proof.
+    eapply eq_sig_hprop.
+    - i. eapply proof_irrelevance.
+    - ss. eapply injective_projections; ss.
+      extensionality a. unfold preview. ss. unfold preview.
+      des_ifs; ss.
+  Qed.
 
 End Prism.
 
@@ -143,30 +192,30 @@ Section DISJOINT_LENS.
   Variable (l1 : Lens.t S V1).
   Variable (l2 : Lens.t S V2).
 
-  Definition prodl : Lens.Disjoint l1 l2 -> Lens.t S (V1 * V2).
-  Proof.
-    i. exists (fun s => ((Lens.view l1 s, Lens.view l2 s), fun '(v1, v2) => Lens.set l2 v2 (Lens.set l1 v1 s))).
+  Program Definition prodl (DISJ: Lens.Disjoint l1 l2): Lens.t S (V1 * V2) :=
+    exist _ (fun s => ((Lens.view l1 s, Lens.view l2 s), fun '(v1, v2) => Lens.set l2 v2 (Lens.set l1 v1 s))) _.
+  Next Obligation.
     constructor.
     - extensionalities x. unfold compose. ss. rewrite ! Lens.set_view. ss.
     - extensionalities x. unfold Store.map, Store.cojoin, compose. ss. f_equal.
       extensionalities v. destruct v as [v1 v2]. f_equal.
-      + rewrite Lens.view_set. rewrite H. rewrite Lens.view_set. ss.
+      + rewrite Lens.view_set. rewrite DISJ. rewrite Lens.view_set. ss.
       + extensionalities u. destruct u as [u1 u2].
-        rewrite H. rewrite Lens.set_set.
-        rewrite H. rewrite Lens.set_set. ss.
-  Defined.
+        rewrite DISJ. rewrite Lens.set_set.
+        rewrite DISJ. rewrite Lens.set_set. ss.
+  Qed.
 
 End DISJOINT_LENS.
 
 Section PRISM_LENS.
 
-  Definition prisml {S A T} : Prism.t S A -> Lens.t (S -> T) (A -> T).
-  Proof.
-    intro p.
-    exists (fun f => (fun a => f (Prism.review p a), fun g s => match Prism.preview p s with
-                                                  | None => f s
-                                                  | Some a => g a
-                                                  end)).
+  Program Definition prisml {S A T} (p: Prism.t S A): Lens.t (S -> T) (A -> T) :=
+    exist _ (fun f => (fun a => f (Prism.review p a), (fun (g : A -> T) (s : S) =>
+                                                         match @Prism.preview S A p s return T with
+                                                         | Some a => g a
+                                                         | None => f s
+                                                         end))) _.
+  Next Obligation.
     constructor.
     - unfold Store.counit, compose; ss. extensionalities f s.
       des_ifs. eapply Prism.review_preview in Heq. rewrite Heq. ss.
@@ -174,7 +223,7 @@ Section PRISM_LENS.
       f_equal. extensionalities g. f_equal.
       + extensionalities a. rewrite Prism.preview_review. ss.
       + extensionalities g' s. des_ifs.
-  Defined.
+  Qed.
 
 End PRISM_LENS.
 
@@ -182,21 +231,21 @@ Section PRODUCT_LENS.
 
   Context {A B : Type}.
 
-  Definition fstl : Lens.t (A * B) A.
-  Proof.
-    exists (fun x => (fst x, fun a => (a, snd x))).
+  Program Definition fstl : Lens.t (A * B) A :=
+    exist _ (fun x => (fst x, fun a => (a, snd x))) _.
+  Next Obligation.
     constructor.
     - extensionalities x. destruct x; ss.
     - ss.
-  Defined.
+  Qed.
 
-  Definition sndl : Lens.t (A * B) B.
-  Proof.
-    exists (fun x => (snd x, fun b => (fst x, b))).
+  Program Definition sndl : Lens.t (A * B) B :=
+    exist _ (fun x => (snd x, fun b => (fst x, b))) _.
+  Next Obligation.
     constructor.
     - extensionalities x. destruct x; ss.
     - ss.
-  Defined.
+  Qed.
 
   Lemma Disjoint_fstl_sndl : Lens.Disjoint fstl sndl.
   Proof. ss. Qed.
@@ -221,21 +270,21 @@ Section SUM_PRISM.
       | inr b => Some b
       end.
 
-  Definition inlp : Prism.t (A + B) A.
-  Proof.
-    exists (inl, is_inl).
+  Program Definition inlp : Prism.t (A + B) A :=
+    exist _ (inl, is_inl) _.
+  Next Obligation.
     constructor.
     - ss.
     - i. destruct s; ss. inv H; ss.
-  Defined.
+  Qed.
 
-  Definition inrp : Prism.t (A + B) B.
-  Proof.
-    exists (inr, is_inr).
+  Program Definition inrp : Prism.t (A + B) B :=
+    exist _ (inr, is_inr) _.
+  Next Obligation.
     constructor.
     - ss.
     - i. destruct s; ss. inv H; ss.
-  Defined.
+  Qed.
 
 End SUM_PRISM.
 
