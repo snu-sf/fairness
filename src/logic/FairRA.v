@@ -2620,8 +2620,8 @@ Module FairRA.
 
 
   Section TARGET.
-    Variable (_Id: Type).
-    Let Id := id_sum thread_id _Id.
+    Variable (S: Type).
+    Let Id := id_sum thread_id S.
     Definition tgtt: URA.t := @t Id nat _.
     Context `{ING: @GRA.inG tgtt Σ}.
 
@@ -2651,9 +2651,9 @@ Module FairRA.
         -∗
         ((sat_target f ths)
            **
-           (natmap_prop_sum ths (fun tid _ => black_ex Prism.id (inl tid) 1))
+           (natmap_prop_sum ths (fun tid _ => black_ex inlp tid 1))
            **
-           (blacks Prism.id (fun i => match i with | inr _ => True | _ => False end: Prop))).
+           (blacks inrp (fun i => True: Prop))).
     Proof.
       iIntros "[WHITES BLACKS]". unfold sat_target. iFrame.
       set (f0 :=
@@ -2731,9 +2731,16 @@ Module FairRA.
         { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
         { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
       }
-      { iExists _. iSplit; [|iApply "BLACKS0"].
+      { iApply blacks_prism_id_rev.
+        iExists _. iSplit; [|iApply "BLACKS0"].
         iPureIntro.
-        { unfold f2. i. des_ifs. split; i; ss. inv H. ss. }
+        { unfold f2. ss. i. split; i.
+          { des_ifs.
+            { inv H. ss. }
+            rr in H. eauto.
+          }
+          { des. compute in H. subst. ss. }
+        }
       }
     Qed.
 
@@ -2743,7 +2750,7 @@ Module FairRA.
       :
       (sat_target f ths)
         -∗
-        (black_ex Prism.id (inl tid) 1)
+        (black_ex inlp tid 1)
         -∗
         (#=>
            (sat_target f (NatMap.remove tid ths))).
@@ -2794,7 +2801,7 @@ Module FairRA.
         (#=>
            ((sat_target f1 ths1)
               **
-              (black_ex Prism.id (inl tid) 1))).
+              (black_ex inlp tid 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]]".
       hexploit (proj2 (H (inl tid))).
@@ -2863,7 +2870,7 @@ Module FairRA.
       { rewrite H0. split; i; des; ss. }
     Qed.
 
-    Definition white_thread: iProp := ∀ i, white (inl i) 1.
+    Definition white_thread: iProp := ∀ i, white inlp i 1.
 
     Definition target_update_thread
                tid ths
@@ -2872,12 +2879,12 @@ Module FairRA.
       :
       (sat_target f0 ths)
         -∗
-        (black_ex (inl tid) 1)
+        (black_ex inlp tid 1)
         -∗
         (#=>
            ((sat_target f1 ths)
               **
-              (black_ex (inl tid) 1)
+              (black_ex inlp tid 1)
               **
               white_thread)).
     Proof.
@@ -2922,9 +2929,11 @@ Module FairRA.
         }
         iApply (OwnM_extends with "BLACKS").
         erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
-        eapply pointwise_extends. i. unfold f2, maps_to_res.
+        eapply pointwise_extends. i. unfold f2, maps_to_res. ss.
         des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try reflexivity.
-        exists (Fuel.black n0 1). rewrite URA.add_comm. auto.
+        { eexists _. rewrite URA.add_comm. auto. }
+        { eexists _. eauto. }
+        { eexists. rewrite URA.unit_idl. ss. }
       }
       iSplitR "FAIL SUCCESS".
       { hexploit (proj2 (H0 (inl tid))).
@@ -2943,7 +2952,7 @@ Module FairRA.
                              | None => ε
                              end)).
           erewrite ! (@unfold_pointwise_add Id (Fuel.t nat)).
-          eapply pointwise_extends. i. unfold f4, maps_to_res.
+          eapply pointwise_extends. i. unfold f4, maps_to_res. ss.
           des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; try reflexivity.
         }
         iModIntro. iSplitR "BLACK".
@@ -2975,19 +2984,19 @@ Module FairRA.
     Definition target_update_aux
                ths
                (f0 f1: imap Id nat_wf)
-               (fm: fmap _Id)
+               (fm: fmap S)
                (UPD: fair_update f0 f1 (prism_fmap inrp fm))
       :
       (sat_target f0 ths)
         -∗
-        (blacks (fun i => (prism_fmap inrp fm) i = Flag.success))
+        (blacks Prism.id (fun i => (prism_fmap inrp fm) i = Flag.success))
         -∗
         (#=>
            ((sat_target f1 ths)
               **
-              (blacks (fun i => (prism_fmap inrp fm) i = Flag.success))
+              (blacks Prism.id (fun i => (prism_fmap inrp fm) i = Flag.success))
               **
-              (whites (fun i => (prism_fmap inrp fm) i = Flag.fail) 1))).
+              (whites Prism.id (fun i => (prism_fmap inrp fm) i = Flag.fail) 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]] BLACK".
       iPoseProof (whites_update with "WHITES BLACK") as "> [[[WHITES BLACK] FAIL] _]".
@@ -3001,10 +3010,10 @@ Module FairRA.
     Qed.
 
     Definition target_update
-               (ls lf: list _Id)
+               (ls lf: list S)
                ths
                (f0 f1: imap Id nat_wf)
-               (fm: fmap _Id)
+               (fm: fmap S)
                (UPD: fair_update f0 f1 (prism_fmap inrp fm))
                (SUCCESS: forall i (IN: fm i = Flag.success), List.In i ls)
                (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
@@ -3012,14 +3021,14 @@ Module FairRA.
       :
       (sat_target f0 ths)
         -∗
-        (list_prop_sum (fun i => black_ex (inr i) 1) ls)
+        (list_prop_sum (fun i => black_ex Prism.id (inr i) 1) ls)
         -∗
         (#=>
            ((sat_target f1 ths)
               **
-              (list_prop_sum (fun i => black_ex (inr i) 1) ls)
+              (list_prop_sum (fun i => black_ex Prism.id (inr i) 1) ls)
               **
-              (list_prop_sum (fun i => white (inr i) 1) lf))).
+              (list_prop_sum (fun i => white Prism.id (inr i) 1) lf))).
     Proof.
       iIntros "SAT BLACK".
       iPoseProof (black_ex_list_blacks with "[BLACK]") as "[BLACKS K]"; cycle 2.
@@ -3046,6 +3055,57 @@ Module FairRA.
         { i. ss. subst. reflexivity. }
       }
     Qed.
+
+    Definition target_update_prism {_Id}
+               (ls lf: list _Id)
+               (p: Prism.t S _Id)
+               ths
+               (f0 f1: imap Id nat_wf)
+               (fm: fmap _Id)
+               (UPD: fair_update f0 f1 (prism_fmap (Prism.compose inrp p) fm))
+               (SUCCESS: forall i (IN: fm i = Flag.success), List.In i ls)
+               (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+               (NODUP: List.NoDup lf)
+      :
+      (sat_target f0 ths)
+        -∗
+        (list_prop_sum (fun i => black_ex (Prism.compose inrp p) i 1) ls)
+        -∗
+        (#=>
+           ((sat_target f1 ths)
+              **
+              (list_prop_sum (fun i => black_ex (Prism.compose inrp p) i 1) ls)
+              **
+              (list_prop_sum (fun i => white (Prism.compose inrp p) i 1) lf))).
+    Proof.
+      iIntros "SAT BLACKS".
+      iPoseProof (target_update with "SAT [BLACKS]") as "> [[SAT BLACKS] WHITES]".
+      { rewrite prism_fmap_compose in UPD. eauto. }
+      { instantiate (1:=List.map (Prism.review p) ls).
+        i. unfold prism_fmap in IN. des_ifs.
+        eapply Prism.review_preview in Heq. subst.
+        eapply in_map. eauto.
+      }
+      { instantiate (1:=List.map (Prism.review p) lf).
+        i. eapply in_map_iff in IN. des. subst.
+        unfold prism_fmap. rewrite Prism.preview_review. eauto.
+      }
+      { eapply FinFun.Injective_map_NoDup; eauto.
+        ii. eapply f_equal with (f:=Prism.preview p) in H.
+        rewrite ! Prism.preview_review in H. clarify.
+      }
+      { iApply (list_prop_sum_map with "BLACKS").
+        i. iIntros "BLACK". iApply (black_ex_prism_id with "BLACK").
+      }
+      iModIntro. iFrame. iSplitL "BLACKS".
+      { iApply (list_prop_sum_map_inv with "BLACKS").
+        i. iIntros "BLACK". iApply (black_ex_prism_id_rev with "BLACK").
+      }
+      { iApply (list_prop_sum_map_inv with "WHITES").
+        i. iIntros "WHITE". iApply (white_prism_id_rev with "WHITE").
+      }
+    Qed.
+
   End TARGET.
 End FairRA.
 
@@ -3689,22 +3749,24 @@ Module ObligationRA.
 
 
   Section ARROW.
+    Variable (S: Type).
     Variable (Id: Type).
+    Variable (p: Prism.t S Id).
     Context `{@GRA.inG t Σ}.
-    Context `{@GRA.inG (@FairRA.t Id nat _) Σ}.
+    Context `{@GRA.inG (@FairRA.t S nat _) Σ}.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-    Context `{@GRA.inG (Region.t (Id * nat * Ord.t * Qp * nat)) Σ}.
+    Context `{@GRA.inG (Region.t (S * nat * Ord.t * Qp * nat)) Σ}.
 
-    Definition arrow: (Id * nat * Ord.t * Qp * nat) -> iProp :=
+    Definition arrow: (S * nat * Ord.t * Qp * nat) -> iProp :=
       fun '(i, k, c, q, x) =>
         ((OwnM (FiniteMap.singleton x (OneShot.shot tt)) ** shot k)
          ∨
-           (∃ n, (FairRA.black i n q) ** white k (Jacobsthal.mult c (Ord.from_nat n))))%I.
+           (∃ n, (FairRA.black Prism.id i n q) ** white k (Jacobsthal.mult c (Ord.from_nat n))))%I.
 
     Definition arrows_sat: iProp := Region.sat arrow.
 
     Definition correl (i: Id) (k: nat) (c: Ord.t): iProp :=
-      ∃ r q x, Region.white r (i, k, c, q, x).
+      ∃ r q x, Region.white r (Prism.review p i, k, c, q, x).
 
     Lemma correl_persistent i k c
       :
@@ -3720,7 +3782,7 @@ Module ObligationRA.
       :
       (correl i k c)
         -∗
-        (FairRA.white i n)
+        (FairRA.white p i n)
         -∗
         (#=(arrows_sat)=> white k (Jacobsthal.mult c (Ord.from_nat n)) ∨ shot k).
     Proof.
@@ -3747,7 +3809,7 @@ Module ObligationRA.
       :
       (correl i k c)
         -∗
-        (FairRA.white i 1)
+        (FairRA.white p i 1)
         -∗
         (#=(arrows_sat)=> white k c ∨ shot k).
     Proof.
@@ -3759,7 +3821,7 @@ Module ObligationRA.
 
     Definition duty_list (i: Id) (rs: list (nat * (nat * Ord.t * Qp * nat))) (q: Qp): iProp :=
       (list_prop_sum (fun '(r, (k, c, q, x)) =>
-                        (Region.white r (i, k, c, q, x))
+                        (Region.white r (Prism.review p i, k, c, q, x))
                           **
                           (OwnM ((FiniteMap.singleton x (OneShot.pending unit 1))))) rs)
         **
@@ -3777,7 +3839,7 @@ Module ObligationRA.
       :
       (duty_list i tl (q0 + q1)%Qp)
         -∗
-        (Region.white r (i, k, c, q1, x))
+        (Region.white r (Prism.review p i, k, c, q1, x))
         -∗
         (OwnM ((FiniteMap.singleton x (OneShot.pending unit 1))))
         -∗
@@ -3798,7 +3860,7 @@ Module ObligationRA.
       :
       (duty_list i ((r, (k, c, q1, x))::tl) q0)
         -∗
-        (Region.white r (i, k, c, q1, x) ** OwnM ((FiniteMap.singleton x (OneShot.pending unit 1))) ** duty_list i tl (q0 + q1)%Qp).
+        (Region.white r (Prism.review p i, k, c, q1, x) ** OwnM ((FiniteMap.singleton x (OneShot.pending unit 1))) ** duty_list i tl (q0 + q1)%Qp).
     Proof.
       iIntros "[DUTY %]". ss.
       iPoseProof "DUTY" as "[[WHITE OWN] DUTY]". iFrame.
@@ -3841,7 +3903,7 @@ Module ObligationRA.
 
     Definition duty (i: Id) (l: list (nat * Ord.t)): iProp :=
       ∃ (rs: list (nat * (nat * Ord.t * Qp * nat))) (q: Qp),
-        (FairRA.black_ex i q)
+        (FairRA.black_ex p i q)
           **
           (duty_list i rs q)
           **
@@ -3881,7 +3943,7 @@ Module ObligationRA.
       (duty_list i rs q)
         -∗
         □ (list_prop_sum (fun '(r, (k, c, q, x)) =>
-                            (Region.white r (i, k, c, q, x))) rs).
+                            (Region.white r (Prism.review p i, k, c, q, x))) rs).
     Proof.
       revert q. induction rs.
       { i. iIntros. iModIntro. ss. }
@@ -3896,7 +3958,7 @@ Module ObligationRA.
       (duty_list i rs q)
         -∗
         □ (∀ r k c q x (IN: List.In (r, (k, c, q, x)) rs),
-              Region.white r (i, k, c, q, x)).
+              Region.white r (Prism.review p i, k, c, q, x)).
     Proof.
       iIntros "H".
       iPoseProof (duty_list_white_list with "H") as "# WHITES".
@@ -3942,7 +4004,7 @@ Module ObligationRA.
         { apply FiniteMap.singleton_updatable. apply OneShot.pending_shot. }
         iModIntro. iSplitR "BLACK".
         { iLeft. iFrame. }
-        { instantiate (1:=FairRA.black_ex i q0).
+        { instantiate (1:=FairRA.black_ex p i q0).
           iExists _. iApply "BLACK".
         }
       }
@@ -3970,7 +4032,7 @@ Module ObligationRA.
         eapply Ord.lt_le. apply Ord.omega_upperbound.
       }
       iPoseProof (Region.alloc with "[SHOT BLACK1]") as "> [% WHITE]".
-      { instantiate (1:=(i, k, c, (q / 2)%Qp, k0)). iRight.
+      { instantiate (1:=(Prism.review p i, k, c, (q / 2)%Qp, k0)). iRight.
         iExists _. iFrame.
       }
       { iModIntro. iExists _, _. iSplit.
@@ -4323,21 +4385,21 @@ Module ObligationRA.
         -∗
         (tax l)
         -∗
-        #=(arrows_sat)=> (duty i l ** FairRA.white i n).
+        #=(arrows_sat)=> (duty i l ** FairRA.white p i n).
     Proof.
       iIntros "[% [% [[BLACK DUTY] %]]] TAX". subst.
       iPoseProof (duty_list_nodup with "DUTY") as "> [DUTY %]".
       { reflexivity. }
       iPoseProof (duty_list_whites with "DUTY") as "# WHITES".
       iApply (Region.updates with "[]").
-      { instantiate (1:=List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs).
+      { instantiate (1:=List.map (fun '(r, (k, c, q, x)) => (r, (Prism.review p i, k, c, q, x))) rs).
         rewrite List.map_map. erewrite List.map_ext; [eauto|]. i. des_ifs.
       }
       { iIntros. apply in_map_iff in IN. des. des_ifs.
         iApply "WHITES". auto.
       }
       iIntros "SAT".
-      iAssert (duty_list i rs q ** FairRA.black_ex i 1%Qp) with "[DUTY BLACK SAT]" as "[DUTY BLACK]".
+      iAssert (duty_list i rs q ** FairRA.black_ex p i 1%Qp) with "[DUTY BLACK SAT]" as "[DUTY BLACK]".
       { iClear "WHITES". iStopProof. clear H3. revert q. induction rs.
         { ss. i. iIntros "[[DUTY %] [BLACK _]]". ss. subst. iFrame. auto. }
         i. destruct a as [? [[[? ?] ?] ?]].
@@ -4361,7 +4423,7 @@ Module ObligationRA.
       { iPoseProof "DUTY" as "[DUTY %]". auto. }
       iAssert (#=> (Region.sat_list
                       arrow
-                      (List.map snd (List.map (fun '(r, (k, c, q0, x)) => (r, (i, k, c, q0, x))) rs)) ** FairRA.black i a q)) with "[TAX BLACK]" as "> [REGION BLACK]".
+                      (List.map snd (List.map (fun '(r, (k, c, q0, x)) => (r, (Prism.review p i, k, c, q0, x))) rs)) ** FairRA.black p i a q)) with "[TAX BLACK]" as "> [REGION BLACK]".
       2:{ iModIntro. iFrame. iExists _, _. iFrame. iSplit; eauto. iExists _. iFrame. }
       rewrite <- H4. iStopProof. clear H3 H4. revert q. induction rs.
       { i. iIntros "[# WHITES [TAX BLACK]]". iModIntro. ss. iFrame. }
@@ -4394,16 +4456,16 @@ Module ObligationRA.
       :
       (duty_list i rs q)
         -∗
-        (FairRA.black_ex i q)
+        (FairRA.black_ex p i q)
         -∗
         (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
         -∗
         #=(arrows_sat)=>
             (updating
-               (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs)))
-               (FairRA.black_ex i 1)
-               (FairRA.black_ex i 1)
-               (duty_list i rs q ** FairRA.black_ex i q)).
+               (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (Prism.review p i, k, c, q, x))) rs)))
+               (FairRA.black_ex p i 1)
+               (FairRA.black_ex p i 1)
+               (duty_list i rs q ** FairRA.black_ex p i q)).
     Proof.
       iIntros "DUTY BLACK TAX".
       iPoseProof (duty_list_nodup with "DUTY") as "> [DUTY %]".
@@ -4411,7 +4473,7 @@ Module ObligationRA.
       iPoseProof (duty_list_whites with "DUTY") as "# WHITES".
       iIntros "SAT". iModIntro.
       iSplitL "SAT"; [auto|]. iIntros "SAT".
-      iAssert (duty_list i rs q ** FairRA.black_ex i 1%Qp) with "[DUTY BLACK SAT]" as "[DUTY BLACK]".
+      iAssert (duty_list i rs q ** FairRA.black_ex p i 1%Qp) with "[DUTY BLACK SAT]" as "[DUTY BLACK]".
       { iClear "WHITES". iStopProof. clear H3. revert q. induction rs.
         { ss. i. iIntros "[[DUTY %] [BLACK _]]". ss. subst. iFrame. auto. }
         i. destruct a as [? [[[? ?] ?] ?]].
@@ -4435,7 +4497,7 @@ Module ObligationRA.
       iIntros "[% BLACK]".
       iAssert (#=> (Region.sat_list
                       arrow
-                      (List.map snd (List.map (fun '(r, (k, c, q0, x)) => (r, (i, k, c, q0, x))) rs)) ** FairRA.black i a q)) with "[TAX BLACK]" as "> [REGION BLACK]".
+                      (List.map snd (List.map (fun '(r, (k, c, q0, x)) => (r, (Prism.review p i, k, c, q0, x))) rs)) ** FairRA.black p i a q)) with "[TAX BLACK]" as "> [REGION BLACK]".
       2:{ iModIntro. iFrame. iExists _. eauto. }
       rewrite <- H4. iStopProof. clear H3 H4. revert q. induction rs.
       { i. iIntros "[# WHITES [TAX BLACK]]". iModIntro. ss. iFrame. }
@@ -4482,8 +4544,8 @@ Module ObligationRA.
         #=(arrows_sat)=>
             (updating
                arrows_sat
-               (FairRA.blacks_of (List.map fst os))
-               (FairRA.blacks_of (List.map fst os))
+               (FairRA.blacks_of p (List.map fst os))
+               (FairRA.blacks_of p (List.map fst os))
                (list_prop_sum (fun '(i, l) => duty i l) os)).
     Proof.
       iIntros "DUTY".
@@ -4495,7 +4557,7 @@ Module ObligationRA.
                                         **
                                         (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
                                         **
-                                        (FairRA.black_ex i q)) xs))%I with "[DUTY]" as "[% [% ALL]]".
+                                        (FairRA.black_ex p i q)) xs))%I with "[DUTY]" as "[% [% ALL]]".
       { iStopProof. induction os; ss; i.
         { iIntros. iExists []. ss. }
         { destruct a as [i l].
@@ -4510,7 +4572,7 @@ Module ObligationRA.
         }
       }
       subst.
-      set (l := List.concat (List.map (fun '(i, rs, q) => List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs) xs)).
+      set (l := List.concat (List.map (fun '(i, rs, q) => List.map (fun '(r, (k, c, q, x)) => (r, (Prism.review p i, k, c, q, x))) rs) xs)).
 
       iAssert (#=(arrows_sat)=>
                  ((list_prop_sum (fun '(i, rs, q) =>
@@ -4518,7 +4580,7 @@ Module ObligationRA.
                                       **
                                       (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
                                       **
-                                      (FairRA.black_ex i q)) xs)
+                                      (FairRA.black_ex p i q)) xs)
                     **
                     (⌜List.NoDup (List.map fst l)⌝))) with "[ALL]" as "> [ALL %]".
       { subst l. iStopProof. induction xs; ss.
@@ -4535,7 +4597,7 @@ Module ObligationRA.
                                            **
                                            (list_prop_sum (fun '(r, (k, c, q, x)) => white k (c × Ord.omega)%ord) rs)
                                            **
-                                           (FairRA.black_ex i q)) xs))
+                                           (FairRA.black_ex p i q)) xs))
                       **
                       (⌜forall i0 rs0 q0 (IN: List.In (i0, rs0, q0) xs),
                             (forall r (IN0: List.In r (List.map fst rs)) (IN1: List.In r (List.map fst rs0)), False)⌝)))%I with "[DUTY TL]" as "> [[DUTY TL] %]".
@@ -4573,14 +4635,14 @@ Module ObligationRA.
       iAssert (#=(arrows_sat)=>
                  (((list_prop_sum (fun '(i, rs, q) =>
                                      (updating
-                                        (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (i, k, c, q, x))) rs)))
-                                        (FairRA.black_ex i 1)
-                                        (FairRA.black_ex i 1)
-                                        (duty_list i rs q ** FairRA.black_ex i q)))) xs)
+                                        (Region.sat_list arrow (List.map snd (List.map (fun '(r, (k, c, q, x)) => (r, (Prism.review p i, k, c, q, x))) rs)))
+                                        (FairRA.black_ex p i 1)
+                                        (FairRA.black_ex p i 1)
+                                        (duty_list i rs q ** FairRA.black_ex p i q)))) xs)
                     ** (∀ i rs q0 r k c q1 x
                           (IN0: List.In (i, rs, q0) xs)
                           (IN1: List.In (r, (k, c, q1, x)) rs),
-                           Region.white r (i, k, c, q1, x)))) with "[ALL]" as "> [ALL WHITES]".
+                           Region.white r (Prism.review p i, k, c, q1, x)))) with "[ALL]" as "> [ALL WHITES]".
       { subst l. iStopProof. clear H3. induction xs.
         { iIntros. iModIntro. ss. iSplit; auto. iIntros. ss. }
         destruct a as [[i rs] q]. iIntros "[[[DUTY TAX] BLACK] DUTIES]".
@@ -4625,14 +4687,14 @@ Module ObligationRA.
   End ARROW.
 
   Section ARROWTHREAD.
-    Variable (Id: Type).
+    Variable (S: Type).
     Context `{@GRA.inG t Σ}.
-    Context `{@GRA.inG (FairRA.tgtt Id) Σ}.
+    Context `{@GRA.inG (FairRA.tgtt S) Σ}.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-    Context `{@GRA.inG (Region.t ((sum_tid Id) * nat * Ord.t * Qp * nat)) Σ}.
+    Context `{@GRA.inG (Region.t ((sum_tid S) * nat * Ord.t * Qp * nat)) Σ}.
 
     Definition correl_thread (k: nat) (c: Ord.t): iProp :=
-      ∃ i, correl (Id:=sum_tid Id) (inl i) k c.
+      ∃ i, correl inlp i k c.
 
     Lemma correl_thread_persistent k c
       :
@@ -4647,9 +4709,9 @@ Module ObligationRA.
       :
       (correl_thread k c)
         -∗
-        (FairRA.white_thread (_Id := Id))
+        (FairRA.white_thread (S := S))
         -∗
-        (#=(arrows_sat (Id := sum_tid Id))=> (white k c ∨ shot k)).
+        (#=(arrows_sat (S := sum_tid S))=> (white k c ∨ shot k)).
     Proof.
       iIntros "[% CORR] WHITE".
       iApply (correl_correlate with "CORR WHITE").
@@ -4658,7 +4720,7 @@ Module ObligationRA.
     Lemma duty_correl_thread i l k c
           (IN: List.In (k, c) l)
       :
-      (duty (inl i) l)
+      (duty inlp i l)
         -∗
         (correl_thread k c).
     Proof.
@@ -4670,13 +4732,13 @@ Module ObligationRA.
 
 
   Section TARGET.
-    Variable (_Id: Type).
-    Let Id := id_sum thread_id _Id.
+    Variable (S: Type).
+    Let Id := id_sum thread_id S.
     Context `{Σ: GRA.t}.
     Context `{@GRA.inG t Σ}.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
     Context `{@GRA.inG (Region.t (Id * nat * Ord.t * Qp * nat)) Σ}.
-    Context `{@GRA.inG (@FairRA.tgtt _Id) Σ}.
+    Context `{@GRA.inG (@FairRA.tgtt S) Σ}.
 
     Lemma IUpd_open I P
       :
@@ -4697,18 +4759,18 @@ Module ObligationRA.
       :
       (FairRA.sat_target f0 ths)
         -∗
-        (duty (inl tid) l ** tax l)
+        (duty inlp tid l ** tax l)
         -∗
-        (#=(arrows_sat (Id := Id))=>
+        (#=(arrows_sat (S := Id))=>
            ((FairRA.sat_target f1 ths)
               **
-              (duty (inl tid) l)
+              (duty inlp tid l)
               **
-              FairRA.white_thread (_Id := _Id))).
+              FairRA.white_thread (S := S))).
     Proof.
       iIntros "SAT DUTY ARROWS".
       iPoseProof (duties_updating with "[DUTY]") as "UPD".
-      { instantiate (1:=[(inl tid, l)]). ss. iFrame. }
+      { instantiate (1:=[(tid, l)]). ss. iFrame. }
       iPoseProof (IUpd_open with "UPD ARROWS") as "> [ARROWS UPD]".
       iPoseProof ("UPD" with "ARROWS") as "> [[BLACK _] K]".
       iPoseProof (FairRA.target_update_thread with "SAT BLACK") as "> [[SAT BLACK] WHITE]".
@@ -4718,29 +4780,30 @@ Module ObligationRA.
       iModIntro. iFrame.
     Qed.
 
-    Lemma target_update
+    Lemma target_update A
           lf ls ths
+          (p: Prism.t S A)
           (f0 f1: imap Id nat_wf)
-          (fm: fmap _Id)
-          (UPD: fair_update f0 f1 (prism_fmap inrp fm))
+          (fm: fmap A)
+          (UPD: fair_update f0 f1 (prism_fmap (Prism.compose inrp p) fm))
           (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
           (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
           (NODUP: List.NoDup lf)
       :
       (FairRA.sat_target f0 ths)
         -∗
-        (list_prop_sum (fun '(i, l) => duty (inr i) l ** tax l) ls)
+        (list_prop_sum (fun '(i, l) => duty (Prism.compose inrp p) i l ** tax l) ls)
         -∗
-        (#=(arrows_sat (Id := Id))=>
+        (#=(arrows_sat (S := Id))=>
            ((FairRA.sat_target f1 ths)
               **
-              (list_prop_sum (fun '(i, l) => duty (inr i) l) ls)
+              (list_prop_sum (fun '(i, l) => duty (Prism.compose inrp p) i l) ls)
               **
-              (list_prop_sum (fun i => FairRA.white (Id := Id) (inr i) 1) lf))).
+              (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) i 1) lf))).
     Proof.
       iIntros "SAT DUTY ARROWS".
       iPoseProof (duties_updating with "[DUTY]") as "UPD".
-      { instantiate (1:=List.map (fun '(i,l) => (inr i, l)) ls).
+      { instantiate (1:=List.map (fun '(i,l) => (i, l)) ls).
         clear SUCCESS. iStopProof.
         induction ls; ss. destruct a. iIntros "[HD TL]". iFrame.
         iApply IHls. auto.
@@ -4748,7 +4811,11 @@ Module ObligationRA.
       iPoseProof (IUpd_open with "UPD ARROWS") as "> [ARROWS K]".
       iPoseProof ("K" with "ARROWS") as "> [BLACKS K]".
       iPoseProof (FairRA.target_update with "SAT [BLACKS]") as "> [[SAT BLACKS] WHITES]".
-      { eauto. }
+      { rewrite prism_fmap_compose in UPD. eauto. }
+      { instantiate (1:=List.map (Prism.review p) ls).
+
+admit. }
+      { admit. }
       { eauto. }
       { eauto. }
       { eauto. }
