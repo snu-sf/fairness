@@ -156,17 +156,17 @@ Section SIM.
         ∗
         (St_tgt (tt, (mem, (own, key_set wobl))))
         ∗
-        (FairRA.blacks (fun id => exists t, (id = (inr (inr (inr t)))) /\ (~ NatMap.In t wobl)))
+        (FairRA.blacks (inrp ⋅ (inrp ⋅ inrp))%prism (fun id => (~ NatMap.In id wobl)))
         ∗
         (natmap_prop_sum wobl
                          (fun tid idx =>
                             (own_thread tid)
                               ∗
-                              (ObligationRA.correl (inr (inr (inr tid))) idx o_w_cor)
+                              (ObligationRA.correl (inrp ⋅ (inrp ⋅ inrp))%prism tid idx o_w_cor)
                               ∗
                               (ObligationRA.pending idx 1)
                               ∗
-                              (ObligationRA.duty (inr (inr (inr tid))) [(idx, o_w_cor)])
+                              (ObligationRA.duty (inrp ⋅ (inrp ⋅ inrp))%prism tid [(idx, o_w_cor)])
         ))
         ∗
         (
@@ -210,7 +210,7 @@ Section SIM.
        ∗
        (own_thread tid)
        ∗
-       (ObligationRA.duty (inl tid) l)
+       (ObligationRA.duty inlp tid l)
        ∗
        (ObligationRA.taxes
           l ((((Ord.omega × Ord.omega) × Ord.omega)
@@ -220,7 +220,7 @@ Section SIM.
       ∗
       (((own_thread tid)
           ∗
-          (∃ j, (ObligationRA.duty (inl tid) ((j, Ord.S Ord.O) :: l))
+          (∃ j, (ObligationRA.duty inlp tid ((j, Ord.S Ord.O) :: l))
                   ∗
                   (ObligationRA.white j (Ord.omega × (Ord.from_nat num_line))%ord)
                   ∗
@@ -283,16 +283,14 @@ Section SIM.
     }
 
     (* update ObligationRA.duty: get [] by black_to_duty, update with MYW; then correl *)
-    set (blks2 :=
-           (λ id : nat + (Mod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
-               (∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t (NatMap.add tid k wobl))%type)).
+    set (blks2 := fun id => ¬ NatMap.In id (NatMap.add tid k wobl)).
     iPoseProof (FairRA.blacks_unfold with "BLKS") as "[BLKS MYDUTY]".
-    { instantiate (1:=inr (inr (inr tid))). instantiate (1:=blks2). i. des.
-      { subst blks2. ss. des. esplits; eauto. ii; apply IN0. apply NatMapP.F.add_in_iff; auto. }
-      { subst blks2. ss. esplits; eauto. }
+    { instantiate (1:=tid). instantiate (1:=blks2). i. des; subst.
+      { subst blks2. ss. ii; apply IN. apply NatMapP.F.add_in_iff; auto. }
+      { subst blks2. ss. }
     }
-    { subst blks2. ss. ii. des. clarify. apply H1. apply NatMapP.F.add_in_iff. auto. }
-    iPoseProof (black_to_duty with "MYDUTY") as "MYDUTY".
+    { subst blks2. ss. ii. eapply H0. apply NatMapP.F.add_in_iff. auto. }
+    iPoseProof (ObligationRA.black_to_duty with "MYDUTY") as "MYDUTY".
     iPoseProof (ObligationRA.duty_alloc with "MYDUTY") as "MYDUTY".
     iPoseProof ("MYDUTY" with "MYW") as "> MYDUTY".
     iPoseProof (ObligationRA.duty_correl with "MYDUTY") as "# MYCOR".
@@ -429,21 +427,21 @@ Section SIM.
       iPoseProof (natmap_prop_remove_find with "SUM") as "[[MYTH [_ [MYPEND MYDUTY]]] SUM]".
       eapply FIND. iPoseProof (ObligationRA.pending_shot with "MYPEND") as "> MYDONE".
       iPoseProof (ObligationRA.duty_done with "MYDUTY MYDONE") as "> MYDUTY".
-      iApply (stsim_fairR with "[MYDUTY]").
-      4:{ instantiate (1:=[(inr (inr tid), [])]). ss. iFrame. }
-      { clear. i. unfold prism_fmap in *. des_ifs. eapply Prism.review_preview in Heq. ss. auto. }
-      { instantiate (1:= List.map (fun '(j, _) => inr (inr j)) (NatMap.elements (NatMap.remove tid (key_set wobl)))). clear. i. unfold prism_fmap.
-        assert (A: exists j, (i = inr (inr j)) /\ (NatMap.In j (NatMap.remove tid (key_set wobl)))).
-        { apply in_map_iff in IN. des. des_ifs. destruct u. esplits; eauto.
+      iApply (stsim_fairR_prism with "[MYDUTY]").
+      4:{ instantiate (1:=[(tid, [])]). ss. iFrame. }
+      { clear. i. ss. des_ifs. auto. }
+      { instantiate (1:= List.map fst (NatMap.elements (NatMap.remove tid (key_set wobl)))). clear. i. unfold prism_fmap.
+        assert (A: (NatMap.In i (NatMap.remove tid (key_set wobl)))).
+        { apply in_map_iff in IN. des. subst. destruct x. destruct u.
           remember (NatMap.remove tid (key_set wobl)) as M. clear HeqM.
           apply NatMapP.F.elements_in_iff. exists (). apply SetoidList.InA_alt.
-          exists (k, ()). ss.
+          exists (k, tt). ss.
         }
         des. subst. unfold Prism.preview; ss. des_ifs.
-        exfalso. eapply NatMap.remove_1. ss. eapply A0.
+        exfalso. eapply NatMap.remove_1. ss. eapply A.
       }
       { eapply FinFun.Injective_map_NoDup.
-        { unfold FinFun.Injective. i. des_ifs. destruct u, u0. ss. }
+        { unfold FinFun.Injective. i. destruct x, y. destruct u, u0. ss. subst. auto. }
         apply NoDupA_NoDup. apply NatMap.elements_3w.
       }
       iIntros "MYDUTY WHITES". rred.
@@ -455,15 +453,13 @@ Section SIM.
       rewrite <- key_set_pull_rm_eq in *. remember (NatMap.remove tid wobl) as new_wobl.
 
       iPoseProof (MonotonePCM.list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".
-      iPoseProof (duty_to_black with "MYDUTY") as "MYBEX".
+      iPoseProof (ObligationRA.duty_to_black with "MYDUTY") as "MYBEX".
       iPoseProof (FairRA.blacks_fold with "[BLKS MYBEX]") as "BLKS".
       2:{ iFrame. }
-      { instantiate (1:=
-         (λ id : nat + (Mod.ident ClientImpl.omod + (Mod.ident (SCMem.mod gvs) + NatMap.key)),
-             ∃ t : NatMap.key, id = inr (inr (inr t)) ∧ ¬ NatMap.In (elt:=nat) t new_wobl)).
-        i. ss. des. destruct (tid_dec t tid) eqn:DEC.
+      { instantiate (1:=fun id => ¬ NatMap.In (elt:=nat) id new_wobl).
+        i. ss. des. destruct (tid_dec j0 tid) eqn:DEC.
         - clarify. auto.
-        - left. esplits; eauto. ii. apply IN0. subst. apply NatMapP.F.remove_in_iff.
+        - left. esplits; eauto. ii. apply IN. subst. apply NatMapP.F.remove_in_iff.
           split; auto.
       }
 
@@ -479,7 +475,7 @@ Section SIM.
       }
       iDestruct "B2" as "[B2 LOCK]". clear j.
 
-      iAssert (natmap_prop_sum new_wobl (fun tid0 idx => ObligationRA.correl (inr (inr (inr tid0))) idx (Ord.omega × Ord.omega)%ord)) with "[SUM]" as "#CORs".
+      iAssert (natmap_prop_sum new_wobl (fun tid0 idx => ObligationRA.correl (inrp ⋅ (inrp ⋅ inrp))%prism tid0 idx (Ord.omega × Ord.omega)%ord)) with "[SUM]" as "#CORs".
       { iApply natmap_prop_sum_impl. 2: iFrame.
         i. iIntros "[_ [CORS _]]".  iFrame.
       }
@@ -502,7 +498,7 @@ Section SIM.
       { ss. left; eauto. }
 
       (* need amps == need pendings; *)
-      iAssert (natmap_prop_sum new_wobl (fun k _ => FairRA.white (inr (inr (inr k))) 1))%I with "[WHITES]" as "WHITES".
+      iAssert (natmap_prop_sum new_wobl (fun k _ => FairRA.white (inrp ⋅ (inrp ⋅ inrp))%prism k 1))%I with "[WHITES]" as "WHITES".
       { Transparent key_set. unfold key_set. rewrite <- list_map_elements_nm_map. unfold natmap_prop_sum.
         remember (NatMap.elements new_wobl) as ml. clear Heqml. rewrite List.map_map.
         iClear "CORs NEWCORTH". clear. iStopProof. induction ml.
@@ -564,12 +560,12 @@ Section SIM.
        ∗
        (OwnM (Excl.just tt: Excl.t unit))
        ∗
-       (∃ k, (ObligationRA.duty (inl tid) ((k, Ord.S Ord.O) :: l))
+       (∃ k, (ObligationRA.duty inlp tid ((k, Ord.S Ord.O) :: l))
                ∗ (OwnM (Auth.white (Excl.just k: Excl.t nat)))
                ∗ (ObligationRA.taxes ((k, Ord.S Ord.O) :: l) 3%ord))
     )
       ∗
-      ((ObligationRA.duty (inl tid) l)
+      ((ObligationRA.duty inlp tid l)
          -∗
          (stsim tid ⊤ r g Q
                 false false
@@ -632,7 +628,7 @@ Section SIM.
     (inv N_lock lock_will_unlock) **
     (inv N_user thread1_will_write) **
     (∃ k, (own_thread tid)
-            ∗ (ObligationRA.duty (inl tid) [(k, Ord.from_nat 1)])
+            ∗ (ObligationRA.duty inlp tid [(k, Ord.from_nat 1)])
             ∗ (ObligationRA.taxes
                  [(k, Ord.from_nat 1)]
                  ((((Ord.omega × Ord.omega) × Ord.omega) ⊕ ((Ord.S Ord.O) × (o_w_cor))) ⊕ 10)%ord
@@ -642,7 +638,7 @@ Section SIM.
     )
       ⊢
       (stsim tid ⊤ ibot7 ibot7
-             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
              false false
              (ClientSpec.thread1 tt)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (ClientImpl.thread1 tt))).
@@ -717,11 +713,11 @@ Section SIM.
     (inv N_lock lock_will_unlock) **
     (inv N_user thread1_will_write) **
     ((own_thread tid)
-       ∗ (ObligationRA.duty (inl tid) [])
+       ∗ (ObligationRA.duty inlp tid [])
     )
       ⊢
       (stsim tid ⊤ ibot7 ibot7
-             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
              false false
              (ClientSpec.thread2 tt)
              (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (ClientImpl.thread2 tt))).
