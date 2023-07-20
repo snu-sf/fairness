@@ -4803,22 +4803,28 @@ Module ObligationRA.
     Proof.
       iIntros "SAT DUTY ARROWS".
       iPoseProof (duties_updating with "[DUTY]") as "UPD".
-      { instantiate (1:=List.map (fun '(i,l) => (i, l)) ls).
+      { instantiate (1:=ls).
         clear SUCCESS. iStopProof.
-        induction ls; ss. destruct a. iIntros "[HD TL]". iFrame.
-        iApply IHls. auto.
+        induction ls; ss.
       }
       iPoseProof (IUpd_open with "UPD ARROWS") as "> [ARROWS K]".
       iPoseProof ("K" with "ARROWS") as "> [BLACKS K]".
       iPoseProof (FairRA.target_update with "SAT [BLACKS]") as "> [[SAT BLACKS] WHITES]".
       { rewrite prism_fmap_compose in UPD. eauto. }
-      { instantiate (1:=List.map (Prism.review p) ls).
-
-admit. }
-      { admit. }
-      { eauto. }
-      { eauto. }
-      { eauto. }
+      { instantiate (1:=List.map (Prism.review p) (List.map fst ls)).
+        i. unfold prism_fmap in IN. des_ifs.
+        hexploit SUCCESS; eauto. i.
+        eapply Prism.review_preview in Heq. subst.
+        eapply in_map in H3. eauto.
+      }
+      { instantiate (1:=List.map (Prism.review p) lf).
+        i. eapply in_map_iff in IN. des. subst.
+        unfold prism_fmap. rewrite Prism.preview_review. eauto.
+      }
+      { eapply FinFun.Injective_map_NoDup; eauto.
+        ii. eapply f_equal with (f:=Prism.preview p) in H3.
+        rewrite ! Prism.preview_review in H3. clarify.
+      }
       { clear SUCCESS. iStopProof.
         induction ls; ss. destruct a. ss. unfold FairRA.blacks_of. ss.
         iIntros "[HD TL]". iFrame. iApply IHls. auto.
@@ -4829,9 +4835,8 @@ admit. }
         iFrame. iApply IHls. auto.
       }
       iModIntro. iFrame.
-      clear SUCCESS. iStopProof.
-      induction ls; ss. destruct a. iIntros "[HD TL]".
-      iFrame. iApply IHls. auto.
+      iApply (list_prop_sum_map_inv with "WHITES").
+      i. iIntros "WHITE". iApply FairRA.white_prism_id_rev. auto.
     Qed.
   End TARGET.
 End ObligationRA.

@@ -360,7 +360,7 @@ Section INVARIANT.
   Definition fairI: iProp :=
     (ObligationRA.edges_sat)
       **
-      (ObligationRA.arrows_sat (Id := sum_tid ident_tgt)).
+      (ObligationRA.arrows_sat (S := sum_tid ident_tgt)).
 
   Definition default_I: TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
     fun ths im_src im_tgt st_src st_tgt =>
@@ -376,7 +376,7 @@ Section INVARIANT.
         **
         (ObligationRA.edges_sat)
         **
-        (ObligationRA.arrows_sat (Id := sum_tid ident_tgt))
+        (ObligationRA.arrows_sat (S := sum_tid ident_tgt))
   .
 
   Definition default_I_past (tid: thread_id): TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
@@ -458,7 +458,7 @@ Section INVARIANT.
     :
     (default_I ths0 im_src im_tgt0 st_src st_tgt)
       -∗
-      #=> (own_thread tid ** ObligationRA.duty (inl tid) [] ** default_I ths1 im_src im_tgt1 st_src st_tgt).
+      #=> (own_thread tid ** ObligationRA.duty inlp tid [] ** default_I ths1 im_src im_tgt1 st_src st_tgt).
   Proof.
     unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G]".
     iPoseProof (OwnM_Upd with "A") as "> [A TH]".
@@ -476,30 +476,31 @@ Section INVARIANT.
     :
     (default_I ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+      (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
       -∗
-      #=> (ObligationRA.duty (inl tid) l ** FairRA.white_thread (_Id:=_) ** default_I ths im_src im_tgt1 st_src st_tgt).
+      #=> (ObligationRA.duty inlp tid l ** FairRA.white_thread (S:=_) ** default_I ths im_src im_tgt1 st_src st_tgt).
   Proof.
     unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] DUTY".
     iPoseProof (ObligationRA.target_update_thread with "E DUTY G") as "> [G [[E BLACK] WHITE]]"; [eauto|].
     iModIntro. iFrame.
   Qed.
 
-  Lemma default_I_update_ident_target lf ls
+  Lemma default_I_update_ident_target A lf ls
+        (p: Prism.t ident_tgt A)
         ths im_src im_tgt0 st_src st_tgt
         fm im_tgt1
-        (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap inrp fm))
+        (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap (inrp ⋅ p)%prism fm))
         (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
     (default_I ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l ** ObligationRA.tax l) ls)
+      (list_prop_sum (fun '(i, l) => ObligationRA.duty (inrp ⋅ p)%prism i l ** ObligationRA.tax l) ls)
       -∗
-      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l) ls)
+      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inrp ⋅ p)%prism i l) ls)
              **
-             (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
+             (list_prop_sum (fun i => FairRA.white (Id:=_) (inrp ⋅ p)%prism i 1) lf)
              **
              default_I ths im_src im_tgt1 st_src st_tgt).
   Proof.
@@ -520,12 +521,12 @@ Section INVARIANT.
     :
     (default_I ths im_src0 im_tgt st_src st_tgt)
       -∗
-      (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
+      (list_prop_sum (fun i => FairRA.white Prism.id i Ord.one) lf)
       -∗
       #=> (∃ im_src1,
               (⌜fair_update im_src0 im_src1 fm⌝)
                 **
-                (list_prop_sum (fun i => FairRA.white i o) ls)
+                (list_prop_sum (fun i => FairRA.white Prism.id i o) ls)
                 **
                 default_I ths im_src1 im_tgt st_src st_tgt).
   Proof.
@@ -538,7 +539,7 @@ Section INVARIANT.
 
   Lemma arrows_sat_sub ths im_src im_tgt st_src st_tgt
     :
-    ⊢ SubIProp (ObligationRA.arrows_sat (Id := sum_tid ident_tgt)) (default_I ths im_src im_tgt st_src st_tgt).
+    ⊢ SubIProp (ObligationRA.arrows_sat (S := sum_tid ident_tgt)) (default_I ths im_src im_tgt st_src st_tgt).
   Proof.
     iIntros "[[[[[[A B] C] D] E] F] G]". iModIntro. iFrame. auto.
   Qed.
@@ -605,29 +606,30 @@ Section INVARIANT.
     :
     (default_I_past tid ths im_src im_tgt st_src st_tgt)
       -∗
-      (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+      (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
       -∗
-      #=> (ObligationRA.duty (inl tid) l ** FairRA.white_thread (_Id:=_) ** default_I ths im_src im_tgt st_src st_tgt).
+      #=> (ObligationRA.duty inlp tid l ** FairRA.white_thread (S:=_) ** default_I ths im_src im_tgt st_src st_tgt).
   Proof.
     iIntros "[% [% D]] H".
     iApply (default_I_update_ident_thread with "D H"); auto.
   Qed.
 
-  Lemma default_I_past_update_ident_target tid lf ls
+  Lemma default_I_past_update_ident_target A tid lf ls
+        (p: Prism.t ident_tgt A)
         ths im_src im_tgt0 st_src st_tgt
         fm im_tgt1
-        (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap inrp fm))
+        (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap (inrp ⋅ p)%prism fm))
         (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
     (default_I_past tid ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l ** ObligationRA.tax l) ls)
+      (list_prop_sum (fun '(i, l) => ObligationRA.duty (inrp ⋅ p)%prism i l ** ObligationRA.tax l) ls)
       -∗
-      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l) ls)
+      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inrp ⋅ p)%prism i l) ls)
              **
-             (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
+             (list_prop_sum (fun i => FairRA.white (Id:=_) (inrp ⋅ p)%prism i 1) lf)
              **
              default_I_past tid ths im_src im_tgt1 st_src st_tgt).
   Proof.
@@ -642,6 +644,7 @@ Section INVARIANT.
       unfold prism_fmap, tids_fmap in *; ss. unfold is_inl, is_inr in *; ss. des_ifs.
       { rewrite <- H. auto. }
       { rewrite UPD. auto. }
+      { etrans; eauto. }
     }
     iModIntro. iFrame.
     unfold default_I_past. iExists _. iSplit; eauto. iPureIntro.
@@ -659,12 +662,12 @@ Section INVARIANT.
     :
     (default_I_past tid ths im_src0 im_tgt st_src st_tgt)
       -∗
-      (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
+      (list_prop_sum (fun i => FairRA.white Prism.id i Ord.one) lf)
       -∗
       #=> (∃ im_src1,
               (⌜fair_update im_src0 im_src1 fm⌝)
                 **
-                (list_prop_sum (fun i => FairRA.white i o) ls)
+                (list_prop_sum (fun i => FairRA.white Prism.id i o) ls)
                 **
                 default_I_past tid ths im_src1 im_tgt st_src st_tgt).
   Proof.
@@ -673,32 +676,41 @@ Section INVARIANT.
     iModIntro. unfold default_I_past. iExists _. iSplitL "H"; auto.
   Qed.
 
-  Lemma default_I_past_final ths0 im_src im_tgt st_src st_tgt
-        tid
+  Lemma default_I_past_update_ident_source_prism A tid lf ls o
+        (p: Prism.t ident_src A)
+        ths im_src0 im_tgt st_src st_tgt
+        fm
+        (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
+        (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (default_I_past tid ths0 im_src im_tgt st_src st_tgt)
+    (default_I_past tid ths im_src0 im_tgt st_src st_tgt)
       -∗
-      (own_thread tid ** ObligationRA.duty (inl tid) [])
+      (list_prop_sum (fun i => FairRA.white p i Ord.one) lf)
       -∗
-      #=> (∃ ths1,
-              (⌜NatMap.remove tid ths0 = ths1⌝)
+      #=> (∃ im_src1,
+              (⌜fair_update im_src0 im_src1 (prism_fmap p fm)⌝)
                 **
-                (default_I ths1 im_src im_tgt st_src st_tgt)).
+                (list_prop_sum (fun i => FairRA.white p i o) ls)
+                **
+                default_I_past tid ths im_src1 im_tgt st_src st_tgt).
   Proof.
-    iIntros "[% [% D]] [OWN DUTY]".
-    iPoseProof (default_I_update_ident_thread with "D [DUTY]") as "> [[DUTY _] D]".
-    { eauto. }
-    { iSplitL; eauto. }
-    unfold default_I. iPoseProof "D" as "[[[[[[A B] C] D] E] F] G]".
-    iCombine "A OWN" as "A".
-    iPoseProof (OwnM_Upd with "A") as "> X".
-    { apply Auth.auth_dealloc.
-      eapply (@NatMapRALarge.remove_local_update unit ths0 _ _).
+    iIntros "D H".
+    iPoseProof (default_I_past_update_ident_source with "D [H]") as "> [% [[% H] D]]".
+    { instantiate (1:=List.map (Prism.review p) lf). instantiate (1:=prism_fmap p fm).
+      i. unfold prism_fmap in IN. des_ifs.
+      eapply Prism.review_preview in Heq. subst.
+      eapply in_map. auto.
     }
-    iPoseProof (FairRA.target_remove_thread with "E [DUTY]") as "> E".
-    { iPoseProof "DUTY" as "[% [% [[A [B %]] %]]]". destruct rs; ss.
-      subst. iFrame.
+    { instantiate (1:=List.map (Prism.review p) ls).
+      i. eapply in_map_iff in IN. des. subst.
+      unfold prism_fmap. rewrite Prism.preview_review. auto.
     }
-    iModIntro. iExists _. iFrame. auto.
+    { iApply (list_prop_sum_map with "H"). i.
+      iIntros "H". iApply (FairRA.white_prism_id with "H").
+    }
+    iModIntro. iExists _. iFrame. iSplit; auto.
+    iApply (list_prop_sum_map_inv with "H"). i.
+    iIntros "H". iApply (FairRA.white_prism_id_rev with "H").
   Qed.
+
 End INVARIANT.

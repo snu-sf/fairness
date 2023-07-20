@@ -131,6 +131,15 @@ Module Prism.
   Lemma review_preview S A (p : t S A) s a : preview p s = Some a -> review p a = s.
   Proof. unfold review, preview. eapply _review_preview. destruct p; ss. Qed.
 
+  Lemma review_inj S A (p : t S A)
+        a0 a1 (EQ: review p a0 = review p a1)
+    :
+    a0 = a1.
+  Proof.
+    eapply f_equal with (f:=preview p) in EQ.
+    rewrite ! preview_review in EQ. clarify.
+  Qed.
+
   Program Definition id {S} : Prism.t S S :=
     exist _ (id, Some) _.
   Next Obligation.
