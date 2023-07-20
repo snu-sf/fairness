@@ -374,9 +374,9 @@ Section SIM.
       ∗
       (⌜tkqueue l tks (S now) next⌝)
       ∗
-      (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
+      (natmap_prop_sum tks (fun th tk => FairRA.white Prism.id th (Ord.from_nat (tk - (S now)))))
       ∗
-      (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
+      (list_prop_sum (fun th => ((ObligationRA.duty inlp th [])
                                 ∗ (∃ u, maps_to th (Auth.black (Excl.just u: Excl.t nat))))%I) l)
       ∗
       (∃ (k: nat),
@@ -406,16 +406,16 @@ Section SIM.
         ∗
         (⌜tkqueue l tks now next⌝)
         ∗
-        (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (now)))))
+        (natmap_prop_sum tks (fun th tk => FairRA.white Prism.id th (Ord.from_nat (tk - (now)))))
         ∗
-        (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
+        (list_prop_sum (fun th => ((ObligationRA.duty inlp th [])
                                   ∗ (∃ u, maps_to th (Auth.black (Excl.just u: Excl.t nat))))%I) waits)
         ∗
         (∃ (k: nat) (o: Ord.t) (u: nat),
             (monoBlack monok mypreord (now, Tkst.b k))
               ∗ (ObligationRA.black k o)
               ∗ (ObligationRA.pending k 1)
-              ∗ (ObligationRA.duty (inl yourt) [(k, Ord.S Ord.O)])
+              ∗ (ObligationRA.duty inlp yourt [(k, Ord.S Ord.O)])
               ∗ (ObligationRA.white k (((Ord.S Ord.O) × Ord.omega) × (Ord.from_nat u))%ord)
               ∗ (maps_to yourt (Auth.black (Excl.just u: Excl.t nat)))
               ∗ (ObligationRA.white k (((Ord.S Ord.O) × Ord.omega) × wo)%ord)
@@ -429,9 +429,9 @@ Section SIM.
       ∗
       (⌜tkqueue l tks (S now) next⌝)
       ∗
-      (natmap_prop_sum tks (fun th tk => FairRA.white th (Ord.from_nat (tk - (S now)))))
+      (natmap_prop_sum tks (fun th tk => FairRA.white Prism.id th (Ord.from_nat (tk - (S now)))))
       ∗
-      (list_prop_sum (fun th => ((ObligationRA.duty (inl th) [])
+      (list_prop_sum (fun th => ((ObligationRA.duty inlp th [])
                                 ∗ (∃ u, maps_to th (Auth.black (Excl.just u: Excl.t nat))))%I) l)
       ∗
       (∃ (k: nat),
@@ -442,7 +442,7 @@ Section SIM.
   Definition ticket_lock_inv_tks
              (tks: NatMap.t nat) : iProp :=
     ((OwnM (Auth.black (Some tks: NatMapRALarge.t nat)))
-       ∗ (FairRA.whites (fun id => (~ NatMap.In id tks)) Ord.omega)
+       ∗ (FairRA.whites Prism.id (fun id => (~ NatMap.In id tks)) Ord.omega)
        ∗ (natmap_prop_sum tks (fun tid tk => (own_thread tid)))
        ∗ (OwnMs (fun id => (~ NatMap.In id tks))
                 ((Auth.black (Excl.just 0: Excl.t nat)) ⋅ (Auth.white (Excl.just 0: Excl.t nat))))
@@ -455,9 +455,9 @@ Section SIM.
 
   Definition ticket_lock_inv_mem
              (mem: WMem.t) (V: View.t) (wk: nat) (wo: Ord.t) (svw: View.t) (now next: nat) (myt: thread_id) : iProp :=
-    ((wmemory_black_strong mem)
+    ((wmemory_black_strong inrp mem)
        (* ∗ (wpoints_to_full TicketLockW.now_serving V wk (wP now) (wQ now svw)) *)
-       ∗ (wpoints_to_full TicketLockW.now_serving V wk (wP now) (wQ now))
+       ∗ (wpoints_to_full inrp TicketLockW.now_serving V wk (wP now) (wQ now))
        ∗ (wpoints_to_faa TicketLockW.next_ticket (nat2c next))
        ∗ (OwnM (Auth.black (Excl.just (now, myt, V): Excl.t (((nat * nat) * View.t))%type)))
        ∗ (monoBlack tk_mono Nat.le_preorder now)
@@ -690,7 +690,7 @@ Section SIM.
   Lemma lock_enqueue tid tvw:
     (inv N ticket_lock_inv) ∗
     ((own_thread tid)
-       ∗ (ObligationRA.duty (inl tid) [])
+       ∗ (ObligationRA.duty inlp tid [])
     )
       ∗
       (∀ mytk tview,
@@ -701,7 +701,7 @@ Section SIM.
           )
             -∗
   (stsim tid ⊤ ibot7 ibot7
-         (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+         (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
          false false
     (ITree.iter
        (λ _ : (),
@@ -732,7 +732,7 @@ Section SIM.
       )
       ⊢
       (stsim tid ⊤ ibot7 ibot7
-             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLockW.lock_fun tvw)
              (OMod.close_itree TicketLockW.omod (WMem.mod)
@@ -777,7 +777,7 @@ Section SIM.
     iPoseProof (NatMapRALarge_add with "TKS0") as ">[TKS0 MYTK]". eauto. instantiate (1:=next).
     iAssert (St_src (own, svw, ing, (key_set tks')))%I with "[ST1]" as "ST1".
     { subst tks'. rewrite key_set_pull_add_eq. iFrame. }
-    iPoseProof ((FairRA.whites_unfold (fun id => ~ NatMap.In id tks') _ (i:=tid)) with "TKS1") as "[TKS1 MYTRI]".
+    iPoseProof ((FairRA.whites_unfold _ (fun id => ~ NatMap.In id tks') _ (i:=tid)) with "TKS1") as "[TKS1 MYTRI]".
     { subst tks'. i. ss. des; clarify.
       - ii. apply IN. destruct (tid_dec j tid); clarify.
         apply NatMapP.F.not_find_in_iff in H; clarify. apply NatMapP.F.add_in_iff; auto.
@@ -962,14 +962,14 @@ Section SIM.
         ∗ (monoWhite monok mypreord (mytk, x)))
         -∗
   (stsim tid ⊤ g0 g1
-    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
     ps true
     (trigger Yield;;; src)
     (tgt))
       )
       ⊢
   (stsim tid ⊤ g0 g1
-    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
     ps pt
     (trigger Yield;;; src)
     (trigger Yield;;; tgt)).
@@ -1060,17 +1060,17 @@ Section SIM.
            (⊤∖↑N) ⊤ emp))))))
       ∗
       (((OwnM (Auth.white ((NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat))))
-          ∗ (FairRA.white_thread (_Id:=_)))
+          ∗ (FairRA.white_thread (S:=_)))
         -∗
   (stsim tid ⊤ g0 g1
-    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
     ps true
     (trigger Yield;;; src)
     (tgt))
       )
       ⊢
   (stsim tid (⊤∖↑N) g0 g1
-    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
     ps pt
     (trigger Yield;;; src)
     (trigger Yield;;; tgt)).
@@ -1162,7 +1162,7 @@ Section SIM.
        ∗ (maps_to tid (Auth.white (Excl.just ph: Excl.t nat))))
        (* ∗ (maps_to tid (Auth.white (Excl.just tx: Excl.t nat)))) *)
   ⊢ stsim tid ⊤ g0 g1
-      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
       ps pt
       (trigger Yield;;;
        ` x : () + () <-
@@ -1380,8 +1380,8 @@ Section SIM.
 
     iPoseProof (natmap_prop_sum_impl with "I3") as "I3".
     { instantiate (1:= fun th tk =>
-                         ((FairRA.white th (Ord.from_nat (tk - (S now))))
-                            ∗ (FairRA.white th Ord.one))%I).
+                         ((FairRA.white Prism.id th (Ord.from_nat (tk - (S now))))
+                            ∗ (FairRA.white Prism.id th Ord.one))%I).
       i. ss. iIntros "WHI". erewrite FairRA.white_eq.
       2:{ instantiate (1:= (OrderedCM.add (Ord.from_nat (a - (S now))) (Ord.one))).
           rewrite <- Ord.from_nat_1. ss. rewrite <- Hessenberg.add_from_nat. rr. ss.
@@ -1465,7 +1465,7 @@ Section SIM.
             (ticket_lock_inv -* FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLockW.omod WMem.mod))
                (⊤∖↑N) ⊤ emp)))))))
   ⊢ (stsim tid (⊤∖↑N) g0 g1
-      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
       ps pt
       (trigger Yield;;;
        ` x : () + () <-
@@ -1564,13 +1564,13 @@ Section SIM.
          )
            -∗
      (stsim tid (⊤∖↑N) g0 g1
-    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+    (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
     ps true
     (src)
     (tgt (tview0, nat2c val)))
       )
       ⊢
-    (stsim tid (⊤∖↑N) g0 g1 (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) ps
+    (stsim tid (⊤∖↑N) g0 g1 (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝) ps
            pt
            src
     (` r : Any.t <-
@@ -1674,7 +1674,7 @@ Section SIM.
     :
   (□ (∀ a : View.t,
          (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
-         g1 View.t View.t (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
+         g1 View.t View.t (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝) false
            false
           (src_code_coind tid tvw)
           (tgt_code_coind a mytk)
@@ -1689,7 +1689,7 @@ Section SIM.
              (ticket_lock_inv -* FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLockW.omod WMem.mod))
                 (⊤∖↑N) ⊤ emp)))))))
   )
-  ⊢ (stsim tid (⊤∖↑N) g0 g1 (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) ps
+  ⊢ (stsim tid (⊤∖↑N) g0 g1 (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝) ps
       pt
       (trigger Yield;;;
        ` x : () + () <-
@@ -1861,7 +1861,7 @@ Section SIM.
                               (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) **
                                (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
                               g1 View.t View.t
-                                (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+                                (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
                                 false false
                                 (src_code_coind tid tvw)
                                 (tgt_code_coind a mytk)
@@ -1883,7 +1883,7 @@ Section SIM.
                                  FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLockW.omod WMem.mod))
                                  (⊤∖↑N) ⊤ emp))))))))
                        ⊢ stsim tid (⊤∖↑N) g0 g1
-                           (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
+                           (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝) false
                            true
                            (src_code_ind tid tvw)
                            (tgt_code_ind tview mytk)
@@ -1902,7 +1902,7 @@ Section SIM.
     (inv N ticket_lock_inv) ∗
   (□ ((∀ a : View.t,
          (OwnM (Auth.white (NatMapRALarge.singleton tid mytk: NatMapRALarge.t nat)) ** (maps_to tid (Auth.white (Excl.just 1: Excl.t nat)) ** ⌜View.le tvw a⌝)) -*
-         g1 View.t View.t (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝) false
+         g1 View.t View.t (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝) false
            false
           (src_code_coind tid tvw)
           (tgt_code_coind a mytk))
@@ -1920,7 +1920,7 @@ Section SIM.
             (⊤∖↑N) ⊤ emp)))))))
   )
   ⊢ (stsim tid (⊤∖↑N) g0 g1
-      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+      (λ r_src r_tgt : View.t, (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
       false true
       (trigger Yield;;;
        ` x : () + () <-
@@ -2077,11 +2077,11 @@ Section SIM.
   Lemma correct_lock tid tvw:
     (inv N ticket_lock_inv) ∗
     ((own_thread tid)
-       ∗ (ObligationRA.duty (inl tid) [])
+       ∗ (ObligationRA.duty inlp tid [])
     )
       ⊢
       (stsim tid ⊤ ibot7 ibot7
-             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLockW.lock_fun tvw)
              (OMod.close_itree TicketLockW.omod (WMem.mod)
@@ -2168,11 +2168,11 @@ Section SIM.
   Lemma correct_unlock tid tvw:
     (inv N ticket_lock_inv) ∗
     ((own_thread tid)
-       ∗ (ObligationRA.duty (inl tid) [])
+       ∗ (ObligationRA.duty inlp tid [])
     )
       ⊢
       (stsim tid ⊤ ibot7 ibot7
-             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+             (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
              false false
              (AbsLockW.unlock_fun tvw)
              (OMod.close_itree TicketLockW.omod (WMem.mod)
@@ -2538,6 +2538,7 @@ Section SIM.
       }
       iSplitL "MONO2 INIT1 MBLACK NEXT NOW OWN1 MONO3 MONO1 BLACK".
       { iSplit; [|eauto]. unfold ticket_lock_inv_mem. iFrame.
+        iApply FairRA.blacks_prism_id_rev.
         iApply (FairRA.blacks_impl with "INIT1"). i. des. subst. ss.
       }
       iSplitL "INIT4 INIT5".
