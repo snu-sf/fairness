@@ -3750,12 +3750,14 @@ Module ObligationRA.
 
   Section ARROW.
     Variable (S: Type).
-    Variable (Id: Type).
-    Variable (p: Prism.t S Id).
     Context `{@GRA.inG t Σ}.
     Context `{@GRA.inG (@FairRA.t S nat _) Σ}.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
     Context `{@GRA.inG (Region.t (S * nat * Ord.t * Qp * nat)) Σ}.
+
+    Section PRISM.
+    Variable (Id: Type).
+    Variable (p: Prism.t S Id).
 
     Definition arrow: (S * nat * Ord.t * Qp * nat) -> iProp :=
       fun '(i, k, c, q, x) =>
@@ -4042,6 +4044,29 @@ Module ObligationRA.
         }
         iPureIntro. ss.
       }
+    Qed.
+
+    Lemma duty_to_black i
+      :
+      (duty i [])
+        -∗
+        FairRA.black_ex p i 1%Qp.
+    Proof.
+      iIntros "[% [% [[H0 [H1 %]] %]]]". destruct rs; ss. subst. auto.
+    Qed.
+
+    Lemma black_to_duty i
+      :
+      (FairRA.black_ex p i 1%Qp)
+        -∗
+        (duty i []).
+    Proof.
+      iIntros "H". iExists _, _. iFrame. iSplit.
+      { iSplit.
+        { iApply list_prop_sum_nil. }
+        { auto. }
+      }
+      { auto. }
     Qed.
 
     Definition tax (l: list (nat * Ord.t)): iProp :=
@@ -4684,6 +4709,22 @@ Module ObligationRA.
       { iApply Region.sat_list_combine. iFrame. }
       { iFrame. iExists _, _. iFrame. eauto. }
     Qed.
+
+    End PRISM.
+
+    Lemma duty_prism_id Id (p: Prism.t S Id) i l
+      :
+      (duty p i l)
+        -∗
+        (duty Prism.id (Prism.review p i) l).
+    Proof. auto. Qed.
+
+    Lemma duty_prism_id_rev Id (p: Prism.t S Id) i l
+      :
+      (duty Prism.id (Prism.review p i) l)
+        -∗
+        (duty p i l).
+    Proof. auto. Qed.
   End ARROW.
 
   Section ARROWTHREAD.

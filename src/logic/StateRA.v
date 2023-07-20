@@ -713,4 +713,32 @@ Section INVARIANT.
     iIntros "H". iApply (FairRA.white_prism_id_rev with "H").
   Qed.
 
+  Lemma default_I_past_final ths0 im_src im_tgt st_src st_tgt
+        tid
+    :
+    (default_I_past tid ths0 im_src im_tgt st_src st_tgt)
+      -∗
+      (own_thread tid ** ObligationRA.duty inlp tid [])
+      -∗
+      #=> (∃ ths1,
+              (⌜NatMap.remove tid ths0 = ths1⌝)
+                **
+                (default_I ths1 im_src im_tgt st_src st_tgt)).
+  Proof.
+    iIntros "[% [% D]] [OWN DUTY]".
+    iPoseProof (default_I_update_ident_thread with "D [DUTY]") as "> [[DUTY _] D]".
+    { eauto. }
+    { iSplitL; eauto. }
+    unfold default_I. iPoseProof "D" as "[[[[[[A B] C] D] E] F] G]".
+    iCombine "A OWN" as "A".
+    iPoseProof (OwnM_Upd with "A") as "> X".
+    { apply Auth.auth_dealloc.
+      eapply (@NatMapRALarge.remove_local_update unit ths0 _ _).
+    }
+    iPoseProof (FairRA.target_remove_thread with "E [DUTY]") as "> E".
+    { iPoseProof "DUTY" as "[% [% [[A [B %]] %]]]". destruct rs; ss.
+      subst. iFrame.
+    }
+    iModIntro. iExists _. iFrame. auto.
+  Qed.
 End INVARIANT.

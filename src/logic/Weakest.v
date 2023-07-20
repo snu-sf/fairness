@@ -882,31 +882,6 @@ Section STATE.
       (@GRA.embed _ _ COPSETRA (Some ⊤))
   .
 
-  Lemma duty_to_black
-        (i: id_sum nat ident_tgt)
-    :
-    (ObligationRA.duty i [])
-      -∗
-      FairRA.black_ex i 1%Qp.
-  Proof.
-    iIntros "[% [% [[H0 [H1 %]] %]]]". destruct rs; ss. subst. auto.
-  Qed.
-
-  Lemma black_to_duty
-        (i: id_sum nat ident_tgt)
-    :
-    (FairRA.black_ex i 1%Qp)
-      -∗
-      (ObligationRA.duty i []).
-  Proof.
-    iIntros "H". iExists _, _. iFrame. iSplit.
-    { iSplit.
-      { iApply list_prop_sum_nil. }
-      { auto. }
-    }
-    { auto. }
-  Qed.
-
   Lemma own_threads_init ths
     :
     (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRALarge.t unit)))
@@ -933,13 +908,13 @@ Section STATE.
           #=> (∃ im_src,
                   (default_I ths im_src im_tgt st_src st_tgt)
                     **
-                    (natmap_prop_sum ths (fun tid _ => ObligationRA.duty (inl tid) []))
+                    (natmap_prop_sum ths (fun tid _ => ObligationRA.duty inlp tid []))
                     **
                     (natmap_prop_sum ths (fun tid _ => own_thread tid))
                     **
-                    (FairRA.whites (fun _ => True: Prop) o)
+                    (FairRA.whites Prism.id (fun _ => True: Prop) o)
                     **
-                    (FairRA.blacks (fun i => match i with | inr _ => True | _ => False end: Prop))
+                    (FairRA.blacks Prism.id (fun i => match i with | inr _ => True | _ => False end: Prop))
                     **
                     (St_src st_src)
                     **
@@ -966,7 +941,7 @@ Section STATE.
     iExists f. unfold default_I. iFrame.
     iPoseProof (wsat_init with "OWN9") as "W". iFrame.
     iPoseProof (own_threads_init with "OWN0") as "> [OWN0 H]". iFrame.
-    iModIntro. iSplitR "H1"; [iSplitL "OWN8"|].
+    iModIntro. iSplitR "H2"; [iSplitR "H1"; [iSplitL "OWN8"|]|].
     { iExists _. iSplitL.
       { iApply (OwnM_extends with "OWN8"). instantiate (1:=[]).
         apply pointwise_extends. i. destruct a; ss; reflexivity.
@@ -979,7 +954,12 @@ Section STATE.
       }
       { ss. }
     }
-    { iApply natmap_prop_sum_impl; [|eauto]. i. ss. iApply black_to_duty. }
+    { iApply natmap_prop_sum_impl; [|eauto]. i. ss.
+      iApply ObligationRA.black_to_duty. }
+    { iPoseProof (FairRA.blacks_prism_id with "H2") as "H".
+      iApply (FairRA.blacks_impl with "H").
+      i. des_ifs. esplits; eauto.
+    }
   Qed.
 
   Let I: shared_rel :=
@@ -1341,7 +1321,7 @@ Section STATE.
          ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (stsim E r g Q ps pt itr_src itr_tgt) (stsim E r g Q ps pt itr_src itr_tgt).
+    ElimModal True p false (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt))=> P) P (stsim E r g Q ps pt itr_src itr_tgt) (stsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] [C E]]".
@@ -1365,7 +1345,7 @@ Section STATE.
   Global Instance mupd_elim_upd_arrow
          P Q E1 E2 p Inv
     :
-    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
+    ElimModal True p false (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1389,7 +1369,7 @@ Section STATE.
   Global Instance mupd_elim_fupd_arrow
          P Q E1 E2 p
     :
-    ElimModal True p false (#=(ObligationRA.arrows_sat (Id:=sum_tid ident_tgt))=> P) P (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
+    ElimModal True p false (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt))=> P) P (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
@@ -1750,22 +1730,23 @@ Section STATE.
     iApply isim_tidR. iApply ("H" with "D").
   Qed.
 
-  Lemma stsim_fairL o lf ls
-        A (p : Prism.t _ A)
+  Lemma stsim_fairL_prism o
+        A lf ls
+        (p : Prism.t _ A)
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt
         (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
-        (SUCCESS: forall i (IN: List.In i ls), prism_fmap p fm i = Flag.success)
+        (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
+    (list_prop_sum (fun i => FairRA.white p i Ord.one) lf)
       -∗
-      ((list_prop_sum (fun i => FairRA.white i o) ls) -∗ (stsim E r g Q true pt (ktr_src tt) itr_tgt))
+      ((list_prop_sum (fun i => FairRA.white p i o) ls) -∗ (stsim E r g Q true pt (ktr_src tt) itr_tgt))
       -∗
       (stsim E r g Q ps pt (trigger (Fair (prism_fmap p fm)) >>= ktr_src) itr_tgt).
   Proof.
     unfold stsim. iIntros "OWN H" (? ? ? ? ?) "(D & C & E)".
-    iPoseProof (default_I_past_update_ident_source with "D OWN") as "> [% [[% WHITES] D]]".
+    iPoseProof (default_I_past_update_ident_source_prism with "D OWN") as "> [% [[% WHITES] D]]".
     { eauto. }
     { eauto. }
     iPoseProof ("H" with "WHITES [D C E]") as "H".
@@ -1780,19 +1761,45 @@ Section STATE.
         (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
         (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (list_prop_sum (fun i => FairRA.white i Ord.one) lf)
+    (list_prop_sum (fun i => FairRA.white Prism.id i Ord.one) lf)
       -∗
-      ((list_prop_sum (fun i => FairRA.white i o) ls) -∗ (stsim E r g Q true pt (ktr_src tt) itr_tgt))
+      ((list_prop_sum (fun i => FairRA.white Prism.id i o) ls) -∗ (stsim E r g Q true pt (ktr_src tt) itr_tgt))
       -∗
       (stsim E r g Q ps pt (trigger (Fair fm) >>= ktr_src) itr_tgt).
   Proof.
-    unfold stsim. iIntros "OWN H" (? ? ? ? ?) "(D & C & E)".
-    iPoseProof (default_I_past_update_ident_source with "D OWN") as "> [% [[% WHITES] D]]".
+    iIntros "WHITES K".
+    rewrite <- (prism_fmap_id fm).
+    iApply (stsim_fairL_prism with "[WHITES] [K]"); eauto.
+  Qed.
+
+  Lemma stsim_fairR_prism A lf ls
+        (p : Prism.t _ A)
+        E fm r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt
+        (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
+        (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+        (NODUP: List.NoDup lf)
+    :
+    (list_prop_sum (fun '(i, l) => ObligationRA.duty (Prism.compose inrp p) i l ** ObligationRA.tax l) ls)
+      -∗
+      ((list_prop_sum (fun '(i, l) => ObligationRA.duty (Prism.compose inrp p) i l) ls)
+         -*
+         (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) i 1) lf)
+         -*
+         stsim E r g Q ps true itr_src (ktr_tgt tt))
+      -∗
+      (stsim E r g Q ps pt itr_src (trigger (Fair (prism_fmap p fm)) >>= ktr_tgt))
+  .
+  Proof.
+    unfold stsim. iIntros "OWN H"  (? ? ? ? ?) "(D & C & E)".
+    iApply isim_fairR. iIntros (?) "%".
+    iPoseProof (default_I_past_update_ident_target with "D OWN") as "> [[DUTY WHITE] D]".
+    { rewrite prism_fmap_compose. eauto. }
     { eauto. }
     { eauto. }
-    iPoseProof ("H" with "WHITES [D C E]") as "H".
-    { iFrame. }
-    iApply isim_fairL. iExists _. iSplit; eauto.
+    { eauto. }
+    iApply ("H" with "DUTY WHITE"). iFrame.
   Qed.
 
   Lemma stsim_fairR lf ls
@@ -1803,24 +1810,20 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l ** ObligationRA.tax l) ls)
+    (list_prop_sum (fun '(i, l) => ObligationRA.duty inrp i l ** ObligationRA.tax l) ls)
       -∗
-      ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inr i) l) ls)
+      ((list_prop_sum (fun '(i, l) => ObligationRA.duty inrp i l) ls)
          -*
-         (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
+         (list_prop_sum (fun i => FairRA.white inrp i 1) lf)
          -*
          stsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
       (stsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
   .
   Proof.
-    unfold stsim. iIntros "OWN H"  (? ? ? ? ?) "(D & C & E)".
-    iApply isim_fairR. iIntros (?) "%".
-    iPoseProof (default_I_past_update_ident_target with "D OWN") as "> [[DUTY WHITE] D]".    { eauto. }
-    { eauto. }
-    { eauto. }
-    { eauto. }
-    iApply ("H" with "DUTY WHITE"). iFrame.
+    iIntros "DUTY K".
+    rewrite <- (prism_fmap_id fm).
+    iApply (stsim_fairR_prism with "[DUTY] [K]"); eauto.
   Qed.
 
   Lemma stsim_fairR_simple lf ls
@@ -1831,11 +1834,11 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun i => FairRA.black_ex (inr i) 1) ls)
+    (list_prop_sum (fun i => FairRA.black_ex inrp i 1) ls)
       -∗
-      ((list_prop_sum (fun i => FairRA.black_ex (inr i) 1) ls)
+      ((list_prop_sum (fun i => FairRA.black_ex inrp i 1) ls)
          -*
-         (list_prop_sum (fun i => FairRA.white (Id:=_) (inr i) 1) lf)
+         (list_prop_sum (fun i => FairRA.white inrp i 1) lf)
          -*
          stsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
@@ -1846,9 +1849,9 @@ Section STATE.
     { instantiate (1:= List.map (fun i => (i, [])) ls). i. specialize (SUCCESS _ IN). rewrite List.map_map. ss.
       replace (List.map (λ x : ident_tgt, x) ls) with ls; auto. clear. induction ls; ss; eauto. f_equal. auto.
     }
-    { iApply list_prop_sum_map. 2: iFrame. i. ss. iIntros "BLK". iSplitL; auto. iApply black_to_duty. auto. }
+    { iApply list_prop_sum_map. 2: iFrame. i. ss. iIntros "BLK". iSplitL; auto. iApply ObligationRA.black_to_duty. auto. }
     { iIntros "S F". iApply ("B" with "[S]"). 2: iFrame. iApply list_prop_sum_map_inv. 2: iFrame.
-      i; ss. iIntros "D". iApply duty_to_black. iFrame.
+      i; ss. iIntros "D". iApply ObligationRA.duty_to_black. iFrame.
     }
   Qed.
 
@@ -1893,11 +1896,11 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
     :
-    (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+    (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
       -∗
-      ((ObligationRA.duty (inl tid) l)
+      ((ObligationRA.duty inlp tid l)
          -*
-         (FairRA.white_thread (_Id:=_))
+         (FairRA.white_thread (S:=_))
          -*
          (FUpd (fairI (ident_tgt:=ident_tgt)) E ⊤
                (stsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
@@ -1920,11 +1923,11 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
     :
-    (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+    (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
       -∗
-      ((ObligationRA.duty (inl tid) l)
+      ((ObligationRA.duty inlp tid l)
          -*
-         (FairRA.white_thread (_Id:=_))
+         (FairRA.white_thread (S:=_))
          -*
          (FUpd (fairI (ident_tgt:=ident_tgt)) E ⊤
                (stsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
@@ -1947,11 +1950,11 @@ Section STATE.
         ps pt ktr_src ktr_tgt l
         (TOP: ⊤ ⊆ E)
     :
-    (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+    (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
       -∗
-      ((ObligationRA.duty (inl tid) l)
+      ((ObligationRA.duty inlp tid l)
          -*
-         (FairRA.white_thread (_Id:=_))
+         (FairRA.white_thread (S:=_))
          -*
          stsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
       -∗
@@ -1968,11 +1971,11 @@ Section STATE.
         ps pt ktr_src ktr_tgt l
         (TOP: ⊤ ⊆ E)
     :
-    (ObligationRA.duty (inl tid) l ** ObligationRA.tax l)
+    (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
       -∗
-      ((ObligationRA.duty (inl tid) l)
+      ((ObligationRA.duty inlp tid l)
          -*
-         (FairRA.white_thread (_Id:=_))
+         (FairRA.white_thread (S:=_))
          -*
          stsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))
       -∗
@@ -1991,11 +1994,11 @@ Section STATE.
         ps pt ktr_src ktr_tgt
     :
     FUpd (fairI (ident_tgt:=ident_tgt)) ⊤ ⊤
-         ((FairRA.black_ex (inl tid) 1)
+         ((FairRA.black_ex inlp tid 1)
             **
-            ((FairRA.black_ex (inl tid) 1)
+            ((FairRA.black_ex inlp tid 1)
                -*
-               (FairRA.white_thread (_Id:=_))
+               (FairRA.white_thread (S:=_))
                -*
                stsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
          -∗
@@ -2004,9 +2007,9 @@ Section STATE.
   Proof.
     iIntros "> [H K]". iApply (stsim_yieldR with "[H]").
     { auto. }
-    { iPoseProof (black_to_duty with "H") as "H". iFrame. }
+    { iPoseProof (ObligationRA.black_to_duty with "H") as "H". iFrame. }
     iIntros "B W". iApply ("K" with "[B] [W]"); ss.
-    { iApply duty_to_black. auto. }
+    { iApply ObligationRA.duty_to_black. auto. }
   Qed.
 
   Lemma stsim_sync_simple r g R_src R_tgt
@@ -2014,11 +2017,11 @@ Section STATE.
         ps pt ktr_src ktr_tgt
     :
     FUpd (fairI (ident_tgt:=ident_tgt)) ⊤ ⊤
-         ((FairRA.black_ex (inl tid) 1)
+         ((FairRA.black_ex inlp tid 1)
             **
-            ((FairRA.black_ex (inl tid) 1)
+            ((FairRA.black_ex inlp tid 1)
                -*
-               (FairRA.white_thread (_Id:=_))
+               (FairRA.white_thread (S:=_))
                -*
                stsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
       -∗
@@ -2026,9 +2029,9 @@ Section STATE.
   Proof.
     iIntros "> [H K]". iApply (stsim_sync with "[H]").
     { auto. }
-    { iPoseProof (black_to_duty with "H") as "H". iFrame. }
+    { iPoseProof (ObligationRA.black_to_duty with "H") as "H". iFrame. }
     iIntros "B W". iApply ("K" with "[B] [W]"); ss.
-    { iApply duty_to_black. auto. }
+    { iApply ObligationRA.duty_to_black. auto. }
   Qed.
 
   Lemma stsim_reset E r g R_src R_tgt

@@ -194,6 +194,12 @@ Section OPTICS_PROPERTIES.
     des_ifs.
   Qed.
 
+  Lemma prism_fmap_id A (fm: fmap A) :
+      prism_fmap Prism.id fm = fm.
+  Proof.
+    extensionalities i. unfold prism_fmap, Prism.preview at 1; ss.
+  Qed.
+
   Lemma map_lens_compose A B C (l1 : Lens.t A B) (l2 : Lens.t B C) :
     map_lens (l1 ⋅ l2)%lens = (map_lens l1 ∘ map_lens l2)%event.
   Proof. extensionalities X e. destruct e; ss. Qed.

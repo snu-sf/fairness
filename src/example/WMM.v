@@ -553,15 +553,17 @@ Section MEMRA.
 
 
 
+  Variable S: Type.
+  Variable p: Prism.t S WMem.ident.
 
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{ARROWRA: @GRA.inG (ArrowRA (void + WMem.ident)%type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA (void + WMem.ident)%type) Σ}.
+  Context `{ARROWRA: @GRA.inG (ArrowRA S) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA S) Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
 
   Definition wmemory_black_strong m: iProp :=
-    wmemory_black m ** (FairRA.blacks (fun id => exists loc to, id = (inr (inr (loc, to))) /\ Memory.get loc to m.(WMem.memory) = None)).
+    wmemory_black m ** (FairRA.blacks (Prism.compose inrp p) (fun id => exists loc to, id = (loc, to) /\ Memory.get loc to m.(WMem.memory) = None)).
 
   Lemma wmemory_ra_write_strong
         m0 m1 l c
@@ -572,7 +574,7 @@ Section MEMRA.
       -∗
       (points_to l c)
       -∗
-      (#=> (wmemory_black_strong (WMem.mk m1 m0.(WMem.sc)) ** points_to l (m1 l) ** FairRA.black_ex (inr (inr (l, to))) 1%Qp)).
+      (#=> (wmemory_black_strong (WMem.mk m1 m0.(WMem.sc)) ** points_to l (m1 l) ** FairRA.black_ex (Prism.compose inrp p) (l, to) 1%Qp)).
   Proof.
     iIntros "[BLACK BLACKS] WHITE".
     iPoseProof (wmemory_ra_write with "BLACK WHITE") as "> [BLACK WHITE]"; [eauto|..].
@@ -621,7 +623,7 @@ Section MEMRA.
       (points_to l c)
         **
         (∃ v released,
-            (⌜Cell.max_ts c = Time.bot⌝ ∨ ObligationRA.duty (inr (inr (l, (Cell.max_ts c)))) [(k,Ord.S Ord.O)])
+            (⌜Cell.max_ts c = Time.bot⌝ ∨ ObligationRA.duty (Prism.compose inrp p) (l, (Cell.max_ts c)) [(k,Ord.S Ord.O)])
               **
               (ObligationRA.pending k 1%Qp)
               **
@@ -723,7 +725,7 @@ Section MEMRA.
          ∗ (wmemory_black_strong m)
          ∗ (wpoints_to_full l V k P Q)
          ∗ (((lift_wProp P val vw1)
-               ∗ (∃ ts, (ObligationRA.correl (inr (inr (l, ts))) k (Ord.S Ord.O))
+               ∗ (∃ ts, (ObligationRA.correl (Prism.compose inrp p) (l, ts) k (Ord.S Ord.O))
                           ∗ (⌜WMem.missed m.(WMem.memory) l to (l, ts) = Flag.fail⌝)))
             ∨ ((lift_wProp Q val vw1) ∗ (⌜View.le V vw1⌝)))
       ).
@@ -733,7 +735,7 @@ Section MEMRA.
     inv READ. ss. iSplit.
     { iPureIntro. aggrtac. }
     iAssert (⌜Cell.max_ts (WMem.memory m l) = Time.bot⌝
-             ∨ (ObligationRA.correl _ _ _))%I with "[X]" as "#CORREL".
+             ∨ (ObligationRA.correl (Prism.compose inrp p) _ _ _))%I with "[X]" as "#CORREL".
     { iPoseProof "X" as "[X|X]"; [auto|].
       iRight. iApply (ObligationRA.duty_correl with "X"). ss. eauto.
     }
@@ -853,7 +855,7 @@ Section MEMRA.
       (⌜R val View.bot⌝)
       -∗
       ((⌜View.le vw0 vw1⌝)
-         ∗ #=( ObligationRA.arrows_sat (Id:=sum_tid (void + WMem.ident)%type) )=> ((wmemory_black_strong m1))
+         ∗ #=( ObligationRA.arrows_sat (S:=sum_tid S) )=> ((wmemory_black_strong m1))
          ∗ (∃ V' k' o,
                (⌜View.le V' vw1⌝)
                  ∗

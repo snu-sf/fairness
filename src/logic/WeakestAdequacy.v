@@ -243,11 +243,11 @@ Module WSim.
     Qed.
 
     Definition initial_prop (ths: TIdSet.t) o: iProp :=
-      ((FairRA.whites (fun _ => True: Prop) o)
+      ((FairRA.whites Prism.id (fun _ => True: Prop) o)
          **
-         (FairRA.blacks (fun i => match i with | inr _ => True | _ => False end: Prop))
+         (FairRA.blacks Prism.id (fun i => match i with | inr _ => True | _ => False end: Prop))
          **
-         (natmap_prop_sum ths (fun tid _ => ObligationRA.duty (inl tid) []))
+         (natmap_prop_sum ths (fun tid _ => ObligationRA.duty inlp tid []))
          **
          (natmap_prop_sum ths (fun tid _ => own_thread tid))
          **
@@ -262,7 +262,7 @@ Module WSim.
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
           (SIM: stsim tid ⊤ ibot7 ibot7
                       (fun r_src r_tgt =>
-                         ((own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
+                         ((own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
           (INV: (default_I ths im_src im_tgt0 st_src st_tgt **
                    (wsat ** OwnE ⊤)) r_shared)
           (FUPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
@@ -380,7 +380,7 @@ Module WSim.
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
           (SIM: stsim tid ⊤ ibot7 ibot7
                       (fun r_src r_tgt =>
-                         ((own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
+                         ((own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
       :
       @local_sim_init
         (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
@@ -409,11 +409,11 @@ Module WSim.
           (SIM: forall tid,
               ((own_thread tid)
                  -∗
-                 (ObligationRA.duty (inl tid) [])
+                 (ObligationRA.duty inlp tid [])
                  -∗
                  (stsim tid ⊤ ibot7 ibot7
                         (fun r_src r_tgt =>
-                           ((own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I r_arg)
+                           ((own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I r_arg)
       :
       @local_sim_arg
         (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
@@ -443,7 +443,7 @@ Module WSim.
                         **
                         stsim tid ⊤ ibot7 ibot7
                         (λ r_src r_tgt : Any.t,
-                            (own_thread tid ** ObligationRA.duty (inl tid) []) ** ⌜r_src = r_tgt⌝)
+                            (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
                         false false th0 th1)).
       { iIntros "[ARG [D SAT]]".
         iPoseProof (default_I_thread_alloc with "D") as "> [[OWN DUTY] D]".
@@ -549,7 +549,7 @@ Module WSim.
                                  stsim
                                    tid ⊤
                                    ibot7 ibot7
-                                   (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+                                   (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
                                    false false th_src th_tgt))
                 ));
           }.
@@ -575,7 +575,7 @@ Module WSim.
                                  stsim
                                    tid ⊤
                                    ibot7 ibot7
-                                   (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+                                   (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
                                    false false th_src th_tgt)))%I r>>) /\
                      (<<WF: URA.wf r>>)).
         { i. eapply iProp_satisfable.
@@ -661,7 +661,7 @@ Module WSim.
                                     stsim
                                       tid ⊤
                                       ibot7 ibot7
-                                      (fun r_src r_tgt => own_thread tid ** FairRA.black_ex (inl tid) 1 ** ⌜r_src = r_tgt⌝)
+                                      (fun r_src r_tgt => own_thread tid ** FairRA.black_ex inlp tid 1 ** ⌜r_src = r_tgt⌝)
                                       false false th_src th_tgt))))>>);
           }.
 
@@ -677,7 +677,7 @@ Module WSim.
         iApply (natmap_prop_sum_impl with "H1"). i. des_ifs.
         iApply (stsim_mono). i.
         iIntros "[[H0 H1] H2]". iModIntro. iFrame.
-        iApply black_to_duty. auto.
+        iApply ObligationRA.black_to_duty. auto.
       Qed.
 
       Theorem whole_sim_simple_implies_refinement
@@ -711,12 +711,12 @@ Module WSim.
                                     ∀ tid,
                                       (own_thread tid)
                                         -∗
-                                        (ObligationRA.duty (inl tid) [])
+                                        (ObligationRA.duty inlp tid [])
                                         -∗
                                         (stsim
                                            tid ⊤
                                            ibot7 ibot7
-                                           (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+                                           (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
                                            false false (ktr_src args) (ktr_tgt args))
                                 | None, None => True
                                 | _, _ => False
@@ -743,12 +743,12 @@ Module WSim.
                                          ∀ tid,
                                            (own_thread tid)
                                              -∗
-                                             (ObligationRA.duty (inl tid) [])
+                                             (ObligationRA.duty inlp tid [])
                                              -∗
                                              (stsim
                                                 tid ⊤
                                                 ibot7 ibot7
-                                                (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
+                                                (fun r_src r_tgt => own_thread tid ** ObligationRA.duty inlp tid [] ** ⌜r_src = r_tgt⌝)
                                                 false false (ktr_src args) (ktr_tgt args))
                                      | None, None => True
                                      | _, _ => False
@@ -813,12 +813,12 @@ Module WSim.
               match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
               | Some ktr_src, Some ktr_tgt =>
                   forall tid,
-                      (FairRA.black_ex (inl tid) 1)
+                      (FairRA.black_ex inlp tid 1)
                       -∗
                       (stsim
                          tid ⊤
                          ibot7 ibot7
-                         (fun r_src r_tgt => FairRA.black_ex (inl tid) 1 ** ⌜r_src = r_tgt⌝)
+                         (fun r_src r_tgt => FairRA.black_ex inlp tid 1 ** ⌜r_src = r_tgt⌝)
                          false false (ktr_src args) (ktr_tgt args))
               | None, None => True
               | _, _ => False
@@ -836,10 +836,10 @@ Module WSim.
           iPoseProof (SAT with "H") as "> SAT". iModIntro.
           iModIntro. iIntros. specialize (sim_funs0 fn args). des_ifs.
           iIntros (?) "H B". iPoseProof (sim_funs0 with "[B]") as "B".
-          { iApply duty_to_black. auto. }
+          { iApply ObligationRA.duty_to_black. auto. }
           iApply (stsim_wand with "B [H]").
           iIntros (? ?) "[H0 H1]". iModIntro. iFrame.
-          iApply black_to_duty. auto.
+          iApply ObligationRA.black_to_duty. auto.
         }
       Qed.
 
