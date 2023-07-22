@@ -4,6 +4,12 @@ From Fairness Require Import ITreeLib Event.
 
 Definition itree_class: red_class := red_class_cons "itree".
 
+Definition itree_unfold: red_class := red_class_cons "itree_unfold".
+
+#[export] Instance focus_id c A (a: A): red_db c a :=
+  mk_red_db _ _ (@id) a None.
+
+
 (*** TODO: move to ITreeLib ***)
 (*** TODO: remove redundancy with HoareDef - bind_eta ***)
 Lemma bind_ext E X Y itr0 itr1 (ktr: ktree E X Y): itr0 = itr1 -> itr0 >>= ktr = itr1 >>= ktr.

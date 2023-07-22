@@ -3,79 +3,51 @@ Require Import String.
 
 Variant red_class: Type := | red_class_cons: string -> red_class.
 
-Class commute_db (c: red_class)
+Class red_db (c: red_class)
       (A: Type)
       (a: A) :=
-  mk_commute_db {
-      commute_lemma_type: Type;
-      commute_lemma: commute_lemma_type;
-    }
-.
-Arguments commute_db _ [_] _.
-Arguments mk_commute_db _ [_] _ [_] _.
-Arguments commute_lemma [_ _ _] _.
+  mk_red_db {
+      red_lemma_type: Type;
+      red_lemma: red_lemma_type;
+      red_focused_type: Type;
+      red_focused: red_focused_type;
+      red_next: (_flag + red_class)%type;
+    }.
+Arguments red_db _ [_] _.
+Arguments mk_red_db _ [_] _ [_] _ [_] _ _.
+Arguments red_lemma [_ _ _] _.
+Arguments red_focused [_ _ _] _.
+Arguments red_next [_ _ _] _.
 
-Class unfold_db (c: red_class)
-      (A: Type)
-      (a: A) :=
-  mk_unfold_db {
-      unfold_lemma_type: Type;
-      unfold_lemma: unfold_lemma_type;
-    }
-.
-Arguments unfold_db _ [_] _.
-Arguments mk_unfold_db _ [_] _ [_] _.
-Arguments unfold_lemma [_ _ _] _.
+Class red_db_incl (c0 c1: red_class) :=
+  mk_red_db_incl { }.
+Arguments mk_red_db_incl {_ _}.
 
-Class focus_db (c: red_class)
-      (A: Type)
-      (a: A) :=
-  mk_focus_db {
-      focus_lemma_type: Type;
-      focus_lemma: focus_lemma_type;
-      focus_next_type: Type;
-      focus_next: focus_next_type;
-    }
-.
-Arguments focus_db _ [_] _.
-Arguments mk_focus_db _ [_] _ [_] _ [_] _.
-Arguments focus_lemma [_ _ _] _.
-Arguments focus_next [_ _ _] _.
-
-#[export] Instance focus_id c A (a: A): focus_db c a :=
-  mk_focus_db _ _ (@id) a.
-
-Ltac _commute_tac c f term :=
-  (let tc := fresh "_TC_" in
-   unshelve evar (tc: @commute_db c _ term);
-   [typeclasses eauto; instantiate (f:=_fail); fail|];
-   let lem := constr:(commute_lemma tc) in
-   instantiate (f:=_continue);
-   eapply lem).
-
-Ltac _unfold_tac c f term k :=
-  (let tc := fresh "_TC_" in
-   unshelve evar (tc: @unfold_db c _ term);
-   [typeclasses eauto; instantiate (f:=_fail); fail|];
-   let lem := constr:(unfold_lemma tc) in
-   instantiate (f:=_break);
-   k; eapply lem).
+#[export] Instance red_db_incl_focus c0 c1 `{red_db_incl c0 c1}
+ A (a: A)
+  : red_db c1 a :=
+  mk_red_db _ _ (@id) a (inr c0).
 
 Ltac _red_tac c f term k :=
-  (let tc := fresh "_TC_" in
-   unshelve evar (tc: @focus_db c _ term);
-   [typeclasses eauto; instantiate (f:=_fail); fail|];
-   let lem := constr:(focus_lemma tc) in
-   let _next := constr:(focus_next tc) in
-   let next := (eval simpl in _next) in
-   _unfold_tac c f next ltac:(k; eapply lem)).
+  match c with
+  | inr ?c =>
+      (let tc := fresh "_TC_" in
+       unshelve evar (tc: @red_db c _ term);
+       [typeclasses eauto; instantiate (f:=_fail); fail|];
+       let lem := constr:(red_lemma tc) in
+       let _focused := constr:(red_focused tc) in
+       let focused := (eval simpl in _focused) in
+       let _next := constr:(red_next tc) in
+       let next := (eval simpl in _next) in
+       _red_tac next f focused ltac:(k; eapply lem))
+  | inl ?fl =>
+      instantiate (f:=fl); k
+  end.
 
 Ltac red_tac c f :=
   match goal with
   | [ |- ?term = _ ] =>
-      (_commute_tac c f term)
-      ||
-      (_red_tac c f term ltac:(idtac))
+      (_red_tac constr:(inr c: (_flag + red_class)%type) f term ltac:(idtac))
   end
 .
 
@@ -88,7 +60,10 @@ Module TUTORIAL.
     Variable p q: C.
     Variable f: B -> B.
 
-    Variable cl: red_class.
+    Variable cl_C: red_class.
+    Variable cl_B: red_class.
+    Variable cl_B_unfold: red_class.
+    Variable cl_A: red_class.
 
     Variable sim: A -> (nat * B) * C -> nat -> Prop.
 
@@ -100,27 +75,29 @@ Module TUTORIAL.
     Hypothesis foo_red4: y = z.
     Hypothesis foo_red5: p = q.
 
-    Instance foo_red1_hint: commute_db cl a :=
-      mk_commute_db _ _ foo_red0.
-    Instance foo_red2_hint: commute_db cl b :=
-      mk_commute_db _ _ foo_red1.
-    Instance foo_red3_hint: unfold_db cl x :=
-      mk_unfold_db _ _ foo_red3.
-    Instance foo_red4_hint: unfold_db cl y :=
-      mk_unfold_db _ _ foo_red4.
-    Instance foo_red5_hint: unfold_db cl p :=
-      mk_unfold_db _ _ foo_red5.
-    Instance foo_red_f_hint a: focus_db cl (f a) :=
-      mk_focus_db _ _ (@f_equal _ _ f) a.
 
-    Lemma foo: forall (n: nat) (H: sim c ((n, z), q) n),
-        sim a ((n, x), p) n.
+    Instance foo_red1_hint: red_db cl_A a :=
+      mk_red_db _ _ foo_red0 b (inl _continue).
+    Instance foo_red2_hint: red_db cl_A b :=
+      mk_red_db _ _ foo_red1 c (inl _continue).
+    Instance foo_red3_hint: red_db cl_B_unfold x :=
+      mk_red_db _ _ foo_red3 y (inl _continue).
+    Instance foo_red4_hint: red_db cl_B_unfold y :=
+      mk_red_db _ _ foo_red4 y (inl _continue).
+    Instance foo_red5_hint: red_db cl_C p :=
+      mk_red_db _ _ foo_red5 q (inl _break).
+    Instance cl_B_unfold_cl_B: red_db_incl cl_B_unfold cl_B := mk_red_db_incl.
+
+    Instance foo_red_f_hint a: red_db cl_B (f a) :=
+      mk_red_db _ _ (@f_equal _ _ f) a (inr cl_B).
+
+    Lemma foo: forall (n: nat) (H: sim c ((n, f z), q) n),
+        sim a ((n, f x), p) n.
     Proof.
       intros n H.
-      (prw ltac:(red_tac cl) 2 2 1 0).
-      (prw ltac:(red_tac cl) 2 2 1 0).
-      (prw ltac:(red_tac cl) 2 1 0).
-      (prw ltac:(red_tac cl) 3 0).
+      (prw ltac:(red_tac cl_A) 3 0).
+      (prw ltac:(red_tac cl_C) 2 1 0).
+      (prw ltac:(red_tac cl_B) 2 2 1 0).
       exact H.
     Qed.
   End FOO.
