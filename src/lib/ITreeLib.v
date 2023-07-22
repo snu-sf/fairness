@@ -428,3 +428,28 @@ Lemma unfold_iter_eq A E B
 Proof.
   i. eapply bisim_is_eq. eapply unfold_iter.
 Qed.
+
+Lemma bind_ext E X Y itr0 itr1 (ktr: ktree E X Y): itr0 = itr1 -> itr0 >>= ktr = itr1 >>= ktr.
+Proof. intros. subst; reflexivity. Qed.
+
+Lemma bind_extk: forall [E : Type -> Type] [X Y : Type] [itr: itree E X] (ktr0 ktr1: ktree E X Y),
+    (forall x, ktr0 x = ktr1 x) -> (itr >>= ktr0) = (itr >>= ktr1)
+.
+Proof. i. f_equiv. extensionality x. eauto. Qed.
+
+Lemma tau_ext: forall [E : Type -> Type] [X : Type] [itr0 itr1: itree E X],
+    itr0 = itr1 -> (tau;; itr0) = (tau;; itr1)
+.
+Proof. i. grind. Qed.
+
+Lemma resum_itr_bind
+      E F (R S: Type)
+      (s: itree E R) (k : R -> itree E S)
+      `{E -< F}
+  :
+    (resum_itr (s >>= k))
+    =
+    ((resum_itr (E:=E) (F:=F) s) >>= (fun r => resum_itr (k r))).
+Proof.
+  unfold resum_itr in *. grind.
+Qed.
