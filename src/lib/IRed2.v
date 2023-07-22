@@ -6,7 +6,7 @@ Definition itree_class: red_class := red_class_cons "itree".
 Definition itree_unfold: red_class := red_class_cons "itree_unfold".
 Definition itree_option: red_class := red_class_cons "itree_option".
 
-#[export] Instance cl_B_unfold_cl_B: red_db_incl itree_unfold itree_class := mk_red_db_incl.
+#[export] Instance incl_itree_unfold_itree_class: red_db_incl itree_unfold itree_class := mk_red_db_incl.
 
 #[export] Instance focus_bind E X Y (itr: itree E X) (ktr: X -> itree E Y)
   : red_db itree_class (itr >>= ktr) :=
@@ -28,19 +28,19 @@ Definition itree_option: red_class := red_class_cons "itree_option".
  (s : itree E R)
  (k : R -> itree E S)
  (h : S -> itree E T)
-  : red_db itree_class ((s >>= k) >>= h) :=
+  : red_db itree_unfold ((s >>= k) >>= h) :=
   mk_red_db _ _ bind_bind tt (inl _continue).
 
 #[export] Instance commute_bind_tau E R U
  (t : itree E R)
  (k : R -> itree E U)
-  : red_db itree_class ((tau;;t) >>= k) :=
+  : red_db itree_unfold ((tau;;t) >>= k) :=
   mk_red_db _ _ bind_tau tt (inl _break).
 
 #[export] Instance commute_bind_ret_l E R S
  (r : R)
  (k : R -> itree E S)
-  : red_db itree_class (Ret r >>= k) :=
+  : red_db itree_unfold (Ret r >>= k) :=
   mk_red_db _ _ bind_ret_l tt (inl _continue).
 
 #[export] Instance commute_bind_ret_r_rev {E F} `{E -< F} R (e: E R)
@@ -62,7 +62,7 @@ Module _TEST.
       (unwrap (@Any.downcast X (Any.upcast x)) >>= (fun x: X => trigger e >>= (fun _ => tau;; Ret x)) >>= ktr) >>= (fun _ => trigger e) = trigger e >>= (fun _ => tau;; (ktr x) >>= (fun _ => trigger e >>= (fun r => Ret r))).
   Proof.
     intros.
-    repeat (prw ltac:(red_tac itree_class) 2 0).
+    (prw ltac:(red_tac itree_class) 2 0).
     f_equal. extensionality _x0.
     repeat (prw ltac:(red_tac itree_class) 2 0).
     f_equal. f_equal.
