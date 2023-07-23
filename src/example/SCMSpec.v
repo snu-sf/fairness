@@ -4,8 +4,8 @@ From stdpp Require namespaces.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export ITreeLib
      PCM IProp IPM
-     Mod Linking SCM Red IRed Weakest FancyUpdate.
-From Fairness Require Import SCM.
+     Mod Linking SCM Red TRed IRed2 LinkingRed Weakest FancyUpdate.
+
 
 Section SPEC.
   Variable ident_src: ID.
@@ -37,6 +37,9 @@ Section SPEC.
   Variable l_mem : Lens.t state_tgt SCMem.t.
   Let emb_mem := plmap p_mem l_mem.
 
+  Ltac lred2 := repeat (prw ltac:(red_tac itree_class) 1 2 0).
+  Ltac rred2 := repeat (prw ltac:(red_tac itree_class) 1 1 0).
+
   Lemma alloc_fun_spec
         sz
         tid E R_src R_tgt (Q : R_src -> R_tgt -> iProp)
@@ -51,7 +54,9 @@ Section SPEC.
              itr_src
              (map_event emb_mem (SCMem.alloc_fun sz) >>= ktr_tgt)).
   Proof.
-    unfold SCMem.alloc_fun. iIntros "H".
+    unfold SCMem.alloc_fun. iIntros "H K".
+    rred2.
+
   Admitted.
 
   Lemma store_fun_spec : True.

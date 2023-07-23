@@ -56,7 +56,7 @@ Module OMod.
     Definition emb_callee
       : forall X, threadE (Mod.ident md) (Mod.state md) X -> threadE closed_ident closed_state X :=
       plmap inrp sndl.
-    
+
     Definition close_itree {R}:
       (itree (threadE omd.(Mod.ident) omd.(Mod.state)) R) ->
       (itree (threadE closed_ident closed_state) R).
@@ -104,6 +104,90 @@ Module OMod.
     unwrap (r↓)
   .
 End OMod.
+
+
+Definition StateL
+           (S V: Type) (l: Lens.t S V)
+           (X: Type)
+           (run: V -> V * X): sE S X :=
+  State (lens_state l run).
+Arguments StateL: simpl never.
+
+Lemma StateL_id S X (run: S -> S * X):
+  State run = StateL Lens.id run.
+Proof.
+  unfold StateL, lens_state. f_equal. extensionality s.
+  unfold Lens.set,  Lens.view. ss.
+  apply surjective_pairing.
+Qed.
+
+Lemma StateL_compose S V W
+      (l0: Lens.t S V)
+      (l1: Lens.t V W)
+      X (run: W -> W * X):
+  map_lens l
+
+    StateL (Lens.compose l0 l1) run = map_lens l State run.
+Proof.
+  unfold StateL, lens_state. f_equal. extensionality s.
+  unfold Lens.set,  Lens.view. ss.
+  symmetry. apply surjective_pairing.
+Qed.
+
+Coq
+
+Definition GetL
+           (S V: Type) (l: Lens.t S V)
+           (X: Type)
+           (pr: V -> X): sE S X :=
+  Get (pr ∘ Lens.view l).
+Arguments GetL: simpl never.
+
+Definition ModifyL
+           (S V: Type) (l: Lens.t S V)
+           (X: Type)
+           (f: V -> V): sE S unit :=
+  Modify (Lens.modify l f).
+Arguments ModifyL: simpl never.
+
+Lemma
+
+
+  Lemma map_event_plmap_modify_nocont
+    (f : state -> state)
+    : map_event (plmap p l) (trigger (Modify f)) = trigger (Modify (Lens.modify l f)).
+  Proof.
+    unfold trigger. rewrite map_event_vis. rewrite <- map_lens_Modify.
+    eapply observe_eta; ss. f_equal. extensionalities x.
+    eapply map_event_ret.
+  Qed.
+
+
+
+  Lemma map_event_plmap_get_nocont
+    X (pr : state -> X)
+    : map_event (plmap p l) (trigger (Get pr)) = trigger (Get (pr ∘ Lens.view l)).
+  Proof.
+    unfold trigger. rewrite map_event_vis. rewrite <- map_lens_Get.
+    eapply observe_eta; ss. f_equal. extensionalities x.
+    eapply map_event_ret.
+  Qed.
+
+
+plmap
+
+  (* sE is just state monad *)
+  Variant sE (S : Type) (X : Type) : Type :=
+  | State (run : S -> S * X) : sE S X
+  .
+
+  Variant callE: Type -> Type :=
+  | Call (fn: fname) (arg: Any.t): callE Any.t
+  .
+
+  Definition Get {S} {X} (p : S -> X) : sE S X := State (fun x => (x, p x)).
+  Definition Modify {S} (f : S -> S) : sE S () := State (fun x => (f x, tt)).
+
 
 Section RED.
 
