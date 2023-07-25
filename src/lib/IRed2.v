@@ -3,8 +3,11 @@ From Fairness Require Export TRed.
 From Fairness Require Import ITreeLib Event.
 
 Definition itree_class: red_class := red_class_cons "itree".
+Global Opaque itree_class.
 Definition itree_unfold: red_class := red_class_cons "itree_unfold".
+Global Opaque itree_unfold.
 Definition itree_option: red_class := red_class_cons "itree_option".
+Global Opaque itree_option.
 
 #[export] Instance incl_itree_unfold_itree_class: red_db_incl itree_unfold itree_class := mk_red_db_incl.
 
