@@ -3,6 +3,12 @@ From Fairness Require Export Red IRed2.
 
 (* close_itree *)
 
+
+
+#[export] Instance red_close_itree_ext omd md R (itr: itree (threadE (Mod.ident omd) (Mod.state omd)) R)
+  : red_db itree_unfold (OMod.close_itree omd md itr) :=
+  mk_red_db _ _ close_itree_ext itr (inr itree_unfold).
+
 #[export] Instance red_close_itree_bind omd md A B
  (itr : itree (threadE (Mod.ident omd) (Mod.state omd)) A)
  (ktr : A -> itree (threadE (Mod.ident omd) (Mod.state omd)) B)
@@ -48,6 +54,13 @@ From Fairness Require Export Red IRed2.
 
 
 (* map_event *)
+
+#[export] Instance red_map_event_ext ident ident' state state'
+ (p: Prism.t ident' ident)
+ (l : Lens.t state' state)
+ R (itr: itree _ R)
+  : red_db itree_unfold (map_event (plmap p l) itr) :=
+  mk_red_db _ _ map_event_plmap_ext itr (inr itree_unfold).
 
 #[export] Instance red_map_event_bind E1 E2 (embed: forall X, E1 X -> E2 X)
  A B
