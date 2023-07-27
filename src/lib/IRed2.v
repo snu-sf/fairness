@@ -21,34 +21,34 @@ Global Opaque itree_option.
 
 #[export] Instance red_upcast_downcast A (a: A)
   : red_db itree_option (@Any.downcast A (@Any.upcast A a)) :=
-  mk_red_db _ _ Any.upcast_downcast tt (inl _continue).
+  mk_red_db _ _ (@Any.upcast_downcast A a) tt (inl _continue).
 
 #[export] Instance red_split_pair a0 a1
   : red_db itree_option (Any.split (Any.pair a0 a1)) :=
-  mk_red_db _ _ Any.pair_split tt (inl _continue).
+  mk_red_db _ _ (@Any.pair_split a0 a1) tt (inl _continue).
 
 #[export] Instance commute_bind_bind E R S T
  (s : itree E R)
  (k : R -> itree E S)
  (h : S -> itree E T)
   : red_db itree_unfold ((s >>= k) >>= h) :=
-  mk_red_db _ _ bind_bind tt (inl _continue).
+  mk_red_db _ _ (@bind_bind E R S T s k h) tt (inl _continue).
 
 #[export] Instance commute_bind_tau E R U
- (t : itree E R)
- (k : R -> itree E U)
+ (t : itree E U)
+ (k : U -> itree E R)
   : red_db itree_unfold ((tau;;t) >>= k) :=
-  mk_red_db _ _ bind_tau tt (inl _break).
+  mk_red_db _ _ (@bind_tau E R U t k) tt (inl _break).
 
 #[export] Instance commute_bind_ret_l E R S
  (r : R)
  (k : R -> itree E S)
   : red_db itree_unfold (Ret r >>= k) :=
-  mk_red_db _ _ bind_ret_l tt (inl _continue).
+  mk_red_db _ _ (@bind_ret_l E R S r k) tt (inl _continue).
 
 #[export] Instance commute_bind_ret_r_rev {E F} `{E -< F} R (e: E R)
   : red_db itree_class (trigger e) :=
-  mk_red_db _ _ bind_ret_r_rev tt (inl _break).
+  mk_red_db _ _ (@bind_ret_r_rev F R (trigger e)) tt (inl _break).
 
 Module _TEST.
   Section TEST.
@@ -102,17 +102,17 @@ Module _TEST.
   Instance interp0_bind_red
            A B (itr: itree E0 A) (ktr: ktree E0 A B)
     : red_db itree_unfold (interp0 (itr >>= ktr)) :=
-    mk_red_db _ _ interp0_bind tt (inl _continue).
+    mk_red_db _ _ (@interp0_bind A B itr ktr) tt (inl _continue).
 
   Instance interp0_tau_red
            R (itr: itree E0 R)
     : red_db itree_unfold (interp0 (Tau itr)) :=
-    mk_red_db _ _ interp0_tau tt (inl _break).
+    mk_red_db _ _ (@interp0_tau R itr) tt (inl _break).
 
   Instance interp0_ret_red
            R (r: R)
     : red_db itree_unfold (interp0 (Ret r)) :=
-    mk_red_db _ _ interp0_ret tt (inl _break).
+    mk_red_db _ _ (@interp0_ret R r) tt (inl _break).
 
   Instance interp1_ext_red
            A (itr0: itree E1 A)
@@ -122,17 +122,17 @@ Module _TEST.
   Instance interp1_bind_red
            A B (itr: itree E1 A) (ktr: ktree E1 A B)
     : red_db itree_unfold (interp1 (itr >>= ktr)) :=
-    mk_red_db _ _ interp1_bind tt (inl _continue).
+    mk_red_db _ _ (@interp1_bind A B itr ktr) tt (inl _continue).
 
   Instance interp1_tau_red
            R (itr: itree E1 R)
     : red_db itree_unfold (interp1 (Tau itr)) :=
-    mk_red_db _ _ interp1_tau tt (inl _break).
+    mk_red_db _ _ (@interp1_tau R itr) tt (inl _break).
 
   Instance interp1_ret_red
            R (r: R)
     : red_db itree_unfold (interp1 (Ret r)) :=
-    mk_red_db _ _ interp1_ret tt (inl _break).
+    mk_red_db _ _ (@interp1_ret R r) tt (inl _break).
 
   Context `{H: @eventE ID -< E2}.
 
@@ -159,6 +159,21 @@ Module _TEST.
     repeat (prw ltac:(red_tac itree_class) 2 0).
     f_equal. f_equal.
     repeat (prw ltac:(red_tac itree_class) 2 0).
+    reflexivity.
+  Qed.
+
+  Goal forall (x: X) (e: @eventE ID X) (ktr: X -> itree E2 Y),
+      (unwrap (@Any.downcast X (Any.upcast x)) >>= (fun x: X => trigger e >>= (fun _ => tau;; Ret x)) >>= ktr) >>= (fun _ => trigger e) = trigger e >>= (fun _ => tau;; (ktr x) >>= (fun _ => trigger e >>= (fun r => Ret r))).
+  Proof.
+    intros.
+    (prw ltac:(red_tac itree_class) 2 0).
+    f_equal. extensionality _x0.
+    (prw ltac:(red_tac itree_class) 2 0).
+    (prw ltac:(red_tac itree_class) 2 0).
+    f_equal. f_equal.
+    (prw ltac:(red_tac itree_class) 2 0).
+    f_equal. extensionality _x1.
+    (prw ltac:(red_tac itree_class) 2 0).
     reflexivity.
   Qed.
 

@@ -2069,3 +2069,8 @@ From Fairness Require Export Red IRed.
 
 Ltac lred := repeat (prw _red_gen 1 2 0).
 Ltac rred := repeat (prw _red_gen 1 1 0).
+
+From Fairness Require Export LinkingRed.
+
+Ltac lred2 := (prw ltac:(red_tac itree_class) 1 2 0).
+Ltac rred2 := (prw ltac:(red_tac itree_class) 1 1 0).

@@ -7,12 +7,6 @@ From Fairness Require Export ITreeLib WFLibLarge FairBeh pind Axioms
 From Ordinal Require Export ClassicalHessenberg.
 From Fairness Require Import NatStructs NatMapRA.
 
-From Fairness Require Import Red TRed IRed2 LinkingRed.
-Ltac lred2 := repeat (prw ltac:(red_tac itree_class) 1 2 0).
-Ltac rred2 := repeat (prw ltac:(red_tac itree_class) 1 1 0).
-
-
-
 Set Implicit Arguments.
 
 Module TicketLock.
@@ -667,7 +661,7 @@ Section SIM.
     rewrite close_itree_call. rred.
     iApply (stsim_sync with "[DUTY]"). msubtac. iFrame. iIntros "DUTY _".
     unfold Mod.wrap_fun, SCMem.faa_fun. rred.
-    iApply stsim_tidL. rred.
+    iApply stsim_tidL. lred.
 
     iInv "LOCK_INV" as "I" "K". do 7 iDestruct "I" as "[% I]". iDestruct "I" as "[TKS [MEM [ST CASES]]]".
     iDestruct "ST" as "[ST0 ST1]".
