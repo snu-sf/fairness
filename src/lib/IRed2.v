@@ -54,23 +54,100 @@ Module _TEST.
   Section TEST.
 
   Variable ID: Type.
-  Variable E: Type -> Type.
-  Context `{H: @eventE ID -< E}.
+  Variable E0: Type -> Type.
+  Variable E1: Type -> Type.
+  Variable E2: Type -> Type.
+  Variable interp0: forall {X}, itree E0 X -> itree E1 X.
+  Variable interp1: forall {X}, itree E1 X -> itree E2 X.
+
+  Hypothesis interp0_bind: forall
+      A B (itr: itree E0 A) (ktr: ktree E0 A B),
+      interp0 (itr >>= ktr) = interp0 itr >>= (fun a => interp0 (ktr a)).
+
+  Hypothesis interp0_tau: forall
+      R (itr: itree E0 R),
+      interp0 (Tau itr) = Tau (interp0 itr).
+
+  Hypothesis interp0_ret: forall
+      R (r: R),
+      interp0 (Ret r) = Ret r.
+
+  Hypothesis interp0_ext: forall
+      A (itr0 itr1: itree E0 A),
+      (itr0 = itr1) ->
+      (interp0 itr0 = interp0 itr1).
+
+  Hypothesis interp1_bind: forall
+      A B (itr: itree E1 A) (ktr: ktree E1 A B),
+      interp1 (itr >>= ktr) = interp1 itr >>= (fun a => interp1 (ktr a)).
+
+  Hypothesis interp1_tau: forall
+      R (itr: itree E1 R),
+      interp1 (Tau itr) = Tau (interp1 itr).
+
+  Hypothesis interp1_ret: forall
+      R (r: R),
+      interp1 (Ret r) = Ret r.
+
+  Hypothesis interp1_ext: forall
+      A (itr0 itr1: itree E1 A),
+      (itr0 = itr1) ->
+      (interp1 itr0 = interp1 itr1).
+
+  Instance interp0_bind_red
+           A B (itr: itree E0 A) (ktr: ktree E0 A B)
+    : red_db itree_unfold (interp0 (itr >>= ktr)) :=
+    mk_red_db _ _ interp0_bind tt (inl _continue).
+
+  Instance interp0_tau_red
+           R (itr: itree E0 R)
+    : red_db itree_unfold (interp0 (Tau itr)) :=
+    mk_red_db _ _ interp0_tau tt (inl _break).
+
+  Instance interp0_ret_red
+           R (r: R)
+    : red_db itree_unfold (interp0 (Ret r)) :=
+    mk_red_db _ _ interp0_ret tt (inl _break).
+
+  Instance interp0_ext_red
+           A (itr0: itree E0 A)
+    : red_db itree_unfold (interp0 itr0) :=
+    mk_red_db _ _ (@interp0_ext A itr0) itr0 (inr itree_unfold).
+
+  Instance interp1_bind_red
+           A B (itr: itree E1 A) (ktr: ktree E1 A B)
+    : red_db itree_unfold (interp1 (itr >>= ktr)) :=
+    mk_red_db _ _ interp1_bind tt (inl _continue).
+
+  Instance interp1_tau_red
+           R (itr: itree E1 R)
+    : red_db itree_unfold (interp1 (Tau itr)) :=
+    mk_red_db _ _ interp1_tau tt (inl _break).
+
+  Instance interp1_ret_red
+           R (r: R)
+    : red_db itree_unfold (interp1 (Ret r)) :=
+    mk_red_db _ _ interp1_ret tt (inl _break).
+
+  Instance interp1_ext_red
+           A (itr0: itree E1 A)
+    : red_db itree_unfold (interp1 itr0) :=
+    mk_red_db _ _ (@interp1_ext A itr0) itr0 (inr itree_unfold).
+
+  Context `{H: @eventE ID -< E2}.
 
   Variable X: Type.
   Variable Y: Type.
   Variable Z: Type.
 
-  Goal forall (x: X) (e: @eventE ID X) (ktr: X -> itree E Y),
-      (unwrap (@Any.downcast X (Any.upcast x)) >>= (fun x: X => trigger e >>= (fun _ => tau;; Ret x)) >>= ktr) >>= (fun _ => trigger e) = trigger e >>= (fun _ => tau;; (ktr x) >>= (fun _ => trigger e >>= (fun r => Ret r))).
+  Goal forall R (r: R),
+      interp1 (x <- interp0 (x <- Tau (Ret r);; Ret x);; Tau (Ret x)) = tau;; tau;; Ret r.
   Proof.
     intros.
-    (prw ltac:(red_tac itree_class) 2 0).
-    f_equal. extensionality _x0.
     repeat (prw ltac:(red_tac itree_class) 2 0).
     f_equal. f_equal.
     repeat (prw ltac:(red_tac itree_class) 2 0).
-    f_equal. extensionality _x1.
+    f_equal. f_equal.
     repeat (prw ltac:(red_tac itree_class) 2 0).
     reflexivity.
   Qed.
