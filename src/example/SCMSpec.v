@@ -67,13 +67,36 @@ Section SPEC.
         tid E R_src R_tgt (Q : R_src -> R_tgt -> iProp)
         r g ps pt
         itr_src ktr_tgt
+        (IN: ↑N_state_tgt ⊆ E)
     :
-    (points_to l v ∧ stsim tid E r g Q ps true itr_src (ktr_tgt v))
+    (tgt_interp_as l_mem memory_black)
+      -∗
+      (points_to l v)
+      -∗
+      (points_to l v -∗ stsim tid E r g Q ps true itr_src (ktr_tgt v))
       -∗
       stsim tid E r g Q ps pt
       itr_src
-      (x <- map_event emb_mem (SCMem.load_fun l);; ktr_tgt x).
+      (map_event emb_mem (SCMem.load_fun l) >>= ktr_tgt).
   Proof.
+    (* iIntros "#ST PT K". unfold SCMem.load_fun. rred2. *)
+    (* iInv "ST" as "ST1" "K1". *)
+    iIntros "[% [#INV %]]". iIntros "PT SIM".
+    iInv "INV" as "[% [ST INTERP]]" "K".
+    unfold SCMem.load_fun. rred2.
+    iApply stsim_getR. iSplit. iFrame. rred2.
+    iPoseProof (view_interp with "INTERP") as "[MEM INTERP]".
+    iPoseProof (memory_ra_load with "MEM PT") as "[%LOAD %PERM]".
+    rewrite LOAD. rred2.
+    iMod ("K" with "[ST MEM INTERP]") as "_".
+    { iPoseProof ("INTERP" with "MEM") as "I". iExists _. iFrame.
+      rewrite Lens.set_view. auto.
+    }
+    iApply "SIM". iFrame.
+  Qed.
+
+
+
   Admitted.
 
   Lemma faa_fun_spec : True.
