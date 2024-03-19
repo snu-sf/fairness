@@ -79,25 +79,16 @@ Section SPEC.
       itr_src
       (map_event emb_mem (SCMem.load_fun l) >>= ktr_tgt).
   Proof.
-    (* iIntros "#ST PT K". unfold SCMem.load_fun. rred2. *)
-    (* iInv "ST" as "ST1" "K1". *)
-    iIntros "[% [#INV %]]". iIntros "PT SIM".
-    iInv "INV" as "[% [ST INTERP]]" "K".
+    iIntros "#ST PT SIM". unfold SCMem.load_fun. rred2.
+    iInv "ST" as (st) "ST1" "K".
+    iDestruct "ST1" as (vw) "[VW MEM]".
     unfold SCMem.load_fun. rred2.
     iApply stsim_getR. iSplit. iFrame. rred2.
-    iPoseProof (view_interp with "INTERP") as "[MEM INTERP]".
     iPoseProof (memory_ra_load with "MEM PT") as "[%LOAD %PERM]".
-    rewrite LOAD. rred2.
-    iMod ("K" with "[ST MEM INTERP]") as "_".
-    { iPoseProof ("INTERP" with "MEM") as "I". iExists _. iFrame.
-      rewrite Lens.set_view. auto.
-    }
+    rewrite Lens.view_set. rewrite LOAD. rred2.
+    iMod ("K" with "[VW MEM]") as "_". iExists _. iFrame.
     iApply "SIM". iFrame.
   Qed.
-
-
-
-  Admitted.
 
   Lemma faa_fun_spec : True.
   Admitted.
