@@ -1583,17 +1583,27 @@ Module FairRA.
       eapply Fuel.black_mon. auto.
     Qed.
 
-    Lemma success_update a1 i a0
+    Lemma success_update_strong a1 i a0
       :
       (black i a0 1%Qp)
         -∗
-        (#=> ((∃ a, black i a 1%Qp) ** (white i a1))).
+        (#=> ((black i (OrderedCM.add a0 a1) 1%Qp) ** (white i a1))).
     Proof.
       iIntros "H".
       iPoseProof (OwnM_Upd with "H") as "> H".
       { eapply maps_to_updatable.
         eapply Fuel.success_update. }
       rewrite <- maps_to_res_add. iDestruct "H" as "[H0 H1]".
+      iModIntro. iFrame.
+    Qed.
+
+    Lemma success_update a1 i a0
+      :
+      (black i a0 1%Qp)
+        -∗
+        (#=> ((∃ a, black i a 1%Qp) ** (white i a1))).
+    Proof.
+      iIntros "H". iPoseProof (success_update_strong with "H") as "> [H1 H2]".
       iModIntro. iFrame. iExists _. iFrame.
     Qed.
 

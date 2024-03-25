@@ -54,29 +54,60 @@ Section TEST.
     }
   Qed.
 
-  Lemma level_dec_wf_set:
+  Lemma level_dec_wf_set :
     forall {A} {R : A -> A -> Prop} (WF : well_founded R) n, (((level n) × (Ord.from_wf_set WF)) < level (S n))%ord.
   Proof.
     i. rewrite level_red_succ. apply Jacobsthal.lt_mult_r; [|apply level_lt_zero].
     apply Ord.large_lt_from_wf_set.
   Qed.
 
-  Lemma level_dec_wf:
+  Lemma level_dec_wf :
     forall {A} {R : A -> A -> Prop} (WF : well_founded R) (a : A) n, (((level n) × (Ord.from_wf WF a)) < level (S n))%ord.
   Proof.
     i. etransitivity. 2: eapply level_dec_wf_set.
     eapply Jacobsthal.lt_mult_r. apply Ord.from_wf_set_upperbound. apply level_lt_zero.
   Qed.
 
-  Lemma level_dec_omega: forall n, (((level n) × Ord.omega) < level (S n))%ord.
+  Lemma level_dec_omega : forall n, (((level n) × Ord.omega) < level (S n))%ord.
   Proof.
     i. rewrite Ord.omega_from_peano_lt_set. apply level_dec_wf_set.
   Qed.
 
-  Lemma level_dec_nat: forall (a n : nat), (((level n) × a) < level (S n))%ord.
+  Lemma level_dec_nat : forall (a n : nat), (((level n) × a) < level (S n))%ord.
   Proof.
     i. rewrite (Ord.from_nat_from_peano_lt a). apply level_dec_wf.
   Qed.
+
+  Lemma level_lt_succ : forall n, (level n < level (S n))%ord.
+  Proof.
+    induction n; i.
+    - rewrite level_red_succ. rewrite level_red_zero. rewrite Jacobsthal.mult_1_l.
+      eapply Ord.le_lt_lt. 2: apply (large_dec_nat 1). reflexivity.
+    - rewrite (level_red_succ (S n)). rewrite <- Jacobsthal.mult_1_r at 1.
+      apply Jacobsthal.lt_mult_r. 2: apply level_lt_zero.
+      apply (large_dec_nat 1).
+  Qed.
+
+  Lemma level_le: forall n m, (n <= m) -> (level n <= level m)%ord.
+  Proof.
+    i. revert n H. induction m; i.
+    - apply Le.le_n_0_eq in H. subst. reflexivity.
+    - inv H. reflexivity.
+      etransitivity.
+      2:{ eapply Ord.lt_le. apply level_lt_succ. }
+      auto.
+  Qed.
+
+  Lemma level_lt: forall n m, (n < m) -> (level n < level m)%ord.
+  Proof.
+    i. revert n H. induction m; i.
+    - apply PeanoNat.Nat.nle_succ_0 in H. inversion H.
+    - apply (PeanoNat.Nat.lt_succ_r n m) in H. eapply Ord.le_lt_lt.
+      2: apply level_lt_succ.
+      apply level_le; auto.
+  Qed.
+
+
 
   Let mytype := (nat * nat)%type.
   Let mywf := prod_lt_well_founded PeanoNat.Nat.lt_wf_0 (@ord_tree_lt_well_founded mytype).
@@ -89,6 +120,7 @@ Section TEST.
 Jacobsthal.lt_mult_r:
   forall [o0 o1 o2 : Ord.t], (o1 < o2)%ord -> (Ord.O < o0)%ord -> ((o0 × o1) < (o0 × o2))%ord
 
+Hessenberg.add
 prod_WF: WF -> WF -> WF
 
 Ord.large_lt_from_wf_set:
