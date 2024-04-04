@@ -1377,7 +1377,8 @@ Module LockClientWCorrect.
                  (Auth.t (NatMapRALarge.t nat));
                  CoPset.t;
                  Gset.t;
-                 InvSetRA (bool)
+                 InvSetRA (Prop)
+                 (* InvSetRA (bool) *)
       ].
 
   Local Instance MONORA: @GRA.inG monoRA Σ := (@GRA.InG _ _ 0 (@eq_refl _ _)).
@@ -1404,9 +1405,11 @@ Module LockClientWCorrect.
 
   Local Instance COPSETRA: @GRA.inG CoPset.t Σ := (@GRA.InG _ _ 20 (@eq_refl _ _)).
   Local Instance GSETRA : @GRA.inG Gset.t Σ := (@GRA.InG _ _ 21 (@eq_refl _ _)).
-  Local Instance INVSETRA : @GRA.inG (InvSetRA bool) Σ := (@GRA.InG _ _ 22 (@eq_refl _ _)).
+  Local Instance INVSETRA : @GRA.inG (InvSetRA Prop) Σ := (@GRA.InG _ _ 22 (@eq_refl _ _)).
+  (* Local Instance INVSETRA : @GRA.inG (InvSetRA bool) Σ := (@GRA.InG _ _ 22 (@eq_refl _ _)). *)
 
-  Local Instance Invs : @InvSet _ := {| Var := bool; prop := fun b => if b then lock_will_unlock else (∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t))) ∗ (thread1_will_write tvw))%I |}.
+  Local Instance Invs : @InvSet Σ := {| Var := Prop; prop := fun (b : Prop) => if (excluded_middle_informative b) then lock_will_unlock else (∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t))) ∗ (thread1_will_write tvw))%I |}.
+  (* Local Instance Invs : @InvSet Σ := {| Var := bool; prop := fun b => if b then lock_will_unlock else (∃ tvw, (OwnM (Auth.black (Excl.just tvw: Excl.t View.t))) ∗ (thread1_will_write tvw))%I |}. *)
   Import stdpp.namespaces.
   Let lock_namespace := nroot .@ "TicketLock".
   Let client_namespace := nroot .@ "Client".
@@ -1464,10 +1467,13 @@ Module LockClientWCorrect.
     { instantiate (1:=1). instantiate (1:=0). ss. }
     { iFrame. }
     iMod (FUpd_alloc with "H2") as "# LOCK_INV".
-    { econs. instantiate (1:=true). ss. }
+    { econs. instantiate (1:=True). ss. des_ifs. }
+    (* { econs. instantiate (1:=true). ss. } *)
     iMod (FUpd_alloc with "[H0 H1]") as "# CLIENT_INV".
-    { econs. instantiate (2:=false). ss. }
-    { iExists _. iFrame. }
+    { econs. instantiate (2:=False). ss. }
+    (* { econs. instantiate (2:=false). ss. } *)
+    { des_ifs. iExists _. iFrame. }
+    (* { iExists _. iFrame. } *)
     iModIntro. unfold MonotonePCM.natmap_prop_sum. ss.
     iSplitL "H3 H5 H6 H7 H8".
     { unfold fn2th. ss. unfold Mod.wrap_fun. lred. rred.
@@ -1477,7 +1483,8 @@ Module LockClientWCorrect.
           eapply ndot_ne_disjoint. ss.
         }
         { eauto. }
-        { eauto. }
+        { des_ifs. }
+        (* { eauto. } *)
         iExists _. iFrame.
       }
       { iIntros (? ?) "[[H0  H1] %]". subst. iModIntro.
@@ -1492,7 +1499,8 @@ Module LockClientWCorrect.
           eapply ndot_ne_disjoint. ss.
         }
         { eauto. }
-        { eauto. }
+        { des_ifs. }
+        (* { eauto. } *)
         iFrame.
       }
       { iIntros (? ?) "[[H0  H1] %]". subst. iModIntro.
@@ -1500,4 +1508,5 @@ Module LockClientWCorrect.
       }
     }
   Qed.
+
 End LockClientWCorrect.
