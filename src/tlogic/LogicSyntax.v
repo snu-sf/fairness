@@ -156,9 +156,26 @@ Module Syntax.
     Definition test2 : @t (@t nat) :=
       @ex _ (bool) (fun (s : @t nat) => pure (s = @ex _ bool (fun (n : nat) => pure (n = 1)))).
 
-    Fail Definition test2 : @t nat :=
+    Fail Definition test2' : @t nat :=
       @ex _ (@t bool) (fun (s : @t nat) => pure (s = pure (1 = 1))).
 
+    Fixpoint ind (n : nat) (X : Type) : Type :=
+      match n with
+      | O => X
+      | S n' => @t (ind n' X)
+      end.
+
+    (* Set Printing All. *)
+    Compute ind 3 nat.
+
+    Definition test3 : ind 2 nat :=
+      @ex _ (bool) (fun (s : ind 1 nat) => pure (s = @ex _ bool (fun (n : nat) => pure (n = 1)))).
+
+    Definition test3' {X : Type} : @t X -> nat := fun _ => 0.
+    Goal test3' test3 = 0. ss. Qed.
+
+    Lemma test3 :
+      @ex _ (bool) (fun (s : @t nat) => pure (s = @ex _ bool (fun (n : nat) => pure (n = 1)))) : ind 2 nat.
 
     (* Fixpoint indexed (n : nat) (X : Type) : Type := *)
     (*   match n with *)
