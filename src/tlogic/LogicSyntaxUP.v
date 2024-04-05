@@ -6,9 +6,11 @@ From iris Require base_logic.lib.invariants.
 
 Module Syntax.
 
-  Section SYNTAX.
+  Local Set Printing Universes.
 
-    Set Printing Universes.
+  Local Notation index := nat.
+
+  Section SYNTAX.
 
     Context `{A : Type}.
 
@@ -16,8 +18,8 @@ Module Syntax.
       atomic (a : A)
     | sepconj (p q : t)
     | pure (P : Prop)
-    | ex (* FIXME *)
-    | univ (* FIXME *)
+    | univ {X : Type} (p : X -> t)
+    | ex {X : Type} (p : X -> t)
     (* | own (* Need indexed RA? *) *)
     | and (p q : t)
     | or (p q : t)
@@ -29,108 +31,55 @@ Module Syntax.
     (* | later (p : Syntax) *)
     | upd (p : t)
     (* | entails (p q : t) *)
-    | extest {X : Type} (p : X -> t)
     .
 
     Definition test1 : t :=
-      extest (fun (n : nat) => if (n =? 1) then pure (n = 1) else pure (n <> 1)).
+      ex (fun (n : nat) => if (n =? 1) then pure (n = 1) else pure (n <> 1)).
 
-    Polymorphic Fixpoint embed@{i j | i < j} (s : t@{i}) : t@{j} :=
+    Polymorphic Fixpoint embedT@{i j k | i < k, j < k} (s : t@{i j}) : t@{k k} :=
       match s with
       | atomic a => atomic a
-      | sepconj p q => sepconj (embed p) (embed q)
+      | sepconj p q => sepconj (embedT p) (embedT q)
       | pure P => pure P
-      | ex (* FIXME *) => ex
-      | univ (* FIXME *) => univ
+      | @univ X p => univ (fun (x : X) => embedT (p x))
+      | @ex X p => ex (fun (x : X) => embedT (p x))
       (* | own (* Need indexed RA? *) *)
-      | and p q => and (embed p) (embed q)
-      | or p q => or (embed p) (embed q)
-      | impl p q => impl (embed p) (embed q)
-      | wand p q => wand (embed p) (embed q)
+      | and p q => and (embedT p) (embedT q)
+      | or p q => or (embedT p) (embedT q)
+      | impl p q => impl (embedT p) (embedT q)
+      | wand p q => wand (embedT p) (embedT q)
       | empty => empty
-      | persistently p => persistently (embed p)
-      | plainly p => plainly (embed p)
+      | persistently p => persistently (embedT p)
+      | plainly p => plainly (embedT p)
       (* | later (p : Syntax) *)
-      | upd p => upd (embed p)
+      | upd p => upd (embedT p)
       (* | entails p q => Entails (to_semantics p) (to_semantics q) *)
-      | @extest X p => extest (fun (x : X) => embed (p x))
       end.
-    (* Fixpoint embed {n : nat} (s : @t n) : @t (S n) := *)
-    (*   match s with *)
-    (*   | atomic a => @atomic (S n) a *)
-    (*   | sepconj p q => @sepconj (S n) (embed p) (embed q) *)
-    (*   | pure P => @pure (S n) P *)
-    (*   | ex (* FIXME *) => @ex (S n) *)
-    (*   | univ (* FIXME *) => @univ (S n) *)
-    (*   (* | own (* Need indexed RA? *) *) *)
-    (*   | and p q => @and (S n) (embed p) (embed q) *)
-    (*   | or p q => @or (S n) (embed p) (embed q) *)
-    (*   | impl p q => @impl (S n) (embed p) (embed q) *)
-    (*   | wand p q => @wand (S n) (embed p) (embed q) *)
-    (*   | empty => @empty (S n) *)
-    (*   | persistently p => @persistently (S n) (embed p) *)
-    (*   | plainly p => @plainly (S n) (embed p) *)
-    (*   (* | later (p : Syntax) *) *)
-    (*   | upd p => @upd (S n) (embed p) *)
-    (*   (* | entails p q => Entails (to_semantics p) (to_semantics q) *) *)
-    (*   | @extest _ X p => @extest (S n) X (fun (x : X) => embed (p x)) *)
-    (*   end. *)
-    About t.
-    About embed.
 
-    (* Definition test2 n : @t (S n) := *)
-    (*   @extest (S n) (@t n) (fun (s : @t n) => embed s). *)
+    About t.
+    About embedT.
+
     Definition test2 : t :=
-      @extest t (fun (s : t) => embed s).
+      @ex t (fun (s : t) => embedT s).
     About test2.
 
     Fail Definition test3 : t :=
-      @extest t (fun (s : t) => s).
+      @ex t (fun (s : t) => s).
 
-
-    (* Definition iType := nat -> Type. *)
-    Polymorphic Definition it := fun (_ : nat) => t.
-
-    (* Polymorphic Fixpoint it2 (n : nat) := *)
-    (*   match n with *)
-    (*   | O => t *)
-    (*   | S n' => embed (it2 n') *)
-    (*   end. *)
+    (* Definition it := fun (_ : index) => t. *)
+    Polymorphic Definition it := fun (_ : index) => t.
 
     Definition test4 n : it (S n) :=
-      @extest (it n) (fun (s : (it n)) => embed s).
+      @ex (it n) (fun (s : (it n)) => embedT s).
     About test4.
 
     Definition test5 n : it (S n) :=
-      @extest (it n) (fun (s : (it n)) => pure (s = (test4 n))).
+      @ex (it n) (fun (s : (it n)) => pure (s = (test4 n))).
     About test5.
 
-test4 = λ n : nat, extest@{test4.u0} (λ s : it@{test4.u1} n, embed@{test4.u1 test4.u0} s)
-     : ∀ n : nat, it@{test4.u0} (S n)
-test5 = λ n : nat, extest@{test5.u0} (λ s : it@{test4.u0} n, pure@{test5.u0} (s = test4 n))
-     : ∀ n : nat, it@{test5.u0} (S n)
-test4.u0 < Coq.Relations.Relation_Definitions.1
-         < test5.u0
-test4.u1 < test4.u0
-
-    Print Universes.
-    (* Program Definition Ex {X: Type} (P: X -> iProp'): iProp' := *)
-    (*   Seal.sealing *)
-    (*     "iProp" *)
-    (*     (iProp_intro (fun r => exists x, P x r) _). *)
-    (* Next Obligation. *)
-    (*   esplits. eapply iProp_mono; eauto. *)
-    (* Qed. *)
-
-    (* Program Definition Univ {X: Type} (P: X -> iProp'): iProp' := *)
-    (*   Seal.sealing *)
-    (*     "iProp" *)
-    (*     (iProp_intro (fun r => forall x, P x r) _). *)
-    (* Next Obligation. *)
-    (*   eapply iProp_mono; eauto. *)
-    (* Qed. *)
-
   End SYNTAX.
+
+  (* Print Universes. *)
 
   Section INTERP.
 
@@ -138,25 +87,24 @@ test4.u1 < test4.u0
     Context `{A : Type}.
     Context `{Atomics : @InvSet Σ A}.
 
-    Fixpoint to_semantics (syn : t) : iProp :=
+    Polymorphic Fixpoint to_semantics (syn : t) : iProp :=
       match syn with
       | atomic a => prop a
       | sepconj p q => Sepconj (to_semantics p) (to_semantics q)
       | pure P => Pure P
-      | ex (* FIXME *) => Emp
-      | univ (* FIXME *) => Emp
+      | @univ _ X p => Univ (fun (x : X) => to_semantics (p x))
+      | @ex _ X p => Ex (fun (x : X) => to_semantics (p x))
       (* | own (* Need indexed RA? *) *)
       | and p q => And (to_semantics p) (to_semantics q)
       | or p q => Or (to_semantics p) (to_semantics q)
       | impl p q => Impl (to_semantics p) (to_semantics q)
       | wand p q => Wand (to_semantics p) (to_semantics q)
-      | Syntax.emp => Emp
+      | empty => Emp
       | persistently p => Persistently (to_semantics p)
       | plainly p => IProp.Plainly (to_semantics p)
       (* | later (p : Syntax) *)
       | upd p => Upd (to_semantics p)
       (* | entails p q => Entails (to_semantics p) (to_semantics q) *)
-      | extest x p => Ex
       end.
 
   End INTERP.
@@ -167,23 +115,80 @@ test4.u1 < test4.u0
     Context `{A : Type}.
     Context `{Atomics : @InvSet Σ A}.
 
-    Global Instance InvSet : @IndexedInvariants.InvSet Σ (@t A) :=
+    Polymorphic Global Instance I {n : index} : @InvSet Σ (@it A n) :=
       {| prop := @to_semantics Σ A Atomics |}.
 
   End INVSET.
 
 End Syntax.
 
+(* Print Universes. *)
+
 Section INDEXED.
 
-  Notation index := nat.
+  Local Notation index := nat.
 
   Context `{Σ : GRA.t}.
   Context `{A : Type}.
   Context `{Atomics : @InvSet Σ A}.
 
-  Definition SynInvs : nat -> (InvSet (@Syntax.t A)) :=
-    fun (n : index) => (@Syntax.InvSet _ _ Atomics).
+  Definition form1 : @Syntax.it A 3 :=
+    @Syntax.ex _ (@Syntax.it A 2) (fun s => Syntax.pure (@prop _ _ (@Syntax.I _ _ Atomics 2) s = (⌜True⌝ ∗ ⌜False⌝)%I)).
+
+  (* Compute @prop _ _ (@Syntax.I _ _ Atomics 3) form1. *)
+
+  Lemma test1 :
+    @prop _ _ (@Syntax.I _ _ Atomics 3) form1 =
+      (∃ (s : @Syntax.it A 2), ⌜(@prop _ _ (@Syntax.I _ _ Atomics 2) s = (⌜True⌝ ∗ ⌜False⌝)%I)⌝)%I.
+  Proof.
+    ss.
+  Qed.
+
+  Definition form1' : @Syntax.it A 3 :=
+    Syntax.ex (fun (s : @Syntax.it A 2) => Syntax.pure (prop (InvSet:=Syntax.I) s = (⌜True⌝ ∗ ⌜False⌝)%I)).
+
+  Set Printing All.
+  Print form1'.
+  Unset Printing All.
+
+  (* Local Notation it n := (@Syntax.it A n). *)
+
+  (* Definition form1'' : it 3 := *)
+  (*   Syntax.ex (fun (s : it 2) => Syntax.pure (prop (InvSet:=Syntax.I) s = (⌜True⌝ ∗ ⌜False⌝)%I)). *)
+
+  Local Set Printing Universes.
+
+  Goal @Syntax.it A 2 = @Syntax.it A 3.
+  Proof.
+    ss.
+  Qed.
+
+  Lemma test_up_type : forall n m, @Syntax.it A n = @Syntax.it A m.
+  Proof.
+    ss.
+  Qed.
+
+  (* Print Universes. *)
+(* test_up_type.u0 < test_up_type.u2 *)
+(* test_up_type.u1 < test_up_type.u2 *)
+(* test_up_type.u2 < Coq.Relations.Relation_Definitions.1 *)
+(* test_up_type.u3 = test_up_type.u0 *)
+(* test_up_type.u4 = test_up_type.u1 *)
+
+  (* Goal @Syntax.it (@Syntax.it A 1) 2 = @Syntax.it A 3. *)
+  (* Proof. *)
+  (*   ss. *)
+  (* Abort. *)
+
+  (* Goal @Syntax.it nat 2 = @Syntax.it unit 2. *)
+  (* Proof. *)
+  (*   ss. *)
+  (* Abort. *)
+
+  TODO
+
+  Definition inv (N : namespace) P :=
+    (∃ p, ∃ i, ⌜prop p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I.
 
   (* Fixpoint IndexedSyntax (n : nat) : Type := *)
   (*   match n with *)
