@@ -31,32 +31,11 @@ Module Syntax.
     (* | entails (p q : t) *)
     | extest {X : Type} (p : X -> t)
     .
-    (* Polymorphic Inductive t {n : nat} : Type := *)
-    (*   atomic (a : A) *)
-    (* | sepconj (p q : t) *)
-    (* | pure (P : Prop) *)
-    (* | ex (* FIXME *) *)
-    (* | univ (* FIXME *) *)
-    (* (* | own (* Need indexed RA? *) *) *)
-    (* | and (p q : t) *)
-    (* | or (p q : t) *)
-    (* | impl (p q : t) *)
-    (* | wand (p q : t) *)
-    (* | empty *)
-    (* | persistently (p : t) *)
-    (* | plainly (p : t) *)
-    (* (* | later (p : Syntax) *) *)
-    (* | upd (p : t) *)
-    (* (* | entails (p q : t) *) *)
-    (* | extest {X : Type} (p : X -> t) *)
-    (* . *)
 
     Definition test1 : t :=
       extest (fun (n : nat) => if (n =? 1) then pure (n = 1) else pure (n <> 1)).
-    (* Definition test1 n : @t n := *)
-    (*   extest (fun n => if (n =? 1) then pure (n = 1) else pure (n <> 1)). *)
 
-    Fixpoint embed@{i j | i < j} (s : t@{i}) : t@{j} :=
+    Polymorphic Fixpoint embed@{i j | i < j} (s : t@{i}) : t@{j} :=
       match s with
       | atomic a => atomic a
       | sepconj p q => sepconj (embed p) (embed q)
@@ -105,10 +84,36 @@ Module Syntax.
       @extest t (fun (s : t) => embed s).
     About test2.
 
-    Definition test3 : t :=
+    Fail Definition test3 : t :=
       @extest t (fun (s : t) => s).
-    About test2.
 
+
+    (* Definition iType := nat -> Type. *)
+    Polymorphic Definition it := fun (_ : nat) => t.
+
+    (* Polymorphic Fixpoint it2 (n : nat) := *)
+    (*   match n with *)
+    (*   | O => t *)
+    (*   | S n' => embed (it2 n') *)
+    (*   end. *)
+
+    Definition test4 n : it (S n) :=
+      @extest (it n) (fun (s : (it n)) => embed s).
+    About test4.
+
+    Definition test5 n : it (S n) :=
+      @extest (it n) (fun (s : (it n)) => pure (s = (test4 n))).
+    About test5.
+
+test4 = λ n : nat, extest@{test4.u0} (λ s : it@{test4.u1} n, embed@{test4.u1 test4.u0} s)
+     : ∀ n : nat, it@{test4.u0} (S n)
+test5 = λ n : nat, extest@{test5.u0} (λ s : it@{test4.u0} n, pure@{test5.u0} (s = test4 n))
+     : ∀ n : nat, it@{test5.u0} (S n)
+test4.u0 < Coq.Relations.Relation_Definitions.1
+         < test5.u0
+test4.u1 < test4.u0
+
+    Print Universes.
     (* Program Definition Ex {X: Type} (P: X -> iProp'): iProp' := *)
     (*   Seal.sealing *)
     (*     "iProp" *)
