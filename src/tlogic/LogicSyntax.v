@@ -159,15 +159,22 @@ Module Syntax.
     Fail Definition test2' : @t nat :=
       @ex _ (@t bool) (fun (s : @t nat) => pure (s = pure (1 = 1))).
 
+    (* Fixpoint ind (n : nat) (X : Type) : Type := *)
+    (*   match n with *)
+    (*   | O => X *)
+    (*   | S n' => @t (list (ind n' X)) *)
+    (*   end. *)
     Fixpoint ind (n : nat) (X : Type) : Type :=
       match n with
       | O => X
       | S n' => @t (ind n' X)
       end.
 
-    (* Set Printing All. *)
+    Set Printing All.
     Compute ind 3 nat.
 
+    (* Definition test3 : ind 2 nat := *)
+    (*   @ex _ (bool) (fun (s : ind 1 nat) => pure (s = @ex _ bool (fun (n : list nat) => pure (n = [1])))). *)
     Definition test3 : ind 2 nat :=
       @ex _ (bool) (fun (s : ind 1 nat) => pure (s = @ex _ bool (fun (n : nat) => pure (n = 1)))).
 

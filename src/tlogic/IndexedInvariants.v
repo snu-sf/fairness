@@ -22,8 +22,8 @@ Section INVARIANT_SET.
 
   (* Definition IInvSetRA (Vars : index -> Type) : URA.t := (@URA.pointwise_dep index (fun n => InvSetRA (Vars n)))%ra. *)
   (* Polymorphic Definition IInvSetRA (Vars : index -> Type) : URA.t := (@URA.pointwise_dep index (fun n => InvSetRA (Vars n)))%ra. *)
-  Polymorphic Definition IInvSetRA (Var : Type) : URA.t := (index ==> InvSetRA Var)%ra.
-  (* Definition IInvSetRA (Var : Type) : URA.t := (index ==> InvSetRA Var)%ra. *)
+  (* Polymorphic Definition IInvSetRA (Var : Type) : URA.t := (index ==> InvSetRA Var)%ra. *)
+  Definition IInvSetRA (Var : Type) : URA.t := (index ==> InvSetRA Var)%ra.
 
   Global Instance InvSet_top (Var : Type) : InvSet Var :=
     {| prop := fun (_ : Var) => (⌜True⌝)%I |}.

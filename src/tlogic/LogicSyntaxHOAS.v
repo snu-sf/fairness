@@ -3,39 +3,174 @@ From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
+Require Import Program.
+
+(* Set Implicit Arguments. *)
+
+(* Section AUX. *)
+
+(*   Variant prod_lt *)
+(*           A B (RA: A -> A -> Prop) (RB: B -> B -> Prop): *)
+(*     A * B -> A * B -> Prop := *)
+(*     | prod_lt_left *)
+(*         a0 a1 b0 b1 *)
+(*         (ALT: RA a0 a1) *)
+(*       : *)
+(*       prod_lt RA RB (a0, b0) (a1, b1) *)
+(*     | prod_lt_right *)
+(*         a0 a1 b0 b1 *)
+(*         (ALE: a0 = a1 \/ RA a0 a1) *)
+(*         (BLT: RB b0 b1) *)
+(*       : *)
+(*       prod_lt RA RB (a0, b0) (a1, b1) *)
+(*   . *)
+
+(*   Lemma prod_lt_well_founded *)
+(*         A B (RA: A -> A -> Prop) (RB: B -> B -> Prop) *)
+(*         (WFA: well_founded RA) *)
+(*         (WFB: well_founded RB) *)
+(*     : *)
+(*     well_founded (prod_lt RA RB). *)
+(*   Proof. *)
+(*     ii. destruct a as [a b]. revert b. *)
+(*     induction (WFA a). rename x into a. clear H. rename H0 into IHA. *)
+(*     intros b. induction (WFB b). rename x into b. clear H. rename H0 into IHB. *)
+(*     econs. i. inv H; eauto. des; subst; eauto. *)
+(*   Qed. *)
+
+(* End AUX. *)
 
 Module Syntax.
 
-  Local Set Printing Universes.
-
   Local Notation index := nat.
+
+  Section TYPE.
+
+    Context `{T : Type}.
+
+    (* Inductive type_0 : Type := *)
+    (* | baseT_0 (t : T) : type_0 *)
+    (* | arrowT_0 : type_0 -> type_0 -> type_0. *)
+
+    Inductive type {i : index} : Type :=
+    | baseT (t : T) : type
+    | formulaT : type
+    | arrowT : type -> type -> type.
+
+    (* Fixpoint type_size i (ty : type i) : nat := *)
+    (*   match ty with *)
+    (*   | baseT _ _ => 1 *)
+    (*   | formulaT _ => 1 *)
+    (*   | arrowT ty1 ty2 => (type_size ty1) + (type_size ty2) + 1 *)
+    (*   end. *)
+
+    Fixpoint cast_index (i j : index) (ty : @type i) : @type j :=
+      match ty with
+      | baseT t => baseT t
+      | formulaT => formulaT
+      | arrowT ty1 ty2 => arrowT (cast_index i j ty1) (cast_index i j ty2)
+      end.
+
+  End TYPE.
 
   Section SYNTAX.
 
+    Context `{T : Type}.
+    (* Variable (i : index). *)
+    (* Context `{Var : @type T i -> Type}. *)
     Context `{A : Type}.
 
-    Polymorphic Inductive t : Type :=
-      atom (a : A)
-    | sepconj (p q : t)
-    | pure (P : Prop)
-    | univ {X : Type} (p : X -> t)
-    | ex {X : Type} (p : X -> t)
-    (* | own (* Need indexed RA? *) *)
-    | and (p q : t)
-    | or (p q : t)
-    | impl (p q : t)
-    | wand (p q : t)
-    | empty
-    | persistently (p : t)
-    | plainly (p : t)
-    (* | later (p : Syntax) *)
-    | upd (p : t)
-    (* | entails (p q : t) *)
+    Inductive t {i : nat} : @type T i -> Type :=
+      atom (a : A) : t formulaT
+    | var :
+      forall j (Var' : @type T j -> Type) (ty : @type T j), Var' ty -> t (cast_index j i ty)
+    (* | app : forall D R, t (arrowT D R) -> t D -> t R *)
+    (* | lam : forall D R, (Var D -> t R) -> t (arrowT D R) *)
+    | sepconj (p q : t formulaT) : t formulaT
+    | pure (P : Prop) : t formulaT
+    | univ :
+      forall j (Var' : @type T j -> Type) (ty : @type T j), (Var' ty -> t formulaT) -> t formulaT
+    (* | univ {X : Type} (p : X -> t) *)
+    | ex :
+      forall j (Var' : @type T j -> Type) (ty : @type T j), (Var' ty -> t formulaT) -> t formulaT
+    (* | ex {X : Type} (p : X -> t) *)
+    | and (p q : t formulaT) : t formulaT
+    | or (p q : t formulaT) : t formulaT
+    | impl (p q : t formulaT) : t formulaT
+    | wand (p q : t formulaT) : t formulaT
+    | empty : t formulaT
+    | persistently (p : t formulaT) : t formulaT
+    | plainly (p : t formulaT) : t formulaT
+    | upd (p : t formulaT) : t formulaT
     (* | owni (n : index) (i : positive) (p : t) *)
     .
-    (* Polymorphic Inductive t@{i j k} : Type@{k} := *)
-    (*   | owni (n : index) (i : positive) (p : @Syntax.t@{i j} t) *)
-    (* . *)
+
+  End SYNTAX.
+
+  Section TEST.
+
+    Context `{A : Type}.
+
+    Variant tBase := | tBool | tNat.
+    Definition tBase_sem (b : tBase) : Type :=
+      match b with | tBool => bool | tNat => nat end.
+
+    Fixpoint Var_0 (ty : @type tBase 0) : Type :=
+      match ty with
+      | baseT b => tBase_sem b
+      | formulaT => unit
+      | arrowT t1 t2 => (Var_0 t1 -> Var_0 t2)
+      end.
+
+    Fixpoint Var (i : index) : @type tBase i -> Type :=
+      match i with
+      | O => Var_0
+      | S j =>
+          fix Var_aux (ty : @type tBase (S j)) : Type :=
+        match ty with
+        | baseT b => tBase_sem b
+        | formulaT => @t tBase A j (@formulaT tBase j)
+        | arrowT t1 t2 => (Var_aux t1 -> Var_aux t2)
+        end
+      end.
+
+    Compute (Var 3 (@formulaT tBase 3)).
+
+    Definition syn i := @t tBase A i.
+
+    Definition form1 : @syn 2 (@formulaT tBase 2) :=
+      @ex _ _ 2 1 (Var 1) (@formulaT tBase 1)
+          (fun (s : syn (formulaT 1)) => and (var _ s) (var _ s)).
+The term "ex (formulaT 1) (λ s : ?Var (formulaT 1), and s s)" has type 
+"t (formulaT 1)" while it is expected to have type "syn (formulaT 2)" (cannot unify 
+"1" and "2").
+
+    TODO
+
+
+    (* Program Fixpoint Var (i : index) (ty : @type tBase i) {measure (i, type_size ty) (prod_lt lt lt)} : Type := *)
+    (*   match ty with *)
+    (*   | baseT _ b => tBase_sem b *)
+    (*   | formulaT _ => *)
+    (*       match i with *)
+    (*       | O => unit *)
+    (*       | S j => @t tBase j (fun (ty' : type j) => @Var j ty' _) A (formulaT j) *)
+    (*       end *)
+    (*   | arrowT t1 t2 => (Var t1 -> Var t2) *)
+    (*   end. *)
+
+    (* Fixpoint Var (i : index) (ty : @type tBase i) : Type := *)
+    (*   match ty with *)
+    (*   | baseT _ b => tBase_sem b *)
+    (*   | formulaT _ => *)
+    (*       match i with *)
+    (*       | O => unit *)
+    (*       | S j => @t tBase j (Var j) A (formulaT j) *)
+    (*       end *)
+    (*   | arrowT _ t1 t2 => (Var i t1 -> Var i t2) *)
+    (*   end. *)
+
+  End TEST.
 
     Definition test1 : t :=
       ex (fun (n : nat) => if (n =? 1) then pure (n = 1) else pure (n <> 1)).
