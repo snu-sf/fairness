@@ -1480,6 +1480,125 @@ Section POINTWISE.
 
 End POINTWISE.
 
+Section PWDEP.
+
+  Lemma pointwise_dep_updatable
+        A (Ms : A -> URA.t)
+        (f0 f1 : @URA.pointwise_dep A Ms)
+        (UPD : forall a, URA.updatable (f0 a) (f1 a))
+    :
+    URA.updatable f0 f1.
+  Proof.
+    ii. ur. i. ur in H. specialize (H k).
+    eapply (UPD k); eauto.
+  Qed.
+
+  Lemma pointwise_dep_updatable_set
+        A (Ms : A -> URA.t)
+        (f : @URA.pointwise_dep A Ms)
+        (P : forall (a : A), (Ms a) -> Prop)
+        (UPD: forall a, URA.updatable_set (f a) (P a))
+    :
+    URA.updatable_set f (fun f' => forall a, P a (f' a)).
+  Proof.
+    ii.
+    set (R := fun (a : A) => (fun (m : Ms a) => P a m /\ URA.wf (m ⋅ ctx a))).
+    hexploit (dependent_functional_choice _ R).
+    { subst R. ss. i. eapply (UPD x). ur in WF. auto. }
+    subst R. ss. i. des. exists f0. splits; auto.
+    { i. specialize (H a). des. auto. }
+    { ur. i. specialize (H k). des. auto. }
+  Qed.
+
+  Program Definition maps_to_res_dep {A : Type} {Ms : A -> URA.t} (a : A) (m : Ms a)
+    : @URA.pointwise_dep A Ms.
+  Proof.
+    ii. destruct (Axioms.excluded_middle_informative (k = a)).
+    - subst k. exact m.
+    - exact ε.
+  Defined.
+
+  Lemma maps_to_res_dep_eq
+        A (Ms : A -> URA.t)
+        (a : A)
+        (m : Ms a)
+    :
+    (@maps_to_res_dep A Ms a m) a = m.
+  Proof.
+    unfold maps_to_res_dep. des_ifs. unfold eq_rect_r.
+    rewrite <- Eqdep.EqdepTheory.eq_rect_eq. auto.
+  Qed.
+
+  Lemma maps_to_res_dep_neq
+        A (Ms : A -> URA.t)
+        (a b : A)
+        (m : Ms a)
+    :
+    a <> b -> (@maps_to_res_dep A Ms a m) b = ε.
+  Proof.
+    i. unfold maps_to_res_dep. des_ifs.
+  Qed.
+
+  Lemma maps_to_res_dep_add
+        A (Ms : A -> URA.t)
+        (a : A)
+        (m0 m1 : Ms a)
+    :
+    @maps_to_res_dep _ Ms a m0 ⋅ @maps_to_res_dep _ Ms a m1 = @maps_to_res_dep _ Ms a (m0 ⋅ m1).
+  Proof.
+    extensionalities a'. unfold URA.add at 1. unseal "ra". ss.
+    destruct (Axioms.excluded_middle_informative (a' = a)).
+    - subst a'. rewrite ! @maps_to_res_dep_eq. auto.
+    - rewrite ! @maps_to_res_dep_neq; auto. apply URA.unit_id.
+  Qed.
+
+  Lemma maps_to_res_dep_updatable
+        A (Ms : A -> URA.t)
+        (a : A)
+        (m0 m1 : Ms a)
+        (UPD: URA.updatable m0 m1)
+    :
+    URA.updatable (@maps_to_res_dep A Ms a m0) (@maps_to_res_dep A Ms a m1).
+  Proof.
+    eapply pointwise_dep_updatable. i. unfold maps_to_res_dep. des_ifs.
+  Qed.
+
+  Lemma maps_to_res_dep_updatable_set
+        A (Ms : A -> URA.t)
+        (a : A)
+        (m : Ms a)
+        (P : forall (a' : A), Ms a' -> Prop)
+        (UPD: URA.updatable_set m (P a))
+    :
+    URA.updatable_set
+      (@maps_to_res_dep A Ms a m)
+      (fun f => exists (m1 : Ms a), f = @maps_to_res_dep A Ms a m1 /\ (P a m1)).
+  Proof.
+    eapply updatable_set_impl; cycle 1.
+    { eapply pointwise_dep_updatable_set.
+      instantiate (1:= fun a' m' => (a' = a -> P a' m') /\ (a' <> a -> m' = URA.unit)).
+      ii. unfold maps_to_res_dep in WF. des_ifs.
+      { exploit UPD; eauto. i. des. esplits; eauto. ss. }
+      { exists URA.unit. splits; ss. }
+    }
+    { i. ss. exists (r a). splits; auto.
+      { extensionalities a'. unfold maps_to_res_dep. des_ifs.
+        specialize (H0 a'). des. auto.
+      }
+      { specialize (H0 a). des. auto. }
+    }
+  Qed.
+
+  Program Definition maps_to_res_dep_update {A} {Ms: A -> URA.t}
+          (f: @URA.pointwise_dep A Ms) a (m : Ms a) : @URA.pointwise_dep A Ms.
+  Proof.
+    ii. destruct (excluded_middle_informative (k = a)).
+    - subst k. exact m.
+    - exact (f k).
+  Qed.
+
+End PWDEP.
+
 
 Tactic Notation "unfold_prod" :=
   try rewrite ! unfold_prod_add;
@@ -1496,8 +1615,8 @@ Tactic Notation "unfold_prod" hyp(H) :=
 From iris.bi Require Import derived_connectives updates.
 From iris.prelude Require Import options.
 
+Section PWAUX.
 
-Section AUX.
   Context {K: Type} `{M: URA.t}.
   Let RA := URA.pointwise K M.
 
@@ -1527,9 +1646,40 @@ Section AUX.
     i. unfold insert, functions.fn_insert. ur. ii. des_ifs. ur in WF. eapply WF.
   Qed.
 
-  Lemma lookup_wf: forall (f: @URA.car RA) k (WF: URA.wf f), URA.wf (f k).
+  Lemma pw_lookup_wf: forall (f: @URA.car RA) k (WF: URA.wf f), URA.wf (f k).
   Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
-End AUX.
+
+End PWAUX.
+
+Section PWDAUX.
+
+  Context {K: Type} `{M: K -> URA.t}.
+  Let RA := @URA.pointwise_dep K M.
+
+  Lemma pwd_extends (f0 f1: forall (k : K), M k) (EXT: @URA.extends RA f0 f1): <<EXT: forall k, URA.extends (f0 k) (f1 k)>>.
+  Proof. ii. r in EXT. des. subst. ur. ss. eexists; eauto. Qed.
+
+  Lemma pwd_wf: forall (f: forall (k : K), M k) (WF: URA.wf (f: @URA.car RA)), <<WF: forall k, URA.wf (f k)>>.
+  Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
+
+  Lemma pwd_add_disj_wf
+        (f g: forall (k : K), M k)
+        (WF0: URA.wf (f: @URA.car RA))
+        (WF1: URA.wf (g: @URA.car RA))
+        (DISJ: forall k, <<DISJ: f k = ε \/ g k = ε>>)
+    :
+      <<WF: URA.wf ((f: RA) ⋅ g)>>
+  .
+  Proof.
+    ii; ss. ur. i. ur in WF0. ur in WF1. specialize (DISJ k). des; rewrite DISJ.
+    - rewrite URA.unit_idl; eauto.
+    - rewrite URA.unit_id; eauto.
+  Qed.
+
+  Lemma pwd_lookup_wf: forall (f: @URA.car RA) k (WF: URA.wf f), URA.wf (f k).
+  Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
+
+End PWDAUX.
 
 
 

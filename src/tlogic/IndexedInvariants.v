@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM.
+From Fairness Require Import Axioms PCM IProp IPM.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 
@@ -37,133 +37,6 @@ Section INVARIANT_SET.
 
 End INVARIANT_SET.
 
-Section PWDEP.
-
-  Lemma pointwise_dep_updatable
-        A (Ms : A -> URA.t)
-        (f0 f1 : @URA.pointwise_dep A Ms)
-        (UPD : forall a, URA.updatable (f0 a) (f1 a))
-    :
-    URA.updatable f0 f1.
-  Proof.
-    ii. ur. i. ur in H. specialize (H k).
-    eapply (UPD k); eauto.
-  Qed.
-
-  Lemma pointwise_dep_updatable_set
-        A (Ms : A -> URA.t)
-        (f : @URA.pointwise_dep A Ms)
-        (P : forall (a : A), (Ms a) -> Prop)
-        (UPD: forall a, URA.updatable_set (f a) (P a))
-    :
-    URA.updatable_set f (fun f' => forall a, P a (f' a)).
-  Proof.
-    ii. hexploit (Axioms.choice (fun a m => P a m /\ URA.wf (m ⋅ ctx a))).
-    { i. eapply (UPD x). ur in WF. auto. }
-    i. des. exists f0. splits; auto.
-    { i. specialize (H a). des. auto. }
-    { ur. i. specialize (H k). des. auto. }
-  Qed.
-
-  Program Definition maps_to_res_dep {A : Type} {Ms : A -> URA.t} (a : A) (m : Ms a)
-    : @URA.pointwise_dep A Ms.
-  Proof.
-    ii. destruct (Axioms.excluded_middle_informative (k = a)).
-    - subst k. exact m.
-    - exact ε.
-  Defined.
-
-  Lemma maps_to_res_dep_eq
-        A (Ms : A -> URA.t)
-        (a : A)
-        (m : Ms a)
-    :
-    (@maps_to_res_dep A Ms a m) a = m.
-  Proof.
-    unfold maps_to_res_dep. des_ifs. unfold eq_rect_r.
-    rewrite <- Eqdep.EqdepTheory.eq_rect_eq. auto.
-  Qed.
-
-  Lemma maps_to_res_dep_neq
-        A (Ms : A -> URA.t)
-        (a b : A)
-        (m : Ms a)
-    :
-    a <> b -> (@maps_to_res_dep A Ms a m) b = ε.
-  Proof.
-    i. unfold maps_to_res_dep. des_ifs.
-  Qed.
-
-  Lemma maps_to_res_dep_add
-        A (Ms : A -> URA.t)
-        (a : A)
-        (m0 m1 : Ms a)
-    :
-    @maps_to_res_dep _ Ms a m0 ⋅ @maps_to_res_dep _ Ms a m1 = @maps_to_res_dep _ Ms a (m0 ⋅ m1).
-  Proof.
-    extensionalities a'. unfold URA.add at 1. unseal "ra". ss.
-    destruct (Axioms.excluded_middle_informative (a' = a)).
-    - subst a'. rewrite ! @maps_to_res_dep_eq. auto.
-    - rewrite ! @maps_to_res_dep_neq; auto. apply URA.unit_id.
-  Qed.
-
-  Lemma maps_to_res_dep_updatable
-        A (Ms : A -> URA.t)
-        (a : A)
-        (m0 m1 : Ms a)
-        (UPD: URA.updatable m0 m1)
-    :
-    URA.updatable (@maps_to_res_dep A Ms a m0) (@maps_to_res_dep A Ms a m1).
-  Proof.
-    
-        
-
-  Lemma maps_to_updatable A (M: URA.t)
-        (a: A) (m0 m1: M)
-        (UPD: URA.updatable m0 m1)
-    :
-    URA.updatable (maps_to_res a m0) (maps_to_res a m1).
-  Proof.
-    eapply pointwise_updatable. i.
-    unfold maps_to_res. des_ifs.
-  Qed.
-
-  Lemma maps_to_updatable_set A (M: URA.t)
-        (a: A) (m: M) (P: M -> Prop)
-        (UPD: URA.updatable_set m P)
-    :
-    URA.updatable_set
-      (maps_to_res a m)
-      (fun f => exists (m1: M), f = maps_to_res a m1 /\ P m1).
-  Proof.
-    eapply updatable_set_impl; cycle 1.
-    { eapply pointwise_updatable_set.
-      instantiate (1:= fun a' m' => (a' = a -> P m') /\ (a' <> a -> m' = URA.unit)).
-      ii. unfold maps_to_res in WF. des_ifs.
-      { exploit UPD; eauto. i. des. esplits; eauto. ss. }
-      { exists URA.unit. splits; ss. }
-    }
-    { i. ss. exists (r a). splits; auto.
-      { extensionality a'. unfold maps_to_res. des_ifs.
-        specialize (H0 a'). des. auto.
-      }
-      { specialize (H0 a). des. auto. }
-    }
-  Qed.
-
-  Definition map_update {A} {M: URA.t}
-             (f: (A ==> M)%ra) a m :=
-    fun a' => if excluded_middle_informative (a' = a)
-              then m
-              else f a'.
-
-(* maps_to_res =  *)
-(* λ (A : Type) (M : URA.t) (a : A) (m : M) (a' : A), *)
-(*   if Axioms.excluded_middle_informative (a' = a) then m else ε *)
-(*      : ∀ (A : Type) (M : URA.t), A → M → (A ==> M)%ra *)
-
-End PWDEP.
-
 Section PCM_OWN.
 
   Context `{Σ : GRA.t}.
@@ -174,11 +47,12 @@ Section PCM_OWN.
   Definition OwnD `{@GRA.inG (index ==> Gset.t)%ra Σ} (n : index) (D : gset positive) :=
     OwnM (@maps_to_res index Gset.t n (Some D)).
 
-  Definition OwnI_white {Vars} (n : index) (i : positive) (p : Var) : IInvSetRA Vars :=
-    @maps_to_res index (Auth.t (positive ==> URA.agree Var))%ra
-                 n (Auth.white (@maps_to_res positive (URA.agree Var) i (Some (Some p)))).
+  Definition OwnI_white {Vars} (n : index) (i : positive) (p : Vars n) : IInvSetRA Vars :=
+    @maps_to_res_dep index (@InvSetRA Vars)
+                     n
+                     (Auth.white (@maps_to_res positive (URA.agree (Vars n)) i (Some (Some p)))).
 
-  Definition OwnI {Var} `{@GRA.inG (IInvSetRA Var) Σ} (n : index) (i : positive) (p : Var) :=
+  Definition OwnI {Vars} `{@GRA.inG (IInvSetRA Vars) Σ} (n : index) (i : positive) (p : Vars n) :=
     OwnM (OwnI_white n i p).
 
   Lemma OwnE_index_diff `{@GRA.inG (index ==> CoPset.t)%ra Σ} n1 n2 (E : coPset) :
@@ -234,15 +108,15 @@ Section PCM_OWN.
     iApply OwnE_union. iFrame.
   Qed.
 
-  Global Instance OwnI_persistent {Var} `{@GRA.inG (IInvSetRA Var) Σ}
+  Global Instance OwnI_persistent {Vars} `{@GRA.inG (IInvSetRA Vars) Σ}
     n i p : Persistent (OwnI n i p).
   Proof.
     unfold OwnI, OwnI_white.
-    remember (@maps_to_res index (Auth.t (positive ==> URA.agree Var))%ra n (Auth.white (@maps_to_res positive (URA.agree Var) i (Some (Some p))))) as r.
+    remember (@maps_to_res_dep index (InvSetRA Vars) n (Auth.white (@maps_to_res positive (URA.agree (Vars n)) i (Some (Some p))))) as r.
     unfold Persistent. iIntros "H".
     iPoseProof (@OwnM_persistently _ _ H _ with "H") as "#HP". iModIntro.
     replace r with (URA.core r) at 2. auto.
-    subst. unfold maps_to_res. ss. extensionalities k. des_ifs.
+    subst. unfold maps_to_res_dep, maps_to_res. ss. extensionalities k. des_ifs.
   Qed.
 
 End PCM_OWN.
@@ -251,16 +125,18 @@ Section WORLD_SATISFACTION.
 
   Context `{Σ : GRA.t}.
   Variable n : index.
-  Context `{Var : Type}.
-  Context `{@InvSet Σ Var}.
+  Context `{Vars : index -> Type}.
+  Context `{@InvSet Σ (Vars n)}.
   Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
   Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
-  Context `{@GRA.inG (IInvSetRA Var) Σ}.
+  Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 
-  Definition inv_auth_black (I : gmap positive Var) : IInvSetRA Var :=
-    @maps_to_res index _
-                 n (@Auth.black (positive ==> URA.agree Var)%ra
-                                (fun (i : positive) => Some <$> (I !! i))).
+  Local Notation Var := (Vars n).
+
+  Definition inv_auth_black (I : gmap positive Var) : IInvSetRA Vars :=
+    @maps_to_res_dep index _
+                     n (@Auth.black (positive ==> URA.agree Var)%ra
+                                    (fun (i : positive) => Some <$> (I !! i))).
 
   Definition inv_auth (I : gmap positive Var) :=
     OwnM (inv_auth_black I).
@@ -319,11 +195,11 @@ Section WORLD_SATISFACTION.
     pose (<[i:=p]> I) as I'.
 
     assert (URA.updatable
-              (maps_to_res n (@Auth.black (positive ==> URA.agree Var)%ra (fun i => Some <$> (I !! i))) : IInvSetRA Var)
-              ((maps_to_res n (@Auth.black (positive ==> URA.agree Var)%ra (fun i => Some <$> (I' !! i))) : IInvSetRA Var)
+              (maps_to_res_dep n (@Auth.black (positive ==> URA.agree Var)%ra (fun i => Some <$> (I !! i))) : IInvSetRA Vars)
+              ((maps_to_res_dep n (@Auth.black (positive ==> URA.agree Var)%ra (fun i => Some <$> (I' !! i))) : IInvSetRA Vars)
                  ⋅
-                 (maps_to_res n (Auth.white (@maps_to_res _ (URA.agree Var) i (Some (Some p)))) : IInvSetRA Var))).
-    { setoid_rewrite maps_to_res_add. apply maps_to_updatable.
+                 (maps_to_res_dep n (Auth.white (@maps_to_res _ (URA.agree Var) i (Some (Some p)))) : IInvSetRA Vars))).
+    { setoid_rewrite maps_to_res_dep_add. apply maps_to_res_dep_updatable.
       apply Auth.auth_alloc. ii. des. rewrite URA.unit_idl in FRAME. subst. split.
       { rr; unseal "ra". ss. intro. rr; unseal "ra". destruct (I' !! k); ss. }
       rr. subst I'.
@@ -353,8 +229,9 @@ Section WORLD_SATISFACTION.
     iCombine "AUTH I" as "AUTH".
     iPoseProof (OwnM_valid with "AUTH") as "%WF".
     assert (Hip : I !! i = Some p).
-    { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_add in WF.
-      unfold maps_to_res in WF. apply (lookup_wf n) in WF. ss. des_ifs.
+    { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_dep_add in WF.
+      unfold maps_to_res_dep, maps_to_res in WF. apply (pwd_lookup_wf n) in WF. ss. des_ifs.
+      unfold eq_rect_r in WF. rewrite <- Eqdep.EqdepTheory.eq_rect_eq in WF.
       apply Auth.auth_included in WF. rename WF into EXTENDS.
       apply pw_extends in EXTENDS. specialize (EXTENDS i).
       des_ifs. clear e e0. rr in EXTENDS. des. unfold URA.add in EXTENDS; unseal "ra".
@@ -382,11 +259,12 @@ Section WORLD_SATISFACTION.
     iCombine "AUTH I" as "AUTH".
     iPoseProof (OwnM_valid with "AUTH") as "%WF".
     assert (Hip : I !! i = Some p).
-    { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_add in WF.
-      unfold maps_to_res in WF. apply (lookup_wf n) in WF. ss. des_ifs.
+    { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_dep_add in WF.
+      unfold maps_to_res_dep, maps_to_res in WF. apply (pwd_lookup_wf n) in WF. ss. des_ifs.
+      unfold eq_rect_r in WF. rewrite <- Eqdep.EqdepTheory.eq_rect_eq in WF.
       apply Auth.auth_included in WF. rename WF into EXTENDS.
       apply pw_extends in EXTENDS. specialize (EXTENDS i).
-      unfold maps_to_res in EXTENDS. des_ifs. clear e e0.
+      des_ifs. clear e e0.
       rr in EXTENDS. des. unfold URA.add in EXTENDS; unseal "ra".
       destruct (I !! i) eqn: E.
       - destruct ctx; ss; des_ifs.
@@ -405,7 +283,7 @@ Section WORLD_SATISFACTION.
   Qed.
 
   Lemma wsat_init :
-    OwnM (maps_to_res n (@Auth.black (positive ==> URA.agree Var)%ra (fun (i : positive) => None)))
+    OwnM (maps_to_res_dep n (@Auth.black (positive ==> URA.agree Var)%ra (fun (i : positive) => None)))
       ⊢ wsat.
   Proof.
     iIntros "H". iExists ∅. iFrame.
@@ -418,12 +296,13 @@ Section FANCY_UPDATE.
 
   Context `{Σ : GRA.t}.
   Variable n : index.
-  Context `{Var : Type}.
-  Context `{Invs : @InvSet Σ Var}.
+  Context `{Vars : index -> Type}.
+  Context `{Invs : @InvSet Σ (Vars n)}.
   Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
   Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
-  Context `{@GRA.inG (IInvSetRA Var) Σ}.
+  Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 
+  Local Notation Var := (Vars n).
 
   Definition inv (N : namespace) P :=
     (∃ p, ∃ i, ⌜prop p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I.
