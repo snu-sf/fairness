@@ -5,8 +5,6 @@ From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 Require Import Program.
 
-(* Set Implicit Arguments. *)
-
 (* Section AUX. *)
 
 (*   Variant prod_lt *)
@@ -52,9 +50,10 @@ Module Syntax.
     (* | baseT_0 (t : T) : type_0 *)
     (* | arrowT_0 : type_0 -> type_0 -> type_0. *)
 
-    Inductive type {i : index} : Type :=
+    Inductive type : Type :=
     | baseT (t : T) : type
     | formulaT : type
+    (* | formulaT (i : index) : type *)
     | arrowT : type -> type -> type.
 
     (* Fixpoint type_size i (ty : type i) : nat := *)
@@ -64,35 +63,27 @@ Module Syntax.
     (*   | arrowT ty1 ty2 => (type_size ty1) + (type_size ty2) + 1 *)
     (*   end. *)
 
-    Fixpoint cast_index (i j : index) (ty : @type i) : @type j :=
-      match ty with
-      | baseT t => baseT t
-      | formulaT => formulaT
-      | arrowT ty1 ty2 => arrowT (cast_index i j ty1) (cast_index i j ty2)
-      end.
-
   End TYPE.
 
   Section SYNTAX.
 
     Context `{T : Type}.
+    Context `{Var : @type T -> Type}.
     (* Variable (i : index). *)
     (* Context `{Var : @type T i -> Type}. *)
     Context `{A : Type}.
+    (* Variable (i : index). *)
 
-    Inductive t {i : nat} : @type T i -> Type :=
+    Inductive t : type -> Type :=
       atom (a : A) : t formulaT
-    | var :
-      forall j (Var' : @type T j -> Type) (ty : @type T j), Var' ty -> t (cast_index j i ty)
+    | var : forall ty, Var ty -> t ty
     (* | app : forall D R, t (arrowT D R) -> t D -> t R *)
     (* | lam : forall D R, (Var D -> t R) -> t (arrowT D R) *)
     | sepconj (p q : t formulaT) : t formulaT
     | pure (P : Prop) : t formulaT
-    | univ :
-      forall j (Var' : @type T j -> Type) (ty : @type T j), (Var' ty -> t formulaT) -> t formulaT
+    | univ : forall ty, (Var ty -> t formulaT) -> t formulaT
     (* | univ {X : Type} (p : X -> t) *)
-    | ex :
-      forall j (Var' : @type T j -> Type) (ty : @type T j), (Var' ty -> t formulaT) -> t formulaT
+    | ex : forall ty, (Var ty -> t formulaT) -> t formulaT
     (* | ex {X : Type} (p : X -> t) *)
     | and (p q : t formulaT) : t formulaT
     | or (p q : t formulaT) : t formulaT
@@ -105,6 +96,28 @@ Module Syntax.
     (* | owni (n : index) (i : positive) (p : t) *)
     .
 
+    (* Inductive t : type -> Type := *)
+    (*   atom (a : A) : t (formulaT i) *)
+    (* | var : forall ty, Var ty -> t ty *)
+    (* (* | app : forall D R, t (arrowT D R) -> t D -> t R *) *)
+    (* (* | lam : forall D R, (Var D -> t R) -> t (arrowT D R) *) *)
+    (* | sepconj (p q : t (formulaT i)) : t (formulaT i) *)
+    (* | pure (P : Prop) : t (formulaT i) *)
+    (* | univ : forall ty, (Var ty -> t (formulaT i)) -> t (formulaT i) *)
+    (* (* | univ {X : Type} (p : X -> t) *) *)
+    (* | ex : forall ty, (Var ty -> t (formulaT i)) -> t (formulaT i) *)
+    (* (* | ex {X : Type} (p : X -> t) *) *)
+    (* | and (p q : t (formulaT i)) : t (formulaT i) *)
+    (* | or (p q : t (formulaT i)) : t (formulaT i) *)
+    (* | impl (p q : t (formulaT i)) : t (formulaT i) *)
+    (* | wand (p q : t (formulaT i)) : t (formulaT i) *)
+    (* | empty : t (formulaT i) *)
+    (* | persistently (p : t (formulaT i)) : t (formulaT i) *)
+    (* | plainly (p : t (formulaT i)) : t (formulaT i) *)
+    (* | upd (p : t (formulaT i)) : t (formulaT i) *)
+    (* (* | owni (n : index) (i : positive) (p : t) *) *)
+    (* . *)
+
   End SYNTAX.
 
   Section TEST.
@@ -115,37 +128,116 @@ Module Syntax.
     Definition tBase_sem (b : tBase) : Type :=
       match b with | tBool => bool | tNat => nat end.
 
-    Fixpoint Var_0 (ty : @type tBase 0) : Type :=
+    Fixpoint Var_0 (ty : @type tBase) : Type :=
       match ty with
       | baseT b => tBase_sem b
       | formulaT => unit
       | arrowT t1 t2 => (Var_0 t1 -> Var_0 t2)
       end.
 
-    Fixpoint Var (i : index) : @type tBase i -> Type :=
+    Fixpoint Var (i : index) : @type tBase -> Type :=
       match i with
       | O => Var_0
       | S j =>
-          fix Var_aux (ty : @type tBase (S j)) : Type :=
+          fix Var_aux (ty : @type tBase) : Type :=
         match ty with
         | baseT b => tBase_sem b
-        | formulaT => @t tBase A j (@formulaT tBase j)
+        | formulaT => @t tBase (Var j) A formulaT
         | arrowT t1 t2 => (Var_aux t1 -> Var_aux t2)
         end
       end.
 
-    Compute (Var 3 (@formulaT tBase 3)).
+    Compute Var 3 formulaT.
 
-    Definition syn i := @t tBase A i.
+    Goal Var 3 formulaT = @t _ (Var 2) A formulaT.
+    Proof. ss. Qed.
 
-    Definition form1 : @syn 2 (@formulaT tBase 2) :=
-      @ex _ _ 2 1 (Var 1) (@formulaT tBase 1)
-          (fun (s : syn (formulaT 1)) => and (var _ s) (var _ s)).
-The term "ex (formulaT 1) (λ s : ?Var (formulaT 1), and s s)" has type 
-"t (formulaT 1)" while it is expected to have type "syn (formulaT 2)" (cannot unify 
-"1" and "2").
+    Definition syn_bad i := @t tBase (@Var i) A.
+    Notation syn i := (@t tBase (@Var i) A).
+
+    Definition form1 : @syn 2 formulaT :=
+      @ex _ _ _ (baseT tBool) (fun b => empty).
+
+    Goal (syn 1 formulaT) = (Var 2 formulaT).
+    Proof. ss. Qed.
+
+    Definition form2 : @syn 2 formulaT :=
+      @ex _ _ _ formulaT (fun (s : Var 2 formulaT) => and (var _ s) (var _ s)).
+
+    Definition form3 : @syn 2 formulaT :=
+      @ex _ _ _ formulaT (fun (s : @t tBase (Var 1) A formulaT) => and (var _ s) (var _ s)).
+
+    Definition form4 : @syn 2 formulaT :=
+      @ex _ _ _ formulaT (fun (s : @syn 1 formulaT) => and (var _ s) (var _ s)).
+(* The term "ex (formulaT 1) (λ s : ?Var (formulaT 1), and s s)" has type  *)
+(* "t (formulaT 1)" while it is expected to have type "syn (formulaT 2)" (cannot unify  *)
+    (* "1" and "2"). *)
+
+    Definition form5 : @syn 2 formulaT :=
+      @ex _ _ _ formulaT (fun (s : @syn 1 formulaT) => pure (s = wand empty empty)).
+
+TODO
+
+
+    (* Fixpoint Var_0 (ty : @type tBase) : Type := *)
+    (*   match ty with *)
+    (*   | baseT b => tBase_sem b *)
+    (*   | formulaT _ => unit *)
+    (*   | arrowT t1 t2 => (Var_0 t1 -> Var_0 t2) *)
+    (*   end. *)
+
+    (* Fixpoint Var (i : index) : @type tBase -> Type := *)
+    (*   match i with *)
+    (*   | O => Var_0 *)
+    (*   | S j => *)
+    (*       fix Var_aux (ty : @type tBase) : Type := *)
+    (*     match ty with *)
+    (*     | baseT b => tBase_sem b *)
+    (*     | formulaT k => @t tBase (Var j) A j (formulaT j) *)
+    (*     | arrowT t1 t2 => (Var_aux t1 -> Var_aux t2) *)
+    (*     end *)
+    (*   end. *)
+
+    (* Program Fixpoint Var (i : index) {measure i} : @type tBase -> Type := *)
+    (* (* Fixpoint Var (i : index) : @type tBase -> Type := *) *)
+    (*   match i with *)
+    (*   | O => Var_0 *)
+    (*   | S j => *)
+    (*       fix Var_aux (ty : @type tBase) : Type := *)
+    (*     match ty with *)
+    (*     | baseT b => tBase_sem b *)
+    (*     | formulaT k => *)
+    (*         match Nat.ltb_spec0 k i with *)
+    (*         | ReflectT _ _ => @t tBase (@Var k _) A k (formulaT k) *)
+    (*         | ReflectF _ _ => unit *)
+    (*         end *)
+    (*     | arrowT t1 t2 => (Var_aux t1 -> Var_aux t2) *)
+    (*     end *)
+    (*   end. *)
+
 
     TODO
+
+
+    (* Fixpoint Var_0 (ty : @type tBase) : Type := *)
+    (*   match ty with *)
+    (*   | baseT _ b => tBase_sem b *)
+    (*   | formulaT _ => unit *)
+    (*   | arrowT t1 t2 => (Var_0 t1 -> Var_0 t2) *)
+    (*   end. *)
+
+    (* Fixpoint Var (i : index) : @type tBase i -> Type := *)
+    (*   match i with *)
+    (*   | O => Var_0 *)
+    (*   | S j => *)
+    (*       fix Var_aux (ty : @type tBase (S j)) : Type := *)
+    (*     match ty with *)
+    (*     | baseT _ b => tBase_sem b *)
+    (*     | formulaT _ => @t tBase j (@Var j) A (formulaT j) *)
+    (*     | arrowT t1 t2 => (Var_aux t1 -> Var_aux t2) *)
+    (*     end *)
+    (*   end. *)
+
 
 
     (* Program Fixpoint Var (i : index) (ty : @type tBase i) {measure (i, type_size ty) (prod_lt lt lt)} : Type := *)
