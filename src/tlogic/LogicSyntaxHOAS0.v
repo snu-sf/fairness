@@ -152,15 +152,29 @@ Module Syntax.
     Goal Var 3 formulaT = @t _ (Var 2) A formulaT.
     Proof. ss. Qed.
 
-    TODO
+    Definition syn_bad i := @t tBase (@Var i) A.
+    Notation syn i := (@t tBase (@Var i) A).
 
-    Definition syn i := @t tBase i (@Var i) A.
+    Definition form1 : @syn 2 formulaT :=
+      @ex _ _ _ (baseT tBool) (fun b => empty).
 
-    Definition form1 : @syn 2 (formulaT 2) :=
-      @ex _ _ _ _ (formulaT 2) (fun (s : syn (formulaT 1)) => and (var _ s) (var _ s)).
-The term "ex (formulaT 1) (λ s : ?Var (formulaT 1), and s s)" has type 
-"t (formulaT 1)" while it is expected to have type "syn (formulaT 2)" (cannot unify 
-"1" and "2").
+    Goal (syn 1 formulaT) = (Var 2 formulaT).
+    Proof. ss. Qed.
+
+    Definition form2 : @syn 2 formulaT :=
+      @ex _ _ _ formulaT (fun (s : Var 2 formulaT) => and (var _ s) (var _ s)).
+
+    Definition form3 : @syn 2 formulaT :=
+      @ex _ _ _ formulaT (fun (s : @t tBase (Var 1) A formulaT) => and (var _ s) (var _ s)).
+
+    Definition form4 : @syn 2 formulaT :=
+      @ex _ _ _ formulaT (fun (s : @syn 1 formulaT) => and (var _ s) (var _ s)).
+(* The term "ex (formulaT 1) (λ s : ?Var (formulaT 1), and s s)" has type  *)
+(* "t (formulaT 1)" while it is expected to have type "syn (formulaT 2)" (cannot unify  *)
+(* "1" and "2"). *)
+
+TODO
+
 
     (* Fixpoint Var_0 (ty : @type tBase) : Type := *)
     (*   match ty with *)
