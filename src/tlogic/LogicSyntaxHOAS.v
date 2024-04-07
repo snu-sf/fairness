@@ -69,56 +69,201 @@ Module Syntax.
 
     Context `{T : Type}.
     Context `{Var : @type T -> Type}.
-    (* Variable (i : index). *)
-    (* Context `{Var : @type T i -> Type}. *)
     Context `{A : Type}.
-    (* Variable (i : index). *)
 
-    Inductive t : type -> Type :=
-      atom (a : A) : t formulaT
-    | var : forall ty, Var ty -> t ty
-    (* | app : forall D R, t (arrowT D R) -> t D -> t R *)
-    (* | lam : forall D R, (Var D -> t R) -> t (arrowT D R) *)
-    | sepconj (p q : t formulaT) : t formulaT
-    | pure (P : Prop) : t formulaT
-    | univ : forall ty, (Var ty -> t formulaT) -> t formulaT
-    (* | univ {X : Type} (p : X -> t) *)
-    | ex : forall ty, (Var ty -> t formulaT) -> t formulaT
-    (* | ex {X : Type} (p : X -> t) *)
-    | and (p q : t formulaT) : t formulaT
-    | or (p q : t formulaT) : t formulaT
-    | impl (p q : t formulaT) : t formulaT
-    | wand (p q : t formulaT) : t formulaT
-    | empty : t formulaT
-    | persistently (p : t formulaT) : t formulaT
-    | plainly (p : t formulaT) : t formulaT
-    | upd (p : t formulaT) : t formulaT
-    (* | owni (n : index) (i : positive) (p : t) *)
+    Inductive t : Type :=
+      atom (a : A) : t
+    | sepconj (p q : t) : t
+    | pure (P : Prop) : t
+    | univ : forall ty, (Var ty -> t) -> t
+    | ex : forall ty, (Var ty -> t) -> t
+    | and (p q : t) : t
+    | or (p q : t) : t
+    | impl (p q : t) : t
+    | wand (p q : t) : t
+    | empty : t
+    | persistently (p : t) : t
+    | plainly (p : t) : t
+    | upd (p : t) : t
     .
 
     (* Inductive t : type -> Type := *)
-    (*   atom (a : A) : t (formulaT i) *)
+    (*   atom (a : A) : t formulaT *)
     (* | var : forall ty, Var ty -> t ty *)
     (* (* | app : forall D R, t (arrowT D R) -> t D -> t R *) *)
     (* (* | lam : forall D R, (Var D -> t R) -> t (arrowT D R) *) *)
-    (* | sepconj (p q : t (formulaT i)) : t (formulaT i) *)
-    (* | pure (P : Prop) : t (formulaT i) *)
-    (* | univ : forall ty, (Var ty -> t (formulaT i)) -> t (formulaT i) *)
+    (* | sepconj (p q : t formulaT) : t formulaT *)
+    (* | pure (P : Prop) : t formulaT *)
+    (* | univ : forall ty, (Var ty -> t formulaT) -> t formulaT *)
     (* (* | univ {X : Type} (p : X -> t) *) *)
-    (* | ex : forall ty, (Var ty -> t (formulaT i)) -> t (formulaT i) *)
+    (* | ex : forall ty, (Var ty -> t formulaT) -> t formulaT *)
     (* (* | ex {X : Type} (p : X -> t) *) *)
-    (* | and (p q : t (formulaT i)) : t (formulaT i) *)
-    (* | or (p q : t (formulaT i)) : t (formulaT i) *)
-    (* | impl (p q : t (formulaT i)) : t (formulaT i) *)
-    (* | wand (p q : t (formulaT i)) : t (formulaT i) *)
-    (* | empty : t (formulaT i) *)
-    (* | persistently (p : t (formulaT i)) : t (formulaT i) *)
-    (* | plainly (p : t (formulaT i)) : t (formulaT i) *)
-    (* | upd (p : t (formulaT i)) : t (formulaT i) *)
+    (* | and (p q : t formulaT) : t formulaT *)
+    (* | or (p q : t formulaT) : t formulaT *)
+    (* | impl (p q : t formulaT) : t formulaT *)
+    (* | wand (p q : t formulaT) : t formulaT *)
+    (* | empty : t formulaT *)
+    (* | persistently (p : t formulaT) : t formulaT *)
+    (* | plainly (p : t formulaT) : t formulaT *)
+    (* | upd (p : t formulaT) : t formulaT *)
     (* (* | owni (n : index) (i : positive) (p : t) *) *)
+    (* (* | own (r : URA.t) : needs indexed RA *) *)
     (* . *)
 
   End SYNTAX.
+
+  Section INTERP_TYPE.
+
+    Context `{T : Type}.
+    Context `{TSem : T -> Type}.
+    (* Context `{Var : @type T -> Type}. *)
+    Context `{As : (@type T -> Type) -> Type}.
+
+    Fixpoint Var_0 (ty : @type T) : Type :=
+      match ty with
+      | baseT b => TSem b
+      | formulaT => unit
+      | arrowT t1 t2 => (Var_0 t1 -> Var_0 t2)
+      end.
+
+    Fixpoint Var (i : index) : @type T -> Type :=
+      match i with
+      | O => Var_0
+      | S j =>
+          fix Var_aux (ty : @type T) : Type :=
+        match ty with
+        | baseT b => TSem b
+        | formulaT => @t T (Var j) (As (Var j))
+            (* match j with *)
+            (* | O => @t T Var_0 (As Var_0) *)
+            (* | S k => @t T (Var j) (As (Var k)) *)
+            (* end *)
+        | arrowT t1 t2 => (Var_aux t1 -> Var_aux t2)
+        end
+      end.
+
+  End INTERP_TYPE.
+
+  Section TEST.
+
+    Context `{T : Type}.
+    Context `{TSem : T -> Type}.
+
+    Inductive As (V : @type T -> Type) : Type :=
+      | owni (i : index) (p : @t T V (As V))
+    .
+
+    Definition typing (i : index) : @type T -> Type :=
+      @Var T TSem As i.
+
+    Definition ttt1 : As (typing 2) := owni (typing 2) 0 (ex formulaT (fun s => pure (s = empty))).
+    Compute ttt1.
+    Goal typing 2 formulaT = @t T (typing 1) (As (typing 1)).
+    Proof.
+      ss.
+    Qed.
+
+    Definition inv (n i : index) (p : @t T (typing i) (As (typing i))) :
+      @t T (typing i) (As (typing i)) :=
+      atom (owni _ n p).
+
+    Definition inv0 (n i : index) (p : @t T (typing 2) (As (typing 2))) :
+      @t T (typing 3) (As (typing 2)) :=
+      atom (owni _ n p).
+
+    (* Definition of As enforces that 
+       p should have the same typing level for itself and its atom 
+     *)
+    Fail Definition inv1 (n : index) (p : @t T (typing 2) (As (typing 3))) :
+      @t T (typing 2) (As (typing 3)) :=
+      atom (owni _ n p).
+
+    (* Definition inv (N : namespace) P := *)
+    (*   (∃ p, ∃ i, ⌜prop p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I. *)
+
+  End TEST.
+
+  (* Section INTERP_TYPE. *)
+
+  (*   Context `{T : Type}. *)
+  (*   Context `{TSem : T -> Type}. *)
+  (*   Context `{A : Type}. *)
+
+  (*   Fixpoint Var_0 (ty : @type T) : Type := *)
+  (*     match ty with *)
+  (*     | baseT b => TSem b *)
+  (*     | formulaT => unit *)
+  (*     | arrowT t1 t2 => (Var_0 t1 -> Var_0 t2) *)
+  (*     end. *)
+
+  (*   Fixpoint Var (i : index) : @type T -> Type := *)
+  (*     match i with *)
+  (*     | O => Var_0 *)
+  (*     | S j => *)
+  (*         fix Var_aux (ty : @type T) : Type := *)
+  (*       match ty with *)
+  (*       | baseT b => TSem b *)
+  (*       | formulaT => @t T (Var j) A *)
+  (*       (* | formulaT => @t T (Var j) A formulaT *) *)
+  (*       | arrowT t1 t2 => (Var_aux t1 -> Var_aux t2) *)
+  (*       end *)
+  (*     end. *)
+
+  (* End INTERP_TYPE. *)
+
+  Section INTERP.
+
+    Context `{Σ : GRA.t}.
+    Context `{T : Type}.
+    Context `{A : Type}.
+    Context `{Var : @type T -> Type}.
+    Context `{Atoms : @InvSet Σ A}.
+
+    Fixpoint to_semantics (syn : @t T Var A) : iProp :=
+      match syn with
+      | atom a => prop a
+      | sepconj p q => Sepconj (to_semantics p) (to_semantics q)
+      | pure P => Pure P
+      | univ ty p => Univ (fun (x : Var ty) => to_semantics (p x))
+      | ex ty p => Ex (fun (x : Var ty) => to_semantics (p x))
+      | and p q => And (to_semantics p) (to_semantics q)
+      | or p q => Or (to_semantics p) (to_semantics q)
+      | impl p q => Impl (to_semantics p) (to_semantics q)
+      | wand p q => Wand (to_semantics p) (to_semantics q)
+      | empty => Emp
+      | persistently p => Persistently (to_semantics p)
+      | plainly p => IProp.Plainly (to_semantics p)
+      | upd p => Upd (to_semantics p)
+      end.
+
+  End INTERP.
+
+  Section INVSET.
+
+    Context `{Σ : GRA.t}.
+    Context `{T : Type}.
+    Context `{Var : @type T -> Type}.
+    Context `{A : Type}.
+    Context `{Atoms : @InvSet Σ A}.
+
+    Global Instance I : @InvSet Σ (@t T Var A) :=
+      {| prop := @to_semantics Σ T Var A Atoms |}.
+
+  End INVSET.
+
+  Section INDEXED_INVSET.
+
+    Context `{Σ : GRA.t}.
+    Context `{T : Type}.
+    Context `{TSem : T -> Type}.
+    TODO
+    Notation Vars := (@Var T TSem
+    Context `{As : index -> Type}.
+    Context `{iAtoms : forall (i : index), @InvSet Σ (As i)}.
+
+    
+
+  End INDEXED_INVSET.
 
   Section TEST.
 
@@ -128,111 +273,48 @@ Module Syntax.
     Definition tBase_sem (b : tBase) : Type :=
       match b with | tBool => bool | tNat => nat end.
 
-    Fixpoint Var_0 (ty : @type tBase) : Type :=
-      match ty with
-      | baseT b => tBase_sem b
-      | formulaT => unit
-      | arrowT t1 t2 => (Var_0 t1 -> Var_0 t2)
-      end.
-
-    Fixpoint Var (i : index) : @type tBase -> Type :=
-      match i with
-      | O => Var_0
-      | S j =>
-          fix Var_aux (ty : @type tBase) : Type :=
-        match ty with
-        | baseT b => tBase_sem b
-        | formulaT => @t tBase (Var j) A formulaT
-        | arrowT t1 t2 => (Var_aux t1 -> Var_aux t2)
-        end
-      end.
+    Let Var := @Var tBase tBase_sem A.
 
     Compute Var 3 formulaT.
 
-    Goal Var 3 formulaT = @t _ (Var 2) A formulaT.
+    (* Goal Var 3 formulaT = @t _ (Var 2) A formulaT. *)
+    Goal Var 3 formulaT = @t _ (Var 2) A.
     Proof. ss. Qed.
 
     Definition syn_bad i := @t tBase (@Var i) A.
     Notation syn i := (@t tBase (@Var i) A).
 
-    Definition form1 : @syn 2 formulaT :=
+    (* Definition form1 : @syn 2 formulaT := *)
+    Definition form1 : @syn 2 :=
       @ex _ _ _ (baseT tBool) (fun b => empty).
 
-    Goal (syn 1 formulaT) = (Var 2 formulaT).
+    (* Goal (syn 1 formulaT) = (Var 2 formulaT). *)
+    Goal (syn 1) = (Var 2 formulaT).
     Proof. ss. Qed.
 
-    Definition form2 : @syn 2 formulaT :=
-      @ex _ _ _ formulaT (fun (s : Var 2 formulaT) => and (var _ s) (var _ s)).
+    (* Definition form2 : @syn 2 formulaT := *)
+      (* @ex _ _ _ formulaT (fun (s : Var 2 formulaT) => and (var _ s) (var _ s)). *)
+    Definition form2 : @syn 2 :=
+      @ex _ _ _ formulaT (fun (s : Var 2 formulaT) => pure (s = impl empty empty)).
 
-    Definition form3 : @syn 2 formulaT :=
-      @ex _ _ _ formulaT (fun (s : @t tBase (Var 1) A formulaT) => and (var _ s) (var _ s)).
+    (* Definition form3 : @syn 2 formulaT := *)
+    (*   @ex _ _ _ formulaT (fun (s : @t tBase (Var 1) A formulaT) => and (var _ s) (var _ s)). *)
+    Definition form3 : @syn 2 :=
+      @ex _ _ _ formulaT (fun (s : @t tBase (Var 1) A) => pure (s = impl empty empty)).
 
-    Definition form4 : @syn 2 formulaT :=
-      @ex _ _ _ formulaT (fun (s : @syn 1 formulaT) => and (var _ s) (var _ s)).
-(* The term "ex (formulaT 1) (λ s : ?Var (formulaT 1), and s s)" has type  *)
-(* "t (formulaT 1)" while it is expected to have type "syn (formulaT 2)" (cannot unify  *)
-    (* "1" and "2"). *)
+    (* Definition form4 : @syn 2 formulaT := *)
+    (*   @ex _ _ _ formulaT (fun (s : @syn 1 formulaT) => and (var _ s) (var _ s)). *)
+    Definition form4 : @syn 2 :=
+      @ex _ _ _ formulaT (fun (s : @syn 1) => pure (s = impl empty empty)).
 
-    Definition form5 : @syn 2 formulaT :=
-      @ex _ _ _ formulaT (fun (s : @syn 1 formulaT) => pure (s = wand empty empty)).
-
-TODO
+    (* Definition form5 : @syn 2 formulaT := *)
+    (*   @ex _ _ _ formulaT (fun (s : @syn 1 formulaT) => pure (s = wand empty empty)). *)
+    Definition form5 : @syn 2 :=
+      @ex _ _ _ formulaT (fun (s : @syn 1) => pure (s = wand empty empty)).
 
   End TEST.
 
-  Section INTERP.
-
-    (* Universes i j x y. *)
-    (* Constraint i < x, j < y. *)
-
-    Context `{Σ : GRA.t}.
-    Context `{A : Type}.
-    Context `{Atomics : @InvSet Σ A}.
-    (* Context `{@GRA.inG (IInvSetRA (@t@{i j} A)) Σ}. *)
-
-    (* Polymorphic Fixpoint to_semantics {BaseI : @InvSet Σ (@t A)} (syn : t) : iProp := *)
-    (* Polymorphic Fixpoint to_semantics (syn : t@{x y}) : iProp := *)
-    Polymorphic Fixpoint to_semantics (syn : t) : iProp :=
-      match syn with
-      | atom a => prop a
-      | sepconj p q => Sepconj (to_semantics p) (to_semantics q)
-      | pure P => Pure P
-      | @univ _ X p => Univ (fun (x : X) => to_semantics (p x))
-      | @ex _ X p => Ex (fun (x : X) => to_semantics (p x))
-      (* | own (* Need indexed RA? *) *)
-      | and p q => And (to_semantics p) (to_semantics q)
-      | or p q => Or (to_semantics p) (to_semantics q)
-      | impl p q => Impl (to_semantics p) (to_semantics q)
-      | wand p q => Wand (to_semantics p) (to_semantics q)
-      | empty => Emp
-      | persistently p => Persistently (to_semantics p)
-      | plainly p => IProp.Plainly (to_semantics p)
-      (* | later (p : Syntax) *)
-      | upd p => Upd (to_semantics p)
-      (* | entails p q => Entails (to_semantics p) (to_semantics q) *)
-      (* | owni n i p => @OwnI Σ (@t@{i j} A) _ n i p *)
-      end.
-
-  End INTERP.
-
-  Section INVSET.
-
-    Context `{Σ : GRA.t}.
-    Context `{A : Type}.
-    Context `{Atomics : @InvSet Σ A}.
-    (* Context `{@GRA.inG (IInvSetRA (@t A)) Σ}. *)
-
-    Polymorphic Global Instance I : @InvSet Σ (@t A) :=
-      {| prop := @to_semantics Σ A Atomics |}.
-      (* {| prop := @to_semantics Σ A Atomics _ |}. *)
-    (* Polymorphic Global Instance I {n : index} : @InvSet Σ (@it A n) := *)
-    (*   {| prop := @to_semantics Σ A Atomics |}. *)
-
-  End INVSET.
-
 End Syntax.
-
-(* Print Universes. *)
 
 Module Atoms.
 
