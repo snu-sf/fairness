@@ -6,36 +6,25 @@ From iris Require base_logic.lib.invariants.
 
 Local Notation index := nat.
 
-Section INVARIANT_SET.
+Section INDEXED_INVARIANT_SET.
 
   Context `{Σ : GRA.t}.
 
-  Class InvSet (Var : Type) :=
-    { prop : Var -> iProp }.
+  Class IInvSet (Vars : index -> Type) :=
+    { prop : forall (i : index), (Vars i) -> iProp }.
 
-  Class InvIn {Var : Type} `{InvSet Var} (P : iProp) :=
-    { inhabitant : Var
-    ; inhabitant_eq : prop inhabitant = P
+  Class IInvIn {Vars : index -> Type} `{IInvSet Vars} (n : index) (P : iProp) :=
+    { inhabitant : Vars n
+    ; inhabitant_eq : prop _ inhabitant = P
     }.
 
   Definition InvSetRA (Vars : index -> Type) (n : index) : URA.t :=
     (Auth.t (positive ==> URA.agree (Vars n)))%ra.
 
-  (* Definition IInvSetRA (Vars : index -> Type) : URA.t := (@URA.pointwise_dep index (fun n => InvSetRA (Vars n)))%ra. *)
-  (* Polymorphic Definition IInvSetRA (Vars : index -> Type) : URA.t := (@URA.pointwise_dep index (fun n => InvSetRA (Vars n)))%ra. *)
-  (* Polymorphic Definition IInvSetRA (Var : Type) : URA.t := (index ==> InvSetRA Var)%ra. *)
-  (* Definition IInvSetRA (Var : Type) : URA.t := (index ==> InvSetRA Var)%ra. *)
-
   Definition IInvSetRA (Vars : index -> Type) : URA.t :=
     @URA.pointwise_dep index (InvSetRA Vars).
 
-  Global Instance InvSet_top (Var : Type) : InvSet Var :=
-    {| prop := fun (_ : Var) => (⌜True⌝)%I |}.
-
-  Global Instance InvSet_bot (Var : Type) : InvSet Var :=
-    {| prop := fun (_ : Var) => (⌜False⌝)%I |}.
-
-End INVARIANT_SET.
+End INDEXED_INVARIANT_SET.
 
 Section PCM_OWN.
 
@@ -124,12 +113,14 @@ End PCM_OWN.
 Section WORLD_SATISFACTION.
 
   Context `{Σ : GRA.t}.
-  Variable n : index.
   Context `{Vars : index -> Type}.
-  Context `{@InvSet Σ (Vars n)}.
+  Context `{@IInvSet Σ Vars}.
+  (* Context `{@InvSet Σ (Vars n)}. *)
   Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
   Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
   Context `{@GRA.inG (IInvSetRA Vars) Σ}.
+
+  Variable n : index.
 
   Local Notation Var := (Vars n).
 
@@ -142,7 +133,7 @@ Section WORLD_SATISFACTION.
     OwnM (inv_auth_black I).
 
   Definition inv_satall (I : gmap positive Var) :=
-    ([∗ map] i ↦ p ∈ I, (prop p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I.
+    ([∗ map] i ↦ p ∈ I, (prop n p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I.
 
   Definition wsat : iProp := (∃ I, inv_auth I ∗ inv_satall I)%I.
 
@@ -181,7 +172,7 @@ Section WORLD_SATISFACTION.
             | None => True
             | Some G => (exists i, i ∉ G /\ φ i)
             end)
-    : wsat ∗ prop p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat.
+    : wsat ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat.
   Proof.
     iIntros "[[% [AUTH SAT]] P]".
     iMod (alloc_name (fun i => i ∉ dom I /\ φ i)) as "[% [[%iI %iφ] D]]".
@@ -222,7 +213,7 @@ Section WORLD_SATISFACTION.
   Qed.
 
   Lemma wsat_OwnI_open i p :
-    OwnI n i p ∗ wsat ∗ OwnE n {[i]} ⊢ |==> prop p ∗ wsat ∗ OwnD n {[i]}.
+    OwnI n i p ∗ wsat ∗ OwnE n {[i]} ⊢ |==> prop n p ∗ wsat ∗ OwnD n {[i]}.
   Proof.
     iIntros "(I & [% [AUTH SAT]] & EN)". iModIntro.
     unfold OwnI, inv_auth, inv_satall.
@@ -252,7 +243,7 @@ Section WORLD_SATISFACTION.
   Qed.
 
   Lemma wsat_OwnI_close i p :
-    OwnI n i p ∗ wsat ∗ prop p ∗ OwnD n {[i]} ⊢ |==> wsat ∗ OwnE n {[i]}.
+    OwnI n i p ∗ wsat ∗ prop n p ∗ OwnD n {[i]} ⊢ |==> wsat ∗ OwnE n {[i]}.
   Proof.
     iIntros "(I & [% [AUTH SAT]] & P & DIS)". iModIntro.
     unfold OwnI, inv_auth, inv_satall.
@@ -295,22 +286,24 @@ End WORLD_SATISFACTION.
 Section FANCY_UPDATE.
 
   Context `{Σ : GRA.t}.
-  Variable n : index.
   Context `{Vars : index -> Type}.
-  Context `{Invs : @InvSet Σ (Vars n)}.
+  Context `{Invs : @IInvSet Σ Vars}.
+  (* Context `{Invs : @InvSet Σ (Vars n)}. *)
   Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
   Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
   Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 
+  Variable n : index.
+
   Local Notation Var := (Vars n).
 
   Definition inv (N : namespace) P :=
-    (∃ p, ∃ i, ⌜prop p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I.
+    (∃ p, ∃ i, ⌜prop n p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I.
 
   Definition FUpd (A : iProp) (E1 E2 : coPset) (P : iProp) : iProp :=
     A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P).
 
-  Lemma FUpd_alloc A E N P `{hasP : @InvIn Σ Var Invs P} :
+  Lemma FUpd_alloc A E N P `{hasP : @IInvIn Σ Vars Invs n P} :
     P ⊢ FUpd A E E (inv N P).
   Proof.
     destruct hasP as [p HE]. subst. iIntros "P (A & WSAT & EN)".

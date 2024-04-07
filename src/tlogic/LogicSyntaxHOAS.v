@@ -73,6 +73,7 @@ Module Syntax.
 
     Inductive t : Type :=
       atom (a : A) : t
+    | lower : (Var formulaT) -> t
     | sepconj (p q : t) : t
     | pure (P : Prop) : t
     | univ : forall ty, (Var ty -> t) -> t
@@ -149,6 +150,7 @@ Module Syntax.
     Context `{T : Type}.
     Context `{TSem : T -> Type}.
 
+    (* Atoms should not interpret arguments. *)
     Inductive As (V : @type T -> Type) : Type :=
       | owni (i : index) (p : @t T V (As V))
     .
@@ -177,6 +179,14 @@ Module Syntax.
     Fail Definition inv1 (n : index) (p : @t T (typing 2) (As (typing 3))) :
       @t T (typing 2) (As (typing 3)) :=
       atom (owni _ n p).
+
+    Definition inv2 q :=
+      inv 0 3 (atom (owni _ 1 (atom (owni _ 2 q)))).
+
+    Fail Definition inv2' q :=
+      inv 0 3 (atom (owni _ 1 (atom (owni (typing 2) 2 q)))).
+
+    (* Set Printing All. *)
 
     (* Definition inv (N : namespace) P := *)
     (*   (∃ p, ∃ i, ⌜prop p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I. *)
@@ -215,28 +225,58 @@ Module Syntax.
 
     Context `{Σ : GRA.t}.
     Context `{T : Type}.
-    Context `{A : Type}.
-    Context `{Var : @type T -> Type}.
-    Context `{Atoms : @InvSet Σ A}.
+    Context `{TSem : T -> Type}.
+    Context `{As : (@type T -> Type) -> Type}.
 
-    Fixpoint to_semantics (syn : @t T Var A) : iProp :=
+    Local Notation Vars := (@Var T TSem As).
+
+    Context `{Atoms : @IInvSet Σ (fun (n : index) => As (Vars n))}.
+
+    Fixpoint to_semantics_0 (syn : @t T (Vars O) (As (Vars O))) : iProp :=
       match syn with
-      | atom a => prop a
-      | sepconj p q => Sepconj (to_semantics p) (to_semantics q)
+      | atom a => prop O a
+      | lower u => ⌜False⌝%I
+      (* | lower u => (fun (x : unit) => ⌜False⌝%I) u *)
+      | sepconj p q => Sepconj (to_semantics_0 p) (to_semantics_0 q)
       | pure P => Pure P
-      | univ ty p => Univ (fun (x : Var ty) => to_semantics (p x))
-      | ex ty p => Ex (fun (x : Var ty) => to_semantics (p x))
-      | and p q => And (to_semantics p) (to_semantics q)
-      | or p q => Or (to_semantics p) (to_semantics q)
-      | impl p q => Impl (to_semantics p) (to_semantics q)
-      | wand p q => Wand (to_semantics p) (to_semantics q)
+      | univ ty p => Univ (fun (x : Vars O ty) => to_semantics_0 (p x))
+      | ex ty p => Ex (fun (x : Vars O ty) => to_semantics_0 (p x))
+      | and p q => And (to_semantics_0 p) (to_semantics_0 q)
+      | or p q => Or (to_semantics_0 p) (to_semantics_0 q)
+      | impl p q => Impl (to_semantics_0 p) (to_semantics_0 q)
+      | wand p q => Wand (to_semantics_0 p) (to_semantics_0 q)
       | empty => Emp
-      | persistently p => Persistently (to_semantics p)
-      | plainly p => IProp.Plainly (to_semantics p)
-      | upd p => Upd (to_semantics p)
+      | persistently p => Persistently (to_semantics_0 p)
+      | plainly p => IProp.Plainly (to_semantics_0 p)
+      | upd p => Upd (to_semantics_0 p)
+      end.
+
+    Fixpoint to_semantics (i : index) : @t T (Vars i) (As (Vars i)) -> iProp :=
+      match i with
+      | O => to_semantics_0
+      | S j =>
+          fix to_semantics_aux (syn : @t T (Vars (S j)) (As (Vars (S j)))) : iProp :=
+        match syn with
+        | atom a => prop (S j) a
+        | lower syn' => to_semantics j syn'
+        | sepconj p q => Sepconj (to_semantics_aux p) (to_semantics_aux q)
+        | pure P => Pure P
+        | univ ty p => Univ (fun (x : Vars (S j) ty) => to_semantics_aux (p x))
+        | ex ty p => Ex (fun (x : Vars (S j) ty) => to_semantics_aux (p x))
+        | and p q => And (to_semantics_aux p) (to_semantics_aux q)
+        | or p q => Or (to_semantics_aux p) (to_semantics_aux q)
+        | impl p q => Impl (to_semantics_aux p) (to_semantics_aux q)
+        | wand p q => Wand (to_semantics_aux p) (to_semantics_aux q)
+        | empty => Emp
+        | persistently p => Persistently (to_semantics_aux p)
+        | plainly p => IProp.Plainly (to_semantics_aux p)
+        | upd p => Upd (to_semantics_aux p)
+        end
       end.
 
   End INTERP.
+
+  TODO
 
   Section INVSET.
 
