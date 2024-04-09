@@ -24,7 +24,7 @@ Module Syntax.
 
   (* If we define for a general gmapT with EqDec and Countable,
       universe inconsistency when checking (in TemporalLogic.Atoms)
-      ==========    
+      ==========
       Context `{Σ : GRA.t}.
       Context `{T : Type}.
       Context `{TSem : T -> Type}.
@@ -32,17 +32,19 @@ Module Syntax.
       Local Notation As := (fun (i : index) => @t T (typing i)).
 
       Context `{@GRA.inG (IInvSetRA As) Σ}.
-      ==========    
+      ==========
       with an error message
-      ==========    
+      ==========
       The term "t" has type
       "Type@{max(Set+1,Fairness.LogicSyntaxHOAS.59,Syntax.type.u0+1,Fairness.LogicSyntaxHOAS.64,Fairness.LogicSyntaxHOAS.65,RelDecision.u0,RelDecision.u1)}"
       while it is expected to have type "Type@{IInvSetRA.u0}" (universe inconsistency: Cannot enforce
       Fairness.LogicSyntaxHOAS.64 <= IInvSetRA.u0 because IInvSetRA.u0 <= InvSetRA.u0
       <= URA.agree_obligation_4.u0 <= URA.t.u0 < MRet.u0 = Fairness.LogicSyntaxHOAS.64).
-      ==========    
+      ==========
       Seems like there is a strict order between URA.t and MRet,
       and either EqDec or Countable uses MRet.
+      ==========
+      Found out that PCM.GRA.of_list introduces URA.t.u0 = RA.t.u0 < MRet.u0.
    *)
 
   End TYPE.
