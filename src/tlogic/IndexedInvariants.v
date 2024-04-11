@@ -114,15 +114,16 @@ Section WORLD_SATISFACTION.
 
   Context `{Σ : GRA.t}.
   Context `{Vars : index -> Type}.
-  Context `{@IInvSet Σ Vars}.
+  (* Context `{@IInvSet Σ Vars}. *)
   (* Context `{@InvSet Σ (Vars n)}. *)
   Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
   Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
   Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 
   Variable n : index.
-
   Local Notation Var := (Vars n).
+
+  Context `{prop : Var -> iProp}.
 
   Definition inv_auth_black (I : gmap positive Var) : IInvSetRA Vars :=
     @maps_to_res_dep index _
@@ -133,7 +134,9 @@ Section WORLD_SATISFACTION.
     OwnM (inv_auth_black I).
 
   Definition inv_satall (I : gmap positive Var) :=
-    ([∗ map] i ↦ p ∈ I, (prop n p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I.
+    ([∗ map] i ↦ p ∈ I, (prop p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I.
+  (* Definition inv_satall (I : gmap positive Var) := *)
+  (*   ([∗ map] i ↦ p ∈ I, (prop n p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I. *)
 
   Definition wsat : iProp := (∃ I, inv_auth I ∗ inv_satall I)%I.
 
@@ -161,7 +164,8 @@ Section WORLD_SATISFACTION.
       - rr in WF0. unseal "ra". ss. specialize (WF0 n). rr in WF0. unseal "ra". ss.
         rewrite Heq in WF0. ss.
     }
-    iPoseProof (@OwnM_unit _ _ H1) as "-# H".
+    iPoseProof (@OwnM_unit _ _ H0) as "-# H".
+    (* iPoseProof (@OwnM_unit _ _ H1) as "-# H". *)
     iMod (OwnM_Upd_set UPD with "H") as "[% [% DIS]]".
     iModIntro. des. subst. iExists i. eauto.
   Qed.
@@ -172,7 +176,8 @@ Section WORLD_SATISFACTION.
             | None => True
             | Some G => (exists i, i ∉ G /\ φ i)
             end)
-    : wsat ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat.
+    : wsat ∗ prop p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat.
+    (* : wsat ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat. *)
   Proof.
     iIntros "[[% [AUTH SAT]] P]".
     iMod (alloc_name (fun i => i ∉ dom I /\ φ i)) as "[% [[%iI %iφ] D]]".
@@ -201,7 +206,8 @@ Section WORLD_SATISFACTION.
       - rewrite URA.unit_idl. rewrite lookup_insert_ne; eauto.
     }
     unfold inv_auth, inv_satall.
-    iMod (OwnM_Upd H3 with "AUTH") as "[AUTH NEW]". iModIntro.
+    iMod (OwnM_Upd H2 with "AUTH") as "[AUTH NEW]". iModIntro.
+    (* iMod (OwnM_Upd H3 with "AUTH") as "[AUTH NEW]". iModIntro. *)
 
     iSplit.
     - iExists i. iFrame. ss.
@@ -213,7 +219,8 @@ Section WORLD_SATISFACTION.
   Qed.
 
   Lemma wsat_OwnI_open i p :
-    OwnI n i p ∗ wsat ∗ OwnE n {[i]} ⊢ |==> prop n p ∗ wsat ∗ OwnD n {[i]}.
+    OwnI n i p ∗ wsat ∗ OwnE n {[i]} ⊢ |==> prop p ∗ wsat ∗ OwnD n {[i]}.
+    (* OwnI n i p ∗ wsat ∗ OwnE n {[i]} ⊢ |==> prop n p ∗ wsat ∗ OwnD n {[i]}. *)
   Proof.
     iIntros "(I & [% [AUTH SAT]] & EN)". iModIntro.
     unfold OwnI, inv_auth, inv_satall.
@@ -243,7 +250,8 @@ Section WORLD_SATISFACTION.
   Qed.
 
   Lemma wsat_OwnI_close i p :
-    OwnI n i p ∗ wsat ∗ prop n p ∗ OwnD n {[i]} ⊢ |==> wsat ∗ OwnE n {[i]}.
+    OwnI n i p ∗ wsat ∗ prop p ∗ OwnD n {[i]} ⊢ |==> wsat ∗ OwnE n {[i]}.
+    (* OwnI n i p ∗ wsat ∗ prop n p ∗ OwnD n {[i]} ⊢ |==> wsat ∗ OwnE n {[i]}. *)
   Proof.
     iIntros "(I & [% [AUTH SAT]] & P & DIS)". iModIntro.
     unfold OwnI, inv_auth, inv_satall.
@@ -301,13 +309,15 @@ Section FANCY_UPDATE.
     (∃ p, ∃ i, ⌜prop n p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I.
 
   Definition FUpd (A : iProp) (E1 E2 : coPset) (P : iProp) : iProp :=
-    A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P).
+    A ∗ wsat (prop:=prop n) n ∗ OwnE n E1 -∗ #=> (A ∗ wsat (prop:=prop n) n ∗ OwnE n E2 ∗ P).
+    (* A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P). *)
 
   Lemma FUpd_alloc A E N P `{hasP : @IInvIn Σ Vars Invs n P} :
     P ⊢ FUpd A E E (inv N P).
   Proof.
     destruct hasP as [p HE]. subst. iIntros "P (A & WSAT & EN)".
-    iMod (wsat_OwnI_alloc n p (fun i => i ∈ ↑N) with "[WSAT P]") as "[I WSAT]".
+    iMod (wsat_OwnI_alloc (prop:=prop n) n p (fun i => i ∈ ↑N) with "[WSAT P]") as "[I WSAT]".
+    (* iMod (wsat_OwnI_alloc n p (fun i => i ∈ ↑N) with "[WSAT P]") as "[I WSAT]". *)
     - i. des_ifs. apply iris.base_logic.lib.invariants.fresh_inv_name.
     - iFrame.
     - iModIntro. iFrame. iDestruct "I" as "[% I]". iExists p, i. iFrame. ss.

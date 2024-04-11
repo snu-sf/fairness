@@ -27,7 +27,7 @@ Module Base.
   .
   (* | gsetT (K : Type) {EqDec : EqDecision K} {Cnt : Countable K}. *)
 
-  Definition sem {interp : meta -> Type} (ty : t) : Type :=
+  Definition sem {config_meta : meta -> Type} (ty : t) : Type :=
     match ty with
     | unitT => unit
     | natT => nat
@@ -36,7 +36,7 @@ Module Base.
     | QpT => Qp
     | coPsetT => coPset
     | gsetTpos => gset positive
-    | metaT ty => interp ty
+    | metaT ty => config_meta ty
     end.
 
 End Base.
@@ -54,8 +54,9 @@ Module Atoms.
     | owne (E : coPset)
     | ownd (D : gset positive)
     | owni (i : positive) (p : @Syntax.t T Typ (@t Typ))
-    | inv_auth_meta (ps : gmap positive (Typ Syntax.formulaT))
-    | inv_satall_meta (ps : gmap positive (Typ Syntax.formulaT))
+    | wsat
+    (* | inv_auth_meta (ps : gmap positive (Typ Syntax.formulaT)) *)
+    (* | inv_satall_meta (ps : gmap positive (Typ Syntax.formulaT)) *)
     .
     (* Inductive t {Typ : @Syntax.type T -> Type} : Type := *)
     (* | owne (n : index) (E : coPset) *)
@@ -83,62 +84,52 @@ Module Atoms.
     Context `{TSem : T -> Type}.
 
     Local Notation typing := (@Syntax.Typ T TSem (@t T)).
-    Local Notation As := (fun (i : index) => @t T (typing i)).
-    Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (As i)).
+    (* Local Notation As := (fun (i : index) => @t T (typing i)). *)
+    Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (@t T (typing i))).
 
     Context `{@GRA.inG (IInvSetRA Formulas) Σ}.
     Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
     Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
 
-    (* Definition indexed_iProp (n : index) (P : iProp) : index -> iProp := *)
-    (*   fun m => if (m =? n) then P else ⌜False⌝%I. *)
+    (* Local Notation prop := (prop (IInvSet:=@Syntax.IISet _ _ TSem (@t T))). *)
+    (* Set Printing All. *)
 
-    (* Definition indexed_iProp_meta (n : index) (P : iProp) : index -> iProp := *)
-    (*   fun m => if (S m =? n) then P else ⌜False⌝%I. *)
-
-    Set Printing All.
-
-    Definition cast A B (LeibEq: A = B) (a: A): B := eq_rect A _ a _ LeibEq.
-
-    Lemma type_eq n :
-      @gmap positive Pos.eq_dec pos_countable (@Syntax.Typ T TSem (@t T) (S n) (@Syntax.formulaT T))
-      =
-        @gmap positive Pos.eq_dec pos_countable (@Syntax.t T (@Syntax.Typ T TSem (@t T) n) (@t T (@Syntax.Typ T TSem (@t T) n))).
-    Proof.
-      ss.
-    Qed.
-
-    TODO
-
-    Definition to_semantics (n : index) (a : @t T (typing n)) : iProp :=
+    Fixpoint to_semantics_0 (a : @t T (typing O)) : iProp :=
       match a with
-      | owne E => OwnE n E
-      | ownd D => OwnD n D
-      | owni i p => @OwnI Σ Formulas _ n i p
-      | inv_auth_meta ps =>
-          match n with
-          | S m => @inv_auth _ Formulas _ m ps
-          | O => ⌜False⌝%I
-          (* | O => @inv_auth _ Formulas _ (cast O) ps *)
-          end
-          (* (match n as n' return (index -> index) -> iProp with *)
-          (* | S m => fun _ => @inv_auth _ Formulas _ m ps *)
-          (* | O => fun cast => @inv_auth _ Formulas _ (cast O) ps *)
-          (* end) id *)
-      | inv_satall_meta ps =>
-          match n with
-          | S m => @inv_satall _ Formulas _ _ _ m ps
-          | O => ⌜False⌝%I
-          (* | O => @inv_satall _ Formulas _ _ _ n ps *)
-          end
+      | owne E => OwnE O E
+      | ownd D => OwnD O D
+      | owni i p => @OwnI Σ Formulas _ O i p
+      | wsat => ⌜True⌝%I
+      end.
+
+    Fixpoint to_semantics (n : index) : @t T (typing n) -> iProp :=
+      match n with
+      | O => to_semantics_0
+      | S m =>
+          fix to_semantics_aux (a : @t T (typing (S m))) : iProp :=
+        match a with
+        | owne E => OwnE (S m) E
+        | ownd D => OwnD (S m) D
+        | owni i p => @OwnI Σ Formulas _ (S m) i p
+        | wsat => @IndexedInvariants.wsat
+                   Σ Formulas _ _ _ m
+                   (@Syntax.to_semantics _ _ TSem (@t T) to_semantics m)
+        end
       end.
     (* Definition to_semantics (n : index) (a : @t T (typing n)) : iProp := *)
     (*   match a with *)
     (*   | owne m E => indexed_iProp n (OwnE n E) m *)
     (*   | ownd m D => indexed_iProp n (OwnD n D) m *)
     (*   | owni m i p => indexed_iProp n (@OwnI Σ Formulas _ n i p) m *)
-    (*   | inv_auth_meta m I => indexed_iProp_meta n (inv_auth  *)
     (*   end. *)
+IndexedInvariants.wsat = 
+λ (Σ : GRA.t) (Vars : index → Type) (H : IInvSet Vars) (H0 : GRA.inG (index ==> CoPset.t)%ra Σ) 
+  (H1 : GRA.inG (index ==> Gset.t)%ra Σ) (H2 : GRA.inG (IInvSetRA Vars) Σ) 
+  (n : index), (∃ I : gmap positive (Vars n), inv_auth n I ** inv_satall n I)%I
+     : ∀ (Σ : GRA.t) (Vars : index → Type),
+         IInvSet Vars
+         → GRA.inG (index ==> CoPset.t)%ra Σ
+           → GRA.inG (index ==> Gset.t)%ra Σ → GRA.inG (IInvSetRA Vars) Σ → index → iProp
 
     (*   Definition OwnE `{@GRA.inG (index ==> CoPset.t)%ra Σ} (n : index) (E : coPset) := *)
   (*   OwnM (@maps_to_res index CoPset.t n (Some E)). *)

@@ -120,11 +120,13 @@ Module Syntax.
 
     Local Notation typing := (@Typ T TSem As).
 
-    Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}.
+    Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
+    (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *)
 
     Fixpoint to_semantics_0 (syn : @t T (typing O) (As (typing O))) : iProp :=
       match syn with
-      | atom a => prop O a
+      | atom a => interp_atoms O a
+      (* | atom a => prop O a *)
       | lift u => ⌜False⌝%I
       (* | lower u => (fun (x : unit) => ⌜False⌝%I) u *)
       | sepconj p q => Sepconj (to_semantics_0 p) (to_semantics_0 q)
@@ -147,7 +149,8 @@ Module Syntax.
       | S j =>
           fix to_semantics_aux (syn : @t T (typing (S j)) (As (typing (S j)))) : iProp :=
         match syn with
-        | atom a => prop (S j) a
+        | atom a => interp_atoms (S j) a
+        (* | atom a => prop (S j) a *)
         | lift syn' => to_semantics j syn'
         | sepconj p q => Sepconj (to_semantics_aux p) (to_semantics_aux q)
         | pure P => Pure P
@@ -176,10 +179,12 @@ Module Syntax.
     Local Notation typing := (@Typ T TSem As).
     Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))).
 
-    Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}.
+    Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
+    (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *)
 
     Global Instance IISet : @IInvSet Σ Formulas :=
-      {| prop := @to_semantics Σ T TSem As Atoms |}.
+      {| prop := @to_semantics Σ T TSem As interp_atoms |}.
+      (* {| prop := @to_semantics Σ T TSem As Atoms |}. *)
 
   End INDEXED_INVSET.
 
@@ -193,10 +198,12 @@ Module Syntax.
     Local Notation typing := (@Typ T TSem As).
     Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))).
 
-    Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}.
+    Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
+    (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *)
 
     Global Program Instance IIIn (i : index) (p : Formulas i)
-      : @IInvIn Σ Formulas IISet i (@to_semantics Σ T TSem As Atoms i p) :=
+      : @IInvIn Σ Formulas (IISet (interp_atoms:=interp_atoms)) i (@to_semantics Σ T TSem As interp_atoms i p) :=
+      (* : @IInvIn Σ Formulas IISet i (@to_semantics Σ T TSem As Atoms i p) := *)
       { inhabitant := p }.
     Next Obligation.
       intros. simpl in *. done.
