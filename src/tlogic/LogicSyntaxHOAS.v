@@ -19,6 +19,7 @@ Module Syntax.
     | sumT : type -> type -> type
     | listT : type -> type
     | funT : type -> type -> type
+    | positiveT : type
     | gmapTpos : type -> type.
     (* | gmapT (K : Type) {EqDec : EqDecision K} {Cnt : Countable K} : type -> type. *)
 
@@ -88,6 +89,7 @@ Module Syntax.
       | sumT ty1 ty2 => sum (Typ_0 ty1) (Typ_0 ty2)
       | listT ty' => list (Typ_0 ty')
       | funT ty1 ty2 => (Typ_0 ty1 -> Typ_0 ty2)
+      | positiveT => positive
       | gmapTpos ty' => gmap positive (Typ_0 ty')
       (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_0 ty') *)
       end.
@@ -104,6 +106,7 @@ Module Syntax.
         | sumT ty1 ty2 => sum (Typ_aux ty1) (Typ_aux ty2)
         | listT ty' => list (Typ_aux ty')
         | funT ty1 ty2 => (Typ_aux ty1 -> Typ_aux ty2)
+        | positiveT => positive
         | gmapTpos ty' => gmap positive (Typ_aux ty')
         (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_aux ty') *)
         end
@@ -210,5 +213,63 @@ Module Syntax.
     Qed.
 
   End INV_IN.
+
+  Section GMAP.
+
+    Context `{Σ : GRA.t}.
+    Context `{T : Type}.
+    Context `{TSem : T -> Type}.
+    Context `{As : (@type T -> Type) -> Type}.
+
+    Local Notation typing := (@Typ T TSem As).
+    Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))).
+
+    Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
+
+    (* Maybe we can make Syntax as an instance of bi. *)
+    Definition star_gmap (n : index) (I : typing (S n) (gmapTpos formulaT)) (f : typing (S n) (funT positiveT (funT formulaT formulaT)))
+      : Formulas n.
+    Proof.
+      ss.
+      refine
+        (fold_right (fun hd tl => @sepconj T (typing n) (As (typing n)) (uncurry f hd) tl) empty (map_to_list I)).
+    Defined.
+
+    Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p).
+
+
+    Lemma to_semantics_empty
+          n
+      :
+      Sem n empty = emp%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_sepconj
+          n p q
+      :
+      Sem n (sepconj p q) = ((Sem n p) ∗ (Sem n q))%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma star_gmap_iProp
+          n I f
+      :
+      Sem n (star_gmap n I f) =
+        ([∗ map] i ↦ p ∈ I, Sem n (f i p))%I.
+    Proof.
+      ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
+      unfold star_gmap. ss. remember (map_to_list I) as L.
+      etransitivity. instantiate (1:= ([∗ list] x ∈ L, uncurry (λ (i : positive) (p : t), to_semantics n (f i p)) x)%I).
+      2:{ subst. reflexivity. }
+      clear HeqL I. induction L.
+      { ss. apply to_semantics_empty. }
+      ss. rewrite to_semantics_red_sepconj. rewrite IHL. f_equal.
+      destruct a. ss.
+    Qed.
+
+  End GMAP.
 
 End Syntax.
