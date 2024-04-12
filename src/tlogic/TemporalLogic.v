@@ -9,35 +9,46 @@ Local Notation index := nat.
 
 Module Base.
 
-  Variant meta : Type :=
-    | src_stateT
-    | tgt_stateT
-    | src_identT
-    | tgt_identT.
+  Section DEF.
 
-  Inductive t : Type :=
-  | unitT
-  | natT
-  | boolT
-  | positiveT
-  | QpT
-  | coPsetT
-  | gsetTpos
-  | metaT (ty : meta)
-  .
-  (* | gsetT (K : Type) {EqDec : EqDecision K} {Cnt : Countable K}. *)
+    Variant meta : Type :=
+      | src_stateT
+      | tgt_stateT
+      | src_identT
+      | tgt_identT.
 
-  Definition sem {config_meta : meta -> Type} (ty : t) : Type :=
-    match ty with
-    | unitT => unit
-    | natT => nat
-    | boolT => bool
-    | positiveT => positive
-    | QpT => Qp
-    | coPsetT => coPset
-    | gsetTpos => gset positive
-    | metaT ty => config_meta ty
-    end.
+    Inductive t : Type :=
+    | unitT
+    | natT
+    | boolT
+    | QpT
+    | coPsetT
+    | gsetTpos
+    | metaT (ty : meta)
+    .
+    (* | gsetT (K : Type) {EqDec : EqDecision K} {Cnt : Countable K}. *)
+
+  End DEF.
+
+  Class InterpMeta :=
+    { interp : meta -> Type }.
+
+  Section SEM.
+
+    Context `{Interp : InterpMeta}.
+
+    Definition sem (ty : t) : Type :=
+      match ty with
+      | unitT => unit
+      | natT => nat
+      | boolT => bool
+      | QpT => Qp
+      | coPsetT => coPset
+      | gsetTpos => gset positive
+      | metaT ty => interp ty
+      end.
+
+  End SEM.
 
 End Base.
 
@@ -54,26 +65,10 @@ Module Atoms.
     | owne (E : coPset)
     | ownd (D : gset positive)
     | owni (i : positive) (p : @Syntax.t T Typ (@t Typ))
-    | wsat
-    (* | inv_auth_meta (ps : gmap positive (Typ Syntax.formulaT)) *)
-    (* | inv_satall_meta (ps : gmap positive (Typ Syntax.formulaT)) *)
+    | syn_inv_auth_l (ps : list (prod positive (@Syntax.t T Typ (@t Typ))))
+    (* Non strictly positive occurrence *)
+    (* | own_inv_auth (ps : gmap positive (@Syntax.t T Typ (@t Typ))) *)
     .
-    (* Inductive t {Typ : @Syntax.type T -> Type} : Type := *)
-    (* | owne (n : index) (E : coPset) *)
-    (* | ownd (n : index) (D : gset positive) *)
-    (* | owni (n : index) (i : positive) (p : @Syntax.t T Typ (@t Typ)) *)
-    (* | inv_auth_meta (n : index) (I : gmap positive (Typ Syntax.formulaT)) *)
-    (* | inv_satall_meta (n : index) (I : gmap positive (Typ Syntax.formulaT)) *)
-    (* . *)
-
-  (* Definition wsat : iProp := (∃ I, inv_auth I ∗ inv_satall I)%I. *)
-  (* Definition inv_auth (I : gmap positive Var) := *)
-  (*   OwnM (inv_auth_black I). *)
-
-
-  (* Definition inv_satall (I : gmap positive Var) := *)
-  (*   ([∗ map] i ↦ p ∈ I, (prop n p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I. *)
-(* Notation "'[∗' 'map]' k ↦ x ∈ m , P" := (big_opM bi_sep (fun k x => P) m) : bi_scope *)
 
   End ATOMS.
 
@@ -84,87 +79,131 @@ Module Atoms.
     Context `{TSem : T -> Type}.
 
     Local Notation typing := (@Syntax.Typ T TSem (@t T)).
-    (* Local Notation As := (fun (i : index) => @t T (typing i)). *)
     Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (@t T (typing i))).
 
     Context `{@GRA.inG (IInvSetRA Formulas) Σ}.
     Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
     Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
 
-    (* Local Notation prop := (prop (IInvSet:=@Syntax.IISet _ _ TSem (@t T))). *)
-    (* Set Printing All. *)
-
-    Fixpoint to_semantics_0 (a : @t T (typing O)) : iProp :=
+    Definition to_semantics (n : index) (a : @t T (typing n)) : iProp :=
       match a with
-      | owne E => OwnE O E
-      | ownd D => OwnD O D
-      | owni i p => @OwnI Σ Formulas _ O i p
-      | wsat => ⌜True⌝%I
+      | owne E => OwnE n E
+      | ownd D => OwnD n D
+      | owni i p => @OwnI Σ Formulas _ n i p
+      | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps)
       end.
-
-    Fixpoint to_semantics (n : index) : @t T (typing n) -> iProp :=
-      match n with
-      | O => to_semantics_0
-      | S m =>
-          fix to_semantics_aux (a : @t T (typing (S m))) : iProp :=
-        match a with
-        | owne E => OwnE (S m) E
-        | ownd D => OwnD (S m) D
-        | owni i p => @OwnI Σ Formulas _ (S m) i p
-        | wsat => @IndexedInvariants.wsat
-                   Σ Formulas _ _ _ m
-                   (@Syntax.to_semantics _ _ TSem (@t T) to_semantics m)
-        end
-      end.
-    (* Definition to_semantics (n : index) (a : @t T (typing n)) : iProp := *)
-    (*   match a with *)
-    (*   | owne m E => indexed_iProp n (OwnE n E) m *)
-    (*   | ownd m D => indexed_iProp n (OwnD n D) m *)
-    (*   | owni m i p => indexed_iProp n (@OwnI Σ Formulas _ n i p) m *)
-    (*   end. *)
-IndexedInvariants.wsat = 
-λ (Σ : GRA.t) (Vars : index → Type) (H : IInvSet Vars) (H0 : GRA.inG (index ==> CoPset.t)%ra Σ) 
-  (H1 : GRA.inG (index ==> Gset.t)%ra Σ) (H2 : GRA.inG (IInvSetRA Vars) Σ) 
-  (n : index), (∃ I : gmap positive (Vars n), inv_auth n I ** inv_satall n I)%I
-     : ∀ (Σ : GRA.t) (Vars : index → Type),
-         IInvSet Vars
-         → GRA.inG (index ==> CoPset.t)%ra Σ
-           → GRA.inG (index ==> Gset.t)%ra Σ → GRA.inG (IInvSetRA Vars) Σ → index → iProp
-
-    (*   Definition OwnE `{@GRA.inG (index ==> CoPset.t)%ra Σ} (n : index) (E : coPset) := *)
-  (*   OwnM (@maps_to_res index CoPset.t n (Some E)). *)
-
-  (* Definition OwnD `{@GRA.inG (index ==> Gset.t)%ra Σ} (n : index) (D : gset positive) := *)
-  (*   OwnM (@maps_to_res index Gset.t n (Some D)). *)
-
-  (* Definition OwnI_white {Vars} (n : index) (i : positive) (p : Vars n) : IInvSetRA Vars := *)
-  (*   @maps_to_res_dep index (@InvSetRA Vars) *)
-  (*                    n *)
-  (*                    (Auth.white (@maps_to_res positive (URA.agree (Vars n)) i (Some (Some p)))). *)
-
-  (* Definition OwnI {Vars} `{@GRA.inG (IInvSetRA Vars) Σ} (n : index) (i : positive) (p : Vars n) := *)
-  (*   OwnM (OwnI_white n i p). *)
-
-  (* Definition inv_auth_black (I : gmap positive Var) : IInvSetRA Vars := *)
-  (*   @maps_to_res_dep index _ *)
-  (*                    n (@Auth.black (positive ==> URA.agree Var)%ra *)
-  (*                                   (fun (i : positive) => Some <$> (I !! i))). *)
-
-  (* Definition inv_auth (I : gmap positive Var) := *)
-  (*   OwnM (inv_auth_black I). *)
-
-  (* Definition inv_satall (I : gmap positive Var) := *)
-  (*   ([∗ map] i ↦ p ∈ I, (prop n p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I. *)
-
-  (* Definition wsat : iProp := (∃ I, inv_auth I ∗ inv_satall I)%I. *)
-
-  (* Definition inv (N : namespace) P := *)
-  (*   (∃ p, ∃ i, ⌜prop n p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I. *)
-
-  (* Definition FUpd (A : iProp) (E1 E2 : coPset) (P : iProp) : iProp := *)
-  (*   A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P). *)
 
   End INTERP.
+
+End Atoms.
+
+Section WSAT.
+
+  Context `{Σ : GRA.t}.
+  Context `{Interp : Base.InterpMeta}.
+
+  Local Notation T := Base.t.
+  (* Local Notation TSem := (@Base.sem Base.interp). *)
+  Local Notation TSem := (Base.sem).
+
+  Local Notation typing := (@Syntax.Typ T TSem (@Atoms.t T)).
+  Local Notation Formulas := (fun (n : index) => @Syntax.t T (typing n) (@Atoms.t T (typing n))).
+
+  Context `{@GRA.inG (IInvSetRA Formulas) Σ}.
+  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
+  Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
+
+  Local Notation AtomSem := (@Atoms.to_semantics Σ _ TSem _ _ _).
+  Local Notation SynSem := (@Syntax.to_semantics Σ _ TSem (@Atoms.t T) AtomSem).
+
+  Global Instance SynIISet : @IInvSet Σ Formulas := (@Syntax.IISet Σ _ TSem (@Atoms.t T) AtomSem).
+
+
+  Definition syn_inv_auth n (ps : gmap positive (Formulas n)) : @Atoms.t T (typing n) :=
+    Atoms.syn_inv_auth_l (map_to_list ps).
+
+  Lemma syn_inv_auth_iProp
+        n ps
+    :
+    Atoms.to_semantics n (syn_inv_auth n ps) = inv_auth n ps.
+  Proof.
+    ss. rewrite list_to_map_to_list. ss.
+  Qed.
+
+  Import Atoms Syntax.
+
+  Definition syn_inv_satall_fun n : positive -> (Formulas n) -> (Formulas n) :=
+    fun i p => or (sepconj p (atom (ownd {[i]}))) (atom (owne {[i]})).
+  (* fun i p => Syntax.or (Syntax.sepconj p (Syntax.atom (ownd {[i]}))) (Syntax.atom (owne {[i]})). *)
+
+  Definition syn_inv_satall n (ps : gmap positive (Formulas n)) : Formulas n :=
+    @star_gmap _ TSem (@Atoms.t T) n ps (syn_inv_satall_fun n).
+  (* @Syntax.star_gmap _ TSem (@t T) n ps (inv_satall_fun n). *)
+
+
+  Lemma syn_inv_satall_fun_iProp
+        n i p
+    :
+    SynSem n (syn_inv_satall_fun n i p) = (((SynSem n p) ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I.
+  Proof.
+    unfold syn_inv_satall_fun. rewrite to_semantics_red_or. rewrite to_semantics_red_sepconj. do 2 f_equal.
+    all: rewrite to_semantics_red_atom; ss.
+  Qed.
+
+  Lemma syn_inv_satall_iProp
+        n ps
+    :
+    SynSem n (syn_inv_satall n ps) = inv_satall n ps.
+  Proof.
+    ss. unfold syn_inv_satall. rewrite star_gmap_iProp. unfold inv_satall.
+    f_equal. extensionalities i p. unfold syn_inv_satall_fun.
+    rewrite to_semantics_red_or. rewrite to_semantics_red_sepconj. rewrite ! to_semantics_red_atom.
+    ss.
+  Qed.
+
+  Definition syn_wsat n : Formulas (S n) :=
+    ex (gmapTpos formulaT) (fun I => lift (sepconj (atom (syn_inv_auth n I)) (syn_inv_satall n I))).
+
+  Lemma syn_wsat_iProp
+        n
+    :
+    SynSem (S n) (syn_wsat n) = wsat n.
+  Proof.
+    unfold syn_wsat, wsat. rewrite to_semantics_red_ex. f_equal. extensionalities I.
+    rewrite to_semantics_red_lift. rewrite to_semantics_red_sepconj.
+    rewrite to_semantics_red_atom. rewrite syn_inv_auth_iProp. rewrite syn_inv_satall_iProp.
+    ss.
+  Qed.
+
+End WSAT.
+
+TODO
+Section FUPD.
+
+  
+
+End FUPD.
+
+
+  Context `{Σ : GRA.t}.
+  Context `{Vars : index -> Type}.
+  Context `{Invs : @IInvSet Σ Vars}.
+  (* Context `{Invs : @InvSet Σ (Vars n)}. *)
+  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
+  Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
+  Context `{@GRA.inG (IInvSetRA Vars) Σ}.
+
+  Variable n : index.
+
+  Local Notation Var := (Vars n).
+
+  Definition inv (N : namespace) P :=
+    (∃ p, ∃ i, ⌜prop n p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I.
+
+  Definition FUpd (A : iProp) (E1 E2 : coPset) (P : iProp) : iProp :=
+    (* A ∗ wsat (prop:=prop n) n ∗ OwnE n E1 -∗ #=> (A ∗ wsat (prop:=prop n) n ∗ OwnE n E2 ∗ P). *)
+    A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P).
+
 
   Section INDEXED_INVSET.
 
@@ -236,7 +275,12 @@ IndexedInvariants.wsat =
 
   End TEST.
 
-End Atoms.
+
+  (* Definition inv (N : namespace) P := *)
+  (*   (∃ p, ∃ i, ⌜prop n p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I. *)
+
+  (* Definition FUpd (A : iProp) (E1 E2 : coPset) (P : iProp) : iProp := *)
+  (*   A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P). *)
 
 
 

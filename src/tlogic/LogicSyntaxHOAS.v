@@ -214,6 +214,70 @@ Module Syntax.
 
   End INV_IN.
 
+  Section RED.
+
+    Context `{Σ : GRA.t}.
+    Context `{T : Type}.
+    Context `{TSem : T -> Type}.
+    Context `{As : (@type T -> Type) -> Type}.
+
+    Local Notation typing := (@Typ T TSem As).
+    Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))).
+
+    Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
+
+    Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p).
+
+    Lemma to_semantics_empty
+          n
+      :
+      Sem n empty = emp%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_sepconj
+          n p q
+      :
+      Sem n (sepconj p q) = ((Sem n p) ∗ (Sem n q))%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_or
+          n p q
+      :
+      Sem n (or p q) = ((Sem n p) ∨ (Sem n q))%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_atom
+          n a
+      :
+      Sem n (atom a) = interp_atoms n a.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_ex
+          n ty f
+      :
+      Sem n (ex ty f) = (∃ (x : typing n ty), Sem n (f x))%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_lift
+          n p
+      :
+      Sem (S n) (lift p) = Sem n p.
+    Proof.
+      ss.
+    Qed.
+
+  End RED.
+
   Section GMAP.
 
     Context `{Σ : GRA.t}.
@@ -236,23 +300,6 @@ Module Syntax.
     Defined.
 
     Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p).
-
-
-    Lemma to_semantics_empty
-          n
-      :
-      Sem n empty = emp%I.
-    Proof.
-      induction n; ss.
-    Qed.
-
-    Lemma to_semantics_red_sepconj
-          n p q
-      :
-      Sem n (sepconj p q) = ((Sem n p) ∗ (Sem n q))%I.
-    Proof.
-      induction n; ss.
-    Qed.
 
     Lemma star_gmap_iProp
           n I f
