@@ -10,17 +10,19 @@ Module Syntax.
 
   Section TYPE.
 
-    Context `{T : Type}.
+    (* Context `{T : Type}. *)
 
     Inductive type : Type :=
-    | baseT (t : T) : type
+    | baseT (t : Type) : type
+    (* | baseT (t : T) : type *)
     | formulaT : type
-    | prodT : type -> type -> type
-    | sumT : type -> type -> type
-    | listT : type -> type
-    | funT : type -> type -> type
-    | positiveT : type
-    | gmapTpos : type -> type.
+    (* | prodT : type -> type -> type *)
+    (* | sumT : type -> type -> type *)
+    (* | listT : type -> type *)
+    (* | funT : type -> type -> type *)
+    (* | positiveT : type *)
+    | pgmapT : type -> type.
+    (* | gmapTpos : type -> type. *)
     (* | gmapT (K : Type) {EqDec : EqDecision K} {Cnt : Countable K} : type -> type. *)
 
   (* If we define for a general gmapT with EqDec and Countable,
@@ -52,8 +54,9 @@ Module Syntax.
 
   Section SYNTAX.
 
-    Context `{T : Type}.
-    Context `{Typ : @type T -> Type}.
+    (* Context `{T : Type}. *)
+    Context `{Typ : type -> Type}.
+    (* Context `{Typ : @type T -> Type}. *)
     Context `{A : Type}.
 
     Inductive t : Type :=
@@ -77,116 +80,174 @@ Module Syntax.
 
   Section INTERP_TYPE.
 
-    Context `{T : Type}.
-    Context `{TSem : T -> Type}.
-    Context `{As : (@type T -> Type) -> Type}.
+    (* Context `{T : Type}. *)
+    (* Context `{TSem : T -> Type}. *)
+    Context `{As : (type -> Type) -> Type}.
+    (* Context `{As : (@type T -> Type) -> Type}. *)
 
-    Fixpoint Typ_0 (ty : @type T) : Type :=
+    Fixpoint Typ_0 (form : Type) (ty : type) : Type :=
+    (* Fixpoint Typ_0 (ty : @type T) : Type := *)
       match ty with
-      | baseT b => TSem b
-      | formulaT => unit
-      | prodT ty1 ty2 => prod (Typ_0 ty1) (Typ_0 ty2)
-      | sumT ty1 ty2 => sum (Typ_0 ty1) (Typ_0 ty2)
-      | listT ty' => list (Typ_0 ty')
-      | funT ty1 ty2 => (Typ_0 ty1 -> Typ_0 ty2)
-      | positiveT => positive
-      | gmapTpos ty' => gmap positive (Typ_0 ty')
+      | baseT b => b
+      | formulaT => form
+      (* | prodT ty1 ty2 => prod (Typ_0 ty1) (Typ_0 ty2) *)
+      (* | sumT ty1 ty2 => sum (Typ_0 ty1) (Typ_0 ty2) *)
+      (* | listT ty' => list (Typ_0 ty') *)
+      (* | funT ty1 ty2 => (Typ_0 ty1 -> Typ_0 ty2) *)
+      (* | positiveT => positive *)
+      | pgmapT ty' => gmap positive (Typ_0 form ty')
+      (* | gmapTpos ty' => gmap positive (Typ_0 ty') *)
       (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_0 ty') *)
       end.
 
-    Fixpoint Typ (i : index) : @type T -> Type :=
-      match i with
-      | O => Typ_0
-      | S j =>
-          fix Typ_aux (ty : @type T) : Type :=
-        match ty with
-        | baseT b => TSem b
-        | formulaT => @t T (Typ j) (As (Typ j))
-        | prodT ty1 ty2 => prod (Typ_aux ty1) (Typ_aux ty2)
-        | sumT ty1 ty2 => sum (Typ_aux ty1) (Typ_aux ty2)
-        | listT ty' => list (Typ_aux ty')
-        | funT ty1 ty2 => (Typ_aux ty1 -> Typ_aux ty2)
-        | positiveT => positive
-        | gmapTpos ty' => gmap positive (Typ_aux ty')
-        (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_aux ty') *)
-        end
-      end.
+    Fixpoint Typ (i : index) : @type -> Type :=
+      Typ_0 (match i with
+             | O => Empty_set
+             | S j => @t (Typ j) (As (Typ j))
+             end).
+
+    (* Fixpoint Typ_0 (ty : @type T) : Type := *)
+    (* (* Fixpoint Typ_0 (ty : @type T) : Type := *) *)
+    (*   match ty with *)
+    (*   | baseT b => TSem b *)
+    (*   | formulaT => unit *)
+    (*   | prodT ty1 ty2 => prod (Typ_0 ty1) (Typ_0 ty2) *)
+    (*   | sumT ty1 ty2 => sum (Typ_0 ty1) (Typ_0 ty2) *)
+    (*   | listT ty' => list (Typ_0 ty') *)
+    (*   | funT ty1 ty2 => (Typ_0 ty1 -> Typ_0 ty2) *)
+    (*   | positiveT => positive *)
+    (*   | gmapTpos ty' => gmap positive (Typ_0 ty') *)
+    (*   (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_0 ty') *) *)
+    (*   end. *)
+
+    (* Fixpoint Typ (i : index) : @type T -> Type := *)
+    (*   match i with *)
+    (*   | O => Typ_0 *)
+    (*   | S j => *)
+    (*       fix Typ_aux (ty : @type T) : Type := *)
+    (*     match ty with *)
+    (*     | baseT b => TSem b *)
+    (*     | formulaT => @t T (Typ j) (As (Typ j)) *)
+    (*     | prodT ty1 ty2 => prod (Typ_aux ty1) (Typ_aux ty2) *)
+    (*     | sumT ty1 ty2 => sum (Typ_aux ty1) (Typ_aux ty2) *)
+    (*     | listT ty' => list (Typ_aux ty') *)
+    (*     | funT ty1 ty2 => (Typ_aux ty1 -> Typ_aux ty2) *)
+    (*     | positiveT => positive *)
+    (*     | gmapTpos ty' => gmap positive (Typ_aux ty') *)
+    (*     (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_aux ty') *) *)
+    (*     end *)
+    (*   end. *)
 
   End INTERP_TYPE.
 
   Section INTERP.
 
     Context `{Σ : GRA.t}.
-    Context `{T : Type}.
-    Context `{TSem : T -> Type}.
-    Context `{As : (@type T -> Type) -> Type}.
+    (* Context `{T : Type}. *)
+    (* Context `{TSem : T -> Type}. *)
+    Context `{As : (type -> Type) -> Type}.
+    (* Context `{As : (@type T -> Type) -> Type}. *)
 
-    Local Notation typing := (@Typ T TSem As).
+    Local Notation typing := (@Typ As).
+    (* Local Notation typing := (@Typ T TSem As). *)
 
     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
     (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *)
 
-    Fixpoint to_semantics_0 (syn : @t T (typing O) (As (typing O))) : iProp :=
+    Fixpoint to_semantics_0
+             n (sem : (typing n formulaT) -> iProp) (syn : @t (typing n) (As (typing n)))
+      : iProp :=
       match syn with
-      | atom a => interp_atoms O a
-      (* | atom a => prop O a *)
-      | lift u => ⌜False⌝%I
-      (* | lower u => (fun (x : unit) => ⌜False⌝%I) u *)
-      | sepconj p q => Sepconj (to_semantics_0 p) (to_semantics_0 q)
+      | atom a => interp_atoms n a
+      | lift u => sem u
+      | sepconj p q => Sepconj (to_semantics_0 n sem p) (to_semantics_0 n sem q)
       | pure P => Pure P
-      | univ ty p => Univ (fun (x : typing O ty) => to_semantics_0 (p x))
-      | ex ty p => Ex (fun (x : typing O ty) => to_semantics_0 (p x))
-      | and p q => And (to_semantics_0 p) (to_semantics_0 q)
-      | or p q => Or (to_semantics_0 p) (to_semantics_0 q)
-      | impl p q => Impl (to_semantics_0 p) (to_semantics_0 q)
-      | wand p q => Wand (to_semantics_0 p) (to_semantics_0 q)
+      | univ ty p => Univ (fun (x : typing n ty) => to_semantics_0 n sem (p x))
+      | ex ty p => Ex (fun (x : typing n ty) => to_semantics_0 n sem (p x))
+      | and p q => And (to_semantics_0 n sem p) (to_semantics_0 n sem q)
+      | or p q => Or (to_semantics_0 n sem p) (to_semantics_0 n sem q)
+      | impl p q => Impl (to_semantics_0 n sem p) (to_semantics_0 n sem q)
+      | wand p q => Wand (to_semantics_0 n sem p) (to_semantics_0 n sem q)
       | empty => Emp
-      | persistently p => Persistently (to_semantics_0 p)
-      | plainly p => IProp.Plainly (to_semantics_0 p)
-      | upd p => Upd (to_semantics_0 p)
+      | persistently p => Persistently (to_semantics_0 n sem p)
+      | plainly p => IProp.Plainly (to_semantics_0 n sem p)
+      | upd p => Upd (to_semantics_0 n sem p)
       end.
 
-    Fixpoint to_semantics (i : index) : @t T (typing i) (As (typing i)) -> iProp :=
-      match i with
-      | O => to_semantics_0
-      | S j =>
-          fix to_semantics_aux (syn : @t T (typing (S j)) (As (typing (S j)))) : iProp :=
-        match syn with
-        | atom a => interp_atoms (S j) a
-        (* | atom a => prop (S j) a *)
-        | lift syn' => to_semantics j syn'
-        | sepconj p q => Sepconj (to_semantics_aux p) (to_semantics_aux q)
-        | pure P => Pure P
-        | univ ty p => Univ (fun (x : typing (S j) ty) => to_semantics_aux (p x))
-        | ex ty p => Ex (fun (x : typing (S j) ty) => to_semantics_aux (p x))
-        | and p q => And (to_semantics_aux p) (to_semantics_aux q)
-        | or p q => Or (to_semantics_aux p) (to_semantics_aux q)
-        | impl p q => Impl (to_semantics_aux p) (to_semantics_aux q)
-        | wand p q => Wand (to_semantics_aux p) (to_semantics_aux q)
-        | empty => Emp
-        | persistently p => Persistently (to_semantics_aux p)
-        | plainly p => IProp.Plainly (to_semantics_aux p)
-        | upd p => Upd (to_semantics_aux p)
-        end
-      end.
+    Definition cast_typing n : typing (S n) formulaT -> @t (typing n) (As (typing n)) :=
+      fun p => p.
+
+    Fixpoint to_semantics n : @t (typing n) (As (typing n)) -> iProp :=
+      to_semantics_0 n (match n with
+                        | O => fun _ => ⌜False⌝%I
+                        | S m => fun (p : typing (S m) formulaT) => to_semantics m (cast_typing m p)
+                        end).
+
+    (* Fixpoint to_semantics_0 (syn : @t T (typing O) (As (typing O))) : iProp := *)
+    (*   match syn with *)
+    (*   | atom a => interp_atoms O a *)
+    (*   (* | atom a => prop O a *) *)
+    (*   | lift u => ⌜False⌝%I *)
+    (*   (* | lower u => (fun (x : unit) => ⌜False⌝%I) u *) *)
+    (*   | sepconj p q => Sepconj (to_semantics_0 p) (to_semantics_0 q) *)
+    (*   | pure P => Pure P *)
+    (*   | univ ty p => Univ (fun (x : typing O ty) => to_semantics_0 (p x)) *)
+    (*   | ex ty p => Ex (fun (x : typing O ty) => to_semantics_0 (p x)) *)
+    (*   | and p q => And (to_semantics_0 p) (to_semantics_0 q) *)
+    (*   | or p q => Or (to_semantics_0 p) (to_semantics_0 q) *)
+    (*   | impl p q => Impl (to_semantics_0 p) (to_semantics_0 q) *)
+    (*   | wand p q => Wand (to_semantics_0 p) (to_semantics_0 q) *)
+    (*   | empty => Emp *)
+    (*   | persistently p => Persistently (to_semantics_0 p) *)
+    (*   | plainly p => IProp.Plainly (to_semantics_0 p) *)
+    (*   | upd p => Upd (to_semantics_0 p) *)
+    (*   end. *)
+
+    (* Fixpoint to_semantics (i : index) : @t T (typing i) (As (typing i)) -> iProp := *)
+    (*   match i with *)
+    (*   | O => to_semantics_0 *)
+    (*   | S j => *)
+    (*       fix to_semantics_aux (syn : @t T (typing (S j)) (As (typing (S j)))) : iProp := *)
+    (*     match syn with *)
+    (*     | atom a => interp_atoms (S j) a *)
+    (*     (* | atom a => prop (S j) a *) *)
+    (*     | lift syn' => to_semantics j syn' *)
+    (*     | sepconj p q => Sepconj (to_semantics_aux p) (to_semantics_aux q) *)
+    (*     | pure P => Pure P *)
+    (*     | univ ty p => Univ (fun (x : typing (S j) ty) => to_semantics_aux (p x)) *)
+    (*     | ex ty p => Ex (fun (x : typing (S j) ty) => to_semantics_aux (p x)) *)
+    (*     | and p q => And (to_semantics_aux p) (to_semantics_aux q) *)
+    (*     | or p q => Or (to_semantics_aux p) (to_semantics_aux q) *)
+    (*     | impl p q => Impl (to_semantics_aux p) (to_semantics_aux q) *)
+    (*     | wand p q => Wand (to_semantics_aux p) (to_semantics_aux q) *)
+    (*     | empty => Emp *)
+    (*     | persistently p => Persistently (to_semantics_aux p) *)
+    (*     | plainly p => IProp.Plainly (to_semantics_aux p) *)
+    (*     | upd p => Upd (to_semantics_aux p) *)
+    (*     end *)
+    (*   end. *)
 
   End INTERP.
 
   Section INDEXED_INVSET.
 
     Context `{Σ : GRA.t}.
-    Context `{T : Type}.
-    Context `{TSem : T -> Type}.
-    Context `{As : (@type T -> Type) -> Type}.
+    (* Context `{T : Type}. *)
+    (* Context `{TSem : T -> Type}. *)
+    Context `{As : (type -> Type) -> Type}.
+    (* Context `{As : (@type T -> Type) -> Type}. *)
 
-    Local Notation typing := (@Typ T TSem As).
-    Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))).
+    Local Notation typing := (@Typ As).
+    Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))).
+    (* Local Notation typing := (@Typ T TSem As). *)
+    (* Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))). *)
 
     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
     (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *)
 
     Global Instance IISet : @IInvSet Σ Formulas :=
-      {| prop := @to_semantics Σ T TSem As interp_atoms |}.
+      {| prop := @to_semantics Σ As interp_atoms |}.
+      (* {| prop := @to_semantics Σ T TSem As interp_atoms |}. *)
       (* {| prop := @to_semantics Σ T TSem As Atoms |}. *)
 
   End INDEXED_INVSET.
@@ -194,39 +255,54 @@ Module Syntax.
   Section INV_IN.
 
     Context `{Σ : GRA.t}.
-    Context `{T : Type}.
-    Context `{TSem : T -> Type}.
-    Context `{As : (@type T -> Type) -> Type}.
+    Context `{As : (type -> Type) -> Type}.
+    (* Context `{T : Type}. *)
+    (* Context `{TSem : T -> Type}. *)
+    (* Context `{As : (@type T -> Type) -> Type}. *)
 
-    Local Notation typing := (@Typ T TSem As).
-    Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))).
+    Local Notation typing := (@Typ As).
+    Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))).
+    (* Local Notation typing := (@Typ T TSem As). *)
+    (* Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))). *)
 
     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
     (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *)
 
     Global Program Instance IIIn (i : index) (p : Formulas i)
-      : @IInvIn Σ Formulas (IISet (interp_atoms:=interp_atoms)) i (@to_semantics Σ T TSem As interp_atoms i p) :=
+      : @IInvIn Σ Formulas (IISet (interp_atoms:=interp_atoms)) i (@to_semantics Σ As interp_atoms i p) :=
       (* : @IInvIn Σ Formulas IISet i (@to_semantics Σ T TSem As Atoms i p) := *)
       { inhabitant := p }.
     Next Obligation.
       intros. simpl in *. done.
     Qed.
 
+    (* Global Program Instance IIIn (i : index) (p : Formulas i) *)
+    (*   : @IInvIn Σ Formulas (IISet (interp_atoms:=interp_atoms)) i (@to_semantics Σ T TSem As interp_atoms i p) := *)
+    (*   (* : @IInvIn Σ Formulas IISet i (@to_semantics Σ T TSem As Atoms i p) := *) *)
+    (*   { inhabitant := p }. *)
+    (* Next Obligation. *)
+    (*   intros. simpl in *. done. *)
+    (* Qed. *)
+
   End INV_IN.
 
   Section RED.
 
     Context `{Σ : GRA.t}.
-    Context `{T : Type}.
-    Context `{TSem : T -> Type}.
-    Context `{As : (@type T -> Type) -> Type}.
+    Context `{As : (type -> Type) -> Type}.
+    (* Context `{T : Type}. *)
+    (* Context `{TSem : T -> Type}. *)
+    (* Context `{As : (@type T -> Type) -> Type}. *)
 
-    Local Notation typing := (@Typ T TSem As).
-    Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))).
+    Local Notation typing := (@Typ As).
+    Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))).
+    (* Local Notation typing := (@Typ T TSem As). *)
+    (* Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))). *)
 
     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
 
-    Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p).
+    Local Notation Sem := (fun i p => @to_semantics Σ As interp_atoms i p).
+    (* Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p). *)
 
     Lemma to_semantics_empty
           n
@@ -281,25 +357,35 @@ Module Syntax.
   Section GMAP.
 
     Context `{Σ : GRA.t}.
-    Context `{T : Type}.
-    Context `{TSem : T -> Type}.
-    Context `{As : (@type T -> Type) -> Type}.
+    (* Context `{T : Type}. *)
+    (* Context `{TSem : T -> Type}. *)
+    Context `{As : (type -> Type) -> Type}.
+    (* Context `{As : (@type T -> Type) -> Type}. *)
 
-    Local Notation typing := (@Typ T TSem As).
-    Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))).
+    Local Notation typing := (@Typ As).
+    Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))).
+    (* Local Notation typing := (@Typ T TSem As). *)
+    (* Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))). *)
 
     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
 
     (* Maybe we can make Syntax as an instance of bi. *)
-    Definition star_gmap (n : index) (I : typing (S n) (gmapTpos formulaT)) (f : typing (S n) (funT positiveT (funT formulaT formulaT)))
-      : Formulas n.
-    Proof.
-      ss.
-      refine
-        (fold_right (fun hd tl => @sepconj T (typing n) (As (typing n)) (uncurry f hd) tl) empty (map_to_list I)).
-    Defined.
+    Definition star_gmap
+               (n : index) (I : typing (S n) (pgmapT formulaT))
+               (f : positive -> Formulas n -> Formulas n)
+      : Formulas n :=
+      fold_right (fun hd tl => @sepconj (typing n) (As (typing n)) (uncurry f hd) tl) empty (map_to_list I).
 
-    Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p).
+    (* Definition star_gmap (n : index) (I : typing (S n) (gmapTpos formulaT)) (f : typing (S n) (funT positiveT (funT formulaT formulaT))) *)
+    (*   : Formulas n. *)
+    (* Proof. *)
+    (*   ss. *)
+    (*   refine *)
+    (*     (fold_right (fun hd tl => @sepconj T (typing n) (As (typing n)) (uncurry f hd) tl) empty (map_to_list I)). *)
+    (* Defined. *)
+
+    Local Notation Sem := (fun i p => @to_semantics Σ As interp_atoms i p).
+    (* Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p). *)
 
     Lemma star_gmap_iProp
           n I f
@@ -309,8 +395,8 @@ Module Syntax.
     Proof.
       ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
       unfold star_gmap. ss. remember (map_to_list I) as L.
-      etransitivity. instantiate (1:= ([∗ list] x ∈ L, uncurry (λ (i : positive) (p : t), to_semantics n (f i p)) x)%I).
-      2:{ subst. reflexivity. }
+      (* etransitivity. instantiate (1:= ([∗ list] x ∈ L, uncurry (λ (i : positive) (p : t), to_semantics n (f i p)) x)%I). *)
+      (* 2:{ subst. reflexivity. } *)
       clear HeqL I. induction L.
       { ss. apply to_semantics_empty. }
       ss. rewrite to_semantics_red_sepconj. rewrite IHL. f_equal.
