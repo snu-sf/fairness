@@ -1,56 +1,13 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM.
-From Fairness Require Import IndexedInvariants LogicSyntaxHOAS PCMForSyntax.
+From Fairness Require PCM.
+From Fairness Require Import IProp IPM.
+From Fairness Require Import IndexedInvariants LogicSyntaxHOAS PCMForSyntax PCMEmbed.
+(* From Fairness Require Import ISim. *)
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 
 Local Notation index := nat.
-
-(* Module Base. *)
-
-(*   Section DEF. *)
-
-(*     Variant meta : Type := *)
-(*       | src_stateT *)
-(*       | tgt_stateT *)
-(*       | src_identT *)
-(*       | tgt_identT. *)
-
-(*     Inductive t : Type := *)
-(*     | unitT *)
-(*     | natT *)
-(*     | boolT *)
-(*     | QpT *)
-(*     | coPsetT *)
-(*     | gsetTpos *)
-(*     | metaT (ty : meta) *)
-(*     . *)
-(*     (* | gsetT (K : Type) {EqDec : EqDecision K} {Cnt : Countable K}. *) *)
-
-(*   End DEF. *)
-
-(*   Class InterpMeta := *)
-(*     { interp : meta -> Type }. *)
-
-(*   Section SEM. *)
-
-(*     Context `{Interp : InterpMeta}. *)
-
-(*     Definition sem (ty : t) : Type := *)
-(*       match ty with *)
-(*       | unitT => unit *)
-(*       | natT => nat *)
-(*       | boolT => bool *)
-(*       | QpT => Qp *)
-(*       | coPsetT => coPset *)
-(*       | gsetTpos => gset positive *)
-(*       | metaT ty => interp ty *)
-(*       end. *)
-
-(*   End SEM. *)
-
-(* End Base. *)
 
 Module Atom.
 
