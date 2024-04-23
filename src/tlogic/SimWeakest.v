@@ -5,16 +5,15 @@ From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require PCMLarge.
 From Fairness Require Import ISim.
 
-Set Implicit Arguments.
-
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export NatMapRALarge MonotoneRA FairnessRA ObligationRA SimDefaultRA OpticsInterp FancyUpdate FairBeh.
-(* From Fairness Require Export NatMapRALarge StateRA FairRA MonotoneRA FancyUpdate. *)
+From Fairness Require Export NatMapRALarge MonotoneRA FairnessRA ObligationRA SimDefaultRA OpticsInterp IndexedInvariants.
+(* From Fairness Require Export NatMapRALarge MonotoneRA FairnessRA ObligationRA SimDefaultRA OpticsInterp FancyUpdate. *)
+From Fairness Require Export FairBeh.
 Require Import Coq.Sorting.Mergesort.
 
 Require Import Program.
 
-(* TODO : Update *)
+Set Implicit Arguments.
 
 Section STATE.
 
@@ -31,8 +30,20 @@ Section STATE.
 
   Let shared_rel := TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
 
-  Context `{Invs : @InvSet Σ}.
+  Local Notation index := nat.
+  Context `{Vars : index -> Type}.
+  Context `{Invs : @IInvSet Σ Vars}.
+  (* Context `{Invs : @InvSet Σ}. *)
 
+  (* Invariant related *)
+  Context `{COPSETRA : @GRA.inG (PCM.URA.pointwise index CoPset.t) Σ}.
+  Context `{GSETRA : @GRA.inG (PCM.URA.pointwise index Gset.t) Σ}.
+  Context `{INVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
+  (* Context `{COPSETRA : @GRA.inG CoPset.t Σ}. *)
+  (* Context `{GSETRA : @GRA.inG Gset.t Σ}. *)
+  (* Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}. *)
+
+  (* Default RAs *)
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
   Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
@@ -43,9 +54,6 @@ Section STATE.
   Context `{ARROWRA: @GRA.inG (ArrowRA ident_tgt) Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-  Context `{COPSETRA : @GRA.inG CoPset.t Σ}.
-  Context `{GSETRA : @GRA.inG Gset.t Σ}.
-  Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
 
   Definition default_initial_res
     : Σ :=
@@ -63,9 +71,12 @@ Section STATE.
       ⋅
       (@GRA.embed _ _ EDGERA ((fun _ => OneShot.pending _ 1%Qp): EdgeRA))
       ⋅
-      (@GRA.embed _ _ INVSETRA (@Auth.black (positive ==> URA.agree Var)%ra (fun _ => None)))
+      (@GRA.embed _ _ INVSETRA ((fun n => @Auth.black (positive ==> URA.agree (Vars n))%ra (fun _ => None)) : IInvSetRA Vars))
       ⋅
-      (@GRA.embed _ _ COPSETRA (Some ⊤))
+      (@GRA.embed _ _ COPSETRA ((fun _ => Some ⊤) : URA.pointwise index CoPset.t))
+      (* (@GRA.embed _ _ INVSETRA (@Auth.black (positive ==> URA.agree Var)%ra (fun _ => None))) *)
+      (* ⋅ *)
+      (* (@GRA.embed _ _ COPSETRA (Some ⊤)) *)
   .
 
   Lemma own_threads_init ths
@@ -85,6 +96,9 @@ Section STATE.
     { eapply Auth.auth_alloc. eapply (@NatMapRALarge.add_local_update unit m k v); eauto. }
     iModIntro. iFrame. destruct v. iApply (natmap_prop_sum_add with "SUM OWN1").
   Qed.
+
+  TODO
+    (* wsat and OwnE for many indices *)
 
   Lemma default_initial_res_init
     :

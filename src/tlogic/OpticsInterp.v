@@ -5,7 +5,8 @@ From Fairness Require Import Optics IProp IPM PCM.
 Set Implicit Arguments.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export SimDefaultRA FancyUpdate.
+From Fairness Require Export SimDefaultRA IndexedInvariants.
+(* From Fairness Require Export SimDefaultRA FancyUpdate. *)
 
 Require Import Program.
 
@@ -77,13 +78,17 @@ Section STATE.
   (* Variable ident_src: ID. *)
   (* Variable ident_tgt: ID. *)
 
-  Context `{Invs : @InvSet Σ}.
+  (* Context `{Invs : @InvSet Σ}. *)
+  Local Notation index := nat.
+  Context `{Vars : index -> Type}.
+  Context `{Invs : @IInvSet Σ Vars}.
 
   Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
   Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{COPSETRA : @GRA.inG CoPset.t Σ}.
-  Context `{GSETRA : @GRA.inG Gset.t Σ}.
-  Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
+  Context `{COPSETRA : @PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}.
+  Context `{GSETRA : @PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}.
+  Context `{INVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
+  (* Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}. *)
 
   Definition St_src (st_src: state_src): iProp :=
     OwnM (Auth.white (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA state_src).
@@ -91,16 +96,16 @@ Section STATE.
   Definition Vw_src (st: state_src) {V} (l : Lens.t state_src V) (v : V) : iProp :=
     St_src (Lens.set l v st).
 
-  Definition src_interp_as {V} (l: Lens.t state_src V) (VI: V -> iProp) :=
-    (∃ SI, (inv N_state_src (∃ st, St_src st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
+  Definition src_interp_as n {V} (l: Lens.t state_src V) (VI: V -> iProp) :=
+    (∃ SI, (inv n N_state_src (∃ st, St_src st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
 
-  Global Program Instance src_interp_as_persistent {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as l VI).
+  Global Program Instance src_interp_as_persistent n {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as n l VI).
 
-  Global Program Instance src_interp_as_acc A E {V} (l: Lens.t state_src V) (VI: V -> iProp):
+  Global Program Instance src_interp_as_acc n A E {V} (l: Lens.t state_src V) (VI: V -> iProp):
     IntoAcc
-      (src_interp_as l VI)
+      (src_interp_as n l VI)
       (↑N_state_src ⊆ E) True
-      (FUpd A E (E ∖ E_state_src)) (FUpd A (E ∖ E_state_src) E) (fun (st: state_src) => ∃ vw, Vw_src st l vw ** VI vw)%I (fun (st: state_src) => ∃ vw, Vw_src st l vw ** VI vw)%I (fun _ => None).
+      (FUpd n A E (E ∖ E_state_src)) (FUpd n A (E ∖ E_state_src) E) (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ VI vw)%I (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ VI vw)%I (fun _ => None).
   Next Obligation.
   Proof.
     iIntros "[% [INV %]] _".
@@ -116,22 +121,22 @@ Section STATE.
     iExists _. iFrame.
   Qed.
 
-  Lemma src_interp_as_id A E (SI: state_src -> iProp)
-        (IN: InvIn (∃ st, St_src st ** SI st)):
-    (∃ st, St_src st ** SI st) ⊢ FUpd A E E (src_interp_as Lens.id (SI)).
+  Lemma src_interp_as_id n A E (SI: state_src -> iProp)
+        (IN: IInvIn n (∃ st, St_src st ** SI st)):
+    (∃ st, St_src st ** SI st) ⊢ FUpd n A E E (src_interp_as n Lens.id (SI)).
   Proof.
     iIntros "H". iPoseProof (FUpd_alloc with "H") as "> H".
     iModIntro. iExists _. iSplit; eauto. iPureIntro. typeclasses eauto.
   Qed.
 
-  Lemma src_interp_as_compose A B
+  Lemma src_interp_as_compose n A B
         {la: Lens.t state_src A}
         {lb: Lens.t A B}
         (SA: A -> iProp)
         (SB: B -> iProp)
         `{VAB: ViewInterp _ _ lb SA SB}
     :
-    src_interp_as la SA ⊢ src_interp_as (Lens.compose la lb) SB.
+    src_interp_as n la SA ⊢ src_interp_as n (Lens.compose la lb) SB.
   Proof.
     iIntros "[% [H %]]". iExists _. iSplit; [eauto|].
     iPureIntro. typeclasses eauto.
@@ -145,16 +150,16 @@ Section STATE.
   Definition Vw_tgt (st: state_tgt) {V} (l : Lens.t state_tgt V) (v : V) : iProp :=
     St_tgt (Lens.set l v st).
 
-  Definition tgt_interp_as {V} (l: Lens.t state_tgt V) (VI: V -> iProp) :=
-    (∃ SI, (inv N_state_tgt (∃ st, St_tgt st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
+  Definition tgt_interp_as n {V} (l: Lens.t state_tgt V) (VI: V -> iProp) :=
+    (∃ SI, (inv n N_state_tgt (∃ st, St_tgt st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
 
-  Global Program Instance tgt_interp_as_persistent {V} (l: Lens.t state_tgt V) (VI: V -> iProp): Persistent (tgt_interp_as l VI).
+  Global Program Instance tgt_interp_as_persistent n {V} (l: Lens.t state_tgt V) (VI: V -> iProp): Persistent (tgt_interp_as n l VI).
 
-  Global Program Instance tgt_interp_as_acc A E {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
+  Global Program Instance tgt_interp_as_acc n A E {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
     IntoAcc
-      (tgt_interp_as l VI)
+      (tgt_interp_as n l VI)
       (↑N_state_tgt ⊆ E) True
-      (FUpd A E (E ∖ E_state_tgt)) (FUpd A (E ∖ E_state_tgt) E) (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I (fun _ => None).
+      (FUpd n A E (E ∖ E_state_tgt)) (FUpd n A (E ∖ E_state_tgt) E) (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I (fun _ => None).
   Next Obligation.
   Proof.
     iIntros "[% [INV %]] _".
@@ -170,22 +175,22 @@ Section STATE.
     iExists _. iFrame.
   Qed.
 
-  Lemma tgt_interp_as_id A E (SI: state_tgt -> iProp)
-        (IN: InvIn (∃ st, St_tgt st ** SI st)):
-    (∃ st, St_tgt st ** SI st) ⊢ FUpd A E E (tgt_interp_as Lens.id (SI)).
+  Lemma tgt_interp_as_id n A E (SI: state_tgt -> iProp)
+        (IN: IInvIn n (∃ st, St_tgt st ** SI st)):
+    (∃ st, St_tgt st ** SI st) ⊢ FUpd n A E E (tgt_interp_as n Lens.id (SI)).
   Proof.
     iIntros "H". iPoseProof (FUpd_alloc with "H") as "> H".
     iModIntro. iExists _. iSplit; eauto. iPureIntro. typeclasses eauto.
   Qed.
 
-  Lemma tgt_interp_as_compose A B
+  Lemma tgt_interp_as_compose n A B
         {la: Lens.t state_tgt A}
         {lb: Lens.t A B}
         (SA: A -> iProp)
         (SB: B -> iProp)
         `{VAB: ViewInterp _ _ lb SA SB}
     :
-    tgt_interp_as la SA ⊢ tgt_interp_as (Lens.compose la lb) SB.
+    tgt_interp_as n la SA ⊢ tgt_interp_as n (Lens.compose la lb) SB.
   Proof.
     iIntros "[% [H %]]". iExists _. iSplit; [eauto|].
     iPureIntro. typeclasses eauto.
