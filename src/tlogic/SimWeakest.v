@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib ModSim ModSimNat.
-From Fairness Require Import PCM IProp IPM.
+From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require PCMLarge.
 From Fairness Require Import ISim.
 
@@ -517,29 +517,29 @@ Section STATE.
     iApply ("H1" with "P"). iFrame. iExists _. eauto.
   Qed.
 
-  Global Instance mupd_elim_iupd_edge
-         P Q E1 E2 p Inv
-    :
-    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
-  Proof.
-    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]".
-    iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
-    { iApply SubIProp_sep_l. }
-    iMod "H0". iApply ("H1" with "H0").
-  Qed.
+  (* Global Instance mupd_elim_iupd_edge *)
+  (*        P Q E1 E2 p Inv *)
+  (*   : *)
+  (*   ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q). *)
+  (* Proof. *)
+  (*   unfold ElimModal. rewrite bi.intuitionistically_if_elim. *)
+  (*   i. iIntros "[H0 H1]". *)
+  (*   iPoseProof (IUpd_sub_mon with "[] H0") as "H0". *)
+  (*   { iApply SubIProp_sep_l. } *)
+  (*   iMod "H0". iApply ("H1" with "H0"). *)
+  (* Qed. *)
 
-  Global Instance mupd_elim_upd_arrow
-         P Q E1 E2 p Inv
-    :
-    ElimModal True p false (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
-  Proof.
-    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]".
-    iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
-    { iApply SubIProp_sep_r. }
-    iMod "H0". iApply ("H1" with "H0").
-  Qed.
+  (* Global Instance mupd_elim_upd_arrow *)
+  (*        P Q E1 E2 p Inv *)
+  (*   : *)
+  (*   ElimModal True p false (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q). *)
+  (* Proof. *)
+  (*   unfold ElimModal. rewrite bi.intuitionistically_if_elim. *)
+  (*   i. iIntros "[H0 H1]". *)
+  (*   iPoseProof (IUpd_sub_mon with "[] H0") as "H0". *)
+  (*   { iApply SubIProp_sep_r. } *)
+  (*   iMod "H0". iApply ("H1" with "H0"). *)
+  (* Qed. *)
 
   Global Instance mupd_elim_fupd_edge
          P Q E1 E2 p

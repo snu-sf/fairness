@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
-From Fairness Require Import PCM IProp IPM MonotoneRA.
+From Fairness Require Import PCM IProp IPM IPropAux MonotoneRA.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
@@ -1722,7 +1722,7 @@ Module FairRA.
         { exfalso. eapply EMPTY; eauto. }
       }
       iApply (OwnM_extends with "[]").
-      2:{ iApply (@OwnM_unit (S ==> Fuel.t A)%ra). }
+      2:{ iApply (@OwnM_ura_unit (S ==> Fuel.t A)%ra). }
       apply pointwise_extends.
       i. eexists. des_ifs.
       { rewrite URA.unit_idl. eauto. }
@@ -1890,7 +1890,7 @@ Module FairRA.
       ⊢ whites s u.
     Proof.
       iIntros. iApply (OwnM_extends with "[]").
-      2:{ iApply (@OwnM_unit (S ==> Fuel.t A)%ra). }
+      2:{ iApply (@OwnM_ura_unit (S ==> Fuel.t A)%ra). }
       apply pointwise_extends. i. des_ifs.
       { exfalso. eapply EMPTY; eauto. }
       { eexists _. rewrite URA.unit_idl. eauto. }
@@ -2621,7 +2621,7 @@ Module FairRA.
           eapply pointwise_extends. i. des_ifs.
           eexists. rewrite URA.unit_idl. eauto.
         }
-        { iApply (@OwnM_unit (S ==> Fuel.t Ord.t)%ra). }
+        { iApply (@OwnM_ura_unit (S ==> Fuel.t Ord.t)%ra). }
       }
       iModIntro. iExists _. iFrame.
       iApply (OwnM_extends with "WHITES").

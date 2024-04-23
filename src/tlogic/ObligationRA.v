@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
-From Fairness Require Import PCM IProp IPM MonotoneRA.
+From Fairness Require Import PCM IProp IPM IPropAux MonotoneRA.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
@@ -923,7 +923,7 @@ Module ObligationRA.
       iIntros "[% [% [[BLACK DUTY] %]]] SHOT".
       iPoseProof (FairRA.black_ex_split with "[BLACK]") as "[BLACK0 [% BLACK1]]".
       { rewrite Qp.div_2. iFrame. }
-      iPoseProof (@OwnM_unit (@FiniteMap.t (OneShot.t unit))) as "H".
+      iPoseProof (@OwnM_ura_unit (@FiniteMap.t (OneShot.t unit))) as "H".
       iPoseProof (OwnM_Upd_set with "H") as "> [% [% OWN]]".
       { eapply FiniteMap.singleton_alloc. eapply OneShot.pending_one_wf. }
       ss. des. subst.
