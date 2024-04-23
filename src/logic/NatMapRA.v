@@ -6,7 +6,7 @@ Require Import String Lia Program.
 
 Set Implicit Arguments.
 
-Module NatMapRALarge.
+Module NatMapRA.
   Section MAP.
     Variable A: Type.
 
@@ -219,7 +219,7 @@ Module NatMapRALarge.
       { split; auto. right; auto. }
     Qed.
   End MAP.
-End NatMapRALarge.
+End NatMapRA.
 
 From Fairness Require Import IProp IPM.
 From iris.bi Require Import derived_laws. Import bi.
@@ -784,55 +784,55 @@ End SUM.
 
 Section UPDNATMAP.
   Variable A: Type.
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRALarge.t A)) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t A)) Σ}.
 
-  Lemma NatMapRALarge_find_some m k a
+  Lemma NatMapRA_find_some m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRALarge.t A)))
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALarge.singleton k a: NatMapRALarge.t A)))
+      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
       -∗
       (⌜NatMap.find k m = Some a⌝).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
-    eapply Auth.auth_included in H. eapply NatMapRALarge.extends_singleton_iff in H. auto.
+    eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H. auto.
   Qed.
 
-  Lemma NatMapRALarge_singleton_unique k0 k1 a0 a1
+  Lemma NatMapRA_singleton_unique k0 k1 a0 a1
     :
-    (OwnM (Auth.white (NatMapRALarge.singleton k0 a0: NatMapRALarge.t A)))
+    (OwnM (Auth.white (NatMapRA.singleton k0 a0: NatMapRA.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALarge.singleton k1 a1: NatMapRALarge.t A)))
+      (OwnM (Auth.white (NatMapRA.singleton k1 a1: NatMapRA.t A)))
       -∗
       (⌜k0 <> k1⌝).
   Proof.
     iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
-    ur in H. eapply NatMapRALarge.singleton_unique in H. auto.
+    ur in H. eapply NatMapRA.singleton_unique in H. auto.
   Qed.
 
-  Lemma NatMapRALarge_remove m k a
+  Lemma NatMapRA_remove m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRALarge.t A)))
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALarge.singleton k a: NatMapRALarge.t A)))
+      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
       -∗
-      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRALarge.t A))).
+      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRA.t A))).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_dealloc. eapply NatMapRALarge.remove_local_update.
+    eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update.
   Qed.
 
-  Lemma NatMapRALarge_add m k a
+  Lemma NatMapRA_add m k a
         (NONE: NatMap.find k m = None)
     :
-    (OwnM (Auth.black (Some m: NatMapRALarge.t A)))
+    (OwnM (Auth.black (Some m: NatMapRA.t A)))
       -∗
-      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRALarge.t A)
-                            ⋅ Auth.white (NatMapRALarge.singleton k a: NatMapRALarge.t A)))
+      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRA.t A)
+                            ⋅ Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
          ).
   Proof.
     iIntros "B". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_alloc. eapply NatMapRALarge.add_local_update. auto.
+    eapply Auth.auth_alloc. eapply NatMapRA.add_local_update. auto.
   Qed.
 
 End UPDNATMAP.
