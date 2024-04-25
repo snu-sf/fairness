@@ -299,25 +299,26 @@ Section WSATS.
   Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
   Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 
-  Definition wsat_auth_black (N : gset index) : IInvSetRA Vars :=
-    (fun n => if (gset_elem_of_dec n N)
+  Definition wsat_auth_black (X : gset index) : IInvSetRA Vars :=
+    (fun n => if (gset_elem_of_dec n X)
            then ε
            else @Auth.black (positive ==> URA.agree (Vars n))%ra (fun _ => None)).
 
-  Definition wsat_auth (N : gset index) := OwnM (wsat_auth_black N).
+  Definition wsat_auth (X : gset index) := OwnM (wsat_auth_black X).
 
-  Definition wsat_satall (N : gset index) := ([∗ set] n ∈ N, wsat n)%I.
+  Definition wsat_satall (X : gset index) := ([∗ set] n ∈ X, wsat n)%I.
 
-  Definition wsats : iProp := (∃ N, wsat_auth N ∗ wsat_satall N)%I.
+  Definition wsats : iProp := (∃ X, wsat_auth X ∗ wsat_satall X)%I.
 
-  Lemma wsat_auth_nin (N : gset index) (n : index) (NIN : n ∉ N)
-    : wsat_auth N ⊢ |==> wsat_auth ({[n]} ∪ N) ∗ wsat n.
+
+  Lemma wsat_auth_nin (X : gset index) (n : index) (NIN : n ∉ X)
+    : wsat_auth X ⊢ |==> wsat_auth ({[n]} ∪ X) ∗ wsat n.
   Proof.
     iIntros "AUTH".
-    remember ({[n]} ∪ N) as N'.
+    remember ({[n]} ∪ X) as X'.
     assert (URA.updatable
-              (wsat_auth_black N)
-              ((wsat_auth_black N')
+              (wsat_auth_black X)
+              ((wsat_auth_black X')
                  ⋅
                  (maps_to_res_dep n (@Auth.black (positive ==> URA.agree (Vars n))%ra (fun (i : positive) => None))))).
     { apply pointwise_dep_updatable. i.
@@ -326,7 +327,7 @@ Section WSATS.
       - subst a. des_ifs.
         2:{ exfalso. set_solver + n1. }
         unfold eq_rect_r. ss. rewrite URA.unit_idl. reflexivity.
-      - subst N'. destruct (gset_elem_of_dec a N).
+      - subst X'. destruct (gset_elem_of_dec a X).
         { des_ifs.
           - rewrite URA.unit_idl. reflexivity.
           - exfalso. set_solver + e n1.
@@ -342,8 +343,8 @@ Section WSATS.
     iModIntro. iFrame.
   Qed.
 
-  Lemma wsat_satall_nin (N : gset index) (n : index) (NIN : n ∉ N)
-    : wsat_satall N ∗ wsat n ⊢ wsat_satall ({[n]} ∪ N).
+  Lemma wsat_satall_nin (X : gset index) (n : index) (NIN : n ∉ X)
+    : wsat_satall X ∗ wsat n ⊢ wsat_satall ({[n]} ∪ X).
   Proof.
     iIntros "[SALL WSAT]". unfold wsat_satall. iApply (big_sepS_insert); auto. iFrame.
   Qed.
@@ -358,7 +359,7 @@ Section WSATS.
     : wsats ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsats.
   Proof.
     iIntros "[[% [AUTH SALL]] P]".
-    destruct (gset_elem_of_dec n N).
+    destruct (gset_elem_of_dec n X).
     { iPoseProof (big_sepS_elem_of_acc with "SALL") as "[WSAT K]". apply e.
       iPoseProof (wsat_OwnI_alloc with "[WSAT P]") as ">[RES WSAT]". apply INF. iFrame.
       iPoseProof ("K" with "WSAT") as "SALL".
@@ -378,7 +379,7 @@ Section WSATS.
     unfold OwnI, wsat_auth, wsat_satall.
     iCombine "AUTH I" as "AUTH".
     iPoseProof (OwnM_valid with "AUTH") as "%WF".
-    assert (Hin : n ∈ N).
+    assert (Hin : n ∈ X).
     { unfold wsat_auth_black, OwnI_white, maps_to_res_dep in WF. unfold URA.add in WF. unseal "ra". ss.
       apply (pwd_lookup_wf n) in WF. ss. des_ifs.
       exfalso. unfold eq_rect_r in WF. rewrite <- Eqdep.EqdepTheory.eq_rect_eq in WF.
@@ -397,206 +398,63 @@ Section WSATS.
   Lemma wsats_OwnI_close n i p :
     OwnI n i p ∗ wsats ∗ prop n p ∗ OwnD n {[i]} ⊢ |==> wsats ∗ OwnE n {[i]}.
   Proof.
-
-
-    TODO
-
-    iIntros "(I & [% [AUTH SAT]] & P & DIS)". iModIntro.
-    unfold OwnI, inv_auth, inv_satall.
+    iIntros "(I & [% [AUTH SAT]] & P & DIS)".
+    unfold OwnI, wsat_auth, wsat_satall.
     iCombine "AUTH I" as "AUTH".
     iPoseProof (OwnM_valid with "AUTH") as "%WF".
-    assert (Hip : I !! i = Some p).
-    { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_dep_add in WF.
-      unfold maps_to_res_dep, maps_to_res in WF. apply (pwd_lookup_wf n) in WF. ss. des_ifs.
-      unfold eq_rect_r in WF. rewrite <- Eqdep.EqdepTheory.eq_rect_eq in WF.
-      apply Auth.auth_included in WF. rename WF into EXTENDS.
-      apply pw_extends in EXTENDS. specialize (EXTENDS i).
-      des_ifs. clear e e0.
-      rr in EXTENDS. des. unfold URA.add in EXTENDS; unseal "ra".
-      destruct (I !! i) eqn: E.
-      - destruct ctx; ss; des_ifs.
-      - destruct ctx; ss; des_ifs.
+    assert (Hin : n ∈ X).
+    { unfold wsat_auth_black, OwnI_white, maps_to_res_dep in WF. unfold URA.add in WF. unseal "ra". ss.
+      apply (pwd_lookup_wf n) in WF. ss. des_ifs.
+      exfalso. unfold eq_rect_r in WF. rewrite <- Eqdep.EqdepTheory.eq_rect_eq in WF.
+      unfold maps_to_res in WF. apply Auth.auth_included in WF. rename WF into EXTENDS.
+      apply pw_extends in EXTENDS. specialize (EXTENDS i). des_ifs.
+      clear e e0. rr in EXTENDS. des. unfold URA.add in EXTENDS; unseal "ra".
+      ss. des_ifs.
     }
-    clear WF.
-    iDestruct "AUTH" as "[AUTH I]".
-    iPoseProof (big_sepM_delete _ _ _ _ Hip with "SAT") as "[[[H1 H2]|H1] SAT]".
-    { iCombine "DIS H2" as "F". iPoseProof (OwnM_valid with "F") as "%WF".
-      exfalso. unfold maps_to_res, URA.wf, URA.add in WF. unseal "ra". ss.
-      specialize (WF n). des_ifs.
-      unfold URA.wf, URA.add in WF. unseal "ra". ss. des_ifs. set_solver.
-    }
-    iFrame. unfold wsat. iExists I. iFrame. unfold inv_satall.
-    iApply (big_sepM_delete _ _ _ _ Hip). iFrame. iLeft. iFrame.
+    clear WF. iDestruct "AUTH" as "[AUTH I]".
+    iPoseProof (big_sepS_elem_of_acc with "SAT") as "[WSAT K]". apply Hin.
+    iMod (wsat_OwnI_close with "[I WSAT P DIS]") as "[WSAT EN]". iFrame.
+    iPoseProof ("K" with "WSAT") as "SAT".
+    iModIntro. iFrame. iExists _. iFrame.
   Qed.
 
-
-  REF
-
-  Definition inv_auth_black (I : gmap positive Var) : IInvSetRA Vars :=
-    @maps_to_res_dep index _
-                     n (@Auth.black (positive ==> URA.agree Var)%ra
-                                    (fun (i : positive) => Some <$> (I !! i))).
-
-  Definition inv_auth (I : gmap positive Var) :=
-    OwnM (inv_auth_black I).
-
-  (* Definition inv_satall (I : gmap positive Var) := *)
-  (*   ([∗ map] i ↦ p ∈ I, (prop p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I. *)
-  Definition inv_satall (I : gmap positive Var) :=
-    ([∗ map] i ↦ p ∈ I, (prop n p) ∗ OwnD n {[i]} ∨ OwnE n {[i]})%I.
-
-  Definition wsat : iProp := (∃ I, inv_auth I ∗ inv_satall I)%I.
-
-
-  Lemma alloc_name φ
-        (INF : forall (E : index -> option (gset positive)) n,
-            match E n with
-            | None => True
-            | Some G => (exists i, i ∉ G /\ φ i)
-            end)
-    : ⊢ |==> ∃ i, ⌜φ i⌝ ∧ OwnD n {[i]}.
-  Proof.
-    assert (@URA.updatable_set
-              (index ==> Gset.t)%ra
-              (fun _ => (Some ∅ : Gset.t))
-              (fun r => exists i, r = (maps_to_res n (Some {[i]} : Gset.t)) /\ φ i)) as UPD.
-    { clear - INF. ii. apply URA.wf_split in WF; des. specialize (INF ctx n).
-      des_ifs.
-      - des. esplits; eauto.
-        unfold maps_to_res, URA.wf, URA.add. unseal "ra". ss.
-        i. des_ifs.
-        + unfold URA.wf, URA.add in *. unseal "ra". ss.
-          specialize (WF0 n). unfold URA.wf in WF0. unseal "ra". ss. des_ifs. set_solver.
-        + rewrite URA.unit_idl. unfold URA.wf in WF0. unseal "ra". ss.
-      - rr in WF0. unseal "ra". ss. specialize (WF0 n). rr in WF0. unseal "ra". ss.
-        rewrite Heq in WF0. ss.
-    }
-    (* iPoseProof (@OwnM_unit _ _ H0) as "-# H". *)
-    iPoseProof (@OwnM_unit _ _ H1) as "-# H".
-    iMod (OwnM_Upd_set UPD with "H") as "[% [% DIS]]".
-    iModIntro. des. subst. iExists i. eauto.
-  Qed.
-
-  Lemma wsat_OwnI_alloc p φ
-        (INF : forall (E : index -> option (gset positive)) n,
-            match E n with
-            | None => True
-            | Some G => (exists i, i ∉ G /\ φ i)
-            end)
-    (* : wsat ∗ prop p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat. *)
-    : wsat ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat.
-  Proof.
-    iIntros "[[% [AUTH SAT]] P]".
-    iMod (alloc_name (fun i => i ∉ dom I /\ φ i)) as "[% [[%iI %iφ] D]]".
-    { i.
-      set (uni := fun n => match E n with
-                        | None => None
-                        | Some G => Some (G ∪ dom I)
-                        end).
-      specialize (INF uni n0). subst uni. ss. des_ifs.
-      des. eapply not_elem_of_union in INF. des. esplits; eauto. }
-    pose (<[i:=p]> I) as I'.
-
-    assert (URA.updatable
-              (maps_to_res_dep n (@Auth.black (positive ==> URA.agree Var)%ra (fun i => Some <$> (I !! i))) : IInvSetRA Vars)
-              ((maps_to_res_dep n (@Auth.black (positive ==> URA.agree Var)%ra (fun i => Some <$> (I' !! i))) : IInvSetRA Vars)
-                 ⋅
-                 (maps_to_res_dep n (Auth.white (@maps_to_res _ (URA.agree Var) i (Some (Some p)))) : IInvSetRA Vars))).
-    { setoid_rewrite maps_to_res_dep_add. apply maps_to_res_dep_updatable.
-      apply Auth.auth_alloc. ii. des. rewrite URA.unit_idl in FRAME. subst. split.
-      { rr; unseal "ra". ss. intro. rr; unseal "ra". destruct (I' !! k); ss. }
-      rr. subst I'.
-      unfold URA.add. unseal "ra". ss.
-      extensionalities j. unfold maps_to_res. des_ifs.
-      - rewrite lookup_insert. rewrite not_elem_of_dom_1; ss.
-        unfold URA.add. unseal "ra". ss.
-      - rewrite URA.unit_idl. rewrite lookup_insert_ne; eauto.
-    }
-    unfold inv_auth, inv_satall.
-    (* iMod (OwnM_Upd H2 with "AUTH") as "[AUTH NEW]". iModIntro. *)
-    iMod (OwnM_Upd H3 with "AUTH") as "[AUTH NEW]". iModIntro.
-
-    iSplit.
-    - iExists i. iFrame. ss.
-    - unfold wsat. iExists I'. iFrame.
-      unfold inv_satall. subst I'.
-      iApply big_sepM_insert.
-      { apply not_elem_of_dom_1; ss. }
-      iSplitL "P D"; ss. iLeft. iFrame.
-  Qed.
-
-  Lemma wsat_OwnI_open i p :
-    (* OwnI n i p ∗ wsat ∗ OwnE n {[i]} ⊢ |==> prop p ∗ wsat ∗ OwnD n {[i]}. *)
-    OwnI n i p ∗ wsat ∗ OwnE n {[i]} ⊢ |==> prop n p ∗ wsat ∗ OwnD n {[i]}.
-  Proof.
-    iIntros "(I & [% [AUTH SAT]] & EN)". iModIntro.
-    unfold OwnI, inv_auth, inv_satall.
-    iCombine "AUTH I" as "AUTH".
-    iPoseProof (OwnM_valid with "AUTH") as "%WF".
-    assert (Hip : I !! i = Some p).
-    { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_dep_add in WF.
-      unfold maps_to_res_dep, maps_to_res in WF. apply (pwd_lookup_wf n) in WF. ss. des_ifs.
-      unfold eq_rect_r in WF. rewrite <- Eqdep.EqdepTheory.eq_rect_eq in WF.
-      apply Auth.auth_included in WF. rename WF into EXTENDS.
-      apply pw_extends in EXTENDS. specialize (EXTENDS i).
-      des_ifs. clear e e0. rr in EXTENDS. des. unfold URA.add in EXTENDS; unseal "ra".
-      destruct (I !! i) eqn: E.
-      - destruct ctx; ss; des_ifs.
-      - destruct ctx; ss; des_ifs.
-    }
-    clear WF.
-    iDestruct "AUTH" as "[AUTH I]".
-    iPoseProof (big_sepM_delete _ _ _ _ Hip with "SAT") as "[[[H1 H2]|H1] SAT]".
-    2: { iCombine "EN H1" as "F". iPoseProof (OwnM_valid with "F") as "%WF".
-         exfalso. unfold maps_to_res, URA.wf, URA.add in WF. unseal "ra". ss.
-         specialize (WF n). des_ifs. unfold URA.wf, URA.add in WF. unseal "ra".
-         ss. des_ifs. set_solver.
-    }
-    iFrame. unfold wsat. iExists I. iFrame. unfold inv_satall.
-    iApply (big_sepM_delete _ _ _ _ Hip). iFrame.
-  Qed.
-
-  Lemma wsat_OwnI_close i p :
-    (* OwnI n i p ∗ wsat ∗ prop p ∗ OwnD n {[i]} ⊢ |==> wsat ∗ OwnE n {[i]}. *)
-    OwnI n i p ∗ wsat ∗ prop n p ∗ OwnD n {[i]} ⊢ |==> wsat ∗ OwnE n {[i]}.
-  Proof.
-    iIntros "(I & [% [AUTH SAT]] & P & DIS)". iModIntro.
-    unfold OwnI, inv_auth, inv_satall.
-    iCombine "AUTH I" as "AUTH".
-    iPoseProof (OwnM_valid with "AUTH") as "%WF".
-    assert (Hip : I !! i = Some p).
-    { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_dep_add in WF.
-      unfold maps_to_res_dep, maps_to_res in WF. apply (pwd_lookup_wf n) in WF. ss. des_ifs.
-      unfold eq_rect_r in WF. rewrite <- Eqdep.EqdepTheory.eq_rect_eq in WF.
-      apply Auth.auth_included in WF. rename WF into EXTENDS.
-      apply pw_extends in EXTENDS. specialize (EXTENDS i).
-      des_ifs. clear e e0.
-      rr in EXTENDS. des. unfold URA.add in EXTENDS; unseal "ra".
-      destruct (I !! i) eqn: E.
-      - destruct ctx; ss; des_ifs.
-      - destruct ctx; ss; des_ifs.
-    }
-    clear WF.
-    iDestruct "AUTH" as "[AUTH I]".
-    iPoseProof (big_sepM_delete _ _ _ _ Hip with "SAT") as "[[[H1 H2]|H1] SAT]".
-    { iCombine "DIS H2" as "F". iPoseProof (OwnM_valid with "F") as "%WF".
-      exfalso. unfold maps_to_res, URA.wf, URA.add in WF. unseal "ra". ss.
-      specialize (WF n). des_ifs.
-      unfold URA.wf, URA.add in WF. unseal "ra". ss. des_ifs. set_solver.
-    }
-    iFrame. unfold wsat. iExists I. iFrame. unfold inv_satall.
-    iApply (big_sepM_delete _ _ _ _ Hip). iFrame. iLeft. iFrame.
-  Qed.
-
-  Lemma wsat_init :
-    OwnM (maps_to_res_dep n (@Auth.black (positive ==> URA.agree Var)%ra (fun (i : positive) => None)))
-      ⊢ wsat.
+  Lemma wsats_init :
+    OwnM ((fun n => @Auth.black (positive ==> URA.agree (Vars n))%ra (fun _ => None)) : IInvSetRA Vars)
+         ⊢ wsats.
   Proof.
     iIntros "H". iExists ∅. iFrame.
-    unfold inv_satall. iApply big_sepM_empty. ss.
+    unfold wsat_satall. iApply big_sepS_empty. ss.
   Qed.
 
 End WSATS.
+
+Section OWNES.
+
+  Context `{Σ : GRA.t}.
+  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
+
+  Definition OwnE_auth_black (Es : gmap index coPset) : (index ==> CoPset.t)%ra :=
+    fun n => match Es !! n with
+          | Some _ => ε
+          | None => (Some ⊤)
+          end.
+  (* Definition OwnE_auth_black (X : gset index) : (index ==> CoPset.t)%ra := *)
+  (*   fun n => if (gset_elem_of_dec n X) *)
+  (*         then ε *)
+  (*         else (Some ⊤). *)
+
+  Definition OwnE_auth (Es : gmap index coPset) := OwnM (OwnE_auth_black Es).
+  (* Definition OwnE_auth (X : gset index) := OwnM (OwnE_auth_black X). *)
+(* gset_dom: *)
+  (*   ∀ (K : Type) (EqDecision0 : EqDecision K) (H : Countable K) (A : Type), Dom (gmap K A) (gset K) *)
+
+  Definition OwnE_satall (Es : gmap index coPset) := ([∗ map] n ↦ E ∈ Es, OwnE n E)%I.
+
+  Definition OwnEs (Es : gmap index coPset) := (OwnE_auth Es ∗ OwnE_satall Es)%I.
+
+End OWNES.
+
+TODO
 
 Section FANCY_UPDATE.
 
