@@ -9,8 +9,6 @@ From iris Require base_logic.lib.invariants.
 
 Local Notation index := nat.
 
-TODO
-
 Section Atom.
 
   Context `{Σ : GRA.t}.
@@ -30,10 +28,13 @@ Module Atoms.
 
     Inductive t {Typ : Syntax.type -> Type} : Type :=
     | own {A : Atom} (a : A.(T))
-    | owne (E : coPset)
-    | ownd (D : gset positive)
-    | owni (i : positive) (p : @Syntax.t Typ (@t Typ))
-    | syn_inv_auth_l (ps : list (prod positive (@Syntax.t Typ (@t Typ))))
+    | ownes (Es : coPsets)
+    | inv (N : namespace) (p : @Syntax.t Typ (@t Typ))
+    | wsats
+    (* | owne (E : coPset) *)
+    (* | ownd (D : gset positive) *)
+    (* | owni (i : positive) (p : @Syntax.t Typ (@t Typ)) *)
+    (* | syn_inv_auth_l (ps : list (prod positive (@Syntax.t Typ (@t Typ)))) *)
     (* Non strictly positive occurrence *)
     (* | own_inv_auth (ps : gmap positive (@Syntax.t Typ (@t Typ))) *)
     .
@@ -54,10 +55,12 @@ Module Atoms.
     Definition to_semantics (n : index) (a : @t Σ (typing n)) : iProp :=
       match a with
       | @own _ _ A r => A.(interp) r
-      | owne E => OwnE n E
-      | ownd D => OwnD n D
-      | owni i p => @OwnI Σ Formulas _ n i p
-      | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps)
+      | ownes Es => OwnEs Es
+      | inv N p => @IndexedInvariants.inv Σ Formulas 
+      (* | owne E => OwnE n E *)
+      (* | ownd D => OwnD n D *)
+      (* | owni i p => @OwnI Σ Formulas _ n i p *)
+      (* | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *)
       end.
 
   End INTERP.

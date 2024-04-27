@@ -573,6 +573,12 @@ Section OWNES.
     - iMod (OwnEs_alloc with "ENS") as "ENS"; eauto.
   Qed.
 
+  Lemma lookup_subseteq_def Es n E :
+    E ⊆ (lookup_def Es n) -> subseteq_def Es n E.
+  Proof.
+    unfold lookup_def,default, subseteq_def. i. des_ifs.
+  Qed.
+
 End OWNES.
 
 Section FANCY_UPDATE.
@@ -634,12 +640,23 @@ Section FANCY_UPDATE.
 
   Lemma FUpd_open A Es n N (IN : subseteq_def Es n (↑N)) P :
     inv n N P ⊢
-        FUpd A Es (<[n := (lookup_def Es n)∖↑N]> Es) (P ∗ (P -∗ FUpd A (<[n := (lookup_def Es n)∖↑N]> Es) (insert_def Es n) emp)).
+        FUpd A Es (<[n := (lookup_def Es n)∖↑N]> Es) (P ∗ (P -∗ FUpd A (<[n := (lookup_def Es n)∖↑N]> Es) Es emp)).
   Proof.
     iIntros "[% [% (%HP & %iN & #HI)]] (A & WSAT & ENS)". subst.
-    unfold lookup_def, subseteq_def, insert_def in *. destruct (Es !! n) eqn:CASES; ss.
+    unfold lookup_def, subseteq_def in *. destruct (Es !! n) eqn:CASES; ss.
     - iApply FUpd_open_aux; auto. unfold inv; auto. iFrame.
-    - iMod (OwnEs_alloc _ _ CASES with "ENS") as "ENS". remember (<[n:=⊤]> Es) as Es'.
+    - iAssert (
+          (#=> (A ∗ (wsats ∗ (OwnEs (<[n:=⊤ ∖ ↑N]> Es) ∗ (prop n p ∗ (prop n p -∗ FUpd A (<[n:=⊤ ∖ ↑N]> Es) (<[n:=⊤]>Es) emp))))))
+            -∗
+            #=> (A ∗ (wsats ∗ (OwnEs (<[n:=⊤ ∖ ↑N]> Es) ∗ (prop n p ∗ (prop n p -∗ FUpd A (<[n:=⊤ ∖ ↑N]> Es) Es emp))))))%I as "K".
+      { iIntros ">[A [SAT [ENS [P K]]]]". iModIntro. iFrame. iIntros "P".
+        iPoseProof ("K" with "P") as "K". iIntros "[A [SAT ENS]]".
+        iPoseProof ("K" with "[A SAT ENS]") as ">[A [SAT [ENS _]]]". iFrame.
+        iMod (OwnEs_free with "ENS") as "ENS". auto.
+        iModIntro. iFrame.
+      }
+      iApply "K". iClear "K".
+      iMod (OwnEs_alloc _ _ CASES with "ENS") as "ENS". remember (<[n:=⊤]> Es) as Es'.
       replace (<[n:=⊤ ∖ ↑N]> Es) with (<[n:=⊤ ∖ ↑N]> Es').
       2:{ subst. rewrite insert_insert. auto. }
       iApply FUpd_open_aux; auto.
@@ -800,7 +817,7 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
   Global Instance into_acc_FUpd_inv A Es n N P :
     IntoAcc (inv n N P) (subseteq_def Es n (↑N)) True
             (FUpd A Es (<[n := lookup_def Es n ∖ ↑N]>Es))
-            (FUpd A (<[n := lookup_def Es n ∖ ↑N]>Es) (insert_def Es n))
+            (FUpd A (<[n := lookup_def Es n ∖ ↑N]>Es) Es)
             (fun _ : () => P) (fun _ : () => P) (fun _ : () => None).
   Proof.
     rewrite /IntoAcc. iIntros (iE) "INV _". rewrite /accessor.
