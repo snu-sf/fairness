@@ -521,15 +521,6 @@ Section OWNES.
     rewrite H0. iFrame. iApply OwnE_union. iFrame.
   Qed.
 
-
-  Definition lookup_def (Es : coPsets) (n : nat) : coPset := default ⊤ (Es !! n).
-
-  Definition subseteq_def (Es : coPsets) (n : nat) (E : coPset) : Prop :=
-    match Es !! n with | Some E' => E ⊆ E' | None => True end.
-
-  Definition insert_def (Es : coPsets) (n : nat) : coPsets :=
-    match Es !! n with | Some E => Es | None => <[n:=⊤]> Es end.
-
   Lemma OwnEs_free Es n :
     Es !! n = None -> OwnEs (<[n:=⊤]>Es) ⊢ |==> OwnEs Es.
   Proof.
@@ -553,6 +544,26 @@ Section OWNES.
     - unfold OwnE_satall. iModIntro.
       iPoseProof (big_sepM_insert with "SAT") as "[_ SAT]"; auto.
   Qed.
+
+  Lemma OwnEs_disjoint Es n E1 E2 :
+    E1 ## E2 -> OwnEs (<[n:=E1 ∪ E2]>Es) ⊢ OwnEs (<[n:=E1]>Es) ∗ OwnE n E2.
+  Proof.
+    iIntros (HE) "ENS". iPoseProof (OwnEs_acc_in with "ENS") as "[EN ENS]".
+    { apply lookup_insert. }
+    iPoseProof ((OwnE_disjoint _ _ _ HE) with "EN") as "[EN1 EN2]".
+    iFrame. rewrite insert_insert.
+    iPoseProof (OwnEs_union with "[ENS EN1]") as "ENS". iFrame.
+    replace (∅ ∪ E1) with E1 by set_solver. iFrame.
+  Qed.
+
+
+  Definition lookup_def (Es : coPsets) (n : nat) : coPset := default ⊤ (Es !! n).
+
+  Definition subseteq_def (Es : coPsets) (n : nat) (E : coPset) : Prop :=
+    match Es !! n with | Some E' => E ⊆ E' | None => True end.
+
+  Definition insert_def (Es : coPsets) (n : nat) : coPsets :=
+    match Es !! n with | Some E => Es | None => <[n:=⊤]> Es end.
 
   Lemma OwnEs_lookup_def Es n :
     OwnEs Es ⊢ |==> OwnEs (<[n := lookup_def Es n]>Es).
@@ -642,9 +653,10 @@ Section FANCY_UPDATE.
     iIntros "P H". iMod "P". iModIntro. iFrame. iFrame.
   Qed.
 
-  Lemma FUpd_mask_frame A Es1 Es2 E P n :
+  Lemma FUpd_mask_frame_gen A Es1 Es2 n E P :
     (lookup_def Es1 n) ## E ->
-    FUpd A Es1 Es2 P ⊢ FUpd A (<[n := (lookup_def Es1 n) ∪ E]>Es1) (<[n := (lookup_def Es2 n) ∪ E]>Es2) P.
+    FUpd A Es1 Es2 P ⊢
+         FUpd A (<[n := (lookup_def Es1 n) ∪ E]>Es1) (<[n := (lookup_def Es2 n) ∪ E]>Es2) P.
   Proof.
     rewrite /FUpd. iIntros (D) "H (A & WSAT & ENS)".
     iPoseProof ((OwnEs_acc_in _ n) with "ENS") as "[EN ENS]". apply lookup_insert.
@@ -685,79 +697,99 @@ Section FANCY_UPDATE.
     }
   Qed.
 
-  TODO
-
-  Lemma FUpd_intro_mask A E1 E2 P :
-    E2 ⊆ E1 -> FUpd A E1 E1 P ⊢ FUpd A E1 E2 (FUpd A E2 E1 P).
+  Lemma FUpd_mask_frame A Es1 Es2 n E1 E2 E P :
+    E1 ## E ->
+    FUpd A (<[n:=E1]>Es1) (<[n:=E2]>Es2) P ⊢
+         FUpd A (<[n :=E1 ∪ E]>Es1) (<[n :=E2 ∪ E]>Es2) P.
   Proof.
-    rewrite /FUpd. iIntros (HE) "H (A & WSAT & EN)".
-    iPoseProof ("H" with "[A WSAT EN]") as ">(A & WSAT & EN & P)". iFrame.
-    iModIntro.
-    rewrite (union_difference_L _ _ HE).
-    iPoseProof (OwnE_disjoint _ _ _ with "EN") as "[EN1 EN]".
-    { set_solver. }
-    iFrame. iIntros "(A & WSAT & EN2)". iModIntro. iFrame.
-    iApply OwnE_union. iFrame.
+    iIntros (D) "FUPD".
+    iPoseProof (FUpd_mask_frame_gen with "FUPD") as "FUPD".
+    { unfold lookup_def. rewrite lookup_insert. ss. eauto. }
+    unfold lookup_def. rewrite ! lookup_insert. ss. rewrite ! insert_insert. auto.
   Qed.
 
-  Lemma FUpd_mask_mono A E1 E2 P :
-    E1 ⊆ E2 -> FUpd A E1 E1 P ⊢ FUpd A E2 E2 P.
+  Lemma FUpd_intro_mask A Es1 Es2 Es3 n E1 E2 P :
+    E2 ⊆ E1 ->
+    FUpd A (<[n:=E1]>Es1) (<[n:=E1]>Es2) P ⊢
+         FUpd A (<[n:=E1]>Es1) (<[n:=E2]>Es2) (FUpd A (<[n:=E2]>Es3) (<[n:=E1]>Es3) P).
+  Proof.
+    rewrite /FUpd. iIntros (HE) "H (A & WSAT & ENS)".
+    iPoseProof ("H" with "[A WSAT ENS]") as ">(A & WSAT & ENS & P)". iFrame.
+    iModIntro.
+    rewrite (union_difference_L _ _ HE).
+    iPoseProof (OwnEs_disjoint with "ENS") as "[ENS EN]".
+    { set_solver. }
+    iFrame. iIntros "(A & WSAT & ENS)". iModIntro. iFrame.
+    iApply OwnEs_union. iFrame.
+  Qed.
+
+  Lemma FUpd_mask_mono A Es1 Es2 n E1 E2 P :
+    E1 ⊆ E2 ->
+    FUpd A (<[n:=E1]>Es1) (<[n:=E1]>Es2) P ⊢ FUpd A (<[n:=E2]>Es1) (<[n:=E2]>Es2) P.
   Proof.
     i. replace E2 with (E1 ∪ E2 ∖ E1).
     - eapply FUpd_mask_frame. set_solver.
     - symmetry. eapply leibniz_equiv. eapply union_difference. ss.
   Qed.
 
-  Global Instance from_modal_FUpd A E P :
-    FromModal True modality_id (FUpd A E E P) (FUpd A E E P) P.
+  Global Instance from_modal_FUpd A Es P :
+    FromModal True modality_id (FUpd A Es Es P) (FUpd A Es Es P) P.
   Proof.
     rewrite /FromModal /= /FUpd. iIntros. iModIntro. iFrame. iFrame.
   Qed.
 
-  Global Instance from_modal_FUpd_general A E1 E2 P :
-    FromModal (E2 ⊆ E1) modality_id P (FUpd A E1 E2 P) P.
+  Global Instance from_modal_FUpd_general A Es n E1 E2 P :
+    FromModal (E2 ⊆ E1) modality_id P (FUpd A (<[n:=E1]>Es) (<[n:=E2]>Es) P) P.
   Proof.
     rewrite /FromModal /FUpd. ss.
     iIntros (HE) "P (A & WSAT & EN)". iModIntro. iFrame.
-    iPoseProof ((OwnE_subset _ _ _ HE) with "EN") as "[EN1 _]". iFrame.
+    iPoseProof (OwnEs_acc_in with "EN") as "[EN ENS]". apply lookup_insert.
+    iPoseProof ((OwnE_subset _ _ _ HE) with "EN") as "[EN1 _]".
+    iPoseProof (OwnEs_union with "[ENS EN1]") as "ENS". iFrame. rewrite insert_insert.
+    replace (∅ ∪ E2) with E2 by set_solver. iFrame.
   Qed.
 
-  Global Instance from_modal_FUpd_wrong_mask A E1 E2 P :
+  Global Instance from_modal_FUpd_wrong_mask A Es1 Es2 P :
     FromModal (pm_error "Only non-mask-changing update modalities can be introduced directly.
 Use [FUpd_mask_frame] and [FUpd_intro_mask]")
-              modality_id (FUpd A E1 E2 P) (FUpd A E1 E2 P) P | 100.
+              modality_id (FUpd A Es1 Es2 P) (FUpd A Es1 Es2 P) P | 100.
   Proof.
     intros [].
   Qed.
 
-  Global Instance elim_modal_bupd_FUpd p A E1 E2 P Q :
-    ElimModal True p false (|==> P) P (FUpd A E1 E2 Q) (FUpd A E1 E2 Q) | 10.
+  Global Instance elim_modal_bupd_FUpd p A Es1 Es2 P Q :
+    ElimModal True p false (|==> P) P (FUpd A Es1 Es2 Q) (FUpd A Es1 Es2 Q) | 10.
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
     iIntros (_) "[P K] I". iMod "P". iApply ("K" with "P"). iFrame.
   Qed.
 
-  Global Instance elim_modal_FUpd_FUpd p A E1 E2 E3 P Q :
-    ElimModal True p false (FUpd A E1 E2 P) P (FUpd A E1 E3 Q) (FUpd A E2 E3 Q).
+  Global Instance elim_modal_FUpd_FUpd p A Es1 Es2 Es3 P Q :
+    ElimModal True p false (FUpd A Es1 Es2 P) P (FUpd A Es1 Es3 Q) (FUpd A Es2 Es3 Q).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
     iIntros (_) "[P K] I". iMod ("P" with "I") as "(A & WSAT & EN & P)".
     iApply ("K" with "P"). iFrame.
   Qed.
 
-  Global Instance elim_modal_FUpd_FUpd_general p A E0 E1 E2 E3 P Q :
-    ElimModal (E0 ⊆ E2) p false (FUpd A E0 E1 P) P (FUpd A E2 E3 Q) (FUpd A (E1 ∪ (E2 ∖ E0)) E3 Q) | 10.
+  Global Instance elim_modal_FUpd_FUpd_general p A Es0 Es1 Es2 n E0 E1 E2 E3 P Q :
+    ElimModal (E0 ⊆ E2) p false
+              (FUpd A (<[n:=E0]>Es0) (<[n:=E1]>Es1) P)
+              P
+              (FUpd A (<[n:=E2]>Es0) (<[n:=E3]>Es2) Q)
+              (FUpd A (<[n:=(E1 ∪ (E2 ∖ E0))]>Es1) (<[n:=E3]>Es2) Q) | 10.
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim. ss.
     iIntros (HE) "[M K]".
-    iPoseProof (FUpd_mask_frame _ _ _ (E2 ∖ E0) with "M") as "M".
+    iPoseProof (FUpd_mask_frame _ _ _ _ _ _ (E2 ∖ E0) with "M") as "M".
     { set_solver. }
     replace (E0 ∪ E2 ∖ E0) with E2 by (eapply union_difference_L; ss).
-    iMod "M". iPoseProof ("K" with "M") as "M". ss.
+    iMod "M". iPoseProof ("K" with "M") as "M". iFrame.
   Qed.
 
-  Global Instance elim_acc_FUpd {X : Type} A E1 E2 E (α β : X -> iProp) (mγ : X -> option iProp) (Q : iProp) :
-    ElimAcc True (FUpd A E1 E2) (FUpd A E2 E1) α β mγ (FUpd A E1 E Q) (fun x : X => ((FUpd A E2 E2 (β x)) ∗ (mγ x -∗? FUpd A E1 E Q))%I).
+  Global Instance elim_acc_FUpd
+         {X : Type} A Es1 Es2 Es (α β : X -> iProp) (mγ : X -> option iProp) (Q : iProp) :
+    ElimAcc True (FUpd A Es1 Es2) (FUpd A Es2 Es1) α β mγ (FUpd A Es1 Es Q) (fun x : X => ((FUpd A Es2 Es2 (β x)) ∗ (mγ x -∗? FUpd A Es1 Es Q))%I).
   Proof.
     iIntros (_) "Hinner >[% [Hα Hclose]]".
     iPoseProof ("Hinner" with "Hα") as "[>Hβ Hfin]".
@@ -765,188 +797,19 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
     iApply "Hfin". iFrame.
   Qed.
 
-  Global Instance into_acc_FUpd_inv A E N P :
-    IntoAcc (inv N P) (↑N ⊆ E) True (FUpd A E (E ∖ ↑N)) (FUpd A (E ∖ ↑N) E) (fun _ : () => P) (fun _ : () => P) (fun _ : () => None).
+  Global Instance into_acc_FUpd_inv A Es n N P :
+    IntoAcc (inv n N P) (subseteq_def Es n (↑N)) True
+            (FUpd A Es (<[n := lookup_def Es n ∖ ↑N]>Es))
+            (FUpd A (<[n := lookup_def Es n ∖ ↑N]>Es) (insert_def Es n))
+            (fun _ : () => P) (fun _ : () => P) (fun _ : () => None).
   Proof.
     rewrite /IntoAcc. iIntros (iE) "INV _". rewrite /accessor.
-    iPoseProof (FUpd_open _ _ _ iE with "INV") as ">[open close]".
+    iPoseProof (FUpd_open _ _ _ _ iE with "INV") as ">[open close]".
     iModIntro. iExists tt. iFrame.
   Qed.
 
-  Global Instance elim_modal_iupd_FUpd p A E1 E2 P Q :
-    ElimModal True p false (#=(A)=> P) P (FUpd A E1 E2 Q) (FUpd A E1 E2 Q) | 10.
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
-    iIntros (_) "[P K] [A I]".
-    iMod ("P" with "A") as "[A P]". iApply ("K" with "P"). iFrame.
-  Qed.
-
-End FANCY_UPDATE.
-
-Global Opaque FUpd.
-
-Section FANCY_UPDATE.
-
-  Context `{Σ : GRA.t}.
-  Context `{Vars : index -> Type}.
-  Context `{Invs : @IInvSet Σ Vars}.
-  (* Context `{Invs : @InvSet Σ (Vars n)}. *)
-  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
-  Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
-  Context `{@GRA.inG (IInvSetRA Vars) Σ}.
-
-  Variable n : index.
-
-  Local Notation Var := (Vars n).
-
-  Definition inv (N : namespace) P :=
-    (∃ p, ∃ i, ⌜prop n p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I.
-
-  Definition FUpd (A : iProp) (E1 E2 : coPset) (P : iProp) : iProp :=
-    (* A ∗ wsat (prop:=prop n) n ∗ OwnE n E1 -∗ #=> (A ∗ wsat (prop:=prop n) n ∗ OwnE n E2 ∗ P). *)
-    A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P).
-
-  Lemma FUpd_alloc A E N P `{hasP : @IInvIn Σ Vars Invs n P} :
-    P ⊢ FUpd A E E (inv N P).
-  Proof.
-    destruct hasP as [p HE]. subst. iIntros "P (A & WSAT & EN)".
-    (* iMod (wsat_OwnI_alloc (prop:=prop n) n p (fun i => i ∈ ↑N) with "[WSAT P]") as "[I WSAT]". *)
-    iMod (wsat_OwnI_alloc n p (fun i => i ∈ ↑N) with "[WSAT P]") as "[I WSAT]".
-    - i. des_ifs. apply iris.base_logic.lib.invariants.fresh_inv_name.
-    - iFrame.
-    - iModIntro. iFrame. iDestruct "I" as "[% I]". iExists p, i. iFrame. ss.
-  Qed.
-
-  Lemma FUpd_open A E N (IN : ↑N ⊆ E) P :
-    inv N P ⊢ FUpd A E (E∖↑N) (P ∗ (P -∗ FUpd A (E∖↑N) E emp)).
-  Proof.
-    iIntros "[% [% (%HP & %iN & #HI)]] (A & WSAT & EN)". subst.
-    iAssert (OwnE n (E ∖ ↑N) ∗ OwnE n (↑N ∖ {[i]}) ∗ OwnE n {[i]})%I with "[EN]" as "(EN1 & EN2 & EN3)".
-    { iApply bi.sep_mono_r.
-      { apply OwnE_disjoint. set_solver. }
-      iApply OwnE_disjoint.
-      { set_solver. }
-      replace (E ∖ ↑N ∪ (↑N ∖ {[i]} ∪ {[i]})) with E.
-      - iFrame.
-      - transitivity ({[i]} ∪ ↑N ∖ {[i]} ∪ E ∖ ↑N).
-        + rewrite <- union_difference_singleton_L; ss. eapply union_difference_L; ss.
-        + rewrite union_comm_L. f_equal. rewrite union_comm_L. ss.
-    }
-    iMod (wsat_OwnI_open n i p with "[HI WSAT EN3]") as "(P & WSAT & DIS)".
-    { iFrame. auto. }
-    iModIntro. iFrame. iIntros "P (A & WSAT & EN1)".
-    iMod (wsat_OwnI_close n i p with "[HI WSAT P DIS]") as "(WSAT & EN3)".
-    { iFrame. auto. }
-    iModIntro. iFrame. iSplit; auto.
-    iPoseProof (OwnE_union with "[EN2 EN3]") as "EN2". iFrame.
-    iPoseProof (OwnE_union with "[EN1 EN2]") as "EN". iFrame.
-    rewrite <- union_difference_singleton_L; ss.
-    rewrite <- union_difference_L; ss.
-  Qed.
-
-  Lemma FUpd_intro A E P :
-    #=> P ⊢ FUpd A E E P.
-  Proof.
-    iIntros "P H". iMod "P". iModIntro. iFrame. iFrame.
-  Qed.
-
-  Lemma FUpd_mask_frame A E1 E2 E P :
-    E1 ## E -> FUpd A E1 E2 P ⊢ FUpd A (E1 ∪ E) (E2 ∪ E) P.
-  Proof.
-    rewrite /FUpd. iIntros (D) "H (A & WSAT & EN)".
-    iPoseProof (OwnE_disjoint _ _ _ D with "EN") as "[EN1 EN]".
-    iPoseProof ("H" with "[A WSAT EN1]") as ">(A & WSAT & EN2 & P)". iFrame.
-    iModIntro. iFrame. iApply OwnE_union. iFrame.
-  Qed.
-
-  Lemma FUpd_intro_mask A E1 E2 P :
-    E2 ⊆ E1 -> FUpd A E1 E1 P ⊢ FUpd A E1 E2 (FUpd A E2 E1 P).
-  Proof.
-    rewrite /FUpd. iIntros (HE) "H (A & WSAT & EN)".
-    iPoseProof ("H" with "[A WSAT EN]") as ">(A & WSAT & EN & P)". iFrame.
-    iModIntro.
-    rewrite (union_difference_L _ _ HE).
-    iPoseProof (OwnE_disjoint _ _ _ with "EN") as "[EN1 EN]".
-    { set_solver. }
-    iFrame. iIntros "(A & WSAT & EN2)". iModIntro. iFrame.
-    iApply OwnE_union. iFrame.
-  Qed.
-
-  Lemma FUpd_mask_mono A E1 E2 P :
-    E1 ⊆ E2 -> FUpd A E1 E1 P ⊢ FUpd A E2 E2 P.
-  Proof.
-    i. replace E2 with (E1 ∪ E2 ∖ E1).
-    - eapply FUpd_mask_frame. set_solver.
-    - symmetry. eapply leibniz_equiv. eapply union_difference. ss.
-  Qed.
-
-  Global Instance from_modal_FUpd A E P :
-    FromModal True modality_id (FUpd A E E P) (FUpd A E E P) P.
-  Proof.
-    rewrite /FromModal /= /FUpd. iIntros. iModIntro. iFrame. iFrame.
-  Qed.
-
-  Global Instance from_modal_FUpd_general A E1 E2 P :
-    FromModal (E2 ⊆ E1) modality_id P (FUpd A E1 E2 P) P.
-  Proof.
-    rewrite /FromModal /FUpd. ss.
-    iIntros (HE) "P (A & WSAT & EN)". iModIntro. iFrame.
-    iPoseProof ((OwnE_subset _ _ _ HE) with "EN") as "[EN1 _]". iFrame.
-  Qed.
-
-  Global Instance from_modal_FUpd_wrong_mask A E1 E2 P :
-    FromModal (pm_error "Only non-mask-changing update modalities can be introduced directly.
-Use [FUpd_mask_frame] and [FUpd_intro_mask]")
-              modality_id (FUpd A E1 E2 P) (FUpd A E1 E2 P) P | 100.
-  Proof.
-    intros [].
-  Qed.
-
-  Global Instance elim_modal_bupd_FUpd p A E1 E2 P Q :
-    ElimModal True p false (|==> P) P (FUpd A E1 E2 Q) (FUpd A E1 E2 Q) | 10.
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
-    iIntros (_) "[P K] I". iMod "P". iApply ("K" with "P"). iFrame.
-  Qed.
-
-  Global Instance elim_modal_FUpd_FUpd p A E1 E2 E3 P Q :
-    ElimModal True p false (FUpd A E1 E2 P) P (FUpd A E1 E3 Q) (FUpd A E2 E3 Q).
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
-    iIntros (_) "[P K] I". iMod ("P" with "I") as "(A & WSAT & EN & P)".
-    iApply ("K" with "P"). iFrame.
-  Qed.
-
-  Global Instance elim_modal_FUpd_FUpd_general p A E0 E1 E2 E3 P Q :
-    ElimModal (E0 ⊆ E2) p false (FUpd A E0 E1 P) P (FUpd A E2 E3 Q) (FUpd A (E1 ∪ (E2 ∖ E0)) E3 Q) | 10.
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim. ss.
-    iIntros (HE) "[M K]".
-    iPoseProof (FUpd_mask_frame _ _ _ (E2 ∖ E0) with "M") as "M".
-    { set_solver. }
-    replace (E0 ∪ E2 ∖ E0) with E2 by (eapply union_difference_L; ss).
-    iMod "M". iPoseProof ("K" with "M") as "M". ss.
-  Qed.
-
-  Global Instance elim_acc_FUpd {X : Type} A E1 E2 E (α β : X -> iProp) (mγ : X -> option iProp) (Q : iProp) :
-    ElimAcc True (FUpd A E1 E2) (FUpd A E2 E1) α β mγ (FUpd A E1 E Q) (fun x : X => ((FUpd A E2 E2 (β x)) ∗ (mγ x -∗? FUpd A E1 E Q))%I).
-  Proof.
-    iIntros (_) "Hinner >[% [Hα Hclose]]".
-    iPoseProof ("Hinner" with "Hα") as "[>Hβ Hfin]".
-    iPoseProof ("Hclose" with "Hβ") as ">Hγ".
-    iApply "Hfin". iFrame.
-  Qed.
-
-  Global Instance into_acc_FUpd_inv A E N P :
-    IntoAcc (inv N P) (↑N ⊆ E) True (FUpd A E (E ∖ ↑N)) (FUpd A (E ∖ ↑N) E) (fun _ : () => P) (fun _ : () => P) (fun _ : () => None).
-  Proof.
-    rewrite /IntoAcc. iIntros (iE) "INV _". rewrite /accessor.
-    iPoseProof (FUpd_open _ _ _ iE with "INV") as ">[open close]".
-    iModIntro. iExists tt. iFrame.
-  Qed.
-
-  Global Instance elim_modal_iupd_FUpd p A E1 E2 P Q :
-    ElimModal True p false (#=(A)=> P) P (FUpd A E1 E2 Q) (FUpd A E1 E2 Q) | 10.
+  Global Instance elim_modal_iupd_FUpd p A Es1 Es2 P Q :
+    ElimModal True p false (#=(A)=> P) P (FUpd A Es1 Es2 Q) (FUpd A Es1 Es2 Q) | 10.
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
     iIntros (_) "[P K] [A I]".
