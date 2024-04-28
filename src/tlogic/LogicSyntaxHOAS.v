@@ -19,10 +19,9 @@ Module Syntax.
     (* | prodT : type -> type -> type *)
     (* | sumT : type -> type -> type *)
     (* | listT : type -> type *)
-    | funT : type -> type -> type.
+    | funT : type -> type -> type
     (* | positiveT : type *)
-    (* | pgmapT : type -> type *)
-    (* | gmapTpos : type -> typ. *)
+    | pgmapT : type -> type.
     (* | gmapT (K : Type) {EqDec : EqDecision K} {Cnt : Countable K} : type -> type. *)
 
   (* If we define for a general gmapT with EqDec and Countable,
@@ -95,7 +94,7 @@ Module Syntax.
       (* | listT ty' => list (Typ_0 ty') *)
       | funT ty1 ty2 => (Typ_0 form ty1 -> Typ_0 form ty2)
       (* | positiveT => positive *)
-      (* | pgmapT ty' => gmap positive (Typ_0 form ty') *)
+      | pgmapT ty' => gmap positive (Typ_0 form ty')
       (* | gmapTpos ty' => gmap positive (Typ_0 ty') *)
       (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_0 ty') *)
       end.
@@ -354,40 +353,40 @@ Module Syntax.
 
   End RED.
 
-  (* Section GMAP. *)
+  Section GMAP.
 
-  (*   Context `{Σ : GRA.t}. *)
-  (*   Context `{As : (type -> Type) -> Type}. *)
+    Context `{Σ : GRA.t}.
+    Context `{As : (type -> Type) -> Type}.
 
-  (*   Local Notation typing := (@Typ As). *)
-  (*   Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))). *)
+    Local Notation typing := (@Typ As).
+    Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))).
 
-  (*   Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}. *)
+    Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
 
-  (*   (* Maybe we can make Syntax as an instance of bi. *) *)
-  (*   Definition star_gmap *)
-  (*              (n : index) (I : typing (S n) (pgmapT formulaT)) *)
-  (*              (f : positive -> Formulas n -> Formulas n) *)
-  (*     : Formulas n := *)
-  (*     fold_right (fun hd tl => @sepconj (typing n) (As (typing n)) (uncurry f hd) tl) empty (map_to_list I). *)
+    (* Maybe we can make Syntax as an instance of bi. *)
+    Definition star_gmap
+               (n : index) (I : typing (S n) (pgmapT formulaT))
+               (f : positive -> Formulas n -> Formulas n)
+      : Formulas n :=
+      fold_right (fun hd tl => @sepconj (typing n) (As (typing n)) (uncurry f hd) tl) empty (map_to_list I).
 
 
-  (*   Local Notation Sem := (fun i p => @to_semantics Σ As interp_atoms i p). *)
+    Local Notation Sem := (fun i p => @to_semantics Σ As interp_atoms i p).
 
-  (*   Lemma star_gmap_iProp *)
-  (*         n I f *)
-  (*     : *)
-  (*     Sem n (star_gmap n I f) = *)
-  (*       ([∗ map] i ↦ p ∈ I, Sem n (f i p))%I. *)
-  (*   Proof. *)
-  (*     ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def. *)
-  (*     unfold star_gmap. ss. remember (map_to_list I) as L. *)
-  (*     clear HeqL I. induction L. *)
-  (*     { ss. apply to_semantics_empty. } *)
-  (*     ss. rewrite to_semantics_red_sepconj. rewrite IHL. f_equal. *)
-  (*     destruct a. ss. *)
-  (*   Qed. *)
+    Lemma star_gmap_iProp
+          n I f
+      :
+      Sem n (star_gmap n I f) =
+        ([∗ map] i ↦ p ∈ I, Sem n (f i p))%I.
+    Proof.
+      ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
+      unfold star_gmap. ss. remember (map_to_list I) as L.
+      clear HeqL I. induction L.
+      { ss. apply to_semantics_empty. }
+      ss. rewrite to_semantics_red_sepconj. rewrite IHL. f_equal.
+      destruct a. ss.
+    Qed.
 
-  (* End GMAP. *)
+  End GMAP.
 
 End Syntax.

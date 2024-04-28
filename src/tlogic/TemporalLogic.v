@@ -28,13 +28,14 @@ Module Atoms.
 
     Inductive t {Typ : Syntax.type -> Type} : Type :=
     | own {A : Atom} (a : A.(T))
-    | ownes (Es : coPsets)
-    | inv (N : namespace) (p : @Syntax.t Typ (@t Typ))
-    | wsats
+    (* | ownes (Es : coPsets) *)
+    (* | inv (N : namespace) (p : @Syntax.t Typ (@t Typ)) *)
+    (* | wsats *)
     (* | owne (E : coPset) *)
     (* | ownd (D : gset positive) *)
-    (* | owni (i : positive) (p : @Syntax.t Typ (@t Typ)) *)
-    (* | syn_inv_auth_l (ps : list (prod positive (@Syntax.t Typ (@t Typ)))) *)
+    | owni (i : positive) (p : @Syntax.t Typ (@t Typ))
+    | syn_inv_auth_l (ps : list (prod positive (@Syntax.t Typ (@t Typ))))
+    (* | syn_wsat_auth (X : gset index) *)
     (* Non strictly positive occurrence *)
     (* | own_inv_auth (ps : gmap positive (@Syntax.t Typ (@t Typ))) *)
     .
@@ -49,18 +50,19 @@ Module Atoms.
     Local Notation Formulas := (fun (i : index) => @Syntax.t (typing i) (@t Σ (typing i))).
 
     Context `{@PCM.GRA.inG (IInvSetRA Formulas) Σ}.
-    Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}.
-    Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}.
+    (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *)
+    (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *)
 
     Definition to_semantics (n : index) (a : @t Σ (typing n)) : iProp :=
       match a with
       | @own _ _ A r => A.(interp) r
-      | ownes Es => OwnEs Es
-      | inv N p => @IndexedInvariants.inv Σ Formulas 
+      (* | ownes Es => OwnEs Es *)
+      (* | inv N p => @IndexedInvariants.inv Σ Formulas  *)
       (* | owne E => OwnE n E *)
       (* | ownd D => OwnD n D *)
-      (* | owni i p => @OwnI Σ Formulas _ n i p *)
-      (* | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *)
+      | owni i p => @OwnI Σ Formulas _ n i p
+      | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps)
+      (* | syn_wsat_auth X => wsat_auth X *)
       end.
 
   End INTERP.
@@ -75,10 +77,11 @@ Section WSAT.
   Local Notation Formulas := (fun (n : index) => @Syntax.t (typing n) (@Atoms.t Σ (typing n))).
 
   Context `{@PCM.GRA.inG (IInvSetRA Formulas) Σ}.
-  Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}.
-  Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}.
+  (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *)
+  (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *)
 
-  Local Notation AtomSem := (@Atoms.to_semantics Σ _ _ _).
+  Local Notation AtomSem := (@Atoms.to_semantics Σ _).
+  (* Local Notation AtomSem := (@Atoms.to_semantics Σ _ _ _). *)
   Local Notation SynSem := (@Syntax.to_semantics Σ (@Atoms.t Σ) AtomSem).
 
   Global Instance SynIISet : @IInvSet Σ Formulas := (@Syntax.IISet Σ (@Atoms.t Σ) AtomSem).
