@@ -101,12 +101,12 @@ Section STATE.
 
   Global Program Instance src_interp_as_persistent n {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as n l VI).
 
-  Global Program Instance src_interp_as_acc A Es n {V} (l: Lens.t state_src V) (VI: V -> iProp):
+  Global Program Instance src_interp_as_acc x A Es n {V} (l: Lens.t state_src V) (VI: V -> iProp):
     IntoAcc
       (src_interp_as n l VI)
       (subseteq_def Es n (↑N_state_src)) True
-      (FUpd A Es (<[n := (lookup_def Es n) ∖ E_state_src]>Es))
-      (FUpd A (<[n := (lookup_def Es n) ∖ E_state_src]>Es) Es)
+      (FUpd x A Es (<[n := (lookup_def Es n) ∖ E_state_src]>Es))
+      (FUpd x A (<[n := (lookup_def Es n) ∖ E_state_src]>Es) Es)
       (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ VI vw)%I
       (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ VI vw)%I
       (fun _ => None).
@@ -126,11 +126,11 @@ Section STATE.
     iExists _. iFrame.
   Qed.
 
-  Lemma src_interp_as_id A Es n (SI: state_src -> iProp)
+  Lemma src_interp_as_id x A Es n (LT: n < x) (SI: state_src -> iProp)
         (IN: IInvIn n (∃ st, St_src st ** SI st)):
-    (∃ st, St_src st ** SI st) ⊢ FUpd A Es Es (src_interp_as n Lens.id (SI)).
+    (∃ st, St_src st ** SI st) ⊢ FUpd x A Es Es (src_interp_as n Lens.id (SI)).
   Proof.
-    iIntros "H". iPoseProof (FUpd_alloc with "H") as "> H".
+    iIntros "H". iMod (FUpd_alloc with "H") as "H". auto.
     iModIntro. iExists _. iSplit; eauto. iPureIntro. typeclasses eauto.
   Qed.
 
@@ -160,12 +160,12 @@ Section STATE.
 
   Global Program Instance tgt_interp_as_persistent n {V} (l: Lens.t state_tgt V) (VI: V -> iProp): Persistent (tgt_interp_as n l VI).
 
-  Global Program Instance tgt_interp_as_acc A Es n {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
+  Global Program Instance tgt_interp_as_acc x A Es n {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
     IntoAcc
       (tgt_interp_as n l VI)
       (subseteq_def Es n (↑N_state_tgt)) True
-      (FUpd A Es (<[n:=(lookup_def Es n) ∖ E_state_tgt]>Es))
-      (FUpd A (<[n:=(lookup_def Es n) ∖ E_state_tgt]>Es) Es)
+      (FUpd x A Es (<[n:=(lookup_def Es n) ∖ E_state_tgt]>Es))
+      (FUpd x A (<[n:=(lookup_def Es n) ∖ E_state_tgt]>Es) Es)
       (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I
       (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I
       (fun _ => None).
@@ -185,11 +185,11 @@ Section STATE.
     iExists _. iFrame.
   Qed.
 
-  Lemma tgt_interp_as_id n A Es (SI: state_tgt -> iProp)
+  Lemma tgt_interp_as_id x A Es n (LT: n < x) (SI: state_tgt -> iProp)
         (IN: IInvIn n (∃ st, St_tgt st ** SI st)):
-    (∃ st, St_tgt st ** SI st) ⊢ FUpd A Es Es (tgt_interp_as n Lens.id (SI)).
+    (∃ st, St_tgt st ** SI st) ⊢ FUpd x A Es Es (tgt_interp_as n Lens.id (SI)).
   Proof.
-    iIntros "H". iPoseProof (FUpd_alloc with "H") as "> H".
+    iIntros "H". iPoseProof (FUpd_alloc with "H") as "> H". auto.
     iModIntro. iExists _. iSplit; eauto. iPureIntro. typeclasses eauto.
   Qed.
 
