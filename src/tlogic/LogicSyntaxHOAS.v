@@ -12,10 +12,10 @@ Module Syntax.
 
     Context `{type : Type}.
     Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{A : forall formula : Type, Type}.
+    Context `{A : Type}.
 
     Inductive t {form : Type} : Type :=
-      atom (a : A form) : t
+      atom (a : A) : t
     | lift (p : form) : t
     | sepconj (p q : t) : t
     | pure (P : Prop) : t
@@ -29,6 +29,11 @@ Module Syntax.
     | persistently (p : t) : t
     | plainly (p : t) : t
     | upd (p : t) : t
+    (* for invariant system *)
+    | owni (i : positive) (p : t)
+    | syn_inv_auth_l (ps : list (prod positive t))
+    (* Non strictly positive occurrence *)
+    (* | own_inv_auth (ps : gmap positive t) *)
     .
 
   End SYNTAX.
@@ -37,21 +42,13 @@ Module Syntax.
 
     Context `{type : Type}.
     Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{A : forall formula : Type, Type}.
-
-    (* Context `{As : (type -> Type) -> Type}. *)
-
-    (* Local Notation typing := (@Typ As). *)
-    (* Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))). *)
-
-    (* Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}. *)
-
-    TODO
+    Context `{As : (type -> Type) -> Type}.
 
     Fixpoint formula (n : index) : Type :=
       match n with
-      | O => @t type Typ A Empty_set
-      | S m => @t type Typ A (formula m)
+      | O => @t type Typ (As (Typ Empty_set)) Empty_set
+      | S m => @t type Typ (As (Typ (formula m))) (formula m)
+      (* | S m => @t type Typ (As (Typ (@t type Typ (As (Typ (formula m))) (formula m)))) (formula m) *)
       end.
 
   End FORMULA.
@@ -60,33 +57,59 @@ Module Syntax.
 
     Context `{type : Type}.
     Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{A : forall formula : Type, Type}.
+    Context `{As : (type -> Type) -> Type}.
+
+    Local Notation formulas := (@formula type Typ As).
 
     Context `{Σ : GRA.t}.
-    Context `{interp_atoms : forall (formula : Type), A formula -> iProp}.
+    Context `{@PCM.GRA.inG (IInvSetRA formulas) Σ}.
 
-    Fixpoint to_semantics_0 {form : Type} (sem : form -> iProp) (syn : @t type Typ A form) : iProp :=
+    Context `{interp_atoms_0 : As (Typ Empty_set) -> iProp}.
+    Context `{interp_atoms : forall (n : index), As (Typ (formulas n)) -> iProp}.
+
+    Fixpoint to_semantics_0 (syn : formulas O) : iProp :=
       match syn with
-      | atom a => @interp_atoms form a
-      | lift p => sem p
-      | sepconj p q => Sepconj (to_semantics_0 sem p) (to_semantics_0 sem q)
+      | atom a => interp_atoms_0 a
+      | lift p => ⌜False⌝%I
+      | sepconj p q => Sepconj (to_semantics_0 p) (to_semantics_0 q)
       | pure P => Pure P
-      | univ ty p => Univ (fun (x : @Typ form ty) => to_semantics_0 sem (p x))
-      | ex ty p => Ex (fun (x : @Typ form ty) => to_semantics_0 sem (p x))
-      | and p q => And (to_semantics_0 sem p) (to_semantics_0 sem q)
-      | or p q => Or (to_semantics_0 sem p) (to_semantics_0 sem q)
-      | impl p q => Impl (to_semantics_0 sem p) (to_semantics_0 sem q)
-      | wand p q => Wand (to_semantics_0 sem p) (to_semantics_0 sem q)
+      | univ ty p => Univ (fun (x : Typ Empty_set ty) => to_semantics_0 (p x))
+      | ex ty p => Ex (fun (x : Typ Empty_set ty) => to_semantics_0 (p x))
+      | and p q => And (to_semantics_0 p) (to_semantics_0 q)
+      | or p q => Or (to_semantics_0 p) (to_semantics_0 q)
+      | impl p q => Impl (to_semantics_0 p) (to_semantics_0 q)
+      | wand p q => Wand (to_semantics_0 p) (to_semantics_0 q)
       | empty => Emp
-      | persistently p => Persistently (to_semantics_0 sem p)
-      | plainly p => IProp.Plainly (to_semantics_0 sem p)
-      | upd p => Upd (to_semantics_0 sem p)
+      | persistently p => Persistently (to_semantics_0 p)
+      | plainly p => IProp.Plainly (to_semantics_0 p)
+      | upd p => Upd (to_semantics_0 p)
+      | owni i p => @OwnI Σ formulas _ O i p
+      | syn_inv_auth_l ps => @inv_auth Σ formulas _ O (list_to_map ps)
       end.
 
-    Fixpoint to_semantics (n : index) : @formula type Typ A n -> iProp :=
+    Fixpoint to_semantics n : formulas n -> iProp :=
       match n with
-      | O => @to_semantics_0 Empty_set (fun _ => ⌜False⌝%I)
-      | S m => @to_semantics_0 (formula m) (fun (p : formula m) => to_semantics m p)
+      | O => to_semantics_0
+      | S m =>
+          fix to_semantics_aux (syn : formulas (S m)) : iProp :=
+        match syn with
+        | atom a => interp_atoms m a
+        | lift p => to_semantics m p
+        | sepconj p q => Sepconj (to_semantics_aux p) (to_semantics_aux q)
+        | pure P => Pure P
+        | univ ty p => Univ (fun (x : Typ (formulas m) ty) => to_semantics_aux (p x))
+        | ex ty p => Ex (fun (x : Typ (formulas m) ty) => to_semantics_aux (p x))
+        | and p q => And (to_semantics_aux p) (to_semantics_aux q)
+        | or p q => Or (to_semantics_aux p) (to_semantics_aux q)
+        | impl p q => Impl (to_semantics_aux p) (to_semantics_aux q)
+        | wand p q => Wand (to_semantics_aux p) (to_semantics_aux q)
+        | empty => Emp
+        | persistently p => Persistently (to_semantics_aux p)
+        | plainly p => IProp.Plainly (to_semantics_aux p)
+        | upd p => Upd (to_semantics_aux p)
+        | owni i p => @OwnI Σ formulas _ (S m) i p
+        | syn_inv_auth_l ps => @inv_auth Σ formulas _ (S m) (list_to_map ps)
+        end
       end.
 
   End INTERP.
@@ -95,15 +118,18 @@ Module Syntax.
 
     Context `{type : Type}.
     Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{A : forall formula : Type, Type}.
+    Context `{As : (type -> Type) -> Type}.
+
+    Local Notation formulas := (@formula type Typ As).
 
     Context `{Σ : GRA.t}.
-    Context `{interp_atoms : forall (formula : Type), A formula -> iProp}.
+    Context `{@PCM.GRA.inG (IInvSetRA formulas) Σ}.
 
-    Local Notation Formulas := (fun (i : index) => @formula type Typ A i).
+    Context `{interp_atoms_0 : As (Typ Empty_set) -> iProp}.
+    Context `{interp_atoms : forall (n : index), As (Typ (formulas n)) -> iProp}.
 
-    Global Instance IISet : @IInvSet Σ Formulas :=
-      {| prop := @to_semantics type Typ A Σ interp_atoms |}.
+    Global Instance IISet : @IInvSet Σ formulas :=
+      {| prop := @to_semantics type Typ As Σ _ interp_atoms_0 interp_atoms |}.
 
   End INDEXED_INVSET.
 
@@ -111,23 +137,29 @@ Module Syntax.
 
     Context `{type : Type}.
     Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{A : forall formula : Type, Type}.
+    Context `{As : (type -> Type) -> Type}.
+
+    Local Notation formulas := (@formula type Typ As).
 
     Context `{Σ : GRA.t}.
-    Context `{interp_atoms : forall (formula : Type), A formula -> iProp}.
+    Context `{@PCM.GRA.inG (IInvSetRA formulas) Σ}.
 
-    Local Notation Formulas := (fun (i : index) => @formula type Typ A i).
+    Context `{interp_atoms_0 : As (Typ Empty_set) -> iProp}.
+    Context `{interp_atoms : forall (n : index), As (Typ (formulas n)) -> iProp}.
 
-    Global Program Instance IIIn (i : index) (p : Formulas i)
-      : @IInvIn Σ Formulas (IISet (interp_atoms:=interp_atoms)) i (@to_semantics type Typ A Σ interp_atoms i p) :=
+    Global Program Instance IIIn (i : index) (p : formulas i)
+      : @IInvIn Σ formulas (IISet (interp_atoms_0:=interp_atoms_0) (interp_atoms:=interp_atoms)) i (@to_semantics type Typ As Σ _ interp_atoms_0 interp_atoms i p) :=
       { inhabitant := p }.
     Next Obligation.
-      intros. simpl in *. done.
+      intros. simpl. done.
     Qed.
 
   End INV_IN.
 
 End Syntax.
+
+TODO
+  (* How about not allowing atoms to refer to syntax at all? *)
 
 Section TLOGIC.
 
