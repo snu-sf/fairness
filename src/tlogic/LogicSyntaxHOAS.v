@@ -8,6 +8,367 @@ Module Syntax.
 
   Local Notation index := nat.
 
+  Section SYNTAX.
+
+    Context `{type : Type}.
+    Context `{Typ : forall formula : Type, type -> Type}.
+    Context `{A : forall formula : Type, Type}.
+
+    Inductive t {form : Type} : Type :=
+      atom (a : A form) : t
+    | lift (p : form) : t
+    | sepconj (p q : t) : t
+    | pure (P : Prop) : t
+    | univ : forall (ty : type), (Typ form ty -> t) -> t
+    | ex : forall (ty : type), (Typ form ty -> t) -> t
+    | and (p q : t) : t
+    | or (p q : t) : t
+    | impl (p q : t) : t
+    | wand (p q : t) : t
+    | empty : t
+    | persistently (p : t) : t
+    | plainly (p : t) : t
+    | upd (p : t) : t
+    .
+
+  End SYNTAX.
+
+  Section FORMULA.
+
+    Context `{type : Type}.
+    Context `{Typ : forall formula : Type, type -> Type}.
+    Context `{A : forall formula : Type, Type}.
+
+    (* Context `{As : (type -> Type) -> Type}. *)
+
+    (* Local Notation typing := (@Typ As). *)
+    (* Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))). *)
+
+    (* Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}. *)
+
+    TODO
+
+    Fixpoint formula (n : index) : Type :=
+      match n with
+      | O => @t type Typ A Empty_set
+      | S m => @t type Typ A (formula m)
+      end.
+
+  End FORMULA.
+
+  Section INTERP.
+
+    Context `{type : Type}.
+    Context `{Typ : forall formula : Type, type -> Type}.
+    Context `{A : forall formula : Type, Type}.
+
+    Context `{Σ : GRA.t}.
+    Context `{interp_atoms : forall (formula : Type), A formula -> iProp}.
+
+    Fixpoint to_semantics_0 {form : Type} (sem : form -> iProp) (syn : @t type Typ A form) : iProp :=
+      match syn with
+      | atom a => @interp_atoms form a
+      | lift p => sem p
+      | sepconj p q => Sepconj (to_semantics_0 sem p) (to_semantics_0 sem q)
+      | pure P => Pure P
+      | univ ty p => Univ (fun (x : @Typ form ty) => to_semantics_0 sem (p x))
+      | ex ty p => Ex (fun (x : @Typ form ty) => to_semantics_0 sem (p x))
+      | and p q => And (to_semantics_0 sem p) (to_semantics_0 sem q)
+      | or p q => Or (to_semantics_0 sem p) (to_semantics_0 sem q)
+      | impl p q => Impl (to_semantics_0 sem p) (to_semantics_0 sem q)
+      | wand p q => Wand (to_semantics_0 sem p) (to_semantics_0 sem q)
+      | empty => Emp
+      | persistently p => Persistently (to_semantics_0 sem p)
+      | plainly p => IProp.Plainly (to_semantics_0 sem p)
+      | upd p => Upd (to_semantics_0 sem p)
+      end.
+
+    Fixpoint to_semantics (n : index) : @formula type Typ A n -> iProp :=
+      match n with
+      | O => @to_semantics_0 Empty_set (fun _ => ⌜False⌝%I)
+      | S m => @to_semantics_0 (formula m) (fun (p : formula m) => to_semantics m p)
+      end.
+
+  End INTERP.
+
+  Section INDEXED_INVSET.
+
+    Context `{type : Type}.
+    Context `{Typ : forall formula : Type, type -> Type}.
+    Context `{A : forall formula : Type, Type}.
+
+    Context `{Σ : GRA.t}.
+    Context `{interp_atoms : forall (formula : Type), A formula -> iProp}.
+
+    Local Notation Formulas := (fun (i : index) => @formula type Typ A i).
+
+    Global Instance IISet : @IInvSet Σ Formulas :=
+      {| prop := @to_semantics type Typ A Σ interp_atoms |}.
+
+  End INDEXED_INVSET.
+
+  Section INV_IN.
+
+    Context `{type : Type}.
+    Context `{Typ : forall formula : Type, type -> Type}.
+    Context `{A : forall formula : Type, Type}.
+
+    Context `{Σ : GRA.t}.
+    Context `{interp_atoms : forall (formula : Type), A formula -> iProp}.
+
+    Local Notation Formulas := (fun (i : index) => @formula type Typ A i).
+
+    Global Program Instance IIIn (i : index) (p : Formulas i)
+      : @IInvIn Σ Formulas (IISet (interp_atoms:=interp_atoms)) i (@to_semantics type Typ A Σ interp_atoms i p) :=
+      { inhabitant := p }.
+    Next Obligation.
+      intros. simpl in *. done.
+    Qed.
+
+  End INV_IN.
+
+End Syntax.
+
+Section TLOGIC.
+
+  Local Notation index := nat.
+
+  Section TYPE.
+
+    Inductive type : Type :=
+    | baseT (t : Type) : type
+    | formulaT : type
+    | funT : type -> type -> type
+    | pgmapT : type -> type.
+
+  End TYPE.
+
+  Section INTERP_TYPE.
+
+    Fixpoint Typ {form : Type} (ty : type) : Type :=
+      match ty with
+      | baseT b => b
+      | formulaT => form
+      | funT ty1 ty2 => (@Typ form ty1 -> @Typ form ty2)
+      | pgmapT ty1 => gmap positive (@Typ form ty1)
+      end.
+
+  End INTERP_TYPE.
+
+  Section FORMULA.
+
+    Context `{A : forall formula : Type, Type}.
+
+    Definition Formula : index -> Type :=
+      @Syntax.formula type (@Typ) A.
+
+  End FORMULA.
+
+  Section INTERP.
+
+    Context `{A : forall formula : Type, Type}.
+    Context `{Σ : GRA.t}.
+    Context `{interp_atoms : forall (formula : Type), A formula -> iProp}.
+
+    Definition formula_sem : forall n, Formula n -> iProp :=
+      @Syntax.to_semantics type (@Typ) A Σ interp_atoms.
+
+  End INTERP.
+
+End TLOGIC.
+
+Section Atom.
+
+  Context `{Σ : GRA.t}.
+
+  Class Atom :=
+    { T : Type
+    ; interp : T -> iProp
+    }.
+
+End Atom.
+
+Module Atoms.
+
+  Section ATOMS.
+
+    Context `{Σ : GRA.t}.
+
+    Inductive t {form : Type} : Type :=
+    | own {A : Atom} (a : A.(T))
+    | owni (i : positive) (p : form)
+    | syn_inv_auth_l (ps : list (prod positive form))
+    .
+
+  End ATOMS.
+
+  Section INTERP.
+
+    Context `{Σ : PCM.GRA.t}.
+
+    Local Notation Formulas := (@Formula (@t Σ)).
+
+    Context `{@PCM.GRA.inG (IInvSetRA Formulas) Σ}.
+    (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *)
+    (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *)
+
+    Definition to_semantics {form : Type} (a : @t Σ form) : iProp :=
+      match a with
+      | @own _ _ A r => A.(interp) r
+      | owni i p => @OwnI Σ Formulas _ n i p
+      | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps)
+      end.
+    Context `{interp_atoms : forall (formula : Type), A formula -> iProp}.
+
+  End INTERP.
+
+End Atoms.
+
+Section TL.
+
+  Context `{Σ : PCM.GRA.t}.
+
+  Local Notation Formulas := (@Formula (@Atoms.t Σ)).
+
+  Context `{@PCM.GRA.inG (IInvSetRA Formulas) Σ}.
+  (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *)
+  (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *)
+
+  Local Notation AtomSem := (@Atoms.to_semantics Σ _).
+  (* Local Notation AtomSem := (@Atoms.to_semantics Σ _ _ _). *)
+  Local Notation SynSem := (@formula_sem (@Atoms.t Σ) Σ AtomSem).
+
+  Global Instance SynIISet : @IInvSet Σ Formulas := (@Syntax.IISet Σ (@Atoms.t Σ) AtomSem).
+
+
+
+
+End TL.
+
+
+
+
+
+
+
+  Section RED.
+
+    Context `{Σ : GRA.t}.
+    Context `{As : (type -> Type) -> Type}.
+    (* Context `{T : Type}. *)
+    (* Context `{TSem : T -> Type}. *)
+    (* Context `{As : (@type T -> Type) -> Type}. *)
+
+    Local Notation typing := (@Typ As).
+    Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))).
+    (* Local Notation typing := (@Typ T TSem As). *)
+    (* Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))). *)
+
+    Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
+
+    Local Notation Sem := (fun i p => @to_semantics Σ As interp_atoms i p).
+    (* Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p). *)
+
+    Lemma to_semantics_empty
+          n
+      :
+      Sem n empty = emp%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_sepconj
+          n p q
+      :
+      Sem n (sepconj p q) = ((Sem n p) ∗ (Sem n q))%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_or
+          n p q
+      :
+      Sem n (or p q) = ((Sem n p) ∨ (Sem n q))%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_atom
+          n a
+      :
+      Sem n (atom a) = interp_atoms n a.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_ex
+          n ty f
+      :
+      Sem n (ex ty f) = (∃ (x : typing n ty), Sem n (f x))%I.
+    Proof.
+      induction n; ss.
+    Qed.
+
+    Lemma to_semantics_red_lift
+          n p
+      :
+      Sem (S n) (lift p) = Sem n p.
+    Proof.
+      ss.
+    Qed.
+
+  End RED.
+
+  Section GMAP.
+
+    Context `{Σ : GRA.t}.
+    Context `{As : (type -> Type) -> Type}.
+
+    Local Notation typing := (@Typ As).
+    Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))).
+
+    Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}.
+
+    (* Maybe we can make Syntax as an instance of bi. *)
+    Definition star_gmap
+               (n : index) (I : typing (S n) (pgmapT formulaT))
+               (f : positive -> Formulas n -> Formulas n)
+      : Formulas n :=
+      fold_right (fun hd tl => @sepconj (typing n) (As (typing n)) (uncurry f hd) tl) empty (map_to_list I).
+
+
+    Local Notation Sem := (fun i p => @to_semantics Σ As interp_atoms i p).
+
+    Lemma star_gmap_iProp
+          n I f
+      :
+      Sem n (star_gmap n I f) =
+        ([∗ map] i ↦ p ∈ I, Sem n (f i p))%I.
+    Proof.
+      ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
+      unfold star_gmap. ss. remember (map_to_list I) as L.
+      clear HeqL I. induction L.
+      { ss. apply to_semantics_empty. }
+      ss. rewrite to_semantics_red_sepconj. rewrite IHL. f_equal.
+      destruct a. ss.
+    Qed.
+
+  End GMAP.
+
+
+
+
+
+
+
+
+
+
+(* Old version *)
+Module Syntax.
+
+  Local Notation index := nat.
+
   Section TYPE.
 
     (* Context `{T : Type}. *)
