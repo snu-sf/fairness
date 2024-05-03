@@ -9,236 +9,371 @@ From iris Require base_logic.lib.invariants.
 
 Local Notation index := nat.
 
-Section Atom.
+Section TLOGIC.
 
-  Context `{Σ : GRA.t}.
+  Local Notation index := nat.
 
-  Class Atom :=
-    { T : Type
-    ; interp : T -> iProp
-    }.
+  Section TYPE.
 
-End Atom.
+    Inductive type : Type :=
+    | baseT (t : Type) : type
+    | formulaT : type
+    | funT : type -> type -> type
+    | pgmapT : type -> type.
+
+  End TYPE.
+
+  Section INTERP_TYPE.
+
+    Fixpoint Typ {form : Type} (ty : type) : Type :=
+      match ty with
+      | baseT b => b
+      | formulaT => form
+      | funT ty1 ty2 => (@Typ form ty1 -> @Typ form ty2)
+      | pgmapT ty1 => gmap positive (@Typ form ty1)
+      end.
+
+  End INTERP_TYPE.
+
+  Section FORMULA.
+
+    Context `{As : forall formula : Type, Type}.
+
+    Definition formula : index -> Type :=
+      @Syntax.formula type (@Typ) As.
+
+  End FORMULA.
+
+  Section INTERP.
+
+    Context `{As : forall formula : Type, Type}.
+
+    Context `{Σ : GRA.t}.
+    Context `{interp_atoms_0 : As Empty_set -> iProp}.
+    Context `{interp_atoms : forall (n : index), As (@formula As n) -> iProp}.
+
+    Definition formula_sem : forall n, formula n -> iProp :=
+      @Syntax.to_semantics type (@Typ) As Σ interp_atoms_0 interp_atoms.
+
+  End INTERP.
+
+End TLOGIC.
 
 Module Atoms.
 
   Section ATOMS.
 
-    Context `{Σ : GRA.t}.
-
-    Inductive t {Typ : Syntax.type -> Type} : Type :=
-    | own {A : Atom} (a : A.(T))
-    (* | ownes (Es : coPsets) *)
-    (* | inv (N : namespace) (p : @Syntax.t Typ (@t Typ)) *)
-    (* | wsats *)
-    (* | owne (E : coPset) *)
-    (* | ownd (D : gset positive) *)
-    | owni (i : positive) (p : @Syntax.t Typ (@t Typ))
-    | syn_inv_auth_l (ps : list (prod positive (@Syntax.t Typ (@t Typ))))
-    (* | syn_wsat_auth (X : gset index) *)
-    (* Non strictly positive occurrence *)
-    (* | own_inv_auth (ps : gmap positive (@Syntax.t Typ (@t Typ))) *)
+    Inductive t {form : Type} : Type :=
+    (* | own {A : Atom} (a : A.(T)) *)
+    | owni (i : positive) (p : @Syntax.t type (@Typ) (@t form) form)
+    (* | syn_inv_auth_l (ps : list (prod positive form)) *)
     .
 
   End ATOMS.
 
   Section INTERP.
 
+    Local Notation Formula := (@formula (@t)).
+
     Context `{Σ : PCM.GRA.t}.
 
-    Local Notation typing := (@Syntax.Typ (@t Σ)).
-    Local Notation Formulas := (fun (i : index) => @Syntax.t (typing i) (@t Σ (typing i))).
+    (* Local Notation Formula := (@formula (@t Σ)). *)
 
-    Context `{@PCM.GRA.inG (IInvSetRA Formulas) Σ}.
+    Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
     (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *)
     (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *)
 
-    Definition to_semantics (n : index) (a : @t Σ (typing n)) : iProp :=
+    (* Definition to_semantics_0 (a : @t Σ Empty_set) : iProp := *)
+    Definition to_semantics_0 (a : @t Empty_set) : iProp :=
       match a with
-      | @own _ _ A r => A.(interp) r
-      (* | ownes Es => OwnEs Es *)
-      (* | inv N p => @IndexedInvariants.inv Σ Formulas  *)
-      (* | owne E => OwnE n E *)
-      (* | ownd D => OwnD n D *)
-      | owni i p => @OwnI Σ Formulas _ n i p
-      | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps)
-      (* | syn_wsat_auth X => wsat_auth X *)
+      (* | @own _ _ A r => A.(interp) r *)
+      | owni i p => @OwnI Σ Formula _ O i p
+      (* | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *)
+      end.
+
+    (* Definition to_semantics n (a : @t Σ (Formula n)) : iProp := *)
+    Definition to_semantics n (a : @t (Formula n)) : iProp :=
+      match a with
+      (* | @own _ _ A r => A.(interp) r *)
+      | owni i p => @OwnI Σ Formula _ (S n) i p
+      (* | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *)
       end.
 
   End INTERP.
 
 End Atoms.
 
-Section WSAT.
+Section TL.
+
+  Local Notation index := nat.
+
+  Definition Formula := (@formula (@Atoms.t)).
 
   Context `{Σ : PCM.GRA.t}.
 
-  Local Notation typing := (@Syntax.Typ (@Atoms.t Σ)).
-  Local Notation Formulas := (fun (n : index) => @Syntax.t (typing n) (@Atoms.t Σ (typing n))).
+  (* Definition Formula := (@formula (@Atoms.t Σ)). *)
 
-  Context `{@PCM.GRA.inG (IInvSetRA Formulas) Σ}.
-  (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *)
-  (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *)
+  Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
 
+  Local Notation AtomSem0 := (@Atoms.to_semantics_0 Σ _).
   Local Notation AtomSem := (@Atoms.to_semantics Σ _).
-  (* Local Notation AtomSem := (@Atoms.to_semantics Σ _ _ _). *)
-  Local Notation SynSem := (@Syntax.to_semantics Σ (@Atoms.t Σ) AtomSem).
+  Local Notation SynSem := (@formula_sem (@Atoms.t) Σ AtomSem0 AtomSem).
+  (* Local Notation SynSem := (@formula_sem (@Atoms.t Σ) Σ AtomSem0 AtomSem). *)
 
-  Global Instance SynIISet : @IInvSet Σ Formulas := (@Syntax.IISet Σ (@Atoms.t Σ) AtomSem).
+  Global Instance SynIISet : @IInvSet Σ Formula :=
+    (@Syntax.IISet _ _ _ Σ AtomSem0 AtomSem).
+
+  Global Instance IIIn (i : index) (p : Formula i) : @IInvIn Σ Formula SynIISet i (SynSem i p) :=
+    @Syntax.IIIn _ _ _ Σ AtomSem0 AtomSem i p.
+
+End TL.
+
+Section TEST.
+
+  Context `{Σ : GRA.t}.
+
+  Check (Syntax.atom (Atoms.owni xH (Syntax.ex formulaT (fun (p : Formula 2) => Syntax.pure (p = Syntax.empty)) : Formula 3))) : Formula 3.
+  Check (Syntax.atom (Atoms.owni xH (Syntax.ex formulaT (fun p => Syntax.pure (p = Syntax.empty))))) : Formula 3.
+  Fail Check (Syntax.atom (Atoms.owni xH (Syntax.ex formulaT (fun (p : Formula 2) => Syntax.pure (p = Syntax.empty)) : Formula 2))) : Formula 3.
+  Fail Check (Syntax.atom (Atoms.owni xH (Syntax.ex formulaT (fun (p : Formula 1) => Syntax.pure (p = Syntax.empty))))) : Formula 3.
+  Fail Check (Syntax.atom (Atoms.owni xH (Syntax.ex formulaT (fun (p : Formula 0) => Syntax.pure (p = Syntax.empty))))) : Formula 3.
+
+End TEST.
 
 
-  Definition syn_inv_auth n (ps : gmap positive (Formulas n)) : @Atoms.t Σ (typing n) :=
-    Atoms.syn_inv_auth_l (map_to_list ps).
 
-  Lemma syn_inv_auth_iProp
-        n ps
-    :
-    Atoms.to_semantics n (syn_inv_auth n ps) = inv_auth n ps.
-  Proof.
-    ss. rewrite list_to_map_to_list. ss.
-  Qed.
+(* Old *)
 
-  Import Atoms Syntax.
+(* Section Atom. *)
 
-  Definition syn_inv_satall_fun n : positive -> (Formulas n) -> (Formulas n) :=
-    fun i p => or (sepconj p (atom (ownd {[i]}))) (atom (owne {[i]})).
+(*   Context `{Σ : GRA.t}. *)
 
-  Definition syn_inv_satall n (ps : gmap positive (Formulas n)) : Formulas n :=
-    @star_gmap (@Atoms.t Σ) n ps (syn_inv_satall_fun n).
+(*   Class Atom := *)
+(*     { T : Type *)
+(*     ; interp : T -> iProp *)
+(*     }. *)
 
-  Lemma syn_inv_satall_fun_iProp
-        n i p
-    :
-    SynSem n (syn_inv_satall_fun n i p) = (((SynSem n p) ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I.
-  Proof.
-    unfold syn_inv_satall_fun. rewrite to_semantics_red_or. rewrite to_semantics_red_sepconj. do 2 f_equal.
-    all: rewrite to_semantics_red_atom; ss.
-  Qed.
+(* End Atom. *)
 
-  Lemma syn_inv_satall_iProp
-        n ps
-    :
-    SynSem n (syn_inv_satall n ps) = inv_satall n ps.
-  Proof.
-    ss. unfold syn_inv_satall. rewrite star_gmap_iProp. unfold inv_satall.
-    f_equal. extensionalities i p. unfold syn_inv_satall_fun.
-    rewrite to_semantics_red_or. rewrite to_semantics_red_sepconj. rewrite ! to_semantics_red_atom.
-    ss.
-  Qed.
+(* Module Atoms. *)
 
-  Definition syn_wsat n : Formulas (S n) :=
-    ex (pgmapT formulaT) (fun I => lift (sepconj (atom (syn_inv_auth n I)) (syn_inv_satall n I))).
+(*   Section ATOMS. *)
 
-  Lemma syn_wsat_iProp
-        n
-    :
-    SynSem (S n) (syn_wsat n) = wsat n.
-  Proof.
-    unfold syn_wsat, wsat. rewrite to_semantics_red_ex. f_equal. extensionalities I.
-    rewrite to_semantics_red_lift. rewrite to_semantics_red_sepconj.
-    rewrite to_semantics_red_atom. rewrite syn_inv_auth_iProp. rewrite syn_inv_satall_iProp.
-    ss.
-  Qed.
+(*     Context `{Σ : GRA.t}. *)
 
-End WSAT.
+(*     Inductive t {Typ : Syntax.type -> Type} : Type := *)
+(*     | own {A : Atom} (a : A.(T)) *)
+(*     (* | ownes (Es : coPsets) *) *)
+(*     (* | inv (N : namespace) (p : @Syntax.t Typ (@t Typ)) *) *)
+(*     (* | wsats *) *)
+(*     (* | owne (E : coPset) *) *)
+(*     (* | ownd (D : gset positive) *) *)
+(*     | owni (i : positive) (p : @Syntax.t Typ (@t Typ)) *)
+(*     | syn_inv_auth_l (ps : list (prod positive (@Syntax.t Typ (@t Typ)))) *)
+(*     (* | syn_wsat_auth (X : gset index) *) *)
+(*     (* Non strictly positive occurrence *) *)
+(*     (* | own_inv_auth (ps : gmap positive (@Syntax.t Typ (@t Typ))) *) *)
+(*     . *)
 
-TODO
-Section FUPD.
+(*   End ATOMS. *)
+
+(*   Section INTERP. *)
+
+(*     Context `{Σ : PCM.GRA.t}. *)
+
+(*     Local Notation typing := (@Syntax.Typ (@t Σ)). *)
+(*     Local Notation Formulas := (fun (i : index) => @Syntax.t (typing i) (@t Σ (typing i))). *)
+
+(*     Context `{@PCM.GRA.inG (IInvSetRA Formulas) Σ}. *)
+(*     (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *) *)
+(*     (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *) *)
+
+(*     Definition to_semantics (n : index) (a : @t Σ (typing n)) : iProp := *)
+(*       match a with *)
+(*       | @own _ _ A r => A.(interp) r *)
+(*       (* | ownes Es => OwnEs Es *) *)
+(*       (* | inv N p => @IndexedInvariants.inv Σ Formulas  *) *)
+(*       (* | owne E => OwnE n E *) *)
+(*       (* | ownd D => OwnD n D *) *)
+(*       | owni i p => @OwnI Σ Formulas _ n i p *)
+(*       | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *)
+(*       (* | syn_wsat_auth X => wsat_auth X *) *)
+(*       end. *)
+
+(*   End INTERP. *)
+
+(* End Atoms. *)
+
+(* Section WSAT. *)
+
+(*   Context `{Σ : PCM.GRA.t}. *)
+
+(*   Local Notation typing := (@Syntax.Typ (@Atoms.t Σ)). *)
+(*   Local Notation Formulas := (fun (n : index) => @Syntax.t (typing n) (@Atoms.t Σ (typing n))). *)
+
+(*   Context `{@PCM.GRA.inG (IInvSetRA Formulas) Σ}. *)
+(*   (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *) *)
+(*   (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *) *)
+
+(*   Local Notation AtomSem := (@Atoms.to_semantics Σ _). *)
+(*   (* Local Notation AtomSem := (@Atoms.to_semantics Σ _ _ _). *) *)
+(*   Local Notation SynSem := (@Syntax.to_semantics Σ (@Atoms.t Σ) AtomSem). *)
+
+(*   Global Instance SynIISet : @IInvSet Σ Formulas := (@Syntax.IISet Σ (@Atoms.t Σ) AtomSem). *)
+
+
+(*   Definition syn_inv_auth n (ps : gmap positive (Formulas n)) : @Atoms.t Σ (typing n) := *)
+(*     Atoms.syn_inv_auth_l (map_to_list ps). *)
+
+(*   Lemma syn_inv_auth_iProp *)
+(*         n ps *)
+(*     : *)
+(*     Atoms.to_semantics n (syn_inv_auth n ps) = inv_auth n ps. *)
+(*   Proof. *)
+(*     ss. rewrite list_to_map_to_list. ss. *)
+(*   Qed. *)
+
+(*   Import Atoms Syntax. *)
+
+(*   Definition syn_inv_satall_fun n : positive -> (Formulas n) -> (Formulas n) := *)
+(*     fun i p => or (sepconj p (atom (ownd {[i]}))) (atom (owne {[i]})). *)
+
+(*   Definition syn_inv_satall n (ps : gmap positive (Formulas n)) : Formulas n := *)
+(*     @star_gmap (@Atoms.t Σ) n ps (syn_inv_satall_fun n). *)
+
+(*   Lemma syn_inv_satall_fun_iProp *)
+(*         n i p *)
+(*     : *)
+(*     SynSem n (syn_inv_satall_fun n i p) = (((SynSem n p) ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I. *)
+(*   Proof. *)
+(*     unfold syn_inv_satall_fun. rewrite to_semantics_red_or. rewrite to_semantics_red_sepconj. do 2 f_equal. *)
+(*     all: rewrite to_semantics_red_atom; ss. *)
+(*   Qed. *)
+
+(*   Lemma syn_inv_satall_iProp *)
+(*         n ps *)
+(*     : *)
+(*     SynSem n (syn_inv_satall n ps) = inv_satall n ps. *)
+(*   Proof. *)
+(*     ss. unfold syn_inv_satall. rewrite star_gmap_iProp. unfold inv_satall. *)
+(*     f_equal. extensionalities i p. unfold syn_inv_satall_fun. *)
+(*     rewrite to_semantics_red_or. rewrite to_semantics_red_sepconj. rewrite ! to_semantics_red_atom. *)
+(*     ss. *)
+(*   Qed. *)
+
+(*   Definition syn_wsat n : Formulas (S n) := *)
+(*     ex (pgmapT formulaT) (fun I => lift (sepconj (atom (syn_inv_auth n I)) (syn_inv_satall n I))). *)
+
+(*   Lemma syn_wsat_iProp *)
+(*         n *)
+(*     : *)
+(*     SynSem (S n) (syn_wsat n) = wsat n. *)
+(*   Proof. *)
+(*     unfold syn_wsat, wsat. rewrite to_semantics_red_ex. f_equal. extensionalities I. *)
+(*     rewrite to_semantics_red_lift. rewrite to_semantics_red_sepconj. *)
+(*     rewrite to_semantics_red_atom. rewrite syn_inv_auth_iProp. rewrite syn_inv_satall_iProp. *)
+(*     ss. *)
+(*   Qed. *)
+
+(* End WSAT. *)
+
+(* TODO *)
+(* Section FUPD. *)
 
   
 
-End FUPD.
+(* End FUPD. *)
 
 
-  Context `{Σ : GRA.t}.
-  Context `{Vars : index -> Type}.
-  Context `{Invs : @IInvSet Σ Vars}.
-  (* Context `{Invs : @InvSet Σ (Vars n)}. *)
-  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
-  Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
-  Context `{@GRA.inG (IInvSetRA Vars) Σ}.
+(*   Context `{Σ : GRA.t}. *)
+(*   Context `{Vars : index -> Type}. *)
+(*   Context `{Invs : @IInvSet Σ Vars}. *)
+(*   (* Context `{Invs : @InvSet Σ (Vars n)}. *) *)
+(*   Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}. *)
+(*   Context `{@GRA.inG (index ==> Gset.t)%ra Σ}. *)
+(*   Context `{@GRA.inG (IInvSetRA Vars) Σ}. *)
 
-  Variable n : index.
+(*   Variable n : index. *)
 
-  Local Notation Var := (Vars n).
+(*   Local Notation Var := (Vars n). *)
 
-  Definition inv (N : namespace) P :=
-    (∃ p, ∃ i, ⌜prop n p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I.
+(*   Definition inv (N : namespace) P := *)
+(*     (∃ p, ∃ i, ⌜prop n p = P⌝ ∧ ⌜i ∈ (↑N : coPset)⌝ ∧ OwnI n i p)%I. *)
 
-  Definition FUpd (A : iProp) (E1 E2 : coPset) (P : iProp) : iProp :=
-    (* A ∗ wsat (prop:=prop n) n ∗ OwnE n E1 -∗ #=> (A ∗ wsat (prop:=prop n) n ∗ OwnE n E2 ∗ P). *)
-    A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P).
-
-
-  Section INDEXED_INVSET.
-
-    Context `{Σ : GRA.t}.
-    Context `{T : Type}.
-    Context `{TSem : T -> Type}.
-
-    Local Notation typing := (@Syntax.Typ T TSem (@t T)).
-    Local Notation As := (fun (i : index) => @t T (typing i)).
-    Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (As i)).
-
-    Context `{@GRA.inG (IInvSetRA Formulas) Σ}.
-
-    Global Instance IISet : @IInvSet Σ As :=
-      {| prop := @to_semantics Σ T TSem _ |}.
-
-  End INDEXED_INVSET.
-
-  Section TEST.
-
-    Context `{Σ : GRA.t}.
-
-    Local Notation T := Base.t.
-    Local Notation TSem := Base.sem.
-
-    Local Notation typing := (@Syntax.Typ T TSem (@t T)).
-    Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (@t T (typing i))).
-
-    Context `{@GRA.inG (IInvSetRA Formulas) Σ}.
-
-    Global Instance testIISet : IInvSet Formulas :=
-      @Syntax.IISet Σ T TSem (@t T) IISet.
-
-    Import Base.
-    Import Syntax.
-
-    Definition wsat n : Formulas (S n) :=
-      ex formulaT (fun p => ex (baseT positiveT) (fun i => sepconj (lift p) (lift (atom (owni n i p))))).
-
-    Lemma wsat_test1 :
-      prop 3 (wsat 2) =
-        (∃ (p : Formulas 2) (i : positive), (prop 2 p) ∗ (OwnI 2 i p))%I.
-    Proof.
-      ss.
-    Qed.
-
-  End TEST.
+(*   Definition FUpd (A : iProp) (E1 E2 : coPset) (P : iProp) : iProp := *)
+(*     (* A ∗ wsat (prop:=prop n) n ∗ OwnE n E1 -∗ #=> (A ∗ wsat (prop:=prop n) n ∗ OwnE n E2 ∗ P). *) *)
+(*     A ∗ wsat n ∗ OwnE n E1 -∗ #=> (A ∗ wsat n ∗ OwnE n E2 ∗ P). *)
 
 
-  Section TEST.
+(*   Section INDEXED_INVSET. *)
 
-    Import Syntax.
+(*     Context `{Σ : GRA.t}. *)
+(*     Context `{T : Type}. *)
+(*     Context `{TSem : T -> Type}. *)
 
-    Context `{TSem : T -> Type}.
+(*     Local Notation typing := (@Syntax.Typ T TSem (@t T)). *)
+(*     Local Notation As := (fun (i : index) => @t T (typing i)). *)
+(*     Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (As i)). *)
 
-    Local Notation t := Atom.t.
+(*     Context `{@GRA.inG (IInvSetRA Formulas) Σ}. *)
+
+(*     Global Instance IISet : @IInvSet Σ As := *)
+(*       {| prop := @to_semantics Σ T TSem _ |}. *)
+
+(*   End INDEXED_INVSET. *)
+
+(*   Section TEST. *)
+
+(*     Context `{Σ : GRA.t}. *)
+
+(*     Local Notation T := Base.t. *)
+(*     Local Notation TSem := Base.sem. *)
+
+(*     Local Notation typing := (@Syntax.Typ T TSem (@t T)). *)
+(*     Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (@t T (typing i))). *)
+
+(*     Context `{@GRA.inG (IInvSetRA Formulas) Σ}. *)
+
+(*     Global Instance testIISet : IInvSet Formulas := *)
+(*       @Syntax.IISet Σ T TSem (@t T) IISet. *)
+
+(*     Import Base. *)
+(*     Import Syntax. *)
+
+(*     Definition wsat n : Formulas (S n) := *)
+(*       ex formulaT (fun p => ex (baseT positiveT) (fun i => sepconj (lift p) (lift (atom (owni n i p))))). *)
+
+(*     Lemma wsat_test1 : *)
+(*       prop 3 (wsat 2) = *)
+(*         (∃ (p : Formulas 2) (i : positive), (prop 2 p) ∗ (OwnI 2 i p))%I. *)
+(*     Proof. *)
+(*       ss. *)
+(*     Qed. *)
+
+(*   End TEST. *)
 
 
-    Local Notation typing := (@Syntax.Typ T TSem t).
-    Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (t (typing i))).
+(*   Section TEST. *)
 
-    Definition test1 : Formulas 3 :=
-      atom (owni 4 xH (atom (owni 2 xH empty))).
+(*     Import Syntax. *)
 
-    Definition test_OwnI (n : index) (i : positive) (p : Formulas n) : t (typing n) :=
-      @owni (typing n) n i p.
+(*     Context `{TSem : T -> Type}. *)
 
-    (* Set Printing All. *)
+(*     Local Notation t := Atom.t. *)
 
-  End TEST.
+
+(*     Local Notation typing := (@Syntax.Typ T TSem t). *)
+(*     Local Notation Formulas := (fun (i : index) => @Syntax.t T (typing i) (t (typing i))). *)
+
+(*     Definition test1 : Formulas 3 := *)
+(*       atom (owni 4 xH (atom (owni 2 xH empty))). *)
+
+(*     Definition test_OwnI (n : index) (i : positive) (p : Formulas n) : t (typing n) := *)
+(*       @owni (typing n) n i p. *)
+
+(*     (* Set Printing All. *) *)
+
+(*   End TEST. *)
 
 (* Module Atom. *)
 
