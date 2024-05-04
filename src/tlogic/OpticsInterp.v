@@ -104,7 +104,7 @@ Section STATE.
   Global Program Instance src_interp_as_acc x A Es n {V} (l: Lens.t state_src V) (VI: V -> iProp):
     IntoAcc
       (src_interp_as n l VI)
-      (subseteq_def Es n (↑N_state_src)) True
+      (n < x /\ subseteq_def Es n (↑N_state_src)) True
       (FUpd x A Es (<[n := (lookup_def Es n) ∖ E_state_src]>Es))
       (FUpd x A (<[n := (lookup_def Es n) ∖ E_state_src]>Es) Es)
       (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ VI vw)%I
@@ -163,7 +163,7 @@ Section STATE.
   Global Program Instance tgt_interp_as_acc x A Es n {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
     IntoAcc
       (tgt_interp_as n l VI)
-      (subseteq_def Es n (↑N_state_tgt)) True
+      (n < x /\ subseteq_def Es n (↑N_state_tgt)) True
       (FUpd x A Es (<[n:=(lookup_def Es n) ∖ E_state_tgt]>Es))
       (FUpd x A (<[n:=(lookup_def Es n) ∖ E_state_tgt]>Es) Es)
       (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I
