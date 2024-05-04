@@ -4,7 +4,8 @@ COQTHEORIES  := \
 	src/lib/*.v \
 	src/semantics/*.v \
 	src/simulation/*.v \
-	src/logic/*.v \
+	src/ra/*.v \
+	src/foslogic/*.v \
 	src/example/*.v \
 	src/tlogic/*.v \
 
@@ -22,7 +23,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-Q src/lib $(COQMODULE)"; \
 	 echo "-Q src/semantics $(COQMODULE)"; \
 	 echo "-Q src/simulation $(COQMODULE)"; \
-	 echo "-Q src/logic $(COQMODULE)"; \
+	 echo "-Q src/ra $(COQMODULE)"; \
+	 echo "-Q src/foslogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
