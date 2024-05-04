@@ -6,7 +6,8 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
 Require Import Program.
-From Fairness Require Import FairnessRA.
+From Fairness Require Import FairnessRA IndexedInvariants.
+From Ordinal Require Export Ordinal Arithmetic Hessenberg ClassicalHessenberg.
 
 Set Implicit Arguments.
 
@@ -240,7 +241,6 @@ Module CounterRA.
 End CounterRA.
 
 
-From Ordinal Require Export Ordinal Arithmetic Hessenberg ClassicalHessenberg.
 
 Lemma ord_mult_split (n: nat)
   :
@@ -654,9 +654,18 @@ Module ObligationRA.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
     Context `{@GRA.inG (Region.t (S * nat * Ord.t * Qp * nat)) Σ}.
 
+    Local Notation index := nat.
+    Context `{Vars : index -> Type}.
+    Context `{Invs : @IInvSet Σ Vars}.
+    (* Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}. *)
+    (* Context `{@GRA.inG (index ==> Gset.t)%ra Σ}. *)
+    (* Context `{@GRA.inG (IInvSetRA Vars) Σ}. *)
+
     Section PRISM.
     Variable (Id: Type).
     Variable (p: Prism.t S Id).
+
+    (* TODO *)
 
     Definition arrow: (S * nat * Ord.t * Qp * nat) -> iProp :=
       fun '(i, k, c, q, x) =>
@@ -1779,4 +1788,15 @@ Module ObligationRA.
       i. iIntros "WHITE". iApply FairRA.white_prism_id_rev. auto.
     Qed.
   End TARGET.
+
+(* IUpd_sub_mon: ∀ (Σ : GRA.t) (P Q R : iProp), SubIProp P Q ⊢ (#=( P )=> R) =( Q )=∗ R *)
+    (* Global Instance subiprop_elim_upd `{GRA.t} I J P Q b *)
+    (*   : *)
+    (*   ElimModal True b false ((SubIProp I J) ∗ #=(I)=> P) P (#=(J)=> Q) (#=(J)=> Q). *)
+    (* Proof. *)
+    (*   rewrite /ElimModal bi.intuitionistically_if_elim. *)
+    (*   iIntros (_) "[[SUB P] K] J". *)
+    (*   iMod ("SUB" with "J") as "[I IJ]". iMod ("P" with "I") as "[I P]". *)
+    (*   iMod ("IJ" with "I") as "J". iPoseProof ("K" with "P J") as "K". iFrame. *)
+    (* Qed. *)
 End ObligationRA.

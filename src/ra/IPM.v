@@ -629,6 +629,16 @@ Proof.
   }
 Qed.
 
+Global Instance subiprop_elim_upd `{GRA.t} I J P Q b
+  :
+  ElimModal True b false ((SubIProp I J) ∗ #=(I)=> P) P (#=(J)=> Q) (#=(J)=> Q).
+Proof.
+  rewrite /ElimModal bi.intuitionistically_if_elim.
+  iIntros (_) "[[SUB P] K] J".
+  iMod ("SUB" with "J") as "[I IJ]". iMod ("P" with "I") as "[I P]".
+  iMod ("IJ" with "I") as "J". iPoseProof ("K" with "P J") as "K". iFrame.
+Qed.
+
 Ltac iOwnWf' H :=
   iPoseProof (OwnM_valid with H) as "%".
 
