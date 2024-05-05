@@ -1678,6 +1678,25 @@ Module ObligationRA.
         (duty p (v:=v) i l).
     Proof. auto. Qed.
 
+    Section SATS.
+
+      Definition arrows : forall i, (S * nat * Ord.t * Qp * nat * Vars i) -> iProp :=
+        fun i => (fun x => @arrow i x).
+
+      Definition arrows_sats j: iProp := @Regions.nsats _ Σ _ arrows j.
+
+      Global Instance arrows_sats_elim_upd P Q b i j :
+        ElimModal (i < j) b false (#=(arrows_sat i)=> P) P (#=(arrows_sats j)=> Q) (#=(arrows_sats j)=> Q).
+      Proof.
+        rewrite /ElimModal bi.intuitionistically_if_elim.
+        iIntros (LT) "[P K]".
+        iPoseProof (@Regions.nsats_sat_sub _ _ _ arrows _ _ LT) as "SUB".
+        iCombine "SUB P" as "P". iMod "P".
+        iApply "K". iFrame.
+      Qed.
+
+    End SATS.
+
   End ARROW.
 
   Section ARROWTHREAD.
@@ -1834,14 +1853,4 @@ Module ObligationRA.
     Qed.
   End TARGET.
 
-(* IUpd_sub_mon: ∀ (Σ : GRA.t) (P Q R : iProp), SubIProp P Q ⊢ (#=( P )=> R) =( Q )=∗ R *)
-    (* Global Instance subiprop_elim_upd `{GRA.t} I J P Q b *)
-    (*   : *)
-    (*   ElimModal True b false ((SubIProp I J) ∗ #=(I)=> P) P (#=(J)=> Q) (#=(J)=> Q). *)
-    (* Proof. *)
-    (*   rewrite /ElimModal bi.intuitionistically_if_elim. *)
-    (*   iIntros (_) "[[SUB P] K] J". *)
-    (*   iMod ("SUB" with "J") as "[I IJ]". iMod ("P" with "I") as "[I P]". *)
-    (*   iMod ("IJ" with "I") as "J". iPoseProof ("K" with "P J") as "K". iFrame. *)
-    (* Qed. *)
 End ObligationRA.
