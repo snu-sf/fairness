@@ -299,7 +299,6 @@ Section WSATS.
   (* wsat n for all n < x *)
   Definition wsats (x : index) := ([∗ list] n ∈ (seq 0 x), wsat n)%I.
 
-  (* Definition wsats (x : index) : iProp := (wsat_auth x ∗ wsat_satall x)%I. *)
 
 
   Lemma wsats_init_zero :
@@ -310,17 +309,16 @@ Section WSATS.
   Qed.
 
   Lemma wsat_auth_nin (x n : index) (NIN : x < n)
-    : wsat_auth x ⊢ |==> wsat_auth n ∗ ([∗ list] m ∈ (seq x (n - x)), wsat m).
+    : wsat_auth x ⊢ wsat_auth n ∗ ([∗ list] m ∈ (seq x (n - x)), wsat m).
   Proof.
     induction NIN.
     - iIntros "AUTH". rename x into n. remember (S n) as x.
-      assert (URA.updatable
-                (wsat_auth_black n)
+      assert ((wsat_auth_black n) =
                 ((wsat_auth_black x)
                    ⋅
                    (maps_to_res_dep n (@Auth.black (positive ==> URA.agree (Vars n))%ra (fun (i : positive) => None))))).
-      { subst. apply pointwise_dep_updatable. i.
-        unfold wsat_auth_black, maps_to_res_dep. unfold URA.add. unseal "ra". ss.
+      { subst. extensionalities a. unfold wsat_auth_black, maps_to_res_dep.
+        unfold URA.add. unseal "ra". ss.
         destruct (excluded_middle_informative (a = n)).
         - subst a. des_ifs; try lia.
           unfold eq_rect_r. ss. rewrite URA.unit_idl. reflexivity.
@@ -333,19 +331,18 @@ Section WSATS.
             rewrite URA.unit_id. reflexivity.
           }
       }
-      unfold wsat_auth.
-      iMod (OwnM_Upd H3 with "AUTH") as "[AUTH NEW]".
+      unfold wsat_auth. rewrite H3. iDestruct "AUTH" as "[AUTH NEW]".
       iPoseProof (wsat_init with "NEW") as "NEW".
-      subst x. iModIntro. iFrame.
+      subst x. iFrame.
       replace (S n - n) with 1 by lia. ss. iFrame.
-    - iIntros "AUTH". iMod (IHNIN with "AUTH") as "[AUTH SAT]". clear IHNIN. remember (S m) as y.
-      assert (URA.updatable
-                (wsat_auth_black m)
+    - iIntros "AUTH". iPoseProof (IHNIN with "AUTH") as "[AUTH SAT]".
+      clear IHNIN. remember (S m) as y.
+      assert ((wsat_auth_black m) =
                 ((wsat_auth_black y)
                    ⋅
                    (maps_to_res_dep m (@Auth.black (positive ==> URA.agree (Vars m))%ra (fun (i : positive) => None))))).
-      { subst. apply pointwise_dep_updatable. i.
-        unfold wsat_auth_black, maps_to_res_dep. unfold URA.add. unseal "ra". ss.
+      { subst. extensionalities a. unfold wsat_auth_black, maps_to_res_dep.
+        unfold URA.add. unseal "ra". ss.
         destruct (excluded_middle_informative (a = m)).
         - subst a. des_ifs; try lia.
           unfold eq_rect_r. ss. rewrite URA.unit_idl. reflexivity.
@@ -358,10 +355,9 @@ Section WSATS.
             rewrite URA.unit_id. reflexivity.
           }
       }
-      unfold wsat_auth.
-      iMod (OwnM_Upd H3 with "AUTH") as "[AUTH NEW]".
+      unfold wsat_auth. rewrite H3. iDestruct "AUTH" as "[AUTH NEW]".
       iPoseProof (wsat_init with "NEW") as "NEW".
-      subst y. iModIntro. iFrame.
+      subst y. iFrame.
       replace (S m - x) with ((m - x) + 1) by lia. rewrite seq_app.
       iApply big_sepL_app. iFrame.
       replace (x + (m - x)) with m by lia. ss. iFrame.
@@ -385,11 +381,10 @@ Section WSATS.
   Qed.
 
   Lemma wsats_allocs x1 x2 :
-    x1 < x2 -> wsat_auth x1 ∗ wsats x1 ⊢ |==> (wsat_auth x2 ∗ wsats x2).
+    x1 < x2 -> wsat_auth x1 ∗ wsats x1 ⊢ (wsat_auth x2 ∗ wsats x2).
   Proof.
-    iIntros (LT) "[AUTH SAT]". iMod ((wsat_auth_nin _ _ LT) with "AUTH") as "[AUTH NEW]".
-    iPoseProof ((wsats_nin _ _ LT) with "[SAT NEW]") as "SAT". iFrame.
-    iModIntro. iFrame.
+    iIntros (LT) "[AUTH SAT]". iPoseProof ((wsat_auth_nin _ _ LT) with "AUTH") as "[AUTH NEW]".
+    iPoseProof ((wsats_nin _ _ LT) with "[SAT NEW]") as "SAT". iFrame. iFrame.
   Qed.
 
 
@@ -418,7 +413,7 @@ Section WSATS.
     : wsat_auth x ∗ wsats x ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat_auth (S n) ∗ wsats (S n).
   Proof.
     iIntros "(AUTH & WSAT & P)".
-    iMod ((wsats_allocs x (S n)) with "[AUTH WSAT]") as "[AUTH WSAT]". lia. iFrame.
+    iPoseProof ((wsats_allocs x (S n)) with "[AUTH WSAT]") as "[AUTH WSAT]". lia. iFrame.
     iMod ((wsats_OwnI_alloc_lt (S n) n) with "[WSAT P]") as "[RES WSAT]". auto. eauto. iFrame.
     iModIntro. iFrame.
   Qed.

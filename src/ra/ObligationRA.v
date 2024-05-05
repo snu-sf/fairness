@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
 From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import NatMapRALarge MonotoneRA.
+From Fairness Require Import NatMapRALarge MonotoneRA RegionRA.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
@@ -652,11 +652,12 @@ Module ObligationRA.
     Context `{@GRA.inG t Σ}.
     Context `{@GRA.inG (@FairRA.t S nat _) Σ}.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-    Context `{@GRA.inG (Region.t (S * nat * Ord.t * Qp * nat)) Σ}.
 
     Local Notation index := nat.
     Context `{Vars : index -> Type}.
     Context `{Invs : @IInvSet Σ Vars}.
+    Context `{@GRA.inG (Region.t (S * nat * Ord.t * Qp * nat)) Σ}.
+
     (* Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}. *)
     (* Context `{@GRA.inG (index ==> Gset.t)%ra Σ}. *)
     (* Context `{@GRA.inG (IInvSetRA Vars) Σ}. *)
