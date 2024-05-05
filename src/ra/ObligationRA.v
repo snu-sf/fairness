@@ -656,53 +656,62 @@ Module ObligationRA.
     Local Notation index := nat.
     Context `{Vars : index -> Type}.
     Context `{Invs : @IInvSet Σ Vars}.
-    Context `{@GRA.inG (Region.t (S * nat * Ord.t * Qp * nat)) Σ}.
-
-    (* Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}. *)
-    (* Context `{@GRA.inG (index ==> Gset.t)%ra Σ}. *)
-    (* Context `{@GRA.inG (IInvSetRA Vars) Σ}. *)
+    Context `{@GRA.inG (@Regions.t _ (fun l => (S * nat * Ord.t * Qp * nat * (Vars l))%type)) Σ}.
 
     Section PRISM.
     Variable (Id: Type).
     Variable (p: Prism.t S Id).
+    Variable (l: index).
+    Local Notation Var := (Vars l).
 
-    (* TODO *)
+    Definition arrow: (S * nat * Ord.t * Qp * nat * Var) -> iProp :=
+      fun '(i, k, c, q, x, f) =>
+        ((□ (prop _ f -∗ □ (prop _ f)))
+           ∗
+           ((OwnM (FiniteMap.singleton x (OneShot.shot tt)) ∗ shot k ∗ (prop _ f))
+            ∨
+              (∃ n, (FairRA.black Prism.id i n q)
+                      ∗ white k (Jacobsthal.mult c (Ord.from_nat n)))))%I.
 
-    Definition arrow: (S * nat * Ord.t * Qp * nat) -> iProp :=
-      fun '(i, k, c, q, x) =>
-        ((OwnM (FiniteMap.singleton x (OneShot.shot tt)) ** shot k)
-         ∨
-           (∃ n, (FairRA.black Prism.id i n q) ** white k (Jacobsthal.mult c (Ord.from_nat n))))%I.
+    Definition arrows_sat: iProp := Regions.sat l arrow.
 
-    Definition arrows_sat: iProp := Region.sat arrow.
+    Definition _correl (i: Id) (k: nat) (c: Ord.t) (f : Var): iProp :=
+      (∃ r q x, Regions.white l r (Prism.review p i, k, c, q, x, f))%I.
 
-    Definition correl (i: Id) (k: nat) (c: Ord.t): iProp :=
-      ∃ r q x, Region.white r (Prism.review p i, k, c, q, x).
+    Definition correl (i: Id) (k: nat) (c: Ord.t) (F : iProp): iProp :=
+      (∃ (f : Var), (⌜prop _ f = F⌝) ∗ _correl i k c f)%I.
+      (* (∃ (f : Var), *)
+      (*     (⌜prop _ f = F⌝) ∗ ∃ r q x, Regions.white l r (Prism.review p i, k, c, q, x, f))%I. *)
+      (* (∃ r q x (f : Var), *)
+      (*     ⌜prop _ f = F⌝ ∗ Regions.white l r (Prism.review p i, k, c, q, x, f))%I. *)
 
-    Lemma correl_persistent i k c
+    Lemma correl_persistent i k c F
       :
-      correl i k c ⊢ □ correl i k c.
+      correl i k c F ⊢ □ correl i k c F.
     Proof.
       iIntros "# H". auto.
     Qed.
 
-    Global Program Instance Persistent_correl i k c: Persistent (correl i k c).
+    Global Program Instance Persistent_correl i k c F: Persistent (correl i k c F).
 
     Local Transparent IUpd.
-    Lemma correl_correlate_gen i k c n
+    Lemma correl_correlate_gen i k c F n
       :
-      (correl i k c)
+      (correl i k c F)
         -∗
         (FairRA.white p i n)
         -∗
-        (#=(arrows_sat)=> white k (Jacobsthal.mult c (Ord.from_nat n)) ∨ shot k).
+        (#=(arrows_sat)=>
+           (white k (Jacobsthal.mult c (Ord.from_nat n)))
+           ∨
+             (shot k ∗ (□ F))).
     Proof.
-      iIntros "[% [% [% WHITE]]] H".
-      iApply (Region.update with "WHITE [H]").
-      iIntros "[[OWN # SHOT]|[% [BLACK WHITE]]]".
-      { iModIntro. iSplitL.
-        { iLeft. iFrame. iApply "SHOT". }
-        { iRight. auto. }
+      iIntros "[% [%P [% [% [% WHITE]]]]] H".
+      iApply (Regions.update with "WHITE [H]").
+      iIntros "[#PERS [[OWN [#SHOT PROP]]|[% [BLACK WHITE]]]]".
+      { iModIntro. iPoseProof ("PERS" with "PROP") as "#F". iSplitL.
+        { iSplitR. auto. iLeft. iFrame. auto. }
+        { iRight. subst. auto. }
       }
       { iPoseProof (FairRA.decr_update with "BLACK H") as "> [% [H %]]".
         iPoseProof (white_split with "WHITE") as "> [WHITE0 WHITE1]".
@@ -711,24 +720,27 @@ Module ObligationRA.
           rewrite ClassicJacobsthal.mult_dist. reflexivity.
         }
         iModIntro. iSplitR "WHITE0".
-        { iRight. iExists _. iFrame. }
+        { iSplitR. auto. iRight. iExists _. iFrame. }
         { iLeft. auto. }
       }
     Qed.
 
-    Lemma correl_correlate i k c
+    Lemma correl_correlate i k c F
       :
-      (correl i k c)
+      (correl i k c F)
         -∗
         (FairRA.white p i 1)
         -∗
-        (#=(arrows_sat)=> white k c ∨ shot k).
+        (#=(arrows_sat)=> white k c ∨ (shot k ∗ □ F)).
     Proof.
       iIntros "CORR WHITE".
       iPoseProof (correl_correlate_gen with "CORR WHITE") as "> [H|H]"; auto.
       iModIntro. iLeft. iApply white_eq; eauto.
       apply Jacobsthal.mult_1_r.
     Qed.
+
+
+    (* TODO *)
 
     Definition duty_list (i: Id) (rs: list (nat * (nat * Ord.t * Qp * nat))) (q: Qp): iProp :=
       (list_prop_sum (fun '(r, (k, c, q, x)) =>
