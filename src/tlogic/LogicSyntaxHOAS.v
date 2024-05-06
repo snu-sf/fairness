@@ -289,10 +289,39 @@ Section RED.
 End RED.
 
 
+(** Notations *)
 
+Declare Scope formula_scope.
+Delimit Scope formula_scope with F.
+Bind Scope formula_scope with Syntax.formula.
 
+Local Open Scope formula_scope.
 
+Notation "'⌜' P '⌝'" := (Syntax.pure P) : formula_scope.
+Notation "'⊤'" := ⌜True⌝ : formula_scope.
+Notation "'⊥'" := ⌜False⌝ : formula_scope.
 
+Notation "'⟨' A '⟩'" := (Syntax.atom A) : formula_scope.
+(* Notation "'⟪' A '⟫'" := (Syntax.atom A) : formula_scope. *)
+Notation "↑ P" := (Syntax.lift P) : formula_scope.
+
+Notation "□ P" := (Syntax.persistently P) : formula_scope.
+Notation "■ P" := (Syntax.plainly P) : formula_scope.
+Notation "|==> P" := (Syntax.upd P) : formula_scope.
+Infix "∧" := (Syntax.and) : formula_scope.
+Infix "∨" := (Syntax.or) : formula_scope.
+Infix "→" := (Syntax.impl) : formula_scope.
+Notation "¬ P" := (P → False) : formula_scope.
+Infix "∗" := (Syntax.sepconj) : formula_scope.
+Infix "-∗" := (Syntax.wand) : formula_scope.
+Notation "P ==∗ Q" := (P -∗ |==> Q) : formula_scope.
+Notation f_forall A := (Syntax.univ A).
+Notation "∀'" := (f_forall _) (only parsing) : formula_scope.
+Notation "∀ a .. z , P" := (f_forall _ (λ a, .. (f_forall _ (λ z, P%F)) ..)) : formula_scope.
+Notation f_exist A := (Syntax.ex A).
+Notation "∃'" := (f_exist _) (only parsing) : formula_scope.
+Notation "∃ a .. z , P" := (f_exist _ (λ a, .. (f_exist _ (λ z, P%F)) ..)) : formula_scope.
+Notation "'emp'" := (Syntax.empty) : formula_scope.
 
 
 

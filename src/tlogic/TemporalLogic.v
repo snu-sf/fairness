@@ -64,13 +64,18 @@ Module Atoms.
 
     Inductive t {form : Type} : Type :=
     (* | own {A : Atom} (a : A.(T)) *)
-    | owni (i : positive) (p : @Syntax.t type (@Typ) (@t form) form)
+    | owni (i : positive) (p : @Syntax.t _ (@Typ) (@t form) form)
     (* | syn_inv_auth_l (ps : list (prod positive form)) *)
     (* (* for invariant system *) *)
     (* | owni (i : positive) (p : t) *)
     (* | syn_inv_auth_l (ps : list (prod positive t)) *)
-    (* (* Non strictly positive occurrence *) *)
-    (* (* | own_inv_auth (ps : gmap positive t) *) *)
+    (* | syn_inv_auth (ps : gmap positive form) *)
+    | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ (@Typ) (@t form) form)))
+    (* | syn_wsat_auth (X : gset index) *)
+    (* Non strictly positive occurrence *)
+    (* | syn_inv_auth (ps : gmap positive (@Syntax.t _ (@Typ) (@t form) form)) *)
+    | ownd (D : gset positive)
+    | owne (E : coPset)
     .
 
   End ATOMS.
@@ -85,13 +90,16 @@ Module Atoms.
     (* Local Notation Formula := (@formula (@t Σ)). *)
 
     Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
-    (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}. *)
-    (* Context `{@PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}. *)
+    Context `{@PCM.GRA.inG (URA.pointwise index CoPset.t) Σ}.
+    Context `{@PCM.GRA.inG (URA.pointwise index Gset.t) Σ}.
 
     Definition to_semantics n (a : @t (_Formula n)) : iProp :=
       match a with
       | owni i p => @OwnI Σ Formula _ n i p
-      (* | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *)
+      | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
+      (* | syn_inv_auth ps => @inv_auth Σ Formula _ n ps *)
+      | ownd D => OwnD n D
+      | owne E => OwnE n E
       end.
 
     (* Definition to_semantics n (a : @t (Formula n)) : iProp := *)
@@ -131,10 +139,12 @@ Section TL.
 
   (* Definition Formula := (@formula (@Atoms.t Σ)). *)
 
-  Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
+  Context `{@GRA.inG (IInvSetRA Formula) Σ}.
+  Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
+  Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
 
   (* Local Notation AtomSem0 := (@Atoms.to_semantics_0 Σ _). *)
-  Definition AtomSem := (@Atoms.to_semantics Σ _).
+  Definition AtomSem := (@Atoms.to_semantics Σ _ _ _).
   Definition SynSem n : Formula n -> iProp := (@formula_sem (@Atoms.t) Σ AtomSem n).
   (* Local Notation SynSem := (@formula_sem (@Atoms.t) Σ AtomSem0 AtomSem). *)
   (* Local Notation SynSem := (@formula_sem (@Atoms.t Σ) Σ AtomSem0 AtomSem). *)
@@ -149,12 +159,38 @@ Section TL.
 
 End TL.
 
+Notation "'τ{' t ',' n '}'" := (@Typ (Formula n) t).
+Notation "'⟦' F ',' n '⟧'" := (SynSem n F).
+
+Section TEST.
+
+  Context `{Σ : GRA.t}.
+  Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
+  Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
+  Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
+
+  Definition test : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 2}), ⌜p = emp⌝)⟩%F.
+
+  Lemma testp n :
+    ⟦(⟨Atoms.owni xH ⟨(Atoms.owni xH emp)⟩⟩
+         ∗ (∃ (p : τ{formulaT, n}), ↑(p -∗ ⌜p = emp⌝)))%F, (S n)⟧
+    =
+      ((OwnI (S n) xH ⟨Atoms.owni xH emp⟩%F) ∗ (∃ p, ⟦p, n⟧ -∗ ⌜p = emp%F⌝))%I.
+  Proof.
+    ss.
+  Qed.
+
+End TEST.
+
 Section TEST.
 
   Import Syntax.
 
   Context `{Σ : GRA.t}.
   Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
+  Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
+  Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
 
   Definition test0 := ((Syntax.atom (Atoms.owni xH (Syntax.ex formulaT (fun (p : Formula 2) => Syntax.pure (p = Syntax.empty)) : Formula 3))) : Formula 3).
   Let test1 := (Syntax.atom (Atoms.owni xH (Syntax.ex formulaT (fun (p : Formula 2) => Syntax.pure (p = Syntax.empty)) : Formula 3))) : Formula 3.
