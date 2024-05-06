@@ -151,6 +151,8 @@ End TL.
 
 Section TEST.
 
+  Import Syntax.
+
   Context `{Σ : GRA.t}.
   Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
 
@@ -167,10 +169,19 @@ Section TEST.
     ss.
   Qed.
 
-  Goal (SynSem _ (Syntax.sepconj test1 test2 : Formula 3)) =
+  Goal (SynSem 3 (Syntax.sepconj test1 test2)) =
          ((OwnI 3 xH (Syntax.ex formulaT (fun (p : Formula 2) => Syntax.pure (p = Syntax.empty)))) ∗ (OwnI 3 xH (Syntax.ex formulaT (fun (p : Formula 2) => Syntax.pure (p = Syntax.empty)))))%I.
   Proof.
     subst test1 test2. setoid_rewrite red_sem_sepconj. ss.
+  Qed.
+
+  Lemma testp0 n :
+    SynSem (S n) (sepconj (atom (Atoms.owni xH (atom (Atoms.owni xH empty))))
+                      (ex formulaT (fun (p : Formula n) => lift (wand p (pure (p = empty))))))
+    =
+      ((OwnI (S n) xH (atom (Atoms.owni xH empty))) ∗ (∃ p, (SynSem n p) -∗ ⌜p = empty⌝))%I.
+  Proof.
+    ss.
   Qed.
 
 End TEST.
