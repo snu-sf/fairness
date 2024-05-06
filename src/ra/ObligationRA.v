@@ -659,10 +659,11 @@ Module ObligationRA.
     Context `{@GRA.inG (@Regions.t _ (fun l => (S * nat * Ord.t * Qp * nat * (Vars l))%type)) Σ}.
 
     Section PRISM.
+
     Variable (Id: Type).
-    Variable (p: Prism.t S Id).
     Variable (v: index).
     Local Notation Var := (Vars v).
+    Variable (p: Prism.t S Id).
 
     Definition arrow: (S * nat * Ord.t * Qp * nat * Var) -> iProp :=
       fun '(i, k, c, q, x, f) =>
@@ -1704,38 +1705,42 @@ Module ObligationRA.
     Context `{@GRA.inG t Σ}.
     Context `{@GRA.inG (FairRA.tgtt S) Σ}.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-    Context `{@GRA.inG (Region.t ((sum_tid S) * nat * Ord.t * Qp * nat)) Σ}.
+    (* Context `{@GRA.inG (Region.t ((sum_tid S) * nat * Ord.t * Qp * nat)) Σ}. *)
 
-    Definition correl_thread (k: nat) (c: Ord.t): iProp :=
-      ∃ i, correl inlp i k c.
+    Local Notation index := nat.
+    Context `{Vars : index -> Type}.
+    Context `{Invs : @IInvSet Σ Vars}.
+    Context `{@GRA.inG (@Regions.t _ (fun l => ((sum_tid S) * nat * Ord.t * Qp * nat * (Vars l))%type)) Σ}.
 
-    Lemma correl_thread_persistent k c
+    Definition correl_thread v (k: nat) (c: Ord.t) (f : Vars v): iProp :=
+      ∃ i, correl v inlp i k c f.
+
+    Lemma correl_thread_persistent v k c f
       :
-      correl_thread k c ⊢ □ correl_thread k c.
+      @correl_thread v k c f ⊢ □ @correl_thread v k c f.
     Proof.
       iIntros "# H". auto.
     Qed.
 
-    Global Program Instance Persistent_correl_thread k c: Persistent (correl_thread k c).
+    Global Program Instance Persistent_correl_thread v k c f: Persistent (@correl_thread v k c f).
 
-    Lemma correl_thread_correlate k c
+    Lemma correl_thread_correlate v k c f
       :
-      (correl_thread k c)
+      (@correl_thread v k c f)
         -∗
         (FairRA.white_thread (S := S))
         -∗
-        (#=(arrows_sat (S := sum_tid S))=> (white k c ∨ shot k)).
+        (#=(arrows_sat (S := sum_tid S) v)=> (white k c ∨ (shot k ∗ □ prop _ f))).
     Proof.
-      iIntros "[% CORR] WHITE".
-      iApply (correl_correlate with "CORR WHITE").
+      iIntros "[% CORR] WHITE". iApply (correl_correlate with "CORR WHITE").
     Qed.
 
-    Lemma duty_correl_thread i l k c
-          (IN: List.In (k, c) l)
+    Lemma duty_correl_thread v i l k c f
+          (IN: List.In (k, c, f) l)
       :
-      (duty inlp i l)
+      (duty v inlp i l)
         -∗
-        (correl_thread k c).
+        (@correl_thread v k c f).
     Proof.
       iIntros "DUTY".
       iPoseProof (duty_correl with "DUTY") as "# CORR"; [eauto|].
@@ -1745,13 +1750,20 @@ Module ObligationRA.
 
 
   Section TARGET.
+
     Variable (S: Type).
     Let Id := id_sum thread_id S.
+
     Context `{Σ: GRA.t}.
     Context `{@GRA.inG t Σ}.
-    Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-    Context `{@GRA.inG (Region.t (Id * nat * Ord.t * Qp * nat)) Σ}.
     Context `{@GRA.inG (@FairRA.tgtt S) Σ}.
+    Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+    (* Context `{@GRA.inG (Region.t (Id * nat * Ord.t * Qp * nat)) Σ}. *)
+
+    Local Notation index := nat.
+    Context `{Vars : index -> Type}.
+    Context `{Invs : @IInvSet Σ Vars}.
+    Context `{@GRA.inG (@Regions.t _ (fun l => (Id * nat * Ord.t * Qp * nat * (Vars l))%type)) Σ}.
 
     Lemma IUpd_open I P
       :
@@ -1765,20 +1777,20 @@ Module ObligationRA.
     Qed.
 
     Lemma target_update_thread
-          (tid: thread_id) l
+          (tid: thread_id) v l
           ths
           (f0 f1: FairBeh.imap Id nat_wf)
           (UPD: fair_update f0 f1 (prism_fmap inlp (tids_fmap tid ths)))
       :
       (FairRA.sat_target f0 ths)
         -∗
-        (duty inlp tid l ** tax l)
+        (duty v inlp tid l ** tax (map fst l))
         -∗
-        (#=(arrows_sat (S := Id))=>
+        (#=(arrows_sat (S := Id) v)=>
            ((FairRA.sat_target f1 ths)
-              **
-              (duty inlp tid l)
-              **
+              ∗
+              (duty v inlp tid l)
+              ∗
               FairRA.white_thread (S := S))).
     Proof.
       iIntros "SAT DUTY ARROWS".
@@ -1794,7 +1806,7 @@ Module ObligationRA.
     Qed.
 
     Lemma target_update A
-          lf ls ths
+          v lf ls ths
           (p: Prism.t S A)
           (f0 f1: FairBeh.imap Id nat_wf)
           (fm: Event.fmap A)
@@ -1805,12 +1817,12 @@ Module ObligationRA.
       :
       (FairRA.sat_target f0 ths)
         -∗
-        (list_prop_sum (fun '(i, l) => duty (Prism.compose inrp p) i l ** tax l) ls)
+        (list_prop_sum (fun '(i, l) => duty v (Prism.compose inrp p) i l ∗ tax (map fst l)) ls)
         -∗
-        (#=(arrows_sat (S := Id))=>
+        (#=(arrows_sat (S := Id) v)=>
            ((FairRA.sat_target f1 ths)
               **
-              (list_prop_sum (fun '(i, l) => duty (Prism.compose inrp p) i l) ls)
+              (list_prop_sum (fun '(i, l) => duty v (Prism.compose inrp p) i l) ls)
               **
               (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) i 1) lf))).
     Proof.
