@@ -1,6 +1,3 @@
-
-TODO : Fix
-
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib IProp IPM ModSim ModSimPers PCM Weakest Concurrency ModAdequacy Axioms.
@@ -9,6 +6,8 @@ From Fairness Require PCMLarge.
 Require Import Program.
 
 Set Implicit Arguments.
+
+TODO : FIX
 
 
 Lemma list_of_numbering_nm_wf_pair A B (l0: list A) (l1: list B)

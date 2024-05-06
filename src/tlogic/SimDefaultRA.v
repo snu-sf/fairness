@@ -3,11 +3,13 @@ From Paco Require Import paco.
 From Fairness Require Import ITreeLib pind.
 Require Import Program.
 From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import MonotoneRA NatMapRALarge Mod FairBeh.
+From Fairness Require Import NatMapRALarge Mod FairBeh.
 From Fairness Require Import Axioms.
-From Fairness Require Import FairnessRA ObligationRA.
+From Fairness Require Import MonotoneRA RegionRA FairnessRA ObligationRA.
 
 Set Implicit Arguments.
+
+TODO : FIX
 
 Section UPDNATMAP.
   Variable A: Type.

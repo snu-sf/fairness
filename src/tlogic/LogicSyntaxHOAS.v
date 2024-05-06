@@ -138,31 +138,27 @@ Module Syntax.
 
   End INDEXED_INVSET.
 
-  Section INV_IN.
+  (* Section INV_IN. *)
 
-    Context `{type : Type}.
-    Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{As : forall formula : Type, Type}.
-    (* Context `{As : (type -> Type) -> Type}. *)
+  (*   Context `{type : Type}. *)
+  (*   Context `{Typ : forall formula : Type, type -> Type}. *)
+  (*   Context `{As : forall formula : Type, Type}. *)
 
-    Local Notation formulas := (@formula type Typ As).
+  (*   Local Notation formulas := (@formula type Typ As). *)
 
-    Context `{Σ : GRA.t}.
-    (* Context `{@PCM.GRA.inG (IInvSetRA formulas) Σ}. *)
+  (*   Context `{Σ : GRA.t}. *)
 
-    Context `{interp_atoms_0 : As Empty_set -> iProp}.
-    Context `{interp_atoms : forall (n : index), As (formulas n) -> iProp}.
-    (* Context `{interp_atoms_0 : As (Typ Empty_set) -> iProp}. *)
-    (* Context `{interp_atoms : forall (n : index), As (Typ (formulas n)) -> iProp}. *)
+  (*   Context `{interp_atoms_0 : As Empty_set -> iProp}. *)
+  (*   Context `{interp_atoms : forall (n : index), As (formulas n) -> iProp}. *)
 
-    Global Program Instance IIIn (i : index) (p : formulas i)
-      : @IInvIn Σ formulas (IISet (interp_atoms_0:=interp_atoms_0) (interp_atoms:=interp_atoms)) i (@to_semantics type Typ As Σ interp_atoms_0 interp_atoms i p) :=
-      { inhabitant := p }.
-    Next Obligation.
-      intros. simpl. done.
-    Qed.
+  (*   Global Program Instance IIIn (i : index) (p : formulas i) *)
+  (*     : @IInvIn Σ formulas (IISet (interp_atoms_0:=interp_atoms_0) (interp_atoms:=interp_atoms)) i (@to_semantics type Typ As Σ interp_atoms_0 interp_atoms i p) := *)
+  (*     { inhabitant := p }. *)
+  (*   Next Obligation. *)
+  (*     intros. simpl. done. *)
+  (*   Qed. *)
 
-  End INV_IN.
+  (* End INV_IN. *)
 
 End Syntax.
 

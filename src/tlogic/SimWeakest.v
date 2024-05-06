@@ -15,6 +15,8 @@ Require Import Program.
 
 Set Implicit Arguments.
 
+TODO : FIX
+
 Section STATE.
 
   Context `{Σ: GRA.t}.

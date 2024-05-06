@@ -123,8 +123,8 @@ Section TL.
   Global Instance SynIISet : @IInvSet Σ Formula :=
     (@Syntax.IISet _ _ _ Σ AtomSem0 AtomSem).
 
-  Global Instance IIIn (i : index) (p : Formula i) : @IInvIn Σ Formula SynIISet i (SynSem i p) :=
-    @Syntax.IIIn _ _ _ Σ AtomSem0 AtomSem i p.
+  (* Global Instance IIIn (i : index) (p : Formula i) : @IInvIn Σ Formula SynIISet i (SynSem i p) := *)
+  (*   @Syntax.IIIn _ _ _ Σ AtomSem0 AtomSem i p. *)
 
 End TL.
 
