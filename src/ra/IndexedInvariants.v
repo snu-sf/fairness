@@ -826,12 +826,16 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
     iIntros (_) "[P K] I". iMod "P". iApply ("K" with "P"). iFrame.
   Qed.
 
-  Global Instance elim_modal_FUpd_FUpd p x A Es1 Es2 Es3 P Q :
-    ElimModal True p false (FUpd x A Es1 Es2 P) P (FUpd x A Es1 Es3 Q) (FUpd x A Es2 Es3 Q).
+  Global Instance elim_modal_FUpd_FUpd p n x A Es1 Es2 Es3 P Q :
+    ElimModal (n <= x) p false (FUpd n A Es1 Es2 P) P (FUpd x A Es1 Es3 Q) (FUpd x A Es2 Es3 Q).
   Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
-    iIntros (_) "[P K] I". iMod ("P" with "I") as "(A & WSAT & EN & P)".
-    iApply ("K" with "P"). iFrame.
+    rewrite /ElimModal bi.intuitionistically_if_elim.
+    iIntros (LT) "[P K] I". inv LT.
+    - rewrite /FUpd.
+      iMod ("P" with "I") as "(A & WSAT & EN & P)". iApply ("K" with "P"). iFrame.
+    - iPoseProof (FUpd_mono n (S m) with "P") as "P". lia.
+      rewrite /FUpd.
+      iMod ("P" with "I") as "(A & WSAT & EN & P)". iApply ("K" with "P"). iFrame.
   Qed.
 
   Global Instance elim_modal_FUpd_FUpd_general p x A Es0 Es1 Es2 n E0 E1 E2 E3 P Q :
