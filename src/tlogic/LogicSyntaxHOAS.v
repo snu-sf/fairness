@@ -220,8 +220,7 @@ Section RED.
   (* Local Notation Sem := *)
   (*   (fun i p => @Syntax.to_semantics _ Typ As _ interp_atoms_0 interp_atoms i p). *)
 
-  Local Notation Sem :=
-    (fun i p => @Syntax.to_semantics _ Typ As _ interp_atoms i p).
+  Local Notation Sem := (@Syntax.to_semantics _ Typ As _ interp_atoms).
 
   Lemma red_sem_atom n a :
     Sem n (Syntax.atom a : formulas n) = interp_atoms n a.
@@ -288,6 +287,7 @@ Section RED.
 
 End RED.
 
+Global Opaque Syntax.to_semantics.
 
 (** Notations *)
 

@@ -8,7 +8,7 @@ From iris Require base_logic.lib.invariants.
 
 Local Notation index := nat.
 
-Section TLOGIC.
+Section TYPES.
 
   Section TYPE.
 
@@ -22,12 +22,12 @@ Section TLOGIC.
 
   Section INTERP_TYPE.
 
-    Fixpoint Typ {form : Type} (ty : type) : Type :=
+    Fixpoint Typ (form : Type) (ty : type) : Type :=
       match ty with
       | baseT b => b
       | formulaT => form
-      | funT ty1 ty2 => (@Typ form ty1 -> @Typ form ty2)
-      | pgmapT ty1 => gmap positive (@Typ form ty1)
+      | funT ty1 ty2 => (Typ form ty1 -> Typ form ty2)
+      | pgmapT ty1 => gmap positive (Typ form ty1)
       end.
 
   End INTERP_TYPE.
@@ -37,10 +37,10 @@ Section TLOGIC.
     Context `{As : forall formula : Type, Type}.
 
     Definition _formula : index -> Type :=
-      @Syntax._formula type (@Typ) As.
+      @Syntax._formula type Typ As.
 
     Definition formula : index -> Type :=
-      @Syntax.formula type (@Typ) As.
+      @Syntax.formula type Typ As.
 
   End FORMULA.
 
@@ -56,7 +56,7 @@ Section TLOGIC.
 
   End INTERP.
 
-End TLOGIC.
+End TYPES.
 
 Module Atoms.
 
@@ -85,13 +85,10 @@ Module Atoms.
     Local Notation _Formula := (@_formula (@t)).
     Local Notation Formula := (@formula (@t)).
 
-    Context `{Σ : PCM.GRA.t}.
-
-    (* Local Notation Formula := (@formula (@t Σ)). *)
-
-    Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
-    Context `{@PCM.GRA.inG (URA.pointwise index CoPset.t) Σ}.
-    Context `{@PCM.GRA.inG (URA.pointwise index Gset.t) Σ}.
+    Context `{Σ : GRA.t}.
+    Context `{@GRA.inG (IInvSetRA Formula) Σ}.
+    Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
+    Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
 
     Definition to_semantics n (a : @t (_Formula n)) : iProp :=
       match a with
@@ -133,34 +130,63 @@ Section TL.
 
   Local Notation index := nat.
 
+  Definition _Formula := (@_formula (@Atoms.t)).
   Definition Formula := (@formula (@Atoms.t)).
 
-  Context `{Σ : PCM.GRA.t}.
-
-  (* Definition Formula := (@formula (@Atoms.t Σ)). *)
-
+  Context `{Σ : GRA.t}.
   Context `{@GRA.inG (IInvSetRA Formula) Σ}.
   Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
   Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
 
-  (* Local Notation AtomSem0 := (@Atoms.to_semantics_0 Σ _). *)
   Definition AtomSem := (@Atoms.to_semantics Σ _ _ _).
   Definition SynSem n : Formula n -> iProp := (@formula_sem (@Atoms.t) Σ AtomSem n).
-  (* Local Notation SynSem := (@formula_sem (@Atoms.t) Σ AtomSem0 AtomSem). *)
-  (* Local Notation SynSem := (@formula_sem (@Atoms.t Σ) Σ AtomSem0 AtomSem). *)
 
   Global Instance SynIISet : @IInvSet Σ Formula :=
     (@Syntax.IISet _ _ _ Σ AtomSem).
-  (* Global Instance SynIISet : @IInvSet Σ Formula := *)
-  (*   (@Syntax.IISet _ _ _ Σ AtomSem0 AtomSem). *)
 
   (* Global Instance IIIn (i : index) (p : Formula i) : @IInvIn Σ Formula SynIISet i (SynSem i p) := *)
   (*   @Syntax.IIIn _ _ _ Σ AtomSem0 AtomSem i p. *)
 
 End TL.
 
-Notation "'τ{' t ',' n '}'" := (@Typ (Formula n) t).
+Notation "'τ{' t ',' n '}'" := (@Typ (_Formula n) t).
+Notation "'⟪' A ',' n '⟫'" := (AtomSem n A).
 Notation "'⟦' F ',' n '⟧'" := (SynSem n F).
+
+Section GMAP.
+
+  Context `{As : forall formula : Type, Type}.
+
+  Context `{Σ : GRA.t}.
+  Variable interp_atoms : forall (n : index), As (@_formula As n) -> iProp.
+
+  Local Notation _Formula := (@_formula As).
+  Local Notation Formula := (@formula As).
+
+  Import Syntax.
+
+  (* Maybe we can make Syntax as an instance for big_opMs. *)
+  Definition syn_big_sepM
+             (n : index) (I : Typ (Formula n) (pgmapT formulaT))
+             (f : positive -> Formula n -> Formula n)
+    : Formula n :=
+    fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (uncurry f hd) tl) empty (map_to_list I).
+
+  Local Notation Sem := (@to_semantics _ Typ As Σ interp_atoms).
+
+  Lemma red_syn_big_sepM n I f :
+    Sem n (syn_big_sepM n I f) = ([∗ map] i ↦ p ∈ I, Sem n (f i p))%I.
+  Proof.
+    ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
+    unfold syn_big_sepM. simpl. remember (map_to_list I) as L.
+    clear HeqL I. induction L.
+    { ss. }
+    ss. rewrite @red_sem_sepconj. rewrite IHL. f_equal.
+    destruct a. ss.
+  Qed.
+
+End GMAP.
+
 
 Section TEST.
 
@@ -170,18 +196,155 @@ Section TEST.
   Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
 
   Definition test : Formula 3 :=
-    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 2}), ⌜p = emp⌝)⟩%F.
+    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), ⌜p = emp⌝)⟩%F.
+  Definition test1 : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{baseT nat, 3}), ⌜p = 2⌝)⟩%F.
+  Definition test2 : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), ↑p)⟩%F.
+  Fail Definition test3 : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), p)⟩%F.
 
   Lemma testp n :
-    ⟦(⟨Atoms.owni xH ⟨(Atoms.owni xH emp)⟩⟩
-         ∗ (∃ (p : τ{formulaT, n}), ↑(p -∗ ⌜p = emp⌝)))%F, (S n)⟧
+    ⟦(⟨Atoms.owni xH ⟨(Atoms.owni xH emp)⟩⟩ ∗ (∃ (p : τ{formulaT, S n}), ↑(p -∗ ⌜p = emp⌝)))%F, S n⟧
     =
-      ((OwnI (S n) xH ⟨Atoms.owni xH emp⟩%F) ∗ (∃ p, ⟦p, n⟧ -∗ ⌜p = emp%F⌝))%I.
+      ((OwnI (S n) xH ⟨Atoms.owni xH emp⟩%F) ∗ (∃ (p : τ{formulaT, S n}), ⟦p, n⟧ -∗ ⌜p = emp%F⌝))%I.
   Proof.
     ss.
   Qed.
 
 End TEST.
+
+
+Section RED.
+
+  Local Notation index := nat.
+
+  Context `{Σ : GRA.t}.
+  Context `{@GRA.inG (IInvSetRA Formula) Σ}.
+  Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
+  Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
+
+  Lemma red_tl_atom n a :
+    ⟦⟨a⟩%F, n⟧ = ⟪a, n⟫.
+  Proof. apply red_sem_atom. Qed.
+
+  Lemma red_tl_lift_0 p :
+    ⟦(↑p)%F, 0⟧ = ⌜False⌝%I.
+  Proof. apply red_sem_lift_0. Qed.
+
+  Lemma red_tl_lift n p :
+    ⟦(↑p)%F, S n⟧ = ⟦p, n⟧ .
+  Proof. apply red_sem_lift. Qed.
+
+  Lemma red_tl_sepconj n p q :
+    ⟦(p ∗ q)%F, n⟧ = (⟦p, n⟧ ∗ ⟦q, n⟧)%I.
+  Proof. apply red_sem_sepconj. Qed.
+
+  Lemma red_tl_pure n P :
+    ⟦⌜P⌝%F, n⟧ = ⌜P⌝%I.
+  Proof. apply red_sem_pure. Qed.
+
+  Lemma red_tl_univ n ty p :
+    ⟦(∀ x, p x)%F, n⟧ = (∀ (x : τ{ty, n}), ⟦p x, n⟧)%I.
+  Proof. apply red_sem_univ. Qed.
+
+  Lemma red_tl_ex n ty p :
+    ⟦(∃ x, p x)%F, n⟧ = (∃ (x : τ{ty, n}), ⟦p x, n⟧)%I.
+  Proof. apply red_sem_ex. Qed.
+
+  Lemma red_tl_and n p q :
+    ⟦(p ∧ q)%F, n⟧ = (⟦p, n⟧ ∧ ⟦q, n⟧)%I.
+  Proof. apply red_sem_and. Qed.
+
+  Lemma red_tl_or n p q :
+    ⟦(p ∨ q)%F, n⟧ = (⟦p, n⟧ ∨ ⟦q, n⟧)%I.
+  Proof. apply red_sem_or. Qed.
+
+  Lemma red_tl_impl n p q :
+    ⟦(p → q)%F, n⟧ = (⟦p, n⟧ → ⟦q, n⟧)%I.
+  Proof. apply red_sem_impl. Qed.
+
+  Lemma red_tl_wand n p q :
+    ⟦(p -∗ q)%F, n⟧ = (⟦p, n⟧ -∗ ⟦q, n⟧)%I.
+  Proof. apply red_sem_wand. Qed.
+
+  Lemma red_tl_empty n :
+    ⟦emp%F, n⟧ = emp%I.
+  Proof. apply red_sem_empty. Qed.
+
+  Lemma red_tl_persistently n p :
+    ⟦(□ p)%F, n⟧ = (<pers> ⟦p, n⟧)%I.
+  Proof. apply red_sem_persistently. Qed.
+
+  Lemma red_tl_plainly n p :
+    ⟦(■ p)%F, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
+  Proof. apply red_sem_plainly. Qed.
+
+  Lemma red_tl_upd n p :
+    ⟦(|==> p)%F, n⟧ = (|==> ⟦p, n⟧)%I.
+  Proof. apply red_sem_upd. Qed.
+
+  Lemma red_tl_big_sepM n I f :
+    ⟦@syn_big_sepM (@Atoms.t) n I f, n⟧ = ([∗ map] i ↦ p ∈ I, ⟦f i p, n⟧)%I.
+  Proof. apply red_syn_big_sepM. Qed.
+
+End RED.
+
+Global Opaque SynSem.
+
+Section WSAT.
+
+  Context `{Σ : GRA.t}.
+  Context `{@GRA.inG (IInvSetRA Formula) Σ}.
+  Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
+  Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
+
+  Import Atoms.
+
+  Definition syn_inv_auth n (ps : gmap positive (Formula n)) : Atoms.t :=
+    syn_inv_auth_l (map_to_list ps).
+  (* Definition syn_inv_auth2 n (ps : gmap positive (Formula n)) : @Atoms.t (_Formula n) := *)
+  (*   Atoms.syn_inv_auth_l (map_to_list ps). *)
+
+  Lemma red_syn_inv_auth n ps :
+    ⟪syn_inv_auth n ps, n⟫ = inv_auth n ps.
+  Proof.
+    ss. rewrite list_to_map_to_list. ss.
+  Qed.
+
+  Definition syn_inv_satall_fun n : positive -> Formula n -> Formula n :=
+    fun i p => ((p ∗ ⟨ownd {[i]}⟩) ∨ ⟨owne {[i]}⟩)%F.
+
+  Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n :=
+    @syn_big_sepM (@Atoms.t) n ps (syn_inv_satall_fun n).
+
+  Lemma red_syn_inv_satall_fun n i p :
+    ⟦syn_inv_satall_fun n i p, n⟧ = ((⟦p, n⟧ ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I.
+  Proof.
+    unfold syn_inv_satall_fun. rewrite red_tl_or. rewrite red_tl_sepconj. do 2 f_equal.
+  Qed.
+
+  Lemma red_syn_inv_satall n ps :
+    ⟦syn_inv_satall n ps, n⟧ = inv_satall n ps.
+  Proof.
+    ss. unfold syn_inv_satall. rewrite red_tl_big_sepM. unfold inv_satall. ss.
+  Qed.
+
+  Definition syn_wsat n : Formula (S n) :=
+    (∃ (I : τ{pgmapT formulaT, (S n)}), ↑(⟨syn_inv_auth n I⟩ ∗ (syn_inv_satall n I)))%F.
+
+  Lemma syn_wsat_iProp n :
+    ⟦syn_wsat n, S n⟧ = wsat n.
+  Proof.
+    unfold syn_wsat, wsat. rewrite red_tl_ex. f_equal. extensionalities I.
+    rewrite red_tl_lift. rewrite red_tl_sepconj. rewrite red_tl_atom.
+    rewrite red_syn_inv_auth. rewrite red_syn_inv_satall. auto.
+  Qed.
+
+End WSAT.
+
+TODO
+
 
 Section TEST.
 
