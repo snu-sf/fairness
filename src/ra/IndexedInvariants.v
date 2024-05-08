@@ -299,6 +299,22 @@ Section WSATS.
   (* wsat n for all n < x *)
   Definition wsats (x : index) := ([∗ list] n ∈ (seq 0 x), wsat n)%I.
 
+  Lemma unfold_wsats x :
+    wsats (S x) ⊢ (wsats x ∗ wsat x)%I.
+  Proof.
+    iIntros "A". unfold wsats. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
+    2:{ rewrite seq_S. ss. }
+    iPoseProof (big_sepL_app with "A") as "[A [B C]]". ss. iFrame.
+  Qed.
+
+  Lemma fold_wsats x :
+    (wsats x ∗ wsat x)%I ⊢ wsats (S x).
+  Proof.
+    iIntros "A". unfold wsats. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
+    2:{ rewrite seq_S. ss. }
+    iApply big_sepL_app. ss. iDestruct "A" as "[A B]". iFrame.
+  Qed.
+
 
 
   Lemma wsats_init_zero :
@@ -480,6 +496,18 @@ Section OWNES.
   Definition OwnEs (Es : coPsets) := (OwnE_auth Es ∗ OwnE_satall Es)%I.
 
   Definition OwnEs_top (Es : coPsets) : Prop := map_Forall (fun _ E => E = ⊤) Es.
+
+  Lemma OwnEs_init_wf :
+    URA.wf (OwnE_auth_black ∅).
+  Proof.
+    ur. i. ur. des_ifs.
+  Qed.
+
+  Lemma OwnEs_init :
+    OwnM (OwnE_auth_black ∅) ⊢ OwnEs ∅.
+  Proof.
+    iIntros. unfold OwnEs. iFrame. unfold OwnE_satall. ss.
+  Qed.
 
   Lemma OwnEs_alloc Es n (NIN : Es !! n = None) :
     OwnEs Es ⊢ |==> OwnEs (<[n := ⊤]>Es).

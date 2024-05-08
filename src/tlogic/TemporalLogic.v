@@ -5,6 +5,7 @@ From Fairness Require Import IndexedInvariants LogicSyntaxHOAS.
 (* From Fairness Require Import ISim. *)
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
+Require Import Program.
 
 Local Notation index := nat.
 
@@ -16,6 +17,7 @@ Section TYPES.
     | baseT (t : Type) : type
     | formulaT : type
     | funT : type -> type -> type
+    | listT : type -> type
     | pgmapT : type -> type.
 
   End TYPE.
@@ -27,6 +29,7 @@ Section TYPES.
       | baseT b => b
       | formulaT => form
       | funT ty1 ty2 => (Typ form ty1 -> Typ form ty2)
+      | listT ty1 => list (Typ form ty1)
       | pgmapT ty1 => gmap positive (Typ form ty1)
       end.
 
@@ -63,19 +66,12 @@ Module Atoms.
   Section ATOMS.
 
     Inductive t {form : Type} : Type :=
-    (* | own {A : Atom} (a : A.(T)) *)
     | owni (i : positive) (p : @Syntax.t _ (@Typ) (@t form) form)
-    (* | syn_inv_auth_l (ps : list (prod positive form)) *)
-    (* (* for invariant system *) *)
-    (* | owni (i : positive) (p : t) *)
-    (* | syn_inv_auth_l (ps : list (prod positive t)) *)
-    (* | syn_inv_auth (ps : gmap positive form) *)
     | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ (@Typ) (@t form) form)))
-    (* | syn_wsat_auth (X : gset index) *)
-    (* Non strictly positive occurrence *)
-    (* | syn_inv_auth (ps : gmap positive (@Syntax.t _ (@Typ) (@t form) form)) *)
     | ownd (D : gset positive)
     | owne (E : coPset)
+    | syn_wsat_auth (x : index)
+    | syn_owne_auth (Es : coPsets)
     .
 
   End ATOMS.
@@ -94,41 +90,17 @@ Module Atoms.
       match a with
       | owni i p => @OwnI Σ Formula _ n i p
       | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
-      (* | syn_inv_auth ps => @inv_auth Σ Formula _ n ps *)
       | ownd D => OwnD n D
       | owne E => OwnE n E
+      | syn_wsat_auth x => wsat_auth x
+      | syn_owne_auth Es => OwnE_auth Es
       end.
-
-    (* Definition to_semantics n (a : @t (Formula n)) : iProp := *)
-    (*   match a with *)
-    (*   | owni i p => @OwnI Σ Formula _ (S n) i p *)
-    (*   (* | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *) *)
-    (*   end. *)
-
-
-    (* (* Definition to_semantics_0 (a : @t Σ Empty_set) : iProp := *) *)
-    (* Definition to_semantics_0 (a : @t Empty_set) : iProp := *)
-    (*   match a with *)
-    (*   (* | @own _ _ A r => A.(interp) r *) *)
-    (*   | owni i p => @OwnI Σ Formula _ O i p *)
-    (*   (* | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *) *)
-    (*   end. *)
-
-    (* (* Definition to_semantics n (a : @t Σ (Formula n)) : iProp := *) *)
-    (* Definition to_semantics n (a : @t (Formula n)) : iProp := *)
-    (*   match a with *)
-    (*   (* | @own _ _ A r => A.(interp) r *) *)
-    (*   | owni i p => @OwnI Σ Formula _ (S n) i p *)
-    (*   (* | syn_inv_auth_l ps => @inv_auth Σ Formulas _ n (list_to_map ps) *) *)
-    (*   end. *)
 
   End INTERP.
 
 End Atoms.
 
 Section TL.
-
-  Local Notation index := nat.
 
   Definition _Formula := (@_formula (@Atoms.t)).
   Definition Formula := (@formula (@Atoms.t)).
@@ -153,7 +125,7 @@ Notation "'τ{' t ',' n '}'" := (@Typ (_Formula n) t).
 Notation "'⟪' A ',' n '⟫'" := (AtomSem n A).
 Notation "'⟦' F ',' n '⟧'" := (SynSem n F).
 
-Section GMAP.
+Section BIGOP.
 
   Context `{As : forall formula : Type, Type}.
 
@@ -164,18 +136,17 @@ Section GMAP.
   Local Notation Formula := (@formula As).
 
   Import Syntax.
+  Local Notation Sem := (@to_semantics _ Typ As Σ interp_atoms).
 
   (* Maybe we can make Syntax as an instance for big_opMs. *)
   Definition syn_big_sepM
-             (n : index) (I : Typ (Formula n) (pgmapT formulaT))
-             (f : positive -> Formula n -> Formula n)
+             (n : index) A (I : Typ (Formula n) (pgmapT A))
+             (f : positive -> (Typ (Formula n) A) -> Formula n)
     : Formula n :=
     fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (uncurry f hd) tl) empty (map_to_list I).
 
-  Local Notation Sem := (@to_semantics _ Typ As Σ interp_atoms).
-
-  Lemma red_syn_big_sepM n I f :
-    Sem n (syn_big_sepM n I f) = ([∗ map] i ↦ p ∈ I, Sem n (f i p))%I.
+  Lemma red_syn_big_sepM n A I f :
+    Sem n (syn_big_sepM n A I f) = ([∗ map] i ↦ a ∈ I, Sem n (f i a))%I.
   Proof.
     ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
     unfold syn_big_sepM. simpl. remember (map_to_list I) as L.
@@ -185,7 +156,20 @@ Section GMAP.
     destruct a. ss.
   Qed.
 
-End GMAP.
+  Definition syn_big_sepL1
+             (n : index) A (I : Typ (Formula n) (listT A))
+             (f : (Typ (Formula n) A) -> Formula n)
+    : Formula n :=
+    fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (f hd) tl) empty I.
+
+  Lemma red_syn_big_sepL1 n A I f :
+    Sem n (syn_big_sepL1 n A I f) = ([∗ list] a ∈ I, Sem n (f a))%I.
+  Proof.
+    ss. induction I; ss.
+    rewrite @red_sem_sepconj. rewrite IHI. f_equal.
+  Qed.
+
+End BIGOP.
 
 
 Section TEST.
@@ -216,8 +200,6 @@ End TEST.
 
 
 Section RED.
-
-  Local Notation index := nat.
 
   Context `{Σ : GRA.t}.
   Context `{@GRA.inG (IInvSetRA Formula) Σ}.
@@ -284,15 +266,19 @@ Section RED.
     ⟦(|==> p)%F, n⟧ = (|==> ⟦p, n⟧)%I.
   Proof. apply red_sem_upd. Qed.
 
-  Lemma red_tl_big_sepM n I f :
-    ⟦@syn_big_sepM (@Atoms.t) n I f, n⟧ = ([∗ map] i ↦ p ∈ I, ⟦f i p, n⟧)%I.
+  Lemma red_tl_big_sepM n A I f :
+    ⟦@syn_big_sepM (@Atoms.t) n A I f, n⟧ = ([∗ map] i ↦ p ∈ I, ⟦f i p, n⟧)%I.
   Proof. apply red_syn_big_sepM. Qed.
+
+  Lemma red_tl_big_sepL1 n A I f :
+    ⟦@syn_big_sepL1 (@Atoms.t) n A I f, n⟧ = ([∗ list] a ∈ I, ⟦f a, n⟧)%I.
+  Proof. apply red_syn_big_sepL1. Qed.
 
 End RED.
 
 Global Opaque SynSem.
 
-Section WSAT.
+Section WSATS.
 
   Context `{Σ : GRA.t}.
   Context `{@GRA.inG (IInvSetRA Formula) Σ}.
@@ -303,8 +289,6 @@ Section WSAT.
 
   Definition syn_inv_auth n (ps : gmap positive (Formula n)) : Atoms.t :=
     syn_inv_auth_l (map_to_list ps).
-  (* Definition syn_inv_auth2 n (ps : gmap positive (Formula n)) : @Atoms.t (_Formula n) := *)
-  (*   Atoms.syn_inv_auth_l (map_to_list ps). *)
 
   Lemma red_syn_inv_auth n ps :
     ⟪syn_inv_auth n ps, n⟫ = inv_auth n ps.
@@ -316,7 +300,9 @@ Section WSAT.
     fun i p => ((p ∗ ⟨ownd {[i]}⟩) ∨ ⟨owne {[i]}⟩)%F.
 
   Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n :=
-    @syn_big_sepM (@Atoms.t) n ps (syn_inv_satall_fun n).
+    syn_big_sepM n formulaT ps (syn_inv_satall_fun n).
+  (* Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n := *)
+  (*   @syn_big_sepM (@Atoms.t) n formulaT ps (syn_inv_satall_fun n). *)
 
   Lemma red_syn_inv_satall_fun n i p :
     ⟦syn_inv_satall_fun n i p, n⟧ = ((⟦p, n⟧ ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I.
@@ -333,7 +319,7 @@ Section WSAT.
   Definition syn_wsat n : Formula (S n) :=
     (∃ (I : τ{pgmapT formulaT, (S n)}), ↑(⟨syn_inv_auth n I⟩ ∗ (syn_inv_satall n I)))%F.
 
-  Lemma syn_wsat_iProp n :
+  Lemma red_syn_wsat n :
     ⟦syn_wsat n, S n⟧ = wsat n.
   Proof.
     unfold syn_wsat, wsat. rewrite red_tl_ex. f_equal. extensionalities I.
@@ -341,7 +327,45 @@ Section WSAT.
     rewrite red_syn_inv_auth. rewrite red_syn_inv_satall. auto.
   Qed.
 
-End WSAT.
+  Fixpoint lifts {n} (p : Formula n) m {struct m} : Formula (m + n) :=
+    match m with
+    | O => p
+    | S m' => (↑(@lifts n p m'))%F
+    end.
+
+  (* Definition syn_wsats n : Formula (S n) := *)
+  (*   syn_big_sepL1 n (baseT nat) (seq 0 n) (fun m => lifts (syn_wsat m) (n - (S m))). *)
+
+  Fixpoint syn_wsats n : Formula n :=
+    match n with
+    | O => emp%F
+    | S m => ((↑(syn_wsats m)) ∗ (syn_wsat m))%F
+    end.
+
+  Lemma unfold_syn_wsats n :
+    syn_wsats (S n) = (↑(syn_wsats n) ∗ (syn_wsat n))%F.
+  Proof. ss. Qed.
+
+  Lemma syn_wsats_to_wsats n :
+    ⟦syn_wsats n, n⟧ ⊢ wsats n.
+  Proof.
+    induction n; ss.
+    rewrite red_tl_sepconj. rewrite red_tl_lift. iIntros "[A B]".
+    iApply fold_wsats. rewrite red_syn_wsat. iFrame. iApply IHn. iFrame.
+  Qed.
+
+  Lemma wsats_to_syn_wsats n :
+    wsats n ⊢ ⟦syn_wsats n, n⟧.
+  Proof.
+    induction n; ss.
+    rewrite red_tl_sepconj. rewrite red_tl_lift. iIntros "A".
+    iPoseProof (unfold_wsats with "A") as "[A B]". rewrite red_syn_wsat. iFrame.
+    iApply IHn. iFrame.
+  Qed.
+
+End WSATS.
+
+Global Opaque syn_wsats.
 
 TODO
 
