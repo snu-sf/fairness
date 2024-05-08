@@ -61,11 +61,20 @@ Section TYPES.
 
 End TYPES.
 
+Section OWN.
+
+  Class SRA := { car : Type }.
+
+End OWN.
+
 Module Atoms.
 
   Section ATOMS.
 
+    Context `{σ : list SRA}.
+
     Inductive t {form : Type} : Type :=
+    | own {M : SRA} {IN : In M σ} (m : @car M)
     | owni (i : positive) (p : @Syntax.t _ (@Typ) (@t form) form)
     | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ (@Typ) (@t form) form)))
     | ownd (D : gset positive)
@@ -78,16 +87,29 @@ Module Atoms.
 
   Section INTERP.
 
-    Local Notation _Formula := (@_formula (@t)).
-    Local Notation Formula := (@formula (@t)).
+    Context `{σ : list SRA}.
+
+    Local Notation _Formula := (@_formula (@t σ)).
+    Local Notation Formula := (@formula (@t σ)).
+    (* local Notation _Formula := (@_formula (@t)). *)
+    (* Local Notation Formula := (@formula (@t)). *)
 
     Context `{Σ : GRA.t}.
+    (* Context `{SUB : forall M, In M σ -> { to_URA : SRA -> URA.t & GRA.inG (to_URA M) Σ}}. *)
+    Context `{SUB :
+          forall M, In M σ ->
+               { to_URA : SRA -> URA.t &
+                                  ((GRA.inG (to_URA M) Σ) * ((@car M) -> (to_URA M)))%type }}.
+    (* Context `{SUB : forall M, In M σ -> forall (m : @car M), GRA.inG (to_URA m) Σ}. *)
+
     Context `{@GRA.inG (IInvSetRA Formula) Σ}.
     Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
     Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
 
-    Definition to_semantics n (a : @t (_Formula n)) : iProp :=
+    Definition to_semantics n (a : @t σ (_Formula n)) : iProp :=
       match a with
+      | @own _ _ M IN m =>
+          @OwnM Σ (projT1 (SUB M IN) M) (fst (projT2 (SUB M IN))) ((snd (projT2 (SUB M IN)) m))
       | owni i p => @OwnI Σ Formula _ n i p
       | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
       | ownd D => OwnD n D
