@@ -1821,9 +1821,9 @@ Module ObligationRA.
         -∗
         (#=(arrows_sat (S := Id) v)=>
            ((FairRA.sat_target f1 ths)
-              **
+              ∗
               (list_prop_sum (fun '(i, l) => duty v (Prism.compose inrp p) i l) ls)
-              **
+              ∗
               (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) i 1) lf))).
     Proof.
       iIntros "SAT DUTY ARROWS".

@@ -3,69 +3,11 @@ From Paco Require Import paco.
 From Fairness Require Import ITreeLib pind.
 Require Import Program.
 From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import NatMapRALarge Mod FairBeh.
+From Fairness Require Import Mod FairBeh.
 From Fairness Require Import Axioms.
-From Fairness Require Import MonotoneRA RegionRA FairnessRA ObligationRA.
+From Fairness Require Import NatMapRALarge MonotoneRA RegionRA FairnessRA IndexedInvariants ObligationRA.
 
 Set Implicit Arguments.
-
-TODO : FIX
-
-Section UPDNATMAP.
-  Variable A: Type.
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRALarge.t A)) Σ}.
-
-  Lemma NatMapRALarge_find_some m k a
-    :
-    (OwnM (Auth.black (Some m: NatMapRALarge.t A)))
-      -∗
-      (OwnM (Auth.white (NatMapRALarge.singleton k a: NatMapRALarge.t A)))
-      -∗
-      (⌜NatMap.find k m = Some a⌝).
-  Proof.
-    iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
-    eapply Auth.auth_included in H. eapply NatMapRALarge.extends_singleton_iff in H. auto.
-  Qed.
-
-  Lemma NatMapRALarge_singleton_unique k0 k1 a0 a1
-    :
-    (OwnM (Auth.white (NatMapRALarge.singleton k0 a0: NatMapRALarge.t A)))
-      -∗
-      (OwnM (Auth.white (NatMapRALarge.singleton k1 a1: NatMapRALarge.t A)))
-      -∗
-      (⌜k0 <> k1⌝).
-  Proof.
-    iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
-    ur in H. eapply NatMapRALarge.singleton_unique in H. auto.
-  Qed.
-
-  Lemma NatMapRALarge_remove m k a
-    :
-    (OwnM (Auth.black (Some m: NatMapRALarge.t A)))
-      -∗
-      (OwnM (Auth.white (NatMapRALarge.singleton k a: NatMapRALarge.t A)))
-      -∗
-      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRALarge.t A))).
-  Proof.
-    iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_dealloc. eapply NatMapRALarge.remove_local_update.
-  Qed.
-
-  Lemma NatMapRALarge_add m k a
-        (NONE: NatMap.find k m = None)
-    :
-    (OwnM (Auth.black (Some m: NatMapRALarge.t A)))
-      -∗
-      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRALarge.t A)
-                            ⋅ Auth.white (NatMapRALarge.singleton k a: NatMapRALarge.t A)))
-         ).
-  Proof.
-    iIntros "B". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_alloc. eapply NatMapRALarge.add_local_update. auto.
-  Qed.
-
-End UPDNATMAP.
-
 
 Section PAIR.
   Variable A: Type.
@@ -139,10 +81,16 @@ Section INVARIANT.
   Definition identSrcRA: URA.t := FairRA.srct ident_src.
   Definition identTgtRA: URA.t := FairRA.tgtt ident_tgt.
   Definition ThreadRA: URA.t := Auth.t (NatMapRALarge.t unit).
+  Definition EdgeRA: URA.t := Region.t (nat * nat * Ord.t).
+
+  Local Notation index := nat.
+  Context `{Vars : index -> Type}.
+
   Definition ArrowRA: URA.t :=
-    Region.t ((sum_tid ident_tgt) * nat * Ord.t * Qp * nat).
-  Definition EdgeRA: URA.t :=
-    Region.t (nat * nat * Ord.t).
+    Regions.t (fun x => ((sum_tid ident_tgt) * nat * Ord.t * Qp * nat * (Vars x))%type).
+
+  Context `{Σ : GRA.t}.
+  Context `{Invs : @IInvSet Σ Vars}.
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
@@ -151,44 +99,47 @@ Section INVARIANT.
   Context `{IDENTSRC: @GRA.inG identSrcRA Σ}.
   Context `{IDENTTGT: @GRA.inG identTgtRA Σ}.
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{ARROWRA: @GRA.inG ArrowRA Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+  Context `{ARROWRA: @GRA.inG ArrowRA Σ}.
 
-  Definition fairI: iProp :=
+  (* Works for formulas with index < x. *)
+  Definition fairI x : iProp :=
     (ObligationRA.edges_sat)
-      **
-      (ObligationRA.arrows_sat (S := sum_tid ident_tgt)).
+      ∗
+      (ObligationRA.arrows_sats (S := sum_tid ident_tgt) x).
 
-  Definition default_I: TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
+  Definition default_I x :
+    TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
     fun ths im_src im_tgt st_src st_tgt =>
-      (OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA))
-        **
-        (OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA))
-        **
-        (OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA))
-        **
-        (FairRA.sat_source im_src)
-        **
-        (FairRA.sat_target im_tgt ths)
-        **
-        (ObligationRA.edges_sat)
-        **
-        (ObligationRA.arrows_sat (S := sum_tid ident_tgt))
+      ((OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA))
+         ∗
+         (OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA))
+         ∗
+         (OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA))
+         ∗
+         (FairRA.sat_source im_src)
+         ∗
+         (FairRA.sat_target im_tgt ths)
+         ∗
+         (ObligationRA.edges_sat)
+         ∗
+         (ObligationRA.arrows_sats (S := sum_tid ident_tgt) x))%I
   .
 
-  Definition default_I_past (tid: thread_id): TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
+  Definition default_I_past (tid: thread_id) x
+    : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
     fun ths im_src im_tgt st_src st_tgt =>
       (∃ im_tgt0,
           (⌜fair_update im_tgt0 im_tgt (prism_fmap inlp (tids_fmap tid ths))⌝)
-            ** (default_I ths im_src im_tgt0 st_src st_tgt))%I.
+            ∗ (default_I x ths im_src im_tgt0 st_src st_tgt))%I.
 
   Definition own_thread (tid: thread_id): iProp :=
     (OwnM (Auth.white (NatMapRALarge.singleton tid tt: NatMapRALarge.t unit): ThreadRA)).
 
   Lemma own_thread_unique tid0 tid1
     :
-    (own_thread tid0)
+    ⊢ (own_thread tid0)
       -∗
       (own_thread tid1)
       -∗
@@ -199,91 +150,98 @@ Section INVARIANT.
     iPureIntro. auto.
   Qed.
 
-  Lemma default_I_update_st_src ths im_src im_tgt st_src0 st_tgt st_src' st_src1
+  Lemma default_I_update_st_src x ths im_src im_tgt st_src0 st_tgt st_src' st_src1
     :
-    (default_I ths im_src im_tgt st_src0 st_tgt)
+    ⊢ (default_I x ths im_src im_tgt st_src0 st_tgt)
       -∗
       (OwnM (Auth.white (Excl.just (Some st_src'): @Excl.t (option state_src)): stateSrcRA))
       -∗
-      #=> (OwnM (Auth.white (Excl.just (Some st_src1): @Excl.t (option state_src))) ** default_I ths im_src im_tgt st_src1 st_tgt).
+      #=> (OwnM (Auth.white (Excl.just (Some st_src1): @Excl.t (option state_src)))
+                ∗ default_I x ths im_src im_tgt st_src1 st_tgt).
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
+    unfold default_I. iIntros "[A [B [C [D [E [F G]]]]]] OWN".
     iPoseProof (black_white_update with "B OWN") as "> [B OWN]".
     iModIntro. iFrame.
   Qed.
 
-  Lemma default_I_update_st_tgt ths im_src im_tgt st_src st_tgt0 st_tgt' st_tgt1
+  Lemma default_I_update_st_tgt x ths im_src im_tgt st_src st_tgt0 st_tgt' st_tgt1
     :
-    (default_I ths im_src im_tgt st_src st_tgt0)
+    ⊢ (default_I x ths im_src im_tgt st_src st_tgt0)
       -∗
       (OwnM (Auth.white (Excl.just (Some st_tgt'): @Excl.t (option state_tgt)): stateTgtRA))
       -∗
-      #=> (OwnM (Auth.white (Excl.just (Some st_tgt1): @Excl.t (option state_tgt))) ** default_I ths im_src im_tgt st_src st_tgt1).
+      #=> (OwnM (Auth.white (Excl.just (Some st_tgt1): @Excl.t (option state_tgt)))
+                ∗ default_I x ths im_src im_tgt st_src st_tgt1).
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
+    unfold default_I. iIntros "[A [B [C [D [E [F G]]]]]] OWN".
     iPoseProof (black_white_update with "C OWN") as "> [C OWN]".
     iModIntro. iFrame.
   Qed.
 
-  Lemma default_I_get_st_src ths im_src im_tgt st_src st_tgt st
+  Lemma default_I_get_st_src x ths im_src im_tgt st_src st_tgt st
     :
-    (default_I ths im_src im_tgt st_src st_tgt)
+    ⊢ (default_I x ths im_src im_tgt st_src st_tgt)
       -∗
       (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_src)): stateSrcRA))
       -∗
       ⌜st_src = st⌝.
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
+    unfold default_I. iIntros "[A [B [C [D [E [F G]]]]]] OWN".
     iPoseProof (black_white_equal with "B OWN") as "%". clarify.
   Qed.
 
-  Lemma default_I_get_st_tgt ths im_src im_tgt st_src st_tgt st
+  Lemma default_I_get_st_tgt x ths im_src im_tgt st_src st_tgt st
     :
-    (default_I ths im_src im_tgt st_src st_tgt)
+    ⊢ (default_I x ths im_src im_tgt st_src st_tgt)
       -∗
       (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_tgt)): stateTgtRA))
       -∗
       ⌜st_tgt = st⌝.
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
+    unfold default_I. iIntros "[A [B [C [D [E [F G]]]]]] OWN".
     iPoseProof (black_white_equal with "C OWN") as "%". clarify.
   Qed.
 
-  Lemma default_I_thread_alloc ths0 im_src im_tgt0 st_src st_tgt
+  Lemma default_I_thread_alloc x n ths0 im_src im_tgt0 st_src st_tgt
         tid ths1 im_tgt1
         (THS: TIdSet.add_new tid ths0 ths1)
         (TID_TGT : fair_update im_tgt0 im_tgt1 (prism_fmap inlp (fun i => if tid_dec i tid then Flag.success else Flag.emp)))
     :
-    (default_I ths0 im_src im_tgt0 st_src st_tgt)
+    ⊢
+      (default_I x ths0 im_src im_tgt0 st_src st_tgt)
       -∗
-      #=> (own_thread tid ** ObligationRA.duty inlp tid [] ** default_I ths1 im_src im_tgt1 st_src st_tgt).
+      #=> (own_thread tid ∗ ObligationRA.duty n inlp tid [] ∗ default_I x ths1 im_src im_tgt1 st_src st_tgt).
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G]".
+    unfold default_I. iIntros "[A [B [C [D [E [F G]]]]]]".
     iPoseProof (OwnM_Upd with "A") as "> [A TH]".
     { apply Auth.auth_alloc.
       eapply (@NatMapRALarge.add_local_update unit ths0 tid tt). inv THS. auto.
     }
     iPoseProof (FairRA.target_add_thread with "E") as "> [E BLACK]"; [eauto|eauto|].
     iModIntro. inv THS. iFrame.
-    unfold ObligationRA.duty. iExists [], 1%Qp. iFrame. ss.
+    iApply ObligationRA.black_to_duty. iFrame.
   Qed.
 
-  Lemma default_I_update_ident_thread ths im_src im_tgt0 st_src st_tgt
+  Lemma default_I_update_ident_thread x n ths im_src im_tgt0 st_src st_tgt
         tid im_tgt1 l
         (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
     :
-    (default_I ths im_src im_tgt0 st_src st_tgt)
+    (n < x) ->
+    ⊢
+      (default_I x ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
+      (ObligationRA.duty n inlp tid l ∗ ObligationRA.tax (List.map fst l))
       -∗
-      #=> (ObligationRA.duty inlp tid l ** FairRA.white_thread (S:=_) ** default_I ths im_src im_tgt1 st_src st_tgt).
+      #=> (ObligationRA.duty n inlp tid l ∗ FairRA.white_thread (S:=_) ∗ default_I x ths im_src im_tgt1 st_src st_tgt).
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] DUTY".
-    iPoseProof (ObligationRA.target_update_thread with "E DUTY G") as "> [G [[E BLACK] WHITE]]"; [eauto|].
-    iModIntro. iFrame.
+    unfold default_I. iIntros (LT) "[A [B [C [D [E [F G]]]]]] DUTY".
+    iPoseProof (ObligationRA.target_update_thread with "E DUTY") as "RES". eauto.
+    iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
+    iMod ("RES" with "ARROW") as "[ARROW [E [DUTY WHITE]]]". iFrame.
+    iApply "K". iFrame.
   Qed.
 
-  Lemma default_I_update_ident_target A lf ls
+  Lemma default_I_update_ident_target x n A lf ls
         (p: Prism.t ident_tgt A)
         ths im_src im_tgt0 st_src st_tgt
         fm im_tgt1
@@ -292,127 +250,136 @@ Section INVARIANT.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (default_I ths im_src im_tgt0 st_src st_tgt)
+    (n < x) ->
+    ⊢
+      (default_I x ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (list_prop_sum (fun '(i, l) => ObligationRA.duty (inrp ⋅ p)%prism i l ** ObligationRA.tax l) ls)
+      (list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l ∗ ObligationRA.tax (List.map fst l)) ls)
       -∗
-      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inrp ⋅ p)%prism i l) ls)
-             **
+      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l) ls)
+             ∗
              (list_prop_sum (fun i => FairRA.white (Id:=_) (inrp ⋅ p)%prism i 1) lf)
-             **
-             default_I ths im_src im_tgt1 st_src st_tgt).
+             ∗
+             default_I x ths im_src im_tgt1 st_src st_tgt).
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] DUTY".
-    iPoseProof (ObligationRA.target_update with "E DUTY G") as "> [G [[E BLACK] WHITE]]".
-    { eauto. }
-    { eauto. }
-    { eauto. }
-    { eauto. }
-    iModIntro. iFrame.
+    unfold default_I. iIntros (LT) "[A [B [C [D [E [F G]]]]]] DUTY".
+    iPoseProof (ObligationRA.target_update with "E DUTY") as "RES". 1,2,3,4: eauto.
+    iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
+    iMod ("RES" with "ARROW") as "[ARROW [E [DUTY WHITE]]]". iFrame.
+    iApply "K". iFrame.
   Qed.
 
-  Lemma default_I_update_ident_source lf ls o
+  Lemma default_I_update_ident_source x lf ls o
         ths im_src0 im_tgt st_src st_tgt
         fm
         (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
         (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (default_I ths im_src0 im_tgt st_src st_tgt)
+    ⊢
+      (default_I x ths im_src0 im_tgt st_src st_tgt)
       -∗
       (list_prop_sum (fun i => FairRA.white Prism.id i Ord.one) lf)
       -∗
       #=> (∃ im_src1,
               (⌜fair_update im_src0 im_src1 fm⌝)
-                **
+                ∗
                 (list_prop_sum (fun i => FairRA.white Prism.id i o) ls)
-                **
-                default_I ths im_src1 im_tgt st_src st_tgt).
+                ∗
+                default_I x ths im_src1 im_tgt st_src st_tgt).
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] WHITES".
+    unfold default_I. iIntros "[A [B [C [D [E [F G]]]]]] WHITES".
     iPoseProof (FairRA.source_update with "D WHITES") as "> [% [[% D] WHITE]]".
     { eauto. }
     { eauto. }
     iModIntro. iExists _. iFrame. auto.
   Qed.
 
-  Lemma arrows_sat_sub ths im_src im_tgt st_src st_tgt
+  Lemma arrows_sat_sub x n ths im_src im_tgt st_src st_tgt
     :
-    ⊢ SubIProp (ObligationRA.arrows_sat (S := sum_tid ident_tgt)) (default_I ths im_src im_tgt st_src st_tgt).
+    (n < x) ->
+    ⊢ SubIProp (ObligationRA.arrows_sat n (S := sum_tid ident_tgt)) (default_I x ths im_src im_tgt st_src st_tgt).
   Proof.
-    iIntros "[[[[[[A B] C] D] E] F] G]". iModIntro. iFrame. auto.
+    iIntros (LT) "[A [B [C [D [E [F G]]]]]]".
+    iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
+    iFrame. iModIntro. iFrame.
   Qed.
 
-  Lemma edges_sat_sub ths im_src im_tgt st_src st_tgt
+  Lemma edges_sat_sub x ths im_src im_tgt st_src st_tgt
     :
-    ⊢ SubIProp (ObligationRA.edges_sat) (default_I ths im_src im_tgt st_src st_tgt).
+    ⊢ SubIProp (ObligationRA.edges_sat) (default_I x ths im_src im_tgt st_src st_tgt).
   Proof.
-    iIntros "[[[[[[A B] C] D] E] F] G]". iModIntro. iFrame. auto.
+    iIntros "[A [B [C [D [E [F G]]]]]]". iModIntro. iFrame. auto.
   Qed.
 
-  Lemma default_I_past_update_st_src tid ths im_src im_tgt st_src0 st_tgt st_src' st_src1
+  Lemma default_I_past_update_st_src tid x ths im_src im_tgt st_src0 st_tgt st_src' st_src1
     :
-    (default_I_past tid ths im_src im_tgt st_src0 st_tgt)
+    ⊢
+      (default_I_past tid x ths im_src im_tgt st_src0 st_tgt)
       -∗
       (OwnM (Auth.white (Excl.just (Some st_src'): @Excl.t (option state_src)): stateSrcRA))
       -∗
-      #=> (OwnM (Auth.white (Excl.just (Some st_src1): @Excl.t (option state_src))) ** default_I_past tid ths im_src im_tgt st_src1 st_tgt).
+      #=> (OwnM (Auth.white (Excl.just (Some st_src1): @Excl.t (option state_src)))
+                ∗ default_I_past tid x ths im_src im_tgt st_src1 st_tgt).
   Proof.
     iIntros "[% [% D]] H".
     iPoseProof (default_I_update_st_src with "D H") as "> [H D]".
     iModIntro. iSplitL "H"; auto. unfold default_I_past. eauto.
   Qed.
 
-  Lemma default_I_past_update_st_tgt tid ths im_src im_tgt st_src st_tgt0 st_tgt' st_tgt1
+  Lemma default_I_past_update_st_tgt x tid ths im_src im_tgt st_src st_tgt0 st_tgt' st_tgt1
     :
-    (default_I_past tid ths im_src im_tgt st_src st_tgt0)
+    ⊢
+      (default_I_past tid x ths im_src im_tgt st_src st_tgt0)
       -∗
       (OwnM (Auth.white (Excl.just (Some st_tgt'): @Excl.t (option state_tgt)): stateTgtRA))
       -∗
-      #=> (OwnM (Auth.white (Excl.just (Some st_tgt1): @Excl.t (option state_tgt))) ** default_I_past tid ths im_src im_tgt st_src st_tgt1).
+      #=> (OwnM (Auth.white (Excl.just (Some st_tgt1): @Excl.t (option state_tgt)))
+                ∗ default_I_past tid x ths im_src im_tgt st_src st_tgt1).
   Proof.
     iIntros "[% [% D]] H".
     iPoseProof (default_I_update_st_tgt with "D H") as "> [H D]".
     iModIntro. iSplitL "H"; auto. unfold default_I_past. eauto.
   Qed.
 
-  Lemma default_I_past_get_st_src tid ths im_src im_tgt st_src st_tgt st
+  Lemma default_I_past_get_st_src x tid ths im_src im_tgt st_src st_tgt st
     :
-    (default_I_past tid ths im_src im_tgt st_src st_tgt)
+    ⊢
+      (default_I_past tid x ths im_src im_tgt st_src st_tgt)
       -∗
       (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_src)): stateSrcRA))
       -∗
       ⌜st_src = st⌝.
   Proof.
-    iIntros "[% [% D]] H".
-    iApply (default_I_get_st_src with "D H").
+    iIntros "[% [% D]] H". iApply (default_I_get_st_src with "D H").
   Qed.
 
-  Lemma default_I_past_get_st_tgt tid ths im_src im_tgt st_src st_tgt st
+  Lemma default_I_past_get_st_tgt x tid ths im_src im_tgt st_src st_tgt st
     :
-    (default_I_past tid ths im_src im_tgt st_src st_tgt)
+    ⊢
+      (default_I_past tid x ths im_src im_tgt st_src st_tgt)
       -∗
       (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_tgt)): stateTgtRA))
       -∗
       ⌜st_tgt = st⌝.
   Proof.
-    iIntros "[% [% D]] H".
-    iApply (default_I_get_st_tgt with "D H").
+    iIntros "[% [% D]] H". iApply (default_I_get_st_tgt with "D H").
   Qed.
 
-  Lemma default_I_past_update_ident_thread ths im_src im_tgt st_src st_tgt
+  Lemma default_I_past_update_ident_thread x n ths im_src im_tgt st_src st_tgt
         tid l
     :
-    (default_I_past tid ths im_src im_tgt st_src st_tgt)
+    (n < x) ->
+    ⊢
+      (default_I_past tid x ths im_src im_tgt st_src st_tgt)
       -∗
-      (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
+      (ObligationRA.duty n inlp tid l ∗ ObligationRA.tax (List.map fst l))
       -∗
-      #=> (ObligationRA.duty inlp tid l ** FairRA.white_thread (S:=_) ** default_I ths im_src im_tgt st_src st_tgt).
+      #=> (ObligationRA.duty n inlp tid l ∗ FairRA.white_thread (S:=_) ∗ default_I x ths im_src im_tgt st_src st_tgt).
   Proof.
-    iIntros "[% [% D]] H".
-    iApply (default_I_update_ident_thread with "D H"); auto.
+    iIntros (LT) "[% [% D]] H". iApply (default_I_update_ident_thread with "D H"). all: eauto.
   Qed.
 
-  Lemma default_I_past_update_ident_target A tid lf ls
+  Lemma default_I_past_update_ident_target A tid x n lf ls
         (p: Prism.t ident_tgt A)
         ths im_src im_tgt0 st_src st_tgt
         fm im_tgt1
@@ -421,18 +388,20 @@ Section INVARIANT.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (default_I_past tid ths im_src im_tgt0 st_src st_tgt)
+    (n < x) ->
+    ⊢
+      (default_I_past tid x ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (list_prop_sum (fun '(i, l) => ObligationRA.duty (inrp ⋅ p)%prism i l ** ObligationRA.tax l) ls)
+      (list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l ∗ ObligationRA.tax (List.map fst l)) ls)
       -∗
-      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty (inrp ⋅ p)%prism i l) ls)
-             **
+      #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l) ls)
+             ∗
              (list_prop_sum (fun i => FairRA.white (Id:=_) (inrp ⋅ p)%prism i 1) lf)
-             **
-             default_I_past tid ths im_src im_tgt1 st_src st_tgt).
+             ∗
+             default_I_past tid x ths im_src im_tgt1 st_src st_tgt).
   Proof.
-    iIntros "[% [% D]] H".
-    iPoseProof (default_I_update_ident_target with "D H") as "> [[H0 H1] D]"; [eauto|eauto|eauto|eauto|..].
+    iIntros (LT) "[% [% D]] H".
+    iPoseProof (default_I_update_ident_target with "D H") as "> [H0 [H1 D]]". 1,2,3,4,5: eauto.
     { instantiate (1:=(fun i =>
                          match i with
                          | inl i => im_tgt2 (inl i)
@@ -452,48 +421,50 @@ Section INVARIANT.
     { rewrite <- H. auto. }
   Qed.
 
-  Lemma default_I_past_update_ident_source tid lf ls o
+  Lemma default_I_past_update_ident_source tid x lf ls o
         ths im_src0 im_tgt st_src st_tgt
         fm
         (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
         (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (default_I_past tid ths im_src0 im_tgt st_src st_tgt)
+    ⊢
+      (default_I_past tid x ths im_src0 im_tgt st_src st_tgt)
       -∗
       (list_prop_sum (fun i => FairRA.white Prism.id i Ord.one) lf)
       -∗
       #=> (∃ im_src1,
               (⌜fair_update im_src0 im_src1 fm⌝)
-                **
+                ∗
                 (list_prop_sum (fun i => FairRA.white Prism.id i o) ls)
-                **
-                default_I_past tid ths im_src1 im_tgt st_src st_tgt).
+                ∗
+                default_I_past tid x ths im_src1 im_tgt st_src st_tgt).
   Proof.
     iIntros "[% [% D]] H".
-    iPoseProof (default_I_update_ident_source with "D H") as "> [% [[% H] D]]"; [eauto|eauto|..].
-    iModIntro. unfold default_I_past. iExists _. iSplitL "H"; auto.
+    iPoseProof (default_I_update_ident_source with "D H") as "> [% [% [H D]]]"; [eauto|eauto|..].
+    iModIntro. unfold default_I_past. iExists _. iSplitR. eauto. iFrame. iExists _. iFrame. auto.
   Qed.
 
-  Lemma default_I_past_update_ident_source_prism A tid lf ls o
+  Lemma default_I_past_update_ident_source_prism A tid x lf ls o
         (p: Prism.t ident_src A)
         ths im_src0 im_tgt st_src st_tgt
         fm
         (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
         (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (default_I_past tid ths im_src0 im_tgt st_src st_tgt)
+    ⊢
+      (default_I_past tid x ths im_src0 im_tgt st_src st_tgt)
       -∗
       (list_prop_sum (fun i => FairRA.white p i Ord.one) lf)
       -∗
       #=> (∃ im_src1,
               (⌜fair_update im_src0 im_src1 (prism_fmap p fm)⌝)
-                **
+                ∗
                 (list_prop_sum (fun i => FairRA.white p i o) ls)
-                **
-                default_I_past tid ths im_src1 im_tgt st_src st_tgt).
+                ∗
+                default_I_past tid x ths im_src1 im_tgt st_src st_tgt).
   Proof.
     iIntros "D H".
-    iPoseProof (default_I_past_update_ident_source with "D [H]") as "> [% [[% H] D]]".
+    iPoseProof (default_I_past_update_ident_source with "D [H]") as "> [% [% [H D]]]".
     { instantiate (1:=List.map (Prism.review p) lf). instantiate (1:=prism_fmap p fm).
       i. unfold prism_fmap in IN. des_ifs.
       eapply Prism.review_preview in Heq. subst.
@@ -512,31 +483,31 @@ Section INVARIANT.
   Qed.
 
   Lemma default_I_past_final ths0 im_src im_tgt st_src st_tgt
-        tid
+        tid x n
     :
-    (default_I_past tid ths0 im_src im_tgt st_src st_tgt)
+    (n < x) ->
+    ⊢
+      (default_I_past tid x ths0 im_src im_tgt st_src st_tgt)
       -∗
-      (own_thread tid ** ObligationRA.duty inlp tid [])
+      (own_thread tid ∗ ObligationRA.duty n inlp tid [])
       -∗
       #=> (∃ ths1,
               (⌜NatMap.remove tid ths0 = ths1⌝)
-                **
-                (default_I ths1 im_src im_tgt st_src st_tgt)).
+                ∗
+                (default_I x ths1 im_src im_tgt st_src st_tgt)).
   Proof.
-    iIntros "[% [% D]] [OWN DUTY]".
-    iPoseProof (default_I_update_ident_thread with "D [DUTY]") as "> [[DUTY _] D]".
+    iIntros (LT) "[% [% D]] [OWN DUTY]".
+    iPoseProof (default_I_update_ident_thread with "D [DUTY]") as "> [DUTY [_ D]]".
+    { eauto. }
     { eauto. }
     { iSplitL; eauto. }
-    unfold default_I. iPoseProof "D" as "[[[[[[A B] C] D] E] F] G]".
+    unfold default_I. iPoseProof "D" as "[A [B [C [D [E [F G]]]]]]".
     iCombine "A OWN" as "A".
     iPoseProof (OwnM_Upd with "A") as "> X".
-    { apply Auth.auth_dealloc.
-      eapply (@NatMapRALarge.remove_local_update unit ths0 _ _).
-    }
+    { apply Auth.auth_dealloc. eapply (@NatMapRALarge.remove_local_update unit ths0 _ _). }
     iPoseProof (FairRA.target_remove_thread with "E [DUTY]") as "> E".
-    { iPoseProof "DUTY" as "[% [% [[A [B %]] %]]]". destruct rs; ss.
-      subst. iFrame.
-    }
+    { iPoseProof "DUTY" as "[% [% [A [[B %] %]]]]". destruct rs; ss. subst. iFrame. }
     iModIntro. iExists _. iFrame. auto.
   Qed.
+
 End INVARIANT.
