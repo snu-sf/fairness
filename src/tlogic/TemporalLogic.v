@@ -71,14 +71,15 @@ Module Atoms.
 
   Section ATOMS.
 
-    Context `{σ : list SRA}.
+    (* Context `{σ : list SRA}. *)
 
     Inductive t {form : Type} : Type :=
-    | own {M : SRA} {IN : In M σ} (m : @car M)
+    (* | own {M : SRA} {IN : In M σ} (m : @car M) *)
+    (** Atoms to express the invariant system. *)
     | owni (i : positive) (p : @Syntax.t _ (@Typ) (@t form) form)
     | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ (@Typ) (@t form) form)))
-    | ownd (D : gset positive)
-    | owne (E : coPset)
+    | ownd (x : index) (D : gset positive)
+    | owne (x : index) (E : coPset)
     | syn_wsat_auth (x : index)
     | syn_owne_auth (Es : coPsets)
     .
@@ -87,33 +88,31 @@ Module Atoms.
 
   Section INTERP.
 
-    Context `{σ : list SRA}.
+    (* Context `{σ : list SRA}. *)
 
-    Local Notation _Formula := (@_formula (@t σ)).
-    Local Notation Formula := (@formula (@t σ)).
-    (* local Notation _Formula := (@_formula (@t)). *)
-    (* Local Notation Formula := (@formula (@t)). *)
+    Local Notation _Formula := (@_formula (@t)).
+    Local Notation Formula := (@formula (@t)).
 
     Context `{Σ : GRA.t}.
-    (* Context `{SUB : forall M, In M σ -> { to_URA : SRA -> URA.t & GRA.inG (to_URA M) Σ}}. *)
-    Context `{SUB :
-          forall M, In M σ ->
-               { to_URA : SRA -> URA.t &
-                                  ((GRA.inG (to_URA M) Σ) * ((@car M) -> (to_URA M)))%type }}.
-    (* Context `{SUB : forall M, In M σ -> forall (m : @car M), GRA.inG (to_URA m) Σ}. *)
+    (* Context `{SUB : *)
+    (*       forall M, In M σ -> *)
+    (*            { to_URA : SRA -> URA.t & *)
+    (*                               ((GRA.inG (to_URA M) Σ) * ((@car M) -> (to_URA M)))%type }}. *)
 
     Context `{@GRA.inG (IInvSetRA Formula) Σ}.
     Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
     Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
 
-    Definition to_semantics n (a : @t σ (_Formula n)) : iProp :=
+    (* Definition to_semantics n (a : @t σ (_Formula n)) : iProp := *)
+    Definition to_semantics n (a : @t (_Formula n)) : iProp :=
       match a with
-      | @own _ _ M IN m =>
-          @OwnM Σ (projT1 (SUB M IN) M) (fst (projT2 (SUB M IN))) ((snd (projT2 (SUB M IN)) m))
+      (* | @own _ _ M IN m => *)
+      (*     @OwnM Σ (projT1 (SUB M IN) M) (fst (projT2 (SUB M IN))) ((snd (projT2 (SUB M IN)) m)) *)
+      (** Atoms to express the invariant system. *)
       | owni i p => @OwnI Σ Formula _ n i p
       | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
-      | ownd D => OwnD n D
-      | owne E => OwnE n E
+      | ownd x D => OwnD x D
+      | owne x E => OwnE x E
       | syn_wsat_auth x => wsat_auth x
       | syn_owne_auth Es => OwnE_auth Es
       end.
@@ -143,6 +142,8 @@ Section TL.
 
 End TL.
 
+(** Notations and coercions. *)
+Coercion baseT : Sortclass >-> type.
 Notation "'τ{' t ',' n '}'" := (@Typ (_Formula n) t).
 Notation "'⟪' A ',' n '⟫'" := (AtomSem n A).
 Notation "'⟦' F ',' n '⟧'" := (SynSem n F).
@@ -162,13 +163,14 @@ Section BIGOP.
 
   (* Maybe we can make Syntax as an instance for big_opMs. *)
   Definition syn_big_sepM
-             (n : index) A (I : Typ (Formula n) (pgmapT A))
-             (f : positive -> (Typ (Formula n) A) -> Formula n)
+             (n : index) K {H1 : EqDecision K} {H2 : Countable K}
+             A (I : @gmap K H1 H2 (Typ (Formula n) A))
+             (f : K -> (Typ (Formula n) A) -> Formula n)
     : Formula n :=
     fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (uncurry f hd) tl) empty (map_to_list I).
 
-  Lemma red_syn_big_sepM n A I f :
-    Sem n (syn_big_sepM n A I f) = ([∗ map] i ↦ a ∈ I, Sem n (f i a))%I.
+  Lemma red_syn_big_sepM n K {H1 : EqDecision K} {H2 : Countable K} A I f :
+    Sem n (syn_big_sepM n K A I f) = ([∗ map] i ↦ a ∈ I, Sem n (f i a))%I.
   Proof.
     ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
     unfold syn_big_sepM. simpl. remember (map_to_list I) as L.
@@ -192,33 +194,6 @@ Section BIGOP.
   Qed.
 
 End BIGOP.
-
-
-Section TEST.
-
-  Context `{Σ : GRA.t}.
-  Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
-  Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
-  Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
-
-  Definition test : Formula 3 :=
-    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), ⌜p = emp⌝)⟩%F.
-  Definition test1 : Formula 3 :=
-    ⟨Atoms.owni xH (∃ (p : τ{baseT nat, 3}), ⌜p = 2⌝)⟩%F.
-  Definition test2 : Formula 3 :=
-    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), ↑p)⟩%F.
-  Fail Definition test3 : Formula 3 :=
-    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), p)⟩%F.
-
-  Lemma testp n :
-    ⟦(⟨Atoms.owni xH ⟨(Atoms.owni xH emp)⟩⟩ ∗ (∃ (p : τ{formulaT, S n}), ↑(p -∗ ⌜p = emp⌝)))%F, S n⟧
-    =
-      ((OwnI (S n) xH ⟨Atoms.owni xH emp⟩%F) ∗ (∃ (p : τ{formulaT, S n}), ⟦p, n⟧ -∗ ⌜p = emp%F⌝))%I.
-  Proof.
-    ss.
-  Qed.
-
-End TEST.
 
 
 Section RED.
@@ -288,8 +263,8 @@ Section RED.
     ⟦(|==> p)%F, n⟧ = (|==> ⟦p, n⟧)%I.
   Proof. apply red_sem_upd. Qed.
 
-  Lemma red_tl_big_sepM n A I f :
-    ⟦@syn_big_sepM (@Atoms.t) n A I f, n⟧ = ([∗ map] i ↦ p ∈ I, ⟦f i p, n⟧)%I.
+  Lemma red_tl_big_sepM n A K {EQ : EqDecision K} {CNT : Countable K} I f :
+    ⟦@syn_big_sepM (@Atoms.t) n K _ _ A I f, n⟧ = ([∗ map] i ↦ p ∈ I, ⟦f i p, n⟧)%I.
   Proof. apply red_syn_big_sepM. Qed.
 
   Lemma red_tl_big_sepL1 n A I f :
@@ -300,6 +275,81 @@ End RED.
 
 Global Opaque SynSem.
 
+Ltac red_tl_binary_once := (try rewrite ! red_tl_sepconj;
+                            try rewrite ! red_tl_and;
+                            try rewrite ! red_tl_or;
+                            try rewrite ! red_tl_impl;
+                            try rewrite ! red_tl_wand
+                           ).
+
+Ltac red_tl_unary_once := (try rewrite ! red_tl_atom;
+                           try rewrite ! red_tl_lift;
+                           try rewrite ! red_tl_pure;
+                           try rewrite ! red_tl_univ;
+                           try rewrite ! red_tl_ex;
+                           try rewrite ! red_tl_empty;
+                           try rewrite ! red_tl_persistently;
+                           try rewrite ! red_tl_plainly;
+                           try rewrite ! red_tl_upd
+                          ).
+
+Ltac red_tl_binary := repeat red_tl_binary_once.
+Ltac red_tl_unary := repeat red_tl_unary_once.
+Ltac red_tl := repeat (red_tl_binary; red_tl_unary).
+
+
+Section TEST.
+
+  Context `{Σ : GRA.t}.
+  Context `{@PCM.GRA.inG (IInvSetRA Formula) Σ}.
+  Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}.
+  Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
+
+  Definition test : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), ⌜p = emp⌝)⟩%F.
+
+  Definition test1 : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{baseT nat, 3}), ⌜p = 2⌝)⟩%F.
+  Definition test1' : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{nat, 3}), ⌜p = 2⌝)⟩%F.
+  Goal test1 = test1'. Proof. ss. Qed.
+
+  Definition test2 : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), ↑p)⟩%F.
+  Fail Definition test3 : Formula 3 :=
+    ⟨Atoms.owni xH (∃ (p : τ{formulaT, 3}), p)⟩%F.
+
+  Lemma testp n :
+    ⟦(⟨Atoms.owni xH ⟨(Atoms.owni xH emp)⟩⟩ ∗ (∃ (p : τ{formulaT, S n}), ↑(p -∗ ⌜p = emp⌝)))%F, S n⟧
+    =
+      ((OwnI (S n) xH ⟨Atoms.owni xH emp⟩%F) ∗ (∃ (p : τ{formulaT, S n}), ⟦p, n⟧ -∗ ⌜p = emp%F⌝))%I.
+  Proof.
+    ss.
+  Qed.
+
+  Lemma pers_test n (p q r : Formula n) :
+    ⊢ ⟦(((□ (p -∗ □ q)) ∗ ((q ∗ q) -∗ r)) → p -∗ r)%F , n⟧.
+  Proof.
+    red_tl. iIntros "[#A B] C". iPoseProof ("A" with "C") as "#D".
+    iPoseProof ("B" with "[D]") as "E". iSplitR; auto.
+    iFrame.
+  Qed.
+
+  Lemma pers_test1 n (p : Formula n) :
+    ⟦(□p)%F, n⟧ ⊢ □⟦p, n⟧.
+  Proof.
+    red_tl. iIntros "#P". auto.
+  Qed.
+
+  Lemma pers_test2 n (p : Formula n) :
+    □⟦p, n⟧ ⊢ ⟦(□p)%F, n⟧.
+  Proof.
+    red_tl. iIntros "#P". auto.
+  Qed.
+
+End TEST.
+
+
 Section WSATS.
 
   Context `{Σ : GRA.t}.
@@ -308,6 +358,8 @@ Section WSATS.
   Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}.
 
   Import Atoms.
+
+  (** Definitions for wsat. *)
 
   Definition syn_inv_auth n (ps : gmap positive (Formula n)) : Atoms.t :=
     syn_inv_auth_l (map_to_list ps).
@@ -319,23 +371,21 @@ Section WSATS.
   Qed.
 
   Definition syn_inv_satall_fun n : positive -> Formula n -> Formula n :=
-    fun i p => ((p ∗ ⟨ownd {[i]}⟩) ∨ ⟨owne {[i]}⟩)%F.
+    fun i p => ((p ∗ ⟨ownd n {[i]}⟩) ∨ ⟨owne n {[i]}⟩)%F.
 
   Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n :=
-    syn_big_sepM n formulaT ps (syn_inv_satall_fun n).
-  (* Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n := *)
-  (*   @syn_big_sepM (@Atoms.t) n formulaT ps (syn_inv_satall_fun n). *)
+    syn_big_sepM n positive formulaT ps (syn_inv_satall_fun n).
 
   Lemma red_syn_inv_satall_fun n i p :
     ⟦syn_inv_satall_fun n i p, n⟧ = ((⟦p, n⟧ ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I.
   Proof.
-    unfold syn_inv_satall_fun. rewrite red_tl_or. rewrite red_tl_sepconj. do 2 f_equal.
+    unfold syn_inv_satall_fun. red_tl. auto.
   Qed.
 
   Lemma red_syn_inv_satall n ps :
     ⟦syn_inv_satall n ps, n⟧ = inv_satall n ps.
   Proof.
-    ss. unfold syn_inv_satall. rewrite red_tl_big_sepM. unfold inv_satall. ss.
+    ss. unfold syn_inv_satall. rewrite red_tl_big_sepM. ss.
   Qed.
 
   Definition syn_wsat n : Formula (S n) :=
@@ -344,10 +394,11 @@ Section WSATS.
   Lemma red_syn_wsat n :
     ⟦syn_wsat n, S n⟧ = wsat n.
   Proof.
-    unfold syn_wsat, wsat. rewrite red_tl_ex. f_equal. extensionalities I.
-    rewrite red_tl_lift. rewrite red_tl_sepconj. rewrite red_tl_atom.
-    rewrite red_syn_inv_auth. rewrite red_syn_inv_satall. auto.
+    unfold syn_wsat, wsat. red_tl. f_equal. extensionalities I.
+    red_tl. rewrite red_syn_inv_auth. rewrite red_syn_inv_satall. auto.
   Qed.
+
+  (** Definitions for wsats. *)
 
   Fixpoint lifts {n} (p : Formula n) m {struct m} : Formula (m + n) :=
     match m with
@@ -371,23 +422,86 @@ Section WSATS.
   Lemma syn_wsats_to_wsats n :
     ⟦syn_wsats n, n⟧ ⊢ wsats n.
   Proof.
-    induction n; ss.
-    rewrite red_tl_sepconj. rewrite red_tl_lift. iIntros "[A B]".
+    induction n; ss. red_tl. iIntros "[A B]".
     iApply fold_wsats. rewrite red_syn_wsat. iFrame. iApply IHn. iFrame.
   Qed.
 
   Lemma wsats_to_syn_wsats n :
     wsats n ⊢ ⟦syn_wsats n, n⟧.
   Proof.
-    induction n; ss.
-    rewrite red_tl_sepconj. rewrite red_tl_lift. iIntros "A".
+    induction n; ss. red_tl. iIntros "A".
     iPoseProof (unfold_wsats with "A") as "[A B]". rewrite red_syn_wsat. iFrame.
     iApply IHn. iFrame.
   Qed.
 
+  (** Definitions for OwnEs. *)
+
+  Definition syn_owne_satall_fun x : index -> coPset -> (Formula x) :=
+    fun n E => ⟨owne n E⟩%F.
+
+  Definition syn_owne_satall x (Es : coPsets) : Formula x :=
+    syn_big_sepM x index coPset Es (syn_owne_satall_fun x).
+
+  Lemma red_syn_owne_satall x Es :
+    ⟦syn_owne_satall x Es, x⟧ = OwnE_satall Es.
+  Proof.
+    unfold syn_owne_satall. rewrite red_tl_big_sepM. ss.
+  Qed.
+
+  Definition syn_ownes x (Es : coPsets) : Formula x :=
+    (⟨syn_owne_auth Es⟩ ∗ (syn_owne_satall x Es))%F.
+
+  Lemma red_syn_ownes x Es :
+    ⟦syn_ownes x Es, x⟧ = OwnEs Es.
+  Proof.
+    unfold syn_ownes, OwnEs. red_tl. f_equal. apply red_syn_owne_satall.
+  Qed.
+
+  (** Definitions for inv and FUpd. *)
+
+  Definition syn_inv (n : index) (N : namespace) (p : Formula n) : Formula n :=
+    (∃ (i : τ{positive, n}), ⌜i ∈ (nclose N : coPset)⌝ ∧ ⟨owni i p⟩)%F.
+
+  Lemma red_syn_inv n N p :
+    ⟦syn_inv n N p, n⟧ = inv n N p.
+  Proof.
+    done.
+  Qed.
+
+  Definition syn_fupd (n : index) (A : Formula n) (Es1 Es2 : coPsets) (p : Formula n) : Formula n :=
+    (A ∗ syn_wsats n ∗ syn_ownes _ Es1 -∗ |==> (A ∗ syn_wsats n ∗ syn_ownes _ Es2 ∗ p))%F.
+
+  Lemma syn_fupd_to_fupd n A Es1 Es2 p :
+    ⟦syn_fupd n A Es1 Es2 p, n⟧ ⊢ FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧.
+  Proof.
+    unfold syn_fupd. red_tl. rewrite ! red_syn_ownes.
+    Local Transparent FUpd.
+    iIntros "F [A [W E]]". iPoseProof (wsats_to_syn_wsats with "W") as "W".
+    iMod ("F" with "[A E W]") as "(A & W & E & P)". iFrame.
+    iPoseProof (syn_wsats_to_wsats with "W") as "W".
+    iModIntro. iFrame.
+    Local Opaque FUpd.
+  Qed.
+
+  Lemma fupd_to_syn_fupd n A Es1 Es2 p :
+    FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧ ⊢ ⟦syn_fupd n A Es1 Es2 p, n⟧.
+  Proof.
+    unfold syn_fupd. red_tl. rewrite ! red_syn_ownes.
+    Local Transparent FUpd.
+    iIntros "F [A [W E]]". iPoseProof (syn_wsats_to_wsats with "W") as "W".
+    iMod ("F" with "[A E W]") as "(A & W & E & P)". iFrame.
+    iPoseProof (wsats_to_syn_wsats with "W") as "W".
+    iModIntro. iFrame.
+    Local Opaque FUpd.
+  Qed.
+
 End WSATS.
 
+Global Opaque syn_wsat.
 Global Opaque syn_wsats.
+Global Opaque syn_ownes.
+Global Opaque syn_inv.
+Global Opaque syn_fupd.
 
 TODO
 
