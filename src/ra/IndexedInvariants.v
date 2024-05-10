@@ -705,7 +705,7 @@ Section FANCY_UPDATE.
     iModIntro. iFrame. iApply wsats_nin. apply LT. iFrame.
   Qed.
 
-  Lemma FUpd_alloc_gen x A Es n N p :
+  Lemma wsats_inv_gen x A Es n N p :
     n < x ->
     ⊢ A ∗ wsats x ∗ OwnEs Es -∗ #=> (A ∗ (prop n p -∗ wsats x) ∗ OwnEs Es ∗ (inv n N p)).
   Proof.
@@ -715,13 +715,19 @@ Section FANCY_UPDATE.
     - iFrame. auto.
   Qed.
 
+  Lemma FUpd_alloc_gen x A Es n N p :
+    n < x -> (inv n N p -∗ prop n p) ⊢ FUpd x A Es Es (inv n N p).
+  Proof.
+    iIntros (LT) "P (A & WSAT & EN)".
+    iMod (wsats_inv_gen with "[A WSAT EN]") as "(A & W & EN & #INV)". eauto.
+    iSplitL "A". iApply "A". iFrame.
+    iPoseProof ("P" with "INV") as "P". iPoseProof ("W" with "P") as "W". iModIntro. iFrame. auto.
+  Qed.
+
   Lemma FUpd_alloc x A Es n N p :
     n < x -> prop n p ⊢ FUpd x A Es Es (inv n N p).
   Proof.
-    iIntros (LT) "P (A & WSAT & EN)".
-    iMod (FUpd_alloc_gen with "[A WSAT EN]") as "(A & W & EN & INV)". eauto.
-    iSplitL "A". iApply "A". iFrame.
-    iPoseProof ("W" with "P") as "W". iModIntro. iFrame.
+    iIntros (LT) "P". iApply FUpd_alloc_gen. auto. iIntros. iFrame.
   Qed.
 
   Lemma FUpd_open_aux x A Es n N E (LT : n < x) (INE : Es !! n = Some E) (IN : ↑N ⊆ E) p :

@@ -20,7 +20,7 @@ Section STATE.
 
   Definition interp_prod {A B} (SA: A -> iProp) (SB: B -> iProp):
     (A * B -> iProp) :=
-    fun '(sa, sb) => SA sa ** SB sb.
+    fun '(sa, sb) => (SA sa ∗ SB sb)%I.
 
   Global Program Instance ViewInterp_fstl {A B}
          (SA: A -> iProp) (SB: B -> iProp)
@@ -96,8 +96,11 @@ Section STATE.
   Definition Vw_src (st: state_src) {V} (l : Lens.t state_src V) (v : V) : iProp :=
     St_src (Lens.set l v st).
 
-  Definition src_interp_as n {V} (l: Lens.t state_src V) (VI: V -> iProp) :=
-    (∃ SI, (inv n N_state_src (∃ st, St_src st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
+  Definition src_interp_as
+             n
+             (p : Vars n) (intp : prop _ p = (∃ st, St_src st ∗ SI st)%I)
+             {V} (l: Lens.t state_src V) (VI: V -> iProp) :=
+    (∃ SI, (inv n N_state_src (∃ st, St_src st ∗ SI st)) ∗ ⌜ViewInterp l SI VI⌝)%I.
 
   Global Program Instance src_interp_as_persistent n {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as n l VI).
 
