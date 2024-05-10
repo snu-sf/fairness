@@ -61,11 +61,11 @@ Section TYPES.
 
 End TYPES.
 
-Section OWN.
+(* Section OWN. *)
 
-  Class SRA := { car : Type }.
+(*   Class SRA := { car : Type }. *)
 
-End OWN.
+(* End OWN. *)
 
 Module Atoms.
 
@@ -346,6 +346,18 @@ Section TEST.
   Proof.
     red_tl. iIntros "#P". auto.
   Qed.
+
+  Lemma test_infix n (p q r : Formula n) :
+    (p ∗ q ∗ r)%F = (p ∗ (q ∗ r))%F.
+  Proof. ss. Qed.
+
+  Lemma test_infix2 (P Q R : iProp) :
+    (P ∗ Q ∗ R)%I = (P ∗ (Q ∗ R))%I.
+  Proof. ss. Qed.
+
+  (* Lemma test_infix3 (P Q R : iProp) : *)
+  (*   (P ** Q ** R)%I = (P ** (Q ** R))%I. *)
+  (* Proof. ss.  *)
 
 End TEST.
 

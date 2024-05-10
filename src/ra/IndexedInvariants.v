@@ -163,15 +163,15 @@ Section WORLD_SATISFACTION.
     iModIntro. des. subst. iExists i. eauto.
   Qed.
 
-  Lemma wsat_OwnI_alloc p φ
+  Lemma wsat_OwnI_alloc_gen p φ
         (INF : forall (E : index -> option (gset positive)) n,
             match E n with
             | None => True
             | Some G => (exists i, i ∉ G /\ φ i)
             end)
-    : wsat ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat.
+    : wsat ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ (prop n p -∗ wsat).
   Proof.
-    iIntros "[[% [AUTH SAT]] P]".
+    iIntros "[% [AUTH SAT]]".
     iMod (alloc_name (fun i => i ∉ dom I /\ φ i)) as "[% [[%iI %iφ] D]]".
     { i.
       set (uni := fun n => match E n with
@@ -202,11 +202,24 @@ Section WORLD_SATISFACTION.
 
     iSplit.
     - iExists i. iFrame. ss.
-    - unfold wsat. iExists I'. iFrame.
+    - iIntros "P". unfold wsat. iExists I'. iFrame.
       unfold inv_satall. subst I'.
       iApply big_sepM_insert.
       { apply not_elem_of_dom_1; ss. }
       iSplitL "P D"; ss. iLeft. iFrame.
+  Qed.
+
+  Lemma wsat_OwnI_alloc p φ
+        (INF : forall (E : index -> option (gset positive)) n,
+            match E n with
+            | None => True
+            | Some G => (exists i, i ∉ G /\ φ i)
+            end)
+    : wsat ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat.
+  Proof.
+    iIntros "[W P]".
+    iMod (wsat_OwnI_alloc_gen with "W") as "[I W]". eauto.
+    iFrame. iModIntro. iApply "W". iFrame.
   Qed.
 
   Lemma wsat_OwnI_open i p :
@@ -404,6 +417,22 @@ Section WSATS.
   Qed.
 
 
+  Lemma wsats_OwnI_alloc_lt_gen x n (LT : n < x) p φ
+        (INF : forall (E : index -> option (gset positive)) n,
+            match E n with
+            | None => True
+            | Some G => (exists i, i ∉ G /\ φ i)
+            end)
+    : wsats x ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ (prop n p -∗ wsats x).
+  Proof.
+    iIntros "SALL".
+    iPoseProof (big_sepL_lookup_acc with "SALL") as "[WSAT K]".
+    apply lookup_seq_lt; eauto.
+    iPoseProof (wsat_OwnI_alloc_gen with "WSAT") as ">[RES WSAT]". apply INF. iFrame.
+    iModIntro. iIntros "P". iFrame. iPoseProof ("WSAT" with "P") as "WSAT".
+    iPoseProof ("K" with "WSAT") as "SALL". iFrame.
+  Qed.
+
   Lemma wsats_OwnI_alloc_lt x n (LT : n < x) p φ
         (INF : forall (E : index -> option (gset positive)) n,
             match E n with
@@ -412,12 +441,23 @@ Section WSATS.
             end)
     : wsats x ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsats x.
   Proof.
-    iIntros "[SALL P]".
-    iPoseProof (big_sepL_lookup_acc with "SALL") as "[WSAT K]".
-    apply lookup_seq_lt; eauto.
-    iPoseProof (wsat_OwnI_alloc with "[WSAT P]") as ">[RES WSAT]". apply INF. iFrame.
-    iPoseProof ("K" with "WSAT") as "SALL".
-    iModIntro. iFrame.
+    iIntros "[W P]". iMod (wsats_OwnI_alloc_lt_gen with "W") as "[I W]". 1,2: eauto.
+    iModIntro. iFrame. iApply "W". iFrame.
+  Qed.
+
+  Lemma wsats_OwnI_alloc_ge_gen x n (GE : x <= n) p φ
+        (INF : forall (E : index -> option (gset positive)) n,
+            match E n with
+            | None => True
+            | Some G => (exists i, i ∉ G /\ φ i)
+            end)
+    : wsat_auth x ∗ wsats x ⊢
+                |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat_auth (S n) ∗ (prop n p -∗ wsats (S n)).
+  Proof.
+    iIntros "(AUTH & WSAT)".
+    iPoseProof ((wsats_allocs x (S n)) with "[AUTH WSAT]") as "[AUTH WSAT]". lia. iFrame.
+    iMod ((wsats_OwnI_alloc_lt_gen (S n) n) with "WSAT") as "[RES WSAT]". auto. eauto. iFrame.
+    auto.
   Qed.
 
   Lemma wsats_OwnI_alloc_ge x n (GE : x <= n) p φ
@@ -428,10 +468,9 @@ Section WSATS.
             end)
     : wsat_auth x ∗ wsats x ∗ prop n p ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ wsat_auth (S n) ∗ wsats (S n).
   Proof.
-    iIntros "(AUTH & WSAT & P)".
-    iPoseProof ((wsats_allocs x (S n)) with "[AUTH WSAT]") as "[AUTH WSAT]". lia. iFrame.
-    iMod ((wsats_OwnI_alloc_lt (S n) n) with "[WSAT P]") as "[RES WSAT]". auto. eauto. iFrame.
-    iModIntro. iFrame.
+    iIntros "(A & W & P)". iMod (wsats_OwnI_alloc_ge_gen with "[A W]") as "(I & A & W)".
+    1,2: eauto.
+    iFrame. iModIntro. iFrame. iApply "W". iFrame.
   Qed.
 
   Lemma wsat_auth_OwnI_le x n i p :
@@ -666,14 +705,23 @@ Section FANCY_UPDATE.
     iModIntro. iFrame. iApply wsats_nin. apply LT. iFrame.
   Qed.
 
+  Lemma FUpd_alloc_gen x A Es n N p :
+    n < x ->
+    ⊢ A ∗ wsats x ∗ OwnEs Es -∗ #=> (A ∗ (prop n p -∗ wsats x) ∗ OwnEs Es ∗ (inv n N p)).
+  Proof.
+    iIntros (LT) "(A & WSAT & EN)".
+    iMod (wsats_OwnI_alloc_lt_gen _ _ LT p (fun i => i ∈ ↑N) with "WSAT") as "[I WSAT]".
+    - i. des_ifs. apply iris.base_logic.lib.invariants.fresh_inv_name.
+    - iFrame. auto.
+  Qed.
+
   Lemma FUpd_alloc x A Es n N p :
     n < x -> prop n p ⊢ FUpd x A Es Es (inv n N p).
   Proof.
     iIntros (LT) "P (A & WSAT & EN)".
-    iMod (wsats_OwnI_alloc_lt _ _ LT p (fun i => i ∈ ↑N) with "[WSAT P]") as "[I WSAT]".
-    - i. des_ifs. apply iris.base_logic.lib.invariants.fresh_inv_name.
-    - iFrame.
-    - iModIntro. iFrame.
+    iMod (FUpd_alloc_gen with "[A WSAT EN]") as "(A & W & EN & INV)". eauto.
+    iSplitL "A". iApply "A". iFrame.
+    iPoseProof ("W" with "P") as "W". iModIntro. iFrame.
   Qed.
 
   Lemma FUpd_open_aux x A Es n N E (LT : n < x) (INE : Es !! n = Some E) (IN : ↑N ⊆ E) p :
