@@ -96,45 +96,42 @@ Section STATE.
   Definition Vw_src (st: state_src) {V} (l : Lens.t state_src V) (v : V) : iProp :=
     St_src (Lens.set l v st).
 
-  Definition src_interp_as
-             n
-             (p : Vars n) (intp : prop _ p = (∃ st, St_src st ∗ SI st)%I)
-             {V} (l: Lens.t state_src V) (VI: V -> iProp) :=
-    (∃ SI, (inv n N_state_src (∃ st, St_src st ∗ SI st)) ∗ ⌜ViewInterp l SI VI⌝)%I.
+  Definition src_interp_as n {V} (l: Lens.t state_src V) (VI: V -> iProp) :=
+    (∃ SI (p : Vars n),
+        (⌜prop _ p = (∃ st, St_src st ∗ SI st)%I⌝)
+          ∗ (inv n N_state_src p) ∗ ⌜ViewInterp l SI VI⌝)%I.
 
   Global Program Instance src_interp_as_persistent n {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as n l VI).
 
   Global Program Instance src_interp_as_acc x A Es n {V} (l: Lens.t state_src V) (VI: V -> iProp):
     IntoAcc
       (src_interp_as n l VI)
-      (n < x /\ subseteq_def Es n (↑N_state_src)) True
-      (FUpd x A Es (<[n := (lookup_def Es n) ∖ E_state_src]>Es))
-      (FUpd x A (<[n := (lookup_def Es n) ∖ E_state_src]>Es) Es)
+      (n < x /\ (↑N_state_src) ⪿ (Es, n)) True
+      (FUpd x A Es (<[n := (Es !? n) ∖ E_state_src]>Es))
+      (FUpd x A (<[n := (Es !? n) ∖ E_state_src]>Es) Es)
       (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ VI vw)%I
       (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ VI vw)%I
       (fun _ => None).
   Next Obligation.
   Proof.
-    iIntros "[% [INV %]] _".
-    iInv "INV" as "[% [ST INTERP]]" "K".
-    iModIntro.
-    iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
+    iIntros "[% [% [%PIS [INV %]]]] _".
+    iInv "INV" as "INTERP" "K".
+    rewrite ! PIS. iDestruct "INTERP" as "[% [ST INTERP]]".
+    iModIntro. iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
     iExists _. iSplitL "ST INTERP".
-    { iFrame. iExists _. iFrame.
-      unfold Vw_src. iEval (rewrite Lens.set_view). auto.
-    }
+    { iExists _. iFrame. unfold Vw_src. iEval (rewrite Lens.set_view). iFrame. }
     iIntros "[% [ST INTERP]]".
     iPoseProof ("SET" with "INTERP") as "INTERP".
-    iApply ("K" with "[ST INTERP]").
-    iExists _. iFrame.
+    iApply ("K" with "[ST INTERP]"). iExists _. iFrame.
   Qed.
 
   Lemma src_interp_as_id x A Es n (LT: n < x) (SI: state_src -> iProp)
-        (IN: IInvIn n (∃ st, St_src st ** SI st)):
-    (∃ st, St_src st ** SI st) ⊢ FUpd x A Es Es (src_interp_as n Lens.id (SI)).
+        p (IN : prop n p = (∃ st, St_src st ∗ SI st)%I):
+    (∃ st, St_src st ∗ SI st) ⊢ FUpd x A Es Es (src_interp_as n Lens.id SI).
   Proof.
-    iIntros "H". iMod (FUpd_alloc with "H") as "H". auto.
-    iModIntro. iExists _. iSplit; eauto. iPureIntro. typeclasses eauto.
+    iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H". auto.
+    iModIntro. iExists _, p. iSplit. auto. iSplit. auto.
+    iPureIntro. typeclasses eauto.
   Qed.
 
   Lemma src_interp_as_compose n A B
@@ -146,7 +143,7 @@ Section STATE.
     :
     src_interp_as n la SA ⊢ src_interp_as n (Lens.compose la lb) SB.
   Proof.
-    iIntros "[% [H %]]". iExists _. iSplit; [eauto|].
+    iIntros "[% [% [% [H %]]]]". iExists _, p. iSplit; [eauto|]. iSplit; [eauto|].
     iPureIntro. typeclasses eauto.
   Qed.
 
@@ -159,41 +156,41 @@ Section STATE.
     St_tgt (Lens.set l v st).
 
   Definition tgt_interp_as n {V} (l: Lens.t state_tgt V) (VI: V -> iProp) :=
-    (∃ SI, (inv n N_state_tgt (∃ st, St_tgt st ** SI st)) ** ⌜ViewInterp l SI VI⌝)%I.
+    (∃ SI (p : Vars n),
+        (⌜prop _ p = (∃ st, St_tgt st ∗ SI st)%I⌝)
+          ∗ (inv n N_state_tgt p) ∗ ⌜ViewInterp l SI VI⌝)%I.
 
   Global Program Instance tgt_interp_as_persistent n {V} (l: Lens.t state_tgt V) (VI: V -> iProp): Persistent (tgt_interp_as n l VI).
 
   Global Program Instance tgt_interp_as_acc x A Es n {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
     IntoAcc
       (tgt_interp_as n l VI)
-      (n < x /\ subseteq_def Es n (↑N_state_tgt)) True
-      (FUpd x A Es (<[n:=(lookup_def Es n) ∖ E_state_tgt]>Es))
-      (FUpd x A (<[n:=(lookup_def Es n) ∖ E_state_tgt]>Es) Es)
-      (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I
-      (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ** VI vw)%I
+      (n < x /\ (↑N_state_tgt) ⪿ (Es, n)) True
+      (FUpd x A Es (<[n:=(Es !? n) ∖ E_state_tgt]>Es))
+      (FUpd x A (<[n:=(Es !? n) ∖ E_state_tgt]>Es) Es)
+      (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ∗ VI vw)%I
+      (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ∗ VI vw)%I
       (fun _ => None).
   Next Obligation.
   Proof.
-    iIntros "[% [INV %]] _".
-    iInv "INV" as "[% [ST INTERP]]" "K".
-    iModIntro.
-    iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
+    iIntros "[% [% [%PIS [INV %]]]] _".
+    iInv "INV" as "INTERP" "K".
+    rewrite ! PIS. iDestruct "INTERP" as "[% [ST INTERP]]".
+    iModIntro. iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
     iExists _. iSplitL "ST INTERP".
-    { iFrame. iExists _. iFrame.
-      unfold Vw_tgt. iEval (rewrite Lens.set_view). auto.
-    }
+    { iExists _. iFrame. unfold Vw_tgt. iEval (rewrite Lens.set_view). iFrame. }
     iIntros "[% [ST INTERP]]".
     iPoseProof ("SET" with "INTERP") as "INTERP".
-    iApply ("K" with "[ST INTERP]").
-    iExists _. iFrame.
+    iApply ("K" with "[ST INTERP]"). iExists _. iFrame.
   Qed.
 
   Lemma tgt_interp_as_id x A Es n (LT: n < x) (SI: state_tgt -> iProp)
-        (IN: IInvIn n (∃ st, St_tgt st ** SI st)):
+        p (IN : prop n p = (∃ st, St_tgt st ∗ SI st)%I):
     (∃ st, St_tgt st ** SI st) ⊢ FUpd x A Es Es (tgt_interp_as n Lens.id (SI)).
   Proof.
-    iIntros "H". iPoseProof (FUpd_alloc with "H") as "> H". auto.
-    iModIntro. iExists _. iSplit; eauto. iPureIntro. typeclasses eauto.
+    iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H". auto.
+    iModIntro. iExists _, p. iSplit. auto. iSplit. auto.
+    iPureIntro. typeclasses eauto.
   Qed.
 
   Lemma tgt_interp_as_compose n A B
@@ -205,7 +202,7 @@ Section STATE.
     :
     tgt_interp_as n la SA ⊢ tgt_interp_as n (Lens.compose la lb) SB.
   Proof.
-    iIntros "[% [H %]]". iExists _. iSplit; [eauto|].
+    iIntros "[% [% [% [H %]]]]". iExists _, p. iSplit; [eauto|]. iSplit; [eauto|].
     iPureIntro. typeclasses eauto.
   Qed.
 

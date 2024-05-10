@@ -680,6 +680,9 @@ Section OWNES.
 
 End OWNES.
 
+Notation "M '!?' k" := (lookup_def M k) (at level 20).
+Notation "E '⪿' '(' Es ',' n ')'" := (subseteq_def Es n E) (at level 70).
+
 Section FANCY_UPDATE.
 
   Context `{Σ : GRA.t}.
@@ -763,11 +766,11 @@ Section FANCY_UPDATE.
     rewrite difference_union_L. set_solver.
   Qed.
 
-  Lemma FUpd_open x A Es n N (LT : n < x) (IN : subseteq_def Es n (↑N)) p :
+  Lemma FUpd_open x A Es n N (LT : n < x) (IN : (↑N) ⪿ (Es, n)) p :
     inv n N p ⊢
         FUpd x A Es
-        (<[n := (lookup_def Es n)∖↑N]> Es)
-        ((prop n p) ∗ ((prop n p) -∗ FUpd x A (<[n := (lookup_def Es n)∖↑N]> Es) Es emp)).
+        (<[n := (Es !? n)∖↑N]> Es)
+        ((prop n p) ∗ ((prop n p) -∗ FUpd x A (<[n := (Es !? n)∖↑N]> Es) Es emp)).
   Proof.
     iIntros "[% (%iN & #HI)] (A & WSAT & ENS)".
     unfold lookup_def, subseteq_def in *. destruct (Es !! n) eqn:CASES; ss.
@@ -798,9 +801,9 @@ Section FANCY_UPDATE.
   Qed.
 
   Lemma FUpd_mask_frame_gen x A Es1 Es2 n E P :
-    (lookup_def Es1 n) ## E ->
+    (Es1 !? n) ## E ->
     FUpd x A Es1 Es2 P ⊢
-         FUpd x A (<[n := (lookup_def Es1 n) ∪ E]>Es1) (<[n := (lookup_def Es2 n) ∪ E]>Es2) P.
+         FUpd x A (<[n := (Es1 !? n) ∪ E]>Es1) (<[n := (Es2 !? n) ∪ E]>Es2) P.
   Proof.
     rewrite /FUpd. iIntros (D) "H (A & WSAT & ENS)".
     iPoseProof ((OwnEs_acc_in _ n) with "ENS") as "[EN ENS]". apply lookup_insert.
@@ -946,9 +949,9 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
   Qed.
 
   Global Instance into_acc_FUpd_inv x A Es n N p :
-    IntoAcc (inv n N p) (n < x /\ subseteq_def Es n (↑N)) True
-            (FUpd x A Es (<[n := lookup_def Es n ∖ ↑N]>Es))
-            (FUpd x A (<[n := lookup_def Es n ∖ ↑N]>Es) Es)
+    IntoAcc (inv n N p) (n < x /\ (↑N) ⪿ (Es, n)) True
+            (FUpd x A Es (<[n := Es !? n ∖ ↑N]>Es))
+            (FUpd x A (<[n := Es !? n ∖ ↑N]>Es) Es)
             (fun _ : () => prop n p) (fun _ : () => prop n p) (fun _ : () => None).
   Proof.
     rewrite /IntoAcc. iIntros ((LT & iE)) "INV _". rewrite /accessor.
