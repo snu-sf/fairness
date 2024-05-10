@@ -24,16 +24,19 @@ Section INDEXED_INVARIANT_SET.
   Definition IInvSetRA (Vars : index -> Type) : URA.t :=
     @URA.pointwise_dep index (InvSetRA Vars).
 
+  Definition OwnEsRA : URA.t := URA.pointwise index CoPset.t.
+  Definition OwnDsRA : URA.t := URA.pointwise index Gset.t.
+
 End INDEXED_INVARIANT_SET.
 
 Section PCM_OWN.
 
   Context `{Σ : GRA.t}.
 
-  Definition OwnE `{@GRA.inG (index ==> CoPset.t)%ra Σ} (n : index) (E : coPset) :=
+  Definition OwnE `{@GRA.inG OwnEsRA Σ} (n : index) (E : coPset) :=
     OwnM (@maps_to_res index CoPset.t n (Some E)).
 
-  Definition OwnD `{@GRA.inG (index ==> Gset.t)%ra Σ} (n : index) (D : gset positive) :=
+  Definition OwnD `{@GRA.inG OwnDsRA Σ} (n : index) (D : gset positive) :=
     OwnM (@maps_to_res index Gset.t n (Some D)).
 
   Definition OwnI_white {Vars} (n : index) (i : positive) (p : Vars n) : IInvSetRA Vars :=
@@ -44,7 +47,7 @@ Section PCM_OWN.
   Definition OwnI {Vars} `{@GRA.inG (IInvSetRA Vars) Σ} (n : index) (i : positive) (p : Vars n) :=
     OwnM (OwnI_white n i p).
 
-  Lemma OwnE_index_diff `{@GRA.inG (index ==> CoPset.t)%ra Σ} n1 n2 (E : coPset) :
+  Lemma OwnE_index_diff `{@GRA.inG OwnEsRA Σ} n1 n2 (E : coPset) :
     (E <> ∅) -> OwnE n1 E ∗ OwnE n2 E ⊢ ⌜n1 <> n2⌝.
   Proof.
     intros NEMP.
@@ -54,7 +57,7 @@ Section PCM_OWN.
     rewrite /URA.wf /URA.add in WF. unseal "ra". ss. des_ifs. set_solver.
   Qed.
 
-  Lemma OwnE_exploit `{@GRA.inG (index ==> CoPset.t)%ra Σ} n (E1 E2 : coPset) :
+  Lemma OwnE_exploit `{@GRA.inG OwnEsRA Σ} n (E1 E2 : coPset) :
     OwnE n E1 ∗ OwnE n E2 ⊢ ⌜E1 ## E2⌝.
   Proof.
     iIntros "[H1 H2]". iCombine "H1 H2" as "H". iPoseProof (OwnM_valid with "H") as "%WF".
@@ -63,7 +66,7 @@ Section PCM_OWN.
     rewrite /URA.wf /URA.add in WF. unseal "ra". ss; des_ifs.
   Qed.
 
-  Lemma OwnE_union `{@GRA.inG (index ==> CoPset.t)%ra Σ} n (E1 E2 : coPset) :
+  Lemma OwnE_union `{@GRA.inG OwnEsRA Σ} n (E1 E2 : coPset) :
     OwnE n E1 ∗ OwnE n E2 ⊢ OwnE n (E1 ∪ E2).
   Proof.
     iIntros "H". iPoseProof (OwnE_exploit with "H") as "%D".
@@ -74,7 +77,7 @@ Section PCM_OWN.
     - rewrite URA.unit_id. auto.
   Qed.
 
-  Lemma OwnE_disjoint `{@GRA.inG (index ==> CoPset.t)%ra Σ} n (E1 E2 : coPset) :
+  Lemma OwnE_disjoint `{@GRA.inG OwnEsRA Σ} n (E1 E2 : coPset) :
     E1 ## E2 -> OwnE n (E1 ∪ E2) ⊢ OwnE n E1 ∗ OwnE n E2.
   Proof.
     i. unfold OwnE.
@@ -85,7 +88,7 @@ Section PCM_OWN.
     - rewrite URA.unit_id. auto.
   Qed.
 
-  Lemma OwnE_subset `{@GRA.inG (index ==> CoPset.t)%ra Σ} n (E1 E2 : coPset) :
+  Lemma OwnE_subset `{@GRA.inG OwnEsRA Σ} n (E1 E2 : coPset) :
     E1 ⊆ E2 -> OwnE n E2 ⊢ OwnE n E1 ∗ (OwnE n E1 -∗ OwnE n E2).
   Proof.
     iIntros (SUB) "E".
@@ -115,8 +118,8 @@ Section WORLD_SATISFACTION.
   Context `{Σ : GRA.t}.
   Context `{Vars : index -> Type}.
   Context `{@IInvSet Σ Vars}.
-  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
-  Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
+  Context `{@GRA.inG OwnEsRA Σ}.
+  Context `{@GRA.inG OwnDsRA Σ}.
   Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 
   Variable n : index.
@@ -284,7 +287,7 @@ Section WORLD_SATISFACTION.
   Qed.
 
   Lemma wsat_init :
-    OwnM (maps_to_res_dep n (@Auth.black (positive ==> URA.agree Var)%ra (fun (i : positive) => None)))
+    OwnM (maps_to_res_dep n (@Auth.black (positive ==> URA.agree Var)%ra (fun (i : positive) => None)) : IInvSetRA _)
       ⊢ wsat.
   Proof.
     iIntros "H". iExists ∅. iFrame.
@@ -298,8 +301,8 @@ Section WSATS.
   Context `{Σ : GRA.t}.
   Context `{Vars : index -> Type}.
   Context `{@IInvSet Σ Vars}.
-  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
-  Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
+  Context `{@GRA.inG OwnEsRA Σ}.
+  Context `{@GRA.inG OwnDsRA Σ}.
   Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 
   Definition wsat_auth_black (x : index) : IInvSetRA Vars :=
@@ -520,7 +523,7 @@ Notation coPsets := (gmap index coPset).
 Section OWNES.
 
   Context `{Σ : GRA.t}.
-  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
+  Context `{@GRA.inG OwnEsRA Σ}.
 
   Definition OwnE_auth_black (Es : coPsets) : (index ==> CoPset.t)%ra :=
     fun n => match Es !! n with
@@ -688,8 +691,8 @@ Section FANCY_UPDATE.
   Context `{Σ : GRA.t}.
   Context `{Vars : index -> Type}.
   Context `{Invs : @IInvSet Σ Vars}.
-  Context `{@GRA.inG (index ==> CoPset.t)%ra Σ}.
-  Context `{@GRA.inG (index ==> Gset.t)%ra Σ}.
+  Context `{@GRA.inG OwnEsRA Σ}.
+  Context `{@GRA.inG OwnDsRA Σ}.
   Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 
   Definition inv (n : index) (N : namespace) p :=
@@ -883,6 +886,22 @@ Section FANCY_UPDATE.
     FromModal True modality_id (FUpd x A Es Es P) (FUpd x A Es Es P) P.
   Proof.
     rewrite /FromModal /= /FUpd. iIntros. iModIntro. iFrame. iFrame.
+  Qed.
+
+  Global Instance from_modal_FUpd_alloc x A Es n P :
+    FromModal (Es !! n = None) modality_id P (FUpd x A Es (<[n:=⊤]>Es) P) P.
+  Proof.
+    rewrite /FromModal /FUpd. ss.
+    iIntros (HE) "P (A & WSAT & EN)".
+    iMod (OwnEs_alloc with "EN") as "EN". eauto. iModIntro. iFrame.
+  Qed.
+
+  Global Instance from_modal_FUpd_free x A Es n P :
+    FromModal (Es !! n = None) modality_id P (FUpd x A (<[n:=⊤]>Es) Es P) P.
+  Proof.
+    rewrite /FromModal /FUpd. ss.
+    iIntros (HE) "P (A & WSAT & EN)".
+    iMod (OwnEs_free with "EN") as "EN". eauto. iModIntro. iFrame.
   Qed.
 
   Global Instance from_modal_FUpd_general x A Es n E1 E2 P :

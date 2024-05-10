@@ -5,7 +5,8 @@ From Fairness Require Import Optics IProp IPM PCM.
 Set Implicit Arguments.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export SimDefaultRA IndexedInvariants.
+From Fairness Require Export IndexedInvariants.
+(* From Fairness Require Export SimDefaultRA IndexedInvariants. *)
 (* From Fairness Require Export SimDefaultRA FancyUpdate. *)
 
 Require Import Program.
@@ -75,6 +76,9 @@ Section STATE.
   Variable state_src: Type.
   Variable state_tgt: Type.
 
+  Local Notation stateSrcRA := (Auth.t (Excl.t (option state_src)) : URA.t).
+  Local Notation stateTgtRA := (Auth.t (Excl.t (option state_tgt)) : URA.t).
+
   (* Variable ident_src: ID. *)
   (* Variable ident_tgt: ID. *)
 
@@ -83,15 +87,15 @@ Section STATE.
   Context `{Vars : index -> Type}.
   Context `{Invs : @IInvSet Σ Vars}.
 
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA) Σ}.
   Context `{COPSETRA : @PCM.GRA.inG (PCM.URA.pointwise index PCM.CoPset.t) Σ}.
   Context `{GSETRA : @PCM.GRA.inG (PCM.URA.pointwise index PCM.Gset.t) Σ}.
   Context `{INVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
   (* Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}. *)
 
   Definition St_src (st_src: state_src): iProp :=
-    OwnM (Auth.white (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA state_src).
+    OwnM (Auth.white (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA).
 
   Definition Vw_src (st: state_src) {V} (l : Lens.t state_src V) (v : V) : iProp :=
     St_src (Lens.set l v st).
@@ -150,7 +154,7 @@ Section STATE.
 
 
   Definition St_tgt (st_tgt: state_tgt): iProp :=
-    OwnM (Auth.white (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA state_tgt).
+    OwnM (Auth.white (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA).
 
   Definition Vw_tgt (st: state_tgt) {V} (l : Lens.t state_tgt V) (v : V) : iProp :=
     St_tgt (Lens.set l v st).

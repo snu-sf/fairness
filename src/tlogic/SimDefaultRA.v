@@ -5,7 +5,7 @@ Require Import Program.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import Mod FairBeh.
 From Fairness Require Import Axioms.
-From Fairness Require Import NatMapRALarge MonotoneRA RegionRA FairnessRA IndexedInvariants ObligationRA.
+From Fairness Require Import NatMapRALarge MonotoneRA RegionRA FairnessRA IndexedInvariants ObligationRA OpticsInterp.
 
 Set Implicit Arguments.
 
@@ -82,6 +82,7 @@ Section INVARIANT.
   Definition identTgtRA: URA.t := FairRA.tgtt ident_tgt.
   Definition ThreadRA: URA.t := Auth.t (NatMapRALarge.t unit).
   Definition EdgeRA: URA.t := Region.t (nat * nat * Ord.t).
+  Definition ArrowShotRA: URA.t := @FiniteMap.t (OneShot.t unit).
 
   Local Notation index := nat.
   Context `{Vars : index -> Type}.
@@ -92,7 +93,6 @@ Section INVARIANT.
   Context `{Σ : GRA.t}.
   Context `{Invs : @IInvSet Σ Vars}.
 
-  Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
   Context `{STATESRC: @GRA.inG stateSrcRA Σ}.
   Context `{STATETGT: @GRA.inG stateTgtRA Σ}.
@@ -100,7 +100,7 @@ Section INVARIANT.
   Context `{IDENTTGT: @GRA.inG identTgtRA Σ}.
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA: @GRA.inG ArrowRA Σ}.
 
   (* Works for formulas with index < x. *)
@@ -124,7 +124,10 @@ Section INVARIANT.
          ∗
          (ObligationRA.edges_sat)
          ∗
-         (ObligationRA.arrows_sats (S := sum_tid ident_tgt) x))%I
+         (ObligationRA.arrows_sats (S := sum_tid ident_tgt) x)
+         ∗
+         OwnM ((@Regions.nauth_ra _ x): ArrowRA)
+      )%I
   .
 
   Definition default_I_past (tid: thread_id) x
@@ -234,7 +237,7 @@ Section INVARIANT.
       -∗
       #=> (ObligationRA.duty n inlp tid l ∗ FairRA.white_thread (S:=_) ∗ default_I x ths im_src im_tgt1 st_src st_tgt).
   Proof.
-    unfold default_I. iIntros (LT) "[A [B [C [D [E [F G]]]]]] DUTY".
+    unfold default_I. iIntros (LT) "[A [B [C [D [E [F [G H]]]]]]] DUTY".
     iPoseProof (ObligationRA.target_update_thread with "E DUTY") as "RES". eauto.
     iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
     iMod ("RES" with "ARROW") as "[ARROW [E [DUTY WHITE]]]". iFrame.
@@ -262,7 +265,7 @@ Section INVARIANT.
              ∗
              default_I x ths im_src im_tgt1 st_src st_tgt).
   Proof.
-    unfold default_I. iIntros (LT) "[A [B [C [D [E [F G]]]]]] DUTY".
+    unfold default_I. iIntros (LT) "[A [B [C [D [E [F [G H]]]]]]] DUTY".
     iPoseProof (ObligationRA.target_update with "E DUTY") as "RES". 1,2,3,4: eauto.
     iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
     iMod ("RES" with "ARROW") as "[ARROW [E [DUTY WHITE]]]". iFrame.
@@ -299,7 +302,7 @@ Section INVARIANT.
     (n < x) ->
     ⊢ SubIProp (ObligationRA.arrows_sat n (S := sum_tid ident_tgt)) (default_I x ths im_src im_tgt st_src st_tgt).
   Proof.
-    iIntros (LT) "[A [B [C [D [E [F G]]]]]]".
+    iIntros (LT) "[A [B [C [D [E [F [G H]]]]]]]".
     iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
     iFrame. iModIntro. iFrame.
   Qed.
@@ -511,3 +514,147 @@ Section INVARIANT.
   Qed.
 
 End INVARIANT.
+
+Section INIT.
+
+  Context `{Σ: GRA.t}.
+
+  Variable state_src: Type.
+  Variable state_tgt: Type.
+
+  Variable ident_src: ID.
+  Variable ident_tgt: ID.
+
+  Local Notation index := nat.
+  Context `{Vars : index -> Type}.
+  Context `{Invs : @IInvSet Σ Vars}.
+
+  (* Invariant related default RAs *)
+  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
+  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
+  Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
+
+  (* State related default RAs *)
+  Context `{THDRA: @GRA.inG ThreadRA Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
+
+  (* Liveness logic related default RAs *)
+  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
+  Context `{ARROWSHOTRA: @GRA.inG ArrowShotRA Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+
+
+  Definition default_initial_res
+    : Σ :=
+    (@GRA.embed _ _ OWNESRA ((fun _ => Some ⊤) : OwnEsRA))
+      ⋅
+      (@GRA.embed _ _ IINVSETRA ((fun n => @Auth.black (positive ==> URA.agree (Vars n))%ra (fun _ => None)) : IInvSetRA Vars))
+      ⋅
+      (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRALarge.t unit)))
+      ⋅
+      (@GRA.embed _ _ STATESRC (Auth.black (Excl.just None: @Excl.t (option state_src)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_src)): stateSrcRA state_src)))
+      ⋅
+      (@GRA.embed _ _ STATETGT (Auth.black (Excl.just None: @Excl.t (option state_tgt)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_tgt)): stateTgtRA state_tgt)))
+      ⋅
+      (@GRA.embed _ _ IDENTSRC (@FairRA.source_init_resource ident_src))
+      ⋅
+      (@GRA.embed _ _ IDENTTGT ((fun _ => Fuel.black 0 1%Qp): identTgtRA ident_tgt))
+      ⋅
+      (@GRA.embed _ _ EDGERA ((fun _ => OneShot.pending _ 1%Qp): EdgeRA))
+      ⋅
+      (@GRA.embed _ _ ARROWRA ((@Regions.nauth_ra _ 0): @ArrowRA ident_tgt Vars))
+      (* (@GRA.embed _ _ ARROWRA ((fun _ => (fun _ => OneShot.pending _ 1%Qp)): @ArrowRA ident_tgt Vars)) *)
+  .
+
+  Lemma own_threads_init ths
+    :
+    (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRALarge.t unit)))
+      -∗
+      (#=>
+         ((OwnM (Auth.black (Some ths: NatMapRALarge.t unit)))
+            ∗
+            (natmap_prop_sum ths (fun tid _ => own_thread tid)))).
+  Proof.
+    pattern ths. revert ths. eapply nm_ind.
+    { iIntros "OWN". iModIntro. iFrame. }
+    i. iIntros "OWN".
+    iPoseProof (IH with "OWN") as "> [OWN SUM]".
+    iPoseProof (OwnM_Upd with "OWN") as "> [OWN0 OWN1]".
+    { eapply Auth.auth_alloc. eapply (@NatMapRALarge.add_local_update unit m k v); eauto. }
+    iModIntro. iFrame. destruct v. iApply (natmap_prop_sum_add with "SUM OWN1").
+  Qed.
+
+  Lemma default_initial_res_init x n (LT : n < x)
+    :
+    (Own (default_initial_res))
+      ⊢
+      (∀ ths (st_src : state_src) (st_tgt : state_tgt) im_tgt o,
+          #=> (∃ im_src,
+                  (default_I x ths im_src im_tgt st_src st_tgt)
+                    ∗
+                    (natmap_prop_sum ths (fun tid _ => ObligationRA.duty n inlp tid []))
+                    ∗
+                    (natmap_prop_sum ths (fun tid _ => own_thread tid))
+                    ∗
+                    (FairRA.whites Prism.id (fun _ => True: Prop) o)
+                    ∗
+                    (FairRA.blacks Prism.id (fun i => match i with | inr _ => True | _ => False end: Prop))
+                    ∗
+                    (St_src st_src)
+                    ∗
+                    (St_tgt st_tgt)
+                    ∗
+                    wsat_auth x
+                    ∗
+                    wsats x
+                    ∗
+                    OwnEs ∅
+      )).
+  Proof.
+    iIntros "OWN" (? ? ? ? ?).
+    iDestruct "OWN" as "[[[[[[[[ENS WSATS] OWN0] [OWN1 OWN2]] [OWN3 OWN4]] OWN5] OWN6] OWN7] OWN8]".
+    iPoseProof (black_white_update with "OWN1 OWN2") as "> [OWN1 OWN2]".
+    iPoseProof (black_white_update with "OWN3 OWN4") as "> [OWN3 OWN4]".
+    iPoseProof (OwnM_Upd with "OWN6") as "> OWN6".
+    { instantiate (1:=FairRA.target_init_resource im_tgt).
+      unfold FairRA.target_init_resource.
+      erewrite ! (@unfold_pointwise_add (id_sum nat ident_tgt) (Fuel.t nat)).
+      apply pointwise_updatable. i.
+      rewrite URA.add_comm. exact (@Fuel.success_update nat _ 0 (im_tgt a)).
+    }
+    iPoseProof (FairRA.target_init with "OWN6") as "[[H0 H1] H2]".
+    iPoseProof (FairRA.source_init with "OWN5") as "> [% [H3 H4]]".
+    iExists f. unfold default_I. iFrame.
+
+    iPoseProof (wsats_init_zero with "WSATS") as "W".
+    iPoseProof ((wsats_allocs _ x) with "W") as "[WA WS]". lia. iFrame.
+    iPoseProof (own_threads_init with "OWN0") as "> [OWN0 H]". iFrame.
+
+    iModIntro. iSplitL "OWN7 OWN8"; [iSplitL "OWN7"|].
+    { iExists []. iSplitL; [|auto].
+      iApply (OwnM_extends with "OWN7").
+      apply pointwise_extends. i. destruct a; ss; reflexivity.
+    }
+    { iAssert (ObligationRA.arrows_sats 0)%I as "INIT".
+      { unfold ObligationRA.arrows_sats, Regions.nsats. ss. }
+      iPoseProof (Regions.nsats_allocs _ (x1:=0) (x2:=x) with "[OWN8]") as "[A S]". lia.
+      { iFrame. eauto. }
+      iFrame.
+    }
+
+    iSplitR "H2"; [|iSplitL "H2"].
+    { iApply natmap_prop_sum_impl; [|eauto]. i. ss.
+      iApply ObligationRA.black_to_duty.
+    }
+    { iPoseProof (FairRA.blacks_prism_id with "H2") as "H".
+      iApply (FairRA.blacks_impl with "H").
+      i. des_ifs. esplits; eauto.
+    }
+    { unfold OwnE_satall. ss. }
+  Qed.
+
+End INIT.
