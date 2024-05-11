@@ -6,7 +6,7 @@ From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import ISim.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA FairnessRA ObligationRA SimDefaultRA OpticsInterp.
+From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA RegionRA FairnessRA ObligationRA SimDefaultRA OpticsInterp.
 From Fairness Require Export FairBeh.
 Require Import Coq.Sorting.Mergesort.
 
@@ -236,25 +236,23 @@ Section STATE.
     iApply (unlift_rel_base with "H D").
   Qed.
 
-  TODO
-
-  Lemma wpsim_mono_knowledge E (r0 g0 r1 g1: rel) R_src R_tgt
+  Lemma wpsim_mono_knowledge Es (r0 g0 r1 g1: rel) R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
         (MON0: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
-                      ps pt itr_src itr_tgt,
+                 ps pt itr_src itr_tgt,
             (@r0 _ _ Q ps pt itr_src itr_tgt)
               -∗
               (#=> (@r1 _ _ Q ps pt itr_src itr_tgt)))
         (MON1: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
-                      ps pt itr_src itr_tgt,
+                 ps pt itr_src itr_tgt,
             (@g0 _ _ Q ps pt itr_src itr_tgt)
               -∗
               (#=> (@g1 _ _ Q ps pt itr_src itr_tgt)))
     :
-    bi_entails
-      (wpsim E r0 g0 Q ps pt itr_src itr_tgt)
-      (wpsim E r1 g1 Q ps pt itr_src itr_tgt)
+    (wpsim Es r0 g0 Q ps pt itr_src itr_tgt)
+      ⊢
+      (wpsim Es r1 g1 Q ps pt itr_src itr_tgt)
   .
   Proof.
     unfold wpsim. iIntros "H" (? ? ? ? ?) "D".
@@ -264,7 +262,7 @@ Section STATE.
     iApply ("H" with "D").
   Qed.
 
-  Lemma wpsim_coind E A
+  Lemma wpsim_coind Es A
         (R_src: forall (a: A), Type)
         (R_tgt: forall (a: A), Type)
         (Q: forall (a: A), R_src a -> R_tgt a -> iProp)
@@ -273,26 +271,28 @@ Section STATE.
         (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
         (P: forall (a: A), iProp)
         (r g0: rel)
-        (TOP: ⊤ ⊆ E)
+        (TOP: OwnEs_top Es)
+        (* (TOP: ⊤ ⊆ E) *)
         (COIND: forall (g1: rel) a,
             (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
                   ps pt itr_src itr_tgt,
-                   @g0 R_src R_tgt Q ps pt itr_src itr_tgt -* @g1 R_src R_tgt Q ps pt itr_src itr_tgt)
-                 **
-                 (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))
+                   @g0 R_src R_tgt Q ps pt itr_src itr_tgt -∗
+                       @g1 R_src R_tgt Q ps pt itr_src itr_tgt)
+                 ∗
+                 (∀ a, P a -∗ @g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))
               -∗
               (P a)
               -∗
-              (wpsim ⊤ r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a)))
+              (wpsim ∅ r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a)))
     :
-    (forall a, bi_entails (P a) (wpsim E r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))).
+    (forall a, (P a) ⊢ (wpsim Es r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))).
   Proof.
     cut (forall (m: mytype A),
             bi_entails
-              ((fun m => P m.(comp_a) ** (default_I_past tid m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ** (wsat ** OwnE ⊤))) m)
-              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** (wsat ** OwnE ⊤)) ** Q m.(comp_a) r_src r_tgt) m)
+              ((fun m => (P m.(comp_a) ∗ (default_I_past tid x m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)))%I) m)
+              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => ((default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q m.(comp_a) r_src r_tgt)%I) m)
                     ((fun m => ps m.(comp_a)) m) ((fun m => pt m.(comp_a)) m) ((fun m => itr_src m.(comp_a)) m) ((fun m => itr_tgt m.(comp_a)) m) (comp_ths m) (comp_im_src m) (comp_im_tgt m) (comp_st_src m) (comp_st_tgt m))).
-    { ss. i. rewrite <- wpsim_discard; [|eassumption].
+    { ss. i. rewrite <- wpsim_free_all; [|eassumption].
       unfold wpsim. iIntros "H" (? ? ? ? ?) "D".
       specialize (H (mk_mytype a ths im_src im_tgt st_src st_tgt)). ss.
       iApply H. iFrame.
@@ -301,9 +301,9 @@ Section STATE.
     unfold wpsim in COIND.
     iAssert (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
                   ps pt itr_src itr_tgt,
-                   @g0 R_src R_tgt Q ps pt itr_src itr_tgt -* @unlift_rel g1 R_src R_tgt Q ps pt itr_src itr_tgt)
-                 **
-                 (∀ a, P a -* @unlift_rel g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))%I with "[CIH]" as "CIH'".
+                   @g0 R_src R_tgt Q ps pt itr_src itr_tgt -∗ @unlift_rel g1 R_src R_tgt Q ps pt itr_src itr_tgt)
+                 ∗
+                 (∀ a, P a -∗ @unlift_rel g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))%I with "[CIH]" as "CIH'".
     { iPoseProof "CIH" as "# [CIH0 CIH1]". iModIntro. iSplitL.
       { iApply (lift_unlift with "CIH0"). }
       { iIntros. unfold unlift_rel. iIntros.
@@ -318,179 +318,193 @@ Section STATE.
   Qed.
 
   Global Instance wpsim_elim_upd
-         E r g R_src R_tgt
+         Es r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (#=> P) P (wpsim E r g Q ps pt itr_src itr_tgt) (wpsim E r g Q ps pt itr_src itr_tgt).
+    ElimModal True p false (#=> P) P (wpsim Es r g Q ps pt itr_src itr_tgt) (wpsim Es r g Q ps pt itr_src itr_tgt).
   Proof.
     typeclasses eauto.
   Qed.
 
-  Lemma wpsim_FUpd E0 E1 r g R_src R_tgt
+  Lemma wpsim_FUpd Es0 Es1 n r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
     :
-    (FUpd (fairI (ident_tgt:=ident_tgt)) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt))
-      -∗
-      (wpsim E0 r g Q ps pt itr_src itr_tgt)
+    (n <= x) ->
+    (FUpd n (fairI (ident_tgt:=ident_tgt) x) Es0 Es1 (wpsim Es1 r g Q ps pt itr_src itr_tgt))
+      ⊢
+      (wpsim Es0 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     Local Transparent FUpd.
-    unfold wpsim. iIntros "H" (? ? ? ? ?) "[[% [% [[D X0] X1]]] (WSAT & E)]".
-    iAssert (fairI (ident_tgt:=ident_tgt) ** (wsat ** OwnE E0)) with "[X0 X1 WSAT E]" as "C".
+    intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
+    iAssert (FUpd x (fairI (ident_tgt:=ident_tgt) x) Es0 Es1 (wpsim Es1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
+    { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
+    iAssert (fairI (ident_tgt:=ident_tgt) x ∗ (wsats x ∗ OwnEs Es0))%I with "[D6 D7 WSAT E]" as "C".
     { iFrame. }
-    unfold FUpd.
-    iMod ("H" with "C") as "(F & WSAT & E & H)".
+    unfold FUpd. iMod ("H" with "C") as "(F & WSAT & E & H)".
     iApply "H". iFrame. iExists _. iFrame. auto.
+    Local Opaque FUpd.
   Qed.
 
-  Lemma wpsim_FUpd_weaken E0 E1 r g R_src R_tgt
+  Lemma wpsim_FUpd_weaken Es1 Es2 y r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
+        n E0 E1
         (SUB: E0 ⊆ E1)
     :
-    (FUpd (fairI (ident_tgt:=ident_tgt)) E0 E0 (wpsim E1 r g Q ps pt itr_src itr_tgt))
-      -∗
-      (wpsim E1 r g Q ps pt itr_src itr_tgt)
+    (y <= x) ->
+    (FUpd y (fairI (ident_tgt:=ident_tgt) x) (<[n:=E0]>Es1) (<[n:=E0]>Es2)
+          (wpsim (<[n:=E1]>Es2) r g Q ps pt itr_src itr_tgt))
+      ⊢
+      (wpsim (<[n:=E1]>Es1) r g Q ps pt itr_src itr_tgt)
   .
   Proof.
-    iIntros "H". iApply wpsim_FUpd. iApply FUpd_mask_mono; eauto.
+    iIntros (LE) "H". iApply wpsim_FUpd. eauto. iApply FUpd_mask_mono; eauto.
   Qed.
 
   Global Instance wpsim_elim_FUpd_gen
-         E0 E1 E2 r g R_src R_tgt
+         Es0 Es1 n E0 E1 E2 y
+         r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
-    ElimModal (E0 ⊆ E2) p false (FUpd (fairI (ident_tgt:=ident_tgt)) E0 E1 P) P (wpsim E2 r g Q ps pt itr_src itr_tgt) (wpsim (E1 ∪ (E2 ∖ E0)) r g Q ps pt itr_src itr_tgt).
+    ElimModal (y <= x /\ E0 ⊆ E2) p false
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) (<[n:=E0]>Es0) (<[n:=E1]>Es1) P)
+              P
+              (wpsim (<[n:=E2]>Es0) r g Q ps pt itr_src itr_tgt)
+              (wpsim (<[n:=(E1 ∪ (E2 ∖ E0))]>Es1) r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]".
-    iPoseProof (FUpd_mask_frame _ _ _ (E2 ∖ E0) with "H0") as "H0".
-    { eapply disjoint_difference_r1. set_solver. }
-    replace (E0 ∪ E2 ∖ E0) with E2.
-    2: { eapply leibniz_equiv. eapply union_difference. ss. }
-    iApply wpsim_FUpd. iMod "H0". iModIntro. iApply "H1". iFrame.
+    intros (LE & SUB). iIntros "[H0 H1]".
+    iApply wpsim_FUpd. apply LE.
+    iMod "H0". iPoseProof ("H1" with "H0") as "H".
+    iModIntro. iFrame.
   Qed.
 
   Global Instance wpsim_elim_FUpd_eq
-         E1 E2 r g R_src R_tgt
+         Es0 Es1 n E1 E2 y
+         r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
-    ElimModal (E1 ⊆ E2) p false (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E1 P) P (wpsim E2 r g Q ps pt itr_src itr_tgt) (wpsim E2 r g Q ps pt itr_src itr_tgt).
+    ElimModal (y <= x /\ E1 ⊆ E2) p false
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) (<[n:=E1]>Es0) (<[n:=E1]>Es1) P)
+              P
+              (wpsim (<[n:=E2]>Es0) r g Q ps pt itr_src itr_tgt)
+              (wpsim (<[n:=E2]>Es1) r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]".
-    iApply wpsim_FUpd_weaken.
-    { eauto. }
+    intros (LE & SUB). iIntros "[H0 H1]".
+    iApply wpsim_FUpd_weaken. apply SUB. apply LE.
     iMod "H0". iModIntro. iApply ("H1" with "H0").
   Qed.
 
   Global Instance wpsim_elim_FUpd
-         E1 E2 r g R_src R_tgt
+         Es0 Es1 y
+         r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 P) P (wpsim E1 r g Q ps pt itr_src itr_tgt) (wpsim E2 r g Q ps pt itr_src itr_tgt).
+    ElimModal (y <= x) p false
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) Es0 Es1 P)
+              P
+              (wpsim Es0 r g Q ps pt itr_src itr_tgt)
+              (wpsim Es1 r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]".
-    iApply wpsim_FUpd. iMod "H0".
-    iModIntro. iApply ("H1" with "H0").
+    intros LE. iIntros "[H0 H1]".
+    iApply wpsim_FUpd. apply LE. iMod "H0".
+    instantiate (1:=Es1). iModIntro. iApply ("H1" with "H0").
   Qed.
 
   Global Instance wpsim_add_modal_FUpd
-         E r g R_src R_tgt
+         Es y (LE: y <= x)
+         r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt
          P
     :
-    AddModal (FUpd (fairI (ident_tgt:=ident_tgt)) E E P) P (wpsim E r g Q ps pt itr_src itr_tgt).
+    AddModal (FUpd y (fairI (ident_tgt:=ident_tgt) x) Es Es P)
+             P
+             (wpsim Es r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold AddModal. iIntros "[> H0 H1]". iApply ("H1" with "H0").
   Qed.
 
   Global Instance wpsim_elim_iupd_edge
-         E r g R_src R_tgt
+         Es r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (wpsim E r g Q ps pt itr_src itr_tgt) (wpsim E r g Q ps pt itr_src itr_tgt).
+    ElimModal True p false
+              (#=(ObligationRA.edges_sat)=> P)
+              P
+              (wpsim Es r g Q ps pt itr_src itr_tgt)
+              (wpsim Es r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] [C E]]".
-    iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
+    intros _. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] W]".
+    iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]".
     { iApply edges_sat_sub. }
     iApply ("H1" with "P"). iFrame. iExists _. eauto.
   Qed.
 
   Global Instance wpsim_elim_iupd_arrow
-         E r g R_src R_tgt
+         Es y
+         r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt))=> P) P (wpsim E r g Q ps pt itr_src itr_tgt) (wpsim E r g Q ps pt itr_src itr_tgt).
+    ElimModal (y < x) p false
+              (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) y)=> P)
+              P
+              (wpsim Es r g Q ps pt itr_src itr_tgt)
+              (wpsim Es r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] [C E]]".
-    iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]"; auto.
-    { iApply arrows_sat_sub. }
+    intros LE. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] W]".
+    iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]".
+    { iApply arrows_sat_sub. apply LE. }
     iApply ("H1" with "P"). iFrame. iExists _. eauto.
   Qed.
 
-  (* Global Instance mupd_elim_iupd_edge *)
-  (*        P Q E1 E2 p Inv *)
-  (*   : *)
-  (*   ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q). *)
-  (* Proof. *)
-  (*   unfold ElimModal. rewrite bi.intuitionistically_if_elim. *)
-  (*   i. iIntros "[H0 H1]". *)
-  (*   iPoseProof (IUpd_sub_mon with "[] H0") as "H0". *)
-  (*   { iApply SubIProp_sep_l. } *)
-  (*   iMod "H0". iApply ("H1" with "H0"). *)
-  (* Qed. *)
-
-  (* Global Instance mupd_elim_upd_arrow *)
-  (*        P Q E1 E2 p Inv *)
-  (*   : *)
-  (*   ElimModal True p false (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt))=> P) P (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (MUpd Inv (fairI (ident_tgt:=ident_tgt)) E1 E2 Q). *)
-  (* Proof. *)
-  (*   unfold ElimModal. rewrite bi.intuitionistically_if_elim. *)
-  (*   i. iIntros "[H0 H1]". *)
-  (*   iPoseProof (IUpd_sub_mon with "[] H0") as "H0". *)
-  (*   { iApply SubIProp_sep_r. } *)
-  (*   iMod "H0". iApply ("H1" with "H0"). *)
-  (* Qed. *)
-
-  Global Instance mupd_elim_fupd_edge
-         P Q E1 E2 p
+  Global Instance fupd_elim_iupd_edge
+         y P Q E1 E2 p
     :
-    ElimModal True p false (#=(ObligationRA.edges_sat)=> P) P (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
+    ElimModal True p false
+              (#=(ObligationRA.edges_sat)=> P)
+              P
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q)
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]".
+    intros _. iIntros "[H0 H1]".
     iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
     { iApply SubIProp_sep_l. }
     iMod "H0". iApply ("H1" with "H0").
   Qed.
 
-  Global Instance mupd_elim_fupd_arrow
-         P Q E1 E2 p
+  Global Instance fupd_elim_iupd_arrow
+         y P Q E1 E2 p
     :
-    ElimModal True p false (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt))=> P) P (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q) (FUpd (fairI (ident_tgt:=ident_tgt)) E1 E2 Q).
+    ElimModal (y < x) p false
+              (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) y)=> P)
+              P
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q)
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
-    i. iIntros "[H0 H1]".
+    intros LT. iIntros "[H0 H1]".
     iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
-    { iApply SubIProp_sep_r. }
+    { iApply SubIProp_trans. iApply Regions.nsats_sat_sub. apply LT. iApply SubIProp_sep_r. }
     iMod "H0". iApply ("H1" with "H0").
   Qed.
 
@@ -550,7 +564,7 @@ Section STATE.
         ps pt (itr_src: itree srcE S_src) (itr_tgt: itree tgtE S_tgt)
         ktr_src ktr_tgt
     :
-    (wpsim E r g (fun s_src s_tgt => wpsim ⊤ r g Q false false (ktr_src s_src) (ktr_tgt s_tgt)) ps pt itr_src itr_tgt)
+    (wpsim E r g (fun s_src s_tgt => wpsim ∅ r g Q false false (ktr_src s_src) (ktr_tgt s_tgt)) ps pt itr_src itr_tgt)
       -∗
       (wpsim E r g Q ps pt (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt))
   .
@@ -561,6 +575,10 @@ Section STATE.
     iIntros (? ? ? ? ? ? ?) "[[D I] H]".
     iApply ("H" $! _ _ _ _ _ with "[D I]"). iFrame.
   Qed.
+
+  (* Simulation evaluations. *)
+
+  TODO
 
   Lemma wpsim_ret E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
