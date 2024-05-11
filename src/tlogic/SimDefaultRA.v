@@ -126,7 +126,7 @@ Section INVARIANT.
          ∗
          (ObligationRA.arrows_sats (S := sum_tid ident_tgt) x)
          ∗
-         OwnM ((@Regions.nauth_ra _ x): ArrowRA)
+         (ObligationRA.arrows_auth (S := sum_tid ident_tgt) x)
       )%I
   .
 

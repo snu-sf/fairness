@@ -537,7 +537,8 @@ Section OWNES.
 
   Definition OwnEs (Es : coPsets) := (OwnE_auth Es ∗ OwnE_satall Es)%I.
 
-  Definition OwnEs_top (Es : coPsets) : Prop := map_Forall (fun _ E => E = ⊤) Es.
+  Definition OwnEs_top (Es : coPsets) : Prop := map_Forall (fun _ E => ⊤ ⊆ E) Es.
+  (* Definition OwnEs_top (Es : coPsets) : Prop := map_Forall (fun _ E => E = ⊤) Es. *)
 
   Lemma OwnEs_init_wf :
     URA.wf (OwnE_auth_black ∅).
@@ -549,6 +550,12 @@ Section OWNES.
     OwnM (OwnE_auth_black ∅) ⊢ OwnEs ∅.
   Proof.
     iIntros. unfold OwnEs. iFrame. unfold OwnE_satall. ss.
+  Qed.
+
+  Lemma OwnEs_has Es n E :
+    (Es !! n = Some E) -> OwnEs Es ⊢ OwnEs (<[n:=E]>Es).
+  Proof.
+    iIntros (IN) "ES". rewrite insert_id; auto.
   Qed.
 
   Lemma OwnEs_alloc Es n (NIN : Es !! n = None) :
@@ -647,6 +654,25 @@ Section OWNES.
       iPoseProof (big_sepM_insert with "SAT") as "[_ SAT]"; auto.
   Qed.
 
+  Lemma OwnEs_update_one Es n E1 E2 :
+    OwnEs (<[n:=E1]>Es) ⊢ (OwnE n E1 -∗ OwnE n E2) -∗ OwnEs (<[n:=E2]>Es).
+  Proof.
+    iIntros "E IMPL". iPoseProof (OwnEs_acc_in with "E") as "[E K]".
+    { apply lookup_insert. }
+    iPoseProof ("IMPL" with "E") as "E".
+    iEval (rewrite insert_insert) in "K".
+    iPoseProof (OwnEs_union with "[E K]") as "E". iFrame.
+    replace (∅ ∪ E2) with E2 by set_solver.
+    iFrame.
+  Qed.
+
+  Lemma OwnEs_subset Es n E1 E2 :
+    (E1 ⊆ E2) -> OwnEs (<[n:=E2]>Es) ⊢ OwnEs (<[n:=E1]>Es).
+  Proof.
+    iIntros (SUB) "ES". iApply (OwnEs_update_one with "ES").
+    iIntros "E". iPoseProof (OwnE_subset with "E") as "[E1 _]". eauto. iFrame.
+  Qed.
+
   Lemma OwnEs_disjoint Es n E1 E2 :
     E1 ## E2 -> OwnEs (<[n:=E1 ∪ E2]>Es) ⊢ OwnEs (<[n:=E1]>Es) ∗ OwnE n E2.
   Proof.
@@ -654,8 +680,19 @@ Section OWNES.
     { apply lookup_insert. }
     iPoseProof ((OwnE_disjoint _ _ _ HE) with "EN") as "[EN1 EN2]".
     iFrame. rewrite insert_insert.
-    iPoseProof (OwnEs_union with "[ENS EN1]") as "ENS". iFrame.
-    replace (∅ ∪ E1) with E1 by set_solver. iFrame.
+    iApply (OwnEs_update_one with "ENS"). iIntros. iFrame.
+  Qed.
+
+  Lemma OwnEs_free_all Es :
+    OwnEs_top Es -> OwnEs Es ⊢ |==> OwnEs ∅.
+  Proof.
+    pattern Es. revert Es. apply map_ind.
+    { iIntros (TOP) "ES". ss. }
+    iIntros (? ? ? NONE IND TOP) "ES".
+    iMod (OwnEs_free with "[ES]") as "ES". eauto.
+    { eapply map_Forall_lookup_1 in TOP. 2: apply lookup_insert. iApply OwnEs_subset; eauto. }
+    iApply IND. 2: iFrame.
+    eapply map_Forall_insert_1_2; eauto.
   Qed.
 
 

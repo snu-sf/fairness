@@ -1684,7 +1684,7 @@ Module ObligationRA.
       Definition arrows : forall i, (S * nat * Ord.t * Qp * nat * Vars i) -> iProp :=
         fun i => (fun x => @arrow i x).
 
-      Definition arrows_sats j: iProp := @Regions.nsats _ Σ _ arrows j.
+      Definition arrows_sats j : iProp := @Regions.nsats _ Σ _ arrows j.
 
       Global Instance arrows_sats_elim_upd P Q b i j :
         ElimModal (i < j) b false (#=(arrows_sat i)=> P) P (#=(arrows_sats j)=> Q) (#=(arrows_sats j)=> Q).
@@ -1695,6 +1695,9 @@ Module ObligationRA.
         iCombine "SUB P" as "P". iMod "P".
         iApply "K". iFrame.
       Qed.
+
+      Definition arrows_auth j : iProp :=
+        OwnM (@Regions.nauth_ra (fun i => (S * nat * Ord.t * Qp * nat * Vars i)%type) j).
 
     End SATS.
 
