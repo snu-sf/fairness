@@ -576,15 +576,15 @@ Section STATE.
     iApply ("H" $! _ _ _ _ _ with "[D I]"). iFrame.
   Qed.
 
-  (* Simulation evaluations. *)
+  (* Simulation rules. *)
 
-  TODO
-
-  Lemma wpsim_ret E r g R_src R_tgt
+  Lemma wpsim_ret
+        E y (LE : y <= x)
+        r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt r_src r_tgt
     :
-    (FUpd (fairI (ident_tgt:=ident_tgt)) E ⊤ (Q r_src r_tgt))
+    (FUpd y (fairI (ident_tgt:=ident_tgt) x) E ∅ (Q r_src r_tgt))
       -∗
       (wpsim E r g Q ps pt (Ret r_src) (Ret r_tgt))
   .
@@ -651,28 +651,30 @@ Section STATE.
   Qed.
 
   Lemma wpsim_stateL E X run r g R_src R_tgt
-    (Q : R_src -> R_tgt -> iProp)
-    ps pt ktr_src itr_tgt st_src
+        (Q : R_src -> R_tgt -> iProp)
+        ps pt ktr_src itr_tgt st_src
     :
     (St_src st_src)
-    -∗ (St_src (fst (run st_src)) -∗ wpsim E r g Q true pt (ktr_src (snd (run st_src) : X)) itr_tgt)
-    -∗ wpsim E r g Q ps pt (trigger (State run) >>= ktr_src) itr_tgt.
+      -∗ (St_src (fst (run st_src))
+                 -∗ wpsim E r g Q true pt (ktr_src (snd (run st_src) : X)) itr_tgt)
+      -∗ wpsim E r g Q ps pt (trigger (State run) >>= ktr_src) itr_tgt.
   Proof.
-    unfold wpsim. iIntros "H0 H1" (? ? ? ? ?) "(D & C & E)". iApply isim_stateL.
+    unfold wpsim. iIntros "H0 H1" (? ? ? ? ?) "(D & W)". iApply isim_stateL.
     iAssert (⌜st_src0 = st_src⌝)%I as "%".
     { iApply (default_I_past_get_st_src with "D H0"); eauto. }
     subst.
-    iPoseProof (default_I_past_update_st_src with "D H0") as "> [D H0]".
-    iApply ("H1" with "D [H0 C E]"). iFrame.
+    iPoseProof (default_I_past_update_st_src with "D H0") as "> [H0 D]".
+    iApply ("H1" with "H0 [D W]"). iFrame.
   Qed.
 
   Lemma wpsim_lens_stateL E V (l : Lens.t _ V) X run r g R_src R_tgt
-    (Q : R_src -> R_tgt -> iProp)
-    ps pt ktr_src itr_tgt st v
+        (Q : R_src -> R_tgt -> iProp)
+        ps pt ktr_src itr_tgt st v
     :
     (Vw_src st l v)
-    -∗ (Vw_src st l (fst (run v)) -∗ wpsim E r g Q true pt (ktr_src (snd (run v) : X)) itr_tgt)
-    -∗ wpsim E r g Q ps pt (trigger (map_lens l (State run)) >>= ktr_src) itr_tgt.
+      -∗ (Vw_src st l (fst (run v))
+                 -∗ wpsim E r g Q true pt (ktr_src (snd (run v) : X)) itr_tgt)
+      -∗ wpsim E r g Q ps pt (trigger (map_lens l (State run)) >>= ktr_src) itr_tgt.
   Proof.
     iIntros "S H". rewrite map_lens_State. iApply (wpsim_stateL with "S").
     iIntros "S". ss. unfold Vw_src.
@@ -681,28 +683,30 @@ Section STATE.
   Qed.
 
   Lemma wpsim_stateR E X run r g R_src R_tgt
-    (Q : R_src -> R_tgt -> iProp)
-    ps pt itr_src ktr_tgt st_tgt
+        (Q : R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt st_tgt
     :
     (St_tgt st_tgt)
-    -∗ (St_tgt (fst (run st_tgt)) -∗ wpsim E r g Q ps true itr_src (ktr_tgt (snd (run st_tgt) : X)))
-    -∗ wpsim E r g Q ps pt itr_src (trigger (State run) >>= ktr_tgt).
+      -∗ (St_tgt (fst (run st_tgt))
+                 -∗ wpsim E r g Q ps true itr_src (ktr_tgt (snd (run st_tgt) : X)))
+      -∗ wpsim E r g Q ps pt itr_src (trigger (State run) >>= ktr_tgt).
   Proof.
-    unfold wpsim. iIntros "H0 H1" (? ? ? ? ?) "(D & C & E)". iApply isim_stateR.
+    unfold wpsim. iIntros "H0 H1" (? ? ? ? ?) "(D & W)". iApply isim_stateR.
     iAssert (⌜st_tgt0 = st_tgt⌝)%I as "%".
     { iApply (default_I_past_get_st_tgt with "D H0"); eauto. }
     subst.
-    iPoseProof (default_I_past_update_st_tgt with "D H0") as "> [D H0]".
-    iApply ("H1" with "D [H0 C E]"). iFrame.
+    iPoseProof (default_I_past_update_st_tgt with "D H0") as "> [H0 D]".
+    iApply ("H1" with "H0 [D W]"). iFrame.
   Qed.
 
   Lemma wpsim_lens_stateR E V (l : Lens.t _ V) X run r g R_src R_tgt
-    (Q : R_src -> R_tgt -> iProp)
-    ps pt itr_src ktr_tgt st v
+        (Q : R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt st v
     :
     (Vw_tgt st l v)
-    -∗ (Vw_tgt st l (fst (run v)) -∗ wpsim E r g Q ps true itr_src (ktr_tgt (snd (run v) : X)))
-    -∗ wpsim E r g Q ps pt itr_src (trigger (map_lens l (State run)) >>= ktr_tgt).
+      -∗ (Vw_tgt st l (fst (run v))
+                 -∗ wpsim E r g Q ps true itr_src (ktr_tgt (snd (run v) : X)))
+      -∗ wpsim E r g Q ps pt itr_src (trigger (map_lens l (State run)) >>= ktr_tgt).
   Proof.
     iIntros "S H". rewrite map_lens_State. iApply (wpsim_stateR with "S").
     iIntros "S". ss. unfold Vw_tgt.
@@ -714,8 +718,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt
     :
-    ((Vw_src st l v) ∧
-       (wpsim E r g Q true pt (ktr_src (p v)) itr_tgt))
+    ((Vw_src st l v) ∧ (wpsim E r g Q true pt (ktr_src (p v)) itr_tgt))
       -∗
       (wpsim E r g Q ps pt (trigger (map_lens l (Get p)) >>= ktr_src) itr_tgt)
   .
@@ -723,7 +726,7 @@ Section STATE.
     unfold wpsim. iIntros "H" (? ? ? ? ?) "[D C]".
     rewrite map_lens_Get. rewrite Get_State. iApply isim_stateL. ss.
     iAssert (⌜Lens.view l st_src = v⌝)%I as "%".
-    { iDestruct "H" as "[H1 _]". subst.
+    { iDestruct "H" as "[H1 _]".
       iPoseProof (default_I_past_get_st_src with "D H1") as "%H". subst.
       rewrite Lens.view_set. auto.
     }
@@ -734,8 +737,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src itr_tgt
     :
-    ((St_src st) ∧
-       (wpsim E r g Q true pt (ktr_src (p st)) itr_tgt))
+    ((St_src st) ∧ (wpsim E r g Q true pt (ktr_src (p st)) itr_tgt))
       -∗
       (wpsim E r g Q ps pt (trigger (Get p) >>= ktr_src) itr_tgt)
   .
@@ -744,15 +746,14 @@ Section STATE.
     iApply wpsim_lens_getL. iSplit.
     - iDestruct "H" as "[H _]". iApply "H".
     - iDestruct "H" as "[_ H]". ss.
-    Unshelve. all: eauto.
+      Unshelve. all: eauto.
   Qed.
 
   Lemma wpsim_lens_getR V (l : Lens.t _ V) X (p : V -> X) E st v r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src ktr_tgt
     :
-    ((Vw_tgt st l v) ∧
-       (wpsim E r g Q ps true itr_src (ktr_tgt (p v))))
+    ((Vw_tgt st l v) ∧ (wpsim E r g Q ps true itr_src (ktr_tgt (p v))))
       -∗
       (wpsim E r g Q ps pt itr_src (trigger (map_lens l (Get p)) >>= ktr_tgt))
   .
@@ -771,8 +772,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src ktr_tgt
     :
-    ((St_tgt st) ∧
-       (wpsim E r g Q ps true itr_src (ktr_tgt (p st))))
+    ((St_tgt st) ∧ (wpsim E r g Q ps true itr_src (ktr_tgt (p st))))
       -∗
       (wpsim E r g Q ps pt itr_src (trigger (Get p) >>= ktr_tgt))
   .
@@ -781,61 +781,57 @@ Section STATE.
     iApply wpsim_lens_getR. iSplit.
     - iDestruct "H" as "[H _]". iApply "H".
     - iDestruct "H" as "[_ H]". ss.
-    Unshelve. all: eauto.
+      Unshelve. all: eauto.
   Qed.
 
   Lemma wpsim_modifyL E f r g R_src R_tgt
-    (Q : R_src -> R_tgt -> iProp)
-    ps pt ktr_src itr_tgt st_src
+        (Q : R_src -> R_tgt -> iProp)
+        ps pt ktr_src itr_tgt st_src
     :
     (St_src st_src)
-    -∗ (St_src (f st_src) -∗ wpsim E r g Q true pt (ktr_src tt) itr_tgt)
-    -∗ wpsim E r g Q ps pt (trigger (Modify f) >>= ktr_src) itr_tgt.
+      -∗ (St_src (f st_src) -∗ wpsim E r g Q true pt (ktr_src tt) itr_tgt)
+      -∗ wpsim E r g Q ps pt (trigger (Modify f) >>= ktr_src) itr_tgt.
   Proof.
     rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateL with "H1"). ss.
   Qed.
 
   Lemma wpsim_lens_modifyL E V (l : Lens.t _ V) f r g R_src R_tgt
-    (Q : R_src -> R_tgt -> iProp)
-    ps pt ktr_src itr_tgt st v
+        (Q : R_src -> R_tgt -> iProp)
+        ps pt ktr_src itr_tgt st v
     :
     (Vw_src st l v)
-    -∗ (Vw_src st l (f v) -∗ wpsim E r g Q true pt (ktr_src tt) itr_tgt)
-    -∗ wpsim E r g Q ps pt (trigger (map_lens l (Modify f)) >>= ktr_src) itr_tgt.
+      -∗ (Vw_src st l (f v) -∗ wpsim E r g Q true pt (ktr_src tt) itr_tgt)
+      -∗ wpsim E r g Q ps pt (trigger (map_lens l (Modify f)) >>= ktr_src) itr_tgt.
   Proof.
     rewrite map_lens_Modify.
     iIntros "H1 H2". iApply (wpsim_modifyL with "H1").
     iIntros "H". iApply "H2".
-    unfold Lens.modify.
-    rewrite Lens.view_set. rewrite Lens.set_set.
-    iApply "H".
+    unfold Lens.modify. rewrite Lens.view_set. rewrite Lens.set_set. iApply "H".
   Qed.
 
   Lemma wpsim_modifyR E f r g R_src R_tgt
-    (Q : R_src -> R_tgt -> iProp)
-    ps pt itr_src ktr_tgt st_tgt
+        (Q : R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt st_tgt
     :
     (St_tgt st_tgt)
-    -∗ (St_tgt (f st_tgt) -∗ wpsim E r g Q ps true itr_src (ktr_tgt tt))
-    -∗ wpsim E r g Q ps pt itr_src (trigger (Modify f) >>= ktr_tgt).
+      -∗ (St_tgt (f st_tgt) -∗ wpsim E r g Q ps true itr_src (ktr_tgt tt))
+      -∗ wpsim E r g Q ps pt itr_src (trigger (Modify f) >>= ktr_tgt).
   Proof.
     rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateR with "H1"). ss.
   Qed.
 
   Lemma wpsim_lens_modifyR E V (l : Lens.t _ V) f r g R_src R_tgt
-    (Q : R_src -> R_tgt -> iProp)
-    ps pt itr_src ktr_tgt st v
+        (Q : R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt st v
     :
     (Vw_tgt st l v)
-    -∗ (Vw_tgt st l (f v) -∗ wpsim E r g Q ps true itr_src (ktr_tgt tt))
-    -∗ wpsim E r g Q ps pt itr_src (trigger (map_lens l (Modify f)) >>= ktr_tgt).
+      -∗ (Vw_tgt st l (f v) -∗ wpsim E r g Q ps true itr_src (ktr_tgt tt))
+      -∗ wpsim E r g Q ps pt itr_src (trigger (map_lens l (Modify f)) >>= ktr_tgt).
   Proof.
     rewrite map_lens_Modify.
     iIntros "H1 H2". iApply (wpsim_modifyR with "H1").
     iIntros "H". iApply "H2".
-    unfold Lens.modify.
-    rewrite Lens.view_set. rewrite Lens.set_set.
-    iApply "H".
+    unfold Lens.modify. rewrite Lens.view_set. rewrite Lens.set_set. iApply "H".
   Qed.
 
   Lemma wpsim_tidL E r g R_src R_tgt
@@ -875,15 +871,16 @@ Section STATE.
     :
     (list_prop_sum (fun i => FairRA.white p i Ord.one) lf)
       -∗
-      ((list_prop_sum (fun i => FairRA.white p i o) ls) -∗ (wpsim E r g Q true pt (ktr_src tt) itr_tgt))
+      ((list_prop_sum (fun i => FairRA.white p i o) ls)
+         -∗ (wpsim E r g Q true pt (ktr_src tt) itr_tgt))
       -∗
       (wpsim E r g Q ps pt (trigger (Fair (prism_fmap p fm)) >>= ktr_src) itr_tgt).
   Proof.
-    unfold wpsim. iIntros "OWN H" (? ? ? ? ?) "(D & C & E)".
-    iPoseProof (default_I_past_update_ident_source_prism with "D OWN") as "> [% [[% WHITES] D]]".
+    unfold wpsim. iIntros "OWN H" (? ? ? ? ?) "(D & W)".
+    iPoseProof (default_I_past_update_ident_source_prism with "D OWN") as ">[% [% [WHITES D]]]".
     { eauto. }
     { eauto. }
-    iPoseProof ("H" with "WHITES [D C E]") as "H".
+    iPoseProof ("H" with "WHITES [D W]") as "H".
     { iFrame. }
     iApply isim_fairL. iExists _. iSplit; eauto.
   Qed.
@@ -897,16 +894,18 @@ Section STATE.
     :
     (list_prop_sum (fun i => FairRA.white Prism.id i Ord.one) lf)
       -∗
-      ((list_prop_sum (fun i => FairRA.white Prism.id i o) ls) -∗ (wpsim E r g Q true pt (ktr_src tt) itr_tgt))
+      ((list_prop_sum (fun i => FairRA.white Prism.id i o) ls)
+         -∗ (wpsim E r g Q true pt (ktr_src tt) itr_tgt))
       -∗
       (wpsim E r g Q ps pt (trigger (Fair fm) >>= ktr_src) itr_tgt).
   Proof.
-    iIntros "WHITES K".
-    rewrite <- (prism_fmap_id fm).
-    iApply (wpsim_fairL_prism with "[WHITES] [K]"); eauto.
+    iIntros "WHITES K". rewrite <- (prism_fmap_id fm).
+    iApply (wpsim_fairL_prism with "WHITES K"); eauto.
   Qed.
 
-  Lemma wpsim_fairR_prism A lf ls
+  Lemma wpsim_fairR_prism
+        y (LT : y < x)
+        A lf ls
         (p : Prism.t _ A)
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -915,28 +914,34 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => ObligationRA.duty (Prism.compose inrp p) i l ** ObligationRA.tax l) ls)
+    (list_prop_sum
+       (fun '(i, l) =>
+          ObligationRA.duty y (Prism.compose inrp p) i l ∗ ObligationRA.tax (List.map fst l))
+       ls)%I
       -∗
-      ((list_prop_sum (fun '(i, l) => ObligationRA.duty (Prism.compose inrp p) i l) ls)
-         -*
+      ((list_prop_sum (fun '(i, l) => ObligationRA.duty y (Prism.compose inrp p) i l) ls)
+         -∗
          (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) i 1) lf)
-         -*
+         -∗
          wpsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
       (wpsim E r g Q ps pt itr_src (trigger (Fair (prism_fmap p fm)) >>= ktr_tgt))
   .
   Proof.
-    unfold wpsim. iIntros "OWN H"  (? ? ? ? ?) "(D & C & E)".
+    unfold wpsim. iIntros "OWN H"  (? ? ? ? ?) "(D & W)".
     iApply isim_fairR. iIntros (?) "%".
-    iPoseProof (default_I_past_update_ident_target with "D OWN") as "> [[DUTY WHITE] D]".
+    iPoseProof (default_I_past_update_ident_target with "D OWN") as "> [DUTY [WHITE D]]".
     { rewrite prism_fmap_compose. eauto. }
+    { eauto. }
     { eauto. }
     { eauto. }
     { eauto. }
     iApply ("H" with "DUTY WHITE"). iFrame.
   Qed.
 
-  Lemma wpsim_fairR lf ls
+  Lemma wpsim_fairR
+        y (LT : y < x)
+        lf ls
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src ktr_tgt
@@ -944,23 +949,25 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => ObligationRA.duty inrp i l ** ObligationRA.tax l) ls)
+    (list_prop_sum
+       (fun '(i, l) => ObligationRA.duty y inrp i l ∗ ObligationRA.tax (List.map fst l)) ls)
       -∗
-      ((list_prop_sum (fun '(i, l) => ObligationRA.duty inrp i l) ls)
-         -*
+      ((list_prop_sum (fun '(i, l) => ObligationRA.duty y inrp i l) ls)
+         -∗
          (list_prop_sum (fun i => FairRA.white inrp i 1) lf)
-         -*
+         -∗
          wpsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
       (wpsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
   .
   Proof.
-    iIntros "DUTY K".
-    rewrite <- (prism_fmap_id fm).
-    iApply (wpsim_fairR_prism with "[DUTY] [K]"); eauto.
+    iIntros "DUTY K". rewrite <- (prism_fmap_id fm).
+    iApply (wpsim_fairR_prism with "[DUTY] [K]"). all: eauto.
   Qed.
 
-  Lemma wpsim_fairR_simple lf ls
+  Lemma wpsim_fairR_simple
+        y (LT : y < x)
+        lf ls
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src ktr_tgt
@@ -971,20 +978,25 @@ Section STATE.
     (list_prop_sum (fun i => FairRA.black_ex inrp i 1) ls)
       -∗
       ((list_prop_sum (fun i => FairRA.black_ex inrp i 1) ls)
-         -*
+         -∗
          (list_prop_sum (fun i => FairRA.white inrp i 1) lf)
-         -*
+         -∗
          wpsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
       (wpsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
   .
   Proof.
     iIntros "A B". iApply (wpsim_fairR with "[A]"); eauto.
-    { instantiate (1:= List.map (fun i => (i, [])) ls). i. specialize (SUCCESS _ IN). rewrite List.map_map. ss.
-      replace (List.map (λ x : ident_tgt, x) ls) with ls; auto. clear. induction ls; ss; eauto. f_equal. auto.
+    { instantiate (1:= List.map (fun i => (i, [])) ls).
+      i. specialize (SUCCESS _ IN). rewrite List.map_map. ss.
+      replace (List.map (λ x : ident_tgt, x) ls) with ls; auto.
+      clear. induction ls; ss; eauto. f_equal. auto.
     }
-    { iApply list_prop_sum_map. 2: iFrame. i. ss. iIntros "BLK". iSplitL; auto. iApply ObligationRA.black_to_duty. auto. }
-    { iIntros "S F". iApply ("B" with "[S]"). 2: iFrame. iApply list_prop_sum_map_inv. 2: iFrame.
+    { iApply list_prop_sum_map. 2: iFrame.
+      i. ss. iIntros "BLK". iSplitL; auto. iApply ObligationRA.black_to_duty. auto.
+    }
+    { iIntros "S F". iApply ("B" with "[S]"). 2: iFrame.
+      iApply list_prop_sum_map_inv. 2: iFrame.
       i; ss. iIntros "D". iApply ObligationRA.duty_to_black. iFrame.
     }
   Qed.
@@ -996,8 +1008,7 @@ Section STATE.
     ⊢ (wpsim E r g Q ps pt (trigger Undefined >>= ktr_src) itr_tgt)
   .
   Proof.
-    unfold wpsim. iIntros (? ? ? ? ?) "D".
-    iApply isim_UB. auto.
+    unfold wpsim. iIntros (? ? ? ? ?) "D". iApply isim_UB. auto.
   Qed.
 
   Lemma wpsim_observe E fn args r g R_src R_tgt
@@ -1026,143 +1037,156 @@ Section STATE.
     iApply isim_yieldL. iApply ("H" with "D").
   Qed.
 
-  Lemma wpsim_yieldR_strong E r g R_src R_tgt
+  Lemma wpsim_yieldR_strong
+        y (LT: y < x)
+        E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
     :
-    (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.tax (List.map fst l))
       -∗
-      ((ObligationRA.duty inlp tid l)
-         -*
+      ((ObligationRA.duty y inlp tid l)
+         -∗
          (FairRA.white_thread (S:=_))
-         -*
-         (FUpd (fairI (ident_tgt:=ident_tgt)) E ⊤
-               (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+         -∗
+         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ∅
+               (wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    iIntros "H K".
-    unfold wpsim. iIntros (? ? ? ? ?) "(D & C & E)".
-    iPoseProof (default_I_past_update_ident_thread with "D H") as "> [[B W] [[[[[[D0 D1] D2] D3] D4] D5] D6]]".
-    iAssert ((fairI (ident_tgt:=ident_tgt)) ** (wsat ** OwnE E)) with "[C D5 D6 E]" as "C".
+    iIntros "H K". unfold wpsim. iIntros (? ? ? ? ?) "(D & [WA WS])".
+    iMod (default_I_past_update_ident_thread with "D H") as "[B [W [D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]]]]". auto.
+    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnEs E))%I with "[WS D5 D6]" as "C".
     { iFrame. }
-    iPoseProof ("K" with "B W C") as "> [D5 [D6 [E K]]]".
+    Local Transparent FUpd.
+    iPoseProof ("K" with "B W C") as ">[D5 [D6 [E K]]]".
     iApply isim_yieldR. unfold I, fairI. iFrame. iFrame.
-    iIntros (? ? ? ? ? ?) "(D & C & E) %".
-    iApply ("K" with "[D C E]"). iFrame. iExists _. eauto.
+    iIntros (? ? ? ? ? ?) "(D & WAS) %".
+    iApply ("K" with "[D WAS]"). iFrame. iExists _. eauto.
+    Local Opaque FUpd.
   Qed.
 
-  Lemma wpsim_sync_strong E r g R_src R_tgt
+  Lemma wpsim_sync_strong
+        y (LT: y < x)
+        E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
     :
-    (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.tax (List.map fst l))
       -∗
-      ((ObligationRA.duty inlp tid l)
-         -*
+      ((ObligationRA.duty y inlp tid l)
+         -∗
          (FairRA.white_thread (S:=_))
-         -*
-         (FUpd (fairI (ident_tgt:=ident_tgt)) E ⊤
-               (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+         -∗
+         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ∅
+               (wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
-    iIntros "H K".
-    unfold wpsim. iIntros (? ? ? ? ?) "(D & C & E)".
-    iPoseProof (default_I_past_update_ident_thread with "D H") as "> [[B W] [[[[[[D0 D1] D2] D3] D4] D5] D6]]".
-    iAssert ((fairI (ident_tgt:=ident_tgt)) ** (wsat ** OwnE E)) with "[C D5 D6 E]" as "C".
+    iIntros "H K". unfold wpsim. iIntros (? ? ? ? ?) "(D & WA & WS)".
+    iPoseProof (default_I_past_update_ident_thread with "D H") as "> [B [W [D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]]]]". auto.
+    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnEs E))%I with "[WS D5 D6]" as "C".
     { iFrame. }
+    Local Transparent FUpd.
     iPoseProof ("K" with "B W C") as "> (D5 & C & E & K)".
     iApply isim_sync. unfold I. iFrame. iFrame.
     iIntros (? ? ? ? ? ?) "(D & C & E) %".
     iApply ("K" with "[D C E]"). iFrame. iExists _. eauto.
+    Local Opaque FUpd.
   Qed.
 
-  Lemma wpsim_yieldR E r g R_src R_tgt
+  Lemma wpsim_yieldR
+        y (LT: y < x)
+        E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
-        (TOP: ⊤ ⊆ E)
+        (TOP: OwnEs_top E)
     :
-    (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.tax (List.map fst l))
       -∗
-      ((ObligationRA.duty inlp tid l)
-         -*
+      ((ObligationRA.duty y inlp tid l)
+         -∗
          (FairRA.white_thread (S:=_))
-         -*
-         wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
+         -∗
+         wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    iIntros "H K". iApply wpsim_discard; [eassumption|].
-    iApply (wpsim_yieldR_strong with "H"). iIntros "DUTY WHITE".
+    iIntros "H K". iApply wpsim_free_all; [eassumption|].
+    iApply (wpsim_yieldR_strong with "H"). auto. iIntros "DUTY WHITE".
     iModIntro. iApply ("K" with "DUTY WHITE").
   Qed.
 
-  Lemma wpsim_sync E r g R_src R_tgt
+  Lemma wpsim_sync
+        y (LT: y < x)
+        E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
-        (TOP: ⊤ ⊆ E)
+        (TOP: OwnEs_top E)
     :
-    (ObligationRA.duty inlp tid l ** ObligationRA.tax l)
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.tax (List.map fst l))
       -∗
-      ((ObligationRA.duty inlp tid l)
-         -*
+      ((ObligationRA.duty y inlp tid l)
+         -∗
          (FairRA.white_thread (S:=_))
-         -*
-         wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))
+         -∗
+         wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
-    iIntros "H K". iApply wpsim_discard; [eassumption|].
-    iApply (wpsim_sync_strong with "H"). iIntros "DUTY WHITE".
+    iIntros "H K". iApply wpsim_free_all; [eassumption|].
+    iApply (wpsim_sync_strong with "H"). auto. iIntros "DUTY WHITE".
     iModIntro. iApply ("K" with "DUTY WHITE").
   Qed.
 
-  (* Note:  *)
-  (*   MUpd _ fairI topset topset P *)
-  (*        is a generalized version of I * (I -* P) *)
-  Lemma wpsim_yieldR_simple r g R_src R_tgt
+  Lemma wpsim_yieldR_simple
+        y (LT: y < x)
+        r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
     :
-    FUpd (fairI (ident_tgt:=ident_tgt)) ⊤ ⊤
+    FUpd x (fairI (ident_tgt:=ident_tgt) x) ∅ ∅
          ((FairRA.black_ex inlp tid 1)
-            **
+            ∗
             ((FairRA.black_ex inlp tid 1)
-               -*
+               -∗
                (FairRA.white_thread (S:=_))
-               -*
-               wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
+               -∗
+               wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
          -∗
-         (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+         (wpsim ∅ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     iIntros "> [H K]". iApply (wpsim_yieldR with "[H]").
-    { auto. }
+    { eauto. }
+    { ss. }
     { iPoseProof (ObligationRA.black_to_duty with "H") as "H". iFrame. }
     iIntros "B W". iApply ("K" with "[B] [W]"); ss.
     { iApply ObligationRA.duty_to_black. auto. }
   Qed.
 
-  Lemma wpsim_sync_simple r g R_src R_tgt
+  Lemma wpsim_sync_simple
+        y (LT: y < x)
+        r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
     :
-    FUpd (fairI (ident_tgt:=ident_tgt)) ⊤ ⊤
+    FUpd x (fairI (ident_tgt:=ident_tgt) x) ∅ ∅
          ((FairRA.black_ex inlp tid 1)
-            **
+            ∗
             ((FairRA.black_ex inlp tid 1)
-               -*
+               -∗
                (FairRA.white_thread (S:=_))
-               -*
-               wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
-      -∗
-      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+               -∗
+               wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt)))
+         -∗
+         (wpsim ∅ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "> [H K]". iApply (wpsim_sync with "[H]").
-    { auto. }
+    { eauto. }
+    { ss. }
     { iPoseProof (ObligationRA.black_to_duty with "H") as "H". iFrame. }
     iIntros "B W". iApply ("K" with "[B] [W]"); ss.
     { iApply ObligationRA.duty_to_black. auto. }
