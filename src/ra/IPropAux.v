@@ -66,7 +66,7 @@ Section UPD.
       -∗
       (OwnM (Auth.white (Excl.just a': @Excl.t A)))
       -∗
-      #=> (OwnM (Auth.black (Excl.just a1: @Excl.t A)) ** OwnM (Auth.white (Excl.just a1: @Excl.t A))).
+      #=> (OwnM (Auth.black (Excl.just a1: @Excl.t A)) ∗ OwnM (Auth.white (Excl.just a1: @Excl.t A))).
   Proof.
     iIntros "H0 H1". iCombine "H0 H1" as "H".
     iPoseProof (OwnM_Upd with "H") as "> [H0 H1]".
@@ -148,7 +148,7 @@ Section OWNS.
   Lemma OwnMs_fold (s0 s1: Id -> Prop) i u
         (IMPL: forall j (IN: s0 j), s1 j \/ j = i)
     :
-    ((OwnMs s1 u) ** (maps_to i u))
+    ((OwnMs s1 u) ∗ (maps_to i u))
       -∗
       (OwnMs s0 u).
   Proof.
@@ -170,7 +170,7 @@ Section OWNS.
     :
     (OwnMs s1 u)
       -∗
-      (OwnMs s0 u ** maps_to i u).
+      (OwnMs s0 u ∗ maps_to i u).
   Proof.
     iIntros "OWNMS".
     iPoseProof (OwnM_extends with "OWNMS") as "[OWNMS0 OWNMS1]".
@@ -191,7 +191,7 @@ Section OWNS.
 
   Definition OwnMs_combine (s0 s1: Id -> Prop) u
     :
-    (OwnMs s0 u ** OwnMs s1 u)
+    (OwnMs s0 u ∗ OwnMs s1 u)
       -∗
       (OwnMs (fun i => s0 i \/ s1 i) u).
   Proof.
@@ -212,7 +212,7 @@ Section OWNS.
     :
     (OwnMs (fun i => s0 i \/ s1 i) u)
       -∗
-      (OwnMs s0 u ** OwnMs s1 u).
+      (OwnMs s0 u ∗ OwnMs s1 u).
   Proof.
     iIntros "OWNMS".
     iPoseProof (OwnM_extends with "OWNMS") as "[OWNMS0 OWNMS1]".

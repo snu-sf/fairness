@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM.
+From Fairness Require Import PCMFOS IPropFOS IPMFOS.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 

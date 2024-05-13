@@ -811,7 +811,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*   Context `{Σ: GRA.t}. *)
 (*   Variable I: nat -> iProp. *)
 (*   Variable IA: iProp. *)
-(*   Definition mset_all (l: mset) := fold_right (fun n P => I n ** P) True%I l. *)
+(*   Definition mset_all (l: mset) := fold_right (fun n P => I n ∗ P) True%I l. *)
 
 (*   Lemma mset_all_nil *)
 (*     : *)
@@ -822,7 +822,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 
 (*   Lemma mset_all_cons_fold hd tl *)
 (*     : *)
-(*     (I hd ** mset_all tl) *)
+(*     (I hd ∗ mset_all tl) *)
 (*       -∗ *)
 (*       (mset_all (hd::tl)). *)
 (*   Proof. *)
@@ -833,7 +833,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*     : *)
 (*     (mset_all (hd::tl)) *)
 (*       -∗ *)
-(*       (I hd ** mset_all tl). *)
+(*       (I hd ∗ mset_all tl). *)
 (*   Proof. *)
 (*     unfold mset_all. ss. *)
 (*   Qed. *)
@@ -842,7 +842,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*     : *)
 (*     (mset_all (l0 ++ l1)) *)
 (*       -∗ *)
-(*       (mset_all l0 ** mset_all l1). *)
+(*       (mset_all l0 ∗ mset_all l1). *)
 (*   Proof. *)
 (*     induction l0; ss. *)
 (*     { iIntros "SAT". iFrame. } *)
@@ -851,7 +851,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 
 (*   Lemma mset_all_combine l0 l1 *)
 (*     : *)
-(*     (mset_all l0 ** mset_all l1) *)
+(*     (mset_all l0 ∗ mset_all l1) *)
 (*       -∗ *)
 (*       (mset_all (l0 ++ l1)). *)
 (*   Proof. *)
@@ -864,7 +864,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 
 (*   Lemma mset_all_add l a *)
 (*     : *)
-(*     (I a ** mset_all l) *)
+(*     (I a ∗ mset_all l) *)
 (*       -∗ *)
 (*       (mset_all (l++[a])). *)
 (*   Proof. *)
@@ -893,7 +893,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*   Lemma mset_all_sub l0 l1 *)
 (*         (SUB: mset_sub l0 l1) *)
 (*     : *)
-(*     mset_all l1 ⊢ mset_all l0 ** (mset_all l0 -* mset_all l1). *)
+(*     mset_all l1 ⊢ mset_all l0 ∗ (mset_all l0 -∗ mset_all l1). *)
 (*   Proof. *)
 (*     rr in SUB. des. iIntros "H". *)
 (*     iPoseProof (mset_all_permutation with "H") as "H". *)
@@ -914,7 +914,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*   Lemma mset_all_update l k a *)
 (*         (FIND: nth_error l k = Some a) *)
 (*     : *)
-(*     mset_all l ⊢ I a ** (I a -* mset_all l). *)
+(*     mset_all l ⊢ I a ∗ (I a -∗ mset_all l). *)
 (*   Proof. *)
 (*     hexploit nth_error_split; eauto. i. des. subst. *)
 (*     iIntros "SAT". iPoseProof (mset_all_split with "SAT") as "[SAT0 SAT1]". *)
@@ -1041,10 +1041,10 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*   Qed. *)
 
 (*   Definition MUpd (l0 l1: mset) (P: iProp): iProp := *)
-(*     (IA ** mset_all l0) -* #=> ((IA ** mset_all l1) ** P). *)
+(*     (IA ∗ mset_all l0) -∗ #=> ((IA ∗ mset_all l1) ∗ P). *)
 
 (*   Lemma MUpd_open i: *)
-(*     ⊢ MUpd [i] [] (I i ** (I i -* (MUpd [] [i] True))). *)
+(*     ⊢ MUpd [i] [] (I i ∗ (I i -∗ (MUpd [] [i] True))). *)
 (*   Proof. *)
 (*     i. iIntros "[X [H0 H1]]". ss. iModIntro. iFrame. *)
 (*     iIntros "H0 [X H1]". iModIntro. ss. iFrame. *)
@@ -1078,7 +1078,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 
 (*   Lemma MUpd_frame_r E1 E2 P R *)
 (*     : *)
-(*     MUpd E1 E2 P ** R ⊢ MUpd E1 E2 (P ** R). *)
+(*     MUpd E1 E2 P ∗ R ⊢ MUpd E1 E2 (P ∗ R). *)
 (*   Proof. *)
 (*     iIntros "[H0 H1] H2". iPoseProof ("H0" with "H2") as "> [H0 H2]". *)
 (*     iModIntro. iFrame. *)
@@ -1113,7 +1113,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*     mset_sub E2 E1 -> P ⊢ MUpd E1 E2 (MUpd E2 E1 P). *)
 (*   Proof. *)
 (*     intros HE. iIntros "H0". iApply MUpd_mono. *)
-(*     { eapply MUpd_mono. instantiate (1:=emp ** P). *)
+(*     { eapply MUpd_mono. instantiate (1:=emp ∗ P). *)
 (*       iIntros "[H0 H1]". auto. *)
 (*     } *)
 (*     { iApply MUpd_mono. *)
@@ -1139,7 +1139,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 
 (*   Lemma MUpd_mask_weaken {E1} E2 {E3 P} : *)
 (*     mset_sub E2 E1 -> *)
-(*     (MUpd E2 E1 emp -* MUpd E2 E3 P) -∗ MUpd E1 E3 P. *)
+(*     (MUpd E2 E1 emp -∗ MUpd E2 E3 P) -∗ MUpd E1 E3 P. *)
 (*   Proof. *)
 (*     intros HE. *)
 (*     iIntros "H1". *)
@@ -1178,7 +1178,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*   Proof. rewrite MUpd_frame_r. rewrite wand_elim_r. auto. Qed. *)
 
 (*   Lemma MUpd_trans_frame E1 E2 E3 P Q : *)
-(*     ((Q -* MUpd E2 E3 emp) ∗ MUpd E1 E2 (Q ∗ P)) ⊢ MUpd E1 E3 P. *)
+(*     ((Q -∗ MUpd E2 E3 emp) ∗ MUpd E1 E2 (Q ∗ P)) ⊢ MUpd E1 E3 P. *)
 (*   Proof. *)
 (*     rewrite MUpd_frame_l. *)
 (*     iIntros "H0". iApply MUpd_trans. *)
@@ -1186,7 +1186,7 @@ Require Export Coq.Sorting.Mergesort. Import NatSort.
 (*     iIntros "[H0 [H1 H2]]". *)
 (*     iPoseProof ("H0" with "H1") as "H0". *)
 (*     iApply MUpd_mono. *)
-(*     { instantiate (1:=emp ** P). iIntros "[H0 H1]". auto. } *)
+(*     { instantiate (1:=emp ∗ P). iIntros "[H0 H1]". auto. } *)
 (*     iApply MUpd_frame_r. iFrame. *)
 (*   Qed. *)
 
@@ -1483,7 +1483,7 @@ Section UPDATING.
   Context `{Σ: @GRA.t}.
 
   Definition updating (I: iProp) (P Q R: iProp): iProp :=
-    I -* (#=> (P ** (Q -* #=> (I ** R)))).
+    I -∗ (#=> (P ∗ (Q -∗ #=> (I ∗ R)))).
 
   Lemma updating_sub_mon (I0 I1: iProp) (P Q R: iProp)
     :
@@ -1865,7 +1865,7 @@ Module ConsentP.
         `{@GRA.inG (Consent.t A) Σ}
         (a0 a1: A) q0 q1
     :
-    (OwnM (Consent.vote a0 q0) ** (OwnM (Consent.vote a1 q1)))
+    (OwnM (Consent.vote a0 q0) ∗ (OwnM (Consent.vote a1 q1)))
       -∗
       (⌜a0 = a1⌝).
   Proof.
@@ -1882,7 +1882,7 @@ Module ConsentP.
         `{@GRA.inG (Consent.t A) Σ}
         (a0 a1: A)
     :
-    (voted a0 ** voted a1)
+    (voted a0 ∗ voted a1)
       -∗
       (⌜a0 = a1⌝).
   Proof.
@@ -1895,7 +1895,7 @@ Module ConsentP.
     :
     (voted a)
       -∗
-      (voted a ** voted a).
+      (voted a ∗ voted a).
   Proof.
     iIntros "[% H]". erewrite <- (Qp.div_2 q).
     rewrite Consent.vote_sum.
@@ -1913,7 +1913,7 @@ Module ConsentP.
         `{@GRA.inG (@FiniteMap.t (Consent.t A)) Σ}
         k (a0 a1: A)
     :
-    (voted_singleton k a0 ** voted_singleton k a1)
+    (voted_singleton k a0 ∗ voted_singleton k a1)
       -∗
       (⌜a0 = a1⌝).
   Proof.
@@ -1929,7 +1929,7 @@ Module ConsentP.
     :
     (voted_singleton k a)
       -∗
-      (voted_singleton k a ** voted_singleton k a).
+      (voted_singleton k a ∗ voted_singleton k a).
   Proof.
     iIntros "[% H]". erewrite <- (Qp.div_2 q).
     rewrite Consent.vote_sum.

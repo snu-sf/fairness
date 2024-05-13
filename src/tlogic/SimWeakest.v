@@ -552,7 +552,7 @@ Section STATE.
       -∗
       P
       -∗
-      (wpsim E r g (fun r_src r_tgt => P ** Q r_src r_tgt) ps pt itr_src itr_tgt)
+      (wpsim E r g (fun r_src r_tgt => P ∗ Q r_src r_tgt) ps pt itr_src itr_tgt)
   .
   Proof.
     iIntros "H0 H1". iApply (wpsim_wand with "H0").

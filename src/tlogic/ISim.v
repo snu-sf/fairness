@@ -141,7 +141,7 @@ Section SIM.
     :
     bi_entails
       ((∀ r_src r_tgt ths im_src im_tgt st_src st_tgt,
-           ((Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt) -∗ #=> (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt))) ** (isim r g Q0 ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
+           ((Q0 r_src r_tgt ths im_src im_tgt st_src st_tgt) -∗ #=> (Q1 r_src r_tgt ths im_src im_tgt st_src st_tgt))) ∗ (isim r g Q0 ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))
       (isim r g Q1 ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
@@ -192,9 +192,9 @@ Section SIM.
         ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
     :
     bi_entails
-      (P ** isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (P ∗ isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
       (isim r g (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
-                   P ** Q r_src r_tgt ths im_src im_tgt st_src st_tgt)
+                   (P ∗ Q r_src r_tgt ths im_src im_tgt st_src st_tgt)%I)
             ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
@@ -378,7 +378,7 @@ Section SIM.
         ps pt itr_src ktr_tgt ths im_src im_tgt0 st_src st_tgt
     :
     bi_entails
-      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 (prism_fmap inrp f)⌝ -* isim r g Q ps true itr_src (ktr_tgt tt) ths im_src im_tgt1 st_src st_tgt)
+      (∀ im_tgt1, ⌜fair_update im_tgt0 im_tgt1 (prism_fmap inrp f)⌝ -∗ isim r g Q ps true itr_src (ktr_tgt tt) ths im_src im_tgt1 st_src st_tgt)
       (isim r g Q ps pt itr_src (trigger (Fair f) >>= ktr_tgt) ths im_src im_tgt0 st_src st_tgt)
   .
   Proof.
@@ -443,7 +443,7 @@ Section SIM.
         ps pt ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
     :
     bi_entails
-      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))⌝ -* isim r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
+      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -∗ ⌜fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))⌝ -∗ isim r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
       (isim r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
   .
   Proof.
@@ -479,7 +479,7 @@ Section SIM.
         ps pt ktr_src ktr_tgt ths0 im_src0 im_tgt0 st_src0 st_tgt0
     :
     bi_entails
-      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ** (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -* ⌜fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))⌝ -* isim g g Q true true (ktr_src tt) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
+      (I ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ (∀ ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2, I ths1 im_src1 im_tgt1 st_src1 st_tgt1 -∗ ⌜fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))⌝ -∗ isim g g Q true true (ktr_src tt) (ktr_tgt tt) ths1 im_src1 im_tgt2 st_src1 st_tgt1))
       (isim r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
   .
   Proof.
@@ -611,9 +611,9 @@ Section SIM.
         (r g0: rel)
         (COIND: forall (g1: rel) a, bi_entails (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
                                                      ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
-                                                      @g0 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt -* @g1 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-                                                    **
-                                                    (∀ a, P a -* @g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))) ** P a) (isim r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a)))
+                                                      @g0 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt -∗ @g1 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+                                                    ∗
+                                                    (∀ a, P a -∗ @g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))) ∗ P a) (isim r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a)))
     :
     (forall a, bi_entails (P a) (isim r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))).
   Proof.

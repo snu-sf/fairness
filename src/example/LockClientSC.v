@@ -98,7 +98,7 @@ End ClientSpec.
 
 
 From Fairness Require Import
-     IProp IPM Weakest ModSim PCM MonotonePCM StateRA FairRA NatMapRA.
+     IProp IPMFOS Weakest ModSim PCMFOS MonotonePCM StateRA FairRA NatMapRAFOS.
 
 Import NatStructs.
 
@@ -129,9 +129,9 @@ Section SIM.
   Context `{CONSENTRA: @GRA.inG (@FiniteMap.t (Consent.t nat)) Σ}.
   Context `{AUTHNRA: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   (* Context `{AUTHUNITRA: @GRA.inG (Auth.t (Excl.t unit)) Σ}. *)
-  (* Context `{AUTHNMRA: @GRA.inG (Auth.t (NatMapRA.t unit)) Σ}. *)
-  Context `{AUTHNMNRA: @GRA.inG (Auth.t (NatMapRA.t nat)) Σ}.
-  (* Context `{AUTHNMNN: @GRA.inG (Auth.t (NatMapRA.t (nat * nat))) Σ}. *)
+  (* Context `{AUTHNMRA: @GRA.inG (Auth.t (NatMapRAFOS.t unit)) Σ}. *)
+  Context `{AUTHNMNRA: @GRA.inG (Auth.t (NatMapRAFOS.t nat)) Σ}.
+  (* Context `{AUTHNMNN: @GRA.inG (Auth.t (NatMapRAFOS.t (nat * nat))) Σ}. *)
 
   Definition thread1_will_write : iProp :=
     ∃ k, (∃ n, ObligationRA.black k n)
@@ -148,7 +148,7 @@ Section SIM.
 
   Definition lock_will_unlock : iProp :=
     ∃ (own: bool) (mem: SCMem.t) (wobl: NatStructs.NatMap.t nat) (j: nat),
-      (OwnM (Auth.black (Some wobl: NatMapRA.NatMapRA.t nat)))
+      (OwnM (Auth.black (Some wobl: NatMapRAFOS.NatMapRAFOS.t nat)))
         ∗
         (OwnM (Auth.black (Excl.just j: Excl.t nat)))
         ∗
@@ -298,8 +298,8 @@ Section SIM.
 
     (* make (Auth.white singleton tid k) and update wobl *)
     iPoseProof (OwnM_Upd with "B1") as "OWN1".
-    { eapply Auth.auth_alloc. instantiate (1:=NatMapRA.singleton tid k).
-      instantiate (1:=Some (NatMap.add tid k wobl)). eapply NatMapRA.add_local_update.
+    { eapply Auth.auth_alloc. instantiate (1:=NatMapRAFOS.singleton tid k).
+      instantiate (1:=Some (NatMap.add tid k wobl)). eapply NatMapRAFOS.add_local_update.
       eapply NatMapP.F.not_find_in_iff; auto.
     }
     iMod "OWN1" as "[OWNB1 MYSING]".
@@ -371,8 +371,8 @@ Section SIM.
 
       iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
       { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
-        { instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
-        eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H.
+        { instantiate (1:= (Auth.black (Some wobl: NatMapRAFOS.t nat)) ⋅ (Auth.white (NatMapRAFOS.singleton tid k: NatMapRAFOS.t nat))). iSplitL "B1"; iFrame. }
+        eapply Auth.auth_included in H. eapply NatMapRAFOS.extends_singleton_iff in H.
         auto.
       }
       rename H into FIND.
@@ -418,8 +418,8 @@ Section SIM.
       2:{ inversion CONTRA. }
       iAssert (⌜NatMap.find tid wobl = Some k⌝)%I as "%".
       { iPoseProof (OwnM_valid with "[MYW B1]") as "%".
-        { instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
-        eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H.
+        { instantiate (1:= (Auth.black (Some wobl: NatMapRAFOS.t nat)) ⋅ (Auth.white (NatMapRAFOS.singleton tid k: NatMapRAFOS.t nat))). iSplitL "B1"; iFrame. }
+        eapply Auth.auth_included in H. eapply NatMapRAFOS.extends_singleton_iff in H.
         auto.
       }
       rename H into FIND.
@@ -448,8 +448,8 @@ Section SIM.
 
       (* close invariant *)
       iPoseProof (OwnM_Upd with "[B1 MYW]") as "> B1".
-      2:{ instantiate (1:= (Auth.black (Some wobl: NatMapRA.t nat)) ⋅ (Auth.white (NatMapRA.singleton tid k: NatMapRA.t nat))). iSplitL "B1"; iFrame. }
-      { eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update. }
+      2:{ instantiate (1:= (Auth.black (Some wobl: NatMapRAFOS.t nat)) ⋅ (Auth.white (NatMapRAFOS.singleton tid k: NatMapRAFOS.t nat))). iSplitL "B1"; iFrame. }
+      { eapply Auth.auth_dealloc. eapply NatMapRAFOS.remove_local_update. }
       rewrite <- key_set_pull_rm_eq in *. remember (NatMap.remove tid wobl) as new_wobl.
 
       iPoseProof (MonotonePCM.list_prop_sum_cons_unfold with "MYDUTY") as "[MYDUTY _]".

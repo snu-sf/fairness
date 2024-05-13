@@ -230,7 +230,7 @@ Section SUM.
   Fixpoint list_prop_sum A (P: A -> iProp) (l: list A): iProp :=
     match l with
     | [] => True
-    | hd::tl => P hd ** list_prop_sum P tl
+    | hd::tl => P hd ∗ list_prop_sum P tl
     end.
 
   Lemma list_prop_sum_wand (A: Type) (P0 P1 : A → iProp)
@@ -238,7 +238,7 @@ Section SUM.
     :
     (list_prop_sum P0 l)
       -∗
-      (list_prop_sum (fun a => P0 a -* P1 a) l)
+      (list_prop_sum (fun a => P0 a -∗ P1 a) l)
       -∗
       (list_prop_sum P1 l).
   Proof.
@@ -269,7 +269,7 @@ Section SUM.
 
   Lemma list_prop_sum_cons_fold A (P: A -> iProp) hd tl
     :
-    (P hd ** list_prop_sum P tl)
+    (P hd ∗ list_prop_sum P tl)
       -∗
       (list_prop_sum P (hd::tl)).
   Proof.
@@ -280,7 +280,7 @@ Section SUM.
     :
     (list_prop_sum P (hd::tl))
       -∗
-      (P hd ** list_prop_sum P tl).
+      (P hd ∗ list_prop_sum P tl).
   Proof.
     ss.
   Qed.
@@ -289,7 +289,7 @@ Section SUM.
     :
     (list_prop_sum P (l0 ++ l1))
       -∗
-      (list_prop_sum P l0 ** list_prop_sum P l1).
+      (list_prop_sum P l0 ∗ list_prop_sum P l1).
   Proof.
     induction l0; ss.
     { iIntros "SAT". iFrame. }
@@ -298,7 +298,7 @@ Section SUM.
 
   Lemma list_prop_sum_combine A (P: A -> iProp) l0 l1
     :
-    (list_prop_sum P l0 ** list_prop_sum P l1)
+    (list_prop_sum P l0 ∗ list_prop_sum P l1)
       -∗
       (list_prop_sum P (l0 ++ l1)).
   Proof.
@@ -311,7 +311,7 @@ Section SUM.
 
   Lemma list_prop_sum_add A (P: A -> iProp) l a
     :
-    (P a ** list_prop_sum P l)
+    (P a ∗ list_prop_sum P l)
       -∗
       (list_prop_sum P (l++[a])).
   Proof.
@@ -524,7 +524,7 @@ Section SUM.
     :
     (natmap_prop_sum f P)
       -∗
-      (P k v ** natmap_prop_sum (NatMap.remove k f) P).
+      (P k v ∗ natmap_prop_sum (NatMap.remove k f) P).
   Proof.
     hexploit NatMap.elements_1.
     { eapply NatMap.find_2; eauto. }
@@ -634,7 +634,7 @@ Section SUM.
     :
     (natmap_prop_sum m P0)
       -∗
-      (natmap_prop_sum m (fun k v => P0 k v -* P1 k v))
+      (natmap_prop_sum m (fun k v => P0 k v -∗ P1 k v))
       -∗
       (natmap_prop_sum m P1).
   Proof.
@@ -651,11 +651,11 @@ Section SUM.
   Qed.
 
   Lemma natmap_prop_sum_impl_strong (A: Type) P0 P1 Q (m: NatMap.t A)
-        (IMPL: forall k v, P0 k v ** Q ⊢ P1 k v ** Q)
+        (IMPL: forall k v, P0 k v ∗ Q ⊢ P1 k v ∗ Q)
     :
-    (natmap_prop_sum m P0 ** Q)
+    (natmap_prop_sum m P0 ∗ Q)
       -∗
-      (natmap_prop_sum m P1 ** Q).
+      (natmap_prop_sum m P1 ∗ Q).
   Proof.
     pattern m. eapply nm_ind.
     { iIntros "[SUM H]". iFrame. }

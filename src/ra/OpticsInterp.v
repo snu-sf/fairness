@@ -190,7 +190,7 @@ Section STATE.
 
   Lemma tgt_interp_as_id x A Es n (LT: n < x) (SI: state_tgt -> iProp)
         p (IN : prop n p = (∃ st, St_tgt st ∗ SI st)%I):
-    (∃ st, St_tgt st ** SI st) ⊢ FUpd x A Es Es (tgt_interp_as n Lens.id (SI)).
+    (∃ st, St_tgt st ∗ SI st) ⊢ FUpd x A Es Es (tgt_interp_as n Lens.id (SI)).
   Proof.
     iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H". auto.
     iModIntro. iExists _, p. iSplit. auto. iSplit. auto.

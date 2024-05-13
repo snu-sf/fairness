@@ -1,5 +1,5 @@
 From sflib Require Import sflib.
-From Fairness Require Import PCM ITreeLib IProp.
+From Fairness Require Import PCMFOS ITreeLib IPropFOS.
 
 Set Implicit Arguments.
 
@@ -11,7 +11,7 @@ Arguments Z.of_nat: simpl nomatch.
 
 Require Import Program.
 
-Section IPM.
+Section IPMFOS.
   Context {Σ: GRA.t}.
 
   (* Trivial Ofe Structure *)
@@ -210,7 +210,7 @@ Section IPM.
     i. rr. uipropall. i. specialize (H x). rr in H. uipropall.
   Qed.
 
-End IPM.
+End IPMFOS.
 Global Hint Immediate iProp_bi_affine : core.
 Arguments OwnM: simpl never.
 
@@ -231,13 +231,15 @@ Section TEST.
 End TEST.
 
 Infix "⊢" := (@bi_entails iProp).
+Infix "**" := bi_sep (at level 99).
+Infix "-*" := bi_wand (at level 99, right associativity).
 Notation "#=> P" := ((@bupd (bi_car (@iProp _)) (@bi_bupd_bupd (@iProp _) (@iProp_bi_bupd _))) P) (at level 99).
 
 Section IUPD.
   Context {Σ: GRA.t}.
 
   Definition IUpd (I: iProp): iProp -> iProp :=
-    fun P => (I -∗ #=> (I ∗ P))%I.
+    fun P => I -* #=> (I ** P).
 
   Lemma IUpd_intro I: forall P, P ⊢ IUpd I P.
   Proof.
@@ -258,7 +260,7 @@ Section IUPD.
     iApply "H1". auto.
   Qed.
 
-  Lemma IUpd_frame_r I: forall P R, ((IUpd I P) ∗ R) ⊢ (IUpd I (P ∗ R)).
+  Lemma IUpd_frame_r I: forall P R, ((IUpd I P) ** R) ⊢ (IUpd I (P ** R)).
   Proof.
     ii. unfold IUpd. iIntros "[H0 H1] INV".
     iPoseProof ("H0" with "INV") as "> [H0 H2]".
@@ -411,7 +413,7 @@ Section ILEMMAS.
         (r1: Σ) B
         (UPD: URA.updatable_set r1 B)
     :
-      (Own r1) ⊢ (#=> (∃ b, ⌜B b⌝ ∗ (Own b)))
+      (Own r1) ⊢ (#=> (∃ b, ⌜B b⌝ ** (Own b)))
   .
   Proof.
     cut (Entails (Own r1) (Upd (Ex (fun b => Sepconj (Pure (B b)) (Own b))))); ss.
@@ -432,7 +434,7 @@ Section ILEMMAS.
   .
   Proof.
     iStartProof. iIntros "H".
-    iAssert (#=> (∃ b, ⌜((eq r2) b)⌝ ∗ (Own b)))%I with "[H]" as "H".
+    iAssert (#=> (∃ b, ⌜((eq r2) b)⌝ ** (Own b)))%I with "[H]" as "H".
     { iApply Own_Upd_set; [|iFrame].
       red. red in UPD. i. hexploit UPD; eauto. }
     iMod "H". iDestruct "H" as (b) "[#H0 H1]".
@@ -470,7 +472,7 @@ Section ILEMMAS.
         (r1: M) B
         (UPD: URA.updatable_set r1 B)
     :
-      (OwnM r1) ⊢ (#=> (∃ b, ⌜B b⌝ ∗ (OwnM b)))
+      (OwnM r1) ⊢ (#=> (∃ b, ⌜B b⌝ ** (OwnM b)))
   .
   Proof.
     assert (UPDM: URA.updatable_set
@@ -493,7 +495,7 @@ Section ILEMMAS.
       i. des. exists (GRA.embed b). esplits; eauto.
       ur. Local Transparent GRA.to_URA. ss.
       i. unfold GRA.embed. des_ifs.
-      { ss. unfold PCM.GRA.cast_ra. destruct  H. subst. ss. }
+      { ss. unfold PCMFOS.GRA.cast_ra. destruct  H. subst. ss. }
       { ur in WF. specialize (WF k). rewrite URA.unit_idl.
         eapply URA.wf_mon. rewrite URA.add_comm. eauto.
       }
@@ -513,7 +515,7 @@ Section ILEMMAS.
   .
   Proof.
     iStartProof. iIntros "H".
-    iAssert (#=> (∃ b, ⌜((eq r2) b)⌝ ∗ (OwnM b)))%I with "[H]" as "H".
+    iAssert (#=> (∃ b, ⌜((eq r2) b)⌝ ** (OwnM b)))%I with "[H]" as "H".
     { iApply OwnM_Upd_set; [|iFrame].
       red. red in UPD. i. hexploit UPD; eauto. }
     iMod "H". iDestruct "H" as (b) "[#H0 H1]".
@@ -534,20 +536,20 @@ Section ILEMMAS.
 
   Lemma IUpd_unfold I P
     :
-    #=(I)=> P ⊢ (I -∗ #=> (I ∗ P)).
+    #=(I)=> P ⊢ (I -* #=> (I ** P)).
   Proof.
     reflexivity.
   Qed.
 
   Lemma IUpd_fold I P
     :
-    (I -∗ #=> (I ∗ P)) ⊢ #=(I)=> P.
+    (I -* #=> (I ** P)) ⊢ #=(I)=> P.
   Proof.
     reflexivity.
   Qed.
 
   Definition SubIProp P Q: iProp :=
-    Q -∗ #=> (P ∗ (P -∗ #=> Q)).
+    Q -* #=> (P ** (P -* #=> Q)).
 
   Lemma SubIProp_refl P
     :
@@ -574,14 +576,14 @@ Section ILEMMAS.
 
   Lemma SubIProp_sep_l P Q
     :
-    ⊢ (SubIProp P (P ∗ Q)).
+    ⊢ (SubIProp P (P ** Q)).
   Proof.
     iIntros "[H0 H1]". iFrame. auto.
   Qed.
 
   Lemma SubIProp_sep_r P Q
     :
-    ⊢ (SubIProp Q (P ∗ Q)).
+    ⊢ (SubIProp Q (P ** Q)).
   Proof.
     iIntros "[H0 H1]". iFrame. auto.
   Qed.

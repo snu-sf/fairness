@@ -76,7 +76,7 @@ Module Region.
       :
       (black l)
         -∗
-        #=> (black (l++[a]) ** white (length l) a).
+        #=> (black (l++[a]) ∗ white (length l) a).
     Proof.
       iIntros "H". iPoseProof (OwnM_Upd with "H") as "> [BLACK WHITE]".
       2:{ iModIntro. iSplitL "BLACK"; [iApply "BLACK"|iApply "WHITE"]. }
@@ -107,7 +107,7 @@ Module Region.
 
     Variable interp: A -> iProp.
 
-    Definition sat_list (l: list A) := fold_right (fun a P => interp a ** P) True%I l.
+    Definition sat_list (l: list A) := fold_right (fun a P => (interp a ∗ P)%I) True%I l.
 
     Lemma sat_list_nil
       :
@@ -118,7 +118,7 @@ Module Region.
 
     Lemma sat_list_cons_fold hd tl
       :
-      (interp hd ** sat_list tl)
+      (interp hd ∗ sat_list tl)
         -∗
         (sat_list (hd::tl)).
     Proof.
@@ -129,7 +129,7 @@ Module Region.
       :
       (sat_list (hd::tl))
         -∗
-        (interp hd ** sat_list tl).
+        (interp hd ∗ sat_list tl).
     Proof.
       unfold sat_list. ss.
     Qed.
@@ -138,7 +138,7 @@ Module Region.
       :
       (sat_list (l0 ++ l1))
         -∗
-        (sat_list l0 ** sat_list l1).
+        (sat_list l0 ∗ sat_list l1).
     Proof.
       induction l0; ss.
       { iIntros "SAT". iFrame. }
@@ -147,7 +147,7 @@ Module Region.
 
     Lemma sat_list_combine l0 l1
       :
-      (sat_list l0 ** sat_list l1)
+      (sat_list l0 ∗ sat_list l1)
         -∗
         (sat_list (l0 ++ l1)).
     Proof.
@@ -160,7 +160,7 @@ Module Region.
 
     Lemma sat_list_add l a
       :
-      (interp a ** sat_list l)
+      (interp a ∗ sat_list l)
         -∗
         (sat_list (l++[a])).
     Proof.
@@ -189,7 +189,7 @@ Module Region.
     Lemma sat_list_update l k a
           (FIND: nth_error l k = Some a)
       :
-      sat_list l ⊢ interp a ** (interp a -* sat_list l).
+      sat_list l ⊢ interp a ∗ (interp a -∗ sat_list l).
     Proof.
       hexploit nth_error_split; eauto. i. des. subst.
       iIntros "SAT". iPoseProof (sat_list_split with "SAT") as "[SAT0 SAT1]".
@@ -209,7 +209,7 @@ Module Region.
     Lemma sat_list_sub_update l0 l1
           (SUB: list_sub l0 l1)
       :
-      sat_list l1 ⊢ sat_list l0 ** (sat_list l0 -* sat_list l1).
+      sat_list l1 ⊢ sat_list l0 ∗ (sat_list l0 -∗ sat_list l1).
     Proof.
       rr in SUB. des.
       iIntros "H". iPoseProof (sat_list_permutation with "H") as "H".
@@ -229,7 +229,7 @@ Module Region.
       iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
     Qed.
 
-    Definition sat: iProp := ∃ l, black l ** sat_list l.
+    Definition sat: iProp := ∃ l, black l ∗ sat_list l.
 
     Lemma white_agree_sat k a0 a1
       :
@@ -250,7 +250,7 @@ Module Region.
         -∗
         (sat)
         -∗
-        (interp a ** (interp a -* sat)).
+        (interp a ∗ (interp a -∗ sat)).
     Proof.
       iIntros "WHITE [% [BLACK SAT]]".
       iPoseProof (black_white_in with "BLACK WHITE") as "%".
@@ -333,7 +333,7 @@ Module Region.
         -∗
         (sat)
         -∗
-        (sat_list (List.map snd l)) ** ((sat_list (List.map snd l)) -* sat).
+        (sat_list (List.map snd l)) ∗ ((sat_list (List.map snd l)) -∗ sat).
     Proof.
       iIntros "H0 [% [H1 H2]]".
       iPoseProof (black_whites_in with "H1 H0") as "%"; auto.
@@ -360,7 +360,7 @@ Module Region.
         -∗
         (interp a)
         -∗
-        ∃ k, (#=> (sat ** white k a)).
+        ∃ k, (#=> (sat ∗ white k a)).
     Proof.
       iIntros "[% [BLACK SAT]] INTERP".
       iPoseProof (sat_list_add with "[SAT INTERP]") as "SAT".
@@ -519,7 +519,7 @@ Module Regions.
         :
         (black l)
           -∗
-          #=> (black (l++[a]) ** white (length l) a).
+          #=> (black (l++[a]) ∗ white (length l) a).
       Proof.
         iIntros "H". iPoseProof (OwnM_Upd with "H") as "> [BLACK WHITE]".
         2:{ iModIntro. iSplitL "BLACK"; [iApply "BLACK"|iApply "WHITE"]. }
@@ -549,7 +549,7 @@ Module Regions.
 
       Variable interp: A -> iProp.
 
-      Definition sat_list (l: list A) := fold_right (fun a P => interp a ** P) True%I l.
+      Definition sat_list (l: list A) := fold_right (fun a P => (interp a ∗ P)%I) True%I l.
 
       Lemma sat_list_nil
         :
@@ -560,7 +560,7 @@ Module Regions.
 
       Lemma sat_list_cons_fold hd tl
         :
-        (interp hd ** sat_list tl)
+        (interp hd ∗ sat_list tl)
           -∗
           (sat_list (hd::tl)).
       Proof.
@@ -571,7 +571,7 @@ Module Regions.
         :
         (sat_list (hd::tl))
           -∗
-          (interp hd ** sat_list tl).
+          (interp hd ∗ sat_list tl).
       Proof.
         unfold sat_list. ss.
       Qed.
@@ -580,7 +580,7 @@ Module Regions.
         :
         (sat_list (l0 ++ l1))
           -∗
-          (sat_list l0 ** sat_list l1).
+          (sat_list l0 ∗ sat_list l1).
       Proof.
         induction l0; ss.
         { iIntros "SAT". iFrame. }
@@ -589,7 +589,7 @@ Module Regions.
 
       Lemma sat_list_combine l0 l1
         :
-        (sat_list l0 ** sat_list l1)
+        (sat_list l0 ∗ sat_list l1)
           -∗
           (sat_list (l0 ++ l1)).
       Proof.
@@ -602,7 +602,7 @@ Module Regions.
 
       Lemma sat_list_add l a
         :
-        (interp a ** sat_list l)
+        (interp a ∗ sat_list l)
           -∗
           (sat_list (l++[a])).
       Proof.
@@ -631,7 +631,7 @@ Module Regions.
       Lemma sat_list_update l k a
             (FIND: nth_error l k = Some a)
         :
-        sat_list l ⊢ interp a ** (interp a -* sat_list l).
+        sat_list l ⊢ interp a ∗ (interp a -∗ sat_list l).
       Proof.
         hexploit nth_error_split; eauto. i. des. subst.
         iIntros "SAT". iPoseProof (sat_list_split with "SAT") as "[SAT0 SAT1]".
@@ -651,7 +651,7 @@ Module Regions.
       Lemma sat_list_sub_update l0 l1
             (SUB: list_sub l0 l1)
         :
-        sat_list l1 ⊢ sat_list l0 ** (sat_list l0 -* sat_list l1).
+        sat_list l1 ⊢ sat_list l0 ∗ (sat_list l0 -∗ sat_list l1).
       Proof.
         rr in SUB. des.
         iIntros "H". iPoseProof (sat_list_permutation with "H") as "H".
@@ -671,7 +671,7 @@ Module Regions.
         iFrame. iModIntro. iIntros "H". iModIntro. iApply ("H1" with "H").
       Qed.
 
-      Definition sat: iProp := ∃ l, black l ** sat_list l.
+      Definition sat: iProp := ∃ l, black l ∗ sat_list l.
 
       Lemma white_agree_sat k a0 a1
         :
@@ -692,7 +692,7 @@ Module Regions.
           -∗
           (sat)
           -∗
-          (interp a ** (interp a -* sat)).
+          (interp a ∗ (interp a -∗ sat)).
       Proof.
         iIntros "WHITE [% [BLACK SAT]]".
         iPoseProof (black_white_in with "BLACK WHITE") as "%".
@@ -775,7 +775,7 @@ Module Regions.
           -∗
           (sat)
           -∗
-          (sat_list (List.map snd l)) ** ((sat_list (List.map snd l)) -* sat).
+          (sat_list (List.map snd l)) ∗ ((sat_list (List.map snd l)) -∗ sat).
       Proof.
         iIntros "H0 [% [H1 H2]]".
         iPoseProof (black_whites_in with "H1 H0") as "%"; auto.
@@ -802,7 +802,7 @@ Module Regions.
           -∗
           (interp a)
           -∗
-          ∃ k, (#=> (sat ** white k a)).
+          ∃ k, (#=> (sat ∗ white k a)).
       Proof.
         iIntros "[% [BLACK SAT]] INTERP".
         iPoseProof (sat_list_add with "[SAT INTERP]") as "SAT".

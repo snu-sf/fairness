@@ -5,7 +5,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export ITreeLib WFLibLarge FairBeh pind Axioms
      Mod Linking SCM Red IRed WeakestAdequacy.
 From Ordinal Require Export ClassicalHessenberg.
-From Fairness Require Import NatStructs NatMapRA.
+From Fairness Require Import NatStructs NatMapRAFOS.
 
 Set Implicit Arguments.
 
@@ -73,10 +73,10 @@ End TicketLock.
 
 
 
-From Fairness Require Import IProp IPM Weakest.
-From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
+From Fairness Require Import IProp IPMFOS Weakest.
+From Fairness Require Import ModSim PCMFOS MonotonePCM StateRA FairRA.
 From Fairness Require Import FairLock.
-From Fairness Require Import NatStructs NatMapRA.
+From Fairness Require Import NatStructs NatMapRAFOS.
 
 Section AUX.
 
@@ -318,7 +318,7 @@ Section INVARIANT.
   Context `{ONESHOTSRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
   Context `{MEMRA: @GRA.inG memRA Σ}.
 
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLock.tk)) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRAFOS.t TicketLock.tk)) Σ}.
   Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
@@ -400,7 +400,7 @@ Section INVARIANT.
 
   Definition ticket_lock_inv_tks
              (tks: NatMap.t nat) : iProp :=
-    ((OwnM (Auth.black (Some tks: NatMapRA.t nat)))
+    ((OwnM (Auth.black (Some tks: NatMapRAFOS.t nat)))
        ∗ (FairRA.whites Prism.id (fun id => (~ NatMap.In id tks)) Ord.omega)
        ∗ (natmap_prop_sum tks (fun tid tk => (own_thread tid)))
        ∗ (OwnMs (fun id => (~ NatMap.In id tks))
@@ -557,7 +557,7 @@ Section INVARIANT.
   Qed.
 
   Lemma mytk_find_some tid mytk tks:
-    (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)))
+    (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)))
       ∗ (ticket_lock_inv_tks tks)
       -∗ ⌜NatMap.find tid tks = Some mytk⌝.
   Proof.
@@ -600,7 +600,7 @@ Section SIM.
   Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
   Context `{MEMRA: @GRA.inG memRA Σ}.
 
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t TicketLock.tk)) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRAFOS.t TicketLock.tk)) Σ}.
   Context `{AUTHRA1: @GRA.inG (Auth.t (Excl.t nat)) Σ}.
   Context `{AUTHRA2: @GRA.inG (Auth.t (Excl.t (nat * nat))) Σ}.
   Context `{IN2: @GRA.inG (thread_id ==> (Auth.t (Excl.t nat)))%ra Σ}.
@@ -618,7 +618,7 @@ Section SIM.
       ∗
       (∀ mytk,
           (
-            (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk)))
+            (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t TicketLock.tk)))
               ∗ (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)))
           )
           -∗
@@ -847,13 +847,13 @@ Section SIM.
     (inv N (ticket_lock_inv monok tk_mono))
       ∗
     (
-      (OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk))))
+      (OwnM (Auth.white ((NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t TicketLock.tk))))
         ∗ (maps_to tid (Auth.white (Excl.just (S u): Excl.t nat)))
         ∗ (monoWhite monok mypreord (mytk, x))
     )
       ∗
       (
-      ((OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t TicketLock.tk))))
+      ((OwnM (Auth.white ((NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t TicketLock.tk))))
         ∗ (maps_to tid (Auth.white (Excl.just u: Excl.t nat)))
         ∗ (monoWhite monok mypreord (mytk, x)))
         -∗
@@ -936,7 +936,7 @@ Section SIM.
         tks mem next l myt own
         (NEQ: mytk <> now)
     :
-  (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+  (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)) **
     (ticket_lock_inv_tks tks **
      (ticket_lock_inv_mem tk_mono mem now next myt **
       (ticket_lock_inv_state mem own tks **
@@ -949,7 +949,7 @@ Section SIM.
          FUpd (fairI (ident_tgt:=OMod.closed_ident TicketLock.omod (SCMem.mod TicketLock.gvs)))
            (⊤∖↑N) ⊤ emp))))))
       ∗
-      (((OwnM (Auth.white ((NatMapRA.singleton tid mytk: NatMapRA.t nat))))
+      (((OwnM (Auth.white ((NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat))))
           ∗ (FairRA.white_thread (S:=_)))
         -∗
   (stsim tid ⊤ g0 g1
@@ -1042,7 +1042,7 @@ Section SIM.
     :
     (inv N (ticket_lock_inv monok tk_mono)) ∗
     ((monoWhite monok mypreord (mytk, x))
-       ∗ (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)))
+       ∗ (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)))
        ∗ (maps_to tid (Auth.white (Excl.just tx: Excl.t nat))))
   ⊢ stsim tid ⊤ g0 g1
       (λ r_src r_tgt : (), (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝)
@@ -1231,7 +1231,7 @@ Section SIM.
         (next myt : nat)
     :
     (inv N (ticket_lock_inv monok tk_mono)) ∗
-  (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+  (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)) **
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
     (ticket_lock_inv_tks tks **
      (ticket_lock_inv_mem tk_mono mem mytk next myt **
@@ -1320,7 +1320,7 @@ Section SIM.
         (NEQ: mytk <> now_old)
     :
     (inv N (ticket_lock_inv monok tk_mono)) ∗
-  (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+  (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)) **
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
     (ticket_lock_inv_tks tks **
      (ticket_lock_inv_mem tk_mono mem mytk next myt **
@@ -1446,7 +1446,7 @@ Section SIM.
         (NEQ: mytk <> now_old)
     :
   (□ (∀ a : TicketLock.tk,
-        (OwnM (Auth.white (NatMapRA.singleton tid a: NatMapRA.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
+        (OwnM (Auth.white (NatMapRAFOS.singleton tid a: NatMapRAFOS.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
         g1 ()%type ()%type
           (λ r_src r_tgt : (),
               (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝) false false
@@ -1454,7 +1454,7 @@ Section SIM.
           (tgt_code_coind a)
      ) **
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
-    (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+    (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)) **
      (ticket_lock_inv_tks tks **
       (ticket_lock_inv_mem tk_mono mem now next myt **
        (ticket_lock_inv_state mem true tks **
@@ -1612,7 +1612,7 @@ Section SIM.
                  → y = mytk - now
                    → (□ ((∀ a : TicketLock.tk,
                              (□ inv N (ticket_lock_inv monok tk_mono)) ∗
-                            (OwnM (Auth.white (NatMapRA.singleton tid a: NatMapRA.t nat)) **
+                            (OwnM (Auth.white (NatMapRAFOS.singleton tid a: NatMapRAFOS.t nat)) **
                              maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
                             g1 ()%type ()%type
                               (λ r_src r_tgt : (),
@@ -1625,7 +1625,7 @@ Section SIM.
                          ∧ monoWhite tk_mono Nat.le_preorder now
                         ) **
                       (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
-                       (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+                       (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)) **
                         (ticket_lock_inv_tks tks **
                          (ticket_lock_inv_state mem own tks **
                           ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
@@ -1657,7 +1657,7 @@ Section SIM.
     (inv N (ticket_lock_inv monok tk_mono)) ∗
   (□ ((∀ a : TicketLock.tk,
     (□ inv N (ticket_lock_inv monok tk_mono)) ∗
-        (OwnM (Auth.white (NatMapRA.singleton tid a: NatMapRA.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
+        (OwnM (Auth.white (NatMapRAFOS.singleton tid a: NatMapRAFOS.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
         g1 ()%type ()%type
           (λ r_src r_tgt : (),
              (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝) false false
@@ -1667,7 +1667,7 @@ Section SIM.
   (monoWhite tk_mono Nat.le_preorder now)
      ) **
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
-    (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+    (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)) **
      (ticket_lock_inv_tks tks **
       (ticket_lock_inv_mem tk_mono mem now next myt **
        (ticket_lock_inv_state mem false tks **
@@ -1894,7 +1894,7 @@ Section SIM.
                  → y = mytk - now
                    → (□ ((∀ a : TicketLock.tk,
                              (□ inv N (ticket_lock_inv monok tk_mono)) ∗
-                            (OwnM (Auth.white (NatMapRA.singleton tid a: NatMapRA.t nat)) **
+                            (OwnM (Auth.white (NatMapRAFOS.singleton tid a: NatMapRAFOS.t nat)) **
                              maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
                             g1 ()%type ()%type
                               (λ r_src r_tgt : (),
@@ -1906,7 +1906,7 @@ Section SIM.
                          ∧ (inv N (ticket_lock_inv monok tk_mono))
                          ∧ monoWhite tk_mono Nat.le_preorder now) **
                       (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
-                       (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+                       (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)) **
                         (ticket_lock_inv_tks tks **
                          (ticket_lock_inv_state mem own tks **
                           ((⌜own = true⌝ ** ticket_lock_inv_locked monok l tks now next myt)
@@ -1938,7 +1938,7 @@ Section SIM.
     (inv N (ticket_lock_inv monok tk_mono)) ∗
   (□ ((∀ a : TicketLock.tk,
           (□ inv N (ticket_lock_inv monok tk_mono)) ∗
-        (OwnM (Auth.white (NatMapRA.singleton tid a: NatMapRA.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
+        (OwnM (Auth.white (NatMapRAFOS.singleton tid a: NatMapRAFOS.t nat)) ** maps_to tid (Auth.white (Excl.just 2: Excl.t nat))) -*
         g1 ()%type ()%type
           (λ r_src r_tgt : (),
              (own_thread tid ** ObligationRA.duty inlp tid []) ** ⌜r_src = r_tgt⌝) false false
@@ -1948,7 +1948,7 @@ Section SIM.
   (monoWhite tk_mono Nat.le_preorder now)
      ) **
    (maps_to tid (Auth.white (Excl.just 2: Excl.t nat)) **
-    (OwnM (Auth.white (NatMapRA.singleton tid mytk: NatMapRA.t nat)) **
+    (OwnM (Auth.white (NatMapRAFOS.singleton tid mytk: NatMapRAFOS.t nat)) **
      (ticket_lock_inv_tks tks **
       (ticket_lock_inv_mem tk_mono mem now next myt **
        (ticket_lock_inv_state mem false tks **

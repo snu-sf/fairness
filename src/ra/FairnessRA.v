@@ -1539,7 +1539,7 @@ Module FairRA.
       :
       (white i (OrderedCM.add a0 a1))
         -∗
-        (white i a0 ** white i a1).
+        (white i a0 ∗ white i a1).
     Proof.
       unfold white, maps_to. iIntros "H".
       rewrite <- (@Fuel.white_sum A L).
@@ -1589,7 +1589,7 @@ Module FairRA.
       :
       (black i a0 1%Qp)
         -∗
-        (#=> ((black i (OrderedCM.add a0 a1) 1%Qp) ** (white i a1))).
+        (#=> ((black i (OrderedCM.add a0 a1) 1%Qp) ∗ (white i a1))).
     Proof.
       iIntros "H".
       iPoseProof (OwnM_Upd with "H") as "> H".
@@ -1603,7 +1603,7 @@ Module FairRA.
       :
       (black i a0 1%Qp)
         -∗
-        (#=> ((∃ a, black i a 1%Qp) ** (white i a1))).
+        (#=> ((∃ a, black i a 1%Qp) ∗ (white i a1))).
     Proof.
       iIntros "H". iPoseProof (success_update_strong with "H") as "> [H1 H2]".
       iModIntro. iFrame. iExists _. iFrame.
@@ -1613,7 +1613,7 @@ Module FairRA.
       :
       (black_ex i 1%Qp)
         -∗
-        (#=> (black_ex i 1%Qp ** (white i a1))).
+        (#=> (black_ex i 1%Qp ∗ (white i a1))).
     Proof.
       iIntros "[% H]". iPoseProof (success_update with "H") as "> [[% H0] H1]".
       iModIntro. iFrame. iExists _. iFrame.
@@ -1625,7 +1625,7 @@ Module FairRA.
         -∗
         (white i a1)
         -∗
-        (#=> (∃ a2, black i a2 q ** ⌜OrderedCM.le (OrderedCM.add a1 a2) a0⌝)).
+        (#=> (∃ a2, black i a2 q ∗ ⌜OrderedCM.le (OrderedCM.add a1 a2) a0⌝)).
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
       rewrite maps_to_res_add.
@@ -1653,7 +1653,7 @@ Module FairRA.
       :
       (black i a (q0 + q1)%Qp)
         -∗
-        (black i a q0 ** black i a q1).
+        (black i a q0 ∗ black i a q1).
     Proof.
       unfold black, maps_to. iIntros "H".
       erewrite Fuel.black_eq.
@@ -1672,7 +1672,7 @@ Module FairRA.
       :
       (black_ex i (q0 + q1)%Qp)
         -∗
-        (black_ex i q0 ** black_ex i q1).
+        (black_ex i q0 ∗ black_ex i q1).
     Proof.
       iIntros "[% H]". iPoseProof (black_split with "H") as "[H0 H1]".
       iSplitL "H0".
@@ -1683,7 +1683,7 @@ Module FairRA.
     Definition blacks (s: Id -> Prop): iProp :=
       ∃ (f: Id -> option A),
         (⌜forall i, is_Some (f i) <-> s i⌝)
-          **
+          ∗
           (OwnM ((fun i =>
                     match @Prism.preview _ _ p i with
                     | Some i =>
@@ -1733,7 +1733,7 @@ Module FairRA.
     Lemma blacks_fold (s0 s1: Id -> Prop) i
                (IMPL: forall j (IN: s0 j), s1 j \/ j = i)
       :
-      (blacks s1 ** black_ex i 1)
+      (blacks s1 ∗ black_ex i 1)
         -∗
         (blacks s0).
     Proof.
@@ -1770,7 +1770,7 @@ Module FairRA.
       :
       (blacks s1)
         -∗
-        (blacks s0 ** black_ex i 1).
+        (blacks s0 ∗ black_ex i 1).
     Proof.
       iIntros "[% [% BLACKS]]".
       hexploit (proj2 (H i)).
@@ -1809,7 +1809,7 @@ Module FairRA.
 
     Definition blacks_combine (s0 s1: Id -> Prop)
       :
-      (blacks s0 ** blacks s1)
+      (blacks s0 ∗ blacks s1)
         -∗
         (blacks (fun i => s0 i \/ s1 i)).
     Proof.
@@ -1835,7 +1835,7 @@ Module FairRA.
       :
       (blacks (fun i => s0 i \/ s1 i))
         -∗
-        (blacks s0 ** blacks s1).
+        (blacks s0 ∗ blacks s1).
     Proof.
       iIntros "[% [% BLACKS]]".
       iPoseProof (OwnM_extends with "BLACKS") as "[BLACKS0 BLACKS1]"; cycle 1.
@@ -1901,7 +1901,7 @@ Module FairRA.
     Lemma whites_fold (s0 s1: Id -> Prop) i u
                (IMPL: forall j (IN: s0 j), s1 j \/ j = i)
       :
-      (whites s1 u ** white i u)
+      (whites s1 u ∗ white i u)
         -∗
         (whites s0 u).
     Proof.
@@ -1925,7 +1925,7 @@ Module FairRA.
       :
       (whites s1 u)
         -∗
-        (whites s0 u ** white i u).
+        (whites s0 u ∗ white i u).
     Proof.
       iIntros "WHITES".
       iPoseProof (OwnM_extends with "WHITES") as "[WHITES0 WHITES1]".
@@ -1955,7 +1955,7 @@ Module FairRA.
 
     Definition whites_combine (s0 s1: Id -> Prop) u
       :
-      (whites s0 u ** whites s1 u)
+      (whites s0 u ∗ whites s1 u)
         -∗
         (whites (fun i => s0 i \/ s1 i) u).
     Proof.
@@ -1976,7 +1976,7 @@ Module FairRA.
       :
       (whites (fun i => s0 i \/ s1 i) u)
         -∗
-        (whites s0 u ** whites s1 u).
+        (whites s0 u ∗ whites s1 u).
     Proof.
       iIntros "WHITES".
       iPoseProof (OwnM_extends with "WHITES") as "[WHITES0 WHITES1]".
@@ -2036,7 +2036,7 @@ Module FairRA.
       :
       (list_prop_sum (fun i => black_ex i 1) l)
         -∗
-        ((blacks P) ** ((blacks P) -* (list_prop_sum (fun i => black_ex i 1) l))).
+        ((blacks P) ∗ ((blacks P) -∗ (list_prop_sum (fun i => black_ex i 1) l))).
     Proof.
       revert P ALL. induction l.
       { i. ss. iIntros. iSplitL.
@@ -2285,11 +2285,11 @@ Module FairRA.
         -∗
         (#=>
            ((whites_all f1)
-              **
+              ∗
               (blacks Prism.id (fun i => fm i = Flag.success))
-              **
+              ∗
               (whites Prism.id (fun i => fm i = Flag.fail) u)
-              **
+              ∗
               (whites Prism.id (fun i => fm i = Flag.success) u))).
     Proof.
       iIntros "WHITE [% [% BLACK]]".
@@ -2428,9 +2428,9 @@ Module FairRA.
                      | Flag.fail => OrderedCM.le (OrderedCM.add u (f1 i)) (f0 i)
                      | Flag.success => True
                      end⌝)
-                 **
+                 ∗
                  (blacks_all f1)
-                 **
+                 ∗
                  (whites Prism.id (fun i => fm i = Flag.success) n))).
     Proof.
       iIntros "BLACK WHITE".
@@ -2529,13 +2529,13 @@ Module FairRA.
         (#=>
            (∃ f1,
                (⌜fair_update f0 f1 (prism_fmap Prism.id fm)⌝)
-                 **
+                 ∗
                  (sat_source f1)
-                 **
+                 ∗
                  (whites_of Prism.id ls o))).
     Proof.
       iIntros "SAT WHITE".
-      iPoseProof (blacks_update with "SAT [> WHITE]") as "> [% [[% BLACK] WHITE]]".
+      iPoseProof (blacks_update with "SAT [> WHITE]") as "> [% [% [BLACK WHITE]]]".
       { instantiate (1:=Ord.one). instantiate (1:=fm).
         iStopProof. cut (forall l (P: S -> Prop) (COMPLETE: forall i (IN: P i), List.In i l), whites_of Prism.id l Ord.one ⊢ #=> whites Prism.id P Ord.one).
         { i. eapply H. auto. }
@@ -2609,12 +2609,12 @@ Module FairRA.
         (#=>
            (∃ f,
                (sat_source f)
-                 **
+                 ∗
                  (whites Prism.id (fun _ => True: Prop) o))).
     Proof.
       transitivity (blacks_all (fun (_: S) => Ord.O)); [auto|].
       iIntros "BLACKS".
-      iPoseProof (blacks_update with "BLACKS []") as "> [% [[% BLACKS] WHITES]]".
+      iPoseProof (blacks_update with "BLACKS []") as "> [% [% [BLACKS WHITES]]]".
       { iApply (OwnM_extends with "[]").
         { instantiate (1:=URA.unit).
           instantiate (1:=Ord.O).
@@ -2639,7 +2639,7 @@ Module FairRA.
 
     Definition sat_target (f: imap Id nat_wf) (ths: TIdSet.t): iProp :=
       ((whites_all f)
-         **
+         ∗
          (blacks Prism.id (fun i => exists j, (<<NIN: ~ TIdSet.In j ths>>) /\ (<<EQ: i = inl j>>))))
     .
 
@@ -2662,9 +2662,9 @@ Module FairRA.
       (OwnM (target_init_resource f))
         -∗
         ((sat_target f ths)
-           **
+           ∗
            (natmap_prop_sum ths (fun tid _ => black_ex inlp tid 1))
-           **
+           ∗
            (blacks inrp (fun i => True: Prop))).
     Proof.
       iIntros "[WHITES BLACKS]". unfold sat_target. iFrame.
@@ -2705,7 +2705,7 @@ Module FairRA.
         ss. apply pointwise_extends. i. unfold f0, f1, f2.
         ur. des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; try reflexivity.
       }
-      iSplitR "BLACKS0"; [iSplitR "BLACKS1"|].
+      iSplitL "BLACKS2"; [|iSplitL "BLACKS1"].
       { iExists _. iSplit; [|iApply "BLACKS2"].
         iPureIntro.
         { unfold f0. i. des_ifs.
@@ -2812,7 +2812,7 @@ Module FairRA.
         -∗
         (#=>
            ((sat_target f1 ths1)
-              **
+              ∗
               (black_ex inlp tid 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]]".
@@ -2836,7 +2836,7 @@ Module FairRA.
         eapply pointwise_extends. i. unfold f2, maps_to_res. ss.
         des_ifs; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; ss; reflexivity.
       }
-      iPoseProof (whites_update with "WHITES [BLACK]") as "> [[[WHITES BLACK] FAIL] SUCCESS]".
+      iPoseProof (whites_update with "WHITES [BLACK]") as "> [WHITES [BLACK [FAIL SUCCESS]]]".
       { instantiate (1:=f1). instantiate (1:=1).
         instantiate (1:=prism_fmap inlp (fun i: thread_id => if tid_dec i tid then Flag.success else Flag.emp)).
         i. specialize (UPD i). revert UPD. unfold prism_fmap; ss.
@@ -2895,9 +2895,9 @@ Module FairRA.
         -∗
         (#=>
            ((sat_target f1 ths)
-              **
+              ∗
               (black_ex inlp tid 1)
-              **
+              ∗
               white_thread)).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]] [% BLACK]".
@@ -2920,7 +2920,7 @@ Module FairRA.
                 | inl tid' => if tid_dec tid' tid then Some a else f i
                 | _ => f i
                 end): Id -> option nat).
-      iPoseProof (whites_update with "WHITES [BLACKS BLACK]") as "> [[[WHITES [% [% BLACK]]] FAIL] SUCCESS]".
+      iPoseProof (whites_update with "WHITES [BLACKS BLACK]") as "> [WHITES [[% [% BLACK]] [FAIL SUCCESS]]]".
       { instantiate (1:=f1). instantiate (1:=1).
         instantiate (1:=prism_fmap inlp
                           (fun i: thread_id =>
@@ -2947,6 +2947,7 @@ Module FairRA.
         { eexists _. eauto. }
         { eexists. rewrite URA.unit_idl. ss. }
       }
+      iEval (rewrite bi.sep_assoc).
       iSplitR "FAIL SUCCESS".
       { hexploit (proj2 (H0 (inl tid))).
         { unfold prism_fmap; ss. des_ifs. }
@@ -3005,17 +3006,17 @@ Module FairRA.
         -∗
         (#=>
            ((sat_target f1 ths)
-              **
+              ∗
               (blacks Prism.id (fun i => (prism_fmap inrp fm) i = Flag.success))
-              **
+              ∗
               (whites Prism.id (fun i => (prism_fmap inrp fm) i = Flag.fail) 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]] BLACK".
-      iPoseProof (whites_update with "WHITES BLACK") as "> [[[WHITES BLACK] FAIL] _]".
+      iPoseProof (whites_update with "WHITES BLACK") as "> [WHITES [BLACK [FAIL _]]]".
       { instantiate (1:=f1). i. specialize (UPD i). des_ifs.
         ss. instantiate (1:=1). lia.
       }
-      { iModIntro. iSplitR "FAIL"; [|auto].
+      { iModIntro. iEval (rewrite <- bi.sep_assoc'). iSplitR "FAIL"; [|auto].
         iSplitR "BLACK"; [|auto].
         iSplitL "WHITES"; [auto|]. iExists _. iSplitR; [|auto]. auto.
       }
@@ -3037,14 +3038,14 @@ Module FairRA.
         -∗
         (#=>
            ((sat_target f1 ths)
-              **
+              ∗
               (list_prop_sum (fun i => black_ex Prism.id (inr i) 1) ls)
-              **
+              ∗
               (list_prop_sum (fun i => white Prism.id (inr i) 1) lf))).
     Proof.
       iIntros "SAT BLACK".
       iPoseProof (black_ex_list_blacks with "[BLACK]") as "[BLACKS K]"; cycle 2.
-      { iPoseProof (target_update_aux with "SAT BLACKS") as "> [[SAT BLACKS] WHITES]".
+      { iPoseProof (target_update_aux with "SAT BLACKS") as "> [SAT [BLACKS WHITES]]".
         { eauto. }
         iPoseProof ("K" with "BLACKS") as "BLACKS".
         iModIntro. iFrame. iSplitL "BLACKS".
@@ -3085,13 +3086,13 @@ Module FairRA.
         -∗
         (#=>
            ((sat_target f1 ths)
-              **
+              ∗
               (list_prop_sum (fun i => black_ex (Prism.compose inrp p) i 1) ls)
-              **
+              ∗
               (list_prop_sum (fun i => white (Prism.compose inrp p) i 1) lf))).
     Proof.
       iIntros "SAT BLACKS".
-      iPoseProof (target_update with "SAT [BLACKS]") as "> [[SAT BLACKS] WHITES]".
+      iPoseProof (target_update with "SAT [BLACKS]") as "> [SAT [BLACKS WHITES]]".
       { rewrite prism_fmap_compose in UPD. eauto. }
       { instantiate (1:=List.map (Prism.review p) ls).
         i. unfold prism_fmap in IN. des_ifs.

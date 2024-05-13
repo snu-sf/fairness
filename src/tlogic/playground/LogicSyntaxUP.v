@@ -414,7 +414,7 @@ Section TEST.
 OwnI_test3 = 
 λ (Σ0 : GRA.t) (H : GRA.inG (IInvSetRA Syntax.t@{OwnI_white_test.u2 OwnI_white_test.u3}) Σ0) 
   (i : positive) (p : Syntax.t@{OwnI_white_test.u0 OwnI_white_test.u1}) 
-  (q : Syntax.t@{OwnI_white_test2.u0 OwnI_white_test2.u1}), OwnI_test i p ** OwnI_test2 i q
+  (q : Syntax.t@{OwnI_white_test2.u0 OwnI_white_test2.u1}), OwnI_test i p ∗ OwnI_test2 i q
      : ∀ Σ0 : GRA.t,
          GRA.inG (IInvSetRA Syntax.t@{OwnI_white_test.u2 OwnI_white_test.u3}) Σ0
          → positive

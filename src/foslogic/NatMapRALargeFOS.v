@@ -1,12 +1,12 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
-From Fairness Require Import Axioms NatStructs.
-From Fairness Require Import PCM.
+From Fairness Require Import Axioms NatStructsLarge.
+From Fairness Require Import PCMFOS.
 Require Import String Lia Program.
 
 Set Implicit Arguments.
 
-Module NatMapRA.
+Module NatMapRALargeFOS.
   Section MAP.
     Variable A: Type.
 
@@ -17,7 +17,7 @@ Module NatMapRA.
     Definition add (m0 m1: car): car :=
       match m0, m1 with
       | Some m0, Some m1 =>
-          if (NatStructs.disjoint m0 m1) then Some (NatMapP.update m0 m1) else None
+          if (NatStructsLarge.disjoint m0 m1) then Some (NatMapP.update m0 m1) else None
       | _, _ => None
       end.
 
@@ -219,9 +219,9 @@ Module NatMapRA.
       { split; auto. right; auto. }
     Qed.
   End MAP.
-End NatMapRA.
+End NatMapRALargeFOS.
 
-From Fairness Require Import IProp IPM.
+From Fairness Require Import IPropFOS IPMFOS.
 From iris.bi Require Import derived_laws. Import bi.
 
 Section SUM.
@@ -230,7 +230,7 @@ Section SUM.
   Fixpoint list_prop_sum A (P: A -> iProp) (l: list A): iProp :=
     match l with
     | [] => True
-    | hd::tl => P hd ∗ list_prop_sum P tl
+    | hd::tl => P hd ** list_prop_sum P tl
     end.
 
   Lemma list_prop_sum_wand (A: Type) (P0 P1 : A → iProp)
@@ -238,7 +238,7 @@ Section SUM.
     :
     (list_prop_sum P0 l)
       -∗
-      (list_prop_sum (fun a => P0 a -∗ P1 a) l)
+      (list_prop_sum (fun a => P0 a -* P1 a) l)
       -∗
       (list_prop_sum P1 l).
   Proof.
@@ -269,7 +269,7 @@ Section SUM.
 
   Lemma list_prop_sum_cons_fold A (P: A -> iProp) hd tl
     :
-    (P hd ∗ list_prop_sum P tl)
+    (P hd ** list_prop_sum P tl)
       -∗
       (list_prop_sum P (hd::tl)).
   Proof.
@@ -280,7 +280,7 @@ Section SUM.
     :
     (list_prop_sum P (hd::tl))
       -∗
-      (P hd ∗ list_prop_sum P tl).
+      (P hd ** list_prop_sum P tl).
   Proof.
     ss.
   Qed.
@@ -289,7 +289,7 @@ Section SUM.
     :
     (list_prop_sum P (l0 ++ l1))
       -∗
-      (list_prop_sum P l0 ∗ list_prop_sum P l1).
+      (list_prop_sum P l0 ** list_prop_sum P l1).
   Proof.
     induction l0; ss.
     { iIntros "SAT". iFrame. }
@@ -298,7 +298,7 @@ Section SUM.
 
   Lemma list_prop_sum_combine A (P: A -> iProp) l0 l1
     :
-    (list_prop_sum P l0 ∗ list_prop_sum P l1)
+    (list_prop_sum P l0 ** list_prop_sum P l1)
       -∗
       (list_prop_sum P (l0 ++ l1)).
   Proof.
@@ -311,7 +311,7 @@ Section SUM.
 
   Lemma list_prop_sum_add A (P: A -> iProp) l a
     :
-    (P a ∗ list_prop_sum P l)
+    (P a ** list_prop_sum P l)
       -∗
       (list_prop_sum P (l++[a])).
   Proof.
@@ -493,6 +493,21 @@ Section SUM.
     { iApply (IHl with "TL"). }
   Qed.
 
+  Lemma list_prop_sum_map_inv
+        A (P0: A -> iProp)
+        B (P1: B -> iProp)
+        l (f: A -> B)
+        (MAP: forall a, (P1 (f a)) -∗ (P0 a))
+    :
+    (list_prop_sum P1 (List.map f l))
+      -∗
+    (list_prop_sum P0 l).
+  Proof.
+    induction l; ss.
+    iIntros "[HD TL]". iSplitL "HD".
+    { iApply (MAP with "HD"). }
+    { iApply (IHl with "TL"). }
+  Qed.
 
   Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
     list_prop_sum (fun '(k, v) => P k v) (NatMap.elements f).
@@ -509,7 +524,7 @@ Section SUM.
     :
     (natmap_prop_sum f P)
       -∗
-      (P k v ∗ natmap_prop_sum (NatMap.remove k f) P).
+      (P k v ** natmap_prop_sum (NatMap.remove k f) P).
   Proof.
     hexploit NatMap.elements_1.
     { eapply NatMap.find_2; eauto. }
@@ -619,7 +634,7 @@ Section SUM.
     :
     (natmap_prop_sum m P0)
       -∗
-      (natmap_prop_sum m (fun k v => P0 k v -∗ P1 k v))
+      (natmap_prop_sum m (fun k v => P0 k v -* P1 k v))
       -∗
       (natmap_prop_sum m P1).
   Proof.
@@ -636,11 +651,11 @@ Section SUM.
   Qed.
 
   Lemma natmap_prop_sum_impl_strong (A: Type) P0 P1 Q (m: NatMap.t A)
-        (IMPL: forall k v, P0 k v ∗ Q ⊢ P1 k v ∗ Q)
+        (IMPL: forall k v, P0 k v ** Q ⊢ P1 k v ** Q)
     :
-    (natmap_prop_sum m P0 ∗ Q)
+    (natmap_prop_sum m P0 ** Q)
       -∗
-      (natmap_prop_sum m P1 ∗ Q).
+      (natmap_prop_sum m P1 ** Q).
   Proof.
     pattern m. eapply nm_ind.
     { iIntros "[SUM H]". iFrame. }
@@ -784,55 +799,55 @@ End SUM.
 
 Section UPDNATMAP.
   Variable A: Type.
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t A)) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRALargeFOS.t A)) Σ}.
 
-  Lemma NatMapRA_find_some m k a
+  Lemma NatMapRALarge_find_some m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      (OwnM (Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
       -∗
       (⌜NatMap.find k m = Some a⌝).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
-    eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H. auto.
+    eapply Auth.auth_included in H. eapply NatMapRALargeFOS.extends_singleton_iff in H. auto.
   Qed.
 
-  Lemma NatMapRA_singleton_unique k0 k1 a0 a1
+  Lemma NatMapRALarge_singleton_unique k0 k1 a0 a1
     :
-    (OwnM (Auth.white (NatMapRA.singleton k0 a0: NatMapRA.t A)))
+    (OwnM (Auth.white (NatMapRALargeFOS.singleton k0 a0: NatMapRALargeFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRA.singleton k1 a1: NatMapRA.t A)))
+      (OwnM (Auth.white (NatMapRALargeFOS.singleton k1 a1: NatMapRALargeFOS.t A)))
       -∗
       (⌜k0 <> k1⌝).
   Proof.
     iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
-    ur in H. eapply NatMapRA.singleton_unique in H. auto.
+    ur in H. eapply NatMapRALargeFOS.singleton_unique in H. auto.
   Qed.
 
-  Lemma NatMapRA_remove m k a
+  Lemma NatMapRALarge_remove m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      (OwnM (Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
       -∗
-      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRA.t A))).
+      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRALargeFOS.t A))).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update.
+    eapply Auth.auth_dealloc. eapply NatMapRALargeFOS.remove_local_update.
   Qed.
 
-  Lemma NatMapRA_add m k a
+  Lemma NatMapRALarge_add m k a
         (NONE: NatMap.find k m = None)
     :
-    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
       -∗
-      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRA.t A)
-                            ⋅ Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRALargeFOS.t A)
+                            ⋅ Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
          ).
   Proof.
     iIntros "B". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_alloc. eapply NatMapRA.add_local_update. auto.
+    eapply Auth.auth_alloc. eapply NatMapRALargeFOS.add_local_update. auto.
   Qed.
 
 End UPDNATMAP.

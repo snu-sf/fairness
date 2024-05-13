@@ -20,9 +20,9 @@ Section PAIR.
   Definition pair_sat: iProp :=
     ∃ a b,
       (OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
-        **
+        ∗
         (OwnM (Auth.black (Excl.just a: @Excl.t A)))
-        **
+        ∗
         (OwnM (Auth.black (Excl.just b: @Excl.t B)))
   .
 
@@ -33,13 +33,13 @@ Section PAIR.
       (pair_sat)
       -∗
       (∃ b, (OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
-              **
+              ∗
               (∀ a,
                   ((OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
-                     -*
-                     #=> ((OwnM (Auth.white (Excl.just a: @Excl.t A))) ** (pair_sat))))).
+                     -∗
+                     #=> ((OwnM (Auth.white (Excl.just a: @Excl.t A))) ∗ (pair_sat))))).
   Proof.
-    iIntros "H [% [% [[H0 H1] H2]]]".
+    iIntros "H [% [% [H0 [H1 H2]]]]".
     iPoseProof (black_white_equal with "H1 H") as "%". subst.
     iExists _. iFrame. iIntros (?) "H0".
     iPoseProof (black_white_update with "H1 H") as "> [H1 H]".
@@ -53,13 +53,13 @@ Section PAIR.
       (pair_sat)
       -∗
       (∃ a, (OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
-              **
+              ∗
               (∀ b,
                   ((OwnM (Auth.white (Excl.just (a, b): @Excl.t (A * B))))
-                     -*
-                     #=> ((OwnM (Auth.white (Excl.just b: @Excl.t B))) ** (pair_sat))))).
+                     -∗
+                     #=> ((OwnM (Auth.white (Excl.just b: @Excl.t B))) ∗ (pair_sat))))).
   Proof.
-    iIntros "H [% [% [[H0 H1] H2]]]".
+    iIntros "H [% [% [H0 [H1 H2]]]]".
     iPoseProof (black_white_equal with "H2 H") as "%". subst.
     iExists _. iFrame. iIntros (?) "H0".
     iPoseProof (black_white_update with "H2 H") as "> [H2 H]".
@@ -291,7 +291,7 @@ Section INVARIANT.
                 default_I x ths im_src1 im_tgt st_src st_tgt).
   Proof.
     unfold default_I. iIntros "[A [B [C [D [E [F G]]]]]] WHITES".
-    iPoseProof (FairRA.source_update with "D WHITES") as "> [% [[% D] WHITE]]".
+    iPoseProof (FairRA.source_update with "D WHITES") as "> [% [% [D WHITE]]]".
     { eauto. }
     { eauto. }
     iModIntro. iExists _. iFrame. auto.
@@ -626,7 +626,7 @@ Section INIT.
       apply pointwise_updatable. i.
       rewrite URA.add_comm. exact (@Fuel.success_update nat _ 0 (im_tgt a)).
     }
-    iPoseProof (FairRA.target_init with "OWN6") as "[[H0 H1] H2]".
+    iPoseProof (FairRA.target_init with "OWN6") as "[H0 [H1 H2]]".
     iPoseProof (FairRA.source_init with "OWN5") as "> [% [H3 H4]]".
     iExists f. unfold default_I. iFrame.
 

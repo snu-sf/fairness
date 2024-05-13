@@ -356,7 +356,7 @@ Section TEST.
   Proof. ss. Qed.
 
   (* Lemma test_infix3 (P Q R : iProp) : *)
-  (*   (P ** Q ** R)%I = (P ** (Q ** R))%I. *)
+  (*   (P ∗ Q ∗ R)%I = (P ∗ (Q ∗ R))%I. *)
   (* Proof. ss.  *)
 
 End TEST.
