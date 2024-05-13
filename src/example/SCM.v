@@ -93,6 +93,22 @@ Module SCMem.
                         else Some (val_nat 0)
                     else m.(contents) blk) (S nb), val_ptr (nb, 0)).
 
+  Definition free (m : t) (ptr : val) : option t :=
+    if has_permission m ptr
+    then
+      match unwrap_ptr ptr with
+      | Some (blk, ofs) =>
+          Some (mk (fun blk' => if (PeanoNat.Nat.eq_dec blk' blk)
+                                then
+                                  fun ofs' => if (PeanoNat.Nat.eq_dec ofs' ofs)
+                                              then None
+                                              else m.(contents) blk' ofs'
+                                else
+                                  m.(contents) blk') m.(next_block))
+      | None => None
+      end
+    else None.
+
   Definition mem_update (m: t) (blk: nat) (ofs: nat) (v: val): t :=
     mk (fun blk' => if (PeanoNat.Nat.eq_dec blk' blk)
                     then
@@ -161,6 +177,15 @@ Module SCMem.
     fun '(vptr, v) =>
       m <- trigger (Get id);;
       m <- unwrap (store m vptr v);;
+      _ <- trigger (Put m);;
+      Ret tt
+  .
+
+  Definition free_fun :
+    ktree (threadE ident t) val unit :=
+    fun ptr =>
+      m <- trigger (Get id);;
+      m <- unwrap (free m ptr);;
       _ <- trigger (Put m);;
       Ret tt
   .
@@ -451,6 +476,47 @@ Section MEMRA.
     iModIntro. iFrame. iSplit.
     { iPureIntro. ii. ss. des_ifs. eapply WF in SOME; eauto. }
     { iApply points_tos_to_resource. ss. }
+  Qed.
+
+  Lemma memory_free_updatable m0 m1 p ofs blk v
+        (FREE : SCMem.free m0 p = Some m1)
+        (WF : SCMem.wf m0)
+        (PTR : SCMem.unwrap_ptr p = Some (ofs, blk))
+        (* (VAL : (SCMem.contents m0) ofs blk = Some v) *)
+    :
+    URA.updatable (memory_resource_black m0 ⋅ points_to_white ofs blk v)
+                  (memory_resource_black m1).
+  Proof.
+    do 2 (eapply pointwise_updatabable; i). ur. ur.
+    unfold SCMem.free, SCMem.has_permission in FREE. unfold memory_resource_black, points_to_white.
+    des_ifs; ss; des_ifs.
+    { eapply Auth.auth_update; ii. des. split; ur; ss. revert FRAME; ur. i; des_ifs. }
+    { rewrite URA.unit_id. ss. }
+    { rewrite URA.unit_id. ss. }
+    { rewrite URA.unit_id. eapply Auth.auth_update; ii. des. split; ur; ss. revert FRAME; ur. i; des_ifs. }
+    { rewrite URA.unit_id. eapply Auth.auth_update; ii. des. split; ur; ss. revert FRAME; ur. i; des_ifs. }
+  Qed.
+
+  Lemma memory_ra_free m0 p v
+    :
+    (memory_black m0 ** points_to p v)
+      -∗
+      (∃ m1, ⌜SCMem.free m0 p = Some m1⌝ ** #=> memory_black m1).
+  Proof.
+    iIntros "[[MB %WF] PTS]".
+    unfold memory_black, points_to. des_ifs.
+    iCombine "MB PTS" as "OWN". iOwnWf "OWN".
+    ur in H. specialize (H n). ur in H. specialize (H n0).
+    unfold memory_resource_black, points_to_white in H. des_ifs.
+    2:{ ur in H. des. unfold URA.extends in H. des. ur in H. des_ifs. }
+    remember (SCMem.free _ _) as m1 eqn:FREE. pose proof FREE as FREE'. revert FREE'.
+    unfold SCMem.free, SCMem.has_permission in FREE. ss. des_ifs. remember (SCMem.mk _ _) as m1. i.
+    iExists m1. iSplit; eauto. 
+    iAssert (#=> (OwnM (memory_resource_black m1))) with "[OWN]" as "> RB".
+    { iApply (OwnM_Upd with "OWN").
+      eapply memory_free_updatable; eauto. }
+    iModIntro. iFrame. iPureIntro. ii. unfold SCMem.free in FREE'.
+    des_ifs; ss; des_ifs; eapply WF in SOME; eauto.
   Qed.
 
   Lemma initialize_next_block m0 l m1 vs
