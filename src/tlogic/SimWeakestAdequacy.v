@@ -1,14 +1,13 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib ModSim ModSimPers Concurrency ModAdequacy Axioms.
-From Fairness Require Import PCM IProp IPM SimDefaultRA SimWeakest.
+From Fairness Require Import PCM IProp IPM ISim SimDefaultRA SimWeakest.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require PCMLarge.
 Require Import Program.
 
 Set Implicit Arguments.
 
-TODO : FIX
 
 
 Lemma list_of_numbering_nm_wf_pair A B (l0: list A) (l1: list B)
@@ -165,6 +164,8 @@ Module WSim.
       repeat rewrite map_length. auto.
     Qed.
 
+    Local Notation index := nat.
+    Context `{Vars : index -> Type}.
     Context `{Σ: GRA.t}.
 
     Lemma iProp_satisfable (r0: Σ) (P: iProp) (WF: URA.wf r0)
@@ -180,21 +181,33 @@ Module WSim.
       i. des. rewrite URA.unit_id in H0. esplits; eauto.
     Qed.
 
-    Variable Invs : @InvSet Σ.
 
-    Context `{MONORA: @GRA.inG monoRA Σ}.
+    Context `{Invs : @IInvSet Σ Vars}.
+
+    (* Invariant related default RAs *)
+    Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
+    Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
+    Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
+
+    (* Context `{MONORA: @GRA.inG monoRA Σ}. *)
+    (* State related default RAs *)
     Context `{THDRA: @GRA.inG ThreadRA Σ}.
     Context `{STATESRC: @GRA.inG (stateSrcRA md_src.(Mod.state)) Σ}.
     Context `{STATETGT: @GRA.inG (stateTgtRA md_tgt.(Mod.state)) Σ}.
     Context `{IDENTSRC: @GRA.inG (identSrcRA md_src.(Mod.ident)) Σ}.
     Context `{IDENTTGT: @GRA.inG (identTgtRA md_tgt.(Mod.ident)) Σ}.
+
+    (* Liveness logic related default RAs *)
     Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-    Context `{ARROWRA: @GRA.inG (ArrowRA md_tgt.(Mod.ident)) Σ}.
     Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-    Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
-    Context `{COPSETRA : @GRA.inG CoPset.t Σ}.
-    Context `{GSETRA : @GRA.inG Gset.t Σ}.
-    Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
+    Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
+    Context `{ARROWRA: @GRA.inG (@ArrowRA md_tgt.(Mod.ident) Vars) Σ}.
+
+    (* Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}. *)
+    (* Context `{ARROWRA: @GRA.inG (ArrowRA md_tgt.(Mod.ident)) Σ}. *)
+    (* Context `{EDGERA: @GRA.inG EdgeRA Σ}. *)
+    (* Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}. *)
+
 
     Definition initial_res_wf (init_res: Σ): Prop :=
       (<<INITDISJ: (disjoint_GRA init_res (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _ _ _ _))>>) /\
@@ -207,9 +220,9 @@ Module WSim.
                   OBLGRA.(GRA.inG_id);
                   ARROWRA.(GRA.inG_id);
                   EDGERA.(GRA.inG_id);
-                  COPSETRA.(GRA.inG_id);
-                  GSETRA.(GRA.inG_id);
-                  INVSETRA.(GRA.inG_id)])>>) /\
+                  OWNESRA.(GRA.inG_id);
+                  OWNDSRA.(GRA.inG_id);
+                  IINVSETRA.(GRA.inG_id)])>>) /\
         (<<INITRES: URA.wf init_res>>).
 
     Lemma reswf_gen
@@ -222,9 +235,11 @@ Module WSim.
       grawf_tac; auto.
       unfold default_initial_res.
       grawf_tac; (try match goal with | |- _ <> _ => auto 15 end).
+      { ur. i. ur. auto. }
+      { ur. i. ur. split; auto. reflexivity. ur. ur. ss. }
       { ur. split; auto.
         { eexists. eapply URA.unit_idl. }
-        { ur. auto. }
+        { ur. i. ur. ss. }
       }
       { ur. split; auto.
         { eexists _. erewrite URA.unit_idl. eapply URA.unit_id. }
@@ -237,37 +252,34 @@ Module WSim.
       { eapply FairRA.source_init_resource_wf. }
       { ur. i. ur. split; auto. reflexivity. }
       { ur. i. ur. auto. }
-      { ur. i. ur. auto. }
-      { ur. split; auto.
-        { eexists. eapply URA.unit_idl. }
-        { ur. i. ur. ss. }
-      }
-      { ur. ss. }
+      { unfold Regions.nauth_ra. ss. ur. i. ur. i. ur. auto. }
     Qed.
 
-    Definition initial_prop (ths: TIdSet.t) o: iProp :=
+    Definition initial_prop n (ths: TIdSet.t) o: iProp :=
       ((FairRA.whites Prism.id (fun _ => True: Prop) o)
-         **
+         ∗
          (FairRA.blacks Prism.id (fun i => match i with | inr _ => True | _ => False end: Prop))
-         **
-         (natmap_prop_sum ths (fun tid _ => ObligationRA.duty inlp tid []))
-         **
+         ∗
+         (natmap_prop_sum ths (fun tid _ => ObligationRA.duty n inlp tid []))
+         ∗
          (natmap_prop_sum ths (fun tid _ => own_thread tid))
-         **
+         ∗
          (St_src md_src.(Mod.st_init))
-         **
+         ∗
          (St_tgt md_tgt.(Mod.st_init)))%I
     .
 
-    Lemma stsim_lsim tid (r r_shared r_ctx: Σ)
+    Lemma wpsim_lsim x tid (r r_shared r_ctx: Σ)
           ths im_src im_tgt0 im_tgt1 (st_src: md_src.(Mod.state)) (st_tgt: md_tgt.(Mod.state)) (fs ft: bool)
           (th0: thread (Mod.ident md_src) (sE (Mod.state md_src)) Any.t)
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
-          (SIM: stsim tid ⊤ ibot7 ibot7
+          y
+          (DUTYLEVEL: y < x)
+          (SIM: wpsim x tid ∅ ibot7 ibot7
                       (fun r_src r_tgt =>
-                         ((own_thread tid ∗ ObligationRA.duty inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
-          (INV: (default_I ths im_src im_tgt0 st_src st_tgt **
-                   (wsat ∗ OwnE ⊤)) r_shared)
+                         ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
+          (INV: (default_I x ths im_src im_tgt0 st_src st_tgt
+                           ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I r_shared)
           (FUPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
           (WF: URA.wf ((r_shared ⋅ r) ⋅ r_ctx))
       :
@@ -279,8 +291,8 @@ Module WSim.
                  (im_src : imap (Mod.ident md_src) owf)
                  (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
                  (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
-               default_I ths im_src im_tgt st_src st_tgt **
-                         (wsat ∗ OwnE ⊤)))
+               (default_I x ths im_src im_tgt st_src st_tgt
+                          ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I))
          tid
          Any.t Any.t
          (@local_RR
@@ -291,8 +303,8 @@ Module WSim.
                     (im_src : imap (Mod.ident md_src) owf)
                     (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
                     (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
-                  default_I ths im_src im_tgt st_src st_tgt **
-                            (wsat ∗ OwnE ⊤)))
+                  (default_I x ths im_src im_tgt st_src st_tgt
+                            ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I))
             Any.t Any.t
             eq tid)) fs ft r_ctx th0 th1
                      (ths, im_src, im_tgt1, st_src, st_tgt).
@@ -343,19 +355,24 @@ Module WSim.
         rr in RET3. unseal "iProp". subst.
         rr in RET1. unseal "iProp". des. subst.
         hexploit (@default_I_past_final md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident)).
+        apply DUTYLEVEL.
+        intro HEMP. rr in HEMP. unseal "iProp". hexploit HEMP.
+        { instantiate (1:=ε). apply URA.wf_unit. }
+        { clear.
+          unfold iProp. unfold bi_emp. unfold Emp. unseal "iProp". ss.
+        }
+        clear HEMP.
         i. rr in H1. unseal "iProp". hexploit H1.
         { instantiate (1:=a1). eapply URA.wf_mon.
           instantiate (1:=b ⋅ (a0 ⋅ b0) ⋅ r_ctx0). r_wf WF0.
         }
         { eauto. }
-        i. rr in H2. unseal "iProp".
-        hexploit H2.
+        i. rr in H2. unseal "iProp". hexploit H2.
         { instantiate (1:=a0). eapply URA.wf_mon.
           instantiate (1:=b ⋅ b0 ⋅ r_ctx0). r_wf WF0.
         }
         { eauto. }
-        i. rr in H3. unseal "iProp".
-        hexploit H3.
+        i. rr in H3. unseal "iProp". hexploit H3.
         { instantiate (1:=b ⋅ b0 ⋅ r_ctx0). r_wf WF0. }
         i. des.
         rr in H5. unseal "iProp". des.
@@ -378,12 +395,14 @@ Module WSim.
       }
     Qed.
 
-    Lemma stsim_local_sim_init tid (r: Σ)
+    Lemma wpsim_local_sim_init x tid (r: Σ)
           (th0: thread (Mod.ident md_src) (sE (Mod.state md_src)) Any.t)
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
-          (SIM: stsim tid ⊤ ibot7 ibot7
+          y
+          (DUTYLEVEL: y < x)
+          (SIM: wpsim x tid ∅ ibot7 ibot7
                       (fun r_src r_tgt =>
-                         ((own_thread tid ∗ ObligationRA.duty inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
+                         ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
       :
       @local_sim_init
         (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
@@ -393,8 +412,8 @@ Module WSim.
                 (im_src : imap (Mod.ident md_src) owf)
                 (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
                 (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
-              default_I ths im_src im_tgt st_src st_tgt **
-                        (wsat ∗ OwnE ⊤))) Any.t Any.t eq r tid th0 th1.
+              (default_I x ths im_src im_tgt st_src st_tgt ∗
+                        (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I)) Any.t Any.t eq r tid th0 th1.
     Proof.
       ii. assert (WF: URA.wf ((r_shared ⋅ r) ⋅ r_ctx)).
       { rewrite PCMLarge.URA.unfold_wf in VALID.
@@ -402,21 +421,23 @@ Module WSim.
         rewrite URA.unfold_wf.
         rewrite URA.unfold_add. auto.
       }
-      eapply stsim_lsim; eauto.
+      eapply wpsim_lsim; eauto.
     Qed.
 
-    Lemma stsim_local_sim
+    Lemma wpsim_local_sim x
           (th0: thread (Mod.ident md_src) (sE (Mod.state md_src)) Any.t)
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
           r_arg
+          y
+          (DUTYLEVEL : y < x)
           (SIM: forall tid,
               ((own_thread tid)
                  -∗
-                 (ObligationRA.duty inlp tid [])
+                 (ObligationRA.duty y inlp tid [])
                  -∗
-                 (stsim tid ⊤ ibot7 ibot7
+                 (wpsim x tid ∅ ibot7 ibot7
                         (fun r_src r_tgt =>
-                           ((own_thread tid ∗ ObligationRA.duty inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I r_arg)
+                           ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I r_arg)
       :
       @local_sim_arg
         (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
@@ -426,8 +447,8 @@ Module WSim.
                 (im_src : imap (Mod.ident md_src) owf)
                 (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
                 (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
-              default_I ths im_src im_tgt st_src st_tgt **
-                        (wsat ∗ OwnE ⊤))) Any.t Any.t eq th0 th1 r_arg.
+              (default_I x ths im_src im_tgt st_src st_tgt ∗
+                         (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I)) Any.t Any.t eq th0 th1 r_arg.
     Proof.
       ii. assert (WF: URA.wf (r_shared0 ⋅ (r_ctx0 ⋅ r_arg))).
       { rewrite PCMLarge.URA.unfold_wf in VALID.
@@ -437,19 +458,19 @@ Module WSim.
       }
       specialize (SIM tid). r in INV.
       assert (IMPL:
-               ((Own r_arg) ∗ (default_I ths0 im_src0 im_tgt0 st_src0 st_tgt0 **
-                                          (wsat ∗ OwnE ⊤)))
+               ((Own r_arg) ∗ (default_I x ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗
+                                          (wsat_auth x ∗ wsats x ∗ OwnEs ∅)))
                  ⊢
-                 #=> ((default_I ths1 im_src0 im_tgt1 st_src0 st_tgt0)
-                        **
-                        (wsat ∗ OwnE ⊤)
-                        **
-                        stsim tid ⊤ ibot7 ibot7
+                 #=> (((default_I x ths1 im_src0 im_tgt1 st_src0 st_tgt0)
+                        ∗
+                        (wsat_auth x ∗ wsats x ∗ OwnEs ∅))
+                        ∗
+                        wpsim x tid ∅ ibot7 ibot7
                         (λ r_src r_tgt : Any.t,
-                            (own_thread tid ∗ ObligationRA.duty inlp tid []) ∗ ⌜r_src = r_tgt⌝)
+                            ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I)
                         false false th0 th1)).
       { iIntros "[ARG [D SAT]]".
-        iPoseProof (default_I_thread_alloc with "D") as "> [[OWN DUTY] D]".
+        iPoseProof (default_I_thread_alloc with "D") as "> [OWN [DUTY D]]".
         { eauto. }
         { eauto. }
         iModIntro. iFrame.
@@ -474,7 +495,8 @@ Module WSim.
         rewrite URA.unfold_wf in H0.
         rewrite ! URA.unfold_add in H0. eauto.
       }
-      i. ss. eapply stsim_lsim.
+      i. ss. eapply wpsim_lsim.
+      { apply DUTYLEVEL. }
       { eauto. }
       { eapply INV0. }
       { eauto. }
@@ -541,19 +563,20 @@ Module WSim.
             init_res: Σ;
             init_res_cond: initial_res_wf init_res;
             init_inv:
-            exists (o: Ord.t),
-              (Own init_res ∗ (initial_prop (key_set (prog2ths md_src c)) o)) (* INIT *)
+            exists (l1 l0: index) (DL: l0 < l1) (o: Ord.t),
+              (Own init_res ∗ (initial_prop l0 (key_set (prog2ths md_src c)) o)) (* INIT *)
                 -∗
-                (FUpd (fairI (ident_tgt:=md_tgt.(Mod.ident))) ⊤ ⊤
-                        (
-                           (natmap_prop_sum
-                              fun_pairs
-                              (fun tid '(th_src, th_tgt) =>
-                                 stsim
-                                   tid ⊤
-                                   ibot7 ibot7
-                                   (fun r_src r_tgt => own_thread tid ∗ ObligationRA.duty inlp tid [] ∗ ⌜r_src = r_tgt⌝)
-                                   false false th_src th_tgt))
+                (FUpd l1 (fairI (ident_tgt:=md_tgt.(Mod.ident)) l1) ∅ ∅
+                      (
+                        (natmap_prop_sum
+                           fun_pairs
+                           (fun tid '(th_src, th_tgt) =>
+                              wpsim
+                                l1
+                                tid ∅
+                                ibot7 ibot7
+                                (fun r_src r_tgt => (own_thread tid ∗ ObligationRA.duty l0 inlp tid []) ∗ ⌜r_src = r_tgt⌝)
+                                false false th_src th_tgt))
                 ));
           }.
 
@@ -568,26 +591,29 @@ Module WSim.
                  exists (r: Σ),
                    (<<SAT:
                      (∃ im_src,
-                         ((default_I (key_set (prog2ths md_src c)) im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt))
-                            **
-                            (wsat ∗ OwnE ⊤))
-                           **
+                         ((default_I l1 (key_set (prog2ths md_src c)) im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt))
+                            ∗
+                            (wsat_auth l1 ∗ wsats l1 ∗ OwnEs ∅))
+                           ∗
                            (natmap_prop_sum
                               fun_pairs
                               (fun tid '(th_src, th_tgt) =>
-                                 stsim
-                                   tid ⊤
+                                 wpsim
+                                   l1
+                                   tid ∅
                                    ibot7 ibot7
-                                   (fun r_src r_tgt => own_thread tid ∗ ObligationRA.duty inlp tid [] ∗ ⌜r_src = r_tgt⌝)
+                                   (fun r_src r_tgt => ((own_thread tid ∗ ObligationRA.duty l0 inlp tid [])) ∗ ⌜r_src = r_tgt⌝)
                                    false false th_src th_tgt)))%I r>>) /\
                      (<<WF: URA.wf r>>)).
         { i. eapply iProp_satisfable.
           { eapply reswf_gen; eauto. }
           iIntros "[H0 H1]".
           iPoseProof (default_initial_res_init with "H1") as "H1".
-          iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[[[[[X Y] Z] B] C] D] E] F] G] H] I]]".
+          apply DL.
+          iPoseProof ("H1" $! _ _ _ _ _) as ">[% [A [B [C [D [E [F [G [H [I J]]]]]]]]]]".
           unfold initial_prop in init_inv.
-          iPoseProof (init_inv with "[H0 E B C D F G] [Y Z H I]") as "> [F [W [E init_ctx]]]".
+          iDestruct "A" as "(A1 & A2 & A3 & A4 & A5 & A6 & A7 & A8)".
+          iPoseProof (init_inv with "[H0 D E B C F G] [A6 A7 I J]") as ">[F [W [E init_ctx]]]".
           { iFrame. }
           { iFrame. }
           iModIntro. iExists _. iFrame. iFrame.
@@ -602,7 +628,7 @@ Module WSim.
         { eauto. }
         { eapply URA.wf_mon. instantiate (1:=a0 ⋅ b0). r_wf WF. }
         i. des.
-        eexists (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ∗ (wsat ∗ OwnE ⊤))), im_src, rm, _.
+        eexists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnEs ∅))%I)), im_src, rm, _.
         splits.
         { ss. rr. unseal "iProp". esplits; eauto. }
         { apply nm_find_some_implies_forall3.
@@ -622,7 +648,7 @@ Module WSim.
             }
           }
           { auto. }
-          i. ii. eapply stsim_local_sim_init; eauto.
+          i. ii. eapply wpsim_local_sim_init; eauto.
         }
         { cut (URA.wf ((a0 ⋅ b0) ⋅ (NatMap.fold (fun _ r s => r ⋅ s) rm URA.unit))).
           { i. rewrite PCMLarge.URA.unfold_wf. s.
@@ -635,6 +661,7 @@ Module WSim.
           eapply URA.wf_extends; [|eauto].
           rr in EXT. des. subst. exists ctx. r_solve.
         }
+        Local Opaque FUpd.
       Qed.
 
       Lemma whole_sim_implies_refinement
@@ -652,19 +679,20 @@ Module WSim.
             whole_sim_simple_invariant: iProp; (* I *)
 
             whole_sim_funs_simple:
-            exists (r: Σ),
+            exists l1 l0 (DL: l0 < l1) (r: Σ),
               (<<WF: initial_res_wf r>>) /\
-                (<<SIM: ((Own r ∗ (initial_prop (key_set (prog2ths md_src c)) Ord.omega))
+                (<<SIM: ((Own r ∗ (initial_prop l0 (key_set (prog2ths md_src c)) Ord.omega))
                            ⊢ #=>
                            (whole_sim_simple_invariant
-                              **
+                              ∗
                               (natmap_prop_sum
                                  fun_pairs
                                  (fun tid '(th_src, th_tgt) =>
-                                    stsim
-                                      tid ⊤
+                                    wpsim
+                                      l1
+                                      tid ∅
                                       ibot7 ibot7
-                                      (fun r_src r_tgt => own_thread tid ∗ FairRA.black_ex inlp tid 1 ∗ ⌜r_src = r_tgt⌝)
+                                      (fun r_src r_tgt => ((own_thread tid ∗ FairRA.black_ex inlp tid 1) ∗ ⌜r_src = r_tgt⌝)%I)
                                       false false th_src th_tgt))))>>);
           }.
 
@@ -673,14 +701,17 @@ Module WSim.
         :
         whole_sim.
       Proof.
+        Local Transparent FUpd.
         inv SIM. des. econs.
         { eauto. }
-        exists Ord.omega. iIntros "H".
-        iPoseProof (SIM with "H") as "> [H0 H1]". iModIntro.
+        exists l1, l0, DL, Ord.omega. iIntros "H (A & B & C)".
+        iPoseProof (SIM with "H") as "> [H0 H1]".
+        iModIntro. iFrame.
         iApply (natmap_prop_sum_impl with "H1"). i. des_ifs.
-        iApply (stsim_mono). i.
+        iApply (wpsim_mono). i.
         iIntros "[[H0 H1] H2]". iModIntro. iFrame.
         iApply ObligationRA.black_to_duty. auto.
+        Local Opaque FUpd.
       Qed.
 
       Theorem whole_sim_simple_implies_refinement
@@ -703,23 +734,24 @@ Module WSim.
             init_res: Σ;
             init_res_cond: initial_res_wf init_res;
             init_inv:
-            exists o,
-              (Own init_res ∗ (initial_prop TIdSet.empty o)) (* INIT *)
+            exists l1 l0 (DL: l0 < l1) o,
+              (Own init_res ∗ (initial_prop l0 TIdSet.empty o)) (* INIT *)
                 -∗
-                (FUpd
-                       (fairI (ident_tgt:=md_tgt.(Mod.ident))) ⊤ ⊤
+                (FUpd l1
+                      (fairI (ident_tgt:=md_tgt.(Mod.ident)) l1) ∅ ∅
                        (□(∀ fn args,
                                 match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                                 | Some ktr_src, Some ktr_tgt =>
                                     ∀ tid,
                                       (own_thread tid)
                                         -∗
-                                        (ObligationRA.duty inlp tid [])
+                                        (ObligationRA.duty l0 inlp tid [])
                                         -∗
-                                        (stsim
-                                           tid ⊤
+                                        (wpsim
+                                           l1
+                                           tid ∅
                                            ibot7 ibot7
-                                           (fun r_src r_tgt => own_thread tid ∗ ObligationRA.duty inlp tid [] ∗ ⌜r_src = r_tgt⌝)
+                                           (fun r_src r_tgt => (own_thread tid ∗ ObligationRA.duty l0 inlp tid []) ∗ ⌜r_src = r_tgt⌝)
                                            false false (ktr_src args) (ktr_tgt args))
                                 | None, None => True
                                 | _, _ => False
@@ -738,7 +770,7 @@ Module WSim.
                     exists (r: Σ),
                       (<<SAT:
                         ((∃ im_src,
-                             ((default_I NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt) ∗ (wsat ∗ OwnE ⊤)))
+                             ((default_I l1 NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt) ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnEs ∅)))
                              ∧
                                (□ ∀ fn args,
                                      match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
@@ -746,12 +778,13 @@ Module WSim.
                                          ∀ tid,
                                            (own_thread tid)
                                              -∗
-                                             (ObligationRA.duty inlp tid [])
+                                             (ObligationRA.duty l0 inlp tid [])
                                              -∗
-                                             (stsim
-                                                tid ⊤
+                                             (wpsim
+                                                l1
+                                                tid ∅
                                                 ibot7 ibot7
-                                                (fun r_src r_tgt => own_thread tid ∗ ObligationRA.duty inlp tid [] ∗ ⌜r_src = r_tgt⌝)
+                                                (fun r_src r_tgt => (own_thread tid ∗ ObligationRA.duty l0 inlp tid []) ∗ ⌜r_src = r_tgt⌝)
                                                 false false (ktr_src args) (ktr_tgt args))
                                      | None, None => True
                                      | _, _ => False
@@ -761,9 +794,11 @@ Module WSim.
           { eapply reswf_gen; eauto. }
           iIntros "[H0 H1]".
           iPoseProof (default_initial_res_init with "H1") as "H1".
-          iPoseProof ("H1" $! _ _ _ _ _) as "> [% [[[[[[[[[[X Y] Z] B] C] D] E] F] G] H] I]]".
+          apply DL.
+          iPoseProof ("H1" $! _ _ _ _ _) as ">[% [A [B [C [D [E [F [G [H [I J]]]]]]]]]]".
           unfold initial_prop in init_inv.
-          iPoseProof (init_inv with "[H0 E B C D F G] [Y Z H I]") as "> [F [W [E init_ctx]]]".
+          iDestruct "A" as "(A1 & A2 & A3 & A4 & A5 & A6 & A7 & A8)".
+          iPoseProof (init_inv with "[H0 D E B C F G] [A6 A7 I J]") as ">[F [W [E init_ctx]]]".
           { iFrame. }
           { iFrame. }
           iModIntro. iExists _. iFrame. iFrame.
@@ -776,18 +811,19 @@ Module WSim.
         rr in SAT0. unseal "iProp".
         des. rr in SAT1. unseal "iProp".
         rr in SAT1. unseal "iProp".
-        exists (liftI (fun ths im_src im_tgt st_src st_tgt => @default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) Σ _ _ _ _ _ _ _ _ _ ths im_src im_tgt st_src st_tgt ∗ (wsat ∗ OwnE ⊤))).
+        exists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnEs ∅))%I)).
         esplits.
         { ss. eauto. }
         { rewrite PCMLarge.URA.unfold_wf. rewrite URA.unfold_wf in WF. auto. }
         i. rr in SAT1. unseal "iProp". specialize (SAT1 fn).
         rr in SAT1. unseal "iProp". specialize (SAT1 args).
         des_ifs; ss.
-        { eapply stsim_local_sim; eauto. i.
+        { eapply wpsim_local_sim; eauto. i.
           rr in SAT1. unseal "iProp". specialize (SAT1 tid). auto.
         }
         { rr in SAT1. unseal "iProp". ss. }
         { rr in SAT1. unseal "iProp". ss. }
+        Local Opaque FUpd.
       Qed.
 
       Lemma context_sim_implies_contextual_refinement
@@ -805,10 +841,14 @@ Module WSim.
 
             context_sim_simple_invariant: iProp; (* I *)
 
+            l1 : index;
+            l0 : index;
+            DL : l0 < l1;
+
             init_satisfied:
             exists (r: Σ),
               (<<WF: initial_res_wf r>>) /\
-                (<<SAT: ((Own r ∗ (initial_prop TIdSet.empty Ord.omega))
+                (<<SAT: ((Own r ∗ (initial_prop l0 TIdSet.empty Ord.omega))
                            ⊢ #=> context_sim_simple_invariant)%I>>);
 
             sim_funs:
@@ -818,8 +858,9 @@ Module WSim.
                   forall tid,
                       (FairRA.black_ex inlp tid 1)
                       -∗
-                      (stsim
-                         tid ⊤
+                      (wpsim
+                         l1
+                         tid ∅
                          ibot7 ibot7
                          (fun r_src r_tgt => FairRA.black_ex inlp tid 1 ∗ ⌜r_src = r_tgt⌝)
                          false false (ktr_src args) (ktr_tgt args))
@@ -835,12 +876,12 @@ Module WSim.
       Proof.
         inv SIM. des. econs.
         { eauto. }
-        { exists Ord.omega. iIntros "H".
+        { exists l1, l0, DL, Ord.omega. iIntros "H".
           iPoseProof (SAT with "H") as "> SAT". iModIntro.
-          iModIntro. iIntros. specialize (sim_funs0 fn args). des_ifs.
-          iIntros (?) "H B". iPoseProof (sim_funs0 with "[B]") as "B".
+          iModIntro. iIntros. specialize (sim_funs fn args). des_ifs.
+          iIntros (?) "H B". iPoseProof (sim_funs with "[B]") as "B".
           { iApply ObligationRA.duty_to_black. auto. }
-          iApply (stsim_wand with "B [H]").
+          iApply (wpsim_wand with "B [H]").
           iIntros (? ?) "[H0 H1]". iModIntro. iFrame.
           iApply ObligationRA.black_to_duty. auto.
         }
