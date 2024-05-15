@@ -39,7 +39,6 @@ Section STATE.
   Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
 
   (* State related default RAs *)
-  (* Context `{MONORA: @GRA.inG monoRA Σ}. *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
   Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
   Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.

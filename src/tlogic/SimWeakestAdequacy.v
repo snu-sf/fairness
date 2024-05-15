@@ -189,7 +189,6 @@ Module WSim.
     Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
     Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
 
-    (* Context `{MONORA: @GRA.inG monoRA Σ}. *)
     (* State related default RAs *)
     Context `{THDRA: @GRA.inG ThreadRA Σ}.
     Context `{STATESRC: @GRA.inG (stateSrcRA md_src.(Mod.state)) Σ}.
