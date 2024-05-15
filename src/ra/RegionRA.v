@@ -995,6 +995,22 @@ Module Regions.
       iApply "K". iModIntro. iFrame.
     Qed.
 
+    Lemma unfold_nsats x :
+      nsats (S x) ⊢ (nsats x ∗ sat x (interps (i:=x)))%I.
+    Proof.
+      iIntros "A". unfold nsats. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
+      2:{ rewrite seq_S. ss. }
+      iPoseProof (big_sepL_app with "A") as "[A [B C]]". ss. iFrame.
+    Qed.
+
+    Lemma fold_nsats x :
+      (nsats x ∗ sat x (interps (i:=x)))%I ⊢ nsats (S x).
+    Proof.
+      iIntros "A". unfold nsats. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
+      2:{ rewrite seq_S. ss. }
+      iApply big_sepL_app. ss. iDestruct "A" as "[A B]". iFrame.
+    Qed.
+
   End NATKEY.
 
 End Regions.

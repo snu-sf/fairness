@@ -40,21 +40,6 @@ Module Syntax.
     Context `{Typ : forall formula : Type, type -> Type}.
     Context `{As : forall formula : Type, Type}.
 
-    (* Let size (on : option index) : index := *)
-    (*       match on with | None => O | Some n => (S n) end. *)
-
-    (* Program Fixpoint _formula (on : option index) {measure (size on)} : Type := *)
-    (*   match on with *)
-    (*   | None => Empty_set *)
-    (*   | Some n => *)
-    (*       match n with *)
-    (*       | O => @t type Typ (As (_formula None)) (_formula None) *)
-    (*       | S m => @t type Typ (As (_formula (Some m))) (_formula (Some m)) *)
-    (*       end *)
-    (*   end. *)
-
-    (* Definition formula (n : index) : Type := _formula (Some n). *)
-
     Fixpoint _formula (n : index) : Type :=
       match n with
       | O => Empty_set
@@ -62,12 +47,6 @@ Module Syntax.
       end.
 
     Definition formula (n : index) : Type := _formula (S n).
-
-    (* Fixpoint formula (n : index) : Type := *)
-    (*   match n with *)
-    (*   | O => @t type Typ (As Empty_set) Empty_set *)
-    (*   | S m => @t type Typ (As (formula m)) (formula m) *)
-    (*   end. *)
 
   End FORMULA.
 
@@ -82,49 +61,7 @@ Module Syntax.
 
     Context `{Σ : GRA.t}.
 
-    (* Context `{interp_atoms_0 : As Empty_set -> iProp}. *)
     Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}.
-
-    (* Fixpoint to_semantics_0 (syn : _formulas O) : iProp := *)
-    (*   match syn with *)
-    (*   | atom a => interp_atoms O a *)
-    (*   | lift p => ⌜False⌝%I *)
-    (*   | sepconj p q => Sepconj (to_semantics_0 p) (to_semantics_0 q) *)
-    (*   | pure P => Pure P *)
-    (*   | univ ty p => Univ (fun (x : Typ Empty_set ty) => to_semantics_0 (p x)) *)
-    (*   | ex ty p => Ex (fun (x : Typ Empty_set ty) => to_semantics_0 (p x)) *)
-    (*   | and p q => And (to_semantics_0 p) (to_semantics_0 q) *)
-    (*   | or p q => Or (to_semantics_0 p) (to_semantics_0 q) *)
-    (*   | impl p q => Impl (to_semantics_0 p) (to_semantics_0 q) *)
-    (*   | wand p q => Wand (to_semantics_0 p) (to_semantics_0 q) *)
-    (*   | empty => Emp *)
-    (*   | persistently p => Persistently (to_semantics_0 p) *)
-    (*   | plainly p => IProp.Plainly (to_semantics_0 p) *)
-    (*   | upd p => Upd (to_semantics_0 p) *)
-    (*   end. *)
-
-    (* Fixpoint to_semantics n : formulas n -> iProp := *)
-    (*   match n with *)
-    (*   | O => to_semantics_0 *)
-    (*   | S m => *)
-    (*       fix to_semantics_aux (syn : formulas (S m)) : iProp := *)
-    (*     match syn with *)
-    (*     | atom a => interp_atoms m a *)
-    (*     | lift p => to_semantics m p *)
-    (*     | sepconj p q => Sepconj (to_semantics_aux p) (to_semantics_aux q) *)
-    (*     | pure P => Pure P *)
-    (*     | univ ty p => Univ (fun (x : Typ (formulas m) ty) => to_semantics_aux (p x)) *)
-    (*     | ex ty p => Ex (fun (x : Typ (formulas m) ty) => to_semantics_aux (p x)) *)
-    (*     | and p q => And (to_semantics_aux p) (to_semantics_aux q) *)
-    (*     | or p q => Or (to_semantics_aux p) (to_semantics_aux q) *)
-    (*     | impl p q => Impl (to_semantics_aux p) (to_semantics_aux q) *)
-    (*     | wand p q => Wand (to_semantics_aux p) (to_semantics_aux q) *)
-    (*     | empty => Emp *)
-    (*     | persistently p => Persistently (to_semantics_aux p) *)
-    (*     | plainly p => IProp.Plainly (to_semantics_aux p) *)
-    (*     | upd p => Upd (to_semantics_aux p) *)
-    (*     end *)
-    (*   end. *)
 
     Fixpoint _to_semantics n : _formulas n -> iProp :=
       match n with
@@ -165,14 +102,9 @@ Module Syntax.
 
     Local Notation _formulas := (@_formula type Typ As).
     Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}.
-    (* Context `{interp_atoms_0 : As Empty_set -> iProp}. *)
-    (* Context `{interp_atoms : forall (n : index), As (formulas n) -> iProp}. *)
 
     Global Instance IISet : @IInvSet Σ formulas :=
       {| prop := @to_semantics type Typ As Σ interp_atoms |}.
-
-    (* Global Instance IISet : @IInvSet Σ formulas := *)
-    (*   {| prop := @to_semantics type Typ As Σ interp_atoms_0 interp_atoms |}. *)
 
   End INDEXED_INVSET.
 
@@ -208,17 +140,11 @@ Section RED.
   Context `{Typ : forall formula : Type, type -> Type}.
   Context `{As : forall formula : Type, Type}.
 
+  Local Notation _formulas := (@Syntax._formula type Typ As).
   Local Notation formulas := (@Syntax.formula type Typ As).
 
   Context `{Σ : GRA.t}.
-
-  Local Notation _formulas := (@Syntax._formula type Typ As).
   Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}.
-  (* Context `{interp_atoms_0 : As Empty_set -> iProp}. *)
-  (* Context `{interp_atoms : forall (n : index), As (formulas n) -> iProp}. *)
-
-  (* Local Notation Sem := *)
-  (*   (fun i p => @Syntax.to_semantics _ Typ As _ interp_atoms_0 interp_atoms i p). *)
 
   Local Notation Sem := (@Syntax.to_semantics _ Typ As _ interp_atoms).
 
@@ -273,9 +199,6 @@ Section RED.
   Lemma red_sem_persistently n p :
     Sem n (Syntax.persistently p) = (<pers> Sem n p)%I.
   Proof. ss. Qed.
-(* Notation "□ P" := (bi_intuitionistically P) : bi_scope *)
-(* Notation "'<pers>' P" := (bi_persistently P) : bi_scope *)
-(* Notation "'<affine>' P" := (bi_affinely P) : bi_scope *)
 
   Lemma red_sem_plainly n p :
     Sem n (Syntax.plainly p) = (IProp.Plainly (Sem n p))%I.
@@ -283,6 +206,17 @@ Section RED.
 
   Lemma red_sem_upd n p :
     Sem n (Syntax.upd p) = (#=> Sem n p)%I.
+  Proof. ss. Qed.
+
+  Definition syn_affinely {n} (p : formulas n) : formulas n :=
+    Syntax.and Syntax.empty p.
+
+  Lemma red_sem_affinely n p :
+    Sem n (syn_affinely p) = (<affine> Sem n p)%I.
+  Proof. ss. Qed.
+
+  Lemma red_sem_intuitionistically n p :
+    Sem n (syn_affinely (Syntax.persistently p)) = (□ Sem n p)%I.
   Proof. ss. Qed.
 
 End RED.
@@ -302,10 +236,11 @@ Notation "'⊤'" := ⌜True⌝ : formula_scope.
 Notation "'⊥'" := ⌜False⌝ : formula_scope.
 
 Notation "'⟨' A '⟩'" := (Syntax.atom A) : formula_scope.
-(* Notation "'⟪' A '⟫'" := (Syntax.atom A) : formula_scope. *)
 Notation "↑ P" := (Syntax.lift P) : formula_scope.
 
-Notation "□ P" := (Syntax.persistently P) : formula_scope.
+Notation "'<pers>' P" := (Syntax.persistently P) : formula_scope.
+Notation "'<affine>' P" := (syn_affinely P) : formula_scope.
+Notation "□ P" := (<affine> <pers> P) : formula_scope.
 Notation "■ P" := (Syntax.plainly P) : formula_scope.
 Notation "|==> P" := (Syntax.upd P) : formula_scope.
 Infix "∧" := (Syntax.and) : formula_scope.
@@ -322,8 +257,6 @@ Notation f_exist A := (Syntax.ex A).
 Notation "∃'" := (f_exist _) (only parsing) : formula_scope.
 Notation "∃ a .. z , P" := (f_exist _ (λ a, .. (f_exist _ (λ z, P%F)) ..)) : formula_scope.
 Notation "'emp'" := (Syntax.empty) : formula_scope.
-
-
 
 
 

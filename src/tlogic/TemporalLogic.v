@@ -9,6 +9,17 @@ Require Import Program.
 
 Local Notation index := nat.
 
+Section STATETYPES.
+
+  Class StateTypes :=
+    { st_src_type : Type ;
+      st_tgt_type : Type ;
+      id_src_type : ID ;
+      id_tgt_type : ID
+    }.
+
+End STATETYPES.
+
 Section TYPES.
 
   Section TYPE.
@@ -17,6 +28,8 @@ Section TYPES.
     | baseT (t : Type) : type
     | formulaT : type
     | funT : type -> type -> type
+    | prodT : type -> type -> type
+    | sumT : type -> type -> type
     | listT : type -> type
     | pgmapT : type -> type.
 
@@ -29,6 +42,8 @@ Section TYPES.
       | baseT b => b
       | formulaT => form
       | funT ty1 ty2 => (Typ form ty1 -> Typ form ty2)
+      | prodT ty1 ty2 => prod (Typ form ty1) (Typ form ty2)
+      | sumT ty1 ty2 => sum (Typ form ty1) (Typ form ty2)
       | listT ty1 => list (Typ form ty1)
       | pgmapT ty1 => gmap positive (Typ form ty1)
       end.
@@ -60,6 +75,20 @@ Section TYPES.
   End INTERP.
 
 End TYPES.
+
+(** Notations and Coercions. *)
+Coercion baseT : Sortclass >-> type.
+
+Declare Scope formula_type_scope.
+Delimit Scope formula_type_scope with ftype.
+Bind Scope formula_type_scope with type.
+
+Notation "⇣ T" := (baseT T) (at level 90) : formula_type_scope.
+Notation "'Φ'" := (formulaT) : formula_type_scope.
+Infix "->" := (funT) : formula_type_scope.
+Infix "*" := (prodT) : formula_type_scope.
+(* Infix "+" := (sumT) : formula_type_scope. *)
+
 
 Section BIGOP.
 
@@ -106,43 +135,50 @@ Section BIGOP.
     rewrite @red_sem_sepconj. rewrite IHI. f_equal.
   Qed.
 
+
+  (* Additional definitions. *)
+
+  Definition syn_sat_list
+             n X (Ts : X -> Type) (x : X) (intp : Ts x -> Formula n) (l : list (Ts x))
+    : Formula n :=
+    foldr (fun t (p : Formula n) => (intp t ∗ p)%F) ⊤%F l.
+
+  Lemma red_syn_sat_list n X Ts x intp l :
+    Sem n (syn_sat_list n X Ts x intp l) =
+      @Regions.sat_list X Ts Σ x (fun (t : Ts x) => Sem n (intp t)) l.
+  Proof.
+    induction l; ss.
+    rewrite @red_sem_sepconj. rewrite IHl. f_equal.
+  Qed.
+
 End BIGOP.
 
-Section SIMPLEATOM.
 
-  Class SimpleAtom := { sAtom : Type }.
+Section AUXATOM.
+
+  Class AuxAtom := { aAtom : Type }.
 
   Context `{Σ : GRA.t}.
 
-  Class SAInterp {SA : SimpleAtom} := { saintp : @sAtom SA -> iProp }.
+  Class AAInterp {AA : AuxAtom} := { aaintp : @aAtom AA -> iProp }.
 
-End SIMPLEATOM.
-
-Section STATE.
-
-  Class StateTypes :=
-    { state_src_type : Type
-    ; state_tgt_type : Type
-    ; ident_src_type : ID
-    ; ident_tgt_type : ID}.
-
-End STATE.
+End AUXATOM.
 
 Module Atom.
 
   Section ATOM.
 
-    Context {SA : SimpleAtom}.
+    Context {AA : AuxAtom}.
     Context {STT : StateTypes}.
 
-    Local Notation state_src := (@state_src_type STT).
-    Local Notation state_tgt := (@state_tgt_type STT).
-    Local Notation ident_src := (@ident_src_type STT).
-    Local Notation ident_tgt := (@ident_tgt_type STT).
+    Local Notation state_src := (@st_src_type STT).
+    Local Notation state_tgt := (@st_tgt_type STT).
+    Local Notation ident_src := (@id_src_type STT).
+    Local Notation ident_tgt := (@id_tgt_type STT).
 
     Inductive t {form : Type} : Type :=
     (** Simple atoms. *)
-    | satom (s : @sAtom SA)
+    | satom (s : aAtom)
     (** Atoms to express the invariant system. *)
     | owni (i : positive) (p : @Syntax.t _ (@Typ) (@t form) form)
     | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ (@Typ) (@t form) form)))
@@ -159,46 +195,77 @@ Module Atom.
     | fair_src (im_src : @FairBeh.imap ident_src owf)
     | fair_tgt (im_tgt : @FairBeh.imap (sum_tid ident_tgt) nat_wf) (ths : TIdSet.t)
     (** Atoms to express liveness logic. *)
+    | obl_edges_sat
+    | obl_arrows_auth (x : index)
+    | obl_arrows_regions_black (l : list ((sum_tid ident_tgt) * nat * Ord.t * Qp * nat * (@Syntax.t _ (@Typ) (@t form) form)))
+    | obl_arrow_done1 (x : nat)
+    | obl_arrow_done2 (k : nat)
+    | obl_arrow_pend (i : sum_tid ident_tgt) (k : nat) (c : Ord.t) (q : Qp)
     .
+
+(* ObligationRA.arrows_sats =  *)
+(*   (j : index), Regions.nsats (ObligationRA.arrows (S:=S)) j *)
+(* ObligationRA.arrows =  *)
+(*   (x : S * index * Ord.t * Qp * index * Vars i), ObligationRA.arrow i x *)
+(* ObligationRA.arrow =  *)
+(*   (v : index) '(i, k, c, q, x, f), *)
+(*   (□ (prop v f -∗ □ prop v f) ∗ *)
+(*    (OwnM (FiniteMap.singleton x (OneShot.shot ())) ∗  *)
+(*     ObligationRA.shot k ∗ prop v f *)
+(*     ∨ (∃ n : index, FairRA.black Prism.id i n q ∗ *)
+(*          ObligationRA.white k (c × n)%ord)))%I *)
+(* Regions.nsats =  *)
+(*   ([∗ list] i ∈ seq 0 j, Regions.sat i (interps i))%I *)
+(* Regions.sat =  *)
+(*   (∃ l : list (As x), Regions.black x l ∗ Regions.sat_list As x interp l)%I *)
+(* Regions.black =  *)
+(*   OwnM *)
+(*     (maps_to_res_dep x *)
+(*        ((λ n : index, *)
+(*            match nth_error l n with *)
+(*            | Some a => OneShot.shot a *)
+(*            | None => OneShot.pending (As x) 1 *)
+(*            end) *)
+(*           : (index ==> OneShot.t (As x))%ra) *)
+(*        : Regions.t As) *)
+(* Regions.sat_list =  *)
+(* λ (X : Type) (As : X → Type) (Σ : GRA.t) (x : X) (interp : As x → iProp)  *)
+(*   (l : list (As x)), *)
+(*   foldr (λ (a : As x) (P : iProp), (interp a ∗ P)%I) True%I l *)
 
   End ATOM.
 
   Section INTERP.
 
-    Context {SA : SimpleAtom}.
+    Context {AA : AuxAtom}.
     Context {STT : StateTypes}.
 
-    Local Notation state_src := (@state_src_type STT).
-    Local Notation state_tgt := (@state_tgt_type STT).
-    Local Notation ident_src := (@ident_src_type STT).
-    Local Notation ident_tgt := (@ident_tgt_type STT).
-
-    Local Notation att := (@t SA STT).
+    Local Notation att := (@t AA STT).
     Local Notation _Formula := (@_formula (@att)).
     Local Notation Formula := (@formula (@att)).
 
     Context `{Σ : GRA.t}.
-    Context `{SAI : @SAInterp Σ SA}.
+    Context `{AAI : @AAInterp Σ AA}.
     (* Invariant related default RAs *)
     Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
     Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
     Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
     (* State related default RAs *)
     Context `{THDRA: @GRA.inG ThreadRA Σ}.
-    Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-    Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-    Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
-    Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
+    Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
+    Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
+    Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
+    Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
     (* Liveness logic related default RAs *)
     Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
     Context `{EDGERA: @GRA.inG EdgeRA Σ}.
     Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-    Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+    Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
 
-    Definition to_semantics n (a : @t SA STT (_Formula n)) : iProp :=
+    Definition to_semantics n (a : @t AA STT (_Formula n)) : iProp :=
       match a with
       (** Simple atoms. *)
-      | satom s => saintp s
+      | satom s => aaintp s
       (** Atom to express the invariant system. *)
       | owni i p => @OwnI Σ Formula _ n i p
       | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
@@ -210,17 +277,28 @@ Module Atom.
       | ob_ths ths =>
           OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA)
       | ob_st_src st_src =>
-          OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option state_src)) : stateSrcRA _)
+          OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option st_src_type)): stateSrcRA _)
       | ow_st_src st_src =>
           St_src st_src
       | ob_st_tgt st_tgt =>
-          OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA _)
+          OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option st_tgt_type)): stateTgtRA _)
       | ow_st_tgt st_tgt =>
           St_tgt st_tgt
       | fair_src im_src =>
           FairRA.sat_source im_src
       | fair_tgt im_tgt ths =>
           FairRA.sat_target im_tgt ths
+      (** Atoms to express liveness logic. *)
+      | obl_edges_sat => ObligationRA.edges_sat
+      | obl_arrows_auth x => ObligationRA.arrows_auth x
+      | obl_arrows_regions_black l =>
+          Regions.black n l
+      | obl_arrow_done1 x =>
+          OwnM (FiniteMap.singleton x (OneShot.shot ()): ArrowShotRA)
+      | obl_arrow_done2 k =>
+          ObligationRA.shot k
+      | obl_arrow_pend i k c q =>
+          (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
       end.
 
   End INTERP.
@@ -229,36 +307,32 @@ End Atom.
 
 Section TL.
 
-  Context {SA : SimpleAtom}.
+  Context {AA : AuxAtom}.
   Context {STT : StateTypes}.
-  Local Notation state_src := (@state_src_type STT).
-  Local Notation state_tgt := (@state_tgt_type STT).
-  Local Notation ident_src := (@ident_src_type STT).
-  Local Notation ident_tgt := (@ident_tgt_type STT).
 
-  Definition _Formula := (@_formula (@Atom.t SA STT)).
-  Definition Formula := (@formula (@Atom.t SA STT)).
+  Definition _Formula := (@_formula (@Atom.t AA STT)).
+  Definition Formula := (@formula (@Atom.t AA STT)).
 
   Context `{Σ : GRA.t}.
-  Context `{SAI : @SAInterp Σ SA}.
+  Context `{AAI : @AAInterp Σ AA}.
   (* Invariant related default RAs *)
   Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
   Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
   Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
   (* State related default RAs *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
   (* Liveness logic related default RAs *)
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
 
-  Definition AtomSem := (@Atom.to_semantics SA STT Σ SAI _ _ _ _ _ _ _ _).
-  Definition SynSem n := (@formula_sem (@Atom.t SA STT) Σ (@AtomSem) n).
+  Definition AtomSem := (@Atom.to_semantics AA STT Σ AAI _ _ _ _ _ _ _ _ _ _ _ _).
+  Definition SynSem n := (@formula_sem (@Atom.t AA STT) Σ (@AtomSem) n).
 
   Global Instance SynIISet : @IInvSet Σ Formula :=
     (@Syntax.IISet _ _ _ Σ AtomSem).
@@ -269,39 +343,34 @@ Section TL.
 End TL.
 
 (** Notations and coercions. *)
-Coercion baseT : Sortclass >-> type.
 Notation "'τ{' t ',' n '}'" := (@Typ (@_Formula _ _ n) t).
+Notation "'τ{' t '}'" := (@Typ (@_Formula _ _ _) t).
 Notation "'⟪' A ',' n '⟫'" := (AtomSem n A).
 Notation "'⟦' F ',' n '⟧'" := (SynSem n F).
 
 
-
 Section RED.
 
-  Context {SA : SimpleAtom}.
+  Context {AA : AuxAtom}.
   Context {STT : StateTypes}.
-  Local Notation state_src := (@state_src_type STT).
-  Local Notation state_tgt := (@state_tgt_type STT).
-  Local Notation ident_src := (@ident_src_type STT).
-  Local Notation ident_tgt := (@ident_tgt_type STT).
 
   Context `{Σ : GRA.t}.
-  Context `{SAI : @SAInterp Σ SA}.
+  Context `{AAI : @AAInterp Σ AA}.
   (* Invariant related default RAs *)
   Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
   Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
   Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
   (* State related default RAs *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
   (* Liveness logic related default RAs *)
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
 
   Lemma red_tl_atom n a :
     ⟦⟨a⟩%F, n⟧ = ⟪a, n⟫.
@@ -324,12 +393,18 @@ Section RED.
   Proof. apply red_sem_pure. Qed.
 
   Lemma red_tl_univ n ty p :
-    ⟦(∀ x, p x)%F, n⟧ = (∀ (x : τ{ty, n}), ⟦p x, n⟧)%I.
+    ⟦(∀ x, p x)%F, n⟧ = (∀ (x : τ{ty}), ⟦p x, n⟧)%I.
   Proof. apply red_sem_univ. Qed.
+  (* Lemma red_tl_univ n ty p : *)
+  (*   ⟦(∀ x, p x)%F, n⟧ = (∀ (x : τ{ty, n}), ⟦p x, n⟧)%I. *)
+  (* Proof. apply red_sem_univ. Qed. *)
 
   Lemma red_tl_ex n ty p :
-    ⟦(∃ x, p x)%F, n⟧ = (∃ (x : τ{ty, n}), ⟦p x, n⟧)%I.
+    ⟦(∃ x, p x)%F, n⟧ = (∃ (x : τ{ty}), ⟦p x, n⟧)%I.
   Proof. apply red_sem_ex. Qed.
+  (* Lemma red_tl_ex n ty p : *)
+  (*   ⟦(∃ x, p x)%F, n⟧ = (∃ (x : τ{ty, n}), ⟦p x, n⟧)%I. *)
+  (* Proof. apply red_sem_ex. Qed. *)
 
   Lemma red_tl_and n p q :
     ⟦(p ∧ q)%F, n⟧ = (⟦p, n⟧ ∧ ⟦q, n⟧)%I.
@@ -352,7 +427,7 @@ Section RED.
   Proof. apply red_sem_empty. Qed.
 
   Lemma red_tl_persistently n p :
-    ⟦(□ p)%F, n⟧ = (<pers> ⟦p, n⟧)%I.
+    ⟦(<pers> p)%F, n⟧ = (<pers> ⟦p, n⟧)%I.
   Proof. apply red_sem_persistently. Qed.
 
   Lemma red_tl_plainly n p :
@@ -363,6 +438,16 @@ Section RED.
     ⟦( |==> p)%F, n⟧ = ( |==> ⟦p, n⟧)%I.
   Proof. apply red_sem_upd. Qed.
 
+  (** Derived ones. *)
+
+  Lemma red_tl_affinely n p :
+    ⟦(<affine> p)%F, n⟧ = (<affine> ⟦p, n⟧)%I.
+  Proof. apply red_sem_affinely. Qed.
+
+  Lemma red_tl_intuitionistically n p :
+    ⟦(□ p)%F, n⟧ = (□ ⟦p, n⟧)%I.
+  Proof. apply red_sem_intuitionistically. Qed.
+
   Lemma red_tl_big_sepM n A K {EQ : EqDecision K} {CNT : Countable K} I f :
     ⟦@syn_big_sepM (@Atom.t _ _) n K _ _ A I f, n⟧ = ([∗ map] i ↦ p ∈ I, ⟦f i p, n⟧)%I.
   Proof. apply red_syn_big_sepM. Qed.
@@ -370,6 +455,11 @@ Section RED.
   Lemma red_tl_big_sepL1 n A I f :
     ⟦@syn_big_sepL1 (@Atom.t _ _) n A I f, n⟧ = ([∗ list] a ∈ I, ⟦f a, n⟧)%I.
   Proof. apply red_syn_big_sepL1. Qed.
+
+  Lemma red_tl_sat_list n X Ts x intp l :
+    ⟦@syn_sat_list (@Atom.t _ _) n X Ts x intp l, n⟧
+    = Regions.sat_list Ts x (fun t => ⟦intp t, n⟧) l.
+  Proof. apply red_syn_sat_list. Qed.
 
 End RED.
 
@@ -391,7 +481,9 @@ Ltac red_tl_unary_once := (try rewrite ! @red_tl_atom;
                            try rewrite ! @red_tl_empty;
                            try rewrite ! @red_tl_persistently;
                            try rewrite ! @red_tl_plainly;
-                           try rewrite ! @red_tl_upd
+                           try rewrite ! @red_tl_upd;
+                           try rewrite ! @red_tl_affinely;
+                           try rewrite ! @red_tl_intuitionistically
                           ).
 
 Ltac red_tl_binary := repeat red_tl_binary_once.
@@ -401,30 +493,26 @@ Ltac red_tl := repeat (red_tl_binary; red_tl_unary).
 
 Section WSATS.
 
-  Context {SA : SimpleAtom}.
+  Context {AA : AuxAtom}.
   Context {STT : StateTypes}.
-  Local Notation state_src := (@state_src_type STT).
-  Local Notation state_tgt := (@state_tgt_type STT).
-  Local Notation ident_src := (@ident_src_type STT).
-  Local Notation ident_tgt := (@ident_tgt_type STT).
 
   Context `{Σ : GRA.t}.
-  Context `{SAI : @SAInterp Σ SA}.
+  Context `{AAI : @AAInterp Σ AA}.
   (* Invariant related default RAs *)
   Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
   Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
   Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
   (* State related default RAs *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
   (* Liveness logic related default RAs *)
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
 
 
   Import Atom.
@@ -459,7 +547,7 @@ Section WSATS.
   Qed.
 
   Definition syn_wsat n : Formula (S n) :=
-    (∃ (I : τ{pgmapT formulaT, (S n)}), ↑(⟨syn_inv_auth n I⟩ ∗ (syn_inv_satall n I)))%F.
+    (∃ (I : τ{pgmapT Φ, S n}), ↑(⟨syn_inv_auth n I⟩ ∗ (syn_inv_satall n I)))%F.
 
   Lemma red_syn_wsat n :
     ⟦syn_wsat n, S n⟧ = wsat n.
@@ -479,27 +567,33 @@ Section WSATS.
   (* Definition syn_wsats n : Formula (S n) := *)
   (*   syn_big_sepL1 n (baseT nat) (seq 0 n) (fun m => lifts (syn_wsat m) (n - (S m))). *)
 
-  Fixpoint syn_wsats n : Formula n :=
+  Fixpoint lifts_seps (p : forall n, Formula (S n)) n : Formula n :=
     match n with
     | O => emp%F
-    | S m => ((↑(syn_wsats m)) ∗ (syn_wsat m))%F
+    | S m => ((↑(lifts_seps p m)) ∗ (p m))%F
     end.
+
+  Lemma unfold_lifts_seps p n :
+    lifts_seps p (S n) = (↑(lifts_seps p n) ∗ (p n))%F.
+  Proof. ss. Qed.
+
+  Definition syn_wsats n : Formula n := lifts_seps syn_wsat n.
 
   Lemma unfold_syn_wsats n :
     syn_wsats (S n) = (↑(syn_wsats n) ∗ (syn_wsat n))%F.
-  Proof. ss. Qed.
+  Proof. apply unfold_lifts_seps. Qed.
 
   Lemma syn_wsats_to_wsats n :
     ⟦syn_wsats n, n⟧ ⊢ wsats n.
   Proof.
-    induction n; ss. red_tl. iIntros "[A B]".
+    induction n; ss. rewrite unfold_syn_wsats. red_tl. iIntros "[A B]".
     iApply fold_wsats. rewrite red_syn_wsat. iFrame. iApply IHn. iFrame.
   Qed.
 
   Lemma wsats_to_syn_wsats n :
     wsats n ⊢ ⟦syn_wsats n, n⟧.
   Proof.
-    induction n; ss. red_tl. iIntros "A".
+    induction n; ss. rewrite unfold_syn_wsats. red_tl. iIntros "A".
     iPoseProof (unfold_wsats with "A") as "[A B]". rewrite red_syn_wsat. iFrame.
     iApply IHn. iFrame.
   Qed.
@@ -530,7 +624,7 @@ Section WSATS.
   (** Definitions for inv and FUpd. *)
 
   Definition syn_inv (n : index) (N : namespace) (p : Formula n) : Formula n :=
-    (∃ (i : τ{positive, n}), ⌜i ∈ (nclose N : coPset)⌝ ∧ ⟨owni i p⟩)%F.
+    (∃ (i : τ{positive}), ⌜i ∈ (nclose N : coPset)⌝ ∧ ⟨owni i p⟩)%F.
 
   Lemma red_syn_inv n N p :
     ⟦syn_inv n N p, n⟧ = inv n N p.
@@ -573,18 +667,116 @@ Global Opaque syn_ownes.
 Global Opaque syn_inv.
 Global Opaque syn_fupd.
 
+Section OBLIG.
+
+  Context {AA : AuxAtom}.
+  Context {STT : StateTypes}.
+
+  Context `{Σ : GRA.t}.
+  Context `{AAI : @AAInterp Σ AA}.
+  (* Invariant related default RAs *)
+  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
+  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
+  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
+  (* State related default RAs *)
+  Context `{THDRA: @GRA.inG ThreadRA Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
+  (* Liveness logic related default RAs *)
+  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
+  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
+
+
+  Local Notation _dataT := ((sum_tid id_tgt_type) * nat * Ord.t * Qp * nat)%type.
+  Local Notation dataT := (fun (n : index) => (_dataT * Formula n)%type).
+
+  (* Local Notation dataT2 := *)
+  (*   (fun (n : index) => (sum_tid id_tgt_type * index * Ord.t * Qp * index * Formula n)%type). *)
+
+  (* Goal forall n, dataT n = dataT2 n. ss. Qed. *)
+
+  Import Atom.
+
+  Definition syn_obl_arrow n : dataT n -> Formula n :=
+    fun '(i, k, c, q, x, f) =>
+      ((□ (f -∗ □ f))
+         ∗
+         ((⟨obl_arrow_done1 x⟩ ∗ ⟨obl_arrow_done2 k⟩ ∗ f)
+          ∨
+            ⟨obl_arrow_pend i k c q⟩))%F.
+
+  Lemma red_syn_obl_arrow n d :
+    ⟦syn_obl_arrow n d, n⟧ = ObligationRA.arrow n d.
+  Proof.
+    unfold syn_obl_arrow. des_ifs.
+  Qed.
+
+  Definition syn_arrows_sat_list n (l : list (dataT n)) : Formula n :=
+    syn_sat_list n _ dataT n (syn_obl_arrow n) l.
+
+  Lemma red_syn_arrows_sat_list n l :
+    ⟦syn_arrows_sat_list n l, n⟧ = Regions.sat_list _ _ (ObligationRA.arrow n) l.
+  Proof.
+    unfold syn_arrows_sat_list. rewrite red_tl_sat_list. f_equal.
+    extensionalities t. apply red_syn_obl_arrow.
+  Qed.
+
+  Check (⇣ Ord.t)%ftype.
+  Check (⇣ (nat + nat)%type)%ftype.
+  (* Check (⇣ (sum_tid id_tgt_type))%ftype. *)
+
+  Definition syn_arrows_sat n : Formula (S n) :=
+    (∃ (l : τ{ listT ((⇣(nat + id_tgt_type)) * (⇣nat) * (⇣Ord.t) * (⇣Qp) * (⇣nat) * Φ)%ftype, S n }),
+        ↑(⟨obl_arrows_regions_black l⟩ ∗ syn_arrows_sat_list n l))%F.
+
+  Lemma red_syn_arrows_sat n :
+    ⟦syn_arrows_sat n, S n⟧ = ObligationRA.arrows_sat n.
+  Proof.
+    unfold syn_arrows_sat. red_tl. unfold ObligationRA.arrows_sat, Regions.sat.
+    f_equal. extensionality l. red_tl. ss.
+    rewrite red_syn_arrows_sat_list. f_equal.
+  Qed.
+
+  Definition syn_arrows_sats n : Formula n := lifts_seps syn_arrows_sat n.
+
+  Lemma unfold_syn_arrows_sats n :
+    syn_arrows_sats (S n) = (↑(syn_arrows_sats n) ∗ (syn_arrows_sat n))%F.
+  Proof. apply unfold_lifts_seps. Qed.
+
+  Lemma syn_arrows_sats_to_arrows_sats n :
+    ⟦syn_arrows_sats n, n⟧ ⊢ ObligationRA.arrows_sats n.
+  Proof.
+    induction n; ss. rewrite unfold_syn_arrows_sats. red_tl. iIntros "[A B]".
+    iApply Regions.fold_nsats. rewrite red_syn_arrows_sat. iFrame. iApply IHn. iFrame.
+  Qed.
+
+  Lemma arrows_sats_to_syn_arrows_sats n :
+    ObligationRA.arrows_sats n ⊢ ⟦syn_arrows_sats n, n⟧.
+  Proof.
+    induction n; ss. rewrite unfold_syn_arrows_sats. red_tl. iIntros "A".
+    iPoseProof (Regions.unfold_nsats with "A") as "[A B]". rewrite red_syn_arrows_sat. iFrame.
+    iApply IHn. iFrame.
+  Qed.
+
+End OBLIG.
+
+
 
 Section TEST.
 
-  Context {SA : SimpleAtom}.
+  Context {AA : AuxAtom}.
   Context {STT : StateTypes}.
-  Local Notation state_src := (@state_src_type STT).
-  Local Notation state_tgt := (@state_tgt_type STT).
-  Local Notation ident_src := (@ident_src_type STT).
-  Local Notation ident_tgt := (@ident_tgt_type STT).
+  Local Notation state_src := (@st_src_type STT).
+  Local Notation state_tgt := (@st_tgt_type STT).
+  Local Notation ident_src := (@id_src_type STT).
+  Local Notation ident_tgt := (@id_tgt_type STT).
 
   Context `{Σ : GRA.t}.
-  Context `{SAI : @SAInterp Σ SA}.
+  Context `{AAI : @AAInterp Σ AA}.
   (* Invariant related default RAs *)
   Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
   Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
@@ -599,7 +791,7 @@ Section TEST.
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Formula) Σ}.
 
   Definition test : Formula 3 :=
     ⟨Atom.owni xH (∃ (p : τ{formulaT, 3}), ⌜p = emp⌝)⟩%F.

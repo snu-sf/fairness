@@ -202,11 +202,6 @@ Module WSim.
     Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
     Context `{ARROWRA: @GRA.inG (@ArrowRA md_tgt.(Mod.ident) Vars) Σ}.
 
-    (* Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}. *)
-    (* Context `{ARROWRA: @GRA.inG (ArrowRA md_tgt.(Mod.ident)) Σ}. *)
-    (* Context `{EDGERA: @GRA.inG EdgeRA Σ}. *)
-    (* Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}. *)
-
 
     Definition initial_res_wf (init_res: Σ): Prop :=
       (<<INITDISJ: (disjoint_GRA init_res (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _ _ _ _))>>) /\
