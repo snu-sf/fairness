@@ -661,7 +661,7 @@ Section SIM.
 
 End SIM.
 
-Section AUX.
+Section EQUIVI.
 
   Context `{Σ: GRA.t}.
 
@@ -677,7 +677,7 @@ Section AUX.
   Variable wf_src: WF.
   Variable tid: thread_id.
 
-  Lemma isim_equiv
+  Lemma isim_equivI
         I1 I2
         (EQUIV : forall ths ims imt sts stt, I1 ths ims imt sts stt ⊣⊢ I2 ths ims imt sts stt)
         r g R_src R_tgt Q
@@ -692,36 +692,9 @@ Section AUX.
     assert (EQ: forall ths ims imt sts stt (r : Σ) (WF: URA.wf r), I1 ths ims imt sts stt r <-> I2 ths ims imt sts stt r).
     { clear - EQUIV. i. specialize (EQUIV ths ims imt sts stt). rr in EQUIV. inv EQUIV. eauto. }
     rr. autorewrite with iprop. i.
-    ii. rr in H. unfold liftI in *.
-
-    TODO
-
-    assert (
-        (λ '(ths, im_src, im_tgt, st_src, st_tgt) (r_shared : Σ), I1 ths im_src im_tgt st_src st_tgt r_shared)
-          ≡
-          (λ '(ths0, im_src0, im_tgt0, st_src0, st_tgt0) (r_shared : Σ), I2 ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared)).
-
-
-    muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+    ii. rr in H. eapply lsim_equivI. 2: eapply H; eauto.
+    clear - EQ. i. destruct shr as [[[[ths ims] imt] sts] stt]. unfold liftI. rewrite EQ; auto.
+    rewrite <- Lwf. auto.
   Qed.
 
-
-  Program Definition isim: rel -> rel -> rel :=
-    fun
-      r g
-      R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
-      iProp_intro
-        (fun r_own =>
-           forall r_ctx (WF: URA.wf (r_own ⋅ r_ctx)),
-             gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _.
-  Next Obligation.
-  Proof.
-    ii. ss. eapply H.
-    eapply URA.wf_extends; eauto. eapply URA.extends_add; eauto.
-  Qed.
-
-  Tactic Notation "muclo" uconstr(H) :=
-    eapply gpaco9_uclo; [auto with paco|apply H|].
-
-
-End AUX.
+End EQUIVI.

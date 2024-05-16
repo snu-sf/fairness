@@ -1339,17 +1339,15 @@ Section EQUIVI.
         (I1 I2 : shared -> URA.car -> Prop)
         (EQ : forall shr (m : URA.car) (WF : URA.wf m), I1 shr m <-> I2 shr m)
     :
-    gupaco9 (fun r => pind9 (__lsim I1 tid r) top9) (cpn9 (fun r => pind9 (__lsim I1 tid r) top9))
-            <10=
-      gupaco9 (fun r => pind9 (__lsim I2 tid r) top9) (cpn9 (fun r => pind9 (__lsim I2 tid r) top9)).
+    gpaco9 (fun r => pind9 (__lsim I1 tid r) top9) (cpn9 (fun r => pind9 (__lsim I1 tid r) top9))
+            <11=
+      gpaco9 (fun r => pind9 (__lsim I2 tid r) top9) (cpn9 (fun r => pind9 (__lsim I2 tid r) top9)).
   Proof.
-    ss. i.
-    unfold gupaco9 in *.
-    eapply gpaco9_mon_gen. eapply PR. all: i; ss; auto with paco.
+    ss. i. eapply gpaco9_mon_gen. eapply PR. all: i; ss; auto with paco.
     2:{ inv PR0. econs. 2: apply CLO. inv COM. econs; auto.
         i. exploit compat9_compat.
         { eapply compat9_mon. apply PR0. i. eapply _lsim_equivI. 2: apply PR1. clear - EQ. i. rewrite EQ; auto. }
-        { i. eapply _lsim_equivI. 2: apply x29. clear - EQ. i. rewrite EQ; auto. }
+        { i. eapply _lsim_equivI. 2: apply x30. clear - EQ. i. rewrite EQ; auto. }
     }
     { eapply _lsim_equivI. 2: apply PR0. clear - EQ. i. rewrite EQ; auto. }
   Qed.
