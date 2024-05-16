@@ -87,7 +87,7 @@ Notation "⇣ T" := (baseT T) (at level 90) : formula_type_scope.
 Notation "'Φ'" := (formulaT) : formula_type_scope.
 Infix "->" := (funT) : formula_type_scope.
 Infix "*" := (prodT) : formula_type_scope.
-(* Infix "+" := (sumT) : formula_type_scope. *)
+Infix "+" := (sumT) : formula_type_scope.
 
 
 Section BIGOP.
@@ -105,14 +105,14 @@ Section BIGOP.
 
   (* Maybe we can make Syntax as an instance for big_opMs. *)
   Definition syn_big_sepM
-             (n : index) K {H1 : EqDecision K} {H2 : Countable K}
-             A (I : @gmap K H1 H2 (Typ (Formula n) A))
+             (n : index) {K} {H1 : EqDecision K} {H2 : Countable K}
+             {A} (I : @gmap K H1 H2 (Typ (Formula n) A))
              (f : K -> (Typ (Formula n) A) -> Formula n)
     : Formula n :=
     fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (uncurry f hd) tl) empty (map_to_list I).
 
   Lemma red_syn_big_sepM n K {H1 : EqDecision K} {H2 : Countable K} A I f :
-    Sem n (syn_big_sepM n K A I f) = ([∗ map] i ↦ a ∈ I, Sem n (f i a))%I.
+    Sem n (@syn_big_sepM n K _ _ A I f) = ([∗ map] i ↦ a ∈ I, Sem n (f i a))%I.
   Proof.
     ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
     unfold syn_big_sepM. simpl. remember (map_to_list I) as L.
@@ -123,18 +123,17 @@ Section BIGOP.
   Qed.
 
   Definition syn_big_sepL1
-             (n : index) A (I : Typ (Formula n) (listT A))
+             (n : index) {A} (I : Typ (Formula n) (listT A))
              (f : (Typ (Formula n) A) -> Formula n)
     : Formula n :=
     fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (f hd) tl) empty I.
 
   Lemma red_syn_big_sepL1 n A I f :
-    Sem n (syn_big_sepL1 n A I f) = ([∗ list] a ∈ I, Sem n (f a))%I.
+    Sem n (@syn_big_sepL1 n A I f) = ([∗ list] a ∈ I, Sem n (f a))%I.
   Proof.
     ss. induction I; ss.
     rewrite @red_sem_sepconj. rewrite IHI. f_equal.
   Qed.
-
 
   (* Additional definitions. *)
 
@@ -152,6 +151,24 @@ Section BIGOP.
   Qed.
 
 End BIGOP.
+
+(* Notations. *)
+Notation "'[∗' n 'map]' k ↦ x ∈ m , P" :=
+  (syn_big_sepM n m (fun k x => P))
+    (at level 200, n at level 1, m at level 10, k, x at level 1, right associativity,
+      format "[∗ n map] k ↦ x ∈ m , P") : formula_scope.
+Notation "'[∗' n , A 'map]' k ↦ x ∈ m , P" :=
+  (syn_big_sepM n (A:=A) m (fun k x => P))
+    (at level 200, n at level 1, m at level 10, k, x, A at level 1, right associativity,
+      format "[∗ n , A map] k ↦ x ∈ m , P") : formula_scope.
+Notation "'[∗' n 'list]' x ∈ l , P" :=
+  (syn_big_sepL1 n l (fun k x => P))
+    (at level 200, n at level 1, l at level 10, x at level 1, right associativity,
+      format "[∗ n list] x ∈ l , P") : formula_scope.
+Notation "'[∗' n , A 'list]' x ∈ l , P" :=
+  (syn_big_sepL1 n (A:=A) l (fun k x => P))
+    (at level 200, n at level 1, l at level 10, x, A at level 1, right associativity,
+      format "[∗ n , A list] x ∈ l , P") : formula_scope.
 
 
 Section AUXATOM.
@@ -202,36 +219,6 @@ Module Atom.
     | obl_arrow_done2 (k : nat)
     | obl_arrow_pend (i : sum_tid ident_tgt) (k : nat) (c : Ord.t) (q : Qp)
     .
-
-(* ObligationRA.arrows_sats =  *)
-(*   (j : index), Regions.nsats (ObligationRA.arrows (S:=S)) j *)
-(* ObligationRA.arrows =  *)
-(*   (x : S * index * Ord.t * Qp * index * Vars i), ObligationRA.arrow i x *)
-(* ObligationRA.arrow =  *)
-(*   (v : index) '(i, k, c, q, x, f), *)
-(*   (□ (prop v f -∗ □ prop v f) ∗ *)
-(*    (OwnM (FiniteMap.singleton x (OneShot.shot ())) ∗  *)
-(*     ObligationRA.shot k ∗ prop v f *)
-(*     ∨ (∃ n : index, FairRA.black Prism.id i n q ∗ *)
-(*          ObligationRA.white k (c × n)%ord)))%I *)
-(* Regions.nsats =  *)
-(*   ([∗ list] i ∈ seq 0 j, Regions.sat i (interps i))%I *)
-(* Regions.sat =  *)
-(*   (∃ l : list (As x), Regions.black x l ∗ Regions.sat_list As x interp l)%I *)
-(* Regions.black =  *)
-(*   OwnM *)
-(*     (maps_to_res_dep x *)
-(*        ((λ n : index, *)
-(*            match nth_error l n with *)
-(*            | Some a => OneShot.shot a *)
-(*            | None => OneShot.pending (As x) 1 *)
-(*            end) *)
-(*           : (index ==> OneShot.t (As x))%ra) *)
-(*        : Regions.t As) *)
-(* Regions.sat_list =  *)
-(* λ (X : Type) (As : X → Type) (Σ : GRA.t) (x : X) (interp : As x → iProp)  *)
-(*   (l : list (As x)), *)
-(*   foldr (λ (a : As x) (P : iProp), (interp a ∗ P)%I) True%I l *)
 
   End ATOM.
 
@@ -395,16 +382,10 @@ Section RED.
   Lemma red_tl_univ n ty p :
     ⟦(∀ x, p x)%F, n⟧ = (∀ (x : τ{ty}), ⟦p x, n⟧)%I.
   Proof. apply red_sem_univ. Qed.
-  (* Lemma red_tl_univ n ty p : *)
-  (*   ⟦(∀ x, p x)%F, n⟧ = (∀ (x : τ{ty, n}), ⟦p x, n⟧)%I. *)
-  (* Proof. apply red_sem_univ. Qed. *)
 
   Lemma red_tl_ex n ty p :
     ⟦(∃ x, p x)%F, n⟧ = (∃ (x : τ{ty}), ⟦p x, n⟧)%I.
   Proof. apply red_sem_ex. Qed.
-  (* Lemma red_tl_ex n ty p : *)
-  (*   ⟦(∃ x, p x)%F, n⟧ = (∃ (x : τ{ty, n}), ⟦p x, n⟧)%I. *)
-  (* Proof. apply red_sem_ex. Qed. *)
 
   Lemma red_tl_and n p q :
     ⟦(p ∧ q)%F, n⟧ = (⟦p, n⟧ ∧ ⟦q, n⟧)%I.
@@ -462,7 +443,6 @@ Section RED.
   Proof. apply red_syn_sat_list. Qed.
 
 End RED.
-
 Global Opaque SynSem.
 
 (** Simple formula reduction tactics. *)
@@ -532,7 +512,9 @@ Section WSATS.
     fun i p => ((p ∗ ⟨ownd n {[i]}⟩) ∨ ⟨owne n {[i]}⟩)%F.
 
   Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n :=
-    syn_big_sepM n positive formulaT ps (syn_inv_satall_fun n).
+    ([∗ n , formulaT map] k ↦ p ∈ ps, syn_inv_satall_fun n k p)%F.
+  (* Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n := *)
+  (*   syn_big_sepM n (A:=formulaT) ps (syn_inv_satall_fun n). *)
 
   Lemma red_syn_inv_satall_fun n i p :
     ⟦syn_inv_satall_fun n i p, n⟧ = ((⟦p, n⟧ ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I.
@@ -604,7 +586,9 @@ Section WSATS.
     fun n E => ⟨owne n E⟩%F.
 
   Definition syn_owne_satall x (Es : coPsets) : Formula x :=
-    syn_big_sepM x index coPset Es (syn_owne_satall_fun x).
+    ([∗ x , coPset map] k ↦ E ∈ Es, syn_owne_satall_fun x k E)%F.
+  (* Definition syn_owne_satall x (Es : coPsets) : Formula x := *)
+  (*   syn_big_sepM x index coPset Es (syn_owne_satall_fun x). *)
 
   Lemma red_syn_owne_satall x Es :
     ⟦syn_owne_satall x Es, x⟧ = OwnE_satall Es.
@@ -660,7 +644,6 @@ Section WSATS.
   Qed.
 
 End WSATS.
-
 Global Opaque syn_wsat.
 Global Opaque syn_wsats.
 Global Opaque syn_ownes.
@@ -693,11 +676,6 @@ Section OBLIG.
 
   Local Notation _dataT := ((sum_tid id_tgt_type) * nat * Ord.t * Qp * nat)%type.
   Local Notation dataT := (fun (n : index) => (_dataT * Formula n)%type).
-
-  (* Local Notation dataT2 := *)
-  (*   (fun (n : index) => (sum_tid id_tgt_type * index * Ord.t * Qp * index * Formula n)%type). *)
-
-  (* Goal forall n, dataT n = dataT2 n. ss. Qed. *)
 
   Import Atom.
 
@@ -762,7 +740,25 @@ Section OBLIG.
     iApply IHn. iFrame.
   Qed.
 
+  Definition syn_fairI n : Formula n := (⟨obl_edges_sat⟩ ∗ syn_arrows_sats n)%F.
+
+  Lemma syn_fairI_to_fairI n :
+    ⟦syn_fairI n, n⟧ ⊢ fairI n.
+  Proof.
+    unfold syn_fairI. red_tl. rewrite syn_arrows_sats_to_arrows_sats. unfold fairI. ss.
+  Qed.
+
+  Lemma fairI_to_syn_fairI n :
+    fairI n ⊢ ⟦syn_fairI n, n⟧.
+  Proof.
+    unfold syn_fairI. red_tl. unfold fairI. rewrite arrows_sats_to_syn_arrows_sats. ss.
+  Qed.
+
 End OBLIG.
+Global Opaque syn_obl_arrow.
+Global Opaque syn_arrows_sat_list.
+Global Opaque syn_arrows_sat.
+Global Opaque syn_arrows_sats.
 
 
 
