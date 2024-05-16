@@ -660,3 +660,68 @@ Section SIM.
   Qed.
 
 End SIM.
+
+Section AUX.
+
+  Context `{Σ: GRA.t}.
+
+  Variable state_src: Type.
+  Variable state_tgt: Type.
+
+  Variable ident_src: ID.
+  Variable ident_tgt: ID.
+
+  Let srcE := threadE ident_src state_src.
+  Let tgtE := threadE ident_tgt state_tgt.
+
+  Variable wf_src: WF.
+  Variable tid: thread_id.
+
+  Lemma isim_equiv
+        I1 I2
+        (EQUIV : forall ths ims imt sts stt, I1 ths ims imt sts stt ⊣⊢ I2 ths ims imt sts stt)
+        r g R_src R_tgt Q
+        ps pt (itr_src : itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
+        ths (im_src : imap ident_src wf_src) (im_tgt : imap (sum_tid ident_tgt) nat_wf) st_src st_tgt
+    :
+    (isim tid I1 r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      ⊢
+      (isim tid I2 r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    assert (EQ: forall ths ims imt sts stt (r : Σ) (WF: URA.wf r), I1 ths ims imt sts stt r <-> I2 ths ims imt sts stt r).
+    { clear - EQUIV. i. specialize (EQUIV ths ims imt sts stt). rr in EQUIV. inv EQUIV. eauto. }
+    rr. autorewrite with iprop. i.
+    ii. rr in H. unfold liftI in *.
+
+    TODO
+
+    assert (
+        (λ '(ths, im_src, im_tgt, st_src, st_tgt) (r_shared : Σ), I1 ths im_src im_tgt st_src st_tgt r_shared)
+          ≡
+          (λ '(ths0, im_src0, im_tgt0, st_src0, st_tgt0) (r_shared : Σ), I2 ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared)).
+
+
+    muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+  Qed.
+
+
+  Program Definition isim: rel -> rel -> rel :=
+    fun
+      r g
+      R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+      iProp_intro
+        (fun r_own =>
+           forall r_ctx (WF: URA.wf (r_own ⋅ r_ctx)),
+             gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _.
+  Next Obligation.
+  Proof.
+    ii. ss. eapply H.
+    eapply URA.wf_extends; eauto. eapply URA.extends_add; eauto.
+  Qed.
+
+  Tactic Notation "muclo" uconstr(H) :=
+    eapply gpaco9_uclo; [auto with paco|apply H|].
+
+
+End AUX.

@@ -52,10 +52,9 @@ Section STATE.
   Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
 
   Variable x : index.
+  Variable tid: thread_id.
 
   Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> iProp), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> iProp).
-
-  Variable tid: thread_id.
 
   Let unlift_rel
       (r: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel): rel :=
@@ -161,6 +160,53 @@ Section STATE.
                ths im_src im_tgt st_src st_tgt))%I
   .
 
+  Definition ibot5 { T0 T1 T2 T3 T4} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := False.
+  Definition ibot7 { T0 T1 T2 T3 T4 T5 T6} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5): iProp := False.
+  Definition ibot12 { T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5)
+             (x7: T7 x0 x1 x2 x3 x4 x5 x6)
+             (x8: T8 x0 x1 x2 x3 x4 x5 x6 x7)
+             (x9: T9 x0 x1 x2 x3 x4 x5 x6 x7 x8)
+             (x10: T10 x0 x1 x2 x3 x4 x5 x6 x7 x8 x9)
+             (x11: T11 x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10)
+    : iProp := False.
+
+  Definition isim_simple {Form : Type} {intpF : Form -> iProp}
+             (I0 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
+             (I1 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form) :
+    forall R_src R_tgt (Q: R_src -> R_tgt -> Form), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp
+    :=
+    fun R_src R_tgt Q ps pt itr_src itr_tgt ths ims imt sts stt =>
+      (isim
+         (* state_src state_tgt ident_src ident_tgt owf *)
+         tid
+         (fun ths ims imt sts stt => intpF (I0 ths ims imt sts stt))
+         ibot12
+         ibot12
+         (* R_src R_tgt *)
+         (fun r_src r_tgt ths ims imt sts stt => ((intpF (I1 ths ims imt sts stt)) ∗ (intpF (Q r_src r_tgt)))%I)
+         ps pt itr_src itr_tgt
+         ths ims imt sts stt)%I.
+
+  (* Definition wpsim_simple *)
+  (*            (Es : coPsets) *)
+  (*            (I0 I1 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Vars x) : *)
+  (*   forall R_src R_tgt (Q: R_src -> R_tgt -> Vars x), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> iProp := *)
+  (*   fun R_src R_tgt Q ps pt itr_src itr_tgt => *)
+  (*     (∀ ths ims imt sts stt, *)
+  (*         (prop _ (I0 ths ims imt sts stt)) *)
+  (*           -∗ *)
+  (*           (isim *)
+  (*              tid *)
+  (*              (fun ths ims imt sts stt => prop _ (I1 ths ims imt sts stt)) *)
+  (*              (lift_rel ibot7) *)
+  (*              (lift_rel ibot7) *)
+  (*              (fun r_src r_tgt ths ims imt sts stt => (prop _ (I0 ths ims imt sts stt)) ∗ (prop _ (Q r_src r_tgt))) *)
+  (*              ps pt itr_src itr_tgt *)
+  (*              ths ims imt sts stt))%I *)
+  (* . *)
+
+  (* Lemmas for wpsim. *)
+
   Record mytype
          (A: Type) :=
     mk_mytype {
@@ -171,8 +217,6 @@ Section STATE.
         comp_st_src: state_src;
         comp_st_tgt: state_tgt;
       }.
-
-  (* Lemmas for wpsim. *)
 
   Lemma wpsim_upd Es r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1216,9 +1260,6 @@ Section STATE.
     unfold wpsim. iIntros "H" (? ? ? ? ?) "D".
     iApply isim_progress. iApply ("H" with "D").
   Qed.
-
-  Definition ibot5 { T0 T1 T2 T3 T4} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := False.
-  Definition ibot7 { T0 T1 T2 T3 T4 T5 T6} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5): iProp := False.
 
 End STATE.
 
