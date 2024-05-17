@@ -7,6 +7,7 @@ Require Logic.Classical_Pred_Type.
 Require Import Coq.Logic.ProofIrrelevance.
 Require Import Coq.Logic.ClassicalEpsilon.
 Require Import Coq.Logic.IndefiniteDescription.
+Require Import Coq.Logic.PropExtensionality.
 
 
 Set Implicit Arguments.
@@ -54,3 +55,5 @@ Proof.
   eapply ChoiceFacts.non_dep_dep_functional_choice.
   clear. exact functional_choice.
 Qed.
+
+Definition propositional_extensionality := propositional_extensionality.
