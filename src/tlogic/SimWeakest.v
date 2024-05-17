@@ -177,7 +177,6 @@ Section STATE.
     :=
     fun R_src R_tgt Q ps pt itr_src itr_tgt ths ims imt sts stt =>
       (isim
-         (* state_src state_tgt ident_src ident_tgt owf *)
          tid
          (fun ths ims imt sts stt => intpF (I0 ths ims imt sts stt))
          ibot12
@@ -187,23 +186,6 @@ Section STATE.
          ps pt itr_src itr_tgt
          ths ims imt sts stt)%I.
 
-  (* Definition wpsim_simple *)
-  (*            (Es : coPsets) *)
-  (*            (I0 I1 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Vars x) : *)
-  (*   forall R_src R_tgt (Q: R_src -> R_tgt -> Vars x), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> iProp := *)
-  (*   fun R_src R_tgt Q ps pt itr_src itr_tgt => *)
-  (*     (∀ ths ims imt sts stt, *)
-  (*         (prop _ (I0 ths ims imt sts stt)) *)
-  (*           -∗ *)
-  (*           (isim *)
-  (*              tid *)
-  (*              (fun ths ims imt sts stt => prop _ (I1 ths ims imt sts stt)) *)
-  (*              (lift_rel ibot7) *)
-  (*              (lift_rel ibot7) *)
-  (*              (fun r_src r_tgt ths ims imt sts stt => (prop _ (I0 ths ims imt sts stt)) ∗ (prop _ (Q r_src r_tgt))) *)
-  (*              ps pt itr_src itr_tgt *)
-  (*              ths ims imt sts stt))%I *)
-  (* . *)
 
   (* Lemmas for wpsim. *)
 

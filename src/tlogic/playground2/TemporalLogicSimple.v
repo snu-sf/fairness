@@ -2,7 +2,7 @@ From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.
 From Fairness Require Import ISim SimDefaultRA SimWeakest.
-From Fairness Require Import LogicSyntaxHOASSim.
+From Fairness Require Import LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 Require Import Program.
@@ -31,11 +31,7 @@ Section TYPES.
     | prodT : type -> type -> type
     | sumT : type -> type -> type
     | listT : type -> type
-    | pgmapT : type -> type
-    | nat_wfT : type
-    | owfT : type
-    | tidsetT : type
-    .
+    | pgmapT : type -> type.
 
   End TYPE.
 
@@ -50,9 +46,6 @@ Section TYPES.
       | sumT ty1 ty2 => sum (Typ form ty1) (Typ form ty2)
       | listT ty1 => list (Typ form ty1)
       | pgmapT ty1 => gmap positive (Typ form ty1)
-      | nat_wfT => T nat_wf
-      | owfT => T owf
-      | tidsetT => TIdSet.t
       end.
 
   End INTERP_TYPE.
@@ -217,14 +210,14 @@ Module Atom.
     | ob_st_tgt (st_tgt : state_tgt)
     | ow_st_tgt (st_tgt : state_tgt)
     | fair_src (im_src : @FairBeh.imap ident_src owf)
-    | fair_tgt (im_tgt : @FairBeh.imap (nat + ident_tgt) nat_wf) (ths : TIdSet.t)
+    | fair_tgt (im_tgt : @FairBeh.imap (sum_tid ident_tgt) nat_wf) (ths : TIdSet.t)
     (** Atoms to express liveness logic. *)
     | obl_edges_sat
     | obl_arrows_auth (x : index)
-    | obl_arrows_regions_black (l : list ((nat + ident_tgt) * nat * Ord.t * Qp * nat * (@Syntax.t _ (@Typ) (@t form) form)))
+    | obl_arrows_regions_black (l : list ((sum_tid ident_tgt) * nat * Ord.t * Qp * nat * (@Syntax.t _ (@Typ) (@t form) form)))
     | obl_arrow_done1 (x : nat)
     | obl_arrow_done2 (k : nat)
-    | obl_arrow_pend (i : nat + ident_tgt) (k : nat) (c : Ord.t) (q : Qp)
+    | obl_arrow_pend (i : sum_tid ident_tgt) (k : nat) (c : Ord.t) (q : Qp)
     .
 
   End ATOM.
@@ -422,29 +415,9 @@ Section RED.
     ⟦(■ p)%F, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
   Proof. apply red_sem_plainly. Qed.
 
-  Lemma red_tl_upd n (p : Formula n) :
+  Lemma red_tl_upd n p :
     ⟦( |==> p)%F, n⟧ = ( |==> ⟦p, n⟧)%I.
   Proof. apply red_sem_upd. Qed.
-
-  Lemma red_tl_sisim n
-        {state_src state_tgt ident_src ident_tgt : Type}
-        (tid : thread_id)
-        (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> Formula n)
-        (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> Formula n)
-        {R_src R_tgt : Type}
-        (Q : R_src -> R_tgt -> Formula n)
-        (ps pt : bool)
-        (itr_src : itree (threadE ident_src state_src) R_src)
-        (itr_tgt : itree (threadE ident_tgt state_tgt) R_tgt)
-        (ths : TIdSet.t)
-        (ims : @FairBeh.imap ident_src owf)
-        (imt : @FairBeh.imap (nat + ident_tgt) nat_wf)
-        (sts : state_src)
-        (stt : state_tgt)
-    :
-    ⟦Syntax.sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt, n⟧
-    = (isim_simple tid (intpF:=SynSem n) I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)%I.
-  Proof. apply red_sem_sisim. Qed.
 
   (** Derived ones. *)
 
@@ -490,8 +463,7 @@ Ltac red_tl_unary_once := (try rewrite ! @red_tl_atom;
                            try rewrite ! @red_tl_plainly;
                            try rewrite ! @red_tl_upd;
                            try rewrite ! @red_tl_affinely;
-                           try rewrite ! @red_tl_intuitionistically;
-                           try rewrite ! @red_tl_sisim
+                           try rewrite ! @red_tl_intuitionistically
                           ).
 
 Ltac red_tl_binary := repeat red_tl_binary_once.
@@ -702,7 +674,7 @@ Section OBLIG.
   Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
 
 
-  Local Notation _dataT := ((nat + id_tgt_type) * nat * Ord.t * Qp * nat)%type.
+  Local Notation _dataT := ((sum_tid id_tgt_type) * nat * Ord.t * Qp * nat)%type.
   Local Notation dataT := (fun (n : index) => (_dataT * Formula n)%type).
 
   Import Atom.
@@ -787,167 +759,6 @@ Global Opaque syn_obl_arrow.
 Global Opaque syn_arrows_sat_list.
 Global Opaque syn_arrows_sat.
 Global Opaque syn_arrows_sats.
-
-Section SIMI.
-
-  Context {AA : AuxAtom}.
-  Context {STT : StateTypes}.
-
-  Context `{Σ : GRA.t}.
-  Context `{AAI : @AAInterp Σ AA}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
-
-  Let srcE := threadE id_src_type st_src_type.
-  Let tgtE := threadE id_tgt_type st_tgt_type.
-
-  Import Atom.
-
-  Definition syn_default_I n
-    : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> Formula n :=
-    fun ths im_src im_tgt st_src st_tgt =>
-      (⟨ob_ths ths⟩ ∗ ⟨ob_st_src st_src⟩ ∗ ⟨ob_st_tgt st_tgt⟩ ∗ ⟨fair_src im_src⟩ ∗ ⟨fair_tgt im_tgt ths⟩ ∗ ⟨obl_edges_sat⟩ ∗ syn_arrows_sats n ∗ ⟨obl_arrows_auth n⟩)%F.
-
-  Lemma syn_default_I_to_default_I n ths ims imt sts stt :
-    ⟦syn_default_I n ths ims imt sts stt, n⟧ ⊢ default_I n ths ims imt sts stt.
-  Proof.
-    unfold syn_default_I, default_I. red_tl. iIntros "[A [B [C [D [E [F [G H]]]]]]]". iFrame.
-    iApply syn_arrows_sats_to_arrows_sats. iFrame.
-  Qed.
-
-  Lemma default_I_to_syn_default_I n ths ims imt sts stt :
-    default_I n ths ims imt sts stt ⊢ ⟦syn_default_I n ths ims imt sts stt, n⟧.
-  Proof.
-    unfold syn_default_I, default_I. red_tl. iIntros "[A [B [C [D [E [F [G H]]]]]]]". iFrame.
-    iApply arrows_sats_to_syn_arrows_sats. iFrame.
-  Qed.
-
-  Definition syn_default_I_past tid n
-    : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> Formula n :=
-    fun ths im_src im_tgt st_src st_tgt =>
-      (∃ (im_tgt0 : τ{ ((nat + id_tgt_type)%type -> nat_wfT) }),
-          (⌜fair_update im_tgt0 im_tgt (prism_fmap inlp (tids_fmap tid ths))⌝)
-            ∗ (syn_default_I n ths im_src im_tgt0 st_src st_tgt))%F.
-
-  Lemma syn_default_I_past_to_default_I_past tid n ths ims imt sts stt :
-    ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ ⊢ default_I_past tid n ths ims imt sts stt.
-  Proof.
-    unfold syn_default_I_past, default_I_past. red_tl.
-    iIntros "[% D]". red_tl. iDestruct "D" as "[% D]".
-    iExists _. rewrite syn_default_I_to_default_I. iFrame. auto.
-  Qed.
-
-  Lemma default_I_past_to_syn_default_I_past tid n ths ims imt sts stt :
-    default_I_past tid n ths ims imt sts stt ⊢ ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧.
-  Proof.
-    unfold syn_default_I_past, default_I_past. red_tl.
-    iIntros "[% [% D]]". iExists _. red_tl. iSplit. auto.
-    iApply default_I_to_syn_default_I. iFrame.
-  Qed.
-
-  Definition syn_wpsim n tid Es
-    : forall {R_src R_tgt : Type}, (R_src -> R_tgt -> Formula n) -> bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> Formula n
-    :=
-    fun R_src R_tgt Q ps pt itr_src itr_tgt =>
-      (∀ (ths : τ{ tidsetT })
-         (im_src : τ{ id_src_type -> owfT })
-         (im_tgt : τ{ ((nat + id_tgt_type)%type -> nat_wfT) })
-         (st_src : τ{ st_src_type })
-         (st_tgt : τ{ st_tgt_type }),
-          (syn_default_I_past tid n ths im_src im_tgt st_src st_tgt ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n Es))
-            -∗
-            (Syntax.sisim tid
-                          (fun ths ims imt sts stt =>
-                             ((syn_default_I n ths ims imt sts stt)
-                                ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
-                          (fun ths ims imt sts stt =>
-                             ((syn_default_I_past tid n ths ims imt sts stt)
-                                ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
-                          Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      )%F.
-
-  Lemma syn_wpsim_to_wpsim
-        n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
-    ⟦syn_wpsim n tid Es Q ps pt itr_src itr_tgt, n⟧
-      ⊢
-      wpsim n tid Es ibot7 ibot7 (fun rs rt => ⟦Q rs rt, n⟧) ps pt itr_src itr_tgt.
-  Proof.
-    iIntros "SWP". unfold syn_wpsim. red_tl.
-    iIntros (? ? ? ? ?) "[D (W1 & W2 & W3)]".
-    iSpecialize ("SWP" $! ths). red_tl.
-    iSpecialize ("SWP" $! im_src). red_tl.
-    iSpecialize ("SWP" $! im_tgt). red_tl.
-    iSpecialize ("SWP" $! st_src). red_tl.
-    iSpecialize ("SWP" $! st_tgt). red_tl.
-    iPoseProof ("SWP" with "[D W1 W2 W3]") as "SWP".
-    { ss. iFrame.
-      rewrite default_I_past_to_syn_default_I_past. rewrite wsats_to_syn_wsats. rewrite red_syn_ownes.
-      iFrame.
-    }
-    unfold isim_simple.
-    iApply isim_mono_knowledge; cycle 2.
-    iApply isim_mono; cycle 1.
-    { iApply isim_equivI. 2: iFrame.
-      iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-      - rewrite syn_default_I_to_default_I. rewrite syn_wsats_to_wsats. rewrite red_syn_ownes. iFrame.
-      - rewrite default_I_to_syn_default_I. rewrite wsats_to_syn_wsats. rewrite red_syn_ownes. iFrame.
-    }
-    { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-      iModIntro. rewrite syn_default_I_past_to_default_I_past. rewrite syn_wsats_to_wsats. rewrite red_syn_ownes. iFrame.
-    }
-    { iIntros. inv H. }
-    { iIntros. inv H. }
-  Qed.
-
-  Lemma wpsim_to_syn_wpsim
-        n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
-    wpsim n tid Es ibot7 ibot7 (fun rs rt => ⟦Q rs rt, n⟧) ps pt itr_src itr_tgt
-          ⊢
-          ⟦syn_wpsim n tid Es Q ps pt itr_src itr_tgt, n⟧.
-  Proof.
-    iIntros "SWP". unfold syn_wpsim. red_tl.
-    iIntros (ths). red_tl.
-    iIntros (im_src). red_tl.
-    iIntros (im_tgt). red_tl.
-    iIntros (st_src). red_tl.
-    iIntros (st_tgt). red_tl.
-    simpl in *. unfold wpsim. iSpecialize ("SWP" $! ths im_src im_tgt st_src st_tgt).
-    iIntros "[D (W1 & W2 & W3)]".
-    iPoseProof ("SWP" with "[D W1 W2 W3]") as "SWP".
-    { ss. iFrame.
-      rewrite syn_default_I_past_to_default_I_past. rewrite syn_wsats_to_wsats. rewrite red_syn_ownes.
-      iFrame.
-    }
-    unfold isim_simple.
-    iPoseProof (isim_mono_knowledge with "SWP") as "SWP"; cycle 2.
-    iPoseProof (isim_mono with "SWP") as "SWP"; cycle 1.
-    { iPoseProof (isim_equivI with "SWP") as "SWP". 2: iFrame.
-      iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-      - rewrite default_I_to_syn_default_I. rewrite wsats_to_syn_wsats. rewrite red_syn_ownes. iFrame.
-      - rewrite syn_default_I_to_default_I. rewrite syn_wsats_to_wsats. rewrite red_syn_ownes. iFrame.
-    }
-    { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-      iModIntro.
-      rewrite default_I_past_to_syn_default_I_past. rewrite wsats_to_syn_wsats. rewrite red_syn_ownes. iFrame.
-    }
-    { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?). iIntros "(% & % & %H & _)". inv H. }
-    { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?). iIntros "(% & % & %H & _)". inv H. }
-  Qed.
-
-End SIMI.
 
 
 

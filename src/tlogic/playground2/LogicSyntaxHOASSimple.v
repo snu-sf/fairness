@@ -1,7 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.
-From Fairness Require Import SimWeakest.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 From Coq Require Import Program Arith.
@@ -31,20 +30,6 @@ Module Syntax.
     | persistently (p : t) : t
     | plainly (p : t) : t
     | upd (p : t) : t
-    | sisim {state_src state_tgt ident_src ident_tgt : Type}
-            (tid : thread_id)
-            (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> t)
-            (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> t)
-            {R_src R_tgt : Type}
-            (Q : R_src -> R_tgt -> t)
-            (ps pt : bool)
-            (itr_src : itree (threadE ident_src state_src) R_src)
-            (itr_tgt : itree (threadE ident_tgt state_tgt) R_tgt)
-            (ths : TIdSet.t)
-            (ims : @FairBeh.imap ident_src owf)
-            (imt : @FairBeh.imap (nat + ident_tgt) nat_wf)
-            (sts : state_src)
-            (stt : state_tgt)
     .
 
   End SYNTAX.
@@ -98,13 +83,6 @@ Module Syntax.
         | persistently p => Persistently (_to_semantics_aux p)
         | plainly p => IProp.Plainly (_to_semantics_aux p)
         | upd p => Upd (_to_semantics_aux p)
-        | sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt =>
-            isim_simple tid
-                        (intpF:=_to_semantics_aux)
-                        I0
-                        I1
-                        Q
-                        ps pt itr_src itr_tgt ths ims imt sts stt
         end
       end.
 
@@ -239,26 +217,6 @@ Section RED.
 
   Lemma red_sem_intuitionistically n p :
     Sem n (syn_affinely (Syntax.persistently p)) = (□ Sem n p)%I.
-  Proof. ss. Qed.
-
-  Lemma red_sem_sisim n
-        {state_src state_tgt ident_src ident_tgt : Type}
-        (tid : thread_id)
-        (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> formulas n)
-        (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> formulas n)
-        {R_src R_tgt : Type}
-        (Q : R_src -> R_tgt -> formulas n)
-        (ps pt : bool)
-        (itr_src : itree (threadE ident_src state_src) R_src)
-        (itr_tgt : itree (threadE ident_tgt state_tgt) R_tgt)
-        (ths : TIdSet.t)
-        (ims : @FairBeh.imap ident_src owf)
-        (imt : @FairBeh.imap (nat + ident_tgt) nat_wf)
-        (sts : state_src)
-        (stt : state_tgt)
-    :
-    Sem n (Syntax.sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)
-    = (isim_simple tid (intpF:=Sem n) I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)%I.
   Proof. ss. Qed.
 
 End RED.
