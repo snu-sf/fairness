@@ -1704,48 +1704,37 @@ Module ObligationRA.
 
     Section COLLECT.
 
-      (* Variable (v: index). *)
-      (* Local Notation Var := (Vars v). *)
+      Definition collection_taxes k o (l : list (nat * Ord.t)) :=
+        (black k o ∗ taxes l o)%I.
 
-      Definition collect_tax o : (nat * Ord.t) -> iProp :=
-        fun '(k, c) => white k ((c × Ord.omega) × o)%ord.
-
-      Definition collection_tax k o (l : list (nat * Ord.t)) :=
-        (black k o ∗ Region.sat_list (collect_tax o) l)%I.
-
-      Lemma collect_tax_split o k c :
-        forall o0, (o0 < o)%ord ->
-              collect_tax o (k, c) ⊢ #=> collect_tax o0 (k, c) ∗ white k (c × Ord.omega)%ord.
+      Lemma collection_taxes_decr k o0 l o1 :
+        (collection_taxes k o0 l)
+          -∗
+          (white k o1)
+          -∗
+          (#=> ∃ o2, collection_taxes k o2 l ∗ ⌜((o2 ⊕ o1) <= o0)%ord⌝ ∗ taxes l o1).
       Proof.
-        iIntros (o0 LT) "C". unfold collect_tax.
-        iMod (white_split ((c × Ord.omega) × o0)%ord ((c × Ord.omega) × (Ord.S Ord.O))%ord with "C") as "[C0 C1]".
-        { rewrite <- ClassicJacobsthal.mult_dist. apply Jacobsthal.le_mult_r.
-          rewrite Hessenberg.add_S_r. rewrite Hessenberg.add_O_r. apply Ord.S_supremum; auto.
-        }
-        iModIntro. iFrame. iApply white_eq. 2: iFrame.
-        apply Jacobsthal.mult_1_r.
+        iIntros "[B C] W". iMod (black_white_decr with "B W") as "[% [B2 %]]".
+        iExists o2. iFrame. iMod (taxes_ord_split with "C") as "[TS T]". eauto.
+        iFrame. iPureIntro. auto.
       Qed.
 
-      Lemma collect_taxes_split o l :
-        forall o0, (o0 < o)%ord ->
-              Region.sat_list (collect_tax o) l ⊢ #=> Region.sat_list (collect_tax o0) l ∗ tax l.
-      Proof.
-        induction l; iIntros (o0 LT) "C".
-        { ss. }
-        ss. iDestruct "C" as "[T C]". iMod (IHl o0 LT with "C") as "[C T2]". iFrame.
-        destruct a as [k c]. iApply collect_tax_split; eauto.
-      Qed.
-
-      Lemma collection_tax_decr k o l :
-        (collection_tax k o l)
+      Lemma collection_taxes_decr_one k o l :
+        (collection_taxes k o l)
           -∗
           (white_one k)
           -∗
-          (#=> ∃ o', collection_tax k o' l ∗ ⌜(o' < o)%ord⌝ ∗ tax l).
+          (#=> ∃ o', collection_taxes k o' l ∗ ⌜(o' < o)%ord⌝ ∗ tax l).
       Proof.
         iIntros "[B C] W". iMod (black_white_decr_one with "B W") as "[% [B2 %]]".
-        iExists o0. iFrame. iMod (collect_taxes_split with "C") as "[C T]". eauto.
+        iExists o0. iFrame. iMod (taxes_ord_split_one with "C") as "[TS T]". eauto.
         iFrame. iPureIntro. auto.
+      Qed.
+
+      Lemma collection_taxes_make k o l :
+        (black k o ∗ taxes l o) ⊢ collection_taxes k o l.
+      Proof.
+        iIntros "[B T]". iFrame.
       Qed.
 
     End COLLECT.

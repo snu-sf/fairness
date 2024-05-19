@@ -416,9 +416,103 @@ Section RULES.
     apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
   Qed.
 
+  (** Additional definitions and rules. *)
 
-  (* ObligationRA.tax *)
-  (*   collection *)
+  Definition progress_proofs (l : list (nat * nat)) m a :=
+    taxes (map (fun '(k, n) => (k, layer n 1)) l) (layer m a).
+
+  Lemma pp_nil m a : ⊢ progress_proofs [] m a.
+  Proof. iApply taxes_nil. Qed.
+
+  Lemma pp_perm l0 l1 m a :
+    (l0 ≡ₚ l1) -> progress_proofs l0 m a ⊢ progress_proofs l1 m a.
+  Proof.
+    iIntros. iApply taxes_perm. 2: iFrame.
+    apply Permutation_map; auto.
+  Qed.
+
+  Lemma pp_combine l0 l1 m a :
+    progress_proofs l0 m a ∗ progress_proofs l1 m a ⊢ progress_proofs (l0 ++ l1) m a.
+  Proof.
+    iIntros "[A B]". unfold progress_proofs. rewrite map_app.
+    iApply taxes_combine. iFrame.
+  Qed.
+
+  Lemma pp_split l0 l1 m a :
+    progress_proofs (l0 ++ l1) m a ⊢ progress_proofs l0 m a ∗ progress_proofs l1 m a.
+  Proof.
+    iIntros "A". unfold progress_proofs. rewrite map_app.
+    iApply taxes_split. iFrame.
+  Qed.
+
+  Lemma pp_cons_unfold k l tl m a :
+    progress_proofs ((k, l) :: tl) m a ⊢ progress_credit k (1 + l + m) a ∗ progress_proofs tl m a.
+  Proof.
+    unfold progress_proofs. iIntros "P". ss. unfold progress_credit.
+    iPoseProof (taxes_cons_unfold with "P") as "[W T]". iFrame.
+    iApply white_eq. 2: iFrame.
+    replace (S (l + m)) with (l + 1 + m) by lia.
+    rewrite ! layer_sep. rewrite layer_one_one. reflexivity.
+  Qed.
+
+  Lemma pp_cons_fold k l tl m a :
+    progress_credit k (1 + l + m) a ∗ progress_proofs tl m a ⊢ progress_proofs ((k, l) :: tl) m a.
+  Proof.
+    unfold progress_proofs. iIntros "[PC PP]". ss. unfold progress_credit.
+    iPoseProof (taxes_cons_fold with "[PC PP]") as "W". 2: iFrame.
+    iFrame. iApply white_eq. 2: iFrame.
+    replace (S (l + m)) with (l + 1 + m) by lia.
+    rewrite ! layer_sep. rewrite layer_one_one. reflexivity.
+  Qed.
+
+  Lemma pp_decr l m :
+    forall a b c, (a + b <= c) ->
+             progress_proofs l m c ⊢ |==> progress_proofs l m a ∗ progress_proofs l m b.
+  Proof.
+    intros. iIntros "PP". iMod (taxes_ord_split with "PP") as "[T1 T2]".
+    2: iModIntro; iFrame.
+    apply layer_split_le. lia.
+  Qed.
+
+  Lemma pp_merge l m :
+    forall a b, progress_proofs l m a ∗ progress_proofs l m b ⊢ |==> progress_proofs l m (a + b).
+  Proof.
+    intros. iIntros "PP". iPoseProof (taxes_ord_merge with "PP") as "PP".
+    iApply taxes_ord_mon. 2: iFrame. rewrite layer_split. reflexivity.
+  Qed.
+
+  (*   ObligationRA.collection_taxes *)
+
+  Definition collection_proofs k o (ps : list (nat * nat)) :=
+    collection_taxes k o (map (fun '(k, l) => (k, layer l 1)) ps).
+
+  Lemma collection_proofs_decr k o ps :
+    forall m a, (0 < a) ->
+           (collection_proofs k o ps ∗ progress_credit k m a)
+             ⊢ #=> (∃ o', collection_proofs k o' ps ∗ ⌜(o' < o)%ord⌝ ∗ progress_proofs ps 0 1).
+  Proof.
+    intros. iIntros "[COL PC]". 
+    iMod (pc_mon _ 0 _ 1 _ with "PC") as "PC".
+    { destruct (le_lt_eq_dec 0 m). lia.
+      - apply Ord.lt_le. apply layer_decr; auto.
+      - subst. rewrite ! layer_zero1. apply OrdArith.le_from_nat. lia.
+    }
+    iMod (collection_taxes_decr_one with "COL [PC]") as "[% (COL & % & TAX)]".
+    { iApply white_eq. 2: iFrame. rewrite layer_zero1. reflexivity. }
+    iExists o'. iFrame.
+    iPoseProof (tax_is_single_taxes with "TAX") as "T".
+    unfold progress_proofs. iMod (taxes_ord_mon with "T") as "T".
+    2:{ iModIntro. iSplit. auto. iFrame. }
+    rewrite layer_zero1. reflexivity.
+  Qed.
+
+  Lemma collection_proofs_make k l o ps :
+    (liveness_obligation k l o ∗ progress_proofs ps l 1) ⊢ |==> collection_proofs k o ps.
+  Proof.
+    iIntros "[[% B] T]". iMod (taxes_ord_mon with "T") as "T". eauto.
+    iPoseProof (collection_taxes_make with "[B T]") as "CT". iFrame.
+    iModIntro. iFrame.
+  Qed.
 
 End RULES.
 
