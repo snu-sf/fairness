@@ -1704,35 +1704,39 @@ Module ObligationRA.
 
     Section COLLECT.
 
-      Definition collection_taxes k o (l : list (nat * Ord.t)) :=
-        (black k o ∗ taxes l o)%I.
+      Definition collection_taxes k o (l : list (nat * Ord.t)) ot :=
+        (black k o ∗ taxes l (ot × o)%ord)%I.
 
-      Lemma collection_taxes_decr k o0 l o1 :
-        (collection_taxes k o0 l)
+      Lemma collection_taxes_decr k o0 l ot o1 :
+        (collection_taxes k o0 l ot)
           -∗
           (white k o1)
           -∗
-          (#=> ∃ o2, collection_taxes k o2 l ∗ ⌜((o2 ⊕ o1) <= o0)%ord⌝ ∗ taxes l o1).
+          (#=> ∃ o2, collection_taxes k o2 l ot ∗ ⌜((o2 ⊕ o1) <= o0)%ord⌝ ∗ taxes l (ot × o1)%ord).
       Proof.
         iIntros "[B C] W". iMod (black_white_decr with "B W") as "[% [B2 %]]".
-        iExists o2. iFrame. iMod (taxes_ord_split with "C") as "[TS T]". eauto.
+        iExists o2. iFrame. iMod (taxes_ord_split with "C") as "[TS T]".
+        { rewrite <- ClassicJacobsthal.mult_dist. apply Jacobsthal.le_mult_r. eauto. }
         iFrame. iPureIntro. auto.
       Qed.
 
-      Lemma collection_taxes_decr_one k o l :
-        (collection_taxes k o l)
+      Lemma collection_taxes_decr_one k o l ot :
+        (collection_taxes k o l ot)
           -∗
           (white_one k)
           -∗
-          (#=> ∃ o', collection_taxes k o' l ∗ ⌜(o' < o)%ord⌝ ∗ tax l).
+          (#=> ∃ o', collection_taxes k o' l ot ∗ ⌜(o' < o)%ord⌝ ∗ taxes l ot).
       Proof.
-        iIntros "[B C] W". iMod (black_white_decr_one with "B W") as "[% [B2 %]]".
-        iExists o0. iFrame. iMod (taxes_ord_split_one with "C") as "[TS T]". eauto.
-        iFrame. iPureIntro. auto.
+        iIntros "[B C] W". iMod (collection_taxes_decr with "[B C] W") as "[% (CT & % & TS)]".
+        { iFrame. }
+        iExists o2. iFrame. iMod (taxes_ord_mon with "TS") as "TS". 2: iFrame.
+        { rewrite Jacobsthal.mult_1_r. reflexivity. }
+        iPureIntro. eapply Ord.lt_le_lt. 2: eauto.
+        apply Hessenberg.add_lt_l. apply Ord.S_lt.
       Qed.
 
-      Lemma collection_taxes_make k o l :
-        (black k o ∗ taxes l o) ⊢ collection_taxes k o l.
+      Lemma collection_taxes_make k o l ot :
+        (black k o ∗ taxes l (ot × o)%ord) ⊢ collection_taxes k o l ot.
       Proof.
         iIntros "[B T]". iFrame.
       Qed.

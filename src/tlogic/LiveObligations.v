@@ -481,15 +481,15 @@ Section RULES.
     iApply taxes_ord_mon. 2: iFrame. rewrite layer_split. reflexivity.
   Qed.
 
-  (*   ObligationRA.collection_taxes *)
+  (** Additional definitions and rules. *)
 
-  Definition collection_proofs k o (ps : list (nat * nat)) :=
-    collection_taxes k o (map (fun '(k, l) => (k, layer l 1)) ps).
+  Definition collection_proofs k o (ps : list (nat * nat)) l :=
+    collection_taxes k o (map (fun '(k, l) => (k, layer l 1)) ps) (layer l 1).
 
-  Lemma collection_proofs_decr k o ps :
+  Lemma collection_proofs_decr k o ps l :
     forall m a, (0 < a) ->
-           (collection_proofs k o ps ∗ progress_credit k m a)
-             ⊢ #=> (∃ o', collection_proofs k o' ps ∗ ⌜(o' < o)%ord⌝ ∗ progress_proofs ps 0 1).
+           (collection_proofs k o ps l ∗ progress_credit k m a)
+             ⊢ #=> (∃ o', collection_proofs k o' ps l ∗ ⌜(o' < o)%ord⌝ ∗ progress_proofs ps l 1).
   Proof.
     intros. iIntros "[COL PC]". 
     iMod (pc_mon _ 0 _ 1 _ with "PC") as "PC".
@@ -500,16 +500,14 @@ Section RULES.
     iMod (collection_taxes_decr_one with "COL [PC]") as "[% (COL & % & TAX)]".
     { iApply white_eq. 2: iFrame. rewrite layer_zero1. reflexivity. }
     iExists o'. iFrame.
-    iPoseProof (tax_is_single_taxes with "TAX") as "T".
-    unfold progress_proofs. iMod (taxes_ord_mon with "T") as "T".
-    2:{ iModIntro. iSplit. auto. iFrame. }
-    rewrite layer_zero1. reflexivity.
+    iPureIntro. auto.
   Qed.
 
-  Lemma collection_proofs_make k l o ps :
-    (liveness_obligation k l o ∗ progress_proofs ps l 1) ⊢ |==> collection_proofs k o ps.
+  Lemma collection_proofs_make k l o ps m :
+    (liveness_obligation k l o ∗ progress_proofs ps (m + l) 1) ⊢ |==> collection_proofs k o ps m.
   Proof.
-    iIntros "[[% B] T]". iMod (taxes_ord_mon with "T") as "T". eauto.
+    iIntros "[[% B] T]". iMod (taxes_ord_mon with "T") as "T".
+    { rewrite layer_sep. eapply Jacobsthal.le_mult_r. eauto. }
     iPoseProof (collection_taxes_make with "[B T]") as "CT". iFrame.
     iModIntro. iFrame.
   Qed.
