@@ -392,13 +392,33 @@ Section RULES.
     apply Permutation_map. auto.
   Qed.
 
-correl_thread_correlate:
-  ∀ (S : Type) (Σ : GRA.t) (H : GRA.inG t Σ) (H0 : GRA.inG (FairRA.tgtt S) Σ) 
-    (H1 : GRA.inG FiniteMap.t Σ) (Vars : nat → Type) (Invs : IInvSet Vars) 
-    (H2 : GRA.inG (Regions.t (λ l : nat, (sum_tid S * nat * Ord.t * Qp * nat * Vars l)%type)) Σ) 
-    (v k : nat) (c : Ord.t) (f : Vars v),
-    correl_thread v k c f
-    ⊢ FairRA.white_thread (S:=S) =( arrows_sat v )=∗ white k c ∨ shot k ∗ □ prop v f
+  (** Obligation duties specialized for thread fairness. *)
+
+  Definition thread_credit : iProp := FairRA.white_thread (S:=_).
+
+  Definition thread_promise v k l f : iProp := correl_thread v k (layer l 1) f.
+
+  Global Program Instance Persistent_thread_promise v k l f :
+    Persistent (thread_promise v k l f).
+
+  Lemma thread_promise_progress v k l f :
+    (thread_promise v k l f ∗ thread_credit)
+      ⊢ #=(arrows_sat v)=> progress_credit k l 1 ∨ (dead k ∗ □ (prop v f)).
+  Proof.
+    iIntros "[#PR FC]". iPoseProof (correl_thread_correlate with "PR FC") as "RES". iFrame.
+  Qed.
+
+  Lemma duty_thread_promise v i ds k l f :
+    In (k, l, f) ds ->
+    duty v inlp i ds ⊢ thread_promise v k l f.
+  Proof.
+    iIntros (IN) "D". iApply duty_correl_thread. 2: iFrame.
+    apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
+  Qed.
+
+
+  (* ObligationRA.tax *)
+  (*   collection *)
 
 End RULES.
 
