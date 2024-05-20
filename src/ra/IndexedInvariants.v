@@ -1024,8 +1024,17 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
   Qed.
 
 End FANCY_UPDATE.
-
 Global Opaque FUpd.
+
+Notation "'=|' x '|=(' A ')={' Es1 ',' Es2 '}=>' P" := (FUpd x A Es1 Es2 P) (at level 90).
+Notation "'=|' x '|={' Es1 ',' Es2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es1, Es2}=> P) (at level 90).
+Notation "P =| x |=( A )={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|=(A)={Es1,Es2}=> Q)%I (at level 90).
+Notation "P =| x |={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|={Es1,Es2}=> Q)%I (at level 90).
+
+Notation "'=|' x '|=(' A ')={' Es '}=>' P" := (FUpd x A Es Es P) (at level 90).
+Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es }=> P) (at level 90).
+Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%I (at level 90).
+Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%I (at level 90).
 
 (* Section FANCY_UPDATE. *)
 

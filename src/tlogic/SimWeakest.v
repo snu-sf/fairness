@@ -977,9 +977,9 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => (duty _ (Prism.compose inrp p) i l) ∗ <<[(List.map fst l) @ 0]>>$(1)) ls)
+    (list_prop_sum (fun '(i, l) => (Duty((inrp ⋅ p)%prism ◬ i) l) ∗ <<[(List.map fst l) @ 0]>>$(1)) ls)
       -∗
-      ((list_prop_sum (fun '(i, l) => duty _ (Prism.compose inrp p) i l) ls)
+      ((list_prop_sum (fun '(i, l) => Duty((inrp ⋅ p)%prism ◬ i) l) ls)
          -∗
          (list_prop_sum (fun i => €((Prism.compose inrp p) ◬ i)) lf)
          -∗
@@ -1058,9 +1058,9 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => (duty _ inrp i l) ∗ <<[(List.map fst l) @ 0]>>$(1)) ls)
+    (list_prop_sum (fun '(i, l) => (Duty(inrp ◬ i) l) ∗ <<[(List.map fst l) @ 0]>>$(1)) ls)
       -∗
-      ((list_prop_sum (fun '(i, l) => duty _ inrp i l) ls)
+      ((list_prop_sum (fun '(i, l) => Duty(inrp ◬ i) l) ls)
          -∗
          (list_prop_sum (fun i => €(inrp ◬ i)) lf)
          -∗
@@ -1204,6 +1204,40 @@ Section STATE.
     Local Opaque FUpd.
   Qed.
 
+  Lemma wpsim_yieldR
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+    :
+    ((Duty(tid) l) ∗ <<[List.map fst l @ 0]>>$(1))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
+            (wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "[D T] H".
+    iAssert (#=> ObligationRA.tax (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l))) with "[T]" as "T".
+    { unfold progress_credits.
+      replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l))
+        with (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l)).
+      { iMod (ObligationRA.taxes_ord_mon with "T") as "T".
+        2:{ iModIntro. iApply ObligationRA.taxes_single_is_tax. iFrame. }
+        rewrite layer_zero1. reflexivity.
+      }
+      { rewrite ! List.map_map. f_equal. extensionalities. des_ifs. ss. des_ifs. }
+    }
+    iMod "T". iApply (wpsim_yieldR_strong with "[D T]"). eauto. iFrame.
+    iApply "H".
+  Qed.
+
   Lemma wpsim_sync_strong
         y (LT: y < x)
         E r g R_src R_tgt
@@ -1233,7 +1267,40 @@ Section STATE.
     Local Opaque FUpd.
   Qed.
 
-  Lemma wpsim_yieldR
+  Lemma wpsim_sync
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+    :
+    ((Duty(tid) l) ∗ <<[List.map fst l @ 0]>>$(1))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
+            (wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "[D T] H".
+    iAssert (#=> ObligationRA.tax (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l))) with "[T]" as "T".
+    { unfold progress_credits.
+      replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l))
+        with (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l)).
+      { iMod (ObligationRA.taxes_ord_mon with "T") as "T".
+        2:{ iModIntro. iApply ObligationRA.taxes_single_is_tax. iFrame. }
+        rewrite layer_zero1. reflexivity.
+      }
+      { rewrite ! List.map_map. f_equal. extensionalities. des_ifs. ss. des_ifs. }
+    }
+    iMod "T". iApply (wpsim_sync_strong with "[D T]"). eauto. iFrame.
+    iApply "H".
+  Qed.
+
+  Lemma wpsim_yieldR_weak
         y (LT: y < x)
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1256,7 +1323,7 @@ Section STATE.
     iModIntro. iApply ("K" with "DUTY WHITE").
   Qed.
 
-  Lemma wpsim_sync
+  Lemma wpsim_sync_weak
         y (LT: y < x)
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1296,7 +1363,7 @@ Section STATE.
          (wpsim ∅ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    iIntros "> [H K]". iApply (wpsim_yieldR with "[H]").
+    iIntros "> [H K]". iApply (wpsim_yieldR_weak with "[H]").
     { eauto. }
     { ss. }
     { iPoseProof (ObligationRA.black_to_duty with "H") as "H". iFrame. }
@@ -1321,7 +1388,7 @@ Section STATE.
          -∗
          (wpsim ∅ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
-    iIntros "> [H K]". iApply (wpsim_sync with "[H]").
+    iIntros "> [H K]". iApply (wpsim_sync_weak with "[H]").
     { eauto. }
     { ss. }
     { iPoseProof (ObligationRA.black_to_duty with "H") as "H". iFrame. }
