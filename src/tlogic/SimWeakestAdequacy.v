@@ -2,6 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib ModSim ModSimPers Concurrency ModAdequacy Axioms.
 From Fairness Require Import PCM IProp IPM ISim SimDefaultRA SimWeakest.
+From Fairness Require Import FairBeh.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require PCMLarge.
 Require Import Program.

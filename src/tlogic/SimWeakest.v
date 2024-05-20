@@ -6,8 +6,9 @@ From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import ISim.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA RegionRA FairnessRA ObligationRA SimDefaultRA OpticsInterp.
-From Fairness Require Export FairBeh.
+From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
+From Fairness Require Export SimDefaultRA LiveObligations.
+From Fairness Require Import FairBeh.
 Require Import Coq.Sorting.Mergesort.
 
 Require Import Program.
@@ -928,7 +929,7 @@ Section STATE.
     iApply (wpsim_fairL_prism with "WHITES K"); eauto.
   Qed.
 
-  Lemma wpsim_fairR_prism
+  Lemma wpsim_fairR_prism_step
         y (LT : y < x)
         A lf ls
         (p : Prism.t _ A)
@@ -964,7 +965,63 @@ Section STATE.
     iApply ("H" with "DUTY WHITE"). iFrame.
   Qed.
 
-  Lemma wpsim_fairR
+  Lemma wpsim_fairR_prism
+        y (LT : y < x)
+        A lf
+        (ls : list (A * list (nat * nat * Vars y)))
+        (p : Prism.t _ A)
+        E fm r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt
+        (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
+        (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+        (NODUP: List.NoDup lf)
+    :
+    (list_prop_sum (fun '(i, l) => (duty _ (Prism.compose inrp p) i l) ∗ <<[(List.map fst l) @ 0]>>$(1)) ls)
+      -∗
+      ((list_prop_sum (fun '(i, l) => duty _ (Prism.compose inrp p) i l) ls)
+         -∗
+         (list_prop_sum (fun i => €((Prism.compose inrp p) ◬ i)) lf)
+         -∗
+         wpsim E r g Q ps true itr_src (ktr_tgt tt))
+      -∗
+      (wpsim E r g Q ps pt itr_src (trigger (Fair (prism_fmap p fm)) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "DUTY K".
+    iAssert
+      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y (inrp ⋅ p)%prism i l ∗ ObligationRA.tax (List.map fst l))%I)
+          (List.map (λ '(i, l), (i, List.map (λ '(a, b, f), (a, layer b 1, f)) l)) ls))
+      with "[DUTY]" as "DUTY".
+    { iApply list_prop_sum_pull_bupd_default. iApply list_prop_sum_map. 2: iFrame.
+      iIntros ([? ?]) "[D T]". iFrame.
+      iApply ObligationRA.taxes_single_is_tax.
+      unfold progress_credits.
+      replace (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l))
+        with
+        (List.map fst (List.map (λ '(a, b, f), (a, layer b 1, f)) l)).
+      2:{ rewrite ! List.map_map. f_equal. extensionalities. des_ifs. }
+      iMod (ObligationRA.taxes_ord_mon with "T") as "T".
+      2:{ iModIntro. iFrame. }
+      { rewrite layer_zero1. reflexivity. }
+    }
+    iMod "DUTY".
+    iApply (wpsim_fairR_prism_step with "[DUTY]"). 1,2,3,4,5: eauto.
+    2:{ iIntros "A B".
+        iAssert (#=> list_prop_sum (λ '(i, l), duty ident_tgt (inrp ⋅ p)%prism i l) ls)
+          with "[A]" as "A".
+        { iApply list_prop_sum_pull_bupd_default.
+          iPoseProof (list_prop_sum_map_inv with "A") as "A". 2: iFrame.
+          iIntros ([? ?]) "D". iModIntro. iFrame.
+        }
+        iMod "A". iApply ("K" with "[A]"); iFrame.
+    }
+    { i. specialize (SUCCESS i IN). rewrite in_map_iff in SUCCESS. des. destruct x0. ss.
+      subst. rewrite List.map_map. rewrite in_map_iff. esplits. 2: eauto. des_ifs.
+    }
+  Qed.
+
+  Lemma wpsim_fairR_step
         y (LT : y < x)
         lf ls
         E fm r g R_src R_tgt
@@ -987,7 +1044,62 @@ Section STATE.
   .
   Proof.
     iIntros "DUTY K". rewrite <- (prism_fmap_id fm).
-    iApply (wpsim_fairR_prism with "[DUTY] [K]"). all: eauto.
+    iApply (wpsim_fairR_prism_step with "[DUTY] [K]"). all: eauto.
+  Qed.
+
+  Lemma wpsim_fairR
+        y (LT : y < x)
+        lf
+        (ls : list (ident_tgt * list (nat * nat * Vars y)))
+        E fm r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src ktr_tgt
+        (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
+        (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+        (NODUP: List.NoDup lf)
+    :
+    (list_prop_sum (fun '(i, l) => (duty _ inrp i l) ∗ <<[(List.map fst l) @ 0]>>$(1)) ls)
+      -∗
+      ((list_prop_sum (fun '(i, l) => duty _ inrp i l) ls)
+         -∗
+         (list_prop_sum (fun i => €(inrp ◬ i)) lf)
+         -∗
+         wpsim E r g Q ps true itr_src (ktr_tgt tt))
+      -∗
+      (wpsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "DUTY K".
+    iAssert
+      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y inrp i l ∗ ObligationRA.tax (List.map fst l))%I)
+          (List.map (λ '(i, l), (i, List.map (λ '(a, b, f), (a, layer b 1, f)) l)) ls))
+      with "[DUTY]" as "DUTY".
+    { iApply list_prop_sum_pull_bupd_default. iApply list_prop_sum_map. 2: iFrame.
+      iIntros ([? ?]) "[D T]". iFrame.
+      iApply ObligationRA.taxes_single_is_tax.
+      unfold progress_credits.
+      replace (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l))
+        with
+        (List.map fst (List.map (λ '(a, b, f), (a, layer b 1, f)) l)).
+      2:{ rewrite ! List.map_map. f_equal. extensionalities. des_ifs. }
+      iMod (ObligationRA.taxes_ord_mon with "T") as "T".
+      2:{ iModIntro. iFrame. }
+      { rewrite layer_zero1. reflexivity. }
+    }
+    iMod "DUTY".
+    iApply (wpsim_fairR_step with "[DUTY]"). 1,2,3,4,5: eauto.
+    2:{ iIntros "A B".
+        iAssert (#=> list_prop_sum (λ '(i, l), duty ident_tgt inrp i l) ls)
+          with "[A]" as "A".
+        { iApply list_prop_sum_pull_bupd_default.
+          iPoseProof (list_prop_sum_map_inv with "A") as "A". 2: iFrame.
+          iIntros ([? ?]) "D". iModIntro. iFrame.
+        }
+        iMod "A". iApply ("K" with "[A]"); iFrame.
+    }
+    { i. specialize (SUCCESS i IN). rewrite in_map_iff in SUCCESS. des. destruct x0. ss.
+      subst. rewrite List.map_map. rewrite in_map_iff. esplits. 2: eauto. des_ifs.
+    }
   Qed.
 
   Lemma wpsim_fairR_simple
