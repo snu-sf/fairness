@@ -180,9 +180,8 @@ Global Opaque layer.
 
 Section RULES.
 
-  Variable ident_tgt: ID.
+  Context `{ident_tgt : ID}.
   Local Notation identTgtRA := (identTgtRA ident_tgt).
-  (* Local Notation index := nat. *)
   Context `{Vars : nat -> Type}.
   Local Notation ArrowRA := (@ArrowRA ident_tgt Vars).
 
@@ -336,27 +335,27 @@ Section RULES.
 
   (** Definitions and rules for obligation duties. *)
 
-  Definition duty {Id} v (p : Prism.t _ Id) (i : Id) ds : iProp :=
+  Definition duty {Id} {v} (p : Prism.t _ Id) (i : Id) ds : iProp :=
     duty v p i (map (fun '(k, l, f) => (k, layer l 1, f)) ds).
 
   Definition fairness_credit {Id} (p : Prism.t _ Id) (i : Id) : iProp := FairRA.white p i 1.
 
-  Definition promise {Id} v (p : Prism.t _ Id) (i : Id) k l f : iProp :=
+  Definition promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l f : iProp :=
     correl v p i k (layer l 1) f.
 
-  Global Program Instance Persistent_promise {Id} v p (i : Id) k l f :
-    Persistent (promise v p i k l f).
+  Global Program Instance Persistent_promise {Id} {v} p (i : Id) k l f :
+    Persistent (promise (v:=v) p i k l f).
 
-  Lemma promise_progress {Id} v (p : Prism.t _ Id) (i : Id) k l f :
-    (promise v p i k l f ∗ fairness_credit p i)
+  Lemma promise_progress {Id} {v} (p : Prism.t _ Id) (i : Id) k l f :
+    (promise p i k l f ∗ fairness_credit p i)
       ⊢ #=(arrows_sat v)=> progress_credit k l 1 ∨ (dead k ∗ □ (prop v f)).
   Proof.
     iIntros "[#PR FC]". iPoseProof (correl_correlate with "PR FC") as "RES". iFrame.
   Qed.
 
-  Lemma duty_add {Id} v (p : Prism.t _ Id) (i : Id) ds k l f :
-    (duty v p i ds ∗ progress_credit k (l + 1) 1)
-      ⊢ (□ (prop v f -∗ □ prop v f)) =(arrows_sat v)=∗ duty v p i ((k, l, f) :: ds).
+  Lemma duty_add {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l f :
+    (duty p i ds ∗ progress_credit k (l + 1) 1)
+      ⊢ (□ (prop v f -∗ □ prop v f)) =(arrows_sat v)=∗ duty p i ((k, l, f) :: ds).
   Proof.
     iIntros "[D PC] #F". iMod (duty_alloc with "D [PC] [F]") as "D".
     { unfold progress_credit. iPoseProof (white_eq with "PC") as "PC".
@@ -367,24 +366,24 @@ Section RULES.
     iModIntro. iFrame.
   Qed.
 
-  Lemma duty_promise {Id} v (p : Prism.t _ Id) (i : Id) ds k l f :
+  Lemma duty_promise {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l (f : Vars v) :
     In (k, l, f) ds ->
-    duty v p i ds ⊢ promise v p i k l f.
+    duty p i ds ⊢ promise p i k l f.
   Proof.
     iIntros (IN) "D". iApply duty_correl. 2: iFrame.
     apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
   Qed.
 
-  Lemma duty_fulfill {Id} v (p : Prism.t _ Id) (i : Id) ds k l f :
-    (duty v p i ((k, l, f) :: ds) ∗ dead k ∗ prop v f)
-      ⊢ #=(arrows_sat v)=> duty v p i ds.
+  Lemma duty_fulfill {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l f :
+    (duty p i ((k, l, f) :: ds) ∗ dead k ∗ prop v f)
+      ⊢ #=(arrows_sat v)=> duty p i ds.
   Proof.
     iIntros "(DUTY & DEAD & F)".
     iMod (duty_done with "DUTY DEAD F") as "D". iModIntro. iFrame.
   Qed.
 
-  Lemma duty_permutation {Id} v (p : Prism.t _ Id) (i : Id) ds0 ds1 :
-    (ds0 ≡ₚ ds1) -> duty v p i ds0 ⊢ duty v p i ds1.
+  Lemma duty_permutation {Id} {v} (p : Prism.t _ Id) (i : Id) ds0 ds1 :
+    (ds0 ≡ₚ ds1) -> duty (v:=v) p i ds0 ⊢ duty p i ds1.
   Proof.
     iIntros (P) "D". iApply duty_permutation. 2: iFrame.
     apply Permutation_map. auto.
@@ -394,21 +393,21 @@ Section RULES.
 
   Definition thread_credit : iProp := FairRA.white_thread (S:=_).
 
-  Definition thread_promise v k l f : iProp := correl_thread v k (layer l 1) f.
+  Definition thread_promise {v} k l f : iProp := correl_thread v k (layer l 1) f.
 
-  Global Program Instance Persistent_thread_promise v k l f :
-    Persistent (thread_promise v k l f).
+  Global Program Instance Persistent_thread_promise {v} k l f :
+    Persistent (thread_promise (v:=v) k l f).
 
-  Lemma thread_promise_progress v k l f :
-    (thread_promise v k l f ∗ thread_credit)
+  Lemma thread_promise_progress {v} k l f :
+    (thread_promise k l f ∗ thread_credit)
       ⊢ #=(arrows_sat v)=> progress_credit k l 1 ∨ (dead k ∗ □ (prop v f)).
   Proof.
     iIntros "[#PR FC]". iPoseProof (correl_thread_correlate with "PR FC") as "RES". iFrame.
   Qed.
 
-  Lemma duty_thread_promise v i ds k l f :
+  Lemma duty_thread_promise {v} i ds k l (f : Vars v) :
     In (k, l, f) ds ->
-    duty v inlp i ds ⊢ thread_promise v k l f.
+    duty inlp i ds ⊢ thread_promise k l f.
   Proof.
     iIntros (IN) "D". iApply duty_correl_thread. 2: iFrame.
     apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
@@ -512,11 +511,11 @@ Section RULES.
 
   (** Additional definitions and rules. *)
 
-  Definition until_promise {Id} v (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :=
-    (promise v p i k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
+  Definition until_promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :=
+    (promise p i k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
 
-  Lemma until_promise_progress {Id} v (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
-    (until_promise v p i k l f P r ∗ fairness_credit p i)
+  Lemma until_promise_progress {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
+    (until_promise p i k l f P r ∗ fairness_credit p i)
       ⊢ #=(arrows_sat v)=> ((P ∗ live k r ∗ progress_credit k l 1) ∨ (dead k ∗ □ (prop v f))).
   Proof.
     iIntros "[[PR A] FC]". iMod (promise_progress with "[PR FC]") as "B". iFrame.
@@ -527,23 +526,23 @@ Section RULES.
     { iRight. iFrame. }
   Qed.
 
-  Lemma until_promise_live {Id} v (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
-    (promise v p i k l f ∗ P ∗ live k r) ⊢ until_promise v p i k l f P r.
+  Lemma until_promise_live {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
+    (promise (v:=v) p i k l f ∗ P ∗ live k r) ⊢ until_promise p i k l f P r.
   Proof.
     iIntros "(A & B & C)". unfold until_promise. iFrame. iLeft. iFrame.
   Qed.
 
-  Lemma until_promise_dead {Id} v (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
-    (promise v p i k l f ∗ dead k ∗ □ (prop v f)) ⊢ until_promise v p i k l f P r.
+  Lemma until_promise_dead {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
+    (promise p i k l f ∗ dead k ∗ □ (prop v f)) ⊢ until_promise p i k l f P r.
   Proof.
     iIntros "(A & B & C)". unfold until_promise. iFrame. iRight. iFrame.
   Qed.
 
-  Definition until_thread_promise v k l f (P : iProp) (r : Qp) :=
-    (thread_promise v k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
+  Definition until_thread_promise {v} k l f (P : iProp) (r : Qp) :=
+    (thread_promise k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
 
-  Lemma until_thread_promise_progress v k l f (P : iProp) (r : Qp) :
-    (until_thread_promise v k l f P r ∗ thread_credit)
+  Lemma until_thread_promise_progress {v} k l f (P : iProp) (r : Qp) :
+    (until_thread_promise k l f P r ∗ thread_credit)
       ⊢ #=(arrows_sat v)=> ((P ∗ live k r ∗ progress_credit k l 1) ∨ (dead k ∗ □ (prop v f))).
   Proof.
     iIntros "[[PR A] FC]". iMod (thread_promise_progress with "[PR FC]") as "B". iFrame.
@@ -554,14 +553,14 @@ Section RULES.
     { iRight. iFrame. }
   Qed.
 
-  Lemma until_thread_promise_live v k l f (P : iProp) (r : Qp) :
-    (thread_promise v k l f ∗ P ∗ live k r) ⊢ until_thread_promise v k l f P r.
+  Lemma until_thread_promise_live {v} k l (f : Vars v) (P : iProp) (r : Qp) :
+    (thread_promise k l f ∗ P ∗ live k r) ⊢ until_thread_promise k l f P r.
   Proof.
     iIntros "(A & B & C)". unfold until_thread_promise. iFrame. iLeft. iFrame.
   Qed.
 
-  Lemma until_thread_promise_dead v k l f (P : iProp) (r : Qp) :
-    (thread_promise v k l f ∗ dead k ∗ □ (prop v f)) ⊢ until_thread_promise v k l f P r.
+  Lemma until_thread_promise_dead {v} k l f (P : iProp) (r : Qp) :
+    (thread_promise k l f ∗ dead k ∗ □ (prop v f)) ⊢ until_thread_promise k l f P r.
   Proof.
     iIntros "(A & B & C)". unfold until_thread_promise. iFrame. iRight. iFrame.
   Qed.
@@ -580,10 +579,10 @@ Section RULES.
     { iExists m, a. auto. }
   Qed.
 
-  Lemma promise_ind {Id} v (p : Prism.t _ Id) (i : Id) k l o m f (R : iProp) :
-    (liveness_obligation k l o ∗ promise v p i k m f)
+  Lemma promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k l o m f (R : iProp) :
+    (liveness_obligation k l o ∗ promise p i k m f)
       ⊢ ((□ ((fairness_credit p i =(arrows_sat v)=∗ R) ==∗ R))
-           ∗ (□ ((dead k ∗ □ prop _ f) ==∗ R)))
+           ∗ (□ ((dead k ∗ □ prop v f) ==∗ R)))
       ==∗ R.
   Proof.
     iIntros "[#LO #PR] [#IND #RES]".
@@ -599,10 +598,10 @@ Section RULES.
     { iMod ("RES" with "[D P]") as "R". auto. iModIntro. iFrame. }
   Qed.
 
-  Lemma thread_promise_ind v k l o m f (R : iProp) :
-    (liveness_obligation k l o ∗ thread_promise v k m f)
+  Lemma thread_promise_ind {v} k l o m f (R : iProp) :
+    (liveness_obligation k l o ∗ thread_promise k m f)
       ⊢ ((□ ((thread_credit =(arrows_sat v)=∗ R) ==∗ R))
-           ∗ (□ ((dead k ∗ □ prop _ f) ==∗ R)))
+           ∗ (□ ((dead k ∗ □ prop v f) ==∗ R)))
       ==∗ R.
   Proof.
     iIntros "[#LO #PR] [#IND #RES]".
@@ -631,9 +630,9 @@ Section RULES.
     { iExists m, a. auto. }
   Qed.
 
-  Lemma cc_promise_ind {Id} v (p : Prism.t _ Id) (i : Id) k o ps l m f (R : iProp) :
-    (collection_credits k o ps l ∗ promise v p i k m f)
-      ⊢ (□ ((fairness_credit p i =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop _ f))) ==∗ R))
+  Lemma cc_promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k o ps l m f (R : iProp) :
+    (collection_credits k o ps l ∗ promise p i k m f)
+      ⊢ (□ ((fairness_credit p i =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
       ==∗ R.
   Proof.
     iIntros "[CC #PR] #IND". iMod (cc_ind with "CC []") as "R". 2: iModIntro; iApply "R".
@@ -644,9 +643,9 @@ Section RULES.
     { iModIntro. iRight. auto. }
   Qed.
 
-  Lemma cc_thread_promise_ind v k o ps l m f (R : iProp) :
-    (collection_credits k o ps l ∗ thread_promise v k m f)
-      ⊢ (□ ((thread_credit =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop _ f))) ==∗ R))
+  Lemma cc_thread_promise_ind {v} k o ps l m f (R : iProp) :
+    (collection_credits k o ps l ∗ thread_promise k m f)
+      ⊢ (□ ((thread_credit =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
       ==∗ R.
   Proof.
     iIntros "[CC #PR] #IND". iMod (cc_ind with "CC []") as "R". 2: iModIntro; iApply "R".
@@ -659,30 +658,16 @@ Section RULES.
 
 End RULES.
 
+(** Notations. *)
 
-  Definition liveness_obligation (k : nat) (l : nat) (o : Ord.t) :=
-    (⌜(o <= layer l 1)%ord⌝ ∗ black k o)%I.
-
-  Definition progress_credit (k : nat) (l a : nat) :=
-    white k (layer l a).
-
-  Definition live (k : nat) (q : Qp) := pending k q.
-
-  Definition dead (k : nat) := shot k.
-  Definition link k0 k1 l := amplifier k0 k1 (layer l 1).
-  Definition duty {Id} v (p : Prism.t _ Id) (i : Id) ds : iProp :=
-    duty v p i (map (fun '(k, l, f) => (k, layer l 1, f)) ds).
-
-  Definition fairness_credit {Id} (p : Prism.t _ Id) (i : Id) : iProp := FairRA.white p i 1.
-  Definition promise {Id} v (p : Prism.t _ Id) (i : Id) k l f : iProp :=
-    correl v p i k (layer l 1) f.
-  Definition thread_credit : iProp := FairRA.white_thread (S:=_).
-  Definition thread_promise v k l f : iProp := correl_thread v k (layer l 1) f.
-  Definition progress_credits (l : list (nat * nat)) m a :=
-    taxes (map (fun '(k, n) => (k, layer n 1)) l) (layer m a).
-  Definition collection_credits k o (ps : list (nat * nat)) l :=
-    collection_taxes k o (map (fun '(k, l) => (k, layer l 1)) ps) (layer l 1).
-  Definition until_promise {Id} v (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :=
-    (promise v p i k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
-  Definition until_thread_promise v k l f (P : iProp) (r : Qp) :=
-    (thread_promise v k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
+Notation "'<<' k '@' l | o '>>'" := (liveness_obligation k l o).
+Notation "'<<' k '@' l '>>(' a ')'" := (progress_credit k l a).
+Notation "s '-(' l ')->' t" := (link s t l) (at level 90).
+Notation "'€(' p '^' i ')'" := (fairness_credit p i).
+Notation "'<<' k '@' l '>>-(' p '^' i ')-◇' f" := (promise p i k l f) (at level 90).
+Notation "'€'" := (thread_credit).
+Notation "'<<' k '@' l '>>-◇' f" := (thread_promise k l f) (at level 90).
+Notation "'<<[' ps '@' m ']>>(' a ')'" := (progress_credits ps m a).
+Notation "'<<[' k '&' ps '@' l | o ']>>'" := (collection_credits k o ps l).
+Notation "'<<' k '@' l '>>-(' p '^' i ')-(' R ',' r ')-◇' f" := (until_promise p i k l f R r) (at level 90).
+Notation "'<<' k '@' l '>>-(' R ',' r ')-◇' f" := (until_thread_promise k l f R r) (at level 90).
