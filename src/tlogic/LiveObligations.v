@@ -660,18 +660,18 @@ End RULES.
 
 (** Notations. *)
 
-Notation "'<<' k '@' l | o '>>'" := (liveness_obligation k l o).
-Notation "'<<' k '@' l '>>$(' a ')'" := (progress_credit k l a).
+Notation "'{{' k '@' l | o '}}'" := (liveness_obligation k l o).
+Notation "'{{' k '@' l '}}$(' a ')'" := (progress_credit k l a).
 Notation "s '-(' l ')->' t" := (link s t l) (at level 90).
 Notation "'Duty(' p ◬ i ')' ds" := (duty _ p i ds) (at level 90).
 Notation "'Duty(' tid ')' ds" := (duty _ inlp tid ds) (at level 90).
 Notation "'€(' p ◬ i ')'" := (fairness_credit _ p i).
-Notation "'<<' k '@' l '>>-(' p ◬ i ')-◇' f" := (promise _ p i k l f) (at level 90).
+Notation "'{{' k '@' l '}}-(' p ◬ i ')-◇' f" := (promise _ p i k l f) (at level 90).
 Notation "'€'" := (thread_credit _).
-Notation "'<<' k '@' l '>>-◇' f" := (thread_promise _ k l f) (at level 90).
-Notation "'<<[' ps '@' m ']>>$(' a ')'" := (progress_credits ps m a).
-Notation "'<<[' k '&' ps '@' l | o ']>>'" := (collection_credits k o ps l).
-Notation "'<<' k '@' l '>>-(' p ◬ i ')-(' R ',' r ')-◇' f" :=
+Notation "'{{' k '@' l '}}-◇' f" := (thread_promise _ k l f) (at level 90).
+Notation "'{{[' ps '@' m ']}}$(' a ')'" := (progress_credits ps m a).
+Notation "'{{[' k '&' ps '@' l | o ']}}'" := (collection_credits k o ps l).
+Notation "'{{' k '@' l '}}-(' p ◬ i ')-(' R ',' r ')-◇' f" :=
   (until_promise _ p i k l f R r) (at level 90).
-Notation "'<<' k '@' l '>>-(' R ',' r ')-◇' f" :=
+Notation "'{{' k '@' l '}}-(' R ',' r ')-◇' f" :=
   (until_thread_promise _ k l f R r) (at level 90).
