@@ -698,8 +698,8 @@ Section OWNES.
 
   Definition lookup_def (Es : coPsets) (n : nat) : coPset := default ⊤ (Es !! n).
 
-  Definition subseteq_def (Es : coPsets) (n : nat) (E : coPset) : Prop :=
-    match Es !! n with | Some E' => E ⊆ E' | None => True end.
+  (* Definition subseteq_def (Es : coPsets) (n : nat) (E : coPset) : Prop := *)
+  (*   match Es !! n with | Some E' => E ⊆ E' | None => True end. *)
 
   Definition insert_def (Es : coPsets) (n : nat) : coPsets :=
     match Es !! n with | Some E => Es | None => <[n:=⊤]> Es end.
@@ -713,15 +713,15 @@ Section OWNES.
   Qed.
 
   Lemma lookup_subseteq_def Es n E :
-    E ⊆ (lookup_def Es n) -> subseteq_def Es n E.
+    E ⊆ (lookup_def Es n) -> (match Es !! n with Some E' => E ⊆ E' | _ => True end).
   Proof.
-    unfold lookup_def,default, subseteq_def. i. des_ifs.
+    unfold lookup_def,default. i. des_ifs.
   Qed.
 
 End OWNES.
 
 Notation "M '!?' k" := (lookup_def M k) (at level 20).
-Notation "E '⪿' '(' Es ',' n ')'" := (subseteq_def Es n E) (at level 70).
+(* Notation "E '⪿' '(' Es ',' n ')'" := (subseteq_def Es n E) (at level 70). *)
 
 Section FANCY_UPDATE.
 
@@ -806,14 +806,14 @@ Section FANCY_UPDATE.
     rewrite difference_union_L. set_solver.
   Qed.
 
-  Lemma FUpd_open x A Es n N (LT : n < x) (IN : (↑N) ⪿ (Es, n)) p :
+  Lemma FUpd_open x A Es n N (LT : n < x) (IN : match Es !! n with Some E => (↑N) ⊆ E | _ => True end) p :
     inv n N p ⊢
         FUpd x A Es
         (<[n := (Es !? n)∖↑N]> Es)
         ((prop n p) ∗ ((prop n p) -∗ FUpd x A (<[n := (Es !? n)∖↑N]> Es) Es emp)).
   Proof.
     iIntros "[% (%iN & #HI)] (A & WSAT & ENS)".
-    unfold lookup_def, subseteq_def in *. destruct (Es !! n) eqn:CASES; ss.
+    unfold lookup_def in *. destruct (Es !! n) eqn:CASES; ss.
     - iApply FUpd_open_aux; auto. unfold inv; auto. iFrame.
     - iAssert (
           (#=> (A ∗ (wsats x ∗ (OwnEs (<[n:=⊤ ∖ ↑N]> Es) ∗ (prop n p ∗ (prop n p -∗ FUpd x A (<[n:=⊤ ∖ ↑N]> Es) (<[n:=⊤]>Es) emp))))))
@@ -1005,7 +1005,7 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
   Qed.
 
   Global Instance into_acc_FUpd_inv x A Es n N p :
-    IntoAcc (inv n N p) (n < x /\ (↑N) ⪿ (Es, n)) True
+    IntoAcc (inv n N p) (n < x /\ (match Es !! n with Some E => (↑N) ⊆ E | _ => True end)) True
             (FUpd x A Es (<[n := Es !? n ∖ ↑N]>Es))
             (FUpd x A (<[n := Es !? n ∖ ↑N]>Es) Es)
             (fun _ : () => prop n p) (fun _ : () => prop n p) (fun _ : () => None).

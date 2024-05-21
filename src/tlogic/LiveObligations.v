@@ -244,6 +244,13 @@ Section RULES.
     iPoseProof (white_eq with "W") as "W". symmetry; apply layer_split. iFrame.
   Qed.
 
+  Lemma pc_sep k l m (LE : l < m) :
+    forall a b, (0 < b) ->
+           progress_credit k m b ⊢ |==> progress_credit k l a.
+  Proof.
+    iIntros (? ? LT) "PC". iApply (pc_mon with "PC"). apply Ord.lt_le. apply layer_decr; auto.
+  Qed.
+
   Lemma lo_pc_decr k l o m a :
     (0 < a) ->
     (liveness_obligation k l o ∗ progress_credit k m a)
@@ -660,18 +667,18 @@ End RULES.
 
 (** Notations. *)
 
-Notation "'{{' k '@' l | o '}}'" := (liveness_obligation k l o).
-Notation "'{{' k '@' l '}}$(' a ')'" := (progress_credit k l a).
-Notation "s '-(' l ')->' t" := (link s t l) (at level 90).
-Notation "'Duty(' p ◬ i ')' ds" := (duty _ p i ds) (at level 90).
-Notation "'Duty(' tid ')' ds" := (duty _ inlp tid ds) (at level 90).
-Notation "'€(' p ◬ i ')'" := (fairness_credit _ p i).
-Notation "'{{' k '@' l '}}-(' p ◬ i ')-◇' f" := (promise _ p i k l f) (at level 90).
-Notation "'€'" := (thread_credit _).
-Notation "'{{' k '@' l '}}-◇' f" := (thread_promise _ k l f) (at level 90).
-Notation "'{{[' ps '@' m ']}}$(' a ')'" := (progress_credits ps m a).
-Notation "'{{[' k '&' ps '@' l | o ']}}'" := (collection_credits k o ps l).
-Notation "'{{' k '@' l '}}-(' p ◬ i ')-(' R ',' r ')-◇' f" :=
-  (until_promise _ p i k l f R r) (at level 90).
-Notation "'{{' k '@' l '}}-(' R ',' r ')-◇' f" :=
-  (until_thread_promise _ k l f R r) (at level 90).
+Notation "'◆(' k '@' l '|' o ')'" := (liveness_obligation k l o) (at level 200, k, l, o at level 1) : bi_scope.
+Notation "'◇(' k '@' l ')(' a ')' " := (progress_credit k l a) (at level 200, k, l, a at level 1) : bi_scope.
+Notation "s '-(' l ')-◇' t" := (link s t l) (at level 200, l, t at level 1) : bi_scope.
+Notation "'Duty(' p ◬ i ')' ds" := (duty _ p i ds) (at level 200, p, i, ds at level 1) : bi_scope.
+Notation "'Duty(' tid ')' ds" := (duty _ inlp tid ds) (at level 200, tid, ds at level 1) : bi_scope.
+Notation "'€(' p ◬ i ')'" := (fairness_credit _ p i) : bi_scope.
+Notation "'-(' k '@' l ')-(' p ◬ i ')-◇' f" := (promise _ p i k l f) (at level 200, k, l, p, i at level 1) : bi_scope.
+Notation "'€'" := (thread_credit _) : bi_scope.
+Notation "'-(' k '@' l ')-◇' f" := (thread_promise _ k l f) (at level 200, k, l at level 1) : bi_scope.
+Notation "'◇[' ps '@' m '](' a ')'" := (progress_credits ps m a) (at level 200, ps, m, a at level 1) : bi_scope.
+Notation "'◆[' k '&' ps '@' l | o ']'" := (collection_credits k o ps l) (at level 200, k, ps, l, o at level 1) : bi_scope.
+Notation "'-(' k '@' l ')-(' p ◬ i ')-(' R ',' r ')-◇' f" :=
+  (until_promise _ p i k l f R r) (at level 200, k, l, p, i, r at level 1) : bi_scope.
+Notation "'-(' k '@' l ')-(' R ',' r ')-◇' f" :=
+  (until_thread_promise _ k l f R r) (at level 200, k, l, r at level 1) : bi_scope.
