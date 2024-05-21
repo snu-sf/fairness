@@ -1,7 +1,7 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.
-From Fairness Require Import ISim SimDefaultRA SimWeakest.
+From Fairness Require Import ISim SimDefaultRA LiveObligations SimWeakest.
 From Fairness Require Import LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
@@ -218,13 +218,26 @@ Module Atom.
     | ow_st_tgt (st_tgt : state_tgt)
     | fair_src (im_src : @FairBeh.imap ident_src owf)
     | fair_tgt (im_tgt : @FairBeh.imap (nat + ident_tgt) nat_wf) (ths : TIdSet.t)
-    (** Atoms to express liveness logic. *)
+    (** Atoms to express liveness logic invariants. *)
     | obl_edges_sat
     | obl_arrows_auth (x : index)
     | obl_arrows_regions_black (l : list ((nat + ident_tgt) * nat * Ord.t * Qp * nat * (@Syntax.t _ (@Typ) (@t form) form)))
     | obl_arrow_done1 (x : nat)
     | obl_arrow_done2 (k : nat)
     | obl_arrow_pend (i : nat + ident_tgt) (k : nat) (c : Ord.t) (q : Qp)
+    (** Atoms to express liveness logic definitions. *)
+    | obl_lo (k i : nat) (o : Ord.t)
+    | obl_pc (k l a : nat)
+    | obl_live (k : nat) (q : Qp)
+    | obl_dead (k : nat)
+    | obl_link (k0 k1 l : nat)
+    | obl_duty {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ (@Typ) (@t form) form)))
+    | obl_fc {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id)
+    | obl_promise {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (k l : nat) (f : @Syntax.t _ (@Typ) (@t form) form)
+    | obl_tc
+    | obl_tpromise (k l : nat) (f : @Syntax.t _ (@Typ) (@t form) form)
+    | obl_pcs (ps : list (nat * nat)) (m a : nat)
+    | obl_ccs (k : nat) (o : Ord.t) (ps : list (nat * nat)) (l : nat)
     .
 
   End ATOM.
@@ -293,6 +306,19 @@ Module Atom.
           ObligationRA.shot k
       | obl_arrow_pend i k c q =>
           (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
+      (** Atoms to express liveness logic definitions. *)
+      | obl_lo k l o => liveness_obligation k l o
+      | obl_pc k l a => progress_credit k l a
+      | obl_live k q => live k q
+      | obl_dead k => dead k
+      | obl_link k0 k1 l => link k0 k1 l
+      | obl_duty p i ds => duty _ p i ds
+      | obl_fc p i => fairness_credit _ p i
+      | obl_promise p i k l f => promise _ p i k l f
+      | obl_tc => thread_credit _
+      | obl_tpromise k l f => thread_promise _ k l f
+      | obl_pcs ps m a => progress_credits ps m a
+      | obl_ccs k o ps l => collection_credits k o ps l
       end.
 
   End INTERP.
@@ -949,6 +975,31 @@ Section SIMI.
 
 End SIMI.
 
+(** Notations. *)
+
+Notation "'=|' x '|=(' A ')={' Es1 ',' Es2 '}=>' P" := (syn_fupd x A Es1 Es2 P) (at level 90) : formula_scope.
+Notation "'=|' x '|={' Es1 ',' Es2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es1, Es2}=> P)%F (at level 90) : formula_scope.
+Notation "P =| x |=( A )={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|=(A)={Es1,Es2}=> Q)%F (at level 90) : formula_scope.
+Notation "P =| x |={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|={Es1,Es2}=> Q)%F (at level 90) : formula_scope.
+
+Notation "'=|' x '|=(' A ')={' Es '}=>' P" := (syn_fupd x A Es Es P) (at level 90) : formula_scope.
+Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es }=> P)%F (at level 90) : formula_scope.
+Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%F (at level 90) : formula_scope.
+Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%F (at level 90) : formula_scope.
+
+Notation "'◆(' k '@' l '|' o ')'" := (⟨Atom.obl_lo k l o⟩)%F (at level 200, k, l, o at level 1) : formula_scope.
+Notation "'◇(' k '@' l ')' a " := (⟨Atom.obl_pc k l a⟩)%F (at level 200, k, l, a at level 1) : formula_scope.
+Notation "'alive' k q" := (⟨Atom.obl_live k q⟩)%F (at level 200, k, q at level 1) : formula_scope.
+Notation "'adead' k" := (⟨Atom.obl_dead k⟩)%F (at level 200, k at level 1) : formula_scope.
+Notation "s '-(' l ')-◇' t" := (⟨Atom.obl_link s t l⟩)%F (at level 200, l, t at level 1) : formula_scope.
+Notation "'Duty(' p ◬ i ')' ds" := (⟨Atom.obl_duty p i ds⟩)%F (at level 200, p, i, ds at level 1) : formula_scope.
+Notation "'Duty(' tid ')' ds" := (⟨Atom.obl_duty inlp tid ds⟩)%F (at level 200, tid, ds at level 1) : formula_scope.
+Notation "'€(' p ◬ i ')'" := (⟨Atom.obl_fc p i⟩)%F : formula_scope.
+Notation "'-(' k '@' l ')-(' p ◬ i ')-◇' f" := (⟨Atom.obl_promise p i k l f⟩)%F (at level 200, k, l, p, i at level 1) : formula_scope.
+Notation "'€'" := (⟨Atom.obl_tc⟩)%F : formula_scope.
+Notation "'-(' k '@' l ')-◇' f" := (⟨Atom.obl_tpromise k l f⟩)%F (at level 200, k, l at level 1) : formula_scope.
+Notation "'◇[' ps '@' m ']' a " := (⟨Atom.obl_pcs ps m a⟩)%F (at level 200, ps, m, a at level 1) : formula_scope.
+Notation "'◆[' k '&' ps '@' l | o ']'" := (⟨Atom.obl_ccs k o ps l⟩)%F (at level 200, k, ps, l, o at level 1) : formula_scope.
 
 
 Section TEST.
