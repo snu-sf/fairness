@@ -262,8 +262,60 @@ Section RED.
   Proof. ss. Qed.
 
 End RED.
-
 Global Opaque Syntax.to_semantics.
+
+(** Simple formula reduction tactics. *)
+Ltac red_sem_binary_once := (try rewrite ! @red_sem_sepconj;
+                            try rewrite ! @red_sem_and;
+                            try rewrite ! @red_sem_or;
+                            try rewrite ! @red_sem_impl;
+                            try rewrite ! @red_sem_wand
+                           ).
+
+Ltac red_sem_unary_once := (
+                           try rewrite ! @red_sem_atom;
+                           try rewrite ! @red_sem_lift;
+                           try rewrite ! @red_sem_pure;
+                           try rewrite ! @red_sem_univ;
+                           try rewrite ! @red_sem_ex;
+                           try rewrite ! @red_sem_empty;
+                           try rewrite ! @red_sem_persistently;
+                           try rewrite ! @red_sem_plainly;
+                           try rewrite ! @red_sem_upd;
+                           try rewrite ! @red_sem_affinely;
+                           try rewrite ! @red_sem_intuitionistically;
+                           try rewrite ! @red_sem_sisim
+                          ).
+
+Ltac red_sem_binary := repeat red_sem_binary_once.
+Ltac red_sem_unary := repeat red_sem_unary_once.
+Ltac red_sem := repeat (red_sem_binary; red_sem_unary).
+
+Ltac red_sem_binary_once_every := (try rewrite ! @red_sem_sepconj in *;
+                                  try rewrite ! @red_sem_and in *;
+                                  try rewrite ! @red_sem_or in *;
+                                  try rewrite ! @red_sem_impl in *;
+                                  try rewrite ! @red_sem_wand in *
+                                 ).
+
+Ltac red_sem_unary_once_every := (
+                                 try rewrite ! @red_sem_atom in *;
+                                 try rewrite ! @red_sem_lift in *;
+                                 try rewrite ! @red_sem_pure in *;
+                                 try rewrite ! @red_sem_univ in *;
+                                 try rewrite ! @red_sem_ex in *;
+                                 try rewrite ! @red_sem_empty in *;
+                                 try rewrite ! @red_sem_persistently in *;
+                                 try rewrite ! @red_sem_plainly in *;
+                                 try rewrite ! @red_sem_upd in *;
+                                 try rewrite ! @red_sem_affinely in *;
+                                 try rewrite ! @red_sem_intuitionistically in *;
+                                 try rewrite ! @red_sem_sisim in *
+                                ).
+
+Ltac red_sem_binary_every := repeat red_sem_binary_once.
+Ltac red_sem_unary_every := repeat red_sem_unary_once.
+Ltac red_sem_every := repeat (red_sem_binary_every; red_sem_unary_every).
 
 (** Notations *)
 

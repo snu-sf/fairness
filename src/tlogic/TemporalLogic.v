@@ -2,7 +2,7 @@ From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.
 From Fairness Require Import ISim SimDefaultRA LiveObligations SimWeakest.
-From Fairness Require Import LogicSyntaxHOAS.
+From Fairness Require Export LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 Require Import Program.
@@ -202,7 +202,7 @@ Module Atom.
 
     Inductive t {form : Type} : Type :=
     (** Simple atoms. *)
-    | satom (s : aAtom)
+    | aux (s : aAtom)
     (** Atoms to express the invariant system. *)
     | owni (i : positive) (p : @Syntax.t _ (@Typ) (@t form) form)
     | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ (@Typ) (@t form) form)))
@@ -272,7 +272,7 @@ Module Atom.
     Definition to_semantics n (a : @t AA STT (_Formula n)) : iProp :=
       match a with
       (** Simple atoms. *)
-      | satom s => aaintp s
+      | aux s => aaintp s
       (** Atom to express the invariant system. *)
       | owni i p => @OwnI Σ Formula _ n i p
       | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
@@ -365,8 +365,8 @@ End TL.
 (** Notations and coercions. *)
 Notation "'τ{' t ',' n '}'" := (@Typ (@_Formula _ _ n) t).
 Notation "'τ{' t '}'" := (@Typ (@_Formula _ _ _) t).
-Notation "'⟪' A ',' n '⟫'" := (AtomSem n A).
-Notation "'⟦' F ',' n '⟧'" := (SynSem n F).
+Notation "'⟪' A ',' n '⟫'" := (@AtomSem _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n A).
+Notation "'⟦' F ',' n '⟧'" := (@SynSem _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n F).
 
 
 Section RED.
@@ -391,6 +391,10 @@ Section RED.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
+
+  Lemma red_tl_atom_aux n (a : aAtom) :
+    ⟦⟨Atom.aux a⟩%F, n⟧ = aaintp a.
+  Proof. setoid_rewrite red_sem_atom. ss. Qed.
 
   Lemma red_tl_atom n a :
     ⟦⟨a⟩%F, n⟧ = ⟪a, n⟫.
@@ -506,7 +510,8 @@ Ltac red_tl_binary_once := (try rewrite ! @red_tl_sepconj;
                             try rewrite ! @red_tl_wand
                            ).
 
-Ltac red_tl_unary_once := (try rewrite ! @red_tl_atom;
+Ltac red_tl_unary_once := (try rewrite ! @red_tl_atom_aux;
+                           try rewrite ! @red_tl_atom;
                            try rewrite ! @red_tl_lift;
                            try rewrite ! @red_tl_pure;
                            try rewrite ! @red_tl_univ;
@@ -523,6 +528,33 @@ Ltac red_tl_unary_once := (try rewrite ! @red_tl_atom;
 Ltac red_tl_binary := repeat red_tl_binary_once.
 Ltac red_tl_unary := repeat red_tl_unary_once.
 Ltac red_tl := repeat (red_tl_binary; red_tl_unary).
+
+
+Ltac red_tl_binary_once_every := (try rewrite ! @red_tl_sepconj in *;
+                                  try rewrite ! @red_tl_and in *;
+                                  try rewrite ! @red_tl_or in *;
+                                  try rewrite ! @red_tl_impl in *;
+                                  try rewrite ! @red_tl_wand in *
+                                 ).
+
+Ltac red_tl_unary_once_every := (try rewrite ! @red_tl_atom_aux in *;
+                                 try rewrite ! @red_tl_atom in *;
+                                 try rewrite ! @red_tl_lift in *;
+                                 try rewrite ! @red_tl_pure in *;
+                                 try rewrite ! @red_tl_univ in *;
+                                 try rewrite ! @red_tl_ex in *;
+                                 try rewrite ! @red_tl_empty in *;
+                                 try rewrite ! @red_tl_persistently in *;
+                                 try rewrite ! @red_tl_plainly in *;
+                                 try rewrite ! @red_tl_upd in *;
+                                 try rewrite ! @red_tl_affinely in *;
+                                 try rewrite ! @red_tl_intuitionistically in *;
+                                 try rewrite ! @red_tl_sisim in *
+                                ).
+
+Ltac red_tl_binary_every := repeat red_tl_binary_once.
+Ltac red_tl_unary_every := repeat red_tl_unary_once.
+Ltac red_tl_every := repeat (red_tl_binary_every; red_tl_unary_every).
 
 
 Section WSATS.
@@ -619,14 +651,14 @@ Section WSATS.
     syn_wsats (S n) = (↑(syn_wsats n) ∗ (syn_wsat n))%F.
   Proof. apply unfold_lifts_seps. Qed.
 
-  Lemma syn_wsats_to_wsats n :
+  Lemma red_syn_wsats n :
     ⟦syn_wsats n, n⟧ ⊢ wsats n.
   Proof.
     induction n; ss. rewrite unfold_syn_wsats. red_tl. iIntros "[A B]".
     iApply fold_wsats. rewrite red_syn_wsat. iFrame. iApply IHn. iFrame.
   Qed.
 
-  Lemma wsats_to_syn_wsats n :
+  Lemma get_syn_wsats n :
     wsats n ⊢ ⟦syn_wsats n, n⟧.
   Proof.
     induction n; ss. rewrite unfold_syn_wsats. red_tl. iIntros "A".
@@ -673,26 +705,26 @@ Section WSATS.
   Definition syn_fupd (n : index) (A : Formula n) (Es1 Es2 : coPsets) (p : Formula n) : Formula n :=
     (A ∗ syn_wsats n ∗ syn_ownes _ Es1 -∗ |==> (A ∗ syn_wsats n ∗ syn_ownes _ Es2 ∗ p))%F.
 
-  Lemma syn_fupd_to_fupd n A Es1 Es2 p :
+  Lemma red_syn_fupd n A Es1 Es2 p :
     ⟦syn_fupd n A Es1 Es2 p, n⟧ ⊢ FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧.
   Proof.
     unfold syn_fupd. red_tl. rewrite ! red_syn_ownes.
     Local Transparent FUpd.
-    iIntros "F [A [W E]]". iPoseProof (wsats_to_syn_wsats with "W") as "W".
+    iIntros "F [A [W E]]". iPoseProof (get_syn_wsats with "W") as "W".
     iMod ("F" with "[A E W]") as "(A & W & E & P)". iFrame.
-    iPoseProof (syn_wsats_to_wsats with "W") as "W".
+    iPoseProof (red_syn_wsats with "W") as "W".
     iModIntro. iFrame.
     Local Opaque FUpd.
   Qed.
 
-  Lemma fupd_to_syn_fupd n A Es1 Es2 p :
+  Lemma get_syn_fupd n A Es1 Es2 p :
     FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧ ⊢ ⟦syn_fupd n A Es1 Es2 p, n⟧.
   Proof.
     unfold syn_fupd. red_tl. rewrite ! red_syn_ownes.
     Local Transparent FUpd.
-    iIntros "F [A [W E]]". iPoseProof (syn_wsats_to_wsats with "W") as "W".
+    iIntros "F [A [W E]]". iPoseProof (red_syn_wsats with "W") as "W".
     iMod ("F" with "[A E W]") as "(A & W & E & P)". iFrame.
-    iPoseProof (wsats_to_syn_wsats with "W") as "W".
+    iPoseProof (get_syn_wsats with "W") as "W".
     iModIntro. iFrame.
     Local Opaque FUpd.
   Qed.
@@ -779,14 +811,14 @@ Section OBLIG.
     syn_arrows_sats (S n) = (↑(syn_arrows_sats n) ∗ (syn_arrows_sat n))%F.
   Proof. apply unfold_lifts_seps. Qed.
 
-  Lemma syn_arrows_sats_to_arrows_sats n :
+  Lemma red_syn_arrows_sats n :
     ⟦syn_arrows_sats n, n⟧ ⊢ ObligationRA.arrows_sats n.
   Proof.
     induction n; ss. rewrite unfold_syn_arrows_sats. red_tl. iIntros "[A B]".
     iApply Regions.fold_nsats. rewrite red_syn_arrows_sat. iFrame. iApply IHn. iFrame.
   Qed.
 
-  Lemma arrows_sats_to_syn_arrows_sats n :
+  Lemma get_syn_arrows_sats n :
     ObligationRA.arrows_sats n ⊢ ⟦syn_arrows_sats n, n⟧.
   Proof.
     induction n; ss. rewrite unfold_syn_arrows_sats. red_tl. iIntros "A".
@@ -796,16 +828,16 @@ Section OBLIG.
 
   Definition syn_fairI n : Formula n := (⟨obl_edges_sat⟩ ∗ syn_arrows_sats n)%F.
 
-  Lemma syn_fairI_to_fairI n :
+  Lemma red_syn_fairI n :
     ⟦syn_fairI n, n⟧ ⊢ fairI n.
   Proof.
-    unfold syn_fairI. red_tl. rewrite syn_arrows_sats_to_arrows_sats. unfold fairI. ss.
+    unfold syn_fairI. red_tl. rewrite red_syn_arrows_sats. unfold fairI. ss.
   Qed.
 
-  Lemma fairI_to_syn_fairI n :
+  Lemma get_syn_fairI n :
     fairI n ⊢ ⟦syn_fairI n, n⟧.
   Proof.
-    unfold syn_fairI. red_tl. unfold fairI. rewrite arrows_sats_to_syn_arrows_sats. ss.
+    unfold syn_fairI. red_tl. unfold fairI. rewrite get_syn_arrows_sats. ss.
   Qed.
 
 End OBLIG.
@@ -847,18 +879,18 @@ Section SIMI.
     fun ths im_src im_tgt st_src st_tgt =>
       (⟨ob_ths ths⟩ ∗ ⟨ob_st_src st_src⟩ ∗ ⟨ob_st_tgt st_tgt⟩ ∗ ⟨fair_src im_src⟩ ∗ ⟨fair_tgt im_tgt ths⟩ ∗ ⟨obl_edges_sat⟩ ∗ syn_arrows_sats n ∗ ⟨obl_arrows_auth n⟩)%F.
 
-  Lemma syn_default_I_to_default_I n ths ims imt sts stt :
+  Lemma red_syn_default_I n ths ims imt sts stt :
     ⟦syn_default_I n ths ims imt sts stt, n⟧ ⊢ default_I n ths ims imt sts stt.
   Proof.
     unfold syn_default_I, default_I. red_tl. iIntros "[A [B [C [D [E [F [G H]]]]]]]". iFrame.
-    iApply syn_arrows_sats_to_arrows_sats. iFrame.
+    iApply red_syn_arrows_sats. iFrame.
   Qed.
 
-  Lemma default_I_to_syn_default_I n ths ims imt sts stt :
+  Lemma get_syn_default_I n ths ims imt sts stt :
     default_I n ths ims imt sts stt ⊢ ⟦syn_default_I n ths ims imt sts stt, n⟧.
   Proof.
     unfold syn_default_I, default_I. red_tl. iIntros "[A [B [C [D [E [F [G H]]]]]]]". iFrame.
-    iApply arrows_sats_to_syn_arrows_sats. iFrame.
+    iApply get_syn_arrows_sats. iFrame.
   Qed.
 
   Definition syn_default_I_past tid n
@@ -868,20 +900,20 @@ Section SIMI.
           (⌜fair_update im_tgt0 im_tgt (prism_fmap inlp (tids_fmap tid ths))⌝)
             ∗ (syn_default_I n ths im_src im_tgt0 st_src st_tgt))%F.
 
-  Lemma syn_default_I_past_to_default_I_past tid n ths ims imt sts stt :
+  Lemma red_syn_default_I_past tid n ths ims imt sts stt :
     ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ ⊢ default_I_past tid n ths ims imt sts stt.
   Proof.
     unfold syn_default_I_past, default_I_past. red_tl.
     iIntros "[% D]". red_tl. iDestruct "D" as "[% D]".
-    iExists _. rewrite syn_default_I_to_default_I. iFrame. auto.
+    iExists _. rewrite red_syn_default_I. iFrame. auto.
   Qed.
 
-  Lemma default_I_past_to_syn_default_I_past tid n ths ims imt sts stt :
+  Lemma get_syn_default_I_past tid n ths ims imt sts stt :
     default_I_past tid n ths ims imt sts stt ⊢ ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧.
   Proof.
     unfold syn_default_I_past, default_I_past. red_tl.
     iIntros "[% [% D]]". iExists _. red_tl. iSplit. auto.
-    iApply default_I_to_syn_default_I. iFrame.
+    iApply get_syn_default_I. iFrame.
   Qed.
 
   Definition syn_wpsim n tid Es
@@ -905,7 +937,7 @@ Section SIMI.
                           Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
       )%F.
 
-  Lemma syn_wpsim_to_wpsim
+  Lemma red_syn_wpsim
         n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
     ⟦syn_wpsim n tid Es Q ps pt itr_src itr_tgt, n⟧
       ⊢
@@ -920,7 +952,7 @@ Section SIMI.
     iSpecialize ("SWP" $! st_tgt). red_tl.
     iPoseProof ("SWP" with "[D W1 W2 W3]") as "SWP".
     { ss. iFrame.
-      rewrite default_I_past_to_syn_default_I_past. rewrite wsats_to_syn_wsats. rewrite red_syn_ownes.
+      rewrite get_syn_default_I_past. rewrite get_syn_wsats. rewrite red_syn_ownes.
       iFrame.
     }
     unfold isim_simple.
@@ -928,17 +960,17 @@ Section SIMI.
     iApply isim_mono; cycle 1.
     { iApply isim_equivI. 2: iFrame.
       iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-      - rewrite syn_default_I_to_default_I. rewrite syn_wsats_to_wsats. rewrite red_syn_ownes. iFrame.
-      - rewrite default_I_to_syn_default_I. rewrite wsats_to_syn_wsats. rewrite red_syn_ownes. iFrame.
+      - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+      - rewrite get_syn_default_I. rewrite get_syn_wsats. rewrite red_syn_ownes. iFrame.
     }
     { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-      iModIntro. rewrite syn_default_I_past_to_default_I_past. rewrite syn_wsats_to_wsats. rewrite red_syn_ownes. iFrame.
+      iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
     }
     { iIntros. inv H. }
     { iIntros. inv H. }
   Qed.
 
-  Lemma wpsim_to_syn_wpsim
+  Lemma get_syn_wpsim
         n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
     wpsim n tid Es ibot7 ibot7 (fun rs rt => ⟦Q rs rt, n⟧) ps pt itr_src itr_tgt
           ⊢
@@ -954,7 +986,7 @@ Section SIMI.
     iIntros "[D (W1 & W2 & W3)]".
     iPoseProof ("SWP" with "[D W1 W2 W3]") as "SWP".
     { ss. iFrame.
-      rewrite syn_default_I_past_to_default_I_past. rewrite syn_wsats_to_wsats. rewrite red_syn_ownes.
+      rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
       iFrame.
     }
     unfold isim_simple.
@@ -962,15 +994,80 @@ Section SIMI.
     iPoseProof (isim_mono with "SWP") as "SWP"; cycle 1.
     { iPoseProof (isim_equivI with "SWP") as "SWP". 2: iFrame.
       iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-      - rewrite default_I_to_syn_default_I. rewrite wsats_to_syn_wsats. rewrite red_syn_ownes. iFrame.
-      - rewrite syn_default_I_to_default_I. rewrite syn_wsats_to_wsats. rewrite red_syn_ownes. iFrame.
+      - rewrite get_syn_default_I. rewrite get_syn_wsats. rewrite red_syn_ownes. iFrame.
+      - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
     }
     { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
       iModIntro.
-      rewrite default_I_past_to_syn_default_I_past. rewrite wsats_to_syn_wsats. rewrite red_syn_ownes. iFrame.
+      rewrite get_syn_default_I_past. rewrite get_syn_wsats. rewrite red_syn_ownes. iFrame.
     }
     { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?). iIntros "(% & % & %H & _)". inv H. }
     { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?). iIntros "(% & % & %H & _)". inv H. }
+  Qed.
+
+  (* State interp with lens. *)
+  Definition syn_view_interp n {S V} (l : Lens.t S V) (SI : S -> Formula n) (VI : V -> Formula n) : Prop :=
+    forall s, ⟦SI s , n⟧ ⊢ ( ⟦VI (Lens.view l s), n⟧ ∗ ∀ x, ⟦VI x, n⟧ -∗ ⟦SI (Lens.set l x s), n⟧ ).
+
+  Definition syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) : Formula (S n) :=
+    (∃ (SI : τ{(st_src_type -> Φ)%ftype, S n}) (p : τ{Φ, S n}),
+        (⌜⟦p, n⟧ = (∃ st, St_src st ∗ ⟦(SI st), n⟧)%I⌝)
+          ∗ (↑(syn_inv n N_state_src p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
+
+  Lemma red_syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
+    ⟦syn_src_interp_as n l VI, S n⟧ ⊢ (src_interp_as l VI).
+  Proof.
+    unfold syn_src_interp_as. unfold src_interp_as. red_tl. ss.
+    iIntros "[%SI P]". red_tl. iDestruct "P" as "[%p P]". red_tl. iDestruct "P" as "(%EQ & SINV & %SVI)".
+    iExists SI, p.
+    iSplit.
+    { iPureIntro. ss. }
+    iSplit.
+    { rewrite red_syn_inv. ss. }
+    { iPureIntro. ss. }
+  Qed.
+
+  Lemma get_syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
+    (src_interp_as l VI) ⊢ ⟦syn_src_interp_as n l VI, S n⟧.
+  Proof.
+    unfold syn_src_interp_as. unfold src_interp_as. ss.
+    iIntros "[%SI [% (%SS & INV & %VISI)]]".
+    red_tl. iExists SI. red_tl. iExists p. red_tl. iSplit.
+    { ss. }
+    iSplit.
+    { rewrite red_syn_inv. ss. }
+    { iPureIntro. iIntros (?). iApply view_interp. }
+  Qed.
+
+
+  Definition syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) : Formula (S n) :=
+    (∃ (SI : τ{(st_tgt_type -> Φ)%ftype, S n}) (p : τ{Φ, S n}),
+        (⌜⟦p, n⟧ = (∃ st, St_tgt st ∗ ⟦(SI st), n⟧)%I⌝)
+          ∗ (↑(syn_inv n N_state_tgt p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
+
+  Lemma red_syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
+    ⟦syn_tgt_interp_as n l VI, S n⟧ ⊢ (tgt_interp_as l VI).
+  Proof.
+    unfold syn_tgt_interp_as. unfold tgt_interp_as. red_tl. ss.
+    iIntros "[%SI P]". red_tl. iDestruct "P" as "[%p P]". red_tl. iDestruct "P" as "(%EQ & SINV & %SVI)".
+    iExists SI, p.
+    iSplit.
+    { iPureIntro. ss. }
+    iSplit.
+    { rewrite red_syn_inv. ss. }
+    { iPureIntro. ss. }
+  Qed.
+
+  Lemma get_syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
+    (tgt_interp_as l VI) ⊢ ⟦syn_tgt_interp_as n l VI, S n⟧.
+  Proof.
+    unfold syn_tgt_interp_as. unfold tgt_interp_as. ss.
+    iIntros "[%SI [% (%SS & INV & %VISI)]]".
+    red_tl. iExists SI. red_tl. iExists p. red_tl. iSplit.
+    { ss. }
+    iSplit.
+    { rewrite red_syn_inv. ss. }
+    { iPureIntro. iIntros (?). iApply view_interp. }
   Qed.
 
 End SIMI.
