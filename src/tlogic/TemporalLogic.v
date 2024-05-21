@@ -757,9 +757,9 @@ Section OBLIG.
     extensionalities t. apply red_syn_obl_arrow.
   Qed.
 
-  Check (⇣ Ord.t)%ftype.
-  Check (⇣ (nat + nat)%type)%ftype.
-  (* Check (⇣ (sum_tid id_tgt_type))%ftype. *)
+  (* Check (⇣ Ord.t)%ftype. *)
+  (* Check (⇣ (nat + nat)%type)%ftype. *)
+  (* Fail Check (⇣ (sum_tid id_tgt_type))%ftype. *)
 
   Definition syn_arrows_sat n : Formula (S n) :=
     (∃ (l : τ{ listT ((⇣(nat + id_tgt_type)) * (⇣nat) * (⇣Ord.t) * (⇣Qp) * (⇣nat) * Φ)%ftype, S n }),

@@ -713,7 +713,7 @@ Section OWNES.
   Qed.
 
   Lemma lookup_subseteq_def Es n E :
-    E ⊆ (lookup_def Es n) -> (match Es !! n with Some E' => E ⊆ E' | _ => True end).
+    E ⊆ (lookup_def Es n) -> (match Es !! n with Some E' => E ⊆ E' | None => True end).
   Proof.
     unfold lookup_def,default. i. des_ifs.
   Qed.
@@ -806,7 +806,7 @@ Section FANCY_UPDATE.
     rewrite difference_union_L. set_solver.
   Qed.
 
-  Lemma FUpd_open x A Es n N (LT : n < x) (IN : match Es !! n with Some E => (↑N) ⊆ E | _ => True end) p :
+  Lemma FUpd_open x A Es n N (LT : n < x) (IN : match Es !! n with Some E => (↑N) ⊆ E | None => True end) p :
     inv n N p ⊢
         FUpd x A Es
         (<[n := (Es !? n)∖↑N]> Es)
@@ -1005,7 +1005,7 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
   Qed.
 
   Global Instance into_acc_FUpd_inv x A Es n N p :
-    IntoAcc (inv n N p) (n < x /\ (match Es !! n with Some E => (↑N) ⊆ E | _ => True end)) True
+    IntoAcc (inv n N p) (n < x /\ (match Es !! n with Some E => (↑N) ⊆ E | None => True end)) True
             (FUpd x A Es (<[n := Es !? n ∖ ↑N]>Es))
             (FUpd x A (<[n := Es !? n ∖ ↑N]>Es) Es)
             (fun _ : () => prop n p) (fun _ : () => prop n p) (fun _ : () => None).

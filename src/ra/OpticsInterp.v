@@ -107,10 +107,12 @@ Section STATE.
 
   Global Program Instance src_interp_as_persistent n {V} (l: Lens.t state_src V) (VI: V -> iProp): Persistent (src_interp_as n l VI).
 
+  Definition mask_has_st_src (Es : coPsets) n := (match Es !! n with Some E => (↑N_state_src) ⊆ E | None => True end).
+
   Global Program Instance src_interp_as_acc x A Es n {V} (l: Lens.t state_src V) (VI: V -> iProp):
     IntoAcc
       (src_interp_as n l VI)
-      (n < x /\ (match Es !! n with Some E => (↑N_state_src) ⊆ E | None => True end)) True
+      (n < x /\ mask_has_st_src Es n) True
       (FUpd x A Es (<[n := (Es !? n) ∖ E_state_src]>Es))
       (FUpd x A (<[n := (Es !? n) ∖ E_state_src]>Es) Es)
       (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ VI vw)%I
@@ -120,7 +122,6 @@ Section STATE.
   Proof.
     iIntros "[% [% [%PIS [INV %]]]] _".
     iInv "INV" as "INTERP" "K".
-    { des_ifs. }
     rewrite ! PIS. iDestruct "INTERP" as "[% [ST INTERP]]".
     iModIntro. iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
     iExists _. iSplitL "ST INTERP".
@@ -167,10 +168,12 @@ Section STATE.
 
   Global Program Instance tgt_interp_as_persistent n {V} (l: Lens.t state_tgt V) (VI: V -> iProp): Persistent (tgt_interp_as n l VI).
 
+  Definition mask_has_st_tgt (Es : coPsets) n := (match Es !! n with Some E => (↑N_state_tgt) ⊆ E | None => True end).
+
   Global Program Instance tgt_interp_as_acc x A Es n {V} (l: Lens.t state_tgt V) (VI: V -> iProp):
     IntoAcc
       (tgt_interp_as n l VI)
-      (n < x /\ (match Es !! n with | Some E => (↑N_state_tgt) ⊆ E | None => True end)) True
+      (n < x /\ mask_has_st_tgt Es n) True
       (FUpd x A Es (<[n:=(Es !? n) ∖ E_state_tgt]>Es))
       (FUpd x A (<[n:=(Es !? n) ∖ E_state_tgt]>Es) Es)
       (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ∗ VI vw)%I
@@ -180,7 +183,6 @@ Section STATE.
   Proof.
     iIntros "[% [% [%PIS [INV %]]]] _".
     iInv "INV" as "INTERP" "K".
-    { des_ifs. }
     rewrite ! PIS. iDestruct "INTERP" as "[% [ST INTERP]]".
     iModIntro. iPoseProof (view_interp with "INTERP") as "[INTERP SET]".
     iExists _. iSplitL "ST INTERP".

@@ -6,8 +6,9 @@ COQTHEORIES  := \
 	src/simulation/*.v \
 	src/ra/*.v \
 	src/foslogic/*.v \
-	src/example/*.v \
+	src/fosexample/*.v \
 	src/tlogic/*.v \
+	src/example/*.v \
 
 .PHONY: all theories clean
 
@@ -25,8 +26,9 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-Q src/simulation $(COQMODULE)"; \
 	 echo "-Q src/ra $(COQMODULE)"; \
 	 echo "-Q src/foslogic $(COQMODULE)"; \
-	 echo "-Q src/example $(COQMODULE)"; \
+	 echo "-Q src/fosexample $(COQMODULE)"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
+	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
