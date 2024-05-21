@@ -1,13 +1,10 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import Optics IProp IPM PCM.
-
-Set Implicit Arguments.
-
 From stdpp Require Import coPset gmap namespaces.
 From Fairness Require Export IndexedInvariants.
-(* From Fairness Require Export SimDefaultRA IndexedInvariants. *)
-(* From Fairness Require Export SimDefaultRA FancyUpdate. *)
+
+Set Implicit Arguments.
 
 Require Import Program.
 

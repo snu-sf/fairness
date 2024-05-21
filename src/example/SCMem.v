@@ -278,6 +278,40 @@ Module SCMem.
                      ("cas_weak", Mod.wrap_fun cas_weak_fun);
                      ("compare", Mod.wrap_fun compare_fun)
       ]).
+
+  Definition memory_comparable (m : SCMem.t) (v : SCMem.val) : Prop :=
+    match (SCMem.unwrap_ptr v) with
+    | Some (vb, vo) =>
+        match (SCMem.contents m) vb vo with
+        | Some vv => True
+        | None => False
+        end
+    | _ => True
+    end.
+
+  Lemma memory_comparable_store m m' l stv v :
+    SCMem.store m l stv = Some m' ->
+    memory_comparable m v -> memory_comparable m' v.
+  Proof.
+    unfold SCMem.store, SCMem.mem_update, SCMem.unwrap_ptr.
+    des_ifs. i. des_ifs. unfold memory_comparable in *. des_ifs. ss. des_ifs.    
+  Qed.
+
+  Lemma val_compare_None m v1 v2 :
+    SCMem.val_compare m v1 v2 = None ->
+    (memory_comparable m v1 /\ memory_comparable m v2) -> False.
+  Proof.
+    unfold memory_comparable. unfold SCMem.val_compare, SCMem.has_permission.
+    i. des_ifs; des; clarify.
+  Qed.
+
+  Lemma val_compare_Some m v1 v2 b :
+    SCMem.val_compare m v1 v2 = Some b ->
+    if b then v1 = v2 else v1 <> v2.
+  Proof.
+    unfold SCMem.val_compare. i. des_ifs; ii; inv H0; congruence.
+  Qed.
+
 End SCMem.
 
 (** RA for SCMem. *)
