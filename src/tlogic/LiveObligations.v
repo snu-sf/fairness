@@ -668,7 +668,7 @@ End RULES.
 (** Notations. *)
 
 Notation "'◆(' k '@' l '|' o ')'" := (liveness_obligation k l o) (at level 200, k, l, o at level 1) : bi_scope.
-Notation "'◇(' k '@' l ')(' a ')' " := (progress_credit k l a) (at level 200, k, l, a at level 1) : bi_scope.
+Notation "'◇(' k '@' l ')' a " := (progress_credit k l a) (at level 200, k, l, a at level 1) : bi_scope.
 Notation "s '-(' l ')-◇' t" := (link s t l) (at level 200, l, t at level 1) : bi_scope.
 Notation "'Duty(' p ◬ i ')' ds" := (duty _ p i ds) (at level 200, p, i, ds at level 1) : bi_scope.
 Notation "'Duty(' tid ')' ds" := (duty _ inlp tid ds) (at level 200, tid, ds at level 1) : bi_scope.
@@ -676,7 +676,7 @@ Notation "'€(' p ◬ i ')'" := (fairness_credit _ p i) : bi_scope.
 Notation "'-(' k '@' l ')-(' p ◬ i ')-◇' f" := (promise _ p i k l f) (at level 200, k, l, p, i at level 1) : bi_scope.
 Notation "'€'" := (thread_credit _) : bi_scope.
 Notation "'-(' k '@' l ')-◇' f" := (thread_promise _ k l f) (at level 200, k, l at level 1) : bi_scope.
-Notation "'◇[' ps '@' m '](' a ')'" := (progress_credits ps m a) (at level 200, ps, m, a at level 1) : bi_scope.
+Notation "'◇[' ps '@' m ']' a " := (progress_credits ps m a) (at level 200, ps, m, a at level 1) : bi_scope.
 Notation "'◆[' k '&' ps '@' l | o ']'" := (collection_credits k o ps l) (at level 200, k, ps, l, o at level 1) : bi_scope.
 Notation "'-(' k '@' l ')-(' p ◬ i ')-(' R ',' r ')-◇' f" :=
   (until_promise _ p i k l f R r) (at level 200, k, l, p, i, r at level 1) : bi_scope.
