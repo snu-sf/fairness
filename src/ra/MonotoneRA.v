@@ -1533,6 +1533,9 @@ End LISTSUB.
 
 Require Import Program.
 
+Lemma Qp_add_lt_one : forall (q : Qp), (1 + q ≤ 1)%Qp -> False.
+Proof. intros. eapply Qp.not_add_le_l. eauto. Qed.
+
 Module OneShot.
   Section ONESHOT.
     Variable A: Type.

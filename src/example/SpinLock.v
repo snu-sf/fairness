@@ -46,12 +46,13 @@ End Spinlock.
 Section SIM.
 
   Context {STT : StateTypes}.
+  Notation Formula := (@Formula XAtom STT).
 
   Context `{Σ : GRA.t}.
   (* Invariant related default RAs *)
   Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
   Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA (@Formula XAtom STT)) Σ}.
+  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
   (* State related default RAs *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
   Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
@@ -62,18 +63,33 @@ Section SIM.
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type (@Formula XAtom STT)) Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
   (* SCMem related RAs *)
   Context `{MEMRA: @GRA.inG memRA Σ}.
   (* Map from nat to Excl unit RA. *)
   Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
+  (* Auth agree Qp RA. *)
+  Context `{AAGREE_QP: @GRA.inG (AuthAgreeRA Qp) Σ}.
+
+  (* Variable p_spinlock : Prism.t id_tgt_type void. *)
+  (* Variable l_spinlock : Lens.t st_tgt_type unit. *)
+  (* Let emb_spinlock := plmap p_spinlock l_spinlock. *)
+
+  Variable p_mem : Prism.t id_tgt_type SCMem.val.
+  Variable l_mem : Lens.t st_tgt_type SCMem.t.
+  Let emb_mem := plmap p_mem l_mem.
 
 
-  Variable p_spinlock : Prism.t id_tgt_type void.
-  Variable l_spinlock : Lens.t st_tgt_type unit.
-  Let emb_spinlock := plmap p_spinlock l_spinlock.
+  Definition spinlock_inv {n : nat} (r : nat) (x : SCMem.val) (p : Formula n) (k l : nat) : Formula n :=
+    ((∃ (q : τ{Qp}),
+         (➢(agree_b_Qp q))
+           ∗
+           (((x ↦ 0) ∗ (◇(k @ l) 1) ∗ (➢(excls r)) ∗ (➢(agree_w_Qp q)))
+            ∨ ((x ↦ 1) ∗ live(k, q) ∗ ∃ (u : τ{nat}), ((-(u @ l)-◇ emp) ∗ (u -( 0 )-◇ k)))))
+     ∨ dead(k)
+    )%F.
 
-  Definition spinlock_inv
+  TODO
 
 
   Definition thread1_will_write : iProp :=

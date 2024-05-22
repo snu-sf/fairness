@@ -9,6 +9,7 @@ Require Import Program.
 Section AUXRAS.
 
   Definition ExclUnitsRA : URA.t := (nat ==> (Excl.t unit))%ra.
+  Definition AuthAgreeRA (A : Type) : URA.t := (Auth.t (URA.agree A)).
 
 End AUXRAS.
 
@@ -22,6 +23,9 @@ Section XADEF.
     (* Map from nat to Excl unit. *)
     | excls_auth
     | excls (k : nat)
+    (* Auth agree Qp *)
+    | agree_b_Qp (q : Qp)
+    | agree_w_Qp (q : Qp)
   .
 
   Global Instance XAtom : AuxAtom := { aAtom := xatom }.
@@ -35,6 +39,8 @@ Section XAINTERP.
   Context `{MEMRA: @GRA.inG memRA Σ}.
   (* Map from nat to Excl unit RA. *)
   Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
+  (* Auth agree Qp RA. *)
+  Context `{AAGREE_QP: @GRA.inG (AuthAgreeRA Qp) Σ}.
 
   Definition xatom_sem (xa : xatom) : iProp :=
     match xa with
@@ -43,6 +49,8 @@ Section XAINTERP.
     | scm_memory_black m => memory_black m
     | excls_auth => (∃ (X : gset nat), OwnM ((fun k => if (gset_elem_of_dec k X) then ε else (Some tt : Excl.t unit)) : ExclUnitsRA))
     | excls k => OwnM ((maps_to_res k (Some tt : Excl.t unit)) : ExclUnitsRA)
+    | agree_b_Qp q => OwnM (Auth.black (Some (Some q) : URA.agree Qp) : AuthAgreeRA Qp)
+    | agree_w_Qp q => OwnM (Auth.white (Some (Some q) : URA.agree Qp) : AuthAgreeRA Qp)
     end.
 
   Global Instance XAInterp : AAInterp := { aaintp := xatom_sem }.
@@ -78,6 +86,8 @@ Section TL.
   Context `{MEMRA: @GRA.inG memRA Σ}.
   (* Map from nat to Excl unit RA. *)
   Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
+  (* Auth agree Qp RA. *)
+  Context `{AAGREE_QP: @GRA.inG (AuthAgreeRA Qp) Σ}.
 
   Global Instance TLSet : @IInvSet Σ (@Formula XAtom STT) := SynIISet.
 

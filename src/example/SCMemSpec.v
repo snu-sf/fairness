@@ -33,6 +33,8 @@ Section SPEC.
   Context `{MEMRA: @GRA.inG memRA Σ}.
   (* Map from nat to Excl unit RA. *)
   Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
+  (* Auth agree Qp RA. *)
+  Context `{AAGREE_QP: @GRA.inG (AuthAgreeRA Qp) Σ}.
 
 
   Variable p_mem : Prism.t id_tgt_type SCMem.val.

@@ -314,6 +314,9 @@ Module SCMem.
 
 End SCMem.
 
+Coercion SCMem.val_nat : nat >-> SCMem.val.
+Coercion SCMem.val_ptr : SCMem.pointer >-> SCMem.val.
+
 (** RA for SCMem. *)
 
 From Fairness Require Import PCM IProp IPM.
