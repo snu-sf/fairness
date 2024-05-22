@@ -5,18 +5,13 @@ From Fairness Require Import ITreeLib Red TRed IRed2 LinkingRed.
 From Fairness Require Import Mod Linking.
 From Fairness Require Import PCM IProp IPM.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic TemporalLogicFull SCMem.
-From stdpp Require Import coPset gmap namespaces.
+From Fairness Require Import TemporalLogic TemporalLogicFull.
+From Fairness Require Export SCMem.
 
 
 Section SPEC.
 
-  Variable state_src: Type.
-  Variable state_tgt: Type.
-  Variable ident_src: ID.
-  Variable ident_tgt: ID.
-
-  Local Instance STT : StateTypes := Build_StateTypes state_src state_tgt ident_src ident_tgt.
+  Context {STT : StateTypes}.
 
   Context `{Σ : GRA.t}.
   (* Invariant related default RAs *)
@@ -25,17 +20,19 @@ Section SPEC.
   Context `{IINVSETRA : @GRA.inG (IInvSetRA (@Formula XAtom STT)) Σ}.
   (* State related default RAs *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
   (* Liveness logic related default RAs *)
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt (@Formula XAtom STT)) Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type (@Formula XAtom STT)) Σ}.
   (* SCMem related RAs *)
   Context `{MEMRA: @GRA.inG memRA Σ}.
+  (* Map from nat to Excl unit RA. *)
+  Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
 
 
   Variable p_mem : Prism.t id_tgt_type SCMem.val.
@@ -53,7 +50,7 @@ Section SPEC.
     (* (⟦ (∃ (m : τ{ SCMem.t }), ax (scm_memory_black m))%F, x ⟧) *)
     (*   -∗ *)
     (* (tgt_interp_as x l_mem memory_black) *)
-    (tgt_interp_as l_mem (fun m => (ax (scm_memory_black m) : Formula x)%F))
+    (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
       -∗
       (∀ l, points_tos l (repeat (SCMem.val_nat 0) sz) -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt l))
       -∗
@@ -85,7 +82,7 @@ Section SPEC.
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         p v
     :
-    (tgt_interp_as l_mem (fun m => (ax (scm_memory_black m) : Formula x)%F))
+    (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
       -∗
       (points_to p v)
       -∗
@@ -115,7 +112,7 @@ Section SPEC.
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l v v0
     :
-    (tgt_interp_as l_mem (fun m => (ax (scm_memory_black m) : Formula x)%F))
+    (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
       -∗
       (points_to l v0)
       -∗
@@ -145,7 +142,7 @@ Section SPEC.
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l v
     :
-    (tgt_interp_as l_mem (fun m => (ax (scm_memory_black m) : Formula x)%F))
+    (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
       -∗
       (points_to l v)
       -∗
@@ -172,7 +169,7 @@ Section SPEC.
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l add v
     :
-    (tgt_interp_as l_mem (fun m => (ax (scm_memory_black m) : Formula x)%F))
+    (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
       -∗
       (points_to l v)
       -∗
@@ -201,7 +198,7 @@ Section SPEC.
         (IN: mask_has_st_tgt Es x)
         l old new v
     :
-    (tgt_interp_as l_mem (fun m => ((ax (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v⌝ ∗ ⌜SCMem.memory_comparable m old⌝ : Formula x)%F))
+    (tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v⌝ ∗ ⌜SCMem.memory_comparable m old⌝ : Formula x)%F))
     (* (tgt_interp_as x l_mem (fun m => memory_black m ∗ ⌜SCMem.memory_comparable m v⌝ ∗ ⌜SCMem.memory_comparable m old⌝)) *)
       -∗
       (points_to l v)
@@ -247,7 +244,7 @@ Section SPEC.
         (IN: mask_has_st_tgt Es x)
         v1 v2
     :
-    (tgt_interp_as l_mem (fun m => ((ax (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v1⌝ ∗ ⌜SCMem.memory_comparable m v2⌝ : Formula x)%F))
+    (tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v1⌝ ∗ ⌜SCMem.memory_comparable m v2⌝ : Formula x)%F))
     (* (tgt_interp_as l_mem (fun m => memory_black m ∗ ⌜SCMem.memory_comparable m v1⌝ ∗ ⌜SCMem.memory_comparable m v2⌝)) *)
       -∗
       (⌜(v1 <> v2)⌝ -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt false))

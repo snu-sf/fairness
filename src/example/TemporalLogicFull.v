@@ -1,19 +1,27 @@
-From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.
 From Fairness Require Import ISim SimDefaultRA LiveObligations SimWeakest LogicSyntaxHOAS.
 From Fairness Require Export TemporalLogic.
+From stdpp Require Export coPset gmap namespaces.
 From Fairness Require Import SCMem.
-(* From iris Require Import bi.big_op. *)
-(* From iris Require base_logic.lib.invariants. *)
 Require Import Program.
+
+Section AUXRAS.
+
+  Definition ExclUnitsRA : URA.t := (nat ==> (Excl.t unit))%ra.
+
+End AUXRAS.
 
 Section XADEF.
 
   Variant xatom :=
+    (* SCMem related. *)
     | scm_points_to (p v : SCMem.val)
     | scm_points_tos (p : SCMem.val) (vs : list SCMem.val)
     | scm_memory_black (m : SCMem.t)
+    (* Map from nat to Excl unit. *)
+    | excls_auth
+    | excls (k : nat)
   .
 
   Global Instance XAtom : AuxAtom := { aAtom := xatom }.
@@ -23,14 +31,18 @@ End XADEF.
 Section XAINTERP.
 
   Context `{Σ : GRA.t}.
-  (* SCMem related RAs *)
+  (* SCMem related RAs. *)
   Context `{MEMRA: @GRA.inG memRA Σ}.
+  (* Map from nat to Excl unit RA. *)
+  Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
 
   Definition xatom_sem (xa : xatom) : iProp :=
     match xa with
     | scm_points_to p v => points_to p v
     | scm_points_tos p vs => points_tos p vs
     | scm_memory_black m => memory_black m
+    | excls_auth => (∃ (X : gset nat), OwnM ((fun k => if (gset_elem_of_dec k X) then ε else (Some tt : Excl.t unit)) : ExclUnitsRA))
+    | excls k => OwnM ((maps_to_res k (Some tt : Excl.t unit)) : ExclUnitsRA)
     end.
 
   Global Instance XAInterp : AAInterp := { aaintp := xatom_sem }.
@@ -38,8 +50,8 @@ Section XAINTERP.
 End XAINTERP.
 
 (** Notations. *)
-Notation "'ax' s" := (⟨Atom.aux (AA:=XAtom) s⟩)%F (at level 90) : formula_scope.
-Notation "l ↦ v" := (ax (scm_points_to l v))%F (at level 90) : formula_scope.
+Notation "'➢' s" := (⟨Atom.aux (AA:=XAtom) s⟩)%F (at level 90) : formula_scope.
+Notation "l ↦ v" := (➢ (scm_points_to l v))%F (at level 90) : formula_scope.
 
 Section TL.
 
@@ -64,6 +76,8 @@ Section TL.
   Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
   (* SCMem related RAs *)
   Context `{MEMRA: @GRA.inG memRA Σ}.
+  (* Map from nat to Excl unit RA. *)
+  Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
 
   Global Instance TLSet : @IInvSet Σ (@Formula XAtom STT) := SynIISet.
 
