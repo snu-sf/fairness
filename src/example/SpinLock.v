@@ -71,122 +71,121 @@ Section SIM.
   (* Auth agree Qp RA. *)
   Context `{AAGREE_QP: @GRA.inG (AuthAgreeRA Qp) Σ}.
 
-  (* Variable p_spinlock : Prism.t id_tgt_type void. *)
-  (* Variable l_spinlock : Lens.t st_tgt_type unit. *)
-  (* Let emb_spinlock := plmap p_spinlock l_spinlock. *)
+  (* Variable p_mem : Prism.t id_tgt_type SCMem.val. *)
+  (* Variable l_mem : Lens.t st_tgt_type SCMem.t. *)
+  (* Let emb_mem := plmap p_mem l_mem. *)
 
-  Variable p_mem : Prism.t id_tgt_type SCMem.val.
-  Variable l_mem : Lens.t st_tgt_type SCMem.t.
-  Let emb_mem := plmap p_mem l_mem.
+  Variable p_spinlock : Prism.t id_tgt_type void.
+  Variable l_spinlock : Lens.t st_tgt_type unit.
+  Let emb_spinlock := plmap p_spinlock l_spinlock.
 
 
-  Definition spinlock_inv {n : nat} (r : nat) (x : SCMem.val) (p : Formula n) (k l : nat) : Formula n :=
+  Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat) : Formula n :=
     ((∃ (q : τ{Qp}),
          (➢(agree_b_Qp q))
            ∗
-           (((x ↦ 0) ∗ (◇(k @ l) 1) ∗ (➢(excls r)) ∗ (➢(agree_w_Qp q)))
-            ∨ ((x ↦ 1) ∗ live(k, q) ∗ ∃ (u : τ{nat}), ((-(u @ l)-◇ emp) ∗ (u -( 0 )-◇ k)))))
+           (((x ↦ 0) ∗ (◇(k @ l) 1) ∗ (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P)
+            ∨ ((x ↦ 1) ∗ live(k, q) ∗ ∃ (u : τ{nat}), live(u, 1/2) ∗ (-(u @ l)-◇ emp) ∗ (u -( 0 )-◇ k))))
      ∨ dead(k)
     )%F.
 
-  TODO
+  Definition isSpinlock n (E : coPset) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat) : Formula n :=
+    (∃ (N : τ{namespace}) (o : τ{Ord.t}),
+        ⌜(↑N ⊆ E)⌝ ∗ ◆(k @ l | o) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
+
+  (* Lemma spinlock_lock_spec *)
+  (*       n *)
+  (*       tid Es *)
+  (*       R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt *)
+  (*       (* (TOP : OwnEs_top Es) *) *)
+  (*       E *)
+  (*   : *)
+  (*   (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)), *)
+  (*       (⟦((isSpinlock n E r x P k l) ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2))%F, n⟧) *)
+  (*         -∗ *)
+  (*         ((⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧) *)
+  (*            =|S n|=(fairI (ident_tgt:=_) (S n))={Es, ∅}=∗ *)
+  (*            (wpsim (S n) tid ∅ R G Q ps true itr_src (ktr_tgt tt))) *)
+  (*         -∗ *)
+  (*         wpsim (S n) tid Es R G Q ps pt itr_src *)
+  (*         (map_event emb_spinlock (Spinlock.lock x) >>= ktr_tgt)). *)
+  (* Proof. *)
+
+  Lemma spinlock_lock_spec
+        n
+        tid R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt
+        (* (TOP : OwnEs_top Es) *)
+        (Es : coPsets) E
+        (MASK : match Es !! n with Some E' => E ⊆ E' | None => True end)
+    :
+    ⊢
+    (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)),
+        (Duty(tid) ds =|S n|={Es, ∅}=∗ emp%I)
+        →
+          (⟦((isSpinlock n E r x P k l) ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2))%F, n⟧)
+            -∗
+            ((⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)
+               -∗
+               (wpsim (S n) tid ∅ R G Q ps true itr_src (ktr_tgt tt)))
+            -∗
+            wpsim (S n) tid Es R G Q ps pt itr_src
+            (map_event emb_spinlock (Spinlock.lock x) >>= ktr_tgt)).
+  Proof.
+    iIntros (? ? ? ? ? ? ?) "CLOSE PRE POST".
+
+    TODO
 
 
-  Definition thread1_will_write : iProp :=
-    ∃ k, (∃ n, ObligationRA.black k n)
-           ∗
-           (ObligationRA.correl_thread k 1%ord)
-           ∗
-           (OwnM (OneShot.shot k))
-           ∗
-           ((ObligationRA.pending k (/2)%Qp ∗ points_to loc_X const_0)
-            ∨
-              (ObligationRA.shot k ∗ points_to loc_X const_42)).
 
-  Definition o_w_cor: Ord.t := (Ord.omega × Ord.omega)%ord.
-
-  Definition lock_will_unlock : iProp :=
-    ∃ (own: bool) (mem: SCMem.t) (wobl: NatStructs.NatMap.t nat) (j: nat),
-      (OwnM (Auth.black (Some wobl: NatMapRAFOS.NatMapRAFOS.t nat)))
-        ∗
-        (OwnM (Auth.black (Excl.just j: Excl.t nat)))
-        ∗
-        (memory_black mem)
-        ∗
-        (St_tgt (tt, (mem, (own, key_set wobl))))
-        ∗
-        (FairRA.blacks (inrp ⋅ (inrp ⋅ inrp))%prism (fun id => (~ NatMap.In id wobl)))
-        ∗
-        (natmap_prop_sum wobl
-                         (fun tid idx =>
-                            (own_thread tid)
-                              ∗
-                              (ObligationRA.correl (inrp ⋅ (inrp ⋅ inrp))%prism tid idx o_w_cor)
-                              ∗
-                              (ObligationRA.pending idx 1)
-                              ∗
-                              (ObligationRA.duty (inrp ⋅ (inrp ⋅ inrp))%prism tid [(idx, o_w_cor)])
-        ))
-        ∗
-        (
-          ((⌜own = false⌝)
-             ∗ (OwnM (Auth.white (Excl.just j: Excl.t nat)))
-             ∗ (OwnM (Excl.just tt: Excl.t unit))
-          )
-            ∨
-            ((⌜own = true⌝)
-               ∗ (ObligationRA.pending j 1)
-               ∗ (ObligationRA.black j o_w_cor)
-               ∗ (ObligationRA.correl_thread j 1%ord)
-               ∗ (natmap_prop_sum wobl (fun _ idx => ObligationRA.amplifier j idx 1%ord))
-            )
-        )
+collection_credits_make:
+  ∀ {Σ : GRA.t} {OBLGRA : GRA.inG ObligationRA.t Σ} (k l : nat) (o : Ord.t) (ps : list (nat * nat)) (m : nat),
+    (◆( k @ l | o)) ∗ (◇[ ps @ (m + l)] 1) -∗ #=> ◆[ k & ps @ m | o]
+collection_credits_decr:
+  ∀ {Σ : GRA.t} {OBLGRA : GRA.inG ObligationRA.t Σ} (k : nat) (o : Ord.t) (ps : list (nat * nat)) (l m a : nat),
+    0 < a → (◆[ k & ps @ l | o]) ∗ (◇( k @ m) a) -∗ #=> (∃ o' : Ord.t, (◆[ k & ps @ l | o']) ∗ ⌜(o' < o)%ord⌝ ∗ (◇[ ps @ l] 1))
+cc_ind:
+  ∀ {Σ : GRA.t} {OBLGRA : GRA.inG ObligationRA.t Σ} (k : nat) (o : Ord.t) (ps : list (nat * nat)) (l : nat) (P : iProp),
+    ◆[ k & ps @ l | o] -∗ □ (∃ m a : nat, (⌜0 < a⌝ -∗ ◇( k @ m) a ==∗ (◇[ ps @ l] 1) ∗ P) ==∗ P) ==∗ P
+  Lemma wpsim_yieldR
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+    :
+    ((Duty(tid) l) ∗ ◇[List.map fst l @ 0](1))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
+            (wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
+  Proof.
 
 
-  Variable Invs : @InvSet Σ.
-  Context `{COPSETRA : @GRA.inG CoPset.t Σ}.
-  Context `{GSETRA : @GRA.inG Gset.t Σ}.
-  Context `{INVSETRA : @GRA.inG (InvSetRA Var) Σ}.
 
-
-  Variable N_lock : stdpp.namespaces.namespace.
-  (* Let I: list iProp := [thread1_will_write; lock_will_unlock]. *)
-
-    (* (inv N ticket_lock_inv) ∗ *)
-
-
-  Lemma AbsLock_lock
+  Lemma AbsLock_unlock
         R_src R_tgt tid
         (src: thread void (sE unit) R_src)
         tgt
         r g
         (Q: R_src -> R_tgt -> iProp)
-        (l: list (nat * Ord.t)%type)
-        (num_line: nat)
+        l
     :
     ((inv N_lock lock_will_unlock)
        ∗
-       (own_thread tid)
+       (OwnM (Excl.just tt: Excl.t unit))
        ∗
-       (ObligationRA.duty inlp tid l)
-       ∗
-       (ObligationRA.taxes
-          l ((((Ord.omega × Ord.omega) × Ord.omega)
-                ⊕
-                ((Ord.S Ord.O) × (o_w_cor)))
-               ⊕ 9)%ord))
+       (∃ k, (ObligationRA.duty inlp tid ((k, Ord.S Ord.O) :: l))
+               ∗ (OwnM (Auth.white (Excl.just k: Excl.t nat)))
+               ∗ (ObligationRA.taxes ((k, Ord.S Ord.O) :: l) 3%ord))
+    )
       ∗
-      (((own_thread tid)
-          ∗
-          (∃ j, (ObligationRA.duty inlp tid ((j, Ord.S Ord.O) :: l))
-                  ∗
-                  (ObligationRA.white j (Ord.omega × (Ord.from_nat num_line))%ord)
-                  ∗
-                  (OwnM (Auth.white (Excl.just j: Excl.t nat)))
-          )
-          ∗
-          (OwnM (Excl.just tt: Excl.t unit)))
+      ((ObligationRA.duty inlp tid l)
          -∗
          (stsim tid ⊤ r g Q
                 false false
@@ -196,8 +195,45 @@ Section SIM.
       (stsim tid ⊤ r g Q
              false false
              (trigger Yield;;; src)
-             ((OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (R:=unit) (OMod.call "lock" ()));;; tgt)).
+             (OMod.close_itree ClientImpl.omod (ModAdd (SCMem.mod gvs) AbsLock.mod) (R:=unit) (OMod.call "unlock" ());;; tgt)).
   Proof.
+    iIntros "[[# LOCK_INV [EXCL [% [DUTY [LOCK TAXES]]]]] SIM]".
+    iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX]".
+    { instantiate (1:= 2%ord). apply OrdArith.lt_from_nat. lia. }
+    iPoseProof (ObligationRA.taxes_ord_split_one with "TAXES") as "> [TAXES TAX1]".
+    { instantiate (1:= 1%ord). apply OrdArith.lt_from_nat. lia. }
+    iPoseProof (ObligationRA.taxes_single_is_tax with "TAXES") as "TAX2".
+    rewrite close_itree_call. ss. unfold OMod.emb_callee, emb_r. rewrite <- map_event_compose. rewrite <- plmap_compose. rred.
+    iApply (stsim_yieldR with "[DUTY TAX]"). ss. iFrame.
+    iIntros "DUTY _". rred.
+    unfold AbsLock.unlock_fun, Mod.wrap_fun. rred.
+    iApply (stsim_yieldR with "[DUTY TAX1]"). ss. iFrame.
+    iIntros "DUTY _". rred.
+    iInv "LOCK_INV" as "I1" "K1". do 4 (iDestruct "I1" as "[% I1]").
+    iDestruct "I1" as "[B1 [B2 [MEM [STGT [BLKS [SUM [CONTRA | CASE]]]]]]]".
+    { iDestruct "CONTRA" as "[_ [_ EXCL2]]". iPoseProof (OwnM_valid with "[EXCL EXCL2]") as "%".
+      { instantiate (1:= (Excl.just (): Excl.t unit) ⋅ (Excl.just (): Excl.t unit)).
+        iSplitL "EXCL". all: iFrame. }
+      eapply Excl.wf in H. inversion H.
+    }
+    iDestruct "CASE" as "[% [JPEND [JBLK [JCOR AMPs]]]]". subst own.
+    iApply stsim_getR. iSplit. iFrame. rred.
+    iApply (stsim_modifyR with "STGT"). iIntros "STGT". rred.
+    iPoseProof (black_white_equal with "B2 LOCK") as "%". subst.
+    iMod ("K1" with "[EXCL LOCK B1 B2 MEM BLKS SUM STGT]") as "_".
+    { unfold lock_will_unlock. iExists false, mem, wobl, k. iFrame.
+      iLeft. iFrame. auto.
+    }
+    iPoseProof (ObligationRA.pending_shot with "JPEND") as "> SHOT".
+    iPoseProof (ObligationRA.duty_done with "DUTY SHOT") as "> DUTY".
+    iApply (stsim_yieldR with "[DUTY TAX2]"). ss.
+    { iSplitL "DUTY". iFrame.
+      iPoseProof (ObligationRA.tax_cons_unfold with "TAX2") as "[_ TAX2]". iFrame.
+    }
+    iIntros "DUTY _". rred.
+    iApply stsim_tauR. rred.
+    iApply stsim_reset. iApply "SIM". iFrame.
+  Qed.
 
 
 End SIM.

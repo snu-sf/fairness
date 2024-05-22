@@ -401,11 +401,11 @@ Section RED.
   Proof. apply red_sem_atom. Qed.
 
   Lemma red_tl_lift_0 p :
-    ⟦(↑p)%F, 0⟧ = ⌜False⌝%I.
+    ⟦(⤉p)%F, 0⟧ = ⌜False⌝%I.
   Proof. apply red_sem_lift_0. Qed.
 
   Lemma red_tl_lift n p :
-    ⟦(↑p)%F, S n⟧ = ⟦p, n⟧ .
+    ⟦(⤉p)%F, S n⟧ = ⟦p, n⟧ .
   Proof. apply red_sem_lift. Qed.
 
   Lemma red_tl_sepconj n p q :
@@ -615,7 +615,7 @@ Section WSATS.
   Qed.
 
   Definition syn_wsat n : Formula (S n) :=
-    (∃ (I : τ{pgmapT Φ, S n}), ↑(⟨syn_inv_auth n I⟩ ∗ (syn_inv_satall n I)))%F.
+    (∃ (I : τ{pgmapT Φ, S n}), ⤉(⟨syn_inv_auth n I⟩ ∗ (syn_inv_satall n I)))%F.
 
   Lemma red_syn_wsat n :
     ⟦syn_wsat n, S n⟧ = wsat n.
@@ -629,7 +629,7 @@ Section WSATS.
   Fixpoint lifts {n} (p : Formula n) m {struct m} : Formula (m + n) :=
     match m with
     | O => p
-    | S m' => (↑(@lifts n p m'))%F
+    | S m' => (⤉(@lifts n p m'))%F
     end.
 
   (* Definition syn_wsats n : Formula (S n) := *)
@@ -638,17 +638,17 @@ Section WSATS.
   Fixpoint lifts_seps (p : forall n, Formula (S n)) n : Formula n :=
     match n with
     | O => emp%F
-    | S m => ((↑(lifts_seps p m)) ∗ (p m))%F
+    | S m => ((⤉(lifts_seps p m)) ∗ (p m))%F
     end.
 
   Lemma unfold_lifts_seps p n :
-    lifts_seps p (S n) = (↑(lifts_seps p n) ∗ (p n))%F.
+    lifts_seps p (S n) = (⤉(lifts_seps p n) ∗ (p n))%F.
   Proof. ss. Qed.
 
   Definition syn_wsats n : Formula n := lifts_seps syn_wsat n.
 
   Lemma unfold_syn_wsats n :
-    syn_wsats (S n) = (↑(syn_wsats n) ∗ (syn_wsat n))%F.
+    syn_wsats (S n) = (⤉(syn_wsats n) ∗ (syn_wsat n))%F.
   Proof. apply unfold_lifts_seps. Qed.
 
   Lemma red_syn_wsats n :
@@ -795,7 +795,7 @@ Section OBLIG.
 
   Definition syn_arrows_sat n : Formula (S n) :=
     (∃ (l : τ{ listT ((⇣(nat + id_tgt_type)) * (⇣nat) * (⇣Ord.t) * (⇣Qp) * (⇣nat) * Φ)%ftype, S n }),
-        ↑(⟨obl_arrows_regions_black l⟩ ∗ syn_arrows_sat_list n l))%F.
+        ⤉(⟨obl_arrows_regions_black l⟩ ∗ syn_arrows_sat_list n l))%F.
 
   Lemma red_syn_arrows_sat n :
     ⟦syn_arrows_sat n, S n⟧ = ObligationRA.arrows_sat n.
@@ -808,7 +808,7 @@ Section OBLIG.
   Definition syn_arrows_sats n : Formula n := lifts_seps syn_arrows_sat n.
 
   Lemma unfold_syn_arrows_sats n :
-    syn_arrows_sats (S n) = (↑(syn_arrows_sats n) ∗ (syn_arrows_sat n))%F.
+    syn_arrows_sats (S n) = (⤉(syn_arrows_sats n) ∗ (syn_arrows_sat n))%F.
   Proof. apply unfold_lifts_seps. Qed.
 
   Lemma red_syn_arrows_sats n :
@@ -1012,7 +1012,7 @@ Section SIMI.
   Definition syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) : Formula (S n) :=
     (∃ (SI : τ{(st_src_type -> Φ)%ftype, S n}) (p : τ{Φ, S n}),
         (⌜⟦p, n⟧ = (∃ st, St_src st ∗ ⟦(SI st), n⟧)%I⌝)
-          ∗ (↑(syn_inv n N_state_src p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
+          ∗ (⤉(syn_inv n N_state_src p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
 
   Lemma red_syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
     ⟦syn_src_interp_as n l VI, S n⟧ ⊢ (src_interp_as l VI).
@@ -1043,7 +1043,7 @@ Section SIMI.
   Definition syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) : Formula (S n) :=
     (∃ (SI : τ{(st_tgt_type -> Φ)%ftype, S n}) (p : τ{Φ, S n}),
         (⌜⟦p, n⟧ = (∃ st, St_tgt st ∗ ⟦(SI st), n⟧)%I⌝)
-          ∗ (↑(syn_inv n N_state_tgt p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
+          ∗ (⤉(syn_inv n N_state_tgt p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
 
   Lemma red_syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
     ⟦syn_tgt_interp_as n l VI, S n⟧ ⊢ (tgt_interp_as l VI).
@@ -1102,20 +1102,6 @@ Notation "'◆[' k '&' ps '@' l | o ']'" := (⟨Atom.obl_ccs k o ps l⟩)%F (at 
 (* Check (◇( 0 @ 1 ) 2)%F. *)
 (* Check (1 -( 0 )-◇ 2)%F. *)
 
-(* Notation "'◆(' k '@' l '|' o ')'" := (⟨Atom.obl_lo k l o⟩)%F (at level 200, k, l, o at level 1) : formula_scope. *)
-(* Notation "'◇(' k '@' l ')' a " := (⟨Atom.obl_pc k l a⟩)%F (at level 200, k, l, a at level 1) : formula_scope. *)
-(* Notation "'alive' k q" := (⟨Atom.obl_live k q⟩)%F (at level 200, k, q at level 1) : formula_scope. *)
-(* Notation "'adead' k" := (⟨Atom.obl_dead k⟩)%F (at level 200, k at level 1) : formula_scope. *)
-(* Notation "s '-(' l ')-◇' t" := (⟨Atom.obl_link s t l⟩)%F (at level 200, l, t at level 1, format "s -( l )-◇ t") : formula_scope. *)
-(* Notation "'Duty(' p ◬ i ')' ds" := (⟨Atom.obl_duty p i ds⟩)%F (at level 200, p, i, ds at level 1) : formula_scope. *)
-(* Notation "'Duty(' tid ')' ds" := (⟨Atom.obl_duty inlp tid ds⟩)%F (at level 200, tid, ds at level 1) : formula_scope. *)
-(* Notation "'€(' p ◬ i ')'" := (⟨Atom.obl_fc p i⟩)%F : formula_scope. *)
-(* Notation "'-(' k '@' l ')-(' p ◬ i ')-◇' f" := *)
-(*   (⟨Atom.obl_promise p i k l f⟩)%F (at level 200, k, l, p, i at level 1) : formula_scope. *)
-(* Notation "'€'" := (⟨Atom.obl_tc⟩)%F : formula_scope. *)
-(* Notation "'-(' k '@' l ')-◇' f" := (⟨Atom.obl_tpromise k l f⟩)%F (at level 200, k, l, f at level 1) : formula_scope. *)
-(* Notation "'◇[' ps '@' m ']' a " := (⟨Atom.obl_pcs ps m a⟩)%F (at level 200, ps, m, a at level 1) : formula_scope. *)
-(* Notation "'◆[' k '&' ps '@' l | o ']'" := (⟨Atom.obl_ccs k o ps l⟩)%F (at level 200, k, ps, l, o at level 1) : formula_scope. *)
 
 
 Section TEST.
@@ -1155,12 +1141,12 @@ Section TEST.
   Goal test1 = test1'. Proof. ss. Qed.
 
   Definition test2 : Formula 3 :=
-    ⟨Atom.owni xH (∃ (p : τ{formulaT, 3}), ↑p)⟩%F.
+    ⟨Atom.owni xH (∃ (p : τ{formulaT, 3}), ⤉p)⟩%F.
   Fail Definition test3 : Formula 3 :=
     ⟨Atom.owni xH (∃ (p : τ{formulaT, 3}), p)⟩%F.
 
   Lemma testp n :
-    ⟦(⟨Atom.owni xH ⟨(Atom.owni xH emp)⟩⟩ ∗ (∃ (p : τ{formulaT, S n}), ↑(p -∗ ⌜p = emp⌝)))%F, S n⟧
+    ⟦(⟨Atom.owni xH ⟨(Atom.owni xH emp)⟩⟩ ∗ (∃ (p : τ{formulaT, S n}), ⤉(p -∗ ⌜p = emp⌝)))%F, S n⟧
     =
       ((OwnI (S n) xH ⟨Atom.owni xH emp⟩%F) ∗ (∃ (p : τ{formulaT, S n}), ⟦p, n⟧ -∗ ⌜p = emp%F⌝))%I.
   Proof.

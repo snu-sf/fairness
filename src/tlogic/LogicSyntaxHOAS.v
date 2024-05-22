@@ -330,7 +330,7 @@ Notation "'⊤'" := ⌜True⌝ : formula_scope.
 Notation "'⊥'" := ⌜False⌝ : formula_scope.
 
 Notation "'⟨' A '⟩'" := (Syntax.atom A) : formula_scope.
-Notation "↑ P" := (Syntax.lift P) : formula_scope.
+Notation "⤉ P" := (Syntax.lift P) (at level 20) : formula_scope.
 
 Notation "'<pers>' P" := (Syntax.persistently P) : formula_scope.
 Notation "'<affine>' P" := (syn_affinely P) : formula_scope.
