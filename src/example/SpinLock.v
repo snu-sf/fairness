@@ -11,41 +11,64 @@ From Fairness Require Import TemporalLogic TemporalLogicFull SCMemSpec.
 
 Module Spinlock.
 
-  Notation unlocked := (SCMem.val_nat 0).
-  Notation locked := (SCMem.val_nat 1).
+  Section SPINLOCK.
 
-  Definition lock :
-    ktree (threadE void unit) SCMem.val unit
-    :=
-    fun x =>
-      ITree.iter
-        (fun (_ : unit) =>
-           b <- (OMod.call "cas" (x, unlocked, locked));;
-           if (b : bool) then Ret (inr tt) else Ret (inl tt)) tt.
+    Variable Client : Mod.t.
+    (* Variable gvs : list nat. *)
+    Notation state := (Mod.state Client).
+    Notation ident := (Mod.ident Client).
+    (* Notation state := (OMod.closed_state Client (SCMem.mod gvs)). *)
+    (* Notation ident := (OMod.closed_ident Client (SCMem.mod gvs)). *)
 
-  Definition unlock :
-    ktree (threadE void unit) SCMem.val unit
-    :=
-    fun x => (OMod.call "store" (x, unlocked)).
+    Notation unlocked := (SCMem.val_nat 0).
+    Notation locked := (SCMem.val_nat 1).
 
-  Definition omod : Mod.t :=
-    Mod.mk
-      tt
-      (Mod.get_funs [("lock", Mod.wrap_fun lock);
-                     ("unlock", Mod.wrap_fun unlock)])
-  .
+    Definition lock :
+      (* ktree (threadE void unit) SCMem.val unit *)
+      ktree (threadE ident state) SCMem.val unit
+      :=
+      fun x =>
+        ITree.iter
+          (fun (_ : unit) =>
+             b <- (OMod.call "cas" (x, unlocked, locked));;
+             if (b : bool) then Ret (inr tt) else Ret (inl tt)) tt.
 
-  Definition module : Mod.t :=
-    OMod.close
-      (omod)
-      (SCMem.mod [])
-  .
+    Definition unlock :
+      (* ktree (threadE void unit) SCMem.val unit *)
+      ktree (threadE ident state) SCMem.val unit
+      :=
+      fun x => (OMod.call "store" (x, unlocked)).
+
+    (** TODO : more rules for module composition. *)
+    (* Definition omod : Mod.t := *)
+    (*   Mod.mk *)
+    (*     (* tt *) *)
+    (*     (Mod.st_init Client) *)
+    (*     (Mod.get_funs [("lock", Mod.wrap_fun lock); *)
+    (*                    ("unlock", Mod.wrap_fun unlock)]) *)
+    (* . *)
+
+    (* Definition module gvs : Mod.t := *)
+    (*   OMod.close *)
+    (*     (omod) *)
+    (*     (SCMem.mod gvs) *)
+    (* . *)
+
+  End SPINLOCK.
 
 End Spinlock.
 
 Section SIM.
 
-  Context {STT : StateTypes}.
+  Variable src_state : Type.
+  Variable src_ident : Type.
+  Variable Client : Mod.t.
+  Variable gvs : list nat.
+  Notation tgt_state := (OMod.closed_state Client (SCMem.mod gvs)).
+  Notation tgt_ident := (OMod.closed_ident Client (SCMem.mod gvs)).
+
+  (* Context {STT : StateTypes}. *)
+  Local Instance STT : StateTypes := Build_StateTypes src_state tgt_state src_ident tgt_ident.
   Notation Formula := (@Formula XAtom STT).
 
   Context `{Σ : GRA.t}.
@@ -75,9 +98,9 @@ Section SIM.
   (* Variable l_mem : Lens.t st_tgt_type SCMem.t. *)
   (* Let emb_mem := plmap p_mem l_mem. *)
 
-  Variable p_spinlock : Prism.t id_tgt_type void.
-  Variable l_spinlock : Lens.t st_tgt_type unit.
-  Let emb_spinlock := plmap p_spinlock l_spinlock.
+  (* Variable p_spinlock : Prism.t id_tgt_type void. *)
+  (* Variable l_spinlock : Lens.t st_tgt_type unit. *)
+  (* Let emb_spinlock := plmap p_spinlock l_spinlock. *)
 
 
   Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat) : Formula n :=
@@ -103,13 +126,16 @@ Section SIM.
     ⊢
     (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)),
           (⟦((isSpinlock n E r x P k l) ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2))%F, n⟧)
+    (* (tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v⌝ ∗ ⌜SCMem.memory_comparable m old⌝ : Formula x)%F)) *)
             -∗
-            ((⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)
+            (∀ (rv : _), (⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)
                -∗
-               (wpsim (S n) tid ∅ R G Q ps true (trigger Yield;;; itr_src) (ktr_tgt tt)))
+               (wpsim (S n) tid ∅ R G Q ps true (trigger Yield;;; itr_src)
+                      (ktr_tgt rv)))
             -∗
             wpsim (S n) tid Es R G Q ps pt (trigger Yield;;; itr_src)
-            (map_event emb_spinlock (Spinlock.lock x) >>= ktr_tgt)).
+            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x) >>= ktr_tgt))
+  .
   Proof.
     iIntros (? ? ? ? ? ? ?) "PRE POST".
     iApply wpsim_free_all. auto.
@@ -128,7 +154,11 @@ Section SIM.
     2:{ iApply "IND". }
     iModIntro. iExists l, 1. iIntros "IH". iModIntro. iIntros "LIVE DUTY PCS POST".
     (* Start iteration. *)
-    rewrite (unfold_iter_eq). rred2r. rewrite @close_itree_trigger_call.
+    rewrite (unfold_iter_eq). rred2r.
+
+    TODO
+
+    rewrite @close_itree_trigger_call.
     
 
     TODO

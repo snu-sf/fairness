@@ -471,6 +471,15 @@ Section MAP_EVENT_RED.
     eapply map_event_ret.
   Qed.
 
+  Lemma map_event_plmap_callE_nocont
+        X (e : callE X)
+    : map_event (plmap p l) (trigger e) = trigger (e).
+  Proof.
+    unfold trigger. rewrite map_event_vis.
+    eapply observe_eta; ss. f_equal. extensionalities x.
+    eapply map_event_ret.
+  Qed.
+
   Lemma map_event_plmap_UB
     R :  map_event (plmap p l) (UB : itree _ R) = UB.
   Proof.
@@ -506,7 +515,9 @@ Global Program Instance close_itree_rdb: red_database (mk_box (@OMod.close_itree
     (mk_box close_itree_trigger_cE2)
     (mk_box close_itree_trigger_state)
     (mk_box close_itree_trigger_get)
-    (mk_box close_itree_UB)
+    (mk_box close_itree_trigger_call2)
+    (mk_box close_itree_call)
+    (mk_box close_itree_callR)
     (mk_box close_itree_UB)
     (mk_box close_itree_UB)
     (mk_box close_itree_unwrap)
@@ -515,9 +526,6 @@ Global Program Instance close_itree_rdb: red_database (mk_box (@OMod.close_itree
     (mk_box close_itree_UB)
     (mk_box close_itree_ext)
 .
-(* close_itree_trigger_call2 *)
-(* close_itree_call *)
-(* close_itree_callR *)
 
 Global Program Instance map_event_plmap_rdb: red_database (mk_box (@map_event)) :=
   mk_rdb
@@ -530,6 +538,8 @@ Global Program Instance map_event_plmap_rdb: red_database (mk_box (@map_event)) 
     (mk_box map_event_plmap_state_nocont)
     (mk_box map_event_plmap_get_nocont)
     (mk_box map_event_plmap_modify_nocont)
+    (mk_box map_event_plmap_callE_nocont)
+    (mk_box map_event_plmap_UB)
     (mk_box map_event_plmap_UB)
     (mk_box map_event_plmap_UB)
     (mk_box map_event_plmap_unwrap)

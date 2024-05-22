@@ -44,6 +44,18 @@ From Fairness Require Export Red IRed2.
   : red_db itree_unfold (OMod.close_itree omd md (trigger (Get p) >>= ktr)) :=
   mk_red_db _ _ (@close_itree_trigger_get omd md R X p ktr) tt (inl _break).
 
+#[export] Instance red_close_itree_trigger_call2 omd md fn args
+  : red_db itree_unfold (OMod.close_itree omd md (trigger (Call fn args))) :=
+  mk_red_db _ _ (@close_itree_trigger_call2 omd md fn args) tt (inl _break).
+
+#[export] Instance red_close_itree_call omd md A R fn (args : A)
+  : red_db itree_unfold (@OMod.close_itree omd md R (OMod.call fn args)) :=
+  mk_red_db _ _ (@close_itree_call omd md A R fn args) tt (inl _break).
+
+#[export] Instance red_close_itree_callR omd md A R fn arg
+  : red_db itree_unfold (OMod.close_itree omd md (OMod.callR R fn arg)) :=
+  mk_red_db _ _ (@close_itree_callR omd md A R fn arg) tt (inl _break).
+
 #[export] Instance red_close_itree_UB omd md R
   : red_db itree_unfold (OMod.close_itree omd md (UB: itree _ R)) :=
   mk_red_db _ _ (@close_itree_UB omd md R) tt (inl _break).
@@ -126,3 +138,10 @@ From Fairness Require Export Red IRed2.
  (f: state -> state)
   : red_db itree_unfold (map_event (plmap p l) (trigger (Modify f))) :=
   mk_red_db _ _ (@map_event_plmap_modify_nocont ident ident' state state' p l f) tt (inl _break).
+
+#[export] Instance red_map_event_plmap_callE_nocont ident ident' state state'
+ (p: Prism.t ident' ident)
+ (l : Lens.t state' state)
+ X (e: callE X)
+  : red_db itree_unfold (map_event (plmap p l) (trigger e)) :=
+  mk_red_db _ _ (@map_event_plmap_callE_nocont ident ident' state state' p l X e) tt (inl _break).
