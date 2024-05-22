@@ -68,17 +68,17 @@ Section LAYER.
     apply Ord.lt_le. apply _layer_lt. lia.
   Qed.
 
-  Lemma _layer_S_decr l :
+  Lemma _layer_S_drop l :
     forall (a : nat), ((_layer l × a) < _layer (S l))%ord.
   Proof.
     i. ss. apply lt_mult_r. apply Ord.omega_upperbound. apply _layer_lowerbound.
   Qed.
 
-  Lemma _layer_decr :
+  Lemma _layer_drop :
     forall l m (a : nat), (l < m) -> ((_layer l × a) < _layer m)%ord.
   Proof.
     i. induction H.
-    { apply _layer_S_decr. }
+    { apply _layer_S_drop. }
     etransitivity. eauto. apply _layer_S_lt.
   Qed.
 
@@ -121,36 +121,36 @@ Section LAYER.
     unfold layer. ss. rewrite mult_1_l. rewrite mult_1_r. reflexivity.
   Qed.
 
-  Lemma layer_S_decr_one l :
+  Lemma layer_S_drop_one l :
     forall a, (layer l a < layer (S l) 1)%ord.
   Proof.
-    i. unfold layer. eapply Ord.lt_le_lt. apply _layer_S_decr.
+    i. unfold layer. eapply Ord.lt_le_lt. apply _layer_S_drop.
     rewrite mult_1_r. reflexivity.
   Qed.
 
-  Lemma layer_S_decr l :
+  Lemma layer_S_drop l :
     forall a b, (0 < b) -> (layer l a < layer (S l) b)%ord.
   Proof.
-    i. unfold layer. eapply Ord.lt_le_lt. apply _layer_S_decr.
+    i. unfold layer. eapply Ord.lt_le_lt. apply _layer_S_drop.
     etransitivity. rewrite <- mult_1_r. reflexivity.
     apply le_mult_r. setoid_rewrite <- Ord.from_nat_1. apply OrdArith.le_from_nat. auto.
   Qed.
 
-  Lemma layer_decr :
+  Lemma layer_drop :
     forall l m (LT : l < m) a b, (0 < b) -> (layer l a < layer m b)%ord.
   Proof.
     intros l m LT. induction LT; i.
-    { apply layer_S_decr. auto. }
+    { apply layer_S_drop. auto. }
     etransitivity. eapply IHLT; eauto.
-    apply layer_S_decr. auto.
+    apply layer_S_drop. auto.
   Qed.
 
-  Lemma layer_decr_eq :
+  Lemma layer_drop_eq :
     forall l m (LE : l <= m) a, (0 < a) -> (layer l a <= layer m a)%ord.
   Proof.
     intros. inv LE.
     { reflexivity. }
-    apply Ord.lt_le. apply layer_decr; lia.
+    apply Ord.lt_le. apply layer_drop; lia.
   Qed.
 
   Lemma layer_split l :
@@ -244,11 +244,11 @@ Section RULES.
     iPoseProof (white_eq with "W") as "W". symmetry; apply layer_split. iFrame.
   Qed.
 
-  Lemma pc_sep k l m (LE : l < m) :
+  Lemma pc_drop k l m (LE : l < m) :
     forall a b, (0 < b) ->
            progress_credit k m b ⊢ |==> progress_credit k l a.
   Proof.
-    iIntros (? ? LT) "PC". iApply (pc_mon with "PC"). apply Ord.lt_le. apply layer_decr; auto.
+    iIntros (? ? LT) "PC". iApply (pc_mon with "PC"). apply Ord.lt_le. apply layer_drop; auto.
   Qed.
 
   Lemma lo_pc_decr k l o m a :
@@ -259,7 +259,7 @@ Section RULES.
     iIntros (LT) "[[% #LO] PC]".
     iMod (pc_mon _ 0 _ 1 _ with "PC") as "PC".
     { destruct (le_lt_eq_dec 0 m). lia.
-      - apply Ord.lt_le. apply layer_decr; auto.
+      - apply Ord.lt_le. apply layer_drop; auto.
       - subst. rewrite ! layer_zero1. apply OrdArith.le_from_nat. lia.
     }
     iMod (black_white_decr_one with "LO [PC]") as "[% [LO2 %]]".
@@ -290,7 +290,7 @@ Section RULES.
     live k (q0 + q1) ⊢ live k q0 ∗ live k q1.
   Proof. apply pending_split. Qed.
 
-  Lemma live_sum k q0 q1 :
+  Lemma live_merge k q0 q1 :
     live k q0 ∗ live k q1 ⊢ live k (q0 + q1).
   Proof.
     iIntros "[L1 L2]". iApply (pending_sum with "L1 L2").
@@ -341,7 +341,7 @@ Section RULES.
   Proof.
     iIntros (LE) "L". iApply amplifier_mon.
     2:{ unfold link. iFrame. }
-    apply layer_decr_eq; auto.
+    apply layer_drop_eq; auto.
   Qed.
 
   Lemma link_trans k0 k1 k2 l0 l1 :
@@ -417,14 +417,14 @@ Section RULES.
   Global Program Instance Persistent_thread_promise {v} k l f :
     Persistent (thread_promise (v:=v) k l f).
 
-  Lemma thread_promise_progress {v} k l f :
+  Lemma tpromise_progress {v} k l f :
     (thread_promise k l f ∗ thread_credit)
       ⊢ #=(arrows_sat v)=> progress_credit k l 1 ∨ (dead k ∗ □ (prop v f)).
   Proof.
     iIntros "[#PR FC]". iPoseProof (correl_thread_correlate with "PR FC") as "RES". iFrame.
   Qed.
 
-  Lemma duty_thread_promise {v} i ds k l (f : Vars v) :
+  Lemma duty_tpromise {v} i ds k l (f : Vars v) :
     In (k, l, f) ds ->
     duty inlp i ds ⊢ thread_promise k l f.
   Proof.
@@ -437,31 +437,31 @@ Section RULES.
   Definition progress_credits (l : list (nat * nat)) m a :=
     taxes (map (fun '(k, n) => (k, layer n 1)) l) (layer m a).
 
-  Lemma pp_nil m a : ⊢ progress_credits [] m a.
+  Lemma pcs_nil m a : ⊢ progress_credits [] m a.
   Proof. iApply taxes_nil. Qed.
 
-  Lemma pp_perm l0 l1 m a :
+  Lemma pcs_perm l0 l1 m a :
     (l0 ≡ₚ l1) -> progress_credits l0 m a ⊢ progress_credits l1 m a.
   Proof.
     iIntros. iApply taxes_perm. 2: iFrame.
     apply Permutation_map; auto.
   Qed.
 
-  Lemma pp_combine l0 l1 m a :
+  Lemma pcs_merge_list l0 l1 m a :
     progress_credits l0 m a ∗ progress_credits l1 m a ⊢ progress_credits (l0 ++ l1) m a.
   Proof.
     iIntros "[A B]". unfold progress_credits. rewrite map_app.
     iApply taxes_combine. iFrame.
   Qed.
 
-  Lemma pp_split l0 l1 m a :
+  Lemma pcs_split_list l0 l1 m a :
     progress_credits (l0 ++ l1) m a ⊢ progress_credits l0 m a ∗ progress_credits l1 m a.
   Proof.
     iIntros "A". unfold progress_credits. rewrite map_app.
     iApply taxes_split. iFrame.
   Qed.
 
-  Lemma pp_cons_unfold k l tl m a :
+  Lemma pcs_cons_unfold k l tl m a :
     progress_credits ((k, l) :: tl) m a ⊢ progress_credit k (1 + l + m) a ∗ progress_credits tl m a.
   Proof.
     unfold progress_credits. iIntros "P". ss. unfold progress_credit.
@@ -471,7 +471,7 @@ Section RULES.
     rewrite ! layer_sep. rewrite layer_one_one. reflexivity.
   Qed.
 
-  Lemma pp_cons_fold k l tl m a :
+  Lemma pcs_cons_fold k l tl m a :
     progress_credit k (1 + l + m) a ∗ progress_credits tl m a ⊢ progress_credits ((k, l) :: tl) m a.
   Proof.
     unfold progress_credits. iIntros "[PC PP]". ss. unfold progress_credit.
@@ -481,7 +481,7 @@ Section RULES.
     rewrite ! layer_sep. rewrite layer_one_one. reflexivity.
   Qed.
 
-  Lemma pp_decr l m :
+  Lemma pcs_decr l m :
     forall a b c, (a + b <= c) ->
              progress_credits l m c ⊢ |==> progress_credits l m a ∗ progress_credits l m b.
   Proof.
@@ -490,11 +490,19 @@ Section RULES.
     apply layer_split_le. lia.
   Qed.
 
-  Lemma pp_merge l m :
+  Lemma pcs_add l m :
     forall a b, progress_credits l m a ∗ progress_credits l m b ⊢ |==> progress_credits l m (a + b).
   Proof.
     intros. iIntros "PP". iPoseProof (taxes_ord_merge with "PP") as "PP".
     iApply taxes_ord_mon. 2: iFrame. rewrite layer_split. reflexivity.
+  Qed.
+
+  Lemma pcs_drop l m a (LT : 0 < a) :
+    forall n, (n <= m) ->
+         progress_credits l m a ⊢ |==> progress_credits l n a.
+  Proof.
+    iIntros (? LE) "PCS". iApply taxes_ord_mon. 2: iFrame.
+    apply layer_drop_eq; auto.
   Qed.
 
   (** Additional definitions and rules. *)
@@ -502,7 +510,7 @@ Section RULES.
   Definition collection_credits k o (ps : list (nat * nat)) l :=
     collection_taxes k o (map (fun '(k, l) => (k, layer l 1)) ps) (layer l 1).
 
-  Lemma collection_credits_decr k o ps l :
+  Lemma ccs_decr k o ps l :
     forall m a, (0 < a) ->
            (collection_credits k o ps l ∗ progress_credit k m a)
              ⊢ #=> (∃ o', collection_credits k o' ps l ∗ ⌜(o' < o)%ord⌝ ∗ progress_credits ps l 1).
@@ -510,7 +518,7 @@ Section RULES.
     intros. iIntros "[COL PC]". 
     iMod (pc_mon _ 0 _ 1 _ with "PC") as "PC".
     { destruct (le_lt_eq_dec 0 m). lia.
-      - apply Ord.lt_le. apply layer_decr; auto.
+      - apply Ord.lt_le. apply layer_drop; auto.
       - subst. rewrite ! layer_zero1. apply OrdArith.le_from_nat. lia.
     }
     iMod (collection_taxes_decr_one with "COL [PC]") as "[% (COL & % & TAX)]".
@@ -519,7 +527,7 @@ Section RULES.
     iPureIntro. auto.
   Qed.
 
-  Lemma collection_credits_make k l o ps m :
+  Lemma ccs_make k l o ps m :
     (liveness_obligation k l o ∗ progress_credits ps (m + l) 1) ⊢ |==> collection_credits k o ps m.
   Proof.
     iIntros "[[% B] T]". iMod (taxes_ord_mon with "T") as "T".
@@ -560,11 +568,11 @@ Section RULES.
   Definition until_thread_promise {v} k l f (P : iProp) (r : Qp) :=
     (thread_promise k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
 
-  Lemma until_thread_promise_progress {v} k l f (P : iProp) (r : Qp) :
+  Lemma until_tpromise_progress {v} k l f (P : iProp) (r : Qp) :
     (until_thread_promise k l f P r ∗ thread_credit)
       ⊢ #=(arrows_sat v)=> ((P ∗ live k r ∗ progress_credit k l 1) ∨ (dead k ∗ □ (prop v f))).
   Proof.
-    iIntros "[[PR A] FC]". iMod (thread_promise_progress with "[PR FC]") as "B". iFrame.
+    iIntros "[[PR A] FC]". iMod (tpromise_progress with "[PR FC]") as "B". iFrame.
     iModIntro. iDestruct "A" as "[[P L] | [A2 AP]]"; iDestruct "B" as "[B1 | [D F]]".
     { iLeft. iFrame. }
     { iPoseProof (not_dead with "[L D]") as "%". iFrame. inv H. }
@@ -624,11 +632,11 @@ Section RULES.
       ==∗ R.
   Proof.
     iIntros "[#LO #PR] [#IND #RES]".
-    iApply "IND". iIntros "FC". iMod (thread_promise_progress with "[PR FC]") as "[PC | [#D #P]]".
+    iApply "IND". iIntros "FC". iMod (tpromise_progress with "[PR FC]") as "[PC | [#D #P]]".
     { iFrame. eauto. }
     { iMod (lo_ind with "LO [PC]") as "R". 2: iModIntro; iApply "R".
       iModIntro. iExists m, 1.  iIntros "IND2". iApply "IND".
-      iIntros "FC". iMod (thread_promise_progress with "[LO FC]") as "[PC | [#D #P]]".
+      iIntros "FC". iMod (tpromise_progress with "[LO FC]") as "[PC | [#D #P]]".
       { iFrame. eauto. }
       { iMod ("IND2" with "[] [PC]") as "R". auto. iFrame. iModIntro. iFrame. }
       { iMod ("RES" with "[D P]") as "R". auto. iModIntro. iFrame. }
@@ -636,25 +644,25 @@ Section RULES.
     { iMod ("RES" with "[D P]") as "R". auto. iModIntro. iFrame. }
   Qed.
 
-  Lemma cc_ind k o ps l (P : iProp) :
+  Lemma ccs_ind k o ps l (P : iProp) :
     (collection_credits k o ps l)
       ⊢ (□ (∃ m a, (⌜(0 < a)⌝ -∗ progress_credit k m a ==∗ (progress_credits ps l 1 ∗ P)) ==∗ P))
       ==∗ P.
   Proof.
     pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros.
     iIntros "CC #(% & % & IND)". iApply "IND". iIntros "% PC".
-    iMod (collection_credits_decr with "[CC PC]") as "[% [CC2 [% PC2]]]". apply H0. iFrame.
+    iMod (ccs_decr with "[CC PC]") as "[% [CC2 [% PC2]]]". apply H0. iFrame.
     iPoseProof (H with "CC2 [IND]") as ">P". auto.
     2: iModIntro; iFrame.
     { iExists m, a. auto. }
   Qed.
 
-  Lemma cc_promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k o ps l m f (R : iProp) :
+  Lemma ccs_promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k o ps l m f (R : iProp) :
     (collection_credits k o ps l ∗ promise p i k m f)
       ⊢ (□ ((fairness_credit p i =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
       ==∗ R.
   Proof.
-    iIntros "[CC #PR] #IND". iMod (cc_ind with "CC []") as "R". 2: iModIntro; iApply "R".
+    iIntros "[CC #PR] #IND". iMod (ccs_ind with "CC []") as "R". 2: iModIntro; iApply "R".
     iExists m, 1. iModIntro.  iIntros "IND2". iApply "IND". iIntros "FC".
     iMod (promise_progress with "[PR FC]") as "[PC | [#D #P]]".
     { iFrame. eauto. }
@@ -662,14 +670,14 @@ Section RULES.
     { iModIntro. iRight. auto. }
   Qed.
 
-  Lemma cc_thread_promise_ind {v} k o ps l m f (R : iProp) :
+  Lemma ccs_thread_promise_ind {v} k o ps l m f (R : iProp) :
     (collection_credits k o ps l ∗ thread_promise k m f)
       ⊢ (□ ((thread_credit =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
       ==∗ R.
   Proof.
-    iIntros "[CC #PR] #IND". iMod (cc_ind with "CC []") as "R". 2: iModIntro; iApply "R".
+    iIntros "[CC #PR] #IND". iMod (ccs_ind with "CC []") as "R". 2: iModIntro; iApply "R".
     iExists m, 1. iModIntro.  iIntros "IND2". iApply "IND". iIntros "FC".
-    iMod (thread_promise_progress with "[PR FC]") as "[PC | [#D #P]]".
+    iMod (tpromise_progress with "[PR FC]") as "[PC | [#D #P]]".
     { iFrame. eauto. }
     { iMod ("IND2" with "[] [PC]") as "R". auto. iFrame. iModIntro. iFrame. }
     { iModIntro. iRight. auto. }

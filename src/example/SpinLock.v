@@ -93,59 +93,45 @@ Section SIM.
     (∃ (N : τ{namespace}) (o : τ{Ord.t}),
         ⌜(↑N ⊆ E)⌝ ∗ ◆(k @ l | o) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
 
-  (* Lemma spinlock_lock_spec *)
-  (*       n *)
-  (*       tid Es *)
-  (*       R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt *)
-  (*       (* (TOP : OwnEs_top Es) *) *)
-  (*       E *)
-  (*   : *)
-  (*   (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)), *)
-  (*       (⟦((isSpinlock n E r x P k l) ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2))%F, n⟧) *)
-  (*         -∗ *)
-  (*         ((⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧) *)
-  (*            =|S n|=(fairI (ident_tgt:=_) (S n))={Es, ∅}=∗ *)
-  (*            (wpsim (S n) tid ∅ R G Q ps true itr_src (ktr_tgt tt))) *)
-  (*         -∗ *)
-  (*         wpsim (S n) tid Es R G Q ps pt itr_src *)
-  (*         (map_event emb_spinlock (Spinlock.lock x) >>= ktr_tgt)). *)
-  (* Proof. *)
-
   Lemma spinlock_lock_spec
         n
         tid R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt
-        (* (TOP : OwnEs_top Es) *)
         (Es : coPsets) E
-        (MASK : match Es !! n with Some E' => E ⊆ E' | None => True end)
+        (MASK : OwnEs_top Es)
+        (* (MASK : match Es !! n with Some E' => E ⊆ E' | None => True end) *)
     :
     ⊢
     (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)),
-        (Duty(tid) ds =|S n|={Es, ∅}=∗ emp%I)
-        →
           (⟦((isSpinlock n E r x P k l) ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2))%F, n⟧)
             -∗
             ((⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)
                -∗
-               (wpsim (S n) tid ∅ R G Q ps true itr_src (ktr_tgt tt)))
+               (wpsim (S n) tid ∅ R G Q ps true (trigger Yield;;; itr_src) (ktr_tgt tt)))
             -∗
-            wpsim (S n) tid Es R G Q ps pt itr_src
+            wpsim (S n) tid Es R G Q ps pt (trigger Yield;;; itr_src)
             (map_event emb_spinlock (Spinlock.lock x) >>= ktr_tgt)).
   Proof.
-    iIntros (? ? ? ? ? ? ?) "CLOSE PRE POST".
+    iIntros (? ? ? ? ? ? ?) "PRE POST".
+    iApply wpsim_free_all. auto.
+    unfold Spinlock.lock.
+    (* Preprocess for induction. *)
+    unfold isSpinlock. ss.
+    iEval red_tl in "PRE". ss. iDestruct "PRE" as "([%N SL] & LIVE & DUTY & PCS)".
+    iEval red_tl in "SL". ss. iDestruct "SL" as "[%o SL]".
+    iEval red_tl in "SL". ss. iDestruct "SL" as "(%IN & #LO & INV)".
+    rewrite red_syn_inv. iPoseProof "INV" as "#INV".
+    iMod ((pcs_decr _ _ 1 1 2) with "PCS") as "[PCS PCS2]". ss.
+    iMod (ccs_make k l o _ 0 with "[PCS2]") as "CCS". iFrame. auto.
+    iMod (pcs_drop _ _ _ _ 0 with "PCS") as "PCS". lia.
+    (* Set up induction hypothesis. *)
+    iRevert "LIVE DUTY PCS POST". iMod (ccs_ind with "CCS []") as "IND".
+    2:{ iApply "IND". }
+    iModIntro. iExists l, 1. iIntros "IH". iModIntro. iIntros "LIVE DUTY PCS POST".
+    (* Start iteration. *)
+    rewrite (unfold_iter_eq). rred2r. rewrite @close_itree_trigger_call.
+    
 
     TODO
-
-
-
-collection_credits_make:
-  ∀ {Σ : GRA.t} {OBLGRA : GRA.inG ObligationRA.t Σ} (k l : nat) (o : Ord.t) (ps : list (nat * nat)) (m : nat),
-    (◆( k @ l | o)) ∗ (◇[ ps @ (m + l)] 1) -∗ #=> ◆[ k & ps @ m | o]
-collection_credits_decr:
-  ∀ {Σ : GRA.t} {OBLGRA : GRA.inG ObligationRA.t Σ} (k : nat) (o : Ord.t) (ps : list (nat * nat)) (l m a : nat),
-    0 < a → (◆[ k & ps @ l | o]) ∗ (◇( k @ m) a) -∗ #=> (∃ o' : Ord.t, (◆[ k & ps @ l | o']) ∗ ⌜(o' < o)%ord⌝ ∗ (◇[ ps @ l] 1))
-cc_ind:
-  ∀ {Σ : GRA.t} {OBLGRA : GRA.inG ObligationRA.t Σ} (k : nat) (o : Ord.t) (ps : list (nat * nat)) (l : nat) (P : iProp),
-    ◆[ k & ps @ l | o] -∗ □ (∃ m a : nat, (⌜0 < a⌝ -∗ ◇( k @ m) a ==∗ (◇[ ps @ l] 1) ∗ P) ==∗ P) ==∗ P
   Lemma wpsim_yieldR
         y (LT: y < x)
         E r g R_src R_tgt
@@ -164,8 +150,17 @@ cc_ind:
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
-  Proof.
+    
 
+
+
+
+collection_credits_decr:
+  ∀ {Σ : GRA.t} {OBLGRA : GRA.inG ObligationRA.t Σ} (k : nat) (o : Ord.t) (ps : list (nat * nat)) (l m a : nat),
+    0 < a → (◆[ k & ps @ l | o]) ∗ (◇( k @ m) a) -∗ #=> (∃ o' : Ord.t, (◆[ k & ps @ l | o']) ∗ ⌜(o' < o)%ord⌝ ∗ (◇[ ps @ l] 1))
+cc_ind:
+  ∀ {Σ : GRA.t} {OBLGRA : GRA.inG ObligationRA.t Σ} (k : nat) (o : Ord.t) (ps : list (nat * nat)) (l : nat) (P : iProp),
+    ◆[ k & ps @ l | o] -∗ □ (∃ m a : nat, (⌜0 < a⌝ -∗ ◇( k @ m) a ==∗ (◇[ ps @ l] 1) ∗ P) ==∗ P) ==∗ P
 
 
   Lemma AbsLock_unlock
@@ -234,6 +229,28 @@ cc_ind:
     iApply stsim_tauR. rred.
     iApply stsim_reset. iApply "SIM". iFrame.
   Qed.
+
+  (* Lemma spinlock_lock_spec2 *)
+  (*       n *)
+  (*       tid R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt *)
+  (*       (* (TOP : OwnEs_top Es) *) *)
+  (*       (Es : coPsets) E *)
+  (*       (MASK : match Es !! n with Some E' => E ⊆ E' | None => True end) *)
+  (*   : *)
+  (*   ⊢ *)
+  (*   (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)), *)
+  (*       (Duty(tid) ds =|S n|={Es, ∅}=∗ emp%I) *)
+  (*       → *)
+  (*         (⟦((isSpinlock n E r x P k l) ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2))%F, n⟧) *)
+  (*           -∗ *)
+  (*           ((⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧) *)
+  (*              -∗ *)
+  (*              (wpsim (S n) tid ∅ R G Q ps true itr_src (ktr_tgt tt))) *)
+  (*           -∗ *)
+  (*           wpsim (S n) tid Es R G Q ps pt itr_src *)
+  (*           (map_event emb_spinlock (Spinlock.lock x) >>= ktr_tgt)). *)
+  (* Proof. *)
+  (*   iIntros (? ? ? ? ? ? ?) "CLOSE PRE POST". *)
 
 
 End SIM.
