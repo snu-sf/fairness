@@ -279,31 +279,7 @@ Module SCMem.
                      ("compare", Mod.wrap_fun compare_fun)
       ]).
 
-  Definition memory_comparable (m : SCMem.t) (v : SCMem.val) : Prop :=
-    match (SCMem.unwrap_ptr v) with
-    | Some (vb, vo) =>
-        match (SCMem.contents m) vb vo with
-        | Some vv => True
-        | None => False
-        end
-    | _ => True
-    end.
-
-  Lemma memory_comparable_store m m' l stv v :
-    SCMem.store m l stv = Some m' ->
-    memory_comparable m v -> memory_comparable m' v.
-  Proof.
-    unfold SCMem.store, SCMem.mem_update, SCMem.unwrap_ptr.
-    des_ifs. i. des_ifs. unfold memory_comparable in *. des_ifs. ss. des_ifs.    
-  Qed.
-
-  Lemma val_compare_None m v1 v2 :
-    SCMem.val_compare m v1 v2 = None ->
-    (memory_comparable m v1 /\ memory_comparable m v2) -> False.
-  Proof.
-    unfold memory_comparable. unfold SCMem.val_compare, SCMem.has_permission.
-    i. des_ifs; des; clarify.
-  Qed.
+  (* Some lemmas. *)
 
   Lemma val_compare_Some m v1 v2 b :
     SCMem.val_compare m v1 v2 = Some b ->
@@ -312,11 +288,61 @@ Module SCMem.
     unfold SCMem.val_compare. i. des_ifs; ii; inv H0; congruence.
   Qed.
 
-  Lemma has_permission_comparable m v :
-    has_permission m v = true -> memory_comparable m v.
+  Lemma has_permission_store m m' l stv v :
+    SCMem.store m l stv = Some m' ->
+    has_permission m v = has_permission m' v.
   Proof.
-    unfold has_permission, memory_comparable. i. des_ifs.
+    unfold SCMem.store, SCMem.mem_update, SCMem.unwrap_ptr.
+    des_ifs. i. des_ifs. unfold has_permission in *. des_ifs; ss; des_ifs.    
   Qed.
+
+  Lemma val_compare_store m m' l stv v0 v1 :
+    SCMem.store m l stv = Some m' ->
+    val_compare m v0 v1 = val_compare m' v0 v1.
+  Proof.
+    i. unfold val_compare.
+    des_ifs; try (exploit (has_permission_store); eauto; rewrite Heq, Heq0; i; ss).
+    all: exfalso; unfold store, mem_update, has_permission, unwrap_ptr in *; des_ifs; ss; des_ifs.
+  Qed.
+
+  Lemma has_permission_compare m v0 v1 :
+    has_permission m v0 = true -> has_permission m v1 = true -> val_compare m v0 v1 <> None.
+  Proof.
+    unfold has_permission, val_compare. i. des_ifs.
+    exfalso. unfold has_permission, unwrap_ptr in *. des_ifs.
+  Qed.
+
+  (* Definition memory_comparable (m : SCMem.t) (v : SCMem.val) : Prop := *)
+  (*   match (SCMem.unwrap_ptr v) with *)
+  (*   | Some (vb, vo) => *)
+  (*       match (SCMem.contents m) vb vo with *)
+  (*       | Some vv => True *)
+  (*       | None => False *)
+  (*       end *)
+  (*   | _ => True *)
+  (*   end. *)
+
+  (* Lemma memory_comparable_store m m' l stv v : *)
+  (*   SCMem.store m l stv = Some m' -> *)
+  (*   memory_comparable m v -> memory_comparable m' v. *)
+  (* Proof. *)
+  (*   unfold SCMem.store, SCMem.mem_update, SCMem.unwrap_ptr. *)
+  (*   des_ifs. i. des_ifs. unfold memory_comparable in *. des_ifs. ss. des_ifs.     *)
+  (* Qed. *)
+
+  (* Lemma val_compare_None m v1 v2 : *)
+  (*   SCMem.val_compare m v1 v2 = None -> *)
+  (*   (memory_comparable m v1 /\ memory_comparable m v2) -> False. *)
+  (* Proof. *)
+  (*   unfold memory_comparable. unfold SCMem.val_compare, SCMem.has_permission. *)
+  (*   i. des_ifs; des; clarify. *)
+  (* Qed. *)
+
+  (* Lemma has_permission_comparable m v : *)
+  (*   has_permission m v = true -> memory_comparable m v. *)
+  (* Proof. *)
+  (*   unfold has_permission, memory_comparable. i. des_ifs. *)
+  (* Qed. *)
 
 End SCMem.
 

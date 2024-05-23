@@ -537,6 +537,22 @@ Section SIM.
     ii. rr in H. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
 
+  Lemma isim_stutter_mon r g R_src R_tgt
+        (Q: R_src -> R_tgt -> shared_rel)
+        ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
+        ps' pt'
+        (MONS: ps' = true -> ps = true)
+        (MONT: pt' = true -> pt = true)
+    :
+    bi_entails
+      (isim r g Q ps' pt' itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+  .
+  Proof.
+    rr. autorewrite with iprop. i.
+    ii. rr in H. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
+  Qed.
+
   Lemma isim_progress r g R_src R_tgt
         (Q: R_src -> R_tgt -> shared_rel)
         itr_src itr_tgt ths im_src im_tgt st_src st_tgt

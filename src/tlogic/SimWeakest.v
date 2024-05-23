@@ -1409,6 +1409,22 @@ Section STATE.
     iApply isim_reset. iApply ("H" with "D").
   Qed.
 
+  Lemma wpsim_stutter_mon E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src itr_tgt
+        ps' pt'
+        (MONS: ps' = true -> ps = true)
+        (MONT: pt' = true -> pt = true)
+    :
+    (wpsim E r g Q ps' pt' itr_src itr_tgt)
+      -∗
+      (wpsim E r g Q ps pt itr_src itr_tgt)
+  .
+  Proof.
+    unfold wpsim. iIntros "H" (? ? ? ? ?) "D".
+    iApply isim_stutter_mon; eauto. iApply ("H" with "D").
+  Qed.
+
   Lemma wpsim_progress E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         itr_src itr_tgt

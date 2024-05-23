@@ -684,6 +684,7 @@ Section RULES.
   Qed.
 
 End RULES.
+Global Opaque link.
 
 (** Notations. *)
 
