@@ -110,7 +110,7 @@ Section SIM.
         ⌜(↑N ⊆ E)⌝ ∗ ◆(k @ l | o) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
 
 
-  Lemma spinlock_lock_spec
+  Lemma Spinlock_lock_spec
         n
         tid R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt
         (Es : coPsets) E
@@ -156,8 +156,8 @@ Section SIM.
     iApply (wpsim_yieldR with "[DUTY PCS]"). 2: iFrame. auto. Unshelve. 2: auto.
     iIntros "DUTY FC". iModIntro. rred2r.
     TODO
-
-    iApply cas_fun_spec.
+      (* Case analysis on lock variable. *)
+    iApply (SCMem_cas_fun_spec _ _ n). auto. ss. 
 
 
     iInv "STINTP" as (st) "ST" "ST_CLOSE".

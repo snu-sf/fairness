@@ -1424,6 +1424,83 @@ Section STATE.
 
 End STATE.
 
+Section TRIPLES.
+
+  Context `{Σ: GRA.t}.
+
+  Variable state_src: Type.
+  Variable state_tgt: Type.
+  Variable ident_src: ID.
+  Variable ident_tgt: ID.
+  Let srcE := threadE ident_src state_src.
+  Let tgtE := threadE ident_tgt state_tgt.
+
+  Local Notation index := nat.
+  Context `{Vars : index -> Type}.
+  Context `{Invs : @IInvSet Σ Vars}.
+
+  (* Invariant related default RAs *)
+  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
+  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
+  Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
+  (* State related default RAs *)
+  Context `{THDRA: @GRA.inG ThreadRA Σ}.
+  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
+  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
+  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
+  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
+  (* Liveness logic related default RAs *)
+  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
+  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
+  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
+  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+
+  (** Formats for triples-like specs. *)
+  Definition atomic_triples
+             n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+    : iProp
+    :=
+    (∀ tid R_src R_tgt (TERM : R_src -> R_tgt -> iProp) rr gr ps pt
+       (itr_src : itree srcE R_src)
+       (ktr_tgt : RV -> itree tgtE R_tgt),
+      (P)
+        -∗
+        (∀ (rv : RV),
+            (Q rv) -∗ wpsim n tid Es rr gr TERM ps true itr_src (ktr_tgt rv))
+        -∗
+        wpsim n tid Es rr gr TERM ps pt itr_src (code >>= ktr_tgt))%I.
+
+  Definition non_atomic_triples
+             n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+    : iProp
+    :=
+    (∀ tid R_src R_tgt (TERM : R_src -> R_tgt -> iProp) rr gr ps pt
+       (itr_src : itree srcE R_src)
+       (ktr_tgt : RV -> itree tgtE R_tgt),
+      (P)
+        -∗
+        (∀ (rv : RV),
+            (Q rv) -∗ wpsim n tid ∅ rr gr TERM ps true (trigger Yield;;; itr_src) (ktr_tgt rv))
+        -∗
+        wpsim n tid Es rr gr TERM ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I.
+
+End TRIPLES.
+
+(** For triples. *)
+Ltac iStartTriple := iIntros (? ? ? ? ? ? ? ? ? ?).
+
+Notation "'[@' n , Es '@]' '{' P '}' code '{' v , Q '}'" :=
+  (atomic_triples n Es P code (fun v => Q))
+    (at level 200, n, Es, P, code, v, Q at level 1,
+      format "[@ n , Es @] { P } code { v , Q }") : bi_scope.
+
+Notation "'[@' n , Es '@]' '⧼' P '⧽' code '⧼' v , Q '⧽'" :=
+  (non_atomic_triples n Es P code (fun v => Q))
+    (at level 200, n, Es, P, code, v, Q at level 1,
+      format "[@ n , Es @] ⧼ P ⧽ code ⧼ v , Q ⧽") : bi_scope.
+
+(** Simulation tactics. *)
+
 From Fairness Require Export Red IRed.
 
 Ltac lred := repeat (prw _red_gen 1 2 0).
