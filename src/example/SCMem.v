@@ -312,6 +312,12 @@ Module SCMem.
     unfold SCMem.val_compare. i. des_ifs; ii; inv H0; congruence.
   Qed.
 
+  Lemma has_permission_comparable m v :
+    has_permission m v = true -> memory_comparable m v.
+  Proof.
+    unfold has_permission, memory_comparable. i. des_ifs.
+  Qed.
+
 End SCMem.
 
 Coercion SCMem.val_nat : nat >-> SCMem.val.
@@ -320,7 +326,6 @@ Coercion SCMem.val_ptr : SCMem.pointer >-> SCMem.val.
 (** RA for SCMem. *)
 
 From Fairness Require Import PCM IProp IPM.
-(* From Fairness Require Import MonotoneRA SimDefaultRA. *)
 
 Section MEMRA.
   Definition memRA: URA.t := (nat ==> nat ==> (Auth.t (Excl.t SCMem.val)))%ra.
@@ -644,6 +649,18 @@ Section MEMRA.
       unfold SCMem.has_permission. ss. rewrite Heq. ss.
     }
     { ur in H. des. unfold URA.extends in H. des. ur in H. des_ifs. }
+  Qed.
+
+  Lemma memory_ra_has_permission m l v
+    :
+    (memory_black m)
+      -∗
+      (points_to l v)
+      -∗
+      (⌜SCMem.has_permission m l = true⌝).
+  Proof.
+    iIntros "BLACK WHITE". iPoseProof (memory_ra_load with "BLACK WHITE") as "%".
+    des; auto.
   Qed.
 
   Lemma memory_ra_store m0 l v0 v1

@@ -94,15 +94,8 @@ Section SIM.
   (* Auth agree Qp RA. *)
   Context `{AAGREE_QP: @GRA.inG (AuthAgreeRA Qp) Σ}.
 
-  (* Variable p_mem : Prism.t id_tgt_type SCMem.val. *)
-  (* Variable l_mem : Lens.t st_tgt_type SCMem.t. *)
-  (* Let emb_mem := plmap p_mem l_mem. *)
 
-  (* Variable p_spinlock : Prism.t id_tgt_type void. *)
-  (* Variable l_spinlock : Lens.t st_tgt_type unit. *)
-  (* Let emb_spinlock := plmap p_spinlock l_spinlock. *)
-
-
+  (** Invariants. *)
   Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat) : Formula n :=
     ((∃ (q : τ{Qp}),
          (➢(agree_b_Qp q))
@@ -116,33 +109,38 @@ Section SIM.
     (∃ (N : τ{namespace}) (o : τ{Ord.t}),
         ⌜(↑N ⊆ E)⌝ ∗ ◆(k @ l | o) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
 
+
   Lemma spinlock_lock_spec
         n
         tid R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt
         (Es : coPsets) E
-        (MASK : OwnEs_top Es)
-        (* (MASK : match Es !! n with Some E' => E ⊆ E' | None => True end) *)
+        (MASK_TOP : OwnEs_top Es)
+        (MASK_STTGT : mask_has_st_tgt Es n)
+    (* (MASK : match Es !! n with Some E' => E ⊆ E' | None => True end) *)
     :
     ⊢
-    (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)),
-          (⟦((isSpinlock n E r x P k l) ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2))%F, n⟧)
-    (* (tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v⌝ ∗ ⌜SCMem.memory_comparable m old⌝ : Formula x)%F)) *)
+      (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)),
+          (⟦((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
+               ∗ ⤉((isSpinlock n E r x P k l)
+                     ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2)))%F, S n⟧)
             -∗
-            (∀ (rv : _), (⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ (➢(agree_w_Qp q)) ∗ P ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)
-               -∗
-               (wpsim (S n) tid ∅ R G Q ps true (trigger Yield;;; itr_src)
-                      (ktr_tgt rv)))
+            (∀ (rv : _),
+                (⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ P ∗ (➢(agree_w_Qp q)) ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)
+                  -∗
+                  (wpsim (S n) tid ∅ R G Q ps true (trigger Yield;;; itr_src)
+                         (ktr_tgt rv)))
             -∗
             wpsim (S n) tid Es R G Q ps pt (trigger Yield;;; itr_src)
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x) >>= ktr_tgt))
   .
   Proof.
     iIntros (? ? ? ? ? ? ?) "PRE POST".
-    iApply wpsim_free_all. auto.
     unfold Spinlock.lock.
     (* Preprocess for induction. *)
+    iApply wpsim_free_all. auto.
     unfold isSpinlock. ss.
-    iEval red_tl in "PRE". ss. iDestruct "PRE" as "([%N SL] & LIVE & DUTY & PCS)".
+    iEval red_tl in "PRE". ss. iEval (rewrite red_syn_tgt_interp_as) in "PRE".
+    iDestruct "PRE" as "(#STINTP & (%N & SL) & LIVE & DUTY & PCS)".
     iEval red_tl in "SL". ss. iDestruct "SL" as "[%o SL]".
     iEval red_tl in "SL". ss. iDestruct "SL" as "(%IN & #LO & INV)".
     rewrite red_syn_inv. iPoseProof "INV" as "#INV".
@@ -153,10 +151,28 @@ Section SIM.
     iRevert "LIVE DUTY PCS POST". iMod (ccs_ind with "CCS []") as "IND".
     2:{ iApply "IND". }
     iModIntro. iExists l, 1. iIntros "IH". iModIntro. iIntros "LIVE DUTY PCS POST".
-    (* Start iteration. *)
-    rewrite (unfold_iter_eq). rred2r.
+    (* Start an iteration. *)
+    iEval (rewrite unfold_iter_eq). rred2r.
+    iApply (wpsim_yieldR with "[DUTY PCS]"). 2: iFrame. auto. Unshelve. 2: auto.
+    iIntros "DUTY FC". iModIntro. rred2r.
+    TODO
+
+    iApply cas_fun_spec.
+
+
+    iInv "STINTP" as (st) "ST" "ST_CLOSE".
+    iDestruct "ST" as "(%mem & VWM & MBLACK)". iEval (simpl; red_sem; simpl) in "MBLACK".
+    iApply wpsim_getR. iSplit. iFrame. rred2r.
+    iEval (unfold OMod.emb_callee).
+    
+    
 
     TODO
+      map_event (OMod.emb_callee Client (SCMem.mod gvs))
+        (Mod.wrap_fun SCMem.cas_fun (Any.upcast (x, 0, 1)));; (tau;; unwrap (Any.downcast rv)));;
+  Variable p_mem : Prism.t id_tgt_type SCMem.val.
+  Variable l_mem : Lens.t st_tgt_type SCMem.t.
+  Let emb_mem := plmap p_mem l_mem.
 
     rewrite @close_itree_trigger_call.
     

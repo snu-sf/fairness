@@ -146,6 +146,22 @@ Section STATE.
     iPureIntro. typeclasses eauto.
   Qed.
 
+  Lemma src_interp_as_equiv n A
+        {la: Lens.t state_src A}
+        (SA: A -> Vars n)
+        (SA2: A -> Vars n)
+    :
+    (∀ a, prop _ (SA a) ⊣⊢ prop _ (SA2 a))
+    ->
+      src_interp_as la SA ⊢ src_interp_as la SA2.
+  Proof.
+    iIntros (IMPL) "[% [% [% [H %]]]]". iExists SI, p. do 2 (iSplit; [auto|]).
+    iPureIntro. econs. iIntros (?) "P".
+    iPoseProof (view_interp with "[P]") as "[P1 K]". iFrame.
+    iPoseProof (IMPL with "P1") as "P2".
+    iFrame. iIntros (?) "P2". iApply "K". iApply IMPL. iFrame.
+  Qed.
+
 
 
   Definition St_tgt (st_tgt: state_tgt): iProp :=
@@ -206,6 +222,22 @@ Section STATE.
   Proof.
     iIntros "[% [% [% [H %]]]]". iExists _, p. iSplit; [eauto|]. iSplit; [eauto|].
     iPureIntro. typeclasses eauto.
+  Qed.
+
+  Lemma tgt_interp_as_equiv n A
+        {la: Lens.t state_tgt A}
+        (SA: A -> Vars n)
+        (SA2: A -> Vars n)
+    :
+    (∀ a, prop _ (SA a) ⊣⊢ prop _ (SA2 a))
+    ->
+      tgt_interp_as la SA ⊢ tgt_interp_as la SA2.
+  Proof.
+    iIntros (IMPL) "[% [% [% [H %]]]]". iExists SI, p. do 2 (iSplit; [auto|]).
+    iPureIntro. econs. iIntros (?) "P".
+    iPoseProof (view_interp with "[P]") as "[P1 K]". iFrame.
+    iPoseProof (IMPL with "P1") as "P2".
+    iFrame. iIntros (?) "P2". iApply "K". iApply IMPL. iFrame.
   Qed.
 
 End STATE.

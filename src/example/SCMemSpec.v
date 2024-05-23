@@ -41,7 +41,7 @@ Section SPEC.
   Variable l_mem : Lens.t st_tgt_type SCMem.t.
   Let emb_mem := plmap p_mem l_mem.
 
-  Lemma alloc_fun_spec
+  Lemma SCMem_alloc_fun_spec
         x y (LT : x < y)
         tid Es R_src R_tgt (Q : R_src -> R_tgt -> iProp)
         r g ps pt
@@ -49,12 +49,10 @@ Section SPEC.
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         sz
     :
-    (* (⟦ (∃ (m : τ{ SCMem.t }), ax (scm_memory_black m))%F, x ⟧) *)
-    (*   -∗ *)
-    (* (tgt_interp_as x l_mem memory_black) *)
     (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
       -∗
-      (∀ l, points_tos l (repeat (SCMem.val_nat 0) sz) -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt l))
+      (∀ l, (points_tos l (repeat (SCMem.val_nat 0) sz))
+              -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt l))
       -∗
       (wpsim y tid Es r g Q ps pt
              itr_src
@@ -84,17 +82,16 @@ Section SPEC.
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         p v
     :
-    (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
+    ((tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
+       ∗ (points_to p v))
       -∗
-      (points_to p v)
-      -∗
-      (wpsim y tid Es r g Q ps true itr_src (ktr_tgt tt))
+      (∀ (rv : _), wpsim y tid Es r g Q ps true itr_src (ktr_tgt rv))
       -∗
       wpsim y tid Es r g Q ps pt
       itr_src
       (map_event emb_mem (SCMem.free_fun p) >>= ktr_tgt).
   Proof.
-    iIntros "#ST PT SIM". iInv "ST" as (st) "ST1" "V".
+    iIntros "[#ST PT] SIM". iInv "ST" as (st) "ST1" "V".
     iDestruct "ST1" as (vw) "[VW MB]".
     rred2r. iApply wpsim_getR. iSplit; [iFrame | ].
     rred2r. rewrite Lens.view_set.
@@ -114,17 +111,17 @@ Section SPEC.
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l v v0
     :
-    (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
+    ((tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
+       ∗ (points_to l v0))
       -∗
-      (points_to l v0)
-      -∗
-      (points_to l v -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt tt))
+      (∀ rv, (points_to l v)
+               -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt rv))
       -∗
       wpsim y tid Es r g Q ps pt
       itr_src
       (map_event emb_mem (SCMem.store_fun (l, v)) >>= ktr_tgt).
   Proof.
-    i. iIntros "#ST PT SIM". iInv "ST" as (st) "ST1" "V".
+    iIntros "[#ST PT] SIM". iInv "ST" as (st) "ST1" "V".
     iDestruct "ST1" as (vs) "[VW MEM]". rred2.
     iApply wpsim_getR. iSplit. iFrame. rred2. rewrite Lens.view_set.
     iPoseProof (memory_ra_store with "MEM PT") as "STORE".
@@ -144,24 +141,25 @@ Section SPEC.
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l v
     :
-    (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
+    ((tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))
+       ∗
+       (points_to l v))
       -∗
-      (points_to l v)
-      -∗
-      (points_to l v -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt v))
+      (∀ rv, (⌜rv = v⌝ ∗ points_to l v)
+               -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt rv))
       -∗
       wpsim y tid Es r g Q ps pt
       itr_src
       (map_event emb_mem (SCMem.load_fun l) >>= ktr_tgt).
   Proof.
-    i. iIntros "#ST PT SIM". unfold SCMem.load_fun. rred2.
+    iIntros "[#ST PT] SIM". unfold SCMem.load_fun. rred2.
     iInv "ST" as (st) "ST1" "K".
     iDestruct "ST1" as (vw) "[VW MEM]".
     iApply wpsim_getR. iSplit. iFrame. rred2.
     iPoseProof (memory_ra_load with "MEM PT") as "[%LOAD %PERM]".
     rewrite Lens.view_set. rewrite LOAD. rred2.
     iMod ("K" with "[VW MEM]") as "_". iExists _. iFrame.
-    iApply "SIM". iFrame.
+    iApply "SIM". iFrame. auto.
   Qed.
 
   Lemma faa_fun_spec
@@ -275,3 +273,11 @@ Section SPEC.
   Qed.
 
 End SPEC.
+Global Opaque
+       SCMem.alloc_fun
+       SCMem.free_fun
+       SCMem.load_fun
+       SCMem.store_fun
+       SCMem.faa_fun
+       SCMem.cas_fun
+       SCMem.compare_fun.
