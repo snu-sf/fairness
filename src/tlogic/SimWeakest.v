@@ -1457,10 +1457,10 @@ Section TRIPLES.
 
   (** Formats for triples-like specs. *)
   Definition atomic_triples
-             n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+             tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
-    (∀ tid R_src R_tgt (TERM : R_src -> R_tgt -> iProp) rr gr ps pt
+    (∀ R_src R_tgt (TERM : R_src -> R_tgt -> iProp) rr gr ps pt
        (itr_src : itree srcE R_src)
        (ktr_tgt : RV -> itree tgtE R_tgt),
       (P)
@@ -1471,10 +1471,10 @@ Section TRIPLES.
         wpsim n tid Es rr gr TERM ps pt itr_src (code >>= ktr_tgt))%I.
 
   Definition non_atomic_triples
-             n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+             tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
-    (∀ tid R_src R_tgt (TERM : R_src -> R_tgt -> iProp) rr gr ps pt
+    (∀ R_src R_tgt (TERM : R_src -> R_tgt -> iProp) rr gr ps pt
        (itr_src : itree srcE R_src)
        (ktr_tgt : RV -> itree tgtE R_tgt),
       (P)
@@ -1487,17 +1487,17 @@ Section TRIPLES.
 End TRIPLES.
 
 (** For triples. *)
-Ltac iStartTriple := iIntros (? ? ? ? ? ? ? ? ? ?).
+Ltac iStartTriple := iIntros (? ? ? ? ? ? ? ? ?).
 
-Notation "'[@' n , Es '@]' '{' P '}' code '{' v , Q '}'" :=
-  (atomic_triples n Es P code (fun v => Q))
-    (at level 200, n, Es, P, code, v, Q at level 1,
-      format "[@ n , Es @] { P } code { v , Q }") : bi_scope.
+Notation "'[@' tid , n , Es '@]' '{' P '}' code '{' v , Q '}'" :=
+  (atomic_triples tid n Es P code (fun v => Q))
+    (at level 200, tid, n, Es, P, code, v, Q at level 1,
+      format "[@ tid , n , Es @] { P } code { v , Q }") : bi_scope.
 
-Notation "'[@' n , Es '@]' '⧼' P '⧽' code '⧼' v , Q '⧽'" :=
-  (non_atomic_triples n Es P code (fun v => Q))
-    (at level 200, n, Es, P, code, v, Q at level 1,
-      format "[@ n , Es @] ⧼ P ⧽ code ⧼ v , Q ⧽") : bi_scope.
+Notation "'[@' tid , n , Es '@]' '⧼' P '⧽' code '⧼' v , Q '⧽'" :=
+  (non_atomic_triples tid n Es P code (fun v => Q))
+    (at level 200, tid, n, Es, P, code, v, Q at level 1,
+      format "[@ tid , n , Es @] ⧼ P ⧽ code ⧼ v , Q ⧽") : bi_scope.
 
 (** Simulation tactics. *)
 

@@ -42,12 +42,12 @@ Section SPEC.
   Let emb_mem := plmap p_mem l_mem.
 
   Lemma SCMem_alloc_fun_spec
-        x y (LT : x < y)
+        tid x y (LT : x < y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         sz
     :
-    ⊢ [@ y , Es @]
+    ⊢ [@ tid, y, Es @]
       {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))}
       (map_event emb_mem (SCMem.alloc_fun sz))
       {l, (points_tos l (repeat (SCMem.val_nat 0) sz))}.
@@ -105,12 +105,12 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_free_fun_spec
-        x y (LT : x < y)
+        tid x y (LT : x < y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         p v
     :
-    ⊢ [@ y , Es @]
+    ⊢ [@ tid, y, Es @]
       {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to p v)}
       (map_event emb_mem (SCMem.free_fun p))
       {u, emp}.
@@ -159,12 +159,12 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_store_fun_spec
-        x y (LT : x < y)
+        tid x y (LT : x < y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l v v0
     :
-    ⊢ [@ y , Es @]
+    ⊢ [@ tid, y, Es @]
       {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to l v0)}
       (map_event emb_mem (SCMem.store_fun (l, v)))
       {u, points_to l v }.
@@ -212,12 +212,12 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_load_fun_spec
-        x y (LT : x < y)
+        tid x y (LT : x < y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l v
     :
-    ⊢ [@ y , Es @]
+    ⊢ [@ tid, y, Es @]
       {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to l v)}
       (map_event emb_mem (SCMem.load_fun l))
       {rv, ⌜rv = v⌝ ∗ points_to l v}.
@@ -263,12 +263,12 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_faa_fun_spec
-        x y (LT : x < y)
+        tid x y (LT : x < y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l add v
     :
-    ⊢ [@ y , Es @]
+    ⊢ [@ tid, y, Es @]
       {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to l v)}
       (map_event emb_mem (SCMem.faa_fun (l, add)))
       {v, points_to l (SCMem.val_add v add)}.
@@ -316,12 +316,12 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_cas_fun_spec
-        x y (LT : x < y)
+        tid x y (LT : x < y)
         Es
         (IN: mask_has_st_tgt Es x)
         l old new v
     :
-    ⊢ [@ y , Es @]
+    ⊢ [@ tid, y, Es @]
       {(tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v⌝ ∗ ⌜SCMem.memory_comparable m old⌝ : Formula x)%F) ∗ (points_to l v))}
       (map_event emb_mem (SCMem.cas_fun (l, old, new)))
       {b, ∃ u, ⌜if b then u = new else u = v⌝ ∗ points_to l u}.
@@ -400,12 +400,12 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_compare_fun_spec
-        x y (LT : x < y)
+        tid x y (LT : x < y)
         Es
         (IN: mask_has_st_tgt Es x)
         v1 v2
     :
-    ⊢ [@ y , Es @]
+    ⊢ [@ tid, y, Es @]
       {(tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v1⌝ ∗ ⌜SCMem.memory_comparable m v2⌝ : Formula x)%F))}
       (map_event emb_mem (SCMem.compare_fun (v1, v2)))
       {b, ⌜(v1 = v2 -> b = true) /\ (v1 <> v2 -> b = false)⌝}.

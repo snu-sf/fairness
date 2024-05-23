@@ -111,30 +111,22 @@ Section SIM.
 
 
   Lemma Spinlock_lock_spec
-        n
-        tid R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt
+        tid n
         (Es : coPsets) E
         (MASK_TOP : OwnEs_top Es)
         (MASK_STTGT : mask_has_st_tgt Es n)
-    (* (MASK : match Es !! n with Some E' => E ⊆ E' | None => True end) *)
     :
     ⊢
-      (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)),
-          (⟦((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
-               ∗ ⤉((isSpinlock n E r x P k l)
-                     ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2)))%F, S n⟧)
-            -∗
-            (∀ (rv : _),
-                (⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ P ∗ (➢(agree_w_Qp q)) ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)
-                  -∗
-                  (wpsim (S n) tid ∅ R G Q ps true (trigger Yield;;; itr_src)
-                         (ktr_tgt rv)))
-            -∗
-            wpsim (S n) tid Es R G Q ps pt (trigger Yield;;; itr_src)
-            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x) >>= ktr_tgt))
+      ∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)),
+        [@ tid, (S n), Es @]
+          ⧼(⟦((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
+                ∗ ⤉((isSpinlock n E r x P k l)
+                      ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2)))%F, S n⟧)⧽
+          (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+          ⧼rv, (⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ P ∗ (➢(agree_w_Qp q)) ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)⧽
   .
   Proof.
-    iIntros (? ? ? ? ? ? ?) "PRE POST".
+    iIntros (? ? ? ? ? ? ?). iStartTriple. iIntros "PRE POST".
     unfold Spinlock.lock.
     (* Preprocess for induction. *)
     iApply wpsim_free_all. auto.
@@ -155,9 +147,9 @@ Section SIM.
     iEval (rewrite unfold_iter_eq). rred2r.
     iApply (wpsim_yieldR with "[DUTY PCS]"). 2: iFrame. auto. Unshelve. 2: auto.
     iIntros "DUTY FC". iModIntro. rred2r.
-    TODO
+    (* TODO *)
       (* Case analysis on lock variable. *)
-    iApply (SCMem_cas_fun_spec _ _ n). auto. ss. 
+    iApply (SCMem_cas_fun_spec _ _ _ n). auto. ss. 
 
 
     iInv "STINTP" as (st) "ST" "ST_CLOSE".
@@ -275,6 +267,29 @@ cc_ind:
     iApply stsim_tauR. rred.
     iApply stsim_reset. iApply "SIM". iFrame.
   Qed.
+
+  (* Lemma Spinlock_lock_spec *)
+  (*       n *)
+  (*       tid R_src R_tgt (Q : R_src -> R_tgt -> iProp) R G ps pt itr_src ktr_tgt *)
+  (*       (Es : coPsets) E *)
+  (*       (MASK_TOP : OwnEs_top Es) *)
+  (*       (MASK_STTGT : mask_has_st_tgt Es n) *)
+  (*   : *)
+  (*   ⊢ *)
+  (*     (∀ r x (P : Formula n) k l q (ds : list (nat * nat * Formula n)), *)
+  (*         (⟦((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m)))) *)
+  (*              ∗ ⤉((isSpinlock n E r x P k l) *)
+  (*                    ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ l](2)))%F, S n⟧) *)
+  (*           -∗ *)
+  (*           (∀ (rv : _), *)
+  (*               (⟦(∃ (u : τ{nat}), (➢(excls r)) ∗ P ∗ (➢(agree_w_Qp q)) ∗ Duty(tid) ((u, l, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧) *)
+  (*                 -∗ *)
+  (*                 (wpsim (S n) tid ∅ R G Q ps true (trigger Yield;;; itr_src) *)
+  (*                        (ktr_tgt rv))) *)
+  (*           -∗ *)
+  (*           wpsim (S n) tid Es R G Q ps pt (trigger Yield;;; itr_src) *)
+  (*           (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x) >>= ktr_tgt)) *)
+  (* . *)
 
   (* Lemma spinlock_lock_spec2 *)
   (*       n *)
