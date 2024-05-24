@@ -688,20 +688,29 @@ Global Opaque link.
 
 (** Notations. *)
 
-Notation "'◆(' k '@' l '|' o ')'" := (liveness_obligation k l o) (at level 90, k, l, o at level 1) : bi_scope.
-Notation "'◇(' k '@' l ')' a " := (progress_credit k l a) (at level 90, k, l, a at level 1) : bi_scope.
-Notation "'live(' k ',' q ')'" := (live k q) (at level 90, k, q at level 1) : bi_scope.
-Notation "'dead(' k ')'" := (dead k) (at level 90, k at level 1) : bi_scope.
-Notation "s '-(' l ')-◇' t" := (link s t l) (at level 90, l, t at level 1) : bi_scope.
-Notation "'Duty(' p ◬ i ')' ds" := (duty _ p i ds) (at level 90, p, i, ds at level 1) : bi_scope.
-Notation "'Duty(' tid ')' ds" := (duty _ inlp tid ds) (at level 90, tid, ds at level 1) : bi_scope.
-Notation "'€(' p ◬ i ')'" := (fairness_credit _ p i) : bi_scope.
-Notation "'-(' k '@' l ')-(' p ◬ i ')-◇' f" := (promise _ p i k l f) (at level 90, k, l, p, i at level 1) : bi_scope.
-Notation "'€'" := (thread_credit _) : bi_scope.
-Notation "'-(' k '@' l ')-◇' f" := (thread_promise _ k l f) (at level 90, k, l at level 1) : bi_scope.
-Notation "'◇[' ps '@' m ']' a " := (progress_credits ps m a) (at level 90, ps, m, a at level 1) : bi_scope.
-Notation "'◆[' k '&' ps '@' l | o ']'" := (collection_credits k o ps l) (at level 90, k, ps, l, o at level 1) : bi_scope.
-Notation "'-(' k '@' l ')-(' p ◬ i ')-(' R ',' r ')-◇' f" :=
-  (until_promise _ p i k l f R r) (at level 90, k, l, p, i, r at level 1) : bi_scope.
-Notation "'-(' k '@' l ')-(' R ',' r ')-◇' f" :=
-  (until_thread_promise _ k l f R r) (at level 90, k, l, r at level 1) : bi_scope.
+Notation "'◆' [ k , l | o ]" :=
+  (liveness_obligation k l o) (at level 50, k, l, o at level 1, format "◆ [ k ,  l  |  o ]") : bi_scope.
+Notation "'◇' [ k ]( l , a )" :=
+  (progress_credit k l a) (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : bi_scope.
+Notation "'live[' k ']' q " :=
+  (live k q) (at level 50, k, q at level 1, format "live[ k ] q") : bi_scope.
+Notation "'dead[' k ']'" :=
+  (dead k) (at level 50, k at level 1, format "dead[ k ]") : bi_scope.
+Notation "s '-(' l ')-' '◇' t" :=
+  (link s t l) (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : bi_scope.
+Notation "'Duty' ( p ◬ i ) ds" :=
+  (duty _ p i ds) (at level 50, p, i, ds at level 1, format "Duty ( p  ◬  i )  ds") : bi_scope.
+Notation "'Duty' ( tid ) ds" :=
+  (duty _ inlp tid ds) (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : bi_scope.
+Notation "'€' ( p ◬ i )" :=
+  (fairness_credit _ p i) (format "€ ( p  ◬  i )") : bi_scope.
+Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
+  (promise _ p i k l f) (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
+Notation "'€'" :=
+  (thread_credit _) : bi_scope.
+Notation "'-[' k '](' l ')-' '◇' f" :=
+  (thread_promise _ k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : bi_scope.
+Notation "'◇' { ps }( m , a )" :=
+  (progress_credits ps m a) (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : bi_scope.
+Notation "⦃ '◆' [ k | o ] & '◇' { ps }( l )⦄"
+  := (collection_credits k o ps l) (at level 50, k, ps, l, o at level 1, format "⦃ ◆ [ k  |  o ]  &  ◇ { ps }( l )⦄") : bi_scope.

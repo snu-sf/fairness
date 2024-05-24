@@ -112,23 +112,23 @@ Module Syntax.
 
   End INTERP.
 
-  Section INDEXED_INVSET.
+  (* Section INDEXED_INVSET. *)
 
-    Context `{type : Type}.
-    Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{As : forall formula : Type, Type}.
+  (*   Context `{type : Type}. *)
+  (*   Context `{Typ : forall formula : Type, type -> Type}. *)
+  (*   Context `{As : forall formula : Type, Type}. *)
 
-    Local Notation formulas := (@formula type Typ As).
+  (*   Local Notation formulas := (@formula type Typ As). *)
 
-    Context `{Σ : GRA.t}.
+  (*   Context `{Σ : GRA.t}. *)
 
-    Local Notation _formulas := (@_formula type Typ As).
-    Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}.
+  (*   Local Notation _formulas := (@_formula type Typ As). *)
+  (*   Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}. *)
 
-    Global Instance IISet : @IInvSet Σ formulas :=
-      {| prop := @to_semantics type Typ As Σ interp_atoms |}.
+  (*   Global Instance IISet : @IInvSet Σ formulas := *)
+  (*     {| prop := @to_semantics type Typ As Σ interp_atoms |}. *)
 
-  End INDEXED_INVSET.
+  (* End INDEXED_INVSET. *)
 
   (* Section INV_IN. *)
 
@@ -167,6 +167,7 @@ Section RED.
 
   Context `{Σ : GRA.t}.
   Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}.
+  Context `{Invs : @IInvSet Σ formulas}.
 
   Local Notation Sem := (@Syntax.to_semantics _ Typ As _ interp_atoms).
 

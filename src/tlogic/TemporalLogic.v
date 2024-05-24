@@ -354,6 +354,8 @@ Section TL.
   Definition AtomSem := (@Atom.to_semantics AA STT Σ AAI _ _ _ _ _ _ _ _ _ _ _ _).
   Definition SynSem n := (@formula_sem (@Atom.t AA STT) Σ (@AtomSem) n).
 
+  (*   Global Instance IISet : @IInvSet Σ formulas := *)
+  (*     {| prop := @to_semantics type Typ As Σ interp_atoms |}. *)
   Global Instance SynIISet : @IInvSet Σ Formula :=
     (@Syntax.IISet _ _ _ Σ AtomSem).
 
@@ -1084,23 +1086,32 @@ Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es }=> P)%F (at l
 Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%F (at level 90) : formula_scope.
 Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%F (at level 90) : formula_scope.
 
-Notation "'◆(' k '@' l '|' o ')'" := (⟨Atom.obl_lo k l o⟩)%F (at level 90, k, l, o at level 1) : formula_scope.
-Notation "'◇(' k '@' l ')' a " := (⟨Atom.obl_pc k l a⟩)%F (at level 90, k, l, a at level 1) : formula_scope.
-Notation "'live(' k ',' q ')'" := (⟨Atom.obl_live k q⟩)%F (at level 90, k, q at level 1) : formula_scope.
-Notation "'dead(' k ')'" := (⟨Atom.obl_dead k⟩)%F (at level 90, k at level 1) : formula_scope.
-Notation "s '-(' l ')-◇' t" := (⟨Atom.obl_link s t l⟩)%F (at level 90, l, t at level 1) : formula_scope.
-Notation "'Duty(' p ◬ i ')' ds" := (⟨Atom.obl_duty p i ds⟩)%F (at level 90, p, i, ds at level 1) : formula_scope.
-Notation "'Duty(' tid ')' ds" := (⟨Atom.obl_duty inlp tid ds⟩)%F (at level 90, tid, ds at level 1) : formula_scope.
-Notation "'€(' p ◬ i ')'" := (⟨Atom.obl_fc p i⟩)%F : formula_scope.
-Notation "'-(' k '@' l ')-(' p ◬ i ')-◇' f" :=
-  (⟨Atom.obl_promise p i k l f⟩)%F (at level 90, k, l, p, i at level 1) : formula_scope.
-Notation "'€'" := (⟨Atom.obl_tc⟩)%F : formula_scope.
-Notation "'-(' k '@' l ')-◇' f" := (⟨Atom.obl_tpromise k l f⟩)%F (at level 90, k, l at level 1) : formula_scope.
-Notation "'◇[' ps '@' m ']' a " := (⟨Atom.obl_pcs ps m a⟩)%F (at level 90, ps, m, a at level 1) : formula_scope.
-Notation "'◆[' k '&' ps '@' l | o ']'" := (⟨Atom.obl_ccs k o ps l⟩)%F (at level 90, k, ps, l, o at level 1) : formula_scope.
-
-(* Check (◇( 0 @ 1 ) 2)%F. *)
-(* Check (1 -( 0 )-◇ 2)%F. *)
+Notation "'◆' [ k , l | o ]" :=
+  (⟨Atom.obl_lo k l o⟩)%F (at level 50, k, l, o at level 1, format "◆ [ k ,  l  |  o ]") : formula_scope.
+Notation "'◇' [ k ]( l , a )" :=
+  (⟨Atom.obl_pc k l a⟩)%F (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : formula_scope.
+Notation "'live[' k ']' q " :=
+  (⟨Atom.obl_live k q⟩)%F (at level 50, k, q at level 1, format "live[ k ] q") : formula_scope.
+Notation "'dead[' k ']'" :=
+  (⟨Atom.obl_dead k⟩)%F (at level 50, k at level 1, format "dead[ k ]") : formula_scope.
+Notation "s '-(' l ')-' '◇' t" :=
+  (⟨Atom.obl_link s t l⟩)%F (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : formula_scope.
+Notation "'Duty' ( p ◬ i ) ds" :=
+  (⟨Atom.obl_duty p i ds⟩)%F (at level 50, p, i, ds at level 1, format "Duty ( p  ◬  i )  ds") : formula_scope.
+Notation "'Duty' ( tid ) ds" :=
+  (⟨Atom.obl_duty inlp tid ds⟩)%F (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : formula_scope.
+Notation "'€' ( p ◬ i )" :=
+  (⟨Atom.obl_fc p i⟩)%F (format "€ ( p  ◬  i )") : formula_scope.
+Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
+  (⟨Atom.obl_promise p i k l f⟩)%F (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : formula_scope.
+Notation "'€'" :=
+  (⟨Atom.obl_tc⟩)%F : formula_scope.
+Notation "'-[' k '](' l ')-' '◇' f" :=
+  (⟨Atom.obl_tpromise k l f⟩)%F (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : formula_scope.
+Notation "'◇' { ps }( m , a )" :=
+  (⟨Atom.obl_pcs ps m a⟩)%F (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : formula_scope.
+Notation "⦃ '◆' [ k | o ] & '◇' { ps }( l )⦄" :=
+  (⟨Atom.obl_ccs k o ps l⟩)%F (at level 50, k, ps, l, o at level 1, format "⦃ ◆ [ k  |  o ]  &  ◇ { ps }( l )⦄") : formula_scope.
 
 
 

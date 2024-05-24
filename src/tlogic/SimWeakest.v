@@ -977,7 +977,7 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => (Duty((inrp ⋅ p)%prism ◬ i) l) ∗ ◇[(List.map fst l) @ 0](1)) ls)
+    (list_prop_sum (fun '(i, l) => Duty((inrp ⋅ p)%prism ◬ i) l ∗ ◇{List.map fst l}(0, 1)) ls)
       -∗
       ((list_prop_sum (fun '(i, l) => Duty((inrp ⋅ p)%prism ◬ i) l) ls)
          -∗
@@ -1058,7 +1058,7 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => (Duty(inrp ◬ i) l) ∗ ◇[(List.map fst l) @ 0](1)) ls)
+    (list_prop_sum (fun '(i, l) => Duty(inrp ◬ i) l ∗ ◇{List.map fst l}(0, 1)) ls)
       -∗
       ((list_prop_sum (fun '(i, l) => Duty(inrp ◬ i) l) ls)
          -∗
@@ -1211,7 +1211,7 @@ Section STATE.
         ps pt ktr_src ktr_tgt
         (l : list (nat * nat * Vars y))
     :
-    ((Duty(tid) l) ∗ ◇[List.map fst l @ 0](1))
+    (Duty(tid) l ∗ ◇{List.map fst l}(0, 1))
       -∗
       ((Duty(tid) l)
          -∗
@@ -1274,7 +1274,7 @@ Section STATE.
         ps pt ktr_src ktr_tgt
         (l : list (nat * nat * Vars y))
     :
-    ((Duty(tid) l) ∗ ◇[List.map fst l @ 0](1))
+    (Duty(tid) l ∗ ◇{List.map fst l}(0, 1))
       -∗
       ((Duty(tid) l)
          -∗
@@ -1505,15 +1505,15 @@ End TRIPLES.
 (** For triples. *)
 Ltac iStartTriple := iIntros (? ? ? ? ? ? ? ? ?).
 
-Notation "'[@' tid , n , Es '@]' '{' P '}' code '{' v , Q '}'" :=
+Notation "'[@' tid , n , Es '@]' { P } code { v . Q }" :=
   (atomic_triples tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
-      format "[@ tid , n , Es @] { P } code { v , Q }") : bi_scope.
+      format "[@  tid ,  n ,  Es  @] { P }  code  { v .  Q }") : bi_scope.
 
-Notation "'[@' tid , n , Es '@]' '⧼' P '⧽' code '⧼' v , Q '⧽'" :=
+Notation "'[@' tid , n , Es '@]' ⧼ P ⧽ code ⧼ v . Q ⧽" :=
   (non_atomic_triples tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
-      format "[@ tid , n , Es @] ⧼ P ⧽ code ⧼ v , Q ⧽") : bi_scope.
+      format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v .  Q ⧽") : bi_scope.
 
 (** Simulation tactics. *)
 
