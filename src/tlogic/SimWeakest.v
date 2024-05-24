@@ -1505,15 +1505,15 @@ End TRIPLES.
 (** For triples. *)
 Ltac iStartTriple := iIntros (? ? ? ? ? ? ? ? ?).
 
-Notation "'[@' tid , n , Es '@]' { P } code { v . Q }" :=
+Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
   (atomic_triples tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
-      format "[@  tid ,  n ,  Es  @] { P }  code  { v .  Q }") : bi_scope.
+      format "[@  tid ,  n ,  Es  @] { P }  code  { v ,  Q }") : bi_scope.
 
-Notation "'[@' tid , n , Es '@]' ⧼ P ⧽ code ⧼ v . Q ⧽" :=
+Notation "'[@' tid , n , Es '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
   (non_atomic_triples tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
-      format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v .  Q ⧽") : bi_scope.
+      format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
 
 (** Simulation tactics. *)
 

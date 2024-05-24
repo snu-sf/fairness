@@ -9,6 +9,8 @@ Require Import Program.
 
 Local Notation index := nat.
 
+(** Types of TL. *)
+
 Section STATETYPES.
 
   Class StateTypes :=
@@ -177,6 +179,7 @@ Notation "'[∗' n , A 'list]' x ∈ l , P" :=
     (at level 200, n at level 1, l at level 10, x, A at level 1, right associativity,
       format "[∗ n , A list] x ∈ l , P") : formula_scope.
 
+(** Define TL. *)
 
 Section AUXATOM.
 
@@ -242,90 +245,9 @@ Module Atom.
 
   End ATOM.
 
-  Section INTERP.
-
-    Context {AA : AuxAtom}.
-    Context {STT : StateTypes}.
-
-    Local Notation att := (@t AA STT).
-    Local Notation _Formula := (@_formula (@att)).
-    Local Notation Formula := (@formula (@att)).
-
-    Context `{Σ : GRA.t}.
-    Context `{AAI : @AAInterp Σ AA}.
-    (* Invariant related default RAs *)
-    Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-    Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-    Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-    (* State related default RAs *)
-    Context `{THDRA: @GRA.inG ThreadRA Σ}.
-    Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-    Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-    Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-    Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-    (* Liveness logic related default RAs *)
-    Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-    Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-    Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-    Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
-
-    Definition to_semantics n (a : @t AA STT (_Formula n)) : iProp :=
-      match a with
-      (** Simple atoms. *)
-      | aux s => aaintp s
-      (** Atom to express the invariant system. *)
-      | owni i p => @OwnI Σ Formula _ n i p
-      | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
-      | ownd x D => OwnD x D
-      | owne x E => OwnE x E
-      | syn_wsat_auth x => wsat_auth x
-      | syn_owne_auth Es => OwnE_auth Es
-      (** Atoms to express state invariants of wpsim. *)
-      | ob_ths ths =>
-          OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA)
-      | ob_st_src st_src =>
-          OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option st_src_type)): stateSrcRA _)
-      | ow_st_src st_src =>
-          St_src st_src
-      | ob_st_tgt st_tgt =>
-          OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option st_tgt_type)): stateTgtRA _)
-      | ow_st_tgt st_tgt =>
-          St_tgt st_tgt
-      | fair_src im_src =>
-          FairRA.sat_source im_src
-      | fair_tgt im_tgt ths =>
-          FairRA.sat_target im_tgt ths
-      (** Atoms to express liveness logic. *)
-      | obl_edges_sat => ObligationRA.edges_sat
-      | obl_arrows_auth x => ObligationRA.arrows_auth x
-      | obl_arrows_regions_black l =>
-          Regions.black n l
-      | obl_arrow_done1 x =>
-          OwnM (FiniteMap.singleton x (OneShot.shot ()): ArrowShotRA)
-      | obl_arrow_done2 k =>
-          ObligationRA.shot k
-      | obl_arrow_pend i k c q =>
-          (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
-      (** Atoms to express liveness logic definitions. *)
-      | obl_lo k l o => liveness_obligation k l o
-      | obl_pc k l a => progress_credit k l a
-      | obl_live k q => live k q
-      | obl_dead k => dead k
-      | obl_link k0 k1 l => link k0 k1 l
-      | obl_duty p i ds => duty _ p i ds
-      | obl_fc p i => fairness_credit _ p i
-      | obl_promise p i k l f => promise _ p i k l f
-      | obl_tc => thread_credit _
-      | obl_tpromise k l f => thread_promise _ k l f
-      | obl_pcs ps m a => progress_credits ps m a
-      | obl_ccs k o ps l => collection_credits k o ps l
-      end.
-
-  End INTERP.
-
 End Atom.
 
-Section TL.
+Section TL_FORMULA.
 
   Context {AA : AuxAtom}.
   Context {STT : StateTypes}.
@@ -333,26 +255,135 @@ Section TL.
   Definition _Formula := (@_formula (@Atom.t AA STT)).
   Definition Formula := (@formula (@Atom.t AA STT)).
 
+End TL_FORMULA.
+
+Section TLRAS.
+
+  Context {AA : AuxAtom}.
+
+  Class TLRAs (STT : StateTypes) (Σ : GRA.t) :=
+    {
+      (* Invariant related default RAs *)
+      _OWNESRA : @GRA.inG OwnEsRA Σ;
+      _OWNDSRA : @GRA.inG OwnDsRA Σ;
+      _IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ;
+      (* State related default RAs *)
+      _THDRA: @GRA.inG ThreadRA Σ;
+      _STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ;
+      _STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ;
+      _IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ;
+      _IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ;
+      (* Liveness logic related default RAs *)
+      _OBLGRA: @GRA.inG ObligationRA.t Σ;
+      _EDGERA: @GRA.inG EdgeRA Σ;
+      _ARROWSHOTRA: @GRA.inG ArrowShotRA Σ;
+      _ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ;
+    }.
+
+End TLRAS.
+
+Section EXPORT.
+
+  Context {AA : AuxAtom}.
+  Context {STT : StateTypes}.
+  Context `{Σ : GRA.t}.
+  Context {TLRAS : TLRAs STT Σ}.
+
+  (* Invariant related default RAs *)
+  #[export] Instance OWNESRA : @GRA.inG OwnEsRA Σ := _OWNESRA.
+  #[export] Instance OWNDSRA : @GRA.inG OwnDsRA Σ:= _OWNDSRA.
+  #[export] Instance IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ:= _IINVSETRA.
+  (* State related default RAs *)
+  #[export] Instance THDRA: @GRA.inG ThreadRA Σ:= _THDRA.
+  #[export] Instance STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ:= _STATESRC.
+  #[export] Instance STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ:= _STATETGT.
+  #[export] Instance IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ:= _IDENTSRC.
+  #[export] Instance IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ:= _IDENTTGT.
+  (* Liveness logic related default RAs *)
+  #[export] Instance OBLGRA: @GRA.inG ObligationRA.t Σ:= _OBLGRA.
+  #[export] Instance EDGERA: @GRA.inG EdgeRA Σ:= _EDGERA.
+  #[export] Instance ARROWSHOTRA: @GRA.inG ArrowShotRA Σ:= _ARROWSHOTRA.
+  #[export] Instance ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ:= _ARROWRA.
+
+End EXPORT.
+
+Section ATOMINTERP.
+
+  Context {AA : AuxAtom}.
+  Context {STT : StateTypes}.
+
+  Import Atom.
+
+  Local Notation att := (@t AA STT).
+
   Context `{Σ : GRA.t}.
   Context `{AAI : @AAInterp Σ AA}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
 
-  Definition AtomSem := (@Atom.to_semantics AA STT Σ AAI _ _ _ _ _ _ _ _ _ _ _ _).
-  Definition SynSem n := (@formula_sem (@Atom.t AA STT) Σ (@AtomSem) n).
+  Definition Atom_to_semantics n (a : @t AA STT (_Formula n)) : iProp :=
+    match a with
+    (** Simple atoms. *)
+    | aux s => aaintp s
+    (** Atom to express the invariant system. *)
+    | owni i p => @OwnI Σ Formula _ n i p
+    | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
+    | ownd x D => OwnD x D
+    | owne x E => OwnE x E
+    | syn_wsat_auth x => wsat_auth x
+    | syn_owne_auth Es => OwnE_auth Es
+    (** Atoms to express state invariants of wpsim. *)
+    | ob_ths ths =>
+        OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA)
+    | ob_st_src st_src =>
+        OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option st_src_type)): stateSrcRA _)
+    | ow_st_src st_src =>
+        St_src st_src
+    | ob_st_tgt st_tgt =>
+        OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option st_tgt_type)): stateTgtRA _)
+    | ow_st_tgt st_tgt =>
+        St_tgt st_tgt
+    | fair_src im_src =>
+        FairRA.sat_source im_src
+    | fair_tgt im_tgt ths =>
+        FairRA.sat_target im_tgt ths
+    (** Atoms to express liveness logic. *)
+    | obl_edges_sat => ObligationRA.edges_sat
+    | obl_arrows_auth x => ObligationRA.arrows_auth x
+    | obl_arrows_regions_black l =>
+        Regions.black n l
+    | obl_arrow_done1 x =>
+        OwnM (FiniteMap.singleton x (OneShot.shot ()): ArrowShotRA)
+    | obl_arrow_done2 k =>
+        ObligationRA.shot k
+    | obl_arrow_pend i k c q =>
+        (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
+    (** Atoms to express liveness logic definitions. *)
+    | obl_lo k l o => liveness_obligation k l o
+    | obl_pc k l a => progress_credit k l a
+    | obl_live k q => live k q
+    | obl_dead k => dead k
+    | obl_link k0 k1 l => link k0 k1 l
+    | obl_duty p i ds => duty _ p i ds
+    | obl_fc p i => fairness_credit _ p i
+    | obl_promise p i k l f => promise _ p i k l f
+    | obl_tc => thread_credit _
+    | obl_tpromise k l f => thread_promise _ k l f
+    | obl_pcs ps m a => progress_credits ps m a
+    | obl_ccs k o ps l => collection_credits k o ps l
+    end.
+
+End ATOMINTERP.
+
+Section TL_INTERP.
+
+  Context {AA : AuxAtom}.
+  Context {STT : StateTypes}.
+  Context `{Σ : GRA.t}.
+  Context `{AAI : @AAInterp Σ AA}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
+
+  Definition AtomSem := (@Atom_to_semantics AA STT Σ AAI TLRAS).
+  Definition SynSem := (@formula_sem (@Atom.t AA STT) Σ (@AtomSem)).
 
   Global Instance SynIISet : @IInvSet Σ Formula :=
     {| prop := SynSem |}.
@@ -362,13 +393,13 @@ Section TL.
   (* Global Instance IIIn (i : index) (p : Formula i) : @IInvIn Σ Formula SynIISet i (SynSem i p) := *)
   (*   @Syntax.IIIn _ _ _ Σ AtomSem0 AtomSem i p. *)
 
-End TL.
+End TL_INTERP.
 
 (** Notations and coercions. *)
 Notation "'τ{' t ',' n '}'" := (@Typ (@_Formula _ _ n) t).
 Notation "'τ{' t '}'" := (@Typ (@_Formula _ _ _) t).
-Notation "'⟪' A ',' n '⟫'" := (@AtomSem _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n A).
-Notation "'⟦' F ',' n '⟧'" := (@SynSem _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n F).
+Notation "'⟪' A ',' n '⟫'" := (@AtomSem _ _ _ _ _ n A).
+Notation "'⟦' F ',' n '⟧'" := (@SynSem _ _ _ _ _ n F).
 
 Section RED.
 
@@ -377,21 +408,7 @@ Section RED.
 
   Context `{Σ : GRA.t}.
   Context `{AAI : @AAInterp Σ AA}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
 
   Lemma red_tl_atom_aux n (a : aAtom) :
     ⟦⟨Atom.aux a⟩%F, n⟧ = aaintp a.
@@ -565,21 +582,7 @@ Section WSATS.
 
   Context `{Σ : GRA.t}.
   Context `{AAI : @AAInterp Σ AA}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
 
 
   Import Atom.
@@ -744,21 +747,7 @@ Section OBLIG.
 
   Context `{Σ : GRA.t}.
   Context `{AAI : @AAInterp Σ AA}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
 
 
   Local Notation _dataT := ((nat + id_tgt_type) * nat * Ord.t * Qp * nat)%type.
@@ -854,21 +843,7 @@ Section SIMI.
 
   Context `{Σ : GRA.t}.
   Context `{AAI : @AAInterp Σ AA}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
 
   Let srcE := threadE id_src_type st_src_type.
   Let tgtE := threadE id_tgt_type st_tgt_type.
@@ -1125,21 +1100,7 @@ Section TEST.
 
   Context `{Σ : GRA.t}.
   Context `{AAI : @AAInterp Σ AA}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Formula) Σ}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
 
   Definition test : Formula 3 :=
     ⟨Atom.owni xH (∃ (p : τ{formulaT, 3}), ⌜p = emp⌝)⟩%F.

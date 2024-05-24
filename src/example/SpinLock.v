@@ -62,35 +62,37 @@ Section SIM.
   Notation tgt_state := (OMod.closed_state Client (SCMem.mod gvs)).
   Notation tgt_ident := (OMod.closed_ident Client (SCMem.mod gvs)).
 
-  (* Context {STT : StateTypes}. *)
   Local Instance STT : StateTypes := Build_StateTypes src_state tgt_state src_ident tgt_ident.
-  Notation Formula := (@Formula XAtom STT).
-
+  (* Notation Formula := (@Formula XAtom STT). *)
   Context `{Σ : GRA.t}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}.
-  (* SCMem related RAs *)
-  Context `{MEMRA: @GRA.inG memRA Σ}.
-  (* Map from nat to Excl unit RA. *)
-  Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
-  (* Auth Excl Qp RA. *)
-  Context `{AUEX_QP: @GRA.inG (AuthExclRA Qp) Σ}.
+  Context {TLRAS : @TLRAs XAtom STT Σ}.
+  Context {AUXRAS : AUXRAs Σ}.
+
+  (* Context `{Σ : GRA.t}. *)
+  (* (* Invariant related default RAs *) *)
+  (* Context `{OWNESRA : @GRA.inG OwnEsRA Σ}. *)
+  (* Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}. *)
+  (* Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}. *)
+  (* (* State related default RAs *) *)
+  (* Context `{THDRA: @GRA.inG ThreadRA Σ}. *)
+  (* Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}. *)
+  (* Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}. *)
+  (* Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}. *)
+  (* Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}. *)
+  (* (* Liveness logic related default RAs *) *)
+  (* Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}. *)
+  (* Context `{EDGERA: @GRA.inG EdgeRA Σ}. *)
+  (* Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}. *)
+  (* Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}. *)
+  (* (* SCMem related RAs *) *)
+  (* Context `{MEMRA: @GRA.inG memRA Σ}. *)
+  (* (* Map from nat to Excl unit RA. *) *)
+  (* Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}. *)
+  (* (* Auth Excl Qp RA. *) *)
+  (* Context `{AUEX_QP: @GRA.inG (AuthExclRA Qp) Σ}. *)
 
   (*
-Liveness chain of spinlock : 
+Liveness chain of a spinlock : 
 (Holder needs one ◇ at l (> 0) = Holder will unlock @ l + 1)
 <
 (Spinlock will end @ L)
@@ -103,15 +105,14 @@ Liveness chain of spinlock :
     ((∃ (q : τ{Qp}),
          (➢(auex_b_Qp q))
            ∗
-           (((x ↦ 0) ∗ (◇(k @ l + 1) 1) ∗ (➢(excls r)) ∗ (➢(auex_w_Qp q)) ∗ P)
-            ∨ ((x ↦ 1) ∗ live(k, q)
-                       ∗ ∃ (u : τ{nat}), live(u, 1/2) ∗ (-(u @ 0)-◇ emp) ∗ (u -( 0 )-◇ k))))
-     ∨ dead(k)
+           (((x ↦ 0) ∗ ◇[k](l + 1, 1) ∗ ➢(excls r) ∗ ➢(auex_w_Qp q) ∗ P)
+            ∨ ((x ↦ 1) ∗ live[k] q ∗ ∃ (u : τ{nat}), live[u] (1/2) ∗ (-[u](0)-◇ emp) ∗ (u -(0)-◇ k))))
+     ∨ dead[k]
     )%F.
 
   Definition isSpinlock n (E : coPset) (r : nat) (x : SCMem.val) (P : Formula n) (k L l : nat) : Formula n :=
     (∃ (N : τ{namespace}) (o : τ{Ord.t}),
-        ⌜(↑N ⊆ E)⌝ ∗ ◆(k @ L | o) ∗ (⌜0 < l⌝) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
+        ⌜(↑N ⊆ E)⌝ ∗ ◆[k, L | o] ∗ (⌜0 < l⌝) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
 
 
   Lemma Spinlock_lock_spec
@@ -126,11 +127,11 @@ Liveness chain of spinlock :
         [@ tid, (S n), Es @]
           ⧼(⟦((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
                 ∗ ⤉((isSpinlock n E r x P k L l)
-                      ∗ live(k, q) ∗ Duty(tid) ds ∗ ◇[List.map fst ds @ L](2)))%F, S n⟧)⧽
-          (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
-          ⧼rv, (⟦(∃ (u : τ{nat}),
-                     (➢(excls r)) ∗ P ∗ (➢(auex_w_Qp q)) ∗
-                                  Duty(tid) ((u, 0, emp) :: ds) ∗ ◇(u @ l) 1)%F , n⟧)⧽
+                      ∗ live[k] q ∗ Duty(tid) ds ∗ ◇{List.map fst ds}(L, 2)))%F, S n⟧)⧽
+            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+            ⧼rv, (⟦(∃ (u : τ{nat}),
+                       ➢(excls r) ∗ P ∗ ➢(auex_w_Qp q) ∗
+                        Duty(tid) ((u, 0, emp) :: ds) ∗ ◇[u](l, 1))%F , n⟧)⧽
   .
   Proof.
     iIntros (? ? ? ? ? ? ? ?). iStartTriple. iIntros "PRE POST".
@@ -155,17 +156,17 @@ Liveness chain of spinlock :
     iApply (wpsim_yieldR with "[DUTY PCS]"). 2: iFrame. auto. Unshelve. 2: auto.
     iIntros "DUTY FC". iModIntro. rred2r.
     (* Case analysis on lock variable. *)
-    iInv "INV" as "SLI" "SLI_CLOSE". iEval (unfold spinlockInv; simpl; red_sem; simpl) in "SLI".
+    iInv "INV" as "SLI" "SLI_CLOSE". iEval (unfold spinlockInv; simpl; red_tl; simpl) in "SLI".
     iDestruct "SLI" as "[[%q0 SLI] | DEAD]".
     2:{ iExFalso. iPoseProof (not_dead with "[LIVE DEAD]") as "%F". iFrame. auto. }
-    iEval (red_sem; simpl) in "SLI". iDestruct "SLI" as "[qISB [ACQ|WAIT]]".
+    iEval (red_tl; simpl) in "SLI". iDestruct "SLI" as "[qISB [ACQ|WAIT]]".
 
     (** Case 1. Acquire the lock. *)
     { iClear "IH". iDestruct "ACQ" as "(PT & PCk & EXCL & qISW & PROP)".
       iApply (SCMem_cas_fun_spec _ _ _ n with "[PT]"). auto.
       { unfold mask_has_st_tgt. rewrite lookup_insert. clear - MASK_DISJ IN. set_solver. }
       { iFrame. iApply tgt_interp_as_equiv. 2: iApply "STINTP".
-        iIntros. iEval (simpl; red_sem; simpl). iSplit; iIntros "P".
+        iIntros. iEval (simpl; red_tl; simpl). iSplit; iIntros "P".
         - iFrame. ss.
         - iDestruct "P" as "[MB _]". iFrame.
       }
@@ -184,7 +185,7 @@ Liveness chain of spinlock :
       2:{ apply layer_drop_eq; auto. }
       iMod (duty_add _ _ _ _ _ 0 (emp%F : Formula n) with "[DUTY PC1] []") as "DUTY".
       { iFrame. }
-      { iModIntro. iEval (ss; red_sem). auto. }
+      { iModIntro. iEval (ss; red_tl). auto. }
       iPoseProof (duty_tpromise with "DUTY") as "#PROM1".
       { simpl. left. auto. }
       iMod (link_new k1 k (l+1) 0 _ with "[PCk]") as "#LINK1".
@@ -199,9 +200,9 @@ Liveness chain of spinlock :
       iCombine "qISB qISW" as "qIS". iMod (OwnM_Upd AUTH with "qIS") as "[qISB qISW]". clear AUTH.
       (* Now close with SLI_CLOSE. *)
       iMod ("SLI_CLOSE" with "[LIVE PT LIVE1' qISB]") as "_".
-      { iEval (unfold spinlockInv; simpl; red_sem; simpl).
-        iLeft. iExists q. iEval (red_sem; simpl). iSplitL "qISB"; [iFrame|].
-        iRight. iFrame. iExists k1. iEval (red_sem; simpl). iFrame. auto.
+      { iEval (unfold spinlockInv; simpl; red_tl; simpl).
+        iLeft. iExists q. iEval (red_tl; simpl). iSplitL "qISB"; [iFrame|].
+        iRight. iFrame. iExists k1. iEval (red_tl; simpl). iFrame. auto.
       }
       (* Finish with POST. *)
       iApply "POST". iEval (red_tl; simpl). iExists k1. iEval (red_tl; simpl).
@@ -210,11 +211,11 @@ Liveness chain of spinlock :
 
     (** Case 2. Miss the lock and loop. *)
     { iDestruct "WAIT" as "(PT & LIVE_SL & %k_other & WAIT)".
-      iEval (simpl; red_sem; simpl) in "WAIT". iDestruct "WAIT" as "(LIVE_O & #OATH & #LINK)".
+      iEval (simpl; red_tl; simpl) in "WAIT". iDestruct "WAIT" as "(LIVE_O & #OATH & #LINK)".
       iApply (SCMem_cas_fun_spec _ _ _ n with "[PT]"). auto.
       { unfold mask_has_st_tgt. rewrite lookup_insert. clear - MASK_DISJ IN. set_solver. }
       { iFrame. iApply tgt_interp_as_equiv. 2: iApply "STINTP".
-        iIntros. iEval (simpl; red_sem; simpl). iSplit; iIntros "P".
+        iIntros. iEval (simpl; red_tl; simpl). iSplit; iIntros "P".
         - iFrame. ss.
         - iDestruct "P" as "[MB _]". iFrame.
       }
@@ -230,9 +231,9 @@ Liveness chain of spinlock :
       iMod ("IH" with "[] PC") as "[PCS IH]". auto.
       (* Close the invariant spinlockInv. *)
       iMod ("SLI_CLOSE" with "[qISB LIVE_SL LIVE_O PT]") as "_".
-      { iEval (unfold spinlockInv; simpl; red_sem; simpl).
-        iLeft. iExists q0. iEval (red_sem; simpl). iSplitL "qISB"; [iFrame|].
-        iRight. iFrame. iExists k_other. iEval (red_sem; simpl). iFrame. auto.
+      { iEval (unfold spinlockInv; simpl; red_tl; simpl).
+        iLeft. iExists q0. iEval (red_tl; simpl). iSplitL "qISB"; [iFrame|].
+        iRight. iFrame. iExists k_other. iEval (red_tl; simpl). iFrame. auto.
       }
       (* Finish with IH. *)
       iApply wpsim_stutter_mon. i; eauto. instantiate (1:=pt). i; auto.

@@ -14,28 +14,8 @@ Section SPEC.
   Context {STT : StateTypes}.
 
   Context `{Σ : GRA.t}.
-  (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA (@Formula XAtom STT)) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type (@Formula XAtom STT)) Σ}.
-  (* SCMem related RAs *)
-  Context `{MEMRA: @GRA.inG memRA Σ}.
-  (* Map from nat to Excl unit RA. *)
-  Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}.
-  (* Auth Excl Qp RA. *)
-  Context `{AUEX_QP: @GRA.inG (AuthExclRA Qp) Σ}.
-
+  Context {TLRAS : @TLRAs XAtom STT Σ}.
+  Context {AUXRAS : AUXRAs Σ}.
 
   Variable p_mem : Prism.t id_tgt_type SCMem.val.
   Variable l_mem : Lens.t st_tgt_type SCMem.t.
@@ -125,7 +105,7 @@ Section SPEC.
     rewrite FREE. rred2r.
     iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r. iMod "MB".
     iMod ("V" with "[STTGT MB]") as "_".
-    { ss. iExists _. red_sem. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
+    { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
     iApply "SIM". auto.
   Qed.
 
@@ -154,7 +134,7 @@ Section SPEC.
   (*   rewrite FREE. rred2r. *)
   (*   iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r. iMod "MB". *)
   (*   iMod ("V" with "[STTGT MB]") as "_". *)
-  (*   { ss. iExists _. red_sem. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
+  (*   { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
   (*   iApply "SIM". *)
   (* Qed. *)
 
@@ -178,7 +158,7 @@ Section SPEC.
     rewrite STORE1. rred2. iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2.
     iDestruct "MB" as "[MB PT]".
     iMod ("V" with "[STTGT MB]") as "_".
-    { iExists _. ss. red_sem. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
+    { iExists _. ss. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
     iApply "SIM"; iFrame.
   Qed.
 
@@ -207,7 +187,7 @@ Section SPEC.
   (*   rewrite STORE1. rred2. iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2. *)
   (*   iDestruct "MB" as "[MB PT]". *)
   (*   iMod ("V" with "[STTGT MB]") as "_". *)
-  (*   { iExists _. ss. red_sem. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
+  (*   { iExists _. ss. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
   (*   iApply "SIM"; iFrame. *)
   (* Qed. *)
 
@@ -282,7 +262,7 @@ Section SPEC.
     iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2.
     iMod "MB" as "[MB PT]".
     iMod ("K" with "[STTGT MB]") as "_".
-    { ss. iExists _. red_sem. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
+    { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
     iApply "SIM". iFrame.
   Qed.
 
@@ -311,7 +291,7 @@ Section SPEC.
   (*   iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2. *)
   (*   iMod "MB" as "[MB PT]". *)
   (*   iMod ("K" with "[STTGT MB]") as "_". *)
-  (*   { ss. iExists _. red_sem. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
+  (*   { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
   (*   iApply "SIM". iFrame. *)
   (* Qed. *)
 
@@ -330,7 +310,7 @@ Section SPEC.
     Local Transparent SCMem.cas.
     iStartTriple.
     iIntros "[#ST PT] CAS". iInv "ST" as (st) "ST1" "K".
-    ss. iDestruct "ST1" as (mem) "[VW MM]". iEval (red_sem; simpl) in "MM".
+    ss. iDestruct "ST1" as (mem) "[VW MM]". iEval (red_tl; simpl) in "MM".
     iDestruct "MM" as "[MB %MC]".
     rred2r. iApply wpsim_getR. iSplit; [iFrame | ].
     rred2r. unfold SCMem.cas. iPoseProof (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
@@ -340,13 +320,13 @@ Section SPEC.
       iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r.
       iEval (unfold Lens.modify; rewrite Lens.set_set) in "STTGT".
       iMod ("MEM") as "[MB PT]". iMod ("K" with "[STTGT MB]") as "_".
-      { iExists _. iEval (red_sem). iFrame.
+      { iExists _. iEval (red_tl). iFrame.
         iPureIntro. erewrite <- SCMem.val_compare_store; eauto.
       }
       iApply "CAS". iExists _. iFrame.
       iPureIntro. apply SCMem.val_compare_Some in MC. subst. des_ifs.
     - rred2r. iMod ("K" with "[VW MB]") as "_".
-      { iExists _. iFrame. iEval red_sem. iFrame. iPureIntro. rewrite MC; auto. }
+      { iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. rewrite MC; auto. }
       iApply "CAS". iExists _. iFrame.
       iPureIntro. apply SCMem.val_compare_Some in MC. des_ifs.
   Qed.
@@ -373,7 +353,7 @@ Section SPEC.
   (* Proof. *)
   (*   Local Transparent SCMem.cas. *)
   (*   iIntros "#ST PT CASF CAST". iInv "ST" as (st) "ST1" "K". *)
-  (*   ss. iDestruct "ST1" as (vw) "[VW MM]". iEval red_sem in "MM". iDestruct "MM" as "[MB [%MC1 %MC2]]". ss. *)
+  (*   ss. iDestruct "ST1" as (vw) "[VW MM]". iEval red_tl in "MM". iDestruct "MM" as "[MB [%MC1 %MC2]]". ss. *)
   (*   (* iDestruct "ST1" as (vw) "[VW [MB [%MC1 %MC2]]]". *) *)
   (*   rred2r. iApply wpsim_getR. iSplit; [iFrame | ]. *)
   (*   rred2r. unfold SCMem.cas. iPoseProof (memory_ra_load with "MB PT") as "[%LOAD %PERM]". *)
@@ -385,13 +365,13 @@ Section SPEC.
   (*     iMod ("K" with "[STTGT MB]") as "_". *)
   (*     { exploit SCMem.memory_comparable_store. eauto. apply MC1. intros COMP. *)
   (*       exploit SCMem.memory_comparable_store. eauto. apply MC2. intros COMP2. *)
-  (*       iExists _. iFrame. iEval red_sem. iFrame. iPureIntro. split; auto. *)
+  (*       iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. split; auto. *)
   (*     } *)
   (*     iApply "CAST". iFrame. *)
   (*   - iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". *)
   (*     rewrite STORE in Heq0; clarify. *)
   (*   - rred2r. iMod ("K" with "[VW MB]") as "_". *)
-  (*     { iExists _. iFrame. iEval red_sem. iFrame. iPureIntro. split; auto. } *)
+  (*     { iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. split; auto. } *)
   (*     iApply "CASF". iFrame. *)
   (*   - exploit SCMem.val_compare_None; eauto. intro F. ss. *)
   (*   Local Opaque SCMem.cas. *)
@@ -410,7 +390,7 @@ Section SPEC.
   Proof.
     iStartTriple.
     iIntros "#ST CASE". iInv "ST" as (st) "ST1" "K".
-    iDestruct "ST1" as (vw) "[VW MM]". ss. iEval red_sem in "MM".
+    iDestruct "ST1" as (vw) "[VW MM]". ss. iEval red_tl in "MM".
     iDestruct "MM" as "[MB %MC]". rred2r.
     iApply wpsim_getR. iSplit; iFrame. rred2r.
     rewrite Lens.view_set. unfold SCMem.compare.
@@ -418,11 +398,11 @@ Section SPEC.
     - destruct b.
       + rred2r. exploit SCMem.val_compare_Some; eauto. i. ss; clarify.
         iMod ("K" with "[VW MB]") as "_".
-        { iExists _. iFrame. iEval red_sem. iFrame. iPureIntro. auto. }
+        { iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. auto. }
         iApply "CASE". ss.
       + rred2r. exploit SCMem.val_compare_Some; eauto. i. ss; clarify.
         iMod ("K" with "[VW MB]") as "_".
-        { iExists _. iFrame. iEval red_sem. iFrame. iPureIntro. auto. }
+        { iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. auto. }
         iApply "CASE". ss.
     - exfalso. apply is_Some_None in MC. ss.
   Qed.
@@ -446,18 +426,18 @@ Section SPEC.
   (*     (map_event emb_mem (SCMem.compare_fun (v1, v2)) >>= ktr_tgt). *)
   (* Proof. *)
   (*   iIntros "#ST NEQ EQ". iInv "ST" as (st) "ST1" "K". *)
-  (*   ss. iDestruct "ST1" as (vw) "[VW MM]". iEval red_sem in "MM". iDestruct "MM" as "[MB [%MC1 %MC2]]". ss. *)
+  (*   ss. iDestruct "ST1" as (vw) "[VW MM]". iEval red_tl in "MM". iDestruct "MM" as "[MB [%MC1 %MC2]]". ss. *)
   (*   (* iDestruct "ST1" as (vw) "[VW [MB [%MC1 %MC2]]]". *) *)
   (*   unfold SCMem.compare_fun. rred2r. iApply wpsim_getR. iSplit; iFrame. *)
   (*   rred2r. rewrite Lens.view_set. unfold SCMem.compare. destruct (SCMem.val_compare vw v1 v2) eqn:COMPR. *)
   (*   - destruct b. *)
   (*     + rred2r. exploit SCMem.val_compare_Some; eauto. i. ss; clarify. *)
   (*       iMod ("K" with "[VW MB]") as "_". *)
-  (*       { iExists _. iFrame. iEval red_sem. iFrame. iSplit; auto. } *)
+  (*       { iExists _. iFrame. iEval red_tl. iFrame. iSplit; auto. } *)
   (*       iApply "EQ". ss. *)
   (*     + rred2r. exploit SCMem.val_compare_Some; eauto. i. ss; clarify. *)
   (*       iMod ("K" with "[VW MB]") as "_". *)
-  (*       { iExists _. iFrame. iEval red_sem. iFrame. iSplit; auto. } *)
+  (*       { iExists _. iFrame. iEval red_tl. iFrame. iSplit; auto. } *)
   (*       iApply "NEQ". ss. *)
   (*   - exploit SCMem.val_compare_None; eauto. i. ss. *)
   (* Qed. *)
