@@ -354,10 +354,10 @@ Section TL.
   Definition AtomSem := (@Atom.to_semantics AA STT Σ AAI _ _ _ _ _ _ _ _ _ _ _ _).
   Definition SynSem n := (@formula_sem (@Atom.t AA STT) Σ (@AtomSem) n).
 
-  (*   Global Instance IISet : @IInvSet Σ formulas := *)
-  (*     {| prop := @to_semantics type Typ As Σ interp_atoms |}. *)
   Global Instance SynIISet : @IInvSet Σ Formula :=
-    (@Syntax.IISet _ _ _ Σ AtomSem).
+    {| prop := SynSem |}.
+  (* Global Instance SynIISet : @IInvSet Σ Formula := *)
+  (*   (@Syntax.IISet _ _ _ Σ AtomSem). *)
 
   (* Global Instance IIIn (i : index) (p : Formula i) : @IInvIn Σ Formula SynIISet i (SynSem i p) := *)
   (*   @Syntax.IIIn _ _ _ Σ AtomSem0 AtomSem i p. *)
@@ -369,7 +369,6 @@ Notation "'τ{' t ',' n '}'" := (@Typ (@_Formula _ _ n) t).
 Notation "'τ{' t '}'" := (@Typ (@_Formula _ _ _) t).
 Notation "'⟪' A ',' n '⟫'" := (@AtomSem _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n A).
 Notation "'⟦' F ',' n '⟧'" := (@SynSem _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n F).
-
 
 Section RED.
 
