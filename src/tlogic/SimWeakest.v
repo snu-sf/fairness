@@ -1449,14 +1449,31 @@ Section STATE.
 
 End STATE.
 
+Section STATETYPES.
+
+  Class StateTypes :=
+    { st_src_type : Type ;
+      st_tgt_type : Type ;
+      id_src_type : ID ;
+      id_tgt_type : ID
+    }.
+
+End STATETYPES.
+
 Section TRIPLES.
 
   Context `{Σ: GRA.t}.
 
-  Variable state_src: Type.
-  Variable state_tgt: Type.
-  Variable ident_src: ID.
-  Variable ident_tgt: ID.
+  Context {STT : StateTypes}.
+  Local Notation state_src := (@st_src_type STT).
+  Local Notation state_tgt := (@st_tgt_type STT).
+  Local Notation ident_src := (@id_src_type STT).
+  Local Notation ident_tgt := (@id_tgt_type STT).
+
+  (* Variable state_src: Type. *)
+  (* Variable state_tgt: Type. *)
+  (* Variable ident_src: ID. *)
+  (* Variable ident_tgt: ID. *)
   Let srcE := threadE ident_src state_src.
   Let tgtE := threadE ident_tgt state_tgt.
 
@@ -1481,33 +1498,51 @@ Section TRIPLES.
   Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
 
   (** Formats for triples-like specs. *)
+
+  Definition triple_gen
+             n tid (P : iProp) {RV} (Q : RV -> iProp) (Es1 Es2 : coPsets)
+             {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Vars n)
+             ps pt
+             (itr_src : itree srcE R_src) (code : itree tgtE RV) (ktr_tgt : ktree tgtE RV R_tgt)
+    : iProp
+    :=
+    (∀ rr gr,
+        (P)
+          -∗
+          (∀ (rv : RV),
+              (Q rv) -∗ wpsim n tid Es2 rr gr (fun rs rt => prop _ (TERM rs rt)) ps true itr_src (ktr_tgt rv))
+          -∗
+          wpsim n tid Es1 rr gr (fun rs rt => prop _ (TERM rs rt)) ps pt itr_src (code >>= ktr_tgt))%I.
+
   Definition atomic_triple
              tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
-    (∀ R_src R_tgt (TERM : R_src -> R_tgt -> iProp) rr gr ps pt
+    (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt
        (itr_src : itree srcE R_src)
        (ktr_tgt : RV -> itree tgtE R_tgt),
-      (P)
-        -∗
-        (∀ (rv : RV),
-            (Q rv) -∗ wpsim n tid Es rr gr TERM ps true itr_src (ktr_tgt rv))
-        -∗
-        wpsim n tid Es rr gr TERM ps pt itr_src (code >>= ktr_tgt))%I.
+        triple_gen tid P Q Es Es TERM ps pt itr_src code ktr_tgt)%I.
+  (* (P) *)
+  (*   -∗ *)
+  (*   (∀ (rv : RV), *)
+  (*       (Q rv) -∗ wpsim n tid Es rr gr TERM ps true itr_src (ktr_tgt rv)) *)
+  (*   -∗ *)
+  (*   wpsim n tid Es rr gr TERM ps pt itr_src (code >>= ktr_tgt))%I. *)
 
   Definition non_atomic_triple
              tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
-    (∀ R_src R_tgt (TERM : R_src -> R_tgt -> iProp) rr gr ps pt
+    (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt
        (itr_src : itree srcE R_src)
        (ktr_tgt : RV -> itree tgtE R_tgt),
-      (P)
-        -∗
-        (∀ (rv : RV),
-            (Q rv) -∗ wpsim n tid ∅ rr gr TERM ps true (trigger Yield;;; itr_src) (ktr_tgt rv))
-        -∗
-        wpsim n tid Es rr gr TERM ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I.
+        triple_gen tid P Q Es ∅ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
+      (* (P) *)
+      (*   -∗ *)
+      (*   (∀ (rv : RV), *)
+      (*       (Q rv) -∗ wpsim n tid ∅ rr gr TERM ps true (trigger Yield;;; itr_src) (ktr_tgt rv)) *)
+      (*   -∗ *)
+      (*   wpsim n tid Es rr gr TERM ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I. *)
 
   (* For syntactic encoding. *)
   Definition triple_format {Form : Type} {intpF : Form -> iProp}
@@ -1561,20 +1596,14 @@ Section TRIPLES.
                       (intpF (I2 ths im_src im_tgt st_src st_tgt Es2))
                         -∗
                         isim
-                        tid INV
-                        LIFT1 LIFT2
-                        (* (lift_rel intpF I1 rr) (lift_rel intpF I1 gr) *)
-                        FIN
-                        ps pt itr_src (ktr_tgt rv) ths im_src im_tgt st_src st_tgt))
+                        tid INV LIFT1 LIFT2 FIN
+                        ps true itr_src (ktr_tgt rv) ths im_src im_tgt st_src st_tgt))
             -∗
             (∀ ths im_src im_tgt st_src st_tgt,
                 (intpF (I2 ths im_src im_tgt st_src st_tgt Es1))
                   -∗
                   isim
-                  tid INV
-                  LIFT1 LIFT2
-                  (* (lift_rel intpF I1 rr) (lift_rel intpF I1 gr) *)
-                  FIN
+                  tid INV LIFT1 LIFT2 FIN
                   ps pt itr_src (code >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
       )%I.
 

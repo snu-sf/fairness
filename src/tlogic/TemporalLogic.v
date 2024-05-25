@@ -11,18 +11,6 @@ Require Import Program.
 Local Notation index := nat.
 
 (** Types of TL. *)
-
-Section STATETYPES.
-
-  Class StateTypes :=
-    { st_src_type : Type ;
-      st_tgt_type : Type ;
-      id_src_type : ID ;
-      id_tgt_type : ID
-    }.
-
-End STATETYPES.
-
 Section TYPES.
 
   Section TYPE.
@@ -38,6 +26,8 @@ Section TYPES.
     | nat_wfT : type
     | owfT : type
     | tidsetT : type
+    | metaT : type
+    | codeT (idT stT R : Type) : type
     .
 
   End TYPE.
@@ -56,6 +46,8 @@ Section TYPES.
       | nat_wfT => T nat_wf
       | owfT => T owf
       | tidsetT => TIdSet.t
+      | metaT => Type
+      | codeT idT stT R => itree (threadE idT stT) R
       end.
 
   End INTERP_TYPE.
@@ -491,11 +483,11 @@ Section RED.
   Proof. apply red_sem_sisim. Qed.
 
   Lemma red_tl_striple_format n
-        {state_src state_tgt ident_src ident_tgt : Type}
+        (* (STT : StateTypes) *)
         (tid : thread_id)
-        (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> Formula n)
-        (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> Formula n)
-        (I2 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> Formula n)
+        (I0 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> Formula n)
+        (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> Formula n)
+        (I2 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPsets -> Formula n)
         (P : Formula n)
         {RV : Type}
         (Q : RV -> Formula n)
@@ -503,9 +495,9 @@ Section RED.
         {R_src R_tgt : Type}
         (TERM : R_src -> R_tgt -> Formula n)
         (ps pt : bool)
-        (itr_src : itree (threadE ident_src state_src) R_src)
-        (code : itree (threadE ident_tgt state_tgt) RV)
-        (ktr_tgt : ktree (threadE ident_tgt state_tgt) RV R_tgt)
+        (itr_src : itree (threadE id_src_type st_src_type) R_src)
+        (code : itree (threadE id_tgt_type st_tgt_type) RV)
+        (ktr_tgt : ktree (threadE id_tgt_type st_tgt_type) RV R_tgt)
     :
     ⟦(Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt), n⟧
     =
@@ -1067,19 +1059,13 @@ Section TRIPLE.
     : forall {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Formula n), bool -> bool -> itree srcE R_src -> itree tgtE RV -> ktree tgtE RV R_tgt -> Formula n
     :=
     fun R_src R_tgt TERM ps pt itr_src code ktr_tgt =>
-      (
-        (* ∀ (ths : τ{ tidsetT }) *)
-        (*  (im_src : τ{ id_src_type -> owfT }) *)
-        (*  (im_tgt : τ{ ((nat + id_tgt_type)%type -> nat_wfT) }) *)
-        (*  (st_src : τ{ st_src_type }) *)
-        (*  (st_tgt : τ{ st_tgt_type }), *)
-          let I0 := (fun ths ims imt sts stt => ((syn_default_I n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
-          in
-          let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
-          in
-          let I2 := (fun ths im_src im_tgt st_src st_tgt Es => (syn_default_I_past tid n ths im_src im_tgt st_src st_tgt ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n Es)))
-          in
-          Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)%F.
+      (let I0 := (fun ths ims imt sts stt => ((syn_default_I n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
+       in
+       let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
+       in
+       let I2 := (fun ths im_src im_tgt st_src st_tgt Es => (syn_default_I_past tid n ths im_src im_tgt st_src st_tgt ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n Es)))
+       in
+       Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)%F.
 
   Lemma red_syn_triple_gen
         n tid P RV (Q : RV -> Formula n) Es1 Es2
@@ -1087,18 +1073,9 @@ Section TRIPLE.
     :
     ⟦syn_triple_gen n tid P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt, n⟧
     =
-      (∀ rr gr,
-          (⟦P, n⟧)
-            -∗
-            (∀ (rv : RV),
-                (⟦Q rv, n⟧)
-                  -∗
-                  (wpsim n tid Es2 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (ktr_tgt rv)))
-            -∗
-            (wpsim n tid Es1 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (code >>= ktr_tgt))
-      )%I.
+      triple_gen (n:=n) tid ⟦P, n⟧ (fun rv => ⟦Q rv, n⟧) Es1 Es2 TERM ps pt itr_src code ktr_tgt.
   Proof.
-    unfold syn_triple_gen. red_tl. unfold triple_format.
+    unfold syn_triple_gen, triple_gen. red_tl. unfold triple_format.
     apply f_equal. extensionalities rr. apply f_equal. extensionalities gr.
     apply f_equal.
     match goal with
@@ -1131,13 +1108,73 @@ Section TRIPLE.
       + symmetry. apply red_isim_eq_3.
   Qed.
 
+  Definition syn_atomic_triple
+             tid n (Es : coPsets) (P : Formula n) {RV} (code : itree tgtE RV) (Q : RV -> Formula n)
+    : Formula (S n)
+    :=
+    (∀ (R_src : τ{metaT})
+       (R_tgt : τ{metaT})
+       (TERM : τ{(R_src -> R_tgt -> Φ)%ftype, S n})
+       (ps pt : τ{bool})
+       (itr_src : τ{codeT id_src_type st_src_type R_src})
+       (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_tgt)%ftype}),
+        (⤉ syn_triple_gen n tid P Q Es Es TERM ps pt itr_src code ktr_tgt))%F.
 
+  Lemma red_syn_atomic_triple
+        tid n (Es : coPsets) (P : Formula n) RV (code : itree tgtE RV) (Q : RV -> Formula n)
+    :
+    ⟦syn_atomic_triple tid n Es P code Q, S n⟧
+    =
+      atomic_triple
+        tid n Es ⟦P, n⟧ code (fun v => ⟦Q v, n⟧).
+  Proof.
+    unfold syn_atomic_triple, atomic_triple. red_tl.
+    apply f_equal. extensionalities R_src. red_tl.
+    apply f_equal. extensionalities R_tgt. red_tl.
+    apply f_equal. extensionalities TERM. red_tl.
+    apply f_equal. extensionalities ps. red_tl.
+    apply f_equal. extensionalities pt. red_tl.
+    apply f_equal. extensionalities itr_src. red_tl.
+    apply f_equal. extensionalities itr_tgt. red_tl.
+    apply red_syn_triple_gen.
+  Qed.
 
+  Definition syn_non_atomic_triple
+             tid n (Es : coPsets) (P : Formula n) {RV} (code : itree tgtE RV) (Q : RV -> Formula n)
+    : Formula (S n)
+    :=
+    (∀ (R_src : τ{metaT})
+       (R_tgt : τ{metaT})
+       (TERM : τ{(R_src -> R_tgt -> Φ)%ftype, S n})
+       (ps pt : τ{bool})
+       (itr_src : τ{codeT id_src_type st_src_type R_src})
+       (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_tgt)%ftype}),
+        (⤉ syn_triple_gen n tid P Q Es ∅ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt))%F.
+
+  Lemma red_syn_non_atomic_triple
+        tid n (Es : coPsets) (P : Formula n) RV (code : itree tgtE RV) (Q : RV -> Formula n)
+    :
+    ⟦syn_non_atomic_triple tid n Es P code Q, S n⟧
+    =
+      non_atomic_triple
+        tid n Es ⟦P, n⟧ code (fun v => ⟦Q v, n⟧).
+  Proof.
+    unfold syn_non_atomic_triple, non_atomic_triple. red_tl.
+    apply f_equal. extensionalities R_src. red_tl.
+    apply f_equal. extensionalities R_tgt. red_tl.
+    apply f_equal. extensionalities TERM. red_tl.
+    apply f_equal. extensionalities ps. red_tl.
+    apply f_equal. extensionalities pt. red_tl.
+    apply f_equal. extensionalities itr_src. red_tl.
+    apply f_equal. extensionalities itr_tgt. red_tl.
+    apply red_syn_triple_gen.
+  Qed.
 
 End TRIPLE.
 
 (** Notations. *)
 
+(* Fancy update. *)
 Notation "'=|' x '|=(' A ')={' Es1 ',' Es2 '}=>' P" := (syn_fupd x A Es1 Es2 P) (at level 90) : formula_scope.
 Notation "'=|' x '|={' Es1 ',' Es2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es1, Es2}=> P)%F (at level 90) : formula_scope.
 Notation "P =| x |=( A )={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|=(A)={Es1,Es2}=> Q)%F (at level 90) : formula_scope.
@@ -1148,6 +1185,7 @@ Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es }=> P)%F (at l
 Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%F (at level 90) : formula_scope.
 Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%F (at level 90) : formula_scope.
 
+(* Liveness logic. *)
 Notation "'◆' [ k , l ]" :=
   (⟨Atom.obl_lo k l⟩)%F (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : formula_scope.
 Notation "'◇' [ k ]( l , a )" :=
@@ -1175,6 +1213,16 @@ Notation "'◇' { ps }( m , a )" :=
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄" :=
   (⟨Atom.obl_ccs k ps l⟩)%F (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : formula_scope.
 
+(* Triples. *)
+Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
+  (syn_atomic_triple tid n Es P code (fun v => Q))
+    (at level 200, tid, n, Es, P, code, v, Q at level 1,
+      format "[@  tid ,  n ,  Es  @] { P }  code  { v ,  Q }") : formula_scope.
+
+Notation "'[@' tid , n , Es '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
+  (syn_non_atomic_triple tid n Es P code (fun v => Q))
+    (at level 200, tid, n, Es, P, code, v, Q at level 1,
+      format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : formula_scope.
 
 
 Section TEST.

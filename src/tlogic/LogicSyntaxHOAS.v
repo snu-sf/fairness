@@ -45,11 +45,12 @@ Module Syntax.
             (imt : @FairBeh.imap (nat + ident_tgt) nat_wf)
             (sts : state_src)
             (stt : state_tgt)
-    | striple_format {state_src state_tgt ident_src ident_tgt : Type}
+    (* | striple_format {state_src state_tgt ident_src ident_tgt : Type} *)
+    | striple_format {STT : StateTypes}
                      (tid : thread_id)
-                     (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> t)
-                     (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> t)
-                     (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> t)
+                     (I0 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> t)
+                     (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> t)
+                     (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPsets -> t)
                      (P : t)
                      {RV}
                      (Q : RV -> t)
@@ -57,9 +58,9 @@ Module Syntax.
                      {R_src R_tgt : Type}
                      (TERM : R_src -> R_tgt -> t)
                      (ps pt : bool)
-                     (itr_src : itree (threadE ident_src state_src) R_src)
-                     (code : itree (threadE ident_tgt state_tgt) RV)
-                     (ktr_tgt : ktree (threadE ident_tgt state_tgt) RV R_tgt)
+                     (itr_src : itree (threadE id_src_type st_src_type) R_src)
+                     (code : itree (threadE id_tgt_type st_tgt_type) RV)
+                     (ktr_tgt : ktree (threadE id_tgt_type st_tgt_type) RV R_tgt)
     .
 
   End SYNTAX.
@@ -116,9 +117,9 @@ Module Syntax.
             isim_simple tid (intpF:=_to_semantics_aux)
                         I0 I1 Q
                         ps pt itr_src itr_tgt ths ims imt sts stt
-        | @striple_format _ _ _ _ state_src state_tgt ident_src ident_tgt tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM ps pt itr_src code ktr_tgt =>
+        | @striple_format _ _ _ _ STT tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM ps pt itr_src code ktr_tgt =>
             @triple_format
-              Σ state_src state_tgt ident_src ident_tgt _ (_to_semantics_aux)
+              Σ STT _ (_to_semantics_aux)
               tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM
               ps pt itr_src code ktr_tgt
         end
@@ -239,11 +240,11 @@ Section RED.
   Proof. ss. Qed.
 
   Lemma red_sem_striple_format n
-        {state_src state_tgt ident_src ident_tgt : Type}
+        (STT : StateTypes)
         (tid : thread_id)
-        (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> formulas n)
-        (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> formulas n)
-        (I2 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> formulas n)
+        (I0 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> formulas n)
+        (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> formulas n)
+        (I2 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPsets -> formulas n)
         (P : formulas n)
         {RV : Type}
         (Q : RV -> formulas n)
@@ -251,9 +252,9 @@ Section RED.
         {R_src R_tgt : Type}
         (TERM : R_src -> R_tgt -> formulas n)
         (ps pt : bool)
-        (itr_src : itree (threadE ident_src state_src) R_src)
-        (code : itree (threadE ident_tgt state_tgt) RV)
-        (ktr_tgt : ktree (threadE ident_tgt state_tgt) RV R_tgt)
+        (itr_src : itree (threadE id_src_type st_src_type) R_src)
+        (code : itree (threadE id_tgt_type st_tgt_type) RV)
+        (ktr_tgt : ktree (threadE id_tgt_type st_tgt_type) RV R_tgt)
     :
     Sem n (Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)
     =

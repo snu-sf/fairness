@@ -50,6 +50,23 @@ Section SPEC.
     iApply "SIM". iFrame.
   Qed.
 
+  Lemma SCMem_alloc_fun_syn_spec
+        tid n
+        Es
+        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        sz
+    :
+    ⊢ ⟦([@ tid, 1+n, Es @]
+          {(syn_tgt_interp_as n l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F))}
+          (map_event emb_mem (SCMem.alloc_fun sz))
+          {l, ➢(scm_points_tos l (repeat (SCMem.val_nat 0) sz))} : Formula (2+n))%F, 2+n⟧.
+  Proof.
+    iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
+    iStartTriple. iIntros "P Q". rewrite red_syn_tgt_interp_as.
+    iApply (SCMem_alloc_fun_spec with "P [Q]"). auto. auto.
+    iIntros "% PTS". iSpecialize ("Q" $! rv with "PTS"). iFrame.
+  Qed.
+
   (* Lemma SCMem_alloc_fun_spec *)
   (*       x y (LT : x < y) *)
   (*       tid Es R_src R_tgt (Q : R_src -> R_tgt -> iProp) *)
@@ -109,6 +126,23 @@ Section SPEC.
     iApply "SIM". auto.
   Qed.
 
+  Lemma SCMem_free_fun_syn_spec
+        tid n
+        Es
+        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        p v
+    :
+    ⊢ ⟦([@ tid, 1+n, Es @]
+          {(syn_tgt_interp_as n l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (p ↦ v)}
+          (map_event emb_mem (SCMem.free_fun p))
+          {u, emp})%F, 2+n⟧.
+  Proof.
+    iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
+    iStartTriple. iIntros "P Q".
+    iApply (SCMem_free_fun_spec with "[P] Q"). all: eauto.
+    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
+  Qed.
+
   (* Lemma free_fun_spec *)
   (*       x y (LT : x < y) *)
   (*       tid Es r R_src R_tgt (Q : R_src -> R_tgt -> iProp) g ps pt *)
@@ -162,6 +196,23 @@ Section SPEC.
     iApply "SIM"; iFrame.
   Qed.
 
+  Lemma SCMem_store_fun_syn_spec
+        tid n
+        Es
+        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        l v v0
+    :
+    ⊢ ⟦([@ tid, 1+n, Es @]
+          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (l ↦ v0)}
+          (map_event emb_mem (SCMem.store_fun (l, v)))
+          {u, l ↦ v })%F, 2+n⟧.
+  Proof.
+    iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
+    iStartTriple. iIntros "P Q".
+    iApply (SCMem_store_fun_spec with "[P] Q"). all: eauto.
+    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
+  Qed.
+
   (* Lemma store_fun_spec *)
   (*       x y (LT : x < y) *)
   (*       tid Es R_src R_tgt r g (Q : R_src -> R_tgt -> iProp) ps pt *)
@@ -211,6 +262,23 @@ Section SPEC.
     rewrite Lens.view_set. rewrite LOAD. rred2.
     iMod ("K" with "[VW MEM]") as "_". iExists _. iFrame.
     iApply "SIM". iFrame. auto.
+  Qed.
+
+  Lemma SCMem_load_fun_syn_spec
+        tid n
+        Es
+        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        l v
+    :
+    ⊢ ⟦([@ tid, 1+n, Es @]
+          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (l ↦ v)}
+          (map_event emb_mem (SCMem.load_fun l))
+          {rv, ⌜rv = v⌝ ∗ (l ↦ v)})%F, 2+n⟧.
+  Proof.
+    iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
+    iStartTriple. iIntros "P Q".
+    iApply (SCMem_load_fun_spec with "[P] Q"). all: eauto.
+    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
   (* Lemma load_fun_spec *)
@@ -264,6 +332,23 @@ Section SPEC.
     iMod ("K" with "[STTGT MB]") as "_".
     { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
     iApply "SIM". iFrame.
+  Qed.
+
+  Lemma SCMem_faa_fun_syn_spec
+        tid n
+        Es
+        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        l add v
+    :
+    ⊢ ⟦([@ tid, 1+n, Es @]
+          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (l ↦ v)}
+          (map_event emb_mem (SCMem.faa_fun (l, add)))
+          {v, l ↦ (SCMem.val_add v add)})%F, 2+n⟧.
+  Proof.
+    iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
+    iStartTriple. iIntros "P Q".
+    iApply (SCMem_faa_fun_spec with "[P] Q"). all: eauto.
+    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
   (* Lemma faa_fun_spec *)
@@ -329,6 +414,24 @@ Section SPEC.
       { iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. rewrite MC; auto. }
       iApply "CAS". iExists _. iFrame.
       iPureIntro. apply SCMem.val_compare_Some in MC. des_ifs.
+  Qed.
+
+  Lemma SCMem_cas_fun_syn_spec
+        tid n
+        Es
+        (IN: mask_has_st_tgt Es n)
+        l old new v
+    :
+    ⊢ ⟦([@ tid, 1+n, Es @]
+          {(syn_tgt_interp_as _ l_mem (fun m => ((➢(scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝ : Formula n)%F) ∗ (l ↦ v))}
+          (map_event emb_mem (SCMem.cas_fun (l, old, new)))
+          {b, ∃ (u : τ{SCMem.val, 1+n}),
+              ⌜(if (SCMem.val_eq_dec v old) then (b = true /\ u = new) else (b = false /\ u = v))⌝ ∗ (l ↦ u)})%F, 2+n⟧.
+  Proof.
+    iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
+    iStartTriple. iIntros "P Q".
+    iApply (SCMem_cas_fun_spec with "[P] Q"). all: eauto.
+    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
   (* Lemma cas_fun_spec *)
@@ -405,6 +508,23 @@ Section SPEC.
         { iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. auto. }
         iApply "CASE". ss.
     - exfalso. apply is_Some_None in MC. ss.
+  Qed.
+
+  Lemma SCMem_compare_fun_syn_spec
+        tid n
+        Es
+        (IN: mask_has_st_tgt Es n)
+        v1 v2
+    :
+    ⊢ ⟦([@ tid, 1+n, Es @]
+          {(syn_tgt_interp_as _ l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v1 v2)⌝ : Formula n)%F))}
+          (map_event emb_mem (SCMem.compare_fun (v1, v2)))
+          {b, ⌜(v1 = v2 -> b = true) /\ (v1 <> v2 -> b = false)⌝})%F, 2+n⟧.
+  Proof.
+    iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
+    iStartTriple. iIntros "P Q".
+    iApply (SCMem_compare_fun_spec with "[P] Q"). all: eauto.
+    rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
   (* Lemma compare_fun_spec *)
