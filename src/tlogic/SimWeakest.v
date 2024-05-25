@@ -105,7 +105,6 @@ Section STATE.
 
   Let lift_unlift (r0: rel) (r1: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
     :
-    (* bi_entails *)
     (∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
         @lift_rel r0 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
                   -∗ r1 R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
@@ -128,7 +127,6 @@ Section STATE.
             (#=> rr1 R_src R_tgt Q ps pt itr_src itr_tgt))
     :
     forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
-      (* bi_entails *)
       (lift_rel rr0 QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
         ⊢
         (#=> lift_rel rr1 QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
@@ -1499,6 +1497,7 @@ Section TRIPLES.
         -∗
         wpsim n tid Es rr gr TERM ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I.
 
+  (* For syntactic encoding. *)
   Definition triple_format {Form : Type} {intpF : Form -> iProp}
              tid
              (I0 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
@@ -1512,12 +1511,34 @@ Section TRIPLES.
     forall R_src R_tgt (TERM: R_src -> R_tgt -> Form), bool -> bool -> itree srcE R_src -> itree tgtE RV -> (ktree tgtE RV R_tgt) -> iProp
     :=
     fun R_src R_tgt TERM ps pt itr_src code ktr_tgt =>
+      (* (∀ (rr gr : rel), *)
       (∀ rr gr,
           let INV :=
             (fun ths ims imt sts stt => intpF (I0 ths ims imt sts stt))
           in
+          let INV1 :=
+            (fun ths ims imt sts stt => intpF (I1 ths ims imt sts stt))
+          in
           let FIN :=
-            (fun r_src r_tgt ths ims imt sts stt => ((intpF (I1 ths ims imt sts stt)) ∗ (intpF (TERM r_src r_tgt)))%I)
+            (fun r_src r_tgt ths ims imt sts stt => ((INV1 ths ims imt sts stt) ∗ (intpF (TERM r_src r_tgt)))%I)
+          in
+          let LIFT1 :=
+            (fun R_src R_tgt QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+               (∃ (Q: R_src -> R_tgt -> iProp)
+                  (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
+                               (INV1 ths im_src im_tgt st_src st_tgt) ∗ (Q r_src r_tgt))),
+                   (rr R_src R_tgt Q ps pt itr_src itr_tgt)
+                     ∗
+                     (INV1 ths im_src im_tgt st_src st_tgt))%I)
+          in
+          let LIFT2 :=
+            (fun R_src R_tgt QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+               (∃ (Q: R_src -> R_tgt -> iProp)
+                  (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
+                               (INV1 ths im_src im_tgt st_src st_tgt) ∗ (Q r_src r_tgt))),
+                   (gr R_src R_tgt Q ps pt itr_src itr_tgt)
+                     ∗
+                     (INV1 ths im_src im_tgt st_src st_tgt))%I)
           in
           (intpF P)
             -∗
@@ -1528,14 +1549,20 @@ Section TRIPLES.
                       (intpF (I2 ths im_src im_tgt st_src st_tgt Es2))
                         -∗
                         isim
-                        tid INV rr gr FIN
+                        tid INV
+                        LIFT1 LIFT2
+                        (* (lift_rel intpF I1 rr) (lift_rel intpF I1 gr) *)
+                        FIN
                         ps pt itr_src (ktr_tgt rv) ths im_src im_tgt st_src st_tgt))
             -∗
             (∀ ths im_src im_tgt st_src st_tgt,
                 (intpF (I2 ths im_src im_tgt st_src st_tgt Es1))
                   -∗
                   isim
-                  tid INV rr gr FIN
+                  tid INV
+                  LIFT1 LIFT2
+                  (* (lift_rel intpF I1 rr) (lift_rel intpF I1 gr) *)
+                  FIN
                   ps pt itr_src (code >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
       )%I.
 

@@ -489,6 +489,30 @@ Section RED.
     = (isim_simple tid (intpF:=SynSem n) I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)%I.
   Proof. apply red_sem_sisim. Qed.
 
+  Lemma red_tl_striple_format n
+        {state_src state_tgt ident_src ident_tgt : Type}
+        (tid : thread_id)
+        (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> Formula n)
+        (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> Formula n)
+        (I2 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> Formula n)
+        (P : Formula n)
+        {RV : Type}
+        (Q : RV -> Formula n)
+        (Es1 Es2 : coPsets)
+        {R_src R_tgt : Type}
+        (TERM : R_src -> R_tgt -> Formula n)
+        (ps pt : bool)
+        (itr_src : itree (threadE ident_src state_src) R_src)
+        (code : itree (threadE ident_tgt state_tgt) RV)
+        (ktr_tgt : ktree (threadE ident_tgt state_tgt) RV R_tgt)
+    :
+    ⟦(Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt), n⟧
+    =
+      (triple_format (intpF:=SynSem n) tid
+                     I0 I1 I2 P Q Es1 Es2 TERM
+                     ps pt itr_src code ktr_tgt)%I.
+  Proof. apply red_sem_striple_format. Qed.
+
   (** Derived ones. *)
 
   Lemma red_tl_affinely n p :
@@ -535,7 +559,8 @@ Ltac red_tl_unary_once := (try rewrite ! @red_tl_atom_aux;
                            try rewrite ! @red_tl_upd;
                            try rewrite ! @red_tl_affinely;
                            try rewrite ! @red_tl_intuitionistically;
-                           try rewrite ! @red_tl_sisim
+                           try rewrite ! @red_tl_sisim;
+                           try rewrite ! @red_tl_striple_format
                           ).
 
 Ltac red_tl_binary := repeat red_tl_binary_once.
@@ -562,7 +587,8 @@ Ltac red_tl_unary_once_every := (try rewrite ! @red_tl_atom_aux in *;
                                  try rewrite ! @red_tl_upd in *;
                                  try rewrite ! @red_tl_affinely in *;
                                  try rewrite ! @red_tl_intuitionistically in *;
-                                 try rewrite ! @red_tl_sisim in *
+                                 try rewrite ! @red_tl_sisim in *;
+                                 try rewrite ! @red_tl_striple_format
                                 ).
 
 Ltac red_tl_binary_every := repeat red_tl_binary_once.
@@ -1109,11 +1135,12 @@ Section TRIPLE.
     : forall {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Formula n), bool -> bool -> itree srcE R_src -> itree tgtE RV -> ktree tgtE RV R_tgt -> Formula n
     :=
     fun R_src R_tgt TERM ps pt itr_src code ktr_tgt =>
-      (∀ (ths : τ{ tidsetT })
-         (im_src : τ{ id_src_type -> owfT })
-         (im_tgt : τ{ ((nat + id_tgt_type)%type -> nat_wfT) })
-         (st_src : τ{ st_src_type })
-         (st_tgt : τ{ st_tgt_type }),
+      (
+        (* ∀ (ths : τ{ tidsetT }) *)
+        (*  (im_src : τ{ id_src_type -> owfT }) *)
+        (*  (im_tgt : τ{ ((nat + id_tgt_type)%type -> nat_wfT) }) *)
+        (*  (st_src : τ{ st_src_type }) *)
+        (*  (st_tgt : τ{ st_tgt_type }), *)
           let I0 := (fun ths ims imt sts stt => ((syn_default_I n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
           in
           let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
@@ -1122,50 +1149,193 @@ Section TRIPLE.
           in
           Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)%F.
 
-        | Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt =>
-            triple_format (intpF:=_to_semantics_aux) tid
-                          I0 I1 I2 P Q Es1 Es2 TERM
-                          ps pt itr_src code ktr_tgt
+  (* Let big_rel := *)
+  (*       ∀ R_src R_tgt : Type, *)
+  (*         (R_src → R_tgt *)
+  (*          → TIdSet.t *)
+  (*          → FairBeh.imap id_src_type owf *)
+  (*          → FairBeh.imap (sum_tid id_tgt_type) nat_wf *)
+  (*          → st_src_type → st_tgt_type → iProp) *)
+  (*         → bool *)
+  (*         → bool *)
+  (*         → itree (threadE id_src_type st_src_type) R_src *)
+  (*         → itree (threadE id_tgt_type st_tgt_type) R_tgt *)
+  (*         → TIdSet.t *)
+  (*         → FairBeh.imap id_src_type owf *)
+  (*         → FairBeh.imap (sum_tid id_tgt_type) nat_wf *)
+  (*         → st_src_type → st_tgt_type → iProp. *)
 
-  Definition triple_format {Form : Type} {intpF : Form -> iProp}
-             tid
-             (I0 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
-             (I1 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
-             (I2 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> Form)
-             (P : Form)
-             {RV : Type}
-             (Q : RV -> Form)
-             (Es1 Es2 : coPsets)
+  (* Let small_rel := *)
+  (*       ∀ R_src R_tgt : Type, *)
+  (*         (R_src → R_tgt → iProp) *)
+  (*         → bool *)
+  (*         → bool *)
+  (*         → itree (threadE id_src_type st_src_type) R_src *)
+  (*         → itree (threadE id_tgt_type st_tgt_type) R_tgt → iProp. *)
+
+  (* Let lift_rel tid x *)
+  (*     (rr: small_rel) *)
+  (*   : *)
+  (*   big_rel *)
+  (*     := *)
+  (*       fun R_src R_tgt QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt => *)
+  (*         (∃ (Q: R_src -> R_tgt -> iProp) *)
+  (*            (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => *)
+  (*                         (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q r_src r_tgt)), *)
+  (*             rr R_src R_tgt Q ps pt itr_src itr_tgt ∗ *)
+  (*                (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)))%I. *)
+
+  Lemma red_syn_triple_gen1
+        n tid P RV (Q : RV -> Formula n) Es1 Es2
+        RS RT (TERM : RS -> RT -> Formula n) ps pt itr_src code (ktr_tgt : ktree tgtE RV RT)
     :
-    forall R_src R_tgt (TERM: R_src -> R_tgt -> Form), bool -> bool -> itree srcE R_src -> itree tgtE RV -> (ktree tgtE RV R_tgt) -> iProp
-    :=
-    fun R_src R_tgt TERM ps pt itr_src code ktr_tgt =>
+    ⟦syn_triple_gen n tid P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt, n⟧
+      ⊢
       (∀ rr gr,
-          let INV :=
-            (fun ths ims imt sts stt => intpF (I0 ths ims imt sts stt))
-          in
-          let FIN :=
-            (fun r_src r_tgt ths ims imt sts stt => ((intpF (I1 ths ims imt sts stt)) ∗ (intpF (TERM r_src r_tgt)))%I)
-          in
-          (intpF P)
+          (⟦P, n⟧)
             -∗
             (∀ (rv : RV),
-                (intpF (Q rv))
+                (⟦Q rv, n⟧)
                   -∗
-                  (∀ ths im_src im_tgt st_src st_tgt,
-                      (intpF (I2 ths im_src im_tgt st_src st_tgt Es2))
-                        -∗
-                        isim
-                        tid INV rr gr FIN
-                        ps pt itr_src (ktr_tgt rv) ths im_src im_tgt st_src st_tgt))
+                  (wpsim n tid Es2 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (ktr_tgt rv)))
             -∗
-            (∀ ths im_src im_tgt st_src st_tgt,
-                (intpF (I2 ths im_src im_tgt st_src st_tgt Es1))
-                  -∗
-                  isim
-                  tid INV rr gr FIN
-                  ps pt itr_src (code >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+            (wpsim n tid Es1 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (code >>= ktr_tgt))
       )%I.
+  Proof.
+    iIntros "ST % %". iEval (unfold syn_triple_gen; red_tl; simpl) in "ST".
+    iEval (unfold triple_format) in "ST".
+    iSpecialize ("ST" $! rr gr).
+    (* iSpecialize ("ST" $! (lift_rel tid n rr) (lift_rel tid n gr)). *)
+    iIntros "PRE POST". iSpecialize ("ST" with "PRE").
+    iPoseProof ("ST" with "[POST]") as "ST".
+    - iIntros "% Q" (? ? ? ? ?) "WP". iEval (red_tl; simpl) in "WP".
+      iSpecialize ("POST" $! rv with "Q"). iEval (unfold wpsim) in "POST".
+      iSpecialize ("POST" $! ths im_src im_tgt st_src st_tgt).
+      iPoseProof ("POST" with "[WP]") as "SIM".
+      { iDestruct "WP" as "(A & B & C & D)".
+        iEval (rewrite red_syn_default_I_past) in "A".
+        iEval (rewrite red_syn_wsats) in "C". iEval (rewrite red_syn_ownes) in "D".
+        iSplitL "A". iFrame. iSplitL "B". iFrame. iSplitL "C"; iFrame.
+      }
+      iApply isim_mono_knowledge; cycle 2.
+      iApply isim_mono; cycle 1.
+      { iApply isim_equivI. 2: iFrame.
+        iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
+        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+      }
+      { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
+        iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+        iFrame.
+      }
+      { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?) "(% & %EQ & A & B & C & D & E)".
+        iModIntro. iExists Q1.
+
+        TODO
+
+        iFrame. }
+      { unfold lift_rel. iIntros. iModIntro. iFrame. }
+    - iIntros (? ? ? ? ?) "WP".
+      iSpecialize ("ST" $! ths im_src im_tgt st_src st_tgt).
+      iPoseProof ("ST" with "[WP]") as "SIM".
+      { iDestruct "WP" as "(A & B & C & D)". red_tl. ss.
+        rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+        iFrame.
+      }
+      iApply isim_mono_knowledge; cycle 2.
+      iApply isim_mono; cycle 1.
+      { iApply isim_equivI. 2: iFrame.
+        iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
+        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+      }
+      { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
+        iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+        iFrame.
+      }
+      { unfold lift_rel. iIntros. iModIntro. iFrame. }
+      { unfold lift_rel. iIntros. iModIntro. iFrame. }
+  Qed.
+
+  Let unlift_rel tid x
+      (r: big_rel)
+    :
+    small_rel
+      :=
+        fun R_src R_tgt Q ps pt itr_src itr_tgt =>
+          (∀ ths im_src im_tgt st_src st_tgt,
+              (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))
+                -∗
+                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q r_src r_tgt) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
+
+  Lemma red_syn_triple_gen2
+        n tid P RV (Q : RV -> Formula n) Es1 Es2
+        RS RT (TERM : RS -> RT -> Formula n) ps pt itr_src code (ktr_tgt : ktree tgtE RV RT)
+    :
+    (∀ rr gr,
+        (⟦P, n⟧)
+          -∗
+          (∀ (rv : RV),
+              (⟦Q rv, n⟧)
+                -∗
+                (wpsim n tid Es2 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (ktr_tgt rv)))
+          -∗
+          (wpsim n tid Es1 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (code >>= ktr_tgt))
+    )%I
+     ⊢
+     ⟦syn_triple_gen n tid P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt, n⟧.
+  Proof.
+    iIntros "ST". iEval (unfold syn_triple_gen; red_tl; simpl).
+    iEval (unfold triple_format). iIntros (? ?) "PRE POST". iIntros (? ? ? ? ?).
+    iSpecialize ("ST" $! (unlift_rel tid n rr) (unlift_rel tid n gr) with "PRE").
+    iPoseProof ("ST" with "[POST]") as "ST".
+    - iIntros "% Q" (? ? ? ? ?) "WP".
+      iSpecialize ("POST" $! rv with "Q").
+      iSpecialize ("POST" $! ths0 im_src0 im_tgt0 st_src0 st_tgt0).
+      iPoseProof ("POST" with "[WP]") as "SIM".
+      { iDestruct "WP" as "(A & B & C & D)". iEval red_tl.
+        rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+      }
+      iApply isim_mono_knowledge; cycle 2.
+      iApply isim_mono; cycle 1.
+      { iApply isim_equivI. 2: iFrame.
+        iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
+        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+      }
+      { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
+        iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+        iFrame.
+      }
+      { unfold unlift_rel. iIntros. iModIntro. iExists  iFrame. }
+      { unfold lift_rel. iIntros. iModIntro. iFrame. }
+    - iIntros (? ? ? ? ?) "WP".
+      iSpecialize ("ST" $! ths im_src im_tgt st_src st_tgt).
+      iPoseProof ("ST" with "[WP]") as "SIM".
+      { iDestruct "WP" as "(A & B & C & D)". red_tl. ss.
+        rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+        iFrame.
+      }
+      iApply isim_mono_knowledge; cycle 2.
+      iApply isim_mono; cycle 1.
+      { iApply isim_equivI. 2: iFrame.
+        iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
+        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
+      }
+      { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
+        iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+        iFrame.
+      }
+      { unfold lift_rel. iIntros. iModIntro. iFrame. }
+      { unfold lift_rel. iIntros. iModIntro. iFrame. }
+  Qed.
+  
+      
+
+    
+
+
 
 
 

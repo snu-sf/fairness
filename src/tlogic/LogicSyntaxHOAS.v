@@ -90,7 +90,6 @@ Module Syntax.
     Local Notation formulas := (@formula type Typ As).
 
     Context `{Σ : GRA.t}.
-
     Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}.
 
     Fixpoint _to_semantics n : _formulas n -> iProp :=
@@ -117,10 +116,11 @@ Module Syntax.
             isim_simple tid (intpF:=_to_semantics_aux)
                         I0 I1 Q
                         ps pt itr_src itr_tgt ths ims imt sts stt
-        | striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt =>
-            triple_format (intpF:=_to_semantics_aux) tid
-                          I0 I1 I2 P Q Es1 Es2 TERM
-                          ps pt itr_src code ktr_tgt
+        | @striple_format _ _ _ _ state_src state_tgt ident_src ident_tgt tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM ps pt itr_src code ktr_tgt =>
+            @triple_format
+              Σ state_src state_tgt ident_src ident_tgt _ (_to_semantics_aux)
+              tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM
+              ps pt itr_src code ktr_tgt
         end
       end.
 
