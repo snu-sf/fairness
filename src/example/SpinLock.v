@@ -68,29 +68,6 @@ Section SIM.
   Context {TLRAS : @TLRAs XAtom STT Σ}.
   Context {AUXRAS : AUXRAs Σ}.
 
-  (* Context `{Σ : GRA.t}. *)
-  (* (* Invariant related default RAs *) *)
-  (* Context `{OWNESRA : @GRA.inG OwnEsRA Σ}. *)
-  (* Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}. *)
-  (* Context `{IINVSETRA : @GRA.inG (IInvSetRA Formula) Σ}. *)
-  (* (* State related default RAs *) *)
-  (* Context `{THDRA: @GRA.inG ThreadRA Σ}. *)
-  (* Context `{STATESRC: @GRA.inG (stateSrcRA st_src_type) Σ}. *)
-  (* Context `{STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Σ}. *)
-  (* Context `{IDENTSRC: @GRA.inG (identSrcRA id_src_type) Σ}. *)
-  (* Context `{IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Σ}. *)
-  (* (* Liveness logic related default RAs *) *)
-  (* Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}. *)
-  (* Context `{EDGERA: @GRA.inG EdgeRA Σ}. *)
-  (* Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}. *)
-  (* Context `{ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ}. *)
-  (* (* SCMem related RAs *) *)
-  (* Context `{MEMRA: @GRA.inG memRA Σ}. *)
-  (* (* Map from nat to Excl unit RA. *) *)
-  (* Context `{EXCLUNITS: @GRA.inG ExclUnitsRA Σ}. *)
-  (* (* Auth Excl Qp RA. *) *)
-  (* Context `{AUEX_QP: @GRA.inG (AuthExclRA Qp) Σ}. *)
-
   (*
 Liveness chain of a spinlock : 
 (Holder needs one ◇ at l (> 0) = Holder will unlock @ l + 1)
@@ -111,8 +88,8 @@ Liveness chain of a spinlock :
     )%F.
 
   Definition isSpinlock n (E : coPset) (r : nat) (x : SCMem.val) (P : Formula n) (k L l : nat) : Formula n :=
-    (∃ (N : τ{namespace}) (o : τ{Ord.t}),
-        ⌜(↑N ⊆ E)⌝ ∗ ◆[k, L | o] ∗ (⌜0 < l⌝) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
+    (∃ (N : τ{namespace}),
+        ⌜(↑N ⊆ E)⌝ ∗ ◆[k, L] ∗ (⌜0 < l⌝) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
 
 
   Lemma Spinlock_lock_spec
@@ -139,18 +116,17 @@ Liveness chain of a spinlock :
     (* Preprocess for induction. *)
     iApply wpsim_free_all. auto.
     unfold isSpinlock. ss.
-    iEval red_tl in "PRE". ss. iEval (rewrite red_syn_tgt_interp_as) in "PRE".
+    iEval (red_tl; simpl) in "PRE". iEval (rewrite red_syn_tgt_interp_as) in "PRE".
     iDestruct "PRE" as "(#STINTP & (%N & SL) & LIVE & DUTY & PCS)".
-    iEval red_tl in "SL". ss. iDestruct "SL" as "[%o SL]".
-    iEval red_tl in "SL". ss. iDestruct "SL" as "(%IN & #LO & %POS & INV)".
-    rewrite red_syn_inv. iPoseProof "INV" as "#INV".
+    iEval (red_tl; simpl) in "SL". iDestruct "SL" as "(%IN & #LO & %POS & INV)".
+    iEval (rewrite red_syn_inv) in "INV". iPoseProof "INV" as "#INV".
     iMod ((pcs_decr _ _ 1 1 2) with "PCS") as "[PCS PCS2]". ss.
-    iMod (ccs_make k L o _ 0 with "[PCS2]") as "CCS". iFrame. auto.
+    iMod (ccs_make k L _ 0 with "[PCS2]") as "CCS". iFrame. auto.
     iMod (pcs_drop _ _ _ _ 0 with "PCS") as "PCS". lia.
     (* Set up induction hypothesis. *)
     iRevert "LIVE DUTY PCS POST". iMod (ccs_ind with "CCS []") as "IND".
     2:{ iApply "IND". }
-    iModIntro. iExists 0, 1. iIntros "IH". iModIntro. iIntros "LIVE DUTY PCS POST".
+    iModIntro. iExists 0. iIntros "IH". iModIntro. iIntros "LIVE DUTY PCS POST".
     (* Start an iteration. *)
     iEval (rewrite unfold_iter_eq). rred2r.
     iApply (wpsim_yieldR with "[DUTY PCS]"). 2: iFrame. auto. Unshelve. 2: auto.
@@ -175,7 +151,7 @@ Liveness chain of a spinlock :
       clear e. des. subst. rred2r. iApply wpsim_tauR. rred2r.
       (* Close the invariant spinlockInv: *)
       (* 1. Allocate new obligation: I will release the lock. *)
-      iMod (alloc_obligation (l + 1)) as "(%k1 & %o1 & #LO1 & PC1 & LIVE1)".
+      iMod (alloc_obligation (l + 1)) as "(%k1 & #LO1 & PC1 & LIVE1)".
       (* 2. Preprocess. *)
       iPoseProof (live_split _ (1/2)%Qp (1/2)%Qp with "[LIVE1]") as "[LIVE1 LIVE1']".
       { iEval (rewrite Qp.half_half). iFrame. }
@@ -188,7 +164,7 @@ Liveness chain of a spinlock :
       { iModIntro. iEval (ss; red_tl). auto. }
       iPoseProof (duty_tpromise with "DUTY") as "#PROM1".
       { simpl. left. auto. }
-      iMod (link_new k1 k (l+1) 0 _ with "[PCk]") as "#LINK1".
+      iMod (link_new k1 k (l+1) 0 with "[PCk]") as "#LINK1".
       { iFrame. eauto. }
       assert (AUTH: URA.updatable
                       (Auth.black ((Excl.just q0) : Excl.t Qp) ⋅ Auth.white ((Excl.just q0) : Excl.t Qp))
@@ -228,7 +204,7 @@ Liveness chain of a spinlock :
       2:{ iExFalso. iPoseProof (not_dead with "[LIVE_O DEAD]") as "%FALSE". iFrame. auto. }
       iMod (link_amplify with "[PC]") as "PC".
       { iFrame. iApply "LINK". }
-      iMod ("IH" with "[] PC") as "[PCS IH]". auto.
+      iMod ("IH" with "PC") as "[PCS IH]". auto.
       (* Close the invariant spinlockInv. *)
       iMod ("SLI_CLOSE" with "[qISB LIVE_SL LIVE_O PT]") as "_".
       { iEval (unfold spinlockInv; simpl; red_tl; simpl).
@@ -263,6 +239,5 @@ Liveness chain of a spinlock :
   (*           (map_event emb_spinlock (Spinlock.lock x) >>= ktr_tgt)). *)
   (* Proof. *)
   (*   iIntros (? ? ? ? ? ? ?) "CLOSE PRE POST". *)
-
 
 End SIM.

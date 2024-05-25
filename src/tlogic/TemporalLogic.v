@@ -229,7 +229,7 @@ Module Atom.
     | obl_arrow_done2 (k : nat)
     | obl_arrow_pend (i : nat + ident_tgt) (k : nat) (c : Ord.t) (q : Qp)
     (** Atoms to express liveness logic definitions. *)
-    | obl_lo (k i : nat) (o : Ord.t)
+    | obl_lo (k i : nat)
     | obl_pc (k l a : nat)
     | obl_live (k : nat) (q : Qp)
     | obl_dead (k : nat)
@@ -240,7 +240,7 @@ Module Atom.
     | obl_tc
     | obl_tpromise (k l : nat) (f : @Syntax.t _ (@Typ) (@t form) form)
     | obl_pcs (ps : list (nat * nat)) (m a : nat)
-    | obl_ccs (k : nat) (o : Ord.t) (ps : list (nat * nat)) (l : nat)
+    | obl_ccs (k : nat) (ps : list (nat * nat)) (l : nat)
     .
 
   End ATOM.
@@ -358,7 +358,7 @@ Section ATOMINTERP.
     | obl_arrow_pend i k c q =>
         (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
     (** Atoms to express liveness logic definitions. *)
-    | obl_lo k l o => liveness_obligation k l o
+    | obl_lo k l => liveness_obligation k l
     | obl_pc k l a => progress_credit k l a
     | obl_live k q => live k q
     | obl_dead k => dead k
@@ -369,7 +369,7 @@ Section ATOMINTERP.
     | obl_tc => thread_credit _
     | obl_tpromise k l f => thread_promise _ k l f
     | obl_pcs ps m a => progress_credits ps m a
-    | obl_ccs k o ps l => collection_credits k o ps l
+    | obl_ccs k ps l => collection_credits k ps l
     end.
 
 End ATOMINTERP.
@@ -387,11 +387,6 @@ Section TL_INTERP.
 
   Global Instance SynIISet : @IInvSet Σ Formula :=
     {| prop := SynSem |}.
-  (* Global Instance SynIISet : @IInvSet Σ Formula := *)
-  (*   (@Syntax.IISet _ _ _ Σ AtomSem). *)
-
-  (* Global Instance IIIn (i : index) (p : Formula i) : @IInvIn Σ Formula SynIISet i (SynSem i p) := *)
-  (*   @Syntax.IIIn _ _ _ Σ AtomSem0 AtomSem i p. *)
 
 End TL_INTERP.
 
@@ -603,8 +598,6 @@ Section WSATS.
 
   Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n :=
     ([∗ n , formulaT map] k ↦ p ∈ ps, syn_inv_satall_fun n k p)%F.
-  (* Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n := *)
-  (*   syn_big_sepM n (A:=formulaT) ps (syn_inv_satall_fun n). *)
 
   Lemma red_syn_inv_satall_fun n i p :
     ⟦syn_inv_satall_fun n i p, n⟧ = ((⟦p, n⟧ ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I.
@@ -655,19 +648,25 @@ Section WSATS.
     syn_wsats (S n) = (⤉(syn_wsats n) ∗ (syn_wsat n))%F.
   Proof. apply unfold_lifts_seps. Qed.
 
-  Lemma red_syn_wsats n :
+  Lemma red_syn_wsats1 n :
     ⟦syn_wsats n, n⟧ ⊢ wsats n.
   Proof.
     induction n; ss. rewrite unfold_syn_wsats. red_tl. iIntros "[A B]".
     iApply fold_wsats. rewrite red_syn_wsat. iFrame. iApply IHn. iFrame.
   Qed.
 
-  Lemma get_syn_wsats n :
+  Lemma red_syn_wsats2 n :
     wsats n ⊢ ⟦syn_wsats n, n⟧.
   Proof.
     induction n; ss. rewrite unfold_syn_wsats. red_tl. iIntros "A".
     iPoseProof (unfold_wsats with "A") as "[A B]". rewrite red_syn_wsat. iFrame.
     iApply IHn. iFrame.
+  Qed.
+
+  Lemma red_syn_wsats n :
+    ⟦syn_wsats n, n⟧ ⊣⊢ wsats n.
+  Proof.
+    iSplit. iApply red_syn_wsats1. iApply red_syn_wsats2.
   Qed.
 
   (** Definitions for OwnEs. *)
@@ -677,8 +676,6 @@ Section WSATS.
 
   Definition syn_owne_satall x (Es : coPsets) : Formula x :=
     ([∗ x , coPset map] k ↦ E ∈ Es, syn_owne_satall_fun x k E)%F.
-  (* Definition syn_owne_satall x (Es : coPsets) : Formula x := *)
-  (*   syn_big_sepM x index coPset Es (syn_owne_satall_fun x). *)
 
   Lemma red_syn_owne_satall x Es :
     ⟦syn_owne_satall x Es, x⟧ = OwnE_satall Es.
@@ -709,28 +706,34 @@ Section WSATS.
   Definition syn_fupd (n : index) (A : Formula n) (Es1 Es2 : coPsets) (p : Formula n) : Formula n :=
     (A ∗ syn_wsats n ∗ syn_ownes _ Es1 -∗ |==> (A ∗ syn_wsats n ∗ syn_ownes _ Es2 ∗ p))%F.
 
-  Lemma red_syn_fupd n A Es1 Es2 p :
+  Lemma red_syn_fupd1 n A Es1 Es2 p :
     ⟦syn_fupd n A Es1 Es2 p, n⟧ ⊢ FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧.
   Proof.
     unfold syn_fupd. red_tl. rewrite ! red_syn_ownes.
     Local Transparent FUpd.
-    iIntros "F [A [W E]]". iPoseProof (get_syn_wsats with "W") as "W".
+    iIntros "F [A [W E]]". iPoseProof (red_syn_wsats with "W") as "W".
     iMod ("F" with "[A E W]") as "(A & W & E & P)". iFrame.
     iPoseProof (red_syn_wsats with "W") as "W".
     iModIntro. iFrame.
     Local Opaque FUpd.
   Qed.
 
-  Lemma get_syn_fupd n A Es1 Es2 p :
+  Lemma red_syn_fupd2 n A Es1 Es2 p :
     FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧ ⊢ ⟦syn_fupd n A Es1 Es2 p, n⟧.
   Proof.
     unfold syn_fupd. red_tl. rewrite ! red_syn_ownes.
     Local Transparent FUpd.
     iIntros "F [A [W E]]". iPoseProof (red_syn_wsats with "W") as "W".
     iMod ("F" with "[A E W]") as "(A & W & E & P)". iFrame.
-    iPoseProof (get_syn_wsats with "W") as "W".
+    iPoseProof (red_syn_wsats with "W") as "W".
     iModIntro. iFrame.
     Local Opaque FUpd.
+  Qed.
+
+  Lemma red_syn_fupd n A Es1 Es2 p :
+    ⟦syn_fupd n A Es1 Es2 p, n⟧ ⊣⊢ FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧.
+  Proof.
+    iSplit. iApply red_syn_fupd1. iApply red_syn_fupd2.
   Qed.
 
 End WSATS.
@@ -748,7 +751,6 @@ Section OBLIG.
   Context `{Σ : GRA.t}.
   Context `{AAI : @AAInterp Σ AA}.
   Context {TLRAS : @TLRAs AA STT Σ}.
-
 
   Local Notation _dataT := ((nat + id_tgt_type) * nat * Ord.t * Qp * nat)%type.
   Local Notation dataT := (fun (n : index) => (_dataT * Formula n)%type).
@@ -801,14 +803,14 @@ Section OBLIG.
     syn_arrows_sats (S n) = (⤉(syn_arrows_sats n) ∗ (syn_arrows_sat n))%F.
   Proof. apply unfold_lifts_seps. Qed.
 
-  Lemma red_syn_arrows_sats n :
+  Lemma red_syn_arrows_sats1 n :
     ⟦syn_arrows_sats n, n⟧ ⊢ ObligationRA.arrows_sats n.
   Proof.
     induction n; ss. rewrite unfold_syn_arrows_sats. red_tl. iIntros "[A B]".
     iApply Regions.fold_nsats. rewrite red_syn_arrows_sat. iFrame. iApply IHn. iFrame.
   Qed.
 
-  Lemma get_syn_arrows_sats n :
+  Lemma red_syn_arrows_sats2 n :
     ObligationRA.arrows_sats n ⊢ ⟦syn_arrows_sats n, n⟧.
   Proof.
     induction n; ss. rewrite unfold_syn_arrows_sats. red_tl. iIntros "A".
@@ -816,18 +818,30 @@ Section OBLIG.
     iApply IHn. iFrame.
   Qed.
 
+  Lemma red_syn_arrows_sats n :
+    ⟦syn_arrows_sats n, n⟧ ⊣⊢ ObligationRA.arrows_sats n.
+  Proof.
+    iSplit. iApply red_syn_arrows_sats1. iApply red_syn_arrows_sats2.
+  Qed.
+
   Definition syn_fairI n : Formula n := (⟨obl_edges_sat⟩ ∗ syn_arrows_sats n)%F.
 
-  Lemma red_syn_fairI n :
+  Lemma red_syn_fairI1 n :
     ⟦syn_fairI n, n⟧ ⊢ fairI n.
   Proof.
     unfold syn_fairI. red_tl. rewrite red_syn_arrows_sats. unfold fairI. ss.
   Qed.
 
-  Lemma get_syn_fairI n :
+  Lemma red_syn_fairI2 n :
     fairI n ⊢ ⟦syn_fairI n, n⟧.
   Proof.
-    unfold syn_fairI. red_tl. unfold fairI. rewrite get_syn_arrows_sats. ss.
+    unfold syn_fairI. red_tl. unfold fairI. rewrite red_syn_arrows_sats. ss.
+  Qed.
+
+  Lemma red_syn_fairI n :
+    ⟦syn_fairI n, n⟧ ⊣⊢ fairI n.
+  Proof.
+    iSplit. iApply red_syn_fairI1. iApply red_syn_fairI2.
   Qed.
 
 End OBLIG.
@@ -855,18 +869,24 @@ Section SIMI.
     fun ths im_src im_tgt st_src st_tgt =>
       (⟨ob_ths ths⟩ ∗ ⟨ob_st_src st_src⟩ ∗ ⟨ob_st_tgt st_tgt⟩ ∗ ⟨fair_src im_src⟩ ∗ ⟨fair_tgt im_tgt ths⟩ ∗ ⟨obl_edges_sat⟩ ∗ syn_arrows_sats n ∗ ⟨obl_arrows_auth n⟩)%F.
 
-  Lemma red_syn_default_I n ths ims imt sts stt :
+  Lemma red_syn_default_I1 n ths ims imt sts stt :
     ⟦syn_default_I n ths ims imt sts stt, n⟧ ⊢ default_I n ths ims imt sts stt.
   Proof.
     unfold syn_default_I, default_I. red_tl. iIntros "[A [B [C [D [E [F [G H]]]]]]]". iFrame.
     iApply red_syn_arrows_sats. iFrame.
   Qed.
 
-  Lemma get_syn_default_I n ths ims imt sts stt :
+  Lemma red_syn_default_I2 n ths ims imt sts stt :
     default_I n ths ims imt sts stt ⊢ ⟦syn_default_I n ths ims imt sts stt, n⟧.
   Proof.
     unfold syn_default_I, default_I. red_tl. iIntros "[A [B [C [D [E [F [G H]]]]]]]". iFrame.
-    iApply get_syn_arrows_sats. iFrame.
+    iApply red_syn_arrows_sats. iFrame.
+  Qed.
+
+  Lemma red_syn_default_I n ths ims imt sts stt :
+    ⟦syn_default_I n ths ims imt sts stt, n⟧ ⊣⊢ default_I n ths ims imt sts stt.
+  Proof.
+    iSplit. iApply red_syn_default_I1. iApply red_syn_default_I2.
   Qed.
 
   Definition syn_default_I_past tid n
@@ -876,7 +896,7 @@ Section SIMI.
           (⌜fair_update im_tgt0 im_tgt (prism_fmap inlp (tids_fmap tid ths))⌝)
             ∗ (syn_default_I n ths im_src im_tgt0 st_src st_tgt))%F.
 
-  Lemma red_syn_default_I_past tid n ths ims imt sts stt :
+  Lemma red_syn_default_I_past1 tid n ths ims imt sts stt :
     ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ ⊢ default_I_past tid n ths ims imt sts stt.
   Proof.
     unfold syn_default_I_past, default_I_past. red_tl.
@@ -884,12 +904,18 @@ Section SIMI.
     iExists _. rewrite red_syn_default_I. iFrame. auto.
   Qed.
 
-  Lemma get_syn_default_I_past tid n ths ims imt sts stt :
+  Lemma red_syn_default_I_past2 tid n ths ims imt sts stt :
     default_I_past tid n ths ims imt sts stt ⊢ ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧.
   Proof.
     unfold syn_default_I_past, default_I_past. red_tl.
     iIntros "[% [% D]]". iExists _. red_tl. iSplit. auto.
-    iApply get_syn_default_I. iFrame.
+    iApply red_syn_default_I. iFrame.
+  Qed.
+
+  Lemma red_syn_default_I_past tid n ths ims imt sts stt :
+    ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ ⊣⊢ default_I_past tid n ths ims imt sts stt.
+  Proof.
+    iSplit. iApply red_syn_default_I_past1. iApply red_syn_default_I_past2.
   Qed.
 
   Definition syn_wpsim n tid Es
@@ -913,7 +939,7 @@ Section SIMI.
                           Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
       )%F.
 
-  Lemma red_syn_wpsim
+  Lemma red_syn_wpsim1
         n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
     ⟦syn_wpsim n tid Es Q ps pt itr_src itr_tgt, n⟧
       ⊢
@@ -928,7 +954,7 @@ Section SIMI.
     iSpecialize ("SWP" $! st_tgt). red_tl.
     iPoseProof ("SWP" with "[D W1 W2 W3]") as "SWP".
     { ss. iFrame.
-      rewrite get_syn_default_I_past. rewrite get_syn_wsats. rewrite red_syn_ownes.
+      rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
       iFrame.
     }
     unfold isim_simple.
@@ -937,7 +963,7 @@ Section SIMI.
     { iApply isim_equivI. 2: iFrame.
       iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
       - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-      - rewrite get_syn_default_I. rewrite get_syn_wsats. rewrite red_syn_ownes. iFrame.
+      - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
     }
     { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
       iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
@@ -946,7 +972,7 @@ Section SIMI.
     { iIntros. inv H. }
   Qed.
 
-  Lemma get_syn_wpsim
+  Lemma red_syn_wpsim2
         n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
     wpsim n tid Es ibot7 ibot7 (fun rs rt => ⟦Q rs rt, n⟧) ps pt itr_src itr_tgt
           ⊢
@@ -970,15 +996,24 @@ Section SIMI.
     iPoseProof (isim_mono with "SWP") as "SWP"; cycle 1.
     { iPoseProof (isim_equivI with "SWP") as "SWP". 2: iFrame.
       iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-      - rewrite get_syn_default_I. rewrite get_syn_wsats. rewrite red_syn_ownes. iFrame.
+      - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
       - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
     }
     { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
       iModIntro.
-      rewrite get_syn_default_I_past. rewrite get_syn_wsats. rewrite red_syn_ownes. iFrame.
+      rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
     }
     { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?). iIntros "(% & % & %H & _)". inv H. }
     { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?). iIntros "(% & % & %H & _)". inv H. }
+  Qed.
+
+  Lemma red_syn_wpsim
+        n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
+    ⟦syn_wpsim n tid Es Q ps pt itr_src itr_tgt, n⟧
+      ⊣⊢
+      wpsim n tid Es ibot7 ibot7 (fun rs rt => ⟦Q rs rt, n⟧) ps pt itr_src itr_tgt.
+  Proof.
+    iSplit. iApply red_syn_wpsim1. iApply red_syn_wpsim2.
   Qed.
 
   (* State interp with lens. *)
@@ -990,7 +1025,7 @@ Section SIMI.
         (⌜⟦p, n⟧ = (∃ st, St_src st ∗ ⟦(SI st), n⟧)%I⌝)
           ∗ (⤉(syn_inv n N_state_src p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
 
-  Lemma red_syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
+  Lemma red_syn_src_interp_as1 n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
     ⟦syn_src_interp_as n l VI, S n⟧ ⊢ (src_interp_as l VI).
   Proof.
     unfold syn_src_interp_as. unfold src_interp_as. red_tl. ss.
@@ -1003,7 +1038,7 @@ Section SIMI.
     { iPureIntro. ss. }
   Qed.
 
-  Lemma get_syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
+  Lemma red_syn_src_interp_as2 n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
     (src_interp_as l VI) ⊢ ⟦syn_src_interp_as n l VI, S n⟧.
   Proof.
     unfold syn_src_interp_as. unfold src_interp_as. ss.
@@ -1015,13 +1050,19 @@ Section SIMI.
     { iPureIntro. iIntros (?). iApply view_interp. }
   Qed.
 
+  Lemma red_syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
+    ⟦syn_src_interp_as n l VI, S n⟧ ⊣⊢ (src_interp_as l VI).
+  Proof.
+    iSplit. iApply red_syn_src_interp_as1. iApply red_syn_src_interp_as2.
+  Qed.
+
 
   Definition syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) : Formula (S n) :=
     (∃ (SI : τ{(st_tgt_type -> Φ)%ftype, S n}) (p : τ{Φ, S n}),
         (⌜⟦p, n⟧ = (∃ st, St_tgt st ∗ ⟦(SI st), n⟧)%I⌝)
           ∗ (⤉(syn_inv n N_state_tgt p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
 
-  Lemma red_syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
+  Lemma red_syn_tgt_interp_as1 n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
     ⟦syn_tgt_interp_as n l VI, S n⟧ ⊢ (tgt_interp_as l VI).
   Proof.
     unfold syn_tgt_interp_as. unfold tgt_interp_as. red_tl. ss.
@@ -1034,7 +1075,7 @@ Section SIMI.
     { iPureIntro. ss. }
   Qed.
 
-  Lemma get_syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
+  Lemma red_syn_tgt_interp_as2 n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
     (tgt_interp_as l VI) ⊢ ⟦syn_tgt_interp_as n l VI, S n⟧.
   Proof.
     unfold syn_tgt_interp_as. unfold tgt_interp_as. ss.
@@ -1044,6 +1085,12 @@ Section SIMI.
     iSplit.
     { rewrite red_syn_inv. ss. }
     { iPureIntro. iIntros (?). iApply view_interp. }
+  Qed.
+
+  Lemma red_syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
+    ⟦syn_tgt_interp_as n l VI, S n⟧ ⊣⊢ (tgt_interp_as l VI).
+  Proof.
+    iSplit. iApply red_syn_tgt_interp_as1. iApply red_syn_tgt_interp_as2.
   Qed.
 
 End SIMI.
@@ -1060,8 +1107,8 @@ Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es }=> P)%F (at l
 Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%F (at level 90) : formula_scope.
 Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%F (at level 90) : formula_scope.
 
-Notation "'◆' [ k , l | o ]" :=
-  (⟨Atom.obl_lo k l o⟩)%F (at level 50, k, l, o at level 1, format "◆ [ k ,  l  |  o ]") : formula_scope.
+Notation "'◆' [ k , l ]" :=
+  (⟨Atom.obl_lo k l⟩)%F (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : formula_scope.
 Notation "'◇' [ k ]( l , a )" :=
   (⟨Atom.obl_pc k l a⟩)%F (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : formula_scope.
 Notation "'live[' k ']' q " :=
@@ -1084,8 +1131,8 @@ Notation "'-[' k '](' l ')-' '◇' f" :=
   (⟨Atom.obl_tpromise k l f⟩)%F (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : formula_scope.
 Notation "'◇' { ps }( m , a )" :=
   (⟨Atom.obl_pcs ps m a⟩)%F (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : formula_scope.
-Notation "⦃ '◆' [ k | o ] & '◇' { ps }( l )⦄" :=
-  (⟨Atom.obl_ccs k o ps l⟩)%F (at level 50, k, ps, l, o at level 1, format "⦃ ◆ [ k  |  o ]  &  ◇ { ps }( l )⦄") : formula_scope.
+Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄" :=
+  (⟨Atom.obl_ccs k ps l⟩)%F (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : formula_scope.
 
 
 

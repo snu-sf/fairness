@@ -197,8 +197,11 @@ Section RULES.
 
   (** Definitions and Rules for liveness obligations. *)
 
-  Definition liveness_obligation (k : nat) (l : nat) (o : Ord.t) :=
+  Definition _liveness_obligation (k : nat) (l : nat) (o : Ord.t) :=
     (⌜(o <= layer l 1)%ord⌝ ∗ black k o)%I.
+
+  Definition liveness_obligation (k : nat) (l : nat) :=
+    (∃ (o : Ord.t), _liveness_obligation k l o)%I.
 
   Definition progress_credit (k : nat) (l a : nat) :=
     white k (layer l a).
@@ -207,8 +210,8 @@ Section RULES.
 
   Definition dead (k : nat) := shot k.
 
-  Global Program Instance Persistent_liveness_obligation k l o :
-    Persistent (liveness_obligation k l o).
+  Global Program Instance Persistent_liveness_obligation k l :
+    Persistent (liveness_obligation k l).
 
   Global Program Instance Persistent_dead k :
     Persistent (dead k).
@@ -253,8 +256,8 @@ Section RULES.
 
   Lemma lo_pc_decr k l o m a :
     (0 < a) ->
-    (liveness_obligation k l o ∗ progress_credit k m a)
-      ⊢ |==> ∃ o', (liveness_obligation k l o') ∗ ⌜(o' < o)%ord⌝.
+    (_liveness_obligation k l o ∗ progress_credit k m a)
+      ⊢ |==> ∃ o', (_liveness_obligation k l o') ∗ ⌜(o' < o)%ord⌝.
   Proof.
     iIntros (LT) "[[% #LO] PC]".
     iMod (pc_mon _ 0 _ 1 _ with "PC") as "PC".
@@ -297,7 +300,7 @@ Section RULES.
   Qed.
 
   Lemma alloc_obligation l :
-    ⊢ |==> (∃ k o, liveness_obligation k l o ∗ progress_credit k l 1 ∗ live k 1).
+    ⊢ |==> (∃ k, liveness_obligation k l ∗ progress_credit k l 1 ∗ live k 1).
   Proof.
     iMod (alloc (layer l 1)) as "[% [B [W P]]]".
     iExists k. iFrame. iModIntro. iExists (layer l 1). iFrame.
@@ -311,11 +314,11 @@ Section RULES.
   Global Program Instance Persistent_link k0 k1 l :
     Persistent (link k0 k1 l).
 
-  Lemma link_new k0 k1 l m o :
-    (liveness_obligation k0 l o ∗ progress_credit k1 (m + l) 1)
+  Lemma link_new k0 k1 l m :
+    (liveness_obligation k0 l ∗ progress_credit k1 (m + l) 1)
       ⊢ #=(edges_sat)=> link k0 k1 m.
   Proof.
-    iIntros "[[% LD] PC]".
+    iIntros "[(% & % & LD) PC]".
     iPoseProof (white_eq with "PC") as "PC".
     { apply layer_sep. }
     iPoseProof (black_mon with "LD") as "LD".
@@ -507,13 +510,16 @@ Section RULES.
 
   (** Additional definitions and rules. *)
 
-  Definition collection_credits k o (ps : list (nat * nat)) l :=
+  Definition _collection_credits k o (ps : list (nat * nat)) l :=
     collection_taxes k o (map (fun '(k, l) => (k, layer l 1)) ps) (layer l 1).
+
+  Definition collection_credits k (ps : list (nat * nat)) l :=
+    (∃ (o : Ord.t), _collection_credits k o ps l)%I.
 
   Lemma ccs_decr k o ps l :
     forall m a, (0 < a) ->
-           (collection_credits k o ps l ∗ progress_credit k m a)
-             ⊢ #=> (∃ o', collection_credits k o' ps l ∗ ⌜(o' < o)%ord⌝ ∗ progress_credits ps l 1).
+           (_collection_credits k o ps l ∗ progress_credit k m a)
+             ⊢ #=> (∃ o', _collection_credits k o' ps l ∗ ⌜(o' < o)%ord⌝ ∗ progress_credits ps l 1).
   Proof.
     intros. iIntros "[COL PC]". 
     iMod (pc_mon _ 0 _ 1 _ with "PC") as "PC".
@@ -527,13 +533,113 @@ Section RULES.
     iPureIntro. auto.
   Qed.
 
-  Lemma ccs_make k l o ps m :
-    (liveness_obligation k l o ∗ progress_credits ps (m + l) 1) ⊢ |==> collection_credits k o ps m.
+  Lemma ccs_make k l ps m :
+    (liveness_obligation k l ∗ progress_credits ps (m + l) 1) ⊢ |==> collection_credits k ps m.
   Proof.
-    iIntros "[[% B] T]". iMod (taxes_ord_mon with "T") as "T".
+    iIntros "[(% & % & B) T]". iMod (taxes_ord_mon with "T") as "T".
     { rewrite layer_sep. eapply Jacobsthal.le_mult_r. eauto. }
     iPoseProof (collection_taxes_make with "[B T]") as "CT". iFrame.
-    iModIntro. iFrame.
+    iModIntro. iExists _. iFrame.
+  Qed.
+
+  (** Induction rules. *)
+
+  Lemma lo_ind_gen k l (P : iProp) :
+    (liveness_obligation k l)
+      ⊢ (□ (∃ m a, (⌜(0 < a)⌝ -∗ progress_credit k m a ==∗ P) ==∗ P)) ==∗ P.
+  Proof.
+    iIntros "[%o LO]". iStopProof.
+    pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros.
+    iIntros "#LO #(% & % & IND)". iApply "IND". iIntros "% PC".
+    iMod (lo_pc_decr with "[LO PC]") as "[% [#LO2 %]]". apply H0. iFrame. eauto.
+    iClear "LO". iPoseProof (H with "LO2 [IND]") as "P". auto.
+    2: iApply "P".
+    { iExists m, a. auto. }
+  Qed.
+
+  Lemma lo_ind k l (P : iProp) :
+    (liveness_obligation k l)
+      ⊢ (□ (∃ m, (progress_credit k m 1 ==∗ P) ==∗ P)) ==∗ P.
+  Proof.
+    iIntros "#LO #[% IND]". iApply lo_ind_gen. eauto.
+    iModIntro. iExists m, 1. iIntros "A". iApply "IND". iApply "A". auto.
+  Qed.
+
+  Lemma promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k l m f (R : iProp) :
+    (liveness_obligation k l ∗ promise p i k m f)
+      ⊢ (□ ((fairness_credit p i =(arrows_sat v)=∗ (R ∨ (dead k ∗ □ prop v f))) ==∗ R))
+      ==∗ R.
+  Proof.
+    iIntros "[#LO #PR] #IND".
+    iMod (lo_ind with "LO []") as "R". 2: iModIntro; iApply "R".
+    iExists m. iModIntro. iIntros "IND2". iApply "IND". iIntros "FC".
+    iMod (promise_progress with "[PR FC]") as "[PC | [#D #P]]".
+    { iFrame. eauto. }
+    { iMod ("IND2" with "PC") as "R". iModIntro. iFrame. }
+    { iModIntro. iRight. auto. }
+  Qed.
+
+  Lemma thread_promise_ind {v} k l m f (R : iProp) :
+    (liveness_obligation k l ∗ thread_promise k m f)
+      ⊢ (□ ((thread_credit =(arrows_sat v)=∗ (R ∨ (dead k ∗ □ prop v f))) ==∗ R))
+      ==∗ R.
+  Proof.
+    iIntros "[#LO #PR] #IND".
+    iMod (lo_ind with "LO []") as "R". 2: iModIntro; iApply "R".
+    iExists m. iModIntro. iIntros "IND2". iApply "IND". iIntros "FC".
+    iMod (tpromise_progress with "[PR FC]") as "[PC | [#D #P]]".
+    { iFrame. eauto. }
+    { iMod ("IND2" with "PC") as "R". iModIntro. iFrame. }
+    { iModIntro. iRight. auto. }
+  Qed.
+
+  Lemma ccs_ind_gen k ps l (P : iProp) :
+    (collection_credits k ps l)
+      ⊢ (□ (∃ m a, (⌜(0 < a)⌝ -∗ progress_credit k m a ==∗ (progress_credits ps l 1 ∗ P)) ==∗ P))
+      ==∗ P.
+  Proof.
+    iIntros "[%o CCS]". iStopProof.
+    pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros.
+    iIntros "CC #(% & % & IND)". iApply "IND". iIntros "% PC".
+    iMod (ccs_decr with "[CC PC]") as "[% [CC2 [% PC2]]]". apply H0. iFrame.
+    iPoseProof (H with "CC2 [IND]") as ">P". auto.
+    2: iModIntro; iFrame.
+    { iExists m, a. auto. }
+  Qed.
+
+  Lemma ccs_ind k ps l (P : iProp) :
+    (collection_credits k ps l)
+      ⊢ (□ (∃ m, (progress_credit k m 1 ==∗ (progress_credits ps l 1 ∗ P)) ==∗ P))
+      ==∗ P.
+  Proof.
+    iIntros "CCS #[% IND]". iApply (ccs_ind_gen with "CCS").
+    iModIntro. iExists m, 1. iIntros "A". iApply "IND". iApply "A". auto.
+  Qed.
+
+  Lemma ccs_promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k ps l m f (R : iProp) :
+    (collection_credits k ps l ∗ promise p i k m f)
+      ⊢ (□ ((fairness_credit p i =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
+      ==∗ R.
+  Proof.
+    iIntros "[CC #PR] #IND". iMod (ccs_ind with "CC []") as "R". 2: iModIntro; iApply "R".
+    iExists m. iModIntro.  iIntros "IND2". iApply "IND". iIntros "FC".
+    iMod (promise_progress with "[PR FC]") as "[PC | [#D #P]]".
+    { iFrame. eauto. }
+    { iMod ("IND2" with "PC") as "R". iModIntro. iFrame. }
+    { iModIntro. iRight. auto. }
+  Qed.
+
+  Lemma ccs_thread_promise_ind {v} k ps l m f (R : iProp) :
+    (collection_credits k ps l ∗ thread_promise k m f)
+      ⊢ (□ ((thread_credit =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
+      ==∗ R.
+  Proof.
+    iIntros "[CC #PR] #IND". iMod (ccs_ind with "CC []") as "R". 2: iModIntro; iApply "R".
+    iExists m. iModIntro.  iIntros "IND2". iApply "IND". iIntros "FC".
+    iMod (tpromise_progress with "[PR FC]") as "[PC | [#D #P]]".
+    { iFrame. eauto. }
+    { iMod ("IND2" with "PC") as "R". iModIntro. iFrame. }
+    { iModIntro. iRight. auto. }
   Qed.
 
   (** Additional definitions and rules. *)
@@ -592,104 +698,13 @@ Section RULES.
     iIntros "(A & B & C)". unfold until_thread_promise. iFrame. iRight. iFrame.
   Qed.
 
-  (** Induction rules. *)
-
-  Lemma lo_ind k l o (P : iProp) :
-    (liveness_obligation k l o)
-      ⊢ (□ (∃ m a, (⌜(0 < a)⌝ -∗ progress_credit k m a ==∗ P) ==∗ P)) ==∗ P.
-  Proof.
-    pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros.
-    iIntros "#LO #(% & % & IND)". iApply "IND". iIntros "% PC".
-    iMod (lo_pc_decr with "[LO PC]") as "[% [#LO2 %]]". apply H0. iFrame. eauto.
-    iClear "LO". iPoseProof (H with "LO2 [IND]") as "P". auto.
-    2: iApply "P".
-    { iExists m, a. auto. }
-  Qed.
-
-  Lemma promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k l o m f (R : iProp) :
-    (liveness_obligation k l o ∗ promise p i k m f)
-      ⊢ ((□ ((fairness_credit p i =(arrows_sat v)=∗ R) ==∗ R))
-           ∗ (□ ((dead k ∗ □ prop v f) ==∗ R)))
-      ==∗ R.
-  Proof.
-    iIntros "[#LO #PR] [#IND #RES]".
-    iApply "IND". iIntros "FC". iMod (promise_progress with "[PR FC]") as "[PC | [#D #P]]".
-    { iFrame. eauto. }
-    { iMod (lo_ind with "LO [PC]") as "R". 2: iModIntro; iApply "R".
-      iModIntro. iExists m, 1.  iIntros "IND2". iApply "IND".
-      iIntros "FC". iMod (promise_progress with "[LO FC]") as "[PC | [#D #P]]".
-      { iFrame. eauto. }
-      { iMod ("IND2" with "[] [PC]") as "R". auto. iFrame. iModIntro. iFrame. }
-      { iMod ("RES" with "[D P]") as "R". auto. iModIntro. iFrame. }
-    }
-    { iMod ("RES" with "[D P]") as "R". auto. iModIntro. iFrame. }
-  Qed.
-
-  Lemma thread_promise_ind {v} k l o m f (R : iProp) :
-    (liveness_obligation k l o ∗ thread_promise k m f)
-      ⊢ ((□ ((thread_credit =(arrows_sat v)=∗ R) ==∗ R))
-           ∗ (□ ((dead k ∗ □ prop v f) ==∗ R)))
-      ==∗ R.
-  Proof.
-    iIntros "[#LO #PR] [#IND #RES]".
-    iApply "IND". iIntros "FC". iMod (tpromise_progress with "[PR FC]") as "[PC | [#D #P]]".
-    { iFrame. eauto. }
-    { iMod (lo_ind with "LO [PC]") as "R". 2: iModIntro; iApply "R".
-      iModIntro. iExists m, 1.  iIntros "IND2". iApply "IND".
-      iIntros "FC". iMod (tpromise_progress with "[LO FC]") as "[PC | [#D #P]]".
-      { iFrame. eauto. }
-      { iMod ("IND2" with "[] [PC]") as "R". auto. iFrame. iModIntro. iFrame. }
-      { iMod ("RES" with "[D P]") as "R". auto. iModIntro. iFrame. }
-    }
-    { iMod ("RES" with "[D P]") as "R". auto. iModIntro. iFrame. }
-  Qed.
-
-  Lemma ccs_ind k o ps l (P : iProp) :
-    (collection_credits k o ps l)
-      ⊢ (□ (∃ m a, (⌜(0 < a)⌝ -∗ progress_credit k m a ==∗ (progress_credits ps l 1 ∗ P)) ==∗ P))
-      ==∗ P.
-  Proof.
-    pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros.
-    iIntros "CC #(% & % & IND)". iApply "IND". iIntros "% PC".
-    iMod (ccs_decr with "[CC PC]") as "[% [CC2 [% PC2]]]". apply H0. iFrame.
-    iPoseProof (H with "CC2 [IND]") as ">P". auto.
-    2: iModIntro; iFrame.
-    { iExists m, a. auto. }
-  Qed.
-
-  Lemma ccs_promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k o ps l m f (R : iProp) :
-    (collection_credits k o ps l ∗ promise p i k m f)
-      ⊢ (□ ((fairness_credit p i =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
-      ==∗ R.
-  Proof.
-    iIntros "[CC #PR] #IND". iMod (ccs_ind with "CC []") as "R". 2: iModIntro; iApply "R".
-    iExists m, 1. iModIntro.  iIntros "IND2". iApply "IND". iIntros "FC".
-    iMod (promise_progress with "[PR FC]") as "[PC | [#D #P]]".
-    { iFrame. eauto. }
-    { iMod ("IND2" with "[] [PC]") as "R". auto. iFrame. iModIntro. iFrame. }
-    { iModIntro. iRight. auto. }
-  Qed.
-
-  Lemma ccs_thread_promise_ind {v} k o ps l m f (R : iProp) :
-    (collection_credits k o ps l ∗ thread_promise k m f)
-      ⊢ (□ ((thread_credit =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
-      ==∗ R.
-  Proof.
-    iIntros "[CC #PR] #IND". iMod (ccs_ind with "CC []") as "R". 2: iModIntro; iApply "R".
-    iExists m, 1. iModIntro.  iIntros "IND2". iApply "IND". iIntros "FC".
-    iMod (tpromise_progress with "[PR FC]") as "[PC | [#D #P]]".
-    { iFrame. eauto. }
-    { iMod ("IND2" with "[] [PC]") as "R". auto. iFrame. iModIntro. iFrame. }
-    { iModIntro. iRight. auto. }
-  Qed.
-
 End RULES.
 Global Opaque link.
 
 (** Notations. *)
 
-Notation "'◆' [ k , l | o ]" :=
-  (liveness_obligation k l o) (at level 50, k, l, o at level 1, format "◆ [ k ,  l  |  o ]") : bi_scope.
+Notation "'◆' [ k , l ]" :=
+  (liveness_obligation k l) (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : bi_scope.
 Notation "'◇' [ k ]( l , a )" :=
   (progress_credit k l a) (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : bi_scope.
 Notation "'live[' k ']' q " :=
@@ -712,5 +727,5 @@ Notation "'-[' k '](' l ')-' '◇' f" :=
   (thread_promise _ k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : bi_scope.
 Notation "'◇' { ps }( m , a )" :=
   (progress_credits ps m a) (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : bi_scope.
-Notation "⦃ '◆' [ k | o ] & '◇' { ps }( l )⦄"
-  := (collection_credits k o ps l) (at level 50, k, ps, l, o at level 1, format "⦃ ◆ [ k  |  o ]  &  ◇ { ps }( l )⦄") : bi_scope.
+Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄"
+  := (collection_credits k ps l) (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : bi_scope.
