@@ -1,5 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
+From Fairness Require Import Axioms.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.
 From Fairness Require Import ISim SimDefaultRA LiveObligations SimWeakest.
 From Fairness Require Export LogicSyntaxHOAS.
@@ -1044,72 +1045,33 @@ Section SIMI.
         (⌜⟦p, n⟧ = (∃ st, St_src st ∗ ⟦(SI st), n⟧)%I⌝)
           ∗ (⤉(syn_inv n N_state_src p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
 
-  Lemma red_syn_src_interp_as1 n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
-    ⟦syn_src_interp_as n l VI, S n⟧ ⊢ (src_interp_as l VI).
-  Proof.
-    unfold syn_src_interp_as. unfold src_interp_as. red_tl. ss.
-    iIntros "[%SI P]". red_tl. iDestruct "P" as "[%p P]". red_tl. iDestruct "P" as "(%EQ & SINV & %SVI)".
-    iExists SI, p.
-    iSplit.
-    { iPureIntro. ss. }
-    iSplit.
-    { rewrite red_syn_inv. ss. }
-    { iPureIntro. ss. }
-  Qed.
-
-  Lemma red_syn_src_interp_as2 n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
-    (src_interp_as l VI) ⊢ ⟦syn_src_interp_as n l VI, S n⟧.
-  Proof.
-    unfold syn_src_interp_as. unfold src_interp_as. ss.
-    iIntros "[%SI [% (%SS & INV & %VISI)]]".
-    red_tl. iExists SI. red_tl. iExists p. red_tl. iSplit.
-    { ss. }
-    iSplit.
-    { rewrite red_syn_inv. ss. }
-    { iPureIntro. iIntros (?). iApply view_interp. }
-  Qed.
-
   Lemma red_syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
-    ⟦syn_src_interp_as n l VI, S n⟧ ⊣⊢ (src_interp_as l VI).
+    ⟦syn_src_interp_as n l VI, S n⟧ = (src_interp_as l VI).
   Proof.
-    iSplit. iApply red_syn_src_interp_as1. iApply red_syn_src_interp_as2.
+    unfold syn_src_interp_as. unfold src_interp_as.
+    red_tl. ss. f_equal. extensionalities SI.
+    red_tl. ss. f_equal. extensionalities p.
+    red_tl. ss. repeat f_equal. unfold syn_view_interp.
+    apply propositional_extensionality. split; i.
+    - econs. auto.
+    - inv H. auto.
   Qed.
-
 
   Definition syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) : Formula (S n) :=
     (∃ (SI : τ{(st_tgt_type -> Φ)%ftype, S n}) (p : τ{Φ, S n}),
         (⌜⟦p, n⟧ = (∃ st, St_tgt st ∗ ⟦(SI st), n⟧)%I⌝)
           ∗ (⤉(syn_inv n N_state_tgt p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
 
-  Lemma red_syn_tgt_interp_as1 n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
-    ⟦syn_tgt_interp_as n l VI, S n⟧ ⊢ (tgt_interp_as l VI).
-  Proof.
-    unfold syn_tgt_interp_as. unfold tgt_interp_as. red_tl. ss.
-    iIntros "[%SI P]". red_tl. iDestruct "P" as "[%p P]". red_tl. iDestruct "P" as "(%EQ & SINV & %SVI)".
-    iExists SI, p.
-    iSplit.
-    { iPureIntro. ss. }
-    iSplit.
-    { rewrite red_syn_inv. ss. }
-    { iPureIntro. ss. }
-  Qed.
-
-  Lemma red_syn_tgt_interp_as2 n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
-    (tgt_interp_as l VI) ⊢ ⟦syn_tgt_interp_as n l VI, S n⟧.
-  Proof.
-    unfold syn_tgt_interp_as. unfold tgt_interp_as. ss.
-    iIntros "[%SI [% (%SS & INV & %VISI)]]".
-    red_tl. iExists SI. red_tl. iExists p. red_tl. iSplit.
-    { ss. }
-    iSplit.
-    { rewrite red_syn_inv. ss. }
-    { iPureIntro. iIntros (?). iApply view_interp. }
-  Qed.
-
   Lemma red_syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
-    ⟦syn_tgt_interp_as n l VI, S n⟧ ⊣⊢ (tgt_interp_as l VI).
+    ⟦syn_tgt_interp_as n l VI, S n⟧ = (tgt_interp_as l VI).
   Proof.
-    iSplit. iApply red_syn_tgt_interp_as1. iApply red_syn_tgt_interp_as2.
+    unfold syn_tgt_interp_as. unfold tgt_interp_as.
+    red_tl. ss. f_equal. extensionalities SI.
+    red_tl. ss. f_equal. extensionalities p.
+    red_tl. ss. repeat f_equal. unfold syn_view_interp.
+    apply propositional_extensionality. split; i.
+    - econs. auto.
+    - inv H. auto.
   Qed.
 
 End SIMI.
