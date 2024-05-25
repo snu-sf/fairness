@@ -884,7 +884,42 @@ Module Regions.
 
     Definition nauth (j : nat) := OwnM (nauth_ra j).
 
-    Definition nsats (j : nat) := ([∗ list] i ∈ (seq 0 j), @sat nat As _ _ i (@interps i))%I.
+    Definition nsats (j : nat) := sep_conjs (fun i => @sat nat As _ _ i (@interps i)) j.
+
+    Definition nsats_l (j : nat) := ([∗ list] i ∈ (seq 0 j), @sat nat As _ _ i (@interps i))%I.
+
+    Lemma unfold_nsats x :
+      nsats (S x) = (nsats x ∗ sat x (interps (i:=x)))%I.
+    Proof. ss. Qed.
+
+    Lemma unfold_nsats_l x :
+      nsats_l (S x) ⊢ (nsats_l x ∗ sat x (interps (i:=x)))%I.
+    Proof.
+      iIntros "A". unfold nsats_l. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
+      2:{ rewrite seq_S. ss. }
+      iPoseProof (big_sepL_app with "A") as "[A [B C]]". ss. iFrame.
+    Qed.
+
+    Lemma fold_nsats_l x :
+      (nsats_l x ∗ sat x (interps (i:=x)))%I ⊢ nsats_l (S x).
+    Proof.
+      iIntros "A". unfold nsats_l. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
+      2:{ rewrite seq_S. ss. }
+      iApply big_sepL_app. ss. iDestruct "A" as "[A B]". iFrame.
+    Qed.
+
+    Lemma nsats_equiv_l x :
+      nsats x ⊣⊢ nsats_l x.
+    Proof.
+      iSplit; iStopProof.
+      - induction x. auto.
+        iIntros "_ W". iEval (rewrite unfold_nsats) in "W". iDestruct "W" as "[WS W]".
+        iApply fold_nsats_l. iFrame. iApply IHx; auto.
+      - induction x. auto.
+        iIntros "_ W". iEval (rewrite unfold_nsats_l) in "W". iDestruct "W" as "[WS W]".
+        rewrite unfold_nsats. iFrame. iApply IHx; auto.
+    Qed.
+
 
     Lemma nauth_init_zero :
       OwnM ((fun i => ((fun _ => OneShot.pending (As i) 1%Qp) : (@_t nat As i))) : @t nat As)
@@ -965,7 +1000,8 @@ Module Regions.
     Lemma nsats_nin (x n : nat) (NIN : x < n)
       : nsats x ∗ ([∗ list] m ∈ (seq x (n - x)), @sat nat As _ _ m (@interps m)) ⊢ nsats n.
     Proof.
-      iIntros "[SALL SAT]". unfold nsats.
+      rewrite ! nsats_equiv_l.
+      iIntros "[SALL SAT]". unfold nsats_l.
       replace n with (x + (n - x)) by lia. rewrite seq_app. iFrame.
       replace (x + (n - x) - x) with (n - x) by lia. iFrame.
     Qed.
@@ -973,7 +1009,8 @@ Module Regions.
     Lemma nsats_in (x0 x1 : nat) :
       x0 < x1 -> nsats x1 ⊢ nsats x0 ∗ ([∗ list] n ∈ (seq x0 (x1 - x0)), sat n (interps (i:=n))).
     Proof.
-      iIntros (LT) "SAT". unfold nsats.
+      rewrite ! nsats_equiv_l.
+      iIntros (LT) "SAT". unfold nsats_l.
       replace x1 with (x0 + (x1 - x0)) by lia. rewrite (seq_app _ _ 0).
       iPoseProof (big_sepL_app with "SAT") as "[SAT K]". iFrame.
       ss. replace (x0 + (x1 - x0) - x0) with (x1 - x0) by lia. iFrame.
@@ -989,26 +1026,11 @@ Module Regions.
     Lemma nsats_sat_sub i j :
       i < j -> ⊢ SubIProp (sat i (interps (i:=i))) (nsats j).
     Proof.
-      iIntros (LT) "SATS". iPoseProof (big_sepL_lookup_acc _ _ i with "SATS") as "[SAT K]".
+      iIntros (LT) "SATS". rewrite ! nsats_equiv_l.
+      iPoseProof (big_sepL_lookup_acc _ _ i with "SATS") as "[SAT K]".
       { apply lookup_seq_lt. auto. }
       ss. iFrame. iModIntro. iIntros "SAT".
       iApply "K". iModIntro. iFrame.
-    Qed.
-
-    Lemma unfold_nsats x :
-      nsats (S x) ⊢ (nsats x ∗ sat x (interps (i:=x)))%I.
-    Proof.
-      iIntros "A". unfold nsats. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
-      2:{ rewrite seq_S. ss. }
-      iPoseProof (big_sepL_app with "A") as "[A [B C]]". ss. iFrame.
-    Qed.
-
-    Lemma fold_nsats x :
-      (nsats x ∗ sat x (interps (i:=x)))%I ⊢ nsats (S x).
-    Proof.
-      iIntros "A". unfold nsats. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
-      2:{ rewrite seq_S. ss. }
-      iApply big_sepL_app. ss. iDestruct "A" as "[A B]". iFrame.
     Qed.
 
   End NATKEY.

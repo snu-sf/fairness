@@ -313,31 +313,48 @@ Section WSATS.
   Definition wsat_auth (x : index) := OwnM (wsat_auth_black x).
 
   (* wsat n for all n < x *)
-  Definition wsats (x : index) := ([∗ list] n ∈ (seq 0 x), wsat n)%I.
+  Definition wsats (x : index) := sep_conjs wsat x.
+
+  Definition wsats_l (x : index) := ([∗ list] n ∈ (seq 0 x), wsat n)%I.
 
   Lemma unfold_wsats x :
-    wsats (S x) ⊢ (wsats x ∗ wsat x)%I.
+    wsats (S x) = (wsats x ∗ wsat x)%I.
+  Proof. ss. Qed.
+
+  Lemma unfold_wsats_l x :
+    wsats_l (S x) ⊢ (wsats_l x ∗ wsat x)%I.
   Proof.
-    iIntros "A". unfold wsats. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
+    iIntros "A". unfold wsats_l. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
     2:{ rewrite seq_S. ss. }
     iPoseProof (big_sepL_app with "A") as "[A [B C]]". ss. iFrame.
   Qed.
 
-  Lemma fold_wsats x :
-    (wsats x ∗ wsat x)%I ⊢ wsats (S x).
+  Lemma fold_wsats_l x :
+    (wsats_l x ∗ wsat x)%I ⊢ wsats_l (S x).
   Proof.
-    iIntros "A". unfold wsats. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
+    iIntros "A". unfold wsats_l. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
     2:{ rewrite seq_S. ss. }
     iApply big_sepL_app. ss. iDestruct "A" as "[A B]". iFrame.
   Qed.
 
+  Lemma wsats_equiv_l x :
+    wsats x ⊣⊢ wsats_l x.
+  Proof.
+    iSplit; iStopProof.
+    - induction x. auto.
+      iIntros "_ W". iEval (rewrite unfold_wsats) in "W". iDestruct "W" as "[WS W]".
+      iApply fold_wsats_l. iFrame. iApply IHx; auto.
+    - induction x. auto.
+      iIntros "_ W". iEval (rewrite unfold_wsats_l) in "W". iDestruct "W" as "[WS W]".
+      rewrite unfold_wsats. iFrame. iApply IHx; auto.
+  Qed.
 
 
   Lemma wsats_init_zero :
     OwnM ((fun n => @Auth.black (positive ==> URA.agree (Vars n))%ra (fun _ => None)) : IInvSetRA Vars)
          ⊢ wsat_auth 0 ∗ wsats 0.
   Proof.
-    iIntros "H". iFrame. unfold wsats. ss.
+    iIntros "H". iFrame.
   Qed.
 
   Lemma wsat_auth_nin (x n : index) (NIN : x < n)
@@ -398,7 +415,8 @@ Section WSATS.
   Lemma wsats_nin (x n : index) (NIN : x < n)
     : wsats x ∗ ([∗ list] m ∈ (seq x (n - x)), wsat m) ⊢ wsats n.
   Proof.
-    iIntros "[SALL WSAT]". unfold wsats.
+    rewrite ! wsats_equiv_l.
+    iIntros "[SALL WSAT]". unfold wsats_l.
     replace n with (x + (n - x)) by lia. rewrite seq_app. iFrame.
     replace (x + (n - x) - x) with (n - x) by lia. iFrame.
   Qed.
@@ -406,7 +424,8 @@ Section WSATS.
   Lemma wsats_in (x0 x1 : index) :
     x0 < x1 -> wsats x1 ⊢ wsats x0 ∗ ([∗ list] n ∈ (seq x0 (x1 - x0)), wsat n).
   Proof.
-    iIntros (LT) "SAT". unfold wsats.
+    rewrite ! wsats_equiv_l.
+    iIntros (LT) "SAT". unfold wsats_l.
     replace x1 with (x0 + (x1 - x0)) by lia. rewrite (seq_app _ _ 0).
     iPoseProof (big_sepL_app with "SAT") as "[SAT K]". iFrame.
     ss. replace (x0 + (x1 - x0) - x0) with (x1 - x0) by lia. iFrame.
@@ -428,6 +447,7 @@ Section WSATS.
             end)
     : wsats x ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ (prop n p -∗ wsats x).
   Proof.
+    rewrite ! wsats_equiv_l.
     iIntros "SALL".
     iPoseProof (big_sepL_lookup_acc with "SALL") as "[WSAT K]".
     apply lookup_seq_lt; eauto.
@@ -496,6 +516,7 @@ Section WSATS.
   Lemma wsats_OwnI_open x n i p :
     n < x -> OwnI n i p ∗ wsats x ∗ OwnE n {[i]} ⊢ |==> prop n p ∗ wsats x ∗ OwnD n {[i]}.
   Proof.
+    rewrite ! wsats_equiv_l.
     iIntros (LT) "(I & SAT & EN)".
     unfold OwnI, wsats.
     iPoseProof (big_sepL_lookup_acc with "SAT") as "[WSAT K]".
@@ -508,6 +529,7 @@ Section WSATS.
   Lemma wsats_OwnI_close x n i p :
     n < x -> OwnI n i p ∗ wsats x ∗ prop n p ∗ OwnD n {[i]} ⊢ |==> wsats x ∗ OwnE n {[i]}.
   Proof.
+    rewrite ! wsats_equiv_l.
     iIntros (LT) "(I & SAT & P & DIS)".
     iPoseProof (big_sepL_lookup_acc with "SAT") as "[WSAT K]".
     apply lookup_seq_lt; eauto.

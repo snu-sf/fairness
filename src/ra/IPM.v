@@ -649,3 +649,15 @@ Tactic Notation "iOwnWf" constr(H) "as" ident(WF) :=
   | H0: @URA.wf _ _ |- _ => rename H0 into WF
   end
 .
+
+Section AUX.
+
+  Context {Σ: GRA.t}.
+
+  Fixpoint sep_conjs (Ps : nat -> iProp) (n : nat) : iProp :=
+    match n with
+    | O => emp%I
+    | S m => ((sep_conjs Ps m) ∗ (Ps m))%I
+    end.
+
+End AUX.
