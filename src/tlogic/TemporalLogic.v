@@ -737,11 +737,7 @@ Section WSATS.
   Qed.
 
 End WSATS.
-Global Opaque syn_wsat.
-Global Opaque syn_wsats.
-Global Opaque syn_ownes.
-Global Opaque syn_inv.
-Global Opaque syn_fupd.
+Global Opaque syn_wsat syn_wsats syn_ownes syn_inv syn_fupd.
 
 Section OBLIG.
 
@@ -845,10 +841,7 @@ Section OBLIG.
   Qed.
 
 End OBLIG.
-Global Opaque syn_obl_arrow.
-Global Opaque syn_arrows_sat_list.
-Global Opaque syn_arrows_sat.
-Global Opaque syn_arrows_sats.
+Global Opaque syn_obl_arrow syn_arrows_sat_list syn_arrows_sat syn_arrows_sats.
 
 Section SIMI.
 
@@ -1094,6 +1087,90 @@ Section SIMI.
   Qed.
 
 End SIMI.
+Global Opaque
+       syn_default_I syn_default_I_past syn_wpsim
+       syn_src_interp_as syn_tgt_interp_as.
+
+Section TRIPLE.
+
+  Context {AA : AuxAtom}.
+  Context {STT : StateTypes}.
+
+  Context `{Σ : GRA.t}.
+  Context `{AAI : @AAInterp Σ AA}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
+
+  Let srcE := threadE id_src_type st_src_type.
+  Let tgtE := threadE id_tgt_type st_tgt_type.
+
+  Import Atom.
+
+  Definition syn_triple_gen n tid (P : Formula n) {RV} (Q : RV -> Formula n) (Es1 Es2 : coPsets)
+    : forall {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Formula n), bool -> bool -> itree srcE R_src -> itree tgtE RV -> ktree tgtE RV R_tgt -> Formula n
+    :=
+    fun R_src R_tgt TERM ps pt itr_src code ktr_tgt =>
+      (∀ (ths : τ{ tidsetT })
+         (im_src : τ{ id_src_type -> owfT })
+         (im_tgt : τ{ ((nat + id_tgt_type)%type -> nat_wfT) })
+         (st_src : τ{ st_src_type })
+         (st_tgt : τ{ st_tgt_type }),
+          let I0 := (fun ths ims imt sts stt => ((syn_default_I n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
+          in
+          let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
+          in
+          let I2 := (fun ths im_src im_tgt st_src st_tgt Es => (syn_default_I_past tid n ths im_src im_tgt st_src st_tgt ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n Es)))
+          in
+          Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)%F.
+
+        | Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt =>
+            triple_format (intpF:=_to_semantics_aux) tid
+                          I0 I1 I2 P Q Es1 Es2 TERM
+                          ps pt itr_src code ktr_tgt
+
+  Definition triple_format {Form : Type} {intpF : Form -> iProp}
+             tid
+             (I0 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
+             (I1 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
+             (I2 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> Form)
+             (P : Form)
+             {RV : Type}
+             (Q : RV -> Form)
+             (Es1 Es2 : coPsets)
+    :
+    forall R_src R_tgt (TERM: R_src -> R_tgt -> Form), bool -> bool -> itree srcE R_src -> itree tgtE RV -> (ktree tgtE RV R_tgt) -> iProp
+    :=
+    fun R_src R_tgt TERM ps pt itr_src code ktr_tgt =>
+      (∀ rr gr,
+          let INV :=
+            (fun ths ims imt sts stt => intpF (I0 ths ims imt sts stt))
+          in
+          let FIN :=
+            (fun r_src r_tgt ths ims imt sts stt => ((intpF (I1 ths ims imt sts stt)) ∗ (intpF (TERM r_src r_tgt)))%I)
+          in
+          (intpF P)
+            -∗
+            (∀ (rv : RV),
+                (intpF (Q rv))
+                  -∗
+                  (∀ ths im_src im_tgt st_src st_tgt,
+                      (intpF (I2 ths im_src im_tgt st_src st_tgt Es2))
+                        -∗
+                        isim
+                        tid INV rr gr FIN
+                        ps pt itr_src (ktr_tgt rv) ths im_src im_tgt st_src st_tgt))
+            -∗
+            (∀ ths im_src im_tgt st_src st_tgt,
+                (intpF (I2 ths im_src im_tgt st_src st_tgt Es1))
+                  -∗
+                  isim
+                  tid INV rr gr FIN
+                  ps pt itr_src (code >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      )%I.
+
+
+
+
+End TRIPLE.
 
 (** Notations. *)
 

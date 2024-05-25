@@ -45,6 +45,21 @@ Module Syntax.
             (imt : @FairBeh.imap (nat + ident_tgt) nat_wf)
             (sts : state_src)
             (stt : state_tgt)
+    | striple_format {state_src state_tgt ident_src ident_tgt : Type}
+                     (tid : thread_id)
+                     (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> t)
+                     (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> t)
+                     (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> t)
+                     (P : t)
+                     {RV}
+                     (Q : RV -> t)
+                     (Es1 Es2 : coPsets)
+                     {R_src R_tgt : Type}
+                     (TERM : R_src -> R_tgt -> t)
+                     (ps pt : bool)
+                     (itr_src : itree (threadE ident_src state_src) R_src)
+                     (code : itree (threadE ident_tgt state_tgt) RV)
+                     (ktr_tgt : ktree (threadE ident_tgt state_tgt) RV R_tgt)
     .
 
   End SYNTAX.
@@ -99,58 +114,19 @@ Module Syntax.
         | plainly p => IProp.Plainly (_to_semantics_aux p)
         | upd p => Upd (_to_semantics_aux p)
         | sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt =>
-            isim_simple tid
-                        (intpF:=_to_semantics_aux)
-                        I0
-                        I1
-                        Q
+            isim_simple tid (intpF:=_to_semantics_aux)
+                        I0 I1 Q
                         ps pt itr_src itr_tgt ths ims imt sts stt
+        | striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt =>
+            triple_format (intpF:=_to_semantics_aux) tid
+                          I0 I1 I2 P Q Es1 Es2 TERM
+                          ps pt itr_src code ktr_tgt
         end
       end.
 
     Definition to_semantics n : formulas n -> iProp := _to_semantics (S n).
 
   End INTERP.
-
-  (* Section INDEXED_INVSET. *)
-
-  (*   Context `{type : Type}. *)
-  (*   Context `{Typ : forall formula : Type, type -> Type}. *)
-  (*   Context `{As : forall formula : Type, Type}. *)
-
-  (*   Local Notation formulas := (@formula type Typ As). *)
-
-  (*   Context `{Σ : GRA.t}. *)
-
-  (*   Local Notation _formulas := (@_formula type Typ As). *)
-  (*   Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}. *)
-
-  (*   Global Instance IISet : @IInvSet Σ formulas := *)
-  (*     {| prop := @to_semantics type Typ As Σ interp_atoms |}. *)
-
-  (* End INDEXED_INVSET. *)
-
-  (* Section INV_IN. *)
-
-  (*   Context `{type : Type}. *)
-  (*   Context `{Typ : forall formula : Type, type -> Type}. *)
-  (*   Context `{As : forall formula : Type, Type}. *)
-
-  (*   Local Notation formulas := (@formula type Typ As). *)
-
-  (*   Context `{Σ : GRA.t}. *)
-
-  (*   Context `{interp_atoms_0 : As Empty_set -> iProp}. *)
-  (*   Context `{interp_atoms : forall (n : index), As (formulas n) -> iProp}. *)
-
-  (*   Global Program Instance IIIn (i : index) (p : formulas i) *)
-  (*     : @IInvIn Σ formulas (IISet (interp_atoms_0:=interp_atoms_0) (interp_atoms:=interp_atoms)) i (@to_semantics type Typ As Σ interp_atoms_0 interp_atoms i p) := *)
-  (*     { inhabitant := p }. *)
-  (*   Next Obligation. *)
-  (*     intros. simpl. done. *)
-  (*   Qed. *)
-
-  (* End INV_IN. *)
 
 End Syntax.
 
@@ -262,6 +238,30 @@ Section RED.
     = (isim_simple tid (intpF:=Sem n) I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)%I.
   Proof. ss. Qed.
 
+  Lemma red_sem_striple_format n
+        {state_src state_tgt ident_src ident_tgt : Type}
+        (tid : thread_id)
+        (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> formulas n)
+        (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> formulas n)
+        (I2 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> formulas n)
+        (P : formulas n)
+        {RV : Type}
+        (Q : RV -> formulas n)
+        (Es1 Es2 : coPsets)
+        {R_src R_tgt : Type}
+        (TERM : R_src -> R_tgt -> formulas n)
+        (ps pt : bool)
+        (itr_src : itree (threadE ident_src state_src) R_src)
+        (code : itree (threadE ident_tgt state_tgt) RV)
+        (ktr_tgt : ktree (threadE ident_tgt state_tgt) RV R_tgt)
+    :
+    Sem n (Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)
+    =
+      (triple_format (intpF:=Sem n) tid
+                     I0 I1 I2 P Q Es1 Es2 TERM
+                     ps pt itr_src code ktr_tgt)%I.
+  Proof. ss. Qed.
+
 End RED.
 Global Opaque Syntax.to_semantics.
 
@@ -285,7 +285,8 @@ Ltac red_sem_unary_once := (
                            try rewrite ! @red_sem_upd;
                            try rewrite ! @red_sem_affinely;
                            try rewrite ! @red_sem_intuitionistically;
-                           try rewrite ! @red_sem_sisim
+                           try rewrite ! @red_sem_sisim;
+                           try rewrite ! @red_sem_striple_format
                           ).
 
 Ltac red_sem_binary := repeat red_sem_binary_once.
@@ -300,18 +301,19 @@ Ltac red_sem_binary_once_every := (try rewrite ! @red_sem_sepconj in *;
                                  ).
 
 Ltac red_sem_unary_once_every := (
-                                 try rewrite ! @red_sem_atom in *;
-                                 try rewrite ! @red_sem_lift in *;
-                                 try rewrite ! @red_sem_pure in *;
-                                 try rewrite ! @red_sem_univ in *;
-                                 try rewrite ! @red_sem_ex in *;
-                                 try rewrite ! @red_sem_empty in *;
-                                 try rewrite ! @red_sem_persistently in *;
-                                 try rewrite ! @red_sem_plainly in *;
-                                 try rewrite ! @red_sem_upd in *;
-                                 try rewrite ! @red_sem_affinely in *;
-                                 try rewrite ! @red_sem_intuitionistically in *;
-                                 try rewrite ! @red_sem_sisim in *
+                                  try rewrite ! @red_sem_atom in *;
+                                  try rewrite ! @red_sem_lift in *;
+                                  try rewrite ! @red_sem_pure in *;
+                                  try rewrite ! @red_sem_univ in *;
+                                  try rewrite ! @red_sem_ex in *;
+                                  try rewrite ! @red_sem_empty in *;
+                                  try rewrite ! @red_sem_persistently in *;
+                                  try rewrite ! @red_sem_plainly in *;
+                                  try rewrite ! @red_sem_upd in *;
+                                  try rewrite ! @red_sem_affinely in *;
+                                  try rewrite ! @red_sem_intuitionistically in *;
+                                  try rewrite ! @red_sem_sisim in *;
+                                  try rewrite ! @red_sem_striple_format in *
                                 ).
 
 Ltac red_sem_binary_every := repeat red_sem_binary_once.

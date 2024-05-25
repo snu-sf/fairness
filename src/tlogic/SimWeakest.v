@@ -187,7 +187,6 @@ Section STATE.
          ps pt itr_src itr_tgt
          ths ims imt sts stt)%I.
 
-
   (* Lemmas for wpsim. *)
 
   Record mytype
@@ -1472,7 +1471,7 @@ Section TRIPLES.
   Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
 
   (** Formats for triples-like specs. *)
-  Definition atomic_triples
+  Definition atomic_triple
              tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
@@ -1486,7 +1485,7 @@ Section TRIPLES.
         -∗
         wpsim n tid Es rr gr TERM ps pt itr_src (code >>= ktr_tgt))%I.
 
-  Definition non_atomic_triples
+  Definition non_atomic_triple
              tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
@@ -1500,18 +1499,58 @@ Section TRIPLES.
         -∗
         wpsim n tid Es rr gr TERM ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I.
 
+  Definition triple_format {Form : Type} {intpF : Form -> iProp}
+             tid
+             (I0 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
+             (I1 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
+             (I2 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> Form)
+             (P : Form)
+             {RV : Type}
+             (Q : RV -> Form)
+             (Es1 Es2 : coPsets)
+    :
+    forall R_src R_tgt (TERM: R_src -> R_tgt -> Form), bool -> bool -> itree srcE R_src -> itree tgtE RV -> (ktree tgtE RV R_tgt) -> iProp
+    :=
+    fun R_src R_tgt TERM ps pt itr_src code ktr_tgt =>
+      (∀ rr gr,
+          let INV :=
+            (fun ths ims imt sts stt => intpF (I0 ths ims imt sts stt))
+          in
+          let FIN :=
+            (fun r_src r_tgt ths ims imt sts stt => ((intpF (I1 ths ims imt sts stt)) ∗ (intpF (TERM r_src r_tgt)))%I)
+          in
+          (intpF P)
+            -∗
+            (∀ (rv : RV),
+                (intpF (Q rv))
+                  -∗
+                  (∀ ths im_src im_tgt st_src st_tgt,
+                      (intpF (I2 ths im_src im_tgt st_src st_tgt Es2))
+                        -∗
+                        isim
+                        tid INV rr gr FIN
+                        ps pt itr_src (ktr_tgt rv) ths im_src im_tgt st_src st_tgt))
+            -∗
+            (∀ ths im_src im_tgt st_src st_tgt,
+                (intpF (I2 ths im_src im_tgt st_src st_tgt Es1))
+                  -∗
+                  isim
+                  tid INV rr gr FIN
+                  ps pt itr_src (code >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
+      )%I.
+
 End TRIPLES.
 
 (** For triples. *)
 Ltac iStartTriple := iIntros (? ? ? ? ? ? ? ? ?).
 
 Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
-  (atomic_triples tid n Es P code (fun v => Q))
+  (atomic_triple tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  Es  @] { P }  code  { v ,  Q }") : bi_scope.
 
 Notation "'[@' tid , n , Es '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
-  (non_atomic_triples tid n Es P code (fun v => Q))
+  (non_atomic_triple tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
 
