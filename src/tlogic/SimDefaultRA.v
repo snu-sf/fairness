@@ -642,7 +642,7 @@ Section INIT.
     { iAssert (ObligationRA.arrows_sats 0)%I as "INIT".
       { unfold ObligationRA.arrows_sats, Regions.nsats. ss. }
       iPoseProof (Regions.nsats_allocs _ (x1:=0) (x2:=x) with "[OWN8]") as "[A S]". lia.
-      { iFrame. eauto. }
+      { iFrame. }
       iFrame.
     }
 

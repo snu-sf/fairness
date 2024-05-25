@@ -161,13 +161,6 @@ Section STATE.
 
   Definition ibot5 { T0 T1 T2 T3 T4} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := False.
   Definition ibot7 { T0 T1 T2 T3 T4 T5 T6} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5): iProp := False.
-  Definition ibot12 { T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3) (x5: T5 x0 x1 x2 x3 x4) (x6: T6 x0 x1 x2 x3 x4 x5)
-             (x7: T7 x0 x1 x2 x3 x4 x5 x6)
-             (x8: T8 x0 x1 x2 x3 x4 x5 x6 x7)
-             (x9: T9 x0 x1 x2 x3 x4 x5 x6 x7 x8)
-             (x10: T10 x0 x1 x2 x3 x4 x5 x6 x7 x8 x9)
-             (x11: T11 x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10)
-    : iProp := False.
 
   Definition isim_simple {Form : Type} {intpF : Form -> iProp}
              (I0 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
@@ -175,15 +168,34 @@ Section STATE.
     forall R_src R_tgt (Q: R_src -> R_tgt -> Form), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp
     :=
     fun R_src R_tgt Q ps pt itr_src itr_tgt ths ims imt sts stt =>
+      let INV :=
+        (fun ths ims imt sts stt => intpF (I0 ths ims imt sts stt))
+      in
+      let INV1 :=
+        (fun ths ims imt sts stt => intpF (I1 ths ims imt sts stt))
+      in
+      let FIN :=
+        (fun r_src r_tgt ths ims imt sts stt => ((INV1 ths ims imt sts stt) ∗ (intpF (Q r_src r_tgt)))%I)
+      in
+      let LIFTBOT :=
+        (fun R_src R_tgt QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
+           (∃ (Q: R_src -> R_tgt -> iProp)
+              (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
+                           (INV1 ths im_src im_tgt st_src st_tgt) ∗ (Q r_src r_tgt))),
+               (* (ibot7 R_src R_tgt Q ps pt itr_src itr_tgt) *)
+               (False)
+                 ∗
+                 (INV1 ths im_src im_tgt st_src st_tgt))%I)
+      in
       (isim
          tid
-         (fun ths ims imt sts stt => intpF (I0 ths ims imt sts stt))
-         ibot12
-         ibot12
-         (* R_src R_tgt *)
-         (fun r_src r_tgt ths ims imt sts stt => ((intpF (I1 ths ims imt sts stt)) ∗ (intpF (Q r_src r_tgt)))%I)
+         INV
+         LIFTBOT
+         LIFTBOT
+         FIN
          ps pt itr_src itr_tgt
          ths ims imt sts stt)%I.
+
 
   (* Lemmas for wpsim. *)
 

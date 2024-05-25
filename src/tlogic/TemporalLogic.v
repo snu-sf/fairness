@@ -669,31 +669,25 @@ Section WSATS.
     lifts_seps p (S n) = (⤉(lifts_seps p n) ∗ (p n))%F.
   Proof. ss. Qed.
 
+  Lemma red_lifts_seps (p : forall n, Formula (S n)) n :
+    ⟦lifts_seps p n, n⟧ = sep_conjs (fun i => ⟦p i, S i⟧) n.
+  Proof.
+    induction n; ss.
+    red_tl. rewrite IHn. auto.
+  Qed.
+
   Definition syn_wsats n : Formula n := lifts_seps syn_wsat n.
 
   Lemma unfold_syn_wsats n :
     syn_wsats (S n) = (⤉(syn_wsats n) ∗ (syn_wsat n))%F.
   Proof. apply unfold_lifts_seps. Qed.
 
-  Lemma red_syn_wsats1 n :
-    ⟦syn_wsats n, n⟧ ⊢ wsats n.
-  Proof.
-    induction n; ss. rewrite unfold_syn_wsats. red_tl. iIntros "[A B]".
-    iApply fold_wsats. rewrite red_syn_wsat. iFrame. iApply IHn. iFrame.
-  Qed.
-
-  Lemma red_syn_wsats2 n :
-    wsats n ⊢ ⟦syn_wsats n, n⟧.
-  Proof.
-    induction n; ss. rewrite unfold_syn_wsats. red_tl. iIntros "A".
-    iPoseProof (unfold_wsats with "A") as "[A B]". rewrite red_syn_wsat. iFrame.
-    iApply IHn. iFrame.
-  Qed.
-
   Lemma red_syn_wsats n :
-    ⟦syn_wsats n, n⟧ ⊣⊢ wsats n.
+    ⟦syn_wsats n, n⟧ = wsats n.
   Proof.
-    iSplit. iApply red_syn_wsats1. iApply red_syn_wsats2.
+    unfold syn_wsats, wsats. replace wsat with (fun i => ⟦syn_wsat i, S i⟧).
+    apply red_lifts_seps.
+    extensionalities i. apply red_syn_wsat.
   Qed.
 
   (** Definitions for OwnEs. *)
@@ -733,34 +727,13 @@ Section WSATS.
   Definition syn_fupd (n : index) (A : Formula n) (Es1 Es2 : coPsets) (p : Formula n) : Formula n :=
     (A ∗ syn_wsats n ∗ syn_ownes _ Es1 -∗ |==> (A ∗ syn_wsats n ∗ syn_ownes _ Es2 ∗ p))%F.
 
-  Lemma red_syn_fupd1 n A Es1 Es2 p :
-    ⟦syn_fupd n A Es1 Es2 p, n⟧ ⊢ FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧.
-  Proof.
-    unfold syn_fupd. red_tl. rewrite ! red_syn_ownes.
-    Local Transparent FUpd.
-    iIntros "F [A [W E]]". iPoseProof (red_syn_wsats with "W") as "W".
-    iMod ("F" with "[A E W]") as "(A & W & E & P)". iFrame.
-    iPoseProof (red_syn_wsats with "W") as "W".
-    iModIntro. iFrame.
-    Local Opaque FUpd.
-  Qed.
-
-  Lemma red_syn_fupd2 n A Es1 Es2 p :
-    FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧ ⊢ ⟦syn_fupd n A Es1 Es2 p, n⟧.
-  Proof.
-    unfold syn_fupd. red_tl. rewrite ! red_syn_ownes.
-    Local Transparent FUpd.
-    iIntros "F [A [W E]]". iPoseProof (red_syn_wsats with "W") as "W".
-    iMod ("F" with "[A E W]") as "(A & W & E & P)". iFrame.
-    iPoseProof (red_syn_wsats with "W") as "W".
-    iModIntro. iFrame.
-    Local Opaque FUpd.
-  Qed.
-
   Lemma red_syn_fupd n A Es1 Es2 p :
-    ⟦syn_fupd n A Es1 Es2 p, n⟧ ⊣⊢ FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧.
+    ⟦syn_fupd n A Es1 Es2 p, n⟧ = FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧.
   Proof.
-    iSplit. iApply red_syn_fupd1. iApply red_syn_fupd2.
+    Local Transparent FUpd.
+    unfold syn_fupd, FUpd. red_tl.
+    rewrite ! red_syn_ownes. rewrite ! red_syn_wsats. auto.
+    Local Opaque FUpd.
   Qed.
 
 End WSATS.
@@ -826,45 +799,22 @@ Section OBLIG.
     syn_arrows_sats (S n) = (⤉(syn_arrows_sats n) ∗ (syn_arrows_sat n))%F.
   Proof. apply unfold_lifts_seps. Qed.
 
-  Lemma red_syn_arrows_sats1 n :
-    ⟦syn_arrows_sats n, n⟧ ⊢ ObligationRA.arrows_sats n.
-  Proof.
-    induction n; ss. rewrite unfold_syn_arrows_sats. red_tl. iIntros "[A B]".
-    iApply Regions.fold_nsats. rewrite red_syn_arrows_sat. iFrame. iApply IHn. iFrame.
-  Qed.
-
-  Lemma red_syn_arrows_sats2 n :
-    ObligationRA.arrows_sats n ⊢ ⟦syn_arrows_sats n, n⟧.
-  Proof.
-    induction n; ss. rewrite unfold_syn_arrows_sats. red_tl. iIntros "A".
-    iPoseProof (Regions.unfold_nsats with "A") as "[A B]". rewrite red_syn_arrows_sat. iFrame.
-    iApply IHn. iFrame.
-  Qed.
-
   Lemma red_syn_arrows_sats n :
-    ⟦syn_arrows_sats n, n⟧ ⊣⊢ ObligationRA.arrows_sats n.
+    ⟦syn_arrows_sats n, n⟧ = ObligationRA.arrows_sats n.
   Proof.
-    iSplit. iApply red_syn_arrows_sats1. iApply red_syn_arrows_sats2.
+    unfold syn_arrows_sats, ObligationRA.arrows_sats. unfold Regions.nsats.
+    replace (λ i : index, Regions.sat i (ObligationRA.arrows i))
+            with (fun i => ⟦syn_arrows_sat i, S i⟧).
+    apply red_lifts_seps.
+    extensionalities i. apply red_syn_arrows_sat.
   Qed.
 
   Definition syn_fairI n : Formula n := (⟨obl_edges_sat⟩ ∗ syn_arrows_sats n)%F.
 
-  Lemma red_syn_fairI1 n :
-    ⟦syn_fairI n, n⟧ ⊢ fairI n.
-  Proof.
-    unfold syn_fairI. red_tl. rewrite red_syn_arrows_sats. unfold fairI. ss.
-  Qed.
-
-  Lemma red_syn_fairI2 n :
-    fairI n ⊢ ⟦syn_fairI n, n⟧.
-  Proof.
-    unfold syn_fairI. red_tl. unfold fairI. rewrite red_syn_arrows_sats. ss.
-  Qed.
-
   Lemma red_syn_fairI n :
-    ⟦syn_fairI n, n⟧ ⊣⊢ fairI n.
+    ⟦syn_fairI n, n⟧ = fairI n.
   Proof.
-    iSplit. iApply red_syn_fairI1. iApply red_syn_fairI2.
+    unfold syn_fairI, fairI. red_tl. rewrite red_syn_arrows_sats. ss.
   Qed.
 
 End OBLIG.
@@ -889,24 +839,11 @@ Section SIMI.
     fun ths im_src im_tgt st_src st_tgt =>
       (⟨ob_ths ths⟩ ∗ ⟨ob_st_src st_src⟩ ∗ ⟨ob_st_tgt st_tgt⟩ ∗ ⟨fair_src im_src⟩ ∗ ⟨fair_tgt im_tgt ths⟩ ∗ ⟨obl_edges_sat⟩ ∗ syn_arrows_sats n ∗ ⟨obl_arrows_auth n⟩)%F.
 
-  Lemma red_syn_default_I1 n ths ims imt sts stt :
-    ⟦syn_default_I n ths ims imt sts stt, n⟧ ⊢ default_I n ths ims imt sts stt.
-  Proof.
-    unfold syn_default_I, default_I. red_tl. iIntros "[A [B [C [D [E [F [G H]]]]]]]". iFrame.
-    iApply red_syn_arrows_sats. iFrame.
-  Qed.
-
-  Lemma red_syn_default_I2 n ths ims imt sts stt :
-    default_I n ths ims imt sts stt ⊢ ⟦syn_default_I n ths ims imt sts stt, n⟧.
-  Proof.
-    unfold syn_default_I, default_I. red_tl. iIntros "[A [B [C [D [E [F [G H]]]]]]]". iFrame.
-    iApply red_syn_arrows_sats. iFrame.
-  Qed.
-
   Lemma red_syn_default_I n ths ims imt sts stt :
-    ⟦syn_default_I n ths ims imt sts stt, n⟧ ⊣⊢ default_I n ths ims imt sts stt.
+    ⟦syn_default_I n ths ims imt sts stt, n⟧ = default_I n ths ims imt sts stt.
   Proof.
-    iSplit. iApply red_syn_default_I1. iApply red_syn_default_I2.
+    unfold syn_default_I, default_I. red_tl. ss.
+    rewrite red_syn_arrows_sats. auto.
   Qed.
 
   Definition syn_default_I_past tid n
@@ -916,26 +853,11 @@ Section SIMI.
           (⌜fair_update im_tgt0 im_tgt (prism_fmap inlp (tids_fmap tid ths))⌝)
             ∗ (syn_default_I n ths im_src im_tgt0 st_src st_tgt))%F.
 
-  Lemma red_syn_default_I_past1 tid n ths ims imt sts stt :
-    ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ ⊢ default_I_past tid n ths ims imt sts stt.
-  Proof.
-    unfold syn_default_I_past, default_I_past. red_tl.
-    iIntros "[% D]". red_tl. iDestruct "D" as "[% D]".
-    iExists _. rewrite red_syn_default_I. iFrame. auto.
-  Qed.
-
-  Lemma red_syn_default_I_past2 tid n ths ims imt sts stt :
-    default_I_past tid n ths ims imt sts stt ⊢ ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧.
-  Proof.
-    unfold syn_default_I_past, default_I_past. red_tl.
-    iIntros "[% [% D]]". iExists _. red_tl. iSplit. auto.
-    iApply red_syn_default_I. iFrame.
-  Qed.
-
   Lemma red_syn_default_I_past tid n ths ims imt sts stt :
-    ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ ⊣⊢ default_I_past tid n ths ims imt sts stt.
+    ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ = default_I_past tid n ths ims imt sts stt.
   Proof.
-    iSplit. iApply red_syn_default_I_past1. iApply red_syn_default_I_past2.
+    unfold syn_default_I_past, default_I_past. red_tl. ss.
+    f_equal. extensionalities im_tgt0. red_tl. rewrite red_syn_default_I. auto.
   Qed.
 
   Definition syn_wpsim n tid Es
@@ -959,82 +881,130 @@ Section SIMI.
                           Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
       )%F.
 
-  Lemma red_syn_wpsim1
-        n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
-    ⟦syn_wpsim n tid Es Q ps pt itr_src itr_tgt, n⟧
-      ⊢
-      wpsim n tid Es ibot7 ibot7 (fun rs rt => ⟦Q rs rt, n⟧) ps pt itr_src itr_tgt.
+  Lemma red_isim_eq_1 n :
+    (λ (ths0 : TIdSet.t) (ims : FairBeh.imap id_src_type owf) (imt : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (sts : st_src_type) (stt : st_tgt_type),
+      ⟦ (syn_default_I n ths0 ims imt sts stt ∗ ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%F,
+        n ⟧) =
+      (λ (ths0 : TIdSet.t) (im_src0 : FairBeh.imap id_src_type owf) (im_tgt0 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src0 : st_src_type) (st_tgt0 : st_tgt_type),
+        (default_I n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗ wsats n ∗ OwnEs ∅)%I).
   Proof.
-    iIntros "SWP". unfold syn_wpsim. red_tl.
-    iIntros (? ? ? ? ?) "[D (W1 & W2 & W3)]".
-    iSpecialize ("SWP" $! ths). red_tl.
-    iSpecialize ("SWP" $! im_src). red_tl.
-    iSpecialize ("SWP" $! im_tgt). red_tl.
-    iSpecialize ("SWP" $! st_src). red_tl.
-    iSpecialize ("SWP" $! st_tgt). red_tl.
-    iPoseProof ("SWP" with "[D W1 W2 W3]") as "SWP".
-    { ss. iFrame.
-      rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
-      iFrame.
-    }
-    unfold isim_simple.
-    iApply isim_mono_knowledge; cycle 2.
-    iApply isim_mono; cycle 1.
-    { iApply isim_equivI. 2: iFrame.
-      iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-      - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-      - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-    }
-    { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-      iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-    }
-    { iIntros. inv H. }
-    { iIntros. inv H. }
+    extensionalities ths0 ims imt sts stt. red_tl.
+    rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. ss.
   Qed.
 
-  Lemma red_syn_wpsim2
-        n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
-    wpsim n tid Es ibot7 ibot7 (fun rs rt => ⟦Q rs rt, n⟧) ps pt itr_src itr_tgt
-          ⊢
-          ⟦syn_wpsim n tid Es Q ps pt itr_src itr_tgt, n⟧.
+  Lemma red_isim_eq_2 tid n rr :
+  (λ (R_src R_tgt : Type) (QQ : R_src
+                                → R_tgt
+                                  → TIdSet.t
+                                    → FairBeh.imap id_src_type owf
+                                      → FairBeh.imap (sum_tid id_tgt_type) nat_wf
+                                        → st_src_type → st_tgt_type → iProp) 
+     (ps0 pt0 : bool) (itr_src0 : itree (threadE id_src_type st_src_type) R_src) 
+     (itr_tgt : itree (threadE id_tgt_type st_tgt_type) R_tgt) (ths0 : TIdSet.t) 
+     (im_src0 : FairBeh.imap id_src_type owf) (im_tgt0 : FairBeh.imap 
+                                                           (sum_tid id_tgt_type) nat_wf) 
+     (st_src0 : st_src_type) (st_tgt0 : st_tgt_type),
+     (∃ (Q0 : R_src → R_tgt → iProp) (_ : QQ =
+                                          (λ (r_src : R_src) (r_tgt : R_tgt) 
+                                             (ths1 : TIdSet.t) (im_src1 : 
+                                                                FairBeh.imap id_src_type owf) 
+                                             (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) 
+                                             (st_src1 : st_src_type) 
+                                             (st_tgt1 : st_tgt_type),
+                                             (default_I_past tid n ths1 im_src1 im_tgt1 st_src1
+                                                st_tgt1 ∗ wsat_auth n ∗ 
+                                              wsats n ∗ OwnEs ∅) ∗ Q0 r_src r_tgt)),
+        rr R_src R_tgt Q0 ps0 pt0 itr_src0 itr_tgt ∗
+        default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗ 
+        wsats n ∗ OwnEs ∅)%I) =
+  (λ (R_src R_tgt : Type) (QQ : R_src
+                                → R_tgt
+                                  → TIdSet.t
+                                    → FairBeh.imap id_src_type owf
+                                      → FairBeh.imap (sum_tid id_tgt_type) nat_wf
+                                        → st_src_type → st_tgt_type → iProp) 
+     (ps0 pt0 : bool) (itr_src0 : itree (threadE id_src_type st_src_type) R_src) 
+     (itr_tgt : itree (threadE id_tgt_type st_tgt_type) R_tgt) (ths0 : TIdSet.t) 
+     (im_src0 : FairBeh.imap id_src_type owf) (im_tgt0 : FairBeh.imap 
+                                                           (sum_tid id_tgt_type) nat_wf) 
+     (st_src0 : st_src_type) (st_tgt0 : st_tgt_type),
+     (∃ (Q0 : R_src → R_tgt → iProp) (_ : QQ =
+                                          (λ (r_src : R_src) (r_tgt : R_tgt) 
+                                             (ths1 : TIdSet.t) (im_src1 : 
+                                                                FairBeh.imap id_src_type owf) 
+                                             (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) 
+                                             (st_src1 : st_src_type) 
+                                             (st_tgt1 : st_tgt_type),
+                                             ⟦ (syn_default_I_past tid n ths1 im_src1 im_tgt1
+                                                  st_src1 st_tgt1 ∗ ⟨ syn_wsat_auth n ⟩ ∗
+                                                syn_wsats n ∗ syn_ownes n ∅)%F, n ⟧ ∗
+                                             Q0 r_src r_tgt)),
+        rr R_src R_tgt Q0 ps0 pt0 itr_src0 itr_tgt ∗
+        ⟦ (syn_default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ 
+                              ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%F, n ⟧)%I).
   Proof.
-    iIntros "SWP". unfold syn_wpsim. red_tl.
-    iIntros (ths). red_tl.
-    iIntros (im_src). red_tl.
-    iIntros (im_tgt). red_tl.
-    iIntros (st_src). red_tl.
-    iIntros (st_tgt). red_tl.
-    simpl in *. unfold wpsim. iSpecialize ("SWP" $! ths im_src im_tgt st_src st_tgt).
-    iIntros "[D (W1 & W2 & W3)]".
-    iPoseProof ("SWP" with "[D W1 W2 W3]") as "SWP".
-    { ss. iFrame.
-      rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
-      iFrame.
-    }
-    unfold isim_simple.
-    iPoseProof (isim_mono_knowledge with "SWP") as "SWP"; cycle 2.
-    iPoseProof (isim_mono with "SWP") as "SWP"; cycle 1.
-    { iPoseProof (isim_equivI with "SWP") as "SWP". 2: iFrame.
-      iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-      - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-      - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-    }
-    { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-      iModIntro.
-      rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-    }
-    { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?). iIntros "(% & % & %H & _)". inv H. }
-    { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?). iIntros "(% & % & %H & _)". inv H. }
+    extensionalities R_src R_tgt QQ ps0 pt0 itr_src0.
+    extensionalities itr_tgt0 ths0 im_src0 im_tgt0 st_src0 st_tgt0.
+    f_equal. extensionalities Q0. red_tl.
+    rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. ss.
+    replace
+      (λ (r_src : R_src) (r_tgt : R_tgt) (ths1 : TIdSet.t) (im_src1 : 
+                                                             FairBeh.imap id_src_type owf) 
+         (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src1 : st_src_type) 
+         (st_tgt1 : st_tgt_type),
+        (⟦ (syn_default_I_past tid n ths1 im_src1 im_tgt1 st_src1 st_tgt1 ∗
+                               ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%F, n ⟧ ∗ Q0 r_src r_tgt)%I)
+      with
+      (λ (r_src : R_src) (r_tgt : R_tgt) (ths1 : TIdSet.t) (im_src1 : 
+                                                             FairBeh.imap id_src_type owf) 
+         (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src1 : st_src_type) 
+         (st_tgt1 : st_tgt_type),
+        ((default_I_past tid n ths1 im_src1 im_tgt1 st_src1 st_tgt1 ∗ 
+                         wsat_auth n ∗ wsats n ∗ OwnEs ∅) ∗ Q0 r_src r_tgt)%I).
+    auto.
+    extensionalities r_src r_tgt ths1 im_src1 im_tgt1.
+    extensionalities st_src1 st_tgt1.
+    red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. ss.
+  Qed.
+
+  Lemma red_isim_eq_3 RS RT tid n Q :
+  (λ (r_src : RS) (r_tgt : RT) (ths0 : TIdSet.t) (ims : FairBeh.imap id_src_type owf) 
+     (imt : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (sts : st_src_type) 
+     (stt : st_tgt_type),
+     (⟦ (syn_default_I_past tid n ths0 ims imt sts stt ∗ ⟨ syn_wsat_auth n ⟩ ∗ 
+         syn_wsats n ∗ syn_ownes n ∅)%F, n ⟧ ∗ ⟦ Q r_src r_tgt, n ⟧)%I) =
+  (λ (r_src : RS) (r_tgt : RT) (ths0 : TIdSet.t) (im_src0 : FairBeh.imap id_src_type owf) 
+     (im_tgt0 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src0 : st_src_type) 
+     (st_tgt0 : st_tgt_type),
+     ((default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗ 
+                      wsats n ∗ OwnEs ∅) ∗ ⟦ Q r_src r_tgt, n ⟧)%I).
+  Proof.
+    extensionalities r_src r_tgt ths1 im_src1 im_tgt1.
+    extensionalities st_src1 st_tgt1.
+    red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. ss.
   Qed.
 
   Lemma red_syn_wpsim
         n tid Es RS RT (Q : RS -> RT -> Formula n) ps pt itr_src itr_tgt :
     ⟦syn_wpsim n tid Es Q ps pt itr_src itr_tgt, n⟧
-      ⊣⊢
+      =
       wpsim n tid Es ibot7 ibot7 (fun rs rt => ⟦Q rs rt, n⟧) ps pt itr_src itr_tgt.
   Proof.
-    iSplit. iApply red_syn_wpsim1. iApply red_syn_wpsim2.
+    unfold syn_wpsim, wpsim. red_tl. simpl.
+    f_equal. extensionalities ths. red_tl.
+    f_equal. extensionalities im_src. red_tl.
+    f_equal. extensionalities im_tgt. red_tl.
+    f_equal. extensionalities st_src. red_tl.
+    f_equal. extensionalities st_tgt. red_tl.
+    rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+    f_equal. unfold isim_simple.
+    f_equal; ss.
+    - apply red_isim_eq_1.
+    - unfold ibot7. symmetry. apply red_isim_eq_2.
+    - unfold ibot7. symmetry. apply red_isim_eq_2.
+    - apply red_isim_eq_3.
   Qed.
+
 
   (* State interp with lens. *)
   Definition syn_view_interp n {S V} (l : Lens.t S V) (SI : S -> Formula n) (VI : V -> Formula n) : Prop :=
@@ -1111,48 +1081,12 @@ Section TRIPLE.
           in
           Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)%F.
 
-  (* Let big_rel := *)
-  (*       ∀ R_src R_tgt : Type, *)
-  (*         (R_src → R_tgt *)
-  (*          → TIdSet.t *)
-  (*          → FairBeh.imap id_src_type owf *)
-  (*          → FairBeh.imap (sum_tid id_tgt_type) nat_wf *)
-  (*          → st_src_type → st_tgt_type → iProp) *)
-  (*         → bool *)
-  (*         → bool *)
-  (*         → itree (threadE id_src_type st_src_type) R_src *)
-  (*         → itree (threadE id_tgt_type st_tgt_type) R_tgt *)
-  (*         → TIdSet.t *)
-  (*         → FairBeh.imap id_src_type owf *)
-  (*         → FairBeh.imap (sum_tid id_tgt_type) nat_wf *)
-  (*         → st_src_type → st_tgt_type → iProp. *)
-
-  (* Let small_rel := *)
-  (*       ∀ R_src R_tgt : Type, *)
-  (*         (R_src → R_tgt → iProp) *)
-  (*         → bool *)
-  (*         → bool *)
-  (*         → itree (threadE id_src_type st_src_type) R_src *)
-  (*         → itree (threadE id_tgt_type st_tgt_type) R_tgt → iProp. *)
-
-  (* Let lift_rel tid x *)
-  (*     (rr: small_rel) *)
-  (*   : *)
-  (*   big_rel *)
-  (*     := *)
-  (*       fun R_src R_tgt QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt => *)
-  (*         (∃ (Q: R_src -> R_tgt -> iProp) *)
-  (*            (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => *)
-  (*                         (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q r_src r_tgt)), *)
-  (*             rr R_src R_tgt Q ps pt itr_src itr_tgt ∗ *)
-  (*                (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)))%I. *)
-
-  Lemma red_syn_triple_gen1
+  Lemma red_syn_triple_gen
         n tid P RV (Q : RV -> Formula n) Es1 Es2
         RS RT (TERM : RS -> RT -> Formula n) ps pt itr_src code (ktr_tgt : ktree tgtE RV RT)
     :
     ⟦syn_triple_gen n tid P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt, n⟧
-      ⊢
+    =
       (∀ rr gr,
           (⟦P, n⟧)
             -∗
@@ -1164,140 +1098,38 @@ Section TRIPLE.
             (wpsim n tid Es1 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (code >>= ktr_tgt))
       )%I.
   Proof.
-    iIntros "ST % %". iEval (unfold syn_triple_gen; red_tl; simpl) in "ST".
-    iEval (unfold triple_format) in "ST".
-    iSpecialize ("ST" $! rr gr).
-    (* iSpecialize ("ST" $! (lift_rel tid n rr) (lift_rel tid n gr)). *)
-    iIntros "PRE POST". iSpecialize ("ST" with "PRE").
-    iPoseProof ("ST" with "[POST]") as "ST".
-    - iIntros "% Q" (? ? ? ? ?) "WP". iEval (red_tl; simpl) in "WP".
-      iSpecialize ("POST" $! rv with "Q"). iEval (unfold wpsim) in "POST".
-      iSpecialize ("POST" $! ths im_src im_tgt st_src st_tgt).
-      iPoseProof ("POST" with "[WP]") as "SIM".
-      { iDestruct "WP" as "(A & B & C & D)".
-        iEval (rewrite red_syn_default_I_past) in "A".
-        iEval (rewrite red_syn_wsats) in "C". iEval (rewrite red_syn_ownes) in "D".
-        iSplitL "A". iFrame. iSplitL "B". iFrame. iSplitL "C"; iFrame.
-      }
-      iApply isim_mono_knowledge; cycle 2.
-      iApply isim_mono; cycle 1.
-      { iApply isim_equivI. 2: iFrame.
-        iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-      }
-      { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-        iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
-        iFrame.
-      }
-      { ss. iIntros (? ? ? ? ? ? ? ? ? ? ? ?) "(% & %EQ & A & B & C & D & E)".
-        iModIntro. iExists Q1.
-
-        TODO
-
-        iFrame. }
-      { unfold lift_rel. iIntros. iModIntro. iFrame. }
-    - iIntros (? ? ? ? ?) "WP".
-      iSpecialize ("ST" $! ths im_src im_tgt st_src st_tgt).
-      iPoseProof ("ST" with "[WP]") as "SIM".
-      { iDestruct "WP" as "(A & B & C & D)". red_tl. ss.
-        rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
-        iFrame.
-      }
-      iApply isim_mono_knowledge; cycle 2.
-      iApply isim_mono; cycle 1.
-      { iApply isim_equivI. 2: iFrame.
-        iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-      }
-      { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-        iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
-        iFrame.
-      }
-      { unfold lift_rel. iIntros. iModIntro. iFrame. }
-      { unfold lift_rel. iIntros. iModIntro. iFrame. }
+    unfold syn_triple_gen. red_tl. unfold triple_format.
+    apply f_equal. extensionalities rr. apply f_equal. extensionalities gr.
+    apply f_equal.
+    match goal with
+    | [ |- (?A -∗ _)%I = (?B -∗ _)%I] => replace A with B
+    end.
+    match goal with
+    | [ |- (_ -∗ ?C)%I = (_ -∗ ?D)%I] => replace C with D
+    end.
+    auto.
+    - unfold wpsim.
+      apply f_equal. extensionalities ths.
+      apply f_equal. extensionalities im_src. apply f_equal. extensionalities im_tgt.
+      apply f_equal. extensionalities st_src. apply f_equal. extensionalities st_tgt.
+      red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+      f_equal. f_equal.
+      + symmetry; apply red_isim_eq_1.
+      + apply red_isim_eq_2.
+      + apply red_isim_eq_2.
+      + symmetry. apply red_isim_eq_3.
+    - apply f_equal. extensionalities rv. apply f_equal.
+      unfold wpsim.
+      apply f_equal. extensionalities ths.
+      apply f_equal. extensionalities im_src. apply f_equal. extensionalities im_tgt.
+      apply f_equal. extensionalities st_src. apply f_equal. extensionalities st_tgt.
+      red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
+      f_equal. f_equal.
+      + symmetry; apply red_isim_eq_1.
+      + apply red_isim_eq_2.
+      + apply red_isim_eq_2.
+      + symmetry. apply red_isim_eq_3.
   Qed.
-
-  Let unlift_rel tid x
-      (r: big_rel)
-    :
-    small_rel
-      :=
-        fun R_src R_tgt Q ps pt itr_src itr_tgt =>
-          (∀ ths im_src im_tgt st_src st_tgt,
-              (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))
-                -∗
-                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q r_src r_tgt) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
-
-  Lemma red_syn_triple_gen2
-        n tid P RV (Q : RV -> Formula n) Es1 Es2
-        RS RT (TERM : RS -> RT -> Formula n) ps pt itr_src code (ktr_tgt : ktree tgtE RV RT)
-    :
-    (∀ rr gr,
-        (⟦P, n⟧)
-          -∗
-          (∀ (rv : RV),
-              (⟦Q rv, n⟧)
-                -∗
-                (wpsim n tid Es2 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (ktr_tgt rv)))
-          -∗
-          (wpsim n tid Es1 rr gr (fun rs rt => ⟦TERM rs rt, n⟧) ps pt itr_src (code >>= ktr_tgt))
-    )%I
-     ⊢
-     ⟦syn_triple_gen n tid P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt, n⟧.
-  Proof.
-    iIntros "ST". iEval (unfold syn_triple_gen; red_tl; simpl).
-    iEval (unfold triple_format). iIntros (? ?) "PRE POST". iIntros (? ? ? ? ?).
-    iSpecialize ("ST" $! (unlift_rel tid n rr) (unlift_rel tid n gr) with "PRE").
-    iPoseProof ("ST" with "[POST]") as "ST".
-    - iIntros "% Q" (? ? ? ? ?) "WP".
-      iSpecialize ("POST" $! rv with "Q").
-      iSpecialize ("POST" $! ths0 im_src0 im_tgt0 st_src0 st_tgt0).
-      iPoseProof ("POST" with "[WP]") as "SIM".
-      { iDestruct "WP" as "(A & B & C & D)". iEval red_tl.
-        rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-      }
-      iApply isim_mono_knowledge; cycle 2.
-      iApply isim_mono; cycle 1.
-      { iApply isim_equivI. 2: iFrame.
-        iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-      }
-      { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-        iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
-        iFrame.
-      }
-      { unfold unlift_rel. iIntros. iModIntro. iExists  iFrame. }
-      { unfold lift_rel. iIntros. iModIntro. iFrame. }
-    - iIntros (? ? ? ? ?) "WP".
-      iSpecialize ("ST" $! ths im_src im_tgt st_src st_tgt).
-      iPoseProof ("ST" with "[WP]") as "SIM".
-      { iDestruct "WP" as "(A & B & C & D)". red_tl. ss.
-        rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
-        iFrame.
-      }
-      iApply isim_mono_knowledge; cycle 2.
-      iApply isim_mono; cycle 1.
-      { iApply isim_equivI. 2: iFrame.
-        iIntros. red_tl. ss. iSplit; iIntros "(A & B & C & D)"; iFrame.
-        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-        - rewrite red_syn_default_I. rewrite red_syn_wsats. rewrite red_syn_ownes. iFrame.
-      }
-      { ss. iIntros (? ? ? ? ? ? ?). red_tl. iIntros "[(A & B & C & D) Q]". ss. iFrame.
-        iModIntro. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_syn_ownes.
-        iFrame.
-      }
-      { unfold lift_rel. iIntros. iModIntro. iFrame. }
-      { unfold lift_rel. iIntros. iModIntro. iFrame. }
-  Qed.
-  
-      
-
-    
-
-
 
 
 
