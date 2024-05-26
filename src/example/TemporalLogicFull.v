@@ -72,7 +72,8 @@ Section XAINTERP.
     | scm_points_to p v => points_to p v
     | scm_points_tos p vs => points_tos p vs
     | scm_memory_black m => memory_black m
-    | excls_auth => (∃ (X : gset nat), OwnM ((fun k => if (gset_elem_of_dec k X) then ε else (Some tt : Excl.t unit)) : ExclUnitsRA))
+    | excls_auth =>
+        (∃ (U : nat), OwnM ((fun k => if (lt_dec k U) then ε else (Some tt : Excl.t unit)) : ExclUnitsRA))
     | excls k => OwnM ((maps_to_res k (Some tt : Excl.t unit)) : ExclUnitsRA)
     | auex_b_Qp q => OwnM (Auth.black ((Some q) : Excl.t Qp) : AuthExclRA Qp)
     | auex_w_Qp q => OwnM (Auth.white ((Some q) : Excl.t Qp) : AuthExclRA Qp)

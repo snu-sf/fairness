@@ -1188,12 +1188,12 @@ End TRIPLE.
 
 (* Fancy update. *)
 Notation "'=|' x '|=(' A ')={' Es1 ',' Es2 '}=>' P" := (syn_fupd x A Es1 Es2 P) (at level 90) : formula_scope.
-Notation "'=|' x '|={' Es1 ',' Es2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es1, Es2}=> P)%F (at level 90) : formula_scope.
+Notation "'=|' x '|={' Es1 ',' Es2 '}=>' P" := (=|x|=( ⌜True⌝%F )={ Es1, Es2}=> P)%F (at level 90) : formula_scope.
 Notation "P =| x |=( A )={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|=(A)={Es1,Es2}=> Q)%F (at level 90) : formula_scope.
 Notation "P =| x |={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|={Es1,Es2}=> Q)%F (at level 90) : formula_scope.
 
 Notation "'=|' x '|=(' A ')={' Es '}=>' P" := (syn_fupd x A Es Es P) (at level 90) : formula_scope.
-Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%I )={ Es }=> P)%F (at level 90) : formula_scope.
+Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%F )={ Es }=> P)%F (at level 90) : formula_scope.
 Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%F (at level 90) : formula_scope.
 Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%F (at level 90) : formula_scope.
 

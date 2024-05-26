@@ -88,23 +88,66 @@ Liveness chain of a spinlock :
      ∨ dead[k]
     )%F.
 
-  Definition isSpinlock n (E : coPset) (r : nat) (x : SCMem.val) (P : Formula n) (k L l : nat)
+  (* Namespace for Spinlock invariants. *)
+  Definition N_Spinlock : namespace := (nroot .@ "Spinlock").
+
+  Definition isSpinlock n (r : nat) (x : SCMem.val) (P : Formula n) (k L l : nat)
     : Formula n :=
     (∃ (N : τ{namespace, n}),
-        ⌜(↑N ⊆ E)⌝ ∗ ◆[k, L] ∗ (⌜0 < l⌝) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
+        (⌜(↑N ⊆ (↑N_Spinlock : coPset))⌝)
+          ∗ ◆[k, L] ∗ (⌜0 < l⌝) ∗ syn_inv n N (spinlockInv n r x P k l))%F.
 
+  Lemma init_isSpinlock
+        n x P k L l (LT : 0 < l)
+        q Es
+    :
+    ⊢
+      ⟦(➢(excls_auth) ∗ (x ↦ 0) ∗ ➢(auex_b_Qp q) ∗ ➢(auex_w_Qp q) ∗ (⤉P)
+         ∗ ◆[k, L] ∗ ◇[k](l+1, 1))%F, 1+n⟧
+        -∗
+        ⟦( =|1+n|={Es}=> (➢(excls_auth) ∗ ∃ (r : τ{nat}), ⤉(isSpinlock n r x P k L l)))%F, 1+n⟧.
+  Proof.
+    red_tl. simpl. iIntros "([% EXA] & PT & BQ & WQ & P & #LO & PC)".
+    rewrite red_syn_fupd. red_tl.
+    assert (URA.updatable
+              ((λ k : nat, if lt_dec k U then ε else (Excl.just () : Excl.t unit)) : ExclUnitsRA)
+              (((λ k : nat, if lt_dec k (1+U) then ε else Excl.just ()) : ExclUnitsRA)
+                 ⋅
+                 (maps_to_res U (Some tt : Excl.t unit) : ExclUnitsRA))).
+    { unfold maps_to_res. setoid_rewrite unfold_pointwise_add. apply pointwise_updatable.
+      i. ii. unfold URA.wf in *. unseal "ra". ss.
+      des_ifs; try lia.
+      - rewrite URA.unit_idl. auto.
+      - rewrite URA.unit_idl. auto.
+      - rewrite URA.unit_id. auto.
+    }
+    iMod (OwnM_Upd H with "EXA") as "[EXA EX]". clear H.
+    iMod ((FUpd_alloc _ _ _ n (↑(N_Spinlock.@"a")) (spinlockInv n U x P k l))
+           with "[PT BQ WQ P PC EX]") as "#SINV".
+    auto.
+    { simpl. unfold spinlockInv. red_tl. iLeft. iExists q. red_tl.
+      iSplitL "BQ". iFrame. iLeft. iFrame.
+    }
+    iModIntro.
+    iSplitL "EXA".
+    { iExists (1+U). iFrame. }
+    iExists U. unfold isSpinlock. red_tl.
+    iExists (↑(N_Spinlock.@"a")). red_tl. iSplit.
+    { iPureIntro. apply nclose_subseteq. }
+    simpl. rewrite red_syn_inv. auto.
+  Qed.
 
   Lemma Spinlock_lock_spec
         tid n
-        (Es : coPsets) (E : coPset)
+        (Es : coPsets)
         (MASK_TOP : OwnEs_top Es)
         (MASK_STTGT : mask_has_st_tgt Es (1+n))
-        (MASK_DISJ : E ## ↑N_state_tgt)
+        (MASK_DISJ : ↑N_Spinlock ## (↑N_state_tgt : coPset))
     :
     ⊢ ∀ r x (P : Formula n) k L l q (ds : list (nat * nat * Formula n)),
         [@ tid, n, Es @]
           ⧼⟦(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
-                ∗ (⤉ isSpinlock n E r x P k L l)
+                ∗ (⤉ isSpinlock n r x P k L l)
                 ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2))%F
               : Formula (1+n)), 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
@@ -234,10 +277,10 @@ Liveness chain of a spinlock :
 
   Lemma Spinlock_lock_syn_spec
         tid n
-        (Es : coPsets) (E : coPset)
+        (Es : coPsets)
         (MASK_TOP : OwnEs_top Es)
         (MASK_STTGT : mask_has_st_tgt Es (1+n))
-        (MASK_DISJ : E ## ↑N_state_tgt)
+        (MASK_DISJ : ↑N_Spinlock ## (↑N_state_tgt : coPset))
     :
     ⊢ ⟦(∀ (r : τ{nat})
           (x : τ{SCMem.val})
@@ -247,7 +290,7 @@ Liveness chain of a spinlock :
           (ds : τ{ listT (nat * nat * Φ)%ftype, 1+n}),
         [@ tid, n, Es @]
           ⧼(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
-                ∗ (⤉ isSpinlock n E r x P k L l)
+                ∗ (⤉ isSpinlock n r x P k L l)
                       ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2)) : Formula (1+n))⧽
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
             ⧼rv, (∃ (u : τ{nat, 1+n}),
