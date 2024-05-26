@@ -1500,8 +1500,9 @@ Section TRIPLES.
   (** Formats for triples-like specs. *)
 
   Definition triple_gen
-             n tid (P : iProp) {RV} (Q : RV -> iProp) (Es1 Es2 : coPsets)
-             {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Vars n)
+             n m
+             tid (P : iProp) {RV} (Q : RV -> iProp) (Es1 Es2 : coPsets)
+             {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Vars m)
              ps pt
              (itr_src : itree srcE R_src) (code : itree tgtE RV) (ktr_tgt : ktree tgtE RV R_tgt)
     : iProp
@@ -1510,9 +1511,9 @@ Section TRIPLES.
         (P)
           -∗
           (∀ (rv : RV),
-              (Q rv) -∗ wpsim n tid Es2 rr gr (fun rs rt => prop _ (TERM rs rt)) ps true itr_src (ktr_tgt rv))
+              (Q rv) -∗ wpsim n tid Es2 rr gr (fun rs rt => prop m (TERM rs rt)) ps true itr_src (ktr_tgt rv))
           -∗
-          wpsim n tid Es1 rr gr (fun rs rt => prop _ (TERM rs rt)) ps pt itr_src (code >>= ktr_tgt))%I.
+          wpsim n tid Es1 rr gr (fun rs rt => prop m (TERM rs rt)) ps pt itr_src (code >>= ktr_tgt))%I.
 
   Definition atomic_triple
              tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
@@ -1521,7 +1522,7 @@ Section TRIPLES.
     (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt
        (itr_src : itree srcE R_src)
        (ktr_tgt : RV -> itree tgtE R_tgt),
-        triple_gen tid P Q Es Es TERM ps pt itr_src code ktr_tgt)%I.
+        triple_gen (S n) (m:=n) tid P Q Es Es TERM ps pt itr_src code ktr_tgt)%I.
   (* (P) *)
   (*   -∗ *)
   (*   (∀ (rv : RV), *)
@@ -1536,7 +1537,7 @@ Section TRIPLES.
     (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt
        (itr_src : itree srcE R_src)
        (ktr_tgt : RV -> itree tgtE R_tgt),
-        triple_gen tid P Q Es ∅ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
+        triple_gen (S n) (m:=n) tid P Q Es ∅ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
       (* (P) *)
       (*   -∗ *)
       (*   (∀ (rv : RV), *)

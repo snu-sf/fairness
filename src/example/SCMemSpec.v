@@ -22,7 +22,7 @@ Section SPEC.
   Let emb_mem := plmap p_mem l_mem.
 
   Lemma SCMem_alloc_fun_spec
-        tid x y (LT : x < y)
+        tid x y (LT : x < S y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         sz
@@ -57,12 +57,12 @@ Section SPEC.
         sz
     :
     ⊢ ⟦([@ tid, 1+n, Es @]
-          {(syn_tgt_interp_as n l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F))}
+          {⤉ (syn_tgt_interp_as n l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F))}
           (map_event emb_mem (SCMem.alloc_fun sz))
           {l, ➢(scm_points_tos l (repeat (SCMem.val_nat 0) sz))} : Formula (2+n))%F, 2+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
-    iStartTriple. iIntros "P Q". rewrite red_syn_tgt_interp_as.
+    iStartTriple. iIntros "P Q". iEval (red_tl; rewrite red_syn_tgt_interp_as) in "P".
     iApply (SCMem_alloc_fun_spec with "P [Q]"). auto. auto.
     iIntros "% PTS". iSpecialize ("Q" $! rv with "PTS"). iFrame.
   Qed.
@@ -102,7 +102,7 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_free_fun_spec
-        tid x y (LT : x < y)
+        tid x y (LT : x < S y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         p v
@@ -133,13 +133,14 @@ Section SPEC.
         p v
     :
     ⊢ ⟦([@ tid, 1+n, Es @]
-          {(syn_tgt_interp_as n l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (p ↦ v)}
+          {(⤉(syn_tgt_interp_as n l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)))
+             ∗ (p ↦ v)}
           (map_event emb_mem (SCMem.free_fun p))
           {u, emp})%F, 2+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_free_fun_spec with "[P] Q"). all: eauto.
+    iApply (SCMem_free_fun_spec with "[P] Q"). 2: eauto. auto.
     red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
@@ -173,7 +174,7 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_store_fun_spec
-        tid x y (LT : x < y)
+        tid x y (LT : x < S y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l v v0
@@ -203,13 +204,14 @@ Section SPEC.
         l v v0
     :
     ⊢ ⟦([@ tid, 1+n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (l ↦ v0)}
+          {(⤉ syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F))
+             ∗ (l ↦ v0)}
           (map_event emb_mem (SCMem.store_fun (l, v)))
           {u, l ↦ v })%F, 2+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_store_fun_spec with "[P] Q"). all: eauto.
+    iApply (SCMem_store_fun_spec with "[P] Q"). 2: eauto. auto.
     red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
@@ -243,7 +245,7 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_load_fun_spec
-        tid x y (LT : x < y)
+        tid x y (LT : x < S y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l v
@@ -271,13 +273,13 @@ Section SPEC.
         l v
     :
     ⊢ ⟦([@ tid, 1+n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (l ↦ v)}
+          {(⤉syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (l ↦ v)}
           (map_event emb_mem (SCMem.load_fun l))
           {rv, ⌜rv = v⌝ ∗ (l ↦ v)})%F, 2+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_load_fun_spec with "[P] Q"). all: eauto.
+    iApply (SCMem_load_fun_spec with "[P] Q"). 2: eauto. auto.
     red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
@@ -311,7 +313,7 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_faa_fun_spec
-        tid x y (LT : x < y)
+        tid x y (LT : x < S y)
         Es
         (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
         l add v
@@ -341,13 +343,13 @@ Section SPEC.
         l add v
     :
     ⊢ ⟦([@ tid, 1+n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (l ↦ v)}
+          {(⤉syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F)) ∗ (l ↦ v)}
           (map_event emb_mem (SCMem.faa_fun (l, add)))
           {v, l ↦ (SCMem.val_add v add)})%F, 2+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_faa_fun_spec with "[P] Q"). all: eauto.
+    iApply (SCMem_faa_fun_spec with "[P] Q"). 2: eauto. auto.
     red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
@@ -381,7 +383,7 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_cas_fun_spec
-        tid x y (LT : x < y)
+        tid x y (LT : x < S y)
         Es
         (IN: mask_has_st_tgt Es x)
         l old new v
@@ -423,14 +425,14 @@ Section SPEC.
         l old new v
     :
     ⊢ ⟦([@ tid, 1+n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => ((➢(scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝ : Formula n)%F) ∗ (l ↦ v))}
+          {(⤉ syn_tgt_interp_as _ l_mem (fun m => ((➢(scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝ : Formula n)%F) ∗ (l ↦ v))}
           (map_event emb_mem (SCMem.cas_fun (l, old, new)))
-          {b, ∃ (u : τ{SCMem.val, 1+n}),
+          {b, ∃ (u : τ{SCMem.val, 2+n}),
               ⌜(if (SCMem.val_eq_dec v old) then (b = true /\ u = new) else (b = false /\ u = v))⌝ ∗ (l ↦ u)})%F, 2+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_cas_fun_spec with "[P] Q"). all: eauto.
+    iApply (SCMem_cas_fun_spec with "[P] Q"). 2: eauto. auto.
     red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
@@ -481,7 +483,7 @@ Section SPEC.
   (* Qed. *)
 
   Lemma SCMem_compare_fun_spec
-        tid x y (LT : x < y)
+        tid x y (LT : x < S y)
         Es
         (IN: mask_has_st_tgt Es x)
         v1 v2
@@ -517,14 +519,14 @@ Section SPEC.
         v1 v2
     :
     ⊢ ⟦([@ tid, 1+n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v1 v2)⌝ : Formula n)%F))}
+          {(⤉ syn_tgt_interp_as _ l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v1 v2)⌝ : Formula n)%F))}
           (map_event emb_mem (SCMem.compare_fun (v1, v2)))
           {b, ⌜(v1 = v2 -> b = true) /\ (v1 <> v2 -> b = false)⌝})%F, 2+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_compare_fun_spec with "[P] Q"). all: eauto.
-    rewrite red_syn_tgt_interp_as. iFrame.
+    iApply (SCMem_compare_fun_spec with "[P] Q"). 2: eauto. auto.
+    red_tl. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
   (* Lemma compare_fun_spec *)

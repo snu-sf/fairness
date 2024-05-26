@@ -78,72 +78,52 @@ Liveness chain of a spinlock :
    *)
 
   (** Invariants. *)
-  Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula (1+n)) (k l : nat) : Formula (1+n) :=
-    ((∃ (q : τ{Qp, 1+n}),
+  Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat)
+    : Formula n :=
+    ((∃ (q : τ{Qp, n}),
          (➢(auex_b_Qp q))
            ∗
            (((x ↦ 0) ∗ ◇[k](l + 1, 1) ∗ ➢(excls r) ∗ ➢(auex_w_Qp q) ∗ P)
-            ∨ ((x ↦ 1) ∗ live[k] q ∗ ∃ (u : τ{nat, 1+n}), live[u] (1/2) ∗ (-[u](0)-◇ emp) ∗ (u -(0)-◇ k))))
+            ∨ ((x ↦ 1) ∗ live[k] q ∗ ∃ (u : τ{nat, n}), live[u] (1/2) ∗ (-[u](0)-◇ emp) ∗ (u -(0)-◇ k))))
      ∨ dead[k]
     )%F.
 
-  Definition isSpinlock n (E : coPset) (r : nat) (x : SCMem.val) (P : Formula (1+n)) (k L l : nat) : Formula (1+n) :=
-    (∃ (N : τ{namespace, 1+n}),
+  Definition isSpinlock n (E : coPset) (r : nat) (x : SCMem.val) (P : Formula n) (k L l : nat)
+    : Formula n :=
+    (∃ (N : τ{namespace, n}),
         ⌜(↑N ⊆ E)⌝ ∗ ◆[k, L] ∗ (⌜0 < l⌝) ∗ syn_inv _ N (spinlockInv n r x P k l))%F.
 
 
-  (* Lemma Spinlock_lock_spec *)
-  (*       tid n *)
-  (*       (Es : coPsets) (E : coPset) *)
-  (*       (MASK_TOP : OwnEs_top Es) *)
-  (*       (MASK_STTGT : mask_has_st_tgt Es n) *)
-  (*       (MASK_DISJ : E ## ↑N_state_tgt) *)
-  (*   : *)
-  (*   ⊢ *)
-  (*     ∀ r x (P : Formula (1+n)) k L l q (ds : list (nat * nat * Formula (1+n))), *)
-  (*       [@ tid, (2+n), Es @] *)
-  (*         ⧼(⟦(⤉((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m)))) *)
-  (*               ∗ (isSpinlock n E r x P k L l) *)
-  (*                     ∗ live[k] q ∗ Duty(tid) ds ∗ ◇{List.map fst ds}(L, 2)))%F, 2+n⟧)⧽ *)
-  (*           (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x)) *)
-  (*           ⧼rv, (⟦(⤉(∃ (u : τ{nat, 1+n}), *)
-  (*                      ➢(excls r) ∗ P ∗ ➢(auex_w_Qp q) ∗ *)
-  (*                       Duty(tid) ((u, 0, emp) :: ds) ∗ ◇[u](l, 1)))%F , 2+n⟧)⧽ *)
-  (* . *)
-  Lemma Spinlock_lock_syn_spec
+  Lemma Spinlock_lock_spec
         tid n
         (Es : coPsets) (E : coPset)
         (MASK_TOP : OwnEs_top Es)
-        (MASK_STTGT : mask_has_st_tgt Es n)
+        (MASK_STTGT : mask_has_st_tgt Es (1+n))
         (MASK_DISJ : E ## ↑N_state_tgt)
     :
-    ⊢ ⟦(∀ (r : τ{nat})
-          (x : τ{SCMem.val})
-          (P : τ{Φ, 2+n})
-          (k L l : τ{nat})
-          (q : τ{Qp})
-          (ds : τ{ listT (nat * nat * Φ)%ftype, 2+n}),
-        [@ tid, (1+n), Es @]
-          ⧼(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
-                ∗ (isSpinlock n E r x P k L l)
-                      ∗ live[k] q ∗ Duty(tid) ds ∗ ◇{List.map fst ds}(L, 2)) : Formula (1+n))⧽
+    ⊢ ∀ r x (P : Formula n) k L l q (ds : list (nat * nat * Formula n)),
+        [@ tid, n, Es @]
+          ⧼⟦(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
+                ∗ (⤉ isSpinlock n E r x P k L l)
+                ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2))%F
+              : Formula (1+n)), 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
-            ⧼rv, (∃ (u : τ{nat, 1+n}),
-                       ➢(excls r) ∗ (P) ∗ ➢(auex_w_Qp q) ∗
-                        Duty(tid) ((u, 0, emp) :: ds) ∗ ◇[u](l, 1))⧽)%F, 2+n⟧
+            ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
+                       ➢(excls r) ∗ (⤉ P) ∗ ➢(auex_w_Qp q) ∗
+                        (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ ◇[u](l, 1))%F, 1+n⟧⧽
   .
   Proof.
-    simpl.
-    red_tl. iIntros (r).
-    red_tl. iIntros (x).
-    red_tl. iIntros (P).
-    red_tl. iIntros (k).
-    red_tl. iIntros (L).
-    red_tl. iIntros (l).
-    red_tl. iIntros (q).
-    red_tl. iIntros (ds).
-    rewrite red_syn_non_atomic_triple. simpl in *.
-    (* iIntros (? ? ? ? ? ? ? ?). *)
+    (* simpl. *)
+    (* red_tl. iIntros (r). *)
+    (* red_tl. iIntros (x). *)
+    (* red_tl. iIntros (P). *)
+    (* red_tl. iIntros (k). *)
+    (* red_tl. iIntros (L). *)
+    (* red_tl. iIntros (l). *)
+    (* red_tl. iIntros (q). *)
+    (* red_tl. iIntros (ds). *)
+    iIntros (? ? ? ? ? ? ? ?).
+    (* rewrite red_syn_non_atomic_triple. simpl in *. *)
     iStartTriple. iIntros "PRE POST".
     unfold Spinlock.lock.
     (* Preprocess for induction. *)
@@ -164,9 +144,6 @@ Liveness chain of a spinlock :
     iEval (rewrite unfold_iter_eq). rred2r.
     iApply (wpsim_yieldR with "[DUTY PCS]").
     2:{ iSplitL "DUTY". iApply "DUTY". iFrame. }
-
-    TODO
-
     auto. Unshelve. 2: auto.
     iIntros "DUTY FC". iModIntro. rred2r.
     (* Case analysis on lock variable. *)
@@ -177,7 +154,7 @@ Liveness chain of a spinlock :
 
     (** Case 1. Acquire the lock. *)
     { iClear "IH". iDestruct "ACQ" as "(PT & PCk & EXCL & qISW & PROP)".
-      iApply (SCMem_cas_fun_spec _ _ _ (S n) with "[PT]"). auto.
+      iApply (SCMem_cas_fun_spec _ _ _ n with "[PT]"). auto.
       { unfold mask_has_st_tgt. rewrite lookup_insert. clear - MASK_DISJ IN. set_solver. }
       { iFrame. iApply tgt_interp_as_equiv. 2: iApply "STINTP".
         iIntros. iEval (simpl; red_tl; simpl). iSplit; iIntros "P".
@@ -253,6 +230,42 @@ Liveness chain of a spinlock :
       iApply wpsim_stutter_mon. i; eauto. instantiate (1:=pt). i; auto.
       iApply ("IH" with "LIVE DUTY PCS POST").
     }
+  Qed.
+
+  Lemma Spinlock_lock_syn_spec
+        tid n
+        (Es : coPsets) (E : coPset)
+        (MASK_TOP : OwnEs_top Es)
+        (MASK_STTGT : mask_has_st_tgt Es (1+n))
+        (MASK_DISJ : E ## ↑N_state_tgt)
+    :
+    ⊢ ⟦(∀ (r : τ{nat})
+          (x : τ{SCMem.val})
+          (P : τ{Φ, 1+n})
+          (k L l : τ{nat})
+          (q : τ{Qp})
+          (ds : τ{ listT (nat * nat * Φ)%ftype, 1+n}),
+        [@ tid, n, Es @]
+          ⧼(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
+                ∗ (⤉ isSpinlock n E r x P k L l)
+                      ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2)) : Formula (1+n))⧽
+            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+            ⧼rv, (∃ (u : τ{nat, 1+n}),
+                       ➢(excls r) ∗ (⤉ P) ∗ ➢(auex_w_Qp q) ∗
+                        (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ ◇[u](l, 1))⧽)%F, 1+n⟧
+  .
+  Proof.
+    simpl.
+    red_tl. iIntros (r).
+    red_tl. iIntros (x).
+    red_tl. iIntros (P).
+    red_tl. iIntros (k).
+    red_tl. iIntros (L).
+    red_tl. iIntros (l).
+    red_tl. iIntros (q).
+    red_tl. iIntros (ds).
+    rewrite red_syn_non_atomic_triple. simpl in *.
+    iApply Spinlock_lock_spec. all: auto.
   Qed.
 
 
