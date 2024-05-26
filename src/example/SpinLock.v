@@ -97,6 +97,33 @@ Liveness chain of a spinlock :
         (⌜(↑N ⊆ (↑N_Spinlock : coPset))⌝)
           ∗ ◆[k, L] ∗ (⌜0 < l⌝) ∗ syn_inv n N (spinlockInv n r x P k l))%F.
 
+  Definition mask_has_Spinlock (Es : coPsets) n :=
+    (match Es !! n with Some E => (↑N_Spinlock) ⊆ E | None => True end).
+
+  Lemma make_isSpinlock
+        n r x P k L l (LT : 0 < l)
+        q Es
+    :
+    ⊢
+      ⟦(➢(excls r) ∗ (x ↦ 0) ∗ ➢(auex_b_Qp q) ∗ ➢(auex_w_Qp q) ∗ (⤉P)
+         ∗ ◆[k, L] ∗ ◇[k](l+1, 1))%F, 1+n⟧
+        -∗
+        ⟦( =|1+n|={Es}=> (⤉(isSpinlock n r x P k L l)))%F, 1+n⟧.
+  Proof.
+    red_tl. simpl. iIntros "(EX & PT & BQ & WQ & P & #LO & PC)".
+    rewrite red_syn_fupd. red_tl.
+    iMod ((FUpd_alloc _ _ _ n (↑(N_Spinlock.@"a")) (spinlockInv n r x P k l))
+           with "[PT BQ WQ P PC EX]") as "#SINV".
+    auto.
+    { simpl. unfold spinlockInv. red_tl. iLeft. iExists q. red_tl.
+      iSplitL "BQ". iFrame. iLeft. iFrame.
+    }
+    iModIntro. unfold isSpinlock. red_tl.
+    iExists (↑(N_Spinlock.@"a")). red_tl. iSplit.
+    { iPureIntro. apply nclose_subseteq. }
+    simpl. rewrite red_syn_inv. auto.
+  Qed.
+
   Lemma init_isSpinlock
         n x P k L l (LT : 0 < l)
         q Es
@@ -122,19 +149,45 @@ Liveness chain of a spinlock :
       - rewrite URA.unit_id. auto.
     }
     iMod (OwnM_Upd H with "EXA") as "[EXA EX]". clear H.
-    iMod ((FUpd_alloc _ _ _ n (↑(N_Spinlock.@"a")) (spinlockInv n U x P k l))
-           with "[PT BQ WQ P PC EX]") as "#SINV".
-    auto.
-    { simpl. unfold spinlockInv. red_tl. iLeft. iExists q. red_tl.
-      iSplitL "BQ". iFrame. iLeft. iFrame.
-    }
-    iModIntro.
-    iSplitL "EXA".
+    iPoseProof (make_isSpinlock n U x P k L l with "[PT BQ WQ P PC EX]") as "ISL".
+    apply LT.
+    { red_tl. iFrame. iApply "LO". }
+    iEval (rewrite red_syn_fupd) in "ISL". iMod "ISL".
+    iModIntro. iSplitL "EXA".
     { iExists (1+U). iFrame. }
-    iExists U. unfold isSpinlock. red_tl.
-    iExists (↑(N_Spinlock.@"a")). red_tl. iSplit.
-    { iPureIntro. apply nclose_subseteq. }
-    simpl. rewrite red_syn_inv. auto.
+    iExists U. iFrame.
+  Qed.
+
+  Lemma update_isSpinlock
+        n r x P k L l
+        Es
+        (MASK_SL : mask_has_Spinlock Es n)
+        k' L' l' (LT' : 0 < l')
+    :
+    ⊢⟦((⤉(isSpinlock n r x P k L l)) ∗ live[k] 1 ∗ ◆[k', L'] ∗ ◇[k'](l' + 1, 1))%F, 1+n⟧
+       -∗
+       ⟦( =|1+n|={Es}=>(∃ (k' L' l' : τ{nat}), ⤉(isSpinlock n r x P k' L' l')))%F, 1+n⟧.
+  Proof.
+    red_tl. simpl. iIntros "(ISL & LIVE & LO' & PC')". rewrite red_syn_fupd. red_tl.
+    iEval (unfold isSpinlock) in "ISL". red_tl.
+    iDestruct "ISL" as "[%N ISL]". iEval red_tl in "ISL".
+    iDestruct "ISL" as "(%IN & _ & %LT & SI)". rewrite red_syn_inv.
+    iInv "SI" as "SI" "K".
+    { unfold mask_has_Spinlock in MASK_SL. des_ifs. set_solver. }
+    simpl. iEval (unfold spinlockInv; red_tl) in "SI".
+    iDestruct "SI" as "[[%q SI] | DEAD]".
+    2:{ iExFalso. simpl. iPoseProof (not_dead with "[LIVE DEAD]") as "F". iFrame. auto. }
+    red_tl. simpl. iDestruct "SI" as "[BQ [(PT & _ & EX & WQ & P) | (_ & LIVE2 & _)]]".
+    2:{ iPoseProof (live_merge with "[LIVE2 LIVE]") as "LIVE". iFrame.
+        iPoseProof (live_wf with "LIVE") as "%F". exfalso. eapply Qp_add_lt_one. eauto.
+    }
+    iMod (kill with "LIVE") as "DEAD". iMod ("K" with "[DEAD]") as "_".
+    { unfold spinlockInv. red_tl. iRight. iFrame. }
+    iPoseProof (make_isSpinlock n r x P k' L' l' LT' with "[EX PT BQ WQ P LO' PC']") as "ISL".
+    { red_tl. iFrame. }
+    rewrite red_syn_fupd. iMod "ISL".
+    iModIntro. iExists k'. red_tl. iExists L'. red_tl. iExists l'. red_tl.
+    iFrame.
   Qed.
 
   Lemma Spinlock_lock_spec
