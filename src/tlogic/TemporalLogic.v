@@ -199,29 +199,30 @@ Module Atom.
     Inductive t {form : Type} : Type :=
     (** Simple atoms. *)
     | aux (s : aAtom)
-    (** Atoms to express the invariant system. *)
+    (** Atoms for the invariant system. *)
     | owni (i : positive) (p : @Syntax.t _ (@Typ) (@t form) form)
     | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ (@Typ) (@t form) form)))
     | ownd (x : index) (D : gset positive)
     | owne (x : index) (E : coPset)
     | syn_wsat_auth (x : index)
     | syn_owne_auth (Es : coPsets)
-    (** Atoms to express state invariants of wpsim. *)
+    (** Atoms for state invariants of wpsim. *)
     | ob_ths (ths : TIdSet.t)
+    | ow_ths (tid : thread_id)
     | ob_st_src (st_src : state_src)
     | ow_st_src (st_src : state_src)
     | ob_st_tgt (st_tgt : state_tgt)
     | ow_st_tgt (st_tgt : state_tgt)
     | fair_src (im_src : @FairBeh.imap ident_src owf)
     | fair_tgt (im_tgt : @FairBeh.imap (nat + ident_tgt) nat_wf) (ths : TIdSet.t)
-    (** Atoms to express liveness logic invariants. *)
+    (** Atoms for liveness logic invariants. *)
     | obl_edges_sat
     | obl_arrows_auth (x : index)
     | obl_arrows_regions_black (l : list ((nat + ident_tgt) * nat * Ord.t * Qp * nat * (@Syntax.t _ (@Typ) (@t form) form)))
     | obl_arrow_done1 (x : nat)
     | obl_arrow_done2 (k : nat)
     | obl_arrow_pend (i : nat + ident_tgt) (k : nat) (c : Ord.t) (q : Qp)
-    (** Atoms to express liveness logic definitions. *)
+    (** Atoms for liveness logic definitions. *)
     | obl_lo (k i : nat)
     | obl_pc (k l a : nat)
     | obl_live (k : nat) (q : Qp)
@@ -317,16 +318,18 @@ Section ATOMINTERP.
     match a with
     (** Simple atoms. *)
     | aux s => aaintp s
-    (** Atom to express the invariant system. *)
+    (** Atom for the invariant system. *)
     | owni i p => @OwnI Σ Formula _ n i p
     | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps)
     | ownd x D => OwnD x D
     | owne x E => OwnE x E
     | syn_wsat_auth x => wsat_auth x
     | syn_owne_auth Es => OwnE_auth Es
-    (** Atoms to express state invariants of wpsim. *)
+    (** Atoms for state invariants of wpsim. *)
     | ob_ths ths =>
         OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA)
+    | ow_ths tid =>
+        own_thread tid
     | ob_st_src st_src =>
         OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option st_src_type)): stateSrcRA _)
     | ow_st_src st_src =>
@@ -339,7 +342,7 @@ Section ATOMINTERP.
         FairRA.sat_source im_src
     | fair_tgt im_tgt ths =>
         FairRA.sat_target im_tgt ths
-    (** Atoms to express liveness logic. *)
+    (** Atoms for liveness logic. *)
     | obl_edges_sat => ObligationRA.edges_sat
     | obl_arrows_auth x => ObligationRA.arrows_auth x
     | obl_arrows_regions_black l =>
@@ -350,7 +353,7 @@ Section ATOMINTERP.
         ObligationRA.shot k
     | obl_arrow_pend i k c q =>
         (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
-    (** Atoms to express liveness logic definitions. *)
+    (** Atoms for liveness logic definitions. *)
     | obl_lo k l => liveness_obligation k l
     | obl_pc k l a => progress_credit k l a
     | obl_live k q => live k q

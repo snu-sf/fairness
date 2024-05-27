@@ -3,7 +3,7 @@ From Fairness Require Import PCM IProp IPM IndexedInvariants.
 From Fairness Require Import ISim SimDefaultRA LiveObligations SimWeakest LogicSyntaxHOAS.
 From Fairness Require Export TemporalLogic.
 From stdpp Require Export coPset gmap namespaces.
-From Fairness Require Import SCMem.
+From Fairness Require Export AuthExclAnysRA SCMem.
 Require Import Program.
 
 (** User-defined auxiliary atoms. *)
@@ -28,6 +28,10 @@ Section XADEF.
     (* Auth Excl Qp *)
     | auex_b_Qp (q : Qp)
     | auex_w_Qp (q : Qp)
+    (* Map from nat to Auth Excl Any. *)
+    | auexa
+    | auexa_b (r : nat) {T : Type} (t : T)
+    | auexa_w (r : nat) {T : Type} (t : T)
   .
 
   Global Instance XAtom : AuxAtom := { aAtom := xatom }.
@@ -39,11 +43,13 @@ Section AUXRAS.
   Class AUXRAs (Σ : GRA.t) :=
     {
       (* SCMem related RAs *)
-      _MEMRA: @GRA.inG memRA Σ;
+      _MEMRA : @GRA.inG memRA Σ;
       (* Map from nat to Excl unit RA. *)
-      _EXCLUNITS: @GRA.inG ExclUnitsRA Σ;
+      _EXCLUNITS : @GRA.inG ExclUnitsRA Σ;
       (* Auth Excl Qp RA. *)
-      _AUEX_QP: @GRA.inG (AuthExclRA Qp) Σ;
+      _AUEX_QP : @GRA.inG (AuthExclRA Qp) Σ;
+      (* Map from nat to Auth Excl Any. *)
+      _AuthExclAnys : @GRA.inG AuthExclAnysRA Σ;
     }.
 
 End AUXRAS.
@@ -54,11 +60,13 @@ Section EXPORT.
   Context {AUXRAS : AUXRAs Σ}.
 
   (* SCMem related RAs *)
-  #[export] Instance MEMRA: @GRA.inG memRA Σ:= _MEMRA.
+  #[export] Instance MEMRA : @GRA.inG memRA Σ:= _MEMRA.
   (* Map from nat to Excl unit RA. *)
-  #[export] Instance EXCLUNITS: @GRA.inG ExclUnitsRA Σ:= _EXCLUNITS.
+  #[export] Instance EXCLUNITS : @GRA.inG ExclUnitsRA Σ:= _EXCLUNITS.
   (* Auth Excl Qp RA. *)
-  #[export] Instance AUEX_QP: @GRA.inG (AuthExclRA Qp) Σ:= _AUEX_QP.
+  #[export] Instance AUEX_QP : @GRA.inG (AuthExclRA Qp) Σ:= _AUEX_QP.
+  (* Map from nat to Auth Excl Any. *)
+  #[export] Instance AuthExclAnys : @GRA.inG AuthExclAnysRA Σ := _AuthExclAnys.
 
 End EXPORT.
 
@@ -77,6 +85,10 @@ Section XAINTERP.
     | excls k => OwnM ((maps_to_res k (Some tt : Excl.t unit)) : ExclUnitsRA)
     | auex_b_Qp q => OwnM (Auth.black ((Some q) : Excl.t Qp) : AuthExclRA Qp)
     | auex_w_Qp q => OwnM (Auth.white ((Some q) : Excl.t Qp) : AuthExclRA Qp)
+    (* Map from nat to Auth Excl Any. *)
+    | auexa => AuExAny
+    | auexa_b r t => AuExAnyB r t
+    | auexa_w r t => AuExAnyW r t
     end.
 
   Global Instance XAInterp : AAInterp := { aaintp := xatom_sem }.

@@ -78,14 +78,13 @@ Liveness chain of a spinlock :
    *)
 
   (** Invariants. *)
-  (* TODO: fix: remove excls, add auex_b_nat, auex_w_nat for u. *)
   Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat)
     : Formula n :=
-    ((∃ (q : τ{Qp, n}),
-         (➢(auex_b_Qp q))
-           ∗
-           (((x ↦ 0) ∗ ◇[k](l + 1, 1) ∗ ➢(excls r) ∗ ➢(auex_w_Qp q) ∗ P)
-            ∨ ((x ↦ 1) ∗ live[k] q ∗ ∃ (u : τ{nat, n}), live[u] (1/2) ∗ (-[u](0)-◇ emp) ∗ (u -(0)-◇ k))))
+    ((∃ (q : τ{Qp}) (u : τ{nat}),
+         ➢(@auexa_b r (Qp * nat)%type (q, u))
+          ∗
+          (((x ↦ 0) ∗ ◇[k](l + 1, 1) ∗ ➢(@auexa_w r (Qp * nat)%type (q, u)) ∗ P)
+           ∨ ((x ↦ 1) ∗ live[k] q ∗ live[u] (1/2) ∗ (-[u](0)-◇ emp) ∗ (u -(0)-◇ k))))
      ∨ dead[k]
     )%F.
 
@@ -108,22 +107,24 @@ Liveness chain of a spinlock :
   Definition mask_has_Spinlock (Es : coPsets) n :=
     (match Es !! n with Some E => (↑N_Spinlock) ⊆ E | None => True end).
 
+  Lemma mask_disjoint_spinlock_state_tgt : ↑N_Spinlock ## (↑N_state_tgt : coPset).
+  Proof. apply ndot_ne_disjoint. ss. Qed.
+
   Lemma make_isSpinlock
         n r x P k L l (LT : 0 < l)
-        q Es
+        (q : Qp) (u : nat) Es
     :
     ⊢
-      ⟦(➢(excls r) ∗ (x ↦ 0) ∗ ➢(auex_b_Qp q) ∗ ➢(auex_w_Qp q) ∗ (⤉P)
-         ∗ ◆[k, L] ∗ ◇[k](l+1, 1))%F, 1+n⟧
+      ⟦((x ↦ 0) ∗ ➢(auexa_b r (q, u)) ∗ ➢(auexa_w r (q, u)) ∗ (⤉P) ∗ ◆[k, L] ∗ ◇[k](l+1, 1))%F, 1+n⟧
         -∗
         ⟦( =|1+n|={Es}=> (⤉(isSpinlock n r x P k L l)))%F, 1+n⟧.
   Proof.
-    red_tl. simpl. iIntros "(EX & PT & BQ & WQ & P & #LO & PC)".
+    red_tl. simpl. iIntros "(PT & BQ & WQ & P & #LO & PC)".
     rewrite red_syn_fupd. red_tl.
     iMod ((FUpd_alloc _ _ _ n (↑(N_Spinlock.@"a")) (spinlockInv n r x P k l))
-           with "[PT BQ WQ P PC EX]") as "#SINV".
+           with "[PT BQ WQ P PC]") as "#SINV".
     auto.
-    { simpl. unfold spinlockInv. red_tl. iLeft. iExists q. red_tl.
+    { simpl. unfold spinlockInv. red_tl. iLeft. iExists q. red_tl. iExists u. red_tl.
       iSplitL "BQ". iFrame. iLeft. iFrame.
     }
     iModIntro. unfold isSpinlock. red_tl.
@@ -134,36 +135,22 @@ Liveness chain of a spinlock :
 
   Lemma init_isSpinlock
         n x P k L l (LT : 0 < l)
-        q Es
+        Es
     :
     ⊢
-      ⟦(➢(excls_auth) ∗ (x ↦ 0) ∗ ➢(auex_b_Qp q) ∗ ➢(auex_w_Qp q) ∗ (⤉P)
-         ∗ ◆[k, L] ∗ ◇[k](l+1, 1))%F, 1+n⟧
+      ⟦(➢(auexa) ∗ (x ↦ 0) ∗ (⤉P) ∗ ◆[k, L] ∗ ◇[k](l+1, 1))%F, 1+n⟧
         -∗
-        ⟦( =|1+n|={Es}=> (➢(excls_auth) ∗ ∃ (r : τ{nat}), ⤉(isSpinlock n r x P k L l)))%F, 1+n⟧.
+        ⟦( =|1+n|={Es}=> (➢(auexa) ∗ ∃ (r : τ{nat}), ⤉(isSpinlock n r x P k L l)))%F, 1+n⟧.
   Proof.
-    red_tl. simpl. iIntros "([% EXA] & PT & BQ & WQ & P & #LO & PC)".
+    red_tl. simpl. iIntros "(AEA & PT & P & #LO & PC)".
     rewrite red_syn_fupd. red_tl.
-    assert (URA.updatable
-              ((λ k : nat, if lt_dec k U then ε else (Excl.just () : Excl.t unit)) : ExclUnitsRA)
-              (((λ k : nat, if lt_dec k (1+U) then ε else Excl.just ()) : ExclUnitsRA)
-                 ⋅
-                 (maps_to_res U (Some tt : Excl.t unit) : ExclUnitsRA))).
-    { unfold maps_to_res. setoid_rewrite unfold_pointwise_add. apply pointwise_updatable.
-      i. ii. unfold URA.wf in *. unseal "ra". ss.
-      des_ifs; try lia.
-      - rewrite URA.unit_idl. auto.
-      - rewrite URA.unit_idl. auto.
-      - rewrite URA.unit_id. auto.
-    }
-    iMod (OwnM_Upd H with "EXA") as "[EXA EX]". clear H.
-    iPoseProof (make_isSpinlock n U x P k L l with "[PT BQ WQ P PC EX]") as "ISL".
-    apply LT.
+    iMod (auexa_alloc _ ((1%Qp, 0)) with "AEA") as "[AEA (%r & BQ & BW)]".
+    iPoseProof (make_isSpinlock n r x P k L l with "[PT BQ BW P PC]") as "ISL".
+    auto.
     { red_tl. iFrame. iApply "LO". }
     iEval (rewrite red_syn_fupd) in "ISL". iMod "ISL".
-    iModIntro. iSplitL "EXA".
-    { iExists (1+U). iFrame. }
-    iExists U. iFrame.
+    iModIntro. iSplitL "AEA". iFrame.
+    iExists r. iFrame.
   Qed.
 
   Lemma update_isSpinlock
@@ -185,21 +172,19 @@ Liveness chain of a spinlock :
     simpl. iEval (unfold spinlockInv; red_tl) in "SI".
     iDestruct "SI" as "[[%q SI] | DEAD]".
     2:{ iExFalso. simpl. iPoseProof (not_dead with "[LIVE DEAD]") as "F". iFrame. auto. }
-    red_tl. simpl. iDestruct "SI" as "[BQ [(PT & _ & EX & WQ & P) | (_ & LIVE2 & _)]]".
+    red_tl. iDestruct "SI" as "[%u SI]".
+    red_tl. iDestruct "SI" as "[BQ [(PT & _ & WQ & P) | (_ & LIVE2 & _)]]".
     2:{ iPoseProof (live_merge with "[LIVE2 LIVE]") as "LIVE". iFrame.
         iPoseProof (live_wf with "LIVE") as "%F". exfalso. eapply Qp_add_lt_one. eauto.
     }
     iMod (kill with "LIVE") as "DEAD". iMod ("K" with "[DEAD]") as "_".
     { unfold spinlockInv. red_tl. iRight. iFrame. }
-    iPoseProof (make_isSpinlock n r x P k' L' l' LT' with "[EX PT BQ WQ P LO' PC']") as "ISL".
+    iPoseProof (make_isSpinlock n r x P k' L' l' LT' with "[PT BQ WQ P LO' PC']") as "ISL".
     { red_tl. iFrame. }
     rewrite red_syn_fupd. iMod "ISL".
     iModIntro. iExists k'. red_tl. iExists L'. red_tl. iExists l'. red_tl.
     iFrame.
   Qed.
-
-  Let MASK_DISJ : ↑N_Spinlock ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
 
   Lemma Spinlock_lock_spec
         tid n
@@ -215,13 +200,12 @@ Liveness chain of a spinlock :
               : Formula (1+n)), 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
             ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
-                      ➢(excls r) ∗ (⤉ P) ∗ ➢(auex_w_Qp (q/2)) ∗ live[k] (q/2)
+                      (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                        ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))%F, 1+n⟧⧽
   .
   Proof.
     iIntros (? ? ? ? ? ? ? ?).
-    iStartTriple. iIntros "PRE POST".
-    unfold Spinlock.lock.
+    iStartTriple. iIntros "PRE POST". unfold Spinlock.lock.
     (* Preprocess for induction. *)
     iApply wpsim_free_all. auto.
     unfold isSpinlock. ss.
@@ -247,12 +231,13 @@ Liveness chain of a spinlock :
     iInv "INV" as "SLI" "SLI_CLOSE". iEval (unfold spinlockInv; simpl; red_tl; simpl) in "SLI".
     iDestruct "SLI" as "[[%q0 SLI] | DEAD]".
     2:{ iExFalso. iPoseProof (not_dead with "[LIVE DEAD]") as "%F". iFrame. auto. }
+    iEval (red_tl; simpl) in "SLI". iDestruct "SLI" as "[%u0 SLI]".
     iEval (red_tl; simpl) in "SLI". iDestruct "SLI" as "[qISB [ACQ|WAIT]]".
 
     (** Case 1. Acquire the lock. *)
-    { iClear "IH". iDestruct "ACQ" as "(PT & PCk & EXCL & qISW & PROP)".
+    { iClear "IH". iDestruct "ACQ" as "(PT & PCk & qISW & PROP)".
       iApply (SCMem_cas_fun_spec _ _ _ n with "[PT]"). auto.
-      { unfold mask_has_st_tgt. rewrite lookup_insert. clear - MASK_DISJ IN. set_solver. }
+      { unfold mask_has_st_tgt. rewrite lookup_insert. pose mask_disjoint_spinlock_state_tgt. clear - d IN. set_solver. }
       { iFrame. iApply tgt_interp_as_equiv. 2: iApply "STINTP".
         iIntros. iEval (simpl; red_tl; simpl). iSplit; iIntros "P".
         - iFrame. ss.
@@ -280,19 +265,13 @@ Liveness chain of a spinlock :
       { iFrame. eauto. }
       iPoseProof ((live_split k (q/2)%Qp (q/2)%Qp) with "[LIVE]") as "[MYLIVE LIVE]".
       { rewrite Qp.div_2. iFrame. }
-      assert (AUTH: URA.updatable
-                      (Auth.black ((Excl.just q0) : Excl.t Qp) ⋅ Auth.white ((Excl.just q0) : Excl.t Qp))
-                      (Auth.black ((Some (q/2)%Qp) : Excl.t Qp) ⋅ Auth.white ((Some (q/2)%Qp) : Excl.t Qp))).
-      { apply Auth.auth_update. ii. des. split.
-        - ur. ss.
-        - ur in FRAME. ur. des_ifs.
-      }
-      iCombine "qISB qISW" as "qIS". iMod (OwnM_Upd AUTH with "qIS") as "[qISB qISW]". clear AUTH.
+      iMod (auexa_b_w_update with "qISB qISW") as "[qISB qISW]".
       (* Now close with SLI_CLOSE. *)
       iMod ("SLI_CLOSE" with "[LIVE PT LIVE1' qISB]") as "_".
       { iEval (unfold spinlockInv; simpl; red_tl; simpl).
-        iLeft. iExists (q/2)%Qp. iEval (red_tl; simpl). iSplitL "qISB"; [iFrame|].
-        iRight. iFrame. iExists k1. iEval (red_tl; simpl). iFrame. auto.
+        iLeft. iExists (q/2)%Qp. iEval (red_tl; simpl). iExists k1. iEval (red_tl; simpl).
+        iSplitL "qISB"; [iFrame|].
+        iRight. iFrame. auto.
       }
       (* Finish with POST. *)
       iApply "POST". iEval (red_tl; simpl). iExists k1. iEval (red_tl; simpl).
@@ -300,10 +279,9 @@ Liveness chain of a spinlock :
     }
 
     (** Case 2. Miss the lock and loop. *)
-    { iDestruct "WAIT" as "(PT & LIVE_SL & %k_other & WAIT)".
-      iEval (simpl; red_tl; simpl) in "WAIT". iDestruct "WAIT" as "(LIVE_O & #OATH & #LINK)".
+    { iDestruct "WAIT" as "(PT & LIVE_SL & LIVE_O & #OATH & #LINK)".
       iApply (SCMem_cas_fun_spec _ _ _ n with "[PT]"). auto.
-      { unfold mask_has_st_tgt. rewrite lookup_insert. clear - MASK_DISJ IN. set_solver. }
+      { unfold mask_has_st_tgt. rewrite lookup_insert. pose mask_disjoint_spinlock_state_tgt. clear - d IN. set_solver. }
       { iFrame. iApply tgt_interp_as_equiv. 2: iApply "STINTP".
         iIntros. iEval (simpl; red_tl; simpl). iSplit; iIntros "P".
         - iFrame. ss.
@@ -322,8 +300,9 @@ Liveness chain of a spinlock :
       (* Close the invariant spinlockInv. *)
       iMod ("SLI_CLOSE" with "[qISB LIVE_SL LIVE_O PT]") as "_".
       { iEval (unfold spinlockInv; simpl; red_tl; simpl).
-        iLeft. iExists q0. iEval (red_tl; simpl). iSplitL "qISB"; [iFrame|].
-        iRight. iFrame. iExists k_other. iEval (red_tl; simpl). iFrame. auto.
+        iLeft. iExists q0. iEval (red_tl; simpl). iExists u0. iEval (red_tl; simpl).
+        iSplitL "qISB"; [iFrame|].
+        iRight. iFrame. auto.
       }
       (* Finish with IH. *)
       iApply wpsim_stutter_mon. i; eauto. instantiate (1:=pt). i; auto.
@@ -349,7 +328,7 @@ Liveness chain of a spinlock :
                   ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2)) : Formula (1+n))⧽
                (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
                ⧼rv, (∃ (u : τ{nat, 1+n}),
-                        ➢(excls r) ∗ (⤉ P) ∗ ➢(auex_w_Qp (q/2)) ∗ live[k] (q/2)
+                        (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                          ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))⧽)%F, 1+n⟧
   .
   Proof.
@@ -375,8 +354,8 @@ Liveness chain of a spinlock :
     ⊢ ∀ r x (P : Formula n) k L l q (ds : list (nat * nat * Formula n)) u,
         [@ tid, n, Es @]
           ⧼⟦(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
-                ∗ (⤉ isSpinlock n r x P k L l) ∗ ➢(excls r) ∗ (⤉ P)
-                ∗ ➢(auex_w_Qp (q/2)) ∗ live[k] (q/2)
+                ∗ (⤉ isSpinlock n r x P k L l) ∗ (⤉ P)
+                ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                 ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                 ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
                 ∗ ◇[k](l + 1, 1)))%F, 1+n⟧⧽
@@ -385,13 +364,12 @@ Liveness chain of a spinlock :
   .
   Proof.
     iIntros (? ? ? ? ? ? ? ? ?).
-    iStartTriple. iIntros "PRE POST".
-    unfold Spinlock.unlock.
+    iStartTriple. iIntros "PRE POST". unfold Spinlock.unlock.
     (* Preprocess. *)
     iApply wpsim_free_all. auto.
     unfold isSpinlock. ss.
     iEval (red_tl; simpl) in "PRE". iEval (rewrite red_syn_tgt_interp_as) in "PRE".
-    iDestruct "PRE" as "(#STINTP & (%N & SL) & EX & P & WQ & LIVE & DUTY & LIVEU & PCS & PCk)".
+    iDestruct "PRE" as "(#STINTP & (%N & SL) & P & WQ & LIVE & DUTY & LIVEU & PCS & PCk)".
     iEval (red_tl; simpl) in "SL". iDestruct "SL" as "(%IN & #LO & %POS & INV)".
     iEval (rewrite red_syn_inv) in "INV". iPoseProof "INV" as "#INV".
     rred2r. iApply (wpsim_yieldR with "[DUTY PCS]").
@@ -402,18 +380,31 @@ Liveness chain of a spinlock :
     iInv "INV" as "SLI" "SLI_CLOSE". iEval (unfold spinlockInv; simpl; red_tl; simpl) in "SLI".
     iDestruct "SLI" as "[[%q0 SLI] | DEAD]".
     2:{ iExFalso. iPoseProof (not_dead with "[LIVE DEAD]") as "%F". iFrame. auto. }
-    iEval (red_tl; simpl) in "SLI". iDestruct "SLI" as "[qISB [ACQ|WAIT]]".
-    { iExFalso. iDestruct "ACQ" as "(_ & _ & EX2 & WQ2 & _)".
-      iPoseProof (white_white_excl with "WQ WQ2") as "%F". inv F.
+    iEval (red_tl; simpl) in "SLI". iDestruct "SLI" as "[%u0 SLI]".
+    iEval (red_tl; simpl) in "SLI". iDestruct "SLI" as "[BQ [ACQ | WAIT]]".
+    { iExFalso. iDestruct "ACQ" as "(_ & _ & WQ2 & _)".
+      iPoseProof (auexa_w_w_false with "WQ WQ2") as "%F". inv F.
     }
-    iDestruct "WAIT" as "(PT & LIVE2 & [%u' WAIT])".
-
-    TODO
-    rred2r.
-    
-
-      TODO
-
+    iDestruct "WAIT" as "(PT & LIVE2 & LIVEU2 & _)". rred2r.
+    (* Proceed simulation. *)
+    iApply (SCMem_store_fun_spec _ _ _ n with "[PT]"). auto.
+    { rewrite lookup_insert. pose mask_disjoint_spinlock_state_tgt. clear - d IN. set_solver. }
+    { iFrame. auto. }
+    iIntros (rv) "PT". rred2r. destruct rv. iApply wpsim_tauR. rred2r.
+    (* Close invariant. *)
+    iPoseProof (auexa_b_w_eq with "BQ WQ") as "%EQ". clarify.
+    iMod ("SLI_CLOSE" with "[P WQ PCk BQ PT]") as "_".
+    { simpl. iEval (unfold spinlockInv). red_tl. iLeft.
+      iExists (q/2)%Qp. red_tl. iExists u. red_tl. iSplitL "BQ". iFrame. iLeft. iFrame.
+    }
+    (* Postconditions. *)
+    iMod (kill with "[LIVEU LIVEU2]") as "DEADU".
+    { iEval (rewrite <- Qp.half_half). iApply live_merge. iFrame. }
+    iMod (duty_fulfill with "[DUTY DEADU]") as "DUTY".
+    { iFrame. }
+    iPoseProof (live_merge with "[LIVE LIVE2]") as "LIVE". iFrame. iEval (rewrite Qp.div_2) in "LIVE".
+    iApply "POST". red_tl. iFrame.
+  Qed.
 
 
 
