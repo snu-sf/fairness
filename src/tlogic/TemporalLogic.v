@@ -1000,6 +1000,17 @@ Section SIMI.
     - apply red_isim_eq_3.
   Qed.
 
+  Definition syn_term n (tid : thread_id) : Any.t -> Any.t -> Formula n :=
+    fun rs rt => ((⟨ow_ths tid⟩ ∗ ⟨obl_duty inlp tid []⟩) ∗ (⌜rs = rt⌝))%F.
+
+  Lemma red_syn_term n tid :
+    (fun rs rt => ⟦syn_term n tid rs rt, n⟧)
+    = 
+      (fun rs rt => (own_thread tid ∗ ObligationRA.duty n inlp tid []) ∗ ⌜rs = rt⌝)%I.
+  Proof.
+    extensionalities rs rt. unfold syn_term. red_tl. f_equal.
+  Qed.
+
 
   (* State interp with lens. *)
   Definition syn_view_interp n {S V} (l : Lens.t S V) (SI : S -> Formula n) (VI : V -> Formula n) : Prop :=
@@ -1199,6 +1210,10 @@ Notation "'=|' x '|=(' A ')={' Es '}=>' P" := (syn_fupd x A Es Es P) (at level 9
 Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%F )={ Es }=> P)%F (at level 90) : formula_scope.
 Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%F (at level 90) : formula_scope.
 Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%F (at level 90) : formula_scope.
+
+(* State. *)
+Notation "'○' ( tid )" :=
+  (⟨Atom.ow_ths tid⟩)%F (at level 50, tid at level 1, format "○ ( tid )") : formula_scope.
 
 (* Liveness logic. *)
 Notation "'◆' [ k , l ]" :=
