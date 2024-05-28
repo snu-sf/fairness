@@ -310,6 +310,50 @@ Liveness chain of a spinlock :
     }
   Qed.
 
+  Lemma red_syn_Spinlock_lock_spec
+        tid n
+        (Es : coPsets)
+    :
+    ⟦(∀ (r : τ{nat})
+        (x : τ{SCMem.val})
+        (P : τ{Φ, 1+n})
+        (k L l : τ{nat})
+        (q : τ{Qp})
+        (ds : τ{ listT (nat * nat * Φ)%ftype, 1+n})
+       ,
+         [@ tid, n, Es @]
+           ⧼(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
+                ∗ (⤉ isSpinlock n r x P k L l)
+                ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2)) : Formula (1+n))⧽
+             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+             ⧼rv, (∃ (u : τ{nat, 1+n}),
+                      (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
+                            ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))⧽)%F, 1+n⟧
+    =
+      (∀ r x (P : Formula n) k L l q (ds : list (nat * nat * Formula n)),
+          [@ tid, n, Es @]
+            ⧼⟦(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
+                  ∗ (⤉ isSpinlock n r x P k L l)
+                  ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2))%F
+                : Formula (1+n)), 1+n⟧⧽
+              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+              ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
+                        (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
+                              ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))%F, 1+n⟧⧽)%I
+  .
+  Proof.
+    simpl.
+    red_tl. apply f_equal. extensionalities r.
+    red_tl. apply f_equal. extensionalities x.
+    red_tl. apply f_equal. extensionalities P.
+    red_tl. apply f_equal. extensionalities k.
+    red_tl. apply f_equal. extensionalities L.
+    red_tl. apply f_equal. extensionalities l.
+    red_tl. apply f_equal. extensionalities q.
+    red_tl. apply f_equal. extensionalities ds.
+    apply red_syn_non_atomic_triple.
+  Qed.
+
   Lemma Spinlock_lock_syn_spec
         tid n
         (Es : coPsets)
@@ -333,17 +377,7 @@ Liveness chain of a spinlock :
                               ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))⧽)%F, 1+n⟧
   .
   Proof.
-    simpl.
-    red_tl. iIntros (r).
-    red_tl. iIntros (x).
-    red_tl. iIntros (P).
-    red_tl. iIntros (k).
-    red_tl. iIntros (L).
-    red_tl. iIntros (l).
-    red_tl. iIntros (q).
-    red_tl. iIntros (ds).
-    rewrite red_syn_non_atomic_triple. simpl in *.
-    iApply Spinlock_lock_spec. all: auto.
+    rewrite red_syn_Spinlock_lock_spec. iApply Spinlock_lock_spec. all: auto.
   Qed.
 
   Lemma Spinlock_unlock_spec
@@ -407,6 +441,53 @@ Liveness chain of a spinlock :
     iApply "POST". red_tl. iFrame.
   Qed.
 
+  Lemma red_syn_Spinlock_unlock_spec
+        tid n
+        (Es : coPsets)
+    :
+    ⟦(∀ (r : τ{nat})
+        (x : τ{SCMem.val})
+        (P : τ{Φ, 1+n})
+        (k L l : τ{nat})
+        (q : τ{Qp})
+        (ds : τ{ listT (nat * nat * Φ)%ftype, 1+n})
+        (u : τ{nat, 1+n})
+       ,
+         [@ tid, n, Es @]
+           ⧼((syn_tgt_interp_as n sndl (fun m => (➢(scm_memory_black m))))
+               ∗ (⤉ isSpinlock n r x P k L l) ∗ (⤉ P)
+               ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
+               ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
+               ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
+               ∗ ◇[k](l + 1, 1))⧽
+             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock Client x))
+             ⧼rv, ((⤉ Duty(tid) ds) ∗ live[k] q)⧽)%F, 1+n⟧
+    =
+      (∀ r x (P : Formula n) k L l q (ds : list (nat * nat * Formula n)) u,
+          [@ tid, n, Es @]
+            ⧼⟦(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
+                  ∗ (⤉ isSpinlock n r x P k L l) ∗ (⤉ P)
+                  ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
+                  ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
+                  ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
+                  ∗ ◇[k](l + 1, 1)))%F, 1+n⟧⧽
+              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock Client x))
+              ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ live[k] q)%F, 1+n⟧⧽)%I
+  .
+  Proof.
+    (* simpl. *)
+    red_tl. apply f_equal. extensionalities r.
+    red_tl. apply f_equal. extensionalities x.
+    red_tl. apply f_equal. extensionalities P.
+    red_tl. apply f_equal. extensionalities k.
+    red_tl. apply f_equal. extensionalities L.
+    red_tl. apply f_equal. extensionalities l.
+    red_tl. apply f_equal. extensionalities q.
+    red_tl. apply f_equal. extensionalities ds.
+    rewrite @red_tl_univ. apply f_equal. extensionalities u.
+    apply red_syn_non_atomic_triple.
+  Qed.
+
   Lemma Spinlock_unlock_syn_spec
         tid n
         (Es : coPsets)
@@ -432,18 +513,7 @@ Liveness chain of a spinlock :
                ⧼rv, ((⤉ Duty(tid) ds) ∗ live[k] q)⧽)%F, 1+n⟧
   .
   Proof.
-    simpl.
-    red_tl. iIntros (r).
-    red_tl. iIntros (x).
-    red_tl. iIntros (P).
-    red_tl. iIntros (k).
-    red_tl. iIntros (L).
-    red_tl. iIntros (l).
-    red_tl. iIntros (q).
-    red_tl. iIntros (ds).
-    red_tl. iIntros (u).
-    rewrite red_syn_non_atomic_triple. simpl in *.
-    iApply Spinlock_unlock_spec. all: auto.
+    rewrite red_syn_Spinlock_unlock_spec. iApply Spinlock_unlock_spec. all: auto.
   Qed.
 
 End SPEC.
