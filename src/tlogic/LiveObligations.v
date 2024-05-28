@@ -579,7 +579,7 @@ Section RULES.
     { iModIntro. iRight. auto. }
   Qed.
 
-  Lemma thread_promise_ind {v} k l m f (R : iProp) :
+  Lemma tpromise_ind {v} k l m f (R : iProp) :
     (liveness_obligation k l ∗ thread_promise k m f)
       ⊢ (□ ((thread_credit =(arrows_sat v)=∗ (R ∨ (dead k ∗ □ prop v f))) ==∗ R))
       ==∗ R.
@@ -616,20 +616,44 @@ Section RULES.
     iModIntro. iExists m, 1. iIntros "A". iApply "IND". iApply "A". auto.
   Qed.
 
+  Lemma ccs_ind2 k ps l (P : iProp) :
+    (collection_credits k ps l)
+      ⊢ (□ (∃ m, (progress_credit k m 1 ==∗ P) ==∗ (progress_credits ps l 1 -∗ P)))
+      ==∗ (progress_credits ps l 1 -∗ P).
+  Proof.
+    iIntros "CCS #[% IND]". iMod (ccs_ind with "CCS []") as "RES".
+    2:{ iModIntro. iApply "RES". }
+    iModIntro. iExists m. iIntros "IND2". iApply "IND". iIntros "PC".
+    iMod ("IND2" with "PC") as "[A B]". iModIntro. iApply ("B" with "A").
+  Qed.
+
   Lemma ccs_promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k ps l m f (R : iProp) :
     (collection_credits k ps l ∗ promise p i k m f)
       ⊢ (□ ((fairness_credit p i =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
       ==∗ R.
   Proof.
     iIntros "[CC #PR] #IND". iMod (ccs_ind with "CC []") as "R". 2: iModIntro; iApply "R".
-    iExists m. iModIntro.  iIntros "IND2". iApply "IND". iIntros "FC".
+    iExists m. iModIntro. iIntros "IND2". iApply "IND". iIntros "FC".
     iMod (promise_progress with "[PR FC]") as "[PC | [#D #P]]".
     { iFrame. eauto. }
     { iMod ("IND2" with "PC") as "R". iModIntro. iFrame. }
     { iModIntro. iRight. auto. }
   Qed.
 
-  Lemma ccs_thread_promise_ind {v} k ps l m f (R : iProp) :
+  Lemma ccs_promise_ind2 {Id} {v} (p : Prism.t _ Id) (i : Id) k ps l m f (R : iProp) :
+    (collection_credits k ps l ∗ promise p i k m f)
+      ⊢ (□ ((fairness_credit p i =(arrows_sat v)=∗ (R ∨ (dead k ∗ □ prop v f))) ==∗ (progress_credits ps l 1 -∗ R)))
+      ==∗ (progress_credits ps l 1 -∗ R).
+  Proof.
+    iIntros "[CC #PR] #IND". iMod (ccs_ind2 with "CC []") as "R". 2: iModIntro; iApply "R".
+    iExists m. iModIntro. iIntros "IND2". iApply "IND". iIntros "FC".
+    iMod (promise_progress with "[PR FC]") as "[PC | [#D #P]]".
+    { iFrame. eauto. }
+    { iMod ("IND2" with "PC") as "R". iModIntro. iFrame. }
+    { iModIntro. iRight. auto. }
+  Qed.
+
+  Lemma ccs_tpromise_ind {v} k ps l m f (R : iProp) :
     (collection_credits k ps l ∗ thread_promise k m f)
       ⊢ (□ ((thread_credit =(arrows_sat v)=∗ ((progress_credits ps l 1 ∗ R) ∨ (dead k ∗ □ prop v f))) ==∗ R))
       ==∗ R.
@@ -642,60 +666,138 @@ Section RULES.
     { iModIntro. iRight. auto. }
   Qed.
 
+  Lemma ccs_tpromise_ind2 {v} k ps l m f (R : iProp) :
+    (collection_credits k ps l ∗ thread_promise k m f)
+      ⊢ (□ ((thread_credit =(arrows_sat v)=∗ (R ∨ (dead k ∗ □ prop v f))) ==∗ (progress_credits ps l 1 -∗ R)))
+      ==∗ (progress_credits ps l 1 -∗ R).
+  Proof.
+    iIntros "[CC #PR] #IND". iMod (ccs_ind2 with "CC []") as "R". 2: iModIntro; iApply "R".
+    iExists m. iModIntro.  iIntros "IND2". iApply "IND". iIntros "FC".
+    iMod (tpromise_progress with "[PR FC]") as "[PC | [#D #P]]".
+    { iFrame. eauto. }
+    { iMod ("IND2" with "PC") as "R". iModIntro. iFrame. }
+    { iModIntro. iRight. auto. }
+  Qed.
+
   (** Additional definitions and rules. *)
 
-  Definition until_promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :=
-    (promise p i k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
+  Definition until_promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l (f P : Vars v) :=
+    (promise p i k l f ∗ ((prop v P) ∨ (□ (prop v f))))%I.
 
-  Lemma until_promise_progress {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
-    (until_promise p i k l f P r ∗ fairness_credit p i)
-      ⊢ #=(arrows_sat v)=> ((P ∗ live k r ∗ progress_credit k l 1) ∨ (dead k ∗ □ (prop v f))).
+  Lemma until_promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k l m f P (R : iProp) :
+    (liveness_obligation k l ∗ until_promise p i k m f P)
+      ⊢ (
+        (□ (((fairness_credit p i ∗ until_promise p i k m f P) =(arrows_sat v)=∗ R) ==∗ ((prop v P) -∗ R)))
+          ∗
+        (□ ((□ prop v f) -∗ R))
+      )
+      ==∗ R.
   Proof.
-    iIntros "[[PR A] FC]". iMod (promise_progress with "[PR FC]") as "B". iFrame.
-    iModIntro. iDestruct "A" as "[[P L] | [A2 AP]]"; iDestruct "B" as "[B1 | [D F]]".
-    { iLeft. iFrame. }
-    { iPoseProof (not_dead with "[L D]") as "%". iFrame. inv H. }
-    { iRight. iFrame. }
-    { iRight. iFrame. }
+    iIntros "[#LO [#PR C]] [#IND #BASE]". iDestruct "C" as "[P | #F]".
+    { iPoseProof (promise_ind with "[] []") as "#IND2". eauto.
+      2:{ iMod "IND2". iModIntro. iRevert "P". iApply "IND2". }
+      iModIntro. iIntros "IND2". iApply "IND". iIntros "[FC [_ [P | #F]]]".
+      { iMod ("IND2" with "FC") as "[A | [_ B]]".
+        - iModIntro. iApply ("A" with "P").
+        - iModIntro. iApply "BASE". auto.
+      }
+      { iModIntro. iApply "BASE". auto. }
+    }
+    { iModIntro. iApply "BASE". auto. }
   Qed.
 
-  Lemma until_promise_live {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
-    (promise (v:=v) p i k l f ∗ P ∗ live k r) ⊢ until_promise p i k l f P r.
+  Lemma ccs_until_promise_ind {Id} {v} (p : Prism.t _ Id) (i : Id) k ps l m f P (R : iProp) :
+    (collection_credits k ps l ∗ until_promise p i k m f P)
+      ⊢ (
+        (□ (((fairness_credit p i ∗ until_promise p i k m f P) =(arrows_sat v)=∗ R) ==∗ (progress_credits ps l 1 -∗ (prop v P) -∗ R)))
+          ∗
+        (□ ((□ prop v f) -∗ R))
+      )
+      ==∗ (progress_credits ps l 1 -∗ R).
   Proof.
-    iIntros "(A & B & C)". unfold until_promise. iFrame. iLeft. iFrame.
+    iIntros "[CC [#PR C]] [#IND #BASE]". iDestruct "C" as "[P | #F]".
+    { iPoseProof (ccs_promise_ind2 with "[CC] []") as "IND2". iFrame; eauto.
+      2:{ iMod "IND2". iModIntro. iIntros "PC". iRevert "PC P". iApply "IND2". }
+      iModIntro. iIntros "IND2". iApply "IND". iIntros "[FC [_ [P | #F]]]".
+      { iMod ("IND2" with "FC") as "[A | [_ B]]".
+        - iModIntro. iApply ("A" with "P").
+        - iModIntro. iApply "BASE". auto.
+      }
+      { iModIntro. iApply "BASE". auto. }
+    }
+    { iModIntro. iIntros. iApply "BASE". auto. }
   Qed.
 
-  Lemma until_promise_dead {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : iProp) (r : Qp) :
-    (promise p i k l f ∗ dead k ∗ □ (prop v f)) ⊢ until_promise p i k l f P r.
+  Lemma until_promise_make1 {Id} {v} (p : Prism.t _ Id) (i : Id) k l f P :
+    (promise (v:=v) p i k l f ∗ prop v P) ⊢ until_promise p i k l f P.
   Proof.
-    iIntros "(A & B & C)". unfold until_promise. iFrame. iRight. iFrame.
+    iIntros "(A & B)". unfold until_promise. iFrame.
   Qed.
 
-  Definition until_thread_promise {v} k l f (P : iProp) (r : Qp) :=
-    (thread_promise k l f ∗ ((P ∗ live k r) ∨ (dead k ∗ □ (prop v f))))%I.
-
-  Lemma until_tpromise_progress {v} k l f (P : iProp) (r : Qp) :
-    (until_thread_promise k l f P r ∗ thread_credit)
-      ⊢ #=(arrows_sat v)=> ((P ∗ live k r ∗ progress_credit k l 1) ∨ (dead k ∗ □ (prop v f))).
+  Lemma until_promise_make2 {Id} {v} (p : Prism.t _ Id) (i : Id) k l f P :
+    (promise p i k l f ∗ □ (prop v f)) ⊢ until_promise p i k l f P.
   Proof.
-    iIntros "[[PR A] FC]". iMod (tpromise_progress with "[PR FC]") as "B". iFrame.
-    iModIntro. iDestruct "A" as "[[P L] | [A2 AP]]"; iDestruct "B" as "[B1 | [D F]]".
-    { iLeft. iFrame. }
-    { iPoseProof (not_dead with "[L D]") as "%". iFrame. inv H. }
-    { iRight. iFrame. }
-    { iRight. iFrame. }
+    iIntros "(A & B)". unfold until_promise. iFrame.
   Qed.
 
-  Lemma until_thread_promise_live {v} k l (f : Vars v) (P : iProp) (r : Qp) :
-    (thread_promise k l f ∗ P ∗ live k r) ⊢ until_thread_promise k l f P r.
+
+  Definition until_thread_promise {v} k l (f P : Vars v) :=
+    (thread_promise k l f ∗ ((prop v P) ∨ (□ (prop v f))))%I.
+
+  Lemma until_tpromise_ind {v} k l m f P (R : iProp) :
+    (liveness_obligation k l ∗ until_thread_promise k m f P)
+      ⊢ (
+        (□ (((thread_credit ∗ until_thread_promise k m f P) =(arrows_sat v)=∗ R) ==∗ ((prop v P) -∗ R)))
+          ∗
+        (□ ((□ prop v f) -∗ R))
+      )
+      ==∗ R.
   Proof.
-    iIntros "(A & B & C)". unfold until_thread_promise. iFrame. iLeft. iFrame.
+    iIntros "[#LO [#PR C]] [#IND #BASE]". iDestruct "C" as "[P | #F]".
+    { iPoseProof (tpromise_ind with "[] []") as "#IND2". eauto.
+      2:{ iMod "IND2". iModIntro. iRevert "P". iApply "IND2". }
+      iModIntro. iIntros "IND2". iApply "IND". iIntros "[FC [_ [P | #F]]]".
+      { iMod ("IND2" with "FC") as "[A | [_ B]]".
+        - iModIntro. iApply ("A" with "P").
+        - iModIntro. iApply "BASE". auto.
+      }
+      { iModIntro. iApply "BASE". auto. }
+    }
+    { iModIntro. iApply "BASE". auto. }
   Qed.
 
-  Lemma until_thread_promise_dead {v} k l f (P : iProp) (r : Qp) :
-    (thread_promise k l f ∗ dead k ∗ □ (prop v f)) ⊢ until_thread_promise k l f P r.
+  Lemma ccs_until_tpromise_ind {v} k ps l m f P (R : iProp) :
+    (collection_credits k ps l ∗ until_thread_promise k m f P)
+      ⊢ (
+        (□ (((thread_credit ∗ until_thread_promise k m f P) =(arrows_sat v)=∗ R) ==∗ (progress_credits ps l 1 -∗ (prop v P) -∗ R)))
+          ∗
+        (□ ((□ prop v f) -∗ R))
+      )
+      ==∗ (progress_credits ps l 1 -∗ R).
   Proof.
-    iIntros "(A & B & C)". unfold until_thread_promise. iFrame. iRight. iFrame.
+    iIntros "[CC [#PR C]] [#IND #BASE]". iDestruct "C" as "[P | #F]".
+    { iPoseProof (ccs_tpromise_ind2 with "[CC] []") as "IND2". iFrame; eauto.
+      2:{ iMod "IND2". iModIntro. iIntros "PC". iRevert "PC P". iApply "IND2". }
+      iModIntro. iIntros "IND2". iApply "IND". iIntros "[FC [_ [P | #F]]]".
+      { iMod ("IND2" with "FC") as "[A | [_ B]]".
+        - iModIntro. iApply ("A" with "P").
+        - iModIntro. iApply "BASE". auto.
+      }
+      { iModIntro. iApply "BASE". auto. }
+    }
+    { iModIntro. iIntros. iApply "BASE". auto. }
+  Qed.
+
+  Lemma until_tpromise_make1 {v} k l f P :
+    (thread_promise (v:=v) k l f ∗ prop v P) ⊢ until_thread_promise k l f P.
+  Proof.
+    iIntros "(A & B)". unfold until_thread_promise. iFrame.
+  Qed.
+
+  Lemma until_tpromise_make2 {v} k l f P :
+    (thread_promise k l f ∗ □ (prop v f)) ⊢ until_thread_promise k l f P.
+  Proof.
+    iIntros "(A & B)". unfold until_thread_promise. iFrame.
   Qed.
 
 End RULES.
@@ -729,3 +831,7 @@ Notation "'◇' { ps }( m , a )" :=
   (progress_credits ps m a) (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : bi_scope.
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄"
   := (collection_credits k ps l) (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : bi_scope.
+Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
+  (until_promise _ p i k l f P) (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
+Notation "P '-U-[' k '](' l ')-' '◇' f" :=
+  (until_thread_promise _ k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : bi_scope.

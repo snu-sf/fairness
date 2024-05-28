@@ -1198,6 +1198,39 @@ Section TRIPLE.
 
 End TRIPLE.
 
+Section DERIV.
+
+  Context {AA : AuxAtom}.
+  Context {STT : StateTypes}.
+
+  Context `{Σ : GRA.t}.
+  Context `{AAI : @AAInterp Σ AA}.
+  Context {TLRAS : @TLRAs AA STT Σ}.
+
+  Import Atom.
+
+  Definition syn_until_promise {Id} {n} (p : Prism.t _ Id) (i : Id) k l (f P : Formula n) :=
+    (⟨obl_promise p i k l f⟩ ∗ (P ∨ (□ f)))%F.
+
+  Definition syn_until_tpromise {n} k l (f P : Formula n) :=
+    (⟨obl_tpromise k l f⟩ ∗ (P ∨ (□ f)))%F.
+
+  Lemma red_syn_until_promise
+        {Id} n (p : Prism.t _ Id) (i : Id) k l (f P : Formula n) :
+    ⟦syn_until_promise p i k l f P, n⟧ = until_promise _ p i k l f P.
+  Proof.
+    unfold syn_until_promise. red_tl. f_equal.
+  Qed.
+
+  Lemma red_syn_until_tpromise
+        n k l (f P : Formula n) :
+    ⟦syn_until_tpromise k l f P, n⟧ = until_thread_promise _ k l f P.
+  Proof.
+    unfold syn_until_tpromise. red_tl. f_equal.
+  Qed.
+
+End DERIV.
+
 (** Notations. *)
 
 (* Fancy update. *)
@@ -1242,6 +1275,10 @@ Notation "'◇' { ps }( m , a )" :=
   (⟨Atom.obl_pcs ps m a⟩)%F (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : formula_scope.
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄" :=
   (⟨Atom.obl_ccs k ps l⟩)%F (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : formula_scope.
+Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
+  (syn_until_promise p i k l f P)%F (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : formula_scope.
+Notation "P '-U-[' k '](' l ')-' '◇' f" :=
+  (syn_until_tpromise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : formula_scope.
 
 (* Triples. *)
 Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
@@ -1253,134 +1290,3 @@ Notation "'[@' tid , n , Es '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
   (syn_non_atomic_triple tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : formula_scope.
-
-
-Section TEST.
-
-  Context {AA : AuxAtom}.
-  Context {STT : StateTypes}.
-  Local Notation state_src := (@st_src_type STT).
-  Local Notation state_tgt := (@st_tgt_type STT).
-  Local Notation ident_src := (@id_src_type STT).
-  Local Notation ident_tgt := (@id_tgt_type STT).
-
-  Context `{Σ : GRA.t}.
-  Context `{AAI : @AAInterp Σ AA}.
-  Context {TLRAS : @TLRAs AA STT Σ}.
-
-  Definition test : Formula 3 :=
-    ⟨Atom.owni xH (∃ (p : τ{formulaT, 3}), ⌜p = emp⌝)⟩%F.
-
-  Definition test1 : Formula 3 :=
-    ⟨Atom.owni xH (∃ (p : τ{baseT nat, 3}), ⌜p = 2⌝)⟩%F.
-  Definition test1' : Formula 3 :=
-    ⟨Atom.owni xH (∃ (p : τ{nat, 3}), ⌜p = 2⌝)⟩%F.
-  Goal test1 = test1'. Proof. ss. Qed.
-
-  Definition test2 : Formula 3 :=
-    ⟨Atom.owni xH (∃ (p : τ{formulaT, 3}), ⤉p)⟩%F.
-  Fail Definition test3 : Formula 3 :=
-    ⟨Atom.owni xH (∃ (p : τ{formulaT, 3}), p)⟩%F.
-
-  Lemma testp n :
-    ⟦(⟨Atom.owni xH ⟨(Atom.owni xH emp)⟩⟩ ∗ (∃ (p : τ{formulaT, S n}), ⤉(p -∗ ⌜p = emp⌝)))%F, S n⟧
-    =
-      ((OwnI (S n) xH ⟨Atom.owni xH emp⟩%F) ∗ (∃ (p : τ{formulaT, S n}), ⟦p, n⟧ -∗ ⌜p = emp%F⌝))%I.
-  Proof.
-    ss.
-  Qed.
-
-  Lemma pers_test n (p q r : Formula n) :
-    ⊢ ⟦(((□ (p -∗ □ q)) ∗ ((q ∗ q) -∗ r)) → p -∗ r)%F , n⟧.
-  Proof.
-    red_tl. iIntros "[#A B] C". iPoseProof ("A" with "C") as "#D".
-    iPoseProof ("B" with "[D]") as "E". iSplitR; auto.
-    iFrame.
-  Qed.
-
-  Lemma pers_test1 n (p : Formula n) :
-    ⟦(□p)%F, n⟧ ⊢ □⟦p, n⟧.
-  Proof.
-    red_tl. iIntros "#P". auto.
-  Qed.
-
-  Lemma pers_test2 n (p : Formula n) :
-    □⟦p, n⟧ ⊢ ⟦(□p)%F, n⟧.
-  Proof.
-    red_tl. iIntros "#P". auto.
-  Qed.
-
-  Lemma test_infix n (p q r : Formula n) :
-    (p ∗ q ∗ r)%F = (p ∗ (q ∗ r))%F.
-  Proof. ss. Qed.
-
-  Lemma test_infix2 (P Q R : iProp) :
-    (P ∗ Q ∗ R)%I = (P ∗ (Q ∗ R))%I.
-  Proof. ss. Qed.
-
-  (* Lemma test_infix3 (P Q R : iProp) : *)
-  (*   (P ∗ Q ∗ R)%I = (P ∗ (Q ∗ R))%I. *)
-  (* Proof. ss.  *)
-
-End TEST.
-
-
-(* (* Section OWN. *) *)
-
-(* (*   Class SRA := { car : Type }. *) *)
-
-(* (* End OWN. *) *)
-
-(* Module Atom. *)
-
-(*   Section ATOMS. *)
-
-(*     (* Context `{σ : list SRA}. *) *)
-
-(*     Inductive t {form : Type} : Type := *)
-(*     (* | own {M : SRA} {IN : In M σ} (m : @car M) *) *)
-(*     (** Atom to express the invariant system. *) *)
-(*     | owni (i : positive) (p : @Syntax.t _ (@Typ) (@t form) form) *)
-(*     | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ (@Typ) (@t form) form))) *)
-(*     | ownd (x : index) (D : gset positive) *)
-(*     | owne (x : index) (E : coPset) *)
-(*     | syn_wsat_auth (x : index) *)
-(*     | syn_owne_auth (Es : coPsets) *)
-(*     . *)
-
-(*   End ATOMS. *)
-
-(*   Section INTERP. *)
-
-(*     (* Context `{σ : list SRA}. *) *)
-
-(*     Local Notation _Formula := (@_formula (@t)). *)
-(*     Local Notation Formula := (@formula (@t)). *)
-
-(*     Context `{Σ : GRA.t}. *)
-(*     (* Context `{SUB : *) *)
-(*     (*       forall M, In M σ -> *) *)
-(*     (*            { to_URA : SRA -> URA.t & *) *)
-(*     (*                               ((GRA.inG (to_URA M) Σ) * ((@car M) -> (to_URA M)))%type }}. *) *)
-
-(*     Context `{@GRA.inG (IInvSetRA Formula) Σ}. *)
-(*     Context `{@GRA.inG (URA.pointwise index CoPset.t) Σ}. *)
-(*     Context `{@GRA.inG (URA.pointwise index Gset.t) Σ}. *)
-
-(*     (* Definition to_semantics n (a : @t σ (_Formula n)) : iProp := *) *)
-(*     Definition to_semantics n (a : @t (_Formula n)) : iProp := *)
-(*       match a with *)
-(*       (* | @own _ _ M IN m => *) *)
-(*       (*     @OwnM Σ (projT1 (SUB M IN) M) (fst (projT2 (SUB M IN))) ((snd (projT2 (SUB M IN)) m)) *) *)
-(*       (** Atom to express the invariant system. *) *)
-(*       | owni i p => @OwnI Σ Formula _ n i p *)
-(*       | syn_inv_auth_l ps => @inv_auth Σ Formula _ n (list_to_map ps) *)
-(*       | ownd x D => OwnD x D *)
-(*       | owne x E => OwnE x E *)
-(*       | syn_wsat_auth x => wsat_auth x *)
-(*       | syn_owne_auth Es => OwnE_auth Es *)
-(*       end. *)
-
-(*   End INTERP. *)
-
-(* End Atom. *)
