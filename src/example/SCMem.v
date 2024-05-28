@@ -52,6 +52,12 @@ Module SCMem.
     | val_ptr (blk, ofs) => val_ptr (blk, ofs + n)
     end.
 
+  Definition val_sub (v: val) (n: nat): val :=
+    match v with
+    | val_nat v => val_nat (v - n)
+    | val_ptr (blk, ofs) => val_ptr (blk, ofs - n)
+    end.
+
   Record t :=
     mk
       {

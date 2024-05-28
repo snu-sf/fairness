@@ -11,9 +11,11 @@ Module Spinlock.
 
   Section SPINLOCK.
 
-    Variable Client : Mod.t.
-    Notation state := (Mod.state Client).
-    Notation ident := (Mod.ident Client).
+    (* Variable Client : Mod.t. *)
+    (* Notation state := (Mod.state Client). *)
+    (* Notation ident := (Mod.ident Client). *)
+    Context {state : Type}.
+    Context {ident : ID}.
 
     Notation unlocked := (SCMem.val_nat 0).
     Notation locked := (SCMem.val_nat 1).
@@ -198,7 +200,7 @@ Liveness chain of a spinlock :
                 ∗ (⤉ isSpinlock n r x P k L l)
                 ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2))%F
               : Formula (1+n)), 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
             ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
                       (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                        ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))%F, 1+n⟧⧽
@@ -325,7 +327,7 @@ Liveness chain of a spinlock :
            ⧼(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
                 ∗ (⤉ isSpinlock n r x P k L l)
                 ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2)) : Formula (1+n))⧽
-             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
              ⧼rv, (∃ (u : τ{nat, 1+n}),
                       (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                             ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))⧽)%F, 1+n⟧
@@ -336,7 +338,7 @@ Liveness chain of a spinlock :
                   ∗ (⤉ isSpinlock n r x P k L l)
                   ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2))%F
                 : Formula (1+n)), 1+n⟧⧽
-              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
               ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
                         (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                               ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))%F, 1+n⟧⧽)%I
@@ -371,7 +373,7 @@ Liveness chain of a spinlock :
              ⧼(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
                   ∗ (⤉ isSpinlock n r x P k L l)
                   ∗ live[k] q ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(L, 2)) : Formula (1+n))⧽
-               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock Client x))
+               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
                ⧼rv, (∃ (u : τ{nat, 1+n}),
                         (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                               ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))⧽)%F, 1+n⟧
@@ -394,7 +396,7 @@ Liveness chain of a spinlock :
                 ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                 ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
                 ∗ ◇[k](l + 1, 1)))%F, 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock Client x))
+            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
             ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ live[k] q)%F, 1+n⟧⧽
   .
   Proof.
@@ -460,7 +462,7 @@ Liveness chain of a spinlock :
                ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
                ∗ ◇[k](l + 1, 1))⧽
-             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock Client x))
+             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
              ⧼rv, ((⤉ Duty(tid) ds) ∗ live[k] q)⧽)%F, 1+n⟧
     =
       (∀ r x (P : Formula n) k L l q (ds : list (nat * nat * Formula n)) u,
@@ -471,7 +473,7 @@ Liveness chain of a spinlock :
                   ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                   ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
                   ∗ ◇[k](l + 1, 1)))%F, 1+n⟧⧽
-              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock Client x))
+              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
               ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ live[k] q)%F, 1+n⟧⧽)%I
   .
   Proof.
@@ -509,7 +511,7 @@ Liveness chain of a spinlock :
                  ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                  ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
                  ∗ ◇[k](l + 1, 1))⧽
-               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock Client x))
+               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
                ⧼rv, ((⤉ Duty(tid) ds) ∗ live[k] q)⧽)%F, 1+n⟧
   .
   Proof.
