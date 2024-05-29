@@ -57,10 +57,14 @@ End Spinlock.
 
 Section SPEC.
 
-  Variable src_state : Type.
-  Variable src_ident : Type.
-  Variable Client : Mod.t.
-  Variable gvs : list nat.
+  (* Variable src_state : Type. *)
+  (* Variable src_ident : Type. *)
+  (* Variable Client : Mod.t. *)
+  (* Variable gvs : list nat. *)
+  Context {src_state : Type}.
+  Context {src_ident : Type}.
+  Context {Client : Mod.t}.
+  Context {gvs : list nat}.
   Notation tgt_state := (OMod.closed_state Client (SCMem.mod gvs)).
   Notation tgt_ident := (OMod.closed_ident Client (SCMem.mod gvs)).
 
@@ -280,7 +284,7 @@ Liveness chain of a spinlock :
       iFrame.
     }
 
-    (** Case 2. Miss the lock and loop. *)
+    (** Case 2. Miss the lock and loops. *)
     { iDestruct "WAIT" as "(PT & LIVE_SL & LIVE_O & #OATH & #LINK)".
       iApply (SCMem_cas_fun_spec _ _ _ n with "[PT]"). auto.
       { unfold mask_has_st_tgt. rewrite lookup_insert. pose mask_disjoint_spinlock_state_tgt. clear - d IN. set_solver. }

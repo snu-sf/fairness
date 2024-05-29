@@ -10,6 +10,7 @@ Require Import Program.
 
 Section AUXRAS.
 
+  Definition ExclUnitRA : URA.t := ((Excl.t unit))%ra.
   Definition ExclUnitsRA : URA.t := (nat ==> (Excl.t unit))%ra.
   Definition AuthExclRA (A : Type) : URA.t := (Auth.t (Excl.t A)).
 
@@ -22,6 +23,8 @@ Section XADEF.
     | scm_points_to (p v : SCMem.val)
     | scm_points_tos (p : SCMem.val) (vs : list SCMem.val)
     | scm_memory_black (m : SCMem.t)
+    (* Excl unit. *)
+    | excl
     (* Map from nat to Excl unit. *)
     | excls_auth
     | excls (k : nat)
@@ -44,6 +47,8 @@ Section AUXRAS.
     {
       (* SCMem related RAs *)
       _MEMRA : @GRA.inG memRA Σ;
+      (* Excl unit RA. *)
+      _EXCLUNIT : @GRA.inG ExclUnitRA Σ;
       (* Map from nat to Excl unit RA. *)
       _EXCLUNITS : @GRA.inG ExclUnitsRA Σ;
       (* Auth Excl Qp RA. *)
@@ -61,6 +66,8 @@ Section EXPORT.
 
   (* SCMem related RAs *)
   #[export] Instance MEMRA : @GRA.inG memRA Σ:= _MEMRA.
+  (* Excl unit RA. *)
+  #[export] Instance EXCLUNIT : @GRA.inG ExclUnitRA Σ:= _EXCLUNIT.
   (* Map from nat to Excl unit RA. *)
   #[export] Instance EXCLUNITS : @GRA.inG ExclUnitsRA Σ:= _EXCLUNITS.
   (* Auth Excl Qp RA. *)
@@ -80,6 +87,8 @@ Section XAINTERP.
     | scm_points_to p v => points_to p v
     | scm_points_tos p vs => points_tos p vs
     | scm_memory_black m => memory_black m
+    (* Excl unit. *)
+    | excl => OwnM (Some tt : ExclUnitRA)
     | excls_auth =>
         (∃ (U : nat), OwnM ((fun k => if (lt_dec k U) then ε else (Some tt : Excl.t unit)) : ExclUnitsRA))
     | excls k => OwnM ((maps_to_res k (Some tt : Excl.t unit)) : ExclUnitsRA)

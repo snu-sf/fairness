@@ -139,7 +139,7 @@ Section SPEC.
 
   (** Simulation proof. *)
 
-  Lemma Client02_thread2_spec
+  Lemma Client02_thread1_spec
         tid n
     :
     ⊢ ⟦((○(tid) ∗ (⤉ Duty(tid) []))

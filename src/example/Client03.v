@@ -31,11 +31,12 @@ Module Client03.
       ktree (threadE ident state) unit SCMem.val
       :=
       fun _ =>
-        a <- Ret (100 : nat);;
+        _ <- trigger Yield;;
+        a <- Ret (0 : nat);;
         _ <- (ITree.iter (fun (i : nat) =>
-                           r <- (if (Nat.eq_dec i 0)
+                           r <- (if (Nat.eq_dec i 100)
                                 then Ret (inr tt)
-                                else _ <- incr 2;; Ret (inl (i - 1)));;
+                                else _ <- incr 2;; _ <- trigger Yield;; Ret (inl (i + 1)));;
                            Ret r) a);;
         r <- (ITree.iter (fun (_ : unit) =>
                            d <- (OMod.call (R:=SCMem.val) "load" D);;
@@ -44,20 +45,23 @@ Module Client03.
                                 then Ret (inl tt)
                                 else c <- (OMod.call (R:=SCMem.val) "load" C);; Ret (inr c));;
                            Ret r) tt);;
+        _ <- trigger Yield;;
         Ret r.
 
     Definition thread2 :
       ktree (threadE ident state) unit SCMem.val
       :=
       fun _ =>
-        a <- Ret (10 : nat);;
+        _ <- trigger Yield;;
+        a <- Ret (0 : nat);;
         _ <- (ITree.iter (fun (i : nat) =>
-                           r <- (if (Nat.eq_dec i 0)
+                           r <- (if (Nat.eq_dec i 10)
                                 then Ret (inr tt)
-                                else _ <- incr 5;; Ret (inl (i - 1)));;
+                                else _ <- incr 5;; _ <- trigger Yield;; Ret (inl (i + 1)));;
                            Ret r) a);;
         _ <- (OMod.call (R:=unit) "store" (D, 1 : SCMem.val));;
         r <- (OMod.call (R:=SCMem.val) "load" C);;
+        _ <- trigger Yield;;
         Ret r.
 
     Definition omod : Mod.t :=
@@ -111,8 +115,6 @@ End Client03Spec.
 
 Section SPEC.
 
-  Import Client03.
-
   Notation src_state := (Mod.state Client03Spec.module).
   Notation src_ident := (Mod.ident Client03Spec.module).
   Notation tgt_state := (Mod.state Client03.module).
@@ -124,50 +126,93 @@ Section SPEC.
   Context {TLRAS : @TLRAs XAtom STT Σ}.
   Context {AUXRAS : AUXRAs Σ}.
 
+  Import Client03.
+
   (** Invariants. *)
 
-  (* Namespace for Client01 invariants. *)
-  (* Definition N_Client03 : namespace := (nroot .@ "Client01"). *)
-  (* Definition N_t1_write : namespace := (nroot .@ "t1_write"). *)
+  (* Namespace for Client03 invariants. *)
+  Definition N_Client03 : namespace := (nroot .@ "Client03").
+  Definition N_counter_inv : namespace := (N_Client03 .@ "counter").
+  Definition N_t2_write_inv : namespace := (N_Client03 .@ "t2_write").
 
-  (* Lemma mask_disjoint_client01 : ↑N_Client01 ## (↑N_t1_write : coPset). *)
-  (* Proof. apply ndot_ne_disjoint. ss. Qed. *)
+  Definition counter r1 r2 n : Formula n :=
+    (∃ (x y : τ{nat}), (C ↦ ((2 * x) + (5 * y))) ∗ ➢(auexa_b r1 (x : nat)) ∗ ➢(auexa_b r2 (y : nat)))%F.
 
-  (* Definition t1_write n : Formula n := *)
-  (*   syn_inv n N_t1_write (X ↦ 1)%F. *)
+  Definition counter_inv r1 r2 n : Formula n :=
+    (syn_inv n N_counter_inv (counter r1 r2 n)).
 
-  (* Global Instance t1_write_persistent n : Persistent (⟦t1_write n, n⟧). *)
-  (* Proof. *)
-  (*   unfold Persistent. iIntros "H". unfold t1_write. rewrite red_syn_inv. *)
-  (*   iDestruct "H" as "#H". auto. *)
-  (* Qed. *)
+  Definition t2_write n : Formula n :=
+    (D ↦ 1)%F.
 
-  (* Definition client01Inv k n : Formula n := *)
-  (*   ((◆[k, 2] ∗ -[k](0)-◇ t1_write n) *)
-  (*     ∗ *)
-  (*     ((live[k] (1/2) ∗ (X ↦ 0)) *)
-  (*      ∨ *)
-  (*        (t1_write n)) *)
-  (*   )%F. *)
+  Definition t2_write_inv n : Formula n :=
+    (syn_inv n N_t2_write_inv (t2_write n))%F.
 
   (** Simulation proof. *)
 
-  Lemma Client03_thread2_spec
-        tid n
+  Lemma Client03_thread1_spec
+        tid
     :
-    ⊢ ⟦((○(tid) ∗ (⤉ Duty(tid) []))
-             -∗
-             syn_wpsim (S n) tid ∅
-             (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%F)
-             false false
-             (fn2th Client03Spec.module "thread1" (tt ↑))
-             (fn2th Client03.module "thread1" (tt ↑)))%F, 1+n⟧.
+    ⊢ ⟦(∀ (r k w r1 r2 : τ{nat, 2}),
+           ((syn_tgt_interp_as 1 sndl (fun m => (➢ (scm_memory_black m))))
+               ∗ ○(tid)
+               ∗ (⤉ Duty(tid) [])
+               ∗ (⤉ isSpinlock 1 r L emp%F k 4 2)
+               ∗ live[k] (1/2)
+               ∗ ◇[k](3, 100)
+               ∗ (⤉ (counter_inv r1 r2 1))
+               ∗ ➢(auexa_w r1 0)
+               ∗ (⤉ ((D ↦ 0) -U-[w](0)-◇ (t2_write_inv 1)))
+            )
+              -∗
+              syn_wpsim 2 tid ∅
+              (fun rs rt => (⤉(syn_term_cond 1 tid _ rs rt))%F)
+              false false
+              (fn2th Client03Spec.module "thread1" (tt ↑))
+              (fn2th Client03.module "thread1" (tt ↑)))%F, 2⟧.
   Proof.
-    iIntros. red_tl. simpl. iEval (rewrite red_syn_wpsim).
-    iIntros "(THDW & DUTY)".
+    Local Opaque incr.
+    iIntros. simpl. red_tl; iIntros (r). red_tl. iIntros (k). red_tl. iIntros (w). red_tl. iIntros (r1). red_tl. iIntros (r2).
+    red_tl. simpl.
+    rewrite red_syn_tgt_interp_as. rewrite red_syn_until_tpromise. rewrite red_syn_wpsim.
+    unfold counter_inv. rewrite red_syn_inv.
+    iIntros "(#MEM & TID & DUTY & #ISL & LIVE_k & PC_k & #CNT & CNTW_r1 & UNTIL)".
     unfold fn2th. simpl. lred2r. rred2r.
-    iApply (wpsim_yieldR with "[DUTY]"). 2: iFrame. auto.
-    iIntros "DUTY FC". iModIntro. rred2r.
+    iApply (wpsim_yieldR with "[DUTY]").
+    2:{ iSplitL "DUTY". iApply "DUTY". simpl. ss. }
+    auto.
+    iIntros "DUTY FC". iModIntro. rred2r. iApply wpsim_tauR. rred2r.
+    assert (exists j, 0 = j). eauto. des.
+    replace 
+      (ITree.iter
+         (λ i : nat,
+             ` r0 : nat + () <- (if Nat.eq_dec i 100 then Ret (inr ()) else incr 2;;; trigger Yield;;; Ret (inl (i + 1)));; Ret r0)
+         0)
+      with
+      (ITree.iter
+         (λ i : nat,
+             ` r0 : nat + () <- (if Nat.eq_dec i 100 then Ret (inr ()) else incr 2;;; trigger Yield;;; Ret (inl (i + 1)));; Ret r0)
+         j).
+    2:{ subst j. auto. }
+    iEval (replace 250 with ((100 * 2) + 50)).
+    remember (100 - j) as J.
+    assert (100 = J). subst. ss.
+    iEval (rewrite H0) in "PC_k". iEval (rewrite H) in "CNTW_r1".
+    assert (LT : j <= 100). subst. lia.
+    clear H0 H. iClear "FC".
+    iRevert "MEM ISL CNT TID LIVE_k PC_k CNTW_r1 UNTIL DUTY". iStopProof.
+    revert j HeqJ LT. induction J; cycle 1.
+    { i. iIntros "_ #MEM #ISL #CNT TID LIVE_k PC_k CNTW_r1 UNTIL DUTY".
+      iEval (rewrite unfold_iter_eq). rred2r.
+      destruct (Nat.eq_dec j 100).
+      { exfalso. lia. }
+      rred2.
+
+      TODO
+      
+
+
+    
+    iEval (rewrite unfold_iter_eq). rred2r.
     iApply (SCMem_store_fun_spec _ _ tid n n with "[] [DUTY FC]").
     auto. admit. admit.
     iIntros (rv) "PT".
