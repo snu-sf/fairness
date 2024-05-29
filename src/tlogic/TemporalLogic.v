@@ -1000,16 +1000,6 @@ Section SIMI.
     - apply red_isim_eq_3.
   Qed.
 
-  Definition syn_term n (tid : thread_id) : Any.t -> Any.t -> Formula n :=
-    fun rs rt => ((⟨ow_ths tid⟩ ∗ ⟨obl_duty inlp tid []⟩) ∗ (⌜rs = rt⌝))%F.
-
-  Lemma red_syn_term n tid :
-    (fun rs rt => ⟦syn_term n tid rs rt, n⟧)
-    = 
-      (fun rs rt => (own_thread tid ∗ ObligationRA.duty n inlp tid []) ∗ ⌜rs = rt⌝)%I.
-  Proof.
-    extensionalities rs rt. unfold syn_term. red_tl. f_equal.
-  Qed.
 
 
   (* State interp with lens. *)
@@ -1069,11 +1059,37 @@ Section TRIPLE.
 
   Import Atom.
 
+  (* Definition syn_triple_gen *)
+  (*            n tid (P : Formula n) {RV} (Q : RV -> Formula n) (Es1 Es2 : coPsets) *)
+  (*   : forall {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Formula n), bool -> bool -> itree srcE R_src -> itree tgtE RV -> ktree tgtE RV R_tgt -> Formula n *)
+  (*   := *)
+  (*   fun R_src R_tgt TERM ps pt itr_src code ktr_tgt => *)
+  (*     ( *)
+  (*       (* let N := (S n) in *) *)
+  (*       let I0 := (fun ths ims imt sts stt => ((syn_default_I n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F) *)
+  (*      in *)
+  (*      let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F) *)
+  (*      in *)
+  (*      let I2 := (fun ths im_src im_tgt st_src st_tgt Es => (syn_default_I_past tid n ths im_src im_tgt st_src st_tgt ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n Es))) *)
+  (*      in *)
+  (*      Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)%F. *)
+
+  Definition syn_term_cond n (tid : thread_id) (R_term : Type) : R_term -> R_term -> Formula n :=
+    fun rs rt => ((⟨ow_ths tid⟩ ∗ ⟨obl_duty inlp tid []⟩) ∗ (⌜rs = rt⌝))%F.
+
+  Lemma red_syn_term_cond n tid R_term :
+    (fun (rs rt : R_term) => ⟦syn_term_cond n tid R_term rs rt, n⟧)
+    =
+      (term_cond n tid (R_term:=R_term)).
+  Proof.
+    extensionalities rs rt. unfold syn_term_cond. red_tl. f_equal.
+  Qed.
+
   Definition syn_triple_gen
              n tid (P : Formula (S n)) {RV} (Q : RV -> Formula (S n)) (Es1 Es2 : coPsets)
-    : forall {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Formula n), bool -> bool -> itree srcE R_src -> itree tgtE RV -> ktree tgtE RV R_tgt -> Formula (S n)
+    : forall {R_term : Type}, bool -> bool -> itree srcE R_term -> itree tgtE RV -> ktree tgtE RV R_term -> Formula (S n)
     :=
-    fun R_src R_tgt TERM ps pt itr_src code ktr_tgt =>
+    fun R_term ps pt itr_src code ktr_tgt =>
       (let N := (S n) in
         let I0 := (fun ths ims imt sts stt => ((syn_default_I N ths ims imt sts stt) ∗ (⟨syn_wsat_auth N⟩ ∗ syn_wsats N ∗ syn_ownes N ∅))%F)
        in
@@ -1081,15 +1097,15 @@ Section TRIPLE.
        in
        let I2 := (fun ths im_src im_tgt st_src st_tgt Es => (syn_default_I_past tid N ths im_src im_tgt st_src st_tgt ∗ (⟨syn_wsat_auth N⟩ ∗ syn_wsats N ∗ syn_ownes N Es)))
        in
-       Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 (fun rs rt => ⤉ (TERM rs rt)) ps pt itr_src code ktr_tgt)%F.
+       Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt itr_src code ktr_tgt)%F.
 
   Lemma red_syn_triple_gen
         n tid (P : Formula (S n)) RV (Q : RV -> Formula (S n)) Es1 Es2
-        RS RT (TERM : RS -> RT -> Formula n) ps pt itr_src code (ktr_tgt : ktree tgtE RV RT)
+        R_term ps pt itr_src code (ktr_tgt : ktree tgtE RV R_term)
     :
-    ⟦syn_triple_gen n tid P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt, S n⟧
+    ⟦syn_triple_gen n tid P Q Es1 Es2 ps pt itr_src code ktr_tgt, S n⟧
     =
-      triple_gen (S n) tid ⟦P, S n⟧ (fun rv => ⟦Q rv, S n⟧) Es1 Es2 TERM ps pt itr_src code ktr_tgt.
+      triple_gen (S n) n tid ⟦P, S n⟧ (fun rv => ⟦Q rv, S n⟧) Es1 Es2 ps pt itr_src code ktr_tgt.
   Proof.
     unfold syn_triple_gen, triple_gen. red_tl. unfold triple_format.
     apply f_equal. extensionalities rr. apply f_equal. extensionalities gr.
@@ -1135,13 +1151,12 @@ Section TRIPLE.
              (P : Formula (S n)) {RV} (code : itree tgtE RV) (Q : RV -> Formula (S n))
     : Formula (S n)
     :=
-    (∀ (R_src : τ{metaT})
-       (R_tgt : τ{metaT})
-       (TERM : τ{(R_src -> R_tgt -> Φ)%ftype, S n})
+    (∀ (R_term : τ{metaT})
+       (* (TERM : τ{(R_src -> R_tgt -> Φ)%ftype, n}) *)
        (ps pt : τ{bool})
-       (itr_src : τ{codeT id_src_type st_src_type R_src, S n})
-       (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_tgt)%ftype, S n}),
-        (syn_triple_gen n tid P Q Es Es TERM ps pt itr_src code ktr_tgt))%F.
+       (itr_src : τ{codeT id_src_type st_src_type R_term, S n})
+       (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_term)%ftype, S n}),
+        (syn_triple_gen n tid P Q Es Es ps pt itr_src code ktr_tgt))%F.
 
   Lemma red_syn_atomic_triple
         tid n (Es : coPsets)
@@ -1149,13 +1164,10 @@ Section TRIPLE.
     :
     ⟦syn_atomic_triple tid n Es P code Q, S n⟧
     =
-      atomic_triple
-        tid n Es ⟦P, S n⟧ code (fun v => ⟦Q v, S n⟧).
+      atomic_triple tid n Es ⟦P, S n⟧ code (fun v => ⟦Q v, S n⟧).
   Proof.
     unfold syn_atomic_triple, atomic_triple. red_tl.
-    apply f_equal. extensionalities R_src. red_tl.
-    apply f_equal. extensionalities R_tgt. red_tl.
-    apply f_equal. extensionalities TERM. red_tl.
+    apply f_equal. extensionalities R_term. red_tl.
     apply f_equal. extensionalities ps. red_tl.
     apply f_equal. extensionalities pt. red_tl.
     apply f_equal. extensionalities itr_src. red_tl.
@@ -1168,13 +1180,11 @@ Section TRIPLE.
              (P : Formula (S n)) {RV} (code : itree tgtE RV) (Q : RV -> Formula (S n))
     : Formula (S n)
     :=
-    (∀ (R_src : τ{metaT})
-       (R_tgt : τ{metaT})
-       (TERM : τ{(R_src -> R_tgt -> Φ)%ftype, S n})
+    (∀ (R_term : τ{metaT})
        (ps pt : τ{bool})
-       (itr_src : τ{codeT id_src_type st_src_type R_src})
-       (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_tgt)%ftype, S n}),
-        (syn_triple_gen n tid P Q Es ∅ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt))%F.
+       (itr_src : τ{codeT id_src_type st_src_type R_term})
+       (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_term)%ftype, S n}),
+        (syn_triple_gen n tid P Q Es ∅ ps pt (trigger Yield;;; itr_src) code ktr_tgt))%F.
 
   Lemma red_syn_non_atomic_triple
         tid n (Es : coPsets)
@@ -1182,13 +1192,10 @@ Section TRIPLE.
     :
     ⟦syn_non_atomic_triple tid n Es P code Q, S n⟧
     =
-      non_atomic_triple
-        tid n Es ⟦P, S n⟧ code (fun v => ⟦Q v, S n⟧).
+      non_atomic_triple tid n Es ⟦P, S n⟧ code (fun v => ⟦Q v, S n⟧).
   Proof.
     unfold syn_non_atomic_triple, non_atomic_triple. red_tl.
-    apply f_equal. extensionalities R_src. red_tl.
-    apply f_equal. extensionalities R_tgt. red_tl.
-    apply f_equal. extensionalities TERM. red_tl.
+    apply f_equal. extensionalities R_term. red_tl.
     apply f_equal. extensionalities ps. red_tl.
     apply f_equal. extensionalities pt. red_tl.
     apply f_equal. extensionalities itr_src. red_tl.

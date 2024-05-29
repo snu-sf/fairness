@@ -1499,30 +1499,36 @@ Section TRIPLES.
 
   (** Formats for triples-like specs. *)
 
+  Definition term_cond m tid (R_term : Type) :=
+    (fun (rs rt : R_term) => (own_thread tid ∗ ObligationRA.duty m inlp tid []) ∗ ⌜rs = rt⌝)%I.
+
   Definition triple_gen
              n m
              tid (P : iProp) {RV} (Q : RV -> iProp) (Es1 Es2 : coPsets)
-             {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Vars m)
+             {R_term : Type}
+             (* {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Vars m) *)
              ps pt
-             (itr_src : itree srcE R_src) (code : itree tgtE RV) (ktr_tgt : ktree tgtE RV R_tgt)
+             (itr_src : itree srcE R_term) (code : itree tgtE RV) (ktr_tgt : ktree tgtE RV R_term)
     : iProp
     :=
     (∀ rr gr,
         (P)
           -∗
           (∀ (rv : RV),
-              (Q rv) -∗ wpsim n tid Es2 rr gr (fun rs rt => prop m (TERM rs rt)) ps true itr_src (ktr_tgt rv))
+              (Q rv) -∗ wpsim n tid Es2 rr gr (@term_cond m tid R_term) ps true itr_src (ktr_tgt rv))
           -∗
-          wpsim n tid Es1 rr gr (fun rs rt => prop m (TERM rs rt)) ps pt itr_src (code >>= ktr_tgt))%I.
+          wpsim n tid Es1 rr gr (@term_cond m tid R_term) ps pt itr_src (code >>= ktr_tgt))%I.
+          (* wpsim n tid Es1 rr gr (fun rs rt => prop m (TERM rs rt)) ps pt itr_src (code >>= ktr_tgt))%I. *)
 
   Definition atomic_triple
              tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
-    (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt
-       (itr_src : itree srcE R_src)
-       (ktr_tgt : RV -> itree tgtE R_tgt),
-        triple_gen (S n) (m:=n) tid P Q Es Es TERM ps pt itr_src code ktr_tgt)%I.
+    (* (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt *)
+    (∀ R_term ps pt
+       (itr_src : itree srcE R_term)
+       (ktr_tgt : RV -> itree tgtE R_term),
+        triple_gen (S n) n tid P Q Es Es ps pt itr_src code ktr_tgt)%I.
   (* (P) *)
   (*   -∗ *)
   (*   (∀ (rv : RV), *)
@@ -1534,10 +1540,12 @@ Section TRIPLES.
              tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
-    (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt
-       (itr_src : itree srcE R_src)
-       (ktr_tgt : RV -> itree tgtE R_tgt),
-        triple_gen (S n) (m:=n) tid P Q Es ∅ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
+    (* (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt *)
+    (∀ R_term ps pt
+       (itr_src : itree srcE R_term)
+       (ktr_tgt : RV -> itree tgtE R_term),
+        triple_gen (S n) n tid P Q Es ∅ ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
+        (* triple_gen (S n) (m:=n) tid P Q Es ∅ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I. *)
       (* (P) *)
       (*   -∗ *)
       (*   (∀ (rv : RV), *)
@@ -1611,7 +1619,7 @@ Section TRIPLES.
 End TRIPLES.
 
 (** For triples. *)
-Ltac iStartTriple := iIntros (? ? ? ? ? ? ? ? ?).
+Ltac iStartTriple := iIntros (? ? ? ? ? ? ?).
 
 Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
   (atomic_triple tid n Es P code (fun v => Q))

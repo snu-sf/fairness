@@ -117,14 +117,15 @@ Section SPEC.
   Qed.
 
   Definition client01Inv k n : Formula n :=
-    ((◆[k, 2] ∗ -[k](0)-◇ t1_write n)
-      ∗
-      ((live[k] (1/2) ∗ (X ↦ 0))
-       ∨
-         (t1_write n))
-    )%F.
+    (◆[k, 2] ∗ ((live[k] (1/2) ∗ (X ↦ 0)) -U-[k](0)-◇ t1_write n))%F.
+    (* ((◆[k, 2] ∗ -[k](0)-◇ t1_write n) *)
+    (*   ∗ *)
+    (*   ((live[k] (1/2) ∗ (X ↦ 0)) *)
+    (*    ∨ *)
+    (*      (t1_write n)) *)
+    (* )%F. *)
 
-  (* Simulation proof. *)
+  (** Simulation proof. *)
 
   Lemma Client01_thread1_spec
         tid n
@@ -134,7 +135,7 @@ Section SPEC.
               ∗ ○(tid) ∗ (⤉ Duty(tid) [(k, 0, t1_write n)]) ∗ ◇[k](1, 1) ∗ live[k] (1/2))
              -∗
              syn_wpsim (S n) tid ∅
-             (fun rs rt => ((⤉ syn_term n tid rs rt))%F : Formula (S n))
+             (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%F)
              false false
              (fn2th Client01Spec.module "thread1" (tt ↑))
              (fn2th Client01.module "thread1" (tt ↑)))%F, 1+n⟧.

@@ -144,9 +144,8 @@ Section SPEC.
     :
     ⊢ ⟦((○(tid) ∗ (⤉ Duty(tid) []))
              -∗
-             syn_wpsim (STT:=STT) (S n) tid ∅
-             (fun rs rt => ((syn_term n tid rs rt))%F)
-             (* (fun rs rt => ((⤉ syn_term n tid rs rt))%F) *)
+             syn_wpsim (S n) tid ∅
+             (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%F)
              false false
              (fn2th Client02Spec.module "thread1" (tt ↑))
              (fn2th Client02.module "thread1" (tt ↑)))%F, 1+n⟧.
@@ -156,18 +155,16 @@ Section SPEC.
     unfold fn2th. simpl. lred2r. rred2r.
     iApply (wpsim_yieldR with "[DUTY]"). 2: iFrame. auto.
     iIntros "DUTY FC". iModIntro. rred2r.
-    (* unfold OMod.emb_callee. *)
-    (* Set Printing All. *)
-    iApply (@SCMem_store_fun_spec STT Σ TLRAS AUXRAS inrp sndl tid _ _ _ ∅ _ C (SCMem.val_nat 100) (SCMem.val_nat 0) with "[]"). auto.
-    iApply (@SCMem_store_fun_spec STT Σ TLRAS AUXRAS inrp sndl with "[]"). auto.
-    iApply (@SCMem_store_fun_spec STT Σ TLRAS AUXRAS inrp sndl tid n n _ ∅ _ C 100 _ with "[]"). auto.
-    iApply (SCMem_store_fun_spec with "[] []").
-
-    rewrite (@Any.upcast_downcast _ (C, 100)).
-             (@Any.downcast (prod SCMem.val SCMem.val)
-                (@Any.upcast (prod SCMem.val nat)
-                   (@pair SCMem.val nat C
-                      (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S (...))))))))))))))))))))
+    iApply (SCMem_store_fun_spec _ _ tid n n with "[] [DUTY FC]").
+    auto. admit. admit.
+    iIntros (rv) "PT".
+    rred2r. iApply wpsim_tauR. rred2r. iEval (rewrite unfold_iter_eq). rred2r.
+    iApply (wpsim_yieldR with "[DUTY]"). 2: iFrame. auto.
+    iIntros "DUTY _". iModIntro. rred2r. iApply wpsim_tauR. rred2r.
+    iApply (Spinlock_lock_spec with "[DUTY PT FC] []").
+    ss. ss.
+    { red_tl. iFrame. instantiate (6:=⌜1 = 1⌝%F). admit. }
+    iIntros (_). red_tl. iIntros "[%u S]". iEval (red_tl) in "S".
 
   Admitted.
 
