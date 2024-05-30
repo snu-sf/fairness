@@ -232,12 +232,13 @@ Section RULES.
 
   Lemma pc_split_le k l a b c :
     (a + b <= c) ->
-    progress_credit k l c ⊢ |==> progress_credit k l a ∗ progress_credit k l b.
+    progress_credit k l c ⊢ progress_credit k l a ∗ progress_credit k l b.
   Proof.
     iIntros (LE) "PC".
-    iMod (white_split with "PC") as "[A B]".
-    { apply layer_split_le. eauto. }
-    iModIntro. iFrame.
+    exploit PeanoNat.Nat.le_exists_sub. apply LE. i. des. subst c.
+    iPoseProof (pc_split with "PC") as "[A B]".
+    iPoseProof (pc_split with "B") as "[B C]".
+    iFrame.
   Qed.
 
   Lemma pc_merge k l a b :

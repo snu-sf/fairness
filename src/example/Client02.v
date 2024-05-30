@@ -161,10 +161,6 @@ Section SPEC.
     rred2r. iApply wpsim_tauR. rred2r. iEval (rewrite unfold_iter_eq). rred2r.
     iApply (wpsim_yieldR with "[DUTY]"). 2: iFrame. auto.
     iIntros "DUTY _". iModIntro. rred2r. iApply wpsim_tauR. rred2r.
-    iApply (Spinlock_lock_spec with "[DUTY PT FC] []").
-    ss. ss.
-    { red_tl. iFrame. instantiate (6:=⌜1 = 1⌝%F). admit. }
-    iIntros (_). red_tl. iIntros "[%u S]". iEval (red_tl) in "S".
 
   Admitted.
 
