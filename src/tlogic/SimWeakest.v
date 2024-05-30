@@ -1017,7 +1017,7 @@ Section STATE.
     iMod "DUTY".
     iApply (wpsim_fairR_prism_step with "[DUTY]"). 1,2,3,4,5: eauto.
     2:{ iIntros "A B".
-        iAssert (#=> list_prop_sum (λ '(i, l), duty ident_tgt (inrp ⋅ p)%prism i l) ls)
+        iAssert (#=> list_prop_sum (λ '(i, l), duty (inrp ⋅ p)%prism i l) ls)
           with "[A]" as "A".
         { iApply list_prop_sum_pull_bupd_default.
           iPoseProof (list_prop_sum_map_inv with "A") as "A". 2: iFrame.
@@ -1098,7 +1098,7 @@ Section STATE.
     iMod "DUTY".
     iApply (wpsim_fairR_step with "[DUTY]"). 1,2,3,4,5: eauto.
     2:{ iIntros "A B".
-        iAssert (#=> list_prop_sum (λ '(i, l), duty ident_tgt inrp i l) ls)
+        iAssert (#=> list_prop_sum (λ '(i, l), duty inrp i l) ls)
           with "[A]" as "A".
         { iApply list_prop_sum_pull_bupd_default.
           iPoseProof (list_prop_sum_map_inv with "A") as "A". 2: iFrame.

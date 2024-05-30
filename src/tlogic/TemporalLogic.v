@@ -359,11 +359,11 @@ Section ATOMINTERP.
     | obl_live k q => live k q
     | obl_dead k => dead k
     | obl_link k0 k1 l => link k0 k1 l
-    | obl_duty p i ds => duty _ p i ds
-    | obl_fc p i => fairness_credit _ p i
-    | obl_promise p i k l f => promise _ p i k l f
-    | obl_tc => thread_credit _
-    | obl_tpromise k l f => thread_promise _ k l f
+    | obl_duty p i ds => duty p i ds
+    | obl_fc p i => fairness_credit p i
+    | obl_promise p i k l f => promise p i k l f
+    | obl_tc => thread_credit
+    | obl_tpromise k l f => thread_promise k l f
     | obl_pcs ps m a => progress_credits ps m a
     | obl_ccs k ps l => collection_credits k ps l
     end.
@@ -1224,14 +1224,14 @@ Section DERIV.
 
   Lemma red_syn_until_promise
         {Id} n (p : Prism.t _ Id) (i : Id) k l (f P : Formula n) :
-    ⟦syn_until_promise p i k l f P, n⟧ = until_promise _ p i k l f P.
+    ⟦syn_until_promise p i k l f P, n⟧ = until_promise p i k l f P.
   Proof.
     unfold syn_until_promise. red_tl. f_equal.
   Qed.
 
   Lemma red_syn_until_tpromise
         n k l (f P : Formula n) :
-    ⟦syn_until_tpromise k l f P, n⟧ = until_thread_promise _ k l f P.
+    ⟦syn_until_tpromise k l f P, n⟧ = until_thread_promise k l f P.
   Proof.
     unfold syn_until_tpromise. red_tl. f_equal.
   Qed.

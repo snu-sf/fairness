@@ -180,7 +180,8 @@ Global Opaque layer.
 
 Section RULES.
 
-  Variable ident_tgt : ID.
+  (* Variable ident_tgt : ID. *)
+  Context {ident_tgt : ID}.
   Local Notation identTgtRA := (identTgtRA ident_tgt).
   Context `{Vars : nat -> Type}.
   Local Notation ArrowRA := (@ArrowRA ident_tgt Vars).
@@ -741,6 +742,12 @@ Section RULES.
     iIntros "(A & B)". unfold until_promise. iFrame.
   Qed.
 
+  Lemma until_promise_get_promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l f (P : Vars v) :
+    until_promise p i k l f P ⊢ promise p i k l f.
+  Proof.
+    iIntros "(A & B)". iFrame.
+  Qed.
+
 
   Definition until_thread_promise {v} k l (f P : Vars v) :=
     (thread_promise k l f ∗ ((prop v P) ∨ (□ (prop v f))))%I.
@@ -801,6 +808,12 @@ Section RULES.
     iIntros "(A & B)". unfold until_thread_promise. iFrame.
   Qed.
 
+  Lemma until_tpromise_get_tpromise {v} k l f (P : Vars v) :
+    until_thread_promise k l f P ⊢ (thread_promise k l f).
+  Proof.
+    iIntros "(A & B)". iFrame.
+  Qed.
+
 End RULES.
 Global Opaque link.
 
@@ -817,22 +830,22 @@ Notation "'dead[' k ']'" :=
 Notation "s '-(' l ')-' '◇' t" :=
   (link s t l) (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : bi_scope.
 Notation "'Duty' ( p ◬ i ) ds" :=
-  (duty _ p i ds) (at level 50, p, i, ds at level 1, format "Duty ( p  ◬  i )  ds") : bi_scope.
+  (duty p i ds) (at level 50, p, i, ds at level 1, format "Duty ( p  ◬  i )  ds") : bi_scope.
 Notation "'Duty' ( tid ) ds" :=
-  (duty _ inlp tid ds) (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : bi_scope.
+  (duty inlp tid ds) (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : bi_scope.
 Notation "'€' ( p ◬ i )" :=
-  (fairness_credit _ p i) (format "€ ( p  ◬  i )") : bi_scope.
+  (fairness_credit p i) (format "€ ( p  ◬  i )") : bi_scope.
 Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
-  (promise _ p i k l f) (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
+  (promise p i k l f) (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
 Notation "'€'" :=
-  (thread_credit _) : bi_scope.
+  (thread_credit) : bi_scope.
 Notation "'-[' k '](' l ')-' '◇' f" :=
-  (thread_promise _ k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : bi_scope.
+  (thread_promise k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : bi_scope.
 Notation "'◇' { ps }( m , a )" :=
   (progress_credits ps m a) (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : bi_scope.
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄"
   := (collection_credits k ps l) (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : bi_scope.
 Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
-  (until_promise _ p i k l f P) (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
+  (until_promise p i k l f P) (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
 Notation "P '-U-[' k '](' l ')-' '◇' f" :=
-  (until_thread_promise _ k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : bi_scope.
+  (until_thread_promise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : bi_scope.

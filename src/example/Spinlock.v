@@ -262,7 +262,7 @@ Liveness chain of a spinlock :
       iPoseProof (pc_split with "PC1") as "[PC1 PC_POST]".
       iMod (pc_mon _ 1 _ (0+1) _ _ with "PC1") as "PC1". Unshelve.
       2:{ apply layer_drop_eq; auto. }
-      iMod (duty_add _ _ _ _ _ 0 (emp%F : Formula n) with "[DUTY PC1] []") as "DUTY".
+      iMod (duty_add _ _ _ _ 0 (emp%F : Formula n) with "[DUTY PC1] []") as "DUTY".
       { iFrame. }
       { iModIntro. iEval (ss; red_tl). auto. }
       iPoseProof (duty_tpromise with "DUTY") as "#PROM1".
