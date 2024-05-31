@@ -1287,6 +1287,34 @@ Section STATE.
     iApply "H".
   Qed.
 
+  Lemma wpsim_yieldR2
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+        a (MANY : 1 <= a)
+    :
+    (Duty(tid) l ∗ ◇{List.map fst l}(0, a))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         ◇{List.map fst l}(0, a - 1)
+         -∗
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
+            (wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "[D T] H".
+    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
+    Unshelve. 2: lia.
+    iApply (wpsim_yieldR with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
+  Qed.
+
   Lemma wpsim_sync_strong
         y (LT: y < x)
         E r g R_src R_tgt
@@ -1347,6 +1375,33 @@ Section STATE.
     }
     iMod "T". iApply (wpsim_sync_strong with "[D T]"). eauto. iFrame.
     iApply "H".
+  Qed.
+
+  Lemma wpsim_sync2
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+        a (MANY : 1 <= a)
+    :
+    (Duty(tid) l ∗ ◇{List.map fst l}(0, a))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         ◇{List.map fst l}(0, a - 1)
+         -∗
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
+            (wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "[D T] H".
+    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
+    Unshelve. 2: lia.
+    iApply (wpsim_sync with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
   Qed.
 
   Lemma wpsim_yieldR_weak
