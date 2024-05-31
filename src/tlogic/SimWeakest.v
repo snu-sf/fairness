@@ -384,6 +384,27 @@ Section STATE.
     Local Opaque FUpd.
   Qed.
 
+  Lemma wpsim_FUpd_simple Es0 Es1 n r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt itr_src itr_tgt
+    :
+    (n <= x) ->
+    (FUpd n (⌜True⌝%I) Es0 Es1 (wpsim Es1 r g Q ps pt itr_src itr_tgt))
+      ⊢
+      (wpsim Es0 r g Q ps pt itr_src itr_tgt)
+  .
+  Proof.
+    Local Transparent FUpd.
+    intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
+    iAssert (FUpd x (⌜True⌝%I) Es0 Es1 (wpsim Es1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
+    { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
+    iAssert (wsats x ∗ OwnEs Es0)%I with "[WSAT E]" as "C".
+    { iFrame. }
+    unfold FUpd. iMod ("H" with "[C]") as "(_ & WSAT & E & H)". iFrame.
+    iApply "H". iFrame. iExists _. iFrame. auto.
+    Local Opaque FUpd.
+  Qed.
+
   Lemma wpsim_FUpd_weaken Es1 Es2 y r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
@@ -455,6 +476,25 @@ Section STATE.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LE. iIntros "[H0 H1]".
     iApply wpsim_FUpd. apply LE. iMod "H0".
+    instantiate (1:=Es1). iModIntro. iApply ("H1" with "H0").
+  Qed.
+
+  Global Instance wpsim_elim_FUpd_simple
+         Es0 Es1 y
+         r g R_src R_tgt
+         (Q: R_src -> R_tgt -> iProp)
+         ps pt itr_src itr_tgt p
+         P
+    :
+    ElimModal (y <= x) p false
+              (FUpd y (⌜True⌝%I) Es0 Es1 P)
+              P
+              (wpsim Es0 r g Q ps pt itr_src itr_tgt)
+              (wpsim Es1 r g Q ps pt itr_src itr_tgt).
+  Proof.
+    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    intros LE. iIntros "[H0 H1]".
+    iApply wpsim_FUpd_simple. apply LE. iMod "H0".
     instantiate (1:=Es1). iModIntro. iApply ("H1" with "H0").
   Qed.
 

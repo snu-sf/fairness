@@ -11,9 +11,6 @@ Module Spinlock.
 
   Section SPINLOCK.
 
-    (* Variable Client : Mod.t. *)
-    (* Notation state := (Mod.state Client). *)
-    (* Notation ident := (Mod.ident Client). *)
     Context {state : Type}.
     Context {ident : ID}.
 
@@ -57,10 +54,6 @@ End Spinlock.
 
 Section SPEC.
 
-  (* Variable src_state : Type. *)
-  (* Variable src_ident : Type. *)
-  (* Variable Client : Mod.t. *)
-  (* Variable gvs : list nat. *)
   Context {src_state : Type}.
   Context {src_ident : Type}.
   Context {Client : Mod.t}.
@@ -167,7 +160,7 @@ Liveness chain of a spinlock :
     :
     ⊢⟦((⤉(isSpinlock n r x P k L l)) ∗ live[k] 1 ∗ ◆[k', L'] ∗ ◇[k'](l' + 1, 1))%F, 1+n⟧
        -∗
-       ⟦( =|1+n|={Es}=>(∃ (k' L' l' : τ{nat}), ⤉(isSpinlock n r x P k' L' l')))%F, 1+n⟧.
+       ⟦( =|1+n|={Es}=>((⤉ isSpinlock n r x P k' L' l') ∗ dead[k]))%F, 1+n⟧.
   Proof.
     red_tl. simpl. iIntros "(ISL & LIVE & LO' & PC')". rewrite red_syn_fupd. red_tl.
     iEval (unfold isSpinlock) in "ISL". red_tl.
@@ -183,13 +176,12 @@ Liveness chain of a spinlock :
     2:{ iPoseProof (live_merge with "[LIVE2 LIVE]") as "LIVE". iFrame.
         iPoseProof (live_wf with "LIVE") as "%F". exfalso. eapply Qp_add_lt_one. eauto.
     }
-    iMod (kill with "LIVE") as "DEAD". iMod ("K" with "[DEAD]") as "_".
-    { unfold spinlockInv. red_tl. iRight. iFrame. }
+    iMod (kill with "LIVE") as "#DEAD". iMod ("K" with "[DEAD]") as "_".
+    { unfold spinlockInv. red_tl. iRight. eauto. }
     iPoseProof (make_isSpinlock n r x P k' L' l' LT' with "[PT BQ WQ P LO' PC']") as "ISL".
     { red_tl. iFrame. }
     rewrite red_syn_fupd. iMod "ISL".
-    iModIntro. iExists k'. red_tl. iExists L'. red_tl. iExists l'. red_tl.
-    iFrame.
+    iModIntro. iFrame. auto.
   Qed.
 
   Lemma Spinlock_lock_spec
