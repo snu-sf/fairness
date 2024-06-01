@@ -233,7 +233,7 @@ Section INVARIANT.
     ⊢
       (default_I x ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (ObligationRA.duty n inlp tid l ∗ ObligationRA.tax (List.map fst l))
+      (ObligationRA.duty n inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
       #=> (ObligationRA.duty n inlp tid l ∗ FairRA.white_thread (S:=_) ∗ default_I x ths im_src im_tgt1 st_src st_tgt).
   Proof.
@@ -257,7 +257,7 @@ Section INVARIANT.
     ⊢
       (default_I x ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l ∗ ObligationRA.tax (List.map fst l)) ls)
+      (list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega) ls)
       -∗
       #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l) ls)
              ∗
@@ -375,7 +375,7 @@ Section INVARIANT.
     ⊢
       (default_I_past tid x ths im_src im_tgt st_src st_tgt)
       -∗
-      (ObligationRA.duty n inlp tid l ∗ ObligationRA.tax (List.map fst l))
+      (ObligationRA.duty n inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
       #=> (ObligationRA.duty n inlp tid l ∗ FairRA.white_thread (S:=_) ∗ default_I x ths im_src im_tgt st_src st_tgt).
   Proof.
@@ -395,7 +395,7 @@ Section INVARIANT.
     ⊢
       (default_I_past tid x ths im_src im_tgt0 st_src st_tgt)
       -∗
-      (list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l ∗ ObligationRA.tax (List.map fst l)) ls)
+      (list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega) ls)
       -∗
       #=> ((list_prop_sum (fun '(i, l) => ObligationRA.duty n (inrp ⋅ p)%prism i l) ls)
              ∗

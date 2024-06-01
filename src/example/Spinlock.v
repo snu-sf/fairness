@@ -62,7 +62,6 @@ Section SPEC.
   Notation tgt_ident := (OMod.closed_ident Client (SCMem.mod gvs)).
 
   Local Instance STT : StateTypes := Build_StateTypes src_state tgt_state src_ident tgt_ident.
-  (* Notation Formula := (@Formula XAtom STT). *)
   Context `{Σ : GRA.t}.
   Context {TLRAS : @TLRAs XAtom STT Σ}.
   Context {AUXRAS : AUXRAs Σ}.
@@ -82,7 +81,7 @@ Liveness chain of a spinlock :
     ((∃ (q : τ{Qp}) (u : τ{nat}),
          ➢(@auexa_b r (Qp * nat)%type (q, u))
           ∗
-          (((x ↦ 0) ∗ ◇[k](l + 1, 1) ∗ ➢(@auexa_w r (Qp * nat)%type (q, u)) ∗ P)
+          (((x ↦ 0) ∗ ◇[k](1 + l, 1) ∗ ➢(@auexa_w r (Qp * nat)%type (q, u)) ∗ P)
            ∨ ((x ↦ 1) ∗ live[k] q ∗ live[u] (1/2) ∗ (-[u](0)-◇ emp) ∗ (u -(0)-◇ k))))
      ∨ dead[k]
     )%F.
@@ -114,7 +113,7 @@ Liveness chain of a spinlock :
         (q : Qp) (u : nat) Es
     :
     ⊢
-      ⟦((x ↦ 0) ∗ ➢(auexa_b r (q, u)) ∗ ➢(auexa_w r (q, u)) ∗ (⤉P) ∗ ◆[k, L] ∗ ◇[k](l+1, 1))%F, 1+n⟧
+      ⟦((x ↦ 0) ∗ ➢(auexa_b r (q, u)) ∗ ➢(auexa_w r (q, u)) ∗ (⤉P) ∗ ◆[k, L] ∗ ◇[k](1+l, 1))%F, 1+n⟧
         -∗
         ⟦( =|1+n|={Es}=> (⤉(isSpinlock n r x P k L l)))%F, 1+n⟧.
   Proof.
@@ -137,7 +136,7 @@ Liveness chain of a spinlock :
         Es
     :
     ⊢
-      ⟦(➢(auexa) ∗ (x ↦ 0) ∗ (⤉P) ∗ ◆[k, L] ∗ ◇[k](l+1, 1))%F, 1+n⟧
+      ⟦(➢(auexa) ∗ (x ↦ 0) ∗ (⤉P) ∗ ◆[k, L] ∗ ◇[k](1+l, 1))%F, 1+n⟧
         -∗
         ⟦( =|1+n|={Es}=> (➢(auexa) ∗ ∃ (r : τ{nat}), ⤉(isSpinlock n r x P k L l)))%F, 1+n⟧.
   Proof.
@@ -158,7 +157,7 @@ Liveness chain of a spinlock :
         (MASK_SL : mask_has_Spinlock Es n)
         k' L' l' (LT' : 0 < l')
     :
-    ⊢⟦((⤉(isSpinlock n r x P k L l)) ∗ live[k] 1 ∗ ◆[k', L'] ∗ ◇[k'](l' + 1, 1))%F, 1+n⟧
+    ⊢⟦((⤉(isSpinlock n r x P k L l)) ∗ live[k] 1 ∗ ◆[k', L'] ∗ ◇[k'](1+ l', 1))%F, 1+n⟧
        -∗
        ⟦( =|1+n|={Es}=>((⤉ isSpinlock n r x P k' L' l') ∗ dead[k]))%F, 1+n⟧.
   Proof.
@@ -195,7 +194,7 @@ Liveness chain of a spinlock :
           ⧼⟦(((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
                 ∗ (⤉ isSpinlock n r x P k L l)
                 ∗ live[k] q ∗ (⤉ Duty(tid) ds)
-                ∗ ◇{List.map fst ds}(L, 1) ∗ ◇{List.map fst ds}(0, 1))%F), 1+n⟧⧽
+                ∗ ◇{List.map fst ds}(2 + L, 1))%F), 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
             ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
                       (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
@@ -206,21 +205,20 @@ Liveness chain of a spinlock :
     iStartTriple. iIntros "PRE POST". unfold Spinlock.lock.
     (* Preprocess for induction. *)
     iApply wpsim_free_all. auto.
-    unfold isSpinlock. ss.
-    iEval (red_tl; simpl) in "PRE". iEval (rewrite red_syn_tgt_interp_as) in "PRE".
-    iDestruct "PRE" as "(#STINTP & (%N & SL) & LIVE & DUTY & PCS2 & PCS)".
+    unfold isSpinlock.
+    iEval (red_tl) in "PRE". iEval (rewrite red_syn_tgt_interp_as) in "PRE".
+    iDestruct "PRE" as "(#STINTP & (%N & SL) & LIVE & DUTY & PCS)".
     iEval (red_tl; simpl) in "SL". iDestruct "SL" as "(%IN & #LO & %POS & INV)".
     iEval (rewrite red_syn_inv) in "INV". iPoseProof "INV" as "#INV".
-    (* iMod ((pcs_decr _ _ 1 1 2) with "PCS") as "[PCS PCS2]". ss. *)
-    iMod (ccs_make k L _ 0 with "[PCS2]") as "CCS". iFrame. auto.
-    (* iMod (pcs_drop _ _ _ _ 0 with "PCS") as "PCS". lia. *)
+    iMod (ccs_make k L _ 1 1 with "[PCS]") as "[CCS PCS]". iFrame. auto.
     (* Set up induction hypothesis. *)
-    iRevert "LIVE DUTY PCS POST". iMod (ccs_ind with "CCS []") as "IND".
+    iMod (pcs_drop_le _ _ _ _ 1 with "PCS") as "PCS". lia. Unshelve. 2: lia.
+    iRevert "LIVE DUTY POST". iMod (ccs_ind2 with "CCS [] PCS") as "IND".
     2:{ iApply "IND". }
-    iModIntro. iExists 0. iIntros "IH". iModIntro. iIntros "LIVE DUTY PCS POST".
+    iModIntro. iExists 0. iIntros "IH". iModIntro. simpl. iIntros "PCS LIVE DUTY POST".
     (* Start an iteration. *)
     iEval (rewrite unfold_iter_eq). rred2r.
-    (* iApply wpsim_free_all. auto. *)
+    (* Number of Yield = 1. *)
     iApply (wpsim_yieldR with "[DUTY PCS]").
     2:{ iSplitL "DUTY". iApply "DUTY". iFrame. }
     auto.
@@ -246,20 +244,20 @@ Liveness chain of a spinlock :
       clear e. des. subst. rred2r. iApply wpsim_tauR. rred2r.
       (* Close the invariant spinlockInv: *)
       (* 1. Allocate new obligation: I will release the lock. *)
-      iMod (alloc_obligation (l + 1)) as "(%k1 & #LO1 & PC1 & LIVE1)".
+      iMod (alloc_obligation l 2) as "(%k1 & #LO1 & PC1 & LIVE1)".
       (* 2. Preprocess. *)
       iPoseProof (live_split _ (1/2)%Qp (1/2)%Qp with "[LIVE1]") as "[LIVE1 LIVE1']".
       { iEval (rewrite Qp.half_half). iFrame. }
-      iMod (pc_drop _ l _ _ (1+1) _ with "PC1") as "PC1". auto. Unshelve. 2: lia.
+      iEval (replace 2 with (1+1) by lia) in "PC1".
       iPoseProof (pc_split with "PC1") as "[PC1 PC_POST]".
-      iMod (pc_mon _ 1 _ (0+1) _ _ with "PC1") as "PC1". Unshelve.
+      iMod (pc_mon _ 1 _ 1 _ _ with "PC1") as "PC1". Unshelve.
       2:{ apply layer_drop_eq; auto. }
       iMod (duty_add _ _ _ _ 0 (emp%F : Formula n) with "[DUTY PC1] []") as "DUTY".
       { iFrame. }
       { iModIntro. iEval (ss; red_tl). auto. }
       iPoseProof (duty_tpromise with "DUTY") as "#PROM1".
       { simpl. left. auto. }
-      iMod (link_new k1 k (l+1) 0 with "[PCk]") as "#LINK1".
+      iMod (link_new k1 k l 0 0 with "[PCk]") as "[#LINK1 _]".
       { iFrame. eauto. }
       iPoseProof ((live_split k (q/2)%Qp (q/2)%Qp) with "[LIVE]") as "[MYLIVE LIVE]".
       { rewrite Qp.div_2. iFrame. }
@@ -272,8 +270,7 @@ Liveness chain of a spinlock :
         iRight. iFrame. auto.
       }
       (* Finish with POST. *)
-      iApply "POST". iEval (red_tl; simpl). iExists k1. iEval (red_tl; simpl).
-      iFrame.
+      iApply "POST". iEval (red_tl; simpl). iExists k1. iEval (red_tl; simpl). iFrame.
     }
 
     (** Case 2. Miss the lock and loops. *)
@@ -294,7 +291,7 @@ Liveness chain of a spinlock :
       2:{ iExFalso. iPoseProof (not_dead with "[LIVE_O DEAD]") as "%FALSE". iFrame. auto. }
       iMod (link_amplify with "[PC]") as "PC".
       { iFrame. iApply "LINK". }
-      iMod ("IH" with "PC") as "[PCS IH]". auto.
+      iMod ("IH" with "PC") as "IH".
       (* Close the invariant spinlockInv. *)
       iMod ("SLI_CLOSE" with "[qISB LIVE_SL LIVE_O PT]") as "_".
       { iEval (unfold spinlockInv; simpl; red_tl; simpl).
@@ -304,7 +301,7 @@ Liveness chain of a spinlock :
       }
       (* Finish with IH. *)
       iApply wpsim_stutter_mon. i; eauto. instantiate (1:=pt). i; auto.
-      iApply ("IH" with "LIVE DUTY PCS POST").
+      iApply ("IH" with "LIVE DUTY POST").
     }
   Qed.
 
@@ -323,7 +320,7 @@ Liveness chain of a spinlock :
            ⧼((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
                 ∗ (⤉ isSpinlock n r x P k L l)
                 ∗ live[k] q ∗ (⤉ Duty(tid) ds)
-                ∗ ◇{List.map fst ds}(L, 1) ∗ ◇{List.map fst ds}(0, 1))⧽
+                ∗ ◇{List.map fst ds}(2 + L, 1))⧽
              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
              ⧼rv, (∃ (u : τ{nat, 1+n}),
                       (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
@@ -334,7 +331,7 @@ Liveness chain of a spinlock :
             ⧼⟦((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
                   ∗ (⤉ isSpinlock n r x P k L l)
                   ∗ live[k] q ∗ (⤉ Duty(tid) ds)
-                  ∗ ◇{List.map fst ds}(L, 1) ∗ ◇{List.map fst ds}(0, 1))%F, 1+n⟧⧽
+                  ∗ ◇{List.map fst ds}(2 + L, 1))%F, 1+n⟧⧽
               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
               ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
                         (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
@@ -370,7 +367,7 @@ Liveness chain of a spinlock :
              ⧼((syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
                   ∗ (⤉ isSpinlock n r x P k L l)
                   ∗ live[k] q ∗ (⤉ Duty(tid) ds)
-                  ∗ ◇{List.map fst ds}(L, 1) ∗ ◇{List.map fst ds}(0, 1))⧽
+                  ∗ ◇{List.map fst ds}(2 + L, 1))⧽
                (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
                ⧼rv, (∃ (u : τ{nat, 1+n}),
                         (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
@@ -392,8 +389,8 @@ Liveness chain of a spinlock :
                 ∗ (⤉ isSpinlock n r x P k L l) ∗ (⤉ P)
                 ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                 ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
-                ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
-                ∗ ◇[k](l + 1, 1)))%F, 1+n⟧⧽
+                ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(1, 1)
+                ∗ ◇[k](1 + l, 1)))%F, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
             ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ live[k] q)%F, 1+n⟧⧽
   .
@@ -458,8 +455,8 @@ Liveness chain of a spinlock :
                ∗ (⤉ isSpinlock n r x P k L l) ∗ (⤉ P)
                ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
-               ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
-               ∗ ◇[k](l + 1, 1))⧽
+               ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(1, 1)
+               ∗ ◇[k](1 + l, 1))⧽
              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
              ⧼rv, ((⤉ Duty(tid) ds) ∗ live[k] q)⧽)%F, 1+n⟧
     =
@@ -469,8 +466,8 @@ Liveness chain of a spinlock :
                   ∗ (⤉ isSpinlock n r x P k L l) ∗ (⤉ P)
                   ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                   ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
-                  ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
-                  ∗ ◇[k](l + 1, 1)))%F, 1+n⟧⧽
+                  ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(1, 1)
+                  ∗ ◇[k](1 + l, 1)))%F, 1+n⟧⧽
               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
               ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ live[k] q)%F, 1+n⟧⧽)%I
   .
@@ -507,8 +504,8 @@ Liveness chain of a spinlock :
                  ∗ (⤉ isSpinlock n r x P k L l) ∗ (⤉ P)
                  ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                  ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
-                 ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(0, 1)
-                 ∗ ◇[k](l + 1, 1))⧽
+                 ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(1, 1)
+                 ∗ ◇[k](1 + l, 1))⧽
                (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
                ⧼rv, ((⤉ Duty(tid) ds) ∗ live[k] q)⧽)%F, 1+n⟧
   .

@@ -991,7 +991,7 @@ Section STATE.
     :
     (list_prop_sum
        (fun '(i, l) =>
-          ObligationRA.duty y (Prism.compose inrp p) i l ∗ ObligationRA.tax (List.map fst l))
+          ObligationRA.duty y (Prism.compose inrp p) i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
        ls)%I
       -∗
       ((list_prop_sum (fun '(i, l) => ObligationRA.duty y (Prism.compose inrp p) i l) ls)
@@ -1026,7 +1026,7 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => Duty((inrp ⋅ p)%prism ◬ i) l ∗ ◇{List.map fst l}(0, 1)) ls)
+    (list_prop_sum (fun '(i, l) => Duty((inrp ⋅ p)%prism ◬ i) l ∗ ◇{List.map fst l}(1, 1)) ls)
       -∗
       ((list_prop_sum (fun '(i, l) => Duty((inrp ⋅ p)%prism ◬ i) l) ls)
          -∗
@@ -1039,12 +1039,11 @@ Section STATE.
   Proof.
     iIntros "DUTY K".
     iAssert
-      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y (inrp ⋅ p)%prism i l ∗ ObligationRA.tax (List.map fst l))%I)
+      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y (inrp ⋅ p)%prism i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)%I)
           (List.map (λ '(i, l), (i, List.map (λ '(a, b, f), (a, layer b 1, f)) l)) ls))
       with "[DUTY]" as "DUTY".
     { iApply list_prop_sum_pull_bupd_default. iApply list_prop_sum_map. 2: iFrame.
       iIntros ([? ?]) "[D T]". iFrame.
-      iApply ObligationRA.taxes_single_is_tax.
       unfold progress_credits.
       replace (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l))
         with
@@ -1052,7 +1051,7 @@ Section STATE.
       2:{ rewrite ! List.map_map. f_equal. extensionalities. des_ifs. }
       iMod (ObligationRA.taxes_ord_mon with "T") as "T".
       2:{ iModIntro. iFrame. }
-      { rewrite layer_zero1. reflexivity. }
+      { rewrite layer_one_one. reflexivity. }
     }
     iMod "DUTY".
     iApply (wpsim_fairR_prism_step with "[DUTY]"). 1,2,3,4,5: eauto.
@@ -1081,7 +1080,7 @@ Section STATE.
         (NODUP: List.NoDup lf)
     :
     (list_prop_sum
-       (fun '(i, l) => ObligationRA.duty y inrp i l ∗ ObligationRA.tax (List.map fst l)) ls)
+       (fun '(i, l) => ObligationRA.duty y inrp i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega) ls)
       -∗
       ((list_prop_sum (fun '(i, l) => ObligationRA.duty y inrp i l) ls)
          -∗
@@ -1107,7 +1106,7 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun '(i, l) => Duty(inrp ◬ i) l ∗ ◇{List.map fst l}(0, 1)) ls)
+    (list_prop_sum (fun '(i, l) => Duty(inrp ◬ i) l ∗ ◇{List.map fst l}(1, 1)) ls)
       -∗
       ((list_prop_sum (fun '(i, l) => Duty(inrp ◬ i) l) ls)
          -∗
@@ -1120,12 +1119,11 @@ Section STATE.
   Proof.
     iIntros "DUTY K".
     iAssert
-      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y inrp i l ∗ ObligationRA.tax (List.map fst l))%I)
+      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y inrp i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)%I)
           (List.map (λ '(i, l), (i, List.map (λ '(a, b, f), (a, layer b 1, f)) l)) ls))
       with "[DUTY]" as "DUTY".
     { iApply list_prop_sum_pull_bupd_default. iApply list_prop_sum_map. 2: iFrame.
       iIntros ([? ?]) "[D T]". iFrame.
-      iApply ObligationRA.taxes_single_is_tax.
       unfold progress_credits.
       replace (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l))
         with
@@ -1133,7 +1131,7 @@ Section STATE.
       2:{ rewrite ! List.map_map. f_equal. extensionalities. des_ifs. }
       iMod (ObligationRA.taxes_ord_mon with "T") as "T".
       2:{ iModIntro. iFrame. }
-      { rewrite layer_zero1. reflexivity. }
+      { rewrite layer_one_one. reflexivity. }
     }
     iMod "DUTY".
     iApply (wpsim_fairR_step with "[DUTY]"). 1,2,3,4,5: eauto.
@@ -1229,7 +1227,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.tax (List.map fst l))
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
       ((ObligationRA.duty y inlp tid l)
          -∗
@@ -1260,7 +1258,7 @@ Section STATE.
         ps pt ktr_src ktr_tgt
         (l : list (nat * nat * Vars y))
     :
-    (Duty(tid) l ∗ ◇{List.map fst l}(0, 1))
+    (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
       -∗
       ((Duty(tid) l)
          -∗
@@ -1273,13 +1271,13 @@ Section STATE.
   .
   Proof.
     iIntros "[D T] H".
-    iAssert (#=> ObligationRA.tax (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l))) with "[T]" as "T".
+    iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l)) Ord.omega) with "[T]" as "T".
     { unfold progress_credits.
       replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l))
         with (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l)).
       { iMod (ObligationRA.taxes_ord_mon with "T") as "T".
-        2:{ iModIntro. iApply ObligationRA.taxes_single_is_tax. iFrame. }
-        rewrite layer_zero1. reflexivity.
+        2:{ iModIntro. iFrame. }
+        rewrite layer_one_one. reflexivity.
       }
       { rewrite ! List.map_map. f_equal. extensionalities. des_ifs. ss. des_ifs. }
     }
@@ -1295,13 +1293,13 @@ Section STATE.
         (l : list (nat * nat * Vars y))
         a (MANY : 1 <= a)
     :
-    (Duty(tid) l ∗ ◇{List.map fst l}(0, a))
+    (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
       -∗
       ((Duty(tid) l)
          -∗
          €
          -∗
-         ◇{List.map fst l}(0, a - 1)
+         ◇{List.map fst l}(1, a - 1)
          -∗
          (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
             (wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
@@ -1321,7 +1319,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.tax (List.map fst l))
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
       ((ObligationRA.duty y inlp tid l)
          -∗
@@ -1351,7 +1349,7 @@ Section STATE.
         ps pt ktr_src ktr_tgt
         (l : list (nat * nat * Vars y))
     :
-    (Duty(tid) l ∗ ◇{List.map fst l}(0, 1))
+    (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
       -∗
       ((Duty(tid) l)
          -∗
@@ -1363,13 +1361,13 @@ Section STATE.
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "[D T] H".
-    iAssert (#=> ObligationRA.tax (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l))) with "[T]" as "T".
+    iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l)) Ord.omega) with "[T]" as "T".
     { unfold progress_credits.
       replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l))
         with (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l)).
       { iMod (ObligationRA.taxes_ord_mon with "T") as "T".
-        2:{ iModIntro. iApply ObligationRA.taxes_single_is_tax. iFrame. }
-        rewrite layer_zero1. reflexivity.
+        2:{ iModIntro. iFrame. }
+        rewrite layer_one_one. reflexivity.
       }
       { rewrite ! List.map_map. f_equal. extensionalities. des_ifs. ss. des_ifs. }
     }
@@ -1385,13 +1383,13 @@ Section STATE.
         (l : list (nat * nat * Vars y))
         a (MANY : 1 <= a)
     :
-    (Duty(tid) l ∗ ◇{List.map fst l}(0, a))
+    (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
       -∗
       ((Duty(tid) l)
          -∗
          €
          -∗
-         ◇{List.map fst l}(0, a - 1)
+         ◇{List.map fst l}(1, a - 1)
          -∗
          (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
             (wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))))
@@ -1411,7 +1409,7 @@ Section STATE.
         ps pt ktr_src ktr_tgt l
         (TOP: OwnEs_top E)
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.tax (List.map fst l))
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
       ((ObligationRA.duty y inlp tid l)
          -∗
@@ -1434,7 +1432,7 @@ Section STATE.
         ps pt ktr_src ktr_tgt l
         (TOP: OwnEs_top E)
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.tax (List.map fst l))
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
       ((ObligationRA.duty y inlp tid l)
          -∗
