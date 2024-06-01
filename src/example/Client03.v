@@ -152,7 +152,7 @@ Section SPEC.
     (syn_inv n N_t2_write_inv (t2_write n r))%F.
 
   Definition t2_promise n w r : Formula n :=
-    ((D ↦ 0) -U-[w](0)-◇ (t2_write_inv n r))%F.
+    ((live[w] (1/2) ∗ (D ↦ 0)) -U-[w](0)-◇ (dead[w] ∗ (t2_write_inv n r)))%F.
 
   Definition t2_promise_inv n w r : Formula n :=
     (syn_inv n N_t2_promise_inv (t2_promise n w r))%F.
@@ -167,7 +167,7 @@ Section SPEC.
       ,
         [@ tid, N, Es @]
           ⧼⟦((syn_tgt_interp_as N sndl (λ m : SCMem.t, ➢(scm_memory_black m)))
-               ∗ (⤉ Duty(tid) ds) ∗ ◇{List.map fst ds}(2+lft, 2)
+               ∗ (⤉ Duty(tid) ds) ∗ ◇{ds@1}(2+lft, 2)
                ∗ (⤉ isSpinlock N r L (counter N c1 c2 r1 r2) k lft l)
                ∗ (⌜2 <= l⌝) ∗ live[k] (1/2) ∗ ◇[k](1+l, 1)
                ∗ ➢(auexa_w r0 (a : nat))
@@ -349,7 +349,7 @@ Section SPEC.
     2:{ iApply "IH". }
     iSplit; iModIntro.
     { iIntros "IH". iModIntro. iIntros "CUR TID LIVE_k PC_k CNTW_r1 DUTY UNTIL_CLOSE".
-      iEval (simpl; red_tl; simpl) in "CUR".
+      iEval (simpl; red_tl; simpl) in "CUR". iDestruct "CUR" as "[CUR0 CUR]".
       iApply (SCMem_load_fun_spec with "[CUR] [-]").
       3:{ iFrame. eauto. }
       auto.
@@ -358,8 +358,8 @@ Section SPEC.
         set_solver.
       }
       iIntros (rv) "[%RVEQ PTD]". subst rv. rred2r. iApply wpsim_tauR. rred2r.
-      iMod ("UNTIL_CLOSE" with "[PTD]") as "_".
-      { unfold t2_promise. simpl. rewrite red_syn_until_tpromise. iFrame. auto. }
+      iMod ("UNTIL_CLOSE" with "[CUR0 PTD]") as "_".
+      { unfold t2_promise. simpl. rewrite red_syn_until_tpromise. iApply until_tpromise_make1. simpl. red_tl. iFrame. auto. }
       iApply (wpsim_yieldR with "[DUTY]").
       2:{ iFrame. }
       auto.
@@ -385,6 +385,7 @@ Section SPEC.
       iMod ("UNTIL_CLOSE" with "[]") as "_".
       { unfold t2_promise. simpl. rewrite red_syn_until_tpromise. iApply until_tpromise_make2. simpl. iSplit; eauto. }
       iEval (unfold t2_write_inv; simpl; red_tl) in "PR". iEval (rewrite red_syn_inv) in "PR".
+      iDestruct "PR" as "[DEAD PR]".
       iInv "PR" as "PRO" "PR_CLOSE". iEval (unfold t2_write; simpl; red_tl) in "PRO".
       iDestruct "PRO" as "[RES PTD]".
       iApply (SCMem_load_fun_spec with "[PTD] [-]").
@@ -475,8 +476,8 @@ Section SPEC.
                ∗ live[k] (1/2)
                ∗ ◇[k](3, 11)
                ∗ ➢(auexa_w r2 0)
-               ∗ ◇[w](5, 23)
-               ∗ live[w] 1
+               ∗ ◇[w](6, 31)
+               ∗ live[w] (1/2)
                ∗ (⤉ t2_promise_inv N w r2)
             )
               -∗
@@ -492,7 +493,7 @@ Section SPEC.
     rewrite red_syn_tgt_interp_as. unfold t2_promise_inv. rewrite red_syn_inv. rewrite red_syn_wpsim.
     iIntros "(#MEM & TID & DUTY & #ISL & LIVE_k & PC_k & CNTW_r2 & PC_w & LIVE_w & #UNTILI)".
     unfold fn2th. simpl. lred2r. rred2r.
-    iMod (pcs_decr [(w, 0)] _ 22 1 with "[PC_w]") as "[PCS_w_SL PCS_w]".
+    iMod (pcs_decr [(w, 0)] _ 30 1 with "[PC_w]") as "[PCS_w_SL PCS_w]".
     2:{ iApply pcs_cons_fold. iSplitL "PC_w". iFrame. ss. }
     auto.
 

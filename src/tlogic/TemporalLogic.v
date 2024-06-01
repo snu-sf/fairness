@@ -1287,6 +1287,9 @@ Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
 Notation "P '-U-[' k '](' l ')-' '◇' f" :=
   (syn_until_tpromise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : formula_scope.
 
+(* Auxiliary. *)
+Notation "l '@1'" := (List.map fst l) (at level 50, format "l @1") : formula_scope.
+
 (* Triples. *)
 Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
   (syn_atomic_triple tid n Es P code (fun v => Q))
