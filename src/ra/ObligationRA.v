@@ -991,62 +991,9 @@ Module ObligationRA.
     Qed.
 
 
-    Definition tax (l: list (nat * Ord.t)): iProp :=
-      list_prop_sum (fun '(k, c) => white k (Jacobsthal.mult c Ord.omega)) l.
 
     Definition taxes (l: list (nat * Ord.t)) (o: Ord.t): iProp :=
-      list_prop_sum (fun '(k, c) => white k ((Jacobsthal.mult c Ord.omega) × o)%ord) l.
-
-    Lemma tax_perm l0 l1
-          (PERM: Permutation l0 l1)
-      :
-      tax l0 ⊢ tax l1.
-    Proof.
-      apply list_prop_sum_perm; auto.
-    Qed.
-
-    Lemma tax_nil
-      :
-      ⊢ tax [].
-    Proof.
-      apply list_prop_sum_nil.
-    Qed.
-
-    Lemma tax_cons_fold k c tl
-      :
-      (white k (Jacobsthal.mult c Ord.omega) ∗ tax tl)
-        -∗
-        (tax ((k, c)::tl)).
-    Proof.
-      ss.
-    Qed.
-
-    Lemma tax_cons_unfold k c tl
-      :
-      (tax ((k, c)::tl))
-        -∗
-        (white k (Jacobsthal.mult c Ord.omega) ∗ tax tl).
-    Proof.
-      ss.
-    Qed.
-
-    Lemma tax_split l0 l1
-      :
-      (tax (l0 ++ l1))
-        -∗
-        (tax l0 ∗ tax l1).
-    Proof.
-      apply list_prop_sum_split.
-    Qed.
-
-    Lemma tax_combine l0 l1
-      :
-      (tax l0 ∗ tax l1)
-        -∗
-        (tax (l0 ++ l1)).
-    Proof.
-      apply list_prop_sum_combine.
-    Qed.
+      list_prop_sum (fun '(k, c) => white k (c × o)%ord) l.
 
     Lemma taxes_perm l0 l1 o
           (PERM: Permutation l0 l1)
@@ -1065,7 +1012,7 @@ Module ObligationRA.
 
     Lemma taxes_cons_fold k c tl o
       :
-      (white k ((c × Ord.omega) × o)%ord ∗ (taxes tl o))
+      (white k (c × o)%ord ∗ (taxes tl o))
         -∗
         (taxes ((k, c)::tl) o).
     Proof.
@@ -1076,7 +1023,7 @@ Module ObligationRA.
       :
       (taxes ((k, c)::tl) o)
         -∗
-        (white k ((c × Ord.omega) × o)%ord ∗ taxes tl o).
+        (white k (c × o)%ord ∗ taxes tl o).
     Proof.
       ss.
     Qed.
@@ -1111,7 +1058,7 @@ Module ObligationRA.
       iPoseProof (IHl with "TX") as "IH".
       { eauto. }
       iPoseProof (white_mon with "W") as "W".
-      { instantiate (1:=((o × Ord.omega) × o0)%ord).
+      { instantiate (1:=(o × o0)%ord).
         apply Jacobsthal.le_mult_r. auto.
       }
       iMod "W". iMod "IH".
@@ -1147,38 +1094,10 @@ Module ObligationRA.
       iMod "T". iModIntro. iApply taxes_ord_split_eq. auto.
     Qed.
 
-    Lemma tax_is_single_taxes l
-      :
-      tax l ⊢ taxes l (Ord.S Ord.O).
-    Proof.
-      induction l.
-      { iIntros. iApply taxes_nil. }
-      iIntros "T". destruct a as [k o].
-      iPoseProof (tax_cons_unfold with "T") as "[W T]".
-      iApply taxes_cons_fold.
-      iPoseProof (white_eq with "W") as "W".
-      { rewrite <- Jacobsthal.mult_1_r. reflexivity. }
-      iFrame. iApply IHl. auto.
-    Qed.
-
-    Lemma taxes_single_is_tax l
-      :
-      taxes l (Ord.S Ord.O) ⊢ tax l.
-    Proof.
-      induction l.
-      { iIntros. iApply tax_nil. }
-      iIntros "T". destruct a as [k o].
-      iPoseProof (taxes_cons_unfold with "T") as "[W T]".
-      iApply tax_cons_fold.
-      iPoseProof (white_eq with "W") as "W".
-      { rewrite Jacobsthal.mult_1_r. reflexivity. }
-      iFrame. iApply IHl. auto.
-    Qed.
-
     Lemma taxes_ord_split_one l o0 o1
           (LT: (o0 < o1)%ord)
       :
-      taxes l o1 ⊢ #=> (taxes l o0 ∗ tax l).
+      taxes l o1 ⊢ #=> (taxes l o0 ∗ taxes l Ord.one).
     Proof.
       iIntros "T". iPoseProof (taxes_ord_split with "T") as "T".
       { dup LT. eapply Ord.S_supremum in LT0.
@@ -1188,7 +1107,7 @@ Module ObligationRA.
         rewrite <- Hessenberg.add_S_l. reflexivity.
       }
       iMod "T". iDestruct "T" as "[T1 T2]".
-      iModIntro. iFrame. iApply taxes_single_is_tax. auto.
+      iModIntro. iFrame.
     Qed.
 
     Lemma taxes_ord_merge l o0 o1
@@ -1330,7 +1249,7 @@ Module ObligationRA.
       :
       (duty i l)
         -∗
-        (tax (map fst l))
+        (taxes (map fst l) Ord.omega)
         -∗
         #=(arrows_sat)=> (duty i l ∗ FairRA.white p i n).
     Proof.
@@ -1505,7 +1424,7 @@ Module ObligationRA.
 
     Lemma duties_updating os
       :
-      (list_prop_sum (fun '(i, l) => duty i l ∗ tax (map fst l)) os)
+      (list_prop_sum (fun '(i, l) => duty i l ∗ taxes (map fst l) Ord.omega) os)
         -∗
         #=(arrows_sat)=>
             (updating
@@ -1538,8 +1457,9 @@ Module ObligationRA.
           iFrame. iSplitL. 2: auto. clear IHos. iClear "PERSS". iStopProof. induction rs; ss.
           { auto. }
           destruct a as [? [[[[? ?] ?] ?] ?]].
-          iIntros "TAX". iPoseProof (tax_cons_unfold with "TAX") as "[HD TL]".
-          iPoseProof (IHrs with "TL") as "TL". iFrame. iFrame.
+          iIntros "TAX". iPoseProof (taxes_cons_unfold with "TAX") as "[HD TL]".
+          iPoseProof (IHrs with "TL") as "TL". iPoseProof (white_eq with "HD") as "HD".
+          2: iFrame. reflexivity.
         }
       }
       subst.
@@ -1829,7 +1749,7 @@ Module ObligationRA.
       :
       (FairRA.sat_target f0 ths)
         -∗
-        (duty v inlp tid l ∗ tax (map fst l))
+        (duty v inlp tid l ∗ taxes (map fst l) Ord.omega)
         -∗
         (#=(arrows_sat (S := Id) v)=>
            ((FairRA.sat_target f1 ths)
@@ -1862,7 +1782,7 @@ Module ObligationRA.
       :
       (FairRA.sat_target f0 ths)
         -∗
-        (list_prop_sum (fun '(i, l) => duty v (Prism.compose inrp p) i l ∗ tax (map fst l)) ls)
+        (list_prop_sum (fun '(i, l) => duty v (Prism.compose inrp p) i l ∗ taxes (map fst l) Ord.omega) ls)
         -∗
         (#=(arrows_sat (S := Id) v)=>
            ((FairRA.sat_target f1 ths)

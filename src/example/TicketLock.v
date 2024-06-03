@@ -7,31 +7,42 @@ From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic TemporalLogicFull SCMemSpec.
 
-Module Spinlock.
+Module TicketLock.
 
-  Section SPINLOCK.
+  Section TICKET.
 
     Context {state : Type}.
     Context {ident : ID}.
 
-    Notation unlocked := (SCMem.val_nat 0).
-    Notation locked := (SCMem.val_nat 1).
-
-    Definition lock :
-      (* ktree (threadE void unit) SCMem.val unit *)
-      ktree (threadE ident state) SCMem.val unit
+    Definition lock_loop :
+      ktree (threadE ident state) (SCMem.val * SCMem.val) unit
       :=
       fun x =>
+        let '(own_loc, my_tk) := x in
         ITree.iter
-          (fun (_ : unit) =>
-             b <- (OMod.call "cas" (x, unlocked, locked));;
-             if (b : bool) then Ret (inr tt) else Ret (inl tt)) tt.
+          (fun (_: unit) =>
+             own <- (OMod.call (R:=SCMem.val) "load" own_loc);;
+             b <- (OMod.call (R:=bool) "compare" (own, my_tk));;
+             if b then Ret (inr tt) else Ret (inl tt)) tt.
+
+    Definition lock :
+      ktree (threadE ident state) (SCMem.val * SCMem.val) unit
+      :=
+      fun x =>
+        let '(own_loc, next_loc) := x in
+        my_tk <- (OMod.call (R:=SCMem.val) "faa" (next_loc, 1));;
+        _ <- lock_loop (own_loc, my_tk);;
+        trigger Yield.
 
     Definition unlock :
-      (* ktree (threadE void unit) SCMem.val unit *)
-      ktree (threadE ident state) SCMem.val unit
+      ktree (threadE ident state) (SCMem.val * SCMem.val) unit
       :=
-      fun x => (OMod.call "store" (x, unlocked)).
+      fun x =>
+        let '(own_loc, next_loc) := x in
+        now <- (OMod.call (R:=SCMem.val) "load" own_loc);;
+        _ <- (OMod.call (R:=unit) "store" (own_loc, SCMem.val_add now 1));;
+        trigger Yield
+    .
 
     (** TODO : more rules for module composition. *)
     (* Definition omod : Mod.t := *)
@@ -48,9 +59,9 @@ Module Spinlock.
     (*     (SCMem.mod gvs) *)
     (* . *)
 
-  End SPINLOCK.
+  End TICKET.
 
-End Spinlock.
+End TicketLock.
 
 Section SPEC.
 
@@ -66,33 +77,51 @@ Section SPEC.
   Context {TLRAS : @TLRAs XAtom STT Σ}.
   Context {AUXRAS : AUXRAs Σ}.
 
-  (*
-Liveness chain of a spinlock : 
-(Holder needs one ◇ at l (> 0) = Holder will unlock @ l + 1)
-<
-(Spinlock will end @ L)
-<
-(Other duties of tid @ ? < L)
-   *)
+  Lemma lock_loop_red own_loc my_tk :
+    @TicketLock.lock_loop tgt_state tgt_ident (own_loc, my_tk)
+    =
+      own <- (OMod.call (R:=SCMem.val) "load" (own_loc));;
+      b <- (OMod.call (R:=bool) "compare" (own, my_tk));;
+      if b then Ret tt else tau;; TicketLock.lock_loop (own_loc, my_tk).
+  Proof.
+    unfold TicketLock.lock_loop. etransitivity.
+    { apply unfold_iter_eq. }
+    grind.
+  Qed.
+
+  (* TODO *)
 
   (** Invariants. *)
-  Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat)
-    : Formula n :=
-    ((∃ (q : τ{Qp}) (u : τ{nat}),
-         ➢(@auexa_b r (Qp * nat)%type (q, u))
-          ∗
-          (((x ↦ 0) ∗ ◇[k](1 + l, 1) ∗ ➢(@auexa_w r (Qp * nat)%type (q, u)) ∗ P)
-           ∨ ((x ↦ 1) ∗ live[k] q ∗ live[u] (1/2) ∗ (-[u](0)-◇ emp) ∗ (u -(0)-◇ k))))
-     ∨ dead[k]
+  (* Ref: Lecture Notes on Iris. *)
+  Definition tklockInv (i : nat) (r : nat) (lo ln : SCMem.val) (P : Formula i) (l : nat)
+    : Formula (1+i) :=
+    (∃ (o n : τ{nat, 1+i}) (D : τ{gset nat, 1+i}),
+        (lo ↦ o)
+          ∗ (ln ↦ n)
+          ∗ ➢(tkl_b r o D)
+          ∗ (⌜forall tk, (tk < n) <-> (tk ∈ D)⌝)
+          ∗ ((➢(tkl_locked r o) ∗ (⤉P))
+             ∨ ∃ (_tid _obl : τ{nat, 1+i}), ➢(tkl_issued r o _tid _obl))
+          ∗ ([∗ (1+i) set] tk ∈ D,
+              (⌜tk <= o⌝)
+              ∨ (∃ (tid obl : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
+                    (⤉ Duty(tid) ds)
+                      ∗ ➢(tkl_wait r tk tid obl)
+                      ∗ (⤉ ○Duty(tid) ds)
+                      ∗ (◇[obl](1 + l, tk - o)))
+            )
     )%F.
 
-  (* Namespace for Spinlock invariants. *)
-  Definition N_Spinlock : namespace := (nroot .@ "Spinlock").
+  (* Namespace for TicketLock invariants. *)
+  Definition N_TicketLock : namespace := (nroot .@ "TicketLock").
+
+
+  TODO
 
   Definition isSpinlock n (r : nat) (x : SCMem.val) (P : Formula n) (k L l : nat)
     : Formula n :=
     (∃ (N : τ{namespace, n}),
-        (⌜(↑N ⊆ (↑N_Spinlock : coPset))⌝)
+        (⌜(↑N ⊆ (↑N_TicketLock : coPset))⌝)
           ∗ ◆[k, L] ∗ (⌜0 < l⌝) ∗ syn_inv n N (spinlockInv n r x P k l))%F.
 
   Global Instance isSpinlock_persistent n r x P k L l : Persistent (⟦isSpinlock n r x P k L l, n⟧).
@@ -102,10 +131,10 @@ Liveness chain of a spinlock :
     iDestruct "H" as "#H". auto.
   Qed.
 
-  Definition mask_has_Spinlock (Es : coPsets) n :=
-    (match Es !! n with Some E => (↑N_Spinlock) ⊆ E | None => True end).
+  Definition mask_has_TicketLock (Es : coPsets) n :=
+    (match Es !! n with Some E => (↑N_TicketLock) ⊆ E | None => True end).
 
-  Lemma mask_disjoint_spinlock_state_tgt : ↑N_Spinlock ## (↑N_state_tgt : coPset).
+  Lemma mask_disjoint_spinlock_state_tgt : ↑N_TicketLock ## (↑N_state_tgt : coPset).
   Proof. apply ndot_ne_disjoint. ss. Qed.
 
   Lemma make_isSpinlock
@@ -119,14 +148,14 @@ Liveness chain of a spinlock :
   Proof.
     red_tl. simpl. iIntros "(PT & BQ & WQ & P & #LO & PC)".
     rewrite red_syn_fupd. red_tl.
-    iMod ((FUpd_alloc _ _ _ n (↑(N_Spinlock.@"a")) (spinlockInv n r x P k l))
+    iMod ((FUpd_alloc _ _ _ n (↑(N_TicketLock.@"a")) (spinlockInv n r x P k l))
            with "[PT BQ WQ P PC]") as "#SINV".
     auto.
     { simpl. unfold spinlockInv. red_tl. iLeft. iExists q. red_tl. iExists u. red_tl.
       iSplitL "BQ". iFrame. iLeft. iFrame.
     }
     iModIntro. unfold isSpinlock. red_tl.
-    iExists (↑(N_Spinlock.@"a")). red_tl. iSplit.
+    iExists (↑(N_TicketLock.@"a")). red_tl. iSplit.
     { iPureIntro. apply nclose_subseteq. }
     simpl. rewrite red_syn_inv. auto.
   Qed.
@@ -142,7 +171,7 @@ Liveness chain of a spinlock :
   Proof.
     red_tl. simpl. iIntros "(AEA & PT & P & #LO & PC)".
     rewrite red_syn_fupd. red_tl.
-    iMod (auexa_alloc_gt _ ((1%Qp, 0)) with "AEA") as "[AEA (%r & BQ & BW)]".
+    iMod (auexa_alloc _ ((1%Qp, 0)) with "AEA") as "[AEA (%r & BQ & BW)]".
     iPoseProof (make_isSpinlock n r x P k L l with "[PT BQ BW P PC]") as "ISL".
     auto.
     { red_tl. iFrame. iApply "LO". }
@@ -154,7 +183,7 @@ Liveness chain of a spinlock :
   Lemma update_isSpinlock
         n r x P k L l
         Es
-        (MASK_SL : mask_has_Spinlock Es n)
+        (MASK_SL : mask_has_TicketLock Es n)
         k' L' l' (LT' : 0 < l')
     :
     ⊢⟦((⤉(isSpinlock n r x P k L l)) ∗ live[k] 1 ∗ ◆[k', L'] ∗ ◇[k'](1+ l', 1))%F, 1+n⟧
@@ -166,7 +195,7 @@ Liveness chain of a spinlock :
     iDestruct "ISL" as "[%N ISL]". iEval red_tl in "ISL".
     iDestruct "ISL" as "(%IN & _ & %LT & SI)". rewrite red_syn_inv.
     iInv "SI" as "SI" "K".
-    { unfold mask_has_Spinlock in MASK_SL. des_ifs. set_solver. }
+    { unfold mask_has_TicketLock in MASK_SL. des_ifs. set_solver. }
     simpl. iEval (unfold spinlockInv; red_tl) in "SI".
     iDestruct "SI" as "[[%q SI] | DEAD]".
     2:{ iExFalso. simpl. iPoseProof (not_dead with "[LIVE DEAD]") as "F". iFrame. auto. }
@@ -183,7 +212,7 @@ Liveness chain of a spinlock :
     iModIntro. iFrame. auto.
   Qed.
 
-  Lemma Spinlock_lock_spec
+  Lemma TicketLock_lock_spec
         tid n
         (Es : coPsets)
         (MASK_TOP : OwnEs_top Es)
@@ -195,14 +224,14 @@ Liveness chain of a spinlock :
                 ∗ (⤉ isSpinlock n r x P k L l)
                 ∗ live[k] q ∗ (⤉ Duty(tid) ds)
                 ∗ ◇{List.map fst ds}(2 + L, 1))%F), 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
+            (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock x))
             ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
                       (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                        ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))%F, 1+n⟧⧽
   .
   Proof.
     iIntros (? ? ? ? ? ? ? ?).
-    iStartTriple. iIntros "PRE POST". unfold Spinlock.lock.
+    iStartTriple. iIntros "PRE POST". unfold TicketLock.lock.
     (* Preprocess for induction. *)
     iApply wpsim_free_all. auto.
     unfold isSpinlock.
@@ -305,7 +334,7 @@ Liveness chain of a spinlock :
     }
   Qed.
 
-  Lemma red_syn_Spinlock_lock_spec
+  Lemma red_syn_TicketLock_lock_spec
         tid n
         (Es : coPsets)
     :
@@ -321,7 +350,7 @@ Liveness chain of a spinlock :
                 ∗ (⤉ isSpinlock n r x P k L l)
                 ∗ live[k] q ∗ (⤉ Duty(tid) ds)
                 ∗ ◇{List.map fst ds}(2 + L, 1))⧽
-             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
+             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock x))
              ⧼rv, (∃ (u : τ{nat, 1+n}),
                       (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                             ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))⧽)%F, 1+n⟧
@@ -332,7 +361,7 @@ Liveness chain of a spinlock :
                   ∗ (⤉ isSpinlock n r x P k L l)
                   ∗ live[k] q ∗ (⤉ Duty(tid) ds)
                   ∗ ◇{List.map fst ds}(2 + L, 1))%F, 1+n⟧⧽
-              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
+              (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock x))
               ⧼rv, ⟦(∃ (u : τ{nat, 1+n}),
                         (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                               ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))%F, 1+n⟧⧽)%I
@@ -350,7 +379,7 @@ Liveness chain of a spinlock :
     apply red_syn_non_atomic_triple.
   Qed.
 
-  Lemma Spinlock_lock_syn_spec
+  Lemma TicketLock_lock_syn_spec
         tid n
         (Es : coPsets)
         (MASK_TOP : OwnEs_top Es)
@@ -368,16 +397,16 @@ Liveness chain of a spinlock :
                   ∗ (⤉ isSpinlock n r x P k L l)
                   ∗ live[k] q ∗ (⤉ Duty(tid) ds)
                   ∗ ◇{List.map fst ds}(2 + L, 1))⧽
-               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
+               (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock x))
                ⧼rv, (∃ (u : τ{nat, 1+n}),
                         (⤉ P) ∗ ➢(auexa_w r (((q/2)%Qp, u) : Qp * nat)) ∗ live[k] (q/2)
                               ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2) ∗ ◇[u](l, 1))⧽)%F, 1+n⟧
   .
   Proof.
-    rewrite red_syn_Spinlock_lock_spec. iApply Spinlock_lock_spec. all: auto.
+    rewrite red_syn_TicketLock_lock_spec. iApply TicketLock_lock_spec. all: auto.
   Qed.
 
-  Lemma Spinlock_unlock_spec
+  Lemma TicketLock_unlock_spec
         tid n
         (Es : coPsets)
         (MASK_TOP : OwnEs_top Es)
@@ -391,12 +420,12 @@ Liveness chain of a spinlock :
                 ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                 ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(1, 1)
                 ∗ ◇[k](1 + l, 1)))%F, 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
+            (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.unlock x))
             ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ live[k] q)%F, 1+n⟧⧽
   .
   Proof.
     iIntros (? ? ? ? ? ? ? ? ?).
-    iStartTriple. iIntros "PRE POST". unfold Spinlock.unlock.
+    iStartTriple. iIntros "PRE POST". unfold TicketLock.unlock.
     (* Preprocess. *)
     iApply wpsim_free_all. auto.
     unfold isSpinlock. ss.
@@ -438,7 +467,7 @@ Liveness chain of a spinlock :
     iApply "POST". red_tl. iFrame.
   Qed.
 
-  Lemma red_syn_Spinlock_unlock_spec
+  Lemma red_syn_TicketLock_unlock_spec
         tid n
         (Es : coPsets)
     :
@@ -457,7 +486,7 @@ Liveness chain of a spinlock :
                ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(1, 1)
                ∗ ◇[k](1 + l, 1))⧽
-             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
+             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.unlock x))
              ⧼rv, ((⤉ Duty(tid) ds) ∗ live[k] q)⧽)%F, 1+n⟧
     =
       (∀ r x (P : Formula n) k L l q (ds : list (nat * nat * Formula n)) u,
@@ -468,7 +497,7 @@ Liveness chain of a spinlock :
                   ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                   ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(1, 1)
                   ∗ ◇[k](1 + l, 1)))%F, 1+n⟧⧽
-              (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
+              (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.unlock x))
               ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ live[k] q)%F, 1+n⟧⧽)%I
   .
   Proof.
@@ -485,7 +514,7 @@ Liveness chain of a spinlock :
     apply red_syn_non_atomic_triple.
   Qed.
 
-  Lemma Spinlock_unlock_syn_spec
+  Lemma TicketLock_unlock_syn_spec
         tid n
         (Es : coPsets)
         (MASK_TOP : OwnEs_top Es)
@@ -506,12 +535,12 @@ Liveness chain of a spinlock :
                  ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds)) ∗ live[u] (1/2)
                  ∗ ◇{List.map fst ((u, 0, emp) :: ds)}(1, 1)
                  ∗ ◇[k](1 + l, 1))⧽
-               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
+               (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.unlock x))
                ⧼rv, ((⤉ Duty(tid) ds) ∗ live[k] q)⧽)%F, 1+n⟧
   .
   Proof.
-    rewrite red_syn_Spinlock_unlock_spec. iApply Spinlock_unlock_spec. all: auto.
+    rewrite red_syn_TicketLock_unlock_spec. iApply TicketLock_unlock_spec. all: auto.
   Qed.
 
 End SPEC.
-Global Opaque Spinlock.lock Spinlock.unlock.
+Global Opaque TicketLock.lock TicketLock.unlock.

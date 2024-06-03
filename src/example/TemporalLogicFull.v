@@ -3,7 +3,8 @@ From Fairness Require Import PCM IProp IPM IndexedInvariants.
 From Fairness Require Import ISim SimDefaultRA LiveObligations SimWeakest LogicSyntaxHOAS.
 From Fairness Require Export TemporalLogic.
 From stdpp Require Export coPset gmap namespaces.
-From Fairness Require Export AuthExclAnysRA SCMem.
+From Fairness Require Export SCMem.
+From Fairness Require Export AuthExclAnysRA TicketLockRA.
 Require Import Program.
 
 (** User-defined auxiliary atoms. *)
@@ -35,6 +36,12 @@ Section XADEF.
     | auexa
     | auexa_b (r : nat) {T : Type} (t : T)
     | auexa_w (r : nat) {T : Type} (t : T)
+    (* For ticket lock. *)
+    | tkl_auth
+    | tkl_b (r : nat) (o : nat) (D : gset nat)
+    | tkl_locked (r : nat) (o : nat)
+    | tkl_issued (r : nat) (m tid k : nat)
+    | tkl_wait (r : nat) (m tid k : nat)
   .
 
   Global Instance XAtom : AuxAtom := { aAtom := xatom }.
@@ -55,6 +62,8 @@ Section AUXRAS.
       _AUEX_QP : @GRA.inG (AuthExclRA Qp) Σ;
       (* Map from nat to Auth Excl Any. *)
       _AuthExclAnys : @GRA.inG AuthExclAnysRA Σ;
+      (* For ticket lock. *)
+      _HasTicketLock : @GRA.inG TicketLockRA Σ;
     }.
 
 End AUXRAS.
@@ -74,6 +83,8 @@ Section EXPORT.
   #[export] Instance AUEX_QP : @GRA.inG (AuthExclRA Qp) Σ:= _AUEX_QP.
   (* Map from nat to Auth Excl Any. *)
   #[export] Instance AuthExclAnys : @GRA.inG AuthExclAnysRA Σ := _AuthExclAnys.
+  (* For ticket lock. *)
+  #[export] Instance HasTicketLock : @GRA.inG TicketLockRA Σ:= _HasTicketLock.
 
 End EXPORT.
 
@@ -95,9 +106,15 @@ Section XAINTERP.
     | auex_b_Qp q => OwnM (Auth.black ((Some q) : Excl.t Qp) : AuthExclRA Qp)
     | auex_w_Qp q => OwnM (Auth.white ((Some q) : Excl.t Qp) : AuthExclRA Qp)
     (* Map from nat to Auth Excl Any. *)
-    | auexa => AuExAny
+    | auexa => AuExAny_gt
     | auexa_b r t => AuExAnyB r t
     | auexa_w r t => AuExAnyW r t
+    (* For ticket lock. *)
+    | tkl_auth => TicketLockRA_Auth
+    | tkl_b r o D => tklockB r o D
+    | tkl_locked r o => tklock_locked r o
+    | tkl_issued r m tid k => tklock_issued r m tid k
+    | tkl_wait r m tid k => tklock_wait r m tid k
     end.
 
   Global Instance XAInterp : AAInterp := { aaintp := xatom_sem }.

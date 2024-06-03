@@ -124,6 +124,24 @@ Section BIGOP.
     destruct a. ss.
   Qed.
 
+  Definition syn_big_sepS
+             (n : index) {K} {H1 : EqDecision K} {H2 : Countable K}
+             (I : @gset K H1 H2)
+             (f : K -> Formula n)
+    : Formula n :=
+    fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (f hd) tl) empty (elements I).
+
+  Lemma red_syn_big_sepS n K {H1 : EqDecision K} {H2 : Countable K} I f :
+    Sem n (@syn_big_sepS n K _ _ I f) = ([∗ set] i ∈ I, Sem n (f i))%I.
+  Proof.
+    ss. unfold big_opS. rewrite seal_eq. unfold big_op.big_opS_def.
+    unfold syn_big_sepS. remember (elements I) as L.
+    clear HeqL I. induction L.
+    { ss. }
+    ss. rewrite @red_sem_sepconj. rewrite IHL. f_equal.
+  Qed.
+
+
   Definition syn_big_sepL1
              (n : index) {A} (I : Typ (Formula n) (listT A))
              (f : (Typ (Formula n) A) -> Formula n)
@@ -158,19 +176,23 @@ End BIGOP.
 Notation "'[∗' n 'map]' k ↦ x ∈ m , P" :=
   (syn_big_sepM n m (fun k x => P))
     (at level 200, n at level 1, m at level 10, k, x at level 1, right associativity,
-      format "[∗ n map] k ↦ x ∈ m , P") : formula_scope.
+      format "[∗  n  map]  k  ↦  x  ∈  m ,  P") : formula_scope.
 Notation "'[∗' n , A 'map]' k ↦ x ∈ m , P" :=
   (syn_big_sepM n (A:=A) m (fun k x => P))
     (at level 200, n at level 1, m at level 10, k, x, A at level 1, right associativity,
-      format "[∗ n , A map] k ↦ x ∈ m , P") : formula_scope.
+      format "[∗  n  ,  A  map]  k  ↦  x  ∈  m ,  P") : formula_scope.
+Notation "'[∗' n 'set]' x ∈ X , P" :=
+  (syn_big_sepS n X (fun x => P))
+    (at level 200, n at level 1, X at level 10, x at level 1, right associativity,
+      format "[∗  n  set]  x  ∈  X ,  P") : formula_scope.
 Notation "'[∗' n 'list]' x ∈ l , P" :=
-  (syn_big_sepL1 n l (fun k x => P))
+  (syn_big_sepL1 n l (fun x => P))
     (at level 200, n at level 1, l at level 10, x at level 1, right associativity,
-      format "[∗ n list] x ∈ l , P") : formula_scope.
+      format "[∗  n  list]  x  ∈  l ,  P") : formula_scope.
 Notation "'[∗' n , A 'list]' x ∈ l , P" :=
-  (syn_big_sepL1 n (A:=A) l (fun k x => P))
+  (syn_big_sepL1 n (A:=A) l (fun x => P))
     (at level 200, n at level 1, l at level 10, x, A at level 1, right associativity,
-      format "[∗ n , A list] x ∈ l , P") : formula_scope.
+      format "[∗  n ,  A  list]  x  ∈  l ,  P") : formula_scope.
 
 (** Define TL. *)
 
@@ -228,7 +250,12 @@ Module Atom.
     | obl_live (k : nat) (q : Qp)
     | obl_dead (k : nat)
     | obl_link (k0 k1 l : nat)
-    | obl_duty {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ (@Typ) (@t form) form)))
+    | obl_duty
+        {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ (@Typ) (@t form) form)))
+    | obl_share_duty_b
+        {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ (@Typ) (@t form) form)))
+    | obl_share_duty_w
+        {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ (@Typ) (@t form) form)))
     | obl_fc {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id)
     | obl_promise {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (k l : nat) (f : @Syntax.t _ (@Typ) (@t form) form)
     | obl_tc
@@ -272,6 +299,7 @@ Section TLRAS.
       _EDGERA: @GRA.inG EdgeRA Σ;
       _ARROWSHOTRA: @GRA.inG ArrowShotRA Σ;
       _ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ;
+      _SHAREDUTY: @GRA.inG (@ShareDutyRA id_tgt_type Formula) Σ;
     }.
 
 End TLRAS.
@@ -298,6 +326,7 @@ Section EXPORT.
   #[export] Instance EDGERA: @GRA.inG EdgeRA Σ:= _EDGERA.
   #[export] Instance ARROWSHOTRA: @GRA.inG ArrowShotRA Σ:= _ARROWSHOTRA.
   #[export] Instance ARROWRA: @GRA.inG (@ArrowRA id_tgt_type Formula) Σ:= _ARROWRA.
+  #[export] Instance SHAREDUTY: @GRA.inG (@ShareDutyRA id_tgt_type Formula) Σ:= _SHAREDUTY.
 
 End EXPORT.
 
@@ -360,6 +389,8 @@ Section ATOMINTERP.
     | obl_dead k => dead k
     | obl_link k0 k1 l => link k0 k1 l
     | obl_duty p i ds => duty p i ds
+    | obl_share_duty_b p i ds => ShareDuty_black p i ds
+    | obl_share_duty_w p i ds => ShareDuty_white p i ds
     | obl_fc p i => fairness_credit p i
     | obl_promise p i k l f => promise p i k l f
     | obl_tc => thread_credit
@@ -1252,8 +1283,8 @@ Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%F (at level
 Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%F (at level 90) : formula_scope.
 
 (* State. *)
-Notation "'○' ( tid )" :=
-  (⟨Atom.ow_ths tid⟩)%F (at level 50, tid at level 1, format "○ ( tid )") : formula_scope.
+Notation "'TID' ( tid )" :=
+  (⟨Atom.ow_ths tid⟩)%F (at level 50, tid at level 1, format "TID ( tid )") : formula_scope.
 
 (* Liveness logic. *)
 Notation "'◆' [ k , l ]" :=
@@ -1286,6 +1317,18 @@ Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
   (syn_until_promise p i k l f P)%F (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : formula_scope.
 Notation "P '-U-[' k '](' l ')-' '◇' f" :=
   (syn_until_tpromise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : formula_scope.
+
+Notation "'●Duty' ( p ◬ i ) ds" :=
+  (⟨Atom.obl_share_duty_b p i ds⟩)%F (at level 50, p, i, ds at level 1, format "●Duty ( p  ◬  i )  ds") : formula_scope.
+Notation "'○Duty' ( p ◬ i ) ds" :=
+  (⟨Atom.obl_share_duty_w p i ds⟩)%F (at level 50, p, i, ds at level 1, format "○Duty ( p  ◬  i )  ds") : formula_scope.
+Notation "'●Duty' ( tid ) ds" :=
+  (⟨Atom.obl_share_duty_b inlp tid ds⟩)%F (at level 50, tid, ds at level 1, format "●Duty ( tid )  ds") : formula_scope.
+Notation "'○Duty' ( tid ) ds" :=
+  (⟨Atom.obl_share_duty_w inlp tid ds⟩)%F (at level 50, tid, ds at level 1, format "○Duty ( tid )  ds") : formula_scope.
+
+(* Auxiliary. *)
+Notation "l '@1'" := (List.map fst l) (at level 50, format "l @1") : formula_scope.
 
 (* Triples. *)
 Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
