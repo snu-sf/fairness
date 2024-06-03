@@ -93,19 +93,30 @@ Section SPEC.
 
   (** Invariants. *)
   (* Ref: Lecture Notes on Iris. *)
-  Definition tklockInv (n : nat) (r : nat) (lo ln : SCMem.val) (P : Formula n) (l : nat)
-    : Formula n :=
-    (∃ (o n : τ{nat}) (s : τ{gset nat}),
+  Definition tklockInv (i : nat) (r : nat) (lo ln : SCMem.val) (P : Formula i) (l : nat)
+    : Formula (1+i) :=
+    (∃ (o n : τ{nat, 1+i}) (D : τ{gset nat, 1+i}),
         (lo ↦ o)
           ∗ (ln ↦ n)
-          ∗ ➢(@auexa_b r ((option nat) * (gset nat))%type (Some o, s))
-          ∗ ((➢(@auexa_w r ((option nat) * (gset nat))%type (Some o, ∅)) ∗ P)
-             ∨ ➢(@auexa_w r ((option nat) * (gset nat))%type (None, {[o]}))
+          ∗ ➢(tkl_b r o D)
+          ∗ (⌜forall tk, (tk < n) <-> (tk ∈ D)⌝)
+          ∗ ((➢(tkl_locked r o) ∗ (⤉P))
+             ∨ ∃ (_tid _obl : τ{nat, 1+i}), ➢(tkl_issued r o _tid _obl))
+          ∗ ([∗ (1+i) set] tk ∈ D,
+              (⌜tk <= o⌝)
+              ∨ (∃ (tid obl : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
+                    (⤉ Duty(tid) ds)
+                      ∗ ➢(tkl_wait r tk tid obl)
+                      ∗ (⤉ ○Duty(tid) ds)
+                      ∗ (◇[obl](1 + l, tk - o)))
             )
     )%F.
 
   (* Namespace for TicketLock invariants. *)
   Definition N_TicketLock : namespace := (nroot .@ "TicketLock").
+
+
+  TODO
 
   Definition isSpinlock n (r : nat) (x : SCMem.val) (P : Formula n) (k L l : nat)
     : Formula n :=

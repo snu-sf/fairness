@@ -259,7 +259,7 @@ Section SPEC.
     :
     ⊢ ⟦(∀ (r k w wl r1 r2 : τ{nat, 1+N}),
            ((syn_tgt_interp_as N sndl (fun m => (➢ (scm_memory_black m))))
-               ∗ ○(tid)
+               ∗ TID(tid)
                ∗ (⤉ Duty(tid) [])
                ∗ (⤉ isSpinlock N r L (counter N 2 5 r1 r2) k 4 2)
                ∗ live[k] (1/2)
@@ -470,7 +470,7 @@ Section SPEC.
     :
     ⊢ ⟦(∀ (r k w r1 r2 : τ{nat, 1+N}),
            ((syn_tgt_interp_as N sndl (fun m => (➢ (scm_memory_black m))))
-               ∗ ○(tid)
+               ∗ TID(tid)
                ∗ (⤉ Duty(tid) [(w, 0, t2_write_inv N r2)])
                ∗ (⤉ isSpinlock N r L (counter N 2 5 r1 r2) k 4 2)
                ∗ live[k] (1/2)

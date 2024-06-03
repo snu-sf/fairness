@@ -142,7 +142,7 @@ Liveness chain of a spinlock :
   Proof.
     red_tl. simpl. iIntros "(AEA & PT & P & #LO & PC)".
     rewrite red_syn_fupd. red_tl.
-    iMod (auexa_alloc _ ((1%Qp, 0)) with "AEA") as "[AEA (%r & BQ & BW)]".
+    iMod (auexa_alloc_gt _ ((1%Qp, 0)) with "AEA") as "[AEA (%r & BQ & BW)]".
     iPoseProof (make_isSpinlock n r x P k L l with "[PT BQ BW P PC]") as "ISL".
     auto.
     { red_tl. iFrame. iApply "LO". }

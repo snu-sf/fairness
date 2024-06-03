@@ -1052,6 +1052,66 @@ Module CoPset.
 
 End CoPset.
 
+Module GsetK.
+  Import gmap.
+
+  Section KEY.
+
+    Context {K : Type}.
+    Context {EqDecision0 : EqDecision K}.
+    Context {Countable0 : Countable K}.
+
+    Definition add (x y : option (gset K)) : option (gset K) :=
+      match x, y with
+      | Some x, Some y => if decide (x ## y) then Some (x ∪ y) else None
+      | _, _ => None
+      end.
+
+    Program Instance t : URA.t :=
+      {|
+        URA.car := option (gset K);
+        URA.unit := Some (∅);
+        URA._wf := fun x => match x with Some _ => True | None => False end;
+        URA._add := add;
+        URA.core := fun x => Some ∅;
+      |}.
+    Next Obligation.
+      unfold add. intros [] []; des_ifs. f_equal. set_solver.
+    Qed.
+    Next Obligation.
+      unfold add. intros [] [] []; des_ifs.
+      { f_equal. set_solver. }
+      all: set_solver.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold add. intros []; des_ifs.
+      { f_equal. set_solver. }
+      set_solver.
+    Qed.
+    Next Obligation.
+      unseal "ra". ss.
+    Qed.
+    Next Obligation.
+      unseal "ra". ss. intros [] []; ss.
+    Qed.
+    Next Obligation.
+      unseal "ra". ss. intros []; des_ifs.
+      { f_equal. set_solver. }
+      set_solver.
+    Qed.
+    Next Obligation.
+      intros []; ss.
+    Qed.
+    Next Obligation.
+      unseal "ra". i. exists (Some ∅). ss. des_ifs.
+      { f_equal. set_solver. }
+      set_solver.
+    Qed.
+
+  End KEY.
+
+End GsetK.
+
 Module GRA.
   Class t: Type := __GRA__INTERNAL__: (nat -> URA.t).
   Class inG (RA: URA.t) (Σ: t) := InG {

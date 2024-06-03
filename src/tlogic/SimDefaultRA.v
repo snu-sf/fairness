@@ -658,3 +658,300 @@ Section INIT.
   Qed.
 
 End INIT.
+
+Section SHAREDUTY.
+
+  Variable ident_tgt: ID.
+
+  Local Notation index := nat.
+  Context `{Vars : index -> Type}.
+
+  Definition _ShareDutyRA n : URA.t := ((nat + ident_tgt) ==> (Auth.t (Excl.t (list (nat * nat * Vars n)))))%ra.
+  Definition ShareDutyRA : URA.t := URA.pointwise_dep _ShareDutyRA.
+
+  Context `{Σ : GRA.t}.
+  Context `{SHAREDUTY : @GRA.inG ShareDutyRA Σ}.
+
+  Definition _ShareDutyRA_init n : (Auth.t (Excl.t (list (nat * nat * Vars n)))) :=
+    (Auth.black (Some [] : Excl.t (list (nat * nat * Vars n))) ⋅ Auth.white (Some [] : Excl.t (list (nat * nat * Vars n)))).
+
+  Definition ShareDuty_init : iProp :=
+    OwnM ((fun n => (fun _ => _ShareDutyRA_init n)) : ShareDutyRA).
+
+  Definition ShareDuty_init_inl : iProp :=
+    OwnM ((fun n => (fun k => match k with
+                        | inl _ => _ShareDutyRA_init n
+                        | inr _ => ε
+                        end)) : ShareDutyRA).
+
+  Definition ShareDuty_init_inr : iProp :=
+    OwnM ((fun n => (fun k => match k with
+                        | inl _ => ε
+                        | inr _ => _ShareDutyRA_init n
+                        end)) : ShareDutyRA).
+
+  Definition _ShareDutyRA_black
+             n {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (l : list (nat * nat * Vars n)) : ShareDutyRA :=
+    ((maps_to_res_dep n (maps_to_res (Prism.review p i) (Auth.black ((Some l) : Excl.t (list (nat * nat * Vars n)))))) : ShareDutyRA).
+  Definition ShareDuty_black
+             n {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (l : list (nat * nat * Vars n)) : iProp :=
+    OwnM (_ShareDutyRA_black p i l).
+
+  Definition _ShareDutyRA_white
+             n {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (l : list (nat * nat * Vars n)) : ShareDutyRA :=
+    ((maps_to_res_dep n (maps_to_res (Prism.review p i) (Auth.white ((Some l) : Excl.t (list (nat * nat * Vars n)))))) : ShareDutyRA).
+  Definition ShareDuty_white
+             n {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (l : list (nat * nat * Vars n)) : iProp :=
+    OwnM (_ShareDutyRA_white p i l).
+
+
+  Lemma ShareDuty_init_div0 :
+    ShareDuty_init
+      ⊢ |==>(ShareDuty_init_inl ∗ ShareDuty_init_inr).
+  Proof.
+    iIntros "I". unfold ShareDuty_init.
+    assert (URA.updatable
+              ((fun n => (fun _ => _ShareDutyRA_init n)) : ShareDutyRA)
+              (((fun n => (fun k => match k with
+                       | inl _ => _ShareDutyRA_init n
+                       | inr _ => ε
+                       end)) : ShareDutyRA)
+                 ⋅
+                 ((fun n => (fun k => match k with
+                         | inl _ => ε
+                         | inr _ => _ShareDutyRA_init n
+                         end)) : ShareDutyRA))).
+    { unfold URA.add. unseal "ra". ss. apply pointwise_dep_updatable. i.
+      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
+      - rewrite URA.unit_id. reflexivity.
+      - rewrite URA.unit_idl. reflexivity.
+    }
+    iMod (OwnM_Upd with "I") as "[I I0]". eauto. iModIntro. iFrame.
+  Qed.
+
+  Lemma ShareDuty_init_div1 (ths : TIdSet.t) :
+    ShareDuty_init
+      ⊢
+      |==> (
+        OwnM ((fun n => (fun k => match k with
+                            | inl t => match NatMap.find t ths with
+                                      | Some _ => _ShareDutyRA_init n
+                                      | None => ε
+                                      end
+                            | inr _ => ε
+                            end)) : ShareDutyRA)
+             ∗
+             OwnM ((fun n => (fun k => match k with
+                                 | inl t => match NatMap.find t ths with
+                                           | Some _ => ε
+                                           | None => _ShareDutyRA_init n
+                                           end
+                                 | inr _ => ε
+                                 end)) : ShareDutyRA)
+             ∗
+             ShareDuty_init_inr).
+  Proof.
+    iIntros "I". iMod (ShareDuty_init_div0 with "I") as "[I R]". iFrame.
+    assert (URA.updatable
+              ((fun n => (fun k => match k with
+                             | inl _ => _ShareDutyRA_init n
+                             | inr _ => ε
+                             end)) : ShareDutyRA)
+              (((fun n => (fun k => match k with
+                              | inl t => match NatMap.find t ths with
+                                        | Some _ => _ShareDutyRA_init n
+                                        | None => ε
+                                        end
+                              | inr _ => ε
+                              end)) : ShareDutyRA)
+                 ⋅
+                 ((fun n => (fun k => match k with
+                                | inl t => match NatMap.find t ths with
+                                          | Some _ => ε
+                                          | None => _ShareDutyRA_init n
+                                          end
+                                | inr _ => ε
+                                end)) : ShareDutyRA))).
+    { unfold URA.add. unseal "ra". ss. apply pointwise_dep_updatable. i.
+      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
+      - des_ifs. rewrite URA.unit_id. reflexivity. rewrite URA.unit_idl. reflexivity.
+      - rewrite URA.unit_idl. reflexivity.
+    }
+    iPoseProof (OwnM_Upd with "I") as "> [OWN0 OWN1]". eapply H. iModIntro. iFrame.
+  Qed.
+
+  Lemma ShareDuty_init_div n (ths : TIdSet.t) :
+    ShareDuty_init
+      ⊢
+      |==> (
+        (natmap_prop_sum ths (fun tid _ => (ShareDuty_black (n:=n) inlp tid [] ∗ ShareDuty_white (n:=n) inlp tid [])%I))
+          ∗
+          OwnM ((fun n' => (fun k => match k with
+                               | inl t => match NatMap.find t ths with
+                                         | Some _ => if Nat.eq_dec n n' then ε else _ShareDutyRA_init n'
+                                         | None => ε
+                                         end
+                               | inr _ => ε
+                               end)) : ShareDutyRA)
+          ∗
+          OwnM ((fun n' => (fun k => match k with
+                               | inl t => match NatMap.find t ths with
+                                         | Some _ => ε
+                                         | None => if Nat.eq_dec n n' then _ShareDutyRA_init n' else ε
+                                         end
+                               | inr _ => ε
+                               end)) : ShareDutyRA)
+          ∗
+          OwnM ((fun n' => (fun k => match k with
+                               | inl t => match NatMap.find t ths with
+                                         | Some _ => ε
+                                         | None => if Nat.eq_dec n n' then ε else _ShareDutyRA_init n'
+                                         end
+                               | inr _ => ε
+                               end)) : ShareDutyRA)
+          ∗
+          ShareDuty_init_inr).
+  Proof.
+    iIntros "I". iMod (ShareDuty_init_div1 with "I") as "[I [R S]]". iFrame.
+    assert (URA.updatable
+              ((fun n0 => (λ k0 : index + ident_tgt,
+                           match k0 with
+                           | inl t => match NatMap.find t ths with
+                                     | Some _ => _ShareDutyRA_init n0
+                                     | None => ε
+                                     end
+                           | inr _ => ε
+                           end)) : ShareDutyRA)
+              (((fun n0 => (λ k0 : index + ident_tgt,
+                            match k0 with
+                            | inl t => match NatMap.find t ths with
+                                      | Some _ => if Nat.eq_dec n n0 then ε else _ShareDutyRA_init n0
+                                      | None => ε
+                                      end
+                            | inr _ => ε
+                            end)) : ShareDutyRA)
+                 ⋅
+                 ((fun n0 => (λ k0 : index + ident_tgt,
+                              match k0 with
+                              | inl t => match NatMap.find t ths with
+                                        | Some _ => if Nat.eq_dec n n0 then _ShareDutyRA_init n0 else ε
+                                        | None => ε
+                                        end
+                              | inr _ => ε
+                              end)) : ShareDutyRA))).
+    { unfold URA.add. unseal "ra". ss. apply pointwise_dep_updatable. i.
+      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
+      { des_ifs. rewrite URA.unit_idl. reflexivity. rewrite URA.unit_id. reflexivity. rewrite URA.unit_idl. reflexivity. }
+      rewrite URA.unit_id. reflexivity.
+    }
+    iPoseProof (OwnM_Upd with "I") as "> [I0 I1]". eapply H. clear H. iFrame.
+    assert (URA.updatable
+              ((fun n0 => (λ k0 : index + ident_tgt,
+                           match k0 with
+                           | inl t => match NatMap.find t ths with
+                                     | Some _ => ε
+                                     | None => _ShareDutyRA_init n0
+                                     end
+                           | inr _ => ε
+                           end)) : ShareDutyRA)
+              (((fun n0 => (λ k0 : index + ident_tgt,
+                            match k0 with
+                            | inl t => match NatMap.find t ths with
+                                      | Some _ => ε
+                                      | None => if Nat.eq_dec n n0 then ε else _ShareDutyRA_init n0
+                                      end
+                            | inr _ => ε
+                            end)) : ShareDutyRA)
+                 ⋅
+                 ((fun n0 => (λ k0 : index + ident_tgt,
+                              match k0 with
+                              | inl t => match NatMap.find t ths with
+                                        | Some _ => ε
+                                        | None => if Nat.eq_dec n n0 then _ShareDutyRA_init n0 else ε
+                                        end
+                              | inr _ => ε
+                              end)) : ShareDutyRA))).
+    { unfold URA.add. unseal "ra". ss. apply pointwise_dep_updatable. i.
+      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
+      { des_ifs. rewrite URA.unit_idl. reflexivity. rewrite URA.unit_idl. reflexivity. rewrite URA.unit_id. reflexivity. }
+      rewrite URA.unit_id. reflexivity.
+    }
+    iPoseProof (OwnM_Upd with "R") as "> [R0 R1]". eapply H. clear H.
+    assert (URA.updatable
+              (((fun n0 => (λ k0 : index + ident_tgt,
+                            match k0 with
+                            | inl t => match NatMap.find t ths with
+                                      | Some _ => if Nat.eq_dec n n0 then _ShareDutyRA_init n0 else ε
+                                      | None => ε
+                                      end
+                            | inr _ => ε
+                            end)) : ShareDutyRA)
+                 ⋅
+                 ((fun n0 => (λ k0 : index + ident_tgt,
+                              match k0 with
+                              | inl t => match NatMap.find t ths with
+                                        | Some _ => ε
+                                        | None => if Nat.eq_dec n n0 then _ShareDutyRA_init n0 else ε
+                                        end
+                              | inr _ => ε
+                              end)) : ShareDutyRA))
+              ((fun n0 => (λ k0 : index + ident_tgt,
+                           match k0 with
+                           | inl t => if Nat.eq_dec n n0 then _ShareDutyRA_init n0 else ε
+                           | inr _ => ε
+                           end)) : ShareDutyRA)
+           ).
+    { unfold URA.add. unseal "ra". ss. apply pointwise_dep_updatable. i.
+      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
+      { des_ifs. rewrite URA.unit_id. reflexivity. rewrite URA.unit_idl. reflexivity. rewrite URA.unit_idl. reflexivity.
+        rewrite URA.unit_idl. reflexivity.
+      }
+      rewrite URA.unit_id. reflexivity.
+    }
+    iCombine "I1 R1" as "OWN". iPoseProof (OwnM_Upd with "OWN") as "> OWN". eapply H. clear H. iFrame.
+    iStopProof.
+    pattern ths. revert ths. eapply nm_ind.
+    { iIntros "OWN". iModIntro. iFrame. iApply natmap_prop_sum_empty. }
+    i. iIntros "OWN". clear STRONG.
+    iPoseProof (IH with "OWN") as "> [SUM OWN]".
+    assert (URA.updatable
+            ((fun n0 => (λ k0 : index + ident_tgt,
+               match k0 with
+               | inl t => match NatMap.find (elt:=()) t m with
+                          | Some _ => ε
+                          | None => if Nat.eq_dec n n0 then _ShareDutyRA_init n0 else ε
+                          end
+               | inr _ => ε
+               end)) : ShareDutyRA)
+            (((fun n0 => (λ k0 : index + ident_tgt,
+               match k0 with
+               | inl t => match NatMap.find t (NatMap.add k v m) with
+                          | Some _ => ε
+                          | None => if Nat.eq_dec n n0 then _ShareDutyRA_init n0 else ε
+                          end
+               | inr _ => ε
+               end)) : ShareDutyRA)
+               ⋅
+               (_ShareDutyRA_black (n:=n) inlp k [] ⋅ _ShareDutyRA_white (n:=n) inlp k []))).
+    { unfold _ShareDutyRA_black, _ShareDutyRA_white. setoid_rewrite maps_to_res_dep_add. unfold maps_to_res_dep.
+      unfold URA.add. unseal "ra". ss. apply pointwise_dep_updatable. intros n0.
+      unfold eq_rect_r. destruct (Nat.eq_dec n n0).
+      2:{ des_ifs. rewrite URA.unit_id. apply pointwise_updatable. i. des_ifs. }
+      des_ifs. rewrite <- eq_rect_eq.
+      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i.
+      unfold maps_to_res. destruct a.
+      2:{ des_ifs. do 2 rewrite URA.unit_id. reflexivity. }
+      destruct (Nat.eq_dec n k).
+      - subst n. rewrite nm_find_add_eq. rewrite URA.unit_idl. des_ifs.
+      - rewrite nm_find_add_neq; auto. unfold Prism.review. ss. des_ifs. all: try (do 2 rewrite URA.unit_id; reflexivity).
+    }
+    iPoseProof (OwnM_Upd with "OWN") as "> [OWN0 [OWN1 OWN2]]". eapply H.
+    iModIntro. iFrame. iApply (natmap_prop_sum_add with "SUM [-]"). iFrame.
+  Qed.
+
+  Lemma ShareDuty_init_wf: URA.wf ((fun n => (fun _ => _ShareDutyRA_init n)) : ShareDutyRA).
+  Proof.
+    ur. i. ur. i. unfold _ShareDutyRA_init. ur. split; ss. exists ε. r_solve. ur. ss.
+  Qed.
+
+End SHAREDUTY.

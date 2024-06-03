@@ -142,7 +142,7 @@ Section SPEC.
   Lemma Client02_thread1_spec
         tid n
     :
-    ⊢ ⟦((○(tid) ∗ (⤉ Duty(tid) []))
+    ⊢ ⟦((TID(tid) ∗ (⤉ Duty(tid) []))
              -∗
              syn_wpsim (S n) tid ∅
              (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%F)
@@ -151,7 +151,7 @@ Section SPEC.
              (fn2th Client02.module "thread1" (tt ↑)))%F, 1+n⟧.
   Proof.
     iIntros. red_tl. simpl. iEval (rewrite red_syn_wpsim).
-    iIntros "(THDW & DUTY)".
+    iIntros "(TID & DUTY)".
     unfold fn2th. simpl. lred2r. rred2r.
     iApply (wpsim_yieldR with "[DUTY]"). 2: iFrame. auto.
     iIntros "DUTY FC". iModIntro. rred2r.

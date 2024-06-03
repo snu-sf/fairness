@@ -18,11 +18,14 @@ Section AEAPROP.
   Definition AuExAnyB (r : nat) {T : Type} (t : T) : iProp := OwnM (AuExAnyB_ra r t).
   Definition AuExAnyW (r : nat) {T : Type} (t : T) : iProp := OwnM (AuExAnyW_ra r t).
 
-  Definition AuExAny : iProp :=
-    (∃ (U : nat), OwnM ((fun k => if (lt_dec k U)
-                             then ε
-                             else (Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t)))
-                       : AuthExclAnysRA)).
+  Definition AuExAny_ra {D : nat -> Prop} (DEC : forall a, Decision (D a)) :=
+    ((fun k => if (DEC k)
+            then ε
+            else (Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t)))
+      : AuthExclAnysRA).
+
+  Definition AuExAny {D : nat -> Prop} (DEC : forall a, Decision (D a)) : iProp :=
+    OwnM (AuExAny_ra DEC).
 
   (** Properties. *)
 
@@ -67,30 +70,85 @@ Section AEAPROP.
     iDestruct "BW" as "[B W]". iModIntro. iFrame.
   Qed.
 
-  Lemma auexa_alloc T (t : T) :
-    ⊢ AuExAny -∗ |==> (AuExAny ∗ ∃ r, AuExAnyB r t ∗ AuExAnyW r t).
+  Lemma auexa_alloc_gen
+        {D1 D2 : nat -> Prop}
+        (DEC1 : forall a, Decision (D1 a))
+        (DEC2 : forall a, Decision (D2 a))
+        (SUB : forall n, match DEC1 n, DEC2 n with
+                    | left _, right _ => False
+                    | _, _ => True
+                    end)
+    :
+    ⊢ (AuExAny DEC1) -∗
+      |==> ((AuExAny DEC2)
+              ∗ (OwnM ((fun k => if (DEC1 k)
+                              then ε
+                              else if (DEC2 k)
+                                   then (Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t))
+                                   else ε
+                       ) : AuthExclAnysRA))).
   Proof.
-    iIntros "[%U A]".
+    iIntros "A".
     assert (URA.updatable
-              ((λ k : nat, if lt_dec k U
+              ((λ k : nat, if DEC1 k
                          then ε
                          else(Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t))) : AuthExclAnysRA)
-              (((λ k : nat, if lt_dec k (S U)
+              (((λ k : nat, if DEC2 k
                           then ε
                           else(Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t))) : AuthExclAnysRA)
                  ⋅
-                 (AuExAnyB_ra U tt ⋅ AuExAnyW_ra U tt))).
-    { unfold AuExAnyB_ra, AuExAnyW_ra. setoid_rewrite maps_to_res_add. unfold maps_to_res. setoid_rewrite unfold_pointwise_add.
-      apply pointwise_updatable. i. des_ifs; try lia.
+                 ((fun k => if (DEC1 k)
+                         then ε
+                         else if (DEC2 k)
+                              then (Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t))
+                              else ε
+                  ) : AuthExclAnysRA))).
+    { setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. specialize (SUB a). des_ifs.
       - rewrite URA.unit_id. reflexivity.
       - rewrite URA.unit_idl. reflexivity.
       - rewrite URA.unit_id. reflexivity.
     }
-    iMod (OwnM_Upd with "A") as "[A [B W]]". eauto.
-    iMod (auexa_b_w_update with "B W") as "BW".
-    iModIntro. iSplitL "A".
-    - iExists (S U). iFrame.
-    - iExists U. iFrame.
+    iMod (OwnM_Upd with "A") as "[A B]". eauto.
+    iModIntro. iFrame.
+  Qed.
+
+  Lemma auexa_alloc_one
+        {D1 D2 : nat -> Prop}
+        (DEC1 : forall a, Decision (D1 a))
+        (DEC2 : forall a, Decision (D2 a))
+        T (t : T)
+        (ONE : exists m, forall n,
+            (n <> m -> match DEC1 n, DEC2 n with | left _, left _ | right _, right _ => True | _, _ => False end)
+            /\ (match DEC1 m, DEC2 m with | right _, left _ => True | _, _ => False end))
+    :
+    ⊢ (AuExAny DEC1) -∗ |==> ((AuExAny DEC2) ∗ ∃ r, AuExAnyB r t ∗ AuExAnyW r t).
+  Proof.
+    iIntros "A". des.
+    iMod (auexa_alloc_gen with "A") as "[A G]".
+    2:{ iFrame. assert (
+          ((λ k : nat,
+               if DEC1 k then ε else if DEC2 k then Auth.black (Some (tt↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt↑) : Excl.t Any.t) else ε) : AuthExclAnysRA)
+          =
+            (AuExAnyB_ra m tt ⋅ AuExAnyW_ra m tt)).
+        { unfold AuExAnyB_ra, AuExAnyW_ra. setoid_rewrite maps_to_res_add. unfold maps_to_res. extensionalities k.
+          specialize (ONE k). des. des_ifs.
+        }
+        rewrite H. iDestruct "G" as "[B W]". iExists m. iMod (auexa_b_w_update with "B W") as "BW". iModIntro. iFrame.
+    }
+    i. specialize (ONE n). des. des_ifs. apply ONE. intros EQ. subst. clarify.
+  Qed.
+
+  Definition AuExAny_gt : iProp := (∃ U, AuExAny (gt_dec U)).
+
+  Lemma auexa_alloc_gt T (t : T) :
+    ⊢ AuExAny_gt -∗ |==> (AuExAny_gt ∗ ∃ r, AuExAnyB r t ∗ AuExAnyW r t).
+  Proof.
+    iIntros "[%U A]".
+    iMod (auexa_alloc_one (gt_dec U) (gt_dec (S U)) with "A") as "(A & RES)".
+    2:{ iModIntro. iSplitL "A". iExists _. iFrame. iFrame. }
+    exists U. i. split.
+    { i. des_ifs; try lia. }
+    { des_ifs; try lia. }
   Qed.
 
 End AEAPROP.
