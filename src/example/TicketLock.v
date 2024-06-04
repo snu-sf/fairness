@@ -102,8 +102,8 @@ Section SPEC.
           ∗ (⌜forall tk, (tk < n) <-> (tk ∈ D)⌝)
           ∗ ((➢(tkl_locked r o) ∗ (⤉P) ∗
                ((⌜o = n⌝) ∨ (⌜o < n⌝ ∗ ∃ (tid : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
-                                      (⤉Duty(tid) ((o_obl, 0, emp) :: ds)) ∗ (⤉ ○Duty(tid) ds) ∗ ◇[o_obl](l, 1))))
-             ∨ (∃ (_tid _obl : τ{nat, 1+i}), ➢(tkl_issued r o _tid _obl) ∗ (-[o_obl](l)-◇ emp))
+                                      (⤉Duty(tid) ((o_obl, 0, emp) :: ds)) ∗ (⤉ ○Duty(tid) ds) ∗ ◇[o_obl](l, 1) ∗ live[o_obl] (1/2))))
+             ∨ (∃ (_tid _obl : τ{nat, 1+i}), ➢(tkl_issued r o _tid _obl) ∗ live[o_obl] (1/2) ∗ (-[o_obl](l)-◇ emp))
             )
           ∗ ([∗ (1+i) set] tk ∈ D,
               (⌜tk <= o⌝) ∨ (∃ (tid obl : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
@@ -170,7 +170,7 @@ Section SPEC.
                         ∗ (⤉ (⤉ Duty(tid) ((u, 0, emp) :: ds)))
                         ∗ (⤉ (⤉ ○Duty(tid) ds))
                         ∗ (⤉ (⤉ ●Duty(tid) ds))
-                        ∗ live[u] 1 ∗ ◇[u](l, 1))%F, 2+i⟧⧽
+                        ∗ live[u] (1/2) ∗ ◇[u](l, 1))%F, 2+i⟧⧽
   .
   Proof.
   Admitted.
@@ -187,7 +187,7 @@ Section SPEC.
                ∗ (⤉ (⤉ P))
                ∗ ➢(tkl_locked r o)
                ∗ (⤉ (⤉ Duty(tid) ((u, 0, emp) :: ds)))
-               ∗ live[u] 1
+               ∗ live[u] (1/2)
                ∗ ◇{((u, 0, emp) :: ds)@1}(1, 3))%F, 2+i⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.unlock (lo, ln)))
             ⧼rv, ⟦((⤉ (⤉ Duty(tid) ds))
