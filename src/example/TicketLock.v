@@ -143,10 +143,29 @@ Section SPEC.
         Es
     :
     ⊢
-      ⟦((lo ↦ 0) ∗ (ln ↦ 0) ∗ (⤉P) ∗ ➢(tkl_auth))%F, 1+i⟧
+      ⟦((lo ↦ 0) ∗ (ln ↦ 0) ∗ (⤉⤉P) ∗ ➢(tkl_auth))%F, 2+i⟧
         -∗
-        ⟦(∃ (r : τ{nat, 1+i}), =|1+i|={Es}=> ((isTicketLock i r (lo, ln) P l)))%F, 1+i⟧.
+        ⟦(∃ (r : τ{nat, 2+i}), =|2+i|={Es}=> (⤉(isTicketLock i r (lo, ln) P l)))%F, 2+i⟧.
   Proof.
+    red_tl; simpl. iIntros "(LO & LN & P & AUTH)". iDestruct "AUTH" as (x) "BASE".
+    iExists x. rewrite red_syn_fupd. red_tl; simpl.
+    iMod (alloc_obligation l 1) as "(%k & #OBL & PC & LIVE)".
+    iMod ((FUpd_alloc _ _ _ (S i) (N_TicketLock)) (tklockInv i x lo ln P l) with "[LO LN P BASE]") as "#TINV".
+    auto.
+    { simpl. unfold tklockInv. red_tl. iExists 0. red_tl. iExists 0. red_tl.
+      iExists k. red_tl. iExists ∅. red_tl. simpl. iSplitL "LO"; auto. iSplitL "LN"; auto.
+      iSplitL. unfold tklockb.
+    3:{ iModIntro. unfold isTicketLock. red_tl. iExists lo. red_tl. iExists ln.
+        red_tl. iExists (N_TicketLock). red_tl. iSplit; [iPureIntro; set_solver | iSplit; auto]. }
+    
+    
+    unfold isTicketLock. red_tl; simpl. iModIntro.
+    iExists lo. red_tl. iExists ln. red_tl. iExists N_TicketLock. red_tl.
+    iSplit. { iPureIntro. set_solver. }
+    iSplit. { iPureIntro. auto. }
+    iSplit. { iPureIntro. auto. }
+    rewrite red_syn_inv.
+
     (* TODO *)
   Admitted.
 
