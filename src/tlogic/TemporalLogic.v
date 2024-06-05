@@ -241,14 +241,11 @@ Module Atom.
     | obl_edges_sat
     | obl_arrows_auth (x : index)
     | obl_arrows_regions_black (l : list ((nat + ident_tgt) * nat * Ord.t * Qp * nat * (@Syntax.t _ (@Typ) (@t form) form)))
-    | obl_arrow_done1 (x : nat)
-    | obl_arrow_done2 (k : nat)
+    | obl_arrow_done (x : nat)
     | obl_arrow_pend (i : nat + ident_tgt) (k : nat) (c : Ord.t) (q : Qp)
     (** Atoms for liveness logic definitions. *)
     | obl_lo (k i : nat)
     | obl_pc (k l a : nat)
-    | obl_live (k : nat) (q : Qp)
-    | obl_dead (k : nat)
     | obl_link (k0 k1 l : nat)
     | obl_duty
         {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ (@Typ) (@t form) form)))
@@ -376,17 +373,13 @@ Section ATOMINTERP.
     | obl_arrows_auth x => ObligationRA.arrows_auth x
     | obl_arrows_regions_black l =>
         Regions.black n l
-    | obl_arrow_done1 x =>
+    | obl_arrow_done x =>
         OwnM (FiniteMap.singleton x (OneShot.shot ()): ArrowShotRA)
-    | obl_arrow_done2 k =>
-        ObligationRA.shot k
     | obl_arrow_pend i k c q =>
         (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
     (** Atoms for liveness logic definitions. *)
     | obl_lo k l => liveness_obligation k l
     | obl_pc k l a => progress_credit k l a
-    | obl_live k q => live k q
-    | obl_dead k => dead k
     | obl_link k0 k1 l => link k0 k1 l
     | obl_duty p i ds => duty p i ds
     | obl_share_duty_b p i ds => ShareDuty_black p i ds
@@ -783,7 +776,7 @@ Section OBLIG.
     fun '(i, k, c, q, x, f) =>
       ((□ (f -∗ □ f))
          ∗
-         ((⟨obl_arrow_done1 x⟩ ∗ ⟨obl_arrow_done2 k⟩ ∗ f)
+         ((⟨obl_arrow_done x⟩ ∗ f)
           ∨
             ⟨obl_arrow_pend i k c q⟩))%F.
 
@@ -1291,10 +1284,6 @@ Notation "'◆' [ k , l ]" :=
   (⟨Atom.obl_lo k l⟩)%F (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : formula_scope.
 Notation "'◇' [ k ]( l , a )" :=
   (⟨Atom.obl_pc k l a⟩)%F (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : formula_scope.
-Notation "'live[' k ']' q " :=
-  (⟨Atom.obl_live k q⟩)%F (at level 50, k, q at level 1, format "live[ k ] q") : formula_scope.
-Notation "'dead[' k ']'" :=
-  (⟨Atom.obl_dead k⟩)%F (at level 50, k at level 1, format "dead[ k ]") : formula_scope.
 Notation "s '-(' l ')-' '◇' t" :=
   (⟨Atom.obl_link s t l⟩)%F (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : formula_scope.
 Notation "'Duty' ( p ◬ i ) ds" :=

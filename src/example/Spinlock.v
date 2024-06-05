@@ -76,6 +76,7 @@ Liveness chain of a spinlock :
    *)
 
   (** Invariants. *)
+  TODO (* Update live / dead *)
   Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat)
     : Formula n :=
     ((∃ (q : τ{Qp}) (u : τ{nat}),
