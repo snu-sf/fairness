@@ -186,7 +186,7 @@ Module Syntax.
       | 0 => @t Empty_set
       | S j => @t (iprop j)
       end.
-    
+
     Check (
         univ _ (fun iprop => (nat * iprop)%type)
         (fun _ emb x => lift _ (emb (snd x))) : iprop 2).
@@ -228,37 +228,37 @@ Module Syntax.
         (fun V emb (f: list V) =>  lift _ (f p)).
 
     Print exprop.
-    
+
 
     V, emb: V -> iprop 2, (n,v): nat * V,    sem (lift _ (emb (snd (n,v)))) n
 
 
-    
+
     (fun iprop => nat * iprop)
-    
-    
-      
-    
+
+
+
+
     Fixpoint sem {i} : iprop i -> nat -> Prop :=
       match i with
       | 0 => fun p n =>
-               
+
                match p with
                         | even => n%2 = 0
                         | odd => n%2 = 1
                         | lift p' => match p' with end
                         | inv X f => forall (x: X Empty_set), f id x
                         end
-      
-    
-    
+
+
+
     | univ (X: Type -> Type) (f: forall {V} (emb: V -> iprop), X V -> t) : t
 
 
-    
 
 
-    
+
+
     Fixpoint Typ0 (form: Type) (ty : @type T) : Type :=
       match ty with
       | baseT b => TSem b
@@ -279,8 +279,8 @@ Module Syntax.
       (* | S j => Typ0 (@t T (Typ j) (As (Typ j))) *)
       (* end. *)
 
-  End INTERP_TYPE.  
-    
+  End INTERP_TYPE.
+
 
 Section TYPE.
 
@@ -317,7 +317,7 @@ Definition r2 :=
 
 Inductive Res : Type :=
 | lift (iProp: Res -> Prop): Res
-| 
+|
 
 
 

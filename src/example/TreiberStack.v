@@ -7,39 +7,58 @@ From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic TemporalLogicFull SCMemSpec.
 
-Module Spinlock.
+Module TreiberStack.
 
-  Section SPINLOCK.
+  Section TreiberStack.
 
     Context {state : Type}.
     Context {ident : ID}.
 
-    Notation unlocked := (SCMem.val_nat 0).
-    Notation locked := (SCMem.val_nat 1).
-
-    Definition lock :
-      (* ktree (threadE void unit) SCMem.val unit *)
-      ktree (threadE ident state) SCMem.val unit
+    Definition push_loop :
+      (* ktree (threadE void unit) (SCMem.val * SCMem.val) unit *)
+      ktree (threadE ident state) (SCMem.val * SCMem.val) unit
       :=
-      fun x =>
+      fun '(s, node) =>
         ITree.iter
           (fun (_ : unit) =>
-             b <- (OMod.call "cas" (x, unlocked, locked));;
-             if (b : bool) then Ret (inr tt) else Ret (inl tt)) tt.
+             head <- (OMod.call (R:=SCMem.val) "load" s);;
+             _ <- (OMod.call (R:=unit) "store" (node,head));;
+             b <- (OMod.call (R:=bool) "cas" (s, head, node));;
+             if b then Ret (inr tt) else Ret (inl tt)) tt.
 
-    Definition unlock :
-      (* ktree (threadE void unit) SCMem.val unit *)
-      ktree (threadE ident state) SCMem.val unit
+    Definition push :
+      (* ktree (threadE void unit) (SCMem.val * SCMem.val) unit *)
+      ktree (threadE ident state) (SCMem.val * SCMem.val) unit
       :=
-      fun x => (OMod.call "store" (x, unlocked)).
+      fun '(s,val) =>
+        node <- (OMod.call (R:=SCMem.val) "alloc" 2);;
+        _ <- (OMod.call (R:=unit) "store" (SCMem.val_add node 1, val));;
+        _ <- push_loop (s, node);;
+        trigger Yield.
+
+    Definition pop :
+      (* ktree (threadE void unit) SCMem.val (option (SCMem.val) *)
+      ktree (threadE ident state) SCMem.val (option (SCMem.val))
+      :=
+      fun s =>
+        ITree.iter
+          (fun (_ : unit) =>
+            head <- (OMod.call (R:=SCMem.val) "load" s);;
+            is_null <- (OMod.call (R:=bool) "compare" (head, SCMem.val_null));;
+            if is_null then Ret (inr None) else (
+              next <- (OMod.call (R:=SCMem.val) "load" head);;
+              b <- (OMod.call (R:=bool) "cas" (s, head, next));;
+              if b then Ret (inr (Some head)) else Ret (inl tt)
+            )
+          ) tt.
 
     (** TODO : more rules for module composition. *)
     (* Definition omod : Mod.t := *)
     (*   Mod.mk *)
     (*     (* tt *) *)
     (*     (Mod.st_init Client) *)
-    (*     (Mod.get_funs [("lock", Mod.wrap_fun lock); *)
-    (*                    ("unlock", Mod.wrap_fun unlock)]) *)
+    (*     (Mod.get_funs [("push", Mod.wrap_fun push); *)
+    (*                    ("pop", Mod.wrap_fun pop)]) *)
     (* . *)
 
     (* Definition module gvs : Mod.t := *)
@@ -48,10 +67,10 @@ Module Spinlock.
     (*     (SCMem.mod gvs) *)
     (* . *)
 
-  End SPINLOCK.
+  End TreiberStack.
+End TreiberStack.
 
-End Spinlock.
-
+(* TODO: Write down spec for minimal LAT and TStack. *)
 Section SPEC.
 
   Context {src_state : Type}.
@@ -67,7 +86,7 @@ Section SPEC.
   Context {AUXRAS : AUXRAs Σ}.
 
   (*
-Liveness chain of a spinlock : 
+Liveness chain of a spinlock :
 (Holder needs one ◇ at l (> 0) = Holder will unlock @ l + 1)
 <
 (Spinlock will end @ L)
@@ -76,7 +95,6 @@ Liveness chain of a spinlock :
    *)
 
   (** Invariants. *)
-  TODO (* Update live / dead *)
   Definition spinlockInv (n : nat) (r : nat) (x : SCMem.val) (P : Formula n) (k l : nat)
     : Formula n :=
     ((∃ (q : τ{Qp}) (u : τ{nat}),
@@ -143,7 +161,7 @@ Liveness chain of a spinlock :
   Proof.
     red_tl. simpl. iIntros "(AEA & PT & P & #LO & PC)".
     rewrite red_syn_fupd. red_tl.
-    iMod (auexa_alloc_gt _ ((1%Qp, 0)) with "AEA") as "[AEA (%r & BQ & BW)]".
+    iMod (auexa_alloc _ ((1%Qp, 0)) with "AEA") as "[AEA (%r & BQ & BW)]".
     iPoseProof (make_isSpinlock n r x P k L l with "[PT BQ BW P PC]") as "ISL".
     auto.
     { red_tl. iFrame. iApply "LO". }
@@ -515,4 +533,4 @@ Liveness chain of a spinlock :
   Qed.
 
 End SPEC.
-Global Opaque Spinlock.lock Spinlock.unlock.
+Global Opaque TreiberStack.push TreiberStack.pop.
