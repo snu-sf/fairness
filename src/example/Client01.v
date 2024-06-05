@@ -140,7 +140,7 @@ Section SPEC.
     ⊢ ⟦(∀ (k : τ{nat, 1+n}),
            ((⤉ syn_inv n N_Client01 (client01Inv k n))
               ∗ (syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
-              ∗ ○(tid) ∗ (⤉ Duty(tid) [(k, 0, t1_write n)]) ∗ ◇[k](2, 1) ∗ live[k] (1/2))
+              ∗ TID(tid) ∗ (⤉ Duty(tid) [(k, 0, t1_write n)]) ∗ ◇[k](2, 1) ∗ live[k] (1/2))
              -∗
              syn_wpsim (S n) tid ∅
              (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%F)
@@ -217,7 +217,7 @@ Section SPEC.
     ⊢ ⟦(∀ (k : τ{nat, 1+n}),
            ((⤉ syn_inv n N_Client01 (client01Inv k n))
               ∗ (syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
-              ∗ ○(tid) ∗ (⤉ Duty(tid) nil) ∗ ◇[k](2, 1))
+              ∗ TID(tid) ∗ (⤉ Duty(tid) nil) ∗ ◇[k](2, 1))
              -∗
              syn_wpsim (S n) tid ∅
              (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%F)
