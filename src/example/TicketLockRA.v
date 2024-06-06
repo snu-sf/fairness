@@ -29,14 +29,16 @@ Section Ticket.
     maps_to_res r (Auth.white (((Some o) : Excl.t nat, Some ∅ : GsetK.t) : URA.prod _ _)).
   Definition Ticket_locked r o := OwnM (Ticket_locked_ra r o).
 
-  Definition Ticket_issued_ra (r : nat) (m tid k : nat) : TicketRA :=
+  Definition Ticket_issued_ra (r : nat) (m : nat) : TicketRA :=
     maps_to_res r (Auth.white ((ε : Excl.t nat, Some {[m]} : GsetK.t) : URA.prod _ _)).
-  Definition Ticket_issued r m tid k := OwnM (Ticket_issued_ra r m tid k).
+  Definition Ticket_issued r m := OwnM (Ticket_issued_ra r m).
 
-  Lemma Ticket_alloc o D :
-    TicketRA_Auth ⊢ |==> TicketRA_Auth ∗ (∃ r, Ticket_black r o D ∗ Ticket_locked r o).
+  (** Properties. *)
+
+  Lemma TicketRA_alloc o D :
+    TicketRA_Auth ⊢ ∃ r, |==> TicketRA_Auth ∗ Ticket_black r o D ∗ Ticket_locked r o.
   Proof.
-    iIntros "[%U BASE]".
+    iIntros "[%U BASE]". iExists U.
     assert (URA.updatable
       ((λ k, if lt_dec k U then ε else TicketRA_Auth_base) : TicketRA)
       (((λ k, if lt_dec k (S U) then ε else TicketRA_Auth_base) : TicketRA)
@@ -74,18 +76,62 @@ Section Ticket.
     iMod (OwnM_Upd with "D") as "E". apply H0.
     iModIntro. iSplitL "A".
     { iExists (S U). auto. }
-    { iExists U. iSplitL "C". auto. unfold Ticket_locked, Ticket_locked_ra. auto. }
-    
-  (** Properties. *)
-  (* TODO : prove lemmas. *)
-  Lemma ticketlockB_alloc :
-    TicketLockRA_Auth ⊢ |==> (TicketLockRA_Auth ∗ (∃ r, tklockB r 0 ∅ ∗ tklock_locked r 0)).
-  Proof.
-    iIntros "[%U BASE]". iModIntro. iSplitL.
-    { iExists (S U). }
+    { iSplitL "C". auto. unfold Ticket_locked, Ticket_locked_ra. auto. }
+  Qed.
 
 End Ticket.
-Section TICKETS.
-  Definition TicketsRA : URA.t := (nat ==> AuthExclAnysRA)%ra.
+
+Section OblTicket.
+  Definition OblTicketRA : URA.t := (nat ==> AuthExclAnysRA)%ra.
+
+  Context `{HasOblTicketRA : @GRA.inG OblTicketRA Σ}.
+
+  Definition OblTicketRA_base : AuthExclAnysRA :=
+    (fun k =>
+      (Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t))).
+
+  Definition OblTicketRA_Auth : iProp :=
+    ∃ (U : nat), OwnM ((fun k => if (lt_dec k U) then ε else OblTicketRA_base) : OblTicketRA).
   
-End TICKETS.
+  Definition OblTicket_black_ra (r tk: nat) (tid obl : nat) : OblTicketRA :=
+    maps_to_res r (AuExAnyB_ra tk (tid, obl)).
+  Definition OblTicket_black (r tk tid obl : nat) : iProp :=
+    OwnM (OblTicket_black_ra r tk tid obl).
+
+  Definition OblTicket_white_ra (r tk: nat) (tid obl : nat) : OblTicketRA :=
+    maps_to_res r (AuExAnyW_ra tk (tid, obl)).
+  Definition OblTicket_white (r tk tid obl : nat) : iProp :=
+    OwnM (OblTicket_white_ra r tk tid obl).
+  
+  
+  Lemma OblTicket_alloc tk tid obl :
+    OblTicketRA_Auth ⊢
+      ∃ r, |==> OblTicketRA_Auth ∗ OblTicket_black r tk tid obl ∗ OblTicket_white r tk tid obl.
+  Proof.
+    iIntros "[%U BASE]". iExists U.
+    assert (URA.updatable
+      ((λ k, if lt_dec k U then ε else OblTicketRA_base) : OblTicketRA)
+      (((λ k, if lt_dec k (S U) then ε else OblTicketRA_base) : OblTicketRA)
+        ⋅ (maps_to_res U OblTicketRA_base))) as UPD.
+    { ur. apply pointwise_updatable. i. unfold maps_to_res. des_ifs; try lia.
+      - rewrite URA.unit_idl. reflexivity.
+      - rewrite URA.unit_idl. reflexivity.
+      - rewrite URA.unit_id. reflexivity.  }
+    iMod (OwnM_Upd with "BASE") as "[A B]". apply UPD.
+    assert (URA.updatable
+      (maps_to_res U OblTicketRA_base)
+      (OblTicket_black_ra U tk tid obl ⋅ OblTicket_white_ra U tk tid obl)).
+    { unfold OblTicket_black_ra, OblTicket_white_ra.
+      setoid_rewrite maps_to_res_add. apply maps_to_updatable.
+      unfold OblTicketRA_base, AuExAnyB_ra, AuExAnyW_ra.
+      setoid_rewrite maps_to_res_add.
+      apply pointwise_updatable. i. unfold maps_to_res. des_ifs; cycle 1.
+      { repeat rewrite URA.unit_idl. apply URA.updatable_unit. }
+      apply Auth.auth_update. ii. des. ur in FRAME. des_ifs. split.
+      { ur. clarify. } { ur. ss. } }
+    iMod (OwnM_Upd with "B") as "[C D]". apply H.
+    iModIntro. iSplitL "A".
+    { iExists (S U). auto. }
+    { iSplitL "C". auto. auto. }
+  Qed.
+End OblTicket.

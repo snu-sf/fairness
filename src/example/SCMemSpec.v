@@ -319,7 +319,7 @@ Section SPEC.
     ⊢ [@ tid, y, Es @]
       {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to l v)}
       (map_event emb_mem (SCMem.faa_fun (l, add)))
-      {v, points_to l (SCMem.val_add v add)}.
+      {rv, ⌜rv = v⌝ ∗ points_to l (SCMem.val_add rv add)}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". unfold SCMem.faa_fun. rred2.
@@ -331,7 +331,7 @@ Section SPEC.
     iMod "MB" as "[MB PT]".
     iMod ("K" with "[STTGT MB]") as "_".
     { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
-    iApply "SIM". iFrame.
+    iApply "SIM". iFrame. auto.
   Qed.
 
   Lemma SCMem_faa_fun_syn_spec
@@ -343,7 +343,7 @@ Section SPEC.
     ⊢ ⟦([@ tid, n, Es @]
           {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m)))) ∗ (l ↦ v)}
           (map_event emb_mem (SCMem.faa_fun (l, add)))
-          {v, l ↦ (SCMem.val_add v add)})%F, 1+n⟧.
+          {rv, ⌜rv = v⌝ ∗ (l ↦ (SCMem.val_add rv add))})%F, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".

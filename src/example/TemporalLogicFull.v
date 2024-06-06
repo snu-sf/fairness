@@ -32,11 +32,13 @@ Section XADEF.
     | auexa_b (r : nat) {T : Type} (t : T)
     | auexa_w (r : nat) {T : Type} (t : T)
     (* For ticket lock. *)
-    | tkl_auth
-    | tkl_b (r : nat) (o : nat) (D : gset nat)
-    | tkl_locked (r : nat) (o : nat)
-    | tkl_issued (r : nat) (m tid k : nat)
-    | tkl_wait (r : nat) (m tid k : nat)
+    | tk_auth
+    | tk_b (r : nat) (o : nat) (D : gset nat)
+    | tk_locked (r : nat) (o : nat)
+    | tk_issued (r : nat) (m : nat)
+    | otk_auth
+    | otk_b (r : nat) (m tid k : nat)
+    | otk_w (r : nat) (m tid k : nat)
     (* Excl unit. *)
     | excl
     (* Map from nat to Excl unit. *)
@@ -62,7 +64,8 @@ Section AUXRAS.
       (* Map from nat to Auth Excl Any. *)
       _AuthExclAnys : @GRA.inG AuthExclAnysRA Σ;
       (* For ticket lock. *)
-      _HasTicketLock : @GRA.inG TicketLockRA Σ;
+      _HasTicket : @GRA.inG TicketRA Σ;
+      _HasOblTicket : @GRA.inG OblTicketRA Σ;
       (* Excl unit RA. *)
       _EXCLUNIT : @GRA.inG ExclUnitRA Σ;
       (* Map from nat to Excl unit RA. *)
@@ -91,7 +94,8 @@ Section EXPORT.
   (* Map from nat to Auth Excl Any. *)
   #[export] Instance AuthExclAnys : @GRA.inG AuthExclAnysRA Σ := _AuthExclAnys.
   (* For ticket lock. *)
-  #[export] Instance HasTicketLock : @GRA.inG TicketLockRA Σ:= _HasTicketLock.
+  #[export] Instance HasTicket : @GRA.inG TicketRA Σ:= _HasTicket.
+  #[export] Instance HasOblTicket : @GRA.inG OblTicketRA Σ:= _HasOblTicket.
 
 End EXPORT.
 
@@ -113,11 +117,13 @@ Section XAINTERP.
     | auexa_b r t => AuExAnyB r t
     | auexa_w r t => AuExAnyW r t
     (* For ticket lock. *)
-    | tkl_auth => TicketLockRA_Auth
-    | tkl_b r o D => tklockB r o D
-    | tkl_locked r o => tklock_locked r o
-    | tkl_issued r m tid k => tklock_issued r m tid k
-    | tkl_wait r m tid k => tklock_wait r m tid k
+    | tk_auth => TicketRA_Auth
+    | tk_b r o D => Ticket_black r o D
+    | tk_locked r o => Ticket_locked r o
+    | tk_issued r m => Ticket_issued r m
+    | otk_auth => OblTicketRA_Auth
+    | otk_b r tk tid obl => OblTicket_black r tk tid obl
+    | otk_w r tk tid obl => OblTicket_white r tk tid obl
     (* Excl unit. *)
     | excl => OwnM (Some tt : ExclUnitRA)
     | excls_auth =>

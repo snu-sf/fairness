@@ -93,23 +93,23 @@ Section SPEC.
 
   (** Invariants. *)
   (* Ref: Lecture Notes on Iris. *)
-  Definition tklockInv (i : nat) (r : nat) (lo ln : SCMem.val) (P : Formula i) (l : nat)
+  Definition tklockInv (i : nat) (r or : nat) (lo ln : SCMem.val) (P : Formula i) (l : nat)
     : Formula (1+i) :=
     (∃ (o n o_obl : τ{nat, 1+i}) (D : τ{gset nat, 1+i}),
         (lo ↦ o)
           ∗ (ln ↦ n)
-          ∗ ➢(tkl_b r o D)
+          ∗ ➢(tk_b r o D)
           ∗ (⌜forall tk, (tk < n) <-> (tk ∈ D)⌝)
-          ∗ ((➢(tkl_locked r o) ∗ (⤉P) ∗
+          ∗ ((➢(tk_locked r o) ∗ (⤉P) ∗
                ((⌜o = n⌝) ∨ (⌜o < n⌝ ∗ ∃ (tid : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
-                                      (⤉Duty(tid) ((o_obl, 0, emp) :: ds)) ∗ (⤉ ○Duty(tid) ds) ∗ ◇[o_obl](l, 1) ∗ live[o_obl] (1/2))))
-             ∨ (∃ (_tid _obl : τ{nat, 1+i}), ➢(tkl_issued r o _tid _obl) ∗ live[o_obl] (1/2) ∗ (-[o_obl](l)-◇ emp))
+                                      (⤉Duty(tid) ((o_obl, 0, emp) :: ds)) ∗ (⤉ ○Duty(tid) ds) ∗ ◇[o_obl](l, 1))))
+             ∨ (➢(tk_issued r o) ∗  (-[o_obl](l)-◇ emp))
             )
           ∗ ([∗ (1+i) set] tk ∈ D,
               (⌜tk <= o⌝) ∨ (∃ (tid obl : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
                                (⤉ Duty(tid) ds)
                                  ∗ (⤉ ○Duty(tid) ds)
-                                 ∗ ➢(tkl_wait r tk tid obl)
+                                 ∗ ➢(otk_w or tk tid obl)
                                  ∗ (◇[obl](1 + l, tk - o))
                                  ∗ (o_obl -(0)-◇ obl)
                            )
@@ -119,13 +119,16 @@ Section SPEC.
   (* Namespace for TicketLock invariants. *)
   Definition N_TicketLock : namespace := (nroot .@ "TicketLock").
 
-  Definition isTicketLock i (r : nat) (v : SCMem.val * SCMem.val) (P : Formula i) (l : nat)
+  Lemma mask_disjoint_ticketlock_state_tgt : ↑N_TicketLock ## (↑N_state_tgt : coPset).
+  Proof. apply ndot_ne_disjoint. ss. Qed.
+
+  Definition isTicketLock i (r or: nat) (v : SCMem.val * SCMem.val) (P : Formula i) (l : nat)
     : Formula (1+i) :=
     (∃ (lo ln : τ{SCMem.val}) (N : τ{namespace, 1+i}),
         (⌜(↑N ⊆ (↑N_TicketLock : coPset))⌝)
-          ∗ (⌜0 < l⌝) ∗ (⌜v = (lo, ln)⌝) ∗ syn_inv (1+i) N (tklockInv i r lo ln P l))%F.
+          ∗ (⌜0 < l⌝) ∗ (⌜v = (lo, ln)⌝) ∗ syn_inv (1+i) N (tklockInv i r or lo ln P l))%F.
 
-  Global Instance isSpinlock_persistent i r v P l : Persistent (⟦isTicketLock i r v P l, 1+i⟧).
+  Global Instance isSpinlock_persistent i r or v P l : Persistent (⟦isTicketLock i r or v P l, 1+i⟧).
   Proof.
     unfold Persistent. iIntros "H". unfold isTicketLock.
     red_tl. iDestruct "H" as "[%lo H]". iExists lo.
@@ -137,47 +140,48 @@ Section SPEC.
   Definition mask_has_TicketLock (Es : coPsets) n :=
     (match Es !! n with Some E => (↑N_TicketLock) ⊆ E | None => True end).
 
-
   Lemma make_isTicketLock
         i lo ln P l (LT : 0 < l)
         Es
     :
     ⊢
-      ⟦((lo ↦ 0) ∗ (ln ↦ 0) ∗ (⤉⤉P) ∗ ➢(tkl_auth))%F, 2+i⟧
+      ⟦((lo ↦ 0) ∗ (ln ↦ 0) ∗ (⤉⤉P) ∗ ➢(tk_auth) ∗ ➢(otk_auth))%F, 2+i⟧
         -∗
-        ⟦(∃ (r : τ{nat, 2+i}), =|2+i|={Es}=> (⤉(isTicketLock i r (lo, ln) P l)))%F, 2+i⟧.
+        ⟦(∃ (r or : τ{nat, 2+i}), =|2+i|={Es}=> (⤉(isTicketLock i r or (lo, ln) P l)))%F, 2+i⟧.
   Proof.
-    red_tl; simpl. iIntros "(LO & LN & P & AUTH)". iDestruct "AUTH" as (x) "BASE".
-    iExists x. rewrite red_syn_fupd. red_tl; simpl.
-    iMod (alloc_obligation l 1) as "(%k & #OBL & PC & LIVE)".
-    iMod ((FUpd_alloc _ _ _ (S i) (N_TicketLock)) (tklockInv i x lo ln P l) with "[LO LN P BASE]") as "#TINV".
-    auto.
-    { simpl. unfold tklockInv. red_tl. iExists 0. red_tl. iExists 0. red_tl.
-      iExists k. red_tl. iExists ∅. red_tl. simpl. iSplitL "LO"; auto. iSplitL "LN"; auto.
-      iSplitL. unfold tklockb.
-    3:{ iModIntro. unfold isTicketLock. red_tl. iExists lo. red_tl. iExists ln.
-        red_tl. iExists (N_TicketLock). red_tl. iSplit; [iPureIntro; set_solver | iSplit; auto]. }
-    
-    
-    unfold isTicketLock. red_tl; simpl. iModIntro.
-    iExists lo. red_tl. iExists ln. red_tl. iExists N_TicketLock. red_tl.
-    iSplit. { iPureIntro. set_solver. }
-    iSplit. { iPureIntro. auto. }
-    iSplit. { iPureIntro. auto. }
-    rewrite red_syn_inv.
+    red_tl; simpl. iIntros "(LO & LN & P & TAUTH & OTAUTH)".
+    iPoseProof (TicketRA_alloc 0 ∅ with "TAUTH") as "(%r & ALLOC)". iExists r. red_tl; simpl.
+    iPoseProof (OblTicket_alloc with "OTAUTH") as "(%or & OALLOC)". iExists or.
 
-    (* TODO *)
-  Admitted.
+    rewrite red_syn_fupd; simpl. iMod "ALLOC" as "(TAUTH & TB & TL)". iMod "OALLOC".
+    iMod ((FUpd_alloc _ _ _ (S i) (N_TicketLock)) (tklockInv i r or lo ln P l)
+      with "[-]") as "#TINV". lia.
+    { unfold tklockInv. simpl. red_tl. iExists 0. red_tl; simpl. iExists 0.
+      red_tl; simpl. iExists 0. red_tl; simpl. iExists ∅.
+      red_tl; simpl. iSplitL "LO"; [ iFrame | ].
+      iSplitL "LN"; [ iFrame | ]. iSplitL "TB"; [ iFrame | ].
+      iSplit. { iPureIntro. split; i; inv H. }
+      iSplitL; cycle 1. auto.
+      iLeft. iSplitL "TL"; auto. iSplitL "P"; auto. }
+    iModIntro.
+    unfold isTicketLock. red_tl; simpl. iExists lo. red_tl; simpl. iExists ln. red_tl; simpl.
+    iExists N_TicketLock. red_tl.
+    iSplitL ""; [ iPureIntro; set_solver | ].
+    iSplitL ""; [ iPureIntro; auto | ].
+    iSplitL ""; [ iPureIntro; auto | ].
+    rewrite red_syn_inv. auto.
+    Unshelve. all: auto.
+  Qed.
 
   Lemma TicketLock_lock_spec
         tid i
         (Es : coPsets)
         (MASK_TOP : OwnEs_top Es)
     :
-    ⊢ ∀ r lo ln (P : Formula i) l (ds : list (nat * nat * Formula i)),
+    ⊢ ∀ r or lo ln (P : Formula i) l (ds : list (nat * nat * Formula i)),
         [@ tid, 1+i, Es @]
           ⧼⟦(((syn_tgt_interp_as (1+i) sndl (fun m => (➢ (scm_memory_black m))))
-                ∗ (⤉ isTicketLock i r (lo, ln) P l)
+                ∗ (⤉ isTicketLock i r or (lo, ln) P l)
                 ∗ (⤉ (⤉ Duty(tid) ds))
                 ∗ (⤉ (⤉ ○Duty(tid) ds))
                 ∗ (⤉ (⤉ ●Duty(tid) ds))
@@ -185,13 +189,48 @@ Section SPEC.
             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock (lo, ln)))
             ⧼rv, ⟦(∃ (o u : τ{nat, 2+i}),
                       (⤉ (⤉ P))
-                        ∗ ➢(tkl_locked r o)
+                        ∗ ➢(tk_locked r o)
                         ∗ (⤉ (⤉ Duty(tid) ((u, 0, emp) :: ds)))
                         ∗ (⤉ (⤉ ○Duty(tid) ds))
                         ∗ (⤉ (⤉ ●Duty(tid) ds))
-                        ∗ live[u] (1/2) ∗ ◇[u](l, 1))%F, 2+i⟧⧽
+                        ∗ ◇[u](l, 1))%F, 2+i⟧⧽
   .
   Proof.
+    iIntros. iStartTriple. iIntros "PRE POST". unfold TicketLock.lock.
+    iApply wpsim_free_all; auto.
+    unfold isTicketLock. iEval (red_tl; simpl; rewrite red_syn_tgt_interp_as) in "PRE".
+    iEval (red_tl; simpl) in "PRE".
+    iDestruct "PRE" as "(MEM & PRE & DUTY & WDUTY & BDUTY & PCS)".
+    iDestruct "PRE" as (lo') "PRE". iEval (red_tl; simpl) in "PRE".
+    iDestruct "PRE" as (ln') "PRE". iEval (red_tl; simpl) in "PRE".
+    iDestruct "PRE" as (N) "PRE". iEval (red_tl; simpl; rewrite red_syn_inv) in "PRE".
+    iDestruct "PRE" as "(%SUB & %GT & %EQ & #TINV)". symmetry in EQ. clarify.
+
+    (* YIELD *)
+    rred2r. iMod (pcs_drop _ (3+l) 1 _ (2+l) 3 with "[PCS]") as "PCS". auto. iFrame.
+    iMod (pcs_decr _ _ 1 2 with "PCS") as "[PCS1 PCS2]". auto.
+    iMod (pcs_drop _ (2+l) 1 _ 1 1 with "PCS1") as "PCS1". lia.
+    iApply (wpsim_yieldR with "[DUTY PCS1]"). { instantiate (1:= i). auto. }
+    { iSplitL "DUTY"; iFrame. }
+    iIntros "DUTY CRED". iModIntro.
+
+    (* OPEN *)
+    iInv "TINV" as "TI" "TI_CLOSE".
+    iEval (unfold tklockInv; simpl; red_tl) in "TI".
+    iDestruct "TI" as (o) "TI"; iEval (red_tl; simpl) in "TI".
+    iDestruct "TI" as (n) "TI"; iEval (red_tl; simpl) in "TI".
+    iDestruct "TI" as (u) "TI"; iEval (red_tl; simpl) in "TI".
+    iDestruct "TI" as (D) "TI"; iEval (red_tl; simpl) in "TI".
+    iDestruct "TI" as "(LOPT & LNPT & TB & %HD & HCOND & HWAIT)". rred2r.
+    (* FAA *)
+    iApply (SCMem_faa_fun_spec with "[LNPT MEM]"). auto.
+    { rewrite lookup_insert. pose proof mask_disjoint_ticketlock_state_tgt. set_solver. }
+    { iSplitR "LNPT"; auto. }
+    iIntros (rv) "(%EQ & LNPT)". subst. rred2r. iApply wpsim_tauR.
+    (* CLOSE *)
+    iMod ("TI_CLOSE" with "LOPT LNPT 
+    (* INDUCTION *)
+
   Admitted.
 
   Lemma TicketLock_unlock_spec
