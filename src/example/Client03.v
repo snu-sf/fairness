@@ -151,11 +151,11 @@ Section SPEC.
   Definition t2_write_inv n r : Formula n :=
     (syn_inv n N_t2_write_inv (t2_write n r))%F.
 
-  Definition t2_promise n w r : Formula n :=
-    ((live[w] (1/2) ∗ (D ↦ 0)) -U-[w](0)-◇ (dead[w] ∗ (t2_write_inv n r)))%F.
+  Definition t2_promise n γw w r : Formula n :=
+    ((➢(live γw w (1/2)) ∗ (D ↦ 0)) -U-[w](0)-◇ (➢(dead γw w) ∗ (t2_write_inv n r)))%F.
 
-  Definition t2_promise_inv n w r : Formula n :=
-    (syn_inv n N_t2_promise_inv (t2_promise n w r))%F.
+  Definition t2_promise_inv n γw w r : Formula n :=
+    (syn_inv n N_t2_promise_inv (t2_promise n γw w r))%F.
 
   (** Simulation proof. *)
 
@@ -163,18 +163,18 @@ Section SPEC.
         tid N Es
         (TOP : OwnEs_top Es)
     :
-    ⊢ ∀ (r k lft l r1 r2 a c1 c2 c0 r0 : τ{nat, 1+N}) (ds : list (nat * nat * Formula N))
+    ⊢ ∀ (r γk k lft l r1 r2 a c1 c2 c0 r0 : τ{nat, 1+N}) (ds : list (nat * nat * Formula N))
       ,
         [@ tid, N, Es @]
           ⧼⟦((syn_tgt_interp_as N sndl (λ m : SCMem.t, ➢(scm_memory_black m)))
                ∗ (⤉ Duty(tid) ds) ∗ ◇{ds@1}(2+lft, 2)
-               ∗ (⤉ isSpinlock N r L (counter N c1 c2 r1 r2) k lft l)
-               ∗ (⌜2 <= l⌝) ∗ live[k] (1/2) ∗ ◇[k](1+l, 1)
+               ∗ (⤉ isSpinlock N r L (counter N c1 c2 r1 r2) γk k lft l)
+               ∗ (⌜2 <= l⌝) ∗ ➢(@live γk nat k (1/2)) ∗ ◇[k](1+l, 1)
                ∗ ➢(auexa_w r0 (a : nat))
                ∗ ⌜(r0 = r1 /\ c0 = c1) \/ (r0 = r2 /\ c0 = c2)⌝
             )%F, 1+N⟧⧽
             (OMod.close_itree omod (SCMem.mod gvs) (incr c0))
-            ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ live[k] (1/2) ∗  ➢(auexa_w r0 (a + 1)))%F, 1+N⟧⧽
+            ⧼rv, ⟦((⤉ Duty(tid) ds) ∗ ➢(@live γk nat k (1/2)) ∗  ➢(auexa_w r0 (a + 1)))%F, 1+N⟧⧽
   .
   Proof.
     iIntros. iStartTriple.
@@ -192,7 +192,8 @@ Section SPEC.
     1,2: ss.
     { red_tl. rewrite red_syn_tgt_interp_as. iSplit. eauto. iSplitR. eauto. iFrame. }
     Unshelve. 2: lia.
-    iEval (red_tl). iIntros (_) "[%u A]". iEval (unfold counter; red_tl; simpl) in "A".
+    iEval (red_tl). iIntros (_) "[%γu A]". iEval (red_tl) in "A". iDestruct "A" as "[%u A]".
+    iEval (unfold counter; red_tl; simpl) in "A".
     iDestruct "A" as "([%x A] & LOCKED & LIVE_k & DUTY & LIVE_u & PC_u)". iEval (red_tl) in "A".
     iDestruct "A" as "[%y A]". iEval (red_tl) in "A". iDestruct "A" as "(PT & CNTB_r1 & CNTB_r2)".
     rred2r. iMod (pc_drop _ 1 _ _ 99 with "PC_u") as "PC_u". lia.
@@ -257,26 +258,27 @@ Section SPEC.
   Lemma Client03_thread1_spec
         tid N
     :
-    ⊢ ⟦(∀ (r k w wl r1 r2 : τ{nat, 1+N}),
+    ⊢ ⟦(∀ (r γk k γw w wl r1 r2 : τ{nat, 1+N}),
            ((syn_tgt_interp_as N sndl (fun m => (➢ (scm_memory_black m))))
-               ∗ TID(tid)
-               ∗ (⤉ Duty(tid) [])
-               ∗ (⤉ isSpinlock N r L (counter N 2 5 r1 r2) k 4 2)
-               ∗ live[k] (1/2)
-               ∗ ◇[k](3, 101)
-               ∗ ➢(auexa_w r1 0)
-               ∗ ◆[w, wl]
-               ∗ (⤉ t2_promise_inv N w r2)
-            )
-              -∗
-              syn_wpsim (1+N) tid ∅
-              (fun rs rt => (⤉(syn_term_cond N tid _ rs rt))%F)
-              false false
-              (fn2th Client03Spec.module "thread1" (tt ↑))
-              (fn2th Client03.module "thread1" (tt ↑)))%F, 1+N⟧.
+              ∗ TID(tid)
+              ∗ (⤉ Duty(tid) [])
+              ∗ (⤉ isSpinlock N r L (counter N 2 5 r1 r2) γk k 4 2)
+              ∗ ➢(@live γk nat k (1/2))
+              ∗ ◇[k](3, 101)
+              ∗ ➢(auexa_w r1 0)
+              ∗ ◆[w, wl]
+              ∗ (⤉ t2_promise_inv N γw w r2)
+           )
+             -∗
+             syn_wpsim (1+N) tid ∅
+             (fun rs rt => (⤉(syn_term_cond N tid _ rs rt))%F)
+             false false
+             (fn2th Client03Spec.module "thread1" (tt ↑))
+             (fn2th Client03.module "thread1" (tt ↑)))%F, 1+N⟧.
   Proof.
     iIntros. simpl.
-    red_tl; iIntros (r). red_tl. iIntros (k). red_tl. iIntros (w). red_tl. iIntros (wl). red_tl. iIntros (r1). red_tl. iIntros (r2).
+    red_tl; iIntros (r). red_tl; iIntros (γk). red_tl. iIntros (k). red_tl. iIntros (γw).
+    red_tl. iIntros (w). red_tl. iIntros (wl). red_tl. iIntros (r1). red_tl. iIntros (r2).
     red_tl. simpl.
     rewrite red_syn_tgt_interp_as. unfold t2_promise_inv. rewrite red_syn_inv. rewrite red_syn_wpsim.
     iIntros "(#MEM & TID & DUTY & #ISL & LIVE_k & PC_k & CNTW_r1 & #LO_w & #UNTILI)".
@@ -416,7 +418,9 @@ Section SPEC.
       iApply (Spinlock_lock_spec with "[LIVE_k DUTY] [-]").
       3:{ red_tl. iSplitR. rewrite red_syn_tgt_interp_as. eauto. iSplitR. eauto. iFrame. }
       ss. ss.
-      iEval red_tl. iIntros (_) "[%u POST]". iEval (red_tl; simpl) in "POST".
+      iEval red_tl. iIntros (_) "[%γu POST]".
+      iEval (red_tl) in "POST". iDestruct "POST" as "[%u POST]".
+      iEval (red_tl; simpl) in "POST".
       iDestruct "POST" as "(CNT & LOCK & LIVE_k & DUTY & LIVE_u & PC_u)".
       rred2r. iMod (pc_drop _ 1 _ _ 100 with "PC_u") as "PC_u".
       auto. Unshelve. 2: auto.
@@ -468,28 +472,29 @@ Section SPEC.
   Lemma Client03_thread2_spec
         tid N
     :
-    ⊢ ⟦(∀ (r k w r1 r2 : τ{nat, 1+N}),
+    ⊢ ⟦(∀ (r γk k γw w r1 r2 : τ{nat, 1+N}),
            ((syn_tgt_interp_as N sndl (fun m => (➢ (scm_memory_black m))))
-               ∗ TID(tid)
-               ∗ (⤉ Duty(tid) [(w, 0, t2_write_inv N r2)])
-               ∗ (⤉ isSpinlock N r L (counter N 2 5 r1 r2) k 4 2)
-               ∗ live[k] (1/2)
-               ∗ ◇[k](3, 11)
-               ∗ ➢(auexa_w r2 0)
-               ∗ ◇[w](6, 31)
-               ∗ live[w] (1/2)
-               ∗ (⤉ t2_promise_inv N w r2)
-            )
-              -∗
-              syn_wpsim (1+N) tid ∅
-              (fun rs rt => (⤉(syn_term_cond N tid _ rs rt))%F)
-              false false
-              (fn2th Client03Spec.module "thread2" (tt ↑))
-              (fn2th Client03.module "thread2" (tt ↑)))%F, 1+N⟧.
+              ∗ TID(tid)
+              ∗ (⤉ Duty(tid) [(w, 0, t2_write_inv N r2)])
+              ∗ (⤉ isSpinlock N r L (counter N 2 5 r1 r2) γk k 4 2)
+              ∗ ➢(@live γk nat k (1/2))
+              ∗ ◇[k](3, 11)
+              ∗ ➢(auexa_w r2 0)
+              ∗ ◇[w](6, 31)
+              ∗ ➢(@live γw nat w (1/2))
+              ∗ (⤉ t2_promise_inv N γw w r2)
+           )
+             -∗
+             syn_wpsim (1+N) tid ∅
+             (fun rs rt => (⤉(syn_term_cond N tid _ rs rt))%F)
+             false false
+             (fn2th Client03Spec.module "thread2" (tt ↑))
+             (fn2th Client03.module "thread2" (tt ↑)))%F, 1+N⟧.
   Proof.
-    iIntros. red_tl; iIntros (r). red_tl. iIntros (k). red_tl. iIntros (w). red_tl. iIntros (r1). red_tl. iIntros (r2).
-    red_tl. rewrite red_syn_tgt_interp_as. unfold t2_promise_inv. rewrite red_syn_inv. rewrite red_syn_wpsim.
-    simpl.
+    iIntros.
+    red_tl; iIntros (r). red_tl. iIntros (γk). red_tl. iIntros (k). red_tl. iIntros (γw).
+    red_tl. iIntros (w). red_tl. iIntros (r1). red_tl. iIntros (r2).
+    red_tl. rewrite red_syn_tgt_interp_as. unfold t2_promise_inv. rewrite red_syn_inv. rewrite red_syn_wpsim. simpl.
     iIntros "(#MEM & TID & DUTY & #ISL & LIVE_k & PC_k & CNTW_r2 & PC_w & LIVE_w & #UNTILI)".
     unfold fn2th. simpl. lred2r. rred2r.
     iMod (pcs_decr [(w, 0)] _ 30 1 with "[PC_w]") as "[PCS_w1 PCS_w2]".
@@ -561,7 +566,7 @@ Section SPEC.
     iInv "UNTILI" as "UNTIL" "UNTIL_CLOSE". iEval (unfold t2_promise; simpl; red_tl) in "UNTIL".
     iEval (rewrite red_syn_until_tpromise) in "UNTIL". iDestruct "UNTIL" as "[#PR [L | D]]".
     2:{ iEval (unfold t2_write_inv; simpl; red_tl; simpl) in "D". iPoseProof "D" as "#[D WI]".
-        iExFalso. iPoseProof (not_dead with "[LIVE_w]") as "%F". iFrame. auto. inv F.
+        iExFalso. iPoseProof (Lifetime.pending_not_shot with "LIVE_w D") as "%F". auto.
     }
     iEval (simpl; red_tl; simpl) in "L". iDestruct "L" as "[LIVE_w2 PTD]".
     iApply (SCMem_store_fun_spec with "[PTD] [-]").
@@ -572,8 +577,8 @@ Section SPEC.
       set_solver.
     }
     iIntros (rv) "PTD". destruct rv. rred2r. iApply wpsim_tauR. rred2r.
-    iMod (kill with "[LIVE_w LIVE_w2]") as "#DEAD_w".
-    { iEval (rewrite <- (Qp.div_2 1)). iApply live_merge. iFrame. }
+    iMod (Lifetime.pending_shot with "[LIVE_w LIVE_w2]") as "#DEAD_w".
+    { iEval (rewrite <- (Qp.div_2 1)). iApply (Lifetime.pending_merge with "LIVE_w LIVE_w2"). }
     subst j. clear LT HeqJ.
     iMod (FUpd_alloc _ _ _ _ N_t2_write_inv ((➢(auexa_w r2 (10:nat)) ∗ (D ↦ 1))%F : Formula N) with "[CNTW_r2 PTD]") as "#DONE".
     2:{ simpl. red_tl. iFrame. }
@@ -588,7 +593,8 @@ Section SPEC.
     iApply wpsim_tauR. rred2r. iApply (Spinlock_lock_spec with "[LIVE_k DUTY] [-]").
     3:{ red_tl. iSplitR. rewrite red_syn_tgt_interp_as. auto. iSplitR. eauto.  iFrame. }
     1,2: ss.
-    iEval (red_tl). iIntros (_) "[%u Q]". iEval (red_tl; simpl) in "Q".
+    iEval (red_tl). iIntros (_) "[%γu Q]". iEval (red_tl) in "Q". iDestruct "Q" as "[%u Q]".
+    iEval (red_tl; simpl) in "Q".
     iDestruct "Q" as "(CNT & LOCK & LIVE_k & DUTY & LIVE_u & PC_u)". rred2r.
     iMod (pc_drop _ 1 _ _ 100 with "PC_u") as "PC_u". auto. Unshelve. 2: lia.
     iPoseProof (pcs_cons_fold _ 0 [] 1 with "[PC_u]") as "PCS".

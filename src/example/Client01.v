@@ -123,24 +123,20 @@ Section SPEC.
     iDestruct "H" as "#H". auto.
   Qed.
 
-  Definition client01Inv k n : Formula n :=
-    (◆[k, 2] ∗ ((live[k] (1/2) ∗ (X ↦ 0)) -U-[k](0)-◇ (dead[k] ∗ t1_write n)))%F.
-    (* ((◆[k, 2] ∗ -[k](0)-◇ t1_write n) *)
-    (*   ∗ *)
-    (*   ((live[k] (1/2) ∗ (X ↦ 0)) *)
-    (*    ∨ *)
-    (*      (t1_write n)) *)
-    (* )%F. *)
+  Definition client01Inv γk k n : Formula n :=
+    (◆[k, 2] ∗ ((➢(live γk k (1/2)) ∗ (X ↦ 0)) -U-[k](0)-◇ (➢(dead γk k) ∗ t1_write n)))%F.
 
   (** Simulation proof. *)
 
   Lemma Client01_thread1_spec
         tid n
     :
-    ⊢ ⟦(∀ (k : τ{nat, 1+n}),
-           ((⤉ syn_inv n N_Client01 (client01Inv k n))
+    ⊢ ⟦(∀ (γk k : τ{nat, 1+n}),
+           ((⤉ syn_inv n N_Client01 (client01Inv γk k n))
               ∗ (syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
-              ∗ TID(tid) ∗ (⤉ Duty(tid) [(k, 0, t1_write n)]) ∗ ◇[k](2, 1) ∗ live[k] (1/2))
+              ∗ TID(tid)
+              ∗ (⤉ Duty(tid) [(k, 0, ➢(@dead γk nat k) ∗ t1_write n)])
+              ∗ ◇[k](2, 1) ∗ ➢(@live γk nat k (1/2)))
              -∗
              syn_wpsim (S n) tid ∅
              (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%F)
@@ -148,7 +144,7 @@ Section SPEC.
              (fn2th Client01Spec.module "thread1" (tt ↑))
              (fn2th Client01.module "thread1" (tt ↑)))%F, 1+n⟧.
   Proof.
-    iIntros. red_tl. iIntros (k). red_tl. simpl.
+    iIntros. red_tl. iIntros (γk). red_tl. iIntros (k). red_tl. simpl.
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
     iIntros "(#INV & #MEM & THDW & DUTY & PCk & LIVE)".
@@ -188,9 +184,10 @@ Section SPEC.
 
       iMod ((FUpd_alloc _ _ _ n (N_t1_write) ((X ↦ 1) : Formula n)%F) with "[PTS]") as "#TI". auto.
       { iEval (simpl; red_tl; simpl). auto. }
-      iPoseProof (live_merge with "[LIVE LIVE2]") as "LIVE". iFrame.
-      iEval (rewrite Qp.half_half) in "LIVE". iMod (kill with "LIVE") as "#DEAD".
-      iMod (duty_fulfill with "[DEAD DUTY]") as "DUTY". iSplit; iFrame; auto.
+      iPoseProof (Lifetime.pending_merge with "LIVE LIVE2") as "LIVE".
+      iEval (rewrite Qp.half_half) in "LIVE". iMod (Lifetime.pending_shot with "LIVE") as "#DEAD".
+      iMod (duty_fulfill with "[DEAD DUTY]") as "DUTY".
+      { iSplitL. iFrame. simpl. red_tl. auto. }
 
       (* Closing the invariant *)
       iMod ("CI_CLOSE" with "[]") as "_".
@@ -208,14 +205,15 @@ Section SPEC.
     (* After store *)
     { iEval (unfold t1_write; simpl; red_tl; simpl; rewrite red_syn_inv; simpl) in "AF".
       iDestruct "AF" as "[DEAD _]".
-      iExFalso. iApply not_dead; iFrame; auto. }
+      iExFalso. iPoseProof (Lifetime.pending_not_shot with "LIVE DEAD") as "%F". auto.
+    }
   Qed.
 
   Lemma Client01_thread2_spec
         tid n
     :
-    ⊢ ⟦(∀ (k : τ{nat, 1+n}),
-           ((⤉ syn_inv n N_Client01 (client01Inv k n))
+    ⊢ ⟦(∀ (γk k : τ{nat, 1+n}),
+           ((⤉ syn_inv n N_Client01 (client01Inv γk k n))
               ∗ (syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
               ∗ TID(tid) ∗ (⤉ Duty(tid) nil) ∗ ◇[k](2, 1))
              -∗
@@ -225,7 +223,7 @@ Section SPEC.
              (fn2th Client01Spec.module "thread2" (tt ↑))
              (fn2th Client01.module "thread2" (tt ↑)))%F, 1+n⟧.
   Proof.
-    iIntros. red_tl. iIntros (k). red_tl. simpl.
+    iIntros. red_tl. iIntros (γk). red_tl. iIntros (k). red_tl. simpl.
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
     iIntros "(#INV & #MEM & THDW & DUTY & PC)".
