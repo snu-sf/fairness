@@ -25,8 +25,8 @@ Section XADEF.
     | scm_points_tos (p : SCMem.val) (vs : list SCMem.val)
     | scm_memory_black (m : SCMem.t)
     (* Lifetime RA. *)
-    | life_live (k : nat) {T : Type} (t : T) (q : Qp)
-    | life_dead (k : nat) {T : Type} (t : T)
+    | live (k : nat) {T : Type} (t : T) (q : Qp)
+    | dead (k : nat) {T : Type} (t : T)
     (* Map from nat to Auth Excl Any. *)
     | auexa
     | auexa_b (r : nat) {T : Type} (t : T)
@@ -106,8 +106,8 @@ Section XAINTERP.
     | scm_points_tos p vs => points_tos p vs
     | scm_memory_black m => memory_black m
     (* Lifetime RA. *)
-    | life_live k t q => Lifetime.pending k t q
-    | life_dead k t => Lifetime.shot k t
+    | live k t q => Lifetime.pending k t q
+    | dead k t => Lifetime.shot k t
     (* Map from nat to Auth Excl Any. *)
     | auexa => AuExAny_gt
     | auexa_b r t => AuExAnyB r t
@@ -134,10 +134,6 @@ End XAINTERP.
 (** Notations. *)
 Notation "'➢' s" := (⟨Atom.aux (AA:=XAtom) s⟩)%F (at level 50) : formula_scope.
 Notation "l ↦ v" := (➢(scm_points_to l v))%F (at level 90) : formula_scope.
-Notation "'live[' k , t ']' q " :=
-  (➢(life_live k t q))%F (at level 50, k, q at level 1, format "live[ k ,  t ]  q") : formula_scope.
-Notation "'dead[' k , t ']'" :=
-  (➢(life_dead k t))%F (at level 50, k at level 1, format "dead[ k ,  t ]") : formula_scope.
 
 Section TLFULL.
 
