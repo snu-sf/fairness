@@ -33,6 +33,34 @@ Section Ticket.
     maps_to_res r (Auth.white ((ε : Excl.t nat, Some {[m]} : GsetK.t) : URA.prod _ _)).
   Definition Ticket_issued r m := OwnM (Ticket_issued_ra r m).
 
+  Lemma Ticket_locked_twice (r m1 m2: nat) : Ticket_locked r m1 ∗ Ticket_locked r m2 ⊢ False.
+  Proof.
+    iStartProof. iIntros "[T1 T2]". unfold Ticket_locked, Ticket_locked_ra.
+    iCombine "T1" "T2" as "T3".  iPoseProof (OwnM_valid with "T3") as "%T".
+    setoid_rewrite maps_to_res_add in T. ur in T.
+    specialize (T r). ur in T. unfold maps_to_res in T. des_ifs.
+    ur in T. des_ifs. des. ur in T. clarify. set_solver.
+  Qed.
+
+  Lemma Ticket_issued_twice (r m: nat) : Ticket_issued r m ∗ Ticket_issued r m ⊢ False.
+  Proof.
+    iStartProof. iIntros "[T1 T2]". unfold Ticket_issued, Ticket_issued_ra.
+    iCombine "T1" "T2" as "T3".  iPoseProof (OwnM_valid with "T3") as "%T".
+    setoid_rewrite maps_to_res_add in T. ur in T.
+    specialize (T r). ur in T. unfold maps_to_res in T. des_ifs.
+    ur in T. des_ifs. set_solver. des. ur in T0. auto.
+  Qed.
+
+  Lemma Ticket_black_locked (r m1 m2: nat) D : Ticket_locked r m1 ∗ Ticket_black r m2 D ⊢ ⌜m1 = m2⌝.
+  Proof.
+    iStartProof. iIntros "[T1 T2]". unfold Ticket_locked, Ticket_locked_ra, Ticket_black, Ticket_black_ra.
+    iCombine "T1" "T2" as "T3".  iPoseProof (OwnM_valid with "T3") as "%T".
+    setoid_rewrite maps_to_res_add in T. ur in T.
+    specialize (T r). ur in T. unfold maps_to_res in T. des_ifs. des.
+    ur in T. des_ifs.
+    { destruct T. ur in H. des_ifs. ur in H1. des_ifs. }
+    set_solver.
+  Qed.
   (** Properties. *)
 
   Lemma TicketRA_alloc o D :
@@ -77,6 +105,24 @@ Section Ticket.
     iModIntro. iSplitL "A".
     { iExists (S U). auto. }
     { iSplitL "C". auto. unfold Ticket_locked, Ticket_locked_ra. auto. }
+  Qed.
+
+  Lemma Ticket_alloc r o D new
+    (NOTIN : new ∉ D)
+    :
+    Ticket_black r o D ⊢ |==> Ticket_black r o (D ∪ {[new]}) ∗ Ticket_issued r new.
+  Proof.
+    iIntros "TB". unfold Ticket_black, Ticket_issued.
+    assert (URA.updatable (Ticket_black_ra r o D)
+      (Ticket_black_ra r o (D ∪ {[new]}) ⋅ Ticket_issued_ra r new)).
+    { unfold Ticket_black_ra, Ticket_issued_ra. setoid_rewrite maps_to_res_add.
+      apply maps_to_updatable.
+      etrans.
+      { apply Auth.auth_alloc2. instantiate (1:= (ε, Some {[new]})). ur.
+        split; ur; des_ifs. set_solver. }
+      { ur. repeat rewrite URA.unit_idl. rewrite URA.unit_id. ur. des_ifs. set_solver. } }
+    iMod (OwnM_Upd with "TB") as "[TB TI]". apply H.
+    iModIntro; iFrame.
   Qed.
 
 End Ticket.

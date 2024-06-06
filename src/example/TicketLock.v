@@ -103,7 +103,7 @@ Section SPEC.
           ∗ ((➢(tk_locked r o) ∗ (⤉P) ∗
                ((⌜o = n⌝) ∨ (⌜o < n⌝ ∗ ∃ (tid : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
                                       (⤉Duty(tid) ((o_obl, 0, emp) :: ds)) ∗ (⤉ ○Duty(tid) ds) ∗ ◇[o_obl](l, 1))))
-             ∨ (➢(tk_issued r o) ∗  (-[o_obl](l)-◇ emp))
+             ∨ (➢(tk_issued r o) ∗  (-[o_obl](0)-◇ emp))
             )
           ∗ ([∗ (1+i) set] tk ∈ D,
               (⌜tk <= o⌝) ∨ (∃ (tid obl : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
@@ -178,21 +178,21 @@ Section SPEC.
         (Es : coPsets)
         (MASK_TOP : OwnEs_top Es)
     :
-    ⊢ ∀ r or lo ln (P : Formula i) l (ds : list (nat * nat * Formula i)),
+    ⊢ ∀ r or lo ln (P : Formula i) l (ds : list (nat * nat * Formula (1+i))),
         [@ tid, 1+i, Es @]
           ⧼⟦(((syn_tgt_interp_as (1+i) sndl (fun m => (➢ (scm_memory_black m))))
                 ∗ (⤉ isTicketLock i r or (lo, ln) P l)
-                ∗ (⤉ (⤉ Duty(tid) ds))
-                ∗ (⤉ (⤉ ○Duty(tid) ds))
-                ∗ (⤉ (⤉ ●Duty(tid) ds))
+                ∗ (⤉ Duty(tid) ds)
+                ∗ (⤉ ○Duty(tid) ds)
+                ∗ (⤉ ●Duty(tid) ds)
                 ∗ ◇{ds@1}(3 + l, 1))%F), 2+i⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock (lo, ln)))
             ⧼rv, ⟦(∃ (o u : τ{nat, 2+i}),
                       (⤉ (⤉ P))
                         ∗ ➢(tk_locked r o)
-                        ∗ (⤉ (⤉ Duty(tid) ((u, 0, emp) :: ds)))
-                        ∗ (⤉ (⤉ ○Duty(tid) ds))
-                        ∗ (⤉ (⤉ ●Duty(tid) ds))
+                        ∗ (⤉ Duty(tid) ((u, 0, emp) :: ds))
+                        ∗ (⤉ ○Duty(tid) ds)
+                        ∗ (⤉ ●Duty(tid) ds)
                         ∗ ◇[u](l, 1))%F, 2+i⟧⧽
   .
   Proof.
@@ -200,17 +200,17 @@ Section SPEC.
     iApply wpsim_free_all; auto.
     unfold isTicketLock. iEval (red_tl; simpl; rewrite red_syn_tgt_interp_as) in "PRE".
     iEval (red_tl; simpl) in "PRE".
-    iDestruct "PRE" as "(MEM & PRE & DUTY & WDUTY & BDUTY & PCS)".
+    iDestruct "PRE" as "(#MEM & PRE & DUTY & WDUTY & BDUTY & PCS)".
     iDestruct "PRE" as (lo') "PRE". iEval (red_tl; simpl) in "PRE".
     iDestruct "PRE" as (ln') "PRE". iEval (red_tl; simpl) in "PRE".
     iDestruct "PRE" as (N) "PRE". iEval (red_tl; simpl; rewrite red_syn_inv) in "PRE".
     iDestruct "PRE" as "(%SUB & %GT & %EQ & #TINV)". symmetry in EQ. clarify.
 
     (* YIELD *)
-    rred2r. iMod (pcs_drop _ (3+l) 1 _ (2+l) 3 with "[PCS]") as "PCS". auto. iFrame.
-    iMod (pcs_decr _ _ 1 2 with "PCS") as "[PCS1 PCS2]". auto.
-    iMod (pcs_drop _ (2+l) 1 _ 1 1 with "PCS1") as "PCS1". lia.
-    iApply (wpsim_yieldR with "[DUTY PCS1]"). { instantiate (1:= i). auto. }
+    rred2r. iMod (pcs_drop _ _ 1 _ (2+l) 4 with "[PCS]") as "PCS". auto. iFrame.
+    iMod (pcs_decr _ _ 1 _ with "PCS") as "[PCS1 PCS2]". auto.
+    iMod (pcs_drop _ _ 1 _ 1 1 with "PCS1") as "PCS1". lia.
+    iApply (wpsim_yieldR with "[DUTY PCS1]"). { instantiate (1:= 1+i). auto. }
     { iSplitL "DUTY"; iFrame. }
     iIntros "DUTY CRED". iModIntro.
 
@@ -221,15 +221,154 @@ Section SPEC.
     iDestruct "TI" as (n) "TI"; iEval (red_tl; simpl) in "TI".
     iDestruct "TI" as (u) "TI"; iEval (red_tl; simpl) in "TI".
     iDestruct "TI" as (D) "TI"; iEval (red_tl; simpl) in "TI".
-    iDestruct "TI" as "(LOPT & LNPT & TB & %HD & HCOND & HWAIT)". rred2r.
-    (* FAA *)
-    iApply (SCMem_faa_fun_spec with "[LNPT MEM]"). auto.
-    { rewrite lookup_insert. pose proof mask_disjoint_ticketlock_state_tgt. set_solver. }
-    { iSplitR "LNPT"; auto. }
-    iIntros (rv) "(%EQ & LNPT)". subst. rred2r. iApply wpsim_tauR.
-    (* CLOSE *)
-    iMod ("TI_CLOSE" with "LOPT LNPT 
-    (* INDUCTION *)
+
+    destruct (Nat.eq_dec o n).
+    (* SUCCESS *)
+    { subst. iClear "CRED".
+      iDestruct "TI" as "(LOPT & LNPT & TB & %HD & HCOND & HWAIT)". rred2r.
+      (* FAA *)
+      iApply (SCMem_faa_fun_spec with "[LNPT MEM]"). auto.
+      { rewrite lookup_insert. pose proof mask_disjoint_ticketlock_state_tgt. set_solver. }
+      { iSplitR "LNPT"; done. }
+      iIntros (rv) "(%EQ & LNPT)". subst. iEval (ss) in "LNPT". rred2r. iApply wpsim_tauR.
+      (* ALLOCATE TICKETS AND OBLIGATIONS TO PUT IN *)
+      rred2r. iMod (Ticket_alloc r n D n with "TB") as "[TB TISSUED]".
+      { intros H; apply HD in H; lia. }
+      iDestruct "HCOND" as "[TKL | [TCONT _]]"; cycle 1.
+      (* NO ONE HOLDING THE LOCK *)
+      { iExFalso. iApply (Ticket_issued_twice with "[TCONT TISSUED]"). iFrame. }
+      iDestruct "TKL" as "(TKL & P & [_ | [%NEQ _]])"; cycle 1. lia.
+
+      iMod (alloc_obligation (1+l) 4) as "(%o_obl & #OBL & PC)".
+      iPoseProof (pc_split _ _ 1 _ with "[PC]") as "[PC3 PC2]". simpl. done.
+      iMod (pc_drop _ 1 with "PC2") as "PC2". lia. lia.
+      iPoseProof (pc_split _ _ 1 _ with "[PC2]") as "[PC1 PC2]". simpl. done.
+      iMod (pc_drop _ l with "PC3") as "PC3". lia. lia.
+      iPoseProof (duty_add with "[DUTY PC1] []") as "DUTY".
+      { iSplitL "DUTY"; done. }
+      { instantiate (1:=emp%F). simpl.  red_tl. iModIntro. iIntros. iModIntro. done. }
+      iMod "DUTY".
+      iPoseProof (duty_tpromise with "DUTY") as "#ULKPRM".
+      { simpl. left; auto. }
+      (* CLOSE *)
+      iMod ("TI_CLOSE" with "[LOPT LNPT TB TISSUED HWAIT]") as "_".
+      { iEval (unfold tklockInv; simpl; red_tl). iExists n.
+        iEval (red_tl; simpl). iExists (n+1).
+        iEval (red_tl; simpl). iExists o_obl.
+        iEval (red_tl; simpl). iExists (D ∪ {[n]}).
+        iEval (red_tl; simpl). iSplitL "LOPT"; auto. iSplitL "LNPT"; auto.
+        iSplitL "TB"; auto. iSplit.
+        { iPureIntro; auto. split; ii.
+          { destruct (Nat.eq_dec tk n); [set_solver|].
+            assert (HLT : tk < n) by lia; apply HD in HLT; set_solver. }
+          { rewrite elem_of_union in H; destruct H.
+            { apply HD in H; lia. } { rewrite elem_of_singleton in H; clarify; lia. } } }
+        iSplitL "TISSUED".
+        { iRight; iSplit; auto. }
+        { repeat rewrite red_tl_big_sepS. rewrite big_opS_union. iSplitL; cycle 1.
+          { rewrite big_sepS_singleton. red_tl. iLeft; done. }
+          { iApply (big_sepS_impl with "HWAIT"). iModIntro. iIntros "%x %HXD PRE".
+            red_tl. iLeft. iPureIntro. apply HD in HXD. lia. }
+          set_unfold. ii. subst. apply HD in H; lia. } }
+      iEval (rewrite unfold_iter_eq; rred2r).
+      (* YIELD *)
+      iPoseProof (pc_split _ _ 1 _ with "PC2") as "[PC1 PC2]".
+      iMod (pcs_decr _ _ 1 _ with "PCS2") as "[PCS1 PCS2]". auto.
+      iMod (pcs_drop _ _ 1 _ 1 1 with "PCS1") as "PCS1". lia.
+      iApply (wpsim_yieldR with "[DUTY PCS1 PC1]"). auto.
+      { iSplitL "DUTY". done.
+        iApply (pcs_cons_fold with "[PCS1 PC1]").
+        { iEval (rewrite Nat.add_comm). iSplitL "PC1"; done. } }
+      iIntros "DUTY _". iModIntro. rred2r.
+      (* LOAD - OPEN INVARIANT *)
+      iInv "TINV" as "TI" "TI_CLOSE".
+      iEval (unfold tklockInv; simpl; red_tl) in "TI".
+      iDestruct "TI" as (o') "TI"; iEval (red_tl; simpl) in "TI".
+      iDestruct "TI" as (n') "TI"; iEval (red_tl; simpl) in "TI".
+      iDestruct "TI" as (o_obl') "TI"; iEval (red_tl; simpl) in "TI".
+      iDestruct "TI" as (D') "TI"; iEval (red_tl; simpl) in "TI".
+      iDestruct "TI" as "(LOPT & LNPT & TB & %HD' & [(TKL' & P' & _) | [TISSUED #ULKPRM']] & HWAIT)".
+      { iExFalso; iApply (Ticket_locked_twice with "[TKL TKL']"). iSplitL "TKL"; done. }
+      iPoseProof (Ticket_black_locked with "[TKL TB]") as "%EQ".
+      iSplitL "TKL"; done. symmetry in EQ; subst.
+      (* LOAD *)
+      iApply (SCMem_load_fun_spec with "[LOPT]"). auto.
+      { rewrite lookup_insert. pose proof mask_disjoint_ticketlock_state_tgt. set_solver. }
+      { iSplitR "LOPT"; done. }
+      iIntros (rv) "[%EQ LOPT]"; subst. rred2r. iApply (wpsim_tauR). rred2r.
+      (* CLOSE *)
+      iMod ("TI_CLOSE" with "[LOPT LNPT TB TISSUED HWAIT]") as "_".
+      { iEval (unfold tklockInv; simpl; red_tl). iExists n.
+        iEval (red_tl; simpl). iExists n'.
+        iEval (red_tl; simpl). iExists o_obl'.
+        iEval (red_tl; simpl). iExists D'.
+        iEval (red_tl; simpl). iSplitL "LOPT"; auto. iSplitL "LNPT"; auto.
+        iSplitL "TB"; auto. iSplit. auto.
+        iSplitL "TISSUED".
+        { iRight; iSplit; auto. }
+        { done. } }
+      iClear "ULKPRM'". clear n' HD' D' o_obl'.
+      (* YIELD *)
+      iMod (pcs_decr _ _ 1 _ with "PCS2") as "[PCS1 PCS2]". auto.
+      iMod (pcs_drop _ _ 1 _ 1 1 with "PCS1") as "PCS1". lia.
+      iPoseProof (pc_split _ _ 1 _ with "PC2") as "[PC1 PC2]".
+      iApply (wpsim_yieldR with "[DUTY PCS1 PC1]"). auto.
+      { iSplitL "DUTY". done.
+        iApply (pcs_cons_fold with "[PCS1 PC1]").
+        { iEval (rewrite Nat.add_comm). iSplitL "PC1"; done. } }
+      iIntros "DUTY _". iModIntro. rred2r.
+      (* COMPARE - OPEN INVARIANT *)
+      iInv "TINV" as "TI" "TI_CLOSE".
+      iEval (unfold tklockInv; simpl; red_tl) in "TI".
+      iDestruct "TI" as (o') "TI"; iEval (red_tl; simpl) in "TI".
+      iDestruct "TI" as (n') "TI"; iEval (red_tl; simpl) in "TI".
+      iDestruct "TI" as (o_obl') "TI"; iEval (red_tl; simpl) in "TI".
+      iDestruct "TI" as (D') "TI"; iEval (red_tl; simpl) in "TI".
+      iDestruct "TI" as "(LOPT & LNPT & TB & %HD' & [(TKL' & P' & _) | [TISSUED #ULKPRM']] & HWAIT)".
+      { iExFalso; iApply (Ticket_locked_twice with "[TKL TKL']"). iSplitL "TKL"; done. }
+      iPoseProof (Ticket_black_locked with "[TKL TB]") as "%EQ".
+      iSplitL "TKL"; done. symmetry in EQ; subst.
+      (* COMPARE *)
+      iApply (SCMem_compare_fun_spec with "[MEM]"). auto.
+      { unfold mask_has_st_tgt. rewrite lookup_insert.
+        pose proof mask_disjoint_ticketlock_state_tgt. set_solver. }
+      { simpl. des_ifs. iApply (tgt_interp_as_equiv with "MEM"). iIntros. iSplit.
+        { iIntros. simpl. red_tl; simpl. iSplit; [done | iPureIntro; auto]. }
+        { simpl. red_tl; simpl. iIntros "[? _]". done. } }
+      iIntros (rv) "[%EQ _]". exploit EQ. auto. i; subst. rred2r. iApply wpsim_tauR. rred2r.
+      (* POST *)
+      iMod ("TI_CLOSE" with "[LOPT LNPT TB TISSUED HWAIT]") as "_".
+      { iEval (unfold tklockInv; simpl; red_tl). iExists n.
+        iEval (red_tl; simpl). iExists n'.
+        iEval (red_tl; simpl). iExists o_obl'.
+        iEval (red_tl; simpl). iExists D'.
+        iEval (red_tl; simpl). iSplitL "LOPT"; auto. iSplitL "LNPT"; auto.
+        iSplitL "TB"; auto. iSplit. auto.
+        iSplitL "TISSUED".
+        { iRight; iSplit; auto. }
+        { done. } }
+      (* SYNC *)
+      iMod (pcs_drop _ _ 1 _ 1 1 with "PCS2") as "PCS2". lia.
+      iApply (wpsim_yieldR with "[DUTY PCS2 PC2]"). auto.
+      { iSplitL "DUTY". done.
+        iApply (pcs_cons_fold with "[PCS2 PC2]").
+        { iEval (rewrite Nat.add_comm). iSplitL "PC2"; done. } }
+      iIntros "DUTY _". iModIntro. rred2r. iApply wpsim_tauR. rred2r.
+      (* POST *)
+      iEval (red_tl) in "POST".
+      iApply ("POST" with "[-]").
+      { iExists n. red_tl. iExists o_obl. red_tl; simpl.
+        iSplitL "P"; [ red_tl; done | ].
+        iSplitL "TKL"; [ red_tl; done | ].
+        iSplitL "DUTY"; [ red_tl; done | ].
+        red_tl; simpl. iSplitL "WDUTY"; [done | iSplitL "BDUTY"; [done | done]]. } }
+
+    (* FAILURE *)
+
+      
+        
+
+      (* INDUCTION *)
 
   Admitted.
 
