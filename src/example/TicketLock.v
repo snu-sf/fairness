@@ -101,8 +101,11 @@ Section SPEC.
           ∗ ➢(tk_b r o D)
           ∗ (⌜forall tk, (tk < n) <-> (tk ∈ D)⌝)
           ∗ ((➢(tk_locked r o) ∗ (⤉P) ∗
-               ((⌜o = n⌝) ∨ (⌜o < n⌝ ∗ ∃ (tid : τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
-                                      (⤉Duty(tid) ((o_obl, 0, emp) :: ds)) ∗ (⤉ ○Duty(tid) ds) ∗ ◇[o_obl](l, 1))))
+               ((⌜o = n⌝) ∨ (⌜o < n⌝ ∗ ∃ (tid obl: τ{nat}) (ds : τ{ listT (nat * nat * Φ)%ftype, 1+i}),
+                                      (⤉Duty(tid) ((o_obl, 0, emp) :: ds))
+                                      ∗ (⤉ ○Duty(tid) ds)
+                                      ∗ ◇[o_obl](l, 1)
+                                      ∗ ➢(otk_w or o tid obl))))
              ∨ (➢(tk_issued r o) ∗  (-[o_obl](0)-◇ emp))
             )
           ∗ ([∗ (1+i) set] tk ∈ D,
@@ -238,7 +241,6 @@ Section SPEC.
       (* NO ONE HOLDING THE LOCK *)
       { iExFalso. iApply (Ticket_issued_twice with "[TCONT TISSUED]"). iFrame. }
       iDestruct "TKL" as "(TKL & P & [_ | [%NEQ _]])"; cycle 1. lia.
-
       iMod (alloc_obligation (1+l) 4) as "(%o_obl & #OBL & PC)".
       iPoseProof (pc_split _ _ 1 _ with "[PC]") as "[PC3 PC2]". simpl. done.
       iMod (pc_drop _ 1 with "PC2") as "PC2". lia. lia.
@@ -364,7 +366,60 @@ Section SPEC.
         red_tl; simpl. iSplitL "WDUTY"; [done | iSplitL "BDUTY"; [done | done]]. } }
 
     (* FAILURE *)
+    iDestruct "TI" as "(LOPT & LNPT & TB & %HD' & HCOND & HWAIT)". rred2r.
+    iApply (SCMem_faa_fun_spec with "[MEM LNPT]"). auto.
+    { rewrite lookup_insert. pose proof mask_disjoint_ticketlock_state_tgt. set_solver. }
+    { iSplitR "LNPT"; done. }
+    iIntros (rv) "[%EQ LNPT]". subst. iEval (simpl) in "LNPT".
+    rred2r. iApply wpsim_tauR. rred2r.
+    (* ISSUE A TICKET *)
+    iMod (Ticket_alloc _ _ _ n with "TB") as "[TB TISSUED]".
+    { intros H; apply HD' in H; lia. }
+    (* ALLOCATE OBLIGATION - SOMEBODY GIVE ME THE LOCK *)
+    (* iMod (alloc_obligation (1+l) 4) as "(%o_obl & #OBL & PC)". *)
+    (* iMod () *)
+    (* YIELD *)
+    iEval (rewrite unfold_iter_eq; simpl). rred2r.
+    iMod (pcs_decr _ _ 1 _ with "PCS2") as "[PCS1 PCS2]". auto.
+    iMod (pcs_drop _ _ 1 _ 1 1 with "PCS1") as "PCS1". lia.
+    iApply (wpsim_yieldR with "[DUTY PCS1]"). auto.
+    { iSplitL "DUTY"; done. }
+    iIntros "DUTY CRED2".
+    iPoseProof ("TI_CLOSE" with "[LOPT LNPT TB HCOND HWAIT TISSUED DUTY WDUTY BDUTY]") as "CLOSED".
+    { iEval (unfold tklockInv; simpl; red_tl). iExists o.
+      iEval (red_tl; simpl). iExists (n + 1).
+      iEval (red_tl; simpl). iExists u.
+      iEval (red_tl; simpl). iExists (D ∪ {[n]}).
+      iEval (red_tl; simpl). iSplitL "LOPT"; auto. iSplitL "LNPT"; auto.
+      iSplitL "TB"; auto. iSplit.
+      { iPureIntro. split; i.
+        { destruct (Nat.eq_dec tk n); [set_solver|].
+          assert (HLT : tk < n) by lia; apply HD' in HLT; set_solver.
+        }
+        { rewrite elem_of_union in H; destruct H.
+          { apply HD' in H; lia. } { rewrite elem_of_singleton in H; clarify; lia. }
+        }
+      }
+      iSplitR "HWAIT WDUTY BDUTY DUTY".
+      { admit. }
+      { repeat rewrite red_tl_big_sepS. rewrite big_opS_union. iSplitL "HWAIT"; cycle 1.
+        { rewrite big_sepS_singleton. red_tl. iRight. iExists tid. red_tl; simpl. admit. }
+          (* iExists o_obl. } *)
+      { iApply (big_sepS_impl with "HWAIT"). iModIntro. iIntros "%x %HXD PRE".
+        red_tl. iLeft. iPureIntro. admit. }
+      set_unfold. ii. subst. admit. }
+    }
+    iApply elim_modal_FUpd_FUpd; cycle 1. iSplitL "CLOSED".  rewrite /ElimModal bi.intuitionistically_if_elim.
+    iMod ("CLOSED") as "_".
+    iModIntro. { apply map_Forall_lookup. ii. unfold OwnEs_top.  }
 
+    iDestruct "HCOND" as "[(TKL & P & [%EQ | [%HGT DUTIES]]) | [TISSUED #ULKPRM]]".
+    { clarify. }
+    (* CASE 1 : NOT MY TURN, BUT LOCK NOT TAKEN *)
+    { iDestruct "DUTIES" as (owner) "DUTIES". iEval (red_tl; simpl) in "DUTIES".
+      iDestruct "DUTIES" as (o_obl) "DUTIES". iEval (red_tl; simpl) in "DUTIES".
+      iDestruct "DUTIES" as (o_ds) "DUTIES". iEval (red_tl; simpl) in "DUTIES".
+    }
       
         
 
