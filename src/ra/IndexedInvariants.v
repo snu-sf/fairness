@@ -13,11 +13,6 @@ Section INDEXED_INVARIANT_SET.
   Class IInvSet (Vars : index -> Type) :=
     { prop : forall (i : index), (Vars i) -> iProp }.
 
-  (* Class IInvIn {Vars : index -> Type} `{IInvSet Vars} (n : index) (P : iProp) := *)
-  (*   { inhabitant : Vars n *)
-  (*   ; inhabitant_eq : prop _ inhabitant = P *)
-  (*   }. *)
-
   Definition InvSetRA (Vars : index -> Type) (n : index) : URA.t :=
     (Auth.t (positive ==> URA.agree (Vars n)))%ra.
 
