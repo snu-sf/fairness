@@ -414,11 +414,9 @@ Bind Scope sProp_scope with Syntax.sProp.
 Local Open Scope sProp_scope.
 
 Notation "'⌜' P '⌝'" := (Syntax.pure P) : sProp_scope.
-Notation "'⊤'" := ⌜True⌝ : sProp_scope.
-Notation "'⊥'" := ⌜False⌝ : sProp_scope.
 
 Notation "'⟨' A '⟩'" := (Syntax.atom A) : sProp_scope.
-Notation "'<ownm>' r" := (Syntax.ownM r) (at level 20) : sProp_scope.
+Notation "'➢' r" := (Syntax.ownM r) (at level 20) : sProp_scope.
 Notation "⤉ P" := (Syntax.lift P) (at level 20) : sProp_scope.
 
 Notation "'<pers>' P" := (Syntax.persistently P) : sProp_scope.

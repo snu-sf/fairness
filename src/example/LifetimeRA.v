@@ -1,6 +1,7 @@
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IProp IPM IPropAux.
 From Fairness Require Import MonotoneRA.
+From Fairness Require Import TemporalLogic.
 
 Module Lifetime.
 
@@ -110,3 +111,36 @@ Module Lifetime.
   End RA.
 
 End Lifetime.
+
+Section SPROP.
+
+  Context {STT : StateTypes}.
+  Context `{sub : @SRA.subG Γ Σ}.
+  Context {TLRASs : TLRAs_small STT Γ}.
+  Context {TLRAS : TLRAs STT Γ Σ}.
+
+  Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
+
+  Definition s_pending {n} (k: nat) {T : Type} (t : T) (q: Qp) : sProp n :=
+    (➢(FiniteMap.singleton
+         k ((Some (Some (t↑)) : URA.agree Any.t, OneShot.pending _ q : OneShot.t unit)
+             : URA.prod (URA.agree Any.t) (OneShot.t unit))))%S.
+
+  Lemma red_s_pending n k T (t : T) q :
+    ⟦s_pending k t q, n⟧ = Lifetime.pending k t q.
+  Proof.
+    unfold s_pending. red_tl. ss.
+  Qed.
+
+  Definition s_shot {n} (k: nat) {T : Type} (t : T) : sProp n :=
+    (➢(FiniteMap.singleton
+         k ((Some (Some (t↑)) : URA.agree Any.t, OneShot.shot tt: OneShot.t unit):
+             URA.prod (URA.agree Any.t) (OneShot.t unit))))%S.
+
+  Lemma red_s_shot n k T (t : T) :
+    ⟦s_shot k t, n⟧ = Lifetime.shot k t.
+  Proof.
+    unfold s_shot. red_tl. ss.
+  Qed.
+
+End SPROP.
