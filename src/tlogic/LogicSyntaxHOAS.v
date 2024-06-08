@@ -104,11 +104,11 @@ Module Syntax.
                      (tid : thread_id)
                      (I0 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> t)
                      (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> t)
-                     (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPsets -> t)
+                     (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPset -> t)
                      (P : t)
                      {RV : Type}
                      (Q : RV -> t)
-                     (Es1 Es2 : coPsets)
+                     (E1 E2 : coPset)
                      {R_src R_tgt : Type}
                      (TERM : R_src -> R_tgt -> t)
                      (ps pt : bool)
@@ -195,10 +195,10 @@ Module SyntaxI.
             isim_simple tid (intpF:=_interp_aux)
                         I0 I1 Q
                         ps pt itr_src itr_tgt ths ims imt sts stt
-        | @striple_format _ _ _ _ STT tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM ps pt itr_src code ktr_tgt =>
+        | @striple_format _ _ _ _ STT tid I0 I1 I2 P RV Q E1 E2 RS RT TERM ps pt itr_src code ktr_tgt =>
             @triple_format
               Σ STT _ (_interp_aux)
-              tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM
+              tid I0 I1 I2 P RV Q E1 E2 RS RT TERM
               ps pt itr_src code ktr_tgt
         end
       end.
@@ -324,11 +324,11 @@ Section RED.
         (tid : thread_id)
         (I0 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> sProp n)
         (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> sProp n)
-        (I2 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPsets -> sProp n)
+        (I2 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPset -> sProp n)
         (P : sProp n)
         {RV : Type}
         (Q : RV -> sProp n)
-        (Es1 Es2 : coPsets)
+        (E1 E2 : coPset)
         {R_src R_tgt : Type}
         (TERM : R_src -> R_tgt -> sProp n)
         (ps pt : bool)
@@ -336,10 +336,10 @@ Section RED.
         (code : itree (threadE id_tgt_type st_tgt_type) RV)
         (ktr_tgt : ktree (threadE id_tgt_type st_tgt_type) RV R_tgt)
     :
-    interp n (Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)
+    interp n (Syntax.striple_format tid I0 I1 I2 P Q E1 E2 TERM ps pt itr_src code ktr_tgt)
     =
       (triple_format (intpF:=interp n) tid
-                     I0 I1 I2 P Q Es1 Es2 TERM
+                     I0 I1 I2 P Q E1 E2 TERM
                      ps pt itr_src code ktr_tgt)%I.
   Proof. reflexivity. Qed.
 

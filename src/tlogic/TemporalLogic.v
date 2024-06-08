@@ -17,7 +17,7 @@ Section TYPES.
 
     Inductive type : Type :=
     | baseT (t : Type) : type
-    | formulaT : type
+    | sPropT : type
     | funT : type -> type -> type
     | prodT : type -> type -> type
     | sumT : type -> type -> type
@@ -34,15 +34,15 @@ Section TYPES.
 
   Section INTERP_TYPE.
 
-    Fixpoint Typ (form : Type) (ty : type) : Type :=
+    Fixpoint type_interp (ty : type) (form : Type) : Type :=
       match ty with
       | baseT b => b
-      | formulaT => form
-      | funT ty1 ty2 => (Typ form ty1 -> Typ form ty2)
-      | prodT ty1 ty2 => prod (Typ form ty1) (Typ form ty2)
-      | sumT ty1 ty2 => sum (Typ form ty1) (Typ form ty2)
-      | listT ty1 => list (Typ form ty1)
-      | pgmapT ty1 => gmap positive (Typ form ty1)
+      | sPropT => form
+      | funT ty1 ty2 => (type_interp ty1 form -> type_interp ty2 form)
+      | prodT ty1 ty2 => prod (type_interp ty1 form) (type_interp ty2 form)
+      | sumT ty1 ty2 => sum (type_interp ty1 form) (type_interp ty2 form)
+      | listT ty1 => list (type_interp ty1 form)
+      | pgmapT ty1 => gmap positive (type_interp ty1 form)
       | nat_wfT => T nat_wf
       | owfT => T owf
       | tidsetT => TIdSet.t
@@ -52,69 +52,44 @@ Section TYPES.
 
   End INTERP_TYPE.
 
-  Section FORMULA.
-
-    Context `{As : forall formula : Type, Type}.
-
-    Definition _formula : index -> Type :=
-      @Syntax._formula type Typ As.
-
-    Definition formula : index -> Type :=
-      @Syntax.formula type Typ As.
-
-  End FORMULA.
-
-  Section INTERP.
-
-    Context `{As : forall formula : Type, Type}.
-
-    Context `{Σ : GRA.t}.
-    Context `{interp_atoms : forall (n : index), As (@_formula As n) -> iProp}.
-
-    Definition formula_sem : forall n, formula n -> iProp :=
-      @Syntax.to_semantics type (@Typ) As Σ interp_atoms.
-
-  End INTERP.
+  Global Instance TL_type : sType.t := {
+      car := type;
+      interp := type_interp;
+    }.
 
 End TYPES.
 
 (** Notations and Coercions. *)
 Coercion baseT : Sortclass >-> type.
 
-Declare Scope formula_type_scope.
-Delimit Scope formula_type_scope with ftype.
-Bind Scope formula_type_scope with type.
+Declare Scope sProp_type_scope.
+Delimit Scope sProp_type_scope with stype.
+Bind Scope sProp_type_scope with type.
 
-Notation "⇣ T" := (baseT T) (at level 90) : formula_type_scope.
-Notation "'Φ'" := (formulaT) : formula_type_scope.
-Infix "->" := (funT) : formula_type_scope.
-Infix "*" := (prodT) : formula_type_scope.
-Infix "+" := (sumT) : formula_type_scope.
+Notation "⇣ T" := (baseT T) (at level 90) : sProp_type_scope.
+Notation "'Φ'" := (sPropT) : sProp_type_scope.
+Infix "->" := (funT) : sProp_type_scope.
+Infix "*" := (prodT) : sProp_type_scope.
+Infix "+" := (sumT) : sProp_type_scope.
 
 
 Section BIGOP.
 
-  Context `{As : forall formula : Type, Type}.
+  Context `{α : sAtomI.t (τ := TL_type)}.
+  Context `{sub : @SRA.subG Γ Σ}.
 
-  Context `{Σ : GRA.t}.
-  Variable interp_atoms : forall (n : index), As (@_formula As n) -> iProp.
-
-  Local Notation _Formula := (@_formula As).
-  Local Notation Formula := (@formula As).
-
-  Import Syntax.
-  Local Notation Sem := (@to_semantics _ Typ As Σ interp_atoms).
+  Import Syntax SyntaxI.
 
   (* Maybe we can make Syntax as an instance for big_opMs. *)
   Definition syn_big_sepM
              (n : index) {K} {H1 : EqDecision K} {H2 : Countable K}
-             {A} (I : @gmap K H1 H2 (Typ (Formula n) A))
-             (f : K -> (Typ (Formula n) A) -> Formula n)
-    : Formula n :=
-    fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (uncurry f hd) tl) empty (map_to_list I).
+             {A} (I : @gmap K H1 H2 (sType.interp A (sProp n)))
+             (f : K -> (sType.interp A (sProp n)) -> sProp n)
+    : sProp n :=
+    fold_right (fun hd tl => sepconj (uncurry f hd) tl) empty (map_to_list I).
 
   Lemma red_syn_big_sepM n K {H1 : EqDecision K} {H2 : Countable K} A I f :
-    Sem n (@syn_big_sepM n K _ _ A I f) = ([∗ map] i ↦ a ∈ I, Sem n (f i a))%I.
+    interp n (@syn_big_sepM n K _ _ A I f) = ([∗ map] i ↦ a ∈ I, interp n (f i a))%I.
   Proof.
     ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
     unfold syn_big_sepM. simpl. remember (map_to_list I) as L.
@@ -127,12 +102,12 @@ Section BIGOP.
   Definition syn_big_sepS
              (n : index) {K} {H1 : EqDecision K} {H2 : Countable K}
              (I : @gset K H1 H2)
-             (f : K -> Formula n)
-    : Formula n :=
-    fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (f hd) tl) empty (elements I).
+             (f : K -> sProp n)
+    : sProp n :=
+    fold_right (fun hd tl => sepconj (f hd) tl) empty (elements I).
 
   Lemma red_syn_big_sepS n K {H1 : EqDecision K} {H2 : Countable K} I f :
-    Sem n (@syn_big_sepS n K _ _ I f) = ([∗ set] i ∈ I, Sem n (f i))%I.
+    interp n (@syn_big_sepS n K _ _ I f) = ([∗ set] i ∈ I, interp n (f i))%I.
   Proof.
     ss. unfold big_opS. rewrite seal_eq. unfold big_op.big_opS_def.
     unfold syn_big_sepS. remember (elements I) as L.
@@ -143,13 +118,13 @@ Section BIGOP.
 
 
   Definition syn_big_sepL1
-             (n : index) {A} (I : Typ (Formula n) (listT A))
-             (f : (Typ (Formula n) A) -> Formula n)
-    : Formula n :=
-    fold_right (fun hd tl => @sepconj _ Typ (As (_Formula n)) (_Formula n) (f hd) tl) empty I.
+             (n : index) {A} (I : sType.interp (listT A) (sProp n))
+             (f : (sType.interp A (sProp n)) -> sProp n)
+    : sProp n :=
+    fold_right (fun hd tl => sepconj (f hd) tl) empty I.
 
   Lemma red_syn_big_sepL1 n A I f :
-    Sem n (@syn_big_sepL1 n A I f) = ([∗ list] a ∈ I, Sem n (f a))%I.
+    interp n (@syn_big_sepL1 n A I f) = ([∗ list] a ∈ I, interp n (f a))%I.
   Proof.
     ss. induction I; ss.
     rewrite @red_sem_sepconj. rewrite IHI. f_equal.
@@ -158,16 +133,15 @@ Section BIGOP.
   (* Additional definitions. *)
 
   Definition syn_sat_list
-             n X (Ts : X -> Type) (x : X) (intp : Ts x -> Formula n) (l : list (Ts x))
-    : Formula n :=
-    foldr (fun t (p : Formula n) => (intp t ∗ p)%F) ⊤%F l.
+             n X (Ts : X -> Type) (x : X) (intp : Ts x -> sProp n) (l : list (Ts x))
+    : sProp n :=
+    foldr (fun t (p : sProp n) => (intp t ∗ p)%S) ⊤%S l.
 
   Lemma red_syn_sat_list n X Ts x intp l :
-    Sem n (syn_sat_list n X Ts x intp l) =
-      @Regions.sat_list X Ts Σ x (fun (t : Ts x) => Sem n (intp t)) l.
+    interp n (syn_sat_list n X Ts x intp l) =
+      @Regions.sat_list X Ts Σ x (fun (t : Ts x) => interp n (intp t)) l.
   Proof.
-    induction l; ss.
-    rewrite @red_sem_sepconj. rewrite IHl. f_equal.
+    induction l; ss. rewrite @red_sem_sepconj. rewrite IHl. f_equal.
   Qed.
 
 End BIGOP.
@@ -176,41 +150,30 @@ End BIGOP.
 Notation "'[∗' n 'map]' k ↦ x ∈ m , P" :=
   (syn_big_sepM n m (fun k x => P))
     (at level 200, n at level 1, m at level 10, k, x at level 1, right associativity,
-      format "[∗  n  map]  k  ↦  x  ∈  m ,  P") : formula_scope.
+      format "[∗  n  map]  k  ↦  x  ∈  m ,  P") : sProp_scope.
 Notation "'[∗' n , A 'map]' k ↦ x ∈ m , P" :=
   (syn_big_sepM n (A:=A) m (fun k x => P))
     (at level 200, n at level 1, m at level 10, k, x, A at level 1, right associativity,
-      format "[∗  n  ,  A  map]  k  ↦  x  ∈  m ,  P") : formula_scope.
+      format "[∗  n  ,  A  map]  k  ↦  x  ∈  m ,  P") : sProp_scope.
 Notation "'[∗' n 'set]' x ∈ X , P" :=
   (syn_big_sepS n X (fun x => P))
     (at level 200, n at level 1, X at level 10, x at level 1, right associativity,
-      format "[∗  n  set]  x  ∈  X ,  P") : formula_scope.
+      format "[∗  n  set]  x  ∈  X ,  P") : sProp_scope.
 Notation "'[∗' n 'list]' x ∈ l , P" :=
   (syn_big_sepL1 n l (fun x => P))
     (at level 200, n at level 1, l at level 10, x at level 1, right associativity,
-      format "[∗  n  list]  x  ∈  l ,  P") : formula_scope.
+      format "[∗  n  list]  x  ∈  l ,  P") : sProp_scope.
 Notation "'[∗' n , A 'list]' x ∈ l , P" :=
   (syn_big_sepL1 n (A:=A) l (fun x => P))
     (at level 200, n at level 1, l at level 10, x, A at level 1, right associativity,
-      format "[∗  n ,  A  list]  x  ∈  l ,  P") : formula_scope.
+      format "[∗  n ,  A  list]  x  ∈  l ,  P") : sProp_scope.
 
 (** Define TL. *)
-
-Section AUXATOM.
-
-  Class AuxAtom := { aAtom : Type }.
-
-  Context `{Σ : GRA.t}.
-
-  Class AAInterp {AA : AuxAtom} := { aaintp : @aAtom AA -> iProp }.
-
-End AUXATOM.
 
 Module Atom.
 
   Section ATOM.
 
-    Context {AA : AuxAtom}.
     Context {STT : StateTypes}.
 
     Local Notation state_src := (@st_src_type STT).
@@ -426,67 +389,67 @@ Section RED.
   Context {TLRAS : @TLRAs AA STT Σ}.
 
   Lemma red_tl_atom_aux n (a : aAtom) :
-    ⟦⟨Atom.aux a⟩%F, n⟧ = aaintp a.
+    ⟦⟨Atom.aux a⟩%S, n⟧ = aaintp a.
   Proof. setoid_rewrite red_sem_atom. ss. Qed.
 
   Lemma red_tl_atom n a :
-    ⟦⟨a⟩%F, n⟧ = ⟪a, n⟫.
+    ⟦⟨a⟩%S, n⟧ = ⟪a, n⟫.
   Proof. apply red_sem_atom. Qed.
 
   Lemma red_tl_lift_0 p :
-    ⟦(⤉p)%F, 0⟧ = ⌜False⌝%I.
+    ⟦(⤉p)%S, 0⟧ = ⌜False⌝%I.
   Proof. apply red_sem_lift_0. Qed.
 
   Lemma red_tl_lift n p :
-    ⟦(⤉p)%F, S n⟧ = ⟦p, n⟧ .
+    ⟦(⤉p)%S, S n⟧ = ⟦p, n⟧ .
   Proof. apply red_sem_lift. Qed.
 
   Lemma red_tl_sepconj n p q :
-    ⟦(p ∗ q)%F, n⟧ = (⟦p, n⟧ ∗ ⟦q, n⟧)%I.
+    ⟦(p ∗ q)%S, n⟧ = (⟦p, n⟧ ∗ ⟦q, n⟧)%I.
   Proof. apply red_sem_sepconj. Qed.
 
   Lemma red_tl_pure n P :
-    ⟦⌜P⌝%F, n⟧ = ⌜P⌝%I.
+    ⟦⌜P⌝%S, n⟧ = ⌜P⌝%I.
   Proof. apply red_sem_pure. Qed.
 
   Lemma red_tl_univ n ty p :
-    ⟦(∀ x, p x)%F, n⟧ = (∀ (x : τ{ty}), ⟦p x, n⟧)%I.
+    ⟦(∀ x, p x)%S, n⟧ = (∀ (x : τ{ty}), ⟦p x, n⟧)%I.
   Proof. apply red_sem_univ. Qed.
 
   Lemma red_tl_ex n ty p :
-    ⟦(∃ x, p x)%F, n⟧ = (∃ (x : τ{ty}), ⟦p x, n⟧)%I.
+    ⟦(∃ x, p x)%S, n⟧ = (∃ (x : τ{ty}), ⟦p x, n⟧)%I.
   Proof. apply red_sem_ex. Qed.
 
   Lemma red_tl_and n p q :
-    ⟦(p ∧ q)%F, n⟧ = (⟦p, n⟧ ∧ ⟦q, n⟧)%I.
+    ⟦(p ∧ q)%S, n⟧ = (⟦p, n⟧ ∧ ⟦q, n⟧)%I.
   Proof. apply red_sem_and. Qed.
 
   Lemma red_tl_or n p q :
-    ⟦(p ∨ q)%F, n⟧ = (⟦p, n⟧ ∨ ⟦q, n⟧)%I.
+    ⟦(p ∨ q)%S, n⟧ = (⟦p, n⟧ ∨ ⟦q, n⟧)%I.
   Proof. apply red_sem_or. Qed.
 
   Lemma red_tl_impl n p q :
-    ⟦(p → q)%F, n⟧ = (⟦p, n⟧ → ⟦q, n⟧)%I.
+    ⟦(p → q)%S, n⟧ = (⟦p, n⟧ → ⟦q, n⟧)%I.
   Proof. apply red_sem_impl. Qed.
 
   Lemma red_tl_wand n p q :
-    ⟦(p -∗ q)%F, n⟧ = (⟦p, n⟧ -∗ ⟦q, n⟧)%I.
+    ⟦(p -∗ q)%S, n⟧ = (⟦p, n⟧ -∗ ⟦q, n⟧)%I.
   Proof. apply red_sem_wand. Qed.
 
   Lemma red_tl_empty n :
-    ⟦emp%F, n⟧ = emp%I.
+    ⟦emp%S, n⟧ = emp%I.
   Proof. apply red_sem_empty. Qed.
 
   Lemma red_tl_persistently n p :
-    ⟦(<pers> p)%F, n⟧ = (<pers> ⟦p, n⟧)%I.
+    ⟦(<pers> p)%S, n⟧ = (<pers> ⟦p, n⟧)%I.
   Proof. apply red_sem_persistently. Qed.
 
   Lemma red_tl_plainly n p :
-    ⟦(■ p)%F, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
+    ⟦(■ p)%S, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
   Proof. apply red_sem_plainly. Qed.
 
   Lemma red_tl_upd n (p : Formula n) :
-    ⟦( |==> p)%F, n⟧ = ( |==> ⟦p, n⟧)%I.
+    ⟦( |==> p)%S, n⟧ = ( |==> ⟦p, n⟧)%I.
   Proof. apply red_sem_upd. Qed.
 
   Lemma red_tl_sisim n
@@ -536,11 +499,11 @@ Section RED.
   (** Derived ones. *)
 
   Lemma red_tl_affinely n p :
-    ⟦(<affine> p)%F, n⟧ = (<affine> ⟦p, n⟧)%I.
+    ⟦(<affine> p)%S, n⟧ = (<affine> ⟦p, n⟧)%I.
   Proof. apply red_sem_affinely. Qed.
 
   Lemma red_tl_intuitionistically n p :
-    ⟦(□ p)%F, n⟧ = (□ ⟦p, n⟧)%I.
+    ⟦(□ p)%S, n⟧ = (□ ⟦p, n⟧)%I.
   Proof. apply red_sem_intuitionistically. Qed.
 
   Lemma red_tl_big_sepM n A K {EQ : EqDecision K} {CNT : Countable K} I f :
@@ -640,10 +603,10 @@ Section WSATS.
   Qed.
 
   Definition syn_inv_satall_fun n : positive -> Formula n -> Formula n :=
-    fun i p => ((p ∗ ⟨ownd n {[i]}⟩) ∨ ⟨owne n {[i]}⟩)%F.
+    fun i p => ((p ∗ ⟨ownd n {[i]}⟩) ∨ ⟨owne n {[i]}⟩)%S.
 
   Definition syn_inv_satall n (ps : gmap positive (Formula n)) : Formula n :=
-    ([∗ n , formulaT map] k ↦ p ∈ ps, syn_inv_satall_fun n k p)%F.
+    ([∗ n , formulaT map] k ↦ p ∈ ps, syn_inv_satall_fun n k p)%S.
 
   Lemma red_syn_inv_satall_fun n i p :
     ⟦syn_inv_satall_fun n i p, n⟧ = ((⟦p, n⟧ ∗ (OwnD n {[i]})) ∨ (OwnE n {[i]}))%I.
@@ -658,7 +621,7 @@ Section WSATS.
   Qed.
 
   Definition syn_wsat n : Formula (S n) :=
-    (∃ (I : τ{pgmapT Φ, S n}), ⤉(⟨syn_inv_auth n I⟩ ∗ (syn_inv_satall n I)))%F.
+    (∃ (I : τ{pgmapT Φ, S n}), ⤉(⟨syn_inv_auth n I⟩ ∗ (syn_inv_satall n I)))%S.
 
   Lemma red_syn_wsat n :
     ⟦syn_wsat n, S n⟧ = wsat n.
@@ -672,7 +635,7 @@ Section WSATS.
   Fixpoint lifts {n} (p : Formula n) m {struct m} : Formula (m + n) :=
     match m with
     | O => p
-    | S m' => (⤉(@lifts n p m'))%F
+    | S m' => (⤉(@lifts n p m'))%S
     end.
 
   (* Definition syn_wsats n : Formula (S n) := *)
@@ -680,12 +643,12 @@ Section WSATS.
 
   Fixpoint lifts_seps (p : forall n, Formula (S n)) n : Formula n :=
     match n with
-    | O => emp%F
-    | S m => ((⤉(lifts_seps p m)) ∗ (p m))%F
+    | O => emp%S
+    | S m => ((⤉(lifts_seps p m)) ∗ (p m))%S
     end.
 
   Lemma unfold_lifts_seps p n :
-    lifts_seps p (S n) = (⤉(lifts_seps p n) ∗ (p n))%F.
+    lifts_seps p (S n) = (⤉(lifts_seps p n) ∗ (p n))%S.
   Proof. ss. Qed.
 
   Lemma red_lifts_seps (p : forall n, Formula (S n)) n :
@@ -698,7 +661,7 @@ Section WSATS.
   Definition syn_wsats n : Formula n := lifts_seps syn_wsat n.
 
   Lemma unfold_syn_wsats n :
-    syn_wsats (S n) = (⤉(syn_wsats n) ∗ (syn_wsat n))%F.
+    syn_wsats (S n) = (⤉(syn_wsats n) ∗ (syn_wsat n))%S.
   Proof. apply unfold_lifts_seps. Qed.
 
   Lemma red_syn_wsats n :
@@ -712,10 +675,10 @@ Section WSATS.
   (** Definitions for OwnEs. *)
 
   Definition syn_owne_satall_fun x : index -> coPset -> (Formula x) :=
-    fun n E => ⟨owne n E⟩%F.
+    fun n E => ⟨owne n E⟩%S.
 
   Definition syn_owne_satall x (Es : coPsets) : Formula x :=
-    ([∗ x , coPset map] k ↦ E ∈ Es, syn_owne_satall_fun x k E)%F.
+    ([∗ x , coPset map] k ↦ E ∈ Es, syn_owne_satall_fun x k E)%S.
 
   Lemma red_syn_owne_satall x Es :
     ⟦syn_owne_satall x Es, x⟧ = OwnE_satall Es.
@@ -724,7 +687,7 @@ Section WSATS.
   Qed.
 
   Definition syn_ownes x (Es : coPsets) : Formula x :=
-    (⟨syn_owne_auth Es⟩ ∗ (syn_owne_satall x Es))%F.
+    (⟨syn_owne_auth Es⟩ ∗ (syn_owne_satall x Es))%S.
 
   Lemma red_syn_ownes x Es :
     ⟦syn_ownes x Es, x⟧ = OwnEs Es.
@@ -735,7 +698,7 @@ Section WSATS.
   (** Definitions for inv and FUpd. *)
 
   Definition syn_inv (n : index) (N : namespace) (p : Formula n) : Formula n :=
-    (∃ (i : τ{positive}), ⌜i ∈ (nclose N : coPset)⌝ ∧ ⟨owni i p⟩)%F.
+    (∃ (i : τ{positive}), ⌜i ∈ (nclose N : coPset)⌝ ∧ ⟨owni i p⟩)%S.
 
   Lemma red_syn_inv n N p :
     ⟦syn_inv n N p, n⟧ = inv n N p.
@@ -744,7 +707,7 @@ Section WSATS.
   Qed.
 
   Definition syn_fupd (n : index) (A : Formula n) (Es1 Es2 : coPsets) (p : Formula n) : Formula n :=
-    (A ∗ syn_wsats n ∗ syn_ownes _ Es1 -∗ |==> (A ∗ syn_wsats n ∗ syn_ownes _ Es2 ∗ p))%F.
+    (A ∗ syn_wsats n ∗ syn_ownes _ Es1 -∗ |==> (A ∗ syn_wsats n ∗ syn_ownes _ Es2 ∗ p))%S.
 
   Lemma red_syn_fupd n A Es1 Es2 p :
     ⟦syn_fupd n A Es1 Es2 p, n⟧ = FUpd n ⟦A, n⟧ Es1 Es2 ⟦p, n⟧.
@@ -778,7 +741,7 @@ Section OBLIG.
          ∗
          ((⟨obl_arrow_done x⟩ ∗ f)
           ∨
-            ⟨obl_arrow_pend i k c q⟩))%F.
+            ⟨obl_arrow_pend i k c q⟩))%S.
 
   Lemma red_syn_obl_arrow n d :
     ⟦syn_obl_arrow n d, n⟧ = ObligationRA.arrow n d.
@@ -802,7 +765,7 @@ Section OBLIG.
 
   Definition syn_arrows_sat n : Formula (S n) :=
     (∃ (l : τ{ listT ((⇣(nat + id_tgt_type)) * (⇣nat) * (⇣Ord.t) * (⇣Qp) * (⇣nat) * Φ)%ftype, S n }),
-        ⤉(⟨obl_arrows_regions_black l⟩ ∗ syn_arrows_sat_list n l))%F.
+        ⤉(⟨obl_arrows_regions_black l⟩ ∗ syn_arrows_sat_list n l))%S.
 
   Lemma red_syn_arrows_sat n :
     ⟦syn_arrows_sat n, S n⟧ = ObligationRA.arrows_sat n.
@@ -815,7 +778,7 @@ Section OBLIG.
   Definition syn_arrows_sats n : Formula n := lifts_seps syn_arrows_sat n.
 
   Lemma unfold_syn_arrows_sats n :
-    syn_arrows_sats (S n) = (⤉(syn_arrows_sats n) ∗ (syn_arrows_sat n))%F.
+    syn_arrows_sats (S n) = (⤉(syn_arrows_sats n) ∗ (syn_arrows_sat n))%S.
   Proof. apply unfold_lifts_seps. Qed.
 
   Lemma red_syn_arrows_sats n :
@@ -828,7 +791,7 @@ Section OBLIG.
     extensionalities i. apply red_syn_arrows_sat.
   Qed.
 
-  Definition syn_fairI n : Formula n := (⟨obl_edges_sat⟩ ∗ syn_arrows_sats n)%F.
+  Definition syn_fairI n : Formula n := (⟨obl_edges_sat⟩ ∗ syn_arrows_sats n)%S.
 
   Lemma red_syn_fairI n :
     ⟦syn_fairI n, n⟧ = fairI n.
@@ -856,7 +819,7 @@ Section SIMI.
   Definition syn_default_I n
     : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> Formula n :=
     fun ths im_src im_tgt st_src st_tgt =>
-      (⟨ob_ths ths⟩ ∗ ⟨ob_st_src st_src⟩ ∗ ⟨ob_st_tgt st_tgt⟩ ∗ ⟨fair_src im_src⟩ ∗ ⟨fair_tgt im_tgt ths⟩ ∗ ⟨obl_edges_sat⟩ ∗ syn_arrows_sats n ∗ ⟨obl_arrows_auth n⟩)%F.
+      (⟨ob_ths ths⟩ ∗ ⟨ob_st_src st_src⟩ ∗ ⟨ob_st_tgt st_tgt⟩ ∗ ⟨fair_src im_src⟩ ∗ ⟨fair_tgt im_tgt ths⟩ ∗ ⟨obl_edges_sat⟩ ∗ syn_arrows_sats n ∗ ⟨obl_arrows_auth n⟩)%S.
 
   Lemma red_syn_default_I n ths ims imt sts stt :
     ⟦syn_default_I n ths ims imt sts stt, n⟧ = default_I n ths ims imt sts stt.
@@ -870,7 +833,7 @@ Section SIMI.
     fun ths im_src im_tgt st_src st_tgt =>
       (∃ (im_tgt0 : τ{ ((nat + id_tgt_type)%type -> nat_wfT) }),
           (⌜fair_update im_tgt0 im_tgt (prism_fmap inlp (tids_fmap tid ths))⌝)
-            ∗ (syn_default_I n ths im_src im_tgt0 st_src st_tgt))%F.
+            ∗ (syn_default_I n ths im_src im_tgt0 st_src st_tgt))%S.
 
   Lemma red_syn_default_I_past tid n ths ims imt sts stt :
     ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ = default_I_past tid n ths ims imt sts stt.
@@ -893,16 +856,16 @@ Section SIMI.
             (Syntax.sisim tid
                           (fun ths ims imt sts stt =>
                              ((syn_default_I n ths ims imt sts stt)
-                                ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
+                                ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%S)
                           (fun ths ims imt sts stt =>
                              ((syn_default_I_past tid n ths ims imt sts stt)
-                                ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F)
+                                ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%S)
                           Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
-      )%F.
+      )%S.
 
   Lemma red_isim_eq_1 n :
     (λ (ths0 : TIdSet.t) (ims : FairBeh.imap id_src_type owf) (imt : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (sts : st_src_type) (stt : st_tgt_type),
-      ⟦ (syn_default_I n ths0 ims imt sts stt ∗ ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%F,
+      ⟦ (syn_default_I n ths0 ims imt sts stt ∗ ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%S,
         n ⟧) =
       (λ (ths0 : TIdSet.t) (im_src0 : FairBeh.imap id_src_type owf) (im_tgt0 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src0 : st_src_type) (st_tgt0 : st_tgt_type),
         (default_I n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗ wsats n ∗ OwnEs ∅)%I).
@@ -956,11 +919,11 @@ Section SIMI.
                                              (st_tgt1 : st_tgt_type),
                                              ⟦ (syn_default_I_past tid n ths1 im_src1 im_tgt1
                                                   st_src1 st_tgt1 ∗ ⟨ syn_wsat_auth n ⟩ ∗
-                                                syn_wsats n ∗ syn_ownes n ∅)%F, n ⟧ ∗
+                                                syn_wsats n ∗ syn_ownes n ∅)%S, n ⟧ ∗
                                              Q0 r_src r_tgt)),
         rr R_src R_tgt Q0 ps0 pt0 itr_src0 itr_tgt ∗
         ⟦ (syn_default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ 
-                              ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%F, n ⟧)%I).
+                              ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%S, n ⟧)%I).
   Proof.
     extensionalities R_src R_tgt QQ ps0 pt0 itr_src0.
     extensionalities itr_tgt0 ths0 im_src0 im_tgt0 st_src0 st_tgt0.
@@ -972,7 +935,7 @@ Section SIMI.
          (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src1 : st_src_type) 
          (st_tgt1 : st_tgt_type),
         (⟦ (syn_default_I_past tid n ths1 im_src1 im_tgt1 st_src1 st_tgt1 ∗
-                               ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%F, n ⟧ ∗ Q0 r_src r_tgt)%I)
+                               ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ syn_ownes n ∅)%S, n ⟧ ∗ Q0 r_src r_tgt)%I)
       with
       (λ (r_src : R_src) (r_tgt : R_tgt) (ths1 : TIdSet.t) (im_src1 : 
                                                              FairBeh.imap id_src_type owf) 
@@ -991,7 +954,7 @@ Section SIMI.
      (imt : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (sts : st_src_type) 
      (stt : st_tgt_type),
      (⟦ (syn_default_I_past tid n ths0 ims imt sts stt ∗ ⟨ syn_wsat_auth n ⟩ ∗ 
-         syn_wsats n ∗ syn_ownes n ∅)%F, n ⟧ ∗ ⟦ Q r_src r_tgt, n ⟧)%I) =
+         syn_wsats n ∗ syn_ownes n ∅)%S, n ⟧ ∗ ⟦ Q r_src r_tgt, n ⟧)%I) =
   (λ (r_src : RS) (r_tgt : RT) (ths0 : TIdSet.t) (im_src0 : FairBeh.imap id_src_type owf) 
      (im_tgt0 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src0 : st_src_type) 
      (st_tgt0 : st_tgt_type),
@@ -1033,7 +996,7 @@ Section SIMI.
   Definition syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) : Formula (S n) :=
     (∃ (SI : τ{(st_src_type -> Φ)%ftype, S n}) (p : τ{Φ, S n}),
         (⌜⟦p, n⟧ = (∃ st, St_src st ∗ ⟦(SI st), n⟧)%I⌝)
-          ∗ (⤉(syn_inv n N_state_src p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
+          ∗ (⤉(syn_inv n N_state_src p)) ∗ ⌜syn_view_interp n l SI VI⌝)%S.
 
   Lemma red_syn_src_interp_as n {V} (l: Lens.t st_src_type V) (VI: V -> Formula n) :
     ⟦syn_src_interp_as n l VI, S n⟧ = (src_interp_as l VI).
@@ -1050,7 +1013,7 @@ Section SIMI.
   Definition syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) : Formula (S n) :=
     (∃ (SI : τ{(st_tgt_type -> Φ)%ftype, S n}) (p : τ{Φ, S n}),
         (⌜⟦p, n⟧ = (∃ st, St_tgt st ∗ ⟦(SI st), n⟧)%I⌝)
-          ∗ (⤉(syn_inv n N_state_tgt p)) ∗ ⌜syn_view_interp n l SI VI⌝)%F.
+          ∗ (⤉(syn_inv n N_state_tgt p)) ∗ ⌜syn_view_interp n l SI VI⌝)%S.
 
   Lemma red_syn_tgt_interp_as n {V} (l: Lens.t st_tgt_type V) (VI: V -> Formula n) :
     ⟦syn_tgt_interp_as n l VI, S n⟧ = (tgt_interp_as l VI).
@@ -1090,16 +1053,16 @@ Section TRIPLE.
   (*   fun R_src R_tgt TERM ps pt itr_src code ktr_tgt => *)
   (*     ( *)
   (*       (* let N := (S n) in *) *)
-  (*       let I0 := (fun ths ims imt sts stt => ((syn_default_I n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F) *)
+  (*       let I0 := (fun ths ims imt sts stt => ((syn_default_I n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%S) *)
   (*      in *)
-  (*      let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%F) *)
+  (*      let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid n ths ims imt sts stt) ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n ∅))%S) *)
   (*      in *)
   (*      let I2 := (fun ths im_src im_tgt st_src st_tgt Es => (syn_default_I_past tid n ths im_src im_tgt st_src st_tgt ∗ (⟨syn_wsat_auth n⟩ ∗ syn_wsats n ∗ syn_ownes n Es))) *)
   (*      in *)
-  (*      Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)%F. *)
+  (*      Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)%S. *)
 
   Definition syn_term_cond n (tid : thread_id) (R_term : Type) : R_term -> R_term -> Formula n :=
-    fun rs rt => ((⟨ow_ths tid⟩ ∗ ⟨obl_duty inlp tid []⟩) ∗ (⌜rs = rt⌝))%F.
+    fun rs rt => ((⟨ow_ths tid⟩ ∗ ⟨obl_duty inlp tid []⟩) ∗ (⌜rs = rt⌝))%S.
 
   Lemma red_syn_term_cond n tid R_term :
     (fun (rs rt : R_term) => ⟦syn_term_cond n tid R_term rs rt, n⟧)
@@ -1115,13 +1078,13 @@ Section TRIPLE.
     :=
     fun R_term ps pt itr_src code ktr_tgt =>
       (let N := (S n) in
-        let I0 := (fun ths ims imt sts stt => ((syn_default_I N ths ims imt sts stt) ∗ (⟨syn_wsat_auth N⟩ ∗ syn_wsats N ∗ syn_ownes N ∅))%F)
+        let I0 := (fun ths ims imt sts stt => ((syn_default_I N ths ims imt sts stt) ∗ (⟨syn_wsat_auth N⟩ ∗ syn_wsats N ∗ syn_ownes N ∅))%S)
        in
-       let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid N ths ims imt sts stt) ∗ (⟨syn_wsat_auth N⟩ ∗ syn_wsats N ∗ syn_ownes N ∅))%F)
+       let I1 := (fun ths ims imt sts stt => ((syn_default_I_past tid N ths ims imt sts stt) ∗ (⟨syn_wsat_auth N⟩ ∗ syn_wsats N ∗ syn_ownes N ∅))%S)
        in
        let I2 := (fun ths im_src im_tgt st_src st_tgt Es => (syn_default_I_past tid N ths im_src im_tgt st_src st_tgt ∗ (⟨syn_wsat_auth N⟩ ∗ syn_wsats N ∗ syn_ownes N Es)))
        in
-       Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt itr_src code ktr_tgt)%F.
+       Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt itr_src code ktr_tgt)%S.
 
   Lemma red_syn_triple_gen
         n tid (P : Formula (S n)) RV (Q : RV -> Formula (S n)) Es1 Es2
@@ -1180,7 +1143,7 @@ Section TRIPLE.
        (ps pt : τ{bool})
        (itr_src : τ{codeT id_src_type st_src_type R_term, S n})
        (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_term)%ftype, S n}),
-        (syn_triple_gen n tid P Q Es Es ps pt itr_src code ktr_tgt))%F.
+        (syn_triple_gen n tid P Q Es Es ps pt itr_src code ktr_tgt))%S.
 
   Lemma red_syn_atomic_triple
         tid n (Es : coPsets)
@@ -1208,7 +1171,7 @@ Section TRIPLE.
        (ps pt : τ{bool})
        (itr_src : τ{codeT id_src_type st_src_type R_term})
        (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_term)%ftype, S n}),
-        (syn_triple_gen n tid P Q Es ∅ ps pt (trigger Yield;;; itr_src) code ktr_tgt))%F.
+        (syn_triple_gen n tid P Q Es ∅ ps pt (trigger Yield;;; itr_src) code ktr_tgt))%S.
 
   Lemma red_syn_non_atomic_triple
         tid n (Es : coPsets)
@@ -1241,10 +1204,10 @@ Section DERIV.
   Import Atom.
 
   Definition syn_until_promise {Id} {n} (p : Prism.t _ Id) (i : Id) k l (f P : Formula n) :=
-    (⟨obl_promise p i k l f⟩ ∗ (P ∨ (□ f)))%F.
+    (⟨obl_promise p i k l f⟩ ∗ (P ∨ (□ f)))%S.
 
   Definition syn_until_tpromise {n} k l (f P : Formula n) :=
-    (⟨obl_tpromise k l f⟩ ∗ (P ∨ (□ f)))%F.
+    (⟨obl_tpromise k l f⟩ ∗ (P ∨ (□ f)))%S.
 
   Lemma red_syn_until_promise
         {Id} n (p : Prism.t _ Id) (i : Id) k l (f P : Formula n) :
@@ -1265,67 +1228,67 @@ End DERIV.
 (** Notations. *)
 
 (* Fancy update. *)
-Notation "'=|' x '|=(' A ')={' Es1 ',' Es2 '}=>' P" := (syn_fupd x A Es1 Es2 P) (at level 90) : formula_scope.
-Notation "'=|' x '|={' Es1 ',' Es2 '}=>' P" := (=|x|=( ⌜True⌝%F )={ Es1, Es2}=> P)%F (at level 90) : formula_scope.
-Notation "P =| x |=( A )={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|=(A)={Es1,Es2}=> Q)%F (at level 90) : formula_scope.
-Notation "P =| x |={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|={Es1,Es2}=> Q)%F (at level 90) : formula_scope.
+Notation "'=|' x '|=(' A ')={' Es1 ',' Es2 '}=>' P" := (syn_fupd x A Es1 Es2 P) (at level 90) : sProp_scope.
+Notation "'=|' x '|={' Es1 ',' Es2 '}=>' P" := (=|x|=( ⌜True⌝%S )={ Es1, Es2}=> P)%S (at level 90) : sProp_scope.
+Notation "P =| x |=( A )={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|=(A)={Es1,Es2}=> Q)%S (at level 90) : sProp_scope.
+Notation "P =| x |={ Es1 , Es2 }=∗ Q" := (P -∗ =|x|={Es1,Es2}=> Q)%S (at level 90) : sProp_scope.
 
-Notation "'=|' x '|=(' A ')={' Es '}=>' P" := (syn_fupd x A Es Es P) (at level 90) : formula_scope.
-Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%F )={ Es }=> P)%F (at level 90) : formula_scope.
-Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%F (at level 90) : formula_scope.
-Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%F (at level 90) : formula_scope.
+Notation "'=|' x '|=(' A ')={' Es '}=>' P" := (syn_fupd x A Es Es P) (at level 90) : sProp_scope.
+Notation "'=|' x '|={' Es '}=>' P" := (=|x|=( ⌜True⌝%S )={ Es }=> P)%S (at level 90) : sProp_scope.
+Notation "P =| x |=( A )={ Es }=∗ Q" := (P -∗ =|x|=(A)={Es}=> Q)%S (at level 90) : sProp_scope.
+Notation "P =| x |={ Es }=∗ Q" := (P -∗ =|x|={Es}=> Q)%S (at level 90) : sProp_scope.
 
 (* State. *)
 Notation "'TID' ( tid )" :=
-  (⟨Atom.ow_ths tid⟩)%F (at level 50, tid at level 1, format "TID ( tid )") : formula_scope.
+  (⟨Atom.ow_ths tid⟩)%S (at level 50, tid at level 1, format "TID ( tid )") : sProp_scope.
 
 (* Liveness logic. *)
 Notation "'◆' [ k , l ]" :=
-  (⟨Atom.obl_lo k l⟩)%F (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : formula_scope.
+  (⟨Atom.obl_lo k l⟩)%S (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : sProp_scope.
 Notation "'◇' [ k ]( l , a )" :=
-  (⟨Atom.obl_pc k l a⟩)%F (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : formula_scope.
+  (⟨Atom.obl_pc k l a⟩)%S (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : sProp_scope.
 Notation "s '-(' l ')-' '◇' t" :=
-  (⟨Atom.obl_link s t l⟩)%F (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : formula_scope.
+  (⟨Atom.obl_link s t l⟩)%S (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : sProp_scope.
 Notation "'Duty' ( p ◬ i ) ds" :=
-  (⟨Atom.obl_duty p i ds⟩)%F (at level 50, p, i, ds at level 1, format "Duty ( p  ◬  i )  ds") : formula_scope.
+  (⟨Atom.obl_duty p i ds⟩)%S (at level 50, p, i, ds at level 1, format "Duty ( p  ◬  i )  ds") : sProp_scope.
 Notation "'Duty' ( tid ) ds" :=
-  (⟨Atom.obl_duty inlp tid ds⟩)%F (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : formula_scope.
+  (⟨Atom.obl_duty inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : sProp_scope.
 Notation "'€' ( p ◬ i )" :=
-  (⟨Atom.obl_fc p i⟩)%F (format "€ ( p  ◬  i )") : formula_scope.
+  (⟨Atom.obl_fc p i⟩)%S (format "€ ( p  ◬  i )") : sProp_scope.
 Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
-  (⟨Atom.obl_promise p i k l f⟩)%F (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : formula_scope.
+  (⟨Atom.obl_promise p i k l f⟩)%S (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : sProp_scope.
 Notation "'€'" :=
-  (⟨Atom.obl_tc⟩)%F : formula_scope.
+  (⟨Atom.obl_tc⟩)%S : sProp_scope.
 Notation "'-[' k '](' l ')-' '◇' f" :=
-  (⟨Atom.obl_tpromise k l f⟩)%F (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : formula_scope.
+  (⟨Atom.obl_tpromise k l f⟩)%S (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : sProp_scope.
 Notation "'◇' { ps }( m , a )" :=
-  (⟨Atom.obl_pcs ps m a⟩)%F (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : formula_scope.
+  (⟨Atom.obl_pcs ps m a⟩)%S (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : sProp_scope.
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄" :=
-  (⟨Atom.obl_ccs k ps l⟩)%F (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : formula_scope.
+  (⟨Atom.obl_ccs k ps l⟩)%S (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : sProp_scope.
 Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
-  (syn_until_promise p i k l f P)%F (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : formula_scope.
+  (syn_until_promise p i k l f P)%S (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : sProp_scope.
 Notation "P '-U-[' k '](' l ')-' '◇' f" :=
-  (syn_until_tpromise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : formula_scope.
+  (syn_until_tpromise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : sProp_scope.
 
 Notation "'●Duty' ( p ◬ i ) ds" :=
-  (⟨Atom.obl_share_duty_b p i ds⟩)%F (at level 50, p, i, ds at level 1, format "●Duty ( p  ◬  i )  ds") : formula_scope.
+  (⟨Atom.obl_share_duty_b p i ds⟩)%S (at level 50, p, i, ds at level 1, format "●Duty ( p  ◬  i )  ds") : sProp_scope.
 Notation "'○Duty' ( p ◬ i ) ds" :=
-  (⟨Atom.obl_share_duty_w p i ds⟩)%F (at level 50, p, i, ds at level 1, format "○Duty ( p  ◬  i )  ds") : formula_scope.
+  (⟨Atom.obl_share_duty_w p i ds⟩)%S (at level 50, p, i, ds at level 1, format "○Duty ( p  ◬  i )  ds") : sProp_scope.
 Notation "'●Duty' ( tid ) ds" :=
-  (⟨Atom.obl_share_duty_b inlp tid ds⟩)%F (at level 50, tid, ds at level 1, format "●Duty ( tid )  ds") : formula_scope.
+  (⟨Atom.obl_share_duty_b inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "●Duty ( tid )  ds") : sProp_scope.
 Notation "'○Duty' ( tid ) ds" :=
-  (⟨Atom.obl_share_duty_w inlp tid ds⟩)%F (at level 50, tid, ds at level 1, format "○Duty ( tid )  ds") : formula_scope.
+  (⟨Atom.obl_share_duty_w inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "○Duty ( tid )  ds") : sProp_scope.
 
 (* Auxiliary. *)
-Notation "l '@1'" := (List.map fst l) (at level 50, format "l @1") : formula_scope.
+Notation "l '@1'" := (List.map fst l) (at level 50, format "l @1") : sProp_scope.
 
 (* Triples. *)
 Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
   (syn_atomic_triple tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
-      format "[@  tid ,  n ,  Es  @] { P }  code  { v ,  Q }") : formula_scope.
+      format "[@  tid ,  n ,  Es  @] { P }  code  { v ,  Q }") : sProp_scope.
 
 Notation "'[@' tid , n , Es '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
   (syn_non_atomic_triple tid n Es P code (fun v => Q))
     (at level 200, tid, n, Es, P, code, v, Q at level 1,
-      format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : formula_scope.
+      format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : sProp_scope.
