@@ -565,6 +565,18 @@ Section RULES.
     { iModIntro. iRight. auto. }
   Qed.
 
+  Lemma promise_ind2 {Id} {v} (p : Prism.t _ Id) (i : Id) k l m f (R : iProp) :
+    (liveness_obligation k l ∗ promise p i k m f)
+      ⊢ ((□ ((fairness_credit p i =(arrows_sat v)=∗ R) ==∗ R))
+           ∗ (□ ((□ prop v f) ==∗ R)))
+      ==∗ R.
+  Proof.
+    iIntros "[#LO #PR] [#IND #BASE]".
+    iApply promise_ind. eauto. iModIntro. iIntros "IH". iApply "IND". iIntros "FC".
+    iMod ("IH" with "FC") as "[CASE | CASE]". iModIntro. iFrame.
+    iMod ("BASE" with "CASE") as "RES". iModIntro. iFrame.
+  Qed.
+
   Lemma tpromise_ind {v} k l m f (R : iProp) :
     (liveness_obligation k l ∗ thread_promise k m f)
       ⊢ (□ ((thread_credit =(arrows_sat v)=∗ (R ∨ (□ prop v f))) ==∗ R))
@@ -577,6 +589,18 @@ Section RULES.
     { iFrame. eauto. }
     { iMod ("IND2" with "PC") as "R". iModIntro. iFrame. }
     { iModIntro. iRight. auto. }
+  Qed.
+
+  Lemma tpromise_ind2 {v} k l m f (R : iProp) :
+    (liveness_obligation k l ∗ thread_promise k m f)
+      ⊢ ((□ ((thread_credit =(arrows_sat v)=∗ R) ==∗ R))
+           ∗ (□ ((□ prop v f) ==∗ R)))
+      ==∗ R.
+  Proof.
+    iIntros "[#LO #PR] [#IND #BASE]".
+    iApply tpromise_ind. eauto. iModIntro. iIntros "IH". iApply "IND". iIntros "FC".
+    iMod ("IH" with "FC") as "[CASE | CASE]". iModIntro. iFrame.
+    iMod ("BASE" with "CASE") as "RES". iModIntro. iFrame.
   Qed.
 
   Lemma ccs_ind_gen k ps l (P : iProp) :
