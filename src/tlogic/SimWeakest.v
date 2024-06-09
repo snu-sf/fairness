@@ -35,17 +35,15 @@ Section STATE.
   Context `{Invs : @IInvSet Σ Vars}.
 
   (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
+  Context `{OWNERA : @GRA.inG OwnERA Σ}.
+  Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
   Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
-
   (* State related default RAs *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
   Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
   Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
   Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
-
   (* Liveness logic related default RAs *)
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
@@ -61,29 +59,29 @@ Section STATE.
       (r: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel): rel :=
         fun R_src R_tgt Q ps pt itr_src itr_tgt =>
           (∀ ths im_src im_tgt st_src st_tgt,
-              (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))
+              (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤))
                 -∗
-                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q r_src r_tgt) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
+                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤)) ∗ Q r_src r_tgt) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
 
   Let lift_rel (rr: rel):
     forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
         fun R_src R_tgt QQ ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
           (∃ (Q: R_src -> R_tgt -> iProp)
              (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
-                          (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q r_src r_tgt)),
+                          (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤)) ∗ Q r_src r_tgt)),
               rr R_src R_tgt Q ps pt itr_src itr_tgt ∗
-                 (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)))%I.
+                 (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤)))%I.
 
   Let unlift_rel_base r
     :
     forall R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
       (r R_src R_tgt Q ps pt itr_src itr_tgt)
         -∗
-        (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))
+        (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤))
         -∗
         (lift_rel
            r
-           (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q r_src r_tgt)
+           (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤)) ∗ Q r_src r_tgt)
            ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
     unfold lift_rel. i.
@@ -141,20 +139,20 @@ Section STATE.
 
   Let I: shared_rel :=
         fun ths im_src im_tgt st_src st_tgt =>
-          (default_I x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I.
+          (default_I x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I.
 
-  Definition wpsim (Es : coPsets) : rel -> rel -> rel :=
+  Definition wpsim (E : coPset) : rel -> rel -> rel :=
     fun r g
       R_src R_tgt Q ps pt itr_src itr_tgt =>
       (∀ ths im_src im_tgt st_src st_tgt,
-          (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs Es))
+          (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE E))
             -∗
             (isim
                tid
                I
                (lift_rel r)
                (lift_rel g)
-               (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q r_src r_tgt)
+               (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤)) ∗ Q r_src r_tgt)
                ps pt itr_src itr_tgt
                ths im_src im_tgt st_src st_tgt))%I
   .
@@ -210,68 +208,51 @@ Section STATE.
         comp_st_tgt: state_tgt;
       }.
 
-  Lemma wpsim_upd Es r g R_src R_tgt
+  Lemma wpsim_upd E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
     :
-    (#=> (wpsim Es r g Q ps pt itr_src itr_tgt))
+    (#=> (wpsim E r g Q ps pt itr_src itr_tgt))
       -∗
-      (wpsim Es r g Q ps pt itr_src itr_tgt)
+      (wpsim E r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     unfold wpsim. iIntros "H" (? ? ? ? ?) "D". iMod "H".
     iApply "H". auto.
   Qed.
 
-  Lemma wpsim_discard Es n E1 E0 r g R_src R_tgt
+  Lemma wpsim_discard E0 E1 r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
         (TOP: E0 ⊆ E1)
     :
-    (wpsim (<[n:=E0]>Es) r g Q ps pt itr_src itr_tgt)
+    (wpsim E0 r g Q ps pt itr_src itr_tgt)
       -∗
-      (wpsim (<[n:=E1]>Es) r g Q ps pt itr_src itr_tgt)
+      (wpsim E1 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     unfold wpsim. iIntros "H" (? ? ? ? ?) "(D & WA & WS & E)".
-    iApply "H". iFrame. iApply (OwnEs_update_one with "E").
-    iIntros "E". iPoseProof (OwnE_subset with "E") as "[E0 _]"; [eapply TOP|].
+    iApply "H". iFrame. iPoseProof (OwnE_subset with "E") as "[E0 _]"; [eapply TOP|].
     iFrame.
   Qed.
 
-  Lemma wpsim_free_all Es r g R_src R_tgt
+  Lemma wpsim_base E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
-        (TOP: OwnEs_top Es)
-    :
-    (wpsim ∅ r g Q ps pt itr_src itr_tgt)
-      -∗
-      (wpsim Es r g Q ps pt itr_src itr_tgt)
-  .
-  Proof.
-    unfold wpsim. iIntros "H" (? ? ? ? ?) "(D & WA & WS & E)".
-    iMod (OwnEs_free_all with "E") as "E". auto.
-    iApply "H". iFrame.
-  Qed.
-
-  Lemma wpsim_base Es r g R_src R_tgt
-        (Q: R_src -> R_tgt -> iProp)
-        ps pt itr_src itr_tgt
-        (TOP: OwnEs_top Es)
-        (* (TOP: ⊤ ⊆ E) *)
+        (TOP: ⊤ ⊆ E)
     :
     (@r _ _ Q ps pt itr_src itr_tgt)
       -∗
-      (wpsim Es r g Q ps pt itr_src itr_tgt)
+      (wpsim E r g Q ps pt itr_src itr_tgt)
   .
   Proof.
-    rewrite <- wpsim_free_all; [|eassumption].
+    rewrite <- wpsim_discard; [|eassumption].
     unfold wpsim. iIntros "H" (? ? ? ? ?) "D".
     iApply isim_base.
     iApply (unlift_rel_base with "H D").
   Qed.
 
-  Lemma wpsim_mono_knowledge Es (r0 g0 r1 g1: rel) R_src R_tgt
+  Lemma wpsim_mono_knowledge E (r0 g0 r1 g1: rel) R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
         (MON0: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
@@ -285,9 +266,9 @@ Section STATE.
               -∗
               (#=> (@g1 _ _ Q ps pt itr_src itr_tgt)))
     :
-    (wpsim Es r0 g0 Q ps pt itr_src itr_tgt)
+    (wpsim E r0 g0 Q ps pt itr_src itr_tgt)
       ⊢
-      (wpsim Es r1 g1 Q ps pt itr_src itr_tgt)
+      (wpsim E r1 g1 Q ps pt itr_src itr_tgt)
   .
   Proof.
     unfold wpsim. iIntros "H" (? ? ? ? ?) "D".
@@ -297,7 +278,7 @@ Section STATE.
     iApply ("H" with "D").
   Qed.
 
-  Lemma wpsim_coind Es A
+  Lemma wpsim_coind E A
         (R_src: forall (a: A), Type)
         (R_tgt: forall (a: A), Type)
         (Q: forall (a: A), R_src a -> R_tgt a -> iProp)
@@ -306,8 +287,7 @@ Section STATE.
         (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
         (P: forall (a: A), iProp)
         (r g0: rel)
-        (TOP: OwnEs_top Es)
-        (* (TOP: ⊤ ⊆ E) *)
+        (TOP: ⊤ ⊆ E)
         (COIND: forall (g1: rel) a,
             (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
                   ps pt itr_src itr_tgt,
@@ -318,16 +298,16 @@ Section STATE.
               -∗
               (P a)
               -∗
-              (wpsim ∅ r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a)))
+              (wpsim ⊤ r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a)))
     :
-    (forall a, (P a) ⊢ (wpsim Es r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))).
+    (forall a, (P a) ⊢ (wpsim E r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))).
   Proof.
     cut (forall (m: mytype A),
             bi_entails
-              ((fun m => (P m.(comp_a) ∗ (default_I_past tid x m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)))%I) m)
-              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => ((default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅)) ∗ Q m.(comp_a) r_src r_tgt)%I) m)
+              ((fun m => (P m.(comp_a) ∗ (default_I_past tid x m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤)))%I) m)
+              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => ((default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤)) ∗ Q m.(comp_a) r_src r_tgt)%I) m)
                     ((fun m => ps m.(comp_a)) m) ((fun m => pt m.(comp_a)) m) ((fun m => itr_src m.(comp_a)) m) ((fun m => itr_tgt m.(comp_a)) m) (comp_ths m) (comp_im_src m) (comp_im_tgt m) (comp_st_src m) (comp_st_tgt m))).
-    { ss. i. rewrite <- wpsim_free_all; [|eassumption].
+    { ss. i. rewrite <- wpsim_discard; [|eassumption].
       unfold wpsim. iIntros "H" (? ? ? ? ?) "D".
       specialize (H (mk_mytype a ths im_src im_tgt st_src st_tgt)). ss.
       iApply H. iFrame.
@@ -353,86 +333,85 @@ Section STATE.
   Qed.
 
   Global Instance wpsim_elim_upd
-         Es r g R_src R_tgt
+         E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
-    ElimModal True p false (#=> P) P (wpsim Es r g Q ps pt itr_src itr_tgt) (wpsim Es r g Q ps pt itr_src itr_tgt).
+    ElimModal True p false (#=> P) P (wpsim E r g Q ps pt itr_src itr_tgt) (wpsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     typeclasses eauto.
   Qed.
 
-  Lemma wpsim_FUpd Es0 Es1 n r g R_src R_tgt
+  Lemma wpsim_FUpd E0 E1 n r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
     :
     (n <= x) ->
-    (FUpd n (fairI (ident_tgt:=ident_tgt) x) Es0 Es1 (wpsim Es1 r g Q ps pt itr_src itr_tgt))
+    (FUpd n (fairI (ident_tgt:=ident_tgt) x) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt))
       ⊢
-      (wpsim Es0 r g Q ps pt itr_src itr_tgt)
+      (wpsim E0 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     Local Transparent FUpd.
     intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
-    iAssert (FUpd x (fairI (ident_tgt:=ident_tgt) x) Es0 Es1 (wpsim Es1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
+    iAssert (FUpd x (fairI (ident_tgt:=ident_tgt) x) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
     { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
-    iAssert (fairI (ident_tgt:=ident_tgt) x ∗ (wsats x ∗ OwnEs Es0))%I with "[D6 D7 WSAT E]" as "C".
+    iAssert (fairI (ident_tgt:=ident_tgt) x ∗ (wsats x ∗ OwnE E0))%I with "[D6 D7 WSAT E]" as "C".
     { iFrame. }
     unfold FUpd. iMod ("H" with "C") as "(F & WSAT & E & H)".
     iApply "H". iFrame. iExists _. iFrame. auto.
     Local Opaque FUpd.
   Qed.
 
-  Lemma wpsim_FUpd_simple Es0 Es1 n r g R_src R_tgt
+  Lemma wpsim_FUpd_simple E0 E1 n r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
     :
     (n <= x) ->
-    (FUpd n (⌜True⌝%I) Es0 Es1 (wpsim Es1 r g Q ps pt itr_src itr_tgt))
+    (FUpd n (⌜True⌝%I) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt))
       ⊢
-      (wpsim Es0 r g Q ps pt itr_src itr_tgt)
+      (wpsim E0 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     Local Transparent FUpd.
     intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
-    iAssert (FUpd x (⌜True⌝%I) Es0 Es1 (wpsim Es1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
+    iAssert (FUpd x (⌜True⌝%I) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
     { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
-    iAssert (wsats x ∗ OwnEs Es0)%I with "[WSAT E]" as "C".
+    iAssert (wsats x ∗ OwnE E0)%I with "[WSAT E]" as "C".
     { iFrame. }
     unfold FUpd. iMod ("H" with "[C]") as "(_ & WSAT & E & H)". iFrame.
     iApply "H". iFrame. iExists _. iFrame. auto.
     Local Opaque FUpd.
   Qed.
 
-  Lemma wpsim_FUpd_weaken Es1 Es2 y r g R_src R_tgt
+  Lemma wpsim_FUpd_weaken y r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src itr_tgt
-        n E0 E1
+        E0 E1
         (SUB: E0 ⊆ E1)
     :
     (y <= x) ->
-    (FUpd y (fairI (ident_tgt:=ident_tgt) x) (<[n:=E0]>Es1) (<[n:=E0]>Es2)
-          (wpsim (<[n:=E1]>Es2) r g Q ps pt itr_src itr_tgt))
+    (FUpd y (fairI (ident_tgt:=ident_tgt) x) E0 E0 (wpsim E1 r g Q ps pt itr_src itr_tgt))
       ⊢
-      (wpsim (<[n:=E1]>Es1) r g Q ps pt itr_src itr_tgt)
+      (wpsim E1 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     iIntros (LE) "H". iApply wpsim_FUpd. eauto. iApply FUpd_mask_mono; eauto.
   Qed.
 
   Global Instance wpsim_elim_FUpd_gen
-         Es0 Es1 n E0 E1 E2 y
+         E0 E1 E2 y
          r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
     ElimModal (y <= x /\ E0 ⊆ E2) p false
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) (<[n:=E0]>Es0) (<[n:=E1]>Es1) P)
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E0 E1 P)
               P
-              (wpsim (<[n:=E2]>Es0) r g Q ps pt itr_src itr_tgt)
-              (wpsim (<[n:=(E1 ∪ (E2 ∖ E0))]>Es1) r g Q ps pt itr_src itr_tgt).
+              (wpsim E2 r g Q ps pt itr_src itr_tgt)
+              (wpsim (E1 ∪ (E2 ∖ E0)) r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros (LE & SUB). iIntros "[H0 H1]".
@@ -442,17 +421,17 @@ Section STATE.
   Qed.
 
   Global Instance wpsim_elim_FUpd_eq
-         Es0 Es1 n E1 E2 y
+         E1 E2 y
          r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
     ElimModal (y <= x /\ E1 ⊆ E2) p false
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) (<[n:=E1]>Es0) (<[n:=E1]>Es1) P)
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E1 P)
               P
-              (wpsim (<[n:=E2]>Es0) r g Q ps pt itr_src itr_tgt)
-              (wpsim (<[n:=E2]>Es1) r g Q ps pt itr_src itr_tgt).
+              (wpsim E2 r g Q ps pt itr_src itr_tgt)
+              (wpsim E2 r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros (LE & SUB). iIntros "[H0 H1]".
@@ -461,59 +440,59 @@ Section STATE.
   Qed.
 
   Global Instance wpsim_elim_FUpd
-         Es0 Es1 y
+         E0 E1 y
          r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
     ElimModal (y <= x) p false
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) Es0 Es1 P)
+              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E0 E1 P)
               P
-              (wpsim Es0 r g Q ps pt itr_src itr_tgt)
-              (wpsim Es1 r g Q ps pt itr_src itr_tgt).
+              (wpsim E0 r g Q ps pt itr_src itr_tgt)
+              (wpsim E1 r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LE. iIntros "[H0 H1]".
     iApply wpsim_FUpd. apply LE. iMod "H0".
-    instantiate (1:=Es1). iModIntro. iApply ("H1" with "H0").
+    iModIntro. iApply ("H1" with "H0").
   Qed.
 
   Global Instance wpsim_elim_FUpd_simple
-         Es0 Es1 y
+         E0 E1 y
          r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
     :
     ElimModal (y <= x) p false
-              (FUpd y (⌜True⌝%I) Es0 Es1 P)
+              (FUpd y (⌜True⌝%I) E0 E1 P)
               P
-              (wpsim Es0 r g Q ps pt itr_src itr_tgt)
-              (wpsim Es1 r g Q ps pt itr_src itr_tgt).
+              (wpsim E0 r g Q ps pt itr_src itr_tgt)
+              (wpsim E1 r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LE. iIntros "[H0 H1]".
     iApply wpsim_FUpd_simple. apply LE. iMod "H0".
-    instantiate (1:=Es1). iModIntro. iApply ("H1" with "H0").
+    iModIntro. iApply ("H1" with "H0").
   Qed.
 
   Global Instance wpsim_add_modal_FUpd
-         Es y (LE: y <= x)
+         E y (LE: y <= x)
          r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt
          P
     :
-    AddModal (FUpd y (fairI (ident_tgt:=ident_tgt) x) Es Es P)
+    AddModal (FUpd y (fairI (ident_tgt:=ident_tgt) x) E E P)
              P
-             (wpsim Es r g Q ps pt itr_src itr_tgt).
+             (wpsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold AddModal. iIntros "[> H0 H1]". iApply ("H1" with "H0").
   Qed.
 
   Global Instance wpsim_elim_iupd_edge
-         Es r g R_src R_tgt
+         E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
          P
@@ -521,8 +500,8 @@ Section STATE.
     ElimModal True p false
               (#=(ObligationRA.edges_sat)=> P)
               P
-              (wpsim Es r g Q ps pt itr_src itr_tgt)
-              (wpsim Es r g Q ps pt itr_src itr_tgt).
+              (wpsim E r g Q ps pt itr_src itr_tgt)
+              (wpsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros _. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] W]".
@@ -532,7 +511,7 @@ Section STATE.
   Qed.
 
   Global Instance wpsim_elim_iupd_arrow
-         Es y
+         E y
          r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
          ps pt itr_src itr_tgt p
@@ -541,8 +520,8 @@ Section STATE.
     ElimModal (y < x) p false
               (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) y)=> P)
               P
-              (wpsim Es r g Q ps pt itr_src itr_tgt)
-              (wpsim Es r g Q ps pt itr_src itr_tgt).
+              (wpsim E r g Q ps pt itr_src itr_tgt)
+              (wpsim E r g Q ps pt itr_src itr_tgt).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LE. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] W]".
@@ -552,13 +531,13 @@ Section STATE.
   Qed.
 
   Global Instance fupd_elim_iupd_edge
-         y P Q E1 E2 p
+         a b P Q E1 E2 p
     :
     ElimModal True p false
               (#=(ObligationRA.edges_sat)=> P)
               P
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q)
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q).
+              (FUpd a (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q)
+              (FUpd a (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros _. iIntros "[H0 H1]".
@@ -568,13 +547,13 @@ Section STATE.
   Qed.
 
   Global Instance fupd_elim_iupd_arrow
-         y P Q E1 E2 p
+         a b c P Q E1 E2 p
     :
-    ElimModal (y < x) p false
-              (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) y)=> P)
+    ElimModal (a < b) p false
+              (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) a)=> P)
               P
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q)
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q).
+              (FUpd c (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q)
+              (FUpd c (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LT. iIntros "[H0 H1]".
@@ -639,7 +618,7 @@ Section STATE.
         ps pt (itr_src: itree srcE S_src) (itr_tgt: itree tgtE S_tgt)
         ktr_src ktr_tgt
     :
-    (wpsim E r g (fun s_src s_tgt => wpsim ∅ r g Q false false (ktr_src s_src) (ktr_tgt s_tgt)) ps pt itr_src itr_tgt)
+    (wpsim E r g (fun s_src s_tgt => wpsim ⊤ r g Q false false (ktr_src s_src) (ktr_tgt s_tgt)) ps pt itr_src itr_tgt)
       -∗
       (wpsim E r g Q ps pt (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt))
   .
@@ -659,7 +638,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt r_src r_tgt
     :
-    (FUpd y (fairI (ident_tgt:=ident_tgt) x) E ∅ (Q r_src r_tgt))
+    (FUpd y (fairI (ident_tgt:=ident_tgt) x) E ⊤ (Q r_src r_tgt))
       -∗
       (wpsim E r g Q ps pt (Ret r_src) (Ret r_tgt))
   .
@@ -1233,15 +1212,15 @@ Section STATE.
          -∗
          (FairRA.white_thread (S:=_))
          -∗
-         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ∅
-               (wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
+               (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     iIntros "H K". unfold wpsim. iIntros (? ? ? ? ?) "(D & [WA WS])".
     iMod (default_I_past_update_ident_thread with "D H") as "[B [W [D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]]]]". auto.
-    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnEs E))%I with "[WS D5 D6]" as "C".
+    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
     { iFrame. }
     Local Transparent FUpd.
     iPoseProof ("K" with "B W C") as ">[D5 [D6 [E K]]]".
@@ -1251,7 +1230,7 @@ Section STATE.
     Local Opaque FUpd.
   Qed.
 
-  Lemma wpsim_yieldR
+  Lemma wpsim_yieldR_gen
         y (LT: y < x)
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1264,8 +1243,8 @@ Section STATE.
          -∗
          €
          -∗
-         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
-            (wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ⊤}=>
+            (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
@@ -1285,7 +1264,7 @@ Section STATE.
     iApply "H".
   Qed.
 
-  Lemma wpsim_yieldR2
+  Lemma wpsim_yieldR_gen2
         y (LT: y < x)
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1301,8 +1280,8 @@ Section STATE.
          -∗
          ◇{List.map fst l}(1, a - 1)
          -∗
-         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
-            (wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ⊤}=>
+            (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
@@ -1310,7 +1289,56 @@ Section STATE.
     iIntros "[D T] H".
     iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
     Unshelve. 2: lia.
-    iApply (wpsim_yieldR with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
+    iApply (wpsim_yieldR_gen with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
+  Qed.
+
+  Lemma wpsim_yieldR
+        y (LT: y < x)
+        r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+    :
+    (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
+      -∗
+      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "[D T] H". iApply wpsim_discard. eauto.
+    iApply (wpsim_yieldR_gen with "[D T]"). eauto. iFrame.
+    iIntros "D F". iModIntro. iApply ("H" with "D F").
+  Qed.
+
+  Lemma wpsim_yieldR2
+        y (LT: y < x)
+        r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+        a (MANY : 1 <= a)
+    :
+    (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         ◇{List.map fst l}(1, a - 1)
+         -∗
+         (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
+      -∗
+      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "[D T] H". iApply wpsim_discard. eauto.
+    iApply (wpsim_yieldR_gen2 with "[D T]"). 1,2: eauto. iFrame.
+    iIntros "D F C". iModIntro. iApply ("H" with "D F C").
   Qed.
 
   Lemma wpsim_sync_strong
@@ -1325,14 +1353,14 @@ Section STATE.
          -∗
          (FairRA.white_thread (S:=_))
          -∗
-         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ∅
-               (wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
+               (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "H K". unfold wpsim. iIntros (? ? ? ? ?) "(D & WA & WS)".
     iPoseProof (default_I_past_update_ident_thread with "D H") as "> [B [W [D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]]]]". auto.
-    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnEs E))%I with "[WS D5 D6]" as "C".
+    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
     { iFrame. }
     Local Transparent FUpd.
     iPoseProof ("K" with "B W C") as "> (D5 & C & E & K)".
@@ -1342,7 +1370,7 @@ Section STATE.
     Local Opaque FUpd.
   Qed.
 
-  Lemma wpsim_sync
+  Lemma wpsim_sync_gen
         y (LT: y < x)
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1355,8 +1383,8 @@ Section STATE.
          -∗
          €
          -∗
-         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
-            (wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ⊤}=>
+            (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
@@ -1375,7 +1403,7 @@ Section STATE.
     iApply "H".
   Qed.
 
-  Lemma wpsim_sync2
+  Lemma wpsim_sync_gen2
         y (LT: y < x)
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1391,15 +1419,62 @@ Section STATE.
          -∗
          ◇{List.map fst l}(1, a - 1)
          -∗
-         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ∅}=>
-            (wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ⊤}=>
+            (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "[D T] H".
     iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
     Unshelve. 2: lia.
-    iApply (wpsim_sync with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
+    iApply (wpsim_sync_gen with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
+  Qed.
+
+  Lemma wpsim_sync
+        y (LT: y < x)
+        r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+    :
+    (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
+      -∗
+      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "[D T] H". iApply wpsim_discard. eauto.
+    iApply (wpsim_sync_gen with "[D T]"). eauto. iFrame.
+    iIntros "D F". iModIntro. iApply ("H" with "D F").
+  Qed.
+
+  Lemma wpsim_sync2
+        y (LT: y < x)
+        r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+        a (MANY : 1 <= a)
+    :
+    (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         ◇{List.map fst l}(1, a - 1)
+         -∗
+         (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
+      -∗
+      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "[D T] H". iApply wpsim_discard. eauto.
+    iApply (wpsim_sync_gen2 with "[D T]"). 1,2: eauto. iFrame.
+    iIntros "D F C". iModIntro. iApply ("H" with "D F C").
   Qed.
 
   Lemma wpsim_yieldR_weak
@@ -1407,7 +1482,7 @@ Section STATE.
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
-        (TOP: OwnEs_top E)
+        (TOP: ⊤ ⊆ E)
     :
     (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
@@ -1415,12 +1490,12 @@ Section STATE.
          -∗
          (FairRA.white_thread (S:=_))
          -∗
-         wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
+         wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    iIntros "H K". iApply wpsim_free_all; [eassumption|].
+    iIntros "H K". iApply wpsim_discard; [eassumption|].
     iApply (wpsim_yieldR_strong with "H"). auto. iIntros "DUTY WHITE".
     iModIntro. iApply ("K" with "DUTY WHITE").
   Qed.
@@ -1430,7 +1505,7 @@ Section STATE.
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
-        (TOP: OwnEs_top E)
+        (TOP: ⊤ ⊆ E)
     :
     (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
@@ -1438,11 +1513,11 @@ Section STATE.
          -∗
          (FairRA.white_thread (S:=_))
          -∗
-         wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt))
+         wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
-    iIntros "H K". iApply wpsim_free_all; [eassumption|].
+    iIntros "H K". iApply wpsim_discard; [eassumption|].
     iApply (wpsim_sync_strong with "H"). auto. iIntros "DUTY WHITE".
     iModIntro. iApply ("K" with "DUTY WHITE").
   Qed.
@@ -1453,16 +1528,16 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
     :
-    FUpd x (fairI (ident_tgt:=ident_tgt) x) ∅ ∅
+    FUpd x (fairI (ident_tgt:=ident_tgt) x) ⊤ ⊤
          ((FairRA.black_ex inlp tid 1)
             ∗
             ((FairRA.black_ex inlp tid 1)
                -∗
                (FairRA.white_thread (S:=_))
                -∗
-               wpsim ∅ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
+               wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
          -∗
-         (wpsim ∅ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+         (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     iIntros "> [H K]". iApply (wpsim_yieldR_weak with "[H]").
@@ -1479,16 +1554,16 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
     :
-    FUpd x (fairI (ident_tgt:=ident_tgt) x) ∅ ∅
+    FUpd x (fairI (ident_tgt:=ident_tgt) x) ⊤ ⊤
          ((FairRA.black_ex inlp tid 1)
             ∗
             ((FairRA.black_ex inlp tid 1)
                -∗
                (FairRA.white_thread (S:=_))
                -∗
-               wpsim ∅ g g Q true true (ktr_src tt) (ktr_tgt tt)))
+               wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
          -∗
-         (wpsim ∅ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+         (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "> [H K]". iApply (wpsim_sync_weak with "[H]").
     { eauto. }
@@ -1563,10 +1638,6 @@ Section TRIPLES.
   Local Notation ident_src := (@id_src_type STT).
   Local Notation ident_tgt := (@id_tgt_type STT).
 
-  (* Variable state_src: Type. *)
-  (* Variable state_tgt: Type. *)
-  (* Variable ident_src: ID. *)
-  (* Variable ident_tgt: ID. *)
   Let srcE := threadE ident_src state_src.
   Let tgtE := threadE ident_tgt state_tgt.
 
@@ -1575,8 +1646,8 @@ Section TRIPLES.
   Context `{Invs : @IInvSet Σ Vars}.
 
   (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
+  Context `{OWNERA : @GRA.inG OwnERA Σ}.
+  Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
   Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
   (* State related default RAs *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
@@ -1597,7 +1668,7 @@ Section TRIPLES.
 
   Definition triple_gen
              n m
-             tid (P : iProp) {RV} (Q : RV -> iProp) (Es1 Es2 : coPsets)
+             tid (P : iProp) {RV} (Q : RV -> iProp) (E1 E2 : coPset)
              {R_term : Type}
              (* {R_src R_tgt : Type} (TERM : R_src -> R_tgt -> Vars m) *)
              ps pt
@@ -1608,54 +1679,54 @@ Section TRIPLES.
         (P)
           -∗
           (∀ (rv : RV),
-              (Q rv) -∗ wpsim n tid Es2 rr gr (@term_cond m tid R_term) ps true itr_src (ktr_tgt rv))
+              (Q rv) -∗ wpsim n tid E2 rr gr (@term_cond m tid R_term) ps true itr_src (ktr_tgt rv))
           -∗
-          wpsim n tid Es1 rr gr (@term_cond m tid R_term) ps pt itr_src (code >>= ktr_tgt))%I.
-          (* wpsim n tid Es1 rr gr (fun rs rt => prop m (TERM rs rt)) ps pt itr_src (code >>= ktr_tgt))%I. *)
+          wpsim n tid E1 rr gr (@term_cond m tid R_term) ps pt itr_src (code >>= ktr_tgt))%I.
+          (* wpsim n tid E1 rr gr (fun rs rt => prop m (TERM rs rt)) ps pt itr_src (code >>= ktr_tgt))%I. *)
 
   Definition atomic_triple
-             tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+             tid n (E : coPset) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
     (* (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt *)
     (∀ R_term ps pt
        (itr_src : itree srcE R_term)
        (ktr_tgt : RV -> itree tgtE R_term),
-        triple_gen (S n) n tid P Q Es Es ps pt itr_src code ktr_tgt)%I.
+        triple_gen (S n) n tid P Q E E ps pt itr_src code ktr_tgt)%I.
   (* (P) *)
   (*   -∗ *)
   (*   (∀ (rv : RV), *)
-  (*       (Q rv) -∗ wpsim n tid Es rr gr TERM ps true itr_src (ktr_tgt rv)) *)
+  (*       (Q rv) -∗ wpsim n tid E rr gr TERM ps true itr_src (ktr_tgt rv)) *)
   (*   -∗ *)
-  (*   wpsim n tid Es rr gr TERM ps pt itr_src (code >>= ktr_tgt))%I. *)
+  (*   wpsim n tid E rr gr TERM ps pt itr_src (code >>= ktr_tgt))%I. *)
 
   Definition non_atomic_triple
-             tid n (Es : coPsets) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+             tid n (E : coPset) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
     (* (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt *)
     (∀ R_term ps pt
        (itr_src : itree srcE R_term)
        (ktr_tgt : RV -> itree tgtE R_term),
-        triple_gen (S n) n tid P Q Es ∅ ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
-        (* triple_gen (S n) (m:=n) tid P Q Es ∅ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I. *)
+        triple_gen (S n) n tid P Q E ⊤ ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
+        (* triple_gen (S n) (m:=n) tid P Q E ⊤ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I. *)
       (* (P) *)
       (*   -∗ *)
       (*   (∀ (rv : RV), *)
-      (*       (Q rv) -∗ wpsim n tid ∅ rr gr TERM ps true (trigger Yield;;; itr_src) (ktr_tgt rv)) *)
+      (*       (Q rv) -∗ wpsim n tid ⊤ rr gr TERM ps true (trigger Yield;;; itr_src) (ktr_tgt rv)) *)
       (*   -∗ *)
-      (*   wpsim n tid Es rr gr TERM ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I. *)
+      (*   wpsim n tid E rr gr TERM ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I. *)
 
   (* For syntactic encoding. *)
   Definition triple_format {Form : Type} {intpF : Form -> iProp}
              tid
              (I0 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
              (I1 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> Form)
-             (I2 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> coPsets -> Form)
+             (I2 : TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> coPset -> Form)
              (P : Form)
              {RV : Type}
              (Q : RV -> Form)
-             (Es1 Es2 : coPsets)
+             (E1 E2 : coPset)
     :
     forall R_src R_tgt (TERM: R_src -> R_tgt -> Form), bool -> bool -> itree srcE R_src -> itree tgtE RV -> (ktree tgtE RV R_tgt) -> iProp
     :=
@@ -1695,14 +1766,14 @@ Section TRIPLES.
                 (intpF (Q rv))
                   -∗
                   (∀ ths im_src im_tgt st_src st_tgt,
-                      (intpF (I2 ths im_src im_tgt st_src st_tgt Es2))
+                      (intpF (I2 ths im_src im_tgt st_src st_tgt E2))
                         -∗
                         isim
                         tid INV LIFT1 LIFT2 FIN
                         ps true itr_src (ktr_tgt rv) ths im_src im_tgt st_src st_tgt))
             -∗
             (∀ ths im_src im_tgt st_src st_tgt,
-                (intpF (I2 ths im_src im_tgt st_src st_tgt Es1))
+                (intpF (I2 ths im_src im_tgt st_src st_tgt E1))
                   -∗
                   isim
                   tid INV LIFT1 LIFT2 FIN
@@ -1714,15 +1785,15 @@ End TRIPLES.
 (** For triples. *)
 Ltac iStartTriple := iIntros (? ? ? ? ? ? ?).
 
-Notation "'[@' tid , n , Es '@]' { P } code { v , Q }" :=
-  (atomic_triple tid n Es P code (fun v => Q))
-    (at level 200, tid, n, Es, P, code, v, Q at level 1,
-      format "[@  tid ,  n ,  Es  @] { P }  code  { v ,  Q }") : bi_scope.
+Notation "'[@' tid , n , E '@]' { P } code { v , Q }" :=
+  (atomic_triple tid n E P code (fun v => Q))
+    (at level 200, tid, n, E, P, code, v, Q at level 1,
+      format "[@  tid ,  n ,  E  @] { P }  code  { v ,  Q }") : bi_scope.
 
-Notation "'[@' tid , n , Es '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
-  (non_atomic_triple tid n Es P code (fun v => Q))
-    (at level 200, tid, n, Es, P, code, v, Q at level 1,
-      format "[@  tid ,  n ,  Es  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
+Notation "'[@' tid , n , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
+  (non_atomic_triple tid n E P code (fun v => Q))
+    (at level 200, tid, n, E, P, code, v, Q at level 1,
+      format "[@  tid ,  n ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
 
 (** Simulation tactics. *)
 

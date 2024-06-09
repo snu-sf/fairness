@@ -530,17 +530,15 @@ Section INIT.
   Context `{Invs : @IInvSet Σ Vars}.
 
   (* Invariant related default RAs *)
-  Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-  Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
+  Context `{OWNERA : @GRA.inG OwnERA Σ}.
+  Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
   Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
-
   (* State related default RAs *)
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
   Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
   Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
   Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
-
   (* Liveness logic related default RAs *)
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
@@ -550,7 +548,7 @@ Section INIT.
 
   Definition default_initial_res
     : Σ :=
-    (@GRA.embed _ _ OWNESRA ((fun _ => Some ⊤) : OwnEsRA))
+    (@GRA.embed _ _ OWNERA (Some ⊤))
       ⋅
       (@GRA.embed _ _ IINVSETRA ((fun n => @Auth.black (positive ==> URA.agree (Vars n))%ra (fun _ => None)) : IInvSetRA Vars))
       ⋅
@@ -567,7 +565,7 @@ Section INIT.
       (@GRA.embed _ _ EDGERA ((fun _ => OneShot.pending _ 1%Qp): EdgeRA))
       ⋅
       (@GRA.embed _ _ ARROWRA ((@Regions.nauth_ra _ 0): @ArrowRA ident_tgt Vars))
-      (* (@GRA.embed _ _ ARROWRA ((fun _ => (fun _ => OneShot.pending _ 1%Qp)): @ArrowRA ident_tgt Vars)) *)
+  (* (@GRA.embed _ _ ARROWRA ((fun _ => (fun _ => OneShot.pending _ 1%Qp)): @ArrowRA ident_tgt Vars)) *)
   .
 
   Lemma own_threads_init ths
@@ -612,7 +610,7 @@ Section INIT.
                     ∗
                     wsats x
                     ∗
-                    OwnEs ∅
+                    OwnE ⊤
       )).
   Proof.
     iIntros "OWN" (? ? ? ? ?).
@@ -646,7 +644,7 @@ Section INIT.
       iFrame.
     }
 
-    iSplitR "H2"; [|iSplitL "H2"].
+    iSplitR "H2".
     { iApply natmap_prop_sum_impl; [|eauto]. i. ss.
       iApply ObligationRA.black_to_duty.
     }
@@ -654,7 +652,6 @@ Section INIT.
       iApply (FairRA.blacks_impl with "H").
       i. des_ifs. esplits; eauto.
     }
-    { unfold OwnE_satall. ss. }
   Qed.
 
 End INIT.

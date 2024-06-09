@@ -5,17 +5,18 @@ From Fairness Require Import ITreeLib Red TRed IRed2 LinkingRed.
 From Fairness Require Import Mod Linking.
 From Fairness Require Import PCM IProp IPM.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic TemporalLogicFull.
+From Fairness Require Import TemporalLogic.
 From Fairness Require Export SCMem.
 
 
 Section SPEC.
 
   Context {STT : StateTypes}.
+  Context `{sub : @SRA.subG Γ Σ}.
+  Context {TLRASs : TLRAs_small STT Γ}.
+  Context {TLRAS : TLRAs STT Γ Σ}.
 
-  Context `{Σ : GRA.t}.
-  Context {TLRAS : @TLRAs XAtom STT Σ}.
-  Context {AUXRAS : AUXRAs Σ}.
+  Context {HasMEMRA: @GRA.inG memRA Γ}.
 
   Variable p_mem : Prism.t id_tgt_type SCMem.val.
   Variable l_mem : Lens.t st_tgt_type SCMem.t.
@@ -23,12 +24,11 @@ Section SPEC.
 
   Lemma SCMem_alloc_fun_spec
         tid x y (LT : x < S y)
-        Es
-        (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         sz
     :
-    ⊢ [@ tid, y, Es @]
-      {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F))}
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => ((s_memory_black m) : sProp x)%S))}
       (map_event emb_mem (SCMem.alloc_fun sz))
       {l, (points_tos l (repeat (SCMem.val_nat 0) sz))}.
   Proof.
@@ -38,12 +38,13 @@ Section SPEC.
     iDestruct "ST1" as (vw) "[VW MEM]".
     rred2r. iApply wpsim_getR. iSplit. iFrame.
     destruct (SCMem.alloc ((id ∘ Lens.view l_mem) (Lens.set l_mem vw st)) sz) eqn: Hal.
+    iEval (simpl; red_tl_memra) in "MEM".
     iPoseProof (memory_ra_alloc with "MEM") as "ALLOC".
     { ss. rewrite Lens.view_set in Hal. eauto. }
     rred2r. iApply (wpsim_modifyR with "VW"). iIntros "STTGT".
     rred2r.
     iMod "ALLOC" as "[MB PTS]". iMod ("V" with "[STTGT MB]") as "_".
-    { iExists _. iFrame. unfold Vw_tgt. ss.
+    { iExists _. iEval (simpl; red_tl_memra). iFrame. unfold Vw_tgt. ss.
       replace (Lens.set l_mem t st) with (Lens.modify l_mem (λ _ : SCMem.t, t) (Lens.set l_mem vw st)).
       iFrame. unfold Lens.modify. rewrite Lens.set_set. ss.
     }
@@ -52,134 +53,72 @@ Section SPEC.
 
   Lemma SCMem_alloc_fun_syn_spec
         tid n
-        Es
-        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         sz
     :
-    ⊢ ⟦([@ tid, n, Es @]
-          {(syn_tgt_interp_as n l_mem (fun m => (➢ (scm_memory_black m) : Formula n)%F))}
+    ⊢ ⟦([@ tid, n, E @]
+          {(syn_tgt_interp_as n l_mem (fun m => ((s_memory_black m) : sProp n)%S))}
           (map_event emb_mem (SCMem.alloc_fun sz))
-          {l, ➢(scm_points_tos l (repeat (SCMem.val_nat 0) sz))} : Formula (1+n))%F, 1+n⟧.
+          {l, (s_points_tos l (repeat (SCMem.val_nat 0) sz))} : sProp (1+n))%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
-    iStartTriple. iIntros "P Q". iEval (red_tl; rewrite red_syn_tgt_interp_as) in "P".
+    iStartTriple. iIntros "P Q". iEval (rewrite red_syn_tgt_interp_as) in "P".
     iApply (SCMem_alloc_fun_spec with "P [Q]"). auto. auto.
-    iIntros "% PTS". iSpecialize ("Q" $! rv with "PTS"). iFrame.
+    iIntros "% PTS". iSpecialize ("Q" $! rv with "[PTS]"). 2: iFrame.
+    iEval red_tl_memra. iFrame.
   Qed.
 
-  (* Lemma SCMem_alloc_fun_spec *)
-  (*       x y (LT : x < y) *)
-  (*       tid Es R_src R_tgt (Q : R_src -> R_tgt -> iProp) *)
-  (*       r g ps pt *)
-  (*       itr_src ktr_tgt *)
-  (*       (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end) *)
-  (*       sz *)
-  (*   : *)
-  (*   (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) *)
-  (*     -∗ *)
-  (*     (∀ l, (points_tos l (repeat (SCMem.val_nat 0) sz)) *)
-  (*             -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt l)) *)
-  (*     -∗ *)
-  (*     (wpsim y tid Es r g Q ps pt *)
-  (*            itr_src *)
-  (*            (map_event emb_mem (SCMem.alloc_fun sz) >>= ktr_tgt)). *)
-  (* Proof. *)
-  (*   unfold SCMem.alloc_fun. iIntros "#ST SIM". *)
-  (*   iInv "ST" as (st) "ST1" "V". *)
-  (*   iDestruct "ST1" as (vw) "[VW MEM]". *)
-  (*   rred2r. iApply wpsim_getR. iSplit. iFrame. *)
-  (*   destruct (SCMem.alloc ((id ∘ Lens.view l_mem) (Lens.set l_mem vw st)) sz) eqn: Hal. *)
-  (*   iPoseProof (memory_ra_alloc with "MEM") as "ALLOC". *)
-  (*   { ss. rewrite Lens.view_set in Hal. eauto. } *)
-  (*   rred2r. iApply (wpsim_modifyR with "VW"). iIntros "STTGT". *)
-  (*   rred2r. *)
-  (*   iMod "ALLOC" as "[MB PTS]". iMod ("V" with "[STTGT MB]") as "_". *)
-  (*   { iExists _. iFrame. unfold Vw_tgt. ss. *)
-  (*     replace (Lens.set l_mem t st) with (Lens.modify l_mem (λ _ : SCMem.t, t) (Lens.set l_mem vw st)). *)
-  (*     iFrame. unfold Lens.modify. rewrite Lens.set_set. ss. *)
-  (*   } *)
-  (*   iApply "SIM". iFrame. *)
-  (* Qed. *)
 
   Lemma SCMem_free_fun_spec
         tid x y (LT : x < S y)
-        Es
-        (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         p v
     :
-    ⊢ [@ tid, y, Es @]
-      {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to p v)}
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => ((s_memory_black m) : sProp x)%S)) ∗ (points_to p v)}
       (map_event emb_mem (SCMem.free_fun p))
-      {u, emp}.
+      {u, ⌜True⌝%I}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". iInv "ST" as (st) "ST1" "V".
     iDestruct "ST1" as (vw) "[VW MB]".
     rred2r. iApply wpsim_getR. iSplit; [iFrame | ].
-    rred2r. rewrite Lens.view_set.
+    rred2r. rewrite Lens.view_set. iEval (simpl; red_tl_memra) in "MB".
     iPoseProof (memory_ra_free with "[MB PT]") as (m1) "[%FREE MB]".
-    { iFrame. ss. }
+    { iFrame. }
     rewrite FREE. rred2r.
     iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r. iMod "MB".
     iMod ("V" with "[STTGT MB]") as "_".
-    { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
+    { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set.
+      iEval (red_tl_memra). iFrame.
+    }
     iApply "SIM". auto.
   Qed.
 
   Lemma SCMem_free_fun_syn_spec
         tid n
-        Es
-        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         p v
     :
-    ⊢ ⟦([@ tid, n, Es @]
-          {(syn_tgt_interp_as n l_mem (fun m => (➢ (scm_memory_black m)))) ∗ (p ↦ v)}
+    ⊢ ⟦([@ tid, n, E @]
+          {(syn_tgt_interp_as n l_mem (fun m => (s_memory_black m))) ∗ ⤉(p ↦ v)}
           (map_event emb_mem (SCMem.free_fun p))
-          {u, emp})%F, 1+n⟧.
+          {u, ⌜True⌝})%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
     iApply (SCMem_free_fun_spec with "[P] Q"). 2: eauto. auto.
-    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
+    red_tl. iDestruct "P" as "[A B]". rewrite red_syn_tgt_interp_as. red_tl_memra. iFrame.
   Qed.
 
-  (* Lemma free_fun_spec *)
-  (*       x y (LT : x < y) *)
-  (*       tid Es r R_src R_tgt (Q : R_src -> R_tgt -> iProp) g ps pt *)
-  (*       itr_src ktr_tgt *)
-  (*       (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end) *)
-  (*       p v *)
-  (*   : *)
-  (*   ((tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) *)
-  (*      ∗ (points_to p v)) *)
-  (*     -∗ *)
-  (*     (∀ (rv : _), wpsim y tid Es r g Q ps true itr_src (ktr_tgt rv)) *)
-  (*     -∗ *)
-  (*     wpsim y tid Es r g Q ps pt *)
-  (*     itr_src *)
-  (*     (map_event emb_mem (SCMem.free_fun p) >>= ktr_tgt). *)
-  (* Proof. *)
-  (*   iIntros "[#ST PT] SIM". iInv "ST" as (st) "ST1" "V". *)
-  (*   iDestruct "ST1" as (vw) "[VW MB]". *)
-  (*   rred2r. iApply wpsim_getR. iSplit; [iFrame | ]. *)
-  (*   rred2r. rewrite Lens.view_set. *)
-  (*   iPoseProof (memory_ra_free with "[MB PT]") as (m1) "[%FREE MB]". *)
-  (*   { iFrame. ss. } *)
-  (*   rewrite FREE. rred2r. *)
-  (*   iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r. iMod "MB". *)
-  (*   iMod ("V" with "[STTGT MB]") as "_". *)
-  (*   { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
-  (*   iApply "SIM". *)
-  (* Qed. *)
 
   Lemma SCMem_store_fun_spec
         tid x y (LT : x < S y)
-        Es
-        (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         l v v0
     :
-    ⊢ [@ tid, y, Es @]
-      {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to l v0)}
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => ((s_memory_black m) : sProp x)%S)) ∗ (points_to l v0)}
       (map_event emb_mem (SCMem.store_fun (l, v)))
       {u, points_to l v }.
   Proof.
@@ -187,144 +126,86 @@ Section SPEC.
     iIntros "[#ST PT] SIM". iInv "ST" as (st) "ST1" "V".
     iDestruct "ST1" as (vs) "[VW MEM]". rred2.
     iApply wpsim_getR. iSplit. iFrame. rred2. rewrite Lens.view_set.
+    iEval (simpl; red_tl_memra) in "MEM".
     iPoseProof (memory_ra_store with "MEM PT") as "STORE".
     iDestruct "STORE" as (m1) "[%STORE1 MB]". iMod ("MB") as "MB".
     rewrite STORE1. rred2. iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2.
     iDestruct "MB" as "[MB PT]".
     iMod ("V" with "[STTGT MB]") as "_".
-    { iExists _. ss. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
+    { iExists _. ss. red_tl_memra. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
     iApply "SIM"; iFrame.
   Qed.
 
   Lemma SCMem_store_fun_syn_spec
         tid n
-        Es
-        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         l v v0
     :
-    ⊢ ⟦([@ tid, n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m)))) ∗ (l ↦ v0)}
+    ⊢ ⟦([@ tid, n, E @]
+          {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m))) ∗ ⤉(l ↦ v0)}
           (map_event emb_mem (SCMem.store_fun (l, v)))
-          {u, l ↦ v })%F, 1+n⟧.
+          {u, ⤉(l ↦ v) })%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
-    iStartTriple. iIntros "P Q".
+    iStartTriple. iIntros "P Q". iEval (red_tl; red_tl_memra) in "Q".
     iApply (SCMem_store_fun_spec with "[P] Q"). 2: eauto. auto.
-    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
+    red_tl. iDestruct "P" as "[A B]". rewrite red_syn_tgt_interp_as. red_tl_memra. iFrame.
   Qed.
 
-  (* Lemma store_fun_spec *)
-  (*       x y (LT : x < y) *)
-  (*       tid Es R_src R_tgt r g (Q : R_src -> R_tgt -> iProp) ps pt *)
-  (*       itr_src ktr_tgt *)
-  (*       (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end) *)
-  (*       l v v0 *)
-  (*   : *)
-  (*   ((tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) *)
-  (*      ∗ (points_to l v0)) *)
-  (*     -∗ *)
-  (*     (∀ rv, (points_to l v) *)
-  (*              -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt rv)) *)
-  (*     -∗ *)
-  (*     wpsim y tid Es r g Q ps pt *)
-  (*     itr_src *)
-  (*     (map_event emb_mem (SCMem.store_fun (l, v)) >>= ktr_tgt). *)
-  (* Proof. *)
-  (*   iIntros "[#ST PT] SIM". iInv "ST" as (st) "ST1" "V". *)
-  (*   iDestruct "ST1" as (vs) "[VW MEM]". rred2. *)
-  (*   iApply wpsim_getR. iSplit. iFrame. rred2. rewrite Lens.view_set. *)
-  (*   iPoseProof (memory_ra_store with "MEM PT") as "STORE". *)
-  (*   iDestruct "STORE" as (m1) "[%STORE1 MB]". iMod ("MB") as "MB". *)
-  (*   rewrite STORE1. rred2. iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2. *)
-  (*   iDestruct "MB" as "[MB PT]". *)
-  (*   iMod ("V" with "[STTGT MB]") as "_". *)
-  (*   { iExists _. ss. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
-  (*   iApply "SIM"; iFrame. *)
-  (* Qed. *)
 
   Lemma SCMem_load_fun_spec
         tid x y (LT : x < S y)
-        Es
-        (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         l v
     :
-    ⊢ [@ tid, y, Es @]
-      {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to l v)}
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (points_to l v)}
       (map_event emb_mem (SCMem.load_fun l))
       {rv, ⌜rv = v⌝ ∗ points_to l v}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". unfold SCMem.load_fun. rred2.
     iInv "ST" as (st) "ST1" "K".
-    iDestruct "ST1" as (vw) "[VW MEM]".
+    iDestruct "ST1" as (vw) "[VW MEM]". iEval (simpl; red_tl_memra) in "MEM".
     iApply wpsim_getR. iSplit. iFrame. rred2.
     iPoseProof (memory_ra_load with "MEM PT") as "[%LOAD %PERM]".
     rewrite Lens.view_set. rewrite LOAD. rred2.
-    iMod ("K" with "[VW MEM]") as "_". iExists _. iFrame.
+    iMod ("K" with "[VW MEM]") as "_". iExists _. iFrame. iEval (simpl; red_tl_memra). iFrame.
     iApply "SIM". iFrame. auto.
   Qed.
 
   Lemma SCMem_load_fun_syn_spec
         tid n
-        Es
-        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         l v
     :
-    ⊢ ⟦([@ tid, n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m)))) ∗ (l ↦ v)}
+    ⊢ ⟦([@ tid, n, E @]
+          {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m))) ∗ ⤉(l ↦ v)}
           (map_event emb_mem (SCMem.load_fun l))
-          {rv, ⌜rv = v⌝ ∗ (l ↦ v)})%F, 1+n⟧.
+          {rv, ⌜rv = v⌝ ∗ ⤉(l ↦ v)})%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_load_fun_spec with "[P] Q"). 2: eauto. auto.
-    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
+    iApply (SCMem_load_fun_spec with "[P] [Q]"). 2: eauto. auto.
+    red_tl. iDestruct "P" as "[A B]". rewrite red_syn_tgt_interp_as. red_tl_memra. iFrame.
+    iIntros (rv) "[A B]". iApply "Q". red_tl. red_tl_memra. iFrame.
   Qed.
 
-  (* Lemma load_fun_spec *)
-  (*       x y (LT : x < y) *)
-  (*       tid Es R_src R_tgt (Q : R_src -> R_tgt -> iProp) *)
-  (*       r g ps pt *)
-  (*       itr_src ktr_tgt *)
-  (*       (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end) *)
-  (*       l v *)
-  (*   : *)
-  (*   ((tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) *)
-  (*      ∗ *)
-  (*      (points_to l v)) *)
-  (*     -∗ *)
-  (*     (∀ rv, (⌜rv = v⌝ ∗ points_to l v) *)
-  (*              -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt rv)) *)
-  (*     -∗ *)
-  (*     wpsim y tid Es r g Q ps pt *)
-  (*     itr_src *)
-  (*     (map_event emb_mem (SCMem.load_fun l) >>= ktr_tgt). *)
-  (* Proof. *)
-  (*   iIntros "[#ST PT] SIM". unfold SCMem.load_fun. rred2. *)
-  (*   iInv "ST" as (st) "ST1" "K". *)
-  (*   iDestruct "ST1" as (vw) "[VW MEM]". *)
-  (*   iApply wpsim_getR. iSplit. iFrame. rred2. *)
-  (*   iPoseProof (memory_ra_load with "MEM PT") as "[%LOAD %PERM]". *)
-  (*   rewrite Lens.view_set. rewrite LOAD. rred2. *)
-  (*   iMod ("K" with "[VW MEM]") as "_". iExists _. iFrame. *)
-  (*   iApply "SIM". iFrame. auto. *)
-  (* Qed. *)
 
   Lemma SCMem_faa_fun_spec
         tid x y (LT : x < S y)
-        Es
-        (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         l add v
     :
-    ⊢ [@ tid, y, Es @]
-      {(tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) ∗ (points_to l v)}
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (points_to l v)}
       (map_event emb_mem (SCMem.faa_fun (l, add)))
       {rv, ⌜rv = v⌝ ∗ points_to l (SCMem.val_add rv add)}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". unfold SCMem.faa_fun. rred2.
     iInv "ST" as (st) "ST1" "K". iDestruct "ST1" as (vw) "[VW MB]".
-    iApply wpsim_getR. iSplit. iFrame. rred2.
+    iApply wpsim_getR. iSplit. iFrame. rred2. iEval (simpl; red_tl_memra) in "MB".
     iPoseProof (memory_ra_faa with "MB PT") as (m1) "[%FAA MB]".
     rewrite Lens.view_set. rewrite FAA. rred2.
     iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2.
@@ -336,58 +217,29 @@ Section SPEC.
 
   Lemma SCMem_faa_fun_syn_spec
         tid n
-        Es
-        (IN: match Es !! n with | Some E => ↑N_state_tgt ⊆ E | _ => True end)
+        E (IN : ↑N_state_tgt ⊆ E)
         l add v
     :
-    ⊢ ⟦([@ tid, n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => (➢ (scm_memory_black m)))) ∗ (l ↦ v)}
+    ⊢ ⟦([@ tid, n, E @]
+          {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m))) ∗ ⤉(l ↦ v)}
           (map_event emb_mem (SCMem.faa_fun (l, add)))
           {rv, ⌜rv = v⌝ ∗ (l ↦ (SCMem.val_add rv add))})%F, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_faa_fun_spec with "[P] Q"). 2: eauto. auto.
-    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
+    iApply (SCMem_faa_fun_spec with "[P] [Q]"). 2: eauto. auto.
+    red_tl. iDestruct "P" as "[A B]". rewrite red_syn_tgt_interp_as. red_tl_memra. iFrame.
+    iIntros (rv) "A". iApply "Q". red_tl_memra. iFrame.
   Qed.
 
-  (* Lemma faa_fun_spec *)
-  (*       x y (LT : x < y) *)
-  (*       tid Es r g R_src R_tgt (Q : R_src -> R_tgt -> iProp) ps pt *)
-  (*       itr_src ktr_tgt *)
-  (*       (IN: match Es !! x with | Some E => ↑N_state_tgt ⊆ E | _ => True end) *)
-  (*       l add v *)
-  (*   : *)
-  (*   (tgt_interp_as l_mem (fun m => (➢ (scm_memory_black m) : Formula x)%F)) *)
-  (*     -∗ *)
-  (*     (points_to l v) *)
-  (*     -∗ *)
-  (*     (points_to l (SCMem.val_add v add) -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt v)) *)
-  (*     -∗ *)
-  (*     wpsim y tid Es r g Q ps pt *)
-  (*     itr_src *)
-  (*     (map_event emb_mem (SCMem.faa_fun (l, add)) >>= ktr_tgt). *)
-  (* Proof. *)
-  (*   i. iIntros "#ST PT SIM". unfold SCMem.faa_fun. rred2. *)
-  (*   iInv "ST" as (st) "ST1" "K". iDestruct "ST1" as (vw) "[VW MB]". *)
-  (*   iApply wpsim_getR. iSplit. iFrame. rred2. *)
-  (*   iPoseProof (memory_ra_faa with "MB PT") as (m1) "[%FAA MB]". *)
-  (*   rewrite Lens.view_set. rewrite FAA. rred2. *)
-  (*   iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2. *)
-  (*   iMod "MB" as "[MB PT]". *)
-  (*   iMod ("K" with "[STTGT MB]") as "_". *)
-  (*   { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. } *)
-  (*   iApply "SIM". iFrame. *)
-  (* Qed. *)
 
   Lemma SCMem_cas_fun_spec
         tid x y (LT : x < S y)
-        Es
-        (IN: mask_has_st_tgt Es x)
+        E (IN : ↑N_state_tgt ⊆ E)
         l old new v
     :
-    ⊢ [@ tid, y, Es @]
-      {(tgt_interp_as l_mem (fun m => ((➢(scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝ : Formula x)%F) ∗ (points_to l v))}
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝ : sProp x)%S) ∗ (points_to l v)}
       (map_event emb_mem (SCMem.cas_fun (l, old, new)))
       {b, ∃ u, ⌜(if (SCMem.val_eq_dec v old) then (b = true /\ u = new) else (b = false /\ u = v))⌝
                 ∗ points_to l u}.
@@ -398,6 +250,7 @@ Section SPEC.
     ss. iDestruct "ST1" as (mem) "[VW MM]". iEval (red_tl; simpl) in "MM".
     iDestruct "MM" as "[MB %MC]".
     rred2r. iApply wpsim_getR. iSplit; [iFrame | ].
+    iEval (simpl; red_tl_memra) in "MB".
     rred2r. unfold SCMem.cas. iPoseProof (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
     rewrite Lens.view_set. rewrite LOAD. destruct MC as [b MC]. rewrite MC.
     destruct b.
@@ -405,89 +258,43 @@ Section SPEC.
       iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r.
       iEval (unfold Lens.modify; rewrite Lens.set_set) in "STTGT".
       iMod ("MEM") as "[MB PT]". iMod ("K" with "[STTGT MB]") as "_".
-      { iExists _. iEval (red_tl). iFrame.
+      { iExists _. iEval (red_tl; red_tl_memra). iFrame.
         iPureIntro. erewrite <- SCMem.val_compare_store; eauto.
       }
       iApply "CAS". iExists _. iFrame.
       iPureIntro. apply SCMem.val_compare_Some in MC. subst. des_ifs.
     - rred2r. iMod ("K" with "[VW MB]") as "_".
-      { iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. rewrite MC; auto. }
+      { iExists _. iFrame. iEval red_tl; red_tl_memra. iFrame. iPureIntro. rewrite MC; auto. }
       iApply "CAS". iExists _. iFrame.
       iPureIntro. apply SCMem.val_compare_Some in MC. des_ifs.
   Qed.
 
   Lemma SCMem_cas_fun_syn_spec
         tid n
-        Es
-        (IN: mask_has_st_tgt Es n)
+        E (IN : ↑N_state_tgt ⊆ E)
         l old new v
     :
-    ⊢ ⟦([@ tid, n, Es @]
-          {(syn_tgt_interp_as _ l_mem (fun m => ((➢(scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝))) ∗ (l ↦ v)}
+    ⊢ ⟦([@ tid, n, E @]
+          {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝)) ∗ ⤉(l ↦ v)}
           (map_event emb_mem (SCMem.cas_fun (l, old, new)))
           {b, ∃ (u : τ{SCMem.val, 1+n}),
-              ⌜(if (SCMem.val_eq_dec v old) then (b = true /\ u = new) else (b = false /\ u = v))⌝ ∗ (l ↦ u)})%F, 1+n⟧.
+              ⌜(if (SCMem.val_eq_dec v old) then (b = true /\ u = new) else (b = false /\ u = v))⌝ ∗ ⤉(l ↦ u)})%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
-    iApply (SCMem_cas_fun_spec with "[P] Q"). 2: eauto. auto.
-    red_tl. iDestruct "P" as "[A B]". iFrame. rewrite red_syn_tgt_interp_as. iFrame.
+    iApply (SCMem_cas_fun_spec with "[P] [Q]"). 2: eauto. auto.
+    red_tl. iDestruct "P" as "[A B]". rewrite red_syn_tgt_interp_as. red_tl_memra. iFrame.
+    iIntros (rv) "[% A]". iApply "Q". red_tl. iExists _. red_tl. red_tl_memra. iFrame.
   Qed.
 
-  (* Lemma cas_fun_spec *)
-  (*       x y (LT : x < y) *)
-  (*       tid Es r g R_src R_tgt (Q : R_src -> R_tgt -> iProp) ps pt *)
-  (*       itr_src ktr_tgt *)
-  (*       (IN: mask_has_st_tgt Es x) *)
-  (*       l old new v *)
-  (*   : *)
-  (*   (tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v⌝ ∗ ⌜SCMem.memory_comparable m old⌝ : Formula x)%F)) *)
-  (*   (* (tgt_interp_as x l_mem (fun m => memory_black m ∗ ⌜SCMem.memory_comparable m v⌝ ∗ ⌜SCMem.memory_comparable m old⌝)) *) *)
-  (*     -∗ *)
-  (*     (points_to l v) *)
-  (*     -∗ *)
-  (*     (points_to l v -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt false)) *)
-  (*     -∗ *)
-  (*     (points_to l new -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt true)) (* new = v ? *) *)
-  (*     -∗ *)
-  (*     wpsim y tid Es r g Q ps pt *)
-  (*     itr_src *)
-  (*     (map_event emb_mem (SCMem.cas_fun (l, old, new)) >>= ktr_tgt). *)
-  (* Proof. *)
-  (*   Local Transparent SCMem.cas. *)
-  (*   iIntros "#ST PT CASF CAST". iInv "ST" as (st) "ST1" "K". *)
-  (*   ss. iDestruct "ST1" as (vw) "[VW MM]". iEval red_tl in "MM". iDestruct "MM" as "[MB [%MC1 %MC2]]". ss. *)
-  (*   (* iDestruct "ST1" as (vw) "[VW [MB [%MC1 %MC2]]]". *) *)
-  (*   rred2r. iApply wpsim_getR. iSplit; [iFrame | ]. *)
-  (*   rred2r. unfold SCMem.cas. iPoseProof (memory_ra_load with "MB PT") as "[%LOAD %PERM]". *)
-  (*   rewrite Lens.view_set. rewrite LOAD.  des_ifs. *)
-  (*   - rred2r. iApply (wpsim_modifyR with "VW"). iIntros "STTGT". *)
-  (*     rred2r. unfold Lens.modify. rewrite Lens.set_set. *)
-  (*     iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". *)
-  (*     rewrite STORE in Heq0; clarify. iMod ("MEM") as "[MB PT]". *)
-  (*     iMod ("K" with "[STTGT MB]") as "_". *)
-  (*     { exploit SCMem.memory_comparable_store. eauto. apply MC1. intros COMP. *)
-  (*       exploit SCMem.memory_comparable_store. eauto. apply MC2. intros COMP2. *)
-  (*       iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. split; auto. *)
-  (*     } *)
-  (*     iApply "CAST". iFrame. *)
-  (*   - iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". *)
-  (*     rewrite STORE in Heq0; clarify. *)
-  (*   - rred2r. iMod ("K" with "[VW MB]") as "_". *)
-  (*     { iExists _. iFrame. iEval red_tl. iFrame. iPureIntro. split; auto. } *)
-  (*     iApply "CASF". iFrame. *)
-  (*   - exploit SCMem.val_compare_None; eauto. intro F. ss. *)
-  (*   Local Opaque SCMem.cas. *)
-  (* Qed. *)
 
   Lemma SCMem_compare_fun_spec
         tid x y (LT : x < S y)
-        Es
-        (IN: mask_has_st_tgt Es x)
+        E (IN : ↑N_state_tgt ⊆ E)
         v1 v2
     :
-    ⊢ [@ tid, y, Es @]
-      {(tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v1 v2)⌝ : Formula x)%F))}
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) ∗ ⌜is_Some (SCMem.val_compare m v1 v2)⌝ : sProp x)%S)}
       (map_event emb_mem (SCMem.compare_fun (v1, v2)))
       {b, ⌜(v1 = v2 -> b = true) /\ (v1 <> v2 -> b = false)⌝}.
   Proof.
@@ -512,14 +319,13 @@ Section SPEC.
 
   Lemma SCMem_compare_fun_syn_spec
         tid n
-        Es
-        (IN: mask_has_st_tgt Es n)
+        E (IN : ↑N_state_tgt ⊆ E)
         v1 v2
     :
-    ⊢ ⟦([@ tid, n, Es @]
-          {syn_tgt_interp_as _ l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜is_Some (SCMem.val_compare m v1 v2)⌝))}
+    ⊢ ⟦([@ tid, n, E @]
+          {syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m) ∗ ⌜is_Some (SCMem.val_compare m v1 v2)⌝)}
           (map_event emb_mem (SCMem.compare_fun (v1, v2)))
-          {b, ⌜(v1 = v2 -> b = true) /\ (v1 <> v2 -> b = false)⌝})%F, 1+n⟧.
+          {b, ⌜(v1 = v2 -> b = true) /\ (v1 <> v2 -> b = false)⌝})%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
@@ -527,47 +333,5 @@ Section SPEC.
     red_tl. rewrite red_syn_tgt_interp_as. iFrame.
   Qed.
 
-  (* Lemma compare_fun_spec *)
-  (*       x y (LT : x < y) *)
-  (*       tid Es r g R_src R_tgt (Q : R_src -> R_tgt -> iProp) ps pt *)
-  (*       itr_src ktr_tgt *)
-  (*       (IN: mask_has_st_tgt Es x) *)
-  (*       v1 v2 *)
-  (*   : *)
-  (*   (tgt_interp_as l_mem (fun m => ((➢ (scm_memory_black m)) ∗ ⌜SCMem.memory_comparable m v1⌝ ∗ ⌜SCMem.memory_comparable m v2⌝ : Formula x)%F)) *)
-  (*   (* (tgt_interp_as l_mem (fun m => memory_black m ∗ ⌜SCMem.memory_comparable m v1⌝ ∗ ⌜SCMem.memory_comparable m v2⌝)) *) *)
-  (*     -∗ *)
-  (*     (⌜(v1 <> v2)⌝ -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt false)) *)
-  (*     -∗ *)
-  (*     (⌜v1 = v2⌝ -∗ wpsim y tid Es r g Q ps true itr_src (ktr_tgt true)) *)
-  (*     -∗ *)
-  (*     wpsim y tid Es r g Q ps pt *)
-  (*     itr_src *)
-  (*     (map_event emb_mem (SCMem.compare_fun (v1, v2)) >>= ktr_tgt). *)
-  (* Proof. *)
-  (*   iIntros "#ST NEQ EQ". iInv "ST" as (st) "ST1" "K". *)
-  (*   ss. iDestruct "ST1" as (vw) "[VW MM]". iEval red_tl in "MM". iDestruct "MM" as "[MB [%MC1 %MC2]]". ss. *)
-  (*   (* iDestruct "ST1" as (vw) "[VW [MB [%MC1 %MC2]]]". *) *)
-  (*   unfold SCMem.compare_fun. rred2r. iApply wpsim_getR. iSplit; iFrame. *)
-  (*   rred2r. rewrite Lens.view_set. unfold SCMem.compare. destruct (SCMem.val_compare vw v1 v2) eqn:COMPR. *)
-  (*   - destruct b. *)
-  (*     + rred2r. exploit SCMem.val_compare_Some; eauto. i. ss; clarify. *)
-  (*       iMod ("K" with "[VW MB]") as "_". *)
-  (*       { iExists _. iFrame. iEval red_tl. iFrame. iSplit; auto. } *)
-  (*       iApply "EQ". ss. *)
-  (*     + rred2r. exploit SCMem.val_compare_Some; eauto. i. ss; clarify. *)
-  (*       iMod ("K" with "[VW MB]") as "_". *)
-  (*       { iExists _. iFrame. iEval red_tl. iFrame. iSplit; auto. } *)
-  (*       iApply "NEQ". ss. *)
-  (*   - exploit SCMem.val_compare_None; eauto. i. ss. *)
-  (* Qed. *)
-
 End SPEC.
-Global Opaque
-       SCMem.alloc_fun
-       SCMem.free_fun
-       SCMem.load_fun
-       SCMem.store_fun
-       SCMem.faa_fun
-       SCMem.cas_fun
-       SCMem.compare_fun.
+Global Opaque SCMem.alloc_fun SCMem.free_fun SCMem.load_fun SCMem.store_fun SCMem.faa_fun SCMem.cas_fun SCMem.compare_fun.

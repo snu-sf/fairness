@@ -1,6 +1,7 @@
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IProp IPM IPropAux.
 From Fairness Require Import MonotoneRA.
+From Fairness Require Import TemporalLogic.
 
 Module Lifetime.
 
@@ -110,3 +111,48 @@ Module Lifetime.
   End RA.
 
 End Lifetime.
+
+Section SPROP.
+
+  Context {STT : StateTypes}.
+  Context `{sub : @SRA.subG Γ Σ}.
+  Context {TLRASs : TLRAs_small STT Γ}.
+  Context {TLRAS : TLRAs STT Γ Σ}.
+
+  Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
+
+  Definition s_lft_pending {n} (k: nat) {T : Type} (t : T) (q: Qp) : sProp n :=
+    (➢(FiniteMap.singleton
+         k ((Some (Some (t↑)) : URA.agree Any.t, OneShot.pending _ q : OneShot.t unit)
+             : URA.prod (URA.agree Any.t) (OneShot.t unit))))%S.
+
+  Lemma red_s_lft_pending n k T (t : T) q :
+    ⟦s_lft_pending k t q, n⟧ = Lifetime.pending k t q.
+  Proof.
+    unfold s_lft_pending. red_tl. ss.
+  Qed.
+
+  Definition s_lft_shot {n} (k: nat) {T : Type} (t : T) : sProp n :=
+    (➢(FiniteMap.singleton
+         k ((Some (Some (t↑)) : URA.agree Any.t, OneShot.shot tt: OneShot.t unit):
+             URA.prod (URA.agree Any.t) (OneShot.t unit))))%S.
+
+  Lemma red_s_lft_shot n k T (t : T) :
+    ⟦s_lft_shot k t, n⟧ = Lifetime.shot k t.
+  Proof.
+    unfold s_lft_shot. red_tl. ss.
+  Qed.
+
+End SPROP.
+
+Ltac red_tl_lifetime := (try rewrite ! red_s_lft_pending;
+                         try rewrite ! red_s_lft_shot
+                        ).
+Ltac red_tl_lifetime_s := (try setoid_rewrite red_s_lft_pending;
+                           try setoid_rewrite red_s_lft_shot
+                          ).
+
+Notation "'live' γ t q" := (Lifetime.pending γ t q) (at level 90, γ, t, q at level 1) : bi_scope.
+Notation "'live' γ t q" := (s_lft_pending γ t q) (at level 90, γ, t, q at level 1) : sProp_scope.
+Notation "'dead' γ t" := (Lifetime.shot γ t) (at level 90, γ, t at level 1) : bi_scope.
+Notation "'dead' γ t" := (s_lft_shot γ t) (at level 90, γ, t at level 1) : sProp_scope.

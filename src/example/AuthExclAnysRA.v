@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IProp IPM IPropAux.
+From Fairness Require Import TemporalLogic.
 
 
 Section AEAPROP.
@@ -152,3 +153,53 @@ Section AEAPROP.
   Qed.
 
 End AEAPROP.
+
+Section SPROP.
+
+  Context {STT : StateTypes}.
+  Context `{sub : @SRA.subG Γ Σ}.
+  Context {TLRASs : TLRAs_small STT Γ}.
+  Context {TLRAS : TLRAs STT Γ Σ}.
+
+  Context {HasAuthExclAnys : @GRA.inG AuthExclAnysRA Γ}.
+
+  Definition s_AuExAnyB {n} (r : nat) {T : Type} (t : T) : sProp n := (➢(AuExAnyB_ra r t))%S.
+
+  Lemma red_s_AuExAnyB n r T (t : T) :
+    ⟦s_AuExAnyB r t, n⟧ = AuExAnyB r t.
+  Proof.
+    unfold s_AuExAnyB. red_tl. ss.
+  Qed.
+
+  Definition s_AuExAnyW {n} (r : nat) {T : Type} (t : T) : sProp n := (➢(AuExAnyW_ra r t))%S.
+
+  Lemma red_s_AuExAnyW n r T (t : T) :
+    ⟦s_AuExAnyW r t, n⟧ = AuExAnyW r t.
+  Proof.
+    unfold s_AuExAnyW. red_tl. ss.
+  Qed.
+
+  Definition s_AuExAny {n} {D : nat -> Prop} (DEC : forall a, Decision (D a)) : sProp n :=
+    (➢ (AuExAny_ra DEC))%S.
+
+  Lemma red_s_AuExAny n D (DEC : forall a, Decision (D a)) :
+    ⟦s_AuExAny DEC, n⟧ = AuExAny DEC.
+  Proof.
+    unfold s_AuExAny. red_tl. ss.
+  Qed.
+
+End SPROP.
+
+Ltac red_tl_auexa := (try rewrite ! red_s_AuExAnyB;
+                               try rewrite ! red_s_AuExAnyW;
+                               try rewrite ! red_s_AuExAny
+                              ).
+Ltac red_tl_auexa_s := (try setoid_rewrite red_s_AuExAnyB;
+                                 try setoid_rewrite red_s_AuExAnyW;
+                                 try setoid_rewrite red_s_AuExAny
+                                ).
+
+Notation "'●' γ t" := (AuExAnyB γ t) (at level 90, γ, t at level 1) : bi_scope.
+Notation "'●' γ t" := (s_AuExAnyB γ t) (at level 90, γ, t at level 1) : sProp_scope.
+Notation "'○' γ t" := (AuExAnyW γ t) (at level 90, γ, t at level 1) : bi_scope.
+Notation "'○' γ t" := (s_AuExAnyW γ t) (at level 90, γ, t at level 1) : sProp_scope.

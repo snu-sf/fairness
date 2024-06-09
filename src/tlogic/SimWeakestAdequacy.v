@@ -186,17 +186,15 @@ Module WSim.
     Context `{Invs : @IInvSet Σ Vars}.
 
     (* Invariant related default RAs *)
-    Context `{OWNESRA : @GRA.inG OwnEsRA Σ}.
-    Context `{OWNDSRA : @GRA.inG OwnDsRA Σ}.
+    Context `{OWNERA : @GRA.inG OwnERA Σ}.
+    Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
     Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
-
     (* State related default RAs *)
     Context `{THDRA: @GRA.inG ThreadRA Σ}.
     Context `{STATESRC: @GRA.inG (stateSrcRA md_src.(Mod.state)) Σ}.
     Context `{STATETGT: @GRA.inG (stateTgtRA md_tgt.(Mod.state)) Σ}.
     Context `{IDENTSRC: @GRA.inG (identSrcRA md_src.(Mod.ident)) Σ}.
     Context `{IDENTTGT: @GRA.inG (identTgtRA md_tgt.(Mod.ident)) Σ}.
-
     (* Liveness logic related default RAs *)
     Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
     Context `{EDGERA: @GRA.inG EdgeRA Σ}.
@@ -215,8 +213,8 @@ Module WSim.
                   OBLGRA.(GRA.inG_id);
                   ARROWRA.(GRA.inG_id);
                   EDGERA.(GRA.inG_id);
-                  OWNESRA.(GRA.inG_id);
-                  OWNDSRA.(GRA.inG_id);
+                  OWNERA.(GRA.inG_id);
+                  OWNDRA.(GRA.inG_id);
                   IINVSETRA.(GRA.inG_id)])>>) /\
         (<<INITRES: URA.wf init_res>>).
 
@@ -270,11 +268,11 @@ Module WSim.
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
           y
           (DUTYLEVEL: y < x)
-          (SIM: wpsim x tid ∅ ibot7 ibot7
+          (SIM: wpsim x tid ⊤ ibot7 ibot7
                       (fun r_src r_tgt =>
                          ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
           (INV: (default_I x ths im_src im_tgt0 st_src st_tgt
-                           ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I r_shared)
+                           ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I r_shared)
           (FUPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
           (WF: URA.wf ((r_shared ⋅ r) ⋅ r_ctx))
       :
@@ -283,11 +281,11 @@ Module WSim.
          (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
          (liftI
             (fun (ths : TIdSet.t)
-                 (im_src : imap (Mod.ident md_src) owf)
-                 (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
-                 (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
+               (im_src : imap (Mod.ident md_src) owf)
+               (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
+               (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
                (default_I x ths im_src im_tgt st_src st_tgt
-                          ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I))
+                          ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I))
          tid
          Any.t Any.t
          (@local_RR
@@ -295,11 +293,11 @@ Module WSim.
             (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
             (liftI
                (fun (ths : TIdSet.t)
-                    (im_src : imap (Mod.ident md_src) owf)
-                    (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
-                    (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
+                  (im_src : imap (Mod.ident md_src) owf)
+                  (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
+                  (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
                   (default_I x ths im_src im_tgt st_src st_tgt
-                            ∗ (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I))
+                             ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I))
             Any.t Any.t
             eq tid)) fs ft r_ctx th0 th1
                      (ths, im_src, im_tgt1, st_src, st_tgt).
@@ -395,7 +393,7 @@ Module WSim.
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
           y
           (DUTYLEVEL: y < x)
-          (SIM: wpsim x tid ∅ ibot7 ibot7
+          (SIM: wpsim x tid ⊤ ibot7 ibot7
                       (fun r_src r_tgt =>
                          ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
       :
@@ -404,11 +402,11 @@ Module WSim.
         (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
         (liftI
            (fun (ths : TIdSet.t)
-                (im_src : imap (Mod.ident md_src) owf)
-                (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
-                (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
+              (im_src : imap (Mod.ident md_src) owf)
+              (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
+              (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
               (default_I x ths im_src im_tgt st_src st_tgt ∗
-                        (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I)) Any.t Any.t eq r tid th0 th1.
+                         (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I)) Any.t Any.t eq r tid th0 th1.
     Proof.
       ii. assert (WF: URA.wf ((r_shared ⋅ r) ⋅ r_ctx)).
       { rewrite PCMLarge.URA.unfold_wf in VALID.
@@ -430,7 +428,7 @@ Module WSim.
                  -∗
                  (ObligationRA.duty y inlp tid [])
                  -∗
-                 (wpsim x tid ∅ ibot7 ibot7
+                 (wpsim x tid ⊤ ibot7 ibot7
                         (fun r_src r_tgt =>
                            ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I r_arg)
       :
@@ -439,11 +437,11 @@ Module WSim.
         (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
         (liftI
            (fun (ths : TIdSet.t)
-                (im_src : imap (Mod.ident md_src) owf)
-                (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
-                (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
+              (im_src : imap (Mod.ident md_src) owf)
+              (im_tgt : imap (sum_tid (Mod.ident md_tgt)) nat_wf)
+              (st_src : Mod.state md_src) (st_tgt : Mod.state md_tgt) =>
               (default_I x ths im_src im_tgt st_src st_tgt ∗
-                         (wsat_auth x ∗ wsats x ∗ OwnEs ∅))%I)) Any.t Any.t eq th0 th1 r_arg.
+                         (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I)) Any.t Any.t eq th0 th1 r_arg.
     Proof.
       ii. assert (WF: URA.wf (r_shared0 ⋅ (r_ctx0 ⋅ r_arg))).
       { rewrite PCMLarge.URA.unfold_wf in VALID.
@@ -454,13 +452,13 @@ Module WSim.
       specialize (SIM tid). r in INV.
       assert (IMPL:
                ((Own r_arg) ∗ (default_I x ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗
-                                          (wsat_auth x ∗ wsats x ∗ OwnEs ∅)))
+                                          (wsat_auth x ∗ wsats x ∗ OwnE ⊤)))
                  ⊢
                  #=> (((default_I x ths1 im_src0 im_tgt1 st_src0 st_tgt0)
                         ∗
-                        (wsat_auth x ∗ wsats x ∗ OwnEs ∅))
+                        (wsat_auth x ∗ wsats x ∗ OwnE ⊤))
                         ∗
-                        wpsim x tid ∅ ibot7 ibot7
+                        wpsim x tid ⊤ ibot7 ibot7
                         (λ r_src r_tgt : Any.t,
                             ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I)
                         false false th0 th1)).
@@ -561,14 +559,14 @@ Module WSim.
             exists (l1 l0: index) (DL: l0 < l1) (o: Ord.t),
               (Own init_res ∗ (initial_prop l0 (key_set (prog2ths md_src c)) o)) (* INIT *)
                 -∗
-                (FUpd l1 (fairI (ident_tgt:=md_tgt.(Mod.ident)) l1) ∅ ∅
+                (FUpd l1 (fairI (ident_tgt:=md_tgt.(Mod.ident)) l1) ⊤ ⊤
                       (
                         (natmap_prop_sum
                            fun_pairs
                            (fun tid '(th_src, th_tgt) =>
                               wpsim
                                 l1
-                                tid ∅
+                                tid ⊤
                                 ibot7 ibot7
                                 (fun r_src r_tgt => (own_thread tid ∗ ObligationRA.duty l0 inlp tid []) ∗ ⌜r_src = r_tgt⌝)
                                 false false th_src th_tgt))
@@ -588,14 +586,14 @@ Module WSim.
                      (∃ im_src,
                          ((default_I l1 (key_set (prog2ths md_src c)) im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt))
                             ∗
-                            (wsat_auth l1 ∗ wsats l1 ∗ OwnEs ∅))
+                            (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤))
                            ∗
                            (natmap_prop_sum
                               fun_pairs
                               (fun tid '(th_src, th_tgt) =>
                                  wpsim
                                    l1
-                                   tid ∅
+                                   tid ⊤
                                    ibot7 ibot7
                                    (fun r_src r_tgt => ((own_thread tid ∗ ObligationRA.duty l0 inlp tid [])) ∗ ⌜r_src = r_tgt⌝)
                                    false false th_src th_tgt)))%I r>>) /\
@@ -623,7 +621,7 @@ Module WSim.
         { eauto. }
         { eapply URA.wf_mon. instantiate (1:=a0 ⋅ b0). r_wf WF. }
         i. des.
-        eexists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnEs ∅))%I)), im_src, rm, _.
+        eexists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤))%I)), im_src, rm, _.
         splits.
         { ss. rr. unseal "iProp". esplits; eauto. }
         { apply nm_find_some_implies_forall3.
@@ -685,7 +683,7 @@ Module WSim.
                                  (fun tid '(th_src, th_tgt) =>
                                     wpsim
                                       l1
-                                      tid ∅
+                                      tid ⊤
                                       ibot7 ibot7
                                       (fun r_src r_tgt => ((own_thread tid ∗ FairRA.black_ex inlp tid 1) ∗ ⌜r_src = r_tgt⌝)%I)
                                       false false th_src th_tgt))))>>);
@@ -733,7 +731,7 @@ Module WSim.
               (Own init_res ∗ (initial_prop l0 TIdSet.empty o)) (* INIT *)
                 -∗
                 (FUpd l1
-                      (fairI (ident_tgt:=md_tgt.(Mod.ident)) l1) ∅ ∅
+                      (fairI (ident_tgt:=md_tgt.(Mod.ident)) l1) ⊤ ⊤
                        (□(∀ fn args,
                                 match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                                 | Some ktr_src, Some ktr_tgt =>
@@ -744,7 +742,7 @@ Module WSim.
                                         -∗
                                         (wpsim
                                            l1
-                                           tid ∅
+                                           tid ⊤
                                            ibot7 ibot7
                                            (fun r_src r_tgt => (own_thread tid ∗ ObligationRA.duty l0 inlp tid []) ∗ ⌜r_src = r_tgt⌝)
                                            false false (ktr_src args) (ktr_tgt args))
@@ -765,7 +763,7 @@ Module WSim.
                     exists (r: Σ),
                       (<<SAT:
                         ((∃ im_src,
-                             ((default_I l1 NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt) ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnEs ∅)))
+                             ((default_I l1 NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt) ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤)))
                              ∧
                                (□ ∀ fn args,
                                      match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
@@ -777,7 +775,7 @@ Module WSim.
                                              -∗
                                              (wpsim
                                                 l1
-                                                tid ∅
+                                                tid ⊤
                                                 ibot7 ibot7
                                                 (fun r_src r_tgt => (own_thread tid ∗ ObligationRA.duty l0 inlp tid []) ∗ ⌜r_src = r_tgt⌝)
                                                 false false (ktr_src args) (ktr_tgt args))
@@ -806,7 +804,7 @@ Module WSim.
         rr in SAT0. unseal "iProp".
         des. rr in SAT1. unseal "iProp".
         rr in SAT1. unseal "iProp".
-        exists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnEs ∅))%I)).
+        exists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤))%I)).
         esplits.
         { ss. eauto. }
         { rewrite PCMLarge.URA.unfold_wf. rewrite URA.unfold_wf in WF. auto. }
@@ -855,7 +853,7 @@ Module WSim.
                       -∗
                       (wpsim
                          l1
-                         tid ∅
+                         tid ⊤
                          ibot7 ibot7
                          (fun r_src r_tgt => FairRA.black_ex inlp tid 1 ∗ ⌜r_src = r_tgt⌝)
                          false false (ktr_src args) (ktr_tgt args))
