@@ -189,3 +189,17 @@ Section SPROP.
   Qed.
 
 End SPROP.
+
+Ltac red_tl_auexa := (try rewrite ! red_s_AuExAnyB;
+                               try rewrite ! red_s_AuExAnyW;
+                               try rewrite ! red_s_AuExAny
+                              ).
+Ltac red_tl_auexa_s := (try setoid_rewrite red_s_AuExAnyB;
+                                 try setoid_rewrite red_s_AuExAnyW;
+                                 try setoid_rewrite red_s_AuExAny
+                                ).
+
+Notation "'●' γ t" := (AuExAnyB γ t) (at level 90, γ, t at level 1) : bi_scope.
+Notation "'●' γ t" := (s_AuExAnyB γ t) (at level 90, γ, t at level 1) : sProp_scope.
+Notation "'○' γ t" := (AuExAnyW γ t) (at level 90, γ, t at level 1) : bi_scope.
+Notation "'○' γ t" := (s_AuExAnyW γ t) (at level 90, γ, t at level 1) : sProp_scope.

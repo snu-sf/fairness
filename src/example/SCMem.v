@@ -860,5 +860,14 @@ End SPROP.
 
 Global Opaque points_to memory_black SCMem.load SCMem.store SCMem.faa SCMem.alloc SCMem.free SCMem.cas.
 
-Notation "l ↦ v" := (points_to l v) (at level 90) : bi_scope.
-Notation "l ↦ v" := (s_points_to l v) (at level 90) : sProp_scope.
+Ltac red_tl_memra := (try rewrite ! red_s_memory_black;
+                      try rewrite ! red_s_points_to;
+                      try rewrite ! red_s_points_tos
+                     ).
+Ltac red_tl_memra_s := (try setoid_rewrite red_s_memory_black;
+                        try setoid_rewrite red_s_points_to;
+                        try setoid_rewrite red_s_points_tos
+                       ).
+
+Notation "l ↦ v" := (points_to l v) (at level 90, v at level 1) : bi_scope.
+Notation "l ↦ v" := (s_points_to l v) (at level 90, v at level 1) : sProp_scope.

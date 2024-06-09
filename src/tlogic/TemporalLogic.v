@@ -1,4 +1,4 @@
-From stdpp Require Import coPset gmap namespaces.
+From stdpp Require Export coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import Axioms.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.

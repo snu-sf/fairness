@@ -531,13 +531,13 @@ Section STATE.
   Qed.
 
   Global Instance fupd_elim_iupd_edge
-         y P Q E1 E2 p
+         a b P Q E1 E2 p
     :
     ElimModal True p false
               (#=(ObligationRA.edges_sat)=> P)
               P
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q)
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q).
+              (FUpd a (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q)
+              (FUpd a (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros _. iIntros "[H0 H1]".
@@ -547,13 +547,13 @@ Section STATE.
   Qed.
 
   Global Instance fupd_elim_iupd_arrow
-         y P Q E1 E2 p
+         a b c P Q E1 E2 p
     :
-    ElimModal (y < x) p false
-              (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) y)=> P)
+    ElimModal (a < b) p false
+              (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) a)=> P)
               P
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q)
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E2 Q).
+              (FUpd c (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q)
+              (FUpd c (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LT. iIntros "[H0 H1]".
@@ -1298,7 +1298,6 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
         (l : list (nat * nat * Vars y))
-        E (TOP: ⊤ ⊆ E)
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
       -∗
@@ -1308,7 +1307,7 @@ Section STATE.
          -∗
          (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
       -∗
-      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     iIntros "[D T] H". iApply wpsim_discard. eauto.
@@ -1322,7 +1321,6 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
         (l : list (nat * nat * Vars y))
-        E (TOP: ⊤ ⊆ E)
         a (MANY : 1 <= a)
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
@@ -1335,7 +1333,7 @@ Section STATE.
          -∗
          (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
       -∗
-      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
     iIntros "[D T] H". iApply wpsim_discard. eauto.
@@ -1438,7 +1436,6 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
         (l : list (nat * nat * Vars y))
-        E (TOP: ⊤ ⊆ E)
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
       -∗
@@ -1448,7 +1445,7 @@ Section STATE.
          -∗
          (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
       -∗
-      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "[D T] H". iApply wpsim_discard. eauto.
     iApply (wpsim_sync_gen with "[D T]"). eauto. iFrame.
@@ -1461,7 +1458,6 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
         (l : list (nat * nat * Vars y))
-        E (TOP: ⊤ ⊆ E)
         a (MANY : 1 <= a)
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
@@ -1474,7 +1470,7 @@ Section STATE.
          -∗
          (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
       -∗
-      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+      (wpsim ⊤ r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "[D T] H". iApply wpsim_discard. eauto.
     iApply (wpsim_sync_gen2 with "[D T]"). 1,2: eauto. iFrame.
