@@ -6,23 +6,78 @@ From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 From Coq Require Import Program Arith.
 
-Module Syntax.
+Module SRA.
 
-  Local Notation index := nat.
+  Section SRA.
+
+    Class t := __SRA : GRA.t.
+
+    Class subG (Γ : t) (Σ : GRA.t) : Type := {
+        subG_map : nat -> nat;
+        subG_prf : forall i, Σ (subG_map i) = Γ i;
+      }.
+
+    Coercion subG_map : subG >-> Funclass.
+
+  End SRA.
+
+  Section SUB.
+
+    Context `{sub : @subG Γ Σ}.
+
+    Global Program Instance embed (i : nat) : @GRA.inG (Γ i) Σ := {
+        inG_id := sub i;
+      }.
+    Next Obligation. i. symmetry. apply SRA.subG_prf. Qed.
+
+    Global Program Instance in_subG `{M : URA.t} `{emb : @GRA.inG M Γ} : @GRA.inG M Σ := {
+        inG_id := sub.(subG_map) emb.(GRA.inG_id);
+      }.
+    Next Obligation.
+      destruct emb. subst. destruct sub. ss.
+    Qed.
+
+  End SUB.
+
+End SRA.
+
+Coercion SRA.subG_map: SRA.subG >-> Funclass.
+
+Module sType.
+
+  Class t : Type := mk {
+                       car: Type;
+                       interp: car -> forall sProp: Type, Type;
+                     }.
+
+End sType.
+
+Coercion sType.car: sType.t >-> Sortclass.
+
+Module sAtom.
+
+  Class t: Type := car : forall (sProp: Type), Type.
+
+End sAtom.
+
+Local Notation index := nat.
+
+Module Syntax.
 
   Section SYNTAX.
 
-    Context `{type : Type}.
-    Context `{Typ : forall formula : Type, type -> Type}.
+    Context `{τ : sType.t}.
+    Context `{Γ : SRA.t}.
     Context `{A : Type}.
 
     Inductive t {form : Type} : Type :=
-      atom (a : A) : t
+    | atom (a : A) : t
+    | ownm (i : nat) (r : Γ i) : t
     | lift (p : form) : t
     | sepconj (p q : t) : t
     | pure (P : Prop) : t
-    | univ : forall (ty : type), (Typ form ty -> t) -> t
-    | ex : forall (ty : type), (Typ form ty -> t) -> t
+    | univ (ty : τ) (p : τ.(sType.interp) ty form -> t) : t
+    | ex   (ty : τ) (p : τ.(sType.interp) ty form -> t) : t
     | and (p q : t) : t
     | or (p q : t) : t
     | impl (p q : t) : t
@@ -45,16 +100,15 @@ Module Syntax.
             (imt : @FairBeh.imap (nat + ident_tgt) nat_wf)
             (sts : state_src)
             (stt : state_tgt)
-    (* | striple_format {state_src state_tgt ident_src ident_tgt : Type} *)
     | striple_format {STT : StateTypes}
                      (tid : thread_id)
                      (I0 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> t)
                      (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> t)
-                     (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPsets -> t)
+                     (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPset -> t)
                      (P : t)
-                     {RV}
+                     {RV : Type}
                      (Q : RV -> t)
-                     (Es1 Es2 : coPsets)
+                     (E1 E2 : coPset)
                      {R_src R_tgt : Type}
                      (TERM : R_src -> R_tgt -> t)
                      (ps pt : bool)
@@ -65,167 +119,193 @@ Module Syntax.
 
   End SYNTAX.
 
-  Section FORMULA.
+  Section SPROP.
 
-    Context `{type : Type}.
-    Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{As : forall formula : Type, Type}.
+    Context `{τ : sType.t}.
+    Context `{Γ : SRA.t}.
+    Context `{As : sAtom.t}.
 
-    Fixpoint _formula (n : index) : Type :=
+    Fixpoint _sProp (n : index) : Type :=
       match n with
       | O => Empty_set
-      | S m => @t type Typ (As (_formula m)) (_formula m)
+      | S m => @t τ Γ (As (_sProp m)) (_sProp m)
       end.
 
-    Definition formula (n : index) : Type := _formula (S n).
+    Definition sProp (n : index) : Type := _sProp (S n).
 
-  End FORMULA.
+    Definition affinely {n} (p : sProp n) : sProp n :=
+      and empty p.
+
+    Definition ownM `{IN: @GRA.inG M Γ} {n} (r : M) : sProp n :=
+      ownm IN.(GRA.inG_id) (eq_rect _ (@URA.car) r _ IN.(GRA.inG_prf)).
+
+  End SPROP.
+
+End Syntax.
+
+Module sAtomI.
+
+  Section SATOM.
+
+  Context `{τ : sType.t}.
+  Context `{Γ : SRA.t}.
+  Context `{As : sAtom.t}.
+  Context `{Σ : GRA.t}.
+
+  Class t : Type := interp :
+      forall (n : index), As (Syntax._sProp n) -> iProp.
+
+  End SATOM.
+
+End sAtomI.
+
+Module SyntaxI.
 
   Section INTERP.
 
-    Context `{type : Type}.
-    Context `{Typ : forall formula : Type, type -> Type}.
-    Context `{As : forall formula : Type, Type}.
-
-    Local Notation _formulas := (@_formula type Typ As).
-    Local Notation formulas := (@formula type Typ As).
-
+    Context `{Γ : SRA.t}.
     Context `{Σ : GRA.t}.
-    Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}.
+    Context `{sub: @SRA.subG Γ Σ}.
+    Context `{α: sAtomI.t (Γ:=Γ) (Σ:=Σ)}.
 
-    Fixpoint _to_semantics n : _formulas n -> iProp :=
+    Import Syntax.
+
+    Fixpoint _interp n : _sProp n -> iProp :=
       match n with
       | O => fun _ => ⌜False⌝%I
       | S m =>
-          fix _to_semantics_aux (syn : _formulas (S m)) : iProp :=
+          fix _interp_aux (syn : _sProp (S m)) : iProp :=
         match syn with
-        | atom a => interp_atoms m a
-        | lift p => _to_semantics m p
-        | sepconj p q => Sepconj (_to_semantics_aux p) (_to_semantics_aux q)
+        | atom a => α m a
+        | ownm i r => OwnM r
+        | lift p => _interp m p
+        | sepconj p q => Sepconj (_interp_aux p) (_interp_aux q)
         | pure P => Pure P
-        | univ ty p => Univ (fun (x : Typ (_formulas m) ty) => _to_semantics_aux (p x))
-        | ex ty p => Ex (fun (x : Typ (_formulas m) ty) => _to_semantics_aux (p x))
-        | and p q => And (_to_semantics_aux p) (_to_semantics_aux q)
-        | or p q => Or (_to_semantics_aux p) (_to_semantics_aux q)
-        | impl p q => Impl (_to_semantics_aux p) (_to_semantics_aux q)
-        | wand p q => Wand (_to_semantics_aux p) (_to_semantics_aux q)
+        | univ ty p => Univ (fun (x : τ.(sType.interp) ty (_sProp m)) => _interp_aux (p x))
+        | ex ty p => Ex (fun (x : τ.(sType.interp) ty (_sProp m)) => _interp_aux (p x))
+        | and p q => And (_interp_aux p) (_interp_aux q)
+        | or p q => Or (_interp_aux p) (_interp_aux q)
+        | impl p q => Impl (_interp_aux p) (_interp_aux q)
+        | wand p q => Wand (_interp_aux p) (_interp_aux q)
         | empty => Emp
-        | persistently p => Persistently (_to_semantics_aux p)
-        | plainly p => IProp.Plainly (_to_semantics_aux p)
-        | upd p => Upd (_to_semantics_aux p)
+        | persistently p => Persistently (_interp_aux p)
+        | plainly p => IProp.Plainly (_interp_aux p)
+        | upd p => Upd (_interp_aux p)
         | sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt =>
-            isim_simple tid (intpF:=_to_semantics_aux)
+            isim_simple tid (intpF:=_interp_aux)
                         I0 I1 Q
                         ps pt itr_src itr_tgt ths ims imt sts stt
-        | @striple_format _ _ _ _ STT tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM ps pt itr_src code ktr_tgt =>
+        | @striple_format _ _ _ _ STT tid I0 I1 I2 P RV Q E1 E2 RS RT TERM ps pt itr_src code ktr_tgt =>
             @triple_format
-              Σ STT _ (_to_semantics_aux)
-              tid I0 I1 I2 P RV Q Es1 Es2 RS RT TERM
+              Σ STT _ (_interp_aux)
+              tid I0 I1 I2 P RV Q E1 E2 RS RT TERM
               ps pt itr_src code ktr_tgt
         end
       end.
 
-    Definition to_semantics n : formulas n -> iProp := _to_semantics (S n).
+    Definition interp n : sProp n -> iProp := _interp (S n).
 
   End INTERP.
 
-End Syntax.
+End SyntaxI.
 
 Section RED.
 
-  Local Notation index := nat.
+  Context `{sub: @SRA.subG Γ Σ}.
+  Context `{α: sAtomI.t (Γ:=Γ) (Σ:=Σ)}.
 
-  Context `{type : Type}.
-  Context `{Typ : forall formula : Type, type -> Type}.
-  Context `{As : forall formula : Type, Type}.
-
-  Local Notation _formulas := (@Syntax._formula type Typ As).
-  Local Notation formulas := (@Syntax.formula type Typ As).
-
-  Context `{Σ : GRA.t}.
-  Context `{interp_atoms : forall (n : index), As (_formulas n) -> iProp}.
-  Context `{Invs : @IInvSet Σ formulas}.
-
-  Local Notation Sem := (@Syntax.to_semantics _ Typ As _ interp_atoms).
+  Import Syntax.
+  Import SyntaxI.
 
   Lemma red_sem_atom n a :
-    Sem n (Syntax.atom a : formulas n) = interp_atoms n a.
-  Proof. ss. Qed.
+    interp n (atom a) = α n a.
+  Proof. reflexivity. Qed.
+
+  Lemma red_sem_ownm n i a :
+    interp n (ownm i a) = OwnM a.
+  Proof. reflexivity. Qed.
+
+  Lemma red_sem_ownM `{@GRA.inG M Γ} n (r: M) :
+    interp n (ownM r) = OwnM r.
+  Proof.
+    unfold ownM. rewrite red_sem_ownm.
+    destruct sub eqn: EQsub. subst. destruct H. subst. ss.
+    f_equal. unfold SRA.in_subG, SRA.embed. ss.
+    erewrite (UIP _ _ _ (SRA.embed_obligation_1 inG_id)).
+    reflexivity.
+  Qed.
 
   Lemma red_sem_lift_0 p :
-    Sem 0 (Syntax.lift p) = ⌜False⌝%I.
-  Proof. ss. Qed.
+    interp 0 (lift p) = ⌜False⌝%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_lift n p :
-    Sem (S n) (Syntax.lift p) = Sem n p.
-  Proof. ss. Qed.
+    interp (S n) (lift p) = interp n p.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_sepconj n p q :
-    Sem n (Syntax.sepconj p q) = (Sem n p ∗ Sem n q)%I.
-  Proof. ss. Qed.
+    interp n (sepconj p q) = (interp n p ∗ interp n q)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_pure n P :
-    Sem n (Syntax.pure P) = ⌜P⌝%I.
-  Proof. ss. Qed.
+    interp n (pure P) = ⌜P⌝%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_univ n ty p :
-    Sem n (Syntax.univ ty p) = (∀ (x : Typ (_formulas n) ty), Sem n (p x))%I.
-  Proof. ss. Qed.
+    interp n (univ ty p) = (∀ x, interp n (p x))%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_ex n ty p :
-    Sem n (Syntax.ex ty p) = (∃ (x : Typ (_formulas n) ty), Sem n (p x))%I.
-  Proof. ss. Qed.
+    interp n (ex ty p) = (∃ x, interp n (p x))%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_and n p q :
-    Sem n (Syntax.and p q) = (Sem n p ∧ Sem n q)%I.
-  Proof. ss. Qed.
+    interp n (and p q) = (interp n p ∧ interp n q)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_or n p q :
-    Sem n (Syntax.or p q) = (Sem n p ∨ Sem n q)%I.
-  Proof. ss. Qed.
+    interp n (or p q) = (interp n p ∨ interp n q)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_impl n p q :
-    Sem n (Syntax.impl p q) = (Sem n p → Sem n q)%I.
-  Proof. ss. Qed.
+    interp n (impl p q) = (interp n p → interp n q)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_wand n p q :
-    Sem n (Syntax.wand p q) = (Sem n p -∗ Sem n q)%I.
-  Proof. ss. Qed.
+    interp n (wand p q) = (interp n p -∗ interp n q)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_empty n :
-    Sem n Syntax.empty = emp%I.
-  Proof. ss. Qed.
+    interp n empty = emp%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_persistently n p :
-    Sem n (Syntax.persistently p) = (<pers> Sem n p)%I.
-  Proof. ss. Qed.
+    interp n (persistently p) = (<pers> interp n p)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_plainly n p :
-    Sem n (Syntax.plainly p) = (IProp.Plainly (Sem n p))%I.
-  Proof. ss. Qed.
+    interp n (plainly p) = (IProp.Plainly (interp n p))%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_upd n p :
-    Sem n (Syntax.upd p) = (#=> Sem n p)%I.
-  Proof. ss. Qed.
-
-  Definition syn_affinely {n} (p : formulas n) : formulas n :=
-    Syntax.and Syntax.empty p.
+    interp n (upd p) = ( |==> interp n p)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_affinely n p :
-    Sem n (syn_affinely p) = (<affine> Sem n p)%I.
-  Proof. ss. Qed.
+    interp n (affinely p) = (<affine> interp n p)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_intuitionistically n p :
-    Sem n (syn_affinely (Syntax.persistently p)) = (□ Sem n p)%I.
-  Proof. ss. Qed.
+    interp n (affinely (persistently p)) = (□ interp n p)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_sisim n
         {state_src state_tgt ident_src ident_tgt : Type}
         (tid : thread_id)
-        (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> formulas n)
-        (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> formulas n)
+        (I0 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> sProp n)
+        (I1 : TIdSet.t -> (@FairBeh.imap ident_src owf) -> (@FairBeh.imap (nat + ident_tgt) nat_wf) -> state_src -> state_tgt -> sProp n)
         {R_src R_tgt : Type}
-        (Q : R_src -> R_tgt -> formulas n)
+        (Q : R_src -> R_tgt -> sProp n)
         (ps pt : bool)
         (itr_src : itree (threadE ident_src state_src) R_src)
         (itr_tgt : itree (threadE ident_tgt state_tgt) R_tgt)
@@ -235,38 +315,38 @@ Section RED.
         (sts : state_src)
         (stt : state_tgt)
     :
-    Sem n (Syntax.sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)
-    = (isim_simple tid (intpF:=Sem n) I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)%I.
-  Proof. ss. Qed.
+    interp n (Syntax.sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)
+    = (isim_simple tid (intpF:=interp n) I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt)%I.
+  Proof. reflexivity. Qed.
 
   Lemma red_sem_striple_format n
         (STT : StateTypes)
         (tid : thread_id)
-        (I0 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> formulas n)
-        (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> formulas n)
-        (I2 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPsets -> formulas n)
-        (P : formulas n)
+        (I0 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> sProp n)
+        (I1 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> sProp n)
+        (I2 : TIdSet.t -> (@FairBeh.imap id_src_type owf) -> (@FairBeh.imap (nat + id_tgt_type) nat_wf) -> st_src_type -> st_tgt_type -> coPset -> sProp n)
+        (P : sProp n)
         {RV : Type}
-        (Q : RV -> formulas n)
-        (Es1 Es2 : coPsets)
+        (Q : RV -> sProp n)
+        (E1 E2 : coPset)
         {R_src R_tgt : Type}
-        (TERM : R_src -> R_tgt -> formulas n)
+        (TERM : R_src -> R_tgt -> sProp n)
         (ps pt : bool)
         (itr_src : itree (threadE id_src_type st_src_type) R_src)
         (code : itree (threadE id_tgt_type st_tgt_type) RV)
         (ktr_tgt : ktree (threadE id_tgt_type st_tgt_type) RV R_tgt)
     :
-    Sem n (Syntax.striple_format tid I0 I1 I2 P Q Es1 Es2 TERM ps pt itr_src code ktr_tgt)
+    interp n (Syntax.striple_format tid I0 I1 I2 P Q E1 E2 TERM ps pt itr_src code ktr_tgt)
     =
-      (triple_format (intpF:=Sem n) tid
-                     I0 I1 I2 P Q Es1 Es2 TERM
+      (triple_format (intpF:=interp n) tid
+                     I0 I1 I2 P Q E1 E2 TERM
                      ps pt itr_src code ktr_tgt)%I.
-  Proof. ss. Qed.
+  Proof. reflexivity. Qed.
 
 End RED.
-Global Opaque Syntax.to_semantics.
+Global Opaque SyntaxI._interp SyntaxI.interp.
 
-(** Simple formula reduction tactics. *)
+(** Simple sProp reduction tactics. *)
 Ltac red_sem_binary_once := (try rewrite ! @red_sem_sepconj;
                             try rewrite ! @red_sem_and;
                             try rewrite ! @red_sem_or;
@@ -276,6 +356,8 @@ Ltac red_sem_binary_once := (try rewrite ! @red_sem_sepconj;
 
 Ltac red_sem_unary_once := (
                            try rewrite ! @red_sem_atom;
+                           try rewrite ! @red_sem_ownm;
+                           try rewrite ! @red_sem_ownM;
                            try rewrite ! @red_sem_lift;
                            try rewrite ! @red_sem_pure;
                            try rewrite ! @red_sem_univ;
@@ -299,10 +381,12 @@ Ltac red_sem_binary_once_every := (try rewrite ! @red_sem_sepconj in *;
                                   try rewrite ! @red_sem_or in *;
                                   try rewrite ! @red_sem_impl in *;
                                   try rewrite ! @red_sem_wand in *
-                                 ).
+                                  ).
 
 Ltac red_sem_unary_once_every := (
                                   try rewrite ! @red_sem_atom in *;
+                                  try rewrite ! @red_sem_ownm in *;
+                                  try rewrite ! @red_sem_ownM in *;
                                   try rewrite ! @red_sem_lift in *;
                                   try rewrite ! @red_sem_pure in *;
                                   try rewrite ! @red_sem_univ in *;
@@ -323,425 +407,34 @@ Ltac red_sem_every := repeat (red_sem_binary_every; red_sem_unary_every).
 
 (** Notations *)
 
-Declare Scope formula_scope.
-Delimit Scope formula_scope with F.
-Bind Scope formula_scope with Syntax.formula.
+Declare Scope sProp_scope.
+Delimit Scope sProp_scope with S.
+Bind Scope sProp_scope with Syntax.sProp.
 
-Local Open Scope formula_scope.
+Local Open Scope sProp_scope.
 
-Notation "'⌜' P '⌝'" := (Syntax.pure P) : formula_scope.
-Notation "'⊤'" := ⌜True⌝ : formula_scope.
-Notation "'⊥'" := ⌜False⌝ : formula_scope.
+Notation "'⌜' P '⌝'" := (Syntax.pure P) : sProp_scope.
 
-Notation "'⟨' A '⟩'" := (Syntax.atom A) : formula_scope.
-Notation "⤉ P" := (Syntax.lift P) (at level 20) : formula_scope.
+Notation "'⟨' A '⟩'" := (Syntax.atom A) : sProp_scope.
+Notation "'➢' r" := (Syntax.ownM r) (at level 20) : sProp_scope.
+Notation "⤉ P" := (Syntax.lift P) (at level 20) : sProp_scope.
 
-Notation "'<pers>' P" := (Syntax.persistently P) : formula_scope.
-Notation "'<affine>' P" := (syn_affinely P) : formula_scope.
-Notation "□ P" := (<affine> <pers> P) : formula_scope.
-Notation "■ P" := (Syntax.plainly P) : formula_scope.
-Notation "|==> P" := (Syntax.upd P) : formula_scope.
-Infix "∧" := (Syntax.and) : formula_scope.
-Infix "∨" := (Syntax.or) : formula_scope.
-Infix "→" := (Syntax.impl) : formula_scope.
-Notation "¬ P" := (P → False) : formula_scope.
-Infix "∗" := (Syntax.sepconj) : formula_scope.
-Infix "-∗" := (Syntax.wand) : formula_scope.
-Notation "P ==∗ Q" := (P -∗ |==> Q) : formula_scope.
+Notation "'<pers>' P" := (Syntax.persistently P) : sProp_scope.
+Notation "'<affine>' P" := (Syntax.affinely P) : sProp_scope.
+Notation "□ P" := (<affine> <pers> P) : sProp_scope.
+Notation "■ P" := (Syntax.plainly P) : sProp_scope.
+Notation "|==> P" := (Syntax.upd P) : sProp_scope.
+Infix "∧" := (Syntax.and) : sProp_scope.
+Infix "∨" := (Syntax.or) : sProp_scope.
+Infix "→" := (Syntax.impl) : sProp_scope.
+Notation "¬ P" := (P → False) : sProp_scope.
+Infix "∗" := (Syntax.sepconj) : sProp_scope.
+Infix "-∗" := (Syntax.wand) : sProp_scope.
+Notation "P ==∗ Q" := (P -∗ |==> Q) : sProp_scope.
 Notation f_forall A := (Syntax.univ A).
-Notation "∀'" := (f_forall _) (only parsing) : formula_scope.
-Notation "∀ a .. z , P" := (f_forall _ (λ a, .. (f_forall _ (λ z, P%F)) ..)) : formula_scope.
+Notation "∀'" := (f_forall _) (only parsing) : sProp_scope.
+Notation "∀ a .. z , P" := (f_forall _ (λ a, .. (f_forall _ (λ z, P%S)) ..)) : sProp_scope.
 Notation f_exist A := (Syntax.ex A).
-Notation "∃'" := (f_exist _) (only parsing) : formula_scope.
-Notation "∃ a .. z , P" := (f_exist _ (λ a, .. (f_exist _ (λ z, P%F)) ..)) : formula_scope.
-Notation "'emp'" := (Syntax.empty) : formula_scope.
-
-
-
-(* (* Old version *) *)
-(* Module Syntax. *)
-
-(*   Local Notation index := nat. *)
-
-(*   Section TYPE. *)
-
-(*     (* Context `{T : Type}. *) *)
-
-(*     Inductive type : Type := *)
-(*     | baseT (t : Type) : type *)
-(*     (* | baseT (t : T) : type *) *)
-(*     | formulaT : type *)
-(*     (* | prodT : type -> type -> type *) *)
-(*     (* | sumT : type -> type -> type *) *)
-(*     (* | listT : type -> type *) *)
-(*     | funT : type -> type -> type *)
-(*     (* | positiveT : type *) *)
-(*     | pgmapT : type -> type. *)
-(*     (* | gmapT (K : Type) {EqDec : EqDecision K} {Cnt : Countable K} : type -> type. *) *)
-
-(*   (* If we define for a general gmapT with EqDec and Countable, *)
-(*       universe inconsistency when checking (in TemporalLogic.Atoms) *)
-(*       ========== *)
-(*       Context `{Σ : GRA.t}. *)
-(*       Context `{T : Type}. *)
-(*       Context `{TSem : T -> Type}. *)
-(*       Local Notation typing := (@Syntax.Typ T TSem (@t T)). *)
-(*       Local Notation As := (fun (i : index) => @t T (typing i)). *)
-
-(*       Context `{@GRA.inG (IInvSetRA As) Σ}. *)
-(*       ========== *)
-(*       with an error message *)
-(*       ========== *)
-(*       The term "t" has type *)
-(*       "Type@{max(Set+1,Fairness.LogicSyntaxHOAS.59,Syntax.type.u0+1,Fairness.LogicSyntaxHOAS.64,Fairness.LogicSyntaxHOAS.65,RelDecision.u0,RelDecision.u1)}" *)
-(*       while it is expected to have type "Type@{IInvSetRA.u0}" (universe inconsistency: Cannot enforce *)
-(*       Fairness.LogicSyntaxHOAS.64 <= IInvSetRA.u0 because IInvSetRA.u0 <= InvSetRA.u0 *)
-(*       <= URA.agree_obligation_4.u0 <= URA.t.u0 < MRet.u0 = Fairness.LogicSyntaxHOAS.64). *)
-(*       ========== *)
-(*       Seems like there is a strict order between URA.t and MRet, *)
-(*       and either EqDec or Countable uses MRet. *)
-(*       ========== *)
-(*       Found out that PCM.GRA.of_list introduces URA.t.u0 = RA.t.u0 < MRet.u0. *)
-(*    *) *)
-
-(*   End TYPE. *)
-
-(*   Section SYNTAX. *)
-
-(*     (* Context `{T : Type}. *) *)
-(*     Context `{Typ : type -> Type}. *)
-(*     (* Context `{Typ : @type T -> Type}. *) *)
-(*     Context `{A : Type}. *)
-
-(*     Inductive t : Type := *)
-(*       atom (a : A) : t *)
-(*     | lift : (Typ formulaT) -> t *)
-(*     | sepconj (p q : t) : t *)
-(*     | pure (P : Prop) : t *)
-(*     | univ : forall ty, (Typ ty -> t) -> t *)
-(*     | ex : forall ty, (Typ ty -> t) -> t *)
-(*     | and (p q : t) : t *)
-(*     | or (p q : t) : t *)
-(*     | impl (p q : t) : t *)
-(*     | wand (p q : t) : t *)
-(*     | empty : t *)
-(*     | persistently (p : t) : t *)
-(*     | plainly (p : t) : t *)
-(*     | upd (p : t) : t *)
-(*     . *)
-
-(*   End SYNTAX. *)
-
-(*   Section INTERP_TYPE. *)
-
-(*     (* Context `{T : Type}. *) *)
-(*     (* Context `{TSem : T -> Type}. *) *)
-(*     Context `{As : (type -> Type) -> Type}. *)
-(*     (* Context `{As : (@type T -> Type) -> Type}. *) *)
-
-(*     Fixpoint Typ_0 (form : Type) (ty : type) : Type := *)
-(*     (* Fixpoint Typ_0 (ty : @type T) : Type := *) *)
-(*       match ty with *)
-(*       | baseT b => b *)
-(*       | formulaT => form *)
-(*       (* | prodT ty1 ty2 => prod (Typ_0 ty1) (Typ_0 ty2) *) *)
-(*       (* | sumT ty1 ty2 => sum (Typ_0 ty1) (Typ_0 ty2) *) *)
-(*       (* | listT ty' => list (Typ_0 ty') *) *)
-(*       | funT ty1 ty2 => (Typ_0 form ty1 -> Typ_0 form ty2) *)
-(*       (* | positiveT => positive *) *)
-(*       | pgmapT ty' => gmap positive (Typ_0 form ty') *)
-(*       (* | gmapTpos ty' => gmap positive (Typ_0 ty') *) *)
-(*       (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_0 ty') *) *)
-(*       end. *)
-
-(*     Fixpoint Typ (i : index) : @type -> Type := *)
-(*       Typ_0 (match i with *)
-(*              | O => Empty_set *)
-(*              | S j => @t (Typ j) (As (Typ j)) *)
-(*              end). *)
-
-(*     (* Fixpoint Typ_0 (ty : @type T) : Type := *) *)
-(*     (* (* Fixpoint Typ_0 (ty : @type T) : Type := *) *) *)
-(*     (*   match ty with *) *)
-(*     (*   | baseT b => TSem b *) *)
-(*     (*   | formulaT => unit *) *)
-(*     (*   | prodT ty1 ty2 => prod (Typ_0 ty1) (Typ_0 ty2) *) *)
-(*     (*   | sumT ty1 ty2 => sum (Typ_0 ty1) (Typ_0 ty2) *) *)
-(*     (*   | listT ty' => list (Typ_0 ty') *) *)
-(*     (*   | funT ty1 ty2 => (Typ_0 ty1 -> Typ_0 ty2) *) *)
-(*     (*   | positiveT => positive *) *)
-(*     (*   | gmapTpos ty' => gmap positive (Typ_0 ty') *) *)
-(*     (*   (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_0 ty') *) *) *)
-(*     (*   end. *) *)
-
-(*     (* Fixpoint Typ (i : index) : @type T -> Type := *) *)
-(*     (*   match i with *) *)
-(*     (*   | O => Typ_0 *) *)
-(*     (*   | S j => *) *)
-(*     (*       fix Typ_aux (ty : @type T) : Type := *) *)
-(*     (*     match ty with *) *)
-(*     (*     | baseT b => TSem b *) *)
-(*     (*     | formulaT => @t T (Typ j) (As (Typ j)) *) *)
-(*     (*     | prodT ty1 ty2 => prod (Typ_aux ty1) (Typ_aux ty2) *) *)
-(*     (*     | sumT ty1 ty2 => sum (Typ_aux ty1) (Typ_aux ty2) *) *)
-(*     (*     | listT ty' => list (Typ_aux ty') *) *)
-(*     (*     | funT ty1 ty2 => (Typ_aux ty1 -> Typ_aux ty2) *) *)
-(*     (*     | positiveT => positive *) *)
-(*     (*     | gmapTpos ty' => gmap positive (Typ_aux ty') *) *)
-(*     (*     (* | @gmapT _ K EqDec Cnt ty' => @gmap K EqDec Cnt (Typ_aux ty') *) *) *)
-(*     (*     end *) *)
-(*     (*   end. *) *)
-
-(*   End INTERP_TYPE. *)
-
-(*   Section INTERP. *)
-
-(*     Context `{Σ : GRA.t}. *)
-(*     (* Context `{T : Type}. *) *)
-(*     (* Context `{TSem : T -> Type}. *) *)
-(*     Context `{As : (type -> Type) -> Type}. *)
-(*     (* Context `{As : (@type T -> Type) -> Type}. *) *)
-
-(*     Local Notation typing := (@Typ As). *)
-(*     (* Local Notation typing := (@Typ T TSem As). *) *)
-
-(*     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}. *)
-(*     (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *) *)
-
-(*     Fixpoint to_semantics_0 *)
-(*              n (sem : (typing n formulaT) -> iProp) (syn : @t (typing n) (As (typing n))) *)
-(*       : iProp := *)
-(*       match syn with *)
-(*       | atom a => interp_atoms n a *)
-(*       | lift u => sem u *)
-(*       | sepconj p q => Sepconj (to_semantics_0 n sem p) (to_semantics_0 n sem q) *)
-(*       | pure P => Pure P *)
-(*       | univ ty p => Univ (fun (x : typing n ty) => to_semantics_0 n sem (p x)) *)
-(*       | ex ty p => Ex (fun (x : typing n ty) => to_semantics_0 n sem (p x)) *)
-(*       | and p q => And (to_semantics_0 n sem p) (to_semantics_0 n sem q) *)
-(*       | or p q => Or (to_semantics_0 n sem p) (to_semantics_0 n sem q) *)
-(*       | impl p q => Impl (to_semantics_0 n sem p) (to_semantics_0 n sem q) *)
-(*       | wand p q => Wand (to_semantics_0 n sem p) (to_semantics_0 n sem q) *)
-(*       | empty => Emp *)
-(*       | persistently p => Persistently (to_semantics_0 n sem p) *)
-(*       | plainly p => IProp.Plainly (to_semantics_0 n sem p) *)
-(*       | upd p => Upd (to_semantics_0 n sem p) *)
-(*       end. *)
-
-(*     Let cast_typing n : typing (S n) formulaT -> @t (typing n) (As (typing n)) := *)
-(*       fun p => p. *)
-
-(*     Fixpoint to_semantics n : @t (typing n) (As (typing n)) -> iProp := *)
-(*       to_semantics_0 n (match n with *)
-(*                         | O => fun _ => ⌜False⌝%I *)
-(*                         | S m => fun (p : typing (S m) formulaT) => to_semantics m (cast_typing m p) *)
-(*                         end). *)
-
-(*     (* Fixpoint to_semantics_0 (syn : @t T (typing O) (As (typing O))) : iProp := *) *)
-(*     (*   match syn with *) *)
-(*     (*   | atom a => interp_atoms O a *) *)
-(*     (*   (* | atom a => prop O a *) *) *)
-(*     (*   | lift u => ⌜False⌝%I *) *)
-(*     (*   (* | lower u => (fun (x : unit) => ⌜False⌝%I) u *) *) *)
-(*     (*   | sepconj p q => Sepconj (to_semantics_0 p) (to_semantics_0 q) *) *)
-(*     (*   | pure P => Pure P *) *)
-(*     (*   | univ ty p => Univ (fun (x : typing O ty) => to_semantics_0 (p x)) *) *)
-(*     (*   | ex ty p => Ex (fun (x : typing O ty) => to_semantics_0 (p x)) *) *)
-(*     (*   | and p q => And (to_semantics_0 p) (to_semantics_0 q) *) *)
-(*     (*   | or p q => Or (to_semantics_0 p) (to_semantics_0 q) *) *)
-(*     (*   | impl p q => Impl (to_semantics_0 p) (to_semantics_0 q) *) *)
-(*     (*   | wand p q => Wand (to_semantics_0 p) (to_semantics_0 q) *) *)
-(*     (*   | empty => Emp *) *)
-(*     (*   | persistently p => Persistently (to_semantics_0 p) *) *)
-(*     (*   | plainly p => IProp.Plainly (to_semantics_0 p) *) *)
-(*     (*   | upd p => Upd (to_semantics_0 p) *) *)
-(*     (*   end. *) *)
-
-(*     (* Fixpoint to_semantics (i : index) : @t T (typing i) (As (typing i)) -> iProp := *) *)
-(*     (*   match i with *) *)
-(*     (*   | O => to_semantics_0 *) *)
-(*     (*   | S j => *) *)
-(*     (*       fix to_semantics_aux (syn : @t T (typing (S j)) (As (typing (S j)))) : iProp := *) *)
-(*     (*     match syn with *) *)
-(*     (*     | atom a => interp_atoms (S j) a *) *)
-(*     (*     (* | atom a => prop (S j) a *) *) *)
-(*     (*     | lift syn' => to_semantics j syn' *) *)
-(*     (*     | sepconj p q => Sepconj (to_semantics_aux p) (to_semantics_aux q) *) *)
-(*     (*     | pure P => Pure P *) *)
-(*     (*     | univ ty p => Univ (fun (x : typing (S j) ty) => to_semantics_aux (p x)) *) *)
-(*     (*     | ex ty p => Ex (fun (x : typing (S j) ty) => to_semantics_aux (p x)) *) *)
-(*     (*     | and p q => And (to_semantics_aux p) (to_semantics_aux q) *) *)
-(*     (*     | or p q => Or (to_semantics_aux p) (to_semantics_aux q) *) *)
-(*     (*     | impl p q => Impl (to_semantics_aux p) (to_semantics_aux q) *) *)
-(*     (*     | wand p q => Wand (to_semantics_aux p) (to_semantics_aux q) *) *)
-(*     (*     | empty => Emp *) *)
-(*     (*     | persistently p => Persistently (to_semantics_aux p) *) *)
-(*     (*     | plainly p => IProp.Plainly (to_semantics_aux p) *) *)
-(*     (*     | upd p => Upd (to_semantics_aux p) *) *)
-(*     (*     end *) *)
-(*     (*   end. *) *)
-
-(*   End INTERP. *)
-
-(*   Section INDEXED_INVSET. *)
-
-(*     Context `{Σ : GRA.t}. *)
-(*     (* Context `{T : Type}. *) *)
-(*     (* Context `{TSem : T -> Type}. *) *)
-(*     Context `{As : (type -> Type) -> Type}. *)
-(*     (* Context `{As : (@type T -> Type) -> Type}. *) *)
-
-(*     Local Notation typing := (@Typ As). *)
-(*     Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))). *)
-(*     (* Local Notation typing := (@Typ T TSem As). *) *)
-(*     (* Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))). *) *)
-
-(*     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}. *)
-(*     (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *) *)
-
-(*     Global Instance IISet : @IInvSet Σ Formulas := *)
-(*       {| prop := @to_semantics Σ As interp_atoms |}. *)
-(*       (* {| prop := @to_semantics Σ T TSem As interp_atoms |}. *) *)
-(*       (* {| prop := @to_semantics Σ T TSem As Atoms |}. *) *)
-
-(*   End INDEXED_INVSET. *)
-
-(*   Section INV_IN. *)
-
-(*     Context `{Σ : GRA.t}. *)
-(*     Context `{As : (type -> Type) -> Type}. *)
-(*     (* Context `{T : Type}. *) *)
-(*     (* Context `{TSem : T -> Type}. *) *)
-(*     (* Context `{As : (@type T -> Type) -> Type}. *) *)
-
-(*     Local Notation typing := (@Typ As). *)
-(*     Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))). *)
-(*     (* Local Notation typing := (@Typ T TSem As). *) *)
-(*     (* Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))). *) *)
-
-(*     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}. *)
-(*     (* Context `{Atoms : @IInvSet Σ (fun (n : index) => As (typing n))}. *) *)
-
-(*     Global Program Instance IIIn (i : index) (p : Formulas i) *)
-(*       : @IInvIn Σ Formulas (IISet (interp_atoms:=interp_atoms)) i (@to_semantics Σ As interp_atoms i p) := *)
-(*       (* : @IInvIn Σ Formulas IISet i (@to_semantics Σ T TSem As Atoms i p) := *) *)
-(*       { inhabitant := p }. *)
-(*     Next Obligation. *)
-(*       intros. simpl in *. done. *)
-(*     Qed. *)
-
-(*     (* Global Program Instance IIIn (i : index) (p : Formulas i) *) *)
-(*     (*   : @IInvIn Σ Formulas (IISet (interp_atoms:=interp_atoms)) i (@to_semantics Σ T TSem As interp_atoms i p) := *) *)
-(*     (*   (* : @IInvIn Σ Formulas IISet i (@to_semantics Σ T TSem As Atoms i p) := *) *) *)
-(*     (*   { inhabitant := p }. *) *)
-(*     (* Next Obligation. *) *)
-(*     (*   intros. simpl in *. done. *) *)
-(*     (* Qed. *) *)
-
-(*   End INV_IN. *)
-
-(*   Section RED. *)
-
-(*     Context `{Σ : GRA.t}. *)
-(*     Context `{As : (type -> Type) -> Type}. *)
-(*     (* Context `{T : Type}. *) *)
-(*     (* Context `{TSem : T -> Type}. *) *)
-(*     (* Context `{As : (@type T -> Type) -> Type}. *) *)
-
-(*     Local Notation typing := (@Typ As). *)
-(*     Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))). *)
-(*     (* Local Notation typing := (@Typ T TSem As). *) *)
-(*     (* Local Notation Formulas := (fun (i : index) => @t T (typing i) (As (typing i))). *) *)
-
-(*     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}. *)
-
-(*     Local Notation Sem := (fun i p => @to_semantics Σ As interp_atoms i p). *)
-(*     (* Local Notation Sem := (fun i p => @to_semantics Σ T TSem As interp_atoms i p). *) *)
-
-(*     Lemma to_semantics_empty *)
-(*           n *)
-(*       : *)
-(*       Sem n empty = emp%I. *)
-(*     Proof. *)
-(*       induction n; ss. *)
-(*     Qed. *)
-
-(*     Lemma to_semantics_red_sepconj *)
-(*           n p q *)
-(*       : *)
-(*       Sem n (sepconj p q) = ((Sem n p) ∗ (Sem n q))%I. *)
-(*     Proof. *)
-(*       induction n; ss. *)
-(*     Qed. *)
-
-(*     Lemma to_semantics_red_or *)
-(*           n p q *)
-(*       : *)
-(*       Sem n (or p q) = ((Sem n p) ∨ (Sem n q))%I. *)
-(*     Proof. *)
-(*       induction n; ss. *)
-(*     Qed. *)
-
-(*     Lemma to_semantics_red_atom *)
-(*           n a *)
-(*       : *)
-(*       Sem n (atom a) = interp_atoms n a. *)
-(*     Proof. *)
-(*       induction n; ss. *)
-(*     Qed. *)
-
-(*     Lemma to_semantics_red_ex *)
-(*           n ty f *)
-(*       : *)
-(*       Sem n (ex ty f) = (∃ (x : typing n ty), Sem n (f x))%I. *)
-(*     Proof. *)
-(*       induction n; ss. *)
-(*     Qed. *)
-
-(*     Lemma to_semantics_red_lift *)
-(*           n p *)
-(*       : *)
-(*       Sem (S n) (lift p) = Sem n p. *)
-(*     Proof. *)
-(*       ss. *)
-(*     Qed. *)
-
-(*   End RED. *)
-
-(*   Section GMAP. *)
-
-(*     Context `{Σ : GRA.t}. *)
-(*     Context `{As : (type -> Type) -> Type}. *)
-
-(*     Local Notation typing := (@Typ As). *)
-(*     Local Notation Formulas := (fun (i : index) => @t (typing i) (As (typing i))). *)
-
-(*     Context `{interp_atoms : forall (n : index), As (typing n) -> iProp}. *)
-
-(*     (* Maybe we can make Syntax as an instance of bi. *) *)
-(*     Definition star_gmap *)
-(*                (n : index) (I : typing (S n) (pgmapT formulaT)) *)
-(*                (f : positive -> Formulas n -> Formulas n) *)
-(*       : Formulas n := *)
-(*       fold_right (fun hd tl => @sepconj (typing n) (As (typing n)) (uncurry f hd) tl) empty (map_to_list I). *)
-
-
-(*     Local Notation Sem := (fun i p => @to_semantics Σ As interp_atoms i p). *)
-
-(*     Lemma star_gmap_iProp *)
-(*           n I f *)
-(*       : *)
-(*       Sem n (star_gmap n I f) = *)
-(*         ([∗ map] i ↦ p ∈ I, Sem n (f i p))%I. *)
-(*     Proof. *)
-(*       ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def. *)
-(*       unfold star_gmap. ss. remember (map_to_list I) as L. *)
-(*       clear HeqL I. induction L. *)
-(*       { ss. apply to_semantics_empty. } *)
-(*       ss. rewrite to_semantics_red_sepconj. rewrite IHL. f_equal. *)
-(*       destruct a. ss. *)
-(*     Qed. *)
-
-(*   End GMAP. *)
-
-(* End Syntax. *)
+Notation "∃'" := (f_exist _) (only parsing) : sProp_scope.
+Notation "∃ a .. z , P" := (f_exist _ (λ a, .. (f_exist _ (λ z, P%S)) ..)) : sProp_scope.
+Notation "'emp'" := (Syntax.empty) : sProp_scope.

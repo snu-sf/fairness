@@ -809,6 +809,56 @@ Section MEMRA.
   Qed.
 
 End MEMRA.
+
+From Fairness Require Import TemporalLogic.
+
+Section SPROP.
+
+  Context {STT : StateTypes}.
+  Context `{sub : @SRA.subG Γ Σ}.
+  Context {TLRASs : TLRAs_small STT Γ}.
+  Context {TLRAS : TLRAs STT Γ Σ}.
+
+  Context {HasMEMRA: @GRA.inG memRA Γ}.
+
+  Definition s_memory_black {n} (m : SCMem.t) : sProp n :=
+    (➢(memory_resource_black m) ∧ ⌜SCMem.wf m⌝)%S.
+
+  Lemma red_s_memory_black n m :
+    ⟦s_memory_black m, n⟧ = memory_black m.
+  Proof.
+    unfold s_memory_black. red_tl. ss.
+  Qed.
+
+  Definition s_points_to {n} (p: SCMem.val) (v: SCMem.val) : sProp n :=
+    match p with
+    | SCMem.val_ptr (blk, ofs) => (➢ (points_to_white blk ofs v))%S
+    | _ => ⌜False⌝%S
+    end.
+
+  Lemma red_s_points_to n p v :
+    ⟦s_points_to p v, n⟧ = points_to p v.
+  Proof.
+    unfold s_points_to, points_to. des_ifs. red_tl. ss.
+  Qed.
+
+  Fixpoint s_points_tos {n} (p: SCMem.val) (vs: list SCMem.val) : sProp n :=
+    match vs with
+    | vhd::vtl =>
+        (s_points_to p vhd ∗ s_points_tos (SCMem.val_add p 1) vtl)%S
+    | [] => ⌜True⌝%S
+    end.
+
+  Lemma red_s_points_tos n p vs :
+    ⟦s_points_tos p vs, n⟧ = points_tos p vs.
+  Proof.
+    revert p. induction vs; i; ss. red_tl. erewrite IHvs.
+    f_equal. apply red_s_points_to.
+  Qed.
+
+End SPROP.
+
 Global Opaque points_to memory_black SCMem.load SCMem.store SCMem.faa SCMem.alloc SCMem.free SCMem.cas.
 
 Notation "l ↦ v" := (points_to l v) (at level 90) : bi_scope.
+Notation "l ↦ v" := (s_points_to l v) (at level 90) : sProp_scope.

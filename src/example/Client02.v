@@ -111,6 +111,35 @@ Section SPEC.
   Context {TLRAS : @TLRAs XAtom STT Σ}.
   Context {AUXRAS : AUXRAs Σ}.
 
+  (* Lemma test0 i (N : namespace) : *)
+  (*   (=| 2+i |={ <[S i:=∅ !? S i ∖ (↑N : coPset)]> ∅, ∅ }=> emp) *)
+  (*     ⊢ *)
+  (*     (=| 2+i |=(fairI (2+i))={ <[S i:=∅ !? S i ∖ (↑N : coPset)]> ∅, ∅ }=> emp). *)
+  (* Proof. *)
+  (*   iIntros "C". iMod "C". *)
+  (* Abort. *)
+
+  (* Lemma test i tid (N : namespace) : *)
+  (*   (* (=| 2+i |={ <[S i:=∅ !? S i ∖ (↑N : coPset)]> ∅, ∅ }=> emp) *) *)
+  (*   (=| 2+i |=( fairI (2+i) )={ <[S i:=∅ !? S i ∖ (↑N : coPset)]> ∅, ∅ }=> emp) *)
+  (*     ⊢ *)
+  (*     (=| 2+i |=(fairI (2+i))={ <[S i:=∅ !? S i ∖ (↑N : coPset)]> ∅, ∅ }=> *)
+  (*        wpsim *)
+  (*          (Σ:=Σ) *)
+  (*          (Invs:=@TLSet STT Σ TLRAS AUXRAS) *)
+  (*          (STATESRC:=_STATESRC) *)
+  (*          (2+i) tid *)
+  (*          ∅ *)
+  (*          (* (<[S i:=∅ !? S i ∖ (↑N : coPset)]> ∅) *) *)
+  (*          ibot7 ibot7 *)
+  (*          (term_cond (1+i) tid (R_term:=_)) *)
+  (*          false false *)
+  (*          (fn2th Client02Spec.module "thread1" (tt ↑)) *)
+  (*          (fn2th Client02.module "thread1" (tt ↑)))%I. *)
+  (* Proof. *)
+  (*   iIntros "C". iMod "C". *)
+  (* Abort. *)
+
   (** Invariants. *)
 
   (* Namespace for Client01 invariants. *)
