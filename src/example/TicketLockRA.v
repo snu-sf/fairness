@@ -127,18 +127,25 @@ Section Ticket.
 
 End Ticket.
 
+(* Resource algebra for bookkeeping obligations and duties of waiting threads *)
 Section OblTicket.
   Definition OblTicketRA : URA.t := (nat ==> AuthExclAnysRA)%ra.
 
   Context `{HasOblTicketRA : @GRA.inG OblTicketRA Σ}.
 
-  Definition OblTicketRA_base : AuthExclAnysRA :=
+  Definition OblTicketRA_Auth_base : AuthExclAnysRA :=
     (fun k =>
       (Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t))).
 
   Definition OblTicketRA_Auth : iProp :=
-    ∃ (U : nat), OwnM ((fun k => if (lt_dec k U) then ε else OblTicketRA_base) : OblTicketRA).
-  
+    ∃ (U : nat), OwnM ((fun k => if (lt_dec k U) then ε else OblTicketRA_Auth_base) : OblTicketRA).
+
+  (* Increases everytime a thread acquires a ticket *)
+  Definition OblTicket_base_ra (r U : nat) : OblTicketRA :=
+    maps_to_res r (AuExAny_ra (gt_dec U)).
+  Definition OblTicket_base (r U : nat) : iProp :=
+    OwnM (OblTicket_base_ra r U).
+
   Definition OblTicket_black_ra (r tk: nat) (tid obl : nat) : OblTicketRA :=
     maps_to_res r (AuExAnyB_ra tk (tid, obl)).
   Definition OblTicket_black (r tk tid obl : nat) : iProp :=
@@ -148,36 +155,64 @@ Section OblTicket.
     maps_to_res r (AuExAnyW_ra tk (tid, obl)).
   Definition OblTicket_white (r tk tid obl : nat) : iProp :=
     OwnM (OblTicket_white_ra r tk tid obl).
-  
-  
-  Lemma OblTicket_alloc tk tid obl :
-    OblTicketRA_Auth ⊢
-      ∃ r, |==> OblTicketRA_Auth ∗ OblTicket_black r tk tid obl ∗ OblTicket_white r tk tid obl.
+
+  Lemma OblTicket_alloc_base :
+    OblTicketRA_Auth ⊢ ∃ r, |==> OblTicketRA_Auth ∗ OblTicket_base r 0.
   Proof.
     iIntros "[%U BASE]". iExists U.
     assert (URA.updatable
-      ((λ k, if lt_dec k U then ε else OblTicketRA_base) : OblTicketRA)
-      (((λ k, if lt_dec k (S U) then ε else OblTicketRA_base) : OblTicketRA)
-        ⋅ (maps_to_res U OblTicketRA_base))) as UPD.
+      ((λ k, if lt_dec k U then ε else OblTicketRA_Auth_base) : OblTicketRA)
+      (((λ k, if lt_dec k (S U) then ε else OblTicketRA_Auth_base) : OblTicketRA)
+        ⋅ (maps_to_res U OblTicketRA_Auth_base))) as UPD.
     { ur. apply pointwise_updatable. i. unfold maps_to_res. des_ifs; try lia.
       - rewrite URA.unit_idl. reflexivity.
       - rewrite URA.unit_idl. reflexivity.
       - rewrite URA.unit_id. reflexivity.  }
     iMod (OwnM_Upd with "BASE") as "[A B]". apply UPD.
-    assert (URA.updatable
-      (maps_to_res U OblTicketRA_base)
-      (OblTicket_black_ra U tk tid obl ⋅ OblTicket_white_ra U tk tid obl)).
-    { unfold OblTicket_black_ra, OblTicket_white_ra.
-      setoid_rewrite maps_to_res_add. apply maps_to_updatable.
-      unfold OblTicketRA_base, AuExAnyB_ra, AuExAnyW_ra.
-      setoid_rewrite maps_to_res_add.
-      apply pointwise_updatable. i. unfold maps_to_res. des_ifs; cycle 1.
-      { repeat rewrite URA.unit_idl. apply URA.updatable_unit. }
-      apply Auth.auth_update. ii. des. ur in FRAME. des_ifs. split.
-      { ur. clarify. } { ur. ss. } }
-    iMod (OwnM_Upd with "B") as "[C D]". apply H.
+    assert (URA.updatable (maps_to_res U OblTicketRA_Auth_base) (OblTicket_base_ra U 0)).
+    { unfold OblTicket_base_ra. apply maps_to_updatable.
+      unfold OblTicketRA_Auth_base, AuExAny_ra.
+      apply pointwise_updatable. i. des_ifs; cycle 1. }
+    iMod (OwnM_Upd with "B") as "B". apply H.
     iModIntro. iSplitL "A".
     { iExists (S U). auto. }
-    { iSplitL "C". auto. auto. }
+    { auto. }
+  Qed.
+  
+  Lemma OblTicket_alloc (r U tid obl : nat) :
+    OblTicket_base r U ⊢
+      |==> OblTicket_base r (1 + U) ∗ OblTicket_black r U tid obl ∗ OblTicket_white r U tid obl.
+  Proof.
+    iIntros "BASE".
+    assert (URA.updatable
+      (OblTicket_base_ra r U)
+      (OblTicket_base_ra r (1 + U) ⋅ (OblTicket_black_ra r U tid obl) ⋅ (OblTicket_white_ra r U tid obl))).
+    { unfold OblTicket_base_ra, OblTicket_black_ra, OblTicket_white_ra.
+      repeat setoid_rewrite maps_to_res_add. apply maps_to_updatable.
+      apply pointwise_updatable. i. ur. unfold AuExAny_ra, AuExAnyB_ra, AuExAnyW_ra, maps_to_res.
+      des_ifs; try lia; ur; try (repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl);
+        try apply URA.updatable_unit; ur; des_ifs.
+      { ii. ur in H. des_ifs. des. ur in H. des_ifs.
+        { destruct H. destruct x0; ur in H; clarify. }
+        { rewrite <- Heq0. rewrite URA.unit_id. ur. split; ur; auto. exists ε. ur. des_ifs. }
+        { destruct H. ur in H. des_ifs. }
+      }
+    }
+    iMod (OwnM_Upd with "BASE") as "[[A B] C]". apply H.
+    iModIntro. iSplitL "A".
+    { auto. }
+    { iSplitL "B". auto. auto. }
+  Qed.
+
+  Lemma OblTicket_base_incr (r U : nat) :
+    OblTicket_base r U ⊢ |==> OblTicket_base r (1 + U).
+  Proof.
+    iIntros "BASE". unfold OblTicket_base.
+    assert (URA.updatable (OblTicket_base_ra r U) (OblTicket_base_ra r (1 + U))).
+    { unfold OblTicket_base_ra. apply maps_to_updatable. unfold AuExAny_ra.
+      apply pointwise_updatable. i. des_ifs; try lia.
+      apply URA.updatable_unit.
+    }
+    iMod (OwnM_Upd with "BASE") as "BASE". apply H. iModIntro. done.
   Qed.
 End OblTicket.

@@ -37,6 +37,7 @@ Section XADEF.
     | tk_locked (r : nat) (o : nat)
     | tk_issued (r : nat) (m : nat)
     | otk_auth
+    | otk_base (r U : nat)
     | otk_b (r : nat) (m tid k : nat)
     | otk_w (r : nat) (m tid k : nat)
     (* Excl unit. *)
@@ -122,6 +123,7 @@ Section XAINTERP.
     | tk_locked r o => Ticket_locked r o
     | tk_issued r m => Ticket_issued r m
     | otk_auth => OblTicketRA_Auth
+    | otk_base r U => OblTicket_base r U
     | otk_b r tk tid obl => OblTicket_black r tk tid obl
     | otk_w r tk tid obl => OblTicket_white r tk tid obl
     (* Excl unit. *)
