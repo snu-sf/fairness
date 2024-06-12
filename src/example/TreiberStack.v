@@ -113,34 +113,37 @@ Section SPEC.
   Lemma mask_disjoint_Treiber_state_tgt : ↑N_Treiber ## (↑N_state_tgt : coPset).
   Proof. apply ndot_ne_disjoint. ss. Qed.
 
-  Lemma Treiber_push_spec n (Q : SCMem.val → sProp n) (P : sProp n) tid (E : coPset) :
+  Lemma Treiber_push_spec n (Q : SCMem.val → sProp n) (P : sProp n) tid (E : coPset) (MASK_Treiber : (↑N_Treiber) ⊆ E) :
     ∀ s γs val L (ds : list (nat * nat * sProp n)),
-    ⊢ [@ tid, 1+n, E @]
+    ⊢ [@ tid, n, E @]
           ⧼⟦(
-            (syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m))
-            ∗ (⤉⤉ IsTreiber n s γs)
-            ∗ (⤉⤉ Duty(tid) ds)
-            ∗ (⤉⤉ P)
+            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
+            ∗ (⤉ IsTreiber n s γs)
+            ∗ (⤉ Duty(tid) ds)
+            ∗ (⤉ P)
             (* TODO: masks? *)
-            ∗ (⤉ (∀ (S : τ{list SCMem.val, 1+n}), (⤉((● γs (S : list SCMem.val)) ∗ P))
-                  =|1+n|={E}=∗ (⤉((● γs (val::S)) ∗ (Q val)))))
+            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
+                  =|1+n|={E}=∗ (⤉ (● γs (val::S) ∗ Q val))
+              )
             (* TODO: Proper ord level. *)
             ∗ ◇{List.map fst ds}(2 + L, 1)
-            )%S, 2+n⟧⧽
+            )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
           ⧼_, ⟦(
-            (⤉⤉ Q val) ∗ (⤉⤉ Duty(tid) ds)
-            )%S, 2+n⟧⧽
+            (⤉ (Q val ∗ Duty(tid) ds))
+            )%S, 1+n⟧⧽
   .
   Proof.
   Admitted.
-
+(*
+∀ (S : τ{list SCMem.val}), (⤉ (● γs (S : list SCMem.val) ∗ P))
+                  =|1+n|={E}=∗
+                  (∃ (S' : τ{list SCMem.val}) (ov : τ{option SCMem.val}),
+                    (⤉ (● γs (S' : list SCMem.val) ∗ Q (ov : option SCMem.val) ∗ ⌜ov = hd_error S⌝)))
+*)
   Lemma Treiber_pop_spec
         n (Q : (option SCMem.val) → sProp n) (P : sProp n) tid
-        (E : coPset)
-        (* (MASK_TOP : OwnEs_top Es) *)
-        (* (MASK_STTGT : mask_has_st_tgt Es n) *)
-    :
+        (E : coPset) (MASK_Treiber : (↑N_Treiber) ⊆ E) :
     ∀ s γs L (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, n, E @]
           ⧼⟦(
@@ -149,15 +152,20 @@ Section SPEC.
             ∗ (⤉ Duty(tid) ds)
             ∗ (⤉ P)
             (* TODO: masks? *)
-            ∗ (⤉ ∀ (S : τ{list SCMem.val}), (● γs (S : list SCMem.val)) ∗ P
-                  =|n|={E}=∗ (∃ (S' : τ{list SCMem.val}) (ov : τ{option SCMem.val}),
-                    (● γs (S' : list SCMem.val)) ∗ Q ov ∗ ⌜ov = hd_error S⌝)
-                    )
+            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
+                  =|1+n|={E}=∗
+                  match S with
+                  | [] => (⤉ (● γs ([] : list SCMem.val) ∗ Q None))
+                  | h::t => (⤉ (● γs t ∗ Q (Some h)))
+                  end
+              )
             (* TODO: Proper ord level. *)
             ∗ ◇{List.map fst ds}(2 + L, 1)
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
-            ⧼rv, ⟦((⤉ Q rv) ∗ (⤉ Duty(tid) ds))%S, 1+n⟧⧽
+          ⧼rv, ⟦(
+            (⤉ (Q rv ∗ Duty(tid) ds))
+            )%S, 1+n⟧⧽
   .
   Proof.
   Admitted.

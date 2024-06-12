@@ -93,7 +93,9 @@ Section SPEC.
     iIntros "Duty _ Pcs". rred2r. iApply wpsim_tauR. rred2r.
     iApply (Treiber_push_spec _ (λ v, (○ γs [SCMem.val_nat 0]))%S with "[Duty PcsPush TStack] [-]"); [ss..| |].
     { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
-      iFrame. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]". simpl.
+      iFrame. iIntros (s_st).
+      red_tl_all; rewrite red_syn_fupd; red_tl_all; simpl.
+      iIntros "[TStackInv _]". simpl.
       iDestruct (auexa_b_w_eq with "TStackInv TStack") as "%EQ".
       subst s_st.
       iMod (auexa_b_w_update with "TStackInv TStack") as "[TStackInv TStack]".
@@ -106,7 +108,9 @@ Section SPEC.
     iApply wpsim_tauR. rred2r.
     iApply (Treiber_push_spec _ (λ v, ○ γs [SCMem.val_nat 1; SCMem.val_nat 0])%S with "[Duty PcsPush' TStack] [-]"); [ss..| |].
     { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
-      iFrame. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]". simpl.
+      iFrame. iIntros (s_st).
+      red_tl_all; rewrite red_syn_fupd; red_tl_all; simpl.
+      iIntros "[TStackInv _]".
       iDestruct (auexa_b_w_eq with "TStackInv TStack") as "%EQ".
       subst s_st.
       iMod (auexa_b_w_update with "TStackInv TStack") as "[TStackInv TStack]".
