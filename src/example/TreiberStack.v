@@ -5,7 +5,7 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic TemporalLogicFull SCMemSpec.
+From Fairness Require Import TemporalLogic SCMemSpec AuthExclAnysRA.
 
 Module TreiberStack.
 
@@ -81,20 +81,23 @@ Section SPEC.
   Notation tgt_ident := (OMod.closed_ident Client (SCMem.mod gvs)).
 
   Local Instance STT : StateTypes := Build_StateTypes src_state tgt_state src_ident tgt_ident.
-  Context `{Σ : GRA.t}.
-  Context {TLRAS : @TLRAs XAtom STT Σ}.
-  Context {AUXRAS : AUXRAs Σ}.
+  Context `{sub : @SRA.subG Γ Σ}.
+  Context {TLRASs : TLRAs_small STT Γ}.
+  Context {TLRAS : TLRAs STT Γ Σ}.
 
-  Definition TreiberStackInv (n : nat) (s : SCMem.val) (γs : nat) : Formula n := (⌜True⌝)%F.
+  Context {HasMEMRA: @GRA.inG memRA Γ}.
+  Context {HasAuthExclAnys : @GRA.inG AuthExclAnysRA Γ}.
 
-  Definition Stack (n : nat) (γs : nat) (L : list SCMem.val) : Formula n := (⌜True⌝)%F.
+  Definition TreiberStackInv (n : nat) (s : SCMem.val) (γs : nat) : sProp n := (⌜True⌝)%S.
+
+  Definition TreiberStack (n : nat) (γs : nat) (L : list SCMem.val) : sProp n := (⌜True⌝)%S.
 
   (* Namespace for Spinlock invariants. *)
   Definition N_Treiber : namespace := (nroot .@ "Treiber").
 
-  Definition IsTreiber n s γs : Formula n := (∃ (N : τ{namespace, n}),
+  Definition IsTreiber n s γs : sProp n := (∃ (N : τ{namespace, n}),
         (⌜(↑N ⊆ (↑N_Treiber : coPset))⌝) ∗
-          syn_inv n N (TreiberStackInv n s γs))%F.
+          syn_inv n N (TreiberStackInv n s γs))%S.
 
   Global Instance IsTreiber_persistent n s γs:
     Persistent (⟦ IsTreiber n s γs, n⟧).
@@ -104,33 +107,57 @@ Section SPEC.
     iDestruct "H" as "#H". auto.
   Qed.
 
-  Definition mask_has_Treiber (Es : coPsets) n :=
-    (match Es !! n with Some E => (↑N_Treiber) ⊆ E | None => True end).
+  Definition mask_has_Treiber (E : coPset) :=
+    (↑N_Treiber) ⊆ E.
 
   Lemma mask_disjoint_Treiber_state_tgt : ↑N_Treiber ## (↑N_state_tgt : coPset).
   Proof. apply ndot_ne_disjoint. ss. Qed.
 
-  Lemma Treiber_push_spec
-        tid n
-        (Es : coPsets)
-        (MASK_TOP : OwnEs_top Es)
-        (MASK_STTGT : mask_has_st_tgt Es n)
-    :
-    ⊢ ∀ s γs val L (P : Formula n) (Q : SCMem.val → Formula n) (ds : list (nat * nat * Formula n)),
-        [@ tid, n, Es @]
+  Lemma Treiber_push_spec n (Q : SCMem.val → sProp n) (P : sProp n) tid (E : coPset) :
+    ∀ s γs val L (ds : list (nat * nat * sProp n)),
+    ⊢ [@ tid, n, E @]
           ⧼⟦(
-            (syn_tgt_interp_as n sndl (fun m => (➢ (scm_memory_black m))))
+            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
+            ∗ (⤉⤉ IsTreiber n s γs)
+            ∗ (⤉⤉ Duty(tid) ds)
+            ∗ (⤉⤉ P)
+            (* TODO: masks? *)
+            ∗ (⤉ ∀ (S : τ{list SCMem.val}), (● γs (S : list SCMem.val)) ∗ (⤉ P)
+                  =|n+1|={E}=∗ ((● γs (val::S)) ∗ (⤉ Q val)))
+            (* TODO: Proper ord level. *)
+            ∗ ◇{List.map fst ds}(2 + L, 1)
+            )%S, 2+n⟧⧽
+            (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
+          ⧼_, ⟦(
+            (⤉⤉ Q val) ∗ (⤉⤉ Duty(tid) ds)
+            )%S, 2+n⟧⧽
+  .
+  Proof.
+  Admitted.
+
+  Lemma Treiber_pop_spec
+        n (Q : (option SCMem.val) → sProp n) (P : sProp n) tid
+        (E : coPset)
+        (* (MASK_TOP : OwnEs_top Es) *)
+        (* (MASK_STTGT : mask_has_st_tgt Es n) *)
+    :
+    ∀ s γs L (ds : list (nat * nat * sProp n)),
+    ⊢ [@ tid, n, E @]
+          ⧼⟦(
+            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
             ∗ (⤉ IsTreiber n s γs)
             ∗ (⤉ Duty(tid) ds)
             ∗ (⤉ P)
             (* TODO: masks? *)
-            ∗ (∀ (S : τ{list SCMem.val}), (⤉ Stack n γs S) ∗ (⤉ P)
-                  ==∗ ((⤉ Stack n γs (val :: S)) ∗ (⤉ Q val)))
+            ∗ (⤉ ∀ (S : τ{list SCMem.val}), (● γs (S : list SCMem.val)) ∗ P
+                  =|n|={E}=∗ (∃ (S' : τ{list SCMem.val}) (ov : τ{option SCMem.val}),
+                    (● γs (S' : list SCMem.val)) ∗ Q ov ∗ ⌜ov = hd_error S⌝)
+                    )
             (* TODO: Proper ord level. *)
             ∗ ◇{List.map fst ds}(2 + L, 1)
-            )%F, 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
-            ⧼_, ⟦((⤉ Q val) ∗ (⤉ Duty(tid) ds))%F, 1+n⟧⧽
+            )%S, 1+n⟧⧽
+            (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
+            ⧼rv, ⟦((⤉ Q rv) ∗ (⤉ Duty(tid) ds))%S, 1+n⟧⧽
   .
   Proof.
   Admitted.
