@@ -115,15 +115,15 @@ Section SPEC.
 
   Lemma Treiber_push_spec n (Q : SCMem.val → sProp n) (P : sProp n) tid (E : coPset) :
     ∀ s γs val L (ds : list (nat * nat * sProp n)),
-    ⊢ [@ tid, n, E @]
+    ⊢ [@ tid, 1+n, E @]
           ⧼⟦(
-            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
+            (syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m))
             ∗ (⤉⤉ IsTreiber n s γs)
             ∗ (⤉⤉ Duty(tid) ds)
             ∗ (⤉⤉ P)
             (* TODO: masks? *)
-            ∗ (⤉ ∀ (S : τ{list SCMem.val}), (● γs (S : list SCMem.val)) ∗ (⤉ P)
-                  =|n+1|={E}=∗ ((● γs (val::S)) ∗ (⤉ Q val)))
+            ∗ (⤉ (∀ (S : τ{list SCMem.val, 1+n}), (⤉((● γs (S : list SCMem.val)) ∗ P))
+                  =|1+n|={E}=∗ (⤉((● γs (val::S)) ∗ (Q val)))))
             (* TODO: Proper ord level. *)
             ∗ ◇{List.map fst ds}(2 + L, 1)
             )%S, 2+n⟧⧽
