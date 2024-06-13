@@ -820,6 +820,249 @@ Module OneShotP.
 End OneShotP.
 
 
+Module OneShotWithVal.
+  Section ONESHOTWITHVAL.
+    Variable A: Type.
+
+    Definition oneshot_add (a0 a1: bool + ((Qp * A) + A)): bool + ((Qp * A) + A) :=
+      match a0, a1 with
+      | inl false, a
+      | a, inl false => a
+      | inr (inr a0), inr (inr a1) => if (excluded_middle_informative (a0 = a1)) then inr (inr a0) else inl true
+      | inr (inl (q0,a0)), inr (inl (q1,a1)) => if (excluded_middle_informative (a0 = a1)) then inr (inl ((q0 + q1)%Qp,a0)) else inl true
+      | _, _ => inl true
+      end.
+
+    Definition oneshot_core (a: bool + ((Qp * A) + A)): bool + ((Qp * A) + A) :=
+      match a with
+      | inr (inl _) => inl false
+      | _ => a
+      end.
+
+    Program Instance t: URA.t := {
+        car := bool + ((Qp * A) + A);
+        unit := inl false;
+        _add := oneshot_add;
+        _wf := fun a =>
+                 match a with
+                 | inl true => False
+                 | inr (inl (q,a)) => (q ≤ 1)%Qp
+                 | _ => True
+                 end;
+        core := oneshot_core;
+      }
+    .
+    Next Obligation.
+      unfold oneshot_add. des_ifs. f_equal. f_equal. f_equal. eapply Qp.add_comm.
+    Qed.
+    Next Obligation.
+      unfold oneshot_add. des_ifs. f_equal. f_equal. f_equal. eapply Qp.add_assoc.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold oneshot_add. des_ifs.
+    Qed.
+    Next Obligation.
+      unseal "ra". ss.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold oneshot_add in *. des_ifs.
+      etrans; [|eauto]. apply Qp.le_add_l.
+    Qed.
+    Next Obligation.
+      unseal "ra". unfold oneshot_add, oneshot_core. des_ifs.
+    Qed.
+    Next Obligation.
+      unfold oneshot_add, oneshot_core. des_ifs.
+    Qed.
+    Next Obligation.
+      unseal "ra".
+      pose (c := oneshot_core b).
+      unfold oneshot_core, oneshot_add. des_ifs; subst; try by (exists c; ss).
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inl true). ss. }
+      { exists (inr (inr a0)). des_ifs. }
+    Qed.
+
+    Definition pending (q: Qp) (a : A) : t := inr (inl (q,a)).
+    Definition shot (a: A): t := inr (inr a).
+
+    Lemma pending_one_wf a: URA.wf (pending 1%Qp a).
+    Proof.
+      ur. ss.
+    Qed.
+
+    Lemma shot_wf a: URA.wf (shot a).
+    Proof.
+      ur. ss.
+    Qed.
+
+    Lemma pending_agree q0 q1 a0 a1 (WF: URA.wf (pending q0%Qp a0 ⋅ pending q1%Qp a1))
+      :
+      (q0 + q1 ≤ 1)%Qp /\ a0 = a1.
+    Proof.
+      ur in WF. des_ifs.
+    Qed.
+
+    Lemma shot_agree a0 a1
+          (WF: URA.wf (shot a0 ⋅ shot a1))
+      :
+      a0 = a1.
+    Proof.
+      ur in WF. des_ifs.
+    Qed.
+
+    Lemma pending_not_shot a' a q
+          (WF: URA.wf (pending q a' ⋅ shot a))
+      :
+      False.
+    Proof.
+      ur in WF. ss.
+    Qed.
+
+    Lemma pending_wf q a
+          (WF: URA.wf (pending q a))
+      :
+      (q ≤ 1)%Qp.
+    Proof.
+      ur in WF. ss.
+    Qed.
+
+    Lemma pending_sum q0 q1 a
+      :
+      pending (q0 + q1)%Qp a = pending q0 a ⋅ pending q1 a.
+    Proof.
+      ur. des_ifs.
+    Qed.
+
+    Lemma pending_update a a'
+      :
+      URA.updatable (pending 1 a) (pending 1 a').
+    Proof.
+      ii. ur in H. ur. des_ifs.
+      - apply Qp.not_add_le_l in H; auto.
+      - unfold pending in *. inversion Heq. auto.
+    Qed.
+
+    Lemma pending_update_half a1 a2 a
+      :
+      URA.updatable (pending (1/2) a1 ⋅ pending (1/2) a2) (pending 1 a).
+    Proof.
+      ii. specialize (URA.wf_mon H) as H'. apply pending_agree in H'. destruct H' as [_ H']. subst.
+      rewrite -pending_sum in H. rewrite Qp.half_half in H.
+      ur in H. ur. des_ifs.
+      - apply Qp.not_add_le_l in H; auto.
+      - unfold oneshot_add in *. inversion Heq. auto.
+    Qed.
+
+    Lemma pending_update_half_half a1 a2 a
+      :
+      URA.updatable (pending (1/2) a1 ⋅ pending (1/2) a2) (pending (1/2) a ⋅ pending (1/2) a).
+    Proof.
+      ii. specialize (URA.wf_mon H) as H'. apply pending_agree in H'. destruct H' as [_ H']. subst.
+      rewrite -pending_sum in H. rewrite Qp.half_half in H.
+      ur in H. ur. des_ifs.
+      - apply Qp.not_add_le_l in H; auto.
+      - unfold oneshot_add in *. inversion Heq. rewrite Qp.half_half. auto.
+      - apply Qp.not_add_le_l in H; done.
+    Qed.
+
+    Lemma pending_shot a a'
+      :
+      URA.updatable (pending 1 a') (shot a).
+    Proof.
+      ii. ur in H. ur. des_ifs.
+      apply Qp.not_add_le_l in H; auto.
+    Qed.
+  End ONESHOTWITHVAL.
+End OneShotWithVal.
+
+Module OneShotWithValP.
+  Global Program Instance shot_persistent (A: Type)
+         `{@GRA.inG (OneShotWithVal.t A) Σ}
+         (a: A)
+    :
+    Persistent (OwnM (OneShotWithVal.shot a)).
+  Next Obligation.
+    i. iIntros "H". iPoseProof (own_persistent with "H") as "# G". ss.
+  Qed.
+
+  Lemma pending_agree (A: Type)
+        `{@GRA.inG (OneShotWithVal.t A) Σ}
+        (a0 a1: A) (q0 q1 : Qp)
+    :
+    (OwnM (OneShotWithVal.pending q0 a0) ∗ (OwnM (OneShotWithVal.pending q1 a1)))
+      -∗
+      (⌜(q0 + q1 ≤ 1)%Qp ∧ a0 = a1⌝).
+  Proof.
+    iIntros "[H0 H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShotWithVal.pending_agree in H0. auto.
+  Qed.
+
+  Lemma shot_agree (A: Type)
+        `{@GRA.inG (OneShotWithVal.t A) Σ}
+        (a0 a1: A)
+    :
+    (OwnM (OneShotWithVal.shot a0) ∧ (OwnM (OneShotWithVal.shot a1)))
+      -∗
+      (⌜a0 = a1⌝).
+  Proof.
+    iIntros "[# H0 # H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShotWithVal.shot_agree in H0. auto.
+  Qed.
+
+  Lemma pending_not_shot (A: Type)
+        `{@GRA.inG (OneShotWithVal.t A) Σ}
+        (a a': A) q
+    :
+    (OwnM (OneShotWithVal.pending q a') ∧ (OwnM (OneShotWithVal.shot a)))
+      -∗
+      False.
+  Proof.
+    iIntros "[H0 # H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShotWithVal.pending_not_shot in H0. auto.
+  Qed.
+
+  Global Program Instance shot_persistent_singleton (A: Type)
+         `{@GRA.inG (@FiniteMap.t (OneShotWithVal.t A)) Σ}
+         k (a: A)
+    :
+    Persistent (OwnM (FiniteMap.singleton k (OneShotWithVal.shot a))).
+  Next Obligation.
+    i. iIntros "H". iPoseProof (own_persistent with "H") as "# G".
+    rewrite FiniteMap.singleton_core. ss.
+  Qed.
+
+  Lemma shot_agree_singleton (A: Type)
+        `{@GRA.inG (@FiniteMap.t (OneShotWithVal.t A)) Σ}
+        k (a0 a1: A)
+    :
+    (OwnM (FiniteMap.singleton k (OneShotWithVal.shot a0)) ∧ (OwnM (FiniteMap.singleton k (OneShotWithVal.shot a1))))
+      -∗
+      (⌜a0 = a1⌝).
+  Proof.
+    iIntros "[# H0 # H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H".
+    rewrite FiniteMap.singleton_add in H0. apply FiniteMap.singleton_wf in H0.
+    apply OneShotWithVal.shot_agree in H0. auto.
+  Qed.
+
+  Lemma pending_not_shot_singleton (A: Type)
+        `{@GRA.inG (@FiniteMap.t (OneShotWithVal.t A)) Σ}
+        k (a a': A) q
+    :
+    (OwnM (FiniteMap.singleton k (OneShotWithVal.pending q a')) ∧ (OwnM (FiniteMap.singleton k (OneShotWithVal.shot a))))
+      -∗
+      False.
+  Proof.
+    iIntros "[H0 # H1]".
+    iCombine "H0 H1" as "H". iOwnWf "H".
+    rewrite FiniteMap.singleton_add in H0. apply FiniteMap.singleton_wf in H0.
+    apply OneShotWithVal.pending_not_shot in H0. auto.
+  Qed.
+End OneShotWithValP.
 
 Module Frac.
   Program Instance t: URA.t := {
