@@ -1,6 +1,5 @@
 From stdpp Require Import finite.
-From iris.prelude Require Export prelude.
-From iris.prelude Require Import options.
+From iris.prelude Require Import prelude options.
 Local Set Primitive Projections.
 
 Class PCore (A : Type) := pcore : A → option A.
@@ -10,8 +9,14 @@ Global Instance: Params (@pcore) 2 := {}.
 Class Op (A : Type) := op : A → A → A.
 Global Hint Mode Op ! : typeclass_instances.
 Global Instance: Params (@op) 2 := {}.
-Infix "⋅" := op (at level 50, left associativity) : stdpp_scope.
-Notation "(⋅)" := op (only parsing) : stdpp_scope.
+
+(* A local scope for working on [iris_algebra]. This exists so that notation used in cmra (notably, ⋅), does not conflict with the same notation in other developments. *)
+Declare Scope iris_algebra_scope.
+Delimit Scope iris_algebra_scope with ia.
+Local Open Scope iris_algebra_scope.
+
+Infix "⋅" := op (at level 50, left associativity) : iris_algebra_scope.
+Notation "(⋅)" := op (only parsing) : iris_algebra_scope.
 
 (* The inclusion quantifies over [A], not [option A].  This means we do not get
    reflexivity.  However, if we used [option A], the following would no longer
@@ -22,8 +27,8 @@ Notation "(⋅)" := op (only parsing) : stdpp_scope.
    deal with propositions of this shape.
 *)
 Definition included {A} `{!Op A} (x y : A) := ∃ z, y = x ⋅ z.
-Infix "≼" := included (at level 70) : stdpp_scope.
-Notation "(≼)" := included (only parsing) : stdpp_scope.
+Infix "≼" := included (at level 70) : iris_algebra_scope.
+Notation "(≼)" := included (only parsing) : iris_algebra_scope.
 Global Hint Extern 0 (_ ≼ _) => reflexivity : core.
 Global Instance: Params (@included) 3 := {}.
 
@@ -31,12 +36,12 @@ Global Instance: Params (@included) 3 := {}.
 be a CMRA, so we define it directly in terms of [Op]. *)
 Definition opM `{!Op A} (x : A) (my : option A) :=
   match my with Some y => x ⋅ y | None => x end.
-Infix "⋅?" := opM (at level 50, left associativity) : stdpp_scope.
+Infix "⋅?" := opM (at level 50, left associativity) : iris_algebra_scope.
 
 Class Valid (A : Type) := valid : A → Prop.
 Global Hint Mode Valid ! : typeclass_instances.
 Global Instance: Params (@valid) 2 := {}.
-Notation "✓ x" := (valid x) (at level 20) : stdpp_scope.
+Notation "✓ x" := (valid x) (at level 20) : iris_algebra_scope.
 
 Section mixin.
   Record CmraMixin A `{!PCore A, !Op A, !Valid A} := {
@@ -469,65 +474,6 @@ End ucmra.
 Global Hint Immediate cmra_unit_cmra_total : core.
 Global Hint Extern 0 (ε ≼ _) => apply: ucmra_unit_least : core.
 
-(** * Properties about CMRAs with Leibniz equality *)
-(* Section cmra_leibniz.
-  Local Set Default Proof Using "Type*".
-  Context {A : cmra} `{!LeibnizEquiv A}.
-  Implicit Types x y : A.
-
-  Global Instance cmra_assoc_L : Assoc (=) (@op A _).
-  Proof. intros x y z. unfold_leibniz. by rewrite assoc. Qed.
-  Global Instance cmra_comm_L : Comm (=) (@op A _).
-  Proof. intros x y. unfold_leibniz. by rewrite comm. Qed.
-
-  Lemma cmra_pcore_l_L x cx : pcore x = Some cx → cx ⋅ x = x.
-  Proof. unfold_leibniz. apply cmra_pcore_l'. Qed.
-  Lemma cmra_pcore_idemp_L x cx : pcore x = Some cx → pcore cx = Some cx.
-  Proof. unfold_leibniz. apply cmra_pcore_idemp'. Qed.
-
-  Lemma cmra_op_opM_assoc_L x y mz : (x ⋅ y) ⋅? mz = x ⋅ (y ⋅? mz).
-  Proof. unfold_leibniz. apply cmra_op_opM_assoc. Qed.
-
-  (** ** Core *)
-  Lemma cmra_pcore_r_L x cx : pcore x = Some cx → x ⋅ cx = x.
-  Proof. unfold_leibniz. apply cmra_pcore_r'. Qed.
-  Lemma cmra_pcore_dup_L x cx : pcore x = Some cx → cx = cx ⋅ cx.
-  Proof. unfold_leibniz. apply cmra_pcore_dup'. Qed.
-
-  (** ** CoreId elements *)
-  Lemma core_id_dup_L x `{!CoreId x} : x = x ⋅ x.
-  Proof. unfold_leibniz. by apply core_id_dup. Qed.
-
-  (** ** Total core *)
-  Section total_core.
-    Context `{!CmraTotal A}.
-
-    Lemma cmra_core_r_L x : x ⋅ core x = x.
-    Proof. unfold_leibniz. apply cmra_core_r. Qed.
-    Lemma cmra_core_l_L x : core x ⋅ x = x.
-    Proof. unfold_leibniz. apply cmra_core_l. Qed.
-    Lemma cmra_core_idemp_L x : core (core x) = core x.
-    Proof. unfold_leibniz. apply cmra_core_idemp. Qed.
-    Lemma cmra_core_dup_L x : core x = core x ⋅ core x.
-    Proof. unfold_leibniz. apply cmra_core_dup. Qed.
-    Lemma core_id_total_L x : CoreId x ↔ core x = x.
-    Proof. unfold_leibniz. apply core_id_total. Qed.
-    Lemma core_id_core_L x `{!CoreId x} : core x = x.
-    Proof. by apply core_id_total_L. Qed.
-  End total_core.
-End cmra_leibniz. *)
-
-(* Section ucmra_leibniz.
-  Local Set Default Proof Using "Type*".
-  Context {A : ucmra} `{!LeibnizEquiv A}.
-  Implicit Types x y z : A.
-
-  Global Instance ucmra_unit_left_id_L : LeftId (=) ε (@op A _).
-  Proof. intros x. unfold_leibniz. by rewrite left_id. Qed.
-  Global Instance ucmra_unit_right_id_L : RightId (=) ε (@op A _).
-  Proof. intros x. unfold_leibniz. by rewrite right_id. Qed.
-End ucmra_leibniz. *)
-
 (** * Constructing a CMRA with total core *)
 Section cmra_total.
   Context A `{!PCore A, !Op A, !Valid A}.
@@ -626,7 +572,7 @@ Record RAMixin A `{PCore A, Op A, Valid A} := {
 
 Section discrete.
   Local Set Default Proof Using "Type*".
-  Context `{!PCore A, !Op A, !Valid A} (Heq : @Equivalence A (=)).
+  Context `{!PCore A, !Op A, !Valid A}.
   Context (ra_mix : RAMixin A).
 
   Definition discrete_cmra_mixin : CmraMixin A.
@@ -635,6 +581,10 @@ Section discrete.
     intros x y1 y2 ??; by exists y1, y2.
   Qed.
 End discrete.
+
+Notation discreteR A ra_mix :=
+  (Cmra A (discrete_cmra_mixin ra_mix))
+  (only parsing).
 
 Section ra_total.
   Local Set Default Proof Using "Type*".

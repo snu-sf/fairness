@@ -9,7 +9,7 @@ Require Import Lia.
 Require Import Program.
 From stdpp Require coPset gmap.
 From Fairness Require Import Axioms.
-From Fairness Require Import cmra.
+From Fairness Require Import cmra excl.
 
 Set Implicit Arguments.
 
@@ -55,6 +55,12 @@ Module RA.
     add_comm: forall a b, add a b = add b a;
     add_assoc: forall a b c, add a (add b c) = add (add a b) c;
     wf_mon: forall a b, wf (add a b) -> wf a;
+    pcore : car -> option car;
+    pcore_id: forall a cx, pcore a = Some cx -> add cx a = a;
+    pcore_idem: forall a cx, pcore a = Some cx -> pcore cx = Some cx;
+    pcore_mono: forall a b cx,
+      pcore a = Some cx -> (exists cy, pcore (add a b) = Some cy /\ (exists c, cy = add cx c));
+    (* core_mono: forall a b, exists c, core (add a b) = add (core a) c; *)
 
     extends := fun a b => exists ctx, add a ctx = b;
     updatable := fun a b => forall ctx, wf (add a ctx) -> wf (add b ctx);
@@ -115,7 +121,53 @@ Module RA.
   Next Obligation. ii. ss. Qed.
   Next Obligation. ii. r in H. r in H0. eauto. Qed.
 
-  Program Instance prod (M0 M1: t): t := {
+  (* Iris cmras are ra. *)
+  Program Instance cmra_ra (M: cmra) : t := {
+    car := cmra_car M;
+    add := op;
+    wf := valid;
+    pcore := cmra.pcore;
+  }.
+  Next Obligation. ii. by rewrite (base.comm op). Qed.
+  Next Obligation. ii. by rewrite (base.assoc op). Qed.
+  Next Obligation. ii. by apply (cmra_valid_op_l _ b). Qed.
+  Next Obligation. ii. by apply cmra_pcore_l. Qed.
+  Next Obligation. ii. by apply (cmra_pcore_idemp a). Qed.
+  Next Obligation. ii. by apply (cmra_pcore_mono a). Qed.
+
+  (* ras are Iris cmras. *)
+  Section fos_ra_to_cmra.
+    Context (M : t).
+    Local Instance fos_ra_valid_instance : Valid car := fun a => wf a.
+    Local Instance fos_ra_pcore_instance : PCore car := pcore.
+    Local Instance fos_ra_op_instance : Op car := add.
+
+    Lemma fos_ra_valid a : valid a <-> wf a.
+    Proof. done. Qed.
+    Lemma fos_ra_op a0 a1 : op a0 a1 = add a0 a1.
+    Proof. done. Qed.
+
+    Definition fos_ra_mixin : RAMixin car.
+    Proof.
+      split; try apply _; try done.
+      - ii. subst. eauto.
+      - ii. apply add_assoc.
+      - ii. apply add_comm.
+      - ii. apply pcore_id. done.
+      - ii. eapply pcore_idem. eauto.
+      - intros ???[??]. subst. apply pcore_mono.
+      - ii. eapply wf_mon. eauto.
+    Qed.
+    Canonical Structure fosraR := discreteR car fos_ra_mixin.
+  End fos_ra_to_cmra.
+
+  Definition prod (M0 M1 : t) : t := cmra_ra (prodR (fosraR M0) (fosraR M1)).
+
+  Definition empty : t := cmra_ra Empty_setR.
+
+  Definition excl (A : Type) : t := cmra_ra (exclR A).
+
+  (* Program Instance prod (M0 M1: t): t := {
     car := car (t:=M0) * car (t:=M1);
     add := fun '(a0, a1) '(b0, b1) => ((add a0 b0), (add a1 b1));
     wf := fun '(a0, a1) => wf a0 /\ wf a1;
@@ -237,7 +289,7 @@ Module RA.
   .
   Next Obligation. ss. Qed.
   Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed. *)
 
 End RA.
 
@@ -377,19 +429,19 @@ Module URA.
   (* Iris ucmras are ura. *)
   Program Instance ucmra_ura (M: ucmra) : t := {
     car := ucmra_car M;
-    unit := ucmra_unit M;
-    _add := ucmra_op M;
-    _wf := ucmra_valid M;
+    unit := ε;
+    _add := op;
+    _wf := valid;
     core := cmra.core;
   }.
-  Next Obligation. by rewrite (base.comm (ucmra_op M)). Qed.
-  Next Obligation. by rewrite (base.assoc (ucmra_op M)). Qed.
-  Next Obligation. apply ucmra_unit_right_id. Qed.
-  Next Obligation. apply ucmra_unit_valid. Qed.
-  Next Obligation. apply (@cmra_valid_op_l M) in H. done. Qed.
-  Next Obligation. apply (@cmra_core_l M). apply cmra_unit_cmra_total. Qed.
-  Next Obligation. apply cmra_core_idemp. Qed.
-  Next Obligation. apply (@cmra_core_mono M); [apply cmra_unit_cmra_total|by exists b]. Qed.
+  Next Obligation. by rewrite (base.comm op). Qed.
+  Next Obligation. by rewrite (base.assoc op). Qed.
+  Next Obligation. by apply ucmra_unit_right_id. Qed.
+  Next Obligation. by apply ucmra_unit_valid. Qed.
+  Next Obligation. by apply (cmra_valid_op_l _ b). Qed.
+  Next Obligation. by apply cmra_core_l. Qed.
+  Next Obligation. by apply cmra_core_idemp. Qed.
+  Next Obligation. by apply cmra_core_mono. Qed.
 
   Program Instance prod (M0 M1: t): t := {
     car := car (t:=M0) * car (t:=M1);
@@ -462,11 +514,15 @@ Module URA.
     RA.car := car;
     RA.add := add;
     RA.wf := wf;
+    RA.pcore := fun a => Some (core a);
   |}
   .
   Next Obligation. apply add_comm. Qed.
   Next Obligation. apply add_assoc. Qed.
   Next Obligation. eapply wf_mon; eauto. Qed.
+  Next Obligation. apply core_id. Qed.
+  Next Obligation. by rewrite core_idem. Qed.
+  Next Obligation. eexists. split; [done|]. apply core_mono. Qed.
 
   Global Program Instance extends_PreOrder `{M: t}: PreOrder extends.
   Next Obligation. rr. eexists unit. ss. rewrite unit_id. ss. Qed.

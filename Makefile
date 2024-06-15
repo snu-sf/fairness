@@ -9,8 +9,7 @@ COQTHEORIES  := \
 	src/fosexample/*.v \
 	src/tlogic/*.v \
 	src/example/*.v \
-	src/iris_algebra/cmra.v \
-	src/iris_algebra/proofmode_classes.v \
+	src/iris_algebra/*.v \
 
 .PHONY: all theories clean
 
