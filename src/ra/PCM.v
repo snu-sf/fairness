@@ -9,6 +9,7 @@ Require Import Lia.
 Require Import Program.
 From stdpp Require coPset gmap.
 From Fairness Require Import Axioms.
+From Fairness Require Import cmra.
 
 Set Implicit Arguments.
 
@@ -372,6 +373,23 @@ Module URA.
     rr in EXT. des. subst. hexploit core_mono. i. des.
     eexists. eauto.
   Qed.
+
+  (* Iris ucmras are ura. *)
+  Program Instance ucmra_ura (M: ucmra) : t := {
+    car := ucmra_car M;
+    unit := ucmra_unit M;
+    _add := ucmra_op M;
+    _wf := ucmra_valid M;
+    core := cmra.core;
+  }.
+  Next Obligation. by rewrite (base.comm (ucmra_op M)). Qed.
+  Next Obligation. by rewrite (base.assoc (ucmra_op M)). Qed.
+  Next Obligation. apply ucmra_unit_right_id. Qed.
+  Next Obligation. apply ucmra_unit_valid. Qed.
+  Next Obligation. apply (@cmra_valid_op_l M) in H. done. Qed.
+  Next Obligation. apply (@cmra_core_l M). apply cmra_unit_cmra_total. Qed.
+  Next Obligation. apply cmra_core_idemp. Qed.
+  Next Obligation. apply (@cmra_core_mono M); [apply cmra_unit_cmra_total|by exists b]. Qed.
 
   Program Instance prod (M0 M1: t): t := {
     car := car (t:=M0) * car (t:=M1);
