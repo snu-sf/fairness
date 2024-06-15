@@ -9,6 +9,8 @@ COQTHEORIES  := \
 	src/fosexample/*.v \
 	src/tlogic/*.v \
 	src/example/*.v \
+	src/iris_algebra/cmra.v \
+	src/iris_algebra/proofmode_classes.v \
 
 .PHONY: all theories clean
 
@@ -30,6 +32,7 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
+	 echo "-Q src/iris_algebra $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq
