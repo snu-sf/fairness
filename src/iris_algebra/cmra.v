@@ -176,7 +176,7 @@ Record UcmraMixin A `{!PCore A, !Op A, !Valid A, !Unit A} := {
 
 #[projections(primitive=no)] (* FIXME: making this primitive leads to strange
 TC resolution failures in view.v *)
-Structure ucmra := Ucmra {
+Structure ucmra := Ucmra' {
   ucmra_car :> Type;
   ucmra_pcore : PCore ucmra_car;
   ucmra_op : Op ucmra_car;
@@ -185,7 +185,9 @@ Structure ucmra := Ucmra {
   ucmra_cmra_mixin : CmraMixin ucmra_car;
   ucmra_mixin : UcmraMixin ucmra_car;
 }.
-Global Arguments Ucmra _ {_ _ _ _} _ _.
+Global Arguments Ucmra' _ {_ _ _ _} _ _.
+Notation Ucmra A m :=
+  (Ucmra' A (cmra_mixin_of A%type) m) (only parsing).
 Global Arguments ucmra_car : simpl never.
 Global Arguments ucmra_pcore : simpl never.
 Global Arguments ucmra_op : simpl never.
@@ -632,7 +634,7 @@ Section unit.
     - done.
     - intros []. done.
   Qed.
-  Canonical Structure unitUR : ucmra := Ucmra unit unit_cmra_mixin unit_ucmra_mixin.
+  Canonical Structure unitUR : ucmra := Ucmra unit unit_ucmra_mixin.
 
   Global Instance unit_core_id (x : ()) : CoreId x.
   Proof. by constructor. Qed.
@@ -785,7 +787,7 @@ Section prod_unit.
       rewrite !left_id. done.
     - rewrite prod_pcore_Some; split; apply (core_id _).
   Qed.
-  Canonical Structure prodUR := Ucmra (prod A B) prod_cmra_mixin prod_ucmra_mixin.
+  Canonical Structure prodUR := Ucmra (prod A B) prod_ucmra_mixin.
 
   Lemma pair_split (a : A) (b : B) : (a, b) = (a, ε) ⋅ (ε, b).
   Proof. by rewrite -pair_op left_id right_id. Qed.
@@ -898,7 +900,7 @@ Section option.
   Local Instance option_unit_instance : Unit (option A) := None.
   Lemma option_ucmra_mixin : UcmraMixin optionR.
   Proof. split; [done|  |done]. by intros []. Qed.
-  Canonical Structure optionUR := Ucmra (option A) option_cmra_mixin option_ucmra_mixin.
+  Canonical Structure optionUR := Ucmra (option A) option_ucmra_mixin.
 
   (** Misc *)
   Lemma op_None ma mb : ma ⋅ mb = None ↔ ma = None ∧ mb = None.

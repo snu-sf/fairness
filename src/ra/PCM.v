@@ -60,7 +60,6 @@ Module RA.
     pcore_idem: forall a cx, pcore a = Some cx -> pcore cx = Some cx;
     pcore_mono: forall a b cx,
       pcore a = Some cx -> (exists cy, pcore (add a b) = Some cy /\ (exists c, cy = add cx c));
-    (* core_mono: forall a b, exists c, core (add a b) = add (core a) c; *)
 
     extends := fun a b => exists ctx, add a ctx = b;
     updatable := fun a b => forall ctx, wf (add a ctx) -> wf (add b ctx);
@@ -121,7 +120,7 @@ Module RA.
   Next Obligation. ii. ss. Qed.
   Next Obligation. ii. r in H. r in H0. eauto. Qed.
 
-  (* Iris cmras are ra. *)
+  (* Iris cmra is a RA. *)
   Program Instance cmra_ra (M: cmra) : t := {
     car := cmra_car M;
     add := op;
@@ -135,10 +134,10 @@ Module RA.
   Next Obligation. ii. by apply (cmra_pcore_idemp a). Qed.
   Next Obligation. ii. by apply (cmra_pcore_mono a). Qed.
 
-  (* ras are Iris cmras. *)
+  (* RA is an Iris cmra. *)
   Section fos_ra_to_cmra.
     Context (M : t).
-    Local Instance fos_ra_valid_instance : Valid car := fun a => wf a.
+    Local Instance fos_ra_valid_instance : Valid car := wf.
     Local Instance fos_ra_pcore_instance : PCore car := pcore.
     Local Instance fos_ra_op_instance : Op car := add.
 
@@ -162,10 +161,6 @@ Module RA.
   End fos_ra_to_cmra.
 
   Definition prod (M0 M1 : t) : t := cmra_ra (prodR (fosraR M0) (fosraR M1)).
-
-  Definition empty : t := cmra_ra Empty_setR.
-
-  Definition excl (A : Type) : t := cmra_ra (exclR A).
 
   Theorem prod_updatable
           M0 M1
@@ -222,6 +217,10 @@ Module RA.
     ii. ss. rr in H. specialize (H (Some a0)). ss. des_ifs.
     exfalso. eapply H; eauto.
   Qed. *)
+
+  Definition empty : t := cmra_ra Empty_setR.
+
+  Definition excl (A : Type) : t := cmra_ra (exclR A).
 
   Theorem excl_updatable
           A
@@ -397,7 +396,7 @@ Module URA.
     eexists. eauto.
   Qed.
 
-  (* Iris ucmras are ura. *)
+  (* Iris ucmra is a URA. *)
   Program Instance ucmra_ura (M: ucmra) : t := {
     car := ucmra_car M;
     unit := ε;
@@ -413,6 +412,45 @@ Module URA.
   Next Obligation. by apply cmra_core_l. Qed.
   Next Obligation. by apply cmra_core_idemp. Qed.
   Next Obligation. by apply cmra_core_mono. Qed.
+
+  (* URA is an Iris ucmra. *)
+  Section fos_ura_to_ucmra.
+    Context (M : t).
+    Local Instance fos_ura_valid_instance : Valid car := wf.
+    Local Instance fos_ura_pcore_instance : PCore car := fun a => Some (core a).
+    Local Instance fos_ura_op_instance : Op car := add.
+    Local Instance fos_ura_unit_instance : Unit car := unit.
+
+    Lemma fos_ura_valid a : valid a <-> wf a.
+    Proof. done. Qed.
+    Lemma fos_ura_op a0 a1 : op a0 a1 = add a0 a1.
+    Proof. done. Qed.
+
+    Definition fos_ura_ra_mixin : RAMixin car.
+    Proof.
+      split; try apply _; try done.
+      - ii. subst. eauto.
+      - ii. apply add_assoc.
+      - ii. apply add_comm.
+      - intros ???Heq. unfold pcore,fos_ura_pcore_instance in Heq. injection Heq as <-. apply core_id.
+      - intros ???Heq. unfold pcore,fos_ura_pcore_instance in *. injection Heq as <-. f_equal. apply core_idem.
+      - intros a ? ? [c ->] Heq. unfold pcore,fos_ura_pcore_instance in *. injection Heq as <-. eexists.
+        split; [done|]. destruct (core_mono a c) as [cx ?].
+        exists cx. done.
+      - ii. eapply wf_mon. eauto.
+    Qed.
+    Canonical Structure fosuraR := discreteR car fos_ura_ra_mixin.
+
+    Lemma fos_ura_ucmra_mixin : UcmraMixin car.
+    Proof.
+      split.
+      - apply wf_unit.
+      - ii. rewrite (base.comm op). apply unit_id.
+      - unfold pcore,fos_ura_pcore_instance. f_equal. apply unit_core.
+    Qed.
+    Canonical Structure fosuraUR := Ucmra car fos_ura_ucmra_mixin.
+
+  End fos_ura_to_ucmra.
 
   Program Instance prod (M0 M1: t): t := {
     car := car (t:=M0) * car (t:=M1);
