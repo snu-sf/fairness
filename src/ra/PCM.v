@@ -163,19 +163,9 @@ Module RA.
 
   Definition prod (M0 M1 : t) : t := cmra_ra (prodR (fosraR M0) (fosraR M1)).
 
-  Definition empty : t := cmra_ra Empty_setR.
+  Local Definition empty : t := cmra_ra Empty_setR.
 
   Definition excl (A : Type) : t := cmra_ra (exclR A).
-
-  (* Program Instance prod (M0 M1: t): t := {
-    car := car (t:=M0) * car (t:=M1);
-    add := fun '(a0, a1) '(b0, b1) => ((add a0 b0), (add a1 b1));
-    wf := fun '(a0, a1) => wf a0 /\ wf a1;
-  }
-  .
-  Next Obligation. i. destruct a, b; ss. f_equal; rewrite add_comm; ss. Qed.
-  Next Obligation. i. destruct a, b, c; ss. f_equal; rewrite add_assoc; ss. Qed.
-  Next Obligation. i. destruct a, b; ss. des. split; eapply wf_mon; eauto. Qed.
 
   Theorem prod_updatable
           M0 M1
@@ -187,10 +177,12 @@ Module RA.
       <<UPD: @updatable (prod M0 M1) (a0, a1) (b0, b1)>>
   .
   Proof.
-    ii. ss. des_ifs. des. esplits; eauto.
+    ii. ss. destruct ctx as [ctx0 ctx1], H as [H0 H1]. simpl in *.
+    specialize (UPD0 ctx0 H0). specialize (UPD1 ctx1 H1).
+    split; done.
   Qed.
 
-  Program Instance frac (denom: positive): t := {
+  (* Program Instance frac (denom: positive): t := {
     car := positive;
     add := fun a b => (a + b)%positive;
     wf := fun a => (a <= denom)%positive;
@@ -208,9 +200,9 @@ Module RA.
   .
   Proof.
     ii. ss. des_ifs. des. lia.
-  Qed.
+  Qed. *)
 
-  Program Instance agree (A: Type): t := {
+  (* Program Instance agree (A: Type): t := {
     car := option A;
     add := fun a0 a1 => if excluded_middle_informative (a0 = a1) then a0 else None;
     wf := fun a => a <> None;
@@ -229,27 +221,17 @@ Module RA.
   Proof.
     ii. ss. rr in H. specialize (H (Some a0)). ss. des_ifs.
     exfalso. eapply H; eauto.
-  Qed.
-
-  Program Instance excl (A: Type): t := {
-    car := option A;
-    add := fun _ _ => None;
-    wf := fun a => a <> None;
-  }
-  .
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
+  Qed. *)
 
   Theorem excl_updatable
           A
           a0 a1
     :
-      <<UPD: @updatable (excl A) (Some a0) a1>>
+      <<UPD: @updatable (excl A) a0 a1>>
   .
   Proof. rr. ii. ss. Qed.
 
-  Let sum_add {M0 M1} := (fun (a b: car (t:=M0) + car (t:=M1) + unit) =>
+  (* Let sum_add {M0 M1} := (fun (a b: car (t:=M0) + car (t:=M1) + unit) =>
                             match a, b with
                             | inl (inl a0), inl (inl b0) => inl (inl (add a0 b0))
                             | inl (inr a1), inl (inr b1) => inl (inr (add a1 b1))
@@ -269,9 +251,9 @@ Module RA.
   .
   Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_comm. Qed.
   Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_assoc. Qed.
-  Next Obligation. i. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed.
+  Next Obligation. i. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed. *)
 
-  Program Instance pointwise K (M: t): t := {
+  (* Program Instance pointwise K (M: t): t := {
     car := K -> car;
     add := fun f0 f1 => (fun k => add (f0 k) (f1 k));
     wf := fun f => forall k, wf (f k);
@@ -279,18 +261,7 @@ Module RA.
   .
   Next Obligation. i. apply func_ext. ii. rewrite add_comm. ss. Qed.
   Next Obligation. i. apply func_ext. ii. rewrite add_assoc. ss. Qed.
-  Next Obligation. ss. i. eapply wf_mon; ss. Qed.
-
-  Local Program Instance empty: t := {
-    car := False;
-    add := fun a _ => a;
-    wf := fun _ => False;
-  }
-  .
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed. *)
-
+  Next Obligation. ss. i. eapply wf_mon; ss. Qed. *)
 End RA.
 
 
