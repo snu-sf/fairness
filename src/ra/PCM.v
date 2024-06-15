@@ -163,7 +163,7 @@ Module RA.
 
   Definition prod (M0 M1 : t) : t := cmra_ra (prodR (fosraR M0) (fosraR M1)).
 
-  Local Definition empty : t := cmra_ra Empty_setR.
+  Definition empty : t := cmra_ra Empty_setR.
 
   Definition excl (A : Type) : t := cmra_ra (exclR A).
 
