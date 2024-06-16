@@ -9,6 +9,7 @@ COQTHEORIES  := \
 	src/tlogic/*.v \
 	src/example/*.v \
 	src/iris_algebra/*.v \
+	src/iris_algebra/lib/*.v \
 
 .PHONY: all theories clean
 
@@ -21,7 +22,8 @@ quick: Makefile.coq
 	$(MAKE) -f Makefile.coq vio
 
 Makefile.coq: Makefile $(COQTHEORIES)
-	(echo "-Q src/lib $(COQMODULE)"; \
+	(echo "-arg -w -arg -ambiguous-paths"; \
+	 echo "-Q src/lib $(COQMODULE)"; \
 	 echo "-Q src/semantics $(COQMODULE)"; \
 	 echo "-Q src/simulation $(COQMODULE)"; \
 	 echo "-Q src/scheduler_example $(COQMODULE)"; \

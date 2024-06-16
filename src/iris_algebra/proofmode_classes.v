@@ -30,7 +30,7 @@ To achieve this, there are various classes with different modes:
   instance [IsOp'LR (a ⋅ b) a b] with cost 0. This ensures that the "op"
   rule is used first when splitting.
 *)
-Class IsOp {A : cmra} (a b1 b2 : A) := is_op : a = (b1 ⋅ b2).
+Class IsOp {A : cmra} (a b1 b2 : A) := is_op :> a = (b1 ⋅ b2).
 Global Arguments is_op {_} _ _ _ {_}.
 Global Hint Mode IsOp + - - - : typeclass_instances.
 
