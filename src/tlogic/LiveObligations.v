@@ -888,6 +888,18 @@ Section ELI.
                   =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ ◇[k](0, 1)) ∨ (prop _ A ∗ @env_live_inv m x E k v A T) ∨ (prop _ T))))%I
     end.
 
+  Lemma ELI_persistent n x E k v (A T : Vars v) :
+    (@env_live_inv n x E k v A T) -∗ □(@env_live_inv n x E k v A T).
+  Proof.
+    destruct n; simpl; eauto.
+  Qed.
+
+  Global Program Instance Persistent_ELI n x E k v (A T : Vars v) :
+    Persistent (@env_live_inv n x E k v A T).
+  Next Obligation.
+    iIntros "ELI". iPoseProof (ELI_persistent with "ELI") as "ELI". auto.
+  Qed.
+
   Lemma eli_lo_ind k l n x E v (A T : Vars v) (Q : iProp) :
     (v <= x) ->
     (◆[k, l])
@@ -929,16 +941,50 @@ Section ELI.
     }
   Qed.
 
-  Lemma ELI_persistent n x E k v (A T : Vars v) :
-    (@env_live_inv n x E k v A T) -∗ □(@env_live_inv n x E k v A T).
+  Lemma eli_ccs_ind k ps l n x E v (A T : Vars v) (Q : iProp) :
+    (v <= x) ->
+    (⦃◆[k] & ◇{ps}(l)⦄ ∗ ◇{ps}(l, n))
+      ⊢
+      (□((€ -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q) -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l, 1) -∗ Q)))
+      -∗
+      ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
+      -∗
+      ((prop _ A ∗ @env_live_inv n x E k v A T)
+         =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l, 1) -∗ Q))
+  .
   Proof.
-    destruct n; simpl; eauto.
-  Qed.
-
-  Global Program Instance Persistent_ELI n x E k v (A T : Vars v) :
-    Persistent (@env_live_inv n x E k v A T).
-  Next Obligation.
-    iIntros "ELI". iPoseProof (ELI_persistent with "ELI") as "ELI". auto.
+    (* Outer induction. *)
+    iIntros (LT). pattern n. induction n.
+    { iIntros "_ _ TERM [_ F]". ss. }
+    iIntros "[(%o & CCS) PCSn]".
+    (* Inner induction. *)
+    iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
+    iIntros "[CCS PCSn] #IH TERM [AP ELI]".
+    iEval (simpl) in "ELI". iPoseProof "ELI" as "(%P & #PP & #ELI)".
+    iApply ("IH" with "[CCS PCSn TERM] AP"). iIntros "FC AP".
+    iMod ("ELI" with "[FC] AP") as "[(PA & PCk) | [(PA & ELI2) | PT]]".
+    { iFrame. eauto. }
+    { (* Prove with the inner induction. *)
+      iMod (ccs_decr with "[CCS PCk]") as "(%o' & CCS & %LTo & PCk)".
+      2:{ iSplitR "PCk"; iFrame. }
+      lia.
+      specialize (IHo o' LTo).
+      iMod (IHo with "[CCS PCSn] IH TERM [PA]") as "RES".
+      { iFrame. }
+      { iFrame. iEval simpl. iModIntro. iExists P. iSplitL; eauto. }
+      iModIntro. iApply ("RES" with "PCk").
+    }
+    { (* Prove with the outer induction. *)
+      iMod (pcs_decr _ _ 1 n with "PCSn") as "[PCS PCSn]".
+      lia.
+      iPoseProof (IHn with "[CCS PCSn] IH TERM") as "IHn".
+      { iFrame. iExists _. iFrame. }
+      iSpecialize ("IHn" with "[PA ELI2]").
+      iFrame. iMod "IHn". iModIntro. iApply ("IHn" with "PCS").
+    }
+    { (* Reached the target state T. *)
+      iApply ("TERM" with "PT").
+    }
   Qed.
 
 End ELI.
