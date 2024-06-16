@@ -875,6 +875,7 @@ Section ELI.
   Context `{ARROWSHOTRA : @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA : @GRA.inG ArrowRA Σ}.
 
+  (* Assumes one linearization point. *)
   Fixpoint env_live_inv (n : nat) (x : nat) E (k : nat) {v} (A T : Vars v) : iProp :=
     match n with
     | O => ⌜False⌝%I
@@ -929,15 +930,12 @@ Section ELI.
   Qed.
 
   Lemma ELI_persistent n x E k v (A T : Vars v) :
-    (Persistent (prop _ T)) -> (@env_live_inv n x E k v A T) -∗ □(@env_live_inv n x E k v A T).
+    (@env_live_inv n x E k v A T) -∗ □(@env_live_inv n x E k v A T).
   Proof.
-    iIntros (PERST). pattern n. induction n.
-    { simpl. iIntros "#PT". eauto. }
-    simpl. iIntros "#ELI". eauto.
+    destruct n; simpl; eauto.
   Qed.
 
-  Global Program Instance Persistent_ELI n x E k v (A T : Vars v)
-         (T_PERS : Persistent (prop _ T)) :
+  Global Program Instance Persistent_ELI n x E k v (A T : Vars v) :
     Persistent (@env_live_inv n x E k v A T).
   Next Obligation.
     iIntros "ELI". iPoseProof (ELI_persistent with "ELI") as "ELI". auto.
