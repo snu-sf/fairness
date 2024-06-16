@@ -4,9 +4,8 @@ COQTHEORIES  := \
 	src/lib/*.v \
 	src/semantics/*.v \
 	src/simulation/*.v \
+	src/scheduler_example/*.v \
 	src/ra/*.v \
-	src/foslogic/*.v \
-	src/fosexample/*.v \
 	src/tlogic/*.v \
 	src/example/*.v \
 	src/iris_algebra/*.v \
@@ -25,9 +24,8 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-Q src/lib $(COQMODULE)"; \
 	 echo "-Q src/semantics $(COQMODULE)"; \
 	 echo "-Q src/simulation $(COQMODULE)"; \
+	 echo "-Q src/scheduler_example $(COQMODULE)"; \
 	 echo "-Q src/ra $(COQMODULE)"; \
-	 echo "-Q src/foslogic $(COQMODULE)"; \
-	 echo "-Q src/fosexample $(COQMODULE)"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
