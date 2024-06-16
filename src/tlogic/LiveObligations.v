@@ -853,3 +853,71 @@ Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
   (until_promise p i k l f P) (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
 Notation "P '-U-[' k '](' l ')-' '◇' f" :=
   (until_thread_promise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : bi_scope.
+
+
+
+Section ELI.
+  (** Environment Liveness Invariants *)
+
+  Context {ident_tgt : ID}.
+  Local Notation identTgtRA := (identTgtRA ident_tgt).
+  Context `{Vars : nat -> Type}.
+  Local Notation ArrowRA := (@ArrowRA ident_tgt Vars).
+
+  Context `{Σ : GRA.t}.
+  Context `{Invs : @IInvSet Σ Vars}.
+  Context `{OWNERA : @GRA.inG OwnERA Σ}.
+  Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
+  Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
+  Context `{IDENTTGT : @GRA.inG identTgtRA Σ}.
+  Context `{OBLGRA : @GRA.inG ObligationRA.t Σ}.
+  Context `{EDGERA : @GRA.inG EdgeRA Σ}.
+  Context `{ARROWSHOTRA : @GRA.inG ArrowShotRA Σ}.
+  Context `{ARROWRA : @GRA.inG ArrowRA Σ}.
+
+  Fixpoint env_live_inv (n : nat) {v x : nat} E (k : nat) (P T : Vars v) : iProp :=
+    match n with
+    | O => prop _ T
+    | S m =>
+        □ ((prop _ P ∗ €) =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ P ∗ ◇[k](0, 1)) ∨ (∃ (R : Vars v), prop _ R ∗ @env_live_inv m v x E k R T)))%I
+    end.
+
+  Lemma eli_lo_ind k l n v x E (T : Vars v) (Q : iProp) :
+    (v < x) ->
+    (◆[k, l])
+      ⊢ (□((€ =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q))
+      -∗
+      (prop _ T -∗ Q)
+      -∗
+      (∀ (P : Vars v), (prop _ P) -∗ (@env_live_inv n v x E k P T)  =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
+      (* (∀ (P : Vars v), (prop _ P) -∗ (@env_live_inv n v x E k P T) -∗ (prop _ P -∗ prop _ T -∗ Q) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q) *)
+  .
+  Proof.
+    (* Outer induction. *)
+    iIntros (LT). pattern n. induction n.
+    { iIntros "_ #IH TERM %P PP ELI". ss. iModIntro. iApply ("TERM" with "ELI"). }
+    (* iIntros "(%c & %o & #LO) #IH %P TERM PP ELI". *)
+    iIntros "(%c & %o & #LO)".
+    (* Inner induction. *)
+    iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
+    iIntros "#LO #IH TERM %P PP ELI". iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
+    iApply "IH". iIntros "FC".
+    iMod ("ELI" with "[PP FC]") as "[(PP & PCk) | (%R & PR & ELI2)]".
+    iFrame.
+    { (* Prove with the inner induction. *)
+      iMod (lo_pc_decr with "[PCk]") as "(%o' & #LO' & %LTo)".
+      2:{ iSplitR; iFrame. eauto. }
+      lia.
+      specialize (IHo o' LTo).
+      iPoseProof (IHo with "LO' IH TERM") as "IHo". iSpecialize ("IHo" $! P with "PP ELI").
+      iFrame.
+    }
+    { (* Prove with the outer induction. *)
+      iPoseProof (IHn with "[] IH TERM") as "IHn".
+      { iExists _, _. eauto. }
+      iSpecialize ("IHn" $! R with "PR ELI2").
+      iFrame.
+    }
+  Qed.
+
+End ELI.
