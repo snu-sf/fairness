@@ -9,6 +9,7 @@ COQTHEORIES  := \
 	src/tlogic/*.v \
 	src/example/*.v \
 	src/iris_algebra/*.v \
+	src/iris_algebra/lib/*.v \
 
 .PHONY: all theories clean
 
