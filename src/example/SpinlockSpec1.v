@@ -68,14 +68,22 @@ Section SPEC.
              ∗ (⟦isSpinlock n x γx γe k L, n⟧)
              ∗ (⟦P, n⟧)
              ∗ (⟦Duty(tid) ds, n⟧ ∗ ◇{List.map fst ds}(2 + L, 1))
-             ∗ (env_live_inv v (1+n) (⊤ ∖ E_Spinlock) k
-                             (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe))
-                                 ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp)
-                                 ∗ (⤉ spinlockInv n x γx γe)) : sProp (1+n))%S
-                             (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe))
-                                 ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp)
-                                 ∗ (⤉ ((x ↦ 0) ∗ (● γx 0) ∗ (EX γe tt)))) : sProp (1+n))%S
+             ∗ ((((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe))
+                    ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp)
+                    ∗ (⤉ spinlockInv n x γx γe))%S : sProp (1+n))
+                  ~{v, 1+n, (⊤ ∖ E_Spinlock), k}~◇
+                  (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe))
+                      ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp)
+                      ∗ (⤉ ((x ↦ 0) ∗ (● γx 0) ∗ (EX γe tt))))%S : sProp (1+n))
                )
+             (* ∗ (env_live_inv v (1+n) (⊤ ∖ E_Spinlock) k *)
+             (*                 (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe)) *)
+             (*                     ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp) *)
+             (*                     ∗ (⤉ spinlockInv n x γx γe)) : sProp (1+n))%S *)
+             (*                 (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe)) *)
+             (*                     ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp) *)
+             (*                     ∗ (⤉ ((x ↦ 0) ∗ (● γx 0) ∗ (EX γe tt)))) : sProp (1+n))%S *)
+             (*   ) *)
              ∗ (⟦((● γx 0) ∗ R)%S, n⟧ =|1+n|=(fairI (1+n))={⊤ ∖ E_Spinlock}=∗ ⟦((● γx 1) ∗ Q)%S, n⟧)
              ∗ (□((⟦P, n⟧ ∗ ⟦Duty(tid) ds, n⟧) =|1+n|={E, ⊤}=∗ ⟦R, n⟧))
              ∗ (□(⟦R, n⟧ =|1+n|={⊤, E}=∗ (⟦P, n⟧ ∗ ⟦Duty(tid) ds, n⟧)))
@@ -339,8 +347,8 @@ Section SPEC.
         iSplitL "DUTY PCS". iFrame.
         iSplitR.
         { (* ELI. *)
-          iModIntro. iExists emp%S. iEval (simpl; red_tl). iSplitR. eauto.
-          iIntros "[_ FC]". iEval (rewrite red_syn_inv; rewrite red_syn_fupd). iIntros "(#INV_SL & INV_SL_CLOSE & SLI)".
+          iModIntro. iEval (simpl; red_tl). iIntros "FC".
+          iEval (rewrite red_syn_inv; rewrite red_syn_fupd). iIntros "(#INV_SL & INV_SL_CLOSE & SLI)".
           iPoseProof (isSpinlockUse1_get_data with "ISLU1") as "[%GTl INV_SLU1]".
           iInv "INV_SLU1" as "SLU1" "INV_SLU1_CLOSE". iEval (simpl; unfold spinlockUse1; red_tl_all) in "SLU1".
           iDestruct "SLU1" as "[%γu SLU1]". iEval (red_tl) in "SLU1".

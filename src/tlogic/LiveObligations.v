@@ -880,13 +880,21 @@ Section ELI.
     match n with
     | O => ⌜False⌝%I
     | S m =>
-        □(∃ (P : Vars v),
-             (prop _ P)
-               ∗
-               ((prop _ P ∗ €)
-                  -∗ (prop _ A)
-                  =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ ◇[k](0, 1)) ∨ (prop _ A ∗ @env_live_inv m x E k v A T) ∨ (prop _ T))))%I
+        □((€) -∗ (prop _ A)
+              =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ ◇[k](0, 1)) ∨ (prop _ A ∗ @env_live_inv m x E k v A T) ∨ (prop _ T)))%I
     end.
+
+  (* Fixpoint env_live_inv (n : nat) (x : nat) E (k : nat) {v} (A T : Vars v) : iProp := *)
+  (*   match n with *)
+  (*   | O => ⌜False⌝%I *)
+  (*   | S m => *)
+  (*       □(∃ (P : Vars v), *)
+  (*            (prop _ P) *)
+  (*              ∗ *)
+  (*              ((prop _ P ∗ €) *)
+  (*                 -∗ (prop _ A) *)
+  (*                 =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ ◇[k](0, 1)) ∨ (prop _ A ∗ @env_live_inv m x E k v A T) ∨ (prop _ T))))%I *)
+  (*   end. *)
 
   Lemma ELI_persistent n x E k v (A T : Vars v) :
     (@env_live_inv n x E k v A T) -∗ □(@env_live_inv n x E k v A T).
@@ -918,17 +926,17 @@ Section ELI.
     (* Inner induction. *)
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
     iIntros "#LO #IH TERM [AP ELI]".
-    iEval (simpl) in "ELI". iPoseProof "ELI" as "(%P & #PP & #ELI)".
+    iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
     iApply ("IH" with "[TERM] AP"). iIntros "FC AP".
     iMod ("ELI" with "[FC] AP") as "[(PA & PCk) | [(PA & ELI2) | PT]]".
-    { iFrame. eauto. }
+    { iFrame. }
     { (* Prove with the inner induction. *)
       iMod (lo_pc_decr with "[PCk]") as "(%o' & #LO' & %LTo)".
       2:{ iSplitR; iFrame. eauto. }
       lia.
       specialize (IHo o' LTo).
       iApply (IHo with "LO' IH TERM [-]"). iFrame. iEval simpl.
-      iModIntro. iExists P. iSplitL; eauto.
+      iModIntro. eauto.
     }
     { (* Prove with the outer induction. *)
       iPoseProof (IHn with "[] IH TERM") as "IHn".
@@ -960,10 +968,10 @@ Section ELI.
     (* Inner induction. *)
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
     iIntros "[CCS PCSn] #IH TERM [AP ELI]".
-    iEval (simpl) in "ELI". iPoseProof "ELI" as "(%P & #PP & #ELI)".
+    iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
     iApply ("IH" with "[CCS PCSn TERM] AP"). iIntros "FC AP".
     iMod ("ELI" with "[FC] AP") as "[(PA & PCk) | [(PA & ELI2) | PT]]".
-    { iFrame. eauto. }
+    { iFrame. }
     { (* Prove with the inner induction. *)
       iMod (ccs_decr with "[CCS PCk]") as "(%o' & CCS & %LTo & PCk)".
       2:{ iSplitR "PCk"; iFrame. }
@@ -971,7 +979,7 @@ Section ELI.
       specialize (IHo o' LTo).
       iMod (IHo with "[CCS PCSn] IH TERM [PA]") as "RES".
       { iFrame. }
-      { iFrame. iEval simpl. iModIntro. iExists P. iSplitL; eauto. }
+      { iFrame. iEval simpl. iModIntro. eauto. }
       iModIntro. iApply ("RES" with "PCk").
     }
     { (* Prove with the outer induction. *)
@@ -988,3 +996,6 @@ Section ELI.
   Qed.
 
 End ELI.
+
+Notation "A '~{' n , x , E , k '}~◇' T" :=
+  (env_live_inv n x E k A T) (at level 50, n, x, E, k, T at level 1, format "A  ~{ n ,  x ,  E ,  k }~◇  T") : bi_scope.
