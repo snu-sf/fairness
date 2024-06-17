@@ -951,4 +951,15 @@ Section SHAREDUTY.
     ur. i. ur. i. unfold _ShareDutyRA_init. ur. split; ss. exists ε. r_solve. ur. ss.
   Qed.
 
+  Lemma Shareduty_black_white n tid l l' :
+    ShareDuty_black (n:=n) inlp tid l ∗ ShareDuty_white (n:=n) inlp tid l'
+      ⊢ ⌜l = l'⌝.
+  Proof.
+    iIntros "[B W]". unfold ShareDuty_black, ShareDuty_white. unfold _ShareDutyRA_black, _ShareDutyRA_white.
+    iCombine "B" "W" as "BW". iPoseProof (OwnM_valid with "BW") as "%BW".
+    setoid_rewrite maps_to_res_dep_add in BW. setoid_rewrite maps_to_res_add in BW.
+    ur in BW. specialize (BW n). setoid_rewrite maps_to_res_dep_eq in BW. ur in BW.
+    specialize (BW (inl tid)). unfold maps_to_res in BW. des_ifs. ur in BW. des. destruct BW. ur in H. des_ifs.
+  Qed.
+
 End SHAREDUTY.

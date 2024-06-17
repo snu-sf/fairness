@@ -211,7 +211,7 @@ Section SPEC.
     iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2.
     iMod "MB" as "[MB PT]".
     iMod ("K" with "[STTGT MB]") as "_".
-    { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
+    { ss. iExists _. red_tl_memra. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
     iApply "SIM". iFrame. auto.
   Qed.
 
@@ -223,13 +223,13 @@ Section SPEC.
     ⊢ ⟦([@ tid, n, E @]
           {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m))) ∗ ⤉(l ↦ v)}
           (map_event emb_mem (SCMem.faa_fun (l, add)))
-          {rv, ⌜rv = v⌝ ∗ (l ↦ (SCMem.val_add rv add))})%F, 1+n⟧.
+          {rv, ⌜rv = v⌝ ∗ (⤉(l ↦ (SCMem.val_add rv add)))})%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
     iApply (SCMem_faa_fun_spec with "[P] [Q]"). 2: eauto. auto.
     red_tl. iDestruct "P" as "[A B]". rewrite red_syn_tgt_interp_as. red_tl_memra. iFrame.
-    iIntros (rv) "A". iApply "Q". red_tl_memra. iFrame.
+    iIntros (rv) "A". iApply "Q". red_tl. red_tl_memra. iFrame.
   Qed.
 
 

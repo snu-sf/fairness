@@ -509,10 +509,6 @@ Section RED.
     ⟦(□ p)%S, n⟧ = (□ ⟦p, n⟧)%I.
   Proof. apply red_sem_intuitionistically. Qed.
 
-  Lemma red_tl_big_sepS n K {H1 : EqDecision K} {H2 : Countable K} I f :
-    ⟦@syn_big_sepS (@Atom.t _ _) n K _ _ I f, n⟧ = ([∗ set] i ∈ I, ⟦f i, n⟧)%I.
-  Proof. apply red_syn_big_sepS. Qed.
-
   Lemma red_tl_big_sepM n A K {EQ : EqDecision K} {CNT : Countable K} I f :
     ⟦@syn_big_sepM _ _ n K _ _ A I f, n⟧ = ([∗ map] i ↦ p ∈ I, ⟦f i p, n⟧)%I.
   Proof. apply red_syn_big_sepM. Qed.
