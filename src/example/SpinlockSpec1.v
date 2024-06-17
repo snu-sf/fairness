@@ -269,7 +269,7 @@ Section SPEC.
 
   Section SPEC1.
 
-    Context {HasOneShots : @GRA.inG (OneShots.t bool) Γ}.
+    Context {HasOneShots : @GRA.inG (OneShots.t unit) Γ}.
     Context {HasAuthExcls2 : @GRA.inG (AuthExcls.t (nat * nat)) Γ}.
 
     Definition spinlockUse1 (n : nat) k (γ γx : nat) (P : sProp n) (l : nat)
@@ -278,7 +278,7 @@ Section SPEC.
            (● γ (γu, u))
             ∗
             (((○ γx 0) ∗ (○ γ (γu, u)) ∗ P)
-             ∨ ((○ γx 1) ∗ (△ γu 1) ∗ (-[u](0)-◇ (▿ γu true)) ∗ (u -(0)-◇ k)))
+             ∨ ((○ γx 1) ∗ (△ γu 1) ∗ (-[u](0)-◇ (▿ γu tt)) ∗ (u -(0)-◇ k)))
       )%S.
 
     (* Namespace for Spinlock invariants. *)
@@ -320,7 +320,7 @@ Section SPEC.
                         (⤉ EX γe tt)
                           ∗ (⤉ P)
                           ∗ (⤉ ○ γ (γu, u))
-                          ∗ (⤉ Duty(tid) ((u, 0, (▿ γu true)) :: ds))
+                          ∗ (⤉ Duty(tid) ((u, 0, (▿ γu tt)) :: ds))
                           ∗ ◇[u](l, 1))%S, 1+n⟧⧽
     .
     Proof.
@@ -335,7 +335,7 @@ Section SPEC.
       set (Q0 := (∃ (γu u : τ{nat, n}),
                        (P)
                        ∗ (○ γ (γu, u))
-                       ∗ (Duty(tid) ((u, 0, (▿ γu true)) :: ds))
+                       ∗ (Duty(tid) ((u, 0, (▿ γu tt)) :: ds))
                        ∗ (◇[u](l, 1)))%S : sProp n).
       iSpecialize ("SPEC" $! ds P0 R0 Q0 1).
       iApply ("SPEC" with "[DUTY PCS PCk] [POST]").
@@ -392,7 +392,7 @@ Section SPEC.
           iPoseProof (pc_split with "PC1") as "[PC1 PC_POST]".
           iMod (pc_mon _ 1 _ 1 _ _ with "PC1") as "PC1". Unshelve.
           2:{ apply layer_drop_eq; auto. }
-          iMod (duty_add _ _ _ _ 0 ((▿ γk1 true)%S : sProp n) with "[DUTY PC1] []") as "DUTY".
+          iMod (duty_add _ _ _ _ 0 ((▿ γk1 tt)%S : sProp n) with "[DUTY PC1] []") as "DUTY".
           { iFrame. }
           { iModIntro. iEval (simpl; red_tl_all). auto. }
           iPoseProof (duty_tpromise with "DUTY") as "#PROM1".
@@ -437,8 +437,8 @@ Section SPEC.
                   ∗ (⤉ EX γe tt)
                   ∗ (⤉ P)
                   ∗ (⤉ ○ γ (γu, u))
-                  ∗ (⤉ Duty(tid) ((u, 0, (▿ γu true)) :: ds))
-                  ∗ ◇{((u, 0, (▿ γu true)) :: ds)@1}(1, 1)
+                  ∗ (⤉ Duty(tid) ((u, 0, (▿ γu tt)) :: ds))
+                  ∗ ◇{((u, 0, (▿ γu tt)) :: ds)@1}(1, 1)
                )%S), 1+n⟧⧽
               (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.unlock x))
               ⧼rv, ⟦((⤉ Duty(tid) ds))%S, 1+n⟧⧽
@@ -451,9 +451,9 @@ Section SPEC.
       iDestruct "PRE" as "(#MEM & #ISL & #ISLU1 & EX & P & TKW & DUTY & PCS)".
 
       set (P0 := (P ∗ (○ γ (γu, u)))%S : sProp n).
-      set (R0 := (P ∗ (○ γ (γu, u)) ∗ (Duty(tid) ((u, 0, (▿ γu true)) :: ds)))%S : sProp n).
+      set (R0 := (P ∗ (○ γ (γu, u)) ∗ (Duty(tid) ((u, 0, (▿ γu tt)) :: ds)))%S : sProp n).
       set (Q0 := (Duty(tid) ds)%S : sProp n).
-      iSpecialize ("SPEC" $! ((u, 0, (▿ γu true)%S) :: ds) P0 R0 Q0).
+      iSpecialize ("SPEC" $! ((u, 0, (▿ γu tt)%S) :: ds) P0 R0 Q0).
       iApply ("SPEC" with "[EX P TKW DUTY PCS] [POST]").
 
       - (* PRE. *)

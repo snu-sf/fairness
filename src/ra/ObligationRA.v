@@ -546,12 +546,13 @@ Module ObligationRA.
 
   End EDGE.
 
+  Variant _unit : Type := _tt.
 
   Section ARROW.
     Variable (S: Type).
     Context `{@GRA.inG t Σ}.
     Context `{@GRA.inG (@FairRA.t S nat _) Σ}.
-    Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+    Context `{@GRA.inG (@FiniteMap.t (OneShot.t _unit)) Σ}.
 
     Local Notation index := nat.
     Context `{Vars : index -> Type}.
@@ -569,7 +570,7 @@ Module ObligationRA.
       fun '(i, k, c, q, x, f) =>
         ((□ (prop _ f -∗ □ (prop _ f)))
            ∗
-           ((OwnM (FiniteMap.singleton x (OneShot.shot tt)) ∗ (prop _ f))
+           ((OwnM (FiniteMap.singleton x (OneShot.shot _tt)) ∗ (prop _ f))
             ∨
               (∃ n, (FairRA.black Prism.id i n q)
                       ∗ white k (Jacobsthal.mult c (Ord.from_nat n)))))%I.
@@ -640,7 +641,7 @@ Module ObligationRA.
       (list_prop_sum (fun '(r, (k, c, q, x, f)) =>
                         ((Regions.white _ r (Prism.review p i, k, c, q, x, f))
                            ∗
-                           (OwnM ((FiniteMap.singleton x (OneShot.pending unit 1%Qp)))))%I) rs)
+                           (OwnM ((FiniteMap.singleton x (OneShot.pending _unit 1%Qp)))))%I) rs)
         ∗
         (⌜(fold_right (fun '(r, (k, c, q0, x, f)) q1 => (q0 + q1)%Qp) q rs = 1%Qp)⌝)
     .
@@ -658,7 +659,7 @@ Module ObligationRA.
         -∗
         (Regions.white _ r (Prism.review p i, k, c, q1, x, f))
         -∗
-        (OwnM ((FiniteMap.singleton x (OneShot.pending unit 1))))
+        (OwnM ((FiniteMap.singleton x (OneShot.pending _unit 1))))
         -∗
         (duty_list i ((r, (k, c, q1, x, f))::tl) q0).
     Proof.
@@ -677,7 +678,7 @@ Module ObligationRA.
       :
       (duty_list i ((r, (k, c, q1, x, f))::tl) q0)
         -∗
-        (Regions.white _ r (Prism.review p i, k, c, q1, x, f) ∗ OwnM ((FiniteMap.singleton x (OneShot.pending unit 1))) ∗ duty_list i tl (q0 + q1)%Qp).
+        (Regions.white _ r (Prism.review p i, k, c, q1, x, f) ∗ OwnM ((FiniteMap.singleton x (OneShot.pending _unit 1))) ∗ duty_list i tl (q0 + q1)%Qp).
     Proof.
       iIntros "[DUTY %]". ss.
       iPoseProof "DUTY" as "[[WHITE OWN] DUTY]". iFrame.
@@ -843,7 +844,7 @@ Module ObligationRA.
       iIntros "[% [% [BLACK [DUTY %]]]] SHOT #PERS".
       iPoseProof (FairRA.black_ex_split with "[BLACK]") as "[BLACK0 [% BLACK1]]".
       { rewrite Qp.div_2. iFrame. }
-      iPoseProof (@OwnM_ura_unit (@FiniteMap.t (OneShot.t unit))) as "H".
+      iPoseProof (@OwnM_ura_unit (@FiniteMap.t (OneShot.t _unit))) as "H".
       iPoseProof (OwnM_Upd_set with "H") as "> [% [% OWN]]".
       { eapply FiniteMap.singleton_alloc. eapply OneShot.pending_one_wf. }
       ss. des. subst.
@@ -1027,7 +1028,7 @@ Module ObligationRA.
       :
       (P)
         -∗
-        (P ∧ (∀ r k c q x f (IN: List.In (r, (k, c, q, x, f)) rs), OwnM ((FiniteMap.singleton x (OneShot.pending unit 1))))).
+        (P ∧ (∀ r k c q x f (IN: List.In (r, (k, c, q, x, f)) rs), OwnM ((FiniteMap.singleton x (OneShot.pending _unit 1))))).
     Proof.
       revert P q IMPL. induction rs.
       { i. iIntros "H". iSplit; ss. iIntros. ss. }
@@ -1068,7 +1069,7 @@ Module ObligationRA.
         { iApply "WHITES1". eauto. }
         clarify.
       }
-      iAssert (P ∧ ((∀ r k c q x f (IN0: List.In (r, (k, c, q, x, f)) rs0), OwnM ((FiniteMap.singleton x (OneShot.pending unit 1)))) ∗ (∀ r k c q x f (IN: List.In (r, (k, c, q, x, f)) rs1), OwnM ((FiniteMap.singleton x (OneShot.pending unit 1))))))%I with "[DUTY]" as "DUTY".
+      iAssert (P ∧ ((∀ r k c q x f (IN0: List.In (r, (k, c, q, x, f)) rs0), OwnM ((FiniteMap.singleton x (OneShot.pending _unit 1)))) ∗ (∀ r k c q x f (IN: List.In (r, (k, c, q, x, f)) rs1), OwnM ((FiniteMap.singleton x (OneShot.pending _unit 1))))))%I with "[DUTY]" as "DUTY".
       { iSplit; [auto|]. iPoseProof (IMPL with "DUTY") as "[DUTY0 DUTY1]".
         iSplitL "DUTY0".
         { iPoseProof (duty_list_pending with "DUTY0") as "[_ DUTY0]"; eauto. }
@@ -1118,7 +1119,7 @@ Module ObligationRA.
         iPoseProof (Regions.white_agree with "[] WHITE") as "%".
         { iApply "WHITES". iPureIntro. ss. eauto. }
         clarify. iPoseProof ("WHITES" $! _ _ _ _ _ _ (or_intror IN)) as "# WHITE1".
-        iAssert (OwnM (FiniteMap.singleton n1 (OneShot.pending unit 1))) with "[DUTY]" as "OWN1".
+        iAssert (OwnM (FiniteMap.singleton n1 (OneShot.pending _unit 1))) with "[DUTY]" as "OWN1".
         { iClear "WHITE1 WHITES". clear IHrs H3 IMPL.
           iStopProof. generalize (q + q0)%Qp. revert IN. induction rs; ss.
           { i. destruct a0 as [? [[[[? ?] ?] ?] ?]].
@@ -1563,7 +1564,7 @@ Module ObligationRA.
     Variable (S: Type).
     Context `{@GRA.inG t Σ}.
     Context `{@GRA.inG (FairRA.tgtt S) Σ}.
-    Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+    Context `{@GRA.inG (@FiniteMap.t (OneShot.t _unit)) Σ}.
     (* Context `{@GRA.inG (Region.t ((sum_tid S) * nat * Ord.t * Qp * nat)) Σ}. *)
 
     Local Notation index := nat.
@@ -1616,7 +1617,7 @@ Module ObligationRA.
     Context `{Σ: GRA.t}.
     Context `{@GRA.inG t Σ}.
     Context `{@GRA.inG (@FairRA.tgtt S) Σ}.
-    Context `{@GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+    Context `{@GRA.inG (@FiniteMap.t (OneShot.t _unit)) Σ}.
     (* Context `{@GRA.inG (Region.t (Id * nat * Ord.t * Qp * nat)) Σ}. *)
 
     Local Notation index := nat.

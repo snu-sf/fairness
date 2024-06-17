@@ -334,7 +334,7 @@ Section ATOMINTERP.
     | obl_arrows_auth x => ObligationRA.arrows_auth x
     | obl_arrows_regions_black l => Regions.black n l
     | obl_arrow_done x =>
-        OwnM (FiniteMap.singleton x (OneShot.shot ()): ArrowShotRA)
+        OwnM (FiniteMap.singleton x (OneShot.shot ObligationRA._tt): ArrowShotRA)
     | obl_arrow_pend i k c q =>
         (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
     (** Atoms for liveness logic definitions. *)
