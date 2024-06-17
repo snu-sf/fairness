@@ -205,7 +205,7 @@ Section SPEC.
                         ∗ ◇[u](l, 1))%S, 2+i⟧⧽
   .
   Proof.
-    (* iIntros. iStartTriple. iIntros "PRE POST". unfold TicketLock.lock.
+    iIntros. iStartTriple. iIntros "PRE POST". unfold TicketLock.lock.
     iApply wpsim_discard. apply IN.
     unfold isTicketLock. iEval (red_tl_all; simpl; rewrite red_syn_tgt_interp_as) in "PRE".
     iEval (red_tl_all; simpl) in "PRE".
@@ -785,8 +785,7 @@ Section SPEC.
     iModIntro. rred2r.
     iMod ("IH" with "PC_W") as "IH". iApply ("IH" with "SDUTY_B POST ISSUED").
   Unshelve. all: auto.
-  Qed. *)
-  Admitted.
+  Qed.
 
   Lemma TicketLock_unlock_spec
         tid i
@@ -911,18 +910,39 @@ Section SPEC.
     (* CASE 2 : SOMEONE WAITING *)
     iPoseProof (Ticket_black_issued with "[TCK_B TISSUED]") as "%HOIND". iFrame.
     apply HD in HOIND.
-    assert (D = ((D ∖ {[o + 1]}) ∪ {[o + 1]})).
-    { set_unfold. split; ii. destruct (Nat.eq_dec x (o + 1)); auto. des; clarify; auto. apply HD. lia. }
+    assert (D = list_to_set (seq 0 o) ∪ {[o]} ∪ {[1+o]} ∪ list_to_set (seq (2 + o) (n - (2 + o)))).
+    { set_unfold. split; ii.
+      { apply HD in H. destruct (lt_dec x o).
+        { left. left. left. apply elem_of_list_In. apply in_seq. lia. }
+        { destruct (lt_dec x (1+o)).
+          { left. left. right. lia. }
+          destruct (lt_dec x (2+o)). left; right; auto. lia.
+          right. apply elem_of_list_In. apply in_seq. lia.
+        }
+      }
+      apply HD. destruct H.
+      { destruct H. destruct H. apply elem_of_list_In in H. apply in_seq in H. lia. lia. lia. }
+      apply elem_of_list_In in H. apply in_seq in H. lia.
+    }
+    (* assert (D = ((D ∖ {[o + 1]}) ∪ {[o + 1]})). *)
+    (* { set_unfold. split; ii. destruct (Nat.eq_dec x (o + 1)); auto. des; clarify; auto. apply HD. lia. } *)
     iEval (setoid_rewrite H) in "HWAIT".
     iEval (rewrite red_tl_big_sepS; red_tl; simpl) in "HWAIT".
-    rewrite big_opS_union; cycle 1. set_solver.
-    iDestruct "HWAIT" as "[HWAIT HO1]".
-    iEval (rewrite big_sepS_singleton; red_tl_all; simpl) in "HO1".
-    iDestruct "HO1" as "[[%HO1 _]| [%HO1 | (_ & %tid''' & HO1)]]"; [ lia | lia | ].
-    iEval (red_tl; simpl) in "HO1". iDestruct "HO1" as (obl''') "HO1".
-    iEval (red_tl; simpl) in "HO1". iDestruct "HO1" as (ds''') "HO1".
-    iEval (red_tl_all; simpl) in "HO1". iDestruct "HO1" as "(DUTY_O & SDUTY_W_O & WAIT_O & PENDING_O & PC_O & #PRM_O)".
-    replace (o + 1 - o) with 1 by lia.
+    rewrite ! big_opS_union; cycle 1.
+    { set_unfold. ii. apply elem_of_list_In in H0. apply in_seq in H0. lia. }
+    { set_unfold. ii. destruct H0. apply elem_of_list_In in H0. apply in_seq in H0. lia. lia. }
+    { set_unfold. ii. destruct H0. destruct H0. apply elem_of_list_In in H0, H1. apply in_seq in H0, H1. lia.
+      apply elem_of_list_In in H1; apply in_seq in H1; lia. 
+      clarify. apply elem_of_list_In in H1. apply in_seq in H1. lia. }
+    iDestruct "HWAIT" as "[[[HW1 HW2] HW3] HW4]".
+    iEval (rewrite big_sepS_singleton; red_tl_all; simpl) in "HW2".
+    iEval (rewrite big_sepS_singleton; red_tl_all; simpl) in "HW3".
+    iDestruct "HW2" as "[[%HW2 _]| [%HW2 | (%H' & %tid''' & HW2)]]"; [lia | | lia].
+    iDestruct "HW3" as "[[%HW3 _]| [%HW3 | (%H' & %tid''' & HW3)]]"; [lia | lia | ].
+    iEval (red_tl; simpl) in "HW3". iDestruct "HW3" as (obl''') "HW3".
+    iEval (red_tl; simpl) in "HW3". iDestruct "HW3" as (ds''') "HW3".
+    iEval (red_tl_all; simpl) in "HW3". iDestruct "HW3" as "(DUTY_O & SDUTY_W_O & WAIT_O & PENDING_O & PC_O & #PRM_O)".
+    replace (S o - o) with 1 by lia.
     (* ALLOC OBLIGATION FOR THE NEXT WINNER *)
     iMod (alloc_obligation l 5) as "(%obl_n & #OBL_n & PC_n)".
     iPoseProof (pc_split _ _ 1 _ with "[PC_n]") as "[PC_n1 PC_n]". simpl. done.
@@ -934,121 +954,82 @@ Section SPEC.
     iMod "PC_n1".
     iMod (duty_add (v:=i) with "[DUTY_O PC_n1] []") as "DUTY_O". iFrame.
     { instantiate (1:=(s_shots_shot sr (o+1))). simpl. iModIntro. red_tl_all. iIntros "#SHOT". iModIntro. done. }
-    
-    iAssert (([∗ set] y ∈ (D ∖ {[o + 1]} ∖ {[o]}),
-              ⌜y < o + 1⌝ ∗ (∃ tid obl, Ticket_issued r y tid obl)
-              ∨ ⌜y > o + 1⌝
-                ∗ (∃ tid obl ds, Duty(tid) ds
-                  ∗ ShareDuty_white inlp tid ds
-                  ∗ Ticket_wait r y tid obl
-                  ∗ Shots_pending sr y
-                  ∗ ◇[obl](S l, y - (o + 1))))
-              ∗ [∗ set] y ∈ (D ∖ {[o + 1]} ∖ {[o]}),
-                ⌜y > o + 1⌝ -∗ ∃ obl, #=( ObligationRA.edges_sat )=> obl_n -(0)-◇ obl)%I
-                with "[HWAIT]" as "[HWAIT HPCS]".
-    { assert (D ∖ {[o + 1]} = D ∖ {[o + 1]} ∖ {[o]} ∪ {[o]}).
-      { assert (o ∈ D ∖ {[o + 1]}). set_unfold. split. apply HD; lia. lia.
-        set_unfold. split; ii.
-        { destruct (Nat.eq_dec x o); [right | left]; auto. } des; clarify.
-      }
-      iEval (setoid_rewrite H0) in "HWAIT". rewrite ! big_opS_union; cycle 1. set_solver.
-      iDestruct "HWAIT" as "[HWAIT _]".
-      iApply (big_sepS_sep). iApply (big_sepS_impl with "[HWAIT]"); iFrame. iModIntro. iIntros (x) "%XIN H".
+    iAssert ([∗ set] y ∈ (list_to_set (seq (2+o) (n - (2+o)))),
+              #=( ObligationRA.edges_sat )=>  
+                (⌜y > o + 1⌝
+                  ∗ (∃ tid obl ds, Duty(tid) ds
+                    ∗ ShareDuty_white inlp tid ds
+                    ∗ Ticket_wait r y tid obl
+                    ∗ Shots_pending sr y
+                    ∗ ◇[obl](S l, y - (o + 1))
+                    ∗ obl_n -(0)-◇ obl)))%I with "[HW4]" as "HW4".
+              (* ∗
+              [∗ set] y ∈ (list_to_set (seq (2+o) (n - (2+o)))),
+                   ∃ obl, )%I
+                with "[HW4]" as "[HW4 HW4']". *)
+    { 
+      iApply (big_sepS_impl with "[HW4]"); iFrame. iModIntro. iIntros (x) "%XIN H".
       red_tl. iDestruct "H" as "[[%HLT HI] | [%HEQ | [%HGT HWAIT]]]".
-      { iSplitL. iLeft. iSplit; auto. iPureIntro; lia. iDestruct "HI" as (?) "HI". red_tl.
-        iDestruct "HI" as (?) "HI". red_tl_all. iExists x0, x1. done. iIntros "%HC". lia.
-      }
-      { subst. set_unfold in XIN. des; lia. }
+      { set_unfold in XIN. apply elem_of_list_In in XIN. apply in_seq in XIN. lia. }
+      { subst. set_unfold in XIN. apply elem_of_list_In in XIN. apply in_seq in XIN. lia. }
       iDestruct "HWAIT" as (tid_w) "HWAIT". red_tl. iDestruct "HWAIT" as (obl_w) "HWAIT". red_tl.
       iDestruct "HWAIT" as (ds_w) "HWAIT". red_tl_all; simpl.
       iDestruct "HWAIT" as "(DUTY_W & SDUTY_W_W & WAIT_W & PENDING_W & PC_W & LINK_W)".
       iPoseProof (pc_split _ _ 1 _ with "[PC_W]") as "[PC_W1 PC_W2]".
       { replace (x - o) with (1 + (x - (o + 1))) by lia. done. }
-      iSplitR "PC_W1".
-      { iRight. iSplit; auto. iPureIntro. enough (x <> (o + 1)) by lia. set_solver.
-        iExists tid_w. red_tl. iExists obl_w. red_tl. iExists ds_w. red_tl_all; simpl. iFrame. }
-      { iIntros; iExists obl_w. iPoseProof (link_new with "[PC_W1]") as "[LINK _]".
-        iSplit. iApply "OBL_n". instantiate (1:=0). simpl. iApply "PC_W1". done.
+      iSplitR.
+      { iModIntro; iPureIntro. set_unfold in XIN; apply elem_of_list_In in XIN; apply in_seq in XIN. lia. }
+      { iPoseProof (link_new with "[PC_W1]") as "[LINK _]".
+        iSplit. iApply "OBL_n". instantiate (1:=0). done. iMod "LINK". iModIntro.
+        iExists tid_w, obl_w, ds_w. iFrame.
       }
     }
-    
-    induction D as [|x D Hx IH] using set_ind_L. { specialize (HD o). apply HD in HOIND. set_solver. }
-
-    iAssert (#=> (prop (S i) (tklockInv i r sr lo' ln' P l)))%I
-      with "[P LNPT TCK_B OTCK_BASE LOCKED_O HWAIT HPCS PC_n LOPT TISSUED DUTY_O SDUTY_W_O WAIT_O PENDING_O]" as "CLOSE".
+    iMod (big_sepS_bupd with "HW4") as "HW4".
+    iMod ("TI_CLOSE"
+      with "[P LNPT TCK_B OTCK_BASE LOCKED_O PC_n HW1 HW4 LOPT TISSUED DUTY_O SDUTY_W_O WAIT_O PENDING_O]") as "_".
     { simpl. iEval (unfold tklockInv; simpl; red_tl; simpl). iExists (o + 1).
       iEval (red_tl; simpl). iExists n. iEval (red_tl; simpl). iExists obl_n.
       iEval (red_tl; simpl). iExists D. iEval (red_tl_all; simpl).
-      iFrame. iSplitR. iModIntro; auto. iSplitR "TISSUED HWAIT HPCS".
-      { iModIntro. iLeft. iFrame. iRight. iSplit. iPureIntro; lia.
+      iSplitL "LOPT"; auto. iSplitL "LNPT"; auto. iSplitL "TCK_B"; auto. iSplitL "OTCK_BASE"; auto.
+      iSplitR; auto.
+      iSplitR "TISSUED HW1 HW4".
+      { iLeft. iFrame. iRight. iSplit. iPureIntro; lia.
         iExists tid'''. red_tl. iExists obl'''. red_tl. iExists ds'''.
-        red_tl; simpl; iFrame. red_tl_all. iFrame. done.
+        red_tl; simpl; iFrame. red_tl_all. iFrame. do 2 replace (o + 1) with (S o) by lia. iFrame. done.
       }
       rewrite ! red_tl_big_sepS.
-      assert (D = D ∖ {[o + 1]} ∖ {[o]} ∪ {[o + 1]} ∪ {[o]}).
-      { assert (o + 1 ∈ D) by (apply HD; lia). assert (o ∈ D) by (apply HD; lia). set_unfold. split; ii.
-        destruct (Nat.eq_dec x o); [right | left]; auto. destruct (Nat.eq_dec x (o + 1)); [right | left]; auto.
-         des; clarify; auto.
+      rewrite H. rewrite ! big_opS_union; cycle 1.
+      { set_unfold. ii. apply elem_of_list_In in H0. apply in_seq in H0. lia. }
+      { set_unfold. ii. destruct H0. apply elem_of_list_In in H0. apply in_seq in H0. lia. lia. }
+      { set_unfold. ii. destruct H0. destruct H0. apply elem_of_list_In in H0, H1. apply in_seq in H0, H1. lia.
+        apply elem_of_list_In in H1; apply in_seq in H1; lia. 
+        clarify. apply elem_of_list_In in H1. apply in_seq in H1. lia. }
+      iSplitR "HW4".
+      { iSplitL. iSplitL "HW1". iApply (big_sepS_impl with "HW1"). iModIntro. iIntros (x) "%XIN H".
+        red_tl. iDestruct "H" as "[[%HLT HI] | [%HEQ | [%HGT HWAIT]]]".
+        { iDestruct "HI" as (tid_x) "HI". red_tl. iDestruct "HI" as (obl_x) "HI". iLeft. iSplit; auto. iPureIntro; lia.
+          iExists tid_x. red_tl_all. iExists obl_x; red_tl_all. done.
+        }
+        { subst. set_unfold in XIN. apply elem_of_list_In in XIN. apply in_seq in XIN. lia. }
+        { set_unfold in XIN. apply elem_of_list_In in XIN. apply in_seq in XIN. lia. }
+        { rewrite big_sepS_singleton. red_tl_all. iLeft. iSplit; auto. iPureIntro; lia.
+          iExists tid''; red_tl; iExists obl''; red_tl_all; done.
+        }
+        rewrite big_sepS_singleton. red_tl_all. iRight; iLeft; iPureIntro; lia.
       }
-      iEval (setoid_rewrite H0). rewrite ! big_opS_union; cycle 1. set_solver. set_unfold. ii. clarify. des; lia.
-      iSplitR "TISSUED"; cycle 1.
-      { rewrite big_sepS_singleton. red_tl_all. iLeft. iModIntro. iSplit. iPureIntro; lia.
-        iExists tid''. red_tl. iExists obl''. red_tl_all; auto.
-      }
-      iSplitL; cycle 1.
-      { rewrite big_sepS_singleton. red_tl_all. iRight. iLeft. iPureIntro; lia. }
-      iCombine "HWAIT" "HPCS" as "HWAIT".
-      iPoseProof (big_sepS_sep with "HWAIT") as "HWAIT".
-      (* assert (D ∖ {[o + 1]} = D ∖ {[o + 1]} ∖ {[o]} ∪ {[o]}).
-      { assert (o ∈ D ∖ {[o + 1]}). set_unfold. split. apply HD; lia. lia.
-        set_unfold. split; ii.
-        { destruct (Nat.eq_dec x o); [right | left]; auto. } des; clarify. }
-      iEval (setoid_rewrite H1) in "HWAIT". rewrite ! big_opS_union; cycle 1. set_solver.
-      iDestruct "HWAIT" as "[HWAIT HO]". *)
-      iApply (big_sepS_impl with "[HWAIT]"); iFrame.
-      (* iMod "HPCS" as "#HPCS". *)
-      do 2 iModIntro. iIntros (x) "%XIN PRE".
-      red_tl_all. iDestruct "PRE" as "[[[%HLT HI] | [%HGT HWAIT]] LINKS]".
-      { iLeft. iSplit; auto. iDestruct "HI" as (? ?) "HI". iExists tid0. red_tl. iExists obl. red_tl_all; iFrame. }
-      (* { subst; set_solver. } *)
-      iDestruct "HWAIT" as (tid_w) "HWAIT". red_tl. iDestruct "HWAIT" as (obl_w) "HWAIT". red_tl.
-      iDestruct "HWAIT" as (ds_w) "HWAIT". red_tl_all; simpl.
-      iDestruct "HWAIT" as "(DUTY_W & SDUTY_W_W & WAIT_W & PENDING_W & PC_W)".
-      iPoseProof ("LINKS" with "[]") as "LINKS". iPureIntro; auto. iDestruct "LINKS" as (obl) "LINK".
-      unfold ObligationRA.edges_sat, Region.sat.
-      iRight. iRight. iSplit; auto.
-      { iPureIntro. enough (x <> (o + 1)) by lia. set_solver. }
-      iExists tid_w. red_tl. iExists obl_w. red_tl. iExists ds_w. red_tl_all; simpl. iFrame.
-
-      admit.
+      (* iPoseProof (big_sepS_sep with "HW4") as "HW4". iFrame. *)
+      iApply (big_sepS_impl with "HW4"). iModIntro. iIntros (x) "%XIN H".
+      iDestruct "H" as "(%HXO & %tid_x & %obl_x & %ds_x & DUTY & SDUTY_W & WAIT & PENDING & PC)".
+      red_tl_all. iRight; iRight. iSplit; [iPureIntro; auto | ].
+      iExists tid_x; red_tl; iExists obl_x; red_tl; iExists ds_x; red_tl_all; iFrame.
     }
     iPoseProof (pcs_cons_unfold with "PCS") as "[PC PCS]". simpl.
     iApply (wpsim_yieldR2 with "[DUTY PCS]").
     instantiate (1:=i); auto. instantiate (1:=1); auto. iFrame.
     iIntros "DUTY CRED3 PCS". rred2r. iApply wpsim_tauR. rred2r.
     iApply ("POST" with "[DUTY]"). simpl. red_tl; simpl. done.
-  Admitted.
-
-
-
-      iDestruct "HWAIT" as "[HWAIT HO]". iSplitL "HWAIT".
-      { iPoseProof (big_sepS_impl with "HWAIT") as "IMPL".
-        iApply "IMPL". iModIntro. iIntros (x) "%HIN HWAIT". red_tl_all.
-        iDestruct "HWAIT" as "[[%LT ISSUED] | HWAIT]".
-        { iLeft; iFrame. iPureIntro; lia. }
-        iDestruct "HWAIT" as "[%EQ | [%HGT HWAIT]]".
-        { subst. set_solver. }
-        enough (x < o). lia.
-        set_unfold in HIN. des. apply HD in HIN. lia.
-      }
-      rewrite ! big_sepS_singleton. red_tl_all. iLeft. iSplitR "TISSUED". iPureIntro; lia.
-      iExists tid''. red_tl. iExists obl''. red_tl_all. done.
-    }
-
-
-
-    
-
-
+  Unshelve. all: auto.
+  Qed.
+      
 End SPEC.
 Global Opaque TicketLock.lock TicketLock.unlock.
