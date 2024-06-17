@@ -4,11 +4,12 @@ COQTHEORIES  := \
 	src/lib/*.v \
 	src/semantics/*.v \
 	src/simulation/*.v \
+	src/scheduler_example/*.v \
 	src/ra/*.v \
-	src/foslogic/*.v \
-	src/fosexample/*.v \
 	src/tlogic/*.v \
 	src/example/*.v \
+	src/iris_algebra/*.v \
+	src/iris_algebra/lib/*.v \
 
 .PHONY: all theories clean
 
@@ -21,15 +22,16 @@ quick: Makefile.coq
 	$(MAKE) -f Makefile.coq vio
 
 Makefile.coq: Makefile $(COQTHEORIES)
-	(echo "-Q src/lib $(COQMODULE)"; \
+	(echo "-arg -w -arg -ambiguous-paths"; \
+	 echo "-Q src/lib $(COQMODULE)"; \
 	 echo "-Q src/semantics $(COQMODULE)"; \
 	 echo "-Q src/simulation $(COQMODULE)"; \
+	 echo "-Q src/scheduler_example $(COQMODULE)"; \
 	 echo "-Q src/ra $(COQMODULE)"; \
-	 echo "-Q src/foslogic $(COQMODULE)"; \
-	 echo "-Q src/fosexample $(COQMODULE)"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
+	 echo "-Q src/iris_algebra $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq

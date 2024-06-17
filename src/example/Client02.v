@@ -5,7 +5,9 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic TemporalLogicFull SCMemSpec Spinlock.
+From Fairness Require Import TemporalLogic SCMemSpec Spinlock.
+
+TODO
 
 Module Client02.
 
