@@ -9,7 +9,7 @@ Require Import Lia.
 Require Import Program.
 From stdpp Require coPset gmap.
 From Fairness Require Import Axioms.
-From Fairness Require Import cmra excl.
+From Fairness Require Import cmra excl updates.
 
 Set Implicit Arguments.
 
@@ -167,6 +167,37 @@ Module RA.
     Qed.
     Canonical Structure fosraR := discreteR car fos_ra_mixin.
   End fos_ra_to_cmra.
+
+  Lemma ra_cmra_extends_iff (M : cmra) a b :
+    (a ≼ b)%ia <-> @extends (cmra_ra M) a b.
+  Proof.
+    split; intros EXT.
+    all: by rr; rr in EXT; des; eexists; subst.
+  Qed.
+
+  Lemma ra_cmra_updatable_iff (M: cmra) a b :
+    (a ~~> b)%ia <-> @updatable (cmra_ra M) a b.
+  Proof.
+    split; intros UPD.
+    - rr. rr in UPD. split.
+      + intros V. apply (UPD None V).
+      + intros ctx V. apply (UPD (Some ctx) V).
+    - rr. rr in UPD. des. intros [mz|] V.
+      + apply UPD0,V.
+      + apply UPD,V.
+  Qed.
+
+  Lemma ra_cmra_updatable_set_iff (M: cmra) a P :
+    (a ~~>: P)%ia <-> @updatable_set (cmra_ra M) a P.
+  Proof.
+    split; intros UPD.
+    - rr. rr in UPD. split.
+      + intros V. apply (UPD None V).
+      + intros ctx V. apply (UPD (Some ctx) V).
+    - rr. rr in UPD. des. intros [mz|] V.
+      + apply UPD0,V.
+      + apply UPD,V.
+  Qed.
 
   Definition prod (M0 M1 : t) : t := cmra_ra (prodR (fosraR M0) (fosraR M1)).
 
@@ -747,31 +778,82 @@ Let add `{M: RA.t}: car -> car -> car :=
     | unit, _ => b
     | _, unit => a
     end.
+Let core `{M: RA.t}: car -> car :=
+  fun a =>
+    match a with
+    | just a =>
+      match (RA.pcore a) with
+      | Some x => just x
+      | _ => unit
+      end
+    | _ => a
+    end.
 
 Program Instance t (RA: RA.t): URA.t := {
   car := car;
   unit := of_RA.unit;
   _wf := wf;
   _add := add;
-  core := fun _ => unit;
+  core := core;
 }.
 Next Obligation. unfold add. des_ifs. { rewrite RA.add_comm; ss. } Qed.
 Next Obligation. unfold add. des_ifs. { rewrite RA.add_assoc; ss. } Qed.
 Next Obligation. unfold add. des_ifs. Qed.
 Next Obligation. unfold add in *. des_ifs. eapply RA.wf_mon; eauto. Qed.
-Next Obligation. exists unit. ss. Qed.
+Next Obligation. unfold add,core in *. des_ifs. f_equal. by apply RA.pcore_id. Qed.
+Next Obligation.
+  unfold core. des_ifs.
+  - f_equal. apply RA.pcore_idem in Heq1. rewrite Heq1 in Heq0. injection Heq0. done.
+  - apply RA.pcore_idem in Heq1. clarify. Qed.
+Next Obligation.
+  unfold core,add. des_ifs; try by (eexists; ss).
+  - apply (RA.pcore_mono x1 x2) in Heq2.
+    des. exists (just c0). subst. clarify.
+  - exists unit. done.
+  - apply (RA.pcore_mono x1 x2) in Heq2. des. clarify.
+Qed.
 
-Theorem ra_updatable (RA : RA.t)
-(a a': RA.car (t := RA))
-(UPD_RA: RA.updatable a a')
-:
-  <<UPD: @URA.updatable (t RA) (just a) (just a')>>
+Lemma ra_pcore (RA : RA.t) (a : RA.car (t := RA)) :
+  URA.core (just a) = match (RA.pcore a) with | Some x => just x | None => unit end.
+Proof. ss. Qed.
+
+Theorem ra_updatable_iff (RA : RA.t)
+  (a a': RA.car (t := RA))
+  :
+  RA.updatable a a' <-> URA.updatable (just a) (just a')
 .
 Proof.
-ii. unfold URA.wf, URA.add in *. unseal "ra".
-ss. unfold wf in *. des_ifs.
-- by apply UPD_RA.
-- rr in UPD_RA. des. ss. by apply UPD_RA.
+  split.
+  - intros UPD_RA. ii. des. unfold URA.wf, URA.add in *. unseal "ra".
+    ss. unfold wf in *. des_ifs.
+    + by apply UPD_RA.
+    + rr in UPD_RA. des. by apply UPD_RA.
+  - intros UPD_URA. unfold RA.updatable. unfold URA.updatable,URA.wf,URA.add in *. unseal "ra". ss. split.
+    + ii. specialize (UPD_URA unit). ss. apply UPD_URA; eauto.
+    + ii. specialize (UPD_URA (just ctx)). ss. apply UPD_URA; eauto.
+Qed.
+
+Theorem ra_updatable_set (RA : RA.t)
+  (a : RA.car (t := RA)) B
+  (RA_UPD: RA.updatable_set a B)
+  :
+  URA.updatable_set (just a) (fun x => match x with | just x => B x | unit => True end).
+Proof.
+  ii. rr in RA_UPD. des. rr in WF. unseal "ra". ss. rr in WF. unseal "ra". ss. destruct ctx as [ctx|].
+  - specialize (RA_UPD0 ctx WF). des. exists (just b). split; ss.
+    rr. unseal "ra". ss. rr. unseal "ra". ss.
+  - specialize (RA_UPD WF). des. exists unit. split; ss.
+    rr. unseal "ra". ss. rr. unseal "ra". ss.
+Qed.
+
+Lemma ra_extends (RA : RA.t)
+  (a b: RA.car (t := RA))
+  (EXT_RA : RA.extends a b)
+  :
+  << EXT_URA : URA.extends (just a) (just b) >>.
+Proof.
+  rr. rr in EXT_RA. des. exists (just ctx).
+  rewrite URA.unfold_add. ss. subst. done.
 Qed.
 
 End of_RA.
