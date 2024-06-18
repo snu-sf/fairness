@@ -77,6 +77,7 @@ Section SPEC.
   Context {src_ident : Type}.
   Context {Client : Mod.t}.
   Context {gvs : list nat}.
+  Context (treiberN : namespace).
   Notation tgt_state := (OMod.closed_state Client (SCMem.mod gvs)).
   Notation tgt_ident := (OMod.closed_ident Client (SCMem.mod gvs)).
 
@@ -88,32 +89,36 @@ Section SPEC.
   Context {HasMEMRA: @GRA.inG memRA Γ}.
   Context {HasAuthExclAnys : @GRA.inG AuthExclAnysRA Γ}.
 
-  Definition TreiberStackInv (n : nat) (s : SCMem.val) (γs : nat) : sProp n := (⌜True⌝)%S.
+  Definition to_val (lopt : option SCMem.pointer) : SCMem.val :=
+    match lopt with
+    | None => SCMem.val_null
+    | Some l => SCMem.val_ptr l
+    end.
 
-  Definition TreiberStack (n : nat) (γs : nat) (L : list SCMem.val) : sProp n := (⌜True⌝)%S.
+  Fixpoint phys_list n (l : option SCMem.pointer) (L : list SCMem.val) : sProp n := (
+    match (l,L) with
+    | (None, []) => emp
+    | (None, _ :: _) => ⌜False⌝
+    | (Some _, []) => ⌜False⌝
+    | (Some l, v::tL) => ∃ (r : τ{option SCMem.pointer}), (l ↦∗□ [(to_val r); v]) ∗ (phys_list n r tL)
+    end
+  )%S.
 
-  (* Namespace for Spinlock invariants. *)
-  Definition N_Treiber : namespace := (nroot .@ "Treiber").
+  Definition TreiberStackInv (n : nat) (s : SCMem.val) (γs : nat) : sProp n := (
+    ∃ (h : τ{option SCMem.pointer}) (L : τ{list SCMem.val}),
+      s ↦ (to_val h) ∗ ● γs (L : list SCMem.val) ∗
+      phys_list n h L
+  )%S.
 
-  Definition IsTreiber n s γs : sProp n := (∃ (N : τ{namespace, n}),
-        (⌜(↑N ⊆ (↑N_Treiber : coPset))⌝) ∗
-          syn_inv n N (TreiberStackInv n s γs))%S.
+  Definition IsTreiber n s γs : sProp n := (
+    syn_inv n treiberN (TreiberStackInv n s γs)
+  )%S.
 
   Global Instance IsTreiber_persistent n s γs:
     Persistent (⟦ IsTreiber n s γs, n⟧).
-  Proof.
-    unfold Persistent. iIntros "H". unfold IsTreiber. red_tl.
-    iDestruct "H" as "[%N H]". iExists N. red_tl. rewrite red_syn_inv.
-    iDestruct "H" as "#H". auto.
-  Qed.
+  Proof. unfold Persistent,IsTreiber. rewrite red_syn_inv. by iIntros "#?". Qed.
 
-  Definition mask_has_Treiber (E : coPset) :=
-    (↑N_Treiber) ⊆ E.
-
-  Lemma mask_disjoint_Treiber_state_tgt : ↑N_Treiber ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
-
-  Lemma Treiber_push_spec n (Q : SCMem.val → sProp n) (P : sProp n) tid (E : coPset) (MASK_Treiber : (↑N_Treiber) ⊆ E) :
+  Lemma Treiber_push_spec {n} (E : coPset) (Q : SCMem.val → sProp n) (P : sProp n) tid (SUBSET : (↑treiberN) ⊆ E) :
     ∀ s γs val L (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, n, E @]
           ⧼⟦(
@@ -142,8 +147,8 @@ Section SPEC.
                     (⤉ (● γs (S' : list SCMem.val) ∗ Q (ov : option SCMem.val) ∗ ⌜ov = hd_error S⌝)))
 *)
   Lemma Treiber_pop_spec
-        n (Q : (option SCMem.val) → sProp n) (P : sProp n) tid
-        (E : coPset) (MASK_Treiber : (↑N_Treiber) ⊆ E) :
+        {n} (E : coPset) (Q : (option SCMem.val) → sProp n) (P : sProp n) tid
+        (SUBSET : (↑treiberN) ⊆ E) :
     ∀ s γs L (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, n, E @]
           ⧼⟦(
