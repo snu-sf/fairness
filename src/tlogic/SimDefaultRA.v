@@ -82,7 +82,7 @@ Section INVARIANT.
   Definition identTgtRA: URA.t := FairRA.tgtt ident_tgt.
   Definition ThreadRA: URA.t := Auth.t (NatMapRALarge.t unit).
   Definition EdgeRA: URA.t := Region.t (nat * nat * Ord.t).
-  Definition ArrowShotRA: URA.t := @FiniteMap.t (OneShot.t unit).
+  Definition ArrowShotRA: URA.t := @FiniteMap.t (OneShot.t ObligationRA._unit).
 
   Local Notation index := nat.
   Context `{Vars : index -> Type}.
