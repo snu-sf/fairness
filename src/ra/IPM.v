@@ -389,6 +389,11 @@ Section ILEMMAS.
     uipropall. eapply SAT; eauto. reflexivity.
   Qed.
 
+  Lemma OwnM_op (M: URA.t) `{@GRA.inG M Σ} (a1 a2: M) :
+      (OwnM (a1 ⋅ a2)) ⊣⊢ (OwnM a1 ∗ OwnM a2).
+  Proof.
+  Admitted.
+
   Lemma OwnM_valid (M: URA.t) `{@GRA.inG M Σ} (m: M):
     OwnM m -∗ ⌜URA.wf m⌝.
   Proof.
