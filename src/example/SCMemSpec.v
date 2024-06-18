@@ -30,7 +30,7 @@ Section SPEC.
     ⊢ [@ tid, y, E @]
       {(tgt_interp_as l_mem (fun m => ((s_memory_black m) : sProp x)%S))}
       (map_event emb_mem (SCMem.alloc_fun sz))
-      {l, (points_tos l (repeat (SCMem.val_nat 0) sz))}.
+      {l, (l ↦∗ (repeat (SCMem.val_nat 0) sz))}.
   Proof.
     iStartTriple.
     unfold SCMem.alloc_fun. iIntros "#ST SIM".
@@ -59,7 +59,7 @@ Section SPEC.
     ⊢ ⟦([@ tid, n, E @]
           {(syn_tgt_interp_as n l_mem (fun m => ((s_memory_black m) : sProp n)%S))}
           (map_event emb_mem (SCMem.alloc_fun sz))
-          {l, (s_points_tos l (repeat (SCMem.val_nat 0) sz))} : sProp (1+n))%S, 1+n⟧.
+          {l, (l ↦∗ (repeat (SCMem.val_nat 0) sz))} : sProp (1+n))%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q". iEval (rewrite red_syn_tgt_interp_as) in "P".
@@ -75,7 +75,7 @@ Section SPEC.
         p v
     :
     ⊢ [@ tid, y, E @]
-      {(tgt_interp_as l_mem (fun m => ((s_memory_black m) : sProp x)%S)) ∗ (points_to p v)}
+      {(tgt_interp_as l_mem (fun m => ((s_memory_black m) : sProp x)%S)) ∗ (p ↦ v)}
       (map_event emb_mem (SCMem.free_fun p))
       {u, ⌜True⌝%I}.
   Proof.
@@ -118,9 +118,9 @@ Section SPEC.
         l v v0
     :
     ⊢ [@ tid, y, E @]
-      {(tgt_interp_as l_mem (fun m => ((s_memory_black m) : sProp x)%S)) ∗ (points_to l v0)}
+      {(tgt_interp_as l_mem (fun m => ((s_memory_black m) : sProp x)%S)) ∗ (l ↦ v0)}
       (map_event emb_mem (SCMem.store_fun (l, v)))
-      {u, points_to l v }.
+      {u, l ↦ v }.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". iInv "ST" as (st) "ST1" "V".
@@ -156,12 +156,12 @@ Section SPEC.
   Lemma SCMem_load_fun_spec
         tid x y (LT : x < S y)
         E (IN : ↑N_state_tgt ⊆ E)
-        l v
+        l v pers
     :
     ⊢ [@ tid, y, E @]
-      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (points_to l v)}
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦{pers} v)}
       (map_event emb_mem (SCMem.load_fun l))
-      {rv, ⌜rv = v⌝ ∗ points_to l v}.
+      {rv, ⌜rv = v⌝ ∗ (l ↦{pers} v)}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". unfold SCMem.load_fun. rred2.
@@ -177,12 +177,12 @@ Section SPEC.
   Lemma SCMem_load_fun_syn_spec
         tid n
         E (IN : ↑N_state_tgt ⊆ E)
-        l v
+        l v pers
     :
     ⊢ ⟦([@ tid, n, E @]
-          {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m))) ∗ ⤉(l ↦ v)}
+          {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m))) ∗ ⤉(l ↦{pers} v)}
           (map_event emb_mem (SCMem.load_fun l))
-          {rv, ⌜rv = v⌝ ∗ ⤉(l ↦ v)})%S, 1+n⟧.
+          {rv, ⌜rv = v⌝ ∗ ⤉(l ↦{pers} v)})%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
@@ -198,9 +198,9 @@ Section SPEC.
         l add v
     :
     ⊢ [@ tid, y, E @]
-      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (points_to l v)}
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦ v)}
       (map_event emb_mem (SCMem.faa_fun (l, add)))
-      {v, points_to l (SCMem.val_add v add)}.
+      {v, l ↦ (SCMem.val_add v add)}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". unfold SCMem.faa_fun. rred2.
@@ -239,10 +239,10 @@ Section SPEC.
         l old new v
     :
     ⊢ [@ tid, y, E @]
-      {(tgt_interp_as l_mem (fun m => (s_memory_black m) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝ : sProp x)%S) ∗ (points_to l v)}
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) ∗ ⌜is_Some (SCMem.val_compare m v old)⌝ : sProp x)%S) ∗ (l ↦ v)}
       (map_event emb_mem (SCMem.cas_fun (l, old, new)))
       {b, ∃ u, ⌜(if (SCMem.val_eq_dec v old) then (b = true /\ u = new) else (b = false /\ u = v))⌝
-                ∗ points_to l u}.
+                ∗ (l ↦ u)}.
   Proof.
     Local Transparent SCMem.cas.
     iStartTriple.

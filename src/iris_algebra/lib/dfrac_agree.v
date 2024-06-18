@@ -97,6 +97,25 @@ Section lemmas.
     to_frac_agree q1 a' ⋅ to_frac_agree q2 a'.
   Proof. intros Hq. apply dfrac_agree_update_2. rewrite dfrac_op_own Hq //. Qed.
 
+  Lemma dfrac_agree_update_combine d1 d2 a1 a2 a' :
+    d1 ⋅ d2 = DfracOwn 1 →
+    to_dfrac_agree d1 a1 ⋅ to_dfrac_agree d2 a2 ~~>
+    to_dfrac_agree (DfracOwn 1) a'.
+  Proof.
+    intros Hq. rewrite -pair_op Hq.
+    apply cmra_update_exclusive.
+    rewrite pair_valid. split; [done|].
+    apply to_agree_valid.
+  Qed.
+
+  Lemma frac_agree_update_combine q1 q2 a1 a2 a' :
+    (q1 + q2 = 1)%Qp →
+    to_frac_agree q1 a1 ⋅ to_frac_agree q2 a2 ~~>
+    to_frac_agree 1 a'.
+  Proof.
+    intros Hq. apply dfrac_agree_update_combine. rewrite dfrac_op_own Hq //.
+  Qed.
+
   Lemma dfrac_agree_persist d a :
     to_dfrac_agree d a ~~> to_dfrac_agree DfracDiscarded a.
   Proof.

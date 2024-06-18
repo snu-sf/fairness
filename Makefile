@@ -22,7 +22,8 @@ quick: Makefile.coq
 	$(MAKE) -f Makefile.coq vio
 
 Makefile.coq: Makefile $(COQTHEORIES)
-	(echo "-arg -w -arg -ambiguous-paths"; \
+	(echo "-arg -w -arg -deprecated-instance-without-locality"; \
+	 echo "-arg -w -arg -ambiguous-paths"; \
 	 echo "-Q src/lib $(COQMODULE)"; \
 	 echo "-Q src/semantics $(COQMODULE)"; \
 	 echo "-Q src/simulation $(COQMODULE)"; \
