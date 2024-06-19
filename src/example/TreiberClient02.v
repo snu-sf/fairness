@@ -5,7 +5,7 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec AuthExclAnysRA LifetimeRA TreiberStack.
+From Fairness Require Import TemporalLogic SCMemSpec AuthExclsRA LifetimeRA TreiberStack TreiberStackSpec1.
 
 Module TreiberClient2.
 
@@ -96,10 +96,11 @@ Section SPEC.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasMemRA: @GRA.inG memRA Γ}.
-  Context {HasAuthExclAnysRA : @GRA.inG AuthExclAnysRA Γ}.
+  Context {HasAuthExclsRAlist : @GRA.inG (AuthExcls.t (list SCMem.val)) Γ}.
+  Context {HasAuthExclsRAunit : @GRA.inG (AuthExcls.t unit) Γ}.
   Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_auexa; red_tl_lifetime.
+  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_lifetime.
 
   Import TreiberClient2.
 
@@ -193,9 +194,9 @@ Section SPEC.
 
       iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
       - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
-        iDestruct (auexa_b_w_eq with "TStackInv TStackC") as "%EQ".
+        iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
         subst s_st.
-        iMod (auexa_b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
+        iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
         iMod ((FUpd_alloc _ _ _ n (nTpush) (push_then_pop n γs γpop : sProp n)%S) with "[TStackC]") as "#Pushed"; [lia| |].
         { unfold push_then_pop. iEval (simpl; red_tl_all; simpl). auto. }
         iDestruct (Lifetime.pending_merge with "Live LiveInv") as "Live".
@@ -290,7 +291,7 @@ Section SPEC.
         iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
         iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
         - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
-          iDestruct (auexa_b_w_eq with "TStackInv TStackC") as "%EQ".
+          iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
           subst s_st.
           iMod ("CloseC2Inv" with "[LiveInv TStackC]") as "_".
           { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
@@ -304,10 +305,10 @@ Section SPEC.
           iInv "PushedInv" as "TStackC" "ClosePushedInv".
           unfold push_then_pop. simpl. red_tl_all.
           iDestruct "TStackC" as "[TStackC| Tok']"; last first.
-          { by iDestruct (auexa_w_w_false with "Tok Tok'") as "%False". }
-          iDestruct (auexa_b_w_eq with "TStackInv TStackC") as "%EQ".
+          { by iDestruct (AuthExcls.w_w_false with "Tok Tok'") as "%False". }
+          iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
           subst s_st.
-          iMod (auexa_b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
+          iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
           iMod ("ClosePushedInv" with "[$Tok]") as "_".
           iMod ("CloseC2Inv" with "[TStackC]") as "_".
           { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
@@ -362,10 +363,10 @@ Section SPEC.
         iInv "PushedInv" as "TStackC" "ClosePushedInv".
         unfold push_then_pop. simpl. red_tl_all.
         iDestruct "TStackC" as "[TStackC| Tok']"; last first.
-        { by iDestruct (auexa_w_w_false with "Tok Tok'") as "%False". }
-        iDestruct (auexa_b_w_eq with "TStackInv TStackC") as "%EQ".
+        { by iDestruct (AuthExcls.w_w_false with "Tok Tok'") as "%False". }
+        iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
         subst s_st.
-        iMod (auexa_b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
+        iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
         iMod ("ClosePushedInv" with "[$Tok]") as "_".
         iMod ("CloseC2Inv" with "[TStackC]") as "_".
         { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
