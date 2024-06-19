@@ -890,8 +890,8 @@ Section ELI.
 
   Definition env_live_inv0 (x : nat) E (k l : nat) {v} (A T : Vars v) : iProp :=
     □((€) -∗ (prop _ A)
-          =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ (∃ μ, ◇[k](μ, 1)))
-                                                             ∨ (prop _ T))
+          =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ (∃ μ, ◇[k](μ, 1)))
+                                                       ∨ (prop _ T))
      )%I.
 
   Fixpoint env_live_inv (n : nat) (x : nat) E (k l : nat) {v} (A T : Vars v) : iProp :=
@@ -899,29 +899,17 @@ Section ELI.
     | O => env_live_inv0 x E k l A T
     | S m =>
         □((€) -∗ (prop _ A)
-              =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ (∃ μ, ◇[k](μ, 1)))
-                                                                 ∨ (prop _ T)
-                                                                 ∨ ((prop _ A)
-                                                                      ∗ (∃ k' l' B C,
-                                                                            ◆[k', l']
-                                                                             ∗ (⌜l' <= l⌝)
-                                                                             ∗ (□ ((prop _ B) =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ (prop _ A ∗ prop v C ∗ (=| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=> ((prop _ A ∗ prop v C) =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ (prop _ B))))))
-                                                                             ∗ (@env_live_inv0 x E k' l' v A B)
-                                                                             ∗ (@env_live_inv m x E k l v B T))))
+              =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ (∃ μ, ◇[k](μ, 1)))
+                                                           ∨ (prop _ T)
+                                                           ∨ ((prop _ A)
+                                                                ∗ (∃ k' l' B,
+                                                                      ◆[k', l']
+                                                                       ∗ (⌜l' <= l⌝)
+                                                                       ∗ (□ ((prop _ B) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (prop _ A ∗ (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=> ((prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (prop _ B))))))
+                                                                       ∗ (@env_live_inv0 x E k' l' v A B)
+                                                                       ∗ (@env_live_inv m x E k l v B T))))
          )%I
     end.
-
-  (* Fixpoint env_live_inv (n : nat) (x : nat) E (k : nat) {v} (A T : Vars v) : iProp := *)
-  (*   match n with *)
-  (*   | O => ⌜False⌝%I *)
-  (*   | S m => *)
-  (*       □(∃ (P : Vars v), *)
-  (*            (prop _ P) *)
-  (*              ∗ *)
-  (*              ((prop _ P ∗ €) *)
-  (*                 -∗ (prop _ A) *)
-  (*                 =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ ◇[k](0, 1)) ∨ (prop _ A ∗ @env_live_inv m x E k v A T) ∨ (prop _ T))))%I *)
-  (*   end. *)
 
   Global Program Instance Persistent_ELI0 x E k l v (A T : Vars v) :
     Persistent (@env_live_inv0 x E k l v A T).
@@ -986,7 +974,7 @@ Section ELI.
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
     iIntros "#LO #IH TERM [PA ELI]". iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
     iApply ("IH" with "[TERM] PA"). iIntros "FC PA".
-    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
+    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
     { (* Prove with the inner induction. *)
       iMod (lo_pc_decr with "[PCk]") as "(%o' & #LO' & %LTo)".
       2:{ iSplitR; iFrame. eauto. }
@@ -1001,13 +989,13 @@ Section ELI.
       iApply (eli0_lo_ind with "LO' IH [TERM]"). auto.
       2:{ iFrame. eauto. }
       iIntros "PB".
-      specialize (IHn k l x E B T Q H). iPoseProof (IHn with "[] [] TERM") as "IHn".
+      specialize (IHn k l x E B T Q H). iApply (IHn with "[] [] TERM").
       { iExists _, _. eauto. }
-      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "(PA & PC & >KNOW2)".
-        iApply ("IH" with "[IH2 PC KNOW2] PA").
-        iIntros "FC PA". iMod ("KNOW2" with "[PA PC]") as "PB". iFrame. iApply ("IH2" with "FC PB").
+      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "(PA & >KNOW2)".
+        iApply ("IH" with "[IH2 KNOW2] PA").
+        iIntros "FC PA". iMod ("KNOW2" with "PA") as "PB". iMod ("IH2" with "FC PB") as "RES". iModIntro. iFrame.
       }
-      iApply ("IHn" with "[PB]"). iFrame. auto.
+      iFrame. auto.
     }
   Qed.
 
@@ -1074,7 +1062,7 @@ Section ELI.
     iIntros "(#LO & PCSn & #IH & TERM & [PA ELI] & PCSh & PCSh2 & CCS)".
     iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
     iApply ("IH" with "[CCS PCSn TERM PCSh PCSh2] PA"). iIntros "FC PA".
-    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
+    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
     { (* Prove with the inner induction. *)
       iMod (ccs_decr with "[CCS PCk]") as "(%o' & CCS & %LTo & PCk)".
       2:{ iSplitR "PCk"; iFrame. }
@@ -1107,9 +1095,9 @@ Section ELI.
       iIntros "PB".
       specialize (IHn k l1 l2 x E B T Q H). iPoseProof (IHn with "[PCSh PCSn] [] TERM") as "IHn".
       { iFrame. eauto. }
-      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "(PA & PC & >KNOW2)".
-        iApply ("IH" with "[IH2 PC KNOW2] PA").
-        iIntros "FC PA". iMod ("KNOW2" with "[PA PC]") as "PB". iFrame. iApply ("IH2" with "FC PB").
+      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "(PA & >KNOW2)".
+        iApply ("IH" with "[IH2 KNOW2] PA").
+        iIntros "FC PA". iMod ("KNOW2" with "PA") as "PB". iApply ("IH2" with "FC PB").
       }
       { iMod ("IHn" with "[PB]") as "IHn".
         { iFrame. auto. }
