@@ -905,8 +905,7 @@ Section ELI.
                                                                       ∗ (∃ k' l' B C,
                                                                             ◆[k', l']
                                                                              ∗ (⌜l' <= l⌝)
-                                                                             ∗ (□ ((prop _ B) =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ (prop _ A ∗ □ prop v C)))
-                                                                             ∗ (□ ((prop _ A ∗ □ prop v C) =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ (prop _ B)))
+                                                                             ∗ (□ ((prop _ B) =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ (prop _ A ∗ prop v C ∗ (=| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=> ((prop _ A ∗ prop v C) =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ (prop _ B))))))
                                                                              ∗ (@env_live_inv0 x E k' l' v A B)
                                                                              ∗ (@env_live_inv m x E k l v B T))))
          )%I
@@ -987,7 +986,7 @@ Section ELI.
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
     iIntros "#LO #IH TERM [PA ELI]". iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
     iApply ("IH" with "[TERM] PA"). iIntros "FC PA".
-    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & % & #LO' & %LAY & #KNOW1 & #KNOW2 & #ELI' & #ELI2)]]".
+    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
     { (* Prove with the inner induction. *)
       iMod (lo_pc_decr with "[PCk]") as "(%o' & #LO' & %LTo)".
       2:{ iSplitR; iFrame. eauto. }
@@ -1001,12 +1000,12 @@ Section ELI.
     { (* Prove with the outer induction. *)
       iApply (eli0_lo_ind with "LO' IH [TERM]"). auto.
       2:{ iFrame. eauto. }
-      iIntros "PB". iMod ("KNOW1" with "PB") as "[PA #PC]". iMod ("KNOW2" with "[PA]") as "PB". iFrame. auto.
+      iIntros "PB".
       specialize (IHn k l x E B T Q H). iPoseProof (IHn with "[] [] TERM") as "IHn".
       { iExists _, _. eauto. }
-      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "[PA _]".
-        iApply ("IH" with "[IH2] PA").
-        iIntros "FC PA". iMod ("KNOW2" with "[PA]") as "PB". iFrame. auto. iApply ("IH2" with "FC PB").
+      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "(PA & PC & >KNOW2)".
+        iApply ("IH" with "[IH2 PC KNOW2] PA").
+        iIntros "FC PA". iMod ("KNOW2" with "[PA PC]") as "PB". iFrame. iApply ("IH2" with "FC PB").
       }
       iApply ("IHn" with "[PB]"). iFrame. auto.
     }
@@ -1050,7 +1049,6 @@ Section ELI.
   Lemma eli_ccs_ind k ps l1 l2 n x E v (A T : Vars v) (Q : iProp) :
     (v <= x) ->
     (◆[k, l1] ∗ ◇{ps}((1 + l2 + l1), (1 + n)^2) ∗ ◇{ps}(l2, (1 + n)^2))
-    (* (◆[k, l1] ∗ ◇{ps}((1 + l2 + l1), 3 ^ n) ∗ ◇{ps}(l2, (3 ^ (1 + n)))) *)
       ⊢
       (□((€ -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q) -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l2, 1) -∗ Q)))
       -∗
@@ -1076,7 +1074,7 @@ Section ELI.
     iIntros "(#LO & PCSn & #IH & TERM & [PA ELI] & PCSh & PCSh2 & CCS)".
     iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
     iApply ("IH" with "[CCS PCSn TERM PCSh PCSh2] PA"). iIntros "FC PA".
-    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & % & #LO' & %LAY & #KNOW1 & #KNOW2 & #ELI' & #ELI2)]]".
+    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
     { (* Prove with the inner induction. *)
       iMod (ccs_decr with "[CCS PCk]") as "(%o' & CCS & %LTo & PCk)".
       2:{ iSplitR "PCk"; iFrame. }
@@ -1106,12 +1104,12 @@ Section ELI.
       { iSplitR. iApply "LO'". iSplitR "PCSn1"; iFrame. }
       2:{ iFrame. eauto. }
       2:{ iModIntro. iApply ("RES" with "PCSn2"). }
-      iIntros "PB". iMod ("KNOW1" with "PB") as "[PA #PC]". iMod ("KNOW2" with "[PA]") as "PB". iFrame. auto.
+      iIntros "PB".
       specialize (IHn k l1 l2 x E B T Q H). iPoseProof (IHn with "[PCSh PCSn] [] TERM") as "IHn".
       { iFrame. eauto. }
-      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "[PA _]".
-        iApply ("IH" with "[IH2] PA").
-        iIntros "FC PA". iMod ("KNOW2" with "[PA]") as "PB". iFrame. auto. iApply ("IH2" with "FC PB").
+      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "(PA & PC & >KNOW2)".
+        iApply ("IH" with "[IH2 PC KNOW2] PA").
+        iIntros "FC PA". iMod ("KNOW2" with "[PA PC]") as "PB". iFrame. iApply ("IH2" with "FC PB").
       }
       { iMod ("IHn" with "[PB]") as "IHn".
         { iFrame. auto. }
