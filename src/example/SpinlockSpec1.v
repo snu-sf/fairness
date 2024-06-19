@@ -137,7 +137,6 @@ Section SPEC.
           }
           iModIntro. iLeft. iSplitR "PC"; iFrame.
           { iSplitR. auto. iEval (unfold spinlockInv; red_tl_all). iRight. iFrame. }
-          { iExists _. iFrame. }
       }
       iSplitR.
       { (* Atomic Update. *)

@@ -890,7 +890,7 @@ Section ELI.
 
   Definition env_live_chain0 (x : nat) E (k : nat) {v} (A T : Vars v) : iProp :=
     □((€) -∗ (prop _ A)
-          =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ (∃ μ, ◇[k](μ, 1)))
+          =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ ◇[k](0, 1))
                                                        ∨ (prop _ T))
      )%I.
 
@@ -899,7 +899,7 @@ Section ELI.
     | O => env_live_chain0 x E k A T
     | S m =>
         □((€) -∗ (prop _ A)
-              =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ (∃ μ, ◇[k](μ, 1)))
+              =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ ◇[k](0, 1))
                                                            ∨ (prop _ T)
                                                            ∨ ((prop _ A)
                                                                 ∗ (∃ k' l' B,
@@ -942,7 +942,7 @@ Section ELI.
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
     iIntros "#LO #IH TERM [PA #ELI]".
     iApply ("IH" with "[TERM] PA"). iIntros "FC PA".
-    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | PT]".
+    iMod ("ELI" with "FC PA") as "[(PA & PCk) | PT]".
     { (* Prove with the induction. *)
       iMod (lo_pc_decr with "[PCk]") as "(%o' & #LO' & %LTo)".
       2:{ iSplitR; iFrame. eauto. }
@@ -974,7 +974,7 @@ Section ELI.
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
     iIntros "#LO #IH TERM [PA ELI]". iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
     iApply ("IH" with "[TERM] PA"). iIntros "FC PA".
-    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
+    iMod ("ELI" with "FC PA") as "[(PA & PCk) | [PT | (PA & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
     { (* Prove with the inner induction. *)
       iMod (lo_pc_decr with "[PCk]") as "(%o' & #LO' & %LTo)".
       2:{ iSplitR; iFrame. eauto. }
@@ -1019,7 +1019,7 @@ Section ELI.
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
     iIntros "(#LO & PCS & #IH & TERM & [PA #ELI] & CCS)".
     iApply ("IH" with "[CCS PCS TERM] PA"). iIntros "FC PA".
-    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | PT]".
+    iMod ("ELI" with "FC PA") as "[(PA & PCk) | PT]".
     { (* Prove with the induction. *)
       iMod (ccs_decr with "[CCS PCk]") as "(%o' & CCS & %LTo & PCk)".
       2:{ iSplitR "PCk"; iFrame. }
@@ -1062,7 +1062,7 @@ Section ELI.
     iIntros "(#LO & PCSn & #IH & TERM & [PA ELI] & PCSh & PCSh2 & CCS)".
     iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
     iApply ("IH" with "[CCS PCSn TERM PCSh PCSh2] PA"). iIntros "FC PA".
-    iMod ("ELI" with "FC PA") as "[(PA & [% PCk]) | [PT | (PA & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
+    iMod ("ELI" with "FC PA") as "[(PA & PCk) | [PT | (PA & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
     { (* Prove with the inner induction. *)
       iMod (ccs_decr with "[CCS PCk]") as "(%o' & CCS & %LTo & PCk)".
       2:{ iSplitR "PCk"; iFrame. }
