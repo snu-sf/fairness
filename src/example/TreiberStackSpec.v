@@ -51,8 +51,8 @@ Section SPEC.
   )%S.
 
   Definition TStackLivenessInv (lv k γs : nat) (h : mabye_null_ptr) : sProp (1+lv)  := (
-    ∃ (m : τ{gmap nat (option mabye_null_ptr),1+lv}),
-    [∗ (1+lv) map] i ↦ ip ∈ m, (
+    ∃ (m : τ{ (gmap nat (option mabye_null_ptr)) ,1+lv}),
+    [∗ (1+lv) , (option mabye_null_ptr) map] i ↦ op ∈ m, (
       match op with
       | None => emp
       | Some p =>
