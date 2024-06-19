@@ -431,6 +431,92 @@ Section SIM.
     }
   Qed.
 
+  Lemma not_case4 n γX γκl γr :
+    (○ γX 0) ∗ (D ↦ 1) ∗ (∃ x : nat, ⟦ ∃ γκu : τ{nat}, (▿ γκl x) ∗ (▿ x γκu) ∗ (▿ γr 0) ∗ (▿ γκu 0), n ⟧)
+             ⊢ △ γr 1 -∗ ⌜False⌝%I.
+  Proof.
+    iIntros "CL4 Lr".
+    iDestruct "CL4" as "(LXw & PTD & %γκw0 & CL4)". iEval (red_tl) in "CL4". iDestruct "CL4" as "[%γκu CL4]".
+    iEval (red_tl_all; simpl) in "CL4". iDestruct "CL4" as "(_ & _ & Dr & _)".
+    iPoseProof (OneShots.pending_not_shot with "Lr Dr") as "%F". inv F.
+  Qed.
+
+  Lemma data_case3 n γX κs γκl tid2 ℓl γe γr :
+    ((○ γX 1) ∗ (D ↦ 1) ∗
+              (∃ x : nat,
+                  ⟦ ∃ κu γκu : τ{nat, n}, -[κu](0)-◇ (▿ γκu 0) ∗ (△ γκu (1 / 2)) ∗ κu -(0)-◇ κs ∗ (▿ γκl x) ∗ (▿ x γκu) ∗
+                                                                                           (Duty(tid2) [(κu, 0, ▿ γκu 0)] ∗ ◇[κu](ℓl, 1) ∗ (△ γκu (1 / 2)) ∗ (EX γe ()) ∨ (▿ γr 0)), n ⟧))
+      ⊢ (△ γr 1) ==∗ (∃ γκw κu γκu, 
+                         ⟦ (-[κu](0)-◇ (▿ γκu 0) ∗ κu -(0)-◇ κs ∗ (▿ γκl γκw) ∗ (▿ γκw γκu) ∗ (Duty(tid2) [(κu, 0, ▿ γκu 0)] ∗ ◇[κu](ℓl, 1) ∗ (△ γκu (1 / 2)) ∗ (EX γe ())))%S, n⟧) ∗ (▿ γr 0) ∗
+      ((○ γX 1) ∗ (D ↦ 1) ∗
+                (∃ x : nat,
+                    ⟦ ∃ κu γκu : τ{nat, n}, -[κu](0)-◇ (▿ γκu 0) ∗ (△ γκu (1 / 2)) ∗ κu -(0)-◇ κs ∗ (▿ γκl x) ∗ (▿ x γκu) ∗
+                                                                                             (Duty(tid2) [(κu, 0, ▿ γκu 0)] ∗ ◇[κu](ℓl, 1) ∗ (△ γκu (1 / 2)) ∗ (EX γe ()) ∨ (▿ γr 0)), n ⟧)).
+  Proof.
+    iIntros "CL3 Lr".
+    iDestruct "CL3" as "(LXw & PTD & %γκw & CL3)". iEval (red_tl) in "CL3". iDestruct "CL3" as "[%κu CL3]".
+    iEval (red_tl) in "CL3". iDestruct "CL3" as "[%γκu CL3]".
+    iEval (red_tl_all; simpl) in "CL3". iDestruct "CL3" as "(#PROM_u & LIVE_u & #LINK_u & #DEAD_l2 & #DEAD_w2 & [PASS | Dr])".
+    2:{ iPoseProof (OneShots.pending_not_shot with "Lr Dr") as "%F". inv F. }
+    iMod (OneShots.pending_shot _ 0 with "Lr") as "#Dr". iModIntro.
+    iFrame. iSplitL "PASS".
+    { iExists γκw, κu, γκu. iEval (red_tl_all; simpl). iFrame. eauto. }
+    { iSplitR. auto. iExists _. iEval (red_tl). iExists _. iEval (red_tl). iExists _. iEval (red_tl_all; simpl).
+      iFrame. iSplit. auto. iSplit. auto. iSplit. auto. iSplit. auto. iRight. auto.
+    }
+  Qed.
+
+  Lemma loop_case3 
+        (tid2 n ℓL ℓl : nat)
+        (LAYER_L : ℓL = 3)
+        (LAYER_l : ℓl = 2)
+        (γX γe κs κl γκl γr : nat)
+        (γκw κu γκu : nat)
+    :
+    ⊢
+      (inv n N_ClientSpinlock2 (clientSpinlock2_inv n tid2 ℓL ℓl γX γe κs κl γκl γr))
+      -∗
+      (⟦(syn_tgt_interp_as n sndl (λ m : SCMem.t, s_memory_black m))%S, 1+n⟧)
+      -∗
+      (⟦ isSpinlock n X γX γe κs ℓL, n ⟧)
+      -∗
+      (⟦((TID(tid2))
+           ∗
+           (-[κu](0)-◇ (▿ γκu 0)%S)
+           ∗
+           (κu -(0)-◇ κs)
+           ∗
+           (▿ γκl γκw)
+           ∗
+           (▿ γκw γκu)
+           ∗
+           (△ γκu (1 / 2))
+           ∗
+           (EX γe ())
+           ∗
+           (▿ γr 0)
+           ∗
+           (Duty(tid2) [(κu, 0, (▿ γκu 0)%S)])
+           ∗
+           (◇{([(κu, 0)])%S}(1, 10)))%S, n⟧)
+      -∗
+      ⟦(syn_wpsim (S n) tid2 ⊤ (λ rs rt : Any.t, (⤉ syn_term_cond n tid2 Any.t rs rt)) false true
+                  (trigger Yield;;; x <- Ret (0 : SCMem.val);; Ret (Any.upcast x))
+                  (OMod.close_itree omod (SCMem.mod gvs)
+                                    (ITree.iter
+                                       (λ _ : (),
+                                           ` d : SCMem.val <- OMod.call "load" D;;
+                                                 ` b : bool <- OMod.call "compare" (d, 1);; ` r : () + () <- (if b then Ret (inr ()) else Ret (inl ()));; Ret r) ());;;
+                                    x <- OMod.close_itree omod (SCMem.mod gvs) ((trigger Yield;;; Spinlock.unlock X);;; Ret (0 : SCMem.val));;
+                   OMod.close_itree omod (SCMem.mod gvs) (Ret (Any.upcast x))))%S, 1+n⟧
+  .
+  Proof.
+    iEval (red_tl_all; rewrite red_syn_tgt_interp_as; rewrite red_syn_wpsim; simpl).
+    iIntros "#INV_CL #MEM #ISL (TID & #PRu & #LINKu & #Dl & #Dw & Lu & EX & #Dr & DUTY & PC)".
+
+    TODO
+
+
   Lemma ClientSpinlock2_thread2_sim
         tid2 n
         ℓL ℓl
@@ -459,6 +545,21 @@ Section SIM.
     iIntros "(#INV_CL & #MEM & #ISL & #PROMl & [%ℓl0 LOl] & TID & LIVE_r)".
     iEval (red_tl; simpl) in "LOl". iPoseProof "LOl" as "#LOl".
     unfold fn2th. simpl. unfold thread2, ClientSpinlock2Spec.thread2. rred2r. lred2r.
+    iInv "INV_CL" as "CL" "INV_CL_CLOSE".
+    iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl) in "CL".
+    iDestruct "CL" as "[CL1 | [CL2 | [CL3 | CL4]]]".
+    4:{ iPoseProof (not_case4 with "CL4 LIVE_r") as "%F". inv F. }
+    3:{ iMod (data_case3 with "CL3 LIVE_r") as "((%γκw & %κu & %γκu & A) & Dr & CL3)".
+        iMod ("INV_CL_CLOSE" with "[CL3]") as "_".
+        { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). do 2 iRight. iLeft. iFrame. }
+        iEval (red_tl_all; simpl) in "A". iDestruct "A" as "(PRu & LINKu & Dl & Dw & DUTY & PC & Lu & EX)".
+        iMod (pc_drop _ 1 _ _ 100 with "PC") as "PC".
+        Unshelve. 1,3: lia.
+        iApply (wpsim_yieldR2 with "[DUTY PC]").
+        3:{ iFrame. iApply pcs_cons_fold. iFrame. }
+        1,2: lia.
+        iIntros "DUTY _ PCS". rred2r. iApply wpsim_tauR. rred2r.
+
 
 
 
