@@ -73,7 +73,7 @@ Section SPEC.
                 ∗ (⤉ isSpinlock n x γx γe k L)
                 ∗ (⤉ isSpinlockUse1 n k γ γx P l)
                 ∗ (⤉ Duty(tid) ds)
-                ∗ ◇{ds@1}(2 + L, 1)
+                ∗ ◇{ds@1}(2 + L, 2)
                 ∗ ◇[k](1 + l, 1)
              )%S), 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
@@ -98,7 +98,7 @@ Section SPEC.
                      ∗ (○ γ (γu, u))
                      ∗ (Duty(tid) ((u, 0, (▿ γu tt)) :: ds))
                      ∗ (◇[u](l, 1)))%S : sProp n).
-    iSpecialize ("SPEC" $! ds P0 R0 Q0 1).
+    iSpecialize ("SPEC" $! ds P0 R0 Q0 0).
     iApply ("SPEC" with "[DUTY PCS PCk] [POST]").
 
     - (* PRE. *)
@@ -122,7 +122,7 @@ Section SPEC.
           { iEval (unfold spinlockUse1; simpl; red_tl_all; simpl). iExists _. iEval (red_tl_all). iExists _.
             iEval (red_tl_all; simpl). iSplitL "TKB". iFrame. iLeft. iFrame.
           }
-          iModIntro. do 2 iRight. iSplitR. eauto. iEval red_tl_all. iFrame.
+          iModIntro. iRight. iSplitR. eauto. iEval red_tl_all. iFrame.
         - (* Live case. *)
           iDestruct "SLU1" as "[(Lxw & _) | (Lxw & LIVE & #PROM & #LINK)]".
           { iExFalso. iPoseProof (AuthExcls.b_w_eq with "Lx Lxw") as "%F". inv F. }
@@ -135,8 +135,9 @@ Section SPEC.
           { iEval (unfold spinlockUse1; simpl; red_tl_all; simpl). iExists _. iEval (red_tl_all). iExists _.
             iEval (red_tl_all; simpl). iSplitL "TKB". iFrame. iRight. iFrame. iSplit; eauto.
           }
-          iModIntro. iLeft. iSplitR "PC"; iFrame. iSplitR. auto.
-          iEval (unfold spinlockInv; red_tl_all). iRight. iFrame.
+          iModIntro. iLeft. iSplitR "PC"; iFrame.
+          { iSplitR. auto. iEval (unfold spinlockInv; red_tl_all). iRight. iFrame. }
+          { iExists _. iFrame. }
       }
       iSplitR.
       { (* Atomic Update. *)

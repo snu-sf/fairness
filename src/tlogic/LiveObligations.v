@@ -888,15 +888,15 @@ Section ELI.
   Context `{ARROWSHOTRA : @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA : @GRA.inG ArrowRA Σ}.
 
-  Definition env_live_inv0 (x : nat) E (k l : nat) {v} (A T : Vars v) : iProp :=
+  Definition env_live_chain0 (x : nat) E (k : nat) {v} (A T : Vars v) : iProp :=
     □((€) -∗ (prop _ A)
           =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ (∃ μ, ◇[k](μ, 1)))
                                                        ∨ (prop _ T))
      )%I.
 
-  Fixpoint env_live_inv (n : nat) (x : nat) E (k l : nat) {v} (A T : Vars v) : iProp :=
+  Fixpoint env_live_chain (n : nat) (x : nat) E (k l : nat) {v} (A T : Vars v) : iProp :=
     match n with
-    | O => env_live_inv0 x E k l A T
+    | O => env_live_chain0 x E k A T
     | S m =>
         □((€) -∗ (prop _ A)
               =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ (∃ μ, ◇[k](μ, 1)))
@@ -906,27 +906,27 @@ Section ELI.
                                                                       ◆[k', l']
                                                                        ∗ (⌜l' <= l⌝)
                                                                        ∗ (□ ((prop _ B) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (prop _ A ∗ (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=> ((prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (prop _ B))))))
-                                                                       ∗ (@env_live_inv0 x E k' l' v A B)
-                                                                       ∗ (@env_live_inv m x E k l v B T))))
+                                                                       ∗ (@env_live_chain0 x E k' v A B)
+                                                                       ∗ (@env_live_chain m x E k l v B T))))
          )%I
     end.
 
-  Global Program Instance Persistent_ELI0 x E k l v (A T : Vars v) :
-    Persistent (@env_live_inv0 x E k l v A T).
+  Global Program Instance Persistent_ELC0 x E k v (A T : Vars v) :
+    Persistent (@env_live_chain0 x E k v A T).
 
-  Lemma ELI_persistent n x E k l v (A T : Vars v) :
-    (@env_live_inv n x E k l v A T) -∗ □(@env_live_inv n x E k l v A T).
+  Lemma ELC_persistent n x E k l v (A T : Vars v) :
+    (@env_live_chain n x E k l v A T) -∗ □(@env_live_chain n x E k l v A T).
   Proof.
     destruct n; simpl; eauto.
   Qed.
 
-  Global Program Instance Persistent_ELI n x E k l v (A T : Vars v) :
-    Persistent (@env_live_inv n x E k l v A T).
+  Global Program Instance Persistent_ELC n x E k l v (A T : Vars v) :
+    Persistent (@env_live_chain n x E k l v A T).
   Next Obligation.
-    iIntros "ELI". iPoseProof (ELI_persistent with "ELI") as "ELI". auto.
+    iIntros "ELI". iPoseProof (ELC_persistent with "ELI") as "ELI". auto.
   Qed.
 
-  Lemma eli0_lo_ind k l x E v (A T : Vars v) (Q : iProp) :
+  Lemma elc0_lo_ind k l x E v (A T : Vars v) (Q : iProp) :
     (v <= x) ->
     (◆[k, l])
       ⊢
@@ -934,7 +934,7 @@ Section ELI.
       -∗
       ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
       -∗
-      ((prop _ A ∗ @env_live_inv0 x E k l v A T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
+      ((prop _ A ∗ @env_live_chain0 x E k v A T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
   .
   Proof.
     intros. iIntros "(%c & %o & #LO)".
@@ -955,7 +955,7 @@ Section ELI.
     }
   Qed.
 
-  Lemma eli_lo_ind n k l x E v (A T : Vars v) (Q : iProp) :
+  Lemma elc_lo_ind n k l x E v (A T : Vars v) (Q : iProp) :
     (v <= x) ->
     (◆[k, l])
       ⊢
@@ -963,12 +963,12 @@ Section ELI.
       -∗
       ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
       -∗
-      ((prop _ A ∗ @env_live_inv n x E k l v A T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
+      ((prop _ A ∗ @env_live_chain n x E k l v A T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
   .
   Proof.
     (* Outer induction. *)
     revert k l x E A T Q. pattern n. induction n.
-    { intros. iEval simpl. iApply eli0_lo_ind. auto. }
+    { intros. iEval simpl. iApply elc0_lo_ind. auto. }
     intros. iIntros "(%c & %o & #LO)".
     (* Inner induction. *)
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
@@ -986,7 +986,7 @@ Section ELI.
       iApply ("TERM" with "PT").
     }
     { (* Prove with the outer induction. *)
-      iApply (eli0_lo_ind with "LO' IH [TERM]"). auto.
+      iApply (elc0_lo_ind with "LO' IH [TERM]"). auto.
       2:{ iFrame. eauto. }
       iIntros "PB".
       specialize (IHn k l x E B T Q H). iApply (IHn with "[] [] TERM").
@@ -999,7 +999,7 @@ Section ELI.
     }
   Qed.
 
-  Lemma eli0_ccs_ind k ps l1 l2 x E v (A T : Vars v) (Q : iProp) :
+  Lemma elc0_ccs_ind k ps l1 l2 x E v (A T : Vars v) (Q : iProp) :
     (v <= x) ->
     (◆[k, l1] ∗ ◇{ps}((1 + l2 + l1), 1) ∗ ◇{ps}(l2, 1))
       ⊢
@@ -1007,7 +1007,7 @@ Section ELI.
       -∗
       ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
       -∗
-      ((prop _ A ∗ @env_live_inv0 x E k l1 v A T)
+      ((prop _ A ∗ @env_live_chain0 x E k v A T)
          =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l2, 1) -∗ Q))
   .
   Proof.
@@ -1034,7 +1034,7 @@ Section ELI.
     }
   Qed.
 
-  Lemma eli_ccs_ind k ps l1 l2 n x E v (A T : Vars v) (Q : iProp) :
+  Lemma elc_ccs_ind k ps l1 l2 n x E v (A T : Vars v) (Q : iProp) :
     (v <= x) ->
     (◆[k, l1] ∗ ◇{ps}((1 + l2 + l1), (1 + n)^2) ∗ ◇{ps}(l2, (1 + n)^2))
       ⊢
@@ -1042,13 +1042,13 @@ Section ELI.
       -∗
       ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
       -∗
-      ((prop _ A ∗ @env_live_inv n x E k l1 v A T)
+      ((prop _ A ∗ @env_live_chain n x E k l1 v A T)
          =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l2, 1) -∗ Q))
   .
   Proof.
     (* Outer induction. *)
     revert k l1 l2 x E A T Q. pattern n. induction n.
-    { intros. iEval (simpl). iApply eli0_ccs_ind. auto. }
+    { intros. iEval (simpl). iApply elc0_ccs_ind. auto. }
     intros.
     iIntros "(#LO & PCSh & PCSn) IH TERM AE".
     iMod (pcs_decr _ _ ((1+n)^2) (2*n + 3) with "PCSh") as "[PCSh PCSh1]".
@@ -1087,7 +1087,7 @@ Section ELI.
       Unshelve. 2: auto.
       iMod (pcs_drop_le _ _ _ _ (1+l2+l') with "PCSh1") as "PCSh1".
       Unshelve. 1,3: lia.
-      iMod (eli0_ccs_ind with "[LO' PCSh1 PCSn1] IH [TERM PCSh PCSn PCSn3 PCSh2] [PA]") as "RES".
+      iMod (elc0_ccs_ind with "[LO' PCSh1 PCSn1] IH [TERM PCSh PCSn PCSn3 PCSh2] [PA]") as "RES".
       auto.
       { iSplitR. iApply "LO'". iSplitR "PCSn1"; iFrame. }
       2:{ iFrame. eauto. }
@@ -1108,8 +1108,8 @@ Section ELI.
 
 End ELI.
 
-Notation "A '~{' x , E , k , l '}~◇' T" :=
-  (env_live_inv0 x E k l A T) (at level 50, x, E, k, l, T at level 1, format "A  ~{ x ,  E ,  k ,  l }~◇  T") : bi_scope.
+Notation "A '~{' x , E , k '}~◇' T" :=
+  (env_live_chain0 x E k A T) (at level 50, x, E, k, T at level 1, format "A  ~{ x ,  E ,  k  }~◇  T") : bi_scope.
 
 Notation "A '~{' n , x , E , k , l '}~◇' T" :=
-  (env_live_inv n x E k l A T) (at level 50, n, x, E, k, l, T at level 1, format "A  ~{ n ,  x ,  E ,  k ,  l }~◇  T") : bi_scope.
+  (env_live_chain n x E k l A T) (at level 50, n, x, E, k, l, T at level 1, format "A  ~{ n ,  x ,  E ,  k ,  l }~◇  T") : bi_scope.

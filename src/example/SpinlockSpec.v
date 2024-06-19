@@ -64,11 +64,11 @@ Section SPEC.
           ⧼(tgt_interp_as (state_tgt:=st_tgt_type) sndl (fun m => ((s_memory_black m) : sProp n)%S))
              ∗ (⟦isSpinlock n x γx γe k L, n⟧)
              ∗ (⟦P, n⟧)
-             ∗ (⟦Duty(tid) ds, n⟧ ∗ ◇{List.map fst ds}(2 + L, 1))
+             ∗ (⟦Duty(tid) ds, n⟧ ∗ ◇{List.map fst ds}(2 + L, 1 + (1+v)^2))
              ∗ ((((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe))
                     ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp)
                     ∗ (⤉ spinlockInv n x γx γe))%S : sProp (1+n))
-                  ~{v, 1+n, (⊤ ∖ E_Spinlock), k}~◇
+                  ~{v, 1+n, (⊤ ∖ E_Spinlock), k, L}~◇
                   (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe))
                       ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp)
                       ∗ (⤉ ((x ↦ 0) ∗ (● γx 0) ∗ (EX γe tt))))%S : sProp (1+n))
@@ -86,35 +86,32 @@ Section SPEC.
     (* Preprocess for induction: right after the cas call's yield. *)
     iEval (rewrite unfold_iter_eq). rred2r.
     iDestruct "PRE" as "(#MEM & #ISL & P & [DUTY PCS] & #ELI & AU & #PUT_D & #GET_D)".
-    iMod (ccs_make _ _ _ 1 (100+v) with "[PCS]") as "[CCS PCS]".
-    { iFrame. iEval (unfold isSpinlock; red_tl) in "ISL". iDestruct "ISL" as "[LO _]". eauto. }
-    iMod (pcs_drop_le _ _ _ _ 1 with "PCS") as "PCS".
-    lia.
+    iMod (pcs_decr _ _ 1 ((1+v)^2) with "PCS") as "[PCS PCS_ELI]".
+    { lia. }
+    iMod (pcs_drop _ _ _ _ 1 (100 + (1+v)^2) with "PCS") as "PCS".
+    { lia. }
+    iMod (pcs_decr _ _ 2 ((1+v)^2) with "PCS") as "[PCS PCS_ELI2]".
+    { lia. }
     Unshelve. 2: lia.
-    iMod (pcs_decr _ _ 2 v with "PCS") as "[PCS PCS_ELI]".
-    lia.
     iApply (wpsim_yieldR_gen2 with "[DUTY PCS]").
     3:{ iFrame. }
-    lia.
-    lia.
+    1,2: lia.
     iIntros "DUTY _ PCS".
     iMod ("PUT_D" with "[P DUTY]") as "R".
     { iFrame. }
     iModIntro. rred2r.
     (* Set up for ELI induction. *)
     iEval (simpl) in "PCS".
-    iPoseProof (isSpinlock_get_data with "ISL") as "[_ #INV_SL]".
+    iPoseProof (isSpinlock_get_data with "ISL") as "[#LO #INV_SL]".
     iInv "INV_SL" as "SL" "INV_SL_CLOSE". iEval (simpl) in "SL".
 
     (* Do induction. *)
     iRevert "PCS R AU POST".
-    iPoseProof (eli_ccs_ind with "[CCS PCS_ELI] [] [] [SL INV_SL_CLOSE]") as "RES".
+    iPoseProof (elc_ccs_ind with "[PCS_ELI PCS_ELI2] [] [] [SL INV_SL_CLOSE]") as "RES".
     5:{ iSplitL; cycle 1. eauto. simpl. iEval (red_tl_all; rewrite red_syn_inv; rewrite red_syn_fupd). iFrame. done. }
-    5:{ iIntros "PCS R AU POST". iMod "RES".
-        iRevert "R AU POST". iApply ("RES" with "PCS").
-    }
+    5:{ iIntros "PCS R AU POST". iMod "RES". iRevert "R AU POST". iApply ("RES" with "PCS"). }
     lia.
-    { iFrame. }
+    { iSplitR. auto. iSplitL "PCS_ELI"; done. }
 
     - (* Inductive case. *)
       iModIntro. iIntros "IH".
@@ -201,14 +198,6 @@ Section SPEC.
       iApply "POST". iEval red_tl_all. iFrame.
 
   Qed.
-             (* ∗ (env_live_inv v (1+n) (⊤ ∖ E_Spinlock) k *)
-             (*                 (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe)) *)
-             (*                     ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp) *)
-             (*                     ∗ (⤉ spinlockInv n x γx γe)) : sProp (1+n))%S *)
-             (*                 (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe)) *)
-             (*                     ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp) *)
-             (*                     ∗ (⤉ ((x ↦ 0) ∗ (● γx 0) ∗ (EX γe tt)))) : sProp (1+n))%S *)
-             (*   ) *)
 
   Lemma Spinlock_unlock_spec
         tid n
