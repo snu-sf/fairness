@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From stdpp Require Import decidable.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind.
 
@@ -45,6 +46,11 @@ Module SCMem.
       + left. f_equal; assumption.
       + right. ii. inject H. apply n. reflexivity.
   Qed.
+
+  Global Instance ptr_eq_dec' : EqDecision pointer.
+  Proof. intros x y. apply ptr_eq_dec. Defined.
+  Global Instance val_eq_dec' : EqDecision val.
+  Proof. intros x y. apply val_eq_dec. Defined.
 
   Definition val_add (v: val) (n: nat): val :=
     match v with
@@ -809,6 +815,44 @@ Section MEMRA.
     unfold points_to_white in H. des_ifs. inv Heq1.
     apply dfrac_agree_op_valid in H. des. done.
   Qed.
+
+  Lemma memory_ra_compare_ptr_both_pers m l0 v0 l1 v1
+    :
+    (memory_black m)
+      -∗
+      (points_to l0 v0 true)
+      -∗
+      (points_to l1 v1 true)
+      -∗
+      (⌜SCMem.compare m l0 l1 = Some (bool_decide (l0=l1))⌝).
+  Proof.
+    iIntros "BLACK POINT0 POINT1". ss.
+    iPoseProof (memory_ra_load with "BLACK POINT0") as "%". des.
+    iPoseProof (memory_ra_load with "BLACK POINT1") as "%". des.
+    unfold SCMem.compare, SCMem.val_compare. des_ifs. ss. des_ifs.
+    { case_bool_decide; done. }
+    case_bool_decide as EQ; try done. injection EQ as ->. done.
+  Qed.
+
+  (* Lemma memory_ra_compare_ptr_both_pers_left m l0 v0 l1 v1
+    :
+    (memory_black m)
+      -∗
+      (points_to l0 v0 false)
+      -∗
+      (points_to l1 v1 true)
+      -∗
+      (⌜SCMem.compare m l0 l1 = Some false⌝).
+  Proof.
+    iIntros "BLACK POINT0 POINT1". ss.
+    iPoseProof (memory_ra_load with "BLACK POINT0") as "%". des.
+    iPoseProof (memory_ra_load with "BLACK POINT1") as "%". des.
+    unfold SCMem.compare, SCMem.val_compare. des_ifs.
+    ss. des_ifs. iCombine "POINT0 POINT1" as "POINT". iOwnWf "POINT".
+    ur in H. ur in H. specialize (H n). specialize (H n0). ur in H.
+    unfold points_to_white in H. des_ifs. inv Heq1.
+    apply dfrac_agree_op_valid in H. des. done.
+  Qed. *)
 
   (* Persistency lemmas *)
 
