@@ -7,6 +7,7 @@ From Fairness Require Import Axioms.
 Require Import Program.
 From Fairness Require Import FairnessRA IndexedInvariants.
 From Fairness Require Export ObligationRA SimDefaultRA.
+Require Export Nat.
 
 Notation "'ω'" := Ord.omega.
 (* Notation "'ω'" := Ord.omega : ord_scope. *)
@@ -146,9 +147,11 @@ Section LAYER.
   Qed.
 
   Lemma layer_drop_eq :
-    forall l m (LE : l <= m) a, (0 < a) -> (layer l a <= layer m a)%ord.
+    forall l m (LE : l <= m) a, (layer l a <= layer m a)%ord.
   Proof.
-    intros. inv LE.
+    intros. destruct a.
+    { rewrite ! layer_zero2. reflexivity. }
+    inv LE.
     { reflexivity. }
     apply Ord.lt_le. apply layer_drop; lia.
   Qed.
@@ -209,6 +212,16 @@ Section RULES.
 
   Global Program Instance Persistent_liveness_obligation k l :
     Persistent (liveness_obligation k l).
+
+  Lemma lo_mon k l1 l2 :
+    (l1 <= l2) ->
+    liveness_obligation k l1 ⊢ liveness_obligation k l2.
+  Proof.
+    unfold liveness_obligation. iIntros (LAY) "(% & % & %LE1 & OB)".
+    iExists a, o. iSplit.
+    { iPureIntro. etransitivity. eauto. apply layer_drop_eq. auto. }
+    iFrame.
+  Qed.
 
   Lemma pc_mon k l1 l2 a1 a2 :
     (layer l1 a1 <= layer l2 a2)%ord ->
@@ -875,40 +888,45 @@ Section ELI.
   Context `{ARROWSHOTRA : @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA : @GRA.inG ArrowRA Σ}.
 
-  (* Assumes one linearization point. *)
-  Fixpoint env_live_inv (n : nat) (x : nat) E (k : nat) {v} (A T : Vars v) : iProp :=
+  Definition env_live_chain0 (x : nat) E (k : nat) {v} (A T : Vars v) : iProp :=
+    □((€) -∗ (prop _ A)
+          =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ ◇[k](0, 1))
+                                                       ∨ (prop _ T))
+     )%I.
+
+  Fixpoint env_live_chain (n : nat) (x : nat) E (k l : nat) {v} (A T : Vars v) : iProp :=
     match n with
-    | O => ⌜False⌝%I
+    | O => env_live_chain0 x E k A T
     | S m =>
         □((€) -∗ (prop _ A)
-              =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ ◇[k](0, 1)) ∨ (prop _ A ∗ @env_live_inv m x E k v A T) ∨ (prop _ T)))%I
+              =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ ◇[k](0, 1))
+                                                           ∨ (prop _ T)
+                                                           ∨ ((prop _ A)
+                                                                ∗ (∃ k' l' B,
+                                                                      ◆[k', l']
+                                                                       ∗ (⌜l' <= l⌝)
+                                                                       ∗ (□ ((prop _ B) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (prop _ A ∗ (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=> ((prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (prop _ B))))))
+                                                                       ∗ (@env_live_chain0 x E k' v A B)
+                                                                       ∗ (@env_live_chain m x E k l v B T))))
+         )%I
     end.
 
-  (* Fixpoint env_live_inv (n : nat) (x : nat) E (k : nat) {v} (A T : Vars v) : iProp := *)
-  (*   match n with *)
-  (*   | O => ⌜False⌝%I *)
-  (*   | S m => *)
-  (*       □(∃ (P : Vars v), *)
-  (*            (prop _ P) *)
-  (*              ∗ *)
-  (*              ((prop _ P ∗ €) *)
-  (*                 -∗ (prop _ A) *)
-  (*                 =| x |=( fairI (ident_tgt:=ident_tgt) x )={ E }=∗ ((prop _ A ∗ ◇[k](0, 1)) ∨ (prop _ A ∗ @env_live_inv m x E k v A T) ∨ (prop _ T))))%I *)
-  (*   end. *)
+  Global Program Instance Persistent_ELC0 x E k v (A T : Vars v) :
+    Persistent (@env_live_chain0 x E k v A T).
 
-  Lemma ELI_persistent n x E k v (A T : Vars v) :
-    (@env_live_inv n x E k v A T) -∗ □(@env_live_inv n x E k v A T).
+  Lemma ELC_persistent n x E k l v (A T : Vars v) :
+    (@env_live_chain n x E k l v A T) -∗ □(@env_live_chain n x E k l v A T).
   Proof.
     destruct n; simpl; eauto.
   Qed.
 
-  Global Program Instance Persistent_ELI n x E k v (A T : Vars v) :
-    Persistent (@env_live_inv n x E k v A T).
+  Global Program Instance Persistent_ELC n x E k l v (A T : Vars v) :
+    Persistent (@env_live_chain n x E k l v A T).
   Next Obligation.
-    iIntros "ELI". iPoseProof (ELI_persistent with "ELI") as "ELI". auto.
+    iIntros "ELI". iPoseProof (ELC_persistent with "ELI") as "ELI". auto.
   Qed.
 
-  Lemma eli_lo_ind k l n x E v (A T : Vars v) (Q : iProp) :
+  Lemma elc0_lo_ind k l x E v (A T : Vars v) (Q : iProp) :
     (v <= x) ->
     (◆[k, l])
       ⊢
@@ -916,86 +934,182 @@ Section ELI.
       -∗
       ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
       -∗
-      ((prop _ A ∗ @env_live_inv n x E k v A T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
+      ((prop _ A ∗ @env_live_chain0 x E k v A T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
+  .
+  Proof.
+    intros. iIntros "(%c & %o & #LO)".
+    (* Induction. *)
+    iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
+    iIntros "#LO #IH TERM [PA #ELI]".
+    iApply ("IH" with "[TERM] PA"). iIntros "FC PA".
+    iMod ("ELI" with "FC PA") as "[(PA & PCk) | PT]".
+    { (* Prove with the induction. *)
+      iMod (lo_pc_decr with "[PCk]") as "(%o' & #LO' & %LTo)".
+      2:{ iSplitR; iFrame. eauto. }
+      lia.
+      specialize (IHo o' LTo).
+      iApply (IHo with "LO' IH TERM [-]"). iFrame. eauto.
+    }
+    { (* Reached the target state T. *)
+      iApply ("TERM" with "PT").
+    }
+  Qed.
+
+  Lemma elc_lo_ind n k l x E v (A T : Vars v) (Q : iProp) :
+    (v <= x) ->
+    (◆[k, l])
+      ⊢
+      (□((€ -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q) -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q))
+      -∗
+      ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
+      -∗
+      ((prop _ A ∗ @env_live_chain n x E k l v A T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
   .
   Proof.
     (* Outer induction. *)
-    iIntros (LT). pattern n. induction n.
-    { iIntros "_ _ TERM [_ F]". ss. }
-    iIntros "(%c & %o & #LO)".
+    revert k l x E A T Q. pattern n. induction n.
+    { intros. iEval simpl. iApply elc0_lo_ind. auto. }
+    intros. iIntros "(%c & %o & #LO)".
     (* Inner induction. *)
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
-    iIntros "#LO #IH TERM [AP ELI]".
-    iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
-    iApply ("IH" with "[TERM] AP"). iIntros "FC AP".
-    iMod ("ELI" with "[FC] AP") as "[(PA & PCk) | [(PA & ELI2) | PT]]".
-    { iFrame. }
+    iIntros "#LO #IH TERM [PA ELI]". iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
+    iApply ("IH" with "[TERM] PA"). iIntros "FC PA".
+    iMod ("ELI" with "FC PA") as "[(PA & PCk) | [PT | (PA & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
     { (* Prove with the inner induction. *)
       iMod (lo_pc_decr with "[PCk]") as "(%o' & #LO' & %LTo)".
       2:{ iSplitR; iFrame. eauto. }
       lia.
       specialize (IHo o' LTo).
-      iApply (IHo with "LO' IH TERM [-]"). iFrame. iEval simpl.
-      iModIntro. eauto.
+      iApply (IHo with "LO' IH TERM [-]"). iFrame. eauto.
+    }
+    { (* Reached the target state T. *)
+      iApply ("TERM" with "PT").
     }
     { (* Prove with the outer induction. *)
-      iPoseProof (IHn with "[] IH TERM") as "IHn".
+      iApply (elc0_lo_ind with "LO' IH [TERM]"). auto.
+      2:{ iFrame. eauto. }
+      iIntros "PB".
+      specialize (IHn k l x E B T Q H). iApply (IHn with "[] [] TERM").
       { iExists _, _. eauto. }
-      iSpecialize ("IHn" with "[PA ELI2]").
-      iFrame. iFrame.
+      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "(PA & >KNOW2)".
+        iApply ("IH" with "[IH2 KNOW2] PA").
+        iIntros "FC PA". iMod ("KNOW2" with "PA") as "PB". iMod ("IH2" with "FC PB") as "RES". iModIntro. iFrame.
+      }
+      iFrame. auto.
+    }
+  Qed.
+
+  Lemma elc0_ccs_ind k ps l1 l2 x E v (A T : Vars v) (Q : iProp) :
+    (v <= x) ->
+    (◆[k, l1] ∗ ◇{ps}((1 + l2 + l1), 1) ∗ ◇{ps}(l2, 1))
+      ⊢
+      (□((€ -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q) -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l2, 1) -∗ Q)))
+      -∗
+      ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
+      -∗
+      ((prop _ A ∗ @env_live_chain0 x E k v A T)
+         =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l2, 1) -∗ Q))
+  .
+  Proof.
+    intros. iIntros "(#LO & PCSh & PCSn) IH TERM AE".
+    iMod (ccs_make with "[LO PCSh]") as "[CCS _]". iFrame. eauto.
+    Unshelve. 2: auto.
+    iDestruct "CCS" as "[%o CCS]".
+    (* Induction. *)
+    iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
+    iIntros "(#LO & PCS & #IH & TERM & [PA #ELI] & CCS)".
+    iApply ("IH" with "[CCS PCS TERM] PA"). iIntros "FC PA".
+    iMod ("ELI" with "FC PA") as "[(PA & PCk) | PT]".
+    { (* Prove with the induction. *)
+      iMod (ccs_decr with "[CCS PCk]") as "(%o' & CCS & %LTo & PCk)".
+      2:{ iSplitR "PCk"; iFrame. }
+      lia.
+      specialize (IHo o' LTo).
+      iRevert "PCk". iMod (IHo with "[-]") as "RES".
+      { iFrame. auto. }
+      iIntros "PCk". iModIntro. iApply ("RES" with "PCk").
     }
     { (* Reached the target state T. *)
       iApply ("TERM" with "PT").
     }
   Qed.
 
-  Lemma eli_ccs_ind k ps l n x E v (A T : Vars v) (Q : iProp) :
+  Lemma elc_ccs_ind k ps l1 l2 n x E v (A T : Vars v) (Q : iProp) :
     (v <= x) ->
-    (⦃◆[k] & ◇{ps}(l)⦄ ∗ ◇{ps}(l, n))
+    (◆[k, l1] ∗ ◇{ps}((1 + l2 + l1), (1 + n)^2) ∗ ◇{ps}(l2, (1 + n)^2))
       ⊢
-      (□((€ -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q) -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l, 1) -∗ Q)))
+      (□((€ -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q) -∗ (prop _ A) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l2, 1) -∗ Q)))
       -∗
       ((prop _ T) =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ Q)
       -∗
-      ((prop _ A ∗ @env_live_inv n x E k v A T)
-         =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l, 1) -∗ Q))
+      ((prop _ A ∗ @env_live_chain n x E k l1 v A T)
+         =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ (◇{ps}(l2, 1) -∗ Q))
   .
   Proof.
     (* Outer induction. *)
-    iIntros (LT). pattern n. induction n.
-    { iIntros "_ _ TERM [_ F]". ss. }
-    iIntros "[(%o & CCS) PCSn]".
+    revert k l1 l2 x E A T Q. pattern n. induction n.
+    { intros. iEval (simpl). iApply elc0_ccs_ind. auto. }
+    intros.
+    iIntros "(#LO & PCSh & PCSn) IH TERM AE".
+    iMod (pcs_decr _ _ ((1+n)^2) (2*n + 3) with "PCSh") as "[PCSh PCSh1]".
+    { simpl. lia. }
+    iMod (pcs_decr _ _ 1 2 with "PCSh1") as "[PCSh1 PCSh2]".
+    { lia. }
+    iMod (ccs_make with "[LO PCSh1]") as "[CCS _]". iFrame. eauto.
+    iDestruct "CCS" as "[%o CCS]".
     (* Inner induction. *)
     iStopProof. pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros o IHo.
-    iIntros "[CCS PCSn] #IH TERM [AP ELI]".
+    iIntros "(#LO & PCSn & #IH & TERM & [PA ELI] & PCSh & PCSh2 & CCS)".
     iEval (simpl) in "ELI". iPoseProof "ELI" as "#ELI".
-    iApply ("IH" with "[CCS PCSn TERM] AP"). iIntros "FC AP".
-    iMod ("ELI" with "[FC] AP") as "[(PA & PCk) | [(PA & ELI2) | PT]]".
-    { iFrame. }
+    iApply ("IH" with "[CCS PCSn TERM PCSh PCSh2] PA"). iIntros "FC PA".
+    iMod ("ELI" with "FC PA") as "[(PA & PCk) | [PT | (PA & % & % & % & #LO' & %LAY & #KNOW1 & #ELI' & #ELI2)]]".
     { (* Prove with the inner induction. *)
       iMod (ccs_decr with "[CCS PCk]") as "(%o' & CCS & %LTo & PCk)".
       2:{ iSplitR "PCk"; iFrame. }
       lia.
       specialize (IHo o' LTo).
-      iMod (IHo with "[CCS PCSn] IH TERM [PA]") as "RES".
-      { iFrame. }
-      { iFrame. iEval simpl. iModIntro. eauto. }
-      iModIntro. iApply ("RES" with "PCk").
-    }
-    { (* Prove with the outer induction. *)
-      iMod (pcs_decr _ _ 1 n with "PCSn") as "[PCS PCSn]".
-      lia.
-      iPoseProof (IHn with "[CCS PCSn] IH TERM") as "IHn".
-      { iFrame. iExists _. iFrame. }
-      iSpecialize ("IHn" with "[PA ELI2]").
-      iFrame. iMod "IHn". iModIntro. iApply ("IHn" with "PCS").
+      iRevert "PCk". iMod (IHo with "[-]") as "RES".
+      { iFrame. auto. }
+      iIntros "PCk". iModIntro. iApply ("RES" with "PCk").
     }
     { (* Reached the target state T. *)
       iApply ("TERM" with "PT").
+    }
+    { (* Prove with the outer induction. *)
+      iMod (pcs_decr _ _ ((1+n)^2) (2*n + 3) with "PCSn") as "[PCSn PCSn0]".
+      { simpl. lia. }
+      iMod (pcs_decr _ _ 1 2 with "PCSn0") as "[PCSn1 PCSn2]".
+      { lia. }
+      iMod (pcs_decr _ _ 1 1 with "PCSn2") as "[PCSn2 PCSn3]".
+      { lia. }
+      iMod (pcs_decr _ _ 1 1 with "PCSh2") as "[PCSh1 PCSh2]".
+      { lia. }
+      Unshelve. 2: auto.
+      iMod (pcs_drop_le _ _ _ _ (1+l2+l') with "PCSh1") as "PCSh1".
+      Unshelve. 1,3: lia.
+      iMod (elc0_ccs_ind with "[LO' PCSh1 PCSn1] IH [TERM PCSh PCSn PCSn3 PCSh2] [PA]") as "RES".
+      auto.
+      { iSplitR. iApply "LO'". iSplitR "PCSn1"; iFrame. }
+      2:{ iFrame. eauto. }
+      2:{ iModIntro. iApply ("RES" with "PCSn2"). }
+      iIntros "PB".
+      specialize (IHn k l1 l2 x E B T Q H). iPoseProof (IHn with "[PCSh PCSn] [] TERM") as "IHn".
+      { iFrame. eauto. }
+      { iModIntro. iIntros "IH2 PB". iMod ("KNOW1" with "PB") as "(PA & >KNOW2)".
+        iApply ("IH" with "[IH2 KNOW2] PA").
+        iIntros "FC PA". iMod ("KNOW2" with "PA") as "PB". iApply ("IH2" with "FC PB").
+      }
+      { iMod ("IHn" with "[PB]") as "IHn".
+        { iFrame. auto. }
+        iModIntro. iApply "IHn". iFrame.
+      }
     }
   Qed.
 
 End ELI.
 
-Notation "A '~{' n , x , E , k '}~◇' T" :=
-  (env_live_inv n x E k A T) (at level 50, n, x, E, k, T at level 1, format "A  ~{ n ,  x ,  E ,  k }~◇  T") : bi_scope.
+Notation "A '~{' x , E , k '}~◇' T" :=
+  (env_live_chain0 x E k A T) (at level 50, x, E, k, T at level 1, format "A  ~{ x ,  E ,  k  }~◇  T") : bi_scope.
+
+Notation "A '~{' n , x , E , k , l '}~◇' T" :=
+  (env_live_chain n x E k l A T) (at level 50, n, x, E, k, l, T at level 1, format "A  ~{ n ,  x ,  E ,  k ,  l }~◇  T") : bi_scope.

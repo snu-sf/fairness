@@ -5,7 +5,7 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec AuthExclAnysRA LifetimeRA TreiberStack.
+From Fairness Require Import TemporalLogic SCMemSpec AuthExclsRA LifetimeRA TreiberStack TreiberStackSpec1.
 
 Module TreiberClient2.
 
@@ -96,33 +96,33 @@ Section SPEC.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasMemRA: @GRA.inG memRA Γ}.
-  Context {HasAuthExclAnysRA : @GRA.inG AuthExclAnysRA Γ}.
+  Context {HasAuthExclsRAlist : @GRA.inG (AuthExcls.t (list SCMem.val)) Γ}.
+  Context {HasAuthExclsRAunit : @GRA.inG (AuthExcls.t unit) Γ}.
   Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_auexa; red_tl_lifetime.
+  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_lifetime.
 
   Import TreiberClient2.
 
   (** Invariants. *)
 
   (* Namespace for TreiberClient2 invariants. *)
-  Definition N_TreiberClient2 : namespace := (nroot .@"TreiberClient2").
-  Definition N_tpush : namespace := (nroot .@ "tpush").
+  Definition nTCli : namespace := (nroot .@"TCli").
+  Definition nTpush : namespace := (nroot .@"Tpush").
+  Definition nTMod : namespace := (nroot .@"TMod").
 
-  Lemma mask_disjoint_client01 : (↑N_TreiberClient2 : coPset) ## (↑N_tpush : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
 
-  Lemma mask_disjoint_N_Client01_state_tgt : (↑N_TreiberClient2 : coPset) ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
+  (* Lemma mask_disjoint_nTCli_state_tgt : (↑N_TreiberClient2 : coPset) ## (↑N_state_tgt : coPset).
+  Proof. apply ndot_ne_disjoint. ss. Qed. *)
 
-  Lemma mask_disjoint_t1_write_state_tgt : (↑N_tpush : coPset) ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
+  (* Lemma mask_disjoint_t1_write_state_tgt : (↑N_tpush : coPset) ## (↑N_state_tgt : coPset).
+  Proof. apply ndot_ne_disjoint. ss. Qed. *)
 
   Definition push_then_pop n γs γpop : sProp n :=
     (○ γs [(1 : SCMem.val)] ∨ ○ γpop tt)%S.
 
   Definition push_then_pop_inv n γs γpop : sProp n :=
-    (syn_inv n N_tpush (push_then_pop n γs γpop))%S.
+    (syn_inv n nTpush (push_then_pop n γs γpop))%S.
 
   Definition Client2StackState n γk k γs γpop : sProp n :=
     (◆[k,2] ∗
@@ -130,7 +130,7 @@ Section SPEC.
     )%S.
 
   Definition C2Inv n γk k γs γpop : sProp n :=
-    (syn_inv n N_TreiberClient2 (Client2StackState n γk k γs γpop))%S.
+    (syn_inv n nTCli (Client2StackState n γk k γs γpop))%S.
 
   Global Instance C2Inv_persistent n γk k γs γpop : Persistent ⟦C2Inv n γk k γs γpop, n⟧.
   Proof.
@@ -143,7 +143,7 @@ Section SPEC.
   Lemma TreiberClient2_push_spec tid n :
     ⊢ ⟦(∀ (γk k γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
-      (⤉ IsTreiber n s γs) ∗
+      (⤉ IsTreiber nTMod n s γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
       TID(tid) ∗
       (⤉ Duty(tid) [(k, 0, dead γk (k : nat) ∗ push_then_pop_inv n γs γpop)]) ∗
@@ -179,7 +179,7 @@ Section SPEC.
     iIntros "Duty C". rred2r. iApply wpsim_tauR. rred2r.
     iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc Pc']".
 
-    iApply (Treiber_push_spec _ (λ v, (dead γk (k : nat)) ∗ syn_inv n N_tpush (push_then_pop n γs γpop))%S with "[Duty PcS Live] [-]"); [set_solver| |].
+    iApply (Treiber_push_spec nTMod ⊤ (λ v, (dead γk (k : nat)) ∗ syn_inv n nTpush (push_then_pop n γs γpop))%S with "[Duty PcS Live] [-]"); [set_solver| |].
     { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|]. simpl.
       iFrame. iSplit; [done|]. simpl.
       iDestruct (pcs_cons_fold with "[PcS]") as "$".
@@ -194,10 +194,10 @@ Section SPEC.
 
       iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
       - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
-        iDestruct (auexa_b_w_eq with "TStackInv TStackC") as "%EQ".
+        iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
         subst s_st.
-        iMod (auexa_b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
-        iMod ((FUpd_alloc _ _ _ n (N_tpush) (push_then_pop n γs γpop : sProp n)%S) with "[TStackC]") as "#Pushed"; [lia| |].
+        iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
+        iMod ((FUpd_alloc _ _ _ n (nTpush) (push_then_pop n γs γpop : sProp n)%S) with "[TStackC]") as "#Pushed"; [lia| |].
         { unfold push_then_pop. iEval (simpl; red_tl_all; simpl). auto. }
         iDestruct (Lifetime.pending_merge with "Live LiveInv") as "Live".
         iEval (rewrite Qp.half_half) in "Live".
@@ -230,7 +230,7 @@ Section SPEC.
   Lemma TreiberClient2_pop_spec tid n :
     ⊢ ⟦(∀ (γk k γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
-      (⤉ IsTreiber n s γs) ∗
+      (⤉ IsTreiber nTMod n s γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
       (⤉ ○ γpop tt) ∗
       TID(tid) ∗
@@ -279,7 +279,7 @@ Section SPEC.
         iLeft. red_tl_all. iFrame.
       }
 
-      iApply (Treiber_pop_spec _ (λ ov, if ov is Some v then ⌜v = 1⌝ else (○ γpop (tt:unit)))%S with "[Duty Tok] [-]"); [ss..| |].
+      iApply (Treiber_pop_spec nTMod ⊤ (λ ov, if ov is Some v then ⌜v = 1⌝ else (○ γpop (tt:unit)))%S with "[Duty Tok] [-]"); [ss..| |].
       { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
         iFrame. iSplit; [done|]. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
         rewrite red_syn_fupd. red_tl_all.
@@ -291,7 +291,7 @@ Section SPEC.
         iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
         iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
         - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
-          iDestruct (auexa_b_w_eq with "TStackInv TStackC") as "%EQ".
+          iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
           subst s_st.
           iMod ("CloseC2Inv" with "[LiveInv TStackC]") as "_".
           { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
@@ -305,10 +305,10 @@ Section SPEC.
           iInv "PushedInv" as "TStackC" "ClosePushedInv".
           unfold push_then_pop. simpl. red_tl_all.
           iDestruct "TStackC" as "[TStackC| Tok']"; last first.
-          { by iDestruct (auexa_w_w_false with "Tok Tok'") as "%False". }
-          iDestruct (auexa_b_w_eq with "TStackInv TStackC") as "%EQ".
+          { by iDestruct (AuthExcls.w_w_false with "Tok Tok'") as "%False". }
+          iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
           subst s_st.
-          iMod (auexa_b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
+          iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
           iMod ("ClosePushedInv" with "[$Tok]") as "_".
           iMod ("CloseC2Inv" with "[TStackC]") as "_".
           { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
@@ -345,7 +345,7 @@ Section SPEC.
         iApply until_tpromise_make2. simpl. iSplit; auto.
         iEval (red_tl_all; simpl). iModIntro; iSplit; auto.
       }
-      iApply (Treiber_pop_spec _ (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Tok] [-]"); [ss..| |].
+      iApply (Treiber_pop_spec nTMod ⊤ (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Tok] [-]"); [ss..| |].
       { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
       iFrame. iSplit; [done|]. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
       rewrite red_syn_fupd. red_tl_all.
@@ -363,10 +363,10 @@ Section SPEC.
         iInv "PushedInv" as "TStackC" "ClosePushedInv".
         unfold push_then_pop. simpl. red_tl_all.
         iDestruct "TStackC" as "[TStackC| Tok']"; last first.
-        { by iDestruct (auexa_w_w_false with "Tok Tok'") as "%False". }
-        iDestruct (auexa_b_w_eq with "TStackInv TStackC") as "%EQ".
+        { by iDestruct (AuthExcls.w_w_false with "Tok Tok'") as "%False". }
+        iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
         subst s_st.
-        iMod (auexa_b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
+        iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
         iMod ("ClosePushedInv" with "[$Tok]") as "_".
         iMod ("CloseC2Inv" with "[TStackC]") as "_".
         { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).

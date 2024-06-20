@@ -88,6 +88,19 @@ Module OneShots.
       { rewrite FiniteMap.singleton_add. rewrite OneShot.pending_sum. ur. reflexivity. }
     Qed.
 
+    Lemma shot_agree k a b
+      :
+      (shot k a)
+        -∗
+        (shot k b)
+        -∗
+        (⌜a = b⌝).
+    Proof.
+      iIntros "A B". iCombine "A B" as "AB". iOwnWf "AB". iPureIntro.
+      rewrite FiniteMap.singleton_add in H0. rewrite FiniteMap.singleton_wf in H0.
+      apply OneShot.shot_agree in H0. auto.
+    Qed.
+
     Lemma alloc
       :
       ⊢ #=> (∃ k, pending k 1).

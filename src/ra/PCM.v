@@ -9,7 +9,7 @@ Require Import Lia.
 Require Import Program.
 From stdpp Require coPset gmap.
 From Fairness Require Import Axioms.
-From Fairness Require Import cmra excl.
+From Fairness Require Import cmra excl updates.
 
 Set Implicit Arguments.
 
@@ -128,47 +128,7 @@ Module RA.
   Next Obligation. ii. ss. Qed.
   Next Obligation. ii. r in H. r in H0. des. split; eauto. Qed.
 
-  (* Iris cmra is a RA. *)
-  Program Instance cmra_ra (M: cmra) : t := {
-    car := cmra_car M;
-    add := op;
-    wf := valid;
-    pcore := cmra.pcore;
-  }.
-  Next Obligation. ii. by rewrite (base.comm op). Qed.
-  Next Obligation. ii. by rewrite (base.assoc op). Qed.
-  Next Obligation. ii. by apply (cmra_valid_op_l _ b). Qed.
-  Next Obligation. ii. by apply cmra_pcore_l. Qed.
-  Next Obligation. ii. by apply (cmra_pcore_idemp a). Qed.
-  Next Obligation. ii. by apply (cmra_pcore_mono a). Qed.
-
-  (* RA is an Iris cmra. *)
-  Section fos_ra_to_cmra.
-    Context (M : t).
-    Local Instance fos_ra_valid_instance : Valid car := wf.
-    Local Instance fos_ra_pcore_instance : PCore car := pcore.
-    Local Instance fos_ra_op_instance : Op car := add.
-
-    Lemma fos_ra_valid a : valid a <-> wf a.
-    Proof. done. Qed.
-    Lemma fos_ra_op a0 a1 : op a0 a1 = add a0 a1.
-    Proof. done. Qed.
-
-    Definition fos_ra_mixin : RAMixin car.
-    Proof.
-      split; try apply _; try done.
-      - ii. subst. eauto.
-      - ii. apply add_assoc.
-      - ii. apply add_comm.
-      - ii. apply pcore_id. done.
-      - ii. eapply pcore_idem. eauto.
-      - intros ???[??]. subst. apply pcore_mono.
-      - ii. eapply wf_mon. eauto.
-    Qed.
-    Canonical Structure fosraR := discreteR car fos_ra_mixin.
-  End fos_ra_to_cmra.
-
-  Definition prod (M0 M1 : t) : t := cmra_ra (prodR (fosraR M0) (fosraR M1)).
+  (* Definition prod (M0 M1 : t) : t := (prodR (fosraR M0) (fosraR M1)).
 
   Theorem prod_updatable
           M0 M1
@@ -188,7 +148,7 @@ Module RA.
     ii. ss. destruct ctx as [ctx0 ctx1], H as [H0 H1]. simpl in *.
     specialize (UPD3 ctx0 H0). specialize (UPD2 ctx1 H1).
     split; done.
-  Qed.
+  Qed. *)
 
   (* Program Instance frac (denom: positive): t := {
     car := positive;
@@ -198,9 +158,9 @@ Module RA.
   .
   Next Obligation. ss. lia. Qed.
   Next Obligation. ss. lia. Qed.
-  Next Obligation. ss. lia. Qed.
+  Next Obligation. ss. lia. Qed. *)
 
-  Theorem frac_updatable
+  (* Theorem frac_updatable
           denom M
           a b
     :
@@ -231,17 +191,27 @@ Module RA.
     exfalso. eapply H; eauto.
   Qed. *)
 
-  Definition empty : t := cmra_ra Empty_setR.
-
-  Definition excl (A : Type) : t := cmra_ra (exclR A).
+  Program Instance excl (A: Type): t := {
+    car := option A;
+    add := fun _ _ => None;
+    wf := fun a => a <> None;
+    pcore := fun _ => None;
+  }
+  .
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
 
   Theorem excl_updatable
           A
           a0 a1
     :
-      <<UPD: @updatable (excl A) (Excl a0) (Excl a1)>>
+      <<UPD: @updatable (excl A) (Some a0) (Some a1)>>
   .
-  Proof. split; [|rr]; ii; ss. Qed.
+  Proof. rr. ii. ss. Qed.
 
   (* Let sum_add {M0 M1} := (fun (a b: car (t:=M0) + car (t:=M1) + unit) =>
                             match a, b with
@@ -269,19 +239,24 @@ Module RA.
     car := K -> (car (t:=M));
     add := fun f0 f1 => (fun k => add (f0 k) (f1 k));
     wf := fun f => forall k, wf (f k);
-    pcore := fun f =>
-      if excluded_middle_informative (forall k, pcore (f k) = Some (f k))
-      then Some (fun k => f k)
-      else None;
-      Some (fun k => match pcore (f k) with
-                                     | Some cx => cx
-                                     | None => add (f k) (f k)
-                                     end);
   }
   .
   Next Obligation. i. apply func_ext. ii. rewrite add_comm. ss. Qed.
   Next Obligation. i. apply func_ext. ii. rewrite add_assoc. ss. Qed.
   Next Obligation. ss. i. eapply wf_mon; ss. Qed. *)
+
+  Local Program Instance empty: t := {
+    car := False;
+    add := fun a _ => a;
+    wf := fun _ => False;
+    pcore := fun _ => None;
+  }.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed.
 End RA.
 
 
@@ -418,7 +393,8 @@ Module URA.
   Qed.
 
   (* Iris ucmra is a URA. *)
-  Program Instance ucmra_ura (M: ucmra) : t := {
+  (* TODO:(janggun) Move this to a separate module, if needed *)
+  (* Program Instance ucmra_ura (M: ucmra) : t := {
     car := ucmra_car M;
     unit := ε;
     _add := op;
@@ -432,10 +408,10 @@ Module URA.
   Next Obligation. by apply (cmra_valid_op_l _ b). Qed.
   Next Obligation. by apply cmra_core_l. Qed.
   Next Obligation. by apply cmra_core_idemp. Qed.
-  Next Obligation. by apply cmra_core_mono. Qed.
+  Next Obligation. by apply cmra_core_mono. Qed. *)
 
   (* URA is an Iris ucmra. *)
-  Section fos_ura_to_ucmra.
+  (* Section fos_ura_to_ucmra.
     Context (M : t).
     Local Instance fos_ura_valid_instance : Valid car := wf.
     Local Instance fos_ura_pcore_instance : PCore car := fun a => Some (core a).
@@ -471,7 +447,7 @@ Module URA.
     Qed.
     Canonical Structure fosuraUR := Ucmra car fos_ura_ucmra_mixin.
 
-  End fos_ura_to_ucmra.
+  End fos_ura_to_ucmra. *)
 
   Program Instance prod (M0 M1: t): t := {
     car := car (t:=M0) * car (t:=M1);
@@ -715,18 +691,140 @@ Notation "'ε'" := URA.unit.
 Infix "⋅" := URA.add (at level 50, left associativity).
 Notation "(⋅)" := URA.add (only parsing).
 
+Module of_IrisRA.
+
+Local Open Scope iris_algebra_scope.
+
+(* Iris cmra is a RA. *)
+Section IrisCMRAtoRA.
+Context (M : cmra).
+
+Inductive car (X: Type) : Type :=
+| just (x: X): car X
+.
+
+Let wf `{M : cmra}: car M -> Prop := fun a =>
+    match a with
+    | just a => ✓ a
+    end.
+Let add `{M : cmra}: car M -> car M -> car M := fun a b =>
+    match a,b with
+    | just a, just b => just (a ⋅ b)%ia
+    end.
+Let pcore `{M : cmra}: car M -> option (car M) := fun a =>
+    match a with
+    | just a => match cmra.pcore a with
+                | Some cx => Some (just cx)
+                | None => None
+                end
+    end.
+Program Instance t : RA.t := {
+  car := car M;
+  add := add;
+  wf := wf;
+  pcore := pcore;
+}.
+Next Obligation. destruct a,b. unfold add. f_equal. by rewrite (base.comm op). Qed.
+Next Obligation. destruct a,b,c. unfold add. f_equal. by rewrite (base.assoc op). Qed.
+Next Obligation. destruct a,b. unfold wf,add in *. eapply cmra_valid_op_l. apply H. Qed.
+Next Obligation.
+  unfold pcore,add in *. ii. des_ifs. f_equal.
+  by apply cmra_pcore_l.
+Qed.
+Next Obligation.
+  ii. unfold pcore in *. des_ifs.
+  all: apply cmra_pcore_idemp in Heq0; clarify.
+Qed.
+Next Obligation.
+  ii. unfold pcore,add in *. des_ifs.
+  all: apply (cmra_pcore_mono x1 (x1 ⋅ x2)%ia) in Heq; [|eexists; done]; des.
+  all: rewrite Heq in Heq0.
+  - eexists. split; [done|]. injection Heq0 as ->.
+    destruct Heq1. exists (just x). clarify.
+  - clarify.
+Qed.
+End IrisCMRAtoRA.
+
+(* RA is an Iris cmra. *)
+Section RAtoIrisCMRA.
+  Context (M : RA.t).
+
+  Local Instance fos_ra_valid_instance : Valid RA.car := RA.wf.
+  Local Instance fos_ra_pcore_instance : PCore RA.car := RA.pcore.
+  Local Instance fos_ra_op_instance : Op RA.car := RA.add.
 
 
+  Lemma fos_ra_valid a : ✓ a <-> RA.wf a.
+  Proof. done. Qed.
+  Lemma fos_ra_op a0 a1 : (a0 ⋅ a1)%ia = RA.add a0 a1.
+  Proof. done. Qed.
+
+  Definition fos_ra_mixin : RAMixin RA.car.
+  Proof.
+    split; try apply _; try done.
+    - intros ??? -> Hy. exists cx. eauto.
+    - ii. apply RA.add_assoc.
+    - ii. apply RA.add_comm.
+    - ii. apply RA.pcore_id. done.
+    - ii. eapply RA.pcore_idem. eauto.
+    - intros ???[??]. subst. apply RA.pcore_mono.
+    - ii. eapply RA.wf_mon. eauto.
+  Qed.
+  Canonical Structure fos_RAO := discreteR RA.car fos_ra_mixin.
+End RAtoIrisCMRA.
 
 
+Definition to_ra `{M: cmra} (a: M) : t M := just a.
+
+Lemma to_ra_add `{M: cmra} (a b: M) :
+  RA.add (to_ra a) (to_ra b) = to_ra (a ⋅ b)%ia.
+Proof. ss. Qed.
+
+Lemma to_ra_wf `{M: cmra} (a: M) :
+  RA.wf (to_ra a) <-> ✓ a.
+Proof. ss. Qed.
+
+Lemma to_ra_pcore `{M: cmra} (a: M) :
+  RA.pcore (to_ra a) = match (cmra.pcore a) with | Some x => Some (to_ra x) | None => None end.
+Proof. des_ifs. Qed.
+
+Lemma to_ra_extends `{M : cmra} (a b : M) :
+  @RA.extends (t M) (to_ra a) (to_ra b) <-> a ≼ b.
+Proof.
+  unfold to_ra. split; intros EXT.
+  all: rr; rr in EXT; des.
+  - destruct ctx. exists x. unfold RA.add in EXT. simpl in *. injection EXT as ->. done.
+  - exists (just z). subst. done.
+Qed.
 
 
+Lemma to_ra_updatable `{M: cmra} (a b : M) :
+  @RA.updatable (t M) (to_ra a) (to_ra b) <-> a ~~> b.
+Proof.
+  rewrite cmra_discrete_update. split; intros UPD.
+  - intros mz V. rr in UPD. des. simpl in *. destruct mz as [mz|].
+    + specialize (UPD0 (to_ra mz)). simpl in *. apply UPD0,V.
+    + apply UPD,V.
+  - rr. split.
+    + intros V. unfold to_ra,RA.wf,to_ra in *. simpl in *.
+      apply (UPD None V).
+    + intros [ctx] V. rr. simpl in *. apply (UPD (Some ctx) V).
+Qed.
 
-
-
-
-
-
+Lemma to_ra_updatable_set `{M: cmra} (a : M) P :
+  @RA.updatable_set (t M) (to_ra a) (fun a => match a with | just a => P a end) <-> a ~~>: P.
+Proof.
+  rewrite cmra_discrete_updateP. split; intros UPD.
+  - rr in UPD. des. intros [mz|] V.
+    + specialize (UPD0 (to_ra mz) V). destruct UPD0 as [[b] [??]]. exists b. split; ss.
+    + specialize (UPD V). destruct UPD as [[b] [??]]. exists b. split; ss.
+  - rr. rr in UPD. unfold to_ra in *. simpl in *. split.
+    + intros V. specialize (UPD None V). simpl in *. des.
+      exists (just y). split; ss.
+    + intros [ctx] V. specialize (UPD (Some ctx) V). simpl in *. des.
+      exists (just y). split; ss.
+  Qed.
+End of_IrisRA.
 
 Module of_RA.
 Section of_RA.
@@ -747,31 +845,96 @@ Let add `{M: RA.t}: car -> car -> car :=
     | unit, _ => b
     | _, unit => a
     end.
+Let core `{M: RA.t}: car -> car :=
+  fun a =>
+    match a with
+    | just a =>
+      match (RA.pcore a) with
+      | Some x => just x
+      | _ => unit
+      end
+    | _ => a
+    end.
 
 Program Instance t (RA: RA.t): URA.t := {
   car := car;
   unit := of_RA.unit;
   _wf := wf;
   _add := add;
-  core := fun _ => unit;
+  core := core;
 }.
 Next Obligation. unfold add. des_ifs. { rewrite RA.add_comm; ss. } Qed.
 Next Obligation. unfold add. des_ifs. { rewrite RA.add_assoc; ss. } Qed.
 Next Obligation. unfold add. des_ifs. Qed.
 Next Obligation. unfold add in *. des_ifs. eapply RA.wf_mon; eauto. Qed.
-Next Obligation. exists unit. ss. Qed.
+Next Obligation. unfold add,core in *. des_ifs. f_equal. by apply RA.pcore_id. Qed.
+Next Obligation.
+  unfold core. des_ifs.
+  - f_equal. apply RA.pcore_idem in Heq1. rewrite Heq1 in Heq0. injection Heq0. done.
+  - apply RA.pcore_idem in Heq1. clarify. Qed.
+Next Obligation.
+  unfold core,add. des_ifs; try by (eexists; ss).
+  - apply (RA.pcore_mono x1 x2) in Heq2.
+    des. exists (just c0). subst. clarify.
+  - exists unit. done.
+  - apply (RA.pcore_mono x1 x2) in Heq2. des. clarify.
+Qed.
 
-Theorem ra_updatable (RA : RA.t)
-(a a': RA.car (t := RA))
-(UPD_RA: RA.updatable a a')
-:
-  <<UPD: @URA.updatable (t RA) (just a) (just a')>>
+Definition to_ura `{M: RA.t} (a: M) : t M := just a.
+
+Lemma to_ura_add (RA : RA.t)
+  (a b : RA.car (t := RA))
+  :
+  URA.add (to_ura a) (to_ura b) = to_ura (RA.add a b).
+Proof. rewrite URA.unfold_add. ss. Qed.
+
+Lemma to_ura_wf (RA : RA.t)
+  (a : RA.car (t := RA))
+  :
+  (URA.wf (to_ura a)) <-> (RA.wf a).
+Proof. rewrite URA.unfold_wf. ss. Qed.
+
+Lemma to_ura_core (RA : RA.t) (a : RA.car (t := RA)) :
+  URA.core (to_ura a) = match (RA.pcore a) with | Some x => to_ura x | None => unit end.
+Proof. ss. Qed.
+
+Theorem to_ura_updatable (RA : RA.t)
+  (a a': RA.car (t := RA))
+  :
+  URA.updatable (to_ura a) (to_ura a') <-> RA.updatable a a'
 .
 Proof.
-ii. unfold URA.wf, URA.add in *. unseal "ra".
-ss. unfold wf in *. des_ifs.
-- by apply UPD_RA.
-- rr in UPD_RA. des. ss. by apply UPD_RA.
+  unfold to_ura. split.
+  - intros UPD_URA. unfold RA.updatable. unfold URA.updatable,URA.wf,URA.add in *. unseal "ra". ss. split.
+    + ii. specialize (UPD_URA unit). ss. apply UPD_URA; eauto.
+    + ii. specialize (UPD_URA (just ctx)). ss. apply UPD_URA; eauto.
+  - intros UPD_RA. ii. des. unfold URA.wf, URA.add in *. unseal "ra".
+    ss. unfold wf in *. des_ifs.
+    + by apply UPD_RA.
+    + rr in UPD_RA. des. by apply UPD_RA.
+Qed.
+
+Theorem to_ura_updatable_set (RA : RA.t)
+  (a : RA.car (t := RA)) B
+  (RA_UPD: RA.updatable_set a B)
+  :
+  URA.updatable_set (to_ura a) (fun x => match x with | just x => B x | unit => True end).
+Proof.
+  unfold to_ura. ii. rr in RA_UPD. des. rr in WF. unseal "ra". ss. rr in WF. unseal "ra". ss. destruct ctx as [ctx|].
+  - specialize (RA_UPD0 ctx WF). des. exists (just b). split; ss.
+    rr. unseal "ra". ss. rr. unseal "ra". ss.
+  - specialize (RA_UPD WF). des. exists unit. split; ss.
+    rr. unseal "ra". ss. rr. unseal "ra". ss.
+Qed.
+
+Lemma to_ura_extends (RA : RA.t)
+  (a b: RA.car (t := RA))
+  (EXT_RA : RA.extends a b)
+  :
+  << EXT_URA : URA.extends (to_ura a) (to_ura b) >>.
+Proof.
+  rr. rr in EXT_RA. des. exists (just ctx).
+  rewrite URA.unfold_add. ss. subst. done.
 Qed.
 
 End of_RA.
@@ -940,7 +1103,7 @@ Theorem auth_update
 .
 Proof.
   (* rr. ur. ii; des_ifs. unseal "ra". des. *)
-  rr. rewrite URA.unfold_add, URA.unfold_wf in *. ii. unseal "ra". ss. des_ifs. des.
+  rr. rewrite URA.unfold_add. rewrite URA.unfold_wf. ii. unseal "ra". ss. des_ifs. des.
   r in UPD. r in H. des; clarify. r in H. des; clarify.
   rewrite URA.unit_idl in *. ss.
   exploit (UPD (f ⋅ ctx)); eauto.
@@ -959,7 +1122,7 @@ Proof.
   (* r. rewrite <- unit_id at 1. *)
   (* eapply auth_update. rr. ii. des. rewrite unit_idl in FRAME. subst. *)
   (* esplits; eauto. rewrite add_comm; ss. *)
-  rr. rewrite URA.unfold_add, URA.unfold_wf in *. ii. ss. des_ifs. unseal "ra". ss. des.
+  rr. rewrite URA.unfold_add. rewrite URA.unfold_wf. ii. ss. des_ifs. unseal "ra". ss. des.
   rr in H. des. rewrite URA.unit_idl in *. esplits; eauto.
   rewrite CORE. eexists. rewrite <- URA.add_assoc. rewrite H. rewrite URA.add_comm. eauto.
 Qed.
@@ -972,7 +1135,7 @@ Theorem auth_dup_white
     <<DUP: URA.updatable (t:=t M) (white a) ((white a) ⋅ (white ca))>>
 .
 Proof.
-  rr. rewrite URA.unfold_add, URA.unfold_wf in *. ii. unseal "ra". ss. des_ifs.
+  rr. rewrite URA.unfold_add. rewrite URA.unfold_wf. ii. unseal "ra". ss. des_ifs.
   - ss. rewrite <- CORE. ss.
   - ss. des. esplits; eauto. rewrite <- CORE. ss.
 Qed.
@@ -985,7 +1148,7 @@ Theorem auth_alloc
     <<UPD: URA.updatable (t:=t M) (black a0) ((black a1) ⋅ (white b1))>>
 .
 Proof.
-  r. rewrite <- URA.unit_id at 1. ss. eapply auth_update. ss.
+  r. rewrite <-(URA.unit_id (black a0)). ss. eapply auth_update. ss.
 Qed.
 
 Theorem auth_alloc2
@@ -996,7 +1159,7 @@ Theorem auth_alloc2
     <<UPD: URA.updatable (t:=t M) (black a0) ((black (a0 ⋅ delta)) ⋅ (white delta))>>
 .
 Proof.
-  rr. rewrite URA.unfold_add, URA.unfold_wf in *.
+  rr. rewrite URA.unfold_add. rewrite URA.unfold_wf.
   ii. unseal "ra". ss. des_ifs. subst add wf. ss. des.
   esplits; eauto.
   rewrite URA.unit_idl in *.
