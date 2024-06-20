@@ -816,13 +816,13 @@ Section MEMRA.
     apply dfrac_agree_op_valid in H. des. done.
   Qed.
 
-  Lemma memory_ra_compare_ptr_both_pers m l0 v0 l1 v1
+  Lemma memory_ra_compare_ptr_both_gen m l0 v0 l1 v1 p1 p2
     :
     (memory_black m)
       -∗
-      (points_to l0 v0 true)
+      (points_to l0 v0 p1)
       -∗
-      (points_to l1 v1 true)
+      (points_to l1 v1 p2)
       -∗
       (⌜SCMem.compare m l0 l1 = Some (bool_decide (l0=l1))⌝).
   Proof.

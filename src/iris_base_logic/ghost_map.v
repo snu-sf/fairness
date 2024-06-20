@@ -3,9 +3,11 @@ From sflib Require Import sflib.
 (** A "ghost map" (or "ghost heap") with a proposition controlling authoritative
 ownership of the entire heap, and a "points-to-like" proposition for (mutable,
 fractional, or persistent read-only) ownership of individual elements. *)
-From Fairness Require Import IPM PCM IPropAux.
+From Fairness Require Import IPM PCM IProp IPropAux.
 From Fairness Require Import MonotoneRA.
 From Fairness Require Import agree cmra lib.gmap_view.
+From Fairness Require Import TemporalLogic.
+
 From Fairness Require Export dfrac.
 
 From iris.prelude Require Import prelude options.
@@ -409,3 +411,43 @@ Section lemmas.
   Qed. *)
 
 End lemmas.
+
+Section SPROP.
+
+Context {K V : Type} `{Countable K}.
+Context {STT : StateTypes}.
+Context `{sub : @SRA.subG Γ Σ}.
+Context {TLRASs : TLRAs_small STT Γ}.
+Context {TLRAS : TLRAs STT Γ Σ}.
+
+Context `{HasGhostMap : @GRA.inG (ghost_mapURA K V) Γ}.
+
+  Definition s_ghost_map_auth {n} γ q m : sProp n := (➢(ghost_map_auth_ra γ q m))%S.
+  Definition s_ghost_map_elem {n} k γ dq v : sProp n := (➢(ghost_map_elem_ra k γ dq v))%S.
+
+  Lemma red_s_ghost_map_auth n γ q m :
+    ⟦s_ghost_map_auth γ q m, n⟧ = ghost_map_auth γ q m.
+  Proof.
+    unfold s_ghost_map_auth. red_tl. ss.
+  Qed.
+
+  Lemma red_s_ghost_map_elem n k γ dq v:
+    ⟦s_ghost_map_elem k γ dq v, n⟧ = ghost_map_elem k γ dq v.
+  Proof.
+    unfold s_ghost_map_elem. red_tl. ss.
+  Qed.
+
+End SPROP.
+
+Ltac red_tl_ghost_map_ura := (try rewrite ! red_s_ghost_map_auth;
+try rewrite ! red_s_ghost_map_elem
+).
+
+Notation "k ↪[ γ ]{ dq } v" := (s_ghost_map_elem γ k dq v)
+  (at level 20, γ at level 50, dq at level 50, format "k  ↪[ γ ]{ dq }  v") : sProp_scope.
+Notation "k ↪[ γ ]{# q } v" := (k ↪[γ]{DfracOwn q} v)%I
+  (at level 20, γ at level 50, q at level 50, format "k  ↪[ γ ]{# q }  v") : sProp_scope.
+Notation "k ↪[ γ ] v" := (k ↪[γ]{#1} v)%I
+  (at level 20, γ at level 50, format "k  ↪[ γ ]  v") : sProp_scope.
+Notation "k ↪[ γ ]□ v" := (k ↪[γ]{DfracDiscarded} v)%I
+  (at level 20, γ at level 50) : sProp_scope.

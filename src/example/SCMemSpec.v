@@ -269,6 +269,146 @@ Section SPEC.
       iPureIntro. apply SCMem.val_compare_Some in MC. des_ifs.
   Qed.
 
+  (* Note: weak, can't guarnatee that the values the points-to point to doesn't change. *)
+  Lemma SCMem_cas_loc_fun_spec_gen
+        tid x y (LT : x < S y)
+        E (IN : ↑N_state_tgt ⊆ E)
+        l old new v pv po
+    :
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗
+        (l ↦ v) ∗
+        (if (SCMem.val_eq_dec v SCMem.val_null) then emp else (∃ vv: τ{SCMem.val,y}, v ↦{ pv } vv)) ∗
+        (if (SCMem.val_eq_dec old SCMem.val_null) then emp else (∃ vo: τ{SCMem.val,y}, old ↦{ po } vo))
+      }
+      (map_event emb_mem (SCMem.cas_fun (l, (old : SCMem.val), (new : SCMem.val))))
+      {b, ∃ u, ⌜(if (SCMem.val_eq_dec v old) then (b = true /\ u = (new : SCMem.val)) else (b = false /\ u = (v : SCMem.val)))⌝
+                ∗ (l ↦ u) ∗
+                (if (SCMem.val_eq_dec v SCMem.val_null) then emp else (∃ vv: τ{SCMem.val,y}, v ↦{ pv } vv)) ∗
+                (if (SCMem.val_eq_dec old SCMem.val_null) then emp else (∃ vo: τ{SCMem.val,y}, old ↦{ po } vo))
+      }.
+  Proof.
+    Local Transparent SCMem.cas.
+    iStartTriple.
+    iIntros "[#ST (PT & v↦ & o↦)] CAS". iInv "ST" as (st) "ST1" "K".
+    ss. iDestruct "ST1" as (mem) "[VW MB]". red_tl_memra.
+    des_ifs.
+    2,4,5: iDestruct "o↦" as (vo) "o↦".
+    2: iDestruct (SCMem.memory_ra_compare_ptr_left _ 0 with "MB o↦") as "%MC".
+    3,4,5: iDestruct "v↦" as (vv) "v↦".
+    5: iDestruct (SCMem.memory_ra_compare_ptr_right _ 0 with "MB v↦") as "%MC".
+    3,4: iDestruct (SCMem.memory_ra_compare_ptr_both_gen with "MB v↦ o↦") as "%MC".
+    all: rred2r; iApply wpsim_getR; iSplit; [iFrame | ].
+    all: iEval (simpl; red_tl_memra) in "MB".
+    all: rred2r; unfold SCMem.cas; iPoseProof (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
+    all: rewrite Lens.view_set; rewrite LOAD.
+    1: simpl in *.
+    all: try (unfold SCMem.compare in MC; unfold SCMem.val_null; rewrite MC).
+    - iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". rewrite STORE. rred2r.
+      iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r.
+      iEval (unfold Lens.modify; rewrite Lens.set_set) in "STTGT".
+      iMod ("MEM") as "[MB PT]". iMod ("K" with "[STTGT MB]") as "_".
+      { iExists _. iEval (red_tl; red_tl_memra). iFrame. }
+      iApply "CAS". iExists _. iFrame. done.
+    - rred2r. iMod ("K" with "[VW MB]") as "_".
+      { iExists _. iFrame. iEval red_tl; red_tl_memra. iFrame. }
+      iApply "CAS". iExists 0. iFrame. iSplit; [done|].
+      iExists _. iFrame.
+    - case_bool_decide; [|done].
+      subst. iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". rewrite STORE. rred2r.
+      iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r.
+      iEval (unfold Lens.modify; rewrite Lens.set_set) in "STTGT".
+      iMod ("MEM") as "[MB PT]". iMod ("K" with "[STTGT MB]") as "_".
+      { iExists _. iEval (red_tl; red_tl_memra). iFrame. }
+      iApply "CAS". iExists _. iFrame. iSplit; [done|].
+      iSplitL "v↦"; iExists _; iFrame.
+    - case_bool_decide; [done|].
+      rred2r. iMod ("K" with "[VW MB]") as "_".
+      { iExists _. iFrame. iEval red_tl; red_tl_memra. iFrame. }
+      iApply "CAS". iExists _. iFrame.
+      iSplit; [done|].
+      iSplitL "v↦"; iExists _; iFrame.
+    - rred2r. iMod ("K" with "[VW MB]") as "_".
+      { iExists _. iFrame. iEval red_tl; red_tl_memra. iFrame. }
+      iApply "CAS". iExists _. iFrame. iSplit; [done|].
+      iExists _. done.
+  Qed.
+
+  (* Lemma SCMem_cas_loc_loc_fun_spec
+        tid x y (LT : x < S y)
+        E (IN : ↑N_state_tgt ⊆ E)
+        l (old new : SCMem.pointer) v pv po
+    :
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦ v) ∗ (∃ vv: τ{SCMem.val,y}, v ↦{ pv } vv) ∗ (∃ vo: τ{SCMem.val,y}, old ↦{ po } vo)}
+      (map_event emb_mem (SCMem.cas_fun (l, (old : SCMem.val), (new : SCMem.val))))
+      {b, ∃ u, ⌜(if (SCMem.val_eq_dec v old) then (b = true /\ u = (new : SCMem.val)) else (b = false /\ u = (v : SCMem.val)))⌝
+                ∗ (l ↦ u) ∗ (∃ vv: τ{SCMem.val,y}, v ↦{ pv } vv) ∗ (∃ vo: τ{SCMem.val,y}, old ↦{ po } vo)}.
+  Proof.
+    Local Transparent SCMem.cas.
+    iStartTriple.
+
+    iIntros "[#ST (PT & v↦ & o↦)] CAS".
+    iAssert (⌜∃ (v' : τ{SCMem.pointer,y}), v = (SCMem.val_ptr v')⌝)%I as %[v' EQ].
+    { iClear "CAS". destruct v; ss.
+      { iDestruct "v↦" as (vv) "n↦". done. }
+      iPureIntro. eauto.
+    }
+    rewrite EQ. clear EQ.
+
+    iApply (SCMem_cas_loc_fun_spec_gen with "[$ST $PT v↦ o↦]"); [done..|des_ifs; iFrame|].
+    iIntros (b) "[%u (%EQ & PT & v↦ & o↦)]".
+    iApply "CAS". iExists (u). iFrame "∗%". des_ifs; iFrame.
+  Qed.
+
+  Lemma SCMem_cas_loc_null_fun_spec
+        tid x y (LT : x < S y)
+        E (IN : ↑N_state_tgt ⊆ E)
+        l (new : SCMem.pointer) v pv vv
+    :
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦ v) ∗ (v ↦{ pv } vv) }
+      (map_event emb_mem (SCMem.cas_fun (l, (SCMem.val_null : SCMem.val), (new : SCMem.val))))
+      {false, (l ↦ v) ∗ (v ↦{ pv } vv)}.
+  Proof.
+    Local Transparent SCMem.cas.
+    iStartTriple.
+
+    iIntros "[#ST (PT & v↦)] CAS".
+    iAssert (⌜∃ (v' : τ{SCMem.pointer,y}), v = (SCMem.val_ptr v')⌝)%I as %[v' EQ].
+    { iClear "CAS". destruct v; ss. iPureIntro. eauto. }
+    rewrite EQ. clear EQ.
+
+    iApply (SCMem_cas_loc_fun_spec_gen with "[$ST $PT v↦]"); [done..| |].
+    { des_ifs. iFrame. iSplitL "v↦"; [|done]. iExists vv. done. }
+    iIntros (b) "[%u (%EQ & PT & v↦ & o↦)]".
+    iApply "CAS". des_ifs. iFrame "∗%". des. clarify.
+    iFrame.
+    Unshelve. all: auto.
+  Qed.
+
+  Lemma SCMem_cas_null_loc_fun_spec
+        tid x y (LT : x < S y)
+        E (IN : ↑N_state_tgt ⊆ E)
+        l (old new : SCMem.pointer) po vo
+    :
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦ SCMem.val_null) ∗ (old ↦{ po } vo)}
+      (map_event emb_mem (SCMem.cas_fun (l, (old : SCMem.val), (new : SCMem.val))))
+      {false, (l ↦ SCMem.val_null) ∗ (old ↦{ po } vo)}.
+  Proof.
+    Local Transparent SCMem.cas.
+    iStartTriple.
+
+    iIntros "[#ST (PT & o↦)] CAS".
+
+    iApply (SCMem_cas_loc_fun_spec_gen with "[$ST $PT o↦]"); [done..| |].
+    { des_ifs. iFrame. }
+    iIntros (b) "[%u (%EQ & PT & _ & o↦)]".
+    iApply "CAS". des_ifs. iFrame "∗%". des. clarify.
+    Unshelve. all: auto.
+  Qed. *)
+
   Lemma SCMem_cas_fun_syn_spec
         tid n
         E (IN : ↑N_state_tgt ⊆ E)

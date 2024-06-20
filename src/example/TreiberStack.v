@@ -69,5 +69,3 @@ Module TreiberStack.
 
   End TreiberStack.
 End TreiberStack.
-
-Global Opaque TreiberStack.push TreiberStack.pop.
