@@ -200,7 +200,7 @@ Section SPEC.
     ⊢ [@ tid, y, E @]
       {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦ v)}
       (map_event emb_mem (SCMem.faa_fun (l, add)))
-      {v, l ↦ (SCMem.val_add v add)}.
+      {rv, ⌜rv = v⌝ ∗ (l ↦ (SCMem.val_add v add))}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". unfold SCMem.faa_fun. rred2.
@@ -229,7 +229,7 @@ Section SPEC.
     iStartTriple. iIntros "P Q".
     iApply (SCMem_faa_fun_spec with "[P] [Q]"). 2: eauto. auto.
     red_tl. iDestruct "P" as "[A B]". rewrite red_syn_tgt_interp_as. red_tl_memra. iFrame.
-    iIntros (rv) "A". iApply "Q". red_tl. red_tl_memra. iFrame.
+    iIntros (rv) "[%A B]". iApply "Q". red_tl. red_tl_memra. subst. iFrame. auto.
   Qed.
 
 
