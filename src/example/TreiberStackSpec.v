@@ -27,7 +27,6 @@ Definition to_mnp_ptr ptr
   (IsPtr : (∃ (p : SCMem.pointer), ptr = SCMem.val_ptr p)) :=
   {| ptr := ptr; ptr_mabye_null := or_intror IsPtr |}.
 
-Module TreiberStackSpec.
 Section SPEC.
 
   Context {src_state : Type}.
@@ -381,8 +380,7 @@ Section SPEC.
                     (⤉ (● γs (S' : list SCMem.val) ∗ Q (ov : option SCMem.val) ∗ ⌜ov = hd_error S⌝)))
 *)
   Lemma Treiber_pop_spec
-        {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid
-        (SUBSET : (↑treiberN) ⊆ E) :
+        {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid :
     ∀ s k γs L (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, n, ⊤ @]
           ⧼⟦(
@@ -392,7 +390,7 @@ Section SPEC.
             ∗ (⤉ P)
             (* TODO: masks? *)
             ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
-                  =|1+n|={E}=∗
+                  =|1+n|={⊤∖↑treiberN}=∗
                   match S with
                   | [] => (⤉ (● γs ([] : list SCMem.val) ∗ Q None))
                   | h::t => (⤉ (● γs t ∗ Q (Some h)))
@@ -410,3 +408,5 @@ Section SPEC.
   Admitted.
 
 End SPEC.
+
+Global Opaque TreiberStack.pop TreiberStack.push.

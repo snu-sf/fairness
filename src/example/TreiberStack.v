@@ -9,7 +9,7 @@ From Fairness Require Import TemporalLogic SCMemSpec AuthExclAnysRA.
 
 Module TreiberStack.
 
-  Section TreiberStack.
+  Section TREIBERSTACK.
 
     Context {state : Type}.
     Context {ident : ID}.
@@ -67,5 +67,5 @@ Module TreiberStack.
     (*     (SCMem.mod gvs) *)
     (* . *)
 
-  End TreiberStack.
+  End TREIBERSTACK.
 End TreiberStack.

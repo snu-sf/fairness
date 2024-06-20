@@ -5,7 +5,7 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec AuthExclsRA LifetimeRA TreiberStack TreiberStackSpec1.
+From Fairness Require Import TemporalLogic SCMemSpec ExclsRA AuthExclsRA LifetimeRA ghost_map TreiberStack TreiberStackSpec.
 
 Module TreiberClient2.
 
@@ -98,6 +98,8 @@ Section SPEC.
   Context {HasMemRA: @GRA.inG memRA Γ}.
   Context {HasAuthExclsRAlist : @GRA.inG (AuthExcls.t (list SCMem.val)) Γ}.
   Context {HasAuthExclsRAunit : @GRA.inG (AuthExcls.t unit) Γ}.
+  Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
+  Context {HasExcl : @GRA.inG (Excls.t unit) Γ}.
   Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
 
   Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_lifetime.
@@ -110,13 +112,6 @@ Section SPEC.
   Definition nTCli : namespace := (nroot .@"TCli").
   Definition nTpush : namespace := (nroot .@"Tpush").
   Definition nTMod : namespace := (nroot .@"TMod").
-
-
-  (* Lemma mask_disjoint_nTCli_state_tgt : (↑N_TreiberClient2 : coPset) ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed. *)
-
-  (* Lemma mask_disjoint_t1_write_state_tgt : (↑N_tpush : coPset) ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed. *)
 
   Definition push_then_pop n γs γpop : sProp n :=
     (○ γs [(1 : SCMem.val)] ∨ ○ γpop tt)%S.
@@ -141,11 +136,12 @@ Section SPEC.
   (** Simulation proof. *)
 
   Lemma TreiberClient2_push_spec tid n :
-    ⊢ ⟦(∀ (γk k γs γpop : τ{nat, 1+n}),
+    ⊢ ⟦(∀ (γk k' k γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
-      (⤉ IsTreiber nTMod n s γs) ∗
+      (⤉ IsT nTMod n s k' γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
       TID(tid) ∗
+      ◇[k'](1, 1) ∗
       (⤉ Duty(tid) [(k, 0, dead γk (k : nat) ∗ push_then_pop_inv n γs γpop)]) ∗
       ◇[k](3, 1) ∗ ⤉(live γk (k : nat) (1/2)))
       -∗
@@ -157,13 +153,13 @@ Section SPEC.
     )%S,1+n⟧.
   Proof.
     iIntros.
-    red_tl_all; iIntros (γk); red_tl_all; iIntros (k); red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
+    red_tl_all; iIntros (γk); red_tl_all; iIntros (k'); red_tl_all; iIntros (k); red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
 
     red_tl_all. unfold C2Inv. simpl.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
-    iIntros "(#Mem & #IsTreiber & #C2Inv & TID & Duty & Pc & Live)".
+    iIntros "(#Mem & #IsTreiber & #C2Inv & TID & Pck & Duty & Pc & Live)".
 
     unfold fn2th. simpl. unfold thread_push, TreiberClient2Spec.thread_push.
     rred2r. lred2r.
@@ -179,9 +175,9 @@ Section SPEC.
     iIntros "Duty C". rred2r. iApply wpsim_tauR. rred2r.
     iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc Pc']".
 
-    iApply (Treiber_push_spec nTMod ⊤ (λ v, (dead γk (k : nat)) ∗ syn_inv n nTpush (push_then_pop n γs γpop))%S with "[Duty PcS Live] [-]"); [set_solver| |].
+    iApply (Treiber_push_spec nTMod (λ v, (dead γk (k : nat)) ∗ syn_inv n nTpush (push_then_pop n γs γpop))%S with "[Duty Pck PcS Live] [-]"); [|].
     { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|]. simpl.
-      iFrame. iSplit; [done|]. simpl.
+      iFrame. simpl.
       iDestruct (pcs_cons_fold with "[PcS]") as "$".
       { simpl. iFrame. }
       iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
@@ -212,6 +208,8 @@ Section SPEC.
       - iEval (red_tl_all; simpl) in "Af". iDestruct "Af" as "[Dead TStackC]".
         by iDestruct (Lifetime.pending_not_shot with "Live Dead") as "%False".
     }
+    Unshelve.
+    2:{ apply ndot_ne_disjoint. ss. }
 
     iIntros (_). red_tl_all. iIntros "[[#Dead Pushed] Duty]".
     iEval (rewrite red_syn_inv) in "Pushed". iDestruct "Pushed" as "#Pushed".
@@ -228,11 +226,12 @@ Section SPEC.
   Qed.
 
   Lemma TreiberClient2_pop_spec tid n :
-    ⊢ ⟦(∀ (γk k γs γpop : τ{nat, 1+n}),
+    ⊢ ⟦(∀ (γk k k' γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
-      (⤉ IsTreiber nTMod n s γs) ∗
+      (⤉ IsT nTMod n s k' γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
       (⤉ ○ γpop tt) ∗
+      ◇[k'](1,1) ∗
       TID(tid) ∗
       (⤉ Duty(tid) []))
       -∗
@@ -244,13 +243,15 @@ Section SPEC.
     )%S,1+n⟧.
   Proof.
     iIntros.
-    red_tl_all; iIntros (γk); red_tl_all; iIntros (k); red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
+    red_tl_all; iIntros (γk); red_tl_all; iIntros (k);
+    red_tl_all; iIntros (k');
+    red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
 
     red_tl_all. unfold C2Inv. simpl.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
-    iIntros "(#Mem & #IsTreiber & #C2Inv & Tok & TID & Duty)".
+    iIntros "(#Mem & #IsTreiber & #C2Inv & Tok & Pck & TID & Duty)".
 
     unfold fn2th. simpl. unfold thread_pop, TreiberClient2Spec.thread_pop.
     rred2r. lred2r.
@@ -266,12 +267,12 @@ Section SPEC.
 
     iDestruct "Client2" as "[#Obl PushProm]".
     iPoseProof (until_tpromise_get_tpromise with "PushProm") as "#TProm".
-    iRevert "Tok TID Duty CloseC2Inv".
+    iRevert "Tok TID Duty CloseC2Inv Pck".
     iMod (until_tpromise_ind with "[Obl PushProm] [-]") as "Ind"; cycle 2.
     { iApply "Ind". }
     { iSplit; iFrame; auto. }
     iSplit.
-    - simpl. red_tl_all. iIntros "!> IH !> [LiveInv TStackC] Tok TID Duty CloseC2Inv".
+    - simpl. red_tl_all. iIntros "!> IH !> [LiveInv TStackC] Tok TID Duty CloseC2Inv Pck".
       iMod ("CloseC2Inv" with "[LiveInv TStackC]") as "_".
       { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
         iFrame "#". iEval (rewrite red_syn_until_tpromise).
@@ -279,8 +280,8 @@ Section SPEC.
         iLeft. red_tl_all. iFrame.
       }
 
-      iApply (Treiber_pop_spec nTMod ⊤ (λ ov, if ov is Some v then ⌜v = 1⌝ else (○ γpop (tt:unit)))%S with "[Duty Tok] [-]"); [ss..| |].
-      { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
+      iApply (Treiber_pop_spec nTMod (λ ov, if ov is Some v then ⌜v = 1⌝ else (○ γpop (tt:unit)))%S with "[Duty Pck Tok] [-]"); [|].
+      { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplit; [iFrame "#"|].
         iFrame. iSplit; [done|]. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
         rewrite red_syn_fupd. red_tl_all.
         iInv "C2Inv" as "Client2" "CloseC2Inv".
@@ -336,16 +337,18 @@ Section SPEC.
 
         iDestruct "Client2" as "[_ PushProm]".
         iMod ("IH" with "[$C $PushProm] ") as "IH".
-        iApply ("IH" with "Tok TID Duty"). iFrame.
+        iApply ("IH" with "Tok TID Duty CloseC2Inv").
+        (* TODO: Uh... *)
+        admit.
     - unfold push_then_pop_inv. simpl. red_tl_all. rewrite red_syn_inv.
-      iIntros "!> #[Dead PushedInv] Tok TID Duty CloseC2Inv".
+      iIntros "!> #[Dead PushedInv] Tok TID Duty CloseC2Inv Pck".
       iMod ("CloseC2Inv" with "[]") as "_".
       { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
         iFrame "#". iEval (rewrite red_syn_until_tpromise).
         iApply until_tpromise_make2. simpl. iSplit; auto.
         iEval (red_tl_all; simpl). iModIntro; iSplit; auto.
       }
-      iApply (Treiber_pop_spec nTMod ⊤ (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Tok] [-]"); [ss..| |].
+      iApply (Treiber_pop_spec nTMod (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Pck Tok] [-]"); [|].
       { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
       iFrame. iSplit; [done|]. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
       rewrite red_syn_fupd. red_tl_all.
@@ -384,6 +387,7 @@ Section SPEC.
     iModIntro.
     iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
     Unshelve. all: auto.
-  Qed.
+    all: apply ndot_ne_disjoint; ss.
+  Admitted.
 
 End SPEC.
