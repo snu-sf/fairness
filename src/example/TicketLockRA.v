@@ -187,139 +187,6 @@ Section Ticket.
 
 End Ticket.
 
-(* Resource algebra for bookkeeping obligations and duties of waiting threads *)
-(* Section OblTicket.
-  Definition OblTicketRA : URA.t := (nat ==> AuthExclAnysRA)%ra.
-
-  Context `{HasOblTicketRA : @GRA.inG OblTicketRA Σ}.
-
-  Definition OblTicketRA_Auth_base : AuthExclAnysRA :=
-    (fun k =>
-      (Auth.black (Some (tt ↑) : Excl.t Any.t) ⋅ Auth.white (Some (tt ↑) : Excl.t Any.t))).
-
-  Definition OblTicketRA_Auth : iProp :=
-    ∃ (U : nat), OwnM ((fun k => if (lt_dec k U) then ε else OblTicketRA_Auth_base) : OblTicketRA).
-
-  (* Increases everytime a thread acquires a ticket *)
-  Definition OblTicket_base_ra (r U : nat) : OblTicketRA :=
-    maps_to_res r (AuExAny_ra (gt_dec U)).
-  Definition OblTicket_base (r U : nat) : iProp :=
-    OwnM (OblTicket_base_ra r U).
-
-  Definition OblTicket_black_ra (r tk: nat) (tid obl γtk : nat) : OblTicketRA :=
-    maps_to_res r (AuExAnyB_ra tk (tid, obl, γtk)).
-  Definition OblTicket_black (r tk tid obl γtk: nat) : iProp :=
-    OwnM (OblTicket_black_ra r tk tid obl γtk).
-
-  Definition OblTicket_white_ra (r tk: nat) (tid obl γtk : nat) : OblTicketRA :=
-    maps_to_res r (AuExAnyW_ra tk (tid, obl, γtk)).
-  Definition OblTicket_white (r tk tid obl γtk : nat) : iProp :=
-    OwnM (OblTicket_white_ra r tk tid obl γtk).
-
-  Lemma OblTicket_alloc_base :
-    OblTicketRA_Auth ⊢ ∃ r, |==> OblTicketRA_Auth ∗ OblTicket_base r 0.
-  Proof.
-    iIntros "[%U BASE]". iExists U.
-    assert (URA.updatable
-      ((λ k, if lt_dec k U then ε else OblTicketRA_Auth_base) : OblTicketRA)
-      (((λ k, if lt_dec k (S U) then ε else OblTicketRA_Auth_base) : OblTicketRA)
-        ⋅ (maps_to_res U OblTicketRA_Auth_base))) as UPD.
-    { ur. apply pointwise_updatable. i. unfold maps_to_res. des_ifs; try lia.
-      - rewrite URA.unit_idl. reflexivity.
-      - rewrite URA.unit_idl. reflexivity.
-      - rewrite URA.unit_id. reflexivity.  }
-    iMod (OwnM_Upd with "BASE") as "[A B]". apply UPD.
-    assert (URA.updatable (maps_to_res U OblTicketRA_Auth_base) (OblTicket_base_ra U 0)).
-    { unfold OblTicket_base_ra. apply maps_to_updatable.
-      unfold OblTicketRA_Auth_base, AuExAny_ra.
-      apply pointwise_updatable. i. des_ifs; cycle 1. }
-    iMod (OwnM_Upd with "B") as "B". apply H.
-    iModIntro. iSplitL "A".
-    { iExists (S U). auto. }
-    { auto. }
-  Qed.
-  
-  Lemma OblTicket_alloc (r U tid obl γtk : nat) :
-    OblTicket_base r U ⊢
-      |==> OblTicket_base r (1 + U) ∗ OblTicket_black r U tid obl γtk ∗ OblTicket_white r U tid obl γtk.
-  Proof.
-    iIntros "BASE".
-    assert (URA.updatable
-      (OblTicket_base_ra r U)
-      (OblTicket_base_ra r (1 + U) ⋅ (OblTicket_black_ra r U tid obl γtk) ⋅ (OblTicket_white_ra r U tid obl γtk))).
-    { unfold OblTicket_base_ra, OblTicket_black_ra, OblTicket_white_ra.
-      repeat setoid_rewrite maps_to_res_add. apply maps_to_updatable.
-      apply pointwise_updatable. i. ur. unfold AuExAny_ra, AuExAnyB_ra, AuExAnyW_ra, maps_to_res.
-      des_ifs; try lia; ur; try (repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl);
-        try apply URA.updatable_unit; ur; des_ifs.
-      { ii. ur in H. des_ifs. des. ur in H. des_ifs.
-        { destruct H. destruct x0; ur in H; clarify. }
-        { rewrite <- Heq0. rewrite URA.unit_id. ur. split; ur; auto. exists ε. ur. des_ifs. }
-        { destruct H. ur in H. des_ifs. }
-      }
-    }
-    iMod (OwnM_Upd with "BASE") as "[[A B] C]". apply H.
-    iModIntro. iSplitL "A".
-    { auto. }
-    { iSplitL "B". auto. auto. }
-  Qed.
-
-  Lemma OblTicket_base_incr (r U : nat) :
-    OblTicket_base r U ⊢ |==> OblTicket_base r (1 + U).
-  Proof.
-    iIntros "BASE". unfold OblTicket_base.
-    assert (URA.updatable (OblTicket_base_ra r U) (OblTicket_base_ra r (1 + U))).
-    { unfold OblTicket_base_ra. apply maps_to_updatable. unfold AuExAny_ra.
-      apply pointwise_updatable. i. des_ifs; try lia.
-      apply URA.updatable_unit.
-    }
-    iMod (OwnM_Upd with "BASE") as "BASE". apply H. iModIntro. done.
-  Qed.
-
-  Lemma OblTicket_issued (r U tk tid obl γtk : nat) :
-    OblTicket_base r U ∗ (OblTicket_black r tk tid obl γtk ∨ OblTicket_white r tk tid obl γtk)
-      ⊢ ⌜tk < U⌝.
-  Proof.
-    iIntros "(BASE & [BW | BW])".
-    all: iCombine "BASE BW" as "BASE"; unfold OblTicket_base_ra, OblTicket_black_ra, OblTicket_white;
-      iPoseProof (OwnM_valid with "BASE") as "%BASE"; setoid_rewrite maps_to_res_add in BASE; iPureIntro;
-      unfold AuExAny_ra, AuExAnyB_ra, AuExAnyW_ra in BASE;
-      unfold maps_to_res in BASE;
-      ur in BASE; specialize (BASE r); ur in BASE; specialize (BASE tk);
-      ur in BASE; des_ifs; try lia.
-    des. destruct BASE. ur in H. des_ifs.
-  Qed.
-
-  Lemma OblTicket_black_white (r tk tid tid' obl obl' γtk γtk' : nat) :
-    OblTicket_black r tk tid obl γtk ∗ OblTicket_white r tk tid' obl' γtk'
-      ⊢ ⌜tid = tid' /\ obl = obl' /\ γtk = γtk'⌝.
-  Proof.
-    iIntros "[B W]". unfold OblTicket_black, OblTicket_white, OblTicket_black_ra, OblTicket_white_ra.
-    iCombine "B" "W" as "BW". iPoseProof (OwnM_valid with "BW") as "%BW".
-    setoid_rewrite maps_to_res_add in BW. ur in BW. specialize (BW r). unfold maps_to_res in BW. des_ifs.
-    ur in BW. specialize (BW tk). unfold AuExAnyB_ra, AuExAnyW_ra, maps_to_res in BW. des_ifs.
-    inv Heq. inv Heq0. ur in BW. des_ifs. des. destruct BW. ur in H. des_ifs. inv H. iPureIntro.
-    apply Any.upcast_inj in H1. inv H1. hexploit (JMeq.JMeq_eq H0); i. inv H1. auto.
-  Qed.
-
-  Lemma OblTicket_update r tk tid tid' obl obl' γtk γtk'
-    :
-    OblTicket_black r tk tid obl γtk ∗ OblTicket_white r tk tid obl γtk ⊢
-      |==> OblTicket_black r tk tid' obl' γtk' ∗ OblTicket_white r tk tid' obl' γtk'.
-  Proof.
-    iIntros "[TB TL]". unfold Ticket_black, Ticket_locked. iCombine "TB" "TL" as "BL".
-    assert (URA.updatable (Ticket_black_ra r o D ⋅ Ticket_locked_ra r o)
-      (Ticket_black_ra r o' D ⋅ Ticket_locked_ra r o')).
-    { unfold Ticket_black_ra, Ticket_issued_ra. setoid_rewrite maps_to_res_add.
-      apply maps_to_updatable. apply Auth.auth_update. ii. des. ur in FRAME.
-      des_ifs. ur in H0. des_ifs. ur in H1. des_ifs. split.
-      { ur. split; ur; auto. }
-      { ur. f_equal. ur; auto. ur; auto. des_ifs. }
-    }
-    iMod (OwnM_Upd with "BL") as "BL". apply H. iModIntro. iDestruct "BL" as "[TB TL]". iFrame.
-  Qed.
-End OblTicket. *)
-
 Section Shots.
   Definition _ShotsRA : URA.t := (nat ==> (OneShot.t unit))%ra.
   Definition ShotsRA : URA.t := (nat ==> _ShotsRA)%ra.
@@ -494,43 +361,6 @@ Section SPROP.
     unfold s_shots_shot. red_tl; simpl. ss.
   Qed.
 
-  (* Definition s_oblticket_auth {n} : sProp n := *)
-    (* (∃ (U : τ{nat, n}), (➢((fun k => if (lt_dec k U) then ε else OblTicketRA_Auth_base) : OblTicketRA)))%S. *)
-
-  (* Lemma red_s_oblticket_auth n : *)
-    (* ⟦s_oblticket_auth, n⟧ = OblTicketRA_Auth. *)
-  (* Proof. *)
-    (* unfold s_oblticket_auth, OblTicketRA_Auth. red_tl; simpl. f_equal. extensionalities r. *)
-    (* red_tl. auto. *)
-  (* Qed. *)
-
-  (* Definition s_oblticket_base {n} (r U : nat) : sProp n := *)
-    (* (➢(OblTicket_base_ra r U))%S. *)
-
-  (* Lemma red_s_oblticket_base n r U : *)
-    (* ⟦s_oblticket_base r U, n⟧ = OblTicket_base r U. *)
-  (* Proof. *)
-    (* unfold s_oblticket_base, OblTicket_base. red_tl; simpl. auto. *)
-  (* Qed. *)
-
-  (* Definition s_oblticket_black {n} (r tk tid obl γtk : nat) : sProp n := *)
-    (* (➢(OblTicket_black_ra r tk tid obl γtk))%S. *)
-
-  (* Lemma red_s_oblticket_black n r tk tid obl γtk : *)
-    (* ⟦s_oblticket_black r tk tid obl γtk, n⟧ = OblTicket_black r tk tid obl γtk. *)
-  (* Proof. *)
-    (* unfold s_oblticket_black. red_tl; simpl. ss. *)
-  (* Qed. *)
-
-  (* Definition s_oblticket_white {n} (r tk tid obl γtk : nat) : sProp n := *)
-    (* (➢(OblTicket_white_ra r tk tid obl γtk))%S. *)
-
-  (* Lemma red_s_oblticket_white n r tk tid obl γtk : *)
-    (* ⟦s_oblticket_white r tk tid obl γtk, n⟧ = OblTicket_white r tk tid obl γtk. *)
-  (* Proof. *)
-    (* unfold s_oblticket_white. red_tl; simpl. ss. *)
-  (* Qed. *)
-
 End SPROP.
 
 Ltac red_tl_ticket := (try rewrite ! red_s_ticket_auth;
@@ -542,10 +372,6 @@ Ltac red_tl_ticket := (try rewrite ! red_s_ticket_auth;
                        try rewrite ! red_s_shots_base;
                        try rewrite ! red_s_shots_pending;
                        try rewrite ! red_s_shots_shot
-                       (* try rewrite ! red_s_oblticket_auth;
-                       try rewrite ! red_s_oblticket_base;
-                       try rewrite ! red_s_oblticket_black;
-                       try rewrite ! red_s_oblticket_white *)
                       ).
 
 Ltac red_tl_lifetime_s := (try setoid_rewrite red_s_ticket_auth;
@@ -557,8 +383,4 @@ Ltac red_tl_lifetime_s := (try setoid_rewrite red_s_ticket_auth;
                            try setoid_rewrite red_s_shots_auth;
                            try setoid_rewrite red_s_shots_pending;
                            try setoid_rewrite red_s_shots_shot
-                           (* try setoid_rewrite red_s_oblticket_auth;
-                           try setoid_rewrite red_s_oblticket_base;
-                           try setoid_rewrite red_s_oblticket_black;
-                           try setoid_rewrite red_s_oblticket_white *)
                           ).
