@@ -744,40 +744,123 @@ Section SIM.
                                     (ITree.iter
                                        (λ _ : (),
                                            ` d : SCMem.val <- OMod.call "load" D;;
-                                                 ` b : bool <- OMod.call "compare" (d, 1);; ` r : () + () <- (if b then Ret (inr ()) else Ret (inl ()));; Ret r) ());;;
+                                                 ` b : bool <- OMod.call "compare" (d, 1 : SCMem.val);; ` r : () + () <- (if b then Ret (inr ()) else Ret (inl ()));; Ret r) ());;;
                                     ` x : SCMem.val <- OMod.close_itree omod (SCMem.mod gvs) ((trigger Yield;;; Spinlock.unlock X);;; trigger Yield;;; Ret (0 : SCMem.val));;
                                           OMod.close_itree omod (SCMem.mod gvs) (Ret (Any.upcast x))))%S, 1+n⟧
   .
   Proof.
     iEval (red_tl_all; rewrite red_syn_tgt_interp_as; rewrite red_syn_wpsim; simpl).
     iIntros "#INV_CL #MEM #ISL #PRw #Dl #LOw TID Lr CL2 INV_CL_CLOSE".
-
-    TODO
-
-
-
-
+    iRevert "TID Lr CL2 INV_CL_CLOSE". iMod (tpromise_ind2 with "[] []") as "IH".
+    { eauto. }
+    2:{ iApply "IH". }
+    iSplit; iModIntro.
+    2:{ iEval (simpl; red_tl_all; simpl). iIntros "#[% Dw]".
+        iEval (red_tl_all) in "Dw".
+        iModIntro. iIntros "_ _ CL2". iExFalso.
+        iPoseProof (data_case2 with "CL2") as "(LXw & PTD & % & % & CL2)".
+        iEval (red_tl_all; simpl) in "CL2".
+        iDestruct "CL2" as "(_ & Lw & #Dl2 & DUTY & PCspin & _)".
+        iPoseProof (OneShots.shot_agree with "Dl Dl2") as "%EQ". subst γκw0. iClear "Dl2".
+        iPoseProof (OneShots.pending_not_shot with "Lw Dw") as "%F". inv F.
+    }
+    iIntros "IH". iModIntro. iIntros "TID Lr CL2 INV_CL_CLOSE".
+    iPoseProof (data_case2 with "CL2") as "(LXw & PTD & % & % & CL2)".
+    iEval (red_tl_all; simpl) in "CL2".
+    iDestruct "CL2" as "(_ & Lw & #Dl2 & DUTY & PCspin & _)".
+    iPoseProof (OneShots.shot_agree with "Dl Dl2") as "%EQ". subst γκw0. iClear "Dl2".
+    iEval (rewrite unfold_iter_eq). rred2r.
+    iApply (wpsim_yieldR_gen with "[DUTY]").
+    2:{ iFrame. }
+    auto.
+    iIntros "DUTY FC".
     iMod ("INV_CL_CLOSE" with "[LXw PTD Lw PCspin DUTY]") as "_".
     { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). do 1 iRight. iLeft. iFrame.
       iExists _. iEval (red_tl). iExists _. iEval (red_tl_all; simpl). iFrame. do 2 (iSplit; [auto|]).
       iExists _. iEval (red_tl; simpl). eauto.
     }
-
-
-    iPoseProof (data_case2 with "CL2") as "(LXw & PTD & % & % & CL2)". iEval (red_tl_all; simpl) in "CL2".
+    iModIntro. rred2r.
+    iInv "INV_CL" as "CL" "INV_CL_CLOSE".
+    iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl) in "CL".
+    iDestruct "CL" as "[CL1 | [CL2 | [CL3 | CL4]]]".
+    4:{ iPoseProof (not_case4 with "CL4 Lr") as "%F". inv F. }
+    1:{ iExFalso. iDestruct "CL1" as "(_ & _ & _ & Ll & _)".
+        iPoseProof (OneShots.pending_not_shot with "Ll Dl") as "%F". inv F.
+    }
+    2:{ iClear "IH". 
+        iMod (data_case3 with "CL3 Lr") as "((%γκw0 & %κu & %γκu & A) & Dr & CL3)".
+        iMod ("INV_CL_CLOSE" with "[CL3]") as "_".
+        { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). do 2 iRight. iLeft. iFrame. }
+        iEval (red_tl_all; simpl) in "A". iDestruct "A" as "(PRu & LINKu & Dl2 & Dw & DUTY & PC & Lu & EX)".
+        iMod (pc_drop _ 1 _ _ 9 with "PC") as "PC".
+        Unshelve. 1,3: subst; auto.
+        iPoseProof (pcs_cons_fold _ 0 [] 1 9 with "[PC]") as "PCS".
+        { iFrame. }
+        iPoseProof (OneShots.shot_agree with "Dl Dl2") as "%EQ". subst γκw0.
+        iPoseProof (loop_case3_in with "INV_CL [MEM] ISL [-]") as "SIM".
+        5:{ iEval (rewrite red_syn_wpsim) in "SIM". iFrame. }
+        1,2: auto.
+        { iEval (rewrite red_syn_tgt_interp_as). auto. }
+        iEval (red_tl_all; simpl).
+        iSplitL "TID"; [done|]. iSplitL "PRu"; [iApply "PRu"|]. iFrame.
+    }
+    iPoseProof (data_case2 with "CL2") as "(LXw & PTD & % & % & CL2)".
+    iEval (red_tl_all; simpl) in "CL2".
     iDestruct "CL2" as "(_ & Lw & #Dl2 & DUTY & PCspin & _)".
     iPoseProof (OneShots.shot_agree with "Dl Dl2") as "%EQ". subst γκw0. iClear "Dl2".
-    
-    
-tpromise_ind2:
-  ∀ {ident_tgt : Type} {Vars : nat → Type} {Σ : GRA.t} {Invs : IInvSet Vars} {IDENTTGT : GRA.inG (identTgtRA ident_tgt) Σ} 
-    {OBLGRA : GRA.inG ObligationRA.t Σ} {ONESHOTRA : GRA.inG ArrowShotRA Σ} {ARROWRA : GRA.inG (ArrowRA ident_tgt) Σ} 
-    (v k l m : nat) (f : Vars v) (R : iProp),
-    ◆[k, l] ∗ -[k](m)-◇ f -∗ □ ((€ =( ObligationRA.arrows_sat v )=∗ R) ==∗ R) ∗ □ (□ prop v f ==∗ R) ==∗ R
-    
-    
-    
-
+    iApply (SCMem_load_fun_spec with "[PTD] [-]").
+    3:{ iFrame. auto. }
+    auto.
+    { pose md_N_ClientSpinlock2_state_tgt. set_solver. }
+    iIntros (rv) "[%RV PTD]". subst rv.
+    rred2r. iApply wpsim_tauR. rred2r.
+    iApply (wpsim_yieldR_gen with "[DUTY]").
+    2:{ iFrame. }
+    auto.
+    iIntros "DUTY _".
+    iMod ("INV_CL_CLOSE" with "[LXw PTD Lw PCspin DUTY]") as "_".
+    { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). do 1 iRight. iLeft. iFrame.
+      iExists _. iEval (red_tl). iExists _. iEval (red_tl_all; simpl). iFrame. do 2 (iSplit; [auto|]).
+      iExists _. iEval (red_tl; simpl). eauto.
+    }
+    iModIntro. rred2r.
+    iApply (SCMem_compare_fun_spec).
+    2: set_solver.
+    2:{ simpl. iApply (tgt_interp_as_equiv with "MEM"). iIntros (a). iStartProof.
+        simpl; red_tl_all; simpl. iSplit.
+        { iIntros "MB"; iSplit; iFrame. iPureIntro; auto. }
+        { iIntros "[MB _]"; iFrame. }
+    }
+    auto.
+    iIntros (rv) "[_ %RES]". exploit RES. auto. intros. subst rv. clear RES.
+    rred2r. iApply wpsim_tauR. rred2r. iApply wpsim_tauR.
+    iMod ("IH" with "FC") as "IH".
+    iInv "INV_CL" as "CL" "INV_CL_CLOSE".
+    iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl) in "CL".
+    iDestruct "CL" as "[CL1 | [CL2 | [CL3 | CL4]]]".
+    4:{ iPoseProof (not_case4 with "CL4 Lr") as "%F". inv F. }
+    1:{ iExFalso. iDestruct "CL1" as "(_ & _ & _ & Ll & _)".
+        iPoseProof (OneShots.pending_not_shot with "Ll Dl") as "%F". inv F.
+    }
+    { iApply ("IH" with "TID Lr CL2 INV_CL_CLOSE"). }
+    { iClear "IH". 
+      iMod (data_case3 with "CL3 Lr") as "((%γκw0 & %κu & %γκu & A) & Dr & CL3)".
+      iMod ("INV_CL_CLOSE" with "[CL3]") as "_".
+      { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). do 2 iRight. iLeft. iFrame. }
+      iEval (red_tl_all; simpl) in "A". iDestruct "A" as "(PRu & LINKu & Dl2 & Dw & DUTY & PC & Lu & EX)".
+      iPoseProof (OneShots.shot_agree with "Dl Dl2") as "%EQ". subst γκw0. iClear "Dl2".
+      iMod (pc_drop _ 1 _ _ 10 with "PC") as "PC".
+      Unshelve. 1,3: subst; auto.
+      iPoseProof (pcs_cons_fold _ 0 [] 1 10 with "[PC]") as "PCS".
+      { iFrame. }
+      iPoseProof (loop_case3 with "INV_CL [MEM] ISL [-]") as "SIM".
+      5:{ iEval (rewrite red_syn_wpsim) in "SIM". iFrame. }
+      1,2: auto.
+      { iEval (rewrite red_syn_tgt_interp_as). auto. }
+      iEval (red_tl_all; simpl).
+      iSplitL "TID"; [done|]. iSplitL "PRu"; [iApply "PRu"|]. iFrame. auto.
+    }
+  Qed.
 
   Lemma ClientSpinlock2_thread2_sim
         tid2 n
@@ -860,7 +943,19 @@ tpromise_ind2:
             { iEval (rewrite red_syn_tgt_interp_as). auto. }
             iEval (red_tl_all; simpl). iFrame. eauto.
         }
-        2:{ 
+        2:{ iPoseProof (loop_case2 with "INV_CL [MEM] ISL [PRw] Dl LOw TID LIVE_r CL2 [-]") as "SIM".
+            7:{ iEval (rewrite red_syn_wpsim) in "SIM". iFrame. }
+            1,2,3: subst; auto.
+            { iEval (rewrite red_syn_tgt_interp_as). auto. }
+            { iEval (red_tl_all). auto. }
+            iFrame.
+        }
+        { iExFalso. iDestruct "CL1" as "(_ & _ & _ & Ll & _)".
+          iPoseProof (OneShots.pending_not_shot with "Ll Dl") as "%F". inv F.
+        }
+    }
+    { 
+    
 
 
 
