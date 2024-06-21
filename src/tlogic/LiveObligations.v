@@ -414,26 +414,26 @@ Section RULES.
 
   Lemma duty_delayed_promise {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l (f : Vars v) :
     In (k, l, f) ds ->
-    duty p i ds ⊢ promise p i k l f.
+    duty p i ds ⊢ delayed_promise p i k l f.
   Proof.
-    iIntros (IN) "D". iApply duty_correl. 2: iFrame.
+    iIntros (IN) "D". iApply duty_delay. 2: iFrame.
     apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
   Qed.
 
   Lemma duty_promise {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l (f : Vars v) :
     In (k, l, f) ds ->
-    duty p i ds ⊢ promise p i k l f.
+    duty p i ds ⊢ active_obligation k -∗ promise p i k l f.
   Proof.
     iIntros (IN) "D". iApply duty_correl. 2: iFrame.
     apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
   Qed.
 
   Lemma duty_fulfill {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l f :
-    (duty p i ((k, l, f) :: ds) ∗ prop v f)
+    (duty p i ((k, l, f) :: ds) ∗ prop v f ∗ active_obligation k)
       ⊢ #=(arrows_sat v)=> duty p i ds.
   Proof.
-    iIntros "(DUTY & F)".
-    iMod (duty_done with "DUTY F") as "D". iModIntro. iFrame.
+    iIntros "(DUTY & F & S)".
+    iMod (duty_done with "DUTY S F") as "D". iModIntro. iFrame.
   Qed.
 
   Lemma duty_permutation {Id} {v} (p : Prism.t _ Id) (i : Id) ds0 ds1 :
@@ -447,10 +447,36 @@ Section RULES.
 
   Definition thread_credit : iProp := FairRA.white_thread (S:=_).
 
+  Definition thread_delayed_promise {v} k l f : iProp := delay_thread v k (layer l 1) f.
+
   Definition thread_promise {v} k l f : iProp := correl_thread v k (layer l 1) f.
+
+  Global Program Instance Persistent_thread_delayed_promise {v} k l f :
+    Persistent (thread_delayed_promise (v:=v) k l f).
 
   Global Program Instance Persistent_thread_promise {v} k l f :
     Persistent (thread_promise (v:=v) k l f).
+
+  Lemma activate_tpromise {v} k c (F : Vars v)
+    :
+    (thread_delayed_promise k c F)
+      -∗
+      (pending_obligation k (1/2))
+      -∗
+      (#=(arrows_sat v)=> (thread_promise k c F) ∗ (active_obligation k)).
+  Proof.
+    iIntros "#DP PO". iMod (delay_thread_shot with "DP PO") as "[_ #S]".
+    iPoseProof (delay_to_correl_thread with "DP S") as "P". iModIntro. auto.
+  Qed.
+
+  Lemma unfold_tpromise {v} k c (F : Vars v)
+    :
+    (thread_promise k c F)
+      -∗
+      (thread_delayed_promise k c F ∗ active_obligation k).
+  Proof.
+    iIntros "P". iPoseProof (unfold_correl_thread with "P") as "A". iFrame.
+  Qed.
 
   Lemma tpromise_progress {v} k l f :
     (thread_promise k l f ∗ thread_credit)
@@ -459,9 +485,17 @@ Section RULES.
     iIntros "[#PR FC]". iPoseProof (correl_thread_correlate with "PR FC") as "RES". iFrame.
   Qed.
 
+  Lemma duty_delayed_tpromise {v} i ds k l (f : Vars v) :
+    In (k, l, f) ds ->
+    duty inlp i ds ⊢ thread_delayed_promise k l f.
+  Proof.
+    iIntros (IN) "D". iApply duty_delay_thread. 2: iFrame.
+    apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
+  Qed.
+
   Lemma duty_tpromise {v} i ds k l (f : Vars v) :
     In (k, l, f) ds ->
-    duty inlp i ds ⊢ thread_promise k l f.
+    duty inlp i ds ⊢ active_obligation k -∗ thread_promise k l f.
   Proof.
     iIntros (IN) "D". iApply duty_correl_thread. 2: iFrame.
     apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
@@ -887,6 +921,10 @@ Notation "'◆' [ k , l ]" :=
   (liveness_obligation k l) (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : bi_scope.
 Notation "'◇' [ k ]( l , a )" :=
   (progress_credit k l a) (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : bi_scope.
+Notation "'⧖' [ k , q ]" :=
+  (pending_obligation k q) (at level 50, k, q at level 1, format "⧖ [ k ,  q ]") : bi_scope.
+Notation "'⋈' [ k ]" :=
+  (active_obligation k) (at level 50, k at level 1, format "⋈ [ k ]") : bi_scope.
 Notation "s '-(' l ')-' '◇' t" :=
   (link s t l) (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : bi_scope.
 Notation "'Duty' ( p ◬ i ) ds" :=
@@ -895,10 +933,14 @@ Notation "'Duty' ( tid ) ds" :=
   (duty inlp tid ds) (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : bi_scope.
 Notation "'€' ( p ◬ i )" :=
   (fairness_credit p i) (format "€ ( p  ◬  i )") : bi_scope.
+Notation "'-(' p ◬ i ')-[' k '](' l ')-' '⧖' f" :=
+  (delayed_promise p i k l f) (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ⧖  f") : bi_scope.
 Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
   (promise p i k l f) (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
 Notation "'€'" :=
   (thread_credit) : bi_scope.
+Notation "'-[' k '](' l ')-' '⧖' f" :=
+  (thread_delayed_promise k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ⧖  f") : bi_scope.
 Notation "'-[' k '](' l ')-' '◇' f" :=
   (thread_promise k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : bi_scope.
 Notation "'◇' { ps }( m , a )" :=
