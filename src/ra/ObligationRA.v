@@ -2193,6 +2193,18 @@ Module ObligationRA.
     Context `{Invs : @IInvSet Σ Vars}.
     Context `{@GRA.inG (@Regions.t _ (fun l => ((sum_tid S) * nat * Ord.t * Qp * nat * (Vars l))%type)) Σ}.
 
+    Definition delay_thread v (k: nat) (c: Ord.t) (f : Vars v): iProp :=
+      ∃ i, delay v inlp i k c f.
+
+    Lemma delay_thread_persistent v k c f
+      :
+      @delay_thread v k c f ⊢ □ @delay_thread v k c f.
+    Proof.
+      iIntros "# H". auto.
+    Qed.
+
+    Global Program Instance Persistent_delay_thread v k c f: Persistent (@delay_thread v k c f).
+
     Definition correl_thread v (k: nat) (c: Ord.t) (f : Vars v): iProp :=
       ∃ i, correl v inlp i k c f.
 
@@ -2205,6 +2217,49 @@ Module ObligationRA.
 
     Global Program Instance Persistent_correl_thread v k c f: Persistent (@correl_thread v k c f).
 
+    Lemma delay_thread_shot v k c F
+      :
+      (@delay_thread v k c F)
+        -∗
+        (pending k (1/2))
+        -∗
+        (#=(arrows_sat v)=> (@delay_thread v k c F) ∗ (shot k)).
+    Proof.
+      iIntros "[% DEL] WHITE". iMod (delay_shot with "DEL WHITE") as "[A S]".
+      iModIntro. iFrame. iExists _. iFrame.
+    Qed.
+
+    Lemma delay_to_correl_thread v k c F
+      :
+      (@delay_thread v k c F)
+        -∗
+        (shot k)
+        -∗
+        (@correl_thread v k c F).
+    Proof.
+      iIntros "D S". iFrame.
+    Qed.
+
+    Lemma unfold_correl_thread v k c F
+      :
+      (@correl_thread v k c F)
+        -∗
+        (@delay_thread v k c F) ∗ (shot k).
+    Proof.
+      iIntros "[% [D S]]". iFrame. iExists _. iFrame.
+    Qed.
+
+    Lemma delay_thread_shot_correl v k c F
+      :
+      (@delay_thread v k c F)
+        -∗
+        (pending k (1/2))
+        -∗
+        (#=(arrows_sat v)=> (@correl_thread v k c F)).
+    Proof.
+      iIntros "D P". iMod (delay_thread_shot with "D P") as "[D' S]". iModIntro. iFrame.
+    Qed.
+
     Lemma correl_thread_correlate v k c f
       :
       (@correl_thread v k c f)
@@ -2216,17 +2271,32 @@ Module ObligationRA.
       iIntros "[% CORR] WHITE". iApply (correl_correlate with "CORR WHITE").
     Qed.
 
+    Lemma duty_delay_thread v i l k c f
+          (IN: List.In (k, c, f) l)
+      :
+      (duty v inlp i l)
+        -∗
+        (@delay_thread v k c f).
+    Proof.
+      iIntros "DUTY".
+      iPoseProof (duty_delay with "DUTY") as "# CORR"; [eauto|].
+      iExists _. eauto.
+    Qed.
+
     Lemma duty_correl_thread v i l k c f
           (IN: List.In (k, c, f) l)
       :
       (duty v inlp i l)
         -∗
+        (shot k)
+        -∗
         (@correl_thread v k c f).
     Proof.
-      iIntros "DUTY".
-      iPoseProof (duty_correl with "DUTY") as "# CORR"; [eauto|].
+      iIntros "DUTY SHOT".
+      iPoseProof (duty_correl with "DUTY SHOT") as "# CORR"; [eauto|].
       iExists _. eauto.
     Qed.
+
   End ARROWTHREAD.
 
 
@@ -2239,7 +2309,6 @@ Module ObligationRA.
     Context `{@GRA.inG t Σ}.
     Context `{@GRA.inG (@FairRA.tgtt S) Σ}.
     Context `{@GRA.inG (@FiniteMap.t (OneShot.t _unit)) Σ}.
-    (* Context `{@GRA.inG (Region.t (Id * nat * Ord.t * Qp * nat)) Σ}. *)
 
     Local Notation index := nat.
     Context `{Vars : index -> Type}.
@@ -2284,6 +2353,39 @@ Module ObligationRA.
       iPoseProof ("K" with "[BLACK]") as "> [ARROWS [DUTY _]]".
       { iFrame. }
       iModIntro. iFrame.
+    Qed.
+
+    Lemma target_update_thread_pending
+          (tid: thread_id) v l
+          ths
+          (f0 f1: FairBeh.imap Id nat_wf)
+          (UPD: fair_update f0 f1 (prism_fmap inlp (tids_fmap tid ths)))
+          (pends : nat -> option Qp)
+      :
+      (FairRA.sat_target f0 ths)
+        -∗
+        (duty v inlp tid l ∗ ptaxes pends (map fst l) Ord.omega)
+        -∗
+        (#=(arrows_sat (S := Id) v)=>
+           ((FairRA.sat_target f1 ths)
+              ∗
+              (duty v inlp tid l)
+              ∗
+              FairRA.white_thread (S := S)
+              ∗
+              opends pends (map fst l)
+        )).
+    Proof.
+      iIntros "SAT DUTY ARROWS".
+      iPoseProof (duties_updating_pending with "[DUTY]") as "UPD".
+      { instantiate (1:=[(tid, l)]). ss. iFrame. }
+      iPoseProof (IUpd_open with "UPD ARROWS") as "> [ARROWS UPD]".
+      iPoseProof ("UPD" with "ARROWS") as "> [[BLACK _] K]".
+      iPoseProof (FairRA.target_update_thread with "SAT BLACK") as "> [SAT [BLACK WHITE]]".
+      { eauto. }
+      iPoseProof ("K" with "[BLACK]") as "> [ARROWS [DUTY _]]".
+      { iFrame. }
+      iModIntro. iFrame. iFrame.
     Qed.
 
     Lemma target_update A
@@ -2344,6 +2446,72 @@ Module ObligationRA.
       iApply (list_prop_sum_map_inv with "WHITES").
       i. iIntros "WHITE". iApply FairRA.white_prism_id_rev. auto.
     Qed.
+
+    Lemma target_update_pending A
+          v lf ls ths
+          (p: Prism.t S A)
+          (f0 f1: FairBeh.imap Id nat_wf)
+          (fm: Event.fmap A)
+          (UPD: fair_update f0 f1 (prism_fmap (Prism.compose inrp p) fm))
+          (SUCCESS: forall i (IN: fm i = Flag.success), List.In i (List.map fst ls))
+          (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
+          (NODUP: List.NoDup lf)
+          (pends : nat -> option Qp)
+      :
+      (FairRA.sat_target f0 ths)
+        -∗
+        (list_prop_sum (fun '(i, l) => duty v (Prism.compose inrp p) i l ∗ ptaxes pends (map fst l) Ord.omega) ls)
+        -∗
+        (#=(arrows_sat (S := Id) v)=>
+           ((FairRA.sat_target f1 ths)
+              ∗
+              (list_prop_sum (fun '(i, l) => duty v (Prism.compose inrp p) i l) ls)
+              ∗
+              (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) i 1) lf)
+              ∗
+              (list_prop_sum (fun '(i, l) => opends pends (map fst l)) ls)
+        )).
+    Proof.
+      iIntros "SAT DUTY ARROWS".
+      iPoseProof (duties_updating_pending with "[DUTY]") as "UPD".
+      { instantiate (1:=ls).
+        clear SUCCESS. iStopProof.
+        induction ls; ss.
+      }
+      iPoseProof (IUpd_open with "UPD ARROWS") as "> [ARROWS K]".
+      iPoseProof ("K" with "ARROWS") as "> [BLACKS K]".
+      iPoseProof (FairRA.target_update with "SAT [BLACKS]") as "> [SAT [BLACKS WHITES]]".
+      { rewrite prism_fmap_compose in UPD. eauto. }
+      { instantiate (1:=List.map (Prism.review p) (List.map fst ls)).
+        i. unfold prism_fmap in IN. des_ifs.
+        hexploit SUCCESS; eauto. i.
+        eapply Prism.review_preview in Heq. subst.
+        eapply in_map in H3. eauto.
+      }
+      { instantiate (1:=List.map (Prism.review p) lf).
+        i. eapply in_map_iff in IN. des. subst.
+        unfold prism_fmap. rewrite Prism.preview_review. eauto.
+      }
+      { eapply FinFun.Injective_map_NoDup; eauto.
+        ii. eapply f_equal with (f:=Prism.preview p) in H3.
+        rewrite ! Prism.preview_review in H3. clarify.
+      }
+      { clear SUCCESS. iStopProof.
+        induction ls; ss. destruct a. ss. unfold FairRA.blacks_of. ss.
+        iIntros "[HD TL]". iFrame. iApply IHls. auto.
+      }
+      iPoseProof ("K" with "[BLACKS]") as "> [ARROWS DUTY]".
+      { clear SUCCESS. iStopProof.
+        induction ls; ss. destruct a. iIntros "[HD TL]".
+        iFrame. iApply IHls. auto.
+      }
+      iModIntro. iFrame.
+      iPoseProof (list_prop_sepconj_sum (fun '(i, l) => duty v (inrp ⋅ p)%prism i l) (fun '(i, l) => opends pends (map fst l)) with "[DUTY]") as "[DUTY OP]".
+      { iApply list_prop_sum_impl. 2: iFrame. i. destruct a. iIntros "[D O]". iFrame. }
+      iFrame. iApply (list_prop_sum_map_inv with "WHITES").
+      i. iIntros "WHITE". iApply FairRA.white_prism_id_rev. auto.
+    Qed.
+
   End TARGET.
 
 End ObligationRA.
