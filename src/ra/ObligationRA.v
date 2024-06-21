@@ -1283,7 +1283,7 @@ Module ObligationRA.
       }
       iMod "W". iMod "IH".
       iPoseProof (ptaxes_cons_fold with "[W IH]") as "A".
-      { rewrite Heq. iFrame.}
+      { rewrite Heq. iFrame. }
       iModIntro. iFrame.
     Qed.
 
