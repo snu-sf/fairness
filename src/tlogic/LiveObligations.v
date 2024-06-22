@@ -221,6 +221,55 @@ Section RULES.
   Global Program Instance Persistent_active_obligation k :
     Persistent (active_obligation k).
 
+  Lemma pending_active k
+    :
+    (pending_obligation k 1)
+      -∗
+      #=> (active_obligation k).
+  Proof.
+    apply pending_shot.
+  Qed.
+
+  Lemma pending_not_active k q
+    :
+    (pending_obligation k q)
+      -∗
+      (active_obligation k)
+      -∗
+      False.
+  Proof.
+    apply pending_not_shot.
+  Qed.
+
+  Lemma pending_sum k q0 q1
+    :
+    (pending_obligation k q0)
+      -∗
+      (pending_obligation k q1)
+      -∗
+      (pending_obligation k (q0 + q1)%Qp).
+  Proof.
+    apply pending_sum.
+  Qed.
+
+  Lemma pending_wf k q
+    :
+    (pending_obligation k q)
+      -∗
+      (⌜(q ≤ 1)%Qp⌝).
+  Proof.
+    apply pending_wf.
+  Qed.
+
+  Lemma pending_split k q0 q1
+    :
+    (pending_obligation k (q0 + q1)%Qp)
+      -∗
+      (pending_obligation k q0 ∗ pending_obligation k q1).
+  Proof.
+    apply pending_split.
+  Qed.
+
   Lemma lo_mon k l1 l2 :
     (l1 <= l2) ->
     liveness_obligation k l1 ⊢ liveness_obligation k l2.

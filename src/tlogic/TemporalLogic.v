@@ -219,6 +219,7 @@ Module Atom.
     | obl_tdpromise (k l : nat) (f : @Syntax.t _ _ (@t form) form)
     | obl_tpromise (k l : nat) (f : @Syntax.t _ _ (@t form) form)
     | obl_pcs (ps : list (nat * nat)) (m a : nat)
+    | obl_pps (ps : list (nat * Qp))
     | obl_ccs (k : nat) (ps : list (nat * nat)) (l : nat)
     .
 
@@ -361,6 +362,7 @@ Section ATOMINTERP.
     | obl_tdpromise k l f => thread_delayed_promise k l f
     | obl_tpromise k l f => thread_promise k l f
     | obl_pcs ps m a => progress_credits ps m a
+    | obl_pps ps => progress_pendings ps
     | obl_ccs k ps l => collection_credits k ps l
     end.
 
@@ -1254,6 +1256,8 @@ Notation "'-[' k '](' l ')-' '◇' f" :=
   (⟨Atom.obl_tpromise k l f⟩)%S (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : sProp_scope.
 Notation "'◇' { ps }( m , a )" :=
   (⟨Atom.obl_pcs ps m a⟩)%S (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : sProp_scope.
+Notation "'⧖' { ps }" :=
+  (⟨Atom.obl_pps ps⟩)%S (at level 50, ps at level 1, format "⧖ { ps }") : sProp_scope.
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄" :=
   (⟨Atom.obl_ccs k ps l⟩)%S (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : sProp_scope.
 Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=

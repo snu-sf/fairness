@@ -147,17 +147,20 @@ Section SPEC.
         iDestruct "SLU1" as "[%u SLU1]". iEval (red_tl_all; simpl) in "SLU1". iDestruct "SLU1" as "(TKB & SLU1)".
         iDestruct "SLU1" as "[(Lxw & TKW & PP) | (Lxw & _)]".
         2:{ iExFalso. iPoseProof (AuthExcls.b_w_eq with "Lx Lxw") as "%F". ss. }
-        iMod (alloc_obligation l 2) as "(%k1 & #LO1 & PC1)".
+        iMod (alloc_obligation l 2) as "(%k1 & #LO1 & PC1 & PPk1)".
         iMod (OneShots.alloc) as "[%γk1 LIVE1]".
         iEval (replace 2 with (1+1) by lia) in "PC1".
         iPoseProof (pc_split with "PC1") as "[PC1 PC_POST]".
         iMod (pc_mon _ 1 _ 1 _ _ with "PC1") as "PC1". Unshelve.
         2:{ apply layer_drop_eq; auto. }
-        iMod (duty_add _ _ _ _ 0 ((▿ γk1 tt)%S : sProp n) with "[DUTY PC1] []") as "DUTY".
+        iEval (rewrite <- (Qp.div_2 1)) in "PPk1".
+        iPoseProof (pending_split with "PPk1") as "[PPk1 PPk2]".
+        iMod (duty_add _ _ _ _ 0 ((▿ γk1 tt)%S : sProp n) with "[DUTY PC1 PPk2] []") as "DUTY".
         { iFrame. }
         { iModIntro. iEval (simpl; red_tl_all). auto. }
-        iPoseProof (duty_tpromise with "DUTY") as "#PROM1".
+        iPoseProof (duty_delayed_tpromise with "DUTY") as "#DPROM1".
         { simpl. left. auto. }
+        iMod (activate_tpromise with "DPROM1 PPk1") as "[#PROM1 #SHOTk]".
         iMod (link_new k1 k l 0 0 with "[PCk]") as "[#LINK1 _]".
         { iFrame. eauto. }
         iMod (AuthExcls.b_w_update _ _ _ (γk1, k1) with "TKB TKW") as "[TKB TKW]".
@@ -231,8 +234,9 @@ Section SPEC.
         iInv "INV_SLU1" as "SLU1" "INV_SLU1_CLOSE". iEval (simpl; unfold spinlockUse1; red_tl_all) in "SLU1".
         iDestruct "SLU1" as "[%γu1 SLU1]". iEval (red_tl) in "SLU1".
         iDestruct "SLU1" as "[%u1 SLU1]". iEval (red_tl_all; simpl) in "SLU1". iDestruct "SLU1" as "(TKB & SLU1)".
-        iDestruct "SLU1" as "[(Lxw & _) | (Lxw & LIVE & _)]".
+        iDestruct "SLU1" as "[(Lxw & _) | (Lxw & LIVE & PROM & _)]".
         { iExFalso. iPoseProof (AuthExcls.b_w_eq with "Lx Lxw") as "%F". inv F. }
+        iPoseProof (unfold_tpromise with "PROM") as "[_ #ACT]".
         iPoseProof (AuthExcls.b_w_eq with "TKB TKW") as "%EQu". clarify.
         iMod (AuthExcls.b_w_update _ _ _ 0 with "Lx Lxw") as "[Lx Lxw]".
         iMod ("INV_SLU1_CLOSE" with "[TKB Lxw TKW P]") as "_".

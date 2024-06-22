@@ -141,7 +141,7 @@ Section SPEC.
               ∗ (syn_tgt_interp_as n sndl (fun m => (s_memory_black m)))
               ∗ TID(tid)
               ∗ (⤉ Duty(tid) [(k, 0, (dead γk (k : nat)) ∗ t1_write n)])
-              ∗ ◇[k](2, 1) ∗ ⤉(live γk (k : nat) (1/2)))
+              ∗ ◇[k](2, 1) ∗ ⤉(live γk (k : nat) (1/2)) ∗ ⋈[k])
              -∗
              syn_wpsim (S n) tid ⊤
              (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%S)
@@ -152,7 +152,7 @@ Section SPEC.
     iIntros. red_tl_all. iIntros (γk). red_tl_all. iIntros (k). red_tl_all. simpl.
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
-    iIntros "(#INV & #MEM & THDW & DUTY & PCk & LIVE)".
+    iIntros "(#INV & #MEM & THDW & DUTY & PCk & LIVE & #ACTk)".
 
     unfold fn2th. simpl. unfold thread1, Client01Spec.thread1.
     rred2r. lred2r.
@@ -411,7 +411,7 @@ Section SPEC.
                   ∗ (⟦syn_tgt_interp_as idx sndl (fun m => (s_memory_black m)), 1+idx⟧)
                   ∗ ((own_thread tid1)
                        ∗ (⟦Duty(tid1) [(k, 0, ((((dead γk (k : nat)) : @sProp STT Γ idx) ∗ t1_write idx))%S)], idx⟧)
-                       ∗ ◇[k](2, 1) ∗ (live γk (k : nat) (1/2))
+                       ∗ ◇[k](2, 1) ∗ (live γk (k : nat) (1/2)) ∗ ⋈[k]
                     )
                   ∗
                   ((own_thread tid2) ∗ (⟦Duty(tid2) [], idx⟧))
@@ -420,7 +420,7 @@ Section SPEC.
       iIntros "(MEM & INIT)". rewrite red_syn_fairI.
       iPoseProof (memory_init_iprop with "MEM") as "[MEM PTS]".
 
-      iMod (alloc_obligation 2 2) as "(%k & #LO & PC)".
+      iMod (alloc_obligation 2 2) as "(%k & #LO & PC & PENDk)".
       iMod (Lifetime.alloc k) as "[%γk LIVE]".
       iPoseProof (Lifetime.pending_split with "[LIVE]") as "[LIVE1 LIVE2]".
       { iEval (rewrite Qp.div_2). iFrame. }
@@ -447,13 +447,17 @@ Section SPEC.
       iEval (replace 2 with (1+1) at 2 by lia) in "PC".
       iPoseProof (pc_split with "PC") as "[PC1 PC2]".
       iMod (pc_drop _ 1 _ _ 1 with "PC2") as "PC2". lia.
-      iMod (duty_add (v:=idx) with "[DU1 PC2] []") as "DU1".
+
+      iEval (rewrite <- (Qp.div_2 1)) in "PENDk".
+      iPoseProof (pending_split with "PENDk") as "[PENDk1 PENDk2]".
+      iMod (duty_add (v:=idx) with "[DU1 PC2 PENDk2] []") as "DU1".
       { iSplitL "DU1". instantiate (1:=[]). iApply "DU1". iFrame. }
       { instantiate (1:=((dead γk k : sProp idx) ∗ (t1_write idx))%S). simpl. red_tl_all.
         unfold t1_write. rewrite red_syn_inv. iModIntro. iIntros "#P". auto.
       }
-      iPoseProof (duty_tpromise with "DU1") as "#PROM1".
+      iPoseProof (duty_delayed_tpromise with "DU1") as "#DPROM".
       { ss. eauto. }
+      iMod (activate_tpromise with "DPROM PENDk1") as "[#PROM1 #SHOTk]".
 
       iMod (tgt_interp_as_id _ _ (n:=idx) with "[INIT5 MEM]") as "TGT_ST".
       auto.
@@ -481,7 +485,7 @@ Section SPEC.
         Local Opaque SCMem.alloc.
       }
 
-      iModIntro. iExists γk, k. red_tl_all. rewrite red_syn_tgt_interp_as. iFrame.
+      iModIntro. iExists γk, k. red_tl_all. rewrite red_syn_tgt_interp_as. iFrame. auto.
       Unshelve. lia.
     Qed.
 
