@@ -457,6 +457,37 @@ Section SPEC.
     - exfalso. apply is_Some_None in MC. ss.
   Qed.
 
+  Lemma SCMem_compare_loc_null_fun_spec
+        tid x y (LT : x < S y)
+        E (IN : ↑N_state_tgt ⊆ E)
+        p pp pv
+    :
+    ⊢ [@ tid, y, E @]
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S)
+      ∗ (p ↦{ pp} pv)
+      }
+      (map_event emb_mem (SCMem.compare_fun (p, SCMem.val_null)))
+      {b, (p ↦{ pp} pv) ∗ ⌜b = false⌝ }.
+  Proof.
+    iStartTriple.
+    iIntros "[#ST p↦] CASE".
+    destruct p as [n|p]; [done|].
+    iInv "ST" as (st) "ST1" "K".
+    iDestruct "ST1" as (vw) "[VW MB]". ss. iEval red_tl in "MB".
+    red_tl_memra.
+
+    iDestruct (SCMem.memory_ra_compare_ptr_right _ 0 with "MB p↦") as %MC.
+
+    rred2r. iApply wpsim_getR. iSplit; iFrame. rred2r.
+    rewrite Lens.view_set. unfold SCMem.compare in MC.
+    simpl in *. unfold SCMem.has_permission in MC.
+    destruct p as [blk ofs]. simpl in *.
+    des_ifs.
+    iMod ("K" with "[VW MB]") as "_".
+    { iExists _. red_tl_memra. iFrame. }
+    rred2r. iApply "CASE". iFrame. done.
+  Qed.
+
   Lemma SCMem_compare_fun_syn_spec
         tid n
         E (IN : ↑N_state_tgt ⊆ E)
