@@ -332,6 +332,38 @@ Section STATE.
     { i. iIntros "H". iModIntro. iApply unlift_lift. auto. }
   Qed.
 
+  Lemma wpsim_coind2 E A
+        (R_src: forall (a: A), Type)
+        (R_tgt: forall (a: A), Type)
+        (Q: forall (a: A), R_src a -> R_tgt a -> iProp)
+        (ps pt: forall (a: A), bool)
+        (itr_src : forall (a: A), itree srcE (R_src a))
+        (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
+        (P: forall (a: A), iProp)
+        (TOP: ⊤ ⊆ E)
+    :
+    ⊢
+      ∀ (r g0 : rel),
+        ⌜(∀ (g1: rel) (a : A),
+            (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
+                  ps pt itr_src itr_tgt,
+                   @g0 R_src R_tgt Q ps pt itr_src itr_tgt -∗
+                       @g1 R_src R_tgt Q ps pt itr_src itr_tgt)
+                 ∗
+                 (∀ a, P a -∗ @g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))
+              -∗
+              (P a)
+              -∗
+              (wpsim ⊤ r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a)))⌝
+          -∗
+          (∀ a, (P a) -∗ (wpsim E r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))).
+  Proof.
+    iIntros "% % %CIH". iIntros "% PA".
+    iApply wpsim_coind. auto. 2: iApply "PA".
+    intros. specialize (CIH g1 a0). apply CIH.
+  Qed.
+
+
   Global Instance wpsim_elim_upd
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
