@@ -1838,7 +1838,7 @@ Module ObligationRA.
     Qed.
 
     Lemma duty_list_updating_pending i rs q ps
-          (PENDS : Forall2 (fun '(_, (k1, c1, _, _, _)) '(k2, c2, _) => k1 = k2 /\ c1 = c2) rs ps)
+          (PENDS : Forall2 (fun '(_, (k1, c1, _, _, _)) '(k2, c2, oq) => k1 = k2 /\ (match oq with None => c1 = c2 | Some _ => True end)) rs ps)
       :
       (duty_list i rs q)
         -∗
@@ -1908,8 +1908,7 @@ Module ObligationRA.
         { clear IHrs. revert q q0 l' PENDS. induction rs; ss; i.
           { apply Qp.add_comm. }
           { destruct a0 as [? [[[[? ?] ?] ?] ?]].
-            inv PENDS. des_ifs. des; subst.
-            rewrite (IHrs q1 q0 _ H7). rewrite (IHrs q1 q _ H7).
+            inv PENDS. rewrite (IHrs q1 q0 _ H8). rewrite (IHrs q1 q _ H8).
             rewrite Qp.add_assoc. rewrite Qp.add_assoc. f_equal. apply Qp.add_comm.
           }
         }
@@ -1930,14 +1929,15 @@ Module ObligationRA.
         - iDestruct "CASE" as "[(PEND & WHI) | #SHOTk]".
           + iSplitL; [|auto]. iSplitR; [auto|]. iLeft. iFrame. iModIntro. iExists _. iFrame.
           + iSplitL; [|auto]. iSplitR; [auto|].
-            iRight. iSplitR. iModIntro; auto. iRight. iExists _. iFrame. iApply (white_mon with "WHITE").
+            iRight. iSplitR. iModIntro; auto. subst.
+            iRight. iExists _. iFrame. iApply (white_mon with "WHITE").
             apply Jacobsthal.le_mult_r. eapply Ord.lt_le. eapply Ord.omega_upperbound.
       }
     Qed.
 
     Lemma duties_updating_pending
           (os : list (Id * (list (nat * Ord.t * Var)))) (ps : list (list (nat * Ord.t * option Qp)))
-          (PENDS: Forall2 (fun '(_, l1) l2 => Forall2 (fun '(k1, c1, _) '(k2, c2, _) => k1 = k2 /\ c1 = c2) l1 l2) os ps)
+          (PENDS: Forall2 (fun '(_, l1) l2 => Forall2 (fun '(k1, c1, _) '(k2, c2, oq) => k1 = k2 /\ (match oq with | None => c1 = c2 | Some _ => True end)) l1 l2) os ps)
       :
       (list_prop_sum (fun '(i, l) => duty i l) os)
         -∗
@@ -1961,11 +1961,6 @@ Module ObligationRA.
                                                       (duty_list i rs q)
                                                         ∗
                                                         (ptaxes pps Ord.omega)
-                                                        (* (list_prop_sum (fun '(r, (k, c, q, x, f)) => *)
-                                                        (*                   match pends k with *)
-                                                        (*                   | None => (white k (c × Ord.omega)%ord) *)
-                                                        (*                   | Some z => (pending k z) *)
-                                                        (*                   end) rs) *)
                                                         ∗
                                                         (FairRA.black_ex p i q)
                                                         ∗
@@ -1995,11 +1990,6 @@ Module ObligationRA.
                                     (duty_list i rs q)
                                       ∗
                                       (ptaxes ps Ord.omega)
-                                      (* (list_prop_sum (fun '(r, (k, c, q, x, f)) => *)
-                                      (*                   match pends k with *)
-                                      (*                   | None => (white k (c × Ord.omega)%ord) *)
-                                      (*                   | Some z => (pending k z) *)
-                                      (*                   end) rs) *)
                                       ∗
                                       (FairRA.black_ex p i q)
                                       ∗
@@ -2020,11 +2010,6 @@ Module ObligationRA.
                                          (duty_list i rs q)
                                            ∗
                                            (ptaxes ps Ord.omega)
-                                           (* (list_prop_sum (fun '(r, (k, c, q, x, f)) => *)
-                                           (*                   match pends k with *)
-                                           (*                   | None => (white k (c × Ord.omega)%ord) *)
-                                           (*                   | Some z => (pending k z) *)
-                                           (*                   end) rs) *)
                                            ∗
                                            (FairRA.black_ex p i q)
                                            ∗
@@ -2071,10 +2056,6 @@ Module ObligationRA.
                                         (FairRA.black_ex p i 1)
                                         (duty_list i rs q ∗ FairRA.black_ex p i q
                                                    ∗ (opends ps)
-                                                   (* (list_prop_sum (fun '(r, (k, c, q, x, f)) => match pends k with *)
-                                                   (*                                             | None => emp *)
-                                                   (*                                             | Some z => (pending k z) *)
-                                                   (*                                             end) rs) *)
                                      ))%I)) xs)
                     ∗ (∀ i rs q0 ps r k c q1 x f
                          (IN0: List.In (i, rs, q0, ps) xs)
@@ -2388,7 +2369,7 @@ Module ObligationRA.
           (f0 f1: FairBeh.imap Id nat_wf)
           (UPD: fair_update f0 f1 (prism_fmap inlp (tids_fmap tid ths)))
           ps
-          (PENDS : Forall2 (fun '(k1, c1, _) '(k2, c2, _) => k1 = k2 /\ c1 = c2) l ps)
+          (PENDS : Forall2 (fun '(k1, c1, _) '(k2, c2, oq) => k1 = k2 /\ (match oq with None => c1 = c2 | Some _ => True end)) l ps)
       :
       (FairRA.sat_target f0 ths)
         -∗
@@ -2487,7 +2468,7 @@ Module ObligationRA.
           (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
           (NODUP: List.NoDup lf)
           ps
-          (PENDS: Forall2 (fun '(_, l1) l2 => Forall2 (fun '(k1, c1, _) '(k2, c2, _) => k1 = k2 /\ c1 = c2) l1 l2) ls ps)
+          (PENDS: Forall2 (fun '(_, l1) l2 => Forall2 (fun '(k1, c1, _) '(k2, c2, oq) => k1 = k2 /\ (match oq with | None => c1 = c2 | Some _ => True end)) l1 l2) ls ps)
       :
       (FairRA.sat_target f0 ths)
         -∗

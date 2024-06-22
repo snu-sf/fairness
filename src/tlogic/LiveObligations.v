@@ -580,6 +580,43 @@ Section RULES.
     apply layer_drop_eq; auto.
   Qed.
 
+  Definition progress_pendings (l : list (nat * Qp)) := pends l.
+
+  Lemma pps_nil : ⊢ progress_pendings [].
+  Proof. iApply pends_nil. Qed.
+
+  Lemma pps_perm l0 l1 :
+    (l0 ≡ₚ l1) -> progress_pendings l0 ⊢ progress_pendings l1.
+  Proof.
+    iIntros. iApply pends_perm. 2: iFrame. auto.
+  Qed.
+
+  Lemma pps_merge_list l0 l1 :
+    progress_pendings l0 ∗ progress_pendings l1 ⊢ progress_pendings (l0 ++ l1).
+  Proof.
+    iIntros "[A B]". unfold progress_pendings. iApply pends_combine. iFrame.
+  Qed.
+
+  Lemma pps_split_list l0 l1 :
+    progress_pendings (l0 ++ l1) ⊢ progress_pendings l0 ∗ progress_pendings l1.
+  Proof.
+    iIntros "A". unfold progress_pendings. iApply pends_split. iFrame.
+  Qed.
+
+  Lemma pps_cons_unfold k q tl :
+    progress_pendings ((k, q) :: tl) ⊢ pending_obligation k q ∗ progress_pendings tl.
+  Proof.
+    unfold progress_pendings. iIntros "P". ss.
+  Qed.
+
+  Lemma pps_cons_fold k q tl :
+    pending_obligation k q ∗ progress_pendings tl ⊢ progress_pendings ((k, q) :: tl).
+  Proof.
+    unfold progress_pendings. iIntros "[PC PP]".
+    iPoseProof (pends_cons_fold with "[PC PP]") as "W". 2: iFrame. iFrame.
+  Qed.
+
+
   (** Additional definitions and rules. *)
 
   Definition _collection_credits k o (ps : list (nat * nat)) l :=
@@ -945,6 +982,8 @@ Notation "'-[' k '](' l ')-' '◇' f" :=
   (thread_promise k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : bi_scope.
 Notation "'◇' { ps }( m , a )" :=
   (progress_credits ps m a) (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : bi_scope.
+Notation "'⧖' { ps }" :=
+  (progress_pendings ps) (at level 50, ps at level 1, format "⧖ { ps }") : bi_scope.
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄"
   := (collection_credits k ps l) (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : bi_scope.
 Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
