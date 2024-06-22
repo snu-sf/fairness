@@ -133,6 +133,7 @@ Section SIM.
                 ∗ ⧖[κu, 1/2]
                 ∗ (-[κu](0)-⧖ (▿ γκu 0))
                 ∗ (κu -(0)-◇ κs)
+                ∗ (△ γκu (1/2))
                 ∗ (∃ (ℓl : τ{nat}), ◆[κl, ℓl])
       )
       ∨
@@ -143,18 +144,19 @@ Section SIM.
                           ∗ ⧖[κu, 1/2]
                           ∗ (-[κu](0)-⧖ (▿ γκu 0))
                           ∗ (κu -(0)-◇ κs)
+                          ∗ (△ γκu (1/2))
                           ∗ (∃ (ℓw : τ{nat}), ◆[κw, ℓw] ∗ ⌜ℓw <= ℓL⌝))
         )
       ∨
         ((○ γX 1) ∗ (D ↦ 1)
-                  ∗ (∃ (γκw κu γκu : τ{nat}),
+                  ∗ (∃ (γκw : τ{nat}),
                         (-[κu](0)-◇ (▿ γκu 0))
                           ∗ (△ γκu (1/2)) ∗ ⋈[κu] ∗ (κu -(0)-◇ κs) ∗ (▿ γκl γκw) ∗ (▿ γκw γκu)
-                          ∗ (((△ γκu (1/2)) ∗ (EX γe tt)) ∨ (▿ γr 0)))
+                          ∗ (((EX γe tt) ∨ (▿ γr 0))))
         )
       ∨
         ((○ γX 0) ∗ (D ↦ 1)
-                  ∗ (∃ (γκw γκu : τ{nat}),
+                  ∗ (∃ (γκw : τ{nat}),
                         (▿ γκl γκw) ∗ (▿ γκw γκu) ∗ (▿ γr 0) ∗ (▿ γκu 0)))
     )%S.
 
@@ -204,7 +206,7 @@ Section SIM.
     set (P0 := (△ γκl (1/2))%S : sProp n).
     set (R0 := ((△ γκl (1/2)) ∗ Duty(tid) [(κl, 0, (∃ (γκw : τ{nat, n}), ▿ γκl γκw))])%S : sProp n).
     set (Q0 := (∃ (κw γκw : τ{nat, n}),
-                   (▿ γκl γκw) ∗ (△ γκw (1/2)) ∗ (Duty(tid) [(κw, 0, (∃ (γκu : τ{nat}), ▿ γκw γκu))]) ∗ ◇[κw](ℓl, 1)
+                   (▿ γκl γκw) ∗ (△ γκw (1/2)) ∗ (Duty(tid) [(κw, 0, (▿ γκw γκu))]) ∗ ◇[κw](ℓl, 1)
                )%S : sProp n).
     iSpecialize ("SPEC" $! _ P0 R0 Q0 1).
     iApply ("SPEC" with "[PC2 LIVE_l DUTY] [TID]").
@@ -229,11 +231,11 @@ Section SIM.
         - iExFalso. iDestruct "CL1" as "(LXw & _)". iPoseProof (AuthExcls.b_w_eq with "LX LXw") as "%F". inv F.
 
         - iDestruct "CL2" as "(LXw & PTD & %κw & CL2)". iEval (red_tl) in "CL2". iDestruct "CL2" as "[%γκw CL2]".
-          iEval (red_tl_all; simpl) in "CL2". iDestruct "CL2" as "(#PROM_w & LIVE_w & #DEAD_l & DUTY2 & PC_spin & LO_w)".
+          iEval (red_tl_all; simpl) in "CL2". iDestruct "CL2" as "(#PROM_w & LIVE_w & #DEAD_l & DUTY2 & DPu & LINKu & LIVE_u & LO_w)".
           iDestruct "LO_w" as "[% LO]". iEval (red_tl; simpl) in "LO". iPoseProof "LO" as "[#LO %LAY]".
-          iMod ("INV_CL_CLOSE" with "[LXw PTD LIVE_w DUTY2 PC_spin]") as "_".
+          iMod ("INV_CL_CLOSE" with "[LXw PTD LIVE_w DUTY2 DPu LINKu LIVE_u]") as "_".
           { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). iRight. iLeft. iFrame.
-            iExists _. iEval (red_tl_all). iExists _. iEval (red_tl_all; simpl). iFrame. iSplit. iApply "PROM_w".
+            iExists _. iEval (red_tl_all). iExists _. iEval (red_tl_all; simpl). iSplitR. iApply "PROM_w". iFrame.
             iSplit. eauto. iExists _. iEval (red_tl; simpl). eauto.
           }
           iModIntro. do 2 iRight. iSplitL.
@@ -242,7 +244,7 @@ Section SIM.
             { iEval (unfold spinlockInv; red_tl_all; simpl) in "INV_SL_CLOSE". iFrame. }
             iRight. iFrame.
           }
-          iExists κw, x, (((⤉ syn_inv n N_Spinlock (spinlockInv n X γX γe)) ∗ ((⤉ spinlockInv n X γX γe =| S n |={ ⊤ ∖ ↑N_Spinlock, ⊤ }=∗ emp) ∗ ⤉ spinlockInv n X γX γe)) ∗ (⤉ (∃ (γκu : τ{nat}), ▿ γκw γκu)))%S.
+          iExists κw, x, (((⤉ syn_inv n N_Spinlock (spinlockInv n X γX γe)) ∗ ((⤉ spinlockInv n X γX γe =| S n |={ ⊤ ∖ ↑N_Spinlock, ⊤ }=∗ emp) ∗ ⤉ spinlockInv n X γX γe)) ∗ (⤉ (▿ γκw γκu)))%S.
           iSplitR. auto. iSplitR. auto. iSplitR.
           { iModIntro. iIntros "B". iModIntro. iEval (red_tl; simpl) in "B". iDestruct "B" as "(A & C)".
             iSplitL "A".
@@ -256,12 +258,12 @@ Section SIM.
             iMod (tpromise_progress with "[FC]") as "[PC_w | #FULF_w]".
             { iSplitR. iApply "PROM_w". iFrame. }
             { iModIntro. iLeft. iFrame. }
-            { iEval (simpl; red_tl_all) in "FULF_w". iDestruct "FULF_w" as "[%γκu DEAD_w]".
-              iModIntro. iRight. iFrame. iExists _. eauto.
+            { iEval (simpl; red_tl_all) in "FULF_w".
+              iModIntro. iRight. iFrame. iEval (red_tl_all). eauto.
             }
           }
           (* ELC continuation. *)
-          iModIntro. iEval (simpl; red_tl; simpl). iIntros "FC [A [%γκu B]]".
+          iModIntro. iEval (simpl; red_tl; simpl). iIntros "FC [A B]".
           iEval (red_tl_all) in "B". iPoseProof "B" as "#DEAD_w". iClear "INV_SL".
           iEval (red_tl_all; simpl; rewrite red_syn_inv) in "A". iDestruct "A" as "(#INV_SL & INV_SL_CLOSE & SL)".
           iEval (unfold spinlockInv; red_tl_all; simpl) in "SL". iDestruct "SL" as "[(PTX & LX & EX) | (PTX & LX)]".
@@ -274,23 +276,20 @@ Section SIM.
             iEval (red_tl_all; simpl) in "CL2". iDestruct "CL2" as "(_ & LIVE_w & DEAD_l2 & _)".
             iPoseProof (OneShots.shot_agree with "DEAD_l DEAD_l2") as "%EQ". subst x1.
             iPoseProof (OneShots.pending_not_shot with "LIVE_w DEAD_w") as "%F". inv F.
-          + iDestruct "CL3" as "(LXw & PTD & % & CL3)". iEval (red_tl) in "CL3". iDestruct "CL3" as "[%κu CL3]".
-            iEval (red_tl) in "CL3". iDestruct "CL3" as "[% CL3]".
-            iEval (red_tl_all; simpl) in "CL3". iDestruct "CL3" as "(#PROM_u & LIVE_u & #LINK_u & #DEAD_l2 & #DEAD_w2 & PASS)".
+          + iDestruct "CL3" as "(LXw & PTD & % & CL3)".
+            iEval (red_tl_all; simpl) in "CL3". iDestruct "CL3" as "(#PROM_u & LIVE_u & #ACTu & #LINK_u & #DEAD_l2 & #DEAD_w2 & PASS)".
             iPoseProof (OneShots.shot_agree with "DEAD_l DEAD_l2") as "%EQ". subst x0.
-            iPoseProof (OneShots.shot_agree with "DEAD_w DEAD_w2") as "%EQ". subst x1.
             iMod (tpromise_progress with "[FC]") as "[PC_u | #FULF_u]".
             { iFrame. iApply "PROM_u". }
             { iMod (link_amplify with "[PC_u]") as "PC_s".
               { iFrame. iApply "LINK_u". }
               iMod ("INV_CL_CLOSE" with "[LXw PTD LIVE_u PASS]") as "_".
               { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). do 2 iRight. iLeft. iFrame.
-                iExists _. iEval (red_tl_all). iExists _. iEval (red_tl_all). iExists _.
-                iEval (red_tl_all; simpl). iFrame. iSplit. iApply "PROM_u". iSplit; eauto.
+                iExists _. iEval (red_tl_all; simpl). iFrame. iSplit. iApply "PROM_u". iSplit; eauto.
               }
               iModIntro. iLeft. iEval (red_tl; rewrite red_syn_inv). iFrame.
               { iSplitL. iSplitR. auto. iEval (unfold spinlockInv; red_tl_all; simpl). iRight. iFrame.
-                iExists _. iEval (red_tl_all). eauto.
+                iEval (red_tl_all). eauto.
               }
             }
             { iEval (simpl; red_tl_all) in "FULF_u".
@@ -298,17 +297,15 @@ Section SIM.
             }
           + iExFalso. iDestruct "CL4" as "(LXw & _)". iPoseProof (AuthExcls.b_w_eq with "LX LXw") as "%F". inv F.
 
-        - iDestruct "CL3" as "(LXw & PTD & %γκw & CL3)". iEval (red_tl) in "CL3". iDestruct "CL3" as "[%κu CL3]".
-          iEval (red_tl) in "CL3". iDestruct "CL3" as "[%γκu CL3]".
-          iEval (red_tl_all; simpl) in "CL3". iDestruct "CL3" as "(#PROM_u & LIVE_u & #LINK_u & #DEAD_l & #DEAD_w & PASS)".
+        - iDestruct "CL3" as "(LXw & PTD & %γκw & CL3)".
+          iEval (red_tl_all; simpl) in "CL3". iDestruct "CL3" as "(#PROM_u & LIVE_u & #ACTu & #LINK_u & #DEAD_l & #DEAD_w & PASS)".
           iMod (tpromise_progress with "[FC]") as "[PC_u | #FULF_u]".
           { iFrame. iApply "PROM_u". }
           { iMod (link_amplify with "[PC_u]") as "PC_s".
             { iFrame. iApply "LINK_u". }
             iMod ("INV_CL_CLOSE" with "[LXw PTD LIVE_u PASS]") as "_".
             { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). do 2 iRight. iLeft. iFrame.
-              iExists _. iEval (red_tl_all). iExists _. iEval (red_tl_all). iExists _.
-              iEval (red_tl_all; simpl). iFrame. iSplit. iApply "PROM_u". iSplit; eauto.
+              iExists _. iEval (red_tl_all; simpl). iFrame. iSplit. iApply "PROM_u". iSplit; eauto.
             }
             iModIntro. iLeft. iEval (red_tl; rewrite red_syn_inv). iFrame.
             iSplitR. auto. iEval (unfold spinlockInv; red_tl_all; simpl). iRight. iFrame.
@@ -324,39 +321,39 @@ Section SIM.
         iInv "INV_CL" as "CL" "INV_CL_CLOSE".
         iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl) in "CL".
         iDestruct "CL" as "[CL1 | [CL2 | [CL3 | CL4]]]".
-        - iDestruct "CL1" as "(LXw & PTD & #PROM_l & LIVE_l2 & PC_spin & DUTY2 & LO_l)".
+        - iDestruct "CL1" as "(LXw & PTD & #PROM_l & LIVE_l2 & DUTY2 & #PROMu & #LINKu & LIVEu & LO_l)".
           iMod (AuthExcls.b_w_update _ _ _ 1 with "LX LXw") as "[LX LXw]".
-          iMod (alloc_obligation ℓl 2) as "(%κw & #LO_w & PC_w)".
+          iMod (alloc_obligation ℓl 2) as "(%κw & #LO_w & PC_w & DEL_w)".
           iMod (OneShots.alloc) as "[%γκw LIVE_w]".
           iEval (replace 1%Qp with (1/2 + 1/2)%Qp by apply Qp.div_2) in "LIVE_w".
           iPoseProof (OneShots.pending_split with "LIVE_w") as "[LIVE_w LIVE_w2]".
           iMod (OneShots.pending_shot _ γκw with "[LIVE_l LIVE_l2]") as "#DEAD_l".
           { iEval (replace 1%Qp with (1/2 + 1/2)%Qp by apply Qp.div_2). iApply (OneShots.pending_merge with "LIVE_l LIVE_l2"). }
+          iPoseProof (unfold_tpromise with "PROM_l") as "[_ #ACTl]".
           iMod (duty_fulfill with "[DUTY]") as "DUTY".
-          { iFrame. iEval (simpl; red_tl_all). iExists _. iEval (red_tl_all). eauto. }
+          { iFrame. iSplitL; [|auto]. iEval (simpl; red_tl_all). iExists _. iEval (red_tl_all). eauto. }
           iPoseProof (pc_split _ _ 1 1 with "PC_w") as "[PC_w PC_w2]".
           iMod (pc_drop _ 1 _ _ 1 _ with "PC_w2") as "PC_w2".
           Unshelve. 1,3: lia.
-          iMod (duty_add with "[DUTY PC_w2] []") as "DUTY".
+          iEval (rewrite <- (Qp.div_2 1)) in "DEL_w".
+          iPoseProof (pending_split with "DEL_w") as "[DEL_w1 DEL_w]".
+          iMod (duty_add with "[DUTY PC_w2 DEL_w1] []") as "DUTY".
           { iSplitL "DUTY". iFrame. subst ℓl. iFrame. }
-          { instantiate (1:= ((∃ (γκu : τ{nat}), ▿ γκw γκu)%S : sProp n)). iModIntro. iEval (simpl; red_tl_all).
-            iIntros "[% DEAD_w]". iEval (red_tl_all) in "DEAD_w". iPoseProof "DEAD_w" as "#Dw".
-            iModIntro. iExists _. iEval (red_tl_all). iApply "Dw".
+          { instantiate (1:= ((▿ γκw γκu)%S : sProp n)). iModIntro. iEval (simpl; red_tl_all).
+            iIntros "#DEAD_w". iModIntro. auto.
           }
-          iPoseProof (duty_tpromise with "DUTY") as "#PROM_w".
+          iPoseProof (duty_delayed_tpromise with "DUTY") as "#DPROM_w".
           { ss. eauto. }
-          (* iPoseProof (pc_split _ _ 1 1 with "PC_spin") as "[PC_spin PC_spin2]". *)
-          (* iMod (link_new _ _ _ 0 1 with "[PC_spin2]") as "[#LINK_w _]". *)
-          (* { subst ℓl ℓL. iSplitR. iApply "LO_w". iFrame. } *)
-          iMod ("INV_CL_CLOSE" with "[LXw PTD LIVE_w2 PC_spin DUTY2 LO_l]") as "_".
+          iMod (activate_tpromise with "DPROM_w DEL_w") as "[#PROM_w _]".
+          iMod ("INV_CL_CLOSE" with "[LXw PTD LIVE_w2 DUTY2 LIVEu LO_l]") as "_".
           { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). iRight. iLeft. iFrame.
             iExists κw. iEval (red_tl_all). iExists γκw. iEval (red_tl_all; simpl). iFrame.
-            iSplit. auto. iSplit. auto. iExists ℓl. iEval (red_tl). subst. iSplit; auto.
+            do 4 (iSplit; [auto|]). iExists ℓl. iEval (red_tl). subst. iSplit; auto.
           }
           iModIntro. iFrame. iExists κw. iEval (red_tl). iExists γκw. iEval (red_tl_all; simpl). iFrame. auto.
         - iExFalso. iDestruct "CL2" as "(LXw & _)". iPoseProof (AuthExcls.b_w_eq with "LX LXw") as "%F". inv F.
         - iExFalso. iDestruct "CL3" as "(LXw & _)". iPoseProof (AuthExcls.b_w_eq with "LX LXw") as "%F". inv F.
-        - iExFalso. iDestruct "CL4" as "(_ & _ & % & CL4)". iEval (red_tl) in "CL4". iDestruct "CL4" as "[% CL4]".
+        - iExFalso. iDestruct "CL4" as "(_ & _ & % & CL4)".
           iEval (red_tl_all) in "CL4". iDestruct "CL4" as "(D & _)".
           iPoseProof (OneShots.pending_not_shot with "LIVE_l D") as "%F". inv F.
       }
@@ -383,7 +380,7 @@ Section SIM.
       iPoseProof (OneShots.pending_not_shot with "LIVE_l DEAD_l") as "%F". inv F.
     }
     { iDestruct "CL2" as "(LXw & PTD & %κw0 & CL2)". iEval (red_tl) in "CL2". iDestruct "CL2" as "[%γκw0 CL2]".
-      iEval (red_tl_all; simpl) in "CL2". iDestruct "CL2" as "(#PROM_w & LIVE_w2 & #DEAD_l2 & DUTY2 & PC_spin & LO_w)".
+      iEval (red_tl_all; simpl) in "CL2". iDestruct "CL2" as "(#PROM_w & LIVE_w2 & #DEAD_l2 & DUTY2 & #PROM_u & #LINK_u & LIVEu & LO_w)".
       iDestruct "LO_w" as "[% LO]". iEval (red_tl; simpl) in "LO". iPoseProof "LO" as "[#LO %LAY]".
       iPoseProof (OneShots.shot_agree with "DEAD_l DEAD_l2") as "%EQ". subst γκw0.
       iApply (SCMem_store_fun_spec with "[PTD] [-]").
@@ -391,29 +388,31 @@ Section SIM.
       lia.
       { pose md_N_ClientSpinlock2_state_tgt. set_solver. }
       iIntros (rv) "PTD". rred2. iApply wpsim_tauR. rred2r.
-      iMod (alloc_obligation ℓl 2) as "(%κu & LOu & PCu)".
-      iMod (OneShots.alloc) as "[%γκu LIVEu]".
-      iPoseProof (OneShots.pending_split with "[LIVEu]") as "[LIVEu LIVEu2]".
-      { iEval (rewrite Qp.div_2). iFrame. }
-      iEval (replace 2 with (1+1) by lia) in "PCu". iPoseProof (pc_split with "PCu") as "[PCu PCu2]".
-      iMod (pc_drop _ 1 _ _ 1 with "PCu2") as "PCu2".
-      Unshelve. 1,3: lia.
-      iMod (duty_add with "[DUTY2 PCu2] []") as "DUTY2".
-      { subst ℓl. iFrame. }
-      { instantiate (1:= (▿ γκu 0)%S). iModIntro. iEval (simpl; red_tl_all). iIntros "#A". auto. }
-      iPoseProof (duty_tpromise with "DUTY2") as "#PROMu".
-      { simpl. eauto. }
+      iMod (activate_tpromise with "PROM_u DUTY2") as "[#PROMu #ACTu]".
+
+      (* iMod (alloc_obligation ℓl 2) as "(%κu & LOu & PCu)". *)
+      (* iMod (OneShots.alloc) as "[%γκu LIVEu]". *)
+      (* iPoseProof (OneShots.pending_split with "[LIVEu]") as "[LIVEu LIVEu2]". *)
+      (* { iEval (rewrite Qp.div_2). iFrame. } *)
+      (* iEval (replace 2 with (1+1) by lia) in "PCu". iPoseProof (pc_split with "PCu") as "[PCu PCu2]". *)
+      (* iMod (pc_drop _ 1 _ _ 1 with "PCu2") as "PCu2". *)
+      (* Unshelve. 1,3: lia. *)
+      (* iMod (duty_add with "[DUTY2 PCu2] []") as "DUTY2". *)
+      (* { subst ℓl. iFrame. } *)
+      (* { instantiate (1:= (▿ γκu 0)%S). iModIntro. iEval (simpl; red_tl_all). iIntros "#A". auto. } *)
+      (* iPoseProof (duty_tpromise with "DUTY2") as "#PROMu". *)
+      (* { simpl. eauto. } *)
       iMod (OneShots.pending_shot with "[LIVE_w LIVE_w2]") as "#DEADw".
       { iEval (rewrite <- (Qp.div_2 1)). iApply (OneShots.pending_merge with "LIVE_w LIVE_w2"). }
-      iMod (link_new _ _ _ 0 with "[LOu PC_spin]") as "[#LINKu _]".
-      { iSplitL "LOu". iFrame. subst. iFrame. }
-      iMod ("INV_CL_CLOSE" with "[LXw PTD LIVEu DUTY2 PCu LIVEu2 EX]") as "_".
+      (* iMod (link_new _ _ _ 0 with "[LOu PC_spin]") as "[#LINKu _]". *)
+      (* { iSplitL "LOu". iFrame. subst. iFrame. } *)
+      iMod ("INV_CL_CLOSE" with "[LXw PTD LIVEu EX]") as "_".
       { iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl). do 2 iRight. iLeft. iFrame.
-        iExists γκw. iEval (red_tl). iExists κu. iEval (red_tl). iExists γκu. iEval (red_tl_all; simpl).
-        iSplitR. auto. iSplitL "LIVEu". iFrame. iSplitR. auto. iSplitR. auto. iSplitR. auto. iLeft. iFrame.
+        iExists γκw. iEval (red_tl_all; simpl).
+        iSplitR. auto. iSplitL "LIVEu". iFrame. do 4 (iSplitR; [auto|]). iLeft. iFrame.
       }
       iMod (duty_fulfill with "[DUTY]") as "DUTY".
-      { iFrame. iEval (simpl; red_tl). iExists _. iEval (red_tl_all). eauto. }
+      { iFrame. TODO iEval (simpl; red_tl). iExists _. iEval (red_tl_all). eauto. }
       iApply (wpsim_sync with "[DUTY]").
       2:{ iFrame. }
       Unshelve. lia. 2: auto.
