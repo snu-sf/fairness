@@ -1232,6 +1232,36 @@ Section STATE.
     iApply isim_yieldL. iApply ("H" with "D").
   Qed.
 
+  Lemma wpsim_yieldR_pending_strong
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt l
+    :
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
+      -∗
+      ((ObligationRA.duty y inlp tid l)
+         -∗
+         (FairRA.white_thread (S:=_))
+         -∗
+         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
+               (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "H K". unfold wpsim. iIntros (? ? ? ? ?) "(D & [WA WS])".
+    iMod (default_I_past_update_ident_thread with "D H") as "[B [W [D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]]]]". auto.
+    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
+    { iFrame. }
+    Local Transparent FUpd.
+    iPoseProof ("K" with "B W C") as ">[D5 [D6 [E K]]]".
+    iApply isim_yieldR. unfold I, fairI. iFrame. iFrame.
+    iIntros (? ? ? ? ? ?) "(D & WAS) %".
+    iApply ("K" with "[D WAS]"). iFrame. iExists _. eauto.
+    Local Opaque FUpd.
+  Qed.
+
   Lemma wpsim_yieldR_strong
         y (LT: y < x)
         E r g R_src R_tgt

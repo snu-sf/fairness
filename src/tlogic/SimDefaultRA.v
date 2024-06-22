@@ -225,6 +225,33 @@ Section INVARIANT.
     iApply ObligationRA.black_to_duty. iFrame.
   Qed.
 
+  TODO
+
+  Lemma default_I_update_ident_thread_pending x n ths im_src im_tgt0 st_src st_tgt
+        tid im_tgt1 l
+        (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
+        (pends : nat -> Qp)
+        l1 l2
+        (DS : l = l1 ++ l2)
+    :
+    (n < x) ->
+    ⊢
+      (default_I x ths im_src im_tgt0 st_src st_tgt)
+      -∗
+      ((ObligationRA.duty n inlp tid l)
+         ∗ (ObligationRA.opends pends (List.map fst l1))
+         ∗ (ObligationRA.taxes (List.map fst l2) Ord.omega)
+      )
+      -∗
+      #=> (ObligationRA.duty n inlp tid l ∗ FairRA.white_thread (S:=_) ∗ default_I x ths im_src im_tgt1 st_src st_tgt).
+  Proof.
+    unfold default_I. iIntros (LT) "[A [B [C [D [E [F [G H]]]]]]] DUTY".
+    iPoseProof (ObligationRA.target_update_thread with "E DUTY") as "RES". eauto.
+    iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
+    iMod ("RES" with "ARROW") as "[ARROW [E [DUTY WHITE]]]". iFrame.
+    iApply "K". iFrame.
+  Qed.
+
   Lemma default_I_update_ident_thread x n ths im_src im_tgt0 st_src st_tgt
         tid im_tgt1 l
         (UPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
