@@ -331,6 +331,20 @@ Section SUM.
     { iApply (IHl with "TL"). }
   Qed.
 
+  Lemma list_prop_sum_impl_in A (P0 P1: A -> iProp) l
+        (IMPL: forall a (IN: In a l), P0 a ⊢ P1 a)
+    :
+    (list_prop_sum P0 l)
+      -∗
+      (list_prop_sum P1 l).
+  Proof.
+    induction l; ss.
+    iIntros "[HD TL]".
+    iSplitL "HD".
+    { iApply (IMPL with "HD"). auto. }
+    { iApply (IHl with "TL"). eauto. }
+  Qed.
+
   Lemma list_prop_sum_sepconj A (P0 P1: A -> iProp) l
     :
     ((list_prop_sum P0 l) ∗ (list_prop_sum P1 l))

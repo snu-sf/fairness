@@ -10,7 +10,6 @@ From Fairness Require Export ObligationRA SimDefaultRA.
 Require Export Nat.
 
 Notation "'ω'" := Ord.omega.
-(* Notation "'ω'" := Ord.omega : ord_scope. *)
 
 Section LAYER.
 
@@ -210,8 +209,66 @@ Section RULES.
   Definition progress_credit (k : nat) (l a : nat) :=
     white k (layer l a).
 
+  Definition pending_obligation (k : nat) (q : Qp) :=
+    (pending k q)%I.
+
+  Definition active_obligation (k : nat) :=
+    (shot k)%I.
+
   Global Program Instance Persistent_liveness_obligation k l :
     Persistent (liveness_obligation k l).
+
+  Global Program Instance Persistent_active_obligation k :
+    Persistent (active_obligation k).
+
+  Lemma pending_active k
+    :
+    (pending_obligation k 1)
+      -∗
+      #=> (active_obligation k).
+  Proof.
+    apply pending_shot.
+  Qed.
+
+  Lemma pending_not_active k q
+    :
+    (pending_obligation k q)
+      -∗
+      (active_obligation k)
+      -∗
+      False.
+  Proof.
+    apply pending_not_shot.
+  Qed.
+
+  Lemma pending_sum k q0 q1
+    :
+    (pending_obligation k q0)
+      -∗
+      (pending_obligation k q1)
+      -∗
+      (pending_obligation k (q0 + q1)%Qp).
+  Proof.
+    apply pending_sum.
+  Qed.
+
+  Lemma pending_wf k q
+    :
+    (pending_obligation k q)
+      -∗
+      (⌜(q ≤ 1)%Qp⌝).
+  Proof.
+    apply pending_wf.
+  Qed.
+
+  Lemma pending_split k q0 q1
+    :
+    (pending_obligation k (q0 + q1)%Qp)
+      -∗
+      (pending_obligation k q0 ∗ pending_obligation k q1).
+  Proof.
+    apply pending_split.
+  Qed.
 
   Lemma lo_mon k l1 l2 :
     (l1 <= l2) ->
@@ -284,9 +341,9 @@ Section RULES.
   Qed.
 
   Lemma alloc_obligation l a :
-    ⊢ |==> (∃ k, liveness_obligation k l ∗ progress_credit k l a).
+    ⊢ |==> (∃ k, liveness_obligation k l ∗ progress_credit k l a ∗ pending_obligation k 1).
   Proof.
-    iMod (alloc (layer l a)) as "[% [B W]]".
+    iMod (alloc (layer l a)) as "[% (B & W & P)]".
     iExists k. iFrame. iModIntro. iExists a, (layer l a). iFrame.
     auto.
   Qed.
@@ -351,11 +408,38 @@ Section RULES.
 
   Definition fairness_credit {Id} (p : Prism.t _ Id) (i : Id) : iProp := FairRA.white p i 1.
 
+  Definition delayed_promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l f : iProp :=
+    delay v p i k (layer l 1) f.
+
   Definition promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l f : iProp :=
     correl v p i k (layer l 1) f.
 
+  Global Program Instance Persistent_delayed_promise {Id} {v} p (i : Id) k l f :
+    Persistent (delayed_promise (v:=v) p i k l f).
+
   Global Program Instance Persistent_promise {Id} {v} p (i : Id) k l f :
     Persistent (promise (v:=v) p i k l f).
+
+  Lemma activate_promise {Id} {v} (p : Prism.t _ Id) (i : Id) k c (F : Vars v)
+    :
+    (delayed_promise p i k c F)
+      -∗
+      (pending_obligation k (1/2))
+      -∗
+      (#=(arrows_sat v)=> (promise p i k c F) ∗ (active_obligation k)).
+  Proof.
+    iIntros "#DP PO". iMod (delay_shot with "DP PO") as "[_ #S]".
+    iPoseProof (delay_to_correl with "DP S") as "P". iModIntro. auto.
+  Qed.
+
+  Lemma unfold_promise {Id} {v} (p : Prism.t _ Id) (i : Id) k c (F : Vars v)
+    :
+    (promise p i k c F)
+      -∗
+      (delayed_promise p i k c F ∗ active_obligation k).
+  Proof.
+    iIntros "P". iPoseProof (unfold_correl with "P") as "A". iFrame.
+  Qed.
 
   Lemma promise_progress {Id} {v} (p : Prism.t _ Id) (i : Id) k l f :
     (promise p i k l f ∗ fairness_credit p i)
@@ -365,10 +449,10 @@ Section RULES.
   Qed.
 
   Lemma duty_add {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l f :
-    (duty p i ds ∗ progress_credit k (1 + l) 1)
+    (duty p i ds ∗ progress_credit k (1 + l) 1 ∗ pending_obligation k (1/2))
       ⊢ (□ (prop v f -∗ □ prop v f)) =(arrows_sat v)=∗ duty p i ((k, l, f) :: ds).
   Proof.
-    iIntros "[D PC] #F". iMod (duty_alloc with "D [PC] [F]") as "D".
+    iIntros "[D [PC PO]] #F". iMod (duty_alloc with "D [PC] PO [F]") as "D".
     { unfold progress_credit. iPoseProof (white_eq with "PC") as "PC".
       { replace (1+l) with (l+1) by lia. rewrite layer_sep. rewrite layer_one_one. reflexivity. }
       iFrame.
@@ -377,20 +461,28 @@ Section RULES.
     iModIntro. iFrame.
   Qed.
 
+  Lemma duty_delayed_promise {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l (f : Vars v) :
+    In (k, l, f) ds ->
+    duty p i ds ⊢ delayed_promise p i k l f.
+  Proof.
+    iIntros (IN) "D". iApply duty_delay. 2: iFrame.
+    apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
+  Qed.
+
   Lemma duty_promise {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l (f : Vars v) :
     In (k, l, f) ds ->
-    duty p i ds ⊢ promise p i k l f.
+    duty p i ds ⊢ active_obligation k -∗ promise p i k l f.
   Proof.
     iIntros (IN) "D". iApply duty_correl. 2: iFrame.
     apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
   Qed.
 
   Lemma duty_fulfill {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l f :
-    (duty p i ((k, l, f) :: ds) ∗ prop v f)
+    (duty p i ((k, l, f) :: ds) ∗ prop v f ∗ active_obligation k)
       ⊢ #=(arrows_sat v)=> duty p i ds.
   Proof.
-    iIntros "(DUTY & F)".
-    iMod (duty_done with "DUTY F") as "D". iModIntro. iFrame.
+    iIntros "(DUTY & F & S)".
+    iMod (duty_done with "DUTY S F") as "D". iModIntro. iFrame.
   Qed.
 
   Lemma duty_permutation {Id} {v} (p : Prism.t _ Id) (i : Id) ds0 ds1 :
@@ -404,10 +496,36 @@ Section RULES.
 
   Definition thread_credit : iProp := FairRA.white_thread (S:=_).
 
+  Definition thread_delayed_promise {v} k l f : iProp := delay_thread v k (layer l 1) f.
+
   Definition thread_promise {v} k l f : iProp := correl_thread v k (layer l 1) f.
+
+  Global Program Instance Persistent_thread_delayed_promise {v} k l f :
+    Persistent (thread_delayed_promise (v:=v) k l f).
 
   Global Program Instance Persistent_thread_promise {v} k l f :
     Persistent (thread_promise (v:=v) k l f).
+
+  Lemma activate_tpromise {v} k c (F : Vars v)
+    :
+    (thread_delayed_promise k c F)
+      -∗
+      (pending_obligation k (1/2))
+      -∗
+      (#=(arrows_sat v)=> (thread_promise k c F) ∗ (active_obligation k)).
+  Proof.
+    iIntros "#DP PO". iMod (delay_thread_shot with "DP PO") as "[_ #S]".
+    iPoseProof (delay_to_correl_thread with "DP S") as "P". iModIntro. auto.
+  Qed.
+
+  Lemma unfold_tpromise {v} k c (F : Vars v)
+    :
+    (thread_promise k c F)
+      -∗
+      (thread_delayed_promise k c F ∗ active_obligation k).
+  Proof.
+    iIntros "P". iPoseProof (unfold_correl_thread with "P") as "A". iFrame.
+  Qed.
 
   Lemma tpromise_progress {v} k l f :
     (thread_promise k l f ∗ thread_credit)
@@ -416,9 +534,17 @@ Section RULES.
     iIntros "[#PR FC]". iPoseProof (correl_thread_correlate with "PR FC") as "RES". iFrame.
   Qed.
 
+  Lemma duty_delayed_tpromise {v} i ds k l (f : Vars v) :
+    In (k, l, f) ds ->
+    duty inlp i ds ⊢ thread_delayed_promise k l f.
+  Proof.
+    iIntros (IN) "D". iApply duty_delay_thread. 2: iFrame.
+    apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
+  Qed.
+
   Lemma duty_tpromise {v} i ds k l (f : Vars v) :
     In (k, l, f) ds ->
-    duty inlp i ds ⊢ thread_promise k l f.
+    duty inlp i ds ⊢ active_obligation k -∗ thread_promise k l f.
   Proof.
     iIntros (IN) "D". iApply duty_correl_thread. 2: iFrame.
     apply (in_map (fun '(k0, l0, f0) => (k0, layer l0 1, f0))) in IN. auto.
@@ -502,6 +628,43 @@ Section RULES.
     iIntros (? LE) "PCS". iApply taxes_ord_mon. 2: iFrame.
     apply layer_drop_eq; auto.
   Qed.
+
+  Definition progress_pendings (l : list (nat * Qp)) := pends l.
+
+  Lemma pps_nil : ⊢ progress_pendings [].
+  Proof. iApply pends_nil. Qed.
+
+  Lemma pps_perm l0 l1 :
+    (l0 ≡ₚ l1) -> progress_pendings l0 ⊢ progress_pendings l1.
+  Proof.
+    iIntros. iApply pends_perm. 2: iFrame. auto.
+  Qed.
+
+  Lemma pps_merge_list l0 l1 :
+    progress_pendings l0 ∗ progress_pendings l1 ⊢ progress_pendings (l0 ++ l1).
+  Proof.
+    iIntros "[A B]". unfold progress_pendings. iApply pends_combine. iFrame.
+  Qed.
+
+  Lemma pps_split_list l0 l1 :
+    progress_pendings (l0 ++ l1) ⊢ progress_pendings l0 ∗ progress_pendings l1.
+  Proof.
+    iIntros "A". unfold progress_pendings. iApply pends_split. iFrame.
+  Qed.
+
+  Lemma pps_cons_unfold k q tl :
+    progress_pendings ((k, q) :: tl) ⊢ pending_obligation k q ∗ progress_pendings tl.
+  Proof.
+    unfold progress_pendings. iIntros "P". ss.
+  Qed.
+
+  Lemma pps_cons_fold k q tl :
+    pending_obligation k q ∗ progress_pendings tl ⊢ progress_pendings ((k, q) :: tl).
+  Proof.
+    unfold progress_pendings. iIntros "[PC PP]".
+    iPoseProof (pends_cons_fold with "[PC PP]") as "W". 2: iFrame. iFrame.
+  Qed.
+
 
   (** Additional definitions and rules. *)
 
@@ -844,6 +1007,10 @@ Notation "'◆' [ k , l ]" :=
   (liveness_obligation k l) (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : bi_scope.
 Notation "'◇' [ k ]( l , a )" :=
   (progress_credit k l a) (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : bi_scope.
+Notation "'⧖' [ k , q ]" :=
+  (pending_obligation k q) (at level 50, k, q at level 1, format "⧖ [ k ,  q ]") : bi_scope.
+Notation "'⋈' [ k ]" :=
+  (active_obligation k) (at level 50, k at level 1, format "⋈ [ k ]") : bi_scope.
 Notation "s '-(' l ')-' '◇' t" :=
   (link s t l) (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : bi_scope.
 Notation "'Duty' ( p ◬ i ) ds" :=
@@ -852,14 +1019,20 @@ Notation "'Duty' ( tid ) ds" :=
   (duty inlp tid ds) (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : bi_scope.
 Notation "'€' ( p ◬ i )" :=
   (fairness_credit p i) (format "€ ( p  ◬  i )") : bi_scope.
+Notation "'-(' p ◬ i ')-[' k '](' l ')-' '⧖' f" :=
+  (delayed_promise p i k l f) (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ⧖  f") : bi_scope.
 Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
   (promise p i k l f) (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : bi_scope.
 Notation "'€'" :=
   (thread_credit) : bi_scope.
+Notation "'-[' k '](' l ')-' '⧖' f" :=
+  (thread_delayed_promise k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ⧖  f") : bi_scope.
 Notation "'-[' k '](' l ')-' '◇' f" :=
   (thread_promise k l f) (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : bi_scope.
 Notation "'◇' { ps }( m , a )" :=
   (progress_credits ps m a) (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : bi_scope.
+Notation "'⧖' { ps }" :=
+  (progress_pendings ps) (at level 50, ps at level 1, format "⧖ { ps }") : bi_scope.
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄"
   := (collection_credits k ps l) (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : bi_scope.
 Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=

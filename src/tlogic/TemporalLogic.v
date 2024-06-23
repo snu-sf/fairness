@@ -196,11 +196,14 @@ Module Atom.
     | obl_edges_sat
     | obl_arrows_auth (x : index)
     | obl_arrows_regions_black (l : list ((nat + id_tgt_type) * nat * Ord.t * Qp * nat * (@Syntax.t _ _ (@t form) form)))
+    | obl_arrow_delay (i : nat + id_tgt_type) (k : nat) (c : Ord.t) (q : Qp)
     | obl_arrow_done (x : nat)
     | obl_arrow_pend (i : nat + id_tgt_type) (k : nat) (c : Ord.t) (q : Qp)
     (** Atoms for liveness logic definitions. *)
     | obl_lo (k i : nat)
     | obl_pc (k l a : nat)
+    | obl_pend (k : nat) (q : Qp)
+    | obl_act (k : nat)
     | obl_link (k0 k1 l : nat)
     | obl_duty
         {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ _ (@t form) form)))
@@ -209,10 +212,14 @@ Module Atom.
     | obl_share_duty_w
         {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ _ (@t form) form)))
     | obl_fc {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id)
+    | obl_dpromise
+        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (k l : nat) (f : @Syntax.t _ _ (@t form) form)
     | obl_promise {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (k l : nat) (f : @Syntax.t _ _ (@t form) form)
     | obl_tc
+    | obl_tdpromise (k l : nat) (f : @Syntax.t _ _ (@t form) form)
     | obl_tpromise (k l : nat) (f : @Syntax.t _ _ (@t form) form)
     | obl_pcs (ps : list (nat * nat)) (m a : nat)
+    | obl_pps (ps : list (nat * Qp))
     | obl_ccs (k : nat) (ps : list (nat * nat)) (l : nat)
     .
 
@@ -333,6 +340,8 @@ Section ATOMINTERP.
     | obl_edges_sat => ObligationRA.edges_sat
     | obl_arrows_auth x => ObligationRA.arrows_auth x
     | obl_arrows_regions_black l => Regions.black n l
+    | obl_arrow_delay i k c q =>
+        ((∃ n, FairRA.black Prism.id i n q) ∗ (ObligationRA.white k (c × Ord.omega)%ord))%I
     | obl_arrow_done x =>
         OwnM (FiniteMap.singleton x (OneShot.shot ObligationRA._tt): ArrowShotRA)
     | obl_arrow_pend i k c q =>
@@ -340,15 +349,20 @@ Section ATOMINTERP.
     (** Atoms for liveness logic definitions. *)
     | obl_lo k l => liveness_obligation k l
     | obl_pc k l a => progress_credit k l a
+    | obl_pend k q => pending_obligation k q
+    | obl_act k => active_obligation k
     | obl_link k0 k1 l => link k0 k1 l
     | obl_duty p i ds => duty p i ds
     | obl_share_duty_b p i ds => ShareDuty_black p i ds
     | obl_share_duty_w p i ds => ShareDuty_white p i ds
     | obl_fc p i => fairness_credit p i
+    | obl_dpromise p i k l f => delayed_promise p i k l f
     | obl_promise p i k l f => promise p i k l f
     | obl_tc => thread_credit
+    | obl_tdpromise k l f => thread_delayed_promise k l f
     | obl_tpromise k l f => thread_promise k l f
     | obl_pcs ps m a => progress_credits ps m a
+    | obl_pps ps => progress_pendings ps
     | obl_ccs k ps l => collection_credits k ps l
     end.
 
@@ -371,15 +385,8 @@ End TL_INTERP.
 (** Notations and coercions. *)
 Notation "'τ{' t ',' n '}'" := (sType.interp (t:=TL_type) t (_sProp n)).
 Notation "'τ{' t '}'" := (sType.interp (t:=TL_type) t (_sProp _)).
-(* Notation "'⟪' A ',' n '⟫'" := (sAtomI.interp (As:=TL_atom) n A). *)
 Notation "'⟪' A ',' n '⟫'" := (TL_atom_interp n A).
 Notation "'⟦' F ',' n '⟧'" := (SyntaxI.interp (α:=TL_atom_interp) n F).
-(* Notation "'⟦' F ',' n '⟧'" := (prop (IInvSet:=TL_interp) n F). *)
-
-(* Notation "'τ{' t , n '}'" := (@sType.interp _ t (@_sProp _ _ n)). *)
-(* Notation "'τ{' t '}'" := (@sType.interp _ t (@_sProp _ _ _)). *)
-(* Notation "'⟪' A ',' n '⟫'" := (@AtomSem _ _ _ _ _ n A). *)
-(* Notation "'⟦' F ',' n '⟧'" := (@SynSem _ _ _ _ _ n F). *)
 
 Section RED.
 
@@ -719,9 +726,14 @@ Section OBLIG.
     fun '(i, k, c, q, x, f) =>
       ((□ (f -∗ □ f))
          ∗
-         ((⟨obl_arrow_done x⟩ ∗ f)
+         ((⟨obl_pend k (1/2)⟩ ∗ ⟨obl_arrow_delay i k c q⟩)
           ∨
-            ⟨obl_arrow_pend i k c q⟩))%S.
+            (⟨obl_act k⟩
+               ∗
+               ((⟨obl_arrow_done x⟩ ∗ f)
+                ∨
+                  ⟨obl_arrow_pend i k c q⟩))
+      ))%S.
 
   Lemma red_syn_obl_arrow n d :
     ⟦syn_obl_arrow n d, n⟧ = ObligationRA.arrow n d.
@@ -1220,6 +1232,10 @@ Notation "'◆' [ k , l ]" :=
   (⟨Atom.obl_lo k l⟩)%S (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : sProp_scope.
 Notation "'◇' [ k ]( l , a )" :=
   (⟨Atom.obl_pc k l a⟩)%S (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : sProp_scope.
+Notation "'⧖' [ k , q ]" :=
+  (⟨Atom.obl_pend k q⟩)%S (at level 50, k, q at level 1, format "⧖ [ k ,  q ]") : sProp_scope.
+Notation "'⋈' [ k ]" :=
+  (⟨Atom.obl_act k⟩)%S (at level 50, k at level 1, format "⋈ [ k ]") : sProp_scope.
 Notation "s '-(' l ')-' '◇' t" :=
   (⟨Atom.obl_link s t l⟩)%S (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : sProp_scope.
 Notation "'Duty' ( p ◬ i ) ds" :=
@@ -1228,14 +1244,20 @@ Notation "'Duty' ( tid ) ds" :=
   (⟨Atom.obl_duty inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : sProp_scope.
 Notation "'€' ( p ◬ i )" :=
   (⟨Atom.obl_fc p i⟩)%S (format "€ ( p  ◬  i )") : sProp_scope.
+Notation "'-(' p ◬ i ')-[' k '](' l ')-' '⧖' f" :=
+  (⟨Atom.obl_dpromise p i k l f⟩)%S (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ⧖  f") : sProp_scope.
 Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
   (⟨Atom.obl_promise p i k l f⟩)%S (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : sProp_scope.
 Notation "'€'" :=
   (⟨Atom.obl_tc⟩)%S : sProp_scope.
+Notation "'-[' k '](' l ')-' '⧖' f" :=
+  (⟨Atom.obl_tdpromise k l f⟩)%S (at level 50, k, l at level 1, format "-[ k ]( l )- ⧖  f") : sProp_scope.
 Notation "'-[' k '](' l ')-' '◇' f" :=
   (⟨Atom.obl_tpromise k l f⟩)%S (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : sProp_scope.
 Notation "'◇' { ps }( m , a )" :=
   (⟨Atom.obl_pcs ps m a⟩)%S (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : sProp_scope.
+Notation "'⧖' { ps }" :=
+  (⟨Atom.obl_pps ps⟩)%S (at level 50, ps at level 1, format "⧖ { ps }") : sProp_scope.
 Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄" :=
   (⟨Atom.obl_ccs k ps l⟩)%S (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : sProp_scope.
 Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=

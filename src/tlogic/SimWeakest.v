@@ -332,6 +332,38 @@ Section STATE.
     { i. iIntros "H". iModIntro. iApply unlift_lift. auto. }
   Qed.
 
+  Lemma wpsim_coind2 E A
+        (R_src: forall (a: A), Type)
+        (R_tgt: forall (a: A), Type)
+        (Q: forall (a: A), R_src a -> R_tgt a -> iProp)
+        (ps pt: forall (a: A), bool)
+        (itr_src : forall (a: A), itree srcE (R_src a))
+        (itr_tgt : forall (a: A), itree tgtE (R_tgt a))
+        (P: forall (a: A), iProp)
+        (TOP: ⊤ ⊆ E)
+    :
+    ⊢
+      ∀ (r g0 : rel),
+        ⌜(∀ (g1: rel) (a : A),
+            (□((∀ R_src R_tgt (Q: R_src -> R_tgt -> iProp)
+                  ps pt itr_src itr_tgt,
+                   @g0 R_src R_tgt Q ps pt itr_src itr_tgt -∗
+                       @g1 R_src R_tgt Q ps pt itr_src itr_tgt)
+                 ∗
+                 (∀ a, P a -∗ @g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))
+              -∗
+              (P a)
+              -∗
+              (wpsim ⊤ r g1 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a)))⌝
+          -∗
+          (∀ a, (P a) -∗ (wpsim E r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))).
+  Proof.
+    iIntros "% % %CIH". iIntros "% PA".
+    iApply wpsim_coind. auto. 2: iApply "PA".
+    intros. specialize (CIH g1 a0). apply CIH.
+  Qed.
+
+
   Global Instance wpsim_elim_upd
          E r g R_src R_tgt
          (Q: R_src -> R_tgt -> iProp)
@@ -1200,6 +1232,42 @@ Section STATE.
     iApply isim_yieldL. iApply ("H" with "D").
   Qed.
 
+  Lemma wpsim_yieldR_strong_pending
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt l
+        l1 l2 pps
+        (OBLIGS : l = l1 ++ l2)
+        (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
+    :
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.pends pps ∗ ObligationRA.taxes (List.map fst l2) Ord.omega)
+      -∗
+      ((ObligationRA.duty y inlp tid l)
+         -∗
+         (FairRA.white_thread (S:=_))
+         -∗
+         (ObligationRA.pends pps)
+         -∗
+         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
+               (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "H K". unfold wpsim. iIntros (? ? ? ? ?) "(D & [WA WS])".
+    iMod (default_I_past_update_ident_thread_pending with "D H") as "[B [W ([D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]] & PPS)]]".
+    1,2,3: eauto.
+    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
+    { iFrame. }
+    Local Transparent FUpd.
+    iPoseProof ("K" with "B W PPS C") as ">[D5 [D6 [E K]]]".
+    iApply isim_yieldR. unfold I, fairI. iFrame. iFrame.
+    iIntros (? ? ? ? ? ?) "(D & WAS) %".
+    iApply ("K" with "[D WAS]"). iFrame. iExists _. eauto.
+    Local Opaque FUpd.
+  Qed.
+
   Lemma wpsim_yieldR_strong
         y (LT: y < x)
         E r g R_src R_tgt
@@ -1228,6 +1296,56 @@ Section STATE.
     iIntros (? ? ? ? ? ?) "(D & WAS) %".
     iApply ("K" with "[D WAS]"). iFrame. iExists _. eauto.
     Local Opaque FUpd.
+  Qed.
+
+  Lemma wpsim_yieldR_gen_pending
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+        l1 l2 pps
+        (OBLIGS : l = l1 ++ l2)
+        (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
+        a (MANY : 1 <= a)
+    :
+    (Duty(tid) l)
+      -∗ (⧖{pps})
+      -∗ (◇{List.map fst l2}(1, a))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         ⧖{pps}
+         -∗
+         ◇{List.map fst l2}(1, a - 1)
+         -∗
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ⊤}=>
+            (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
+  .
+  Proof.
+    iIntros "D P T H".
+    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
+    Unshelve. 2: lia.
+    iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2)) Ord.omega) with "[T]" as "T".
+    { unfold progress_credits.
+      replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2))
+        with (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l2)).
+      { iMod (ObligationRA.taxes_ord_mon with "T") as "T".
+        2:{ iModIntro. iFrame. }
+        rewrite layer_one_one. reflexivity.
+      }
+      { rewrite ! List.map_map. f_equal. extensionalities. des_ifs. ss. des_ifs. }
+    }
+    iMod "T". iApply (wpsim_yieldR_strong_pending with "[D P T]").
+    5:{ iIntros "D W P". iApply ("H" with "D W P REST"). }
+    4: iFrame.
+    auto.
+    { subst. apply List.map_app. }
+    { apply Forall2_fmap_l. eapply Forall2_impl. eauto. ss. i. des_ifs. }
   Qed.
 
   Lemma wpsim_yieldR_gen
@@ -1341,6 +1459,41 @@ Section STATE.
     iIntros "D F C". iModIntro. iApply ("H" with "D F C").
   Qed.
 
+  Lemma wpsim_sync_strong_pending
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt l
+        l1 l2 pps
+        (OBLIGS : l = l1 ++ l2)
+        (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
+    :
+    (ObligationRA.duty y inlp tid l ∗ ObligationRA.pends pps ∗ ObligationRA.taxes (List.map fst l2) Ord.omega)
+      -∗
+      ((ObligationRA.duty y inlp tid l)
+         -∗
+         (FairRA.white_thread (S:=_))
+         -∗
+         (ObligationRA.pends pps)
+         -∗
+         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
+               (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "H K". unfold wpsim. iIntros (? ? ? ? ?) "(D & [WA WS])".
+    iMod (default_I_past_update_ident_thread_pending with "D H") as "[B [W ([D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]] & PPS)]]".
+    1,2,3: eauto.
+    iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
+    { iFrame. }
+    Local Transparent FUpd.
+    iPoseProof ("K" with "B W PPS C") as ">[D5 [D6 [E K]]]".
+    iApply isim_sync. unfold I, fairI. iFrame. iFrame.
+    iIntros (? ? ? ? ? ?) "(D & WAS) %".
+    iApply ("K" with "[D WAS]"). iFrame. iExists _. eauto.
+    Local Opaque FUpd.
+  Qed.
+
   Lemma wpsim_sync_strong
         y (LT: y < x)
         E r g R_src R_tgt
@@ -1368,6 +1521,55 @@ Section STATE.
     iIntros (? ? ? ? ? ?) "(D & C & E) %".
     iApply ("K" with "[D C E]"). iFrame. iExists _. eauto.
     Local Opaque FUpd.
+  Qed.
+
+  Lemma wpsim_sync_gen_pending
+        y (LT: y < x)
+        E r g R_src R_tgt
+        (Q: R_src -> R_tgt -> iProp)
+        ps pt ktr_src ktr_tgt
+        (l : list (nat * nat * Vars y))
+        l1 l2 pps
+        (OBLIGS : l = l1 ++ l2)
+        (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
+        a (MANY : 1 <= a)
+    :
+    (Duty(tid) l)
+      -∗ (⧖{pps})
+      -∗ (◇{List.map fst l2}(1, a))
+      -∗
+      ((Duty(tid) l)
+         -∗
+         €
+         -∗
+         ⧖{pps}
+         -∗
+         ◇{List.map fst l2}(1, a - 1)
+         -∗
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E, ⊤}=>
+            (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+      -∗
+      (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
+  Proof.
+    iIntros "D P T H".
+    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
+    Unshelve. 2: lia.
+    iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2)) Ord.omega) with "[T]" as "T".
+    { unfold progress_credits.
+      replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2))
+        with (List.map (λ '(k, n), (k, layer n 1)) (List.map fst l2)).
+      { iMod (ObligationRA.taxes_ord_mon with "T") as "T".
+        2:{ iModIntro. iFrame. }
+        rewrite layer_one_one. reflexivity.
+      }
+      { rewrite ! List.map_map. f_equal. extensionalities. des_ifs. ss. des_ifs. }
+    }
+    iMod "T". iApply (wpsim_sync_strong_pending with "[D P T]").
+    5:{ iIntros "D W P". iApply ("H" with "D W P REST"). }
+    4: iFrame.
+    auto.
+    { subst. apply List.map_app. }
+    { apply Forall2_fmap_l. eapply Forall2_impl. eauto. ss. i. des_ifs. }
   Qed.
 
   Lemma wpsim_sync_gen
