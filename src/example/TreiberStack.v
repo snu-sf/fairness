@@ -41,6 +41,7 @@ Module TreiberStack.
       ktree (threadE ident state) SCMem.val (option (SCMem.val))
       :=
       fun s =>
+        _ <- trigger Yield;;
         ITree.iter
           (fun (_ : unit) =>
             head <- (OMod.call (R:=SCMem.val) "load" s);;
@@ -48,7 +49,11 @@ Module TreiberStack.
             if is_null then Ret (inr None) else (
               next <- (OMod.call (R:=SCMem.val) "load" head);;
               b <- (OMod.call (R:=bool) "cas" (s, head, next));;
-              if b then Ret (inr (Some head)) else Ret (inl tt)
+              if b then
+                data <- (OMod.call (R:=SCMem.val) "load" (SCMem.val_add head 1));;
+                Ret (inr (Some data))
+              else
+                Ret (inl tt)
             )
           ) tt.
 

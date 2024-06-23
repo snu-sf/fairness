@@ -834,6 +834,23 @@ Section MEMRA.
     case_bool_decide as EQ; try done. injection EQ as ->. done.
   Qed.
 
+  Lemma memory_ra_points_to_agree l v0 v1 p1 p2
+    :
+      (points_to l v0 p1)
+      -∗
+      (points_to l v1 p2)
+      -∗
+      (⌜v0 = v1⌝).
+  Proof.
+    iIntros "POINT0 POINT1". ss.
+    destruct l as [n|[b o]]; ss.
+    iCombine "POINT0 POINT1" as "POINT". iOwnWf "POINT".
+    ur in H. ur in H. specialize (H b). specialize (H o). ur in H.
+    unfold points_to_white in H. des_ifs; clarify.
+    all: injection Heq0 as <-; injection Heq1 as <-.
+    all: rewrite dfrac_agree_op_valid in H; des; done.
+  Qed.
+
   (* Lemma memory_ra_compare_ptr_both_pers_left m l0 v0 l1 v1
     :
     (memory_black m)
