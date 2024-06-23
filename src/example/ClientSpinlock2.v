@@ -126,38 +126,36 @@ Section SIM.
   Lemma md_N_ClientSpinlock2_Spinlock : (↑N_ClientSpinlock2 : coPset) ## (↑N_Spinlock : coPset).
   Proof. apply ndot_ne_disjoint. ss. Qed.
 
-  Definition clientSpinlock2_inv n (tid2 : thread_id) (ℓL ℓl : nat) (γX γe κs : nat) (κl γκl κu γκu : nat) (γr : nat) : sProp n :=
+  Definition clientSpinlock2_inv n (tid2 : thread_id) (ℓL : nat) (γX γe κs : nat) (κl γκl κw γκw κu γκu : nat) (γr : nat) : sProp n :=
     (
       ((○ γX 0) ∗ (D ↦ 0)
-                ∗ (-[κl](0)-◇ (∃ (γκw : τ{nat}), ▿ γκl γκw)) ∗ (△ γκl (1/2))
+                ∗ (-[κl](0)-◇ (▿ γκl γκw))
+                ∗ (△ γκl (1/2)) ∗ (△ γκw (1/2)) ∗ (△ γκu (1/2))
                 ∗ ⧖[κu, 1/2]
                 ∗ (-[κu](0)-⧖ (▿ γκu 0))
                 ∗ (κu -(0)-◇ κs)
-                ∗ (△ γκu (1/2))
                 ∗ (∃ (ℓl : τ{nat}), ◆[κl, ℓl])
       )
       ∨
         ((○ γX 1) ∗ (D ↦ 0)
-                  ∗ (∃ (κw γκw : τ{nat}),
-                        (-[κw](0)-◇ (▿ γκw γκu))
-                          ∗ (△ γκw (1/2)) ∗ (▿ γκl γκw)
-                          ∗ ⧖[κu, 1/2]
-                          ∗ (-[κu](0)-⧖ (▿ γκu 0))
-                          ∗ (κu -(0)-◇ κs)
-                          ∗ (△ γκu (1/2))
-                          ∗ (∃ (ℓw : τ{nat}), ◆[κw, ℓw] ∗ ⌜ℓw <= ℓL⌝))
+                  ∗ (-[κw](0)-◇ (▿ γκw γκu))
+                  ∗ (△ γκw (1/2)) ∗ (△ γκu (1/2)) ∗ (▿ γκl γκw)
+                  ∗ ⧖[κu, 1/2]
+                  ∗ (-[κu](0)-⧖ (▿ γκu 0))
+                  ∗ (κu -(0)-◇ κs)
+                  ∗ (△ γκu (1/2))
+                  ∗ (∃ (ℓw : τ{nat}), ◆[κw, ℓw] ∗ ⌜ℓw <= ℓL⌝)
         )
       ∨
         ((○ γX 1) ∗ (D ↦ 1)
-                  ∗ (∃ (γκw : τ{nat}),
-                        (-[κu](0)-◇ (▿ γκu 0))
-                          ∗ (△ γκu (1/2)) ∗ ⋈[κu] ∗ (κu -(0)-◇ κs) ∗ (▿ γκl γκw) ∗ (▿ γκw γκu)
-                          ∗ (((EX γe tt) ∨ (▿ γr 0))))
+                  ∗ (-[κu](0)-◇ (▿ γκu 0))
+                  ∗ (△ γκu (1/2)) ∗ (▿ γκl γκw) ∗ (▿ γκw γκu)
+                  ∗ ⋈[κu] ∗ (κu -(0)-◇ κs)
+                  ∗ (((EX γe tt) ∨ (▿ γr 0)))
         )
       ∨
         ((○ γX 0) ∗ (D ↦ 1)
-                  ∗ (∃ (γκw : τ{nat}),
-                        (▿ γκl γκw) ∗ (▿ γκw γκu) ∗ (▿ γr 0) ∗ (▿ γκu 0)))
+                  ∗ (▿ γκl γκw) ∗ (▿ γκw γκu) ∗ (▿ γr 0) ∗ (▿ γκu 0))
     )%S.
 
   (* Obligation dependencies: (κl at >= (2 + ℓL) + c) → (κw at 2) → (κu at 2 (=ℓl)) → (κs at >= 3) *)
@@ -168,15 +166,19 @@ Section SIM.
         (LAYER_L : ℓL = 3)
         (LAYER_l : ℓl = 2)
     :
-    ⊢ ⟦(∀ (γX γe κs κl γκl κu γκu γr : τ{nat, 1+n}),
-           ((⤉ syn_inv n N_ClientSpinlock2 (clientSpinlock2_inv n tid2 ℓL ℓl γX γe κs κl γκl κu γκu γr))
+    ⊢ ⟦(∀ (γX γe κs κl γκl κw γκw κu γκu γr : τ{nat, 1+n}),
+           ((⤉ syn_inv n N_ClientSpinlock2 (clientSpinlock2_inv n tid2 ℓL γX γe κs κl γκl κw γκw κu γκu γr))
               ∗ (syn_tgt_interp_as n sndl (fun m => (s_memory_black m)))
               ∗ (⤉ isSpinlock n X γX γe κs ℓL)
               ∗ TID(tid)
-              ∗ (⤉ Duty(tid) [(κl, 0, (∃ (γκw : τ{nat, n}), ▿ γκl γκw))])
+              ∗ (⤉ Duty(tid) [(κw, 0, (▿ γκw γκu)); (κl, 0, (▿ γκl γκw))])
               ∗ ◇[κl](2, 1)
               ∗ ◇[κl](2 + ℓL, 5)
-              ∗ (⤉ △ γκl (1/2)))
+              ∗ (⤉ △ γκl (1/2))
+              ∗ (⤉ △ γκw (1/2))
+              ∗ ⧖[κw, 1/2]
+              ∗ ◇[κw](2, 1)
+           )
              -∗
              syn_wpsim (S n) tid ⊤
              (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%S)
@@ -186,10 +188,10 @@ Section SIM.
   Proof.
     iIntros.
     red_tl. iIntros (γX). red_tl. iIntros (γe). red_tl. iIntros (κs).
-    red_tl. iIntros (κl). red_tl. iIntros (γκl). red_tl. iIntros (κu). red_tl. iIntros (γκu).
-    red_tl. iIntros (γr).
+    red_tl. iIntros (κl). red_tl. iIntros (γκl). red_tl. iIntros (κw). red_tl. iIntros (γκw).
+    red_tl. iIntros (κu). red_tl. iIntros (γκu). red_tl. iIntros (γr).
     iEval (red_tl_all; simpl; rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
-    iIntros "(#INV_CL & #MEM & #ISL & TID & DUTY & PC & PC2 & LIVE_l)".
+    iIntros "(#INV_CL & #MEM & #ISL & TID & DUTY & PC & PC2 & LIVE_l & LIVE_w & DELw & PCw)".
     unfold fn2th. simpl. unfold thread1, ClientSpinlock2Spec.thread1. rred2r. lred2r.
 
     iMod (pc_drop _ 1 _ _ 100 with "PC") as "PC".
@@ -197,17 +199,21 @@ Section SIM.
     1,3: lia.
     iPoseProof (pcs_cons_fold κl 0 [] 1 100 with "[PC]") as "PCS".
     { iFrame. }
-    iApply (wpsim_yieldR2 with "[DUTY PCS]").
-    3:{ iFrame. iFrame. }
-    1,2: lia.
-    iEval (simpl). iIntros "DUTY _ PCS". rred2r. iApply wpsim_tauR. rred2r.
+    iApply (wpsim_yieldR_gen_pending with "DUTY [DELw] [PCS]").
+    auto.
+    { instantiate (2:=[(κw, 0, (▿ γκw γκu)%S)]). instantiate (1:=[(κl, 0, (▿ γκl γκw)%S)]). ss. }
+    3:{ iApply pps_cons_fold; iFrame. iApply pps_nil. }
+    3:{ iFrame. }
+    { econs; ss. }
+    lia.
+    iEval (simpl). iIntros "DUTY _ DELw PCS". iModIntro. rred2r. iApply wpsim_tauR. rred2r.
+
+    TODO (* Fix Spinlock spec. *)
 
     iPoseProof ((Spinlock_lock_spec tid n ⊤) $! X γX γe κs ℓL) as "SPEC".
     set (P0 := (△ γκl (1/2))%S : sProp n).
-    set (R0 := ((△ γκl (1/2)) ∗ Duty(tid) [(κl, 0, (∃ (γκw : τ{nat, n}), ▿ γκl γκw))])%S : sProp n).
-    set (Q0 := (∃ (κw γκw : τ{nat, n}),
-                   (▿ γκl γκw) ∗ (△ γκw (1/2)) ∗ (Duty(tid) [(κw, 0, (▿ γκw γκu))]) ∗ ◇[κw](ℓl, 1)
-               )%S : sProp n).
+    set (R0 := ((△ γκl (1/2)) ∗ Duty(tid) [(κl, 0, (▿ γκl γκw))])%S : sProp n).
+    set (Q0 := ((▿ γκl γκw) ∗ (Duty(tid) [(κw, 0, (▿ γκw γκu))]) ∗ ◇[κw](ℓl, 1))%S : sProp n).
     iSpecialize ("SPEC" $! _ P0 R0 Q0 1).
     iApply ("SPEC" with "[PC2 LIVE_l DUTY] [TID]").
 

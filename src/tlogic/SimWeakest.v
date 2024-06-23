@@ -1309,7 +1309,9 @@ Section STATE.
         (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
         a (MANY : 1 <= a)
     :
-    (Duty(tid) l ∗ ⧖{pps} ∗ ◇{List.map fst l2}(1, a))
+    (Duty(tid) l)
+      -∗ (⧖{pps})
+      -∗ (◇{List.map fst l2}(1, a))
       -∗
       ((Duty(tid) l)
          -∗
@@ -1325,7 +1327,7 @@ Section STATE.
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
   Proof.
-    iIntros "(D & P & T) H".
+    iIntros "D P T H".
     iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
     Unshelve. 2: lia.
     iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2)) Ord.omega) with "[T]" as "T".
@@ -1532,7 +1534,9 @@ Section STATE.
         (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
         a (MANY : 1 <= a)
     :
-    (Duty(tid) l ∗ ⧖{pps} ∗ ◇{List.map fst l2}(1, a))
+    (Duty(tid) l)
+      -∗ (⧖{pps})
+      -∗ (◇{List.map fst l2}(1, a))
       -∗
       ((Duty(tid) l)
          -∗
@@ -1547,7 +1551,7 @@ Section STATE.
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
-    iIntros "(D & P & T) H".
+    iIntros "D P T H".
     iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
     Unshelve. 2: lia.
     iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2)) Ord.omega) with "[T]" as "T".
