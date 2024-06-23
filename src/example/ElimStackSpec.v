@@ -351,7 +351,11 @@ Section SPEC.
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (ElimStack.pop s))
           ⧼rv, ⟦(
-            (⤉ (Q rv ∗ Duty(tid) ds))
+            (⤉ (Q rv ∗ Duty(tid) ds)) ∗
+            match rv with
+            | Some _ => emp
+            | None => ◇[k](1,1)
+            end
             )%S, 1+n⟧⧽
   .
   Proof.
@@ -1057,7 +1061,7 @@ Section SPEC.
     1: lia.
     iIntros (b) "POST". iDestruct "POST" as (u) "[%EQ n.o↦]".
     destruct offer_state; simpl in *.
-    - (* Offer revoked *)
+    - (* OfferPending *)
       iDestruct "Of" as "[P AU]".
       des_ifs. destruct EQ as [-> ->]. rred2r.
 
@@ -1075,7 +1079,7 @@ Section SPEC.
       iMod ("IH" with "Ob_k Post Duty Pcs AU P Ob_ks") as "IH".
       iApply "IH".
     - iDestruct (ghost_excl_exclusive with "GEx Of") as %[].
-    - (* Offer Accepted *)
+    - (* OfferAccepted *)
       iRename "Of" into "Q". des_ifs. destruct EQ as [-> ->]. rred2r.
       iApply wpsim_tauR. rred2r.
 

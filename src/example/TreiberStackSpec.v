@@ -412,7 +412,11 @@ Section SPEC.
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
           ⧼rv, ⟦(
-            (⤉ (Q rv ∗ Duty(tid) ds))
+            (⤉ (Q rv ∗ Duty(tid) ds)) ∗
+            match rv with
+            | Some _ => emp
+            | None => ◇[k](1,1)
+            end
             )%S, 1+n⟧⧽
   .
   Proof.

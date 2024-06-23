@@ -869,49 +869,49 @@ Section SIMI.
                                   → TIdSet.t
                                     → FairBeh.imap id_src_type owf
                                       → FairBeh.imap (sum_tid id_tgt_type) nat_wf
-                                        → st_src_type → st_tgt_type → iProp) 
-     (ps0 pt0 : bool) (itr_src0 : itree (threadE id_src_type st_src_type) R_src) 
-     (itr_tgt : itree (threadE id_tgt_type st_tgt_type) R_tgt) (ths0 : TIdSet.t) 
-     (im_src0 : FairBeh.imap id_src_type owf) (im_tgt0 : FairBeh.imap 
-                                                           (sum_tid id_tgt_type) nat_wf) 
+                                        → st_src_type → st_tgt_type → iProp)
+     (ps0 pt0 : bool) (itr_src0 : itree (threadE id_src_type st_src_type) R_src)
+     (itr_tgt : itree (threadE id_tgt_type st_tgt_type) R_tgt) (ths0 : TIdSet.t)
+     (im_src0 : FairBeh.imap id_src_type owf) (im_tgt0 : FairBeh.imap
+                                                           (sum_tid id_tgt_type) nat_wf)
      (st_src0 : st_src_type) (st_tgt0 : st_tgt_type),
      (∃ (Q0 : R_src → R_tgt → iProp) (_ : QQ =
-                                          (λ (r_src : R_src) (r_tgt : R_tgt) 
-                                             (ths1 : TIdSet.t) (im_src1 : 
-                                                                FairBeh.imap id_src_type owf) 
-                                             (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) 
-                                             (st_src1 : st_src_type) 
+                                          (λ (r_src : R_src) (r_tgt : R_tgt)
+                                             (ths1 : TIdSet.t) (im_src1 :
+                                                                FairBeh.imap id_src_type owf)
+                                             (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf)
+                                             (st_src1 : st_src_type)
                                              (st_tgt1 : st_tgt_type),
                                              (default_I_past tid n ths1 im_src1 im_tgt1 st_src1
-                                                st_tgt1 ∗ wsat_auth n ∗ 
+                                                st_tgt1 ∗ wsat_auth n ∗
                                               wsats n ∗ OwnE ⊤) ∗ Q0 r_src r_tgt)),
         rr R_src R_tgt Q0 ps0 pt0 itr_src0 itr_tgt ∗
-        default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗ 
+        default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗
         wsats n ∗ OwnE ⊤)%I) =
   (λ (R_src R_tgt : Type) (QQ : R_src
                                 → R_tgt
                                   → TIdSet.t
                                     → FairBeh.imap id_src_type owf
                                       → FairBeh.imap (sum_tid id_tgt_type) nat_wf
-                                        → st_src_type → st_tgt_type → iProp) 
-     (ps0 pt0 : bool) (itr_src0 : itree (threadE id_src_type st_src_type) R_src) 
-     (itr_tgt : itree (threadE id_tgt_type st_tgt_type) R_tgt) (ths0 : TIdSet.t) 
-     (im_src0 : FairBeh.imap id_src_type owf) (im_tgt0 : FairBeh.imap 
-                                                           (sum_tid id_tgt_type) nat_wf) 
+                                        → st_src_type → st_tgt_type → iProp)
+     (ps0 pt0 : bool) (itr_src0 : itree (threadE id_src_type st_src_type) R_src)
+     (itr_tgt : itree (threadE id_tgt_type st_tgt_type) R_tgt) (ths0 : TIdSet.t)
+     (im_src0 : FairBeh.imap id_src_type owf) (im_tgt0 : FairBeh.imap
+                                                           (sum_tid id_tgt_type) nat_wf)
      (st_src0 : st_src_type) (st_tgt0 : st_tgt_type),
      (∃ (Q0 : R_src → R_tgt → iProp) (_ : QQ =
-                                          (λ (r_src : R_src) (r_tgt : R_tgt) 
-                                             (ths1 : TIdSet.t) (im_src1 : 
-                                                                FairBeh.imap id_src_type owf) 
-                                             (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) 
-                                             (st_src1 : st_src_type) 
+                                          (λ (r_src : R_src) (r_tgt : R_tgt)
+                                             (ths1 : TIdSet.t) (im_src1 :
+                                                                FairBeh.imap id_src_type owf)
+                                             (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf)
+                                             (st_src1 : st_src_type)
                                              (st_tgt1 : st_tgt_type),
                                              ⟦ (syn_default_I_past tid n ths1 im_src1 im_tgt1
                                                   st_src1 st_tgt1 ∗ ⟨ syn_wsat_auth n ⟩ ∗
                                                 syn_wsats n ∗ ⟨owne ⊤⟩)%S, n ⟧ ∗
                                              Q0 r_src r_tgt)),
         rr R_src R_tgt Q0 ps0 pt0 itr_src0 itr_tgt ∗
-        ⟦ (syn_default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ 
+        ⟦ (syn_default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗
                               ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ ⟨owne ⊤⟩)%S, n ⟧)%I).
   Proof.
     extensionalities R_src R_tgt QQ ps0 pt0 itr_src0.
@@ -919,18 +919,18 @@ Section SIMI.
     f_equal. extensionalities Q0. red_tl.
     rewrite red_syn_default_I_past. rewrite red_syn_wsats. ss.
     replace
-      (λ (r_src : R_src) (r_tgt : R_tgt) (ths1 : TIdSet.t) (im_src1 : 
-                                                             FairBeh.imap id_src_type owf) 
-         (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src1 : st_src_type) 
+      (λ (r_src : R_src) (r_tgt : R_tgt) (ths1 : TIdSet.t) (im_src1 :
+                                                             FairBeh.imap id_src_type owf)
+         (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src1 : st_src_type)
          (st_tgt1 : st_tgt_type),
         (⟦ (syn_default_I_past tid n ths1 im_src1 im_tgt1 st_src1 st_tgt1 ∗
                                ⟨ syn_wsat_auth n ⟩ ∗ syn_wsats n ∗ ⟨owne ⊤⟩)%S, n ⟧ ∗ Q0 r_src r_tgt)%I)
       with
-      (λ (r_src : R_src) (r_tgt : R_tgt) (ths1 : TIdSet.t) (im_src1 : 
-                                                             FairBeh.imap id_src_type owf) 
-         (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src1 : st_src_type) 
+      (λ (r_src : R_src) (r_tgt : R_tgt) (ths1 : TIdSet.t) (im_src1 :
+                                                             FairBeh.imap id_src_type owf)
+         (im_tgt1 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src1 : st_src_type)
          (st_tgt1 : st_tgt_type),
-        ((default_I_past tid n ths1 im_src1 im_tgt1 st_src1 st_tgt1 ∗ 
+        ((default_I_past tid n ths1 im_src1 im_tgt1 st_src1 st_tgt1 ∗
                          wsat_auth n ∗ wsats n ∗ OwnE ⊤) ∗ Q0 r_src r_tgt)%I).
     auto.
     extensionalities r_src r_tgt ths1 im_src1 im_tgt1.
@@ -939,15 +939,15 @@ Section SIMI.
   Qed.
 
   Lemma red_isim_eq_3 RS RT tid n Q :
-  (λ (r_src : RS) (r_tgt : RT) (ths0 : TIdSet.t) (ims : FairBeh.imap id_src_type owf) 
-     (imt : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (sts : st_src_type) 
+  (λ (r_src : RS) (r_tgt : RT) (ths0 : TIdSet.t) (ims : FairBeh.imap id_src_type owf)
+     (imt : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (sts : st_src_type)
      (stt : st_tgt_type),
-     (⟦ (syn_default_I_past tid n ths0 ims imt sts stt ∗ ⟨ syn_wsat_auth n ⟩ ∗ 
+     (⟦ (syn_default_I_past tid n ths0 ims imt sts stt ∗ ⟨ syn_wsat_auth n ⟩ ∗
          syn_wsats n ∗ ⟨owne ⊤⟩)%S, n ⟧ ∗ ⟦ Q r_src r_tgt, n ⟧)%I) =
-  (λ (r_src : RS) (r_tgt : RT) (ths0 : TIdSet.t) (im_src0 : FairBeh.imap id_src_type owf) 
-     (im_tgt0 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src0 : st_src_type) 
+  (λ (r_src : RS) (r_tgt : RT) (ths0 : TIdSet.t) (im_src0 : FairBeh.imap id_src_type owf)
+     (im_tgt0 : FairBeh.imap (sum_tid id_tgt_type) nat_wf) (st_src0 : st_src_type)
      (st_tgt0 : st_tgt_type),
-     ((default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗ 
+     ((default_I_past tid n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗
                       wsats n ∗ OwnE ⊤) ∗ ⟦ Q r_src r_tgt, n ⟧)%I).
   Proof.
     extensionalities r_src r_tgt ths1 im_src1 im_tgt1.

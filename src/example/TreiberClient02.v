@@ -136,14 +136,15 @@ Section SPEC.
   (** Simulation proof. *)
 
   Lemma TreiberClient2_push_spec tid n :
-    ⊢ ⟦(∀ (γk k' k γs γpop : τ{nat, 1+n}),
+    ⊢ ⟦(∀ (γk kt k γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
-      (⤉ IsT nTMod n s k' γs) ∗
+      (⤉ IsT nTMod n 0 s kt γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
       TID(tid) ∗
-      ◇[k'](1, 1) ∗
+      ◇[kt](1, 1) ∗
       (⤉ Duty(tid) [(k, 0, dead γk (k : nat) ∗ push_then_pop_inv n γs γpop)]) ∗
-      ◇[k](3, 1) ∗ ⤉(live γk (k : nat) (1/2)))
+      ◇[k](5, 1) ∗ ⤉(live γk (k : nat) (1/2)) ∗
+      ⋈[k])
       -∗
       syn_wpsim (1+n) tid ⊤
       (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%S)
@@ -153,19 +154,19 @@ Section SPEC.
     )%S,1+n⟧.
   Proof.
     iIntros.
-    red_tl_all; iIntros (γk); red_tl_all; iIntros (k'); red_tl_all; iIntros (k); red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
+    red_tl_all; iIntros (γk); red_tl_all; iIntros (kt); red_tl_all; iIntros (k); red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
 
     red_tl_all. unfold C2Inv. simpl.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
-    iIntros "(#Mem & #IsTreiber & #C2Inv & TID & Pck & Duty & Pc & Live)".
+    iIntros "(#Mem & #IsTreiber & #C2Inv & TID & Pck & Duty & Pc & Live & k_Act)".
 
     unfold fn2th. simpl. unfold thread_push, TreiberClient2Spec.thread_push.
     rred2r. lred2r.
 
-    iMod (pc_drop _ 2 _ _ 3 with "Pc") as "Pc"; [lia|].
-    iDestruct (pc_split _ _ 1 2 with "Pc") as "[PcS Pc]".
+    iMod (pc_drop _ 4 _ _ 2 with "Pc") as "Pc"; [lia|].
+    iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc PcSt]".
     iMod (pc_drop _ 1 _ _ 3 with "Pc") as "Pc"; [lia|].
     iDestruct (pc_split _ _ 1 2 with "Pc") as "[PcY Pc]".
     iApply (wpsim_yieldR with "[$Duty PcY]"); [lia| |].
@@ -175,10 +176,10 @@ Section SPEC.
     iIntros "Duty C". rred2r. iApply wpsim_tauR. rred2r.
     iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc Pc']".
 
-    iApply (Treiber_push_spec nTMod (λ v, (dead γk (k : nat)) ∗ syn_inv n nTpush (push_then_pop n γs γpop))%S with "[Duty Pck PcS Live] [-]"); [|].
+    iApply (Treiber_push_spec nTMod (λ v, (dead γk (k : nat)) ∗ syn_inv n nTpush (push_then_pop n γs γpop))%S with "[Duty Pck PcSt Live] [-]"); [|].
     { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|]. simpl.
       iFrame. simpl.
-      iDestruct (pcs_cons_fold with "[PcS]") as "$".
+      iDestruct (pcs_cons_fold with "[PcSt]") as "$".
       { simpl. iFrame. }
       iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
       rewrite red_syn_fupd. red_tl_all.
@@ -213,7 +214,7 @@ Section SPEC.
 
     iIntros (_). red_tl_all. iIntros "[[#Dead Pushed] Duty]".
     iEval (rewrite red_syn_inv) in "Pushed". iDestruct "Pushed" as "#Pushed".
-    iMod (duty_fulfill with "[Dead Duty]") as "Duty".
+    iMod (duty_fulfill with "[Dead Duty k_Act]") as "Duty".
     { iFrame. simpl. unfold push_then_pop_inv. red_tl_all. rewrite red_syn_inv. auto. }
 
     rred2r.
@@ -226,12 +227,12 @@ Section SPEC.
   Qed.
 
   Lemma TreiberClient2_pop_spec tid n :
-    ⊢ ⟦(∀ (γk k k' γs γpop : τ{nat, 1+n}),
+    ⊢ ⟦(∀ (γk k kt γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
-      (⤉ IsT nTMod n s k' γs) ∗
+      (⤉ IsT nTMod n 0 s kt γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
       (⤉ ○ γpop tt) ∗
-      ◇[k'](1,1) ∗
+      ◇[kt](1,1) ∗
       TID(tid) ∗
       (⤉ Duty(tid) []))
       -∗
@@ -244,7 +245,7 @@ Section SPEC.
   Proof.
     iIntros.
     red_tl_all; iIntros (γk); red_tl_all; iIntros (k);
-    red_tl_all; iIntros (k');
+    red_tl_all; iIntros (kt);
     red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
 
     red_tl_all. unfold C2Inv. simpl.
@@ -282,7 +283,8 @@ Section SPEC.
 
       iApply (Treiber_pop_spec nTMod (λ ov, if ov is Some v then ⌜v = 1⌝ else (○ γpop (tt:unit)))%S with "[Duty Pck Tok] [-]"); [|].
       { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplit; [iFrame "#"|].
-        iFrame. iSplit; [done|]. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
+        iFrame. simpl.  iSplitL; [|done].
+        iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
         rewrite red_syn_fupd. red_tl_all.
         iInv "C2Inv" as "Client2" "CloseC2Inv".
         iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
@@ -305,8 +307,8 @@ Section SPEC.
           unfold push_then_pop_inv. rewrite red_syn_inv.
           iInv "PushedInv" as "TStackC" "ClosePushedInv".
           unfold push_then_pop. simpl. red_tl_all.
-          iDestruct "TStackC" as "[TStackC| Tok']"; last first.
-          { by iDestruct (AuthExcls.w_w_false with "Tok Tok'") as "%False". }
+          iDestruct "TStackC" as "[TStackC| Tokt]"; last first.
+          { by iDestruct (AuthExcls.w_w_false with "Tok Tokt") as "%False". }
           iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
           subst s_st.
           iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
@@ -321,13 +323,13 @@ Section SPEC.
       }
       iIntros (rv) "PopPost".
       destruct rv as [v|]; simpl; red_tl_all; rred2r.
-      + iDestruct "PopPost" as "[%EQ Duty]". subst v.
+      + iDestruct "PopPost" as "[[%EQ Duty] _]". subst v.
         iApply (wpsim_sync with "[$Duty]"); [lia|].
         iIntros "Duty C". lred2r. rred2r. iApply wpsim_tauR. rred2r.
         iApply wpsim_ret; [eauto|].
         iModIntro.
         iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
-      + iDestruct "PopPost" as "[Tok Duty]".
+      + iDestruct "PopPost" as "[[Tok Duty] Pck]".
         iApply wpsim_tauR. rred2r.
         iEval (rewrite unfold_iter_eq; rred2r).
         iApply (wpsim_yieldR with "[$Duty]"); [lia|].
@@ -337,9 +339,8 @@ Section SPEC.
 
         iDestruct "Client2" as "[_ PushProm]".
         iMod ("IH" with "[$C $PushProm] ") as "IH".
-        iApply ("IH" with "Tok TID Duty CloseC2Inv").
+        iApply ("IH" with "Tok TID Duty CloseC2Inv Pck").
         (* TODO: Uh... *)
-        admit.
     - unfold push_then_pop_inv. simpl. red_tl_all. rewrite red_syn_inv.
       iIntros "!> #[Dead PushedInv] Tok TID Duty CloseC2Inv Pck".
       iMod ("CloseC2Inv" with "[]") as "_".
@@ -350,7 +351,7 @@ Section SPEC.
       }
       iApply (Treiber_pop_spec nTMod (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Pck Tok] [-]"); [|].
       { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
-      iFrame. iSplit; [done|]. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
+      iFrame. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
       rewrite red_syn_fupd. red_tl_all.
       iInv "C2Inv" as "Client2" "CloseC2Inv".
       iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
@@ -365,8 +366,8 @@ Section SPEC.
       - (* Note: Slight proof repetition with above failed induction case. *)
         iInv "PushedInv" as "TStackC" "ClosePushedInv".
         unfold push_then_pop. simpl. red_tl_all.
-        iDestruct "TStackC" as "[TStackC| Tok']"; last first.
-        { by iDestruct (AuthExcls.w_w_false with "Tok Tok'") as "%False". }
+        iDestruct "TStackC" as "[TStackC| Tokt]"; last first.
+        { by iDestruct (AuthExcls.w_w_false with "Tok Tokt") as "%False". }
         iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
         subst s_st.
         iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
@@ -380,7 +381,7 @@ Section SPEC.
         iModIntro. red_tl_all. iFrame. done.
     }
     iIntros (rv) "PopPost". red_tl_all.
-    iDestruct "PopPost" as "[%EQ Duty]". subst rv. rred2r.
+    iDestruct "PopPost" as "[[%EQ Duty] _]". subst rv. rred2r.
     iApply (wpsim_sync with "[$Duty]"); [lia|].
     iIntros "Duty C". lred2r. rred2r. iApply wpsim_tauR. rred2r.
     iApply wpsim_ret; [eauto|].
@@ -388,6 +389,6 @@ Section SPEC.
     iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
     Unshelve. all: auto.
     all: apply ndot_ne_disjoint; ss.
-  Admitted.
+  Qed.
 
 End SPEC.
