@@ -9,6 +9,8 @@ From Fairness Require Import Spinlock.
 From Fairness Require Import TemporalLogic SCMemSpec SpinlockSpec.
 From Fairness Require Import AuthExclsRA ExclsRA OneShotsRA.
 
+TODO
+
 Module ClientSpinlock2.
 
   Definition gvs : list nat := [2].
