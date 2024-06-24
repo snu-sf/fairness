@@ -11,7 +11,7 @@ From Fairness Require Import TemporalLogic SCMemSpec AuthExclsRA ghost_map Excls
 
 Record maybe_null_ptr := {
   ptr :> SCMem.val;
-  ptr_mabye_null : ptr = SCMem.val_null \/ (∃ (p : SCMem.pointer), ptr = SCMem.val_ptr p);
+  ptr_maybe_null : ptr = SCMem.val_null \/ (∃ (p : SCMem.pointer), ptr = SCMem.val_ptr p);
 }.
 Global Instance maybe_null_ptr_eq_dec : EqDecision maybe_null_ptr.
 Proof.
@@ -21,11 +21,11 @@ Proof.
   - right. intros H. apply NEQ. injection H. done.
 Qed.
 
-Definition to_mnp_null : maybe_null_ptr := {| ptr := SCMem.val_null; ptr_mabye_null := or_introl eq_refl |}.
+Definition to_mnp_null : maybe_null_ptr := {| ptr := SCMem.val_null; ptr_maybe_null := or_introl eq_refl |}.
 
 Definition to_mnp_ptr ptr
   (IsPtr : (∃ (p : SCMem.pointer), ptr = SCMem.val_ptr p)) :=
-  {| ptr := ptr; ptr_mabye_null := or_intror IsPtr |}.
+  {| ptr := ptr; ptr_maybe_null := or_intror IsPtr |}.
 
 Section SPEC.
 
