@@ -392,7 +392,10 @@ Section ILEMMAS.
   Lemma OwnM_op (M: URA.t) `{@GRA.inG M Σ} (a1 a2: M) :
       (OwnM (a1 ⋅ a2)) ⊣⊢ (OwnM a1 ∗ OwnM a2).
   Proof.
-  Admitted.
+    iSplit.
+    - unfold OwnM. rewrite <- GRA.embed_add. iIntros "[$ $]".
+    - iIntros "[H1 H2]". iCombine "H1 H2" as "$".
+  Qed.
 
   Lemma OwnM_valid (M: URA.t) `{@GRA.inG M Σ} (m: M):
     OwnM m -∗ ⌜URA.wf m⌝.
