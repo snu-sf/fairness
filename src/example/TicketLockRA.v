@@ -35,16 +35,16 @@ Section Ticket.
   Definition Ticket_locked r o := OwnM (Ticket_locked_ra r o).
 
   (* The issuing thread holds my ticket -> (my thread id, and my obligation id). *)
-  Definition Ticket_issued_ra (r : nat) (m tid k : nat) : TicketRA :=
+  Definition Ticket_issued_ra (r : nat) (m κu κack : nat) : TicketRA :=
     (maps_to_res r ((Auth.white ((ε : Excl.t nat, Some {[m]} : GsetK.t) : URA.prod _ _),
-                     AuExAnyW_ra m (tid, k)) : URA.prod _ _)).
-  Definition Ticket_issued r m tid k := OwnM (Ticket_issued_ra r m tid k).
+                     AuExAnyW_ra m (κu, κack)) : URA.prod _ _)).
+  Definition Ticket_issued r m κu κack := OwnM (Ticket_issued_ra r m κu κack).
 
   (* The invariant holds ticket -> (thread id, obligation id) for the waiting threads. *)
-  Definition Ticket_wait_ra (r : nat) (m tid k : nat) : TicketRA :=
+  Definition Ticket_wait_ra (r : nat) (m κu κack : nat) : TicketRA :=
     (maps_to_res r ((Auth.white ((ε : Excl.t nat, Some ∅ : GsetK.t) : URA.prod _ _),
-                     AuExAnyB_ra m (tid, k)) : URA.prod _ _)).
-  Definition Ticket_wait r m tid k := OwnM (Ticket_wait_ra r m tid k).
+                     AuExAnyB_ra m (κu, κack)) : URA.prod _ _)).
+  Definition Ticket_wait r m κu κack := OwnM (Ticket_wait_ra r m κu κack).
 
   (** Properties. *)
   Lemma Ticket_locked_twice (r m1 m2: nat) : Ticket_locked r m1 ∗ Ticket_locked r m2 ⊢ False.
@@ -56,8 +56,8 @@ Section Ticket.
     ur in T. ur in T. des. ur in T. clarify.
   Qed.
 
-  Lemma Ticket_issued_twice (r m tid k tid' k' : nat) :
-    Ticket_issued r m tid k ∗ Ticket_issued r m tid' k' ⊢ False.
+  Lemma Ticket_issued_twice (r m κu κack κu' κack' : nat) :
+    Ticket_issued r m κu κack ∗ Ticket_issued r m κu' κack' ⊢ False.
   Proof.
     iStartProof. iIntros "[T1 T2]". unfold Ticket_issued, Ticket_issued_ra.
     iCombine "T1" "T2" as "T3".  iPoseProof (OwnM_valid with "T3") as "%T".
@@ -77,8 +77,8 @@ Section Ticket.
     set_solver.
   Qed.
 
-  Lemma Ticket_black_issued (r m1 m2 tid k : nat) D :
-    Ticket_black r m1 D ∗ Ticket_issued r m2 tid k ⊢ ⌜m2 ∈ D⌝.
+  Lemma Ticket_black_issued (r m1 m2 κu κack : nat) D :
+    Ticket_black r m1 D ∗ Ticket_issued r m2 κu κack ⊢ ⌜m2 ∈ D⌝.
   Proof.
     iStartProof. iIntros "[BLACK ISSUED]". unfold Ticket_black, Ticket_issued.
     iCombine "BLACK" "ISSUED" as "H". unfold Ticket_black_ra, Ticket_issued_ra.
@@ -122,15 +122,15 @@ Section Ticket.
     { iSplitL "C". auto. unfold Ticket_locked, Ticket_locked_ra. auto. }
   Qed.
 
-  Lemma Ticket_alloc r o D new tid obl
+  Lemma Ticket_alloc r o D new κu κack
     (NOTIN : new ∉ D)
     :
     Ticket_black r o D ⊢
-      |==> Ticket_black r o (D ∪ {[new]}) ∗ Ticket_issued r new tid obl ∗ Ticket_wait r new tid obl.
+      |==> Ticket_black r o (D ∪ {[new]}) ∗ Ticket_issued r new κu κack ∗ Ticket_wait r new κu κack.
   Proof.
     iIntros "TB". unfold Ticket_black, Ticket_issued.
     assert (URA.updatable (Ticket_black_ra r o D)
-      (Ticket_black_ra r o (D ∪ {[new]}) ⋅ Ticket_issued_ra r new tid obl ⋅ Ticket_wait_ra r new tid obl)).
+      (Ticket_black_ra r o (D ∪ {[new]}) ⋅ Ticket_issued_ra r new κu κack ⋅ Ticket_wait_ra r new κu κack)).
     { unfold Ticket_black_ra, Ticket_issued_ra, Ticket_wait_ra. do 2 setoid_rewrite maps_to_res_add.
       apply maps_to_updatable. ur. apply URA.prod_updatable.
       { etrans.
@@ -156,7 +156,7 @@ Section Ticket.
 
   Lemma Ticket_update r o o' D
     :
-    Ticket_black r o D ∗Ticket_locked r o ⊢
+    Ticket_black r o D ∗ Ticket_locked r o ⊢
       |==> Ticket_black r o' D ∗ Ticket_locked r o'.
   Proof.
     iIntros "[TB TL]". unfold Ticket_black, Ticket_locked. iCombine "TB" "TL" as "BL".
@@ -174,8 +174,8 @@ Section Ticket.
     iMod (OwnM_Upd with "BL") as "BL". apply H. iModIntro. iDestruct "BL" as "[TB TL]". iFrame.
   Qed.
 
-  Lemma Ticket_issued_wait r tk tid obl tid' obl' :
-    Ticket_issued r tk tid obl ∗ Ticket_wait r tk tid' obl' ⊢ ⌜tid = tid' ∧ obl = obl'⌝.
+  Lemma Ticket_issued_wait r tk κu κack κu' κack' :
+    Ticket_issued r tk κu κack ∗ Ticket_wait r tk κu' κack' ⊢ ⌜κu = κu' ∧ κack = κack'⌝.
   Proof.
     iIntros "[I W]". unfold Ticket_issued, Ticket_wait, Ticket_issued_ra, Ticket_wait_ra.
     iCombine "I" "W" as "IW". iPoseProof (OwnM_valid with "IW") as "%IW". setoid_rewrite maps_to_res_add in IW.
@@ -188,39 +188,42 @@ Section Ticket.
 End Ticket.
 
 Section Shots.
-  Definition _ShotsRA : URA.t := (nat ==> (OneShot.t unit))%ra.
+  Definition _ShotsRA : URA.t := (nat ==> (URA.prod (OneShot.t nat) (OneShot.t unit)))%ra.
   Definition ShotsRA : URA.t := (nat ==> _ShotsRA)%ra.
 
   Context `{Σ : GRA.t}.
   Context {HasShotsRA : @GRA.inG ShotsRA Σ}.
 
-  Definition ShotsRA_Auth_base : _ShotsRA := (fun k => OneShot.pending _ 1).
+  Definition ShotsRA_Auth_base : _ShotsRA :=
+    (fun k => (OneShot.pending _ 1, OneShot.pending _ 1)).
   Definition ShotsRA_Auth : iProp :=
     (∃ (U : nat), OwnM ((fun k => if (lt_dec k U) then ε else ShotsRA_Auth_base) : ShotsRA)).
 
   Definition Shots_base_ra sr U : ShotsRA :=
-    maps_to_res sr ((fun k => if (lt_dec k U) then ε else OneShot.pending _ 1) : _ShotsRA).
+    maps_to_res sr ((fun k => if (lt_dec k U) then ε else (OneShot.pending _ 1, OneShot.pending _ 1)) : _ShotsRA).
   Definition Shots_base sr U : iProp := OwnM (Shots_base_ra sr U).
 
-  Definition Shots_pending_ra (sr tk : nat) : ShotsRA :=
-    maps_to_res sr (maps_to_res tk (OneShot.pending _ 1)).
-  Definition Shots_pending (sr tk : nat) : iProp := OwnM (Shots_pending_ra sr tk).
+  Definition Shots_pending_ra (sr tk κu : nat) : ShotsRA :=
+    maps_to_res sr (maps_to_res tk ((OneShot.shot κu, OneShot.pending _ 1) : URA.prod _ _)).
+  Definition Shots_pending (sr tk κu : nat) : iProp := OwnM (Shots_pending_ra sr tk κu).
 
-  Definition Shots_shot_ra (sr tk : nat) : ShotsRA :=
-    maps_to_res sr (maps_to_res tk (OneShot.shot tt)).
-  Definition Shots_shot (sr tk : nat) : iProp := OwnM (Shots_shot_ra sr tk).
+  Definition Shots_shot_ra (sr tk κu : nat) : ShotsRA :=
+    maps_to_res sr (maps_to_res tk ((OneShot.shot κu, OneShot.shot tt) : URA.prod _ _)).
+  Definition Shots_shot (sr tk κu : nat) : iProp := OwnM (Shots_shot_ra sr tk κu).
 
-  Lemma Shots_shot_persistent sr tk :
-    Shots_shot sr tk ⊢ □ Shots_shot sr tk.
+  Lemma Shots_shot_persistent sr tk κu :
+    Shots_shot sr tk κu ⊢ □ Shots_shot sr tk κu.
   Proof.
     iIntros "H". unfold Shots_shot. iPoseProof (own_persistent with "H") as "H".
-    enough (URA.core (Shots_shot_ra sr tk) = Shots_shot_ra sr tk). rewrite H. done.
-    unfold Shots_shot_ra, maps_to_res. ur. repeat extensionalities. des_ifs. 
+    enough (URA.core (Shots_shot_ra sr tk κu) = Shots_shot_ra sr tk κu). rewrite H. done.
+    unfold Shots_shot_ra, maps_to_res. ur. repeat extensionalities. des_ifs.
+    { destruct s; destruct s0; ur; ss. }
+    { destruct s; destruct s0; ur; ss. }
   Qed.
 
-  Global Program Instance Persistent_Shots_shot sr tk: Persistent (Shots_shot sr tk).
+  Global Program Instance Persistent_Shots_shot sr tk κu : Persistent (Shots_shot sr tk κu).
   Next Obligation.
-    iIntros (sr tk) "S". iApply (Shots_shot_persistent with "S").
+    iIntros (sr tk κu) "S". iApply (Shots_shot_persistent with "S").
   Qed.
 
   Lemma ShotsRA_alloc o :
@@ -245,34 +248,36 @@ Section Shots.
     { auto. }
   Qed.
 
-  Lemma Shots_alloc r o : Shots_base r o ⊢ |==> Shots_base r (1 + o) ∗ Shots_pending r o.
+  Lemma Shots_alloc κu r o : Shots_base r o ⊢ |==> Shots_base r (1 + o) ∗ Shots_pending r o κu.
   Proof.
     iIntros "B". unfold Shots_base, Shots_pending.
-    assert (URA.updatable (Shots_base_ra r o) (Shots_base_ra r (1 + o) ⋅ Shots_pending_ra r o)).
+    assert (URA.updatable (Shots_base_ra r o) (Shots_base_ra r (1 + o) ⋅ Shots_pending_ra r o κu)).
     { unfold Shots_base_ra, Shots_pending_ra. setoid_rewrite maps_to_res_add.
       apply maps_to_updatable. unfold maps_to_res. apply pointwise_updatable. i. ur.
       des_ifs; try rewrite URA.unit_id; try rewrite URA.unit_idl; try apply URA.updatable_unit;
-        try reflexivity; try lia. }
+        try reflexivity; try lia.
+      apply URA.prod_updatable. apply OneShot.pending_shot. reflexivity. }
     iMod (OwnM_Upd with "B") as "C". apply H.
     iModIntro. iDestruct "C" as "[D E]"; iFrame.
   Qed.
 
-  Lemma Shots_pending_not_shot sr tk :
-    Shots_pending sr tk ∗ Shots_shot sr tk ⊢ False.
+  Lemma Shots_pending_not_shot sr tk κu κu' :
+    Shots_pending sr tk κu ∗ Shots_shot sr tk κu' ⊢ False.
   Proof.
     iIntros "[P S]". unfold Shots_pending, Shots_shot. iCombine "P" "S" as "PS".
     unfold Shots_pending_ra, Shots_shot_ra. iPoseProof (OwnM_valid with "PS") as "%PS".
     unfold maps_to_res in PS. ur in PS. specialize (PS sr). ur in PS. specialize (PS tk).
-    des_ifs. ur in PS. done.
+    des_ifs. ur in PS. des. ur in PS0. done.
   Qed.
 
-  Lemma Shots_pending_shot sr tk :
-    Shots_pending sr tk ⊢ |==> Shots_shot sr tk.
+  Lemma Shots_pending_shot κu sr tk :
+    Shots_pending sr tk κu ⊢ |==> Shots_shot sr tk κu.
   Proof.
     iIntros "P". unfold Shots_pending, Shots_shot.
-    assert (URA.updatable (Shots_pending_ra sr tk) (Shots_shot_ra sr tk)).
+    assert (URA.updatable (Shots_pending_ra sr tk κu) (Shots_shot_ra sr tk κu)).
     {
-      unfold Shots_pending_ra, Shots_shot_ra. do 2 apply maps_to_updatable. apply OneShot.pending_shot.
+      unfold Shots_pending_ra, Shots_shot_ra. do 2 apply maps_to_updatable.
+      apply URA.prod_updatable. reflexivity. apply OneShot.pending_shot.
     }
     iMod (OwnM_Upd with "P"). apply H. done.
   Qed.
@@ -345,18 +350,18 @@ Section SPROP.
     unfold s_shots_base, Shots_base. red_tl; simpl. f_equal.
   Qed.
 
-  Definition s_shots_pending {n} (sr tk : nat) : sProp n :=
-    (➢(Shots_pending_ra sr tk))%S.
-  Lemma red_s_shots_pending n sr tk :
-    ⟦s_shots_pending sr tk, n⟧ = Shots_pending sr tk.
+  Definition s_shots_pending {n} (sr tk κu : nat) : sProp n :=
+    (➢(Shots_pending_ra sr tk κu))%S.
+  Lemma red_s_shots_pending n sr tk κu :
+    ⟦s_shots_pending sr tk κu, n⟧ = Shots_pending sr tk κu.
   Proof.
     unfold s_shots_pending. red_tl; simpl. ss.
   Qed.
 
-  Definition s_shots_shot {n} (sr tk : nat) : sProp n :=
-    (➢(Shots_shot_ra sr tk))%S.
-  Lemma red_s_shots_shot n sr tk :
-    ⟦s_shots_shot sr tk, n⟧ = Shots_shot sr tk.
+  Definition s_shots_shot {n} (sr tk κu : nat) : sProp n :=
+    (➢(Shots_shot_ra sr tk κu))%S.
+  Lemma red_s_shots_shot n sr tk κu :
+    ⟦s_shots_shot sr tk κu, n⟧ = Shots_shot sr tk κu.
   Proof.
     unfold s_shots_shot. red_tl; simpl. ss.
   Qed.
