@@ -203,8 +203,11 @@ Section RULES.
   Definition _liveness_obligation (k : nat) (l a : nat) (o : Ord.t) :=
     (⌜(o <= layer l a)%ord⌝ ∗ black k o)%I.
 
+  Definition liveness_obligation_fine (k : nat) (l a : nat) :=
+    (∃ (o : Ord.t), _liveness_obligation k l a o)%I.
+
   Definition liveness_obligation (k : nat) (l : nat) :=
-    (∃ (a : nat) (o : Ord.t), _liveness_obligation k l a o)%I.
+    (∃ (a : nat), liveness_obligation_fine k l a)%I.
 
   Definition progress_credit (k : nat) (l a : nat) :=
     white k (layer l a).
@@ -214,6 +217,9 @@ Section RULES.
 
   Definition active_obligation (k : nat) :=
     (shot k)%I.
+
+  Global Program Instance Persistent_liveness_obligation_fine k l a :
+    Persistent (liveness_obligation_fine k l a).
 
   Global Program Instance Persistent_liveness_obligation k l :
     Persistent (liveness_obligation k l).
@@ -340,12 +346,19 @@ Section RULES.
     iPureIntro. etransitivity. 2: eauto. apply Ord.lt_le. auto.
   Qed.
 
+  Lemma alloc_obligation_fine l a :
+    ⊢ |==> (∃ k, liveness_obligation_fine k l a ∗ progress_credit k l a ∗ pending_obligation k 1).
+  Proof.
+    iMod (alloc (layer l a)) as "[% (B & W & P)]".
+    iExists k. iFrame. iModIntro. iExists (layer l a). iFrame.
+    auto.
+  Qed.
+
   Lemma alloc_obligation l a :
     ⊢ |==> (∃ k, liveness_obligation k l ∗ progress_credit k l a ∗ pending_obligation k 1).
   Proof.
-    iMod (alloc (layer l a)) as "[% (B & W & P)]".
-    iExists k. iFrame. iModIntro. iExists a, (layer l a). iFrame.
-    auto.
+    iMod (alloc_obligation_fine l a) as "(% & LO & PC & PO)". iExists k. iModIntro. iFrame.
+    iExists a. iFrame.
   Qed.
 
   (** Definitions and rules for obligation links. *)
@@ -355,22 +368,30 @@ Section RULES.
   Global Program Instance Persistent_link k0 k1 l :
     Persistent (link k0 k1 l).
 
-  Lemma link_new k0 k1 l m c :
-    (liveness_obligation k0 l ∗ progress_credit k1 (1 + m + l) 1)
-      ⊢ #=(edges_sat)=> (link k0 k1 m ∗ progress_credit k1 (m + l) c).
+  Lemma link_new_fine k0 k1 l a m :
+    (liveness_obligation_fine k0 l a ∗ progress_credit k1 (m + l) a)
+      ⊢ #=(edges_sat)=> (link k0 k1 m).
   Proof.
-    iIntros "[(% & % & % & LD) PC]".
-    iMod (white_mon with "PC") as "PC".
-    { apply Ord.lt_le. apply (layer_drop (m+l) _). lia. auto. Unshelve. exact (a+c). }
-    iPoseProof (white_eq with "PC") as "PC".
-    { apply layer_split. }
-    iPoseProof (white_split_eq with "PC") as "[PC RES]". iFrame.
+    iIntros "[(% & % & LD) PC]".
     iPoseProof (white_eq with "PC") as "PC".
     { apply layer_sep. }
     iPoseProof (black_mon with "LD") as "LD".
     { apply H. }
     iMod (amplifier_intro with "LD PC") as "AMP".
     iModIntro. iFrame.
+  Qed.
+
+  Lemma link_new k0 k1 l m c :
+    (liveness_obligation k0 l ∗ progress_credit k1 (1 + m + l) 1)
+      ⊢ #=(edges_sat)=> (link k0 k1 m ∗ progress_credit k1 (m + l) c).
+  Proof.
+    iIntros "[(% & LD) PC]".
+    iMod (white_mon with "PC") as "PC".
+    { apply Ord.lt_le. apply (layer_drop (m+l) _). lia. auto. Unshelve. exact (a+c). }
+    iPoseProof (white_eq with "PC") as "PC".
+    { apply layer_split. }
+    iPoseProof (white_split_eq with "PC") as "[PC RES]". iFrame.
+    iApply (link_new_fine with "[LD PC]"). iFrame.
   Qed.
 
   Lemma link_amplify k0 k1 l m a :
@@ -691,32 +712,55 @@ Section RULES.
     iPureIntro. auto.
   Qed.
 
+  Lemma ccs_make_fine k l a ps m :
+    (liveness_obligation_fine k l a ∗ progress_credits ps (m + l) a)
+      ⊢ |==> (collection_credits k ps m).
+  Proof.
+    iIntros "[(% & % & B) T]".
+    iMod (taxes_ord_mon with "T") as "T".
+    { rewrite layer_sep. eapply Jacobsthal.le_mult_r. eapply H. }
+    iPoseProof (collection_taxes_make with "[B T]") as "CT". iFrame.
+    iModIntro. iExists _. iFrame.
+  Qed.
+
   Lemma ccs_make k l ps m c :
     (liveness_obligation k l ∗ progress_credits ps (1 + m + l) 1)
       ⊢ |==> (collection_credits k ps m ∗ progress_credits ps (m + l) c).
   Proof.
-    iIntros "[(% & % & % & B) T]". iMod (pcs_drop _ _ _ _ (m+l) (a+c) with "T") as "T". lia.
-    iMod (pcs_decr _ _ a c with "T") as "[T RES]". lia.
-    iFrame. iMod (taxes_ord_mon with "T") as "T".
-    { rewrite layer_sep. eapply Jacobsthal.le_mult_r. eapply H. }
-    iPoseProof (collection_taxes_make with "[B T]") as "CT". iFrame.
-    iModIntro. iExists _. iFrame.
+    iIntros "[(% & B) T]". iMod (pcs_drop _ _ _ _ (m+l) (a+c) with "T") as "T". lia.
+    iMod (pcs_decr _ _ a c with "T") as "[T RES]". lia. iFrame.
+    iApply (ccs_make_fine with "[B T]"). iFrame.
     Unshelve. auto.
   Qed.
 
   (** Induction rules. *)
 
-  Lemma lo_ind_gen k l (P : iProp) :
-    (liveness_obligation k l)
+  Lemma lo_ind_gen_fine k l c (P : iProp) :
+    (liveness_obligation_fine k l c)
       ⊢ (□ (∃ m a, (⌜(0 < a)⌝ -∗ progress_credit k m a ==∗ P) ==∗ P)) ==∗ P.
   Proof.
-    iIntros "(%c & %o & LO)". iStopProof.
+    iIntros "(%o & LO)". iStopProof.
     pattern o. revert o. apply (well_founded_ind Ord.lt_well_founded). intros.
     iIntros "#LO #(% & % & IND)". iApply "IND". iIntros "% PC".
     iMod (lo_pc_decr with "[LO PC]") as "[% [#LO2 %]]". apply H0. iFrame. eauto.
     iClear "LO". iPoseProof (H with "LO2 [IND]") as "P". auto.
     2: iApply "P".
     { iExists m, a. auto. }
+  Qed.
+
+  Lemma lo_ind_fine k l c (P : iProp) :
+    (liveness_obligation_fine k l c)
+      ⊢ (□ (∃ m, (progress_credit k m 1 ==∗ P) ==∗ P)) ==∗ P.
+  Proof.
+    iIntros "#LO #[% IND]". iApply lo_ind_gen_fine. eauto.
+    iModIntro. iExists m, 1. iIntros "A". iApply "IND". iApply "A". auto.
+  Qed.
+
+  Lemma lo_ind_gen k l (P : iProp) :
+    (liveness_obligation k l)
+      ⊢ (□ (∃ m a, (⌜(0 < a)⌝ -∗ progress_credit k m a ==∗ P) ==∗ P)) ==∗ P.
+  Proof.
+    iIntros "(%c & %o & LO)". iApply lo_ind_gen_fine. iExists _. iFrame.
   Qed.
 
   Lemma lo_ind k l (P : iProp) :
