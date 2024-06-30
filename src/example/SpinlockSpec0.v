@@ -44,119 +44,72 @@ Section SPEC.
            ∨ (⌜l = 1⌝ ∗ (△ γκu 1) ∗ (-[κu](0)-◇ (▿ γκu tt)) ∗ (κu -(0)-◇ κs)))
     )%S.
 
-  TODO
-
-  Definition isSpinlock n κs (x : SCMem.val) (γx γl : nat) (P : sProp n) (ℓL : nat)
+  Definition isSpinlock n κs (x : SCMem.val) (γx γl : nat) (P : sProp n) (ℓL μn : nat)
     : sProp n :=
-    (◆[κs, ℓL]
+    (◆[κs, ℓL, μn] ∗ syn_inv n spinlockN (spinlockInv n κs x γx γl P))%S.
 
-
-  Definition spinlockInv (n : nat) (γ : nat) (x : SCMem.val) (P : Formula n) (γk k l : nat)
-    : Formula n :=
-    ((∃ (q : τ{Qp}) (γu u : τ{nat}),
-         ➢(@auexa_b γ (Qp * nat * nat)%type (q, γu, u))
-          ∗
-          (((x ↦ 0) ∗ ◇[k](1 + l, 1) ∗ ➢(@auexa_w γ (Qp * nat * nat)%type (q, γu, u)) ∗ P)
-           ∨ ((x ↦ 1) ∗ ➢(@live γk nat k q) ∗ ➢(@live γu nat u (1/2)) ∗ (-[u](0)-◇ ➢(@dead γu nat u)) ∗ (u -(0)-◇ k))))
-     ∨ ➢(@dead γk nat k)
-    )%F.
-
-  (* Namespace for Spinlock invariants. *)
-  Definition N_Spinlock : namespace := (nroot .@ "Spinlock").
-
-  Definition isSpinlock n (γ : nat) (x : SCMem.val) (P : Formula n) (γk k L l : nat)
-    : Formula n :=
-    (∃ (N : τ{namespace, n}),
-        (⌜(↑N ⊆ (↑N_Spinlock : coPset))⌝)
-          ∗ ◆[k, L] ∗ (⌜0 < l⌝) ∗ syn_inv n N (spinlockInv n γ x P γk k l))%F.
-
-  Global Instance isSpinlock_persistent n γ x P γk k L l :
-    Persistent (⟦isSpinlock n γ x P γk k L l, n⟧).
+  Global Instance isSpinlock_persistent n κs (x : SCMem.val) (γx γl : nat) (P : sProp n) ℓL μn :
+    Persistent (⟦isSpinlock n κs x γx γl P ℓL μn, n⟧).
   Proof.
     unfold Persistent. iIntros "H". unfold isSpinlock. red_tl.
-    iDestruct "H" as "[%N H]". iExists N. red_tl. rewrite red_syn_inv.
-    iDestruct "H" as "#H". auto.
+    rewrite red_syn_inv. iDestruct "H" as "#H". auto.
   Qed.
 
-  Definition mask_has_Spinlock (Es : coPsets) n :=
-    (match Es !! n with Some E => (↑N_Spinlock) ⊆ E | None => True end).
+  Lemma isSpinlock_unfold
+        n κs (x : SCMem.val) (γx γl : nat) (P : sProp n) (ℓL μn : nat)
+    :
+    ⟦(isSpinlock n κs x γx γl P ℓL μn), n⟧
+      ⊢ (◆[κs, ℓL, μn] ∗ inv n spinlockN (spinlockInv n κs x γx γl P))%I.
+  Proof.
+    unfold isSpinlock. red_tl. rewrite red_syn_inv. iIntros "[A B]". iFrame.
+  Qed.
 
-  Lemma mask_disjoint_spinlock_state_tgt : ↑N_Spinlock ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
-
-  Lemma make_isSpinlock
-        n γ x P γk k L l (LT : 0 < l)
-        (q : Qp) (γu u : nat) Es
+  Lemma pass_lock
+        n κs (x : SCMem.val) (γx γl : nat) (P : sProp n) (ℓL μn : nat)
+        tid γκu κu ϕ
+        ℓl μa γκu' κu'
+        E
+        (SUB : (↑spinlockN) ⊆ E)
     :
     ⊢
-      ⟦((x ↦ 0) ∗ ➢(auexa_b γ (q, γu, u)) ∗ ➢(auexa_w γ (q, γu, u)) ∗ (⤉P) ∗ ◆[k, L] ∗ ◇[k](1+l, 1))%F, 1+n⟧
-        -∗
-        ⟦( =|1+n|={Es}=> (⤉(isSpinlock n γ x P γk k L l)))%F, 1+n⟧.
+      (⟦((isSpinlock n κs x γx γl P ℓL μn)
+           ∗ (○ γl (γκu, κu)) ∗ (Duty(tid) ((κu, 0, ▿ γκu tt) :: ϕ))
+           ∗ ◇[κs](ℓl, μa)
+           ∗ ◆[κu', ℓl, μa] ∗ ⧖[κu', (1/2)] ∗ (△ γκu' 1) ∗ (-[κu'](0)-⧖ (▿ γκu' tt))
+        )%S, n⟧)
+      =|1+n|=(⟦syn_fairI (1+n), 1+n⟧)={E}=∗ (⟦((○ γl (γκu', κu')) ∗ (Duty(tid) ϕ) ∗ (▿ γκu tt) ∗ (⋈[κu']))%S, n⟧).
   Proof.
-    red_tl. simpl. iIntros "(PT & BQ & WQ & P & #LO & PC)".
-    rewrite red_syn_fupd. red_tl.
-    iMod ((FUpd_alloc _ _ _ n (↑(N_Spinlock.@"a")) (spinlockInv n γ x P γk k l))
-           with "[PT BQ WQ P PC]") as "#SINV".
-    auto.
-    { simpl. unfold spinlockInv. red_tl. iLeft. iExists q. red_tl. iExists γu. red_tl. iExists u.
-      red_tl. iSplitL "BQ". iFrame. iLeft. iFrame.
+    rewrite red_syn_fairI. red_tl_all. simpl.
+    iIntros "(#ISL & LK & DUTY & PCs & #LOu' & POu' & PENDu' & DPu')".
+    iPoseProof (isSpinlock_unfold with "ISL") as "[_ #INV_SL]".
+    iInv "INV_SL" as "SL" "INV_SL_CL".
+    iEval (simpl; unfold spinlockInv; red_tl_all) in "SL".
+    iDestruct "SL" as "[%l SL]". iEval (red_tl) in "SL".
+    iDestruct "SL" as "[%γκu0 SL]". iEval (red_tl) in "SL".
+    iDestruct "SL" as "[%κu0 SL]". iEval (red_tl) in "SL".
+    iEval (red_tl_all; simpl) in "SL".
+    iDestruct "SL" as "((PTx & Lx & LKb) & CASES)".
+    iPoseProof (AuthExcls.b_w_eq with "LKb LK") as "%EQ". inv EQ.
+    iDestruct "CASES" as "[(_ & LK2 & _) | (%LS & PENDu & PRu & LINKu)]".
+    { iExFalso. iPoseProof (AuthExcls.w_w_false with "LK LK2") as "%F". inv F. }
+    iMod (OneShots.pending_shot _ tt with "PENDu") as "#SHOTu".
+    iPoseProof (unfold_tpromise with "PRu") as "[_ #ACTu]".
+    iMod (duty_fulfill with "[DUTY]") as "DUTY".
+    { iFrame. iEval (simpl; red_tl_all). auto. }
+    iMod (activate_tpromise with "DPu' POu'") as "[#PRu' ACTu']".
+    iMod (link_new_fine _ _ _ _ 0 with "[PCs]") as "#LINKu'".
+    { iSplitR. iApply "LOu'". iFrame. }
+    iMod (AuthExcls.b_w_update _ _ _ (γκu', κu') with "LKb LK") as "[LKb LK]".
+    iMod ("INV_SL_CL" with "[PENDu' PTx Lx LKb]") as "_".
+    { iEval (unfold spinlockInv; simpl; red_tl_all). iExists l.
+      iEval (red_tl). iExists γκu'. iEval (red_tl). iExists κu'.
+      iEval (red_tl_all; simpl). iFrame. iRight. iFrame. auto.
     }
-    iModIntro. unfold isSpinlock. red_tl.
-    iExists (↑(N_Spinlock.@"a")). red_tl. iSplit.
-    { iPureIntro. apply nclose_subseteq. }
-    simpl. rewrite red_syn_inv. auto.
+    iModIntro. iFrame. auto.
   Qed.
 
-  Lemma init_isSpinlock
-        n x P γk k L l (LT : 0 < l)
-        Es
-    :
-    ⊢
-      ⟦(➢(auexa) ∗ (x ↦ 0) ∗ (⤉P) ∗ ◆[k, L] ∗ ◇[k](1+l, 1))%F, 1+n⟧
-        -∗
-        ⟦( =|1+n|={Es}=> (➢(auexa) ∗ ∃ (γ : τ{nat}), ⤉(isSpinlock n γ x P γk k L l)))%F, 1+n⟧.
-  Proof.
-    red_tl. simpl. iIntros "(AEA & PT & P & #LO & PC)".
-    rewrite red_syn_fupd. red_tl.
-    iMod (auexa_alloc_gt _ ((1%Qp, 0, 0)) with "AEA") as "[AEA (%γ & BQ & BW)]".
-    iPoseProof (make_isSpinlock n γ x P γk k L l with "[PT BQ BW P PC]") as "ISL".
-    auto.
-    { red_tl. iFrame. iApply "LO". }
-    iEval (rewrite red_syn_fupd) in "ISL". iMod "ISL".
-    iModIntro. iSplitL "AEA". iFrame. iExists γ. iFrame.
-  Qed.
 
-  Lemma update_isSpinlock
-        n γ x P γk k L l
-        Es
-        (MASK_SL : mask_has_Spinlock Es n)
-        γk' k' L' l' (LT' : 0 < l')
-    :
-    ⊢ ⟦((⤉(isSpinlock n γ x P γk k L l)) ∗ ➢(live γk k 1) ∗ ◆[k', L'] ∗ ◇[k'](1+ l', 1))%F, 1+n⟧
-       -∗
-       ⟦( =|1+n|={Es}=>((⤉ isSpinlock n γ x P γk' k' L' l') ∗ ➢(dead γk k)))%F, 1+n⟧.
-  Proof.
-    red_tl. simpl. iIntros "(ISL & LIVE & LO' & PC')". rewrite red_syn_fupd. red_tl.
-    iEval (unfold isSpinlock) in "ISL". red_tl.
-    iDestruct "ISL" as "[%N ISL]". iEval red_tl in "ISL".
-    iDestruct "ISL" as "(%IN & _ & %LT & SI)". rewrite red_syn_inv.
-    iInv "SI" as "SI" "K".
-    { unfold mask_has_Spinlock in MASK_SL. des_ifs. set_solver. }
-    simpl. iEval (unfold spinlockInv; red_tl) in "SI".
-    iDestruct "SI" as "[[%q SI] | DEAD]".
-    2:{ iExFalso. simpl. iPoseProof (Lifetime.pending_not_shot with "LIVE DEAD") as "F". auto. }
-    red_tl. iDestruct "SI" as "[%γu SI]". red_tl. iDestruct "SI" as "[%u SI]".
-    red_tl. iDestruct "SI" as "[BQ [(PT & _ & WQ & P) | (_ & LIVE2 & _)]]".
-    2:{ iPoseProof (Lifetime.pending_merge with "LIVE LIVE2") as "LIVE".
-        iPoseProof (Lifetime.pending_wf with "LIVE") as "%F". exfalso.
-        eapply Qp_add_lt_one. eauto.
-    }
-    iMod (Lifetime.pending_shot with "LIVE") as "#DEAD". iMod ("K" with "[DEAD]") as "_".
-    { unfold spinlockInv. red_tl. iRight. eauto. }
-    iPoseProof (make_isSpinlock n γ x P γk' k' L' l' LT' with "[PT BQ WQ P LO' PC']") as "ISL".
-    { red_tl. iFrame. }
-    rewrite red_syn_fupd. iMod "ISL". iModIntro. iFrame. auto.
-  Qed.
+  TODO
 
   Lemma Spinlock_lock_spec
         tid n
