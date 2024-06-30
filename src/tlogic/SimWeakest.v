@@ -1982,6 +1982,26 @@ Section TRIPLES.
                   ps pt itr_src (code >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
       )%I.
 
+  (** LAT. *)
+
+  Definition LAT_ind
+             n m
+             tid (P : iProp) {RV} (Q : RV -> iProp) (E : coPset)
+             {R_term : Type}
+             ps pt
+             (itr_src : itree srcE R_term) (code : itree tgtE RV) (ktr_tgt : ktree tgtE RV R_term)
+    : iProp
+    :=
+    ((=|n|={E, ∅}=>
+        ((P)
+           ∗
+           (∀ (rv : RV),
+               (Q rv)
+                 -∗
+                 =|n|={∅, E}=> wpsim n tid ⊤ ibot7 ibot7 (@term_cond m tid R_term) ps true itr_src (ktr_tgt rv))))
+       -∗
+       wpsim n tid ⊤ ibot7 ibot7 (@term_cond m tid R_term) ps pt itr_src (code >>= ktr_tgt))%I.
+
 End TRIPLES.
 
 (** For triples. *)

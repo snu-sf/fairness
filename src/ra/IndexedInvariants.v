@@ -581,6 +581,16 @@ Section FANCY_UPDATE.
     - symmetry. eapply leibniz_equiv. eapply union_difference. ss.
   Qed.
 
+  Lemma FUpd_mask_keep x A E1 E2 P :
+    E2 ⊆ E1 -> (FUpd x A E2 E1 emp -∗ FUpd x A E2 E2 P) ⊢ FUpd x A E1 E2 P.
+  Proof.
+    i. iIntros "K (A & WSAT & EN)".
+    iPoseProof (OwnE_subset with "EN") as "[EN ENK]". eauto.
+    iApply ("K" with "[ENK] [A WSAT EN]").
+    - iIntros "(A & WSAT & EN)". iFrame. iModIntro. iSplitL. 2: auto. iApply ("ENK" with "EN").
+    - iFrame.
+  Qed.
+
   (* Instances for IPM. *)
 
   Global Instance from_modal_FUpd x A E P :

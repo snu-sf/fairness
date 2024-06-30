@@ -200,6 +200,7 @@ Module Atom.
     | obl_arrow_done (x : nat)
     | obl_arrow_pend (i : nat + id_tgt_type) (k : nat) (c : Ord.t) (q : Qp)
     (** Atoms for liveness logic definitions. *)
+    | obl_lof (k i n : nat)
     | obl_lo (k i : nat)
     | obl_pc (k l a : nat)
     | obl_pend (k : nat) (q : Qp)
@@ -347,6 +348,7 @@ Section ATOMINTERP.
     | obl_arrow_pend i k c q =>
         (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
     (** Atoms for liveness logic definitions. *)
+    | obl_lof k l n => liveness_obligation_fine k l n
     | obl_lo k l => liveness_obligation k l
     | obl_pc k l a => progress_credit k l a
     | obl_pend k q => pending_obligation k q
@@ -1230,6 +1232,8 @@ Notation "'TID' ( tid )" :=
 (* Liveness logic. *)
 Notation "'◆' [ k , l ]" :=
   (⟨Atom.obl_lo k l⟩)%S (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : sProp_scope.
+Notation "'◆' [ k , l , n ]" :=
+  (⟨Atom.obl_lof k l n⟩)%S (at level 50, k, l, n at level 1, format "◆ [ k ,  l ,  n ]") : sProp_scope.
 Notation "'◇' [ k ]( l , a )" :=
   (⟨Atom.obl_pc k l a⟩)%S (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : sProp_scope.
 Notation "'⧖' [ k , q ]" :=

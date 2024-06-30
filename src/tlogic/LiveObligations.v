@@ -1049,6 +1049,8 @@ Global Opaque link.
 
 Notation "'◆' [ k , l ]" :=
   (liveness_obligation k l) (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : bi_scope.
+Notation "'◆' [ k , l , n ]" :=
+  (liveness_obligation_fine k l n) (at level 50, k, l, n at level 1, format "◆ [ k ,  l ,  n ]") : bi_scope.
 Notation "'◇' [ k ]( l , a )" :=
   (progress_credit k l a) (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : bi_scope.
 Notation "'⧖' [ k , q ]" :=
