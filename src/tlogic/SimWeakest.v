@@ -1982,10 +1982,31 @@ Section TRIPLES.
                   ps pt itr_src (code >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
       )%I.
 
+  (** LAT. *)
+
+  Definition LAT_ind
+             tid n (E : coPset)
+             (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+    : iProp
+    :=
+    (∀ R_term ps pt
+       (itr_src : itree srcE R_term)
+       (ktr_tgt : RV -> itree tgtE R_term),
+      (=|S n|={E, ∅}=>
+        ((P)
+           ∗
+           (∀ (rv : RV),
+               (Q rv)
+                 -∗
+                 =|S n|={∅, E}=> wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps true itr_src (ktr_tgt rv))))
+       -∗
+       wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps pt itr_src (code >>= ktr_tgt))%I.
+
 End TRIPLES.
 
 (** For triples. *)
 Ltac iStartTriple := iIntros (? ? ? ? ? ? ?).
+Ltac iStartLAT := iIntros (? ? ? ? ?).
 
 Notation "'[@' tid , n , E '@]' { P } code { v , Q }" :=
   (atomic_triple tid n E P code (fun v => Q))
@@ -1996,6 +2017,11 @@ Notation "'[@' tid , n , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
   (non_atomic_triple tid n E P code (fun v => Q))
     (at level 200, tid, n, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
+
+Notation "'{@' tid , n , E '@}' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
+  (LAT_ind tid n E P code (fun v => Q))
+    (at level 200, tid, n, E, P, code, v, Q at level 1,
+      format "{@  tid ,  n ,  E  @} ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
 
 (** Simulation tactics. *)
 

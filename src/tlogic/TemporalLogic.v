@@ -200,6 +200,7 @@ Module Atom.
     | obl_arrow_done (x : nat)
     | obl_arrow_pend (i : nat + id_tgt_type) (k : nat) (c : Ord.t) (q : Qp)
     (** Atoms for liveness logic definitions. *)
+    | obl_lof (k i n : nat)
     | obl_lo (k i : nat)
     | obl_pc (k l a : nat)
     | obl_pend (k : nat) (q : Qp)
@@ -347,6 +348,7 @@ Section ATOMINTERP.
     | obl_arrow_pend i k c q =>
         (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
     (** Atoms for liveness logic definitions. *)
+    | obl_lof k l n => liveness_obligation_fine k l n
     | obl_lo k l => liveness_obligation k l
     | obl_pc k l a => progress_credit k l a
     | obl_pend k q => pending_obligation k q
@@ -1021,6 +1023,107 @@ Global Opaque
        syn_default_I syn_default_I_past syn_wpsim
        syn_src_interp_as syn_tgt_interp_as.
 
+Section DERIV.
+
+  Context {STT : StateTypes}.
+  Context `{sub : @SRA.subG Γ Σ}.
+  Context {TLRASs : TLRAs_small STT Γ}.
+  Context {TLRAS : TLRAs STT Γ Σ}.
+
+  Import Atom.
+
+  Definition syn_until_promise {Id} {n} (p : Prism.t _ Id) (i : Id) k l (f P : sProp n) :=
+    (⟨obl_promise p i k l f⟩ ∗ (P ∨ (□ f)))%S.
+
+  Definition syn_until_tpromise {n} k l (f P : sProp n) :=
+    (⟨obl_tpromise k l f⟩ ∗ (P ∨ (□ f)))%S.
+
+  Lemma red_syn_until_promise
+        {Id} n (p : Prism.t _ Id) (i : Id) k l (f P : sProp n) :
+    ⟦syn_until_promise p i k l f P, n⟧ = until_promise p i k l f P.
+  Proof.
+    unfold syn_until_promise. red_tl. f_equal.
+  Qed.
+
+  Lemma red_syn_until_tpromise
+        n k l (f P : sProp n) :
+    ⟦syn_until_tpromise k l f P, n⟧ = until_thread_promise k l f P.
+  Proof.
+    unfold syn_until_tpromise. red_tl. f_equal.
+  Qed.
+
+End DERIV.
+
+(** Notations. *)
+
+(* Fancy update. *)
+Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (syn_fupd x A E1 E2 P) (at level 90) : sProp_scope.
+Notation "'=|' x '|={' E1 ',' E2 '}=>' P" := (=|x|=( ⌜True⌝%S )={ E1, E2}=> P)%S (at level 90) : sProp_scope.
+Notation "P =| x |=( A )={ E1 , E2 }=∗ Q" := (P -∗ =|x|=(A)={E1,E2}=> Q)%S (at level 90) : sProp_scope.
+Notation "P =| x |={ E1 , E2 }=∗ Q" := (P -∗ =|x|={E1,E2}=> Q)%S (at level 90) : sProp_scope.
+
+Notation "'=|' x '|=(' A ')={' E '}=>' P" := (syn_fupd x A E E P) (at level 90) : sProp_scope.
+Notation "'=|' x '|={' E '}=>' P" := (=|x|=( ⌜True⌝%S )={ E }=> P)%S (at level 90) : sProp_scope.
+Notation "P =| x |=( A )={ E }=∗ Q" := (P -∗ =|x|=(A)={E}=> Q)%S (at level 90) : sProp_scope.
+Notation "P =| x |={ E }=∗ Q" := (P -∗ =|x|={E}=> Q)%S (at level 90) : sProp_scope.
+
+(* State. *)
+Notation "'TID' ( tid )" :=
+  (⟨Atom.ow_ths tid⟩)%S (at level 50, tid at level 1, format "TID ( tid )") : sProp_scope.
+
+(* Liveness logic. *)
+Notation "'◆' [ k , l ]" :=
+  (⟨Atom.obl_lo k l⟩)%S (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : sProp_scope.
+Notation "'◆' [ k , l , n ]" :=
+  (⟨Atom.obl_lof k l n⟩)%S (at level 50, k, l, n at level 1, format "◆ [ k ,  l ,  n ]") : sProp_scope.
+Notation "'◇' [ k ]( l , a )" :=
+  (⟨Atom.obl_pc k l a⟩)%S (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : sProp_scope.
+Notation "'⧖' [ k , q ]" :=
+  (⟨Atom.obl_pend k q⟩)%S (at level 50, k, q at level 1, format "⧖ [ k ,  q ]") : sProp_scope.
+Notation "'⋈' [ k ]" :=
+  (⟨Atom.obl_act k⟩)%S (at level 50, k at level 1, format "⋈ [ k ]") : sProp_scope.
+Notation "s '-(' l ')-' '◇' t" :=
+  (⟨Atom.obl_link s t l⟩)%S (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : sProp_scope.
+Notation "'Duty' ( p ◬ i ) ds" :=
+  (⟨Atom.obl_duty p i ds⟩)%S (at level 50, p, i, ds at level 1, format "Duty ( p  ◬  i )  ds") : sProp_scope.
+Notation "'Duty' ( tid ) ds" :=
+  (⟨Atom.obl_duty inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : sProp_scope.
+Notation "'€' ( p ◬ i )" :=
+  (⟨Atom.obl_fc p i⟩)%S (format "€ ( p  ◬  i )") : sProp_scope.
+Notation "'-(' p ◬ i ')-[' k '](' l ')-' '⧖' f" :=
+  (⟨Atom.obl_dpromise p i k l f⟩)%S (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ⧖  f") : sProp_scope.
+Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
+  (⟨Atom.obl_promise p i k l f⟩)%S (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : sProp_scope.
+Notation "'€'" :=
+  (⟨Atom.obl_tc⟩)%S : sProp_scope.
+Notation "'-[' k '](' l ')-' '⧖' f" :=
+  (⟨Atom.obl_tdpromise k l f⟩)%S (at level 50, k, l at level 1, format "-[ k ]( l )- ⧖  f") : sProp_scope.
+Notation "'-[' k '](' l ')-' '◇' f" :=
+  (⟨Atom.obl_tpromise k l f⟩)%S (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : sProp_scope.
+Notation "'◇' { ps }( m , a )" :=
+  (⟨Atom.obl_pcs ps m a⟩)%S (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : sProp_scope.
+Notation "'⧖' { ps }" :=
+  (⟨Atom.obl_pps ps⟩)%S (at level 50, ps at level 1, format "⧖ { ps }") : sProp_scope.
+Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄" :=
+  (⟨Atom.obl_ccs k ps l⟩)%S (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : sProp_scope.
+Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
+  (syn_until_promise p i k l f P)%S (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : sProp_scope.
+Notation "P '-U-[' k '](' l ')-' '◇' f" :=
+  (syn_until_tpromise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : sProp_scope.
+
+Notation "'●Duty' ( p ◬ i ) ds" :=
+  (⟨Atom.obl_share_duty_b p i ds⟩)%S (at level 50, p, i, ds at level 1, format "●Duty ( p  ◬  i )  ds") : sProp_scope.
+Notation "'○Duty' ( p ◬ i ) ds" :=
+  (⟨Atom.obl_share_duty_w p i ds⟩)%S (at level 50, p, i, ds at level 1, format "○Duty ( p  ◬  i )  ds") : sProp_scope.
+Notation "'●Duty' ( tid ) ds" :=
+  (⟨Atom.obl_share_duty_b inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "●Duty ( tid )  ds") : sProp_scope.
+Notation "'○Duty' ( tid ) ds" :=
+  (⟨Atom.obl_share_duty_w inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "○Duty ( tid )  ds") : sProp_scope.
+
+(* Auxiliary. *)
+Notation "l '@1'" := (List.map fst l) (at level 50, format "l @1") : sProp_scope.
+
+
 Section TRIPLE.
 
   Context {STT : StateTypes}.
@@ -1177,105 +1280,50 @@ Section TRIPLE.
     apply red_syn_triple_gen.
   Qed.
 
+  (** LAT *)
+  Definition syn_LAT_ind
+             tid n (E : coPset)
+             (P : sProp (S n)) {RV : Type} (code : itree tgtE RV) (Q : RV -> sProp (S n))
+    : sProp (S n)
+    :=
+    (∀ (R_term : τ{metaT})
+       (ps pt : τ{bool})
+       (itr_src : τ{codeT id_src_type st_src_type R_term})
+       (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_term)%stype, S n}),
+      (=|S n|={E, ∅}=>
+        ((P)
+           ∗
+           (∀ (rv : τ{RV, S n}),
+               (Q rv)
+                 -∗
+                 =|S n|={∅, E}=> syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps true itr_src (ktr_tgt rv))))
+       -∗
+       syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt itr_src (code >>= ktr_tgt))%S.
+
+  Lemma red_syn_LAT_ind
+        tid n (E : coPset)
+        (P : sProp (S n)) RV (code : itree tgtE RV) (Q : RV -> sProp (S n))
+    :
+    ⟦syn_LAT_ind tid n E P code Q, S n⟧
+    =
+      LAT_ind tid n E ⟦P, S n⟧ code (fun v => ⟦Q v, S n⟧).
+  Proof.
+    unfold syn_LAT_ind, LAT_ind. red_tl.
+    apply f_equal. extensionalities R_term. red_tl.
+    apply f_equal. extensionalities ps. red_tl.
+    apply f_equal. extensionalities pt. red_tl.
+    apply f_equal. extensionalities itr_src. red_tl.
+    apply f_equal. extensionalities itr_tgt. red_tl.
+    f_equal.
+    2:{ rewrite red_syn_wpsim. f_equal. }
+    rewrite red_syn_fupd. red_tl.
+    apply f_equal. f_equal.
+    apply f_equal. extensionalities rv. red_tl.
+    f_equal. rewrite red_syn_fupd. apply f_equal.
+    rewrite red_syn_wpsim. f_equal.
+  Qed.
+
 End TRIPLE.
-
-Section DERIV.
-
-  Context {STT : StateTypes}.
-  Context `{sub : @SRA.subG Γ Σ}.
-  Context {TLRASs : TLRAs_small STT Γ}.
-  Context {TLRAS : TLRAs STT Γ Σ}.
-
-  Import Atom.
-
-  Definition syn_until_promise {Id} {n} (p : Prism.t _ Id) (i : Id) k l (f P : sProp n) :=
-    (⟨obl_promise p i k l f⟩ ∗ (P ∨ (□ f)))%S.
-
-  Definition syn_until_tpromise {n} k l (f P : sProp n) :=
-    (⟨obl_tpromise k l f⟩ ∗ (P ∨ (□ f)))%S.
-
-  Lemma red_syn_until_promise
-        {Id} n (p : Prism.t _ Id) (i : Id) k l (f P : sProp n) :
-    ⟦syn_until_promise p i k l f P, n⟧ = until_promise p i k l f P.
-  Proof.
-    unfold syn_until_promise. red_tl. f_equal.
-  Qed.
-
-  Lemma red_syn_until_tpromise
-        n k l (f P : sProp n) :
-    ⟦syn_until_tpromise k l f P, n⟧ = until_thread_promise k l f P.
-  Proof.
-    unfold syn_until_tpromise. red_tl. f_equal.
-  Qed.
-
-End DERIV.
-
-(** Notations. *)
-
-(* Fancy update. *)
-Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (syn_fupd x A E1 E2 P) (at level 90) : sProp_scope.
-Notation "'=|' x '|={' E1 ',' E2 '}=>' P" := (=|x|=( ⌜True⌝%S )={ E1, E2}=> P)%S (at level 90) : sProp_scope.
-Notation "P =| x |=( A )={ E1 , E2 }=∗ Q" := (P -∗ =|x|=(A)={E1,E2}=> Q)%S (at level 90) : sProp_scope.
-Notation "P =| x |={ E1 , E2 }=∗ Q" := (P -∗ =|x|={E1,E2}=> Q)%S (at level 90) : sProp_scope.
-
-Notation "'=|' x '|=(' A ')={' E '}=>' P" := (syn_fupd x A E E P) (at level 90) : sProp_scope.
-Notation "'=|' x '|={' E '}=>' P" := (=|x|=( ⌜True⌝%S )={ E }=> P)%S (at level 90) : sProp_scope.
-Notation "P =| x |=( A )={ E }=∗ Q" := (P -∗ =|x|=(A)={E}=> Q)%S (at level 90) : sProp_scope.
-Notation "P =| x |={ E }=∗ Q" := (P -∗ =|x|={E}=> Q)%S (at level 90) : sProp_scope.
-
-(* State. *)
-Notation "'TID' ( tid )" :=
-  (⟨Atom.ow_ths tid⟩)%S (at level 50, tid at level 1, format "TID ( tid )") : sProp_scope.
-
-(* Liveness logic. *)
-Notation "'◆' [ k , l ]" :=
-  (⟨Atom.obl_lo k l⟩)%S (at level 50, k, l at level 1, format "◆ [ k ,  l ]") : sProp_scope.
-Notation "'◇' [ k ]( l , a )" :=
-  (⟨Atom.obl_pc k l a⟩)%S (at level 50, k, l, a at level 1, format "◇ [ k ]( l ,  a )") : sProp_scope.
-Notation "'⧖' [ k , q ]" :=
-  (⟨Atom.obl_pend k q⟩)%S (at level 50, k, q at level 1, format "⧖ [ k ,  q ]") : sProp_scope.
-Notation "'⋈' [ k ]" :=
-  (⟨Atom.obl_act k⟩)%S (at level 50, k at level 1, format "⋈ [ k ]") : sProp_scope.
-Notation "s '-(' l ')-' '◇' t" :=
-  (⟨Atom.obl_link s t l⟩)%S (at level 50, l, t at level 1, format "s  -( l )- ◇  t") : sProp_scope.
-Notation "'Duty' ( p ◬ i ) ds" :=
-  (⟨Atom.obl_duty p i ds⟩)%S (at level 50, p, i, ds at level 1, format "Duty ( p  ◬  i )  ds") : sProp_scope.
-Notation "'Duty' ( tid ) ds" :=
-  (⟨Atom.obl_duty inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "Duty ( tid )  ds") : sProp_scope.
-Notation "'€' ( p ◬ i )" :=
-  (⟨Atom.obl_fc p i⟩)%S (format "€ ( p  ◬  i )") : sProp_scope.
-Notation "'-(' p ◬ i ')-[' k '](' l ')-' '⧖' f" :=
-  (⟨Atom.obl_dpromise p i k l f⟩)%S (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ⧖  f") : sProp_scope.
-Notation "'-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
-  (⟨Atom.obl_promise p i k l f⟩)%S (at level 50, k, l, p, i at level 1, format "-( p  ◬  i )-[ k ]( l )- ◇  f") : sProp_scope.
-Notation "'€'" :=
-  (⟨Atom.obl_tc⟩)%S : sProp_scope.
-Notation "'-[' k '](' l ')-' '⧖' f" :=
-  (⟨Atom.obl_tdpromise k l f⟩)%S (at level 50, k, l at level 1, format "-[ k ]( l )- ⧖  f") : sProp_scope.
-Notation "'-[' k '](' l ')-' '◇' f" :=
-  (⟨Atom.obl_tpromise k l f⟩)%S (at level 50, k, l at level 1, format "-[ k ]( l )- ◇  f") : sProp_scope.
-Notation "'◇' { ps }( m , a )" :=
-  (⟨Atom.obl_pcs ps m a⟩)%S (at level 50, ps, m, a at level 1, format "◇ { ps }( m ,  a )") : sProp_scope.
-Notation "'⧖' { ps }" :=
-  (⟨Atom.obl_pps ps⟩)%S (at level 50, ps at level 1, format "⧖ { ps }") : sProp_scope.
-Notation "⦃ '◆' [ k ] & '◇' { ps }( l )⦄" :=
-  (⟨Atom.obl_ccs k ps l⟩)%S (at level 50, k, ps, l at level 1, format "⦃ ◆ [ k ]  &  ◇ { ps }( l )⦄") : sProp_scope.
-Notation "P '-U-(' p ◬ i ')-[' k '](' l ')-' '◇' f" :=
-  (syn_until_promise p i k l f P)%S (at level 50, k, l, p, i at level 1, format "P  -U-( p  ◬  i )-[ k ]( l )- ◇  f") : sProp_scope.
-Notation "P '-U-[' k '](' l ')-' '◇' f" :=
-  (syn_until_tpromise k l f P) (at level 50, k, l at level 1, format "P  -U-[ k ]( l )- ◇  f") : sProp_scope.
-
-Notation "'●Duty' ( p ◬ i ) ds" :=
-  (⟨Atom.obl_share_duty_b p i ds⟩)%S (at level 50, p, i, ds at level 1, format "●Duty ( p  ◬  i )  ds") : sProp_scope.
-Notation "'○Duty' ( p ◬ i ) ds" :=
-  (⟨Atom.obl_share_duty_w p i ds⟩)%S (at level 50, p, i, ds at level 1, format "○Duty ( p  ◬  i )  ds") : sProp_scope.
-Notation "'●Duty' ( tid ) ds" :=
-  (⟨Atom.obl_share_duty_b inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "●Duty ( tid )  ds") : sProp_scope.
-Notation "'○Duty' ( tid ) ds" :=
-  (⟨Atom.obl_share_duty_w inlp tid ds⟩)%S (at level 50, tid, ds at level 1, format "○Duty ( tid )  ds") : sProp_scope.
-
-(* Auxiliary. *)
-Notation "l '@1'" := (List.map fst l) (at level 50, format "l @1") : sProp_scope.
 
 (* Triples. *)
 Notation "'[@' tid , n , E '@]' { P } code { v , Q }" :=
@@ -1287,3 +1335,8 @@ Notation "'[@' tid , n , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
   (syn_non_atomic_triple tid n E P code (fun v => Q))
     (at level 200, tid, n, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : sProp_scope.
+
+Notation "'{@' tid , n , E '@}' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
+  (syn_LAT_ind tid n E P code (fun v => Q))
+    (at level 200, tid, n, E, P, code, v, Q at level 1,
+      format "{@  tid ,  n ,  E  @} ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : sProp_scope.
