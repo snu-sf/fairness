@@ -1299,19 +1299,6 @@ Section TRIPLE.
           (∀ y : τ{TB,S n}, β x y =|S n|={Ei, Eo}=∗ POST x y))%S.
   (* TODO: Seal? *)
   End syn_atomic_update_def.
-  (** Notation: Atomic updates *)
-  (** We avoid '<<'/'>>' since those can also reasonably be infix operators
-  (and in fact Autosubst uses the latter). *)
-  Notation "'AU' '<{' ∃∃ x , α '}>' @ n , Eo , Ei '<{' ∀∀ y , β , 'COMM' POST '}>'" :=
-  (* The way to read the [tele_app foo] here is that they convert the n-ary
-  function [foo] into a unary function taking a telescope as the argument. *)
-    (syn_atomic_update n Eo Ei
-                   (λ x, α%S)
-                   (λ x y, β%S)
-                   (λ x y, POST%S)
-    )
-    (at level 20, Eo, Ei, α, β, POST at level 200, x binder, y binder,
-     format "'[hv   ' 'AU'  '<{'  '[' ∃∃  x ,  '/' α  ']' '}>'  '/' @  '[' n , '/' Eo ,  '/' Ei ']'  '/' '<{'  '[' ∀∀  y ,  '/' β ,  '/' COMM  POST  ']' '}>' ']'") : sProp_scope.
 
   Definition syn_LAT_ind {TA TB TP: Type}
              tid n (E : coPset)
@@ -1327,12 +1314,30 @@ Section TRIPLE.
        (ps pt : τ{bool})
        (itr_src : τ{codeT id_src_type st_src_type R_term})
        (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_term)%stype, S n}),
-       syn_atomic_update n E ∅ α β
+       syn_atomic_update n (⊤∖E) ∅ α β
        (λ (x : τ{TA,S n}) (y : τ{TB,S n}), ∀ (z : τ{TP,S n}), POST x y z -∗
        syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps true (trigger Yield;;; itr_src) (ktr_tgt (f x y z))
        )
        -∗
        syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%S.
+
+  Lemma red_syn_atomic_update TA TB
+        n (Eo Ei : coPset)
+        (α: TA → sProp (S n)) (* atomic pre-condition *)
+        (β: TA → TB → sProp (S n)) (* atomic post-condition *)
+        (POST: TA → TB → sProp (S n)) (* post-condition *)
+    :
+    ⟦syn_atomic_update n Eo Ei α β POST, S n⟧
+    =
+      (AU <{ ∃∃ x, ⟦α x, S n⟧ }> @ n, Eo, Ei <{ ∀∀ y, ⟦β x y, S n⟧, COMM ⟦POST x y, S n⟧}>)%I.
+  Proof.
+    unfold syn_atomic_update, atomic_update. red_tl.
+    rewrite red_syn_fupd. red_tl.
+    apply f_equal. f_equal. extensionalities x. red_tl.
+    apply f_equal. f_equal. extensionalities y. red_tl.
+    apply f_equal. rewrite red_syn_fupd. red_tl.
+    done.
+  Qed.
 
   Lemma red_syn_LAT_ind TA TB TP
         tid n (E : coPset)
@@ -1344,8 +1349,9 @@ Section TRIPLE.
         (code : itree tgtE RV)
     :
     ⟦syn_LAT_ind tid n E α β POST f code, S n⟧
-    =
-      LAT_ind tid n E (fun x => ⟦α x, S n⟧) (fun x y => ⟦β x y, S n⟧) (fun x y z => ⟦POST x y z, S n⟧) f code.
+    = (<<{ ∀∀ x, ⟦α x, S n⟧ }>>
+        code @ tid,n,E
+      <<{ ∃∃ y, ⟦β x y, S n⟧ | z, RET f x y z; ⟦POST x y z, S n⟧ }>>)%I.
   Proof.
     unfold syn_LAT_ind, LAT_ind. red_tl.
     apply f_equal. extensionalities R_term. red_tl.
@@ -1353,15 +1359,12 @@ Section TRIPLE.
     apply f_equal. extensionalities pt. red_tl.
     apply f_equal. extensionalities itr_src. red_tl.
     apply f_equal. extensionalities itr_tgt. red_tl.
-    f_equal.
-    2:{ rewrite red_syn_wpsim. f_equal. }
-    unfold syn_atomic_update,atomic_update.
-    rewrite red_syn_fupd. red_tl.
-    apply f_equal. f_equal. extensionalities x. red_tl.
-    apply f_equal. f_equal. extensionalities y. red_tl.
-    f_equal. rewrite red_syn_fupd. apply f_equal. red_tl.
+    f_equal; last first.
+    { rewrite red_syn_wpsim. done. }
+    rewrite red_syn_atomic_update.
+    apply f_equal. extensionalities x y. red_tl.
     apply f_equal. extensionalities z. red_tl.
-    apply f_equal. rewrite red_syn_wpsim. f_equal.
+    apply f_equal. rewrite red_syn_wpsim. done.
   Qed.
 
 End TRIPLE.
@@ -1388,3 +1391,17 @@ Notation "'<<{' ∀∀ x , α '}>>' e @ tid , n , E '<<{' ∃∃ y , β '|' z , 
   (at level 20, E, β, α, v, POST at level 200, x binder, y binder, z binder,
    format "'[hv' '<<{'  '[' ∀∀  x ,  '/' α  ']' '}>>'  '/  ' e  @  tid , n , E  '/' '<<{'  '[' ∃∃  y ,  '/' β  '|'  '/' z ,  RET  v ;  '/' POST  ']' '}>>' ']'")
   : sProp_scope.
+
+(** Notation: Atomic updates *)
+(** We avoid '<<'/'>>' since those can also reasonably be infix operators
+(and in fact Autosubst uses the latter). *)
+Notation "'AU' '<{' ∃∃ x , α '}>' @ n , Eo , Ei '<{' ∀∀ y , β , 'COMM' POST '}>'" :=
+  (* The way to read the [tele_app foo] here is that they convert the n-ary
+  function [foo] into a unary function taking a telescope as the argument. *)
+    (syn_atomic_update n Eo Ei
+                   (λ x, α%S)
+                   (λ x y, β%S)
+                   (λ x y, POST%S)
+    )
+    (at level 20, Eo, Ei, α, β, POST at level 200, x binder, y binder,
+     format "'[hv   ' 'AU'  '<{'  '[' ∃∃  x ,  '/' α  ']' '}>'  '/' @  '[' n ,  '/' Eo ,  '/' Ei ']'  '/' '<{'  '[' ∀∀  y ,  '/' β ,  '/' COMM  POST  ']' '}>' ']'") : sProp_scope.

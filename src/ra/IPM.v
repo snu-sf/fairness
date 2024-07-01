@@ -149,17 +149,9 @@ Section IPM.
       Entails Pure Or Impl
       (@Univ _) (@Ex _) Sepconj Persistently Later.
   Proof.
-    econs.
-    - ii. uipropall. rr. split. ii. ss. apply H. auto.
-    - ii. uipropall.
-    - ii. uipropall.
-    - ii. uipropall. ii. specialize (H x). uipropall.
-    - ii. uipropall. ii. right. des. exists x. uipropall.
-    - ii. uipropall.
-    - ii. uipropall.
-    - ii. uipropall.
-    - ii. uipropall.
-    - ii. uipropall. ii. right. ss.
+    eapply bi.interface.bi_later_mixin_id.
+    { intros []. uipropall. }
+    apply iProp_bi_mixin.
   Qed.
 
   Canonical Structure iProp: bi :=
@@ -193,6 +185,11 @@ Section IPM.
   Global Instance iProp_affine (P: iProp): Affine P.
   Proof.
     rr. uipropall. i. rr. uipropall.
+  Qed.
+
+  Global Instance iProp_timeless (P: iProp): Timeless P.
+  Proof.
+    rr. uipropall. i. rr. uipropall. rr in H. uipropall. by right.
   Qed.
 
   Global Instance iProp_pure_forall: BiPureForall iProp.
