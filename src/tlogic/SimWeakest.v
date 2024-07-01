@@ -1863,6 +1863,24 @@ Section TRIPLES.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
 
+
+  (* Additional lemma to manupulate index of wpsim. *)
+  (* Lemma wpsim_drop_keep *)
+  (*       n tid *)
+  (*       E r g R_src R_tgt *)
+  (*       (Q: R_src -> R_tgt -> iProp) *)
+  (*       ps pt itr_src itr_tgt *)
+  (*   : *)
+  (*   (wsat n -∗ wpsim n tid E r g Q true pt itr_src itr_tgt) *)
+  (*     -∗ *)
+  (*     (wpsim (S n) tid E r g Q ps pt (Tau itr_src) itr_tgt) *)
+  (* . *)
+  (* Proof. *)
+  (*   unfold wpsim. iIntros "H" (? ? ? ? ?) "D". *)
+  (*   iPoseProof ("H" $! _ _ _ _ _ with "D") as "H". *)
+  (*   iApply isim_tauL. iFrame. *)
+  (* Qed. *)
+
   (** Formats for triples-like specs. *)
 
   Definition term_cond m tid (R_term : Type) :=
