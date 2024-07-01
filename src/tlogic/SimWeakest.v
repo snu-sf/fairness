@@ -1983,22 +1983,53 @@ Section TRIPLES.
       )%I.
 
   (** LAT. *)
+  Section atomic_update_def.
+  (* TODO: ideally should be Tele *)
+  Context {TA TB : Type}.
+  Implicit Types
+    (Eo Ei : coPset) (* outer/inner masks *)
+    (α : TA → iProp) (* atomic pre-condition *)
+    (β : TA → TB → iProp) (* atomic post-condition *)
+    (POST : TA → TB → iProp) (* post-condition *)
+  .
 
-  Definition LAT_ind
-             tid n (E : coPset)
-             (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+  (** atomic_update without abort, so no need for fixpoint *)
+  Definition atomic_update n Eo Ei α β POST : iProp :=
+    =|S n|={Eo, Ei}=> ∃ x, α x ∗
+          (∀ y, β x y =|S n|={Ei, Eo}=∗ POST x y).
+  (* TODO: Seal? *)
+  End atomic_update_def.
+  (** Notation: Atomic updates *)
+  (** We avoid '<<'/'>>' since those can also reasonably be infix operators
+  (and in fact Autosubst uses the latter). *)
+  Notation "'AU' '<{' ∃∃ x , α '}>' @ n , Eo , Ei '<{' ∀∀ y , β , 'COMM' POST '}>'" :=
+  (* The way to read the [tele_app foo] here is that they convert the n-ary
+  function [foo] into a unary function taking a telescope as the argument. *)
+    (atomic_update n Eo Ei
+                   (λ x, α%I)
+                   (λ x y, β%I)
+                   (λ x y, POST%I)
+    )
+    (at level 20, Eo, Ei, α, β, POST at level 200, x binder, y binder,
+     format "'[hv   ' 'AU'  '<{'  '[' ∃∃  x ,  '/' α  ']' '}>'  '/' @  '[' n , '/' Eo ,  '/' Ei ']'  '/' '<{'  '[' ∀∀  y ,  '/' β ,  '/' COMM  POST  ']' '}>' ']'") : bi_scope.
+
+  Definition LAT_ind {TA TB TP}
+            tid n (E : coPset)
+            {RV}
+            (α: TA → iProp) (* atomic pre-condition *)
+            (β: TA → TB → iProp) (* atomic post-condition *)
+            (POST: TA → TB → TP → iProp) (* post-condition *)
+            (f: TA → TB → TP → RV) (* Turn the return data into the return value *)
+            (code : itree tgtE RV)
     : iProp
     :=
     (∀ R_term ps pt
        (itr_src : itree srcE R_term)
        (ktr_tgt : RV -> itree tgtE R_term),
-      (=|S n|={E, ∅}=>
-        ((P)
-           ∗
-           (∀ (rv : RV),
-               (Q rv)
-                 -∗
-                 =|S n|={∅, E}=> wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps true itr_src (ktr_tgt rv))))
+      atomic_update n E ∅ α β
+        (λ x y, ∀ z, POST x y z -∗
+          wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps true itr_src (ktr_tgt (f x y z))
+        )
        -∗
        wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps pt itr_src (code >>= ktr_tgt))%I.
 
@@ -2018,10 +2049,19 @@ Notation "'[@' tid , n , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
     (at level 200, tid, n, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
 
-Notation "'{@' tid , n , E '@}' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
-  (LAT_ind tid n E P code (fun v => Q))
-    (at level 200, tid, n, E, P, code, v, Q at level 1,
-      format "{@  tid ,  n ,  E  @} ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
+(* The way to read the [tele_app foo] here is that they convert the n-ary
+function [foo] into a unary function taking a telescope as the argument. *)
+Notation "'<<{' ∀∀ x , α '}>>' e @ tid , n , E '<<{' ∃∃ y , β '|' z , 'RET' v ; POST '}>>'" :=
+  (LAT_ind tid n E
+          (λ x, α%I)
+          (λ x y, β%I)
+          (λ x y z, POST%I)
+          (λ x y z, v)
+          e
+  )
+  (at level 20, E, β, α, v, POST at level 200, x binder, y binder, z binder,
+   format "'[hv' '<<{'  '[' ∀∀  x ,  '/' α  ']' '}>>'  '/  ' e  @  tid , n , E  '/' '<<{'  '[' ∃∃  y ,  '/' β  '|'  '/' z ,  RET  v ;  '/' POST  ']' '}>>' ']'")
+  : bi_scope.
 
 (** Simulation tactics. *)
 

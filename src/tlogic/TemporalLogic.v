@@ -1281,32 +1281,71 @@ Section TRIPLE.
   Qed.
 
   (** LAT *)
-  Definition syn_LAT_ind
+  Section syn_atomic_update_def.
+
+  (* TODO: ideally should be Tele *)
+  Context {TA TB : Type}.
+  Context (n : nat).
+  Implicit Types
+    (Eo Ei : coPset) (* outer/inner masks *)
+    (α : TA → sProp (S n)) (* atomic pre-condition *)
+    (β : TA → TB → sProp (S n)) (* atomic post-condition *)
+    (POST : TA → TB → sProp (S n)) (* post-condition *)
+  .
+
+  (** atomic_update without abort, so no need for fixpoint *)
+  Definition syn_atomic_update Eo Ei α β POST : sProp (S n) :=
+    (=|S n|={Eo, Ei}=> ∃ x : τ{TA,S n}, α x ∗
+          (∀ y : τ{TB,S n}, β x y =|S n|={Ei, Eo}=∗ POST x y))%S.
+  (* TODO: Seal? *)
+  End syn_atomic_update_def.
+  (** Notation: Atomic updates *)
+  (** We avoid '<<'/'>>' since those can also reasonably be infix operators
+  (and in fact Autosubst uses the latter). *)
+  Notation "'AU' '<{' ∃∃ x , α '}>' @ n , Eo , Ei '<{' ∀∀ y , β , 'COMM' POST '}>'" :=
+  (* The way to read the [tele_app foo] here is that they convert the n-ary
+  function [foo] into a unary function taking a telescope as the argument. *)
+    (syn_atomic_update n Eo Ei
+                   (λ x, α%S)
+                   (λ y y, β%S)
+                   (λ x y, POST%S)
+    )
+    (at level 20, Eo, Ei, α, β, POST at level 200, x binder, y binder,
+     format "'[hv   ' 'AU'  '<{'  '[' ∃∃  x ,  '/' α  ']' '}>'  '/' @  '[' n , '/' Eo ,  '/' Ei ']'  '/' '<{'  '[' ∀∀  y ,  '/' β ,  '/' COMM  POST  ']' '}>' ']'") : sProp_scope.
+
+  Definition syn_LAT_ind {TA TB TP: Type}
              tid n (E : coPset)
-             (P : sProp (S n)) {RV : Type} (code : itree tgtE RV) (Q : RV -> sProp (S n))
+             {RV : Type}
+             (α: TA → sProp (S n)) (* atomic pre-condition *)
+             (β: TA → TB → sProp (S n)) (* atomic post-condition *)
+             (POST: TA → TB → TP → sProp (S n)) (* post-condition *)
+             (f: TA → TB → TP → RV) (* Turn the return data into the return value *)
+             (code : itree tgtE RV)
     : sProp (S n)
     :=
     (∀ (R_term : τ{metaT})
        (ps pt : τ{bool})
        (itr_src : τ{codeT id_src_type st_src_type R_term})
        (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_term)%stype, S n}),
-      (=|S n|={E, ∅}=>
-        ((P)
-           ∗
-           (∀ (rv : τ{RV, S n}),
-               (Q rv)
-                 -∗
-                 =|S n|={∅, E}=> syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps true itr_src (ktr_tgt rv))))
+       syn_atomic_update n E ∅ α β
+       (λ (x : τ{TA,S n}) (y : τ{TB,S n}), ∀ (z : τ{TP,S n}), POST x y z -∗
+       syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps true itr_src (ktr_tgt (f x y z))
+       )
        -∗
        syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt itr_src (code >>= ktr_tgt))%S.
 
-  Lemma red_syn_LAT_ind
+  Lemma red_syn_LAT_ind TA TB TP
         tid n (E : coPset)
-        (P : sProp (S n)) RV (code : itree tgtE RV) (Q : RV -> sProp (S n))
+        RV
+        (α: TA → sProp (S n)) (* atomic pre-condition *)
+        (β: TA → TB → sProp (S n)) (* atomic post-condition *)
+        (POST: TA → TB → TP → sProp (S n)) (* post-condition *)
+        (f: TA → TB → TP → RV) (* Turn the return data into the return value *)
+        (code : itree tgtE RV)
     :
-    ⟦syn_LAT_ind tid n E P code Q, S n⟧
+    ⟦syn_LAT_ind tid n E α β POST f code, S n⟧
     =
-      LAT_ind tid n E ⟦P, S n⟧ code (fun v => ⟦Q v, S n⟧).
+      LAT_ind tid n E (fun x => ⟦α x, S n⟧) (fun x y => ⟦β x y, S n⟧) (fun x y z => ⟦POST x y z, S n⟧) f code.
   Proof.
     unfold syn_LAT_ind, LAT_ind. red_tl.
     apply f_equal. extensionalities R_term. red_tl.
@@ -1316,11 +1355,13 @@ Section TRIPLE.
     apply f_equal. extensionalities itr_tgt. red_tl.
     f_equal.
     2:{ rewrite red_syn_wpsim. f_equal. }
+    unfold syn_atomic_update,atomic_update.
     rewrite red_syn_fupd. red_tl.
-    apply f_equal. f_equal.
-    apply f_equal. extensionalities rv. red_tl.
-    f_equal. rewrite red_syn_fupd. apply f_equal.
-    rewrite red_syn_wpsim. f_equal.
+    apply f_equal. f_equal. extensionalities x. red_tl.
+    apply f_equal. f_equal. extensionalities y. red_tl.
+    f_equal. rewrite red_syn_fupd. apply f_equal. red_tl.
+    apply f_equal. extensionalities z. red_tl.
+    apply f_equal. rewrite red_syn_wpsim. f_equal.
   Qed.
 
 End TRIPLE.
@@ -1336,7 +1377,14 @@ Notation "'[@' tid , n , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
     (at level 200, tid, n, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : sProp_scope.
 
-Notation "'{@' tid , n , E '@}' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
-  (syn_LAT_ind tid n E P code (fun v => Q))
-    (at level 200, tid, n, E, P, code, v, Q at level 1,
-      format "{@  tid ,  n ,  E  @} ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : sProp_scope.
+Notation "'<<{' ∀∀ x , α '}>>' e @ tid , n , E '<<{' ∃∃ y , β '|' z , 'RET' v ; POST '}>>'" :=
+  (syn_LAT_ind tid n E
+            (λ x, α%S)
+            (λ x y, β%S)
+            (λ x y z, POST%S)
+            (λ x y z, v)
+            e
+  )
+  (at level 20, E, β, α, v, POST at level 200, x binder, y binder, z binder,
+   format "'[hv' '<<{'  '[' ∀∀  x ,  '/' α  ']' '}>>'  '/  ' e  @  tid , n , E  '/' '<<{'  '[' ∃∃  y ,  '/' β  '|'  '/' z ,  RET  v ;  '/' POST  ']' '}>>' ']'")
+  : sProp_scope.
