@@ -5,7 +5,7 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec ExclsRA AuthExclsRA LifetimeRA ghost_map TreiberStack TreiberStackSpec.
+From Fairness Require Import TemporalLogic SCMemSpec ghost_excl TreiberStack TreiberStackSpec LifetimeRA.
 
 Module TreiberClient2.
 
@@ -96,13 +96,14 @@ Section SPEC.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasMemRA: @GRA.inG memRA Γ}.
-  Context {HasAuthExclsRAlist : @GRA.inG (AuthExcls.t (list SCMem.val)) Γ}.
-  Context {HasAuthExclsRAunit : @GRA.inG (AuthExcls.t unit) Γ}.
-  Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
-  Context {HasExcl : @GRA.inG (Excls.t unit) Γ}.
   Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_lifetime.
+  Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
+  Context {HasGhostVar : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
+
+  Context `{HasGhostExcl : @GRA.inG (ghost_exclURA unit) Γ}.
+
+  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_ghost_excl_ura; red_tl_lifetime.
 
   Import TreiberClient2.
 
@@ -114,14 +115,14 @@ Section SPEC.
   Definition nTMod : namespace := (nroot .@"TMod").
 
   Definition push_then_pop n γs γpop : sProp n :=
-    (○ γs [(1 : SCMem.val)] ∨ ○ γpop tt)%S.
+    (TStack n γs [(1 : SCMem.val)] ∨ GEx γpop tt)%S.
 
   Definition push_then_pop_inv n γs γpop : sProp n :=
     (syn_inv n nTpush (push_then_pop n γs γpop))%S.
 
   Definition Client2StackState n γk k γs γpop : sProp n :=
     (◆[k,2] ∗
-    ((live γk k (1/2) ∗ ○ γs ([] : list SCMem.val)) -U-[k](0)-◇ (dead γk k ∗ push_then_pop_inv n γs γpop))
+    ((live γk k (1/2) ∗ TStack n γs ([] : list SCMem.val)) -U-[k](0)-◇ (dead γk k ∗ push_then_pop_inv n γs γpop))
     )%S.
 
   Definition C2Inv n γk k γs γpop : sProp n :=
@@ -165,62 +166,62 @@ Section SPEC.
     unfold fn2th. simpl. unfold thread_push, TreiberClient2Spec.thread_push.
     rred2r. lred2r.
 
-    iMod (pc_drop _ 4 _ _ 2 with "Pc") as "Pc"; [lia|].
+    iMod (pc_drop _ 4 5 ltac:(auto) 2 with "Pc") as "Pc"; [lia|].
     iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc PcSt]".
-    iMod (pc_drop _ 1 _ _ 3 with "Pc") as "Pc"; [lia|].
+    iMod (pc_drop _ 1 4 ltac:(auto) 3 with "Pc") as "Pc"; [lia|].
     iDestruct (pc_split _ _ 1 2 with "Pc") as "[PcY Pc]".
     iApply (wpsim_yieldR with "[$Duty PcY]"); [lia| |].
     { simpl. iDestruct (pcs_cons_fold with "[PcY]") as "$". iFrame. }
-    Unshelve. 2,3:lia.
 
-    iIntros "Duty C". rred2r. iApply wpsim_tauR. rred2r.
+    iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
     iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc Pc']".
 
-    iApply (Treiber_push_spec nTMod (λ v, (dead γk (k : nat)) ∗ syn_inv n nTpush (push_then_pop n γs γpop))%S with "[Duty Pck PcSt Live] [-]"); [|].
-    { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|]. simpl.
-      iFrame. simpl.
-      iDestruct (pcs_cons_fold with "[PcSt]") as "$".
-      { simpl. iFrame. }
-      iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
-      rewrite red_syn_fupd. red_tl_all.
-      iInv "C2Inv" as "Client2" "CloseC2Inv".
-      iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
-      iDestruct "Client2" as "[#OBL PushProm]".
-
-      iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
-
-      iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
-      - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
-        iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
-        subst s_st.
-        iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
-        iMod ((FUpd_alloc _ _ _ n (nTpush) (push_then_pop n γs γpop : sProp n)%S) with "[TStackC]") as "#Pushed"; [lia| |].
-        { unfold push_then_pop. iEval (simpl; red_tl_all; simpl). auto. }
-        iDestruct (Lifetime.pending_merge with "Live LiveInv") as "Live".
-        iEval (rewrite Qp.half_half) in "Live".
-        iMod (Lifetime.pending_shot with "Live") as "#Dead".
-        iMod ("CloseC2Inv" with "[]") as "_".
-        { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
-          iFrame "#". iEval (rewrite red_syn_until_tpromise).
-          iApply until_tpromise_make2. simpl. iSplit; auto.
-          iEval (red_tl_all; simpl). iModIntro; iSplit; auto.
-        }
-        iModIntro. iFrame "∗#".
-      - iEval (red_tl_all; simpl) in "Af". iDestruct "Af" as "[Dead TStackC]".
-        by iDestruct (Lifetime.pending_not_shot with "Live Dead") as "%False".
+    iApply (Treiber_push_spec nTMod ⊤ with "[%] [Duty Pck PcSt] [-]"); [set_solver| |].
+    { red_tl_all. rewrite red_syn_tgt_interp_as. simpl. iFrame "#".
+      iFrame. iDestruct (pcs_cons_fold with "[PcSt]") as "$". iFrame.
     }
     Unshelve.
     2:{ apply ndot_ne_disjoint. ss. }
 
-    iIntros (_). red_tl_all. iIntros "[[#Dead Pushed] Duty]".
-    iEval (rewrite red_syn_inv) in "Pushed". iDestruct "Pushed" as "#Pushed".
-    iMod (duty_fulfill with "[Dead Duty k_Act]") as "Duty".
-    { iFrame. simpl. unfold push_then_pop_inv. red_tl_all. rewrite red_syn_inv. auto. }
+    unfold atomic_update.
+
+    iInv "C2Inv" as "Client2" "CloseC2Inv". simpl.
+    iApply FUpd_mask_keep; [set_solver|].
+    iIntros "CloseTS !>".
+
+    iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
+    iDestruct "Client2" as "[#OBL PushProm]".
+
+    iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
+
+    iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl; last first.
+    { iEval (red_tl_all; simpl) in "Af". iDestruct "Af" as "[Dead TStackC]".
+      by iDestruct (Lifetime.pending_not_shot with "Live Dead") as "%False".
+    }
+    iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
+    iExists _. iFrame "TStackC". iIntros (_) "TStackC".
+    iMod ((FUpd_alloc _ _ _ n (nTpush) (push_then_pop n γs γpop : sProp n)%S) with "[TStackC]") as "#Pushed"; [lia| |].
+    { unfold push_then_pop. iEval (simpl; red_tl_all; simpl). auto. }
+    iDestruct (Lifetime.pending_merge with "Live LiveInv") as "Live".
+    iEval (rewrite Qp.half_half) in "Live".
+    iMod (Lifetime.pending_shot with "Live") as "#Dead".
+    iMod "CloseTS" as "_".
+    iMod ("CloseC2Inv" with "[]") as "_".
+    { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
+      iFrame "#". iEval (rewrite red_syn_until_tpromise).
+      iApply until_tpromise_make2. simpl. iSplit; auto.
+      iEval (red_tl_all; simpl). iModIntro; iSplit; auto.
+    }
+    iIntros "!>" (_) "Duty".
+
+    red_tl_all.
+    iMod (duty_fulfill with "[Dead $Duty k_Act]") as "Duty".
+    { simpl. unfold push_then_pop_inv. red_tl_all. rewrite red_syn_inv. auto. }
 
     rred2r.
     iApply (wpsim_sync with "[$Duty Pc]"); [lia|].
 
-    iIntros "Duty C'". lred2r. rred2r. iApply wpsim_tauR. rred2r.
+    iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
     iApply wpsim_ret; [eauto|].
     iModIntro.
     iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
@@ -231,7 +232,7 @@ Section SPEC.
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
       (⤉ IsT nTMod n 0 s kt γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
-      (⤉ ○ γpop tt) ∗
+      (⤉ GEx γpop tt) ∗
       ◇[kt](1,1) ∗
       TID(tid) ∗
       (⤉ Duty(tid) []))
@@ -259,9 +260,6 @@ Section SPEC.
 
     iApply (wpsim_yieldR with "[$Duty]"); [lia|].
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
-    iEval (rewrite unfold_iter_eq; rred2r).
-    iApply (wpsim_yieldR with "[$Duty]"); [lia|].
-    iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
 
     iInv "C2Inv" as "Client2" "CloseC2Inv".
     iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
@@ -281,96 +279,54 @@ Section SPEC.
         iLeft. red_tl_all. iFrame.
       }
 
-      iApply (Treiber_pop_spec nTMod (λ ov, if ov is Some v then ⌜v = 1⌝ else (○ γpop (tt:unit)))%S with "[Duty Pck Tok] [-]"); [|].
-      { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplit; [iFrame "#"|].
-        iFrame. simpl.  iSplitL; [|done].
-        iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
-        rewrite red_syn_fupd. red_tl_all.
-        iInv "C2Inv" as "Client2" "CloseC2Inv".
-        iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
+      iEval (rewrite unfold_iter_eq; rred2r).
+      iApply (wpsim_yieldR with "[$Duty]"); [lia|].
+      iIntros "Duty C". rred2r. iApply wpsim_tauR. rred2r.
 
-        iDestruct "Client2" as "[#OBL PushProm]".
+      iApply (Treiber_pop_spec nTMod ⊤ with "[%] [Duty Pck] [-]");[set_solver| |].
+      { red_tl_all. rewrite red_syn_tgt_interp_as. simpl. iFrame "# ∗". }
 
-        iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
-        iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
-        - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
-          iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
-          subst s_st.
-          iMod ("CloseC2Inv" with "[LiveInv TStackC]") as "_".
-          { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
-            iFrame "#". iEval (rewrite red_syn_until_tpromise).
-            unfold until_thread_promise. simpl. iSplit; auto.
-            iLeft. red_tl_all. iFrame.
-          }
-          iModIntro. red_tl_all. iFrame "∗#".
-        - iEval (red_tl_all; simpl) in "Af". iDestruct "Af" as "[Dead PushedInv]".
-          unfold push_then_pop_inv. rewrite red_syn_inv.
-          iInv "PushedInv" as "TStackC" "ClosePushedInv".
-          unfold push_then_pop. simpl. red_tl_all.
-          iDestruct "TStackC" as "[TStackC| Tokt]"; last first.
-          { by iDestruct (AuthExcls.w_w_false with "Tok Tokt") as "%False". }
-          iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
-          subst s_st.
-          iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
-          iMod ("ClosePushedInv" with "[$Tok]") as "_".
-          iMod ("CloseC2Inv" with "[TStackC]") as "_".
-          { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
-            iFrame "#". iEval (rewrite red_syn_until_tpromise).
-            unfold until_thread_promise. simpl. iSplit; auto.
-            iRight. red_tl_all. iFrame "#".
-          }
-          iModIntro. red_tl_all. iFrame. done.
-      }
-      iIntros (rv) "PopPost".
-      destruct rv as [v|]; simpl; red_tl_all; rred2r.
-      + iDestruct "PopPost" as "[[%EQ Duty] _]". subst v.
-        iApply (wpsim_sync with "[$Duty]"); [lia|].
-        iIntros "Duty C". lred2r. rred2r. iApply wpsim_tauR. rred2r.
-        iApply wpsim_ret; [eauto|].
-        iModIntro.
-        iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
-      + iDestruct "PopPost" as "[[Tok Duty] Pck]".
-        iApply wpsim_tauR. rred2r.
-        iEval (rewrite unfold_iter_eq; rred2r).
-        iApply (wpsim_yieldR with "[$Duty]"); [lia|].
-        iIntros "Duty C". lred2r. rred2r. iApply wpsim_tauR. rred2r.
+      unfold atomic_update.
+
+      iInv "C2Inv" as "Client2" "CloseC2Inv". simpl.
+
+      iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
+
+      iDestruct "Client2" as "[#OBL PushProm]".
+      iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
+      iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
+      + iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
+        iApply FUpd_mask_keep; [set_solver|].
+        iIntros "CloseTS !>".
+
+        iExists _. iFrame. iIntros (s_st) "[TStackC %EQ]". subst s_st.
+        iMod "CloseTS" as "_".
+        iMod ("CloseC2Inv" with "[LiveInv TStackC]") as "_".
+        { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
+          iFrame "#". iEval (rewrite red_syn_until_tpromise).
+          unfold until_thread_promise. simpl. iSplit; auto.
+          iLeft. red_tl_all. iFrame.
+        }
+        iIntros "!>" (?) "[Duty Pck]".
+        rred2r. iApply wpsim_tauR. rred2r.
+
         iInv "C2Inv" as "Client2" "CloseC2Inv".
         iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
 
         iDestruct "Client2" as "[_ PushProm]".
         iMod ("IH" with "[$C $PushProm] ") as "IH".
         iApply ("IH" with "Tok TID Duty CloseC2Inv Pck").
-        (* TODO: Uh... *)
-    - unfold push_then_pop_inv. simpl. red_tl_all. rewrite red_syn_inv.
-      iIntros "!> #[Dead PushedInv] Tok TID Duty CloseC2Inv Pck".
-      iMod ("CloseC2Inv" with "[]") as "_".
-      { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
-        iFrame "#". iEval (rewrite red_syn_until_tpromise).
-        iApply until_tpromise_make2. simpl. iSplit; auto.
-        iEval (red_tl_all; simpl). iModIntro; iSplit; auto.
-      }
-      iApply (Treiber_pop_spec nTMod (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Pck Tok] [-]"); [|].
-      { red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
-      iFrame. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[TStackInv _]".
-      rewrite red_syn_fupd. red_tl_all.
-      iInv "C2Inv" as "Client2" "CloseC2Inv".
-      iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
-
-      iDestruct "Client2" as "[#OBL PushProm]".
-
-      iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
-      iDestruct "PushProm" as "[#Prm [Bf | _]]"; simpl.
-      - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
-        iDestruct (Lifetime.pending_not_shot with "LiveInv Dead") as "%False".
-        done.
-      - (* Note: Slight proof repetition with above failed induction case. *)
+      + iEval (red_tl_all; simpl) in "Af". iDestruct "Af" as "[Dead PushedInv]".
+        unfold push_then_pop_inv. rewrite red_syn_inv.
         iInv "PushedInv" as "TStackC" "ClosePushedInv".
         unfold push_then_pop. simpl. red_tl_all.
         iDestruct "TStackC" as "[TStackC| Tokt]"; last first.
-        { by iDestruct (AuthExcls.w_w_false with "Tok Tokt") as "%False". }
-        iDestruct (AuthExcls.b_w_eq with "TStackInv TStackC") as "%EQ".
-        subst s_st.
-        iMod (AuthExcls.b_w_update with "TStackInv TStackC") as "[TStackInv TStackC]".
+        { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
+        iApply FUpd_mask_keep; [set_solver|].
+        iIntros "CloseTS !>".
+        iExists _. iFrame "TStackC". iIntros (s_st) "[TStackC %EQ]". subst s_st.
+
+        iMod "CloseTS" as "_".
         iMod ("ClosePushedInv" with "[$Tok]") as "_".
         iMod ("CloseC2Inv" with "[TStackC]") as "_".
         { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
@@ -378,16 +334,64 @@ Section SPEC.
           unfold until_thread_promise. simpl. iSplit; auto.
           iRight. red_tl_all. iFrame "#".
         }
-        iModIntro. red_tl_all. iFrame. done.
+        iIntros "!>" (_) "[Duty _]". red_tl_all. rred2r.
+        iApply (wpsim_sync with "[$Duty]"); [lia|].
+        iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
+        iApply wpsim_ret; [eauto|].
+        iModIntro.
+        iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
+  - unfold push_then_pop_inv. simpl. red_tl_all. rewrite red_syn_inv.
+    iIntros "!> #[Dead PushedInv] Tok TID Duty CloseC2Inv Pck".
+    iMod ("CloseC2Inv" with "[]") as "_".
+    { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
+      iFrame "#". iEval (rewrite red_syn_until_tpromise).
+      iApply until_tpromise_make2. simpl. iSplit; auto.
+      iEval (red_tl_all; simpl). iModIntro; iSplit; auto.
     }
-    iIntros (rv) "PopPost". red_tl_all.
-    iDestruct "PopPost" as "[[%EQ Duty] _]". subst rv. rred2r.
+
+    iEval (rewrite unfold_iter_eq; rred2r).
+    iApply (wpsim_yieldR with "[$Duty]"); [lia|].
+    iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
+
+    iApply (Treiber_pop_spec nTMod ⊤ with "[%] [Duty Pck] [-]"); [set_solver| |].
+    { red_tl_all. simpl. rewrite red_syn_tgt_interp_as. iFrame "# ∗". }
+
+    unfold atomic_update.
+
+    iInv "C2Inv" as "Client2" "CloseC2Inv". simpl.
+    iEval (unfold Client2StackState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client2".
+    iDestruct "Client2" as "[#OBL PushProm]".
+    iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
+    iDestruct "PushProm" as "[#Prm [Bf | _]]"; simpl.
+    { iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
+      iDestruct (Lifetime.pending_not_shot with "LiveInv Dead") as %[].
+    }
+
+    iInv "PushedInv" as "TStackC" "ClosePushedInv".
+    unfold push_then_pop. simpl. red_tl_all.
+    iDestruct "TStackC" as "[TStackC| Tokt]"; last first.
+    { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
+    iApply FUpd_mask_keep; [set_solver|].
+    iIntros "CloseTS !>".
+
+    iExists _. iFrame "TStackC". iIntros (s_st) "[TStackC %EQ]". subst s_st.
+
+    iMod "CloseTS" as "_".
+    iMod ("ClosePushedInv" with "[$Tok]") as "_".
+    iMod ("CloseC2Inv" with "[TStackC]") as "_".
+    { iEval (unfold Client2StackState; simpl; red_tl_all; simpl).
+      iFrame "#". iEval (rewrite red_syn_until_tpromise).
+      unfold until_thread_promise. simpl. iSplit; auto.
+      iRight. red_tl_all. iFrame "#".
+    }
+    iIntros "!>" (_) "[Duty _]". rred2r.
+
     iApply (wpsim_sync with "[$Duty]"); [lia|].
-    iIntros "Duty C". lred2r. rred2r. iApply wpsim_tauR. rred2r.
+    iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
     iApply wpsim_ret; [eauto|].
     iModIntro.
     iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
-    Unshelve. all: auto.
+    Unshelve.
     all: apply ndot_ne_disjoint; ss.
   Qed.
 

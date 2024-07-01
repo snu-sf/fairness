@@ -445,9 +445,9 @@ try rewrite ! red_s_ghost_map_elem
 
 Notation "k ↪[ γ ]{ dq } v" := (s_ghost_map_elem γ k dq v)
   (at level 20, γ at level 50, dq at level 50, format "k  ↪[ γ ]{ dq }  v") : sProp_scope.
-Notation "k ↪[ γ ]{# q } v" := (k ↪[γ]{DfracOwn q} v)%I
+Notation "k ↪[ γ ]{# q } v" := (k ↪[γ]{DfracOwn q} v)%S
   (at level 20, γ at level 50, q at level 50, format "k  ↪[ γ ]{# q }  v") : sProp_scope.
-Notation "k ↪[ γ ] v" := (k ↪[γ]{#1} v)%I
+Notation "k ↪[ γ ] v" := (k ↪[γ]{#1} v)%S
   (at level 20, γ at level 50, format "k  ↪[ γ ]  v") : sProp_scope.
-Notation "k ↪[ γ ]□ v" := (k ↪[γ]{DfracDiscarded} v)%I
+Notation "k ↪[ γ ]□ v" := (k ↪[γ]{DfracDiscarded} v)%S
   (at level 20, γ at level 50) : sProp_scope.

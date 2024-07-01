@@ -7,7 +7,7 @@ From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import TreiberStack.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec AuthExclsRA ghost_map ExclsRA.
+From Fairness Require Export TemporalLogic SCMemSpec ghost_var ghost_map.
 
 Record maybe_null_ptr := {
   ptr :> SCMem.val;
@@ -44,19 +44,21 @@ Section SPEC.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasMEMRA: @GRA.inG memRA Γ}.
-  Context {HasAuthExcl : @GRA.inG (AuthExcls.t (list SCMem.val)) Γ}.
-  Context {HasExcl : @GRA.inG (Excls.t unit) Γ}.
   Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
+  Context {HasGhostVar : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
 
-  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_authexcls; red_tl_ghost_map_ura.
+  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_map_ura; red_tl_ghost_var_ura.
 
   Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
     ptr mnp.
 
-  Fixpoint phys_list n (l : maybe_null_ptr) (L : list SCMem.val) : sProp n := (
-    match L with
+  Definition TStack n γs St : sProp n :=
+    s_ghost_var γs (1/2) St.
+
+  Fixpoint phys_list n (l : maybe_null_ptr) (St : list SCMem.val) : sProp n := (
+    match St with
     | [] => ⌜to_val l = SCMem.val_null⌝
-    | v::tL => ∃ (p : τ{SCMem.pointer}) (r : τ{maybe_null_ptr}), ⌜to_val l = SCMem.val_ptr p⌝ ∗ (l ↦∗□ [(to_val r); v]) ∗ (phys_list n r tL)
+    | v::tSt => ∃ (p : τ{SCMem.pointer}) (r : τ{maybe_null_ptr}), ⌜to_val l = SCMem.val_ptr p⌝ ∗ (l ↦∗□ [(to_val r); v]) ∗ (phys_list n r tSt)
     end
   )%S.
 
@@ -71,9 +73,9 @@ Section SPEC.
   )%S.
 
   Definition Inv (n : nat) (s : SCMem.val) (k γs : nat) : sProp n := (
-    ∃ (h : τ{maybe_null_ptr}) (L : τ{list SCMem.val}) (m : τ{gmap nat maybe_null_ptr,n}),
-      s ↦ (to_val h) ∗ ● γs (L : list SCMem.val) ∗
-      phys_list n h L ∗ LInv n k γs h m
+    ∃ (h : τ{maybe_null_ptr}) (St : τ{list SCMem.val}) (m : τ{gmap nat maybe_null_ptr,n}),
+      s ↦ (to_val h) ∗ s_ghost_var γs (1/2) (St : list SCMem.val) ∗
+      phys_list n h St ∗ LInv n k γs h m
   )%S.
 
   Definition IsT n Lay s k γs : sProp n := (
@@ -87,7 +89,7 @@ Section SPEC.
   Lemma Inv_unfold n s k γs :
     (⟦ Inv n s k γs, n ⟧) -∗
     (∃ (h : τ{maybe_null_ptr,n}) (L : τ{list SCMem.val,n}) (m : τ{gmap nat maybe_null_ptr,n}),
-      (s ↦ (to_val h)) ∗ (● γs (L : list SCMem.val)) ∗
+      (s ↦ (to_val h)) ∗ ghost_var γs (1/2) (L : list SCMem.val) ∗
       ⟦ (phys_list n h L), n⟧ ∗ ⟦ LInv n k γs h m, n⟧).
   Proof.
     unfold Inv. iIntros "Inv".
@@ -96,7 +98,7 @@ Section SPEC.
   Qed.
 
   Lemma Inv_fold n s k γs h L m :
-    (s ↦ (to_val h)) -∗ (● γs (L : list SCMem.val)) -∗
+    (s ↦ (to_val h)) -∗ ghost_var γs (1/2) (L : list SCMem.val) -∗
     ⟦ (phys_list n h L), n⟧ -∗ ⟦ LInv n k γs h m, n⟧
     -∗ (⟦ Inv n s k γs, n ⟧).
   Proof.
@@ -175,30 +177,33 @@ Section SPEC.
       red_tl_all. iExists r, v. iFrame "H".
   Qed.
 
-  Lemma Treiber_push_spec {n} (Q : SCMem.val → sProp n) (P : sProp n) tid :
+  Lemma Treiber_push_spec {n} E tid :
     ∀ s k γs val lv (ds : list (nat * nat * sProp n)),
-    ⊢ [@ tid, n, ⊤ @]
-          ⧼⟦(
-            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
-            ∗ (⤉ IsT n lv s k γs)
-            ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉ P)
-            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
-                  =|1+n|={⊤ ∖ ↑treiberN}=∗ (⤉ (● γs (val::S) ∗ Q val))
-              )
-            ∗ ◇[k](1,1)
-            (* TODO: Proper ord level. *)
-            ∗ ◇{List.map fst ds}(4 + lv, 1)
-            )%S, 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
-          ⧼_, ⟦(
-            (⤉ (Q val ∗ Duty(tid) ds))
-            )%S, 1+n⟧⧽
+    ⊢ ⌜↑treiberN ⊆ E⌝ -∗
+      ⟦(
+      syn_tgt_interp_as n sndl (fun m => s_memory_black m) ∗
+      (⤉ IsT n lv s k γs) ∗
+      (⤉ Duty(tid) ds) ∗
+      ◇[k](1,1) ∗
+      ◇{List.map fst ds}(4 + lv, 1)
+      )%S,1+n⟧ -∗
+      <<{ ∀∀ (St : list SCMem.val), ⟦TStack n γs (St : list SCMem.val),n⟧ }>>
+        (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
+        @
+        tid, n, E
+      <<{
+        ∃∃ (_ : unit), ⟦TStack n γs (val::St : list SCMem.val),n⟧ | (_ : unit), RET tt ; Duty(tid) ds
+      }>>
   .
-  Proof.
-    ii. iStartTriple. red_tl_all.
-    unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv. simpl.
-    iIntros "(#Mem & #[Ob_kb IsT] & Duty & P & AU & Ob_ks & PCS) Post".
+  Admitted.
+  (* Proof.
+    ii.
+    red_tl. unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv.
+    rewrite red_syn_LAT_ind. simpl.
+    iIntros "#Mem #[Ob_kb IsT] Duty Ob_ks PCS".
+    unfold LAT_ind. iIntros (? ? ? ? ?) "AU".
+  Admitted. *)
+    (* iIntros "(#Mem & #[Ob_kb IsT] & Duty & P & AU & Ob_ks & PCS) Post".
     red_tl_all.
     iEval (unfold TreiberStack.push).
 
@@ -388,39 +393,36 @@ Section SPEC.
     Unshelve. 2: lia.
     iMod ("IH" with "Ob_k n.n↦ Post Duty Pcs AU P n.d↦ Ob_ks") as "IH".
     iApply "IH".
-  Qed.
+  Qed. *)
 
-  Lemma Treiber_pop_spec
-        {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid :
+  Lemma Treiber_pop_spec E {n} tid :
     ∀ s k γs lv (ds : list (nat * nat * sProp n)),
-    ⊢ [@ tid, n, ⊤ @]
-          ⧼⟦(
-            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
-            ∗ (⤉ IsT n lv s k γs)
-            ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉ P)
-            (* TODO: masks? *)
-            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
-                  =|1+n|={⊤∖↑treiberN}=∗
-                  match S with
-                  | [] => (⤉ (● γs ([] : list SCMem.val) ∗ Q None))
-                  | h::t => (⤉ (● γs t ∗ Q (Some h)))
-                  end
-              )
-            ∗ ◇[k](1,1)
-            ∗ ◇{List.map fst ds}(4 + lv, 1)
-            )%S, 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
-          ⧼rv, ⟦(
-            (⤉ (Q rv ∗ Duty(tid) ds)) ∗
-            match rv with
-            | Some _ => emp
-            | None => ◇[k](1,1)
-            end
-            )%S, 1+n⟧⧽
-  .
+    ⊢ ⌜↑treiberN ⊆ E⌝ -∗
+    ⟦(
+      syn_tgt_interp_as n sndl (fun m => s_memory_black m) ∗
+      (⤉ IsT n lv s k γs) ∗
+      (⤉ Duty(tid) ds) ∗
+      ◇[k](1,1) ∗
+      ◇{List.map fst ds}(4 + lv, 1)
+    )%S,1+n⟧ -∗
+      <<{ ∀∀ (St : list SCMem.val), ⟦TStack n γs (St : list SCMem.val),n⟧ }>>
+        (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
+        @
+        tid, n, E
+      <<{
+        ∃∃ (rv : option SCMem.val), match St with
+        | [] => ⟦TStack n γs ([] : list SCMem.val),n⟧ ∗ ⌜rv = None⌝
+        | h::t => ⟦TStack n γs t,n⟧ ∗ ⌜rv = Some h⌝
+        end | (_ : unit), RET rv ;
+        Duty(tid) ds ∗
+        match rv with
+        | Some _ => emp
+        | None => ◇[k](1,1)
+        end
+      }>>.
   Proof.
-    ii. iStartTriple. red_tl_all.
+  Admitted.
+    (* ii. iStartTriple. red_tl_all.
     unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv. simpl.
     iIntros "(#Mem & #[Ob_kb IsT] & Duty & P & AU & Ob_ks & PCS) Post".
     red_tl_all.
@@ -651,8 +653,8 @@ Section SPEC.
     Unshelve. 2: lia.
     iMod ("IH" with "Ob_k Post Duty PCS AU P Ob_ks") as "IH".
     iApply "IH".
-Qed.
+Qed. *)
 
 End SPEC.
 
-Global Opaque TreiberStack.pop TreiberStack.push.
+Global Opaque TStack IsT TreiberStack.pop TreiberStack.push.

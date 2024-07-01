@@ -41,6 +41,11 @@ Section lemmas.
     to_frac_agree (q1 + q2) a = to_frac_agree q1 a ⋅ to_frac_agree q2 a.
   Proof. rewrite -dfrac_agree_op. done. Qed.
 
+  Lemma dfrac_agree_valid d a : ✓ to_dfrac_agree d a ↔ ✓ d.
+  Proof.
+    rewrite /to_dfrac_agree pair_valid. split; [naive_solver|].
+    intros. split; [done|]. by apply to_agree_valid.
+  Qed.
   Lemma dfrac_agree_op_valid d1 a1 d2 a2 :
     ✓ (to_dfrac_agree d1 a1 ⋅ to_dfrac_agree d2 a2) ↔
     ✓ (d1 ⋅ d2) ∧ a1 = a2.
@@ -52,6 +57,9 @@ Section lemmas.
     ✓ (d1 ⋅ d2) ∧ a1 = a2.
   Proof. apply dfrac_agree_op_valid. Qed.
 
+  Lemma frac_agree_valid q a :
+    ✓ to_frac_agree q a ↔ (q ≤ 1)%Qp.
+  Proof. apply dfrac_agree_valid. Qed.
   Lemma frac_agree_op_valid q1 a1 q2 a2 :
     ✓ (to_frac_agree q1 a1 ⋅ to_frac_agree q2 a2) ↔
     (q1 + q2 ≤ 1)%Qp ∧ a1 = a2.
