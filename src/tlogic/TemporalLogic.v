@@ -1307,7 +1307,7 @@ Section TRIPLE.
   function [foo] into a unary function taking a telescope as the argument. *)
     (syn_atomic_update n Eo Ei
                    (λ x, α%S)
-                   (λ y y, β%S)
+                   (λ x y, β%S)
                    (λ x y, POST%S)
     )
     (at level 20, Eo, Ei, α, β, POST at level 200, x binder, y binder,
@@ -1329,10 +1329,10 @@ Section TRIPLE.
        (ktr_tgt : τ{(RV -> codeT id_tgt_type st_tgt_type R_term)%stype, S n}),
        syn_atomic_update n E ∅ α β
        (λ (x : τ{TA,S n}) (y : τ{TB,S n}), ∀ (z : τ{TP,S n}), POST x y z -∗
-       syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps true itr_src (ktr_tgt (f x y z))
+       syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps true (trigger Yield;;; itr_src) (ktr_tgt (f x y z))
        )
        -∗
-       syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt itr_src (code >>= ktr_tgt))%S.
+       syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%S.
 
   Lemma red_syn_LAT_ind TA TB TP
         tid n (E : coPset)

@@ -2028,10 +2028,10 @@ Section TRIPLES.
        (ktr_tgt : RV -> itree tgtE R_term),
       atomic_update n E ∅ α β
         (λ x y, ∀ z, POST x y z -∗
-          wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps true itr_src (ktr_tgt (f x y z))
+          wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps true (trigger Yield;;; itr_src) (ktr_tgt (f x y z))
         )
        -∗
-       wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps pt itr_src (code >>= ktr_tgt))%I.
+       wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I.
 
 End TRIPLES.
 
