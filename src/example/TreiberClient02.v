@@ -176,7 +176,7 @@ Section SPEC.
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
     iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc Pc']".
 
-    iApply (Treiber_push_spec nTMod ⊤ with "[%] [Duty Pck PcSt] [-]"); [set_solver| |].
+    iApply (Treiber_push_spec nTMod with "[Duty Pck PcSt] [-]").
     { red_tl_all. rewrite red_syn_tgt_interp_as. simpl. iFrame "#".
       iFrame. iDestruct (pcs_cons_fold with "[PcSt]") as "$". iFrame.
     }
@@ -283,7 +283,7 @@ Section SPEC.
       iApply (wpsim_yieldR with "[$Duty]"); [lia|].
       iIntros "Duty C". rred2r. iApply wpsim_tauR. rred2r.
 
-      iApply (Treiber_pop_spec nTMod ⊤ with "[%] [Duty Pck] [-]");[set_solver| |].
+      iApply (Treiber_pop_spec nTMod with "[Duty Pck] [-]").
       { red_tl_all. rewrite red_syn_tgt_interp_as. simpl. iFrame "# ∗". }
 
       unfold atomic_update.
@@ -353,7 +353,7 @@ Section SPEC.
     iApply (wpsim_yieldR with "[$Duty]"); [lia|].
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
 
-    iApply (Treiber_pop_spec nTMod ⊤ with "[%] [Duty Pck] [-]"); [set_solver| |].
+    iApply (Treiber_pop_spec nTMod with "[Duty Pck] [-]").
     { red_tl_all. simpl. rewrite red_syn_tgt_interp_as. iFrame "# ∗". }
 
     unfold atomic_update.

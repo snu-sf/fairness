@@ -132,7 +132,7 @@ Context `{HasGhostVar : @GRA.inG (ghost_varURA A) Γ}.
 
   Definition s_ghost_var {n} γ q a : sProp n := (➢(ghost_var_ra γ q a))%S.
 
-  Lemma red_s_ghost_var n γ q a :
+  Lemma red_syn_ghost_var n γ q a :
     ⟦s_ghost_var γ q a, n⟧ = ghost_var γ q a.
   Proof.
     unfold s_ghost_var. red_tl. ss.
@@ -140,4 +140,4 @@ Context `{HasGhostVar : @GRA.inG (ghost_varURA A) Γ}.
 
 End SPROP.
 
-Ltac red_tl_ghost_var_ura := try rewrite ! red_s_ghost_var.
+Ltac red_tl_ghost_var_ura := try rewrite ! red_syn_ghost_var.

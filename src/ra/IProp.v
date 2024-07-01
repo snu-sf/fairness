@@ -143,10 +143,7 @@ Section IPROP.
   Program Definition Later (P: iProp'): iProp' :=
     Seal.sealing
       "iProp"
-      (iProp_intro P _).
-  Next Obligation.
-    eapply iProp_mono; eauto.
-  Qed.
+      (iProp_intro P (iProp_mono P)).
 
   Program Definition Upd (P: iProp'): iProp' :=
     Seal.sealing
