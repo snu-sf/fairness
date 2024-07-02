@@ -76,7 +76,6 @@ Context {TLRAS : TLRAs STT Γ Σ}.
 
 Context `{GEXCLRA : @GRA.inG (ghost_exclURA A) Γ}.
 
-
   Definition s_ghost_excl {n} γ a : sProp n := (➢(ghost_excl_ra γ a))%S.
 
   Lemma red_s_ghost_excl n γ a :

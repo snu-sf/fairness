@@ -7,7 +7,7 @@ From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import TreiberStack.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec AuthExclsRA ghost_map ExclsRA.
+From Fairness Require Export TemporalLogic SCMemSpec ghost_var ghost_map.
 
 Record maybe_null_ptr := {
   ptr :> SCMem.val;
@@ -44,19 +44,21 @@ Section SPEC.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasMEMRA: @GRA.inG memRA Γ}.
-  Context {HasAuthExcl : @GRA.inG (AuthExcls.t (list SCMem.val)) Γ}.
-  Context {HasExcl : @GRA.inG (Excls.t unit) Γ}.
   Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
+  Context {HasGhostVar : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
 
-  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_authexcls; red_tl_ghost_map_ura.
+  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_map_ura; red_tl_ghost_var_ura.
 
   Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
     ptr mnp.
 
-  Fixpoint phys_list n (l : maybe_null_ptr) (L : list SCMem.val) : sProp n := (
-    match L with
+  Definition TStack n γs St : sProp n :=
+    s_ghost_var γs (1/2) St.
+
+  Fixpoint phys_list n (l : maybe_null_ptr) (St : list SCMem.val) : sProp n := (
+    match St with
     | [] => ⌜to_val l = SCMem.val_null⌝
-    | v::tL => ∃ (p : τ{SCMem.pointer}) (r : τ{maybe_null_ptr}), ⌜to_val l = SCMem.val_ptr p⌝ ∗ (l ↦∗□ [(to_val r); v]) ∗ (phys_list n r tL)
+    | v::tSt => ∃ (p : τ{SCMem.pointer}) (r : τ{maybe_null_ptr}), ⌜to_val l = SCMem.val_ptr p⌝ ∗ (l ↦∗□ [(to_val r); v]) ∗ (phys_list n r tSt)
     end
   )%S.
 
@@ -71,9 +73,9 @@ Section SPEC.
   )%S.
 
   Definition Inv (n : nat) (s : SCMem.val) (k γs : nat) : sProp n := (
-    ∃ (h : τ{maybe_null_ptr}) (L : τ{list SCMem.val}) (m : τ{gmap nat maybe_null_ptr,n}),
-      s ↦ (to_val h) ∗ ● γs (L : list SCMem.val) ∗
-      phys_list n h L ∗ LInv n k γs h m
+    ∃ (h : τ{maybe_null_ptr}) (St : τ{list SCMem.val}) (m : τ{gmap nat maybe_null_ptr,n}),
+      s ↦ (to_val h) ∗ s_ghost_var γs (1/2) (St : list SCMem.val) ∗
+      phys_list n h St ∗ LInv n k γs h m
   )%S.
 
   Definition IsT n Lay s k γs : sProp n := (
@@ -87,7 +89,7 @@ Section SPEC.
   Lemma Inv_unfold n s k γs :
     (⟦ Inv n s k γs, n ⟧) -∗
     (∃ (h : τ{maybe_null_ptr,n}) (L : τ{list SCMem.val,n}) (m : τ{gmap nat maybe_null_ptr,n}),
-      (s ↦ (to_val h)) ∗ (● γs (L : list SCMem.val)) ∗
+      (s ↦ (to_val h)) ∗ ghost_var γs (1/2) (L : list SCMem.val) ∗
       ⟦ (phys_list n h L), n⟧ ∗ ⟦ LInv n k γs h m, n⟧).
   Proof.
     unfold Inv. iIntros "Inv".
@@ -96,7 +98,7 @@ Section SPEC.
   Qed.
 
   Lemma Inv_fold n s k γs h L m :
-    (s ↦ (to_val h)) -∗ (● γs (L : list SCMem.val)) -∗
+    (s ↦ (to_val h)) -∗ ghost_var γs (1/2) (L : list SCMem.val) -∗
     ⟦ (phys_list n h L), n⟧ -∗ ⟦ LInv n k γs h m, n⟧
     -∗ (⟦ Inv n s k γs, n ⟧).
   Proof.
@@ -175,41 +177,36 @@ Section SPEC.
       red_tl_all. iExists r, v. iFrame "H".
   Qed.
 
-  Lemma Treiber_push_spec {n} (Q : SCMem.val → sProp n) (P : sProp n) tid :
+  Lemma Treiber_push_spec {n} tid :
     ∀ s k γs val lv (ds : list (nat * nat * sProp n)),
-    ⊢ [@ tid, n, ⊤ @]
-          ⧼⟦(
-            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
-            ∗ (⤉ IsT n lv s k γs)
-            ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉ P)
-            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
-                  =|1+n|={⊤ ∖ ↑treiberN}=∗ (⤉ (● γs (val::S) ∗ Q val))
-              )
-            ∗ ◇[k](1,1)
-            (* TODO: Proper ord level. *)
-            ∗ ◇{List.map fst ds}(4 + lv, 1)
-            )%S, 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
-          ⧼_, ⟦(
-            (⤉ (Q val ∗ Duty(tid) ds))
-            )%S, 1+n⟧⧽
-  .
+    ⊢ ⟦(
+      syn_tgt_interp_as n sndl (fun m => s_memory_black m) ∗
+      (⤉ IsT n lv s k γs) ∗
+      (⤉ Duty(tid) ds) ∗
+      ◇[k](1,1) ∗
+      ◇{List.map fst ds}(4 + lv, 1)
+      )%S,1+n⟧ -∗
+      <<{ ∀∀ (St : list SCMem.val), ⟦TStack n γs (St : list SCMem.val),n⟧ }>>
+        (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
+        @
+        tid, n, ↑treiberN
+      <<{
+        ∃∃ (_ : unit), ⟦TStack n γs (val::St : list SCMem.val),n⟧ | (_ : unit), RET tt ; Duty(tid) ds
+      }>>.
   Proof.
-    ii. iStartTriple. red_tl_all.
-    unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv. simpl.
-    iIntros "(#Mem & #[Ob_kb IsT] & Duty & P & AU & Ob_ks & PCS) Post".
-    red_tl_all.
-    iEval (unfold TreiberStack.push).
+    ii.
+    red_tl. unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv.
+    unfold TreiberStack.push.
+    iIntros "(#Mem & #[Ob_kb IsT] & Duty & Ob_ks & PCS)".
+    iIntros (? ? ? ? ?) "AU".
 
     rred2r.
 
-    iMod (pcs_drop _ _ 1 _ (3+lv) 3 with "[$PCS]") as "PCS"; [lia|].
+    iMod (pcs_drop _ _ 1 ltac:(auto) (3+lv) 3 with "[$PCS]") as "PCS"; [lia|].
     iMod (pcs_decr _ _ 1 2 with "PCS") as "[Ys PCS]"; [done|].
     iMod (pcs_decr _ _ 1 1 with "PCS") as "[PCS' PCS]"; [done|].
-    iMod (pcs_drop _ _ 1 _ 1 100 with "Ys") as "Ys"; [lia|].
+    iMod (pcs_drop _ _ 1 ltac:(auto) 1 100 with "Ys") as "Ys"; [lia|].
     iMod (pcs_decr _ _ 1 99 with "Ys") as "[Y Ys]"; [lia|].
-    Unshelve. 2,3: lia.
 
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia|].
     iIntros "Duty _". rred2r.
@@ -221,7 +218,7 @@ Section SPEC.
     iIntros (node) "(n.n↦ & n.d↦ & _)".
     rred2r. iApply wpsim_tauR. rred2r.
 
-    iMod ((pcs_decr _ _ 98 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 98 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
@@ -230,18 +227,16 @@ Section SPEC.
 
     move: (SCMem.val_nat 0) => next.
 
-    iRevert "n.n↦ Post Duty Ys AU P n.d↦ Ob_ks". iRevert (next). iRevert "PCS".
+    iRevert "n.n↦ Duty Ys AU n.d↦ Ob_ks". iRevert (next). iRevert "PCS".
 
     iMod (ccs_ind2 with "CCS [-]") as "Ind".
-    2:{ iIntros "PCS". iMod (pcs_drop _ _ _ _ 2 1 with "PCS") as "PCS"; [lia|].
+    2:{ iIntros "PCS". iMod (pcs_drop _ _ 1 ltac:(auto) 2 1 with "PCS") as "PCS"; [lia|].
         iApply ("Ind" with "PCS").
     }
-    Unshelve. 2: lia.
 
-    (* TODO: is this exists 0 correct? *)
-    iModIntro. iExists 0. iIntros "IH !> Pcs %next n.n↦ Post Duty Ys AU P n.d↦ Ob_ks".
+    iModIntro. iExists 0. iIntros "IH !> Pcs %next n.n↦ Duty Ys AU n.d↦ Ob_ks".
     iEval (rewrite unfold_iter_eq). rred2r.
-    iMod ((pcs_decr _ _ 97 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 97 1 with "Ys") as "[Ys Y]"; [lia|].
 
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
@@ -270,18 +265,18 @@ Section SPEC.
 
     iApply wpsim_tauR. rred2r.
 
-    iMod ((pcs_decr _ _ 96 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 96 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
     iApply (SCMem_store_fun_spec with "[$Mem $n.n↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "n.n↦". rred2r. iApply wpsim_tauR. rred2r.
 
-    iMod ((pcs_decr _ _ 95 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 95 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
-    iMod ((pcs_decr _ _ 94 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 94 1 with "Ys") as "[Ys Y]"; [lia|].
 
     iInv "IsT" as "Inv" "Close". simpl.
     iDestruct (Inv_unfold with "Inv") as (h' L m) "(s↦ & γs & Phys & LInv)".
@@ -297,14 +292,17 @@ Section SPEC.
       iIntros (b) "POST".
       iDestruct "POST" as (u) "(%EQ & s↦ & _ & _)".
       des_ifs. destruct EQ as [-> ->].
-      iSpecialize ("AU" $! L).
-      iEval (red_tl) in "AU".
-      iEval (rewrite red_syn_fupd) in "AU".
-      iEval (red_tl_all) in "AU".
       rred2r. iApply wpsim_tauR. rred2r.
 
+      iEval (unfold atomic_update) in "AU".
+      iMod "AU" as (L') "[γs' Commit]".
+      iEval (unfold TStack; red_tl_all) in "γs'".
+      iDestruct (ghost_var_agree with "γs γs'") as %<-.
+      iMod (ghost_var_update_halves with "γs γs'") as "[γs γs']".
+
       (* Update logical stack state. *)
-      iMod ("AU" with "[$γs $P]") as "[γs Q]".
+      iMod ("Commit" $! tt with "[γs']") as "Post".
+      { iEval (unfold TStack; red_tl_all). iFrame. }
 
       (* Update physical stack state. *)
       iMod (SCMem.points_to_persist with "n.n↦") as "#n.n↦".
@@ -349,7 +347,7 @@ Section SPEC.
 
       iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
       iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
-      iApply "Post". iFrame.
+      iApply ("Post" $! tt). iFrame.
     }
     (* Different, CAS fail *)
     iApply (SCMem_cas_loc_fun_spec_gen with "[$Mem $s↦ h↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
@@ -386,73 +384,65 @@ Section SPEC.
     (* Do Induction *)
     iMod (pcs_drop _ _ 1 _ 1 98 with "[$Pcs]") as "Pcs"; [lia|].
     Unshelve. 2: lia.
-    iMod ("IH" with "Ob_k n.n↦ Post Duty Pcs AU P n.d↦ Ob_ks") as "IH".
+    iMod ("IH" with "Ob_k n.n↦ Duty Pcs AU n.d↦ Ob_ks") as "IH".
     iApply "IH".
   Qed.
 
-  Lemma Treiber_pop_spec
-        {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid :
+  Lemma Treiber_pop_spec {n} tid :
     ∀ s k γs lv (ds : list (nat * nat * sProp n)),
-    ⊢ [@ tid, n, ⊤ @]
-          ⧼⟦(
-            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
-            ∗ (⤉ IsT n lv s k γs)
-            ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉ P)
-            (* TODO: masks? *)
-            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
-                  =|1+n|={⊤∖↑treiberN}=∗
-                  match S with
-                  | [] => (⤉ (● γs ([] : list SCMem.val) ∗ Q None))
-                  | h::t => (⤉ (● γs t ∗ Q (Some h)))
-                  end
-              )
-            ∗ ◇[k](1,1)
-            ∗ ◇{List.map fst ds}(4 + lv, 1)
-            )%S, 1+n⟧⧽
-            (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
-          ⧼rv, ⟦(
-            (⤉ (Q rv ∗ Duty(tid) ds)) ∗
-            match rv with
-            | Some _ => emp
-            | None => ◇[k](1,1)
-            end
-            )%S, 1+n⟧⧽
-  .
+    ⊢ ⟦(
+      syn_tgt_interp_as n sndl (fun m => s_memory_black m) ∗
+      (⤉ IsT n lv s k γs) ∗
+      (⤉ Duty(tid) ds) ∗
+      ◇[k](1,1) ∗
+      ◇{List.map fst ds}(4 + lv, 1)
+    )%S,1+n⟧ -∗
+      <<{ ∀∀ (St : list SCMem.val), ⟦TStack n γs (St : list SCMem.val),n⟧ }>>
+        (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
+        @
+        tid, n, ↑treiberN
+      <<{
+        ∃∃ (rv : option SCMem.val), match St with
+        | [] => ⟦TStack n γs ([] : list SCMem.val),n⟧ ∗ ⌜rv = None⌝
+        | h::t => ⟦TStack n γs t,n⟧ ∗ ⌜rv = Some h⌝
+        end | (_ : unit), RET rv ;
+        Duty(tid) ds ∗
+        match rv with
+        | Some _ => emp
+        | None => ◇[k](1,1)
+        end
+      }>>.
   Proof.
-    ii. iStartTriple. red_tl_all.
-    unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv. simpl.
-    iIntros "(#Mem & #[Ob_kb IsT] & Duty & P & AU & Ob_ks & PCS) Post".
-    red_tl_all.
+    ii.
+    red_tl. unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv.
+    iIntros "(#Mem & #[Ob_kb IsT] & Duty & Ob_ks & PCS)".
+    iIntros (? ? ? ? ?) "AU".
 
-    iMod (pcs_drop _ _ 1 _ (3+lv) 3 with "[$PCS]") as "PCS"; [lia|].
+    iMod (pcs_drop _ _ 1 ltac:(auto) (3+lv) 3 with "[$PCS]") as "PCS"; [lia|].
     iMod (pcs_decr _ _ 1 2 with "PCS") as "[Ys PCS]"; [done|].
     iMod (pcs_decr _ _ 1 1 with "PCS") as "[PCS' PCS]"; [done|].
-    iMod (pcs_drop _ _ 1 _ 1 102 with "Ys") as "Ys"; [lia|].
-    Unshelve. 2,3: lia.
-    iMod (ccs_make _ _ _ 2 1 with "[$Ob_kb PCS']") as "[CCS _]".
-    { simpl. iFrame. }
+    iMod (pcs_drop _ _ 1 ltac:(auto) 1 102 with "Ys") as "Ys"; [lia|].
+    iMod (ccs_make _ _ _ 2 1 with "[$Ob_kb $PCS']") as "[CCS _]".
 
     iEval (unfold TreiberStack.pop). rred2r.
 
-    iMod ((pcs_decr _ _ 101 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 101 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
     iApply wpsim_tauR. rred2r.
 
-    iRevert "Post Duty Ys AU P Ob_ks". iRevert "PCS".
+    iRevert "Duty Ys AU Ob_ks". iRevert "PCS".
 
     iMod (ccs_ind2 with "CCS [-]") as "Ind".
-    2:{ iIntros "PCS". iMod (pcs_drop _ _ _ _ 2 1 with "PCS") as "PCS"; [lia|].
+    2:{ iIntros "PCS". iMod (pcs_drop _ _ 1 ltac:(auto) 2 with "PCS") as "PCS"; [lia|].
         iApply ("Ind" with "PCS").
     }
-    Unshelve. 2: lia.
 
-    iModIntro. iExists 0. iIntros "IH !> PCS Post Duty Ys AU P Ob_ks".
+    iModIntro. iExists 0. iIntros "IH !> PCS Duty Ys AU Ob_ks".
     iEval (rewrite unfold_iter_eq). rred2r.
 
-    iMod ((pcs_decr _ _ 100 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 100 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
@@ -462,7 +452,7 @@ Section SPEC.
     iApply (SCMem_load_fun_spec with "[$Mem $s↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[%EQ s↦]".
     subst. rred2r. iApply wpsim_tauR. rred2r.
-    iMod ((pcs_decr _ _ 99 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 99 1 with "Ys") as "[Ys Y]"; [lia|].
 
     destruct (decide (to_val h = to_mnp_null)) as [EQ|NEQ].
     { (* Head is null, so stack is empty. *)
@@ -472,8 +462,13 @@ Section SPEC.
       des_ifs; last first.
       { iDestruct "Phys" as (p r) "[%EQ _]". simpl in EQ. done. }
       iClear "Phys".
-      iSpecialize ("AU" $! []). iEval (red_tl; rewrite red_syn_fupd; red_tl_all) in "AU".
-      iMod ("AU" with "[$γs $P]") as "[γs Q]".
+      iEval (unfold atomic_update) in "AU".
+      iMod "AU" as (?) "[γs' Commit]".
+      iEval (unfold TStack; red_tl_all) in "γs'".
+      iDestruct (ghost_var_agree with "γs γs'") as %<-.
+
+      iMod ("Commit" $! None with "[γs']") as "Post".
+      { iEval (unfold TStack; red_tl_all). by iFrame. }
       iDestruct (Inv_fold with "[s↦] γs [] LInv") as "Inv".
       { unfold to_val. iFrame. }
       { iApply phys_list_fold. done. }
@@ -492,8 +487,8 @@ Section SPEC.
       iIntros (?) "%EQ". destruct EQ as [EQ _]. des; last done.
       specialize (EQ EQh) as ->. rred2r.
 
-      iApply (wpsim_tauR). rred2r.
-      iApply "Post". red_tl_all. iFrame.
+      iApply wpsim_tauR. rred2r.
+      iApply ("Post" $! tt). red_tl_all. iFrame.
     }
 
     iDestruct (phys_list_get_head with "Phys") as "#h↦□".
@@ -503,7 +498,7 @@ Section SPEC.
 
     iDestruct (LInv_unfold with "LInv") as "[GMap LivC]".
     set (i := fresh (dom m)).
-    iMod (ghost_map_insert i h with "[$GMap]") as "[GMap i↪]".
+    iMod (ghost_map_insert i h with "GMap") as "[GMap i↪]".
     { apply not_elem_of_dom. apply is_fresh. }
 
     iDestruct (LInv_fold with "GMap [LivC]") as "LInv".
@@ -521,18 +516,18 @@ Section SPEC.
     iApply (SCMem_compare_loc_null_fun_spec with "[$Mem $h.n↦□] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[_ %EQ]". subst. rred2r.
 
-    iApply (wpsim_tauR). rred2r.
+    iApply wpsim_tauR. rred2r.
 
-    iMod ((pcs_decr _ _ 98 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 98 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
     iApply (SCMem_load_fun_spec with "[$Mem $h.n↦□] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[%EQ _]". subst. rred2r.
 
-    iApply (wpsim_tauR). rred2r.
+    iApply wpsim_tauR. rred2r.
 
-    iMod ((pcs_decr _ _ 97 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 97 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
@@ -562,14 +557,16 @@ Section SPEC.
 
       iDestruct "POST" as (u) "(%EQ & s↦ & _ & _)".
       des_ifs. destruct EQ as [-> ->].
-      iSpecialize ("AU" $! (d::tL)).
-      iEval (red_tl) in "AU".
-      iEval (rewrite red_syn_fupd) in "AU".
-      iEval (red_tl_all) in "AU".
+
       rred2r. iApply wpsim_tauR. rred2r.
 
-      (* Update logical & physical stack state. *)
-      iMod ("AU" with "[$γs $P]") as "[γs Q]".
+      iEval (unfold atomic_update) in "AU".
+      iMod "AU" as (L') "[γs' Commit]".
+      iEval (unfold TStack; red_tl_all) in "γs'".
+      iDestruct (ghost_var_agree with "γs γs'") as %<-.
+      iMod (ghost_var_update_halves with "γs γs'") as "[γs γs']".
+      iMod ("Commit" with "[γs']") as "Post".
+      { iEval (unfold TStack; red_tl_all). by iFrame. }
 
       (* Update liveness invariant *)
       iDestruct (LInv_unfold with "LInv") as "[GMap LivC]".
@@ -578,8 +575,7 @@ Section SPEC.
       iMod (ghost_map_delete with "GMap i↪") as "GMap".
 
       (** Create a big_opM of ◇[k](0,1). *)
-      iMod (pc_drop _ 0 _ _ (size (delete i m)) with "Ob_ks") as "Ob_ks"; [lia|].
-      Unshelve. 2: lia.
+      iMod (pc_drop _ 0 1 ltac:(auto) (size (delete i m)) with "Ob_ks") as "Ob_ks"; [lia|].
       iAssert ([∗ map] _ ∈ delete i m, ◇[k](0,1))%I with "[Ob_ks]" as "Ob_ks".
       { set (m' := delete i m). move: m' => m'.
         iClear "Mem IsT h.n↦□ h.d↦□ Ob_kb". clear.
@@ -603,7 +599,7 @@ Section SPEC.
       iDestruct (Inv_fold with "s↦ γs Phys LInv") as "Inv".
       iMod ("Close" with "Inv") as "_". rred2r.
 
-      iMod ((pcs_decr _ _ 96 1) with "Ys") as "[Ys Y]"; [lia|].
+      iMod (pcs_decr _ _ 96 1 with "Ys") as "[Ys Y]"; [lia|].
       iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
       iIntros "Duty _". rred2r.
 
@@ -612,7 +608,7 @@ Section SPEC.
 
       iApply wpsim_tauR. rred2r.
 
-      iApply "Post". red_tl. iFrame.
+      iApply ("Post" $! tt). iFrame.
     }
     (* Different, CAS fail *)
     iApply (SCMem_cas_loc_fun_spec_gen with "[$Mem $s↦ h.n↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
@@ -647,12 +643,11 @@ Section SPEC.
     iApply wpsim_tauR. rred2r.
 
     (* Do Induction *)
-    iMod (pcs_drop _ _ 1 _ 1 101 with "[$PCS]") as "PCS"; [lia|].
-    Unshelve. 2: lia.
-    iMod ("IH" with "Ob_k Post Duty PCS AU P Ob_ks") as "IH".
+    iMod (pcs_drop _ _ 1 ltac:(lia) 1 101 with "[$PCS]") as "PCS"; [lia|].
+    iMod ("IH" with "Ob_k Duty PCS AU Ob_ks") as "IH".
     iApply "IH".
 Qed.
 
 End SPEC.
 
-Global Opaque TreiberStack.pop TreiberStack.push.
+Global Opaque TStack IsT TreiberStack.pop TreiberStack.push.

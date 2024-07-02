@@ -700,7 +700,7 @@ Section RULES.
            (_collection_credits k o ps l ∗ progress_credit k m a)
              ⊢ #=> (∃ o', _collection_credits k o' ps l ∗ ⌜(o' < o)%ord⌝ ∗ progress_credits ps l 1).
   Proof.
-    intros. iIntros "[COL PC]". 
+    intros. iIntros "[COL PC]".
     iMod (pc_mon _ 0 _ 1 _ with "PC") as "PC".
     { destruct (le_lt_eq_dec 0 m). lia.
       - apply Ord.lt_le. apply layer_drop; auto.

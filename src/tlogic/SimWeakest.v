@@ -1863,6 +1863,24 @@ Section TRIPLES.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
 
+
+  (* Additional lemma to manupulate index of wpsim. *)
+  (* Lemma wpsim_drop_keep *)
+  (*       n tid *)
+  (*       E r g R_src R_tgt *)
+  (*       (Q: R_src -> R_tgt -> iProp) *)
+  (*       ps pt itr_src itr_tgt *)
+  (*   : *)
+  (*   (wsat n -∗ wpsim n tid E r g Q true pt itr_src itr_tgt) *)
+  (*     -∗ *)
+  (*     (wpsim (S n) tid E r g Q ps pt (Tau itr_src) itr_tgt) *)
+  (* . *)
+  (* Proof. *)
+  (*   unfold wpsim. iIntros "H" (? ? ? ? ?) "D". *)
+  (*   iPoseProof ("H" $! _ _ _ _ _ with "D") as "H". *)
+  (*   iApply isim_tauL. iFrame. *)
+  (* Qed. *)
+
   (** Formats for triples-like specs. *)
 
   Definition term_cond m tid (R_term : Type) :=
@@ -1999,20 +2017,8 @@ Section TRIPLES.
           (∀ y, β x y =|S n|={Ei, Eo}=∗ POST x y).
   (* TODO: Seal? *)
   End atomic_update_def.
-  (** Notation: Atomic updates *)
-  (** We avoid '<<'/'>>' since those can also reasonably be infix operators
-  (and in fact Autosubst uses the latter). *)
-  Notation "'AU' '<{' ∃∃ x , α '}>' @ n , Eo , Ei '<{' ∀∀ y , β , 'COMM' POST '}>'" :=
-  (* The way to read the [tele_app foo] here is that they convert the n-ary
-  function [foo] into a unary function taking a telescope as the argument. *)
-    (atomic_update n Eo Ei
-                   (λ x, α%I)
-                   (λ x y, β%I)
-                   (λ x y, POST%I)
-    )
-    (at level 20, Eo, Ei, α, β, POST at level 200, x binder, y binder,
-     format "'[hv   ' 'AU'  '<{'  '[' ∃∃  x ,  '/' α  ']' '}>'  '/' @  '[' n , '/' Eo ,  '/' Ei ']'  '/' '<{'  '[' ∀∀  y ,  '/' β ,  '/' COMM  POST  ']' '}>' ']'") : bi_scope.
 
+  (* TODO: make masks fully generic *)
   Definition LAT_ind {TA TB TP}
             tid n (E : coPset)
             {RV}
@@ -2026,18 +2032,18 @@ Section TRIPLES.
     (∀ R_term ps pt
        (itr_src : itree srcE R_term)
        (ktr_tgt : RV -> itree tgtE R_term),
-      atomic_update n E ∅ α β
+      atomic_update n (⊤∖E) ∅ α β
         (λ x y, ∀ z, POST x y z -∗
-          wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps true itr_src (ktr_tgt (f x y z))
+          wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps true (trigger Yield;;; itr_src) (ktr_tgt (f x y z))
         )
        -∗
-       wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps pt itr_src (code >>= ktr_tgt))%I.
+       wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I.
 
 End TRIPLES.
 
 (** For triples. *)
 Ltac iStartTriple := iIntros (? ? ? ? ? ? ?).
-Ltac iStartLAT := iIntros (? ? ? ? ?).
+(* Ltac iStartLAT := iIntros (? ? ? ? ?). *)
 
 Notation "'[@' tid , n , E '@]' { P } code { v , Q }" :=
   (atomic_triple tid n E P code (fun v => Q))
@@ -2048,6 +2054,21 @@ Notation "'[@' tid , n , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
   (non_atomic_triple tid n E P code (fun v => Q))
     (at level 200, tid, n, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
+
+
+(** Notation: Atomic updates *)
+(** We avoid '<<'/'>>' since those can also reasonably be infix operators
+(and in fact Autosubst uses the latter). *)
+Notation "'AU' '<{' ∃∃ x , α '}>' @ n , Eo , Ei '<{' ∀∀ y , β , 'COMM' POST '}>'" :=
+  (* The way to read the [tele_app foo] here is that they convert the n-ary
+  function [foo] into a unary function taking a telescope as the argument. *)
+    (atomic_update n Eo Ei
+                   (λ x, α%I)
+                   (λ x y, β%I)
+                   (λ x y, POST%I)
+    )
+    (at level 20, Eo, Ei, α, β, POST at level 200, x binder, y binder,
+     format "'[hv   ' 'AU'  '<{'  '[' ∃∃  x ,  '/' α  ']' '}>'  '/' @  '[' n ,  '/' Eo ,  '/' Ei ']'  '/' '<{'  '[' ∀∀  y ,  '/' β ,  '/' COMM  POST  ']' '}>' ']'") : bi_scope.
 
 (* The way to read the [tele_app foo] here is that they convert the n-ary
 function [foo] into a unary function taking a telescope as the argument. *)

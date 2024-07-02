@@ -376,6 +376,14 @@ Section WSATS.
     ss. replace (x0 + (x1 - x0) - x0) with (x1 - x0) by lia. iFrame.
   Qed.
 
+  Lemma wsats_drop_keep (x : index) :
+    wsats (S x) ⊢ wsats x ∗ wsat x.
+  Proof.
+    iIntros "WS". iPoseProof (wsats_in x with "WS") as "[WS W]". auto.
+    iFrame. replace (S x - x) with (S O) by lia. rewrite seq_S.
+    simpl. replace (x + 0) with x by lia. iDestruct "W" as "[W _]". iFrame.
+  Qed.
+
   Lemma wsats_allocs x1 x2 :
     x1 < x2 -> wsat_auth x1 ∗ wsats x1 ⊢ (wsat_auth x2 ∗ wsats x2).
   Proof.
