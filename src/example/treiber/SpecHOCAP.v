@@ -196,7 +196,6 @@ Section SPEC.
                   =|1+n|={⊤ ∖ ↑treiberN}=∗ (⤉ (● γs (val::S) ∗ Q val))
               )
             ∗ ◇[k](1,1)
-            (* TODO: Proper ord level. *)
             ∗ ◇{List.map fst ds}(2+l,2+a)
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
