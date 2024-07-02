@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From iris Require Import bi.big_op.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
-From Fairness Require Import TreiberStack.
+From Fairness Require Import treiber.Code.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Export TemporalLogic SCMemSpec ghost_var ghost_map.

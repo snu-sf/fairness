@@ -5,90 +5,15 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec ghost_excl TreiberStack TreiberStackSpec LifetimeRA AuthExclsRA.
-
-Module TreiberClient2.
-
-  Definition gvs : list nat := [1].
-  Definition s : SCMem.val := SCMem.val_ptr (0, 0).
-
-  Section CODE.
-
-    Definition state := unit.
-    Definition ident := void.
-
-    Definition thread_push :
-      ktree (threadE ident state) unit unit
-      := fun _ =>
-      _ <- (trigger Yield;;; TreiberStack.push (s,SCMem.val_nat 1));;
-      _ <- trigger Yield;;
-      Ret tt.
-
-    Definition thread_pop :
-      ktree (threadE ident state) unit (SCMem.val)
-      := fun _ =>
-      _ <- trigger Yield;;
-      v <- ITree.iter
-        (fun _ =>
-          ov <- (trigger Yield;;; TreiberStack.pop s);;
-          if ov is Some v then Ret (inr v) else Ret (inl tt)
-        ) tt;;
-        _ <- trigger Yield;;
-        Ret v.
-
-    Definition omod : Mod.t :=
-      Mod.mk
-        tt
-        (Mod.get_funs [("thread_push", Mod.wrap_fun thread_push);
-                       ("thread_pop", Mod.wrap_fun thread_pop)])
-    .
-
-    Definition module : Mod.t :=
-      OMod.close
-        (omod)
-        (SCMem.mod gvs)
-    .
-
-  End CODE.
-
-End TreiberClient2.
-
-Module TreiberClient2Spec.
-
-  Section SPEC.
-
-    Notation state := unit.
-    Notation ident := void.
-
-    Definition thread_push :
-      ktree (threadE ident state) unit unit
-      :=
-      fun _ =>
-        _ <- trigger Yield;; Ret tt.
-
-    Definition thread_pop:
-      ktree (threadE void unit) unit SCMem.val
-      :=
-      fun _ =>
-        _ <- trigger Yield;; Ret (1 : SCMem.val).
-
-    Definition module : Mod.t :=
-      Mod.mk
-        tt
-        (Mod.get_funs [("thread_push", Mod.wrap_fun thread_push);
-                       ("thread_pop", Mod.wrap_fun thread_pop)])
-    .
-
-  End SPEC.
-
-End TreiberClient2Spec.
+From Fairness Require Import TemporalLogic SCMemSpec ghost_excl LifetimeRA AuthExclsRA.
+From Fairness.treiber Require Import SpecLat ClientCode.
 
 Section SPEC.
 
-  Notation src_state := (Mod.state TreiberClient2Spec.module).
-  Notation src_ident := (Mod.ident TreiberClient2Spec.module).
-  Notation tgt_state := (Mod.state TreiberClient2.module).
-  Notation tgt_ident := (Mod.ident TreiberClient2.module).
+  Notation src_state := (Mod.state TreiberClientSpec.module).
+  Notation src_ident := (Mod.ident TreiberClientSpec.module).
+  Notation tgt_state := (Mod.state TreiberClient.module).
+  Notation tgt_ident := (Mod.ident TreiberClient.module).
 
   Local Instance STT : StateTypes := Build_StateTypes src_state tgt_state src_ident tgt_ident.
   Context `{sub : @SRA.subG Γ Σ}.
@@ -105,11 +30,11 @@ Section SPEC.
 
   Ltac red_tl_all := red_tl; red_tl_memra; red_tl_ghost_excl_ura; red_tl_lifetime.
 
-  Import TreiberClient2.
+  Import TreiberClient.
 
   (** Invariants. *)
 
-  (* Namespace for TreiberClient2 invariants. *)
+  (* Namespace for TreiberClient invariants. *)
   Definition nTCli : namespace := (nroot .@"TCli").
   Definition nTpush : namespace := (nroot .@"Tpush").
   Definition nTMod : namespace := (nroot .@"TMod").
@@ -136,7 +61,7 @@ Section SPEC.
 
   (** Simulation proof. *)
 
-  Lemma TreiberClient2_push_spec tid n :
+  Lemma TreiberClient_push_spec tid n :
     ⊢ ⟦(∀ (γk kt k γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
       (⤉ IsT nTMod n 1 2 s kt γs) ∗
@@ -150,8 +75,8 @@ Section SPEC.
       syn_wpsim (1+n) tid ⊤
       (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%S)
       false false
-      (fn2th TreiberClient2Spec.module "thread_push" (tt ↑))
-      (fn2th TreiberClient2.module "thread_push" (tt ↑))
+      (fn2th TreiberClientSpec.module "thread_push" (tt ↑))
+      (fn2th TreiberClient.module "thread_push" (tt ↑))
     )%S,1+n⟧.
   Proof.
     iIntros.
@@ -163,7 +88,7 @@ Section SPEC.
 
     iIntros "(#Mem & #IsTreiber & #C2Inv & TID & Pck & Duty & Pc & Live & k_Act)".
 
-    unfold fn2th. simpl. unfold thread_push, TreiberClient2Spec.thread_push.
+    unfold fn2th. simpl. unfold thread_push, TreiberClientSpec.thread_push.
     rred2r. lred2r.
 
     iDestruct (pc_split _ _ 1 4 with "Pc") as "[Ys PcSt]".
@@ -226,7 +151,7 @@ Section SPEC.
     iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
   Qed.
 
-  Lemma TreiberClient2_pop_spec tid n :
+  Lemma TreiberClient_pop_spec tid n :
     ⊢ ⟦(∀ (γk k kt γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
       (⤉ IsT nTMod n 1 2 s kt γs) ∗
@@ -239,8 +164,8 @@ Section SPEC.
       syn_wpsim (1+n) tid ⊤
       (fun rs rt => (⤉(syn_term_cond n tid _ rs rt))%S)
       false false
-      (fn2th TreiberClient2Spec.module "thread_pop" (tt ↑))
-      (fn2th TreiberClient2.module "thread_pop" (tt ↑))
+      (fn2th TreiberClientSpec.module "thread_pop" (tt ↑))
+      (fn2th TreiberClient.module "thread_pop" (tt ↑))
     )%S,1+n⟧.
   Proof.
     iIntros.
@@ -254,7 +179,7 @@ Section SPEC.
 
     iIntros "(#Mem & #IsTreiber & #C2Inv & Tok & Pck & TID & Duty)".
 
-    unfold fn2th. simpl. unfold thread_pop, TreiberClient2Spec.thread_pop.
+    unfold fn2th. simpl. unfold thread_pop, TreiberClientSpec.thread_pop.
     rred2r. lred2r.
 
     iApply (wpsim_yieldR with "[$Duty]"); [lia|].
