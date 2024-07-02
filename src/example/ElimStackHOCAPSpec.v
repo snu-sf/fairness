@@ -92,8 +92,8 @@ Section SPEC.
     end
   )%S.
 
-  Definition LInv (n k γs : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
-    s_ghost_map_auth γs 1 m ∗
+  Definition LInv (n k γl : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
+    s_ghost_map_auth γl 1 m ∗
     [∗ n, maybe_null_ptr map] i ↦ p ∈ m, (
       if (decide (h=p)) then
         emp
@@ -117,11 +117,11 @@ Section SPEC.
     | OfferAcked => 1
     end.
 
-  Definition offer_st n (offer_loc : maybe_null_ptr) (γo : nat) (P AU Q : τ{Φ,1+n}%stype) : sProp n :=
+  Definition offer_st n (offer_loc : maybe_null_ptr) (γo : nat) (P AtUpd Q : τ{Φ,1+n}%stype) : sProp n :=
     (∃ (st : τ{offer_state,n}),
       (to_val offer_loc) ↦ (offer_state_rep st) ∗
       (match st with
-      | OfferPending => P ∗ AU
+      | OfferPending => P ∗ AtUpd
       | OfferAccepted => Q
       | _ => GEx γo tt
       end))%S.
@@ -147,70 +147,78 @@ Section SPEC.
   )%S.
 
 
-  Definition Inv n (s : SCMem.val) (k γs : nat) : sProp (1+n) := (
+  Definition Inv n (s : SCMem.val) (k γs γl : nat) : sProp (1+n) := (
     ∃ (h : τ{maybe_null_ptr,1+n}) (L : τ{list SCMem.val,1+n}) (m : τ{gmap nat maybe_null_ptr,1+n}),
       (⤉ (s ↦ (to_val h)))
       ∗ (⤉ (● γs (L : list SCMem.val)))
       ∗ (⤉ (phys_list n h L))
-      ∗ (⤉ (LInv n k γs h m))
+      ∗ (⤉ (LInv n k γl h m))
       ∗ OInv n s γs
   )%S.
 
-  Definition IsES n Lay s k γs : sProp (1+n) := (
-    ◆[k,Lay] ∗ syn_inv (1+n) stackN (Inv n s k γs)
+  Definition IsES n l a s k γs : sProp (1+n) := (
+    ∃ (γl : τ{nat,1+n}), ◆[k,l,a] ∗ syn_inv (1+n) stackN (Inv n s k γs γl)
   )%S.
 
-  Global Instance IsES_persistent n L s k γs :
-    Persistent (⟦ IsES n L s k γs, 1+ n⟧).
-  Proof. unfold Persistent,IsES. red_tl. rewrite red_syn_inv. by iIntros "#?". Qed.
+  Global Instance IsES_persistent n l a s k γs :
+    Persistent (⟦ IsES n l a s k γs, 1+ n⟧).
+  Proof. unfold Persistent,IsES. red_tl.
+    iIntros "[%γl H]". iExists γl. red_tl.
+    rewrite red_syn_inv.
+    iDestruct "H" as "#$".
+  Qed.
 
-  Lemma Inv_unfold n s k γs :
-    (⟦ Inv n s k γs, 1+n ⟧) -∗
+  Lemma Inv_unfold n s k γs γl :
+    (⟦ Inv n s k γs γl, 1+n ⟧) -∗
     (∃ (h : τ{maybe_null_ptr,n}) (L : τ{list SCMem.val,n}) (m : τ{gmap nat maybe_null_ptr,n}),
       (s ↦ (to_val h)) ∗ (● γs (L : list SCMem.val)) ∗
-      ⟦ (phys_list n h L), n⟧ ∗ ⟦ LInv n k γs h m, n⟧ ∗ ⟦ OInv n s γs, 1+n⟧).
+      ⟦ (phys_list n h L), n⟧ ∗ ⟦ LInv n k γl h m, n⟧ ∗ ⟦ OInv n s γs, 1+n⟧).
   Proof.
     unfold Inv. iIntros "Inv".
     repeat (red_tl; iDestruct "Inv" as "[% Inv]").
     red_tl_all. eauto.
   Qed.
 
-  Lemma Inv_fold n s k γs h L m :
+  Lemma Inv_fold n s k γs γl h L m :
     (s ↦ (to_val h)) -∗ (● γs (L : list SCMem.val)) -∗
-    ⟦ (phys_list n h L), n⟧ -∗ ⟦ LInv n k γs h m, n⟧ -∗ ⟦ OInv n s γs, 1+n⟧
-    -∗ (⟦ Inv n s k γs, 1+n ⟧).
+    ⟦ (phys_list n h L), n⟧ -∗ ⟦ LInv n k γl h m, n⟧ -∗ ⟦ OInv n s γs, 1+n⟧
+    -∗ (⟦ Inv n s k γs γl, 1+n ⟧).
   Proof.
     unfold Inv. iIntros "? ? ? ? ?".
     repeat (red_tl; iExists _).
     red_tl_all. iFrame.
   Qed.
 
-  Lemma LInv_unfold n k γs h m :
-    (⟦ LInv n k γs h m, n ⟧) -∗
-    (ghost_map_auth γs 1 m ∗
+  Lemma LInv_unfold n k γl h m :
+    (⟦ LInv n k γl h m, n ⟧) -∗
+    ghost_map_auth γl 1 m ∗
     [∗ map] a ∈ m,
-      ⟦(if decide (h = a) then
+      if decide (h = a) then
           emp
         else
           ◇[k](0, 1)
-        )%S,n ⟧).
+        .
   Proof.
-    unfold LInv. iIntros "H". red_tl_all.
-    rewrite red_syn_big_sepM. done.
+    unfold LInv. red_tl_all. iIntros "[$ H]".
+    rewrite red_syn_big_sepM.
+    iApply (big_sepM_mono with "H").
+    ii. des_ifs.
   Qed.
 
-  Lemma LInv_fold n k γs h m :
-    ghost_map_auth γs 1 m -∗
+  Lemma LInv_fold n k γl h m :
+    ghost_map_auth γl 1 m -∗
     ([∗ map] a ∈ m,
-      ⟦(if decide (h = a) then
+      if decide (h = a) then
           emp
         else
           ◇[k](0, 1)
-        )%S,n ⟧)
-    -∗ (⟦ LInv n k γs h m, n ⟧).
+        )
+    -∗ (⟦ LInv n k γl h m, n ⟧).
   Proof.
-    unfold LInv. iIntros "? ?". red_tl_all.
-    rewrite red_syn_big_sepM. iFrame.
+    unfold LInv. red_tl_all. iIntros "$ H".
+    rewrite red_syn_big_sepM.
+    iApply (big_sepM_mono with "H").
+    ii. des_ifs.
   Qed.
 
   Lemma phys_list_unfold n l L :
@@ -331,11 +339,11 @@ Section SPEC.
 
   Lemma Elim_pop_spec
         {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid :
-    ∀ s k γs lv (ds : list (nat * nat * sProp n)),
+    ∀ s k γs l a (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, 1+n, ⊤ @]
           ⧼⟦(
             (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
-            ∗ (IsES n lv s k γs)
+            ∗ (IsES n l a s k γs)
             ∗ (⤉ Duty(tid) ds)
             ∗ (⤉ P)
             (* TODO: masks? *)
@@ -347,7 +355,7 @@ Section SPEC.
                   end
               )
             ∗ ◇[k](1,1)
-            ∗ ◇{List.map fst ds}(4 + lv, 1)
+            ∗ ◇{List.map fst ds}(2+l,2+a)
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (ElimStack.pop s))
           ⧼rv, ⟦(
@@ -360,17 +368,15 @@ Section SPEC.
   .
   Proof.
     ii. iStartTriple. red_tl_all.
-    unfold IsES. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv. simpl.
-    iIntros "(#Mem & #[Ob_kb IsES] & Duty & P & AU & Ob_ks & PCS) Post".
-    red_tl_all.
+    unfold IsES. rewrite red_syn_tgt_interp_as. red_tl. simpl.
+    iIntros "(#Mem & IsES & Duty & P & AU & Ob_ks & PCS) Post".
+    iDestruct "IsES" as (γl) "IsES".
+    red_tl. rewrite red_syn_inv. iDestruct "IsES" as "#[Ob_kb IsES]".
 
-    iMod (pcs_drop _ _ 1 _ (3+lv) 3 with "[$PCS]") as "PCS"; [lia|].
-    iMod (pcs_decr _ _ 1 2 with "PCS") as "[Ys PCS]"; [done|].
-    iMod (pcs_decr _ _ 1 1 with "PCS") as "[PCS' PCS]"; [done|].
-    iMod (pcs_drop _ _ 1 _ 1 102 with "Ys") as "Ys"; [lia|].
-    Unshelve. 2,3: lia.
-    iMod (ccs_make _ _ _ 2 1 with "[$Ob_kb PCS']") as "[CCS _]".
-    { simpl. iFrame. }
+    iMod (pcs_decr _ _ 1 (1+a) with "PCS") as "[Ys PCS]"; [lia|].
+    iMod (pcs_decr _ _ 1 a with "PCS") as "[PCS CCS]"; [lia|].
+    iMod (pcs_drop _ _ 1 ltac:(lia) 1 102 with "Ys") as "Ys"; [lia|].
+    iMod (ccs_make_fine _ _ _ _ 2 with "[$Ob_kb $CCS]") as "CCS".
 
     iEval (unfold ElimStack.pop). rred2r.
 
@@ -383,10 +389,11 @@ Section SPEC.
     iRevert "Post Duty Ys AU P Ob_ks". iRevert "PCS".
 
     iMod (ccs_ind2 with "CCS [-]") as "Ind".
-    2:{ iIntros "PCS". iMod (pcs_drop _ _ _ _ 2 1 with "PCS") as "PCS"; [lia|].
+    2:{ iIntros "PCS". destruct l; last first.
+        - iMod (pcs_drop _ _ 1 ltac:(auto) 2 1 with "PCS") as "PCS"; [lia|].
         iApply ("Ind" with "PCS").
+        - iApply ("Ind" with "PCS").
     }
-    Unshelve. 2: lia.
 
     iModIntro. iExists 0. iIntros "IH !> PCS Post Duty Ys AU P Ob_ks".
     iEval (rewrite unfold_iter_eq). rred2r.
@@ -731,8 +738,7 @@ Section SPEC.
       iApply wpsim_tauR. rred2r.
 
 
-      iMod (pcs_drop _ _ 1 _ 1 101 with "[$PCS]") as "PCS"; [lia|].
-      Unshelve. 2: lia.
+      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "[$PCS]") as "PCS"; [lia|].
       iMod ("IH" with "Ob_k Post Duty PCS AU P Ob_ks") as "IH".
       iApply "IH".
     - (* OfferAccepted *)
@@ -759,18 +765,17 @@ Section SPEC.
 
       iApply wpsim_tauR. rred2r.
 
-      iMod (pcs_drop _ _ 1 _ 1 101 with "[$PCS]") as "PCS"; [lia|].
-      Unshelve. 2: lia.
+      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "[$PCS]") as "PCS"; [lia|].
       iMod ("IH" with "Ob_k Post Duty PCS AU P Ob_ks") as "IH".
       iApply "IH".
   Qed.
 
   Lemma Elim_push_spec {n} (Q : SCMem.val → sProp n) (P : sProp n) tid :
-    ∀ s k γs val lv (ds : list (nat * nat * sProp n)),
+    ∀ s k γs val l a (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, 1+n, ⊤ @]
           ⧼⟦(
             (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
-            ∗ (IsES n lv s k γs)
+            ∗ (IsES n l a s k γs)
             ∗ (⤉ Duty(tid) ds)
             ∗ (⤉ P)
             ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
@@ -778,7 +783,7 @@ Section SPEC.
               )
             ∗ ◇[k](1,1)
             (* TODO: Proper ord level. *)
-            ∗ ◇{List.map fst ds}(4 + lv, 1)
+            ∗ ◇{List.map fst ds}(2+l,2+a)
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (ElimStack.push (s,val)))
           ⧼_, ⟦(
@@ -787,20 +792,19 @@ Section SPEC.
   .
   Proof.
     ii. iStartTriple. red_tl_all.
-    unfold IsES. rewrite red_syn_tgt_interp_as. red_tl. rewrite red_syn_inv. simpl.
-    iIntros "(#Mem & #[Ob_kb IsES] & Duty & P & AU & Ob_ks & PCS) Post".
-    red_tl_all.
+    unfold IsES. rewrite red_syn_tgt_interp_as. red_tl. simpl.
+    iIntros "(#Mem & IsES & Duty & P & AU & Ob_ks & PCS) Post".
+    iDestruct "IsES" as (γl) "IsES".
+    red_tl. rewrite red_syn_inv. iDestruct "IsES" as "#[Ob_kb IsES]".
 
     rred2r.
 
-    iMod (pcs_drop _ _ 1 _ (3+lv) 3 with "[$PCS]") as "PCS"; [lia|].
-    iMod (pcs_decr _ _ 1 2 with "PCS") as "[Ys PCS]"; [done|].
-    iMod (pcs_decr _ _ 1 1 with "PCS") as "[PCS' PCS]"; [done|].
-    iMod (pcs_drop _ _ 1 _ 1 102 with "Ys") as "Ys"; [lia|].
+    iMod (pcs_decr _ _ 1 (1+a) with "PCS") as "[Ys PCS]"; [lia|].
+    iMod (pcs_decr _ _ 1 a with "PCS") as "[PCS CCS]"; [lia|].
+    iMod (pcs_drop _ _ 1 ltac:(lia) 1 102 with "Ys") as "Ys"; [lia|].
+    iMod (ccs_make_fine _ _ _ _ 2 with "[$Ob_kb $CCS]") as "CCS".
+
     iMod (pcs_decr _ _ 1 101 with "Ys") as "[Y Ys]"; [lia|].
-    Unshelve. 2,3: lia.
-    iMod (ccs_make _ _ _ 2 1 with "[$Ob_kb PCS']") as "[CCS _]".
-    { simpl. iFrame. }
 
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia|].
     iIntros "Duty _". rred2r.
@@ -810,10 +814,11 @@ Section SPEC.
     iRevert "Post Duty Ys AU P Ob_ks". iRevert "PCS".
 
     iMod (ccs_ind2 with "CCS [-]") as "Ind".
-    2:{ iIntros "PCS". iMod (pcs_drop _ _ _ _ 2 1 with "PCS") as "PCS"; [lia|].
-        iApply ("Ind" with "PCS").
+    2:{ iIntros "PCS". destruct l; last first.
+        - iMod (pcs_drop _ _ 1 ltac:(auto) 2 1 with "PCS") as "PCS"; [lia|].
+          iApply ("Ind" with "PCS").
+        - iApply ("Ind" with "PCS").
     }
-    Unshelve. 2: lia.
 
     iModIntro. iExists 0. iIntros "IH !> Pcs Post Duty Ys AU P Ob_ks".
     iEval (rewrite unfold_iter_eq). rred2r.
@@ -913,8 +918,7 @@ Section SPEC.
       iMod (ghost_map_delete with "GMap i↪") as "GMap".
 
       (** Create a big_opM of ◇[k](0,1). *)
-      iMod (pc_drop _ 0 _ _ (size (delete i m)) with "Ob_ks") as "Ob_ks"; [lia|].
-      Unshelve. 2: lia.
+      iMod (pc_drop _ 0 1 ltac:(auto) (size (delete i m)) with "Ob_ks") as "Ob_ks"; [lia|].
       iAssert ([∗ map] _ ∈ delete i m, ◇[k](0,1))%I with "[Ob_ks]" as "Ob_ks".
       { set (m' := delete i m). move: m' => m'.
         iClear "Mem IsES n.n↦ n.d↦". clear.
@@ -1073,8 +1077,7 @@ Section SPEC.
       iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
       iMod ("Close" with "Inv") as "_".
 
-      iMod (pcs_drop _ _ 1 _ 1 101 with "[$Pcs]") as "Pcs"; [lia|].
-      Unshelve. 2: lia.
+      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "[$Pcs]") as "Pcs"; [lia|].
 
       iMod ("IH" with "Ob_k Post Duty Pcs AU P Ob_ks") as "IH".
       iApply "IH".
