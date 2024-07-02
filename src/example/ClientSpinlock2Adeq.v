@@ -6,18 +6,18 @@ From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic SCMemSpec.
-From Fairness Require Import Client05 AuthExclsRA OneShotsRA.
+From Fairness Require Import ClientSpinlock2 AuthExclsRA OneShotsRA.
 From Fairness Require Export ModSim ModAdequacy ModCloseSim ModAddSim.
 From Fairness Require Export FIFOSched SchedSim FIFOSched FIFOSchedSim.
 
-Module Client05Correct.
+Module ClientSpinlock2Correct.
 
   Definition config := [("thread1", tt↑); ("thread2", tt↑)].
 
-  Notation src_state := (Mod.state Client05Spec.module).
-  Notation src_ident := (Mod.ident Client05Spec.module).
-  Notation tgt_state := (Mod.state Client05.module).
-  Notation tgt_ident := (Mod.ident Client05.module).
+  Notation src_state := (Mod.state ClientSpinlock2Spec.module).
+  Notation src_ident := (Mod.ident ClientSpinlock2Spec.module).
+  Notation tgt_state := (Mod.state ClientSpinlock2.module).
+  Notation tgt_ident := (Mod.ident ClientSpinlock2.module).
 
   Local Instance STT : StateTypes := Build_StateTypes src_state tgt_state src_ident tgt_ident.
 
@@ -100,7 +100,7 @@ Module Client05Correct.
 
   (* Additional initial resources. *)
   Local Definition init_res :=
-    (GRA.embed (memory_init_resource Client05.gvs))
+    (GRA.embed (memory_init_resource ClientSpinlock2.gvs))
       ⋅ (GRA.embed (AuthExcls.rest_ra (gt_dec 0) (0, 0))).
 
   Arguments wpsim_bind_top {_ _ _ _ _ _}.
@@ -110,8 +110,8 @@ Module Client05Correct.
   Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_oneshots.
 
   Lemma correct:
-    UserSim.sim Client05Spec.module Client05.module
-                (prog2ths Client05Spec.module config) (prog2ths Client05.module config).
+    UserSim.sim ClientSpinlock2Spec.module ClientSpinlock2.module
+                (prog2ths ClientSpinlock2Spec.module config) (prog2ths ClientSpinlock2.module config).
   Proof.
     eapply WSim.whole_sim_implies_usersim. econs.
     { instantiate (1:=init_res). rr. splits.
@@ -132,38 +132,42 @@ Module Client05Correct.
     { instantiate (1:=1). instantiate (1:=0). ss. }
     { simpl. iFrame. iDestruct "A" as "[A B]". iSplitL "A"; iFrame. }
     iEval (rewrite red_syn_fairI) in "RES". simpl. iMod "RES".
-    iDestruct "RES" as "(% & % & % & #INV1 & TGTST & #SPIN & TID1 & TID2)".
+    iDestruct "RES" as "(% & % & % & % & % & % & % & #INV1 & TGTST & #SPIN & TID1 & TID2)".
     iEval (rewrite red_syn_tgt_interp_as) in "TGTST". iPoseProof "TGTST" as "#TGTST".
 
     iModIntro. unfold natmap_prop_sum. ss.
     iSplitL "TID1".
-    { iPoseProof (Client05_thread1_spec) as "RES". instantiate (1:=N_Client05).
-      pose proof mask_disjoint_N_Client05_state_tgt. set_solver.
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γw).
+    { iPoseProof (ClientSpinlock2_thread1_sim) as "RES".
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γl).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κs).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! κw).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γL). simpl. red_tl_all.
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γκw).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κu).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γκu).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γr). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl. repeat (iSplit; [done | ]).
-      iDestruct "TID1" as "(TID1 & DUTY & PC)"; iFrame. done.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl. repeat (iSplit; [done | ]). done.
     }
     iSplitL. 2: done.
-    { iPoseProof (Client05_thread2_spec) as "RES". instantiate (1:=N_Client05).
-      pose proof mask_disjoint_N_Client05_state_tgt. set_solver.
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γw).
+    { iPoseProof (ClientSpinlock2_thread2_sim) as "RES".
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γl).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κs).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! κw).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γL). simpl. red_tl_all.
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γκw).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κu).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γκu).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γr). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl. repeat (iSplit; [done | ]).
-      iDestruct "TID2" as "(? & ? & ? & ? & ?)"; iFrame.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl. repeat (iSplit; [done | ]). done.
     }
   Qed.
 
-End Client05Correct.
+End ClientSpinlock2Correct.
 
 Section ALL.
 
-  Definition client := Client05.module.
-  Definition client_spec := Client05Spec.module.
+  Definition client := ClientSpinlock2.module.
+  Definition client_spec := ClientSpinlock2Spec.module.
 
   Lemma client_all_aux
     :
@@ -185,7 +189,7 @@ Section ALL.
         { eapply ssim_nondet_fifo; ss. ii. compute in H. des. inv H; des; ss. inv H1; ss. }
       }
     }
-    eapply usersim_adequacy. eapply Client05Correct.correct.
+    eapply usersim_adequacy. eapply ClientSpinlock2Correct.correct.
     Unshelve. all: constructor.
   Qed.
 
@@ -222,7 +226,7 @@ Section ALL.
       )
   .
   Proof.
-    eapply usersim_adequacy. eapply Client05Correct.correct.
+    eapply usersim_adequacy. eapply ClientSpinlock2Correct.correct.
   Qed.
 
 End ALL.

@@ -5,7 +5,7 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA AuthExclsRA.
+From Fairness Require Import TemporalLogic SCMemSpec OneShotsRA AuthExclsRA.
 From Fairness Require Import Client04.
 From Fairness Require Export ModSim ModAdequacy ModCloseSim ModAddSim.
 From Fairness Require Export FIFOSched SchedSim FIFOSched FIFOSchedSim.
@@ -36,7 +36,7 @@ Module Client04Correct.
         ArrowShotRA;
         (* Additional RAs. *)
         memRA;
-        Lifetime.t;
+        (OneShots.t nat);
         (AuthExcls.t (nat * nat * nat))
       ].
 
@@ -52,7 +52,7 @@ Module Client04Correct.
   Local Instance _EDGERA : GRA.inG EdgeRA Γ := (@GRA.InG _ Γ 8 (@eq_refl _ _)).
   Local Instance _ARROWSHOTRA : GRA.inG ArrowShotRA Γ := (@GRA.InG _ Γ 9 (@eq_refl _ _)).
   Local Instance HasMemRA : GRA.inG memRA Γ := (@GRA.InG _ Γ 10 (@eq_refl _ _)).
-  Local Instance HasLifetime : GRA.inG Lifetime.t Γ := (@GRA.InG _ Γ 11 (@eq_refl _ _)).
+  Local Instance HasLifetime : GRA.inG (OneShots.t nat) Γ := (@GRA.InG _ Γ 11 (@eq_refl _ _)).
   Local Instance HasAuthExcls : GRA.inG (AuthExcls.t (nat * nat * nat)) Γ := (@GRA.InG _ Γ 12 (@eq_refl _ _)).
 
   Local Instance TLRASs : TLRAs_small STT Γ :=
@@ -73,7 +73,7 @@ Module Client04Correct.
         ArrowShotRA;
         (* Additional RAs. *)
         memRA;
-        Lifetime.t;
+        (OneShots.t nat);
         (AuthExcls.t (nat * nat * nat));
         (* Maps from empty RAs of Γ. *)
         (of_RA.t RA.empty);
@@ -107,7 +107,7 @@ Module Client04Correct.
   Arguments wpsim_wand {_ _ _ _ _ _}.
   Arguments wpsim_ret {_ _ _ _ _ _}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_lifetime; red_tl_authexcls.
+  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_oneshots; red_tl_authexcls.
 
   Lemma correct:
     UserSim.sim Client04Spec.module Client04.module
@@ -126,7 +126,7 @@ Module Client04Correct.
       }
     }
     unfold init_res. repeat rewrite <- GRA.embed_add.
-    exists 3, 2. exists. lia.
+    exists 2, 1. exists. lia.
     eexists _. iIntros "(A & INIT)".
     iPoseProof (init_sat with "[A INIT]") as "RES".
     { instantiate (1:=1). instantiate (1:=0). ss. }
@@ -134,7 +134,7 @@ Module Client04Correct.
       unfold AuthExcls.rest. done.
     }
     iEval (rewrite red_syn_fairI) in "RES". simpl. iMod "RES".
-    iDestruct "RES" as "(% & % & % & % & % & % & % & % & % & % & % & #INV1 & TGTST & T1 & T2)".
+    iDestruct "RES" as "(% & % & % & % & % & % & % & #INV1 & TGTST & T1 & T2)".
     iEval (rewrite red_syn_tgt_interp_as) in "TGTST". iPoseProof "TGTST" as "#TGTST".
 
     iModIntro. unfold natmap_prop_sum. ss.
@@ -143,31 +143,28 @@ Module Client04Correct.
       iEval (red_tl) in "RES". iSpecialize ("RES" $! γi).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! γi1).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! γi2).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γs1).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γs2).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γm1).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γm2).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! k1).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! _). simpl. red_tl_all.
+      iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
+      red_tl_all. iDestruct "T1" as "(A1 & A2 & A3 & A4 & A5)". iFrame.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iFrame. iSplit; done.
+    }
+    iSplitL. 2: done.
+    { iPoseProof (Client04_thread2_spec) as "RES".
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi1).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi2).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! γm1).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! γm2).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! k2).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γ2). simpl. red_tl_all.
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! _). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      red_tl_all. iDestruct "T1" as "(A1 & A2 & A3)". iFrame.
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iSplit; done.
+      red_tl_all. iDestruct "T2" as "(A1 & A2 & A3 & A4 & A5)". iFrame.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iFrame. iSplit; done.
     }
-    iSplitL. 2: done.
-    { iPoseProof Client04_thread2_spec as "RES".
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! γi).
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! γi1).
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! γi2).
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! γs1).
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! γs2).
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! γm1).
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! γm2).
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! k1).
-    iEval (red_tl) in "RES". iSpecialize ("RES" $! γ1). simpl. red_tl_all.
-    iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-    red_tl_all. iDestruct "T2" as "(A1 & A2 & A3)". iFrame.
-    rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iSplit; done.
-    }
+  Unshelve. all: auto.
   Qed.
 
 End Client04Correct.

@@ -1261,37 +1261,45 @@ Section SPEC.
            (IDENTSRC:=@SRA.in_subG Γ Σ sub _ _IDENTSRC)
            (IDENTTGT:=@SRA.in_subG Γ Σ sub _ _IDENTTGT)
            (ARROWRA:=@_ARROWRA STT Γ Σ TLRAS)
-           (1+idx) init_ths init_ord)
+           idx init_ths init_ord)
         ⊢
-        =| 2+idx |=(⟦syn_fairI (2+idx), 2+idx⟧)={ E, E }=>
-            (∃ γi γi1 γi2 γs1 γs2 γm1 γm2 k1 k2 γ1 γ2 n,
-                (inv (1+idx) N_Client04 (client04Inv idx γi γi1 γi2 γs1 γs2 γm1 γm2))
+        =| 1+idx |=(⟦syn_fairI (1+idx), 1+idx⟧)={ E, E }=>
+            (∃ γi γi1 γi2 γm1 γm2 k1 k2,
+                (inv idx N_Client04 (client04Inv idx γi γi1 γi2 γm1 γm2))
                   ∗ (⟦syn_tgt_interp_as idx sndl (fun m => (s_memory_black m)), 1+idx⟧)
                   ∗ ((own_thread tid1)
                     ∗ △ γi1 (1/2)
-                    ∗ ○ γm1 (tid1, k2, γ2)
-                    ∗ Duty(tid1)[(k1, 0, ∃ (k2' : τ{nat, n}), ▿ γi1 k2')]
+                    ∗ ○ γm1 (k1, γi1, γi2)
+                    ∗ (⟦Duty(tid1)[(k1, 0, ∃ (k2' : τ{nat, idx}), ▿ γi1 k2' : @sProp STT Γ idx)], idx⟧)
                     ∗ ◇[k1](1, 1))
                   ∗ ((own_thread tid2)
                     ∗ △ γi2 (1/2)
-                    ∗ ○ γm2 (tid2, k1, γ1)
-                    ∗ Duty(tid1)[(k2, 0, ∃ (k1' : τ{nat, n}), ▿ γi2 k1')]
+                    ∗ ○ γm2 (k2, γi2, γi1)
+                    ∗ (⟦Duty(tid2)[(k2, 0, ∃ (k1' : τ{nat, idx}), ▿ γi2 k1' : @sProp STT Γ idx)], idx⟧)
                     ∗ ◇[k2](1, 1))
             ).
     Proof.
       iIntros "(MEM & REST & INIT)". rewrite red_syn_fairI.
       iPoseProof (memory_init_iprop with "MEM") as "[MEM PTS]".
 
-      iMod (Lifetime.alloc tt) as "[%γi LIVEI]".
-      iMod (Lifetime.alloc tt) as "[%γi1 LIVEI1]".
-      iMod (Lifetime.alloc tt) as "[%γi2 LIVEI2]".
-      (* iAssert (OwnM ((fun k => Auth.frag (Excl.unit : Excl.t (nat * nat * nat))) : AuthExcls.t _))%I as "H".
-      { 
-      } *)
-      iMod (AuthExcls.alloc_gt _ (tid1, 0, 0) with "REST") as "[REST (%γs1 & BS1 & WS1)]".
-      iMod (AuthExcls.alloc_gt _ (tid2, 0, 0) with "REST") as "[REST (%γs2 & BS2 & WS2)]".
-      iMod (AuthExcls.alloc_gt _ (tid1, 0, 0) with "REST") as "[REST (%γm1 & BM1 & WM1)]".
-      iMod (AuthExcls.alloc_gt _ (tid2, 0, 0) with "REST") as "[REST (%γm2 & BM2 & WM2)]".
+      iMod (alloc_obligation 1 2) as "(%k1 & OBL1 & PC1 & PO1)".
+      iMod (alloc_obligation 1 2) as "(%k2 & OBL2 & PC2 & PO2)".
+      iPoseProof (pc_split _ _ 1 with "PC1") as "[PC1 PC1']".
+      iPoseProof (pc_split _ _ 1 with "PC2") as "[PC2 PC2']".
+      iEval (rewrite <- Qp.half_half) in "PO1".
+      iPoseProof (pending_split _ (1/2) (1/2) with "PO1") as "[PO1' PO1]".
+      iEval (rewrite <- Qp.half_half) in "PO2".
+      iPoseProof (pending_split _ (1/2) (1/2) with "PO2") as "[PO2' PO2]".
+
+      iMod (OneShots.alloc) as "[%γi LIVEI]".
+      iMod (OneShots.alloc) as "[%γi1 LIVEI1]".
+      iMod (OneShots.alloc) as "[%γi2 LIVEI2]".
+      iEval (rewrite <- Qp.half_half) in "LIVEI1".
+      iEval (rewrite <- Qp.half_half) in "LIVEI2".
+      iPoseProof (OneShots.pending_split with "LIVEI1") as "[LIVEI1 LIVEI1']".
+      iPoseProof (OneShots.pending_split with "LIVEI2") as "[LIVEI2 LIVEI2']".
+      iMod (AuthExcls.alloc_gt _ (k1, γi1, γi2) with "REST") as "[REST (%γm1 & BM1 & WM1)]".
+      iMod (AuthExcls.alloc_gt _ (k2, γi2, γi1) with "REST") as "[REST (%γm2 & BM2 & WM2)]".
 
       unfold WSim.initial_prop.
       iDestruct "INIT" as "(INIT0 & INIT1 & INIT2 & INIT3 & INIT4 & INIT5)".
@@ -1312,7 +1320,7 @@ Section SPEC.
       clear H.
 
       iMod (tgt_interp_as_id _ _ (n:=idx) with "[INIT5 MEM]") as "TGT_ST".
-      auto. lia.
+      auto.
       2:{ iExists _. iFrame. instantiate (1:=fun '(_, m) => s_memory_black m). simpl.
           red_tl_all. iFrame.
       }
@@ -1325,21 +1333,33 @@ Section SPEC.
       }
       iEval (rewrite Lens.left_unit) in "TGT_ST".
 
-      iMod (FUpd_alloc _ _ _ (1+idx) N_Client04 (client04Inv idx γi γi1 γi2 γs1 γs2 γm1 γm2)
-        with "[PTS LIVEI BS1 WS1 BS2 WS2 BM1 BM2 DU1 DU2]") as "INV1".
+      iMod (duty_add with "[DU1 PO1' PC1'] []") as "DU1".
+      { instantiate (4:=[]). iFrame. }
+      { instantiate (1:=(∃ (k2' : τ{nat, idx}), ▿ γi1 k2' : @sProp STT Γ idx)%S).
+        iModIntro. simpl; red_tl. iIntros "H". iDestruct "H" as (k2') "H". red_tl_all.
+        iPoseProof "H" as "#H". iModIntro; iExists _; red_tl_all; auto.
+      }
+      iMod (duty_add with "[DU2 PO2' PC2'] []") as "DU2".
+      { instantiate (4:=[]). iFrame. }
+      { instantiate (1:=(∃ (k1' : τ{nat, idx}), ▿ γi2 k1' : @sProp STT Γ idx)%S).
+        iModIntro. simpl; red_tl. iIntros "H". iDestruct "H" as (k1') "H". red_tl_all.
+        iPoseProof "H" as "#H". iModIntro; iExists _; red_tl_all; auto.
+      }
+      iPoseProof (duty_delayed_tpromise with "DU1") as "#DPRM1". simpl; left; auto.
+      iPoseProof (duty_delayed_tpromise with "DU2") as "#DPRM2". simpl; left; auto.
+      iMod (FUpd_alloc _ _ _ idx N_Client04 (client04Inv idx γi γi1 γi2 γm1 γm2)
+        with "[PTS LIVEI BM1 BM2 LIVEI1' LIVEI2' PO1 PO2 DPRM1 DPRM2 OBL1 OBL2]") as "INV1".
       lia.
       Local Transparent X.
       { simpl. unfold SCMem.init_gvars, gvs. ss. des_ifs. iDestruct "PTS" as "((PT & _) & _)".
-        unfold client04Inv. red_tl_all.
-        iExists tid1; red_tl; iExists tid2; red_tl; do 4 (iExists 0; red_tl). simpl; red_tl_all.
-        iSplitL "BS1"; [done | ]. iSplitL "BS2"; [done | ]. iSplitL "BM1"; [done | ]. iSplitL "BM2"; [done | ].
-        iLeft. iFrame.
+        unfold client04Inv. red_tl.
+        iExists k1; red_tl. iExists k2; red_tl. iExists γi1; red_tl. iExists γi2; red_tl.
+        iExists γi1; red_tl. iExists γi2; red_tl. simpl. red_tl_all. iFrame. repeat iSplit; auto. iLeft. iFrame.
         Local Transparent SCMem.alloc.
         unfold SCMem.alloc in Heq0. ss. des_ifs.
         Local Opaque SCMem.alloc.
       }
-      iModIntro. iExists γi, γi1, γi2, γs1, γs2, γm1, γm2. rewrite red_syn_tgt_interp_as. iFrame.
-      iExists 0, 0, 0, 0. iFrame.
+      iModIntro. iExists γi, γi1, γi2, γm1, γm2, k1, k2. rewrite red_syn_tgt_interp_as. iFrame.
     Qed.
 
   End INITIAL.
