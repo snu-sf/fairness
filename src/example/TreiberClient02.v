@@ -4,8 +4,8 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec ghost_excl TreiberStack TreiberStackSpec LifetimeRA.
+From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
+From Fairness Require Import TemporalLogic SCMemSpec ghost_excl TreiberStack TreiberStackSpec LifetimeRA AuthExclsRA.
 
 Module TreiberClient2.
 
@@ -139,12 +139,12 @@ Section SPEC.
   Lemma TreiberClient2_push_spec tid n :
     ⊢ ⟦(∀ (γk kt k γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
-      (⤉ IsT nTMod n 0 s kt γs) ∗
+      (⤉ IsT nTMod n 1 2 s kt γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
       TID(tid) ∗
       ◇[kt](1, 1) ∗
       (⤉ Duty(tid) [(k, 0, dead γk (k : nat) ∗ push_then_pop_inv n γs γpop)]) ∗
-      ◇[k](5, 1) ∗ ⤉(live γk (k : nat) (1/2)) ∗
+      ◇[k](3, 5) ∗ ⤉(live γk (k : nat) (1/2)) ∗
       ⋈[k])
       -∗
       syn_wpsim (1+n) tid ⊤
@@ -166,15 +166,13 @@ Section SPEC.
     unfold fn2th. simpl. unfold thread_push, TreiberClient2Spec.thread_push.
     rred2r. lred2r.
 
-    iMod (pc_drop _ 4 5 ltac:(auto) 2 with "Pc") as "Pc"; [lia|].
-    iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc PcSt]".
-    iMod (pc_drop _ 1 4 ltac:(auto) 3 with "Pc") as "Pc"; [lia|].
-    iDestruct (pc_split _ _ 1 2 with "Pc") as "[PcY Pc]".
-    iApply (wpsim_yieldR with "[$Duty PcY]"); [lia| |].
-    { simpl. iDestruct (pcs_cons_fold with "[PcY]") as "$". iFrame. }
+    iDestruct (pc_split _ _ 1 4 with "Pc") as "[Ys PcSt]".
+    iMod (pc_drop _ 1 3 ltac:(auto) 100 with "Ys") as "Ys"; [lia|].
+    iDestruct (pc_split _ _ 1 99 with "Ys") as "[Y Ys]".
+    iApply (wpsim_yieldR with "[$Duty Y]"); [lia| |].
+    { simpl. iDestruct (pcs_cons_fold with "[Y]") as "$". iFrame. }
 
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
-    iDestruct (pc_split _ _ 1 1 with "Pc") as "[Pc Pc']".
 
     iApply (Treiber_push_spec nTMod with "[Duty Pck PcSt] [-]").
     { red_tl_all. rewrite red_syn_tgt_interp_as. simpl. iFrame "#".
@@ -219,7 +217,8 @@ Section SPEC.
     { simpl. unfold push_then_pop_inv. red_tl_all. rewrite red_syn_inv. auto. }
 
     rred2r.
-    iApply (wpsim_sync with "[$Duty Pc]"); [lia|].
+
+    iApply (wpsim_sync with "[$Duty]"); [lia|].
 
     iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
     iApply wpsim_ret; [eauto|].
@@ -230,7 +229,7 @@ Section SPEC.
   Lemma TreiberClient2_pop_spec tid n :
     ⊢ ⟦(∀ (γk k kt γs γpop : τ{nat, 1+n}),
       ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
-      (⤉ IsT nTMod n 0 s kt γs) ∗
+      (⤉ IsT nTMod n 1 2 s kt γs) ∗
       (⤉ C2Inv n γk k γs γpop) ∗
       (⤉ GEx γpop tt) ∗
       ◇[kt](1,1) ∗
