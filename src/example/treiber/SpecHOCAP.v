@@ -7,7 +7,7 @@ From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import treiber.Code.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec AuthExclsRA ghost_map ExclsRA.
+From Fairness Require Import TemporalLogic SCMemSpec ghost_var ghost_map.
 
 Record maybe_null_ptr := {
   ptr :> SCMem.val;
@@ -44,11 +44,10 @@ Section SPEC.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasMEMRA: @GRA.inG memRA Γ}.
-  Context {HasAuthExcl : @GRA.inG (AuthExcls.t (list SCMem.val)) Γ}.
-  Context {HasExcl : @GRA.inG (Excls.t unit) Γ}.
+  Context {HasAuthExcl : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
   Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
 
-  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_authexcls; red_tl_ghost_map_ura.
+  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_var_ura; red_tl_ghost_map_ura.
 
   Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
     ptr mnp.
@@ -59,6 +58,24 @@ Section SPEC.
     | v::tL => ∃ (p : τ{SCMem.pointer}) (r : τ{maybe_null_ptr}), ⌜to_val l = SCMem.val_ptr p⌝ ∗ (l ↦∗□ [(to_val r); v]) ∗ (phys_list n r tL)
     end
   )%S.
+
+  Definition TStack n γs St : sProp n := (
+    s_ghost_var γs (1/2) St
+  )%S.
+
+  Lemma TStack_agree n γs St1 St2 :
+    ⟦ TStack n γs St1, n ⟧ -∗ ⟦ TStack n γs St2, n ⟧ -∗ ⌜St1 = St2⌝.
+  Proof.
+    unfold TStack. red_tl_all. iIntros "H1 H2".
+    iDestruct (ghost_var_agree with "H1 H2") as %->. done.
+  Qed.
+
+  Lemma TStack_update n γs St1 St2 St :
+    ⟦ TStack n γs St1, n ⟧ -∗ ⟦ TStack n γs St2, n ⟧ ==∗ ⟦ TStack n γs St, n ⟧ ∗ ⟦ TStack n γs St, n ⟧.
+  Proof.
+    unfold TStack. red_tl_all. iIntros "H1 H2".
+    iApply (ghost_var_update_halves with "H1 H2").
+  Qed.
 
   Definition LInv (n k γs : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
     s_ghost_map_auth γs 1 m ∗
@@ -72,7 +89,7 @@ Section SPEC.
 
   Definition Inv (n : nat) (s : SCMem.val) (k γs γl : nat) : sProp n := (
     ∃ (h : τ{maybe_null_ptr}) (L : τ{list SCMem.val}) (m : τ{gmap nat maybe_null_ptr,n}),
-      s ↦ (to_val h) ∗ ● γs (L : list SCMem.val) ∗
+      s ↦ (to_val h) ∗ s_ghost_var γs (1/2) L ∗
       phys_list n h L ∗ LInv n k γl h m
   )%S.
 
@@ -91,7 +108,7 @@ Section SPEC.
   Lemma Inv_unfold n s k γs γl :
     (⟦ Inv n s k γs γl, n ⟧) -∗
     (∃ (h : τ{maybe_null_ptr,n}) (L : τ{list SCMem.val,n}) (m : τ{gmap nat maybe_null_ptr,n}),
-      (s ↦ (to_val h)) ∗ (● γs (L : list SCMem.val)) ∗
+      (s ↦ (to_val h)) ∗ ghost_var γs (1/2) L ∗
       ⟦ (phys_list n h L), n⟧ ∗ ⟦ LInv n k γl h m, n⟧).
   Proof.
     unfold Inv. iIntros "Inv".
@@ -100,7 +117,7 @@ Section SPEC.
   Qed.
 
   Lemma Inv_fold n s k γs γl h L m :
-    (s ↦ (to_val h)) -∗ (● γs (L : list SCMem.val)) -∗
+    (s ↦ (to_val h)) -∗ ghost_var γs (1/2) L -∗
     ⟦ (phys_list n h L), n⟧ -∗ ⟦ LInv n k γl h m, n⟧
     -∗ (⟦ Inv n s k γs γl, n ⟧).
   Proof.
@@ -184,6 +201,25 @@ Section SPEC.
       red_tl_all. iExists r, v. iFrame "H".
   Qed.
 
+  Lemma alloc_Treiber n s l a :
+    ⊢ s ↦ SCMem.val_null =|S n|={∅}=∗ ∃ k γs, ⟦IsT n l a s k γs,n⟧ ∗ ⟦TStack n γs [],n⟧ ∗ ◇[k](l,a).
+  Proof.
+    iIntros "s↦".
+    iMod (alloc_obligation_fine l a) as (k) "(#Ob_kb & PCs & _)".
+    iMod ghost_map_alloc_empty as (γl) "M".
+    iMod (ghost_var_alloc []) as (γs) "V".
+    iEval (rewrite -Qp.half_half) in "V".
+    iEval (rewrite ghost_var_split) in "V".
+    iDestruct "V" as "[VI VS]".
+    iMod (FUpd_alloc _ _ _ n (treiberN) (Inv n s k γs γl) with "[VI s↦ M]") as "#Inv"; [lia| |].
+    { iApply (Inv_fold _ _ _ _ _ to_mnp_null with "s↦ VI [] [M]").
+      - iApply phys_list_fold. done.
+      - iApply (LInv_fold with "M"). done.
+    }
+    iModIntro. iExists _,_. iFrame. unfold IsT,TStack. red_tl_all.
+    iFrame. iExists _. red_tl. rewrite red_syn_inv. iFrame "#".
+  Qed.
+
   Lemma Treiber_push_spec {n} (Q : SCMem.val → sProp n) (P : sProp n) tid :
     ∀ s k γs val l a (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, n, ⊤ @]
@@ -192,8 +228,8 @@ Section SPEC.
             ∗ (⤉ IsT n l a s k γs)
             ∗ (⤉ Duty(tid) ds)
             ∗ (⤉ P)
-            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
-                  =|1+n|={⊤ ∖ ↑treiberN}=∗ (⤉ (● γs (val::S) ∗ Q val))
+            ∗ (∀ (St : τ{list SCMem.val, 1+n}), (⤉ (TStack n γs (St : list SCMem.val) ∗ P))
+                  =|1+n|={⊤ ∖ ↑treiberN}=∗ (⤉ (TStack n γs (val::St : list SCMem.val) ∗ Q val))
               )
             ∗ ◇[k](1,1)
             ∗ ◇{List.map fst ds}(2+l,2+a)
@@ -205,7 +241,7 @@ Section SPEC.
   .
   Proof.
     ii. iStartTriple. red_tl_all.
-    unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. simpl.
+    unfold IsT,TStack. rewrite red_syn_tgt_interp_as. red_tl. simpl.
     iIntros "(#Mem & IsT & Duty & P & AU & Ob_ks & PCS) Post".
     iDestruct "IsT" as (γl) "IsT".
     red_tl. rewrite red_syn_inv. iDestruct "IsT" as "#[Ob_kb IsT]".
@@ -401,11 +437,11 @@ Section SPEC.
             ∗ (⤉ IsT n l a s k γs)
             ∗ (⤉ Duty(tid) ds)
             ∗ (⤉ P)
-            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
+            ∗ (∀ (St : τ{list SCMem.val, 1+n}), (⤉ (TStack n γs (St : list SCMem.val) ∗ P))
                   =|1+n|={⊤∖↑treiberN}=∗
-                  match S with
-                  | [] => (⤉ (● γs ([] : list SCMem.val) ∗ Q None))
-                  | h::t => (⤉ (● γs t ∗ Q (Some h)))
+                  match St with
+                  | [] => (⤉ (TStack n γs ([] : list SCMem.val) ∗ Q None))
+                  | h::t => (⤉ (TStack n γs t ∗ Q (Some h)))
                   end
               )
             ∗ ◇[k](1,1)
@@ -422,7 +458,7 @@ Section SPEC.
   .
   Proof.
     ii. iStartTriple. red_tl_all.
-    unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. simpl.
+    unfold IsT,TStack. rewrite red_syn_tgt_interp_as. red_tl. simpl.
     iIntros "(#Mem & IsT & Duty & P & AU & Ob_ks & PCS) Post".
     iDestruct "IsT" as (γl) "IsT".
     red_tl. rewrite red_syn_inv. iDestruct "IsT" as "#[Ob_kb IsT]".
@@ -653,4 +689,4 @@ Qed.
 
 End SPEC.
 
-Global Opaque TreiberStack.pop TreiberStack.push.
+Global Opaque IsT TStack TreiberStack.pop TreiberStack.push.

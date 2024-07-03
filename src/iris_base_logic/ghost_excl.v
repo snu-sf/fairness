@@ -78,7 +78,7 @@ Context `{GEXCLRA : @GRA.inG (ghost_exclURA A) Γ}.
 
   Definition s_ghost_excl {n} γ a : sProp n := (➢(ghost_excl_ra γ a))%S.
 
-  Lemma red_s_ghost_excl n γ a :
+  Lemma red_syn_ghost_excl n γ a :
     ⟦s_ghost_excl γ a, n⟧ = ghost_excl γ a.
   Proof.
     unfold s_ghost_excl. red_tl. ss.
@@ -86,6 +86,6 @@ Context `{GEXCLRA : @GRA.inG (ghost_exclURA A) Γ}.
 
 End SPROP.
 
-Ltac red_tl_ghost_excl_ura := (try rewrite ! red_s_ghost_excl).
+Ltac red_tl_ghost_excl_ura := (try rewrite ! red_syn_ghost_excl).
 
 Notation "'GEx' γ a " := (s_ghost_excl γ a) (at level 90, γ,a at level 1) : sProp_scope.
