@@ -4,7 +4,7 @@ From Fairness Require Import SCMemSpec elimstack.Code.
 
 Module ElimStackClient.
 
-  Definition gvs : list nat := [1].
+  Definition gvs : list nat := [2].
   Definition s : SCMem.val := SCMem.val_ptr (0, 0).
 
   Section CODE.
