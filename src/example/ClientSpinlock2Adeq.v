@@ -5,19 +5,19 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec OneShotsRA AuthExclsRA.
-From Fairness Require Import Client04.
+From Fairness Require Import TemporalLogic SCMemSpec.
+From Fairness Require Import ClientSpinlock2 AuthExclsRA OneShotsRA.
 From Fairness Require Export ModSim ModAdequacy ModCloseSim ModAddSim.
 From Fairness Require Export FIFOSched SchedSim FIFOSched FIFOSchedSim.
 
-Module Client04Correct.
+Module ClientSpinlock2Correct.
 
   Definition config := [("thread1", tt↑); ("thread2", tt↑)].
 
-  Notation src_state := (Mod.state Client04Spec.module).
-  Notation src_ident := (Mod.ident Client04Spec.module).
-  Notation tgt_state := (Mod.state Client04.module).
-  Notation tgt_ident := (Mod.ident Client04.module).
+  Notation src_state := (Mod.state ClientSpinlock2Spec.module).
+  Notation src_ident := (Mod.ident ClientSpinlock2Spec.module).
+  Notation tgt_state := (Mod.state ClientSpinlock2.module).
+  Notation tgt_ident := (Mod.ident ClientSpinlock2.module).
 
   Local Instance STT : StateTypes := Build_StateTypes src_state tgt_state src_ident tgt_ident.
 
@@ -36,8 +36,8 @@ Module Client04Correct.
         ArrowShotRA;
         (* Additional RAs. *)
         memRA;
-        (OneShots.t nat);
-        (AuthExcls.t (nat * nat * nat))
+        (OneShots.t unit);
+        (AuthExcls.t (nat * nat))
       ].
 
   (* Default RAs. *)
@@ -52,8 +52,8 @@ Module Client04Correct.
   Local Instance _EDGERA : GRA.inG EdgeRA Γ := (@GRA.InG _ Γ 8 (@eq_refl _ _)).
   Local Instance _ARROWSHOTRA : GRA.inG ArrowShotRA Γ := (@GRA.InG _ Γ 9 (@eq_refl _ _)).
   Local Instance HasMemRA : GRA.inG memRA Γ := (@GRA.InG _ Γ 10 (@eq_refl _ _)).
-  Local Instance HasLifetime : GRA.inG (OneShots.t nat) Γ := (@GRA.InG _ Γ 11 (@eq_refl _ _)).
-  Local Instance HasAuthExcls : GRA.inG (AuthExcls.t (nat * nat * nat)) Γ := (@GRA.InG _ Γ 12 (@eq_refl _ _)).
+  Local Instance HasOneShots : GRA.inG (OneShots.t unit) Γ := (@GRA.InG _ Γ 11 (@eq_refl _ _)).
+  Local Instance HasAuthExcls2 : GRA.inG (AuthExcls.t (nat * nat)) Γ := (@GRA.InG _ Γ 12 (@eq_refl _ _)).
 
   Local Instance TLRASs : TLRAs_small STT Γ :=
     @Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
@@ -73,8 +73,8 @@ Module Client04Correct.
         ArrowShotRA;
         (* Additional RAs. *)
         memRA;
-        (OneShots.t nat);
-        (AuthExcls.t (nat * nat * nat));
+        (OneShots.t unit);
+        (AuthExcls.t (nat * nat));
         (* Maps from empty RAs of Γ. *)
         (of_RA.t RA.empty);
         (* Default RAs depending on sProp. *)
@@ -100,18 +100,18 @@ Module Client04Correct.
 
   (* Additional initial resources. *)
   Local Definition init_res :=
-    (GRA.embed (memory_init_resource Client04.gvs))
-      ⋅ (GRA.embed (AuthExcls.rest_ra (gt_dec 0) (0, 0, 0))).
+    (GRA.embed (memory_init_resource ClientSpinlock2.gvs))
+      ⋅ (GRA.embed (AuthExcls.rest_ra (gt_dec 0) (0, 0))).
 
   Arguments wpsim_bind_top {_ _ _ _ _ _}.
   Arguments wpsim_wand {_ _ _ _ _ _}.
   Arguments wpsim_ret {_ _ _ _ _ _}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_oneshots; red_tl_authexcls.
+  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_oneshots.
 
   Lemma correct:
-    UserSim.sim Client04Spec.module Client04.module
-                (prog2ths Client04Spec.module config) (prog2ths Client04.module config).
+    UserSim.sim ClientSpinlock2Spec.module ClientSpinlock2.module
+                (prog2ths ClientSpinlock2Spec.module config) (prog2ths ClientSpinlock2.module config).
   Proof.
     eapply WSim.whole_sim_implies_usersim. econs.
     { instantiate (1:=init_res). rr. splits.
@@ -130,49 +130,44 @@ Module Client04Correct.
     eexists _. iIntros "(A & INIT)".
     iPoseProof (init_sat with "[A INIT]") as "RES".
     { instantiate (1:=1). instantiate (1:=0). ss. }
-    { simpl. iFrame. iDestruct "A" as "[A B]". iSplitL "A"; iFrame. unfold AuthExcls.rest_gt. iExists 0.
-      unfold AuthExcls.rest. done.
-    }
+    { simpl. iFrame. iDestruct "A" as "[A B]". iSplitL "A"; iFrame. }
     iEval (rewrite red_syn_fairI) in "RES". simpl. iMod "RES".
-    iDestruct "RES" as "(% & % & % & % & % & % & % & #INV1 & TGTST & T1 & T2)".
+    iDestruct "RES" as "(% & % & % & % & % & % & % & #INV1 & TGTST & #SPIN & TID1 & TID2)".
     iEval (rewrite red_syn_tgt_interp_as) in "TGTST". iPoseProof "TGTST" as "#TGTST".
 
     iModIntro. unfold natmap_prop_sum. ss.
-    iSplitL "T1".
-    { iPoseProof (Client04_thread1_spec) as "RES".
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi1).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi2).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γm1).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γm2).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! k1).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! _). simpl. red_tl_all.
+    iSplitL "TID1".
+    { iPoseProof (ClientSpinlock2_thread1_sim) as "RES".
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γl).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κs).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κw).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γκw).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κu).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γκu).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γr). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      red_tl_all. iDestruct "T1" as "(A1 & A2 & A3 & A4 & A5)". iFrame.
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iFrame. iSplit; done.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl. repeat (iSplit; [done | ]). done.
     }
     iSplitL. 2: done.
-    { iPoseProof (Client04_thread2_spec) as "RES".
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi1).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γi2).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γm1).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γm2).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! k2).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! _). simpl. red_tl_all.
+    { iPoseProof (ClientSpinlock2_thread2_sim) as "RES".
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γl).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κs).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κw).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γκw).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! κu).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γκu).
+      iEval (red_tl) in "RES". iSpecialize ("RES" $! γr). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      red_tl_all. iDestruct "T2" as "(A1 & A2 & A3 & A4 & A5)". iFrame.
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iFrame. iSplit; done.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl. repeat (iSplit; [done | ]). done.
     }
-  Unshelve. all: auto.
   Qed.
 
-End Client04Correct.
+End ClientSpinlock2Correct.
 
 Section ALL.
 
-  Definition client := Client04.module.
-  Definition client_spec := Client04Spec.module.
+  Definition client := ClientSpinlock2.module.
+  Definition client_spec := ClientSpinlock2Spec.module.
 
   Lemma client_all_aux
     :
@@ -194,7 +189,7 @@ Section ALL.
         { eapply ssim_nondet_fifo; ss. ii. compute in H. des. inv H; des; ss. inv H1; ss. }
       }
     }
-    eapply usersim_adequacy. eapply Client04Correct.correct.
+    eapply usersim_adequacy. eapply ClientSpinlock2Correct.correct.
     Unshelve. all: constructor.
   Qed.
 
@@ -231,7 +226,7 @@ Section ALL.
       )
   .
   Proof.
-    eapply usersim_adequacy. eapply Client04Correct.correct.
+    eapply usersim_adequacy. eapply ClientSpinlock2Correct.correct.
   Qed.
 
 End ALL.
