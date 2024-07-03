@@ -1888,14 +1888,14 @@ Section TRIPLES.
           (* wpsim n tid E1 rr gr (fun rs rt => prop m (TERM rs rt)) ps pt itr_src (code >>= ktr_tgt))%I. *)
 
   Definition atomic_triple
-             tid n (E : coPset) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+             tid n m (E : coPset) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
     (* (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt *)
     (∀ R_term ps pt
        (itr_src : itree srcE R_term)
        (ktr_tgt : RV -> itree tgtE R_term),
-        triple_gen (S n) n tid P Q E E ps pt itr_src code ktr_tgt)%I.
+        triple_gen n m tid P Q E E ps pt itr_src code ktr_tgt)%I.
   (* (P) *)
   (*   -∗ *)
   (*   (∀ (rv : RV), *)
@@ -1904,14 +1904,14 @@ Section TRIPLES.
   (*   wpsim n tid E rr gr TERM ps pt itr_src (code >>= ktr_tgt))%I. *)
 
   Definition non_atomic_triple
-             tid n (E : coPset) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
+             tid n m (E : coPset) (P : iProp) {RV} (code : itree tgtE RV) (Q : RV -> iProp)
     : iProp
     :=
     (* (∀ R_src R_tgt (TERM : R_src -> R_tgt -> Vars n) ps pt *)
     (∀ R_term ps pt
        (itr_src : itree srcE R_term)
        (ktr_tgt : RV -> itree tgtE R_term),
-        triple_gen (S n) n tid P Q E ⊤ ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
+        triple_gen n m tid P Q E ⊤ ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I.
         (* triple_gen (S n) (m:=n) tid P Q E ⊤ TERM ps pt (trigger Yield;;; itr_src) code ktr_tgt)%I. *)
       (* (P) *)
       (*   -∗ *)
@@ -2029,14 +2029,24 @@ Ltac iStartTriple := iIntros (? ? ? ? ? ? ?).
 (* Ltac iStartLAT := iIntros (? ? ? ? ?). *)
 
 Notation "'[@' tid , n , E '@]' { P } code { v , Q }" :=
-  (atomic_triple tid n E P code (fun v => Q))
+  (atomic_triple tid (S n) n E P code (fun v => Q))
     (at level 200, tid, n, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  E  @] { P }  code  { v ,  Q }") : bi_scope.
 
+Notation "'[@' tid , n , δ , E '@]' { P } code { v , Q }" :=
+  (atomic_triple tid (δ + n) n E P code (fun v => Q))
+    (at level 200, tid, n, δ, E, P, code, v, Q at level 1,
+      format "[@  tid ,  n ,  δ ,  E  @] { P }  code  { v ,  Q }") : bi_scope.
+
 Notation "'[@' tid , n , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
-  (non_atomic_triple tid n E P code (fun v => Q))
+  (non_atomic_triple tid (S n) n E P code (fun v => Q))
     (at level 200, tid, n, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
+
+Notation "'[@' tid , n , δ , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
+  (non_atomic_triple tid (δ + n) n E P code (fun v => Q))
+    (at level 200, tid, n, δ, E, P, code, v, Q at level 1,
+      format "[@  tid ,  n ,  δ ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
 
 
 (** Notation: Atomic updates *)
