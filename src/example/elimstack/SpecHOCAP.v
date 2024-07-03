@@ -379,7 +379,7 @@ Section SPEC.
   Lemma Elim_pop_spec
         {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid :
     ∀ s k γs l a (ds : list (nat * nat * sProp n)),
-    ⊢ [@ tid,n,2,⊤ @]
+    ⊢ [@ tid,n,1,⊤ @]
           ⧼⟦(
             (syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m))
             ∗ (⤉ IsES n l a s k γs)
