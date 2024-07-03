@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From iris Require Import bi.big_op.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
-From Fairness Require Import ElimStack.
+From Fairness Require Import elimstack.Code.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic SCMemSpec AuthExclsRA ghost_map ghost_excl.
@@ -339,36 +339,35 @@ Section SPEC.
 
   Lemma Elim_pop_spec
         {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid :
-    ∀ s k γs l a (ds : list (nat * nat * sProp n)),
-    ⊢ [@ tid, 1+n, ⊤ @]
+    ∀ s k γs l a (ds : list (nat * nat * sProp (1+n))),
+    ⊢ [@ tid,1+n, ⊤ @]
           ⧼⟦(
-            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
-            ∗ (IsES n l a s k γs)
+            (syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m))
+            ∗ (⤉ IsES n l a s k γs)
             ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉ P)
-            (* TODO: masks? *)
-            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
+            ∗ (⤉⤉ P)
+            ∗ (⤉(∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
                   =|1+n|={⊤∖↑elimN}=∗
                   match S with
                   | [] => (⤉ (● γs ([] : list SCMem.val) ∗ Q None))
                   | h::t => (⤉ (● γs t ∗ Q (Some h)))
                   end
-              )
+              ))
             ∗ ◇[k](1,1)
             ∗ ◇{List.map fst ds}(2+l,2+a)
-            )%S, 1+n⟧⧽
+            )%S, 2+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (ElimStack.pop s))
           ⧼rv, ⟦(
-            (⤉ (Q rv ∗ Duty(tid) ds)) ∗
+            (⤉⤉ Q rv) ∗ (⤉ Duty(tid) ds) ∗
             match rv with
             | Some _ => emp
             | None => ◇[k](1,1)
             end
-            )%S, 1+n⟧⧽
+            )%S, 2+n⟧⧽
   .
   Proof.
     ii. iStartTriple. red_tl_all.
-    unfold IsES. rewrite red_syn_tgt_interp_as. red_tl. simpl.
+    unfold IsES. simpl. rewrite red_syn_tgt_interp_as. red_tl. simpl.
     iIntros "(#Mem & IsES & Duty & P & AU & Ob_ks & PCS) Post".
     iDestruct "IsES" as (γl) "IsES".
     red_tl. rewrite red_syn_inv. iDestruct "IsES" as "#[Ob_kb IsES]".
@@ -380,7 +379,7 @@ Section SPEC.
 
     iEval (unfold ElimStack.pop). rred2r.
 
-    iMod ((pcs_decr _ _ 101 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 101 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
@@ -398,7 +397,7 @@ Section SPEC.
     iModIntro. iExists 0. iIntros "IH !> PCS Post Duty Ys AU P Ob_ks".
     iEval (rewrite unfold_iter_eq). rred2r.
 
-    iMod ((pcs_decr _ _ 100 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 100 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
@@ -408,7 +407,7 @@ Section SPEC.
     iApply (SCMem_load_fun_spec with "[$Mem $s↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[%EQ s↦]".
     subst. rred2r. iApply wpsim_tauR. rred2r.
-    iMod ((pcs_decr _ _ 99 1) with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr _ _ 99 1 with "Ys") as "[Ys Y]"; [lia|].
 
     destruct (decide (to_val h = to_mnp_null)) as [EQ|NEQ].
     { (* Head is null, so stack is empty. *)
@@ -441,7 +440,7 @@ Section SPEC.
       iIntros (?) "%EQ". destruct EQ as [EQ _]. des; last done.
       specialize (EQ EQh) as ->. rred2r.
 
-      iApply (wpsim_tauR). rred2r.
+      iApply wpsim_tauR. rred2r.
       iApply "Post". red_tl_all. iFrame.
     }
 
@@ -771,28 +770,27 @@ Section SPEC.
   Qed.
 
   Lemma Elim_push_spec {n} (Q : SCMem.val → sProp n) (P : sProp n) tid :
-    ∀ s k γs val l a (ds : list (nat * nat * sProp n)),
+    ∀ s k γs val l a (ds : list (nat * nat * sProp (1+n))),
     ⊢ [@ tid, 1+n, ⊤ @]
           ⧼⟦(
-            (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
-            ∗ (IsES n l a s k γs)
+            (syn_tgt_interp_as (S n) sndl (fun m => s_memory_black m))
+            ∗ (⤉ IsES n l a s k γs)
             ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉ P)
-            ∗ (∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
+            ∗ (⤉⤉ P)
+            ∗ (⤉(∀ (S : τ{list SCMem.val, 1+n}), (⤉ (● γs (S : list SCMem.val) ∗ P))
                   =|1+n|={⊤ ∖ ↑elimN}=∗ (⤉ (● γs (val::S) ∗ Q val))
-              )
+              ))
             ∗ ◇[k](1,1)
-            (* TODO: Proper ord level. *)
             ∗ ◇{List.map fst ds}(2+l,2+a)
-            )%S, 1+n⟧⧽
+            )%S, 2+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (ElimStack.push (s,val)))
           ⧼_, ⟦(
-            (⤉ (Q val ∗ Duty(tid) ds))
-            )%S, 1+n⟧⧽
+            (⤉⤉ Q val) ∗ (⤉ Duty(tid) ds)
+            )%S, 2+n⟧⧽
   .
   Proof.
     ii. iStartTriple. red_tl_all.
-    unfold IsES. rewrite red_syn_tgt_interp_as. red_tl. simpl.
+    unfold IsES. simpl. rewrite red_syn_tgt_interp_as. red_tl. simpl.
     iIntros "(#Mem & IsES & Duty & P & AU & Ob_ks & PCS) Post".
     iDestruct "IsES" as (γl) "IsES".
     red_tl. rewrite red_syn_inv. iDestruct "IsES" as "#[Ob_kb IsES]".

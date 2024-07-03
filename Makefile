@@ -12,6 +12,7 @@ COQTHEORIES  := \
 	src/iris_algebra/lib/*.v \
 	src/iris_base_logic/*.v \
 	src/example/treiber/*.v \
+	src/example/elimstack/*.v \
 
 
 .PHONY: all theories clean
