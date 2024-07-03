@@ -2034,7 +2034,7 @@ Notation "'[@' tid , n , E '@]' { P } code { v , Q }" :=
       format "[@  tid ,  n ,  E  @] { P }  code  { v ,  Q }") : bi_scope.
 
 Notation "'[@' tid , n , δ , E '@]' { P } code { v , Q }" :=
-  (atomic_triple tid (δ + n) n E P code (fun v => Q))
+  (atomic_triple tid (S (δ + n)) n E P code (fun v => Q))
     (at level 200, tid, n, δ, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  δ ,  E  @] { P }  code  { v ,  Q }") : bi_scope.
 
@@ -2044,7 +2044,7 @@ Notation "'[@' tid , n , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
       format "[@  tid ,  n ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
 
 Notation "'[@' tid , n , δ , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
-  (non_atomic_triple tid (δ + n) n E P code (fun v => Q))
+  (non_atomic_triple tid (S (δ + n)) n E P code (fun v => Q))
     (at level 200, tid, n, δ, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  δ ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : bi_scope.
 

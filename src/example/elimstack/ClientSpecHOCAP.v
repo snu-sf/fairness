@@ -48,33 +48,33 @@ Section SPEC.
   Definition push_then_pop_inv n γs γpop : sProp n :=
     (syn_inv n nESpush (push_then_pop n γs γpop))%S.
 
-  Definition CState (n γk k γs γpop : nat) : sProp (S n) :=
-    ((((live γk k (1/2) : sProp (S n)) ∗ (⤉ EStack n γs [])) : sProp (S n))
+  Definition CState (n γk k γs γpop : nat) : sProp n :=
+    ((((live γk k (1/2)) ∗ (EStack n γs [])))
     -U-[k](0)-◇
-    (((dead γk k : sProp (S n)) ∗ (⤉ push_then_pop_inv n γs γpop)) : sProp (S n))
+    (((dead γk k) ∗ (push_then_pop_inv n γs γpop)))
     )%S.
 
-  Definition CInv n γk k γs γpop : sProp (S n) :=
-    (syn_inv (S n) nESCli (CState n γk k γs γpop))%S.
+  Definition CInv n γk k γs γpop : sProp n :=
+    (◆[k,3,6] ∗ syn_inv n nESCli (CState n γk k γs γpop))%S.
 
-  Global Instance CInv_persistent n γk k γs γpop : Persistent ⟦CInv n γk k γs γpop, S n⟧.
-  Proof. unfold Persistent,CInv. rewrite red_syn_inv. iIntros "#$". Qed.
+  Global Instance CInv_persistent n γk k γs γpop : Persistent ⟦CInv n γk k γs γpop, n⟧.
+  Proof. unfold Persistent,CInv. red_tl. rewrite red_syn_inv. iIntros "#$". Qed.
 
   (** Simulation proof. *)
 
-  (* Lemma ElimStackClient_push_sim tid n :
+  Lemma ElimStackClient_push_sim tid n :
     ⊢ ⟦(∀ (γk kt k γs γpop : τ{nat, 2+n}),
       ((syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m)) ∗
       (⤉ IsES nESMod n 1 2 s kt γs) ∗
-      (⤉ CInv n γk k γs γpop) ∗
+      (⤉⤉ CInv n γk k γs γpop) ∗
       TID(tid) ∗
       ◇[kt](1, 1) ∗
-      (⤉ Duty(tid) [(k, 0, ⤉ dead γk (k : nat) ∗ push_then_pop_inv n γs γpop)]) ∗
+      (⤉⤉ Duty(tid) [(k, 0, (dead γk (k : nat) : sProp n) ∗ push_then_pop_inv n γs γpop)]) ∗
       ◇[k](3, 5) ∗ ⤉⤉(live γk (k : nat) (1/2)) ∗
       ⋈[k])
       -∗
       syn_wpsim (2+n) tid ⊤
-      (fun rs rt => (⤉(syn_term_cond (1+n) tid _ rs rt))%S)
+      (fun rs rt => (⤉⤉(syn_term_cond n tid _ rs rt))%S)
       false false
       (fn2th ElimStackClientSpec.module "thread_push" (tt ↑))
       (fn2th ElimStackClient.module "thread_push" (tt ↑))
@@ -83,11 +83,11 @@ Section SPEC.
     iIntros.
     red_tl_all; iIntros (γk); red_tl_all; iIntros (kt); red_tl_all; iIntros (k); red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
 
-    red_tl_all. unfold CInv. simpl. red_tl_all.
+    unfold CInv. red_tl_all. simpl. red_tl_all.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
-    iIntros "(#Mem & #IsElimStack & #CInv & TID & Pck & Duty & Pc & Live & k_Act)".
+    iIntros "(#Mem & #IsElimStack & #[Ob_kb CInv] & TID & Pck & Duty & Pc & Live & k_Act)".
 
     unfold fn2th. simpl. unfold thread_push, ElimStackClientSpec.thread_push.
     rred2r. lred2r.
@@ -113,7 +113,7 @@ Section SPEC.
 
       iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
 
-      iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
+      iDestruct "PushProm" as "[Bf | #Af]"; simpl.
       - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv EStackC]".
         iDestruct (EStack_agree with "EStackInv EStackC") as "%EQ".
         subst s_st.
@@ -138,7 +138,7 @@ Section SPEC.
 
     iIntros (_). simpl. red_tl_all. iIntros "[[#Dead Pushed] Duty]".
     iEval (rewrite red_syn_inv) in "Pushed". iDestruct "Pushed" as "#Pushed".
-    iMod (duty_fulfill with "[Duty $k_Act]") as "Duty".
+    iMod (duty_fulfill with "[$Duty $k_Act]") as "Duty".
     { iFrame. simpl. unfold push_then_pop_inv. red_tl_all. rewrite red_syn_inv. auto. }
 
     rred2r.
@@ -148,35 +148,37 @@ Section SPEC.
     iApply wpsim_ret; [eauto|].
     iModIntro.
     iEval (unfold term_cond). iSplit; iFrame; iPureIntro; auto.
-  Qed. *)
+  Qed.
 
-  (* Lemma ElimStackClient_pop_sim tid n :
+  Lemma ElimStackClient_pop_sim tid n :
     ⊢ ⟦(∀ (γk k kt γs γpop : τ{nat, 2+n}),
       ((syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m)) ∗
       (⤉ IsES nESMod n 1 2 s kt γs) ∗
-      (⤉ CInv n γk k γs γpop) ∗
+      (⤉⤉ CInv n γk k γs γpop) ∗
       (⤉⤉ GEx γpop tt) ∗
       ◇[kt](1,1) ∗
       TID(tid) ∗
-      (⤉ Duty(tid) []))
+      (⤉⤉ Duty(tid) []))
       -∗
       syn_wpsim (2+n) tid ⊤
-      (fun rs rt => (⤉(syn_term_cond (1+n) tid _ rs rt))%S)
+      (fun rs rt => (⤉⤉ (syn_term_cond n tid _ rs rt))%S)
       false false
       (fn2th ElimStackClientSpec.module "thread_pop" (tt ↑))
       (fn2th ElimStackClient.module "thread_pop" (tt ↑))
     )%S,2+n⟧.
   Proof.
     iIntros.
-    red_tl_all; iIntros (γk); red_tl_all; iIntros (k);
-    red_tl_all; iIntros (kt);
-    red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
+    red_tl; iIntros (γk); red_tl; iIntros (k);
+    red_tl; iIntros (kt); red_tl; iIntros (γs);
+    red_tl; iIntros (γpop).
 
-    red_tl_all. unfold CInv. simpl. red_tl_all.
+    unfold CInv. red_tl_all. simpl. red_tl_all.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
-    iIntros "(#Mem & #IsElimStack & #CInv & Tok & Pck & TID & Duty)".
+    iIntros "(#Mem & #IsElimStack & #[Ob_kb CInv] & Tok & Pck & TID & Duty)".
+
+    iMod (ccs_make_fine _ _ _ [] 0 with "[$Ob_kb]") as "CCS".
 
     unfold fn2th. simpl. unfold thread_pop, ElimStackClientSpec.thread_pop.
     rred2r. lred2r.
@@ -187,17 +189,14 @@ Section SPEC.
     iApply (wpsim_yieldR with "[$Duty]"); [lia|].
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
 
-    iInv "CInv" as "Client" "CloseCInv".
-    iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
+    iInv "CInv" as "PushProm" "CloseCInv".
+    iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "PushProm".
 
-    iDestruct "Client" as "[#Obl PushProm]".
     iPoseProof (until_tpromise_get_tpromise with "PushProm") as "#TProm".
     iRevert "Tok TID Duty CloseCInv Pck".
-    iMod (until_tpromise_ind with "[Obl PushProm] [-]") as "Ind"; cycle 2.
-    { iApply "Ind". }
-    { iSplit; iFrame; auto. }
+    iMod (ccs_until_tpromise_ind with "[$CCS $PushProm] [-]") as "Ind"; [|by iApply "Ind"].
     iSplit.
-    - simpl. red_tl_all. iIntros "!> IH !> [LiveInv EStackC] Tok TID Duty CloseCInv Pck".
+    - simpl. red_tl_all. iIntros "!> IH !> _ [LiveInv EStackC] Tok TID Duty CloseCInv Pck".
       iMod ("CloseCInv" with "[LiveInv EStackC]") as "_".
       { iEval (unfold CState; simpl; red_tl_all; simpl).
         iFrame "#". iEval (rewrite red_syn_until_tpromise).
@@ -213,10 +212,10 @@ Section SPEC.
         iInv "CInv" as "Client" "CloseCInv".
         iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
 
-        iDestruct "Client" as "[#OBL PushProm]".
+        iDestruct "Client" as "[_ PushProm]".
 
         iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
-        iDestruct "PushProm" as "[#Prm [Bf | #Af]]"; simpl.
+        iDestruct "PushProm" as "[Bf | #Af]"; simpl.
         - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv EStackC]".
           iDestruct (EStack_agree with "EStackInv EStackC") as "%EQ".
           subst s_st.
@@ -262,7 +261,7 @@ Section SPEC.
         iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
 
         iDestruct "Client" as "[_ PushProm]".
-        iMod ("IH" with "[$C $PushProm] ") as "IH".
+        iMod ("IH" with "[$C $PushProm $TProm]") as "IH".
         iApply ("IH" with "Tok TID Duty CloseCInv Pck").
     - unfold push_then_pop_inv. simpl. red_tl_all. rewrite red_syn_inv.
       iIntros "!> #[Dead PushedInv] Tok TID Duty CloseCInv Pck".
@@ -282,7 +281,7 @@ Section SPEC.
       iDestruct "Client" as "[#OBL PushProm]".
 
       iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
-      iDestruct "PushProm" as "[#Prm [Bf | _]]"; simpl.
+      iDestruct "PushProm" as "[Bf | _]"; simpl.
       - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv EStackC]".
         iDestruct (Lifetime.pending_not_shot with "LiveInv Dead") as "%False".
         done.
@@ -310,7 +309,7 @@ Section SPEC.
     iModIntro.
     iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
     Unshelve. all: apply ndot_ne_disjoint; ss.
-  Qed. *)
+  Qed.
 
   Section INITIAL.
 
@@ -337,16 +336,16 @@ Section SPEC.
           (IDENTSRC:=@SRA.in_subG Γ Σ sub _ _IDENTSRC)
           (IDENTTGT:=@SRA.in_subG Γ Σ sub _ _IDENTTGT)
           (ARROWRA:=@_ARROWRA STT Γ Σ TLRAS)
-          (1+idx) init_ths init_ord)
+          idx init_ths init_ord)
       ⊢
       =| 2+idx |=(⟦syn_fairI (2+idx), 2+idx⟧)={E}=>
         ∃ (γk k γpop γs kt : nat),
         ⟦syn_tgt_interp_as (1+idx) sndl (fun m => s_memory_black m),2+idx⟧ ∗
         ⟦IsES nESMod idx 1 2 s kt γs,1+idx⟧ ∗
-        ⟦CInv idx γk k γs γpop,1+idx⟧ ∗
+        ⟦CInv idx γk k γs γpop,idx⟧ ∗
         (* thread_push *)
         own_thread tid_push ∗
-        ⟦Duty(tid_push) [(k, 0, (dead γk k : sProp (S idx)) ∗ (⤉ push_then_pop_inv idx γs γpop))],1+idx⟧ ∗
+        ⟦Duty(tid_push) [(k, 0, (dead γk k : sProp idx) ∗ push_then_pop_inv idx γs γpop)],idx⟧ ∗
         ◇[kt](1, 1) ∗
         ◇[k](3, 5) ∗
         live γk (k : nat) (1/2) ∗
@@ -355,7 +354,7 @@ Section SPEC.
         GEx γpop tt ∗
         ◇[kt](1,1) ∗
         own_thread tid_pop ∗
-        ⟦Duty(tid_pop) [],1+idx⟧
+        ⟦Duty(tid_pop) [],idx⟧
   .
   Proof.
     iIntros "(Mem & _ & Init)". rewrite red_syn_fairI.
@@ -413,7 +412,7 @@ Section SPEC.
     iMod (alloc_ElimStack nESMod idx _ 1 2 with "s↦ s.o↦") as (kt γs) "(#IsES & EStack & Pc_kt)".
     iDestruct (pc_split _ _ 1 1 with "Pc_kt") as "[? ?]".
 
-    iMod (duty_add _ _ [] _ 0 (((dead γk k : sProp (S idx)) ∗ (⤉ push_then_pop_inv idx γs γpop : sProp (S idx))) : sProp (S idx))%S with "[$Dpush $Po_d $Pc_k] []") as "Dpush".
+    iMod (duty_add _ _ [] _ 0 (((dead γk k : sProp idx) ∗ push_then_pop_inv idx γs γpop) : sProp idx)%S with "[$Dpush $Po_d $Pc_k] []") as "Dpush".
     { simpl. unfold push_then_pop_inv. red_tl_all.
       rewrite red_syn_inv. iModIntro. iIntros "#$".
     }
@@ -422,15 +421,18 @@ Section SPEC.
     iMod (activate_tpromise with "Prm' Po_p") as "[#Prm #Act_k]".
     iClear "Prm'".
 
-    iDestruct (until_tpromise_make1 _ _ _ (((live γk k (1/2) : sProp (S idx)) ∗ (⤉ EStack idx γs [] : sProp (S idx))) : sProp (S idx))%S with "[live_i EStack]") as "uPrm".
+    iDestruct (until_tpromise_make1 _ _ _ (((live γk k (1/2) : sProp idx) ∗ EStack idx γs []) : sProp idx)%S with "[live_i EStack]") as "uPrm".
     { simpl. red_tl_all. iFrame "∗". iFrame "Prm". }
 
-    iMod (FUpd_alloc _ _ _ (S idx) nESCli (CState idx γk k γs γpop) with "[uPrm]") as "#CInv"; [lia| |].
-    { simpl. unfold CState. red_tl_all. rewrite red_syn_until_tpromise. iFrame "∗ Ob_kb". }
+    iMod (FUpd_alloc _ _ _ idx nESCli (CState idx γk k γs γpop) with "[uPrm]") as "#CInv"; [lia| |].
+    { simpl. unfold CState. red_tl_all. rewrite red_syn_until_tpromise.
+      unfold until_thread_promise. simpl. red_tl_all.
+      iFrame.
+    }
 
     iModIntro. iExists γk,k,γpop,γs,kt.
 
-    rewrite red_syn_tgt_interp_as. iFrame "∗#".
+    rewrite red_syn_tgt_interp_as. unfold CInv. red_tl_all. iFrame "∗#".
   Qed.
 
 End INITIAL.

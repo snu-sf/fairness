@@ -209,9 +209,9 @@ Section SPEC.
         iInv "CInv" as "Client" "CloseCInv".
         iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
 
-        iDestruct "Client" as "[#OBL PushProm]".
+        iDestruct "Client" as "[_ PushProm]".
 
-        iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
+        iEval (red_tl_all; simpl) in "PushProm".
         iDestruct "PushProm" as "[Bf | #Af]"; simpl.
         - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
           iDestruct (TStack_agree with "TStackInv TStackC") as "%EQ".

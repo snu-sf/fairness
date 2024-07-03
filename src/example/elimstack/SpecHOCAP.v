@@ -378,12 +378,12 @@ Section SPEC.
 
   Lemma Elim_pop_spec
         {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid :
-    ∀ s k γs l a (ds : list (nat * nat * sProp (1+n))),
-    ⊢ [@ tid,1+n, ⊤ @]
+    ∀ s k γs l a (ds : list (nat * nat * sProp n)),
+    ⊢ [@ tid,n,2,⊤ @]
           ⧼⟦(
             (syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m))
             ∗ (⤉ IsES n l a s k γs)
-            ∗ (⤉ Duty(tid) ds)
+            ∗ (⤉⤉ Duty(tid) ds)
             ∗ (⤉⤉ P)
             ∗ (⤉(∀ (S : τ{list SCMem.val, 1+n}), (⤉ (EStack n γs (S : list SCMem.val) ∗ P))
                   =|1+n|={⊤∖↑elimN}=∗
@@ -397,7 +397,7 @@ Section SPEC.
             )%S, 2+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (ElimStack.pop s))
           ⧼rv, ⟦(
-            (⤉⤉ Q rv) ∗ (⤉ Duty(tid) ds) ∗
+            (⤉⤉ Q rv) ∗ (⤉⤉ Duty(tid) ds) ∗
             match rv with
             | Some _ => emp
             | None => ◇[k](1,1)
@@ -443,7 +443,7 @@ Section SPEC.
     iInv "IsES" as "Inv" "Close". simpl.
     iDestruct (Inv_unfold with "Inv") as (h St m) "(s↦ & γs & Phys & LInv & OInv)".
 
-    iApply (SCMem_load_fun_spec with "[$Mem $s↦] [-]"); [lia|solve_ndisj|].
+    iApply (SCMem_load_fun_spec_gen _ _ _ _ n 1 with "[$Mem $s↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[%EQ s↦]".
     subst. rred2r. iApply wpsim_tauR. rred2r.
     iMod (pcs_decr _ _ 99 1 with "Ys") as "[Ys Y]"; [lia|].
@@ -469,7 +469,7 @@ Section SPEC.
       iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
       iIntros "Duty _". rred2r.
 
-      iApply (SCMem_compare_fun_spec with "[Mem] [-]"); [|solve_ndisj| |].
+      iApply (SCMem_compare_fun_spec_gen _ _ _ _ n 1 with "[Mem] [-]"); [|solve_ndisj| |].
       2:{ iApply (tgt_interp_as_equiv with "Mem"). clear.
           iStartProof. iIntros (m). simpl. red_tl_all. iSplit.
           - iIntros "$". iPureIntro. done.
@@ -505,7 +505,7 @@ Section SPEC.
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
-    iApply (SCMem_compare_loc_null_fun_spec with "[$Mem $h.n↦□] [-]"); [lia|solve_ndisj|].
+    iApply (SCMem_compare_loc_null_fun_spec_gen _ _ _ _ n 1 with "[$Mem $h.n↦□] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[_ %EQ]". subst. rred2r.
 
     iApply wpsim_tauR. rred2r.
@@ -514,7 +514,7 @@ Section SPEC.
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
-    iApply (SCMem_load_fun_spec with "[$Mem $h.n↦□] [-]"); [lia|solve_ndisj|].
+    iApply (SCMem_load_fun_spec_gen _ _ _ _ n 1 with "[$Mem $h.n↦□] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[%EQ _]". subst. rred2r.
 
     iApply (wpsim_tauR). rred2r.
@@ -541,7 +541,7 @@ Section SPEC.
       clear r. iClear "h.n↦□' h.d↦□' h'.n↦□ h'.d↦□".
 
       (* Equal, CAS success *)
-      iApply (SCMem_cas_loc_fun_spec_gen with "[$Mem $s↦] [-]"); [lia|solve_ndisj| |].
+      iApply (SCMem_cas_loc_fun_spec_gen_gen _ _ _ _ n 1 with "[$Mem $s↦] [-]"); [lia|solve_ndisj| |].
       { des_ifs.
         iSplit; iExists _; iFrame "h.n↦□".
       }
@@ -596,7 +596,7 @@ Section SPEC.
       iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
       iIntros "Duty _". rred2r.
 
-      iApply (SCMem_load_fun_spec with "[$Mem $h.d↦□] [-]"); [lia|solve_ndisj|].
+      iApply (SCMem_load_fun_spec_gen _ _ _ _ n 1 with "[$Mem $h.d↦□] [-]"); [lia|solve_ndisj|].
       iIntros (?) "[%EQ _]". subst. rred2r.
 
       iApply wpsim_tauR. rred2r.
@@ -604,7 +604,7 @@ Section SPEC.
       iApply "Post". red_tl. iFrame.
     }
     (* Different, CAS fail *)
-    iApply (SCMem_cas_loc_fun_spec_gen with "[$Mem $s↦ h.n↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
+    iApply (SCMem_cas_loc_fun_spec_gen_gen _ _ _ _ n 1 with "[$Mem $s↦ h.n↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
     { unfold to_val. des_ifs.
       2: iDestruct "h'↦□" as (??) "[h'↦□ _]".
       all: iSplit; try done; iExists _; iFrame "#".
@@ -644,7 +644,7 @@ Section SPEC.
 
     iDestruct (OInv_unfold with "OInv") as (offer_rep) "(s.o↦ & IsO)".
 
-    iApply (SCMem_load_fun_spec with "[$Mem $s.o↦] [-]"); [lia|by apply stackN_subseteq|].
+    iApply (SCMem_load_fun_spec_gen _ _ _ _ n 1 with "[$Mem $s.o↦] [-]"); [lia|by apply stackN_subseteq|].
     iIntros (?) "[%EQ s.o↦]". subst. rred2r.
 
     iApply wpsim_tauR. rred2r.
@@ -660,7 +660,7 @@ Section SPEC.
       iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
       iIntros "Duty _". rred2r.
 
-      iApply (SCMem_compare_fun_spec with "[Mem] [-]"); [|solve_ndisj| |].
+      iApply (SCMem_compare_fun_spec_gen _ _ _ _ n 1 with "[Mem] [-]"); [|solve_ndisj| |].
       2:{ simpl. iApply (tgt_interp_as_equiv with "Mem"). clear.
           intros m. simpl. red_tl_all. iSplit.
           - iIntros "$". iPureIntro. done.
@@ -700,7 +700,7 @@ Section SPEC.
     iInv "OfInv" as "Of" "CloseOf". simpl.
     iDestruct (offer_st_unfold with "Of") as (offer_state) "(n.o↦ & Of)".
 
-    iApply (SCMem_compare_loc_null_fun_spec with "[$Mem $n.o↦] [-]"); [lia|solve_ndisj|].
+    iApply (SCMem_compare_loc_null_fun_spec_gen _ _ _ _ n 1 with "[$Mem $n.o↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[n.o↦ %EQ]". subst. rred2r.
 
     iApply wpsim_tauR. rred2r.
@@ -714,7 +714,7 @@ Section SPEC.
 
     iInv "OfInv" as "Of" "CloseOf". simpl.
     iDestruct (offer_st_unfold with "Of") as (offer_state) "(n.o↦ & Of)".
-    iApply (SCMem_cas_fun_spec with "[Mem $n.o↦] [-]"); [|apply offerN_subseteq| |].
+    iApply (SCMem_cas_fun_spec_gen _ _ _ _ n 1 with "[Mem $n.o↦] [-]"); [|apply offerN_subseteq| |].
     2:{ simpl in *. iApply (tgt_interp_as_equiv with "Mem").
         clear. intros m. simpl. red_tl_all. iSplit.
         - iIntros "$". done.
@@ -762,7 +762,7 @@ Section SPEC.
       iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
       iIntros "Duty _". rred2r.
 
-      iApply (SCMem_load_fun_spec with "[$Mem $OfD] [-]"); [lia|set_solver|].
+      iApply (SCMem_load_fun_spec_gen _ _ _ _ n 1 with "[$Mem $OfD] [-]"); [lia|set_solver|].
       iIntros (?) "[%EQ _]". subst. rred2r.
 
       iApply wpsim_tauR. rred2r.
@@ -811,28 +811,30 @@ Section SPEC.
   Qed.
 
   Lemma Elim_push_spec {n} (Q : SCMem.val → sProp n) (P : sProp n) tid :
-    ∀ s k γs val l a (ds : list (nat * nat * sProp (1+n))),
-    ⊢ [@ tid, 1+n, ⊤ @]
+    ∀ s k γs val l a (ds : list (nat * nat * sProp n)),
+    ⊢ [@ tid, n, 1, ⊤ @]
           ⧼⟦(
             (syn_tgt_interp_as (S n) sndl (fun m => s_memory_black m))
-            ∗ (⤉ IsES n l a s k γs)
-            ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉⤉ P)
-            ∗ (⤉(∀ (S : τ{list SCMem.val, 1+n}), (⤉ (EStack n γs (S : list SCMem.val) ∗ P))
+            ∗ (lifts (IsES n l a s k γs) 1)
+            ∗ (lifts (Duty(tid) ds) 2)
+            ∗ (lifts P 2)
+            ∗ (lifts ((∀ (S : τ{list SCMem.val, 1+n}), (⤉ (EStack n γs (S : list SCMem.val) ∗ P))
                   =|1+n|={⊤ ∖ ↑elimN}=∗ (⤉ (EStack n γs (val::S) ∗ Q val))
-              ))
+              ) : sProp (S n)) 1)
             ∗ ◇[k](1,1)
             ∗ ◇{List.map fst ds}(2+l,2+a)
             )%S, 2+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (ElimStack.push (s,val)))
           ⧼_, ⟦(
-            (⤉⤉ Q val) ∗ (⤉ Duty(tid) ds)
+            (lifts (Q val) 2) ∗ (lifts (Duty(tid) ds) 2)
             )%S, 2+n⟧⧽
   .
   Proof.
     ii. iStartTriple. red_tl_all.
     unfold IsES,EStack. simpl. rewrite red_syn_tgt_interp_as. red_tl. simpl.
-    iIntros "(#Mem & IsES & Duty & P & AU & Ob_ks & PCS) Post".
+    iIntros "(#Mem & IsES & Duty & P & AU & Ob_ks & PCS)".
+    set POST := (POST in (POST -∗ _)%I).
+    iIntros "POST".
     iDestruct "IsES" as (γl) "IsES".
     red_tl. rewrite red_syn_inv. iDestruct "IsES" as "#[Ob_kb IsES]".
 
@@ -850,7 +852,7 @@ Section SPEC.
 
     iApply wpsim_tauR. rred2r.
 
-    iRevert "Post Duty Ys AU P Ob_ks". iRevert "PCS".
+    iRevert "POST Duty Ys AU P Ob_ks". iRevert "PCS".
 
     iMod (ccs_ind2 with "CCS [-]") as "Ind".
     2:{ iIntros "PCS". destruct l; last first.
@@ -859,7 +861,9 @@ Section SPEC.
         - iApply ("Ind" with "PCS").
     }
 
-    iModIntro. iExists 0. iIntros "IH !> Pcs Post Duty Ys AU P Ob_ks".
+    iModIntro. iExists 0.
+    set IH := (IH in (IH ==∗ _)%I).
+    iIntros "IH !> Pcs Post Duty Ys AU P Ob_ks".
     iEval (rewrite unfold_iter_eq). rred2r.
 
     iMod ((pcs_decr _ _ 100 1) with "Ys") as "[Ys Y]"; [lia|].
@@ -867,8 +871,9 @@ Section SPEC.
     iIntros "Duty _". rred2r.
 
     iInv "IsES" as "Inv" "Close".
-    iDestruct (Inv_unfold with "Inv") as (h L m) "(s↦ & γs & Phys & LInv & OInv)".
-    iApply (SCMem_load_fun_spec with "[$Mem $s↦] [-]"); [lia|solve_ndisj|].
+    iDestruct (Inv_unfold with "Inv") as (h L m) "(s↦ & γs & Phys & LInv & OInv)". simpl.
+
+    iApply (SCMem_load_fun_spec_gen _ _ _ _ n 1 with "[$Mem $s↦] [-]"); [lia|solve_ndisj|].
     iIntros (load_v) "[%EQ s↦]". subst.
     (* Get proof that h is live for future use. *)
     iDestruct (phys_list_get_head with "Phys") as "#h↦□".
@@ -895,7 +900,7 @@ Section SPEC.
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
-    iApply (SCMem_alloc_fun_spec with "[$Mem] [-]"); [lia|set_solver|].
+    iApply (SCMem_alloc_fun_spec_gen _ _ _ _ n 1 with "[$Mem] [-]"); [lia|set_solver|].
     iIntros (node) "(n.n↦ & n.d↦ & _)".
     rred2r. iApply wpsim_tauR. rred2r.
 
@@ -903,14 +908,14 @@ Section SPEC.
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
-    iApply (SCMem_store_fun_spec with "[$Mem $n.n↦] [-]"); [lia|set_solver|].
+    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 1 with "[$Mem $n.n↦] [-]"); [lia|set_solver|].
     iIntros (?) "n.n↦". rred2r. iApply wpsim_tauR. rred2r.
 
     iMod ((pcs_decr _ _ 97 1) with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
-    iApply (SCMem_store_fun_spec with "[$Mem $n.d↦] [-]"); [lia|set_solver|].
+    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 1 with "[$Mem $n.d↦] [-]"); [lia|set_solver|].
     iIntros (?) "n.d↦". rred2r. iApply wpsim_tauR. rred2r.
 
     iMod ((pcs_decr _ _ 96 1) with "Ys") as "[Ys Y]"; [lia|].
@@ -922,7 +927,7 @@ Section SPEC.
     iDestruct (phys_list_get_head with "Phys") as "#h'↦□".
     destruct (decide (h = h')) as [<-|NEQ].
     { (* Equal, CAS success *)
-      iApply (SCMem_cas_loc_fun_spec_gen with "[$Mem $s↦ h↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
+      iApply (SCMem_cas_loc_fun_spec_gen_gen _ _ _ _ n 1 with "[$Mem $s↦ h↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
       { des_ifs.
         iDestruct "h↦□" as (??) "[h↦□ _]".
         iSplit; iExists _; iFrame "h↦□".
@@ -985,7 +990,7 @@ Section SPEC.
       iApply "Post". iFrame.
     }
     (* Different, CAS fail *)
-    iApply (SCMem_cas_loc_fun_spec_gen with "[$Mem $s↦ h↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
+    iApply (SCMem_cas_loc_fun_spec_gen_gen _ _ _ _ n 1 with "[$Mem $s↦ h↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
     { unfold to_val. des_ifs.
       1,3: iDestruct "h'↦□" as (??) "[h'↦□ _]".
       2,3: iDestruct "h↦□" as (??) "[h↦□ _]".
@@ -1022,7 +1027,7 @@ Section SPEC.
     iIntros "Duty _". rred2r.
 
     (* Offer *)
-    iApply (SCMem_store_fun_spec with "[$Mem $n.n↦] [-]"); [lia|set_solver|].
+    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 1 with "[$Mem $n.n↦] [-]"); [lia|set_solver|].
     iIntros (?) "n.n↦". rred2r. iApply wpsim_tauR. rred2r.
 
     iMod ((pcs_decr _ _ 94 1) with "Ys") as "[Ys Y]"; [lia|].
@@ -1039,7 +1044,7 @@ Section SPEC.
     (* We don't need the old offer *)
     iClear "IsO".
 
-    iApply (SCMem_store_fun_spec with "[$Mem $s.o↦] [-]"); [lia|by apply stackN_subseteq|].
+    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 1 with "[$Mem $s.o↦] [-]"); [lia|by apply stackN_subseteq|].
     iIntros (?) "s.o↦". rred2r. iApply wpsim_tauR. rred2r.
 
     (* Add AU to the invariant. *)
@@ -1073,7 +1078,7 @@ Section SPEC.
     (* Open OInv *)
     iDestruct (OInv_unfold with "OInv") as (offer_rep) "(s.o↦ & IsO)".
 
-    iApply (SCMem_store_fun_spec with "[$Mem $s.o↦] [-]"); [lia|apply stackN_subseteq|].
+    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 1 with "[$Mem $s.o↦] [-]"); [lia|apply stackN_subseteq|].
     iIntros (?) "s.o↦". rred2r.
 
     (* Close Invariant *)
@@ -1095,7 +1100,7 @@ Section SPEC.
     iInv "InvOf" as "Of" "CloseOf".
     simpl.
     iDestruct (offer_st_unfold n (to_mnp_ptr node IsPtr) γo with "Of") as (offer_state) "(n.o↦ & Of)".
-    iApply (SCMem_cas_fun_spec with "[Mem $n.o↦] [-]"); [|apply stackN_offerN_subseteq| |].
+    iApply (SCMem_cas_fun_spec_gen _ _ _ _ n 1 with "[Mem $n.o↦] [-]"); [|apply stackN_offerN_subseteq| |].
     2:{ simpl in *. iApply (tgt_interp_as_equiv with "Mem").
         clear. intros m. simpl. red_tl_all. iSplit.
         - iIntros "$". done.
