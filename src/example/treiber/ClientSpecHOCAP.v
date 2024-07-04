@@ -60,9 +60,8 @@ Section SPEC.
 
   (** Simulation proof. *)
 
-  Lemma TreiberClient_push_sim tid n :
-    ⊢ ⟦(∀ (γk kt k γs γpop : τ{nat, 1+n}),
-      ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
+  Lemma TreiberClient_push_sim tid n γk k kt γs γpop :
+    ⊢ ⟦(((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
       (⤉ IsT nTMod n 1 2 s kt γs) ∗
       (⤉ CInv n γk k γs γpop) ∗
       TID(tid) ∗
@@ -78,11 +77,7 @@ Section SPEC.
       (fn2th TreiberClient.module "thread_push" (tt ↑))
     )%S,1+n⟧.
   Proof.
-    iIntros.
-    red_tl; iIntros (γk); red_tl; iIntros (kt); red_tl; iIntros (k);
-    red_tl; iIntros (γs); red_tl; iIntros (γpop).
-
-    unfold CInv. red_tl_all. simpl.
+    iIntros. unfold CInv. red_tl_all. simpl.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
@@ -148,9 +143,8 @@ Section SPEC.
     iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
   Qed.
 
-  Lemma TreiberClient_pop_sim tid n :
-    ⊢ ⟦(∀ (γk k kt γs γpop : τ{nat, 1+n}),
-      ((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
+  Lemma TreiberClient_pop_sim tid n γk k kt γs γpop :
+    ⊢ ⟦(((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
       (⤉ IsT nTMod n 1 2 s kt γs) ∗
       (⤉ CInv n γk k γs γpop) ∗
       (⤉ GEx γpop tt) ∗
@@ -165,11 +159,7 @@ Section SPEC.
       (fn2th TreiberClient.module "thread_pop" (tt ↑))
     )%S,1+n⟧.
   Proof.
-    iIntros.
-    red_tl; iIntros (γk); red_tl; iIntros (k); red_tl; iIntros (kt);
-    red_tl; iIntros (γs); red_tl; iIntros (γpop).
-
-    unfold CInv. red_tl_all. simpl.
+    iIntros. unfold CInv. red_tl_all. simpl.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 

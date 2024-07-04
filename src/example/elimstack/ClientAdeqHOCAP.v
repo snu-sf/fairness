@@ -141,33 +141,25 @@ Module ElimStackClientCorrect.
     { simpl. iFrame. iDestruct "A" as "[A B]". iSplitL "A"; iFrame. }
 
     iEval (rewrite red_syn_fairI) in "RES". simpl. iMod "RES".
-    iDestruct "RES" as (?????) "(TGTST & #IsT & #CInv & Tpush & Dpush & Pc_kt_push & Pc_k_push & live_k & #Act_k & Tok & Pc_kt_pop & Tpop & Dpop)".
+    iDestruct "RES" as (?????) "(TGTST & #IsES & #CInv & Tpush & Dpush & Pc_kt_push & Pc_k_push & live_k & #Act_k & Tok & Pc_kt_pop & Tpop & Dpop)".
     iEval (rewrite red_syn_tgt_interp_as) in "TGTST".
     iDestruct "TGTST" as "#TGTST".
     red_tl. simpl.
 
     iModIntro. unfold natmap_prop_sum. ss.
     iSplitR "Tpop Dpop Pc_kt_pop Tok".
-    { iDestruct (ElimStackClient_push_sim) as "RES".
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γk).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! kt).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! k).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γs).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γpop).
+    { iDestruct (ElimStackClient_push_sim _ _ γk k kt γs γpop) as "RES".
       red_tl_all. simpl.
-      iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
+      iEval (rewrite red_syn_wpsim) in "RES".
+      iApply ("RES" with "[-]"). iClear "RES".
       red_tl_all.
-      rewrite red_syn_tgt_interp_as. iFrame "∗#".
+      rewrite red_syn_tgt_interp_as. simpl. iFrame "∗#".
     }
     iSplit; [|done].
-    { iDestruct (ElimStackClient_pop_sim) as "RES".
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γk).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! k).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! kt).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γs).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γpop).
-      simpl. red_tl_all.
-      iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
+    { iDestruct (ElimStackClient_pop_sim _ _ γk k kt γs γpop) as "RES".
+      red_tl_all. simpl.
+      iEval (rewrite red_syn_wpsim) in "RES".
+      iApply ("RES" with "[-]"). iClear "RES".
       rewrite red_syn_tgt_interp_as. red_tl. red_tl_ghost_excl_ura. iFrame "∗#".
     }
   Qed.

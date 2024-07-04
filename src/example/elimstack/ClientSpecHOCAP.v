@@ -62,9 +62,8 @@ Section SPEC.
 
   (** Simulation proof. *)
 
-  Lemma ElimStackClient_push_sim tid n :
-    ⊢ ⟦(∀ (γk kt k γs γpop : τ{nat, 2+n}),
-      ((syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m)) ∗
+  Lemma ElimStackClient_push_sim tid n γk k kt γs γpop :
+    ⊢ ⟦(((syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m)) ∗
       (⤉ IsES nESMod n 1 2 s kt γs) ∗
       (⤉⤉ CInv n γk k γs γpop) ∗
       TID(tid) ∗
@@ -80,10 +79,7 @@ Section SPEC.
       (fn2th ElimStackClient.module "thread_push" (tt ↑))
     )%S,2+n⟧.
   Proof.
-    iIntros.
-    red_tl_all; iIntros (γk); red_tl_all; iIntros (kt); red_tl_all; iIntros (k); red_tl_all; iIntros (γs); red_tl_all; iIntros (γpop).
-
-    unfold CInv. red_tl_all. simpl. red_tl_all.
+    iIntros. unfold CInv. red_tl_all. simpl. red_tl_all.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 
@@ -150,9 +146,8 @@ Section SPEC.
     iEval (unfold term_cond). iSplit; iFrame; iPureIntro; auto.
   Qed.
 
-  Lemma ElimStackClient_pop_sim tid n :
-    ⊢ ⟦(∀ (γk k kt γs γpop : τ{nat, 2+n}),
-      ((syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m)) ∗
+  Lemma ElimStackClient_pop_sim tid n γk k kt γs γpop:
+    ⊢ ⟦(((syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m)) ∗
       (⤉ IsES nESMod n 1 2 s kt γs) ∗
       (⤉⤉ CInv n γk k γs γpop) ∗
       (⤉⤉ GEx γpop tt) ∗
@@ -167,12 +162,7 @@ Section SPEC.
       (fn2th ElimStackClient.module "thread_pop" (tt ↑))
     )%S,2+n⟧.
   Proof.
-    iIntros.
-    red_tl; iIntros (γk); red_tl; iIntros (k);
-    red_tl; iIntros (kt); red_tl; iIntros (γs);
-    red_tl; iIntros (γpop).
-
-    unfold CInv. red_tl_all. simpl. red_tl_all.
+    iIntros. unfold CInv. red_tl_all. simpl. red_tl_all.
 
     iEval (rewrite red_syn_inv; rewrite red_syn_wpsim; rewrite red_syn_tgt_interp_as).
 

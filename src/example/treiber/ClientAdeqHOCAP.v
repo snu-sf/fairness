@@ -148,25 +148,17 @@ Module TreiberClientCorrect.
 
     iModIntro. unfold natmap_prop_sum. ss.
     iSplitR "Tpop Dpop Pc_kt_pop Tok".
-    { iDestruct (TreiberClient_push_sim) as "RES".
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γk).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! kt).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! k).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γs).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γpop).
+    { iDestruct (TreiberClient_push_sim _ _ γk k kt γs γpop) as "RES".
       red_tl_all. simpl.
-      iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      rewrite red_syn_tgt_interp_as. iFrame "∗#".
+      iEval (rewrite red_syn_wpsim) in "RES".
+      iApply ("RES" with "[-]"). iClear "RES".
+      rewrite red_syn_tgt_interp_as. simpl. iFrame "∗#".
     }
     iSplit; [|done].
-    { iDestruct (TreiberClient_pop_sim) as "RES".
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γk).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! k).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! kt).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γs).
-      iEval (red_tl) in "RES". iSpecialize ("RES" $! γpop).
+    { iDestruct (TreiberClient_pop_sim _ _ γk k kt γs γpop) as "RES".
       simpl. red_tl_all.
-      iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
+      iEval (rewrite red_syn_wpsim) in "RES".
+      iApply ("RES" with "[-]"). iClear "RES".
       rewrite red_syn_tgt_interp_as. red_tl. red_tl_ghost_excl_ura. iFrame "∗#".
     }
   Qed.
