@@ -44,25 +44,24 @@ Module TreiberClientCorrect.
       ].
 
   (* Default RAs. *)
-  Local Instance _OWNERA : GRA.inG OwnERA Γ := (@GRA.InG _ Γ 0 (@eq_refl _ _)).
-  Local Instance _OWNDRA : GRA.inG OwnDRA Γ := (@GRA.InG _ Γ 1 (@eq_refl _ _)).
-  Local Instance _THDRA : GRA.inG ThreadRA Γ := (@GRA.InG _ Γ 2 (@eq_refl _ _)).
-  Local Instance _STATESRC : GRA.inG (stateSrcRA st_src_type) Γ := (@GRA.InG _ Γ 3 (@eq_refl _ _)).
-  Local Instance _STATETGT : GRA.inG (stateTgtRA st_tgt_type) Γ := (@GRA.InG _ Γ 4 (@eq_refl _ _)).
-  Local Instance _IDENTSRC : GRA.inG (identSrcRA id_src_type) Γ := (@GRA.InG _ Γ 5 (@eq_refl _ _)).
-  Local Instance _IDENTTGT : GRA.inG (identTgtRA id_tgt_type) Γ := (@GRA.InG _ Γ 6 (@eq_refl _ _)).
-  Local Instance _OBLGRA : GRA.inG ObligationRA.t Γ := (@GRA.InG _ Γ 7 (@eq_refl _ _)).
-  Local Instance _EDGERA : GRA.inG EdgeRA Γ := (@GRA.InG _ Γ 8 (@eq_refl _ _)).
-  Local Instance _ARROWSHOTRA : GRA.inG ArrowShotRA Γ := (@GRA.InG _ Γ 9 (@eq_refl _ _)).
-  Local Instance HasMemRA : GRA.inG memRA Γ := (@GRA.InG _ Γ 10 (@eq_refl _ _)).
-  Local Instance HasLifetime : GRA.inG Lifetime.t Γ := (@GRA.InG _ Γ 11 (@eq_refl _ _)).
-  Local Instance HasAuthExcls : GRA.inG (AuthExcls.t (nat * nat)) Γ := (@GRA.InG _ Γ 12 (@eq_refl _ _)).
-  Local Instance HasGhostMap : GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ := (@GRA.InG _ Γ 13 (@eq_refl _ _)).
-  Local Instance HasGhostVar : GRA.inG (ghost_varURA (list SCMem.val)) Γ := (@GRA.InG _ Γ 14 (@eq_refl _ _)).
-  Local Instance HasGhostExcl : GRA.inG (ghost_exclURA unit) Γ := (@GRA.InG _ Γ 15 (@eq_refl _ _)).
+  Local Instance _OWNERA : GRA.inG OwnERA Γ := GRA.InG Γ 0 eq_refl.
+  Local Instance _OWNDRA : GRA.inG OwnDRA Γ := GRA.InG Γ 1 eq_refl.
+  Local Instance _THDRA : GRA.inG ThreadRA Γ := GRA.InG Γ 2 eq_refl.
+  Local Instance _STATESRC : GRA.inG (stateSrcRA st_src_type) Γ := GRA.InG Γ 3 eq_refl.
+  Local Instance _STATETGT : GRA.inG (stateTgtRA st_tgt_type) Γ := GRA.InG Γ 4 eq_refl.
+  Local Instance _IDENTSRC : GRA.inG (identSrcRA id_src_type) Γ := GRA.InG Γ 5 eq_refl.
+  Local Instance _IDENTTGT : GRA.inG (identTgtRA id_tgt_type) Γ := GRA.InG Γ 6 eq_refl.
+  Local Instance _OBLGRA : GRA.inG ObligationRA.t Γ := GRA.InG Γ 7 eq_refl.
+  Local Instance _EDGERA : GRA.inG EdgeRA Γ := GRA.InG Γ 8 eq_refl.
+  Local Instance _ARROWSHOTRA : GRA.inG ArrowShotRA Γ := GRA.InG Γ 9 eq_refl.
+  Local Instance HasMemRA : GRA.inG memRA Γ := GRA.InG Γ 10 eq_refl.
+  Local Instance HasLifetime : GRA.inG Lifetime.t Γ := GRA.InG Γ 11 eq_refl.
+  Local Instance HasAuthExcls : GRA.inG (AuthExcls.t (nat * nat)) Γ := GRA.InG Γ 12 eq_refl.
+  Local Instance HasGhostMap : GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ := GRA.InG Γ 13 eq_refl.
+  Local Instance HasGhostVar : GRA.inG (ghost_varURA (list SCMem.val)) Γ := GRA.InG Γ 14 eq_refl.
+  Local Instance HasGhostExcl : GRA.inG (ghost_exclURA unit) Γ := GRA.InG Γ 15 eq_refl.
 
-  Local Instance TLRASs : TLRAs_small STT Γ :=
-    @Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
+  Local Instance TLRASs : TLRAs_small STT Γ := Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
 
   Local Instance Σ : GRA.t:=
     GRA.of_list [
@@ -92,7 +91,7 @@ Module TreiberClientCorrect.
         (ShareDutyRA id_tgt_type (Vars:=sProp))
       ].
 
-  Local Program Instance sub : @SRA.subG Γ Σ :=
+  Local Program Instance sub : SRA.subG Γ Σ :=
     { subG_map := fun i => if (le_lt_dec i 15) then i else 16 }.
   Next Obligation.
     i. ss. unfold Σ, Γ. des_ifs.
@@ -100,12 +99,11 @@ Module TreiberClientCorrect.
     - unfold GRA.of_list. simpl. des_ifs. all: lia.
   Qed.
 
-  Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := (@GRA.InG _ Σ 17 (@eq_refl _ _)).
-  Local Instance _ARROWRA : GRA.inG (ArrowRA id_tgt_type (Vars:=sProp)) Σ := (@GRA.InG _ Σ 18 (@eq_refl _ _)).
-  Local Instance _SHAREDUTY : GRA.inG (ShareDutyRA id_tgt_type (Vars:=sProp)) Σ := (@GRA.InG _ Σ 19 (@eq_refl _ _)).
+  Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := GRA.InG Σ 17 eq_refl.
+  Local Instance _ARROWRA : GRA.inG (ArrowRA id_tgt_type) Σ := GRA.InG Σ 18 eq_refl.
+  Local Instance _SHAREDUTY : GRA.inG (ShareDutyRA id_tgt_type) Σ := GRA.InG Σ 19 eq_refl.
 
-  Local Instance TLRAs : TLRAs STT Γ Σ :=
-    @Build_TLRAs STT Γ Σ _ _ _.
+  Local Instance TLRAs : TLRAs STT Γ Σ := Build_TLRAs STT Γ Σ _ _ _.
 
   (* Additional initial resources. *)
   Local Definition init_res :=
@@ -116,7 +114,7 @@ Module TreiberClientCorrect.
   Arguments wpsim_wand {_ _ _ _ _ _}.
   Arguments wpsim_ret {_ _ _ _ _ _}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_lifetime; red_tl_authexcls.
+  Ltac red_tl_all := red_tl; red_tl_lifetime; red_tl_ghost_excl_ura.
 
   Lemma correct:
     UserSim.sim TreiberClientSpec.module TreiberClient.module
@@ -159,7 +157,7 @@ Module TreiberClientCorrect.
       simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES".
       iApply ("RES" with "[-]"). iClear "RES".
-      rewrite red_syn_tgt_interp_as. red_tl. red_tl_ghost_excl_ura. iFrame "∗#".
+      rewrite red_syn_tgt_interp_as. iFrame "∗#".
     }
   Qed.
 

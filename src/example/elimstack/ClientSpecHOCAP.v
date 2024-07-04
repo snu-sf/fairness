@@ -63,21 +63,22 @@ Section SPEC.
   (** Simulation proof. *)
 
   Lemma ElimStackClient_push_sim tid n γk k kt γs γpop :
-    ⊢ ⟦(((syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m)) ∗
+    ⊢ ⟦(
+      (syn_tgt_interp_as (2+n) sndl (fun m => s_memory_black m) ∗
       (⤉ IsES nESMod n 1 2 s kt γs) ∗
-      (⤉⤉ CInv n γk k γs γpop) ∗
+      (⤉⤉⤉ CInv n γk k γs γpop) ∗
       TID(tid) ∗
       ◇[kt](1, 1) ∗
-      (⤉⤉ Duty(tid) [(k, 0, (dead γk (k : nat) : sProp n) ∗ push_then_pop_inv n γs γpop)]) ∗
-      ◇[k](3, 5) ∗ ⤉⤉(live γk (k : nat) (1/2)) ∗
+      (⤉⤉⤉ Duty(tid) [(k, 0, dead γk k ∗ push_then_pop_inv n γs γpop)]) ∗
+      ◇[k](3, 5) ∗ (⤉⤉⤉ live γk k (1/2)) ∗
       ⋈[k])
       -∗
-      syn_wpsim (2+n) tid ⊤
-      (fun rs rt => (⤉⤉(syn_term_cond n tid _ rs rt))%S)
+      syn_wpsim (3+n) tid ⊤
+      (fun rs rt => (⤉⤉⤉ (syn_term_cond n tid _ rs rt))%S)
       false false
       (fn2th ElimStackClientSpec.module "thread_push" (tt ↑))
       (fn2th ElimStackClient.module "thread_push" (tt ↑))
-    )%S,2+n⟧.
+    )%S,3+n⟧.
   Proof.
     iIntros. unfold CInv. red_tl_all. simpl. red_tl_all.
 
@@ -96,7 +97,7 @@ Section SPEC.
 
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r. red_tl_all.
 
-    iApply (Elim_push_spec nESMod (λ v, (dead γk (k : nat)) ∗ syn_inv n nESpush (push_then_pop n γs γpop))%S with "[Duty Pck PcSt Live] [-]").
+    iApply (Elim_push_spec nESMod (⤉ (dead γk k ∗ syn_inv n nESpush (push_then_pop n γs γpop)))%S with "[Duty Pck PcSt Live] [-]").
     { simpl. red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|]. simpl.
       iFrame. simpl.
       iDestruct (pcs_cons_fold with "[PcSt]") as "$".
@@ -147,20 +148,21 @@ Section SPEC.
   Qed.
 
   Lemma ElimStackClient_pop_sim tid n γk k kt γs γpop:
-    ⊢ ⟦(((syn_tgt_interp_as (1+n) sndl (fun m => s_memory_black m)) ∗
+    ⊢ ⟦(
+      (syn_tgt_interp_as (2+n) sndl (fun m => s_memory_black m) ∗
       (⤉ IsES nESMod n 1 2 s kt γs) ∗
-      (⤉⤉ CInv n γk k γs γpop) ∗
-      (⤉⤉ GEx γpop tt) ∗
+      (⤉⤉⤉ CInv n γk k γs γpop) ∗
+      (⤉⤉⤉ GEx γpop tt) ∗
       ◇[kt](1,1) ∗
       TID(tid) ∗
-      (⤉⤉ Duty(tid) []))
+      (⤉⤉⤉ Duty(tid) []))
       -∗
-      syn_wpsim (2+n) tid ⊤
-      (fun rs rt => (⤉⤉ (syn_term_cond n tid _ rs rt))%S)
+      syn_wpsim (3+n) tid ⊤
+      (fun rs rt => (⤉⤉⤉ (syn_term_cond n tid _ rs rt))%S)
       false false
       (fn2th ElimStackClientSpec.module "thread_pop" (tt ↑))
       (fn2th ElimStackClient.module "thread_pop" (tt ↑))
-    )%S,2+n⟧.
+    )%S,3+n⟧.
   Proof.
     iIntros. unfold CInv. red_tl_all. simpl. red_tl_all.
 
@@ -194,7 +196,7 @@ Section SPEC.
         iLeft. red_tl_all. iFrame.
       }
 
-      iApply (Elim_pop_spec nESMod (λ ov, if ov is Some v then ⌜v = 1⌝ else (GEx γpop tt))%S with "[Duty Pck Tok] [-]"); [|].
+      iApply (Elim_pop_spec nESMod (λ ov, if ov is Some v then ⌜v = 1⌝ else GEx γpop tt)%S with "[Duty Pck Tok] [-]").
       { simpl. red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplit; [iFrame "#"|].
         iFrame. simpl.  iSplitL; [|done].
         iIntros (s_st). red_tl_all. iIntros "[EStackInv _]".
@@ -221,7 +223,7 @@ Section SPEC.
           iInv "PushedInv" as "EStackC" "ClosePushedInv".
           unfold push_then_pop. simpl. red_tl_all.
           iDestruct "EStackC" as "[EStackC| Tokt]"; last first.
-          { by iDestruct (ghost_excl_exclusive with "Tok Tokt") as "%False". }
+          { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
           iDestruct (EStack_agree with "EStackInv EStackC") as "%EQ".
           subst s_st.
           iMod (EStack_update with "EStackInv EStackC") as "[EStackInv EStackC]".
@@ -328,17 +330,17 @@ Section SPEC.
           (ARROWRA:=@_ARROWRA STT Γ Σ TLRAS)
           idx init_ths init_ord)
       ⊢
-      =| 2+idx |=(⟦syn_fairI (2+idx), 2+idx⟧)={E}=>
+      =| 3+idx |=(⟦syn_fairI (3+idx), 3+idx⟧)={E}=>
         ∃ (γk k γpop γs kt : nat),
-        ⟦syn_tgt_interp_as (1+idx) sndl (fun m => s_memory_black m),2+idx⟧ ∗
-        ⟦IsES nESMod idx 1 2 s kt γs,1+idx⟧ ∗
+        ⟦syn_tgt_interp_as (2+idx) sndl (fun m => s_memory_black m),3+idx⟧ ∗
+        ⟦IsES nESMod idx 1 2 s kt γs,2+idx⟧ ∗
         ⟦CInv idx γk k γs γpop,idx⟧ ∗
         (* thread_push *)
         own_thread tid_push ∗
         ⟦Duty(tid_push) [(k, 0, (dead γk k : sProp idx) ∗ push_then_pop_inv idx γs γpop)],idx⟧ ∗
         ◇[kt](1, 1) ∗
         ◇[k](3, 5) ∗
-        live γk (k : nat) (1/2) ∗
+        live γk k (1/2) ∗
         ⋈[k] ∗
         (* thread_pop *)
         GEx γpop tt ∗
@@ -373,15 +375,15 @@ Section SPEC.
     iDestruct (natmap_prop_remove_find _ _ _ Htid_pop with "Ts") as "[Tpop _]".
     clear Htid_pop.
 
-    iMod (tgt_interp_as_id _ _ (n:=S idx) with "[St_tgt Mem]") as "St_tgt"; [auto|..].
+    iMod (tgt_interp_as_id _ _ (n:=S (S idx)) with "[St_tgt Mem]") as "St_tgt"; [auto|..].
     2:{ iExists _. iFrame. simpl.
         instantiate (1:=fun '(_, m) => s_memory_black m). simpl.
         red_tl_all. iFrame.
     }
-    { simpl. instantiate (1:= (∃ (st : τ{st_tgt_type, S idx}), ⟨Atom.ow_st_tgt st⟩ ∗ (let '(_, m) := st in s_memory_black (n:=S idx) m))%S).
+    { simpl. instantiate (1:= (∃ (st : τ{st_tgt_type, S (S idx)}), ⟨Atom.ow_st_tgt st⟩ ∗ (let '(_, m) := st in s_memory_black (n:=S (S idx)) m))%S).
       red_tl. f_equal.
     }
-    iDestruct (tgt_interp_as_compose (n:=S idx) (la:=Lens.id) (lb:=sndl) with "St_tgt") as "#TGT_ST".
+    iDestruct (tgt_interp_as_compose (n:=S (S idx)) (la:=Lens.id) (lb:=sndl) with "St_tgt") as "#TGT_ST".
     { ss. econs. iIntros ([x m]) "MEM". unfold Lens.view. ss. iFrame.
       iIntros (m') "MEM". iFrame.
     }

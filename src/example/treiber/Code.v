@@ -1,11 +1,6 @@
 From sflib Require Import sflib.
-From Paco Require Import paco.
-Require Import Coq.Classes.RelationClasses Lia Program.
-From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
-From Fairness Require Import FairBeh Mod Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec AuthExclAnysRA.
+From Fairness Require Import Mod Linking.
+From Fairness Require Import SCMemSpec.
 
 Module TreiberStack.
 

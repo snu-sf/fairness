@@ -62,13 +62,14 @@ Section SPEC.
   (** Simulation proof. *)
 
   Lemma TreiberClient_push_sim tid n γk k kt γs γpop :
-    ⊢ ⟦(((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
+    ⊢ ⟦(
+      (syn_tgt_interp_as n sndl (fun m => s_memory_black m) ∗
       (⤉ IsT nTMod n 1 2 s kt γs) ∗
       (⤉ CInv n γk k γs γpop) ∗
       TID(tid) ∗
       ◇[kt](1, 1) ∗
-      (⤉ Duty(tid) [(k, 0, dead γk (k : nat) ∗ push_then_pop_inv n γs γpop)]) ∗
-      ◇[k](3, 5) ∗ ⤉(live γk (k : nat) (1/2)) ∗
+      (⤉ Duty(tid) [(k, 0, dead γk k ∗ push_then_pop_inv n γs γpop)]) ∗
+      ◇[k](3, 5) ∗ (⤉ live γk k (1/2)) ∗
       ⋈[k])
       -∗
       syn_wpsim (1+n) tid ⊤
@@ -148,7 +149,8 @@ Section SPEC.
   Qed.
 
   Lemma TreiberClient_pop_sim tid n γk k kt γs γpop :
-    ⊢ ⟦(((syn_tgt_interp_as n sndl (fun m => s_memory_black m)) ∗
+    ⊢ ⟦(
+      (syn_tgt_interp_as n sndl (fun m => s_memory_black m) ∗
       (⤉ IsT nTMod n 1 2 s kt γs) ∗
       (⤉ CInv n γk k γs γpop) ∗
       (⤉ GEx γpop tt) ∗

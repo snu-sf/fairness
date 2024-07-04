@@ -220,23 +220,23 @@ Section SPEC.
     iFrame. iExists _. red_tl. rewrite red_syn_inv. iFrame "#".
   Qed.
 
-  Lemma Treiber_push_spec {n} (Q : SCMem.val → sProp n) (P : sProp n) tid :
+  Lemma Treiber_push_spec {n} (Q P : sProp (1+n)) tid :
     ∀ s k γs val l a (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, n, ⊤ @]
           ⧼⟦(
             (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
             ∗ (⤉ IsT n l a s k γs)
             ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉ P)
-            ∗ (∀ (St : τ{list SCMem.val, 1+n}), (⤉ (TStack n γs (St : list SCMem.val) ∗ P))
-                  =|1+n|={⊤ ∖ ↑treiberN}=∗ (⤉ (TStack n γs (val::St : list SCMem.val) ∗ Q val))
+            ∗ P
+            ∗ (∀ (St : τ{list SCMem.val, 1+n}), ((⤉ TStack n γs (St : list SCMem.val)) ∗ P)
+                  =|1+n|={⊤ ∖ ↑treiberN}=∗ ((⤉ TStack n γs (val::St : list SCMem.val)) ∗ Q)
               )
             ∗ ◇[k](1,1)
             ∗ ◇{List.map fst ds}(2+l,2+a)
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
           ⧼_, ⟦(
-            (⤉ (Q val ∗ Duty(tid) ds))
+            Q ∗ (⤉ Duty(tid) ds)
             )%S, 1+n⟧⧽
   .
   Proof.
@@ -429,19 +429,19 @@ Section SPEC.
   Qed.
 
   Lemma Treiber_pop_spec
-        {n} (Q : (option SCMem.val) → sProp n) (P : sProp n) tid :
+        {n} (Q : (option SCMem.val) → sProp (1+n)) (P : sProp (1+n)) tid :
     ∀ s k γs l a (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid, n, ⊤ @]
           ⧼⟦(
             (syn_tgt_interp_as n sndl (fun m => s_memory_black m))
             ∗ (⤉ IsT n l a s k γs)
             ∗ (⤉ Duty(tid) ds)
-            ∗ (⤉ P)
-            ∗ (∀ (St : τ{list SCMem.val, 1+n}), (⤉ (TStack n γs (St : list SCMem.val) ∗ P))
+            ∗ P
+            ∗ (∀ (St : τ{list SCMem.val, 1+n}), ((⤉ TStack n γs (St : list SCMem.val)) ∗ P)
                   =|1+n|={⊤∖↑treiberN}=∗
                   match St with
-                  | [] => (⤉ (TStack n γs ([] : list SCMem.val) ∗ Q None))
-                  | h::t => (⤉ (TStack n γs t ∗ Q (Some h)))
+                  | [] => ((⤉ TStack n γs ([] : list SCMem.val)) ∗ Q None)
+                  | h::t => ((⤉ TStack n γs t) ∗ Q (Some h))
                   end
               )
             ∗ ◇[k](1,1)
@@ -449,7 +449,7 @@ Section SPEC.
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
           ⧼rv, ⟦(
-            (⤉ (Q rv ∗ Duty(tid) ds)) ∗
+              Q rv ∗ (⤉ Duty(tid) ds) ∗
             match rv with
             | Some _ => emp
             | None => ◇[k](1,1)
