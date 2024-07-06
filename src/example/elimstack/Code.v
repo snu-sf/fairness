@@ -1,3 +1,4 @@
+(* Note: simplified, the original code does more serious case analysis on the current offer value, and pop can also make an offer. *)
 From sflib Require Import sflib.
 From Fairness Require Import Mod Linking.
 From Fairness Require Import SCMemSpec.
@@ -29,7 +30,7 @@ Section ELIMSTACK.
 
       (* Done waiting *)
       _ <- (OMod.call (R:=unit) "store" (SCMem.val_add s 1,SCMem.val_null));;
-      b <- (OMod.call (R:=bool) "cas" (node, (0 : SCMem.val), (2 : SCMem.val)));;
+      b <- (OMod.call (R:=bool) "cas" (node, (0 : SCMem.val), (1 : SCMem.val)));;
       if b then Ret (inl tt) else Ret (inr tt)
     ) tt.
 

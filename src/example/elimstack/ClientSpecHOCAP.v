@@ -102,9 +102,11 @@ Section SPEC.
       iFrame. simpl.
       iDestruct (pcs_cons_fold with "[PcSt]") as "$".
       { simpl. iFrame. }
-      iIntros (s_st). red_tl_all. iIntros "[EStackInv _]".
-      rewrite red_syn_fupd. red_tl_all.
+      rewrite red_syn_atomic_update.
       iInv "CInv" as "Client" "CloseCInv".
+      iApply FUpd_mask_keep; [set_solver|].
+      iIntros "CloseES !>".
+
       iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
       iDestruct "Client" as "[#OBL PushProm]".
 
@@ -112,23 +114,23 @@ Section SPEC.
 
       iDestruct "PushProm" as "[Bf | #Af]"; simpl.
       - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv EStackC]".
-        iDestruct (EStack_agree with "EStackInv EStackC") as "%EQ".
-        subst s_st.
-        iMod (EStack_update with "EStackInv EStackC") as "[EStackInv EStackC]".
-        iMod ((FUpd_alloc _ _ _ n (nESpush) (push_then_pop n γs γpop : sProp n)%S) with "[EStackC]") as "#Pushed"; [lia| |].
+      iExists _. red_tl. iFrame. iIntros (_) "EStackC".
+      iMod ((FUpd_alloc _ _ _ n (nESpush) (push_then_pop n γs γpop : sProp n)%S) with "[EStackC]") as "#Pushed"; [lia| |].
         { unfold push_then_pop. iEval (simpl; red_tl_all; simpl). auto. }
         iDestruct (Lifetime.pending_merge with "Live LiveInv") as "Live".
         iEval (rewrite Qp.half_half) in "Live".
         iMod (Lifetime.pending_shot with "Live") as "#Dead".
+
+        iMod "CloseES" as "_".
         iMod ("CloseCInv" with "[]") as "_".
         { iEval (unfold CState; simpl; red_tl_all; simpl).
           iFrame "#". iEval (rewrite red_syn_until_tpromise).
           iApply until_tpromise_make2. simpl. iSplit; auto.
           iEval (red_tl_all; simpl). iModIntro; iSplit; auto.
         }
-        iModIntro. iFrame "∗#".
+        iModIntro. red_tl_all. iFrame "∗#".
       - iEval (red_tl_all; simpl) in "Af". iDestruct "Af" as "[Dead EStackC]".
-        by iDestruct (Lifetime.pending_not_shot with "Live Dead") as "%False".
+        iDestruct (Lifetime.pending_not_shot with "Live Dead") as %[].
     }
     Unshelve.
     2:{ apply ndot_ne_disjoint. ss. }
@@ -199,8 +201,7 @@ Section SPEC.
       iApply (Elim_pop_spec nESMod (λ ov, if ov is Some v then ⌜v = 1⌝ else GEx γpop tt)%S with "[Duty Pck Tok] [-]").
       { simpl. red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplit; [iFrame "#"|].
         iFrame. simpl.  iSplitL; [|done].
-        iIntros (s_st). red_tl_all. iIntros "[EStackInv _]".
-        rewrite red_syn_fupd. red_tl_all.
+        rewrite red_syn_atomic_update.
         iInv "CInv" as "Client" "CloseCInv".
         iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
 
@@ -209,24 +210,29 @@ Section SPEC.
         iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
         iDestruct "PushProm" as "[Bf | #Af]"; simpl.
         - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv EStackC]".
-          iDestruct (EStack_agree with "EStackInv EStackC") as "%EQ".
-          subst s_st.
+          iApply FUpd_mask_keep; [set_solver|].
+          iIntros "CloseES !>".
+          iExists _. red_tl. iFrame. iIntros (_) "EStackC".
+          iMod "CloseES" as "_".
           iMod ("CloseCInv" with "[LiveInv EStackC]") as "_".
           { iEval (unfold CState; simpl; red_tl_all; simpl).
             iFrame "#". iEval (rewrite red_syn_until_tpromise).
             unfold until_thread_promise. simpl. iSplit; auto.
             iLeft. red_tl_all. iFrame.
           }
-          iModIntro. red_tl_all. iFrame "∗#".
+          iModIntro. simpl. red_tl_all. iFrame "∗#".
         - iEval (red_tl_all; simpl) in "Af". iDestruct "Af" as "[Dead PushedInv]".
           unfold push_then_pop_inv. rewrite red_syn_inv.
           iInv "PushedInv" as "EStackC" "ClosePushedInv".
           unfold push_then_pop. simpl. red_tl_all.
           iDestruct "EStackC" as "[EStackC| Tokt]"; last first.
           { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
-          iDestruct (EStack_agree with "EStackInv EStackC") as "%EQ".
-          subst s_st.
-          iMod (EStack_update with "EStackInv EStackC") as "[EStackInv EStackC]".
+
+          iApply FUpd_mask_keep; [set_solver|].
+          iIntros "CloseES !>".
+          iExists _. red_tl. iFrame. iIntros (_) "EStackC".
+          iMod "CloseES" as "_".
+
           iMod ("ClosePushedInv" with "[$Tok]") as "_".
           iMod ("CloseCInv" with "[EStackC]") as "_".
           { iEval (unfold CState; simpl; red_tl_all; simpl).
@@ -234,7 +240,7 @@ Section SPEC.
             unfold until_thread_promise. simpl. iSplit; auto.
             iRight. red_tl_all. iFrame "#".
           }
-          iModIntro. red_tl_all. iFrame. done.
+          iModIntro. simpl. red_tl_all. done.
       }
       iIntros (rv) "PopPost".
       destruct rv as [v|]; simpl; red_tl_all; rred2r.
@@ -265,8 +271,9 @@ Section SPEC.
       }
       iApply (Elim_pop_spec nESMod (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Pck Tok] [-]").
       { simpl. red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
-      iFrame. iSplitL; [|done]. iIntros (s_st). red_tl_all. iIntros "[EStackInv _]".
-      rewrite red_syn_fupd. red_tl_all.
+      iFrame. iSplitL; [|done].
+      rewrite red_syn_atomic_update.
+
       iInv "CInv" as "Client" "CloseCInv".
       iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
 
@@ -274,24 +281,28 @@ Section SPEC.
 
       iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
       iDestruct "PushProm" as "[Bf | _]"; simpl.
-      - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv EStackC]".
-        iDestruct (Lifetime.pending_not_shot with "LiveInv Dead") as "%False".
-        done.
-      - (* Note: Slight proof repetition with above failed induction case. *)
-        iInv "PushedInv" as "EStackC" "ClosePushedInv".
-        unfold push_then_pop. simpl. red_tl_all.
-        iDestruct "EStackC" as "[EStackC| Tokt]"; last first.
-        { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
-        iDestruct (EStack_agree with "EStackInv EStackC") as %->.
-        iMod (EStack_update with "EStackInv EStackC") as "[EStackInv EStackC]".
-        iMod ("ClosePushedInv" with "[$Tok]") as "_".
-        iMod ("CloseCInv" with "[EStackC]") as "_".
-        { iEval (unfold CState; simpl; red_tl_all; simpl).
-          iFrame "#". iEval (rewrite red_syn_until_tpromise).
-          unfold until_thread_promise. simpl. iSplit; auto.
-          iRight. red_tl_all. iFrame "#".
-        }
-        iModIntro. red_tl_all. iFrame. done.
+      { iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv EStackC]".
+        iDestruct (Lifetime.pending_not_shot with "LiveInv Dead") as %[].
+      }
+      (* Note: Slight proof repetition with above failed induction case. *)
+      iInv "PushedInv" as "EStackC" "ClosePushedInv".
+      unfold push_then_pop. simpl. red_tl_all.
+      iDestruct "EStackC" as "[EStackC| Tokt]"; last first.
+      { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
+
+      iApply FUpd_mask_keep; [set_solver|].
+      iIntros "CloseTS !>".
+      iExists _. red_tl. iFrame. iIntros (_) "EStackC".
+      iMod "CloseTS" as "_".
+
+      iMod ("ClosePushedInv" with "[$Tok]") as "_".
+      iMod ("CloseCInv" with "[EStackC]") as "_".
+      { iEval (unfold CState; simpl; red_tl_all; simpl).
+        iFrame "#". iEval (rewrite red_syn_until_tpromise).
+        unfold until_thread_promise. simpl. iSplit; auto.
+        iRight. red_tl_all. iFrame "#".
+      }
+      iModIntro. red_tl_all. iFrame. done.
     }
     iIntros (rv) "PopPost". simpl. red_tl_all.
     iDestruct "PopPost" as "(%EQ & Duty & _)". subst rv. rred2r.
