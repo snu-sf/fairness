@@ -425,13 +425,13 @@ Context `{HasGhostMap : @GRA.inG (ghost_mapURA K V) Γ}.
   Definition s_ghost_map_auth {n} γ q m : sProp n := (➢(ghost_map_auth_ra γ q m))%S.
   Definition s_ghost_map_elem {n} k γ dq v : sProp n := (➢(ghost_map_elem_ra k γ dq v))%S.
 
-  Lemma red_s_ghost_map_auth n γ q m :
+  Lemma red_syn_ghost_map_auth n γ q m :
     ⟦s_ghost_map_auth γ q m, n⟧ = ghost_map_auth γ q m.
   Proof.
     unfold s_ghost_map_auth. red_tl. ss.
   Qed.
 
-  Lemma red_s_ghost_map_elem n k γ dq v:
+  Lemma red_syn_ghost_map_elem n k γ dq v:
     ⟦s_ghost_map_elem k γ dq v, n⟧ = ghost_map_elem k γ dq v.
   Proof.
     unfold s_ghost_map_elem. red_tl. ss.
@@ -439,8 +439,9 @@ Context `{HasGhostMap : @GRA.inG (ghost_mapURA K V) Γ}.
 
 End SPROP.
 
-Ltac red_tl_ghost_map_ura := (try rewrite ! red_s_ghost_map_auth;
-try rewrite ! red_s_ghost_map_elem
+Ltac red_tl_ghost_map_ura := (
+  try rewrite ! red_syn_ghost_map_auth;
+  try rewrite ! red_syn_ghost_map_elem
 ).
 
 Notation "k ↪[ γ ]{ dq } v" := (s_ghost_map_elem γ k dq v)

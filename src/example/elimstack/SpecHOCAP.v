@@ -2,30 +2,20 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From iris Require Import bi.big_op.
-From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
+From Fairness Require Import pind ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import elimstack.Code.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic SCMemSpec ghost_var ghost_map ghost_excl.
 
-Record maybe_null_ptr := {
-  ptr :> SCMem.val;
-  ptr_maybe_null : ptr = SCMem.val_null \/ (∃ (p : SCMem.pointer), ptr = SCMem.val_ptr p);
-}.
+Inductive maybe_null_ptr :=
+| Null
+| Ptr (p : SCMem.pointer)
+.
+
 Global Instance maybe_null_ptr_eq_dec : EqDecision maybe_null_ptr.
-Proof.
-  intros [p1 Pp1] [p2 Pp2].
-  unfold Decision. destruct (decide (p1 = p2)) as [->|NEQ].
-  - left. f_equal. apply proof_irrelevance.
-  - right. intros H. apply NEQ. injection H. done.
-Qed.
-
-Definition to_mnp_null : maybe_null_ptr := {| ptr := SCMem.val_null; ptr_maybe_null := or_introl eq_refl |}.
-
-Definition to_mnp_ptr ptr
-  (IsPtr : (∃ (p : SCMem.pointer), ptr = SCMem.val_ptr p)) :=
-  {| ptr := ptr; ptr_maybe_null := or_intror IsPtr |}.
+Proof. solve_decision. Qed.
 
 Section SPEC.
 
@@ -83,12 +73,16 @@ Section SPEC.
   Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_var_ura; red_tl_ghost_map_ura; red_tl_ghost_excl_ura.
 
   Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
-    ptr mnp.
+    match mnp with
+    | Null => SCMem.val_null
+    | Ptr p => SCMem.val_ptr p
+    end.
 
   Fixpoint phys_list n (l : maybe_null_ptr) (L : list SCMem.val) : sProp n := (
-    match L with
-    | [] => ⌜to_val l = SCMem.val_null⌝
-    | v::tL => ∃ (p : τ{SCMem.pointer}) (r : τ{maybe_null_ptr}), ⌜to_val l = SCMem.val_ptr p⌝ ∗ (l ↦∗□ [(to_val r); v]) ∗ (phys_list n r tL)
+    match L,l with
+    | [],Null => emp
+    | v::tL,Ptr p => ∃ (r : τ{maybe_null_ptr}), (p ↦∗□ [(to_val r); v]) ∗ (phys_list n r tL)
+    | _,_ => ⌜False⌝
     end
   )%S.
 
@@ -121,9 +115,9 @@ Section SPEC.
     | OfferAcked => 1
     end.
 
-  Definition offer_st n (offer_loc : maybe_null_ptr) (γo : nat) (P Q : τ{Φ,1+n}%stype) : sProp n :=
+  Definition offer_st n (offer_loc : SCMem.pointer) (γo : nat) (P Q : τ{Φ,1+n}%stype) : sProp n :=
     (∃ (st : τ{offer_state,n}),
-      (to_val offer_loc) ↦ (offer_state_rep st) ∗
+      offer_loc ↦ (offer_state_rep st) ∗
       (match st with
       | OfferPending => P
       | OfferAccepted => Q
@@ -135,12 +129,12 @@ Section SPEC.
     (AU <{ ∃∃ St, ⤉ EStack n γs (St : list SCMem.val)}> @ n, (⊤∖↑elimN), ∅ <{ ∀∀ (_ : unit), (⤉ EStack n γs (val::St)), COMM Q}>)%S.
 
   Definition IsO (n : nat) (γs : nat) (offer_rep : maybe_null_ptr) : sProp (2+n) :=
-    (if (decide (ptr offer_rep = SCMem.val_null)) then
-      emp
-    else
-      ∃ (Q : τ{Φ,2+n}%stype) (v : τ{SCMem.val}) (γo : τ{nat}),
-        (⤉ syn_inv (1+n) offerN (offer_st (1+n) offer_rep γo (stack_push_au n γs v Q) Q)) ∗
-        (⤉⤉ ((SCMem.val_add (to_val offer_rep) 1) ↦□ v))
+    (match offer_rep with
+    | Null => emp
+    | Ptr p => ∃ (Q : τ{Φ,2+n}%stype) (v : τ{SCMem.val}) (γo : τ{nat}),
+        (⤉ syn_inv (1+n) offerN (offer_st (1+n) p γo (stack_push_au n γs v Q) Q)) ∗
+        (⤉⤉ ((SCMem.val_add p 1) ↦□ v))
+    end
     )%S.
 
   Definition OInv n (s : SCMem.val) (γs : nat) : sProp (2+n) :=(
@@ -172,7 +166,7 @@ Section SPEC.
 
   Lemma Inv_unfold n s k γs γl :
     (⟦ Inv n s k γs γl, 2+n ⟧) -∗
-    ∃ (h : τ{maybe_null_ptr,2+n}) (L : τ{list SCMem.val,2+n}) (m : τ{gmap nat maybe_null_ptr,2+n}),
+    ∃ h L m,
       (s ↦ (to_val h)) ∗ ghost_var γs (1/2) L ∗
       ⟦ (phys_list n h L), n⟧ ∗ ⟦ LInv n k γl h m, n⟧ ∗ ⟦ OInv n s γs, 2+n⟧.
   Proof.
@@ -224,50 +218,50 @@ Section SPEC.
   Qed.
 
   Lemma phys_list_unfold n l L :
-    ⟦ phys_list n l L, n ⟧ -∗
-    match L with
-    | [] => ⌜to_val l = SCMem.val_null⌝
-    | v::tL => ∃ (p : τ{SCMem.pointer,n}) (r : τ{maybe_null_ptr,n}), ⌜to_val l = SCMem.val_ptr p⌝ ∗ (l ↦∗□ [(to_val r); v]) ∗ ⟦phys_list n r tL,n⟧
+    (⟦ phys_list n l L, n ⟧) -∗
+    match L,l with
+    | [],Null => emp
+    | v::tL,Ptr p => ∃ r, (p ↦∗□ [(to_val r); v]) ∗ (⟦phys_list n r tL,n⟧)
+    | _,_ => ⌜False⌝
     end.
   Proof.
-    iIntros "H". des_ifs. simpl.
-    red_tl_all; iDestruct "H" as "[%x H]".
-    red_tl_all; iDestruct "H" as "[%r H]".
-    red_tl_all; iDestruct "H" as "[%EQ [(l.n↦ & l.d↦ & _) Phys]]".
-    iExists _,_. iFrame. done.
+    iIntros "H". des_ifs. simpl. destruct p.
+    red_tl_all; iDestruct "H" as (r) "H".
+    red_tl_all; iDestruct "H" as "[(l.n↦ & l.d↦ & _) Phys]".
+    iExists _. iFrame.
   Qed.
 
   Lemma phys_list_fold n l L :
-    (match L with
-    | [] => ⌜to_val l = SCMem.val_null⌝
-    | v::tL => ∃ (p : τ{SCMem.pointer,n}) (r : τ{maybe_null_ptr,n}), ⌜to_val l = SCMem.val_ptr p⌝ ∗ (l ↦∗□ [(to_val r); v]) ∗ (⟦phys_list n r tL,n⟧)
+    (match L,l with
+    | [],Null => emp
+    | v::tL,Ptr p => ∃ r, (p ↦∗□ [(to_val r); v]) ∗ (⟦phys_list n r tL,n⟧)
+    | _,_ => ⌜False⌝
     end) -∗
     ⟦ phys_list n l L, n ⟧.
   Proof.
-    iIntros "H". des_ifs. simpl.
-    red_tl_all; iDestruct "H" as "[%x [%r [%EQ [(l.n↦ & l.d↦ & _) Phys]]]]".
-    red_tl_all. iExists x. red_tl_all. iExists r.
-    red_tl_all. iFrame. done.
+    iIntros "H". des_ifs. simpl. destruct p.
+    red_tl_all; iDestruct "H" as (r) "[(l.n↦ & l.d↦ & _) Phys]".
+    red_tl_all. iExists r.
+    red_tl_all. iFrame.
   Qed.
 
   Lemma phys_list_get_head n l L :
     ⟦ phys_list n l L, n ⟧ -∗
-    □ if (decide (to_val l = SCMem.val_null)) then
+    □ if (decide (l = Null)) then
         emp
       else (∃ (r : τ{maybe_null_ptr,n}) (h : τ{SCMem.val,n}),
-                 (l ↦∗□ [(to_val r); h]))
+                 (to_val l ↦∗□ [(to_val r); h]))
     .
   Proof.
-    iIntros "H". iDestruct (phys_list_unfold with "H") as "H". destruct L; try done.
-    all: case_decide; try done.
-    - iDestruct "H" as %EQ. done.
-    - iDestruct "H" as (p r) "[%EQ [#H _]]".
-      red_tl_all. iExists r, v. iFrame "H".
+    iIntros "H". iDestruct (phys_list_unfold with "H") as "H".
+    des_ifs.
+    iDestruct "H" as (r) "[#H _]".
+    red_tl_all. iExists r, v. iFrame "H".
   Qed.
 
   Lemma OInv_unfold n s γs :
     ⟦ OInv n s γs, 2+n ⟧ -∗
-    ∃ (offer_rep : τ{maybe_null_ptr,2+n}),
+    ∃ offer_rep,
       (SCMem.val_add s 1) ↦ (to_val offer_rep) ∗ ⟦ IsO n γs offer_rep, 2+n ⟧.
   Proof. unfold OInv. simpl. red_tl_all. iIntros "[% H]". red_tl_all. eauto. Qed.
 
@@ -279,13 +273,12 @@ Section SPEC.
 
   Lemma IsO_unfold n γs offer_rep :
     ⟦ IsO n γs offer_rep, 2+n ⟧ -∗
-    if decide (ptr offer_rep = SCMem.val_null) then
-      emp
-    else
-      ∃ (Q : τ{Φ,2+n}%stype) (v : τ{SCMem.val,2+n}) (γo : τ{nat,2+n}),
-        inv (1+n) offerN (offer_st (1+n) offer_rep γo (stack_push_au n γs v Q) Q) ∗
-        ((SCMem.val_add (to_val offer_rep) 1) ↦□ v)
-    .
+    match offer_rep with
+    | Null => emp
+    | Ptr p => ∃ (Q : τ{Φ,2+n}%stype) v γo,
+        inv (1+n) offerN (offer_st (1+n) p γo (stack_push_au n γs v Q) Q) ∗
+        (SCMem.val_add p 1 ↦□ v)
+    end.
   Proof.
     unfold IsO. simpl. iIntros "H". des_ifs; eauto.
     repeat (red_tl; iDestruct "H" as "[% H]").
@@ -294,48 +287,46 @@ Section SPEC.
   Qed.
 
   Lemma IsO_fold n γs offer_rep :
-    (if decide (ptr offer_rep = SCMem.val_null) then
-      emp
-    else
-      ∃ (Q : τ{Φ,2+n}%stype) (v : τ{SCMem.val,2+n}) (γo : τ{nat,2+n}),
-        inv (1+n) offerN (offer_st (1+n) offer_rep γo (stack_push_au n γs v Q) Q) ∗
-        ((SCMem.val_add (to_val offer_rep) 1) ↦□ v)
-    ) -∗
+    match offer_rep with
+    | Null => emp
+    | Ptr p => ∃ Q v γo,
+        inv (1+n) offerN (offer_st (1+n) p γo (stack_push_au n γs v Q) Q) ∗
+        (SCMem.val_add p 1 ↦□ v)
+    end -∗
     ⟦ IsO n γs offer_rep, 2+n ⟧.
   Proof.
     unfold IsO. simpl. iIntros "H". des_ifs; eauto.
-    repeat (red_tl; iDestruct "H" as "[% H]").
-    repeat (iExists _; red_tl). rewrite red_syn_inv.
-    red_tl_all. done.
+    iDestruct "H" as (???) "#H".
+    repeat (red_tl; iExists _). red_tl_all. rewrite red_syn_inv.
+    done.
   Qed.
 
   Lemma offer_st_unfold n offer_rep γo γs Q v :
-    ⟦(offer_st (1+n) offer_rep γo (stack_push_au n γs v Q) Q)%S, 1+n⟧ -∗
-    ∃ (offer_state : τ{offer_state,1+n}),
-    (to_val offer_rep ↦ (offer_state_rep offer_state)) ∗
-      match offer_state with
-        | OfferPending => ⟦stack_push_au n γs v Q,1+n⟧
-        | OfferAccepted => ⟦Q,1+n⟧
-        | _ => GEx γo ()
-        end
-    .
+    ⟦offer_st (1+n) offer_rep γo (stack_push_au n γs v Q) Q, 1+n⟧ -∗
+    ∃ st,
+      offer_rep ↦ (offer_state_rep st) ∗
+      match st with
+      | OfferPending => ⟦stack_push_au n γs v Q,1+n⟧
+      | OfferAccepted => ⟦Q,1+n⟧
+      | _ => GEx γo tt
+      end.
   Proof.
     iIntros "H". unfold offer_st. red_tl_all.
-    iDestruct "H" as (offer_state) "H".
-    iExists offer_state. des_ifs; red_tl_all; ss.
+    iDestruct "H" as (st) "H".
+    iExists st. des_ifs; red_tl_all; ss.
   Qed.
 
-  Lemma offer_st_fold offer_state offer_rep n γo γs Q v  :
-    (to_val offer_rep ↦ (offer_state_rep offer_state)) -∗
-    match offer_state with
+  Lemma offer_st_fold st offer_rep n γo γs Q v  :
+    (SCMem.val_ptr offer_rep) ↦ (offer_state_rep st) -∗
+    match st with
     | OfferPending => ⟦stack_push_au n γs v Q,1+n⟧
     | OfferAccepted => ⟦Q,1+n⟧
-    | _ => GEx γo ()
+    | _ => GEx γo tt
     end
-    -∗ ⟦(offer_st (1+n) offer_rep γo (stack_push_au n γs v Q) Q)%S, 1+n⟧.
+    -∗ ⟦offer_st (1+n) offer_rep γo (stack_push_au n γs v Q) Q, 1+n⟧.
   Proof.
     iIntros "? ?". unfold offer_st. red_tl_all.
-    iExists offer_state. red_tl_all. iFrame.
+    iExists st. red_tl_all. iFrame.
     des_ifs; red_tl_all; ss.
   Qed.
 
@@ -350,11 +341,11 @@ Section SPEC.
     iEval (rewrite ghost_var_split) in "V".
     iDestruct "V" as "[VI VS]".
     iMod (FUpd_alloc _ _ _ (2+n) (stackN) (Inv n s k γs γl) with "[VI s↦ s.o↦ M]") as "#Inv"; [lia| |].
-    { iApply (Inv_fold _ _ _ _ _ to_mnp_null with "s↦ VI [] [M]").
+    { iApply (Inv_fold _ _ _ _ _ Null with "s↦ VI [] [M]").
       - iApply phys_list_fold. done.
       - iApply (LInv_fold with "M"). done.
-      - iApply (OInv_fold _ _ _ to_mnp_null with "s.o↦ []").
-        iApply IsO_fold. case_decide; done.
+      - iApply (OInv_fold _ _ _ Null with "s.o↦ []").
+        iApply IsO_fold. done.
     }
     iModIntro. iExists _,_. iFrame. unfold IsES,EStack. red_tl_all.
     iFrame. iExists _. red_tl. rewrite red_syn_inv. iFrame "#".
@@ -427,14 +418,11 @@ Section SPEC.
     subst. rred2r. iApply wpsim_tauR. rred2r.
     iMod (pcs_decr _ _ 99 1 with "Ys") as "[Ys Y]"; [lia|].
 
-    destruct (decide (to_val h = to_mnp_null)) as [EQ|NEQ].
+    destruct (decide (h = Null)) as [->|NEQ].
     { (* Head is null, so stack is empty. *)
-      destruct h as [[h|h] EQh]; ss.
-      subst. injection EQ as ->. simpl in *.
+      simpl in *.
       iEval (rewrite phys_list_unfold) in "Phys".
-      des_ifs; last first.
-      { iDestruct "Phys" as (p r) "[%EQ _]". simpl in EQ. done. }
-      iClear "Phys".
+      des_ifs. iClear "Phys".
 
       iMod stackN_elimN_fupd as "FUPD".
       iMod "AU" as (?) "[γs' Commit]". red_tl_all.
@@ -456,8 +444,8 @@ Section SPEC.
           - iIntros "[$ _]".
         }
       1: lia.
-      iIntros (?) "%EQ". destruct EQ as [EQ _]. des; last done.
-      specialize (EQ EQh) as ->. rred2r.
+      iIntros (?) "%EQ". destruct EQ as [EQ _].
+      specialize (EQ ltac:(auto)) as ->. rred2r.
 
       iApply wpsim_tauR. rred2r.
       iApply "Post". red_tl_all. iFrame.
@@ -512,9 +500,8 @@ Section SPEC.
       iDestruct (memory_ra_points_to_agree with "h.n↦□ h'.n↦□") as %<-.
 
       iDestruct (phys_list_unfold with "Phys") as "Phys".
-      destruct L as [|v tL].
-      { iDestruct "Phys" as %EQ. done. }
-      iDestruct "Phys" as (? r_new) "[%EQ_p [[#h.n↦□' [#h.d↦□' _]] Phys]]".
+      destruct L as [|v tL], h as [|[h]]; try done.
+      iDestruct "Phys" as (r_new) "[[#h.n↦□' [#h.d↦□' _]] Phys]".
 
       iDestruct (memory_ra_points_to_agree with "h.d↦□ h.d↦□'") as %<-.
       iDestruct (memory_ra_points_to_agree with "h.n↦□ h.n↦□'") as %->.
@@ -522,9 +509,8 @@ Section SPEC.
 
       (* Equal, CAS success *)
       iApply (SCMem_cas_loc_fun_spec_gen_gen _ _ _ _ n 2 with "[$Mem $s↦] [-]"); [lia|solve_ndisj| |].
-      { des_ifs.
-        iSplit; iExists _; iFrame "h.n↦□".
-      }
+      { des_ifs. iSplit; iExists _; iFrame "h.n↦□". }
+
       iIntros (b) "POST".
 
       iDestruct "POST" as (u) "(%EQ & s↦ & _ & _)".
@@ -584,16 +570,14 @@ Section SPEC.
     (* Different, CAS fail *)
     iApply (SCMem_cas_loc_fun_spec_gen_gen _ _ _ _ n 2 with "[$Mem $s↦ h.n↦□ h'↦□] [-]"); [lia|solve_ndisj| |].
     { unfold to_val. des_ifs.
-      2: iDestruct "h'↦□" as (??) "[h'↦□ _]".
+      2,4: iDestruct "h'↦□" as (??) "[h'↦□ _]".
       all: iSplit; try done; iExists _; iFrame "#".
     }
     iClear "h'↦□".
     iIntros (b) "POST". iDestruct "POST" as (u) "(%EQ & s↦ & _ & _)".
     destruct (SCMem.val_eq_dec (to_val h') (to_val h)).
     all: destruct EQ as [-> ->].
-    { exfalso. unfold to_val in e. apply NEQhh'.
-      destruct h,h'. simpl in *. subst. f_equal. apply proof_irrelevance.
-    }
+    { exfalso. unfold to_val in e. des_ifs. }
 
     (* Update ◇[k](0,1) to use for induction *)
     iDestruct (LInv_unfold with "LInv") as "[GMap LivC]".
@@ -627,9 +611,9 @@ Section SPEC.
 
     iApply wpsim_tauR. rred2r.
 
-    destruct offer_rep as [offer_rep [->|[offer_p IsPtr]]]; simpl.
+    destruct offer_rep as [|offer_rep].
     { (* No offer *)
-      iDestruct (OInv_fold _ _ _ to_mnp_null with "[s.o↦] IsO") as "OInv".
+      iDestruct (OInv_fold _ _ _ Null with "[s.o↦] IsO") as "OInv".
       { unfold to_val. iFrame. }
       iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
       iMod ("Close" with "Inv") as "_".
@@ -646,7 +630,7 @@ Section SPEC.
         }
       1: lia.
       iIntros (rv) "%EQ". destruct EQ as [EQ _].
-      assert (rv = true) as -> by (by apply EQ).
+      specialize (EQ ltac:(auto)) as ->.
       rred2r.
 
       iApply wpsim_tauR. rred2r.
@@ -659,14 +643,11 @@ Section SPEC.
     }
 
     iDestruct (IsO_unfold with "IsO") as "Of".
-    case_decide.
-    { subst. done. }
     iDestruct "Of" as (Q' v γo) "#[OfInv OfD]".
 
-    iDestruct (IsO_fold _ _ (to_mnp_ptr offer_rep _) with "[]") as "IsO".
-    { simpl. case_decide; [subst; done|]. iExists _,_,_. iFrame "#". }
-    iDestruct (OInv_fold _ _ _ (to_mnp_ptr offer_rep _) with "[s.o↦] IsO") as "OInv".
-    { unfold to_val. iFrame. }
+    iDestruct (IsO_fold _ _ (Ptr offer_rep) with "[]") as "IsO".
+    { iExists _,_,_. iFrame "#". }
+    iDestruct (OInv_fold _ _ _ (Ptr offer_rep) with "s.o↦ IsO") as "OInv".
     iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
     iMod ("Close" with "Inv") as "_".
 
@@ -701,7 +682,7 @@ Section SPEC.
     iIntros (b) "POST". iDestruct "POST" as (u) "[%EQ n.o↦]".
     destruct offer_state; simpl in *.
     - (* OfferPending *)
-      iRename "Of" into "AU'".
+      iRename "Of" into "AU'". iClear "IH".
       destruct (SCMem.val_eq_dec 0 0); [|done]. destruct EQ as [-> ->]. rred2r.
       iApply wpsim_tauR. rred2r.
 
@@ -732,7 +713,7 @@ Section SPEC.
       iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
       iMod ("Close" with "Inv") as "_".
 
-      iDestruct (offer_st_fold OfferAccepted (to_mnp_ptr offer_p _) with "n.o↦ Q'") as "Of".
+      iDestruct (offer_st_fold OfferAccepted with "n.o↦ Q'") as "Of".
       iMod ("CloseOf" with "Of") as "_".
 
       iMod ((pcs_decr _ _ 93 1) with "Ys") as "[Ys Y]"; [lia|].
@@ -747,7 +728,7 @@ Section SPEC.
     - (* OfferRevoked *)
       destruct (SCMem.val_eq_dec 1 0); [done|].
       destruct EQ as [-> ->]. rred2r.
-      iDestruct (offer_st_fold OfferRevoked (to_mnp_ptr offer_p _) with "n.o↦ Of") as "Of".
+      iDestruct (offer_st_fold OfferRevoked with "n.o↦ Of") as "Of".
       iMod ("CloseOf" with "Of") as "_".
 
       iApply wpsim_tauR. rred2r.
@@ -755,33 +736,33 @@ Section SPEC.
       iApply wpsim_tauR. rred2r.
 
 
-      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "[$PCS]") as "PCS"; [lia|].
+      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "PCS") as "PCS"; [lia|].
       iMod ("IH" with "Ob_k Post Duty PCS AU Ob_ks") as "IH".
       iApply "IH".
     - (* OfferAccepted *)
       destruct (SCMem.val_eq_dec 1 0); [done|].
       destruct EQ as [-> ->]. rred2r.
-      iDestruct (offer_st_fold OfferAccepted (to_mnp_ptr offer_p _) with "n.o↦ Of") as "Of".
+      iDestruct (offer_st_fold OfferAccepted with "n.o↦ Of") as "Of".
       iMod ("CloseOf" with "Of") as "_".
 
       iApply wpsim_tauR. rred2r.
 
       iApply wpsim_tauR. rred2r.
 
-      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "[$PCS]") as "PCS"; [lia|].
+      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "PCS") as "PCS"; [lia|].
       iMod ("IH" with "Ob_k Post Duty PCS AU Ob_ks") as "IH".
       iApply "IH".
     - (* OfferAcked *)
       destruct (SCMem.val_eq_dec 1 0); [done|].
       destruct EQ as [-> ->]. rred2r.
-      iDestruct (offer_st_fold OfferAcked (to_mnp_ptr offer_p _) with "n.o↦ Of") as "Of".
+      iDestruct (offer_st_fold OfferAcked with "n.o↦ Of") as "Of".
       iMod ("CloseOf" with "Of") as "_".
 
       iApply wpsim_tauR. rred2r.
 
       iApply wpsim_tauR. rred2r.
 
-      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "[$PCS]") as "PCS"; [lia|].
+      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "PCS") as "PCS"; [lia|].
       iMod ("IH" with "Ob_k Post Duty PCS AU Ob_ks") as "IH".
       iApply "IH".
   Qed.
@@ -925,10 +906,9 @@ Section SPEC.
       (* Update physical stack state. *)
       iMod (SCMem.points_to_persist with "n.n↦") as "#n.n↦".
       iMod (SCMem.points_to_persist with "n.d↦") as "#n.d↦".
-      iAssert (⌜∃ p : τ{SCMem.pointer,n}, node = SCMem.val_ptr p⌝)%I as %IsPtr.
-      { destruct node; try done. iPureIntro. eauto. }
-      iAssert (⟦ phys_list n (to_mnp_ptr node IsPtr) (val::L), n⟧)%I with "[Phys]" as "Phys".
-      { iApply phys_list_fold. simpl. des. iExists _,_. iFrame "∗#". done. }
+      destruct node as [|node]; [done|].
+      iAssert (⟦ phys_list n (Ptr node) (val::L), n⟧)%I with "[Phys]" as "Phys".
+      { iApply phys_list_fold. iExists _. iFrame "∗#". }
 
       (* Update liveness invariant *)
       iDestruct (LInv_unfold with "LInv") as "[GMap LivC]".
@@ -952,7 +932,7 @@ Section SPEC.
 
       (** Add it to the invariant. *)
       iDestruct (big_sepM_delete with "LivC") as "[_ LivC]"; [apply Lookup_i|].
-      iDestruct (LInv_fold _ _ _ (to_mnp_ptr node IsPtr) with "GMap [LivC Ob_ks]") as "LInv".
+      iDestruct (LInv_fold _ _ _ (Ptr node) with "GMap [LivC Ob_ks]") as "LInv".
       { iDestruct (big_sepM_sep_2 with "LivC Ob_ks") as "LivC".
         iApply (big_sepM_mono with "LivC").
         iIntros (i' p' Lookup_i') "[H C]". des_ifs.
@@ -975,10 +955,7 @@ Section SPEC.
     iIntros (b) "POST".
     iDestruct "POST" as (u) "(%EQ & s↦ & _ & _)".
     des_ifs. all: destruct EQ as [-> ->].
-    { exfalso. clear - e NEQ. unfold to_val in e.
-      destruct h as [h Ph],h' as [h' Ph']. simpl in *. clarify.
-      assert (Ph = Ph') as -> by apply proof_irrelevance. done.
-    }
+    { exfalso. clear - e NEQ. unfold to_val in e. des_ifs. }
 
     (* Update ◇[k](0,1) to use for induction *)
     iDestruct (LInv_unfold with "LInv") as "[GMap LivC]".
@@ -1026,18 +1003,15 @@ Section SPEC.
     iMod (ghost_excl_alloc tt) as (γo) "GEx".
     iMod (SCMem.points_to_persist with "n.d↦") as "#n.d↦□".
 
-    iAssert (⌜∃ p : τ{SCMem.pointer,n}, node = SCMem.val_ptr p⌝)%I as %IsPtr.
-    { destruct node; try done. iPureIntro. eauto. }
+    destruct node as [|node]; [done|].
 
-    iMod (FUpd_alloc _ _ _ (1+n) (offerN) (offer_st (1 + n) (to_mnp_ptr node IsPtr) γo (stack_push_au n _ _ _) Q : sProp (1+n))%S with "[AU n.n↦]") as "#InvOf"; [lia| |].
-    { simpl. unfold offer_st. red_tl.
-      iExists OfferPending. red_tl_all.
-      iFrame. unfold stack_push_au. rewrite red_syn_atomic_update. iFrame.
+    iMod (FUpd_alloc _ _ _ (1+n) (offerN) (offer_st (1 + n) node γo (stack_push_au n _ _ _) Q : sProp (1+n))%S with "[AU n.n↦]") as "#InvOf"; [lia| |].
+    { simpl. iApply (offer_st_fold OfferPending node with "n.n↦ [-]").
+      unfold stack_push_au. rewrite red_syn_atomic_update. iFrame.
     }
 
-    iDestruct (OInv_fold n _ _ (to_mnp_ptr node IsPtr) with "[s.o↦] []") as "OInv".
-    { unfold to_val. iFrame. }
-    { iApply IsO_fold. des_ifs. simpl. iExists _,_,_. iFrame "#". }
+    iDestruct (OInv_fold n _ _ (Ptr node) with "s.o↦ []") as "OInv".
+    { iApply IsO_fold. iExists _,_,_. iFrame "#". }
 
     iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
     iMod ("Close" with "Inv") as "_".
@@ -1057,9 +1031,8 @@ Section SPEC.
     iIntros (?) "s.o↦". rred2r.
 
     (* Close Invariant *)
-    iDestruct (OInv_fold _ _ _ to_mnp_null with "[s.o↦] []") as "OInv".
-    { simpl. iFrame. }
-    { iApply IsO_fold. des_ifs. }
+    iDestruct (OInv_fold _ _ _ Null with "s.o↦ []") as "OInv".
+    { iApply IsO_fold. done. }
     iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
     iMod ("Close" with "Inv") as "_". clear dependent h' L m.
 
@@ -1074,7 +1047,7 @@ Section SPEC.
     iDestruct (Inv_unfold with "Inv") as (h' L m) "(s↦ & γs & Phys & LInv & OInv)".
     iInv "InvOf" as "Of" "CloseOf".
     simpl.
-    iDestruct (offer_st_unfold n (to_mnp_ptr node IsPtr) γo with "Of") as (offer_state) "(n.o↦ & Of)".
+    iDestruct (offer_st_unfold n node γo with "Of") as (offer_state) "(n.o↦ & Of)".
     iApply (SCMem_cas_fun_spec_gen _ _ _ _ n 2 with "[Mem $n.o↦] [-]"); [|apply stackN_offerN_subseteq| |].
     2:{ simpl in *. iApply (tgt_interp_as_equiv with "Mem").
         clear. intros m. simpl. red_tl_all. iSplit.
@@ -1091,22 +1064,22 @@ Section SPEC.
 
       iApply wpsim_tauR. rred2r. iApply wpsim_tauR.
 
-      iDestruct (offer_st_fold OfferRevoked (to_mnp_ptr node IsPtr) with "[$n.o↦] [$GEx]") as "Of".
+      iDestruct (offer_st_fold OfferRevoked with "n.o↦ GEx") as "Of".
       iMod ("CloseOf" with "Of") as "_".
 
       iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
       iMod ("Close" with "Inv") as "_".
 
-      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "[$Pcs]") as "Pcs"; [lia|].
+      iMod (pcs_drop _ _ 1 ltac:(auto) 1 101 with "Pcs") as "Pcs"; [lia|].
 
       iMod ("IH" with "Ob_k Post Duty Pcs AU Ob_ks") as "IH".
       iApply "IH".
     - iDestruct (ghost_excl_exclusive with "GEx Of") as %[].
     - (* OfferAccepted *)
-      iRename "Of" into "Q". des_ifs. destruct EQ as [-> ->]. rred2r.
+      iRename "Of" into "Q". iClear (IH) "IH". des_ifs. destruct EQ as [-> ->]. rred2r.
       iApply wpsim_tauR. rred2r.
 
-      iDestruct (offer_st_fold OfferAcked (to_mnp_ptr node IsPtr) with "[$n.o↦] [$GEx]") as "Of".
+      iDestruct (offer_st_fold OfferAcked with "n.o↦ GEx") as "Of".
       iMod ("CloseOf" with "Of") as "_".
 
       iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
