@@ -393,7 +393,7 @@ Module URA.
   Qed.
 
   (* Iris ucmra is a URA. *)
-  (* TODO:(janggun) Move this to a separate module, if needed *)
+  (* TODO: Move this to a separate module, if needed *)
   (* Program Instance ucmra_ura (M: ucmra) : t := {
     car := ucmra_car M;
     unit := ε;
