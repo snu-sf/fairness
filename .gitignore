@@ -22,3 +22,5 @@ pico_meta/__pycache__/
 _opam
 nohup.out
 .vscode
+
+.DS_Store
