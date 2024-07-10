@@ -1,12 +1,12 @@
-# LLOGIC
-This artifact contains Coq development for the paper *LLOGIC*.
-- `LLOGIC-source.zip` contains source code.
-- `LLOGIC.zip` contains a docker image (`LLOGIC.tar`) where you can find the pre-compiled Coq development.
+# Lilo
+This artifact contains Coq development for the paper *Lilo: A higher-order, relational concurrent separation logic for liveness*.
+- `Lilo-source.zip` contains source code.
+- `Lilo.zip` contains a docker image (`Lilo.tar`) where you can find the pre-compiled Coq development.
 Use following commands to run the image:
 ```
-sudo docker load < LLOGIC.tar
-docker run -it LLOGIC /bin/bash
-cd LLOGIC # in the container
+sudo docker load < Lilo.tar
+docker run -it Lilo /bin/bash
+cd Lilo # in the container
 ```
 
 ## Build
@@ -21,7 +21,7 @@ make build -j
 ```
 
 ## Code Structure
-### Definitions
+### Definitions and Rules
 #### Section 3
 ##### In `src/tlogic`
 - `duty` in `LiveObligations.v`: obligation map (Obls<sub>i</sub>(Φ)) (Sec 3.2, Fig.1)
@@ -55,11 +55,11 @@ make build -j
 #### Section 5
 ##### In `src/tlogic`
 - `sProp` in `LogicSyntaxHOAS.v`: sProp<sub>i</sub> (Sec 5.1, Fig.4)
-- `type` in `TemporalLogic.v`: types &#964;(τ) in sProp<sub>i</sub> (Sec 5.1, Fig.4)
-- `type_interp` in `TemporalLogic.v`: type interpretation 𝓘 of τ in sProp<sub>i</sub> (Sec 5.1, Fig.4)
-- `sPropT` in `TemporalLogic.v`: special type φ of sProp<sub>i</sub> (Sec 5.1, Fig.4)
+- `type` in `TemporaLilo.v`: types &#964;(τ) in sProp<sub>i</sub> (Sec 5.1, Fig.4)
+- `type_interp` in `TemporaLilo.v`: type interpretation 𝓘 of τ in sProp<sub>i</sub> (Sec 5.1, Fig.4)
+- `sPropT` in `TemporaLilo.v`: special type φ of sProp<sub>i</sub> (Sec 5.1, Fig.4)
 - `SyntaxI.interp` in `LogicSyntaxHOAS.v`: semantic interpretation ⟦⋅⟧ of sProp<sub>i</sub> (Sec 5.1, Fig.4)
-- `syn_wsat` in `TemporalLogic.v`: stratified world satisfaction W<sub>i</sub> (Sec 5.2)
+- `syn_wsat` in `TemporaLilo.v`: stratified world satisfaction W<sub>i</sub> (Sec 5.2)
 - `FUpd` in `IndexedInvariants.v`: fancy update modality (Sec 5.3, Fig.5)
 
 #### Section 6
@@ -81,7 +81,7 @@ make build -j
 ##### In `src/tlogic`
 - `Theorem whole_sim_simple_implies_refinement` in `SimWeakestAdequacy.v`: Theorem 6.1 (Adequacy)
 
-### Examples
+### Case Studies and Examples
 ##### In `src/example`
 - `Client01.v`: SIG and SIG<sub>S</sub> (Sec 2, Sec 3)
 - `Client04.v`: INF-SIG and INF-SIG-SPEC (Sec 2, Sec 7)
