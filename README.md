@@ -55,11 +55,11 @@ make build -j
 #### Section 5
 ##### In `src/tlogic`
 - `sProp` in `LogicSyntaxHOAS.v`: sProp<sub>i</sub> (Sec 5.1, Fig.4)
-- `type` in `TemporaLilo.v`: types &#964;(τ) in sProp<sub>i</sub> (Sec 5.1, Fig.4)
-- `type_interp` in `TemporaLilo.v`: type interpretation 𝓘 of τ in sProp<sub>i</sub> (Sec 5.1, Fig.4)
-- `sPropT` in `TemporaLilo.v`: special type φ of sProp<sub>i</sub> (Sec 5.1, Fig.4)
+- `type` in `TemporalLogic.v`: types &#964;(τ) in sProp<sub>i</sub> (Sec 5.1, Fig.4)
+- `type_interp` in `TemporalLogic.v`: type interpretation 𝓘 of τ in sProp<sub>i</sub> (Sec 5.1, Fig.4)
+- `sPropT` in `TemporalLogic.v`: special type φ of sProp<sub>i</sub> (Sec 5.1, Fig.4)
 - `SyntaxI.interp` in `LogicSyntaxHOAS.v`: semantic interpretation ⟦⋅⟧ of sProp<sub>i</sub> (Sec 5.1, Fig.4)
-- `syn_wsat` in `TemporaLilo.v`: stratified world satisfaction W<sub>i</sub> (Sec 5.2)
+- `syn_wsat` in `TemporalLogic.v`: stratified world satisfaction W<sub>i</sub> (Sec 5.2)
 - `FUpd` in `IndexedInvariants.v`: fancy update modality (Sec 5.3, Fig.5)
 
 #### Section 6
