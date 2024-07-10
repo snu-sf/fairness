@@ -1,6 +1,5 @@
 # Lilo
-This artifact contains Coq development for the paper *Lilo: A higher-order, relational concurrent separation logic
-for liveness*.
+This artifact contains Coq development for the paper *Lilo: A higher-order, relational concurrent separation logic for liveness*.
 - `Lilo-source.zip` contains source code.
 - `Lilo.zip` contains a docker image (`Lilo.tar`) where you can find the pre-compiled Coq development.
 Use following commands to run the image:
@@ -22,7 +21,7 @@ make build -j
 ```
 
 ## Code Structure
-### Definitions
+### Definitions and Rules
 #### Section 3
 ##### In `src/tlogic`
 - obligation map (Obls<sub>i</sub>(Φ)) (Sec 3.2, Fig.1): `duty` in `LiveObligations.v`
@@ -91,7 +90,7 @@ make build -j
 ##### In `src/tlogic`
 - Theorem 6.1 (Adequacy): `Theorem whole_sim_implies_refinement` in `SimWeakestAdequacy.v`
 
-### Examples
+### Case Studies and Examples
 ##### In `src/example`
 - INF-MP and INF-MP-SPEC (Sec 2, Sec 7): `Client04.v`
 - MP and MP<sub>S</sub> (Sec 2, Sec 3): `Client01.v`
