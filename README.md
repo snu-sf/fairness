@@ -86,7 +86,7 @@ make build -j
 ### Case Studies and Examples
 ##### In `src/example`
 - SL-PASS (Sec 7.1): `pass_lock` in `SpinlockSpec0.v`
-- Generalized spinlock specification and view shift rule (Sec 7.1): `Spinlock_lock_spec` and `update_isSpinlock in `SpinlockSpecUpdate.v`
+- Generalized spinlock specification and view shift rule (Sec 7.1): `Spinlock_lock_spec` and `update_isSpinlock` in `SpinlockSpecUpdate.v`
 - INF-MP and INF-MP-SPEC (Sec 2, Sec 7): `Client04.v`
 - MP and MP<sub>S</sub> (Sec 2, Sec 3): `Client01.v`
 - SCH-ND and SCH-ND-SPEC (Sec 2, Sec 7): `Client05.v`
