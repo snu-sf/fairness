@@ -1,13 +1,13 @@
 # Lilo
-This artifact contains Coq development for the paper *Lilo: A higher-order, relational concurrent separation logic for liveness*.
-- `Lilo-source.zip` contains source code.
-- `Lilo.zip` contains a docker image (`Lilo.tar`) where you can find the pre-compiled Coq development.
-Use following commands to run the image:
-```
-sudo docker load < Lilo.tar
-docker run -it Lilo /bin/bash
-cd Lilo # in the container
-```
+This artifact contains Coq development for the paper *Lilo: A Higher-Order, Relational Concurrent Separation Logic for Liveness*.
+<!-- - `Lilo-source.zip` contains source code. -->
+<!-- - `Lilo.zip` contains a docker image (`Lilo.tar`) where you can find the pre-compiled Coq development. -->
+<!-- Use following commands to run the image: -->
+<!-- ``` -->
+<!-- sudo docker load < Lilo.tar -->
+<!-- docker run -it Lilo /bin/bash -->
+<!-- cd Lilo # in the container -->
+<!-- ``` -->
 
 ## Build
 Requirement: opam (>=2.0.0), Coq 8.15.0
