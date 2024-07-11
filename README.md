@@ -66,9 +66,9 @@ make build -j
 - stratified world satisfaction W<sub>i</sub> (Sec 5.2): `syn_wsat` in `TemporalLogic.v`
 - worlds satisfaction Ws<sub>n</sub> (Sec 5.2): `syn_wsats` in `TemporalLogic.v`
 - fancy update modality (Sec 5.3, Fig.5): `FUpd` in `IndexedInvariants.v` and `syn_fupd` in `TemporalLogic.v`
-- INV-ALLOC' (Sec 3.3, Fig.2): `FUpd_alloc` in `IndexedInvariants.v`
-- INV-OPEN' (Sec 5.3, Fig.5): `FUpd_open` in `IndexedInvariants.v`
-- INV-CLOSE' (Sec 5.3, Fig.5): `FUpd_open` in `IndexedInvariants.v`
+- INV-ALLOC (Sec 3.3, Fig.2): `FUpd_alloc` in `IndexedInvariants.v`
+- INV-OPEN (Sec 5.3, Fig.5): `FUpd_open` in `IndexedInvariants.v`
+- INV-CLOSE (Sec 5.3, Fig.5): `FUpd_open` in `IndexedInvariants.v`
 
 #### Section 6
 ##### In `src/tlogic`
