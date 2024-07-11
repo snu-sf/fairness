@@ -38,7 +38,6 @@ make build -j
 - INV-ALLOC (Sec 3.3, Fig.2): `FUpd_alloc` in `IndexedInvariants.v`
 - INV-OPEN (Sec 3.3, Fig.2): `FUpd_open` in `IndexedInvariants.v`
 - INV-CLOSE (Sec 3.3, Fig.2): `FUpd_open` in `IndexedInvariants.v`
-- SIM-PAR (Sec 3.3, Fig.2): `whole_sim` in `SimWeakestAdequacy.v`
 - SIM-TERM (Sec 3.3, Fig.2): `wpsim_ret` in `SimWeakest.v`
 ##### In `src/example`
 - MEM-READ (Sec 3.3, Fig.2): `SCMem_load_fun_spec` in `SCMemSpec.v`
