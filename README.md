@@ -30,11 +30,11 @@ make build -j
 - progress credits (◇) (Sec 3.2, Fig.1): `progress_credit` in `LiveObligations.v`
 - PC-SPLIT (Sec 3.2, Fig.1): `pc_split` in `LiveObligations.v`
 - PC-DROP (Sec 3.2, Fig.1): `pc_drop` in `LiveObligations.v`
-- thread promise (Sec 3.2, Fig.1): `thread_promise` in `LiveObligations.v`
+- promise (Sec 3.2, Fig.1): `thread_promise` in `LiveObligations.v`
 - PROM-GET (Sec 3.2, Fig.1): `duty_tpromise` in `LiveObligations.v`
 - PROM-PROGRESS (Sec 3.2, Fig.1): `tpromise_progress` in `LiveObligations.v`
 - PROM-IND (Sec 3.2, Fig.1): `tpromise_ind` in `LiveObligations.v`
-- simulation relation (Sec 3.3, Fig.2): `wpsim` in `SimWeakest.v`
+- simulation weakest precondition (Sec 3.3, Fig.2): `wpsim` in `SimWeakest.v`
 - INV-ALLOC (Sec 3.3, Fig.2): `FUpd_alloc` in `IndexedInvariants.v`
 - INV-OPEN (Sec 3.3, Fig.2): `FUpd_open` in `IndexedInvariants.v`
 - INV-CLOSE (Sec 3.3, Fig.2): `FUpd_open` in `IndexedInvariants.v`
@@ -59,10 +59,12 @@ make build -j
 - sProp<sub>i</sub> (Sec 5.1, Fig.4): `sProp` in `LogicSyntaxHOAS.v`
 - types &#964;(τ) in sProp<sub>i</sub> (Sec 5.1, Fig.4): `type` in `TemporalLogic.v`
 - type interpretation 𝓘 of τ in sProp<sub>i</sub> (Sec 5.1, Fig.4): `type_interp` in `TemporalLogic.v`
-- special type φ of sProp<sub>i</sub> (Sec 5.1, Fig.4): `sPropT` in `TemporalLogic.v`
+- type of predicates φ of sProp<sub>i</sub> (Sec 5.1, Fig.4): `sPropT` in `TemporalLogic.v`
+- atoms of sProp<sub>i</sub> (Sec 5.1, Fig.4): `Atom.t` in `TemporalLogic.v` (also includes additional constructors to facilitate the development)
 - semantic interpretation ⟦⋅⟧ of sProp<sub>i</sub> (Sec 5.1, Fig.4): `SyntaxI.interp` in `LogicSyntaxHOAS.v`
 - stratified world satisfaction W<sub>i</sub> (Sec 5.2): `syn_wsat` in `TemporalLogic.v`
-- fancy update modality (Sec 5.3, Fig.5): `FUpd` in `IndexedInvariants.v`
+- worlds satisfaction Ws<sub>n</sub> (Sec 5.2): `syn_wsats` in `TemporalLogic.v`
+- fancy update modality (Sec 5.3, Fig.5): `FUpd` in `IndexedInvariants.v` and `syn_fupd` in `TemporalLogic.v`
 - INV-ALLOC' (Sec 3.3, Fig.2): `FUpd_alloc` in `IndexedInvariants.v`
 - INV-OPEN' (Sec 5.3, Fig.5): `FUpd_open` in `IndexedInvariants.v`
 - INV-CLOSE' (Sec 5.3, Fig.5): `FUpd_open` in `IndexedInvariants.v`
@@ -78,28 +80,23 @@ make build -j
 - YIELD-TGT2 (Sec 6.1, Fig.6): `wpsim_yieldR_gen_pending` in `SimWeakest.v`
 
 #### Section 7
-##### In `src/example`
-<!-- - SL-UPDATE (Sec 7.1): `update_isSpinlock` in `SpinlockSpecUpdate.v` -->
-- SL-PASS (Sec 7.1): `pass_lock` in `SpinlockSpec0.v`
-##### In `src/example/treiber`
-- HT-ST (Sec 7.2): `Treiber_push_spec` in `SpecHOCAP.v`
-##### In `src/example/elimstack`
-- HT-ST (Sec 7.2): `Elim_push_spec` in `SpecHOCAP.v`
-  
-### Theorems
 ##### In `src/tlogic`
-- Theorem 6.1 (Adequacy): `Theorem whole_sim_implies_refinement` in `SimWeakestAdequacy.v`
+- Theorem 7.1 (Adequacy): `Theorem whole_sim_implies_refinement` in `SimWeakestAdequacy.v` (the paper presents a slightly simplified form)
 
 ### Case Studies and Examples
 ##### In `src/example`
+- SL-PASS (Sec 7.1): `pass_lock` in `SpinlockSpec0.v`
+- Generalized spinlock specification and view shift rule (Sec 7.1): `Spinlock_lock_spec` and `update_isSpinlock in `SpinlockSpecUpdate.v`
 - INF-MP and INF-MP-SPEC (Sec 2, Sec 7): `Client04.v`
 - MP and MP<sub>S</sub> (Sec 2, Sec 3): `Client01.v`
 - SCH-ND and SCH-ND-SPEC (Sec 2, Sec 7): `Client05.v`
 - Ticketlock (Sec 7.1): `TicketLock.v`
 - LP and LP-SPEC (Sec 7.3): `ClientSpinlock2.v`
 ##### In `src/example/treiber`
+- HT-ST (Sec 7.2): `Treiber_push_spec` in `SpecHOCAP.v`
 - Treiber-Stack (Sec 7.2): `SpecHOCAP.v`
 - STACK-MP (Sec 7.2): `ClientSpecHOCAP.v`
 ##### In `src/example/elimstack`
+- HT-ST (Sec 7.2): `Elim_push_spec` in `SpecHOCAP.v`
 - Elimination-Stack (Sec 7.2): `SpecHOCAP.v`
 - STACK-MP (Sec 7.2): `ClientSpecHOCAP.v`
