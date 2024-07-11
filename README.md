@@ -38,6 +38,7 @@ make build -j
 - INV-ALLOC (Sec 3.3, Fig.2): `FUpd_alloc` in `IndexedInvariants.v`
 - INV-OPEN (Sec 3.3, Fig.2): `FUpd_open` in `IndexedInvariants.v`
 - INV-CLOSE (Sec 3.3, Fig.2): `FUpd_open` in `IndexedInvariants.v`
+- YIELD-TGT (Sec 3.3, Fig.2): `wpsim_yieldR_gen` in `SimWeakest.v`
 - SIM-TERM (Sec 3.3, Fig.2): `wpsim_ret` in `SimWeakest.v`
 ##### In `src/example`
 - MEM-READ (Sec 3.3, Fig.2): `SCMem_load_fun_spec` in `SCMemSpec.v`
@@ -47,11 +48,12 @@ make build -j
 ##### In `src/tlogic`
 - liveness obligation (◆<sub>k</sub>⌈ℓ, n⌉) (Sec 4.2, Fig.3): `liveness_obligation_fine` in `LiveObligations.v`
 - OBL-NEW (Sec 4.2, Fig.3): `alloc_obligation_fine` in `LiveObligations.v`
-- OBL-NEW (Sec 4.2, Fig.3): `lo_ind_fine` in `LiveObligations.v`
+- OBL-IND (Sec 4.2, Fig.3): `lo_ind_fine` in `LiveObligations.v`
 - obligation link (◆<sub>k</sub>⌈ℓ, n⌉) (Sec 4.2, Fig.3): `link` in `LiveObligations.v`
 - LINK-NEW (Sec 4.2, Fig.3): `link_new_fine` in `LiveObligations.v`
 - LINK-AMP (Sec 4.2, Fig.3): `link_amplify` in `LiveObligations.v`
 - LINK-TRANS (Sec 4.2, Fig.3): `link_trans` in `LiveObligations.v`
+- OMAP-ADD+ (Sec 4.2, Fig.3): `duty_add` in `LiveObligations.v`
 
 #### Section 5
 ##### In `src/tlogic`
@@ -70,13 +72,14 @@ make build -j
 
 #### Section 6
 ##### In `src/tlogic`
-- delayed promise (Sec 6.1, Fig.6): `delayed_tpromise` in `LiveObligations.v`
-- activation token &#10710;(⧖) (Sec 6.1, Fig.6): `pending_obligation` in `LiveObligations.v`
-- activated token &#8904;(⋈) (Sec 6.1, Fig.6): `active_obligation` in `LiveObligations.v`
-- ACTIVATE (Sec 6.1, Fig.6): `pending_active` in `LiveObligations.v`
-- NOT-ACT (Sec 6.1, Fig.6): `pending_not_active` in `LiveObligations.v`
-- DP-ACT (Sec 6.1, Fig.6): `activate_tpromise` in `LiveObligations.v`
-- YIELD-TGT2 (Sec 6.1, Fig.6): `wpsim_yieldR_gen_pending` in `SimWeakest.v`
+- delayed promise (Sec 6, Fig.6): `delayed_tpromise` in `LiveObligations.v`
+- activation token &#10710;(⧖) (Sec 6, Fig.6): `pending_obligation` in `LiveObligations.v`
+- activated token &#8904;(⋈) (Sec 6, Fig.6): `active_obligation` in `LiveObligations.v`
+- ACTIVATE (Sec 6, Fig.6): `pending_active` in `LiveObligations.v`
+- NOT-ACT (Sec 6, Fig.6): `pending_not_active` in `LiveObligations.v`
+- OMAP-ADD2 (Sec 6.2, Fig.3): `duty_add` in `LiveObligations.v`
+- DP-ACT (Sec 6, Fig.6): `activate_tpromise` in `LiveObligations.v`
+- YIELD-TGT2 (Sec 6, Fig.6): `wpsim_yieldR_gen_pending` in `SimWeakest.v`
 
 #### Section 7
 ##### In `src/tlogic`
