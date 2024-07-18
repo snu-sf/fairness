@@ -36,7 +36,7 @@ Section SPEC.
   Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
   Context {HasGhostVar : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
 
-  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_map_ura; red_tl_ghost_var_ura.
+  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_map; red_tl_ghost_var.
 
   Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
     match mnp with
@@ -46,7 +46,7 @@ Section SPEC.
   .
 
   Definition TStack n γs St : sProp n :=
-    s_ghost_var γs (1/2) St.
+    syn_ghost_var γs (1/2) St.
 
   Fixpoint phys_list n (l : maybe_null_ptr) (St : list SCMem.val) : sProp n := (
     match St,l with
@@ -57,7 +57,7 @@ Section SPEC.
   )%S.
 
   Definition LInv (n k γl : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
-    s_ghost_map_auth γl 1 m ∗
+    syn_ghost_map_auth γl 1 m ∗
     [∗ n, maybe_null_ptr map] i ↦ p ∈ m, (
       if (decide (h=p)) then
         emp
@@ -68,7 +68,7 @@ Section SPEC.
 
   Definition Inv (n : nat) (s : SCMem.val) (k γs γl : nat) : sProp n := (
     ∃ (h : τ{maybe_null_ptr}) (St : τ{list SCMem.val}) (m : τ{gmap nat maybe_null_ptr,n}),
-      s ↦ (to_val h) ∗ s_ghost_var γs (1/2) (St : list SCMem.val) ∗
+      s ↦ (to_val h) ∗ syn_ghost_var γs (1/2) (St : list SCMem.val) ∗
       phys_list n h St ∗ LInv n k γl h m
   )%S.
 

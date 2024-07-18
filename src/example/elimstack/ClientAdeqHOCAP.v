@@ -114,7 +114,7 @@ Module ElimStackClientCorrect.
   Arguments wpsim_wand {_ _ _ _ _ _}.
   Arguments wpsim_ret {_ _ _ _ _ _}.
 
-  Ltac red_tl_all := red_tl; red_tl_lifetime; red_tl_ghost_excl_ura.
+  Ltac red_tl_all := red_tl; red_tl_lifetime; red_tl_ghost_excl.
 
   Lemma correct:
     UserSim.sim ElimStackClientSpec.module ElimStackClient.module

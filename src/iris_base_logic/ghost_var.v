@@ -130,14 +130,14 @@ Context {TLRAS : TLRAs STT Γ Σ}.
 
 Context `{HasGhostVar : @GRA.inG (ghost_varURA A) Γ}.
 
-  Definition s_ghost_var {n} γ q a : sProp n := (➢(ghost_var_ra γ q a))%S.
+  Definition syn_ghost_var {n} γ q a : sProp n := (➢(ghost_var_ra γ q a))%S.
 
   Lemma red_syn_ghost_var n γ q a :
-    ⟦s_ghost_var γ q a, n⟧ = ghost_var γ q a.
+    ⟦syn_ghost_var γ q a, n⟧ = ghost_var γ q a.
   Proof.
-    unfold s_ghost_var. red_tl. ss.
+    unfold syn_ghost_var. red_tl. ss.
   Qed.
 
 End SPROP.
 
-Ltac red_tl_ghost_var_ura := try rewrite ! red_syn_ghost_var.
+Ltac red_tl_ghost_var := try rewrite ! red_syn_ghost_var.

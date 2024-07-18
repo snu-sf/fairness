@@ -422,29 +422,29 @@ Context {TLRAS : TLRAs STT Γ Σ}.
 
 Context `{HasGhostMap : @GRA.inG (ghost_mapURA K V) Γ}.
 
-  Definition s_ghost_map_auth {n} γ q m : sProp n := (➢(ghost_map_auth_ra γ q m))%S.
-  Definition s_ghost_map_elem {n} k γ dq v : sProp n := (➢(ghost_map_elem_ra k γ dq v))%S.
+  Definition syn_ghost_map_auth {n} γ q m : sProp n := (➢(ghost_map_auth_ra γ q m))%S.
+  Definition syn_ghost_map_elem {n} k γ dq v : sProp n := (➢(ghost_map_elem_ra k γ dq v))%S.
 
   Lemma red_syn_ghost_map_auth n γ q m :
-    ⟦s_ghost_map_auth γ q m, n⟧ = ghost_map_auth γ q m.
+    ⟦syn_ghost_map_auth γ q m, n⟧ = ghost_map_auth γ q m.
   Proof.
-    unfold s_ghost_map_auth. red_tl. ss.
+    unfold syn_ghost_map_auth. red_tl. ss.
   Qed.
 
   Lemma red_syn_ghost_map_elem n k γ dq v:
-    ⟦s_ghost_map_elem k γ dq v, n⟧ = ghost_map_elem k γ dq v.
+    ⟦syn_ghost_map_elem k γ dq v, n⟧ = ghost_map_elem k γ dq v.
   Proof.
-    unfold s_ghost_map_elem. red_tl. ss.
+    unfold syn_ghost_map_elem. red_tl. ss.
   Qed.
 
 End SPROP.
 
-Ltac red_tl_ghost_map_ura := (
+Ltac red_tl_ghost_map := (
   try rewrite ! red_syn_ghost_map_auth;
   try rewrite ! red_syn_ghost_map_elem
 ).
 
-Notation "k ↪[ γ ]{ dq } v" := (s_ghost_map_elem γ k dq v)
+Notation "k ↪[ γ ]{ dq } v" := (syn_ghost_map_elem γ k dq v)
   (at level 20, γ at level 50, dq at level 50, format "k  ↪[ γ ]{ dq }  v") : sProp_scope.
 Notation "k ↪[ γ ]{# q } v" := (k ↪[γ]{DfracOwn q} v)%S
   (at level 20, γ at level 50, q at level 50, format "k  ↪[ γ ]{# q }  v") : sProp_scope.

@@ -30,7 +30,7 @@ Section SPEC.
 
   Context `{HasGhostExcl : @GRA.inG (ghost_exclURA unit) Γ}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_ghost_excl_ura; red_tl_lifetime.
+  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_ghost_excl; red_tl_lifetime.
 
   Import TreiberClient.
 

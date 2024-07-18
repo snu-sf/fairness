@@ -70,7 +70,7 @@ Section SPEC.
   Qed.
 
 
-  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_var_ura; red_tl_ghost_map_ura; red_tl_ghost_excl_ura.
+  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_var; red_tl_ghost_map; red_tl_ghost_excl.
 
   Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
     match mnp with
@@ -87,11 +87,11 @@ Section SPEC.
   )%S.
 
   Definition EStack n γs St : sProp n := (
-    s_ghost_var γs (1/2) St
+    syn_ghost_var γs (1/2) St
   )%S.
 
   Definition LInv (n k γl : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
-    s_ghost_map_auth γl 1 m ∗
+    syn_ghost_map_auth γl 1 m ∗
     [∗ n, maybe_null_ptr map] i ↦ p ∈ m, (
       if (decide (h=p)) then
         emp
@@ -146,7 +146,7 @@ Section SPEC.
   Definition Inv n (s : SCMem.val) (k γs γl : nat) : sProp (2+n) := (
     ∃ (h : τ{maybe_null_ptr,2+n}) (L : τ{list SCMem.val,2+n}) (m : τ{gmap nat maybe_null_ptr,2+n}),
       (⤉⤉ (s ↦ (to_val h)))
-      ∗ (⤉⤉ (s_ghost_var γs (1/2) (L : list SCMem.val)))
+      ∗ (⤉⤉ (syn_ghost_var γs (1/2) (L : list SCMem.val)))
       ∗ (⤉⤉ (phys_list n h L))
       ∗ (⤉⤉ (LInv n k γl h m))
       ∗ OInv n s γs

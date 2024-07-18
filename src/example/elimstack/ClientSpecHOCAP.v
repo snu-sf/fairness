@@ -29,7 +29,7 @@ Section SPEC.
   Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
   Context {HasGhostExcl : @GRA.inG (ghost_exclURA unit) Γ}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_lifetime; red_tl_ghost_excl_ura.
+  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_lifetime; red_tl_ghost_excl.
 
   Import ElimStackClient.
 
