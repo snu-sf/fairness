@@ -214,7 +214,7 @@ Section SPEC.
         iApply FUpd_mask_keep; [set_solver|].
         iIntros "CloseTS !>".
 
-        iExists _. iFrame. iIntros (s_st) "[TStackC %EQ]". subst s_st.
+        iExists _. iFrame. iIntros (_) "TStackC".
         iMod "CloseTS" as "_".
         iMod ("CloseCInv" with "[LiveInv TStackC]") as "_".
         { iEval (unfold CState; simpl; red_tl_all; simpl).
@@ -222,7 +222,7 @@ Section SPEC.
           unfold until_thread_promise. simpl. iSplit; auto.
           iLeft. red_tl_all. iFrame.
         }
-        iIntros "!>" (?) "[Duty Pck]".
+        iIntros "!>" (_) "[Duty Pck]".
         rred2r. iApply wpsim_tauR. rred2r.
 
         iInv "CInv" as "PushProm" "CloseCInv".
@@ -238,7 +238,7 @@ Section SPEC.
         { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
         iApply FUpd_mask_keep; [set_solver|].
         iIntros "CloseTS !>".
-        iExists _. iFrame "TStackC". iIntros (s_st) "[TStackC %EQ]". subst s_st.
+        iExists _. iFrame "TStackC". iIntros (_) "TStackC".
 
         iMod "CloseTS" as "_".
         iMod ("ClosePushedInv" with "[$Tok]") as "_".
@@ -288,7 +288,7 @@ Section SPEC.
     iApply FUpd_mask_keep; [set_solver|].
     iIntros "CloseTS !>".
 
-    iExists _. iFrame "TStackC". iIntros (s_st) "[TStackC %EQ]". subst s_st.
+    iExists _. iFrame "TStackC". iIntros (_) "TStackC".
 
     iMod "CloseTS" as "_".
     iMod ("ClosePushedInv" with "[$Tok]") as "_".

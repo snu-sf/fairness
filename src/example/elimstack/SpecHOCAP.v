@@ -72,13 +72,13 @@ Section SPEC.
 
   Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_var; red_tl_ghost_map; red_tl_ghost_excl.
 
-  Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
+  Definition to_val mnp : SCMem.val :=
     match mnp with
     | Null => SCMem.val_null
     | Ptr p => SCMem.val_ptr p
     end.
 
-  Fixpoint phys_list n (l : maybe_null_ptr) (L : list SCMem.val) : sProp n := (
+  Fixpoint phys_list n l L : sProp n := (
     match L,l with
     | [],Null => emp
     | v::tL,Ptr p => ∃ (r : τ{maybe_null_ptr}), (p ↦∗□ [(to_val r); v]) ∗ (phys_list n r tL)
@@ -90,7 +90,7 @@ Section SPEC.
     syn_ghost_var γs (1/2) St
   )%S.
 
-  Definition LInv (n k γl : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
+  Definition LInv n k γl h m : sProp n  := (
     syn_ghost_map_auth γl 1 m ∗
     [∗ n, maybe_null_ptr map] i ↦ p ∈ m, (
       if (decide (h=p)) then
@@ -118,15 +118,15 @@ Section SPEC.
   Definition offer_st n (offer_loc : SCMem.pointer) (γo : nat) (P Q : τ{Φ,1+n}%stype) : sProp n :=
     (∃ (st : τ{offer_state,n}),
       offer_loc ↦ (offer_state_rep st) ∗
-      (match st with
+      match st with
       | OfferPending => P
       | OfferAccepted => Q
       | _ => GEx γo tt
-      end))%S.
+      end)%S.
 
   (* TODO: accuratly defining this might be a bit annoying. *)
   Definition stack_push_au n γs val (Q : τ{Φ,2+n}%stype) : sProp (1+n) :=
-    (AU <{ ∃∃ St, ⤉ EStack n γs (St : list SCMem.val)}> @ n, (⊤∖↑elimN), ∅ <{ ∀∀ (_ : unit), (⤉ EStack n γs (val::St)), COMM Q}>)%S.
+    (AU <{ ∃∃ St, ⤉ EStack n γs St }> @ n, (⊤∖↑elimN), ∅ <{ ∀∀ (_ : unit), ⤉ EStack n γs (val::St), COMM Q}>)%S.
 
   Definition IsO (n : nat) (γs : nat) (offer_rep : maybe_null_ptr) : sProp (2+n) :=
     (match offer_rep with
@@ -140,16 +140,16 @@ Section SPEC.
   Definition OInv n (s : SCMem.val) (γs : nat) : sProp (2+n) :=(
     ∃ (offer_rep : τ{maybe_null_ptr,2+n}),
     (⤉⤉ ((SCMem.val_add s 1) ↦ (to_val offer_rep))) ∗
-    (IsO n γs offer_rep)
+    IsO n γs offer_rep
   )%S.
 
   Definition Inv n (s : SCMem.val) (k γs γl : nat) : sProp (2+n) := (
     ∃ (h : τ{maybe_null_ptr,2+n}) (L : τ{list SCMem.val,2+n}) (m : τ{gmap nat maybe_null_ptr,2+n}),
-      (⤉⤉ (s ↦ (to_val h)))
-      ∗ (⤉⤉ (syn_ghost_var γs (1/2) (L : list SCMem.val)))
-      ∗ (⤉⤉ (phys_list n h L))
-      ∗ (⤉⤉ (LInv n k γl h m))
-      ∗ OInv n s γs
+      (⤉⤉ (s ↦ (to_val h))) ∗
+      (⤉⤉ syn_ghost_var γs (1/2) L) ∗
+      (⤉⤉ phys_list n h L) ∗
+      (⤉⤉ LInv n k γl h m) ∗
+      OInv n s γs
   )%S.
 
   Definition IsES n l a s k γs : sProp (2+n) := (
@@ -157,7 +157,7 @@ Section SPEC.
   )%S.
 
   Global Instance IsES_persistent n l a s k γs :
-    Persistent (⟦ IsES n l a s k γs, 2+n⟧).
+    Persistent ⟦ IsES n l a s k γs, 2+n⟧.
   Proof. unfold Persistent,IsES. red_tl.
     iIntros "[%γl H]". iExists γl. red_tl.
     rewrite red_syn_inv.
@@ -167,8 +167,8 @@ Section SPEC.
   Lemma Inv_unfold n s k γs γl :
     (⟦ Inv n s k γs γl, 2+n ⟧) -∗
     ∃ h L m,
-      (s ↦ (to_val h)) ∗ ghost_var γs (1/2) L ∗
-      ⟦ (phys_list n h L), n⟧ ∗ ⟦ LInv n k γl h m, n⟧ ∗ ⟦ OInv n s γs, 2+n⟧.
+      s ↦ (to_val h) ∗ ghost_var γs (1/2) L ∗
+      ⟦ phys_list n h L, n⟧ ∗ ⟦ LInv n k γl h m, n⟧ ∗ ⟦ OInv n s γs, 2+n⟧.
   Proof.
     unfold Inv. iIntros "Inv".
     repeat (red_tl; iDestruct "Inv" as "[% Inv]"). simpl.
@@ -176,8 +176,8 @@ Section SPEC.
   Qed.
 
   Lemma Inv_fold n s k γs γl h L m :
-    (s ↦ (to_val h)) -∗ ghost_var γs (1/2) L -∗
-    ⟦ (phys_list n h L), n⟧ -∗ ⟦ LInv n k γl h m, n⟧ -∗ ⟦ OInv n s γs, 2+n⟧
+    s ↦ (to_val h) -∗ ghost_var γs (1/2) L -∗
+    ⟦ phys_list n h L, n⟧ -∗ ⟦ LInv n k γl h m, n⟧ -∗ ⟦ OInv n s γs, 2+n⟧
     -∗ ⟦ Inv n s k γs γl, 2+n ⟧.
   Proof.
     unfold Inv. iIntros "? ? ? ? ?". simpl.
@@ -218,10 +218,10 @@ Section SPEC.
   Qed.
 
   Lemma phys_list_unfold n l L :
-    (⟦ phys_list n l L, n ⟧) -∗
+    ⟦ phys_list n l L, n ⟧ -∗
     match L,l with
     | [],Null => emp
-    | v::tL,Ptr p => ∃ r, (p ↦∗□ [(to_val r); v]) ∗ (⟦phys_list n r tL,n⟧)
+    | v::tL,Ptr p => ∃ r, p ↦∗□ [to_val r; v] ∗ ⟦phys_list n r tL,n⟧
     | _,_ => ⌜False⌝
     end.
   Proof.
@@ -234,7 +234,7 @@ Section SPEC.
   Lemma phys_list_fold n l L :
     (match L,l with
     | [],Null => emp
-    | v::tL,Ptr p => ∃ r, (p ↦∗□ [(to_val r); v]) ∗ (⟦phys_list n r tL,n⟧)
+    | v::tL,Ptr p => ∃ r, p ↦∗□ [to_val r; v] ∗ ⟦phys_list n r tL,n⟧
     | _,_ => ⌜False⌝
     end) -∗
     ⟦ phys_list n l L, n ⟧.
@@ -247,10 +247,9 @@ Section SPEC.
 
   Lemma phys_list_get_head n l L :
     ⟦ phys_list n l L, n ⟧ -∗
-    □ if (decide (l = Null)) then
+    □ if decide (l = Null) then
         emp
-      else (∃ (r : τ{maybe_null_ptr,n}) (h : τ{SCMem.val,n}),
-                 (to_val l ↦∗□ [(to_val r); h]))
+      else ∃ r h, (to_val l) ↦∗□ [to_val r; h]
     .
   Proof.
     iIntros "H". iDestruct (phys_list_unfold with "H") as "H".
@@ -275,7 +274,7 @@ Section SPEC.
     ⟦ IsO n γs offer_rep, 2+n ⟧ -∗
     match offer_rep with
     | Null => emp
-    | Ptr p => ∃ (Q : τ{Φ,2+n}%stype) v γo,
+    | Ptr p => ∃ Q v γo,
         inv (1+n) offerN (offer_st (1+n) p γo (stack_push_au n γs v Q) Q) ∗
         (SCMem.val_add p 1 ↦□ v)
     end.
@@ -356,14 +355,14 @@ Section SPEC.
     ∀ s k γs l a (ds : list (nat * nat * sProp n)),
     ⊢ [@ tid,n,2,⊤ @]
           ⧼⟦(
-            (syn_tgt_interp_as (2+n) sndl (fun m => s_memory_black m))
-            ∗ (⤉ IsES n l a s k γs)
-            ∗ (⤉⤉⤉ Duty(tid) ds)
-            ∗ (⤉⤉ AU <{ ∃∃ St, ⤉ EStack n γs St }>
+            syn_tgt_interp_as (2+n) sndl (fun m => s_memory_black m) ∗
+            (⤉ IsES n l a s k γs) ∗
+            (⤉⤉⤉ Duty(tid) ds) ∗
+            (⤉⤉ AU <{ ∃∃ St, ⤉ EStack n γs St }>
                     @ n, (⊤∖↑elimN), ∅
-                    <{ ∀∀ (_ : unit), ⤉ EStack n γs (tail St), COMM Q (hd_error St) }>)
-            ∗ ◇[k](1,1)
-            ∗ ◇{List.map fst ds}(2+l,2+a)
+                    <{ ∀∀ (_ : unit), ⤉ EStack n γs (tail St), COMM Q (hd_error St) }>) ∗
+            ◇[k](1,1) ∗
+            ◇{List.map fst ds}(2+l,2+a)
             )%S, 3+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (ElimStack.pop s))
           ⧼rv, ⟦(
@@ -377,7 +376,9 @@ Section SPEC.
   Proof.
     ii. iStartTriple. red_tl_all.
     unfold IsES,EStack. simpl. rewrite red_syn_tgt_interp_as. red_tl. simpl. rewrite red_syn_atomic_update.
-    iIntros "(#Mem & IsES & Duty & AU & Ob_ks & PCS) Post".
+    iIntros "(#Mem & IsES & Duty & AU & Ob_ks & PCS)".
+    set POST := (POST in (POST -∗ _)%I).
+    iIntros "Post".
     iDestruct "IsES" as (γl) "IsES".
     red_tl. rewrite red_syn_inv. iDestruct "IsES" as "#[Ob_kb IsES]".
 
@@ -404,7 +405,7 @@ Section SPEC.
     }
 
     iModIntro. iExists 0. iIntros "IH !> PCS Post Duty Ys AU Ob_ks".
-    iEval (rewrite unfold_iter_eq). rred2r.
+    iEval (rewrite ElimStack.pop_loop_red). rred2r.
 
     iMod (pcs_decr _ _ 100 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
@@ -821,7 +822,7 @@ Section SPEC.
     iModIntro. iExists 0.
     set IH := (IH in (IH ==∗ _)%I).
     iIntros "IH !> Pcs Post Duty Ys AU Ob_ks".
-    iEval (rewrite unfold_iter_eq). rred2r.
+    iEval (rewrite ElimStack.push_loop_red). rred2r.
 
     iMod ((pcs_decr _ _ 100 1) with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].

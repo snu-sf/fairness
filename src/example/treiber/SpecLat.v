@@ -36,9 +36,9 @@ Section SPEC.
   Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
   Context {HasGhostVar : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
 
-  Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_map; red_tl_ghost_var.
+  Local Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_map; red_tl_ghost_var.
 
-  Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
+  Local Definition to_val (mnp : maybe_null_ptr) : SCMem.val :=
     match mnp with
     | Null => SCMem.val_null
     | Ptr p => SCMem.val_ptr p
@@ -48,7 +48,7 @@ Section SPEC.
   Definition TStack n γs St : sProp n :=
     syn_ghost_var γs (1/2) St.
 
-  Fixpoint phys_list n (l : maybe_null_ptr) (St : list SCMem.val) : sProp n := (
+  Local Fixpoint phys_list n (l : maybe_null_ptr) (St : list SCMem.val) : sProp n := (
     match St,l with
     | [],Null => emp
     | v::tSt,Ptr p => ∃ (r : τ{maybe_null_ptr}),((to_val l) ↦∗□ [(to_val r); v]) ∗ (phys_list n r tSt)
@@ -56,7 +56,7 @@ Section SPEC.
     end
   )%S.
 
-  Definition LInv (n k γl : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
+  Local Definition LInv (n k γl : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
     syn_ghost_map_auth γl 1 m ∗
     [∗ n, maybe_null_ptr map] i ↦ p ∈ m, (
       if (decide (h=p)) then
@@ -66,7 +66,7 @@ Section SPEC.
     )
   )%S.
 
-  Definition Inv (n : nat) (s : SCMem.val) (k γs γl : nat) : sProp n := (
+  Local Definition Inv (n : nat) (s : SCMem.val) (k γs γl : nat) : sProp n := (
     ∃ (h : τ{maybe_null_ptr}) (St : τ{list SCMem.val}) (m : τ{gmap nat maybe_null_ptr,n}),
       s ↦ (to_val h) ∗ syn_ghost_var γs (1/2) (St : list SCMem.val) ∗
       phys_list n h St ∗ LInv n k γl h m
@@ -77,14 +77,14 @@ Section SPEC.
   )%S.
 
   Global Instance IsT_persistent n l a s k γs :
-    Persistent (⟦ IsT n l a s k γs, n⟧).
+    Persistent ⟦ IsT n l a s k γs, n⟧.
   Proof. unfold Persistent,IsT. red_tl.
     iIntros "[%γl IsT]". iExists γl. red_tl. rewrite red_syn_inv.
     iDestruct "IsT" as "#$".
   Qed.
 
-  Lemma Inv_unfold n s k γs γl :
-    (⟦ Inv n s k γs γl, n ⟧) -∗
+  Local Lemma Inv_unfold n s k γs γl :
+    ⟦ Inv n s k γs γl, n ⟧ -∗
     (∃ (h : τ{maybe_null_ptr,n}) (L : τ{list SCMem.val,n}) (m : τ{gmap nat maybe_null_ptr,n}),
       (s ↦ (to_val h)) ∗ ghost_var γs (1/2) (L : list SCMem.val) ∗
       ⟦ (phys_list n h L), n⟧ ∗ ⟦ LInv n k γl h m, n⟧).
@@ -94,18 +94,18 @@ Section SPEC.
     red_tl_all. eauto.
   Qed.
 
-  Lemma Inv_fold n s k γs γl h L m :
-    (s ↦ (to_val h)) -∗ ghost_var γs (1/2) (L : list SCMem.val) -∗
-    ⟦ (phys_list n h L), n⟧ -∗ ⟦ LInv n k γl h m, n⟧
-    -∗ (⟦ Inv n s k γs γl, n ⟧).
+  Local Lemma Inv_fold n s k γs γl h L m :
+    s ↦ (to_val h) -∗ ghost_var γs (1/2) L -∗
+    ⟦ phys_list n h L, n⟧ -∗ ⟦ LInv n k γl h m, n⟧
+    -∗ ⟦ Inv n s k γs γl, n ⟧.
   Proof.
     unfold Inv. iIntros "? ? ? ?".
     repeat (red_tl; iExists _).
     red_tl_all. iFrame.
   Qed.
 
-  Lemma LInv_unfold n k γl h m :
-    (⟦ LInv n k γl h m, n ⟧) -∗
+  Local Lemma LInv_unfold n k γl h m :
+    ⟦ LInv n k γl h m, n ⟧ -∗
     ghost_map_auth γl 1 m ∗
     [∗ map] a ∈ m,
       if decide (h = a) then
@@ -120,7 +120,7 @@ Section SPEC.
     ii. des_ifs; red_tl_all.
   Qed.
 
-  Lemma LInv_fold n k γl h m :
+  Local Lemma LInv_fold n k γl h m :
     ghost_map_auth γl 1 m -∗
     ([∗ map] a ∈ m,
       if decide (h = a) then
@@ -128,7 +128,7 @@ Section SPEC.
         else
           ◇[k](0, 1)
         )
-    -∗ (⟦ LInv n k γl h m, n ⟧).
+    -∗ ⟦ LInv n k γl h m, n ⟧.
   Proof.
     unfold LInv. iIntros "? H". red_tl_all.
     rewrite red_syn_big_sepM. iFrame.
@@ -136,11 +136,11 @@ Section SPEC.
     ii. des_ifs; red_tl_all.
   Qed.
 
-  Lemma phys_list_unfold n l L :
-    (⟦ phys_list n l L, n ⟧) -∗
+  Local Lemma phys_list_unfold n l L :
+    ⟦ phys_list n l L, n ⟧ -∗
     match L,l with
     | [],Null => emp
-    | v::tL,Ptr p => ∃ (r : τ{maybe_null_ptr,n}), ((to_val l) ↦∗□ [(to_val r); v]) ∗ (⟦phys_list n r tL,n⟧)
+    | v::tL,Ptr p => ∃ r, (to_val l) ↦∗□ [to_val r; v] ∗ ⟦phys_list n r tL,n⟧
     | _,_ => ⌜False⌝
     end.
   Proof.
@@ -150,10 +150,10 @@ Section SPEC.
     iExists _. iFrame.
   Qed.
 
-  Lemma phys_list_fold n l L :
+  Local Lemma phys_list_fold n l L :
     (match L,l with
     | [],Null => emp
-    | v::tL,Ptr p => ∃ (r : τ{maybe_null_ptr,n}), ((to_val l) ↦∗□ [(to_val r); v]) ∗ (⟦phys_list n r tL,n⟧)
+    | v::tL,Ptr p => ∃ r, (to_val l) ↦∗□ [to_val r; v] ∗ ⟦phys_list n r tL,n⟧
     | _,_ => ⌜False⌝
     end) -∗
     ⟦ phys_list n l L, n ⟧.
@@ -164,12 +164,11 @@ Section SPEC.
     red_tl_all. iFrame.
   Qed.
 
-  Lemma phys_list_get_head n l L :
+  Local Lemma phys_list_get_head n l L :
     ⟦ phys_list n l L, n ⟧ -∗
     □ if decide (l = Null) then
         emp
-      else ∃ (r : τ{maybe_null_ptr,n}) (h : τ{SCMem.val,n}),
-                 ((to_val l) ↦∗□ [(to_val r); h])
+      else ∃ r h, (to_val l) ↦∗□ [to_val r; h]
     .
   Proof.
     iIntros "H". iDestruct (phys_list_unfold with "H") as "H". des_ifs. iDestruct "H" as (r) "[#H _]".
@@ -204,15 +203,14 @@ Section SPEC.
       ◇[k](1,1) ∗
       ◇{List.map fst ds}(2+l, 2+a)
       )%S,1+n⟧ -∗
-      <<{ ∀∀ (St : list SCMem.val), ⟦TStack n γs (St : list SCMem.val),n⟧ }>>
+      <<{ ∀∀ St, ⟦TStack n γs St,n⟧ }>>
         (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.push (s,val)))
         @
         tid, n, ↑treiberN
       <<{
-        ∃∃ (_ : unit), ⟦TStack n γs (val::St : list SCMem.val),n⟧ | (_ : unit), RET tt ; Duty(tid) ds
+        ∃∃ (_ : unit), ⟦TStack n γs (val::St),n⟧ | (_ : unit), RET tt ; Duty(tid) ds
       }>>.
-  Proof using DISJ.
-    Local Opaque TreiberStack.push_loop.
+  Proof.
     ii.
     red_tl. unfold IsT. rewrite red_syn_tgt_interp_as. red_tl.
     iIntros "(#Mem & IsT & Duty & Ob_ks & PCS)".
@@ -259,11 +257,8 @@ Section SPEC.
     iModIntro. iExists 0.
     set IH := (IH in (IH ==∗ _)%I).
     iIntros "IH !> Pcs %next n.n↦ Duty Ys AU n.d↦ Ob_ks".
-    iEval (rewrite unfold_iter_eq).
-    Local Transparent TreiberStack.push_loop.
+    rewrite TreiberStack.push_loop_red.
     rred2r.
-    fold (TreiberStack.push_loop (state := Mod.state Client) (ident := Mod.ident Client) (s,node)).
-    Local Opaque TreiberStack.push_loop.
 
     iMod (pcs_decr _ _ 97 1 with "Ys") as "[Ys Y]"; [lia|].
 
@@ -407,7 +402,6 @@ Section SPEC.
     iMod (pcs_drop _ _ 1 ltac:(auto) 1 98 with "Pcs") as "Pcs"; [lia|].
     iMod ("IH" with "Ob_k n.n↦ Duty Pcs AU n.d↦ Ob_ks") as "IH".
     iApply "IH".
-    Local Transparent TreiberStack.push_loop.
   Qed.
 
   Lemma Treiber_pop_spec {n} tid :
@@ -419,20 +413,20 @@ Section SPEC.
       ◇[k](1,1) ∗
       ◇{List.map fst ds}(2+l,2+a)
     )%S,1+n⟧ -∗
-      <<{ ∀∀ (St : list SCMem.val), ⟦TStack n γs (St : list SCMem.val),n⟧ }>>
+      <<{ ∀∀ St, ⟦TStack n γs St,n⟧ }>>
         (OMod.close_itree Client (SCMem.mod gvs) (TreiberStack.pop s))
         @
         tid, n, ↑treiberN
       <<{
-        ∃∃ (rv : option SCMem.val), ⟦TStack n γs (tail St),n⟧ ∗ ⌜rv = hd_error St⌝
-        | (_ : unit), RET rv ;
+        ∃∃ (_ : unit), ⟦TStack n γs (tail St),n⟧
+        | (_ : unit), RET (hd_error St) ;
         Duty(tid) ds ∗
-        match rv with
+        match (hd_error St) with
         | Some _ => emp
         | None => ◇[k](1,1)
         end
       }>>.
-  Proof using DISJ.
+  Proof.
     ii.
     red_tl. unfold IsT. rewrite red_syn_tgt_interp_as. red_tl. simpl.
     iIntros "(#Mem & IsT & Duty & Ob_ks & PCS)".
@@ -467,7 +461,7 @@ Section SPEC.
     iModIntro. iExists 0.
     set IH := (IH in (IH ==∗ _)%I).
     iIntros "IH !> PCS Duty Ys AU Ob_ks".
-    iEval (rewrite unfold_iter_eq).
+    rewrite TreiberStack.pop_loop_red.
     rred2r.
 
     iMod (pcs_decr _ _ 100 1 with "Ys") as "[Ys Y]"; [lia|].
@@ -491,7 +485,7 @@ Section SPEC.
       iEval (unfold TStack; red_tl_all) in "γs'".
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
 
-      iMod ("Commit" $! None with "[γs']") as "Post".
+      iMod ("Commit" $! tt with "[γs']") as "Post".
       { iEval (unfold TStack; red_tl_all). by iFrame. }
       iDestruct (Inv_fold with "[s↦] γs [] LInv") as "Inv".
       { unfold to_val. iFrame. }
@@ -586,7 +580,7 @@ Section SPEC.
       iEval (unfold TStack; red_tl_all) in "γs'".
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
       iMod (ghost_var_update_halves with "γs γs'") as "[γs γs']".
-      iMod ("Commit" with "[γs']") as "Post".
+      iMod ("Commit" $! tt with "[γs']") as "Post".
       { iEval (unfold TStack; red_tl_all). by iFrame. }
 
       (* Update liveness invariant *)
