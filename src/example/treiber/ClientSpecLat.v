@@ -106,8 +106,8 @@ Section SPEC.
     unfold atomic_update.
 
     iInv "CInv" as "Client" "CloseCInv". simpl.
-    iApply FUpd_mask_keep; [set_solver|].
-    iIntros "CloseTS !>".
+    iApply (@fupd_mask_intro _ iProp_bi_fupd); [solve_ndisj|].
+    iIntros "CloseTS".
 
     iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
     iDestruct "Client" as "[#OBL PushProm]".
@@ -211,8 +211,8 @@ Section SPEC.
       iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
       iDestruct "PushProm" as "[Bf | #Af]"; simpl.
       + iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv TStackC]".
-        iApply FUpd_mask_keep; [set_solver|].
-        iIntros "CloseTS !>".
+        iApply (@fupd_mask_intro _ iProp_bi_fupd) ; [solve_ndisj|].
+        iIntros "CloseTS".
 
         iExists _. iFrame. iIntros (_) "TStackC".
         iMod "CloseTS" as "_".
@@ -236,8 +236,8 @@ Section SPEC.
         unfold push_then_pop. simpl. red_tl_all.
         iDestruct "TStackC" as "[TStackC| Tokt]"; last first.
         { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
-        iApply FUpd_mask_keep; [set_solver|].
-        iIntros "CloseTS !>".
+        iApply (@fupd_mask_intro _ iProp_bi_fupd); [set_solver|].
+        iIntros "CloseTS".
         iExists _. iFrame "TStackC". iIntros (_) "TStackC".
 
         iMod "CloseTS" as "_".
@@ -285,8 +285,8 @@ Section SPEC.
     unfold push_then_pop. simpl. red_tl_all.
     iDestruct "TStackC" as "[TStackC| Tokt]"; last first.
     { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
-    iApply FUpd_mask_keep; [set_solver|].
-    iIntros "CloseTS !>".
+    iApply (@fupd_mask_intro _ iProp_bi_fupd); [solve_ndisj|].
+    iIntros "CloseTS".
 
     iExists _. iFrame "TStackC". iIntros (_) "TStackC".
 

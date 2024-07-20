@@ -63,6 +63,28 @@ Section PCM_OWN.
     unfold IsOp, URA.add. unseal "ra". ss. des_ifs.
   Qed.
 
+  Lemma OwnE_add `{@GRA.inG CoPset.t Σ} (E1 E2 : coPset) :
+    E1 ## E2 -> OwnE (E1 ∪ E2) ⊣⊢ OwnE E1 ∗ OwnE E2.
+  Proof.
+    i. iSplit.
+    - iApply OwnE_disjoint. done.
+    - iApply OwnE_union.
+  Qed.
+  Lemma OwnE_is_disjoint `{@GRA.inG CoPset.t Σ} E1 E2 : OwnE E1 ∗ OwnE E2 ⊢ ⌜E1 ## E2⌝.
+  Proof.
+    rewrite /OwnE -OwnM_op OwnM_valid. iIntros (WF).
+    rewrite URA.unfold_wf in WF. rewrite URA.unfold_add in WF.
+    simpl in *. des_ifs.
+  Qed.
+  Lemma OwnE_add' `{@GRA.inG CoPset.t Σ} E1 E2 : ⌜E1 ## E2⌝ ∧ OwnE (E1 ∪ E2) ⊣⊢ OwnE E1 ∗ OwnE E2.
+  Proof.
+    iSplit; [iIntros "[% ?]"; by iApply OwnE_add|].
+    iIntros "HE". iDestruct (OwnE_is_disjoint with "HE") as %?.
+    iSplit; first done. iApply OwnE_add; by try iFrame.
+  Qed.
+  Lemma OwnE_singleton_twice `{@GRA.inG CoPset.t Σ} i : OwnE {[i]} ∗ OwnE {[i]} ⊢ False.
+  Proof. rewrite OwnE_is_disjoint. iIntros (?); set_solver. Qed.
+
   Lemma OwnE_subset `{@GRA.inG CoPset.t Σ} (E1 E2 : coPset) :
     E1 ⊆ E2 -> OwnE E2 ⊢ OwnE E1 ∗ (OwnE E1 -∗ OwnE E2).
   Proof.
@@ -601,6 +623,33 @@ Section FANCY_UPDATE.
 
   (* Instances for IPM. *)
 
+  (* Since the instance requires [x] and [A], in most cases standard Iris lemmas will need to be given [iProp_bi_fupd] instance explicitly. *)
+  (* (e.g, use lemmas with [iApply (@fupd_mask_keep _ iProp_bi_fupd))]. *)
+  (* Also, having an BiBUpdFUpd instance is probably not recommended as [iProp] has two instances of BiBUpd. *)
+  Lemma FUpd_fupd_mixin x A : BiFUpdMixin iProp (FUpd x A).
+  Proof.
+    split.
+    - rewrite /fupd /FUpd. solve_proper.
+    - intros E1 E2 (E1''&->&?)%subseteq_disjoint_union_L.
+      rewrite /fupd /FUpd OwnE_add //.
+      by iIntros "($ & $ & $ & HE) !> ($ & $ & $) !>".
+    - rewrite /fupd /FUpd.
+      iIntros (E1 E2 P) ">H [Hw HE]". iApply "H"; by iFrame.
+    - rewrite /fupd /FUpd.
+      iIntros (E1 E2 P Q HPQ) "HP HwE". rewrite -HPQ. by iApply "HP".
+    - rewrite /fupd /FUpd. iIntros (E1 E2 E3 P) "HP HwE".
+      iMod ("HP" with "HwE") as "(HA & Hw & HE & HP)". iApply "HP"; by iFrame.
+    - intros E1 E2 Ef P HE1Ef. rewrite /fupd /FUpd OwnE_add //.
+      iIntros "Hvs (HA & Hw & HE1 &HEf)".
+      iMod ("Hvs" with "[HA Hw HE1]") as "($ & $ & HE2 & HP)"; first by iFrame.
+      iDestruct (OwnE_add' with "[HE2 HEf]") as "[? $]"; first by iFrame.
+      iIntros "!>". by iApply "HP".
+    - rewrite /fupd /FUpd. by iIntros (????) "[HwP $]".
+  Qed.
+  Global Instance iProp_bi_fupd {x A} : BiFUpd iProp :=
+  {| bi_fupd_mixin := (FUpd_fupd_mixin x A) |}.
+
+
   Global Instance from_modal_FUpd x A E P :
     FromModal True modality_id (FUpd x A E E P) (FUpd x A E E P) P.
   Proof.
@@ -717,12 +766,14 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
 End FANCY_UPDATE.
 Global Opaque FUpd.
 
+(* TODO: Try to see if using the @fupd notation here an in every `ElimAcc` etc helps with TC inference. *)
+(* Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (@fupd iProp (FUpd x A) E1 E2 P) (at level 90). *)
 Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (FUpd x A E1 E2 P) (at level 90).
 Notation "'=|' x '|={' E1 ',' E2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ E1, E2}=> P) (at level 90).
 Notation "P =| x |=( A )={ E1 , E2 }=∗ Q" := (P -∗ =|x|=(A)={E1,E2}=> Q)%I (at level 90).
 Notation "P =| x |={ E1 , E2 }=∗ Q" := (P -∗ =|x|={E1,E2}=> Q)%I (at level 90).
 
-Notation "'=|' x '|=(' A ')={' E '}=>' P" := (FUpd x A E E P) (at level 90).
+Notation "'=|' x '|=(' A ')={' E '}=>' P" := (=|x|=( A )={E, E}=> P) (at level 90).
 Notation "'=|' x '|={' E '}=>' P" := (=|x|=( ⌜True⌝%I )={ E }=> P) (at level 90).
 Notation "P =| x |=( A )={ E }=∗ Q" := (P -∗ =|x|=(A)={E}=> Q)%I (at level 90).
 Notation "P =| x |={ E }=∗ Q" := (P -∗ =|x|={E}=> Q)%I (at level 90).

@@ -41,35 +41,6 @@ Section SPEC.
   Let stackN := elimN .@ "stack".
   Let offerN := elimN .@ "offer".
 
-  Lemma stackN_subseteq : (↑N_state_tgt : coPset) ⊆ (⊤ ∖↑stackN : coPset).
-  Proof.
-    apply namespaces.coPset_subseteq_difference_r; [|done].
-    by apply ndot_preserve_disjoint_r.
-  Qed.
-  Lemma offerN_subseteq  : (↑N_state_tgt : coPset) ⊆ (⊤ ∖ ↑offerN : coPset).
-  Proof.
-    apply namespaces.coPset_subseteq_difference_r; [|done].
-    by apply ndot_preserve_disjoint_r.
-  Qed.
-  Lemma stackN_offerN_subseteq  : (↑N_state_tgt :coPset) ⊆ (⊤ ∖ ↑stackN ∖ ↑offerN :coPset).
-  Proof.
-    apply namespaces.coPset_subseteq_difference_r; [by apply ndot_preserve_disjoint_r|by apply stackN_subseteq].
-  Qed.
-  Lemma offerN_stackN_subseteq  : (↑N_state_tgt :coPset) ⊆ (⊤ ∖ ↑offerN ∖ ↑stackN :coPset).
-  Proof.
-    apply namespaces.coPset_subseteq_difference_r; [by apply ndot_preserve_disjoint_r|by apply offerN_subseteq].
-  Qed.
-
-  Lemma stackN_elimN_fupd n :
-    ⊢ =|n|={⊤∖ ↑stackN,⊤∖ ↑elimN}=> =|n|={⊤∖ ↑elimN,⊤∖ ↑stackN}=>emp.
-  Proof.
-    iApply FUpd_intro_mask; [|by iModIntro].
-    apply namespaces.coPset_subseteq_difference_r; [|done].
-    apply namespaces.coPset_disjoint_difference_l1.
-    apply nclose_subseteq.
-  Qed.
-
-
   Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_var; red_tl_ghost_map; red_tl_ghost_excl.
 
   Definition to_val mnp : SCMem.val :=
@@ -424,12 +395,11 @@ Section SPEC.
       simpl in *.
       iEval (rewrite phys_list_unfold) in "Phys".
       des_ifs. iClear "Phys".
-
-      iMod stackN_elimN_fupd as "FUPD".
+      iMod (@fupd_mask_subseteq _ iProp_bi_fupd _ (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
       iMod "AU" as (?) "[γs' Commit]". red_tl_all.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
       iMod ("Commit" $! tt with "γs'") as "Q".
-      iMod "FUPD" as "_".
+      iMod "CloseE" as "_".
       iDestruct (Inv_fold with "[s↦] γs [] LInv OInv") as "Inv".
       { unfold to_val. iFrame. }
       { iApply phys_list_fold. done. }
@@ -518,12 +488,14 @@ Section SPEC.
       des_ifs. destruct EQ as [-> ->].
 
       (* Update logical & physical stack state. *)
-      iMod stackN_elimN_fupd as "FUPD". simpl.
+      iMod (@fupd_mask_subseteq _ iProp_bi_fupd _ (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
+
+      simpl.
       iMod "AU" as (?) "[γs' Commit]". red_tl_all.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
       iMod (ghost_var_update_halves with "γs γs'") as "[γs γs']".
       iMod ("Commit" $! tt with "γs'") as "Q".
-      iMod "FUPD" as "_".
+      iMod "CloseE" as "_".
 
       (* Update liveness invariant *)
       iDestruct (LInv_unfold with "LInv") as "[GMap LivC]".
@@ -607,7 +579,7 @@ Section SPEC.
 
     iDestruct (OInv_unfold with "OInv") as (offer_rep) "(s.o↦ & IsO)".
 
-    iApply (SCMem_load_fun_spec_gen _ _ _ _ n 2 with "[$Mem $s.o↦] [-]"); [lia|by apply stackN_subseteq|].
+    iApply (SCMem_load_fun_spec_gen _ _ _ _ n 2 with "[$Mem $s.o↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "[%EQ s.o↦]". subst. rred2r.
 
     iApply wpsim_tauR. rred2r.
@@ -673,7 +645,7 @@ Section SPEC.
 
     iInv "OfInv" as "Of" "CloseOf". simpl.
     iDestruct (offer_st_unfold with "Of") as (offer_state) "(n.o↦ & Of)".
-    iApply (SCMem_cas_fun_spec_gen _ _ _ _ n 2 with "[Mem $n.o↦] [-]"); [|apply offerN_subseteq| |].
+    iApply (SCMem_cas_fun_spec_gen _ _ _ _ n 2 with "[Mem $n.o↦] [-]"); [|solve_ndisj| |].
     2:{ simpl in *. iApply (tgt_interp_as_equiv with "Mem").
         clear. intros m. simpl. red_tl_all. iSplit.
         - iIntros "$". done.
@@ -692,14 +664,7 @@ Section SPEC.
 
       iEval (unfold stack_push_au,EStack; rewrite red_syn_atomic_update) in "AU'".
 
-      iAssert (=|(S (S (S n)))|={⊤ ∖ ↑offerN ∖ ↑stackN, ⊤∖↑elimN}=> =|(S (S (S n)))|={⊤∖ ↑elimN,⊤ ∖ ↑offerN ∖ ↑stackN}=>emp)%I as "FUPD".
-      { iApply FUpd_intro_mask; [|by iModIntro].
-        apply namespaces.coPset_subseteq_difference_r.
-        - apply namespaces.coPset_disjoint_difference_l1,nclose_subseteq.
-        - apply namespaces.coPset_subseteq_difference_r; [|done].
-          apply namespaces.coPset_disjoint_difference_l1,nclose_subseteq.
-      }
-      iMod "FUPD" as "FUPD".
+      iMod (@fupd_mask_subseteq _ iProp_bi_fupd _ (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
 
       iMod "AU'" as (?) "[γs' Commit]". red_tl_all.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
@@ -709,7 +674,7 @@ Section SPEC.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
       iMod (ghost_var_update_halves with "γs γs'") as "[γs γs']".
       iMod ("Commit" $! tt with "γs'") as "Q".
-      iMod "FUPD" as "_".
+      iMod "CloseE" as "_".
 
       iDestruct (Inv_fold with "s↦ γs Phys LInv OInv") as "Inv".
       iMod ("Close" with "Inv") as "_".
@@ -897,12 +862,12 @@ Section SPEC.
       rred2r. iApply wpsim_tauR. rred2r.
 
       (* Update logical stack state. *)
-      iMod stackN_elimN_fupd as "FUPD". simpl.
+      iMod (@fupd_mask_subseteq _ iProp_bi_fupd _ (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|]. simpl.
       iMod "AU" as (?) "[γs' Commit]". red_tl_all.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
       iMod (ghost_var_update_halves with "γs γs'") as "[γs γs']".
       iMod ("Commit" $! tt with "γs'") as "Q".
-      iMod "FUPD" as "_".
+      iMod "CloseE" as "_".
 
       (* Update physical stack state. *)
       iMod (SCMem.points_to_persist with "n.n↦") as "#n.n↦".
@@ -997,7 +962,7 @@ Section SPEC.
     (* We don't need the old offer *)
     iClear "IsO".
 
-    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 2 with "[$Mem $s.o↦] [-]"); [lia|by apply stackN_subseteq|].
+    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 2 with "[$Mem $s.o↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "s.o↦". rred2r. iApply wpsim_tauR. rred2r.
 
     (* Add AU to the invariant. *)
@@ -1028,7 +993,7 @@ Section SPEC.
     (* Open OInv *)
     iDestruct (OInv_unfold with "OInv") as (offer_rep) "(s.o↦ & IsO)".
 
-    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 2 with "[$Mem $s.o↦] [-]"); [lia|apply stackN_subseteq|].
+    iApply (SCMem_store_fun_spec_gen _ _ _ _ n 2 with "[$Mem $s.o↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "s.o↦". rred2r.
 
     (* Close Invariant *)
@@ -1049,7 +1014,7 @@ Section SPEC.
     iInv "InvOf" as "Of" "CloseOf".
     simpl.
     iDestruct (offer_st_unfold n node γo with "Of") as (offer_state) "(n.o↦ & Of)".
-    iApply (SCMem_cas_fun_spec_gen _ _ _ _ n 2 with "[Mem $n.o↦] [-]"); [|apply stackN_offerN_subseteq| |].
+    iApply (SCMem_cas_fun_spec_gen _ _ _ _ n 2 with "[Mem $n.o↦] [-]"); [|solve_ndisj| |].
     2:{ simpl in *. iApply (tgt_interp_as_equiv with "Mem").
         clear. intros m. simpl. red_tl_all. iSplit.
         - iIntros "$". done.
