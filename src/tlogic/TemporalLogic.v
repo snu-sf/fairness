@@ -708,7 +708,7 @@ Section WSATS.
     (A ∗ syn_wsats n ∗ ⟨owne E1⟩ -∗ |==> (A ∗ syn_wsats n ∗ ⟨owne E2⟩ ∗ p))%S.
 
   Lemma red_syn_fupd n A E1 E2 p :
-    ⟦syn_fupd n A E1 E2 p, n⟧ = FUpd n ⟦A, n⟧ E1 E2 ⟦p, n⟧.
+    ⟦syn_fupd n A E1 E2 p, n⟧ = =|n|=(⟦A, n⟧)={E1,E2}=> ⟦p, n⟧.
   Proof.
     Local Transparent FUpd.
     unfold syn_fupd, FUpd. red_tl. rewrite ! red_syn_wsats. auto.

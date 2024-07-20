@@ -104,7 +104,7 @@ Section SPEC.
       { simpl. iFrame. }
       rewrite red_syn_atomic_update.
       iInv "CInv" as "Client" "CloseCInv".
-      iApply (@fupd_mask_intro _ iProp_bi_fupd); [solve_ndisj|].
+      iApply fupd_mask_intro; [solve_ndisj|].
       iIntros "CloseES".
 
       iEval (unfold CState; simpl; red_tl_all; simpl; rewrite red_syn_until_tpromise) in "Client".
@@ -210,7 +210,7 @@ Section SPEC.
         iEval (unfold until_thread_promise; red_tl_all; simpl) in "PushProm".
         iDestruct "PushProm" as "[Bf | #Af]"; simpl.
         - iEval (red_tl_all; simpl) in "Bf". iDestruct "Bf" as "[LiveInv EStackC]".
-          iApply (@fupd_mask_intro _ iProp_bi_fupd); [solve_ndisj|].
+          iApply fupd_mask_intro; [solve_ndisj|].
           iIntros "CloseES".
           iExists _. red_tl. iFrame. iIntros (_) "EStackC".
           iMod "CloseES" as "_".
@@ -228,7 +228,7 @@ Section SPEC.
           iDestruct "EStackC" as "[EStackC| Tokt]"; last first.
           { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
 
-          iApply (@fupd_mask_intro _ iProp_bi_fupd); [solve_ndisj|].
+          iApply fupd_mask_intro; [solve_ndisj|].
           iIntros "CloseES".
           iExists _. red_tl. iFrame. iIntros (_) "EStackC".
           iMod "CloseES" as "_".
@@ -290,7 +290,7 @@ Section SPEC.
       iDestruct "EStackC" as "[EStackC| Tokt]"; last first.
       { iDestruct (ghost_excl_exclusive with "Tok Tokt") as %[]. }
 
-      iApply (@fupd_mask_intro _ iProp_bi_fupd); [solve_ndisj|].
+      iApply fupd_mask_intro; [solve_ndisj|].
       iIntros "CloseTS".
       iExists _. red_tl. iFrame. iIntros (_) "EStackC".
       iMod "CloseTS" as "_".

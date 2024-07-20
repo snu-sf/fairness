@@ -380,14 +380,14 @@ Section STATE.
         ps pt itr_src itr_tgt
     :
     (n <= x) ->
-    (FUpd n (fairI (ident_tgt:=ident_tgt) x) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt))
+    (=|n|=(fairI (ident_tgt:=ident_tgt) x)={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt))
       ⊢
       (wpsim E0 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     Local Transparent FUpd.
     intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
-    iAssert (FUpd x (fairI (ident_tgt:=ident_tgt) x) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
+    iAssert (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
     { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
     iAssert (fairI (ident_tgt:=ident_tgt) x ∗ (wsats x ∗ OwnE E0))%I with "[D6 D7 WSAT E]" as "C".
     { iFrame. }
@@ -401,18 +401,19 @@ Section STATE.
         ps pt itr_src itr_tgt
     :
     (n <= x) ->
-    (FUpd n (⌜True⌝%I) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt))
+    (=|n|={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt))
       ⊢
       (wpsim E0 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
     Local Transparent FUpd.
     intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
-    iAssert (FUpd x (⌜True⌝%I) E0 E1 (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
+    iAssert (=|x|={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
     { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
     iAssert (wsats x ∗ OwnE E0)%I with "[WSAT E]" as "C".
     { iFrame. }
-    unfold FUpd. iMod ("H" with "[C]") as "(_ & WSAT & E & H)". iFrame.
+    rewrite /fupd /bi_fupd_fupd /= /FUpd.
+    iMod ("H" with "[C]") as "(_ & WSAT & E & H)". iFrame.
     iApply "H". iFrame. iExists _. iFrame. auto.
     Local Opaque FUpd.
   Qed.
@@ -424,12 +425,12 @@ Section STATE.
         (SUB: E0 ⊆ E1)
     :
     (y <= x) ->
-    (FUpd y (fairI (ident_tgt:=ident_tgt) x) E0 E0 (wpsim E1 r g Q ps pt itr_src itr_tgt))
+    (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E0,E0}=> (wpsim E1 r g Q ps pt itr_src itr_tgt))
       ⊢
       (wpsim E1 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
-    iIntros (LE) "H". iApply wpsim_FUpd. eauto. iApply FUpd_mask_mono; eauto.
+    iIntros (LE) "H". iApply wpsim_FUpd. eauto. iApply fupd_mask_mono; eauto.
   Qed.
 
   Global Instance wpsim_elim_FUpd_gen
@@ -440,7 +441,7 @@ Section STATE.
          P
     :
     ElimModal (y <= x /\ E0 ⊆ E2) p false
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E0 E1 P)
+              (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E0,E1}=> P)
               P
               (wpsim E2 r g Q ps pt itr_src itr_tgt)
               (wpsim (E1 ∪ (E2 ∖ E0)) r g Q ps pt itr_src itr_tgt).
@@ -460,7 +461,7 @@ Section STATE.
          P
     :
     ElimModal (y <= x /\ E1 ⊆ E2) p false
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E1 E1 P)
+              (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E1,E1}=> P)
               P
               (wpsim E2 r g Q ps pt itr_src itr_tgt)
               (wpsim E2 r g Q ps pt itr_src itr_tgt).
@@ -479,7 +480,7 @@ Section STATE.
          P
     :
     ElimModal (y <= x) p false
-              (FUpd y (fairI (ident_tgt:=ident_tgt) x) E0 E1 P)
+              (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E0,E1}=> P)
               P
               (wpsim E0 r g Q ps pt itr_src itr_tgt)
               (wpsim E1 r g Q ps pt itr_src itr_tgt).
@@ -498,7 +499,7 @@ Section STATE.
          P
     :
     ElimModal (y <= x) p false
-              (FUpd y (⌜True⌝%I) E0 E1 P)
+              (=|y|={E0,E1}=> P)
               P
               (wpsim E0 r g Q ps pt itr_src itr_tgt)
               (wpsim E1 r g Q ps pt itr_src itr_tgt).
@@ -516,7 +517,7 @@ Section STATE.
          ps pt itr_src itr_tgt
          P
     :
-    AddModal (FUpd y (fairI (ident_tgt:=ident_tgt) x) E E P)
+    AddModal (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E,E}=> P)
              P
              (wpsim E r g Q ps pt itr_src itr_tgt).
   Proof.
@@ -568,8 +569,8 @@ Section STATE.
     ElimModal True p false
               (#=(ObligationRA.edges_sat)=> P)
               P
-              (FUpd a (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q)
-              (FUpd a (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q).
+              (=|a|=(fairI (ident_tgt:=ident_tgt) b)={E1,E2}=> Q)
+              (=|a|=(fairI (ident_tgt:=ident_tgt) b)={E1,E2}=> Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros _. iIntros "[H0 H1]".
@@ -584,8 +585,8 @@ Section STATE.
     ElimModal (a < b) p false
               (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) a)=> P)
               P
-              (FUpd c (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q)
-              (FUpd c (fairI (ident_tgt:=ident_tgt) b) E1 E2 Q).
+              (=|c|=(fairI (ident_tgt:=ident_tgt) b)={E1,E2}=> Q)
+              (=|c|=(fairI (ident_tgt:=ident_tgt) b)={E1,E2}=> Q).
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LT. iIntros "[H0 H1]".
@@ -670,7 +671,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt r_src r_tgt
     :
-    (FUpd y (fairI (ident_tgt:=ident_tgt) x) E ⊤ (Q r_src r_tgt))
+    (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E,⊤}=> (Q r_src r_tgt))
       -∗
       (wpsim E r g Q ps pt (Ret r_src) (Ret r_tgt))
   .
@@ -1249,8 +1250,7 @@ Section STATE.
          -∗
          (ObligationRA.pends pps)
          -∗
-         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
-               (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E,⊤}=> (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
@@ -1280,8 +1280,7 @@ Section STATE.
          -∗
          (FairRA.white_thread (S:=_))
          -∗
-         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
-               (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E,⊤}=> (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt))
   .
@@ -1476,7 +1475,7 @@ Section STATE.
          -∗
          (ObligationRA.pends pps)
          -∗
-         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E,⊤}=>
                (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
@@ -1506,8 +1505,7 @@ Section STATE.
          -∗
          (FairRA.white_thread (S:=_))
          -∗
-         (FUpd x (fairI (ident_tgt:=ident_tgt) x) E ⊤
-               (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
+         (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E,⊤}=> (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
       -∗
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
@@ -1730,7 +1728,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
     :
-    FUpd x (fairI (ident_tgt:=ident_tgt) x) ⊤ ⊤
+    =|x|=(fairI (ident_tgt:=ident_tgt) x)={⊤}=>
          ((FairRA.black_ex inlp tid 1)
             ∗
             ((FairRA.black_ex inlp tid 1)
@@ -1756,7 +1754,7 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
     :
-    FUpd x (fairI (ident_tgt:=ident_tgt) x) ⊤ ⊤
+    =|x|=(fairI (ident_tgt:=ident_tgt) x)={⊤}=>
          ((FairRA.black_ex inlp tid 1)
             ∗
             ((FairRA.black_ex inlp tid 1)

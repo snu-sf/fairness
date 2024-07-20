@@ -395,7 +395,7 @@ Section SPEC.
       simpl in *.
       iEval (rewrite phys_list_unfold) in "Phys".
       des_ifs. iClear "Phys".
-      iMod (@fupd_mask_subseteq _ iProp_bi_fupd _ (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
+      iMod (fupd_mask_subseteq (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
       iMod "AU" as (?) "[γs' Commit]". red_tl_all.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
       iMod ("Commit" $! tt with "γs'") as "Q".
@@ -488,7 +488,7 @@ Section SPEC.
       des_ifs. destruct EQ as [-> ->].
 
       (* Update logical & physical stack state. *)
-      iMod (@fupd_mask_subseteq _ iProp_bi_fupd _ (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
+      iMod (fupd_mask_subseteq (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
 
       simpl.
       iMod "AU" as (?) "[γs' Commit]". red_tl_all.
@@ -664,7 +664,7 @@ Section SPEC.
 
       iEval (unfold stack_push_au,EStack; rewrite red_syn_atomic_update) in "AU'".
 
-      iMod (@fupd_mask_subseteq _ iProp_bi_fupd _ (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
+      iMod (fupd_mask_subseteq (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|].
 
       iMod "AU'" as (?) "[γs' Commit]". red_tl_all.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
@@ -862,7 +862,7 @@ Section SPEC.
       rred2r. iApply wpsim_tauR. rred2r.
 
       (* Update logical stack state. *)
-      iMod (@fupd_mask_subseteq _ iProp_bi_fupd _ (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|]. simpl.
+      iMod (fupd_mask_subseteq (⊤ ∖ ↑elimN)) as "CloseE"; [solve_ndisj|]. simpl.
       iMod "AU" as (?) "[γs' Commit]". red_tl_all.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.
       iMod (ghost_var_update_halves with "γs γs'") as "[γs γs']".

@@ -559,7 +559,7 @@ Module WSim.
             exists (l1 l0: index) (DL: l0 < l1) (o: Ord.t),
               (Own init_res ∗ (initial_prop l0 (key_set (prog2ths md_src c)) o)) (* INIT *)
                 -∗
-                (FUpd l1 (fairI (ident_tgt:=md_tgt.(Mod.ident)) l1) ⊤ ⊤
+                (=|l1|=(fairI (ident_tgt:=md_tgt.(Mod.ident)) l1)={⊤}=>
                       (
                         (natmap_prop_sum
                            fun_pairs
@@ -730,8 +730,7 @@ Module WSim.
             exists l1 l0 (DL: l0 < l1) o,
               (Own init_res ∗ (initial_prop l0 TIdSet.empty o)) (* INIT *)
                 -∗
-                (FUpd l1
-                      (fairI (ident_tgt:=md_tgt.(Mod.ident)) l1) ⊤ ⊤
+                (=|l1|=(fairI (ident_tgt:=md_tgt.(Mod.ident)) l1)={⊤}=>
                        (□(∀ fn args,
                                 match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                                 | Some ktr_src, Some ktr_tgt =>

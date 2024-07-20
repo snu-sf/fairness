@@ -104,8 +104,8 @@ Section STATE.
     IntoAcc
       (src_interp_as l VI)
       (n < x /\ ((↑N_state_src) ⊆ E)) True
-      (FUpd x A E (E ∖ E_state_src))
-      (FUpd x A (E ∖ E_state_src) E)
+      (fupd_ex x A E (E ∖ E_state_src))
+      (fupd_ex x A (E ∖ E_state_src) E)
       (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ prop _ (VI vw))%I
       (fun (st: state_src) => ∃ vw, Vw_src st l vw ∗ prop _ (VI vw))%I
       (fun _ => None).
@@ -124,7 +124,7 @@ Section STATE.
 
   Lemma src_interp_as_id x A E n (LT: n < x) (SI: state_src -> Vars n)
         p (IN : prop n p = (∃ st, St_src st ∗ prop _ (SI st))%I):
-    (∃ st, St_src st ∗ prop _ (SI st)) ⊢ FUpd x A E E (src_interp_as Lens.id SI).
+    (∃ st, St_src st ∗ prop _ (SI st)) ⊢ =|x|=(A)={E}=> (src_interp_as Lens.id SI).
   Proof.
     iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H". auto.
     iModIntro. iExists _, p. iSplit. auto. iSplit. auto.
@@ -180,8 +180,8 @@ Section STATE.
     IntoAcc
       (tgt_interp_as l VI)
       (n < x /\ ((↑N_state_tgt) ⊆ E)) True
-      (FUpd x A E (E ∖ E_state_tgt))
-      (FUpd x A (E ∖ E_state_tgt) E)
+      (fupd_ex x A E (E ∖ E_state_tgt))
+      (fupd_ex x A (E ∖ E_state_tgt) E)
       (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ∗ prop _ (VI vw))%I
       (fun (st: state_tgt) => ∃ vw, Vw_tgt st l vw ∗ prop _ (VI vw))%I
       (fun _ => None).
@@ -200,7 +200,7 @@ Section STATE.
 
   Lemma tgt_interp_as_id x A E n (LT: n < x) (SI: state_tgt -> Vars n)
         p (IN : prop n p = (∃ st, St_tgt st ∗ prop _ (SI st))%I):
-    (∃ st, St_tgt st ∗ prop _ (SI st)) ⊢ FUpd x A E E (tgt_interp_as Lens.id (SI)).
+    (∃ st, St_tgt st ∗ prop _ (SI st)) ⊢ =|x|=(A)={E}=> (tgt_interp_as Lens.id (SI)).
   Proof.
     iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H". auto.
     iModIntro. iExists _, p. iSplit. auto. iSplit. auto.

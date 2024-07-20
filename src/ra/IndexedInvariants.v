@@ -515,15 +515,6 @@ Section FANCY_UPDATE.
     A ∗ wsats x ∗ OwnE E1 -∗ #=> (A ∗ wsats x ∗ OwnE E2 ∗ P).
 
 
-  Lemma FUpd_mono x0 x1 A Es1 Es2 P :
-    (x0 < x1) -> FUpd x0 A Es1 Es2 P ⊢ FUpd x1 A Es1 Es2 P.
-  Proof.
-    iIntros (LT) "FUPD (A & SAT & EN)".
-    iPoseProof ((wsats_in _ _ LT) with "SAT") as "[SAT K]".
-    iMod ("FUPD" with "[A SAT EN]") as "(A & SAT & EN & P)". iFrame.
-    iModIntro. iFrame. iApply wsats_nin. apply LT. iFrame.
-  Qed.
-
   Lemma wsats_inv_gen x A E n N p :
     n < x ->
     ⊢ A ∗ wsats x ∗ OwnE E -∗ #=> (A ∗ (prop n p -∗ wsats x) ∗ OwnE E ∗ (inv n N p)).
@@ -534,8 +525,83 @@ Section FANCY_UPDATE.
     - iFrame. auto.
   Qed.
 
+  (* BiFUpd instance. Due to it depending on x and A, a lot of explicit type annotation is needed.
+     Most of the time, the `=|x|=(A)={E1,E2}=>` notation does it, but for some typeclasses instances explicit
+     annotations may be required.
+
+     The same goes for BiBUpd instance for IUpd, but that was is not need to be typed out a lot.
+  *)
+  Lemma FUpd_fupd_mixin x A : BiFUpdMixin iProp (FUpd x A).
+  Proof.
+    split.
+    - rewrite /fupd /FUpd. solve_proper.
+    - intros E1 E2 (E1''&->&?)%subseteq_disjoint_union_L.
+      rewrite /fupd /FUpd OwnE_add //.
+      by iIntros "($ & $ & $ & HE) !> ($ & $ & $) !>".
+    - rewrite /fupd /FUpd.
+      iIntros (E1 E2 P) ">H [Hw HE]". iApply "H"; by iFrame.
+    - rewrite /fupd /FUpd.
+      iIntros (E1 E2 P Q HPQ) "HP HwE". rewrite -HPQ. by iApply "HP".
+    - rewrite /fupd /FUpd. iIntros (E1 E2 E3 P) "HP HwE".
+      iMod ("HP" with "HwE") as "(HA & Hw & HE & HP)". iApply "HP"; by iFrame.
+    - intros E1 E2 Ef P HE1Ef. rewrite /fupd /FUpd OwnE_add //.
+      iIntros "Hvs (HA & Hw & HE1 &HEf)".
+      iMod ("Hvs" with "[HA Hw HE1]") as "($ & $ & HE2 & HP)"; first by iFrame.
+      iDestruct (OwnE_add' with "[HE2 HEf]") as "[? $]"; first by iFrame.
+      iIntros "!>". by iApply "HP".
+    - rewrite /fupd /FUpd. by iIntros (????) "[HwP $]".
+  Qed.
+  Global Instance iProp_bi_fupd_FUpd {x A} : BiFUpd iProp :=
+  {| bi_fupd_mixin := (FUpd_fupd_mixin x A) |}.
+  Global Instance iProp_bi_BUpd_FUpd {x A} : @BiBUpdFUpd (@iProp _) (@iProp_bi_bupd _)(@iProp_bi_fupd_FUpd x A).
+  Proof.
+    intros E P.
+    iIntros "P H". iMod "P". iModIntro. iFrame. iFrame.
+  Qed.
+  Global Instance iProp_bi_IUpd_FUpd {x A} : @BiBUpdFUpd (@iProp _) (@iProp_bi_bupd_IUpd _ A)(@iProp_bi_fupd_FUpd x A).
+  Proof.
+    intros E P.
+    iIntros "P [A H]". iMod ("P" with "A") as "[A ?]". iModIntro. iFrame.
+  Qed.
+
+End FANCY_UPDATE.
+Global Opaque FUpd.
+
+(* Shortcut for explicit annotation nessecary when proving some typeclass instances. *)
+Notation fupd_ex x A :=
+  (@fupd (bi_car (@iProp _)) (@bi_fupd_fupd (@iProp _) (@iProp_bi_fupd_FUpd _ _ _ _ _ _ x A))) (only parsing).
+
+Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (fupd_ex x A E1 E2 P) (at level 90).
+Notation "'=|' x '|={' E1 ',' E2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ E1, E2}=> P) (at level 90).
+Notation "P =| x |=( A )={ E1 , E2 }=∗ Q" := (P -∗ =|x|=(A)={E1,E2}=> Q)%I (at level 90).
+Notation "P =| x |={ E1 , E2 }=∗ Q" := (P -∗ =|x|={E1,E2}=> Q)%I (at level 90).
+
+Notation "'=|' x '|=(' A ')={' E '}=>' P" := (=|x|=( A )={E, E}=> P) (at level 90).
+Notation "'=|' x '|={' E '}=>' P" := (=|x|=( ⌜True⌝%I )={ E }=> P) (at level 90).
+Notation "P =| x |=( A )={ E }=∗ Q" := (P -∗ =|x|=(A)={E}=> Q)%I (at level 90).
+Notation "P =| x |={ E }=∗ Q" := (P -∗ =|x|={E}=> Q)%I (at level 90).
+
+Section LEMMAS.
+
+Context `{Σ : GRA.t}.
+Context `{Vars : index -> Type}.
+Context `{Invs : @IInvSet Σ Vars}.
+Context `{@GRA.inG OwnERA Σ}.
+Context `{@GRA.inG OwnDRA Σ}.
+Context `{@GRA.inG (IInvSetRA Vars) Σ}.
+Local Transparent FUpd.
+
+  Lemma FUpd_mono x0 x1 A Es1 Es2 P :
+    (x0 < x1) -> =|x0|=(A)={Es1,Es2}=> P ⊢ =|x1|=(A)={Es1,Es2}=> P.
+  Proof.
+    iIntros (LT) "FUPD (A & SAT & EN)".
+    iPoseProof ((wsats_in _ _ LT) with "SAT") as "[SAT K]".
+    iMod ("FUPD" with "[A SAT EN]") as "(A & SAT & EN & P)". iFrame.
+    iModIntro. iFrame. iApply wsats_nin. apply LT. iFrame.
+  Qed.
+
   Lemma FUpd_alloc_gen x A E n N p :
-    n < x -> (inv n N p -∗ prop n p) ⊢ FUpd x A E E (inv n N p).
+    n < x -> (inv n N p -∗ prop n p) ⊢ =|x|=(A)={E}=> (inv n N p).
   Proof.
     iIntros (LT) "P (A & WSAT & EN)".
     iMod (wsats_inv_gen with "[A WSAT EN]") as "(A & W & EN & #INV)". eauto.
@@ -544,15 +610,15 @@ Section FANCY_UPDATE.
   Qed.
 
   Lemma FUpd_alloc x A E n N p :
-    n < x -> prop n p ⊢ FUpd x A E E (inv n N p).
+    n < x -> prop n p ⊢ =|x|=(A)={E}=> (inv n N p).
   Proof.
     iIntros (LT) "P". iApply FUpd_alloc_gen. auto. iIntros. iFrame.
   Qed.
 
   Lemma FUpd_open x A E n N (LT : n < x) (IN : ↑N ⊆ E) p :
     inv n N p ⊢
-        FUpd x A E (E∖↑N)
-        ((prop n p) ∗ ((prop n p) -∗ FUpd x A (E∖↑N) E emp)).
+        =|x|=(A)={E,(E∖↑N)}=>
+        ((prop n p) ∗ ((prop n p) -∗ =|x|=(A)={(E∖↑N),E}=> emp)).
   Proof.
     iIntros "[% (%iN & #HI)] (A & WSAT & EN)".
     iAssert (OwnE (E ∖ ↑N) ∗ OwnE (↑N ∖ {[i]}) ∗ OwnE {[i]})%I with "[EN]" as "(EN1 & EN2 & EN3)".
@@ -576,88 +642,8 @@ Section FANCY_UPDATE.
     rewrite <- union_difference_L; ss.
   Qed.
 
-  Lemma FUpd_intro x A E P :
-    #=> P ⊢ FUpd x A E E P.
-  Proof.
-    iIntros "P H". iMod "P". iModIntro. iFrame. iFrame.
-  Qed.
-
-  Lemma FUpd_mask_frame x A E1 E2 E P :
-    E1 ## E -> FUpd x A E1 E2 P ⊢ FUpd x A (E1 ∪ E) (E2 ∪ E) P.
-  Proof.
-    rewrite /FUpd. iIntros (D) "H (A & WSAT & EN)".
-    iPoseProof (OwnE_disjoint _ _ D with "EN") as "[EN1 EN]".
-    iPoseProof ("H" with "[A WSAT EN1]") as ">(A & WSAT & EN2 & P)". iFrame.
-    iModIntro. iFrame. iApply OwnE_union. iFrame.
-  Qed.
-
-  Lemma FUpd_intro_mask x A E1 E2 P :
-    E2 ⊆ E1 -> FUpd x A E1 E1 P ⊢ FUpd x A E1 E2 (FUpd x A E2 E1 P).
-  Proof.
-    rewrite /FUpd. iIntros (HE) "H (A & WSAT & EN)".
-    iPoseProof ("H" with "[A WSAT EN]") as ">(A & WSAT & EN & P)". iFrame.
-    iModIntro.
-    rewrite (union_difference_L _ _ HE).
-    iPoseProof (OwnE_disjoint _ _ with "EN") as "[EN1 EN]". { set_solver. }
-    iFrame. iIntros "(A & WSAT & EN2)". iModIntro. iFrame.
-    iApply OwnE_union. iFrame.
-  Qed.
-
-  Lemma FUpd_mask_mono x A E1 E2 P :
-    E1 ⊆ E2 -> FUpd x A E1 E1 P ⊢ FUpd x A E2 E2 P.
-  Proof.
-    i. replace E2 with (E1 ∪ E2 ∖ E1).
-    - eapply FUpd_mask_frame; set_solver.
-    - symmetry. eapply leibniz_equiv. eapply union_difference. ss.
-  Qed.
-
-  Lemma FUpd_mask_keep x A E1 E2 P :
-    E2 ⊆ E1 -> (FUpd x A E2 E1 emp -∗ FUpd x A E2 E2 P) ⊢ FUpd x A E1 E2 P.
-  Proof.
-    i. iIntros "K (A & WSAT & EN)".
-    iPoseProof (OwnE_subset with "EN") as "[EN ENK]". eauto.
-    iApply ("K" with "[ENK] [A WSAT EN]").
-    - iIntros "(A & WSAT & EN)". iFrame. iModIntro. iSplitL. 2: auto. iApply ("ENK" with "EN").
-    - iFrame.
-  Qed.
-
-  (* Instances for IPM. *)
-
-  (* Since the instance requires [x] and [A], in most cases standard Iris lemmas will need to be given [iProp_bi_fupd] instance explicitly. *)
-  (* (e.g, use lemmas with [iApply (@fupd_mask_keep _ iProp_bi_fupd))]. *)
-  (* Also, having an BiBUpdFUpd instance is probably not recommended as [iProp] has two instances of BiBUpd. *)
-  Lemma FUpd_fupd_mixin x A : BiFUpdMixin iProp (FUpd x A).
-  Proof.
-    split.
-    - rewrite /fupd /FUpd. solve_proper.
-    - intros E1 E2 (E1''&->&?)%subseteq_disjoint_union_L.
-      rewrite /fupd /FUpd OwnE_add //.
-      by iIntros "($ & $ & $ & HE) !> ($ & $ & $) !>".
-    - rewrite /fupd /FUpd.
-      iIntros (E1 E2 P) ">H [Hw HE]". iApply "H"; by iFrame.
-    - rewrite /fupd /FUpd.
-      iIntros (E1 E2 P Q HPQ) "HP HwE". rewrite -HPQ. by iApply "HP".
-    - rewrite /fupd /FUpd. iIntros (E1 E2 E3 P) "HP HwE".
-      iMod ("HP" with "HwE") as "(HA & Hw & HE & HP)". iApply "HP"; by iFrame.
-    - intros E1 E2 Ef P HE1Ef. rewrite /fupd /FUpd OwnE_add //.
-      iIntros "Hvs (HA & Hw & HE1 &HEf)".
-      iMod ("Hvs" with "[HA Hw HE1]") as "($ & $ & HE2 & HP)"; first by iFrame.
-      iDestruct (OwnE_add' with "[HE2 HEf]") as "[? $]"; first by iFrame.
-      iIntros "!>". by iApply "HP".
-    - rewrite /fupd /FUpd. by iIntros (????) "[HwP $]".
-  Qed.
-  Global Instance iProp_bi_fupd {x A} : BiFUpd iProp :=
-  {| bi_fupd_mixin := (FUpd_fupd_mixin x A) |}.
-
-
-  Global Instance from_modal_FUpd x A E P :
-    FromModal True modality_id (FUpd x A E E P) (FUpd x A E E P) P.
-  Proof.
-    rewrite /FromModal /= /FUpd. iIntros. iModIntro. iFrame. iFrame.
-  Qed.
-
   Global Instance from_modal_FUpd_general x A E1 E2 P :
-    FromModal (E2 ⊆ E1) modality_id P (FUpd x A E1 E2 P) P.
+    FromModal (E2 ⊆ E1) modality_id P (=|x|=(A)={E1,E2}=> P) P.
   Proof.
     rewrite /FromModal /FUpd. ss.
     iIntros (HE) "P (A & WSAT & EN)". iModIntro. iFrame.
@@ -666,21 +652,8 @@ Section FANCY_UPDATE.
     - symmetry. eapply union_difference_L. ss.
   Qed.
 
-  Global Instance from_modal_FUpd_wrong_mask x A E1 E2 P :
-    FromModal (pm_error "Only non-mask-changing update modalities can be introduced directly.
-Use [FUpd_mask_frame] and [FUpd_intro_mask]")
-              modality_id (FUpd x A E1 E2 P) (FUpd x A E1 E2 P) P | 100.
-  Proof. intros []. Qed.
-
-  Global Instance elim_modal_bupd_FUpd p x A E1 E2 P Q :
-    ElimModal True p false (|==> P) P (FUpd x A E1 E2 Q) (FUpd x A E1 E2 Q) | 10.
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
-    iIntros (_) "[P K] I". iMod "P". iApply ("K" with "P"). iFrame.
-  Qed.
-
   Global Instance elim_modal_FUpd_FUpd_simple p n x A E1 E2 E3 P Q :
-    ElimModal (n <= x) p false (FUpd n ⌜True⌝ E1 E2 P) P (FUpd x A E1 E3 Q) (FUpd x A E2 E3 Q).
+    ElimModal (n <= x) p false (=|n|={E1,E2}=> P) P (=|x|=(A)={E1,E3}=> Q) (=|x|=(A)={E2,E3}=> Q).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim.
     iIntros (LT) "[P K] [A I]". inv LT.
@@ -691,28 +664,39 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
       iMod ("P" with "[I]") as "(_ & WSAT & EN & P)". iFrame. iApply ("K" with "P"). iFrame.
   Qed.
 
+  Local Opaque FUpd.
+
+  Global Instance into_acc_FUpd_inv x A E n N p :
+    IntoAcc (inv n N p) (n < x /\ (↑N ⊆ E)) True
+            (fupd_ex x A E (E ∖ ↑N))
+            (fupd_ex x A (E ∖ ↑N) E)
+            (fun _ : () => prop n p) (fun _ : () => prop n p) (fun _ : () => None).
+  Proof.
+    rewrite /IntoAcc. iIntros ((LT & iE)) "INV _". rewrite /accessor.
+    iMod (FUpd_open x A _ _ _ LT iE with "INV") as "[open close]".
+    iModIntro. iExists tt. iFrame.
+  Qed.
+
   Global Instance elim_modal_FUpd_FUpd p n x A E1 E2 E3 P Q :
-    ElimModal (n <= x) p false (FUpd n A E1 E2 P) P (FUpd x A E1 E3 Q) (FUpd x A E2 E3 Q).
+    ElimModal (n <= x) p false (=|n|=(A)={E1,E2}=> P) P (=|x|=(A)={E1,E3}=> Q) (=|x|=(A)={E2,E3}=> Q).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim.
-    iIntros (LT) "[P K] I". inv LT.
-    - rewrite /FUpd.
-      iMod ("P" with "I") as "(A & WSAT & EN & P)". iApply ("K" with "P"). iFrame.
+    iIntros (LT) "[P K]". inv LT.
+    - iMod "P". iApply ("K" with "P").
     - iPoseProof (FUpd_mono n (S m) with "P") as "P". lia.
-      rewrite /FUpd.
-      iMod ("P" with "I") as "(A & WSAT & EN & P)". iApply ("K" with "P"). iFrame.
+      iMod "P". iApply ("K" with "P").
   Qed.
 
   Global Instance elim_modal_FUpd_FUpd_simple_general p x A E0 E1 E2 E3 P Q :
     ElimModal (E0 ⊆ E2) p false
-              (FUpd x ⌜True⌝ E0 E1 P)
+              (=|x|={E0,E1}=> P)
               P
-              (FUpd x A E2 E3 Q)
-              (FUpd x A (E1 ∪ (E2 ∖ E0)) E3 Q) | 10.
+              (=|x|=(A)={E2,E3}=> Q)
+              (=|x|=(A)={(E1 ∪ (E2 ∖ E0)),E3}=> Q) | 10.
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim. ss.
     iIntros (HE) "[M K]".
-    iPoseProof (FUpd_mask_frame _ _ _ _ (E2 ∖ E0) with "M") as "M".
+    iPoseProof (fupd_mask_frame_r _ _ (E2 ∖ E0) with "M") as "M".
     { set_solver. }
     replace (E0 ∪ E2 ∖ E0) with E2 by (eapply union_difference_L; ss).
     iMod "M". iPoseProof ("K" with "M") as "M". ss.
@@ -720,23 +704,28 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
 
   Global Instance elim_modal_FUpd_FUpd_general p x A E0 E1 E2 E3 P Q :
     ElimModal (E0 ⊆ E2) p false
-              (FUpd x A E0 E1 P)
+              (=|x|=(A)={E0,E1}=> P)
               P
-              (FUpd x A E2 E3 Q)
-              (FUpd x A (E1 ∪ (E2 ∖ E0)) E3 Q) | 10.
+              (=|x|=(A)={E2,E3}=> Q)
+              (=|x|=(A)={(E1 ∪ (E2 ∖ E0)),E3}=> Q) | 10.
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim. ss.
     iIntros (HE) "[M K]".
-    iPoseProof (FUpd_mask_frame _ _ _ _ (E2 ∖ E0) with "M") as "M".
+    iPoseProof (fupd_mask_frame_r _ _ (E2 ∖ E0) with "M") as "M".
     { set_solver. }
     replace (E0 ∪ E2 ∖ E0) with E2 by (eapply union_difference_L; ss).
     iMod "M". iPoseProof ("K" with "M") as "M". ss.
   Qed.
 
-
   Global Instance elim_acc_FUpd
          {X : Type} i A E1 E2 E (α β : X -> iProp) (mγ : X -> option iProp) (Q : iProp) :
-    ElimAcc True (FUpd i A E1 E2) (FUpd i A E2 E1) α β mγ (FUpd i A E1 E Q) (fun x : X => ((FUpd i A E2 E2 (β x)) ∗ (mγ x -∗? FUpd i A E1 E Q))%I).
+    ElimAcc True
+            (fupd_ex i A E1 E2)
+            (fupd_ex i A E2 E1)
+            α β mγ
+            (=|i|=(A)={E1,E}=> Q)
+            (fun x : X =>
+              ((=|i|=(A)={E2}=> (β x)) ∗ (mγ x -∗? =|i|=(A)={E1,E}=> Q))%I).
   Proof.
     iIntros (_) "Hinner >[% [Hα Hclose]]".
     iPoseProof ("Hinner" with "Hα") as "[>Hβ Hfin]".
@@ -744,36 +733,4 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
     iApply "Hfin". iFrame.
   Qed.
 
-  Global Instance into_acc_FUpd_inv x A E n N p :
-    IntoAcc (inv n N p) (n < x /\ (↑N ⊆ E)) True
-            (FUpd x A E (E ∖ ↑N))
-            (FUpd x A (E ∖ ↑N) E)
-            (fun _ : () => prop n p) (fun _ : () => prop n p) (fun _ : () => None).
-  Proof.
-    rewrite /IntoAcc. iIntros ((LT & iE)) "INV _". rewrite /accessor.
-    iPoseProof (FUpd_open _ _ _ _ _ LT iE with "INV") as ">[open close]".
-    iModIntro. iExists tt. iFrame.
-  Qed.
-
-  Global Instance elim_modal_iupd_FUpd p x A E1 E2 P Q :
-    ElimModal True p false (#=(A)=> P) P (FUpd x A E1 E2 Q) (FUpd x A E1 E2 Q) | 10.
-  Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim /FUpd.
-    iIntros (_) "[P K] [A I]".
-    iMod ("P" with "A") as "[A P]". iApply ("K" with "P"). iFrame.
-  Qed.
-
-End FANCY_UPDATE.
-Global Opaque FUpd.
-
-(* TODO: Try to see if using the @fupd notation here an in every `ElimAcc` etc helps with TC inference. *)
-(* Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (@fupd iProp (FUpd x A) E1 E2 P) (at level 90). *)
-Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (FUpd x A E1 E2 P) (at level 90).
-Notation "'=|' x '|={' E1 ',' E2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ E1, E2}=> P) (at level 90).
-Notation "P =| x |=( A )={ E1 , E2 }=∗ Q" := (P -∗ =|x|=(A)={E1,E2}=> Q)%I (at level 90).
-Notation "P =| x |={ E1 , E2 }=∗ Q" := (P -∗ =|x|={E1,E2}=> Q)%I (at level 90).
-
-Notation "'=|' x '|=(' A ')={' E '}=>' P" := (=|x|=( A )={E, E}=> P) (at level 90).
-Notation "'=|' x '|={' E '}=>' P" := (=|x|=( ⌜True⌝%I )={ E }=> P) (at level 90).
-Notation "P =| x |=( A )={ E }=∗ Q" := (P -∗ =|x|=(A)={E}=> Q)%I (at level 90).
-Notation "P =| x |={ E }=∗ Q" := (P -∗ =|x|={E}=> Q)%I (at level 90).
+End LEMMAS.
