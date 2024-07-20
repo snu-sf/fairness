@@ -197,15 +197,6 @@ Section IPM.
     rr. uipropall. i. rr. uipropall. rr in H. uipropall. des; [|done].
     rr in H. uipropall. rr in H. uipropall.
   Qed.
-  Global Instance elim_modal_except_0 p (P Q : iProp) :
-    ElimModal True p p (◇ P) P Q Q.
-  Proof.
-    rewrite /ElimModal. iIntros (_) "[P Q]".
-    iApply "Q".
-    destruct p; simpl.
-    1: iDestruct "P" as "#P"; iModIntro.
-    all: iDestruct (is_except_0 with "P") as "$".
-  Qed.
 
   Global Instance iProp_pure_forall: BiPureForall iProp.
   Proof.
