@@ -425,7 +425,7 @@ Section STATE.
         (SUB: E0 ⊆ E1)
     :
     (y <= x) ->
-    (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E0,E0}=> (wpsim E1 r g Q ps pt itr_src itr_tgt))
+    (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E0}=> (wpsim E1 r g Q ps pt itr_src itr_tgt))
       ⊢
       (wpsim E1 r g Q ps pt itr_src itr_tgt)
   .
@@ -461,7 +461,7 @@ Section STATE.
          P
     :
     ElimModal (y <= x /\ E1 ⊆ E2) p false
-              (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E1,E1}=> P)
+              (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E1}=> P)
               P
               (wpsim E2 r g Q ps pt itr_src itr_tgt)
               (wpsim E2 r g Q ps pt itr_src itr_tgt).
@@ -517,7 +517,7 @@ Section STATE.
          ps pt itr_src itr_tgt
          P
     :
-    AddModal (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E,E}=> P)
+    AddModal (=|y|=(fairI (ident_tgt:=ident_tgt) x)={E}=> P)
              P
              (wpsim E r g Q ps pt itr_src itr_tgt).
   Proof.
