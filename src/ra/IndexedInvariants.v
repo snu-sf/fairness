@@ -529,7 +529,7 @@ Section FANCY_UPDATE.
      Most of the time, the `=|x|=(A)={E1,E2}=>` notation does it, but for some typeclasses instances explicit
      annotations may be required.
 
-     The same goes for BiBUpd instance for IUpd, but that was is not need to be typed out a lot.
+     The same goes for BiBUpd instance for IUpd, but that does not need to be typed out a lot.
   *)
   Lemma FUpd_fupd_mixin x A : BiFUpdMixin iProp (FUpd x A).
   Proof.
