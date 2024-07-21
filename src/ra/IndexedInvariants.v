@@ -324,7 +324,7 @@ Section WSATS.
     iIntros "H". iFrame.
   Qed.
 
-  Lemma wsat_auth_nin (x n : index) (NIN : x < n)
+  Lemma wsat_auth_nin (x n : index) (NIN : x ≤ n)
     : wsat_auth x ⊢ wsat_auth n ∗ ([∗ list] m ∈ (seq x (n - x)), wsat m).
   Proof.
     induction NIN.
@@ -347,10 +347,7 @@ Section WSATS.
             rewrite URA.unit_id. reflexivity.
           }
       }
-      unfold wsat_auth. rewrite H3. iDestruct "AUTH" as "[AUTH NEW]".
-      iPoseProof (wsat_init with "NEW") as "NEW".
-      subst x. iFrame.
-      replace (S n - n) with 1 by lia. ss. iFrame.
+      rewrite Nat.sub_diag. simpl. iFrame.
     - iIntros "AUTH". iPoseProof (IHNIN with "AUTH") as "[AUTH SAT]".
       clear IHNIN. remember (S m) as y.
       assert ((wsat_auth_black m) =
@@ -379,7 +376,7 @@ Section WSATS.
       replace (x + (m - x)) with m by lia. ss. iFrame.
   Qed.
 
-  Lemma wsats_nin (x n : index) (NIN : x < n)
+  Lemma wsats_nin (x n : index) (NIN : x ≤ n)
     : wsats x ∗ ([∗ list] m ∈ (seq x (n - x)), wsat m) ⊢ wsats n.
   Proof.
     rewrite ! wsats_equiv_l.
@@ -389,10 +386,10 @@ Section WSATS.
   Qed.
 
   Lemma wsats_in (x0 x1 : index) :
-    x0 < x1 -> wsats x1 ⊢ wsats x0 ∗ ([∗ list] n ∈ (seq x0 (x1 - x0)), wsat n).
+    x0 ≤ x1 -> wsats x1 ⊢ wsats x0 ∗ ([∗ list] n ∈ (seq x0 (x1 - x0)), wsat n).
   Proof.
     rewrite ! wsats_equiv_l.
-    iIntros (LT) "SAT". unfold wsats_l.
+    iIntros (LE) "SAT". unfold wsats_l.
     replace x1 with (x0 + (x1 - x0)) by lia. rewrite (seq_app _ _ 0).
     iPoseProof (big_sepL_app with "SAT") as "[SAT K]". iFrame.
     ss. replace (x0 + (x1 - x0) - x0) with (x1 - x0) by lia. iFrame.
@@ -407,10 +404,10 @@ Section WSATS.
   Qed.
 
   Lemma wsats_allocs x1 x2 :
-    x1 < x2 -> wsat_auth x1 ∗ wsats x1 ⊢ (wsat_auth x2 ∗ wsats x2).
+    x1 ≤ x2 -> wsat_auth x1 ∗ wsats x1 ⊢ (wsat_auth x2 ∗ wsats x2).
   Proof.
-    iIntros (LT) "[AUTH SAT]". iPoseProof ((wsat_auth_nin _ _ LT) with "AUTH") as "[AUTH NEW]".
-    iPoseProof ((wsats_nin _ _ LT) with "[SAT NEW]") as "SAT". iFrame. iFrame.
+    iIntros (LE) "[AUTH SAT]". iPoseProof ((wsat_auth_nin _ _ LE) with "AUTH") as "[AUTH NEW]".
+    iPoseProof ((wsats_nin _ _ LE) with "[SAT NEW]") as "SAT". iFrame. iFrame.
   Qed.
 
 
@@ -592,12 +589,12 @@ Context `{@GRA.inG (IInvSetRA Vars) Σ}.
 Local Transparent FUpd.
 
   Lemma FUpd_mono x0 x1 A Es1 Es2 P :
-    (x0 < x1) -> =|x0|=(A)={Es1,Es2}=> P ⊢ =|x1|=(A)={Es1,Es2}=> P.
+    (x0 ≤ x1) -> =|x0|=(A)={Es1,Es2}=> P ⊢ =|x1|=(A)={Es1,Es2}=> P.
   Proof.
-    iIntros (LT) "FUPD (A & SAT & EN)".
-    iPoseProof ((wsats_in _ _ LT) with "SAT") as "[SAT K]".
+    iIntros (LE) "FUPD (A & SAT & EN)".
+    iPoseProof ((wsats_in _ _ LE) with "SAT") as "[SAT K]".
     iMod ("FUPD" with "[A SAT EN]") as "(A & SAT & EN & P)". iFrame.
-    iModIntro. iFrame. iApply wsats_nin. apply LT. iFrame.
+    iModIntro. iFrame. iApply wsats_nin. apply LE. iFrame.
   Qed.
 
   Lemma FUpd_alloc_gen x A E n N p :
@@ -656,12 +653,10 @@ Local Transparent FUpd.
     ElimModal (n <= x) p false (=|n|={E1,E2}=> P) P (=|x|=(A)={E1,E3}=> Q) (=|x|=(A)={E2,E3}=> Q).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim.
-    iIntros (LT) "[P K] [A I]". inv LT.
-    - rewrite /FUpd.
-      iMod ("P" with "[I]") as "(_ & WSAT & EN & P)". iFrame. iApply ("K" with "P"). iFrame.
-    - iPoseProof (FUpd_mono n (S m) with "P") as "P". lia.
-      rewrite /FUpd.
-      iMod ("P" with "[I]") as "(_ & WSAT & EN & P)". iFrame. iApply ("K" with "P"). iFrame.
+    iIntros (LE) "[P K] [A I]".
+    iPoseProof (FUpd_mono n x with "P") as "P"; [done|].
+    iMod ("P" with "[$I]") as "(_ & WSAT & EN & P)".
+    iApply ("K" with "P"). iFrame.
   Qed.
 
   Local Opaque FUpd.
@@ -672,19 +667,17 @@ Local Transparent FUpd.
             (fupd_ex x A (E ∖ ↑N) E)
             (fun _ : () => prop n p) (fun _ : () => prop n p) (fun _ : () => None).
   Proof.
-    rewrite /IntoAcc. iIntros ((LT & iE)) "INV _". rewrite /accessor.
-    iMod (FUpd_open x A _ _ _ LT iE with "INV") as "[open close]".
-    iModIntro. iExists tt. iFrame.
+    rewrite /IntoAcc /accessor bi.exist_unit.
+    iIntros ((?&?)) "#INV _". by iApply FUpd_open.
   Qed.
 
   Global Instance elim_modal_FUpd_FUpd p n x A E1 E2 E3 P Q :
     ElimModal (n <= x) p false (=|n|=(A)={E1,E2}=> P) P (=|x|=(A)={E1,E3}=> Q) (=|x|=(A)={E2,E3}=> Q).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim.
-    iIntros (LT) "[P K]". inv LT.
-    - iMod "P". iApply ("K" with "P").
-    - iPoseProof (FUpd_mono n (S m) with "P") as "P". lia.
-      iMod "P". iApply ("K" with "P").
+    iIntros (LE) "[P K]".
+    iPoseProof (FUpd_mono n x with "P") as "P"; [done|].
+    iMod "P". iApply ("K" with "P").
   Qed.
 
   Global Instance elim_modal_FUpd_FUpd_simple_general p x A E0 E1 E2 E3 P Q :

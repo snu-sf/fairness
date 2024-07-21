@@ -1992,6 +1992,15 @@ Section TRIPLES.
     (POST : TA → TB → iProp) (* post-condition *)
   .
 
+  (* TODO: Reuse the following from [iris.bi.lib.atomic] with all the sweet typeclass instances and tactics.
+     Probably requires adding [atomic_update] as an atom to the syntax, which is not ideal.
+  *)
+  (* Definition atomic_update n Eo Ei α β POST : iProp :=
+    (@atomic_update
+    iProp
+      (@iProp_bi_fupd_FUpd _ _ _ _ _ _ (S n) True)
+      _ _
+      Eo Ei α β POST). *)
   (** atomic_update without abort, so no need for fixpoint *)
   Definition atomic_update n Eo Ei α β POST : iProp :=
     =|S n|={Eo, Ei}=> ∃ x, α x ∗
