@@ -234,7 +234,7 @@ Section TEST.
 End TEST.
 
 Infix "⊢" := (@bi_entails iProp).
-Notation "#=> P" := ((@bupd (bi_car (@iProp _)) (@bi_bupd_bupd (@iProp _) (@iProp_bi_bupd _))) P) (at level 99).
+Notation "#=> P" := ((@bupd (bi_car iProp) (@bi_bupd_bupd iProp iProp_bi_bupd)) P) (at level 99).
 
 Section IUPD.
   Context {Σ: GRA.t}.
@@ -284,7 +284,7 @@ Section IUPD.
   Qed.
   Global Instance iProp_bi_bupd_IUpd I: BiBUpd iProp := {| bi_bupd_mixin := iProp_bupd_mixin_IUpd I |}.
 End IUPD.
-Notation "#=( Q )=> P" := ((@bupd (bi_car (@iProp _)) (@bi_bupd_bupd (@iProp _) (@iProp_bi_bupd_IUpd _ Q))) P) (at level 99).
+Notation "#=( Q )=> P" := ((@bupd (bi_car iProp) (@bi_bupd_bupd iProp (iProp_bi_bupd_IUpd Q))) P) (at level 99).
 Notation "P =( I ) =∗ Q" := (P ⊢ #=( I )=> Q) (only parsing, at level 99) : stdpp_scope.
 Notation "P =( I )=∗ Q" := (P -∗ #=( I )=> Q)%I (at level 99): bi_scope.
 

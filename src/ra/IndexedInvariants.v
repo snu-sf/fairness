@@ -522,7 +522,7 @@ Section FANCY_UPDATE.
     - iFrame. auto.
   Qed.
 
-  (* BiFUpd instance. Due to it depending on x and A, a lot of explicit type annotation is needed.
+  (* BiFUpd instance. Due to it depending on x and A, this needs to be given explicitly.
      Most of the time, the `=|x|=(A)={E1,E2}=>` notation does it, but for some typeclasses instances explicit
      annotations may be required.
 
@@ -548,25 +548,22 @@ Section FANCY_UPDATE.
       iIntros "!>". by iApply "HP".
     - rewrite /fupd /FUpd. by iIntros (????) "[HwP $]".
   Qed.
-  Global Instance iProp_bi_fupd_FUpd {x A} : BiFUpd iProp :=
+  Global Instance iProp_bi_fupd_FUpd x A : BiFUpd iProp :=
   {| bi_fupd_mixin := (FUpd_fupd_mixin x A) |}.
-  Global Instance iProp_bi_BUpd_FUpd {x A} : @BiBUpdFUpd (@iProp _) (@iProp_bi_bupd _)(@iProp_bi_fupd_FUpd x A).
-  Proof.
-    intros E P.
-    iIntros "P H". iMod "P". iModIntro. iFrame. iFrame.
-  Qed.
-  Global Instance iProp_bi_IUpd_FUpd {x A} : @BiBUpdFUpd (@iProp _) (@iProp_bi_bupd_IUpd _ A)(@iProp_bi_fupd_FUpd x A).
-  Proof.
-    intros E P.
-    iIntros "P [A H]". iMod ("P" with "A") as "[A ?]". iModIntro. iFrame.
-  Qed.
+
+  Global Instance iProp_bi_BUpd_FUpd x A : @BiBUpdFUpd iProp iProp_bi_bupd (iProp_bi_fupd_FUpd x A).
+  Proof. by iIntros (??) ">$ $". Qed.
+
+  Global Instance iProp_bi_IUpd_FUpd x A : @BiBUpdFUpd iProp (iProp_bi_bupd_IUpd A) (iProp_bi_fupd_FUpd x A).
+  Proof. iIntros (??) "P [A [$ $]]". by iMod ("P" with "A") as "[$ $]". Qed.
 
 End FANCY_UPDATE.
 Global Opaque FUpd.
 
-(* Shortcut for explicit annotation nessecary when proving some typeclass instances. *)
+(* Give explicit [BiFUpd] typeclass instance for [FUpd] since inference fails. *)
+(* Explictly spelling out the coercion [bi_car iProp] ensures the below notations are used. Else it will be ``inserted'' ruining the notation. *)
 Notation fupd_ex x A :=
-  (@fupd (bi_car (@iProp _)) (@bi_fupd_fupd (@iProp _) (@iProp_bi_fupd_FUpd _ _ _ _ _ _ x A))) (only parsing).
+  (@fupd (bi_car iProp) (@bi_fupd_fupd iProp (iProp_bi_fupd_FUpd x A))) (only parsing).
 
 Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (fupd_ex x A E1 E2 P) (at level 90).
 Notation "'=|' x '|={' E1 ',' E2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ E1, E2}=> P) (at level 90).
@@ -708,22 +705,6 @@ Local Transparent FUpd.
     { set_solver. }
     replace (E0 ∪ E2 ∖ E0) with E2 by (eapply union_difference_L; ss).
     iMod "M". iPoseProof ("K" with "M") as "M". ss.
-  Qed.
-
-  Global Instance elim_acc_FUpd
-         {X : Type} i A E1 E2 E (α β : X -> iProp) (mγ : X -> option iProp) (Q : iProp) :
-    ElimAcc True
-            (fupd_ex i A E1 E2)
-            (fupd_ex i A E2 E1)
-            α β mγ
-            (=|i|=(A)={E1,E}=> Q)
-            (fun x : X =>
-              ((=|i|=(A)={E2}=> (β x)) ∗ (mγ x -∗? =|i|=(A)={E1,E}=> Q))%I).
-  Proof.
-    iIntros (_) "Hinner >[% [Hα Hclose]]".
-    iPoseProof ("Hinner" with "Hα") as "[>Hβ Hfin]".
-    iPoseProof ("Hclose" with "Hβ") as ">Hγ".
-    iApply "Hfin". iFrame.
   Qed.
 
 End LEMMAS.

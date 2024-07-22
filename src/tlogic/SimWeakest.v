@@ -1983,7 +1983,7 @@ Section TRIPLES.
 
   (** LAT. *)
   Section atomic_update_def.
-  (* TODO: ideally should be Tele *)
+  (* TODO: ideally should be [tele] *)
   Context {TA TB : Type}.
   Implicit Types
     (Eo Ei : coPset) (* outer/inner masks *)
@@ -1992,15 +1992,15 @@ Section TRIPLES.
     (POST : TA → TB → iProp) (* post-condition *)
   .
 
-  (* TODO: Reuse the following from [iris.bi.lib.atomic] with all the sweet typeclass instances and tactics.
-     Probably requires adding [atomic_update] as an atom to the syntax, which is not ideal.
+  (* TODO: Reuse the following from [iris.bi.lib.atomic] with all the
+    sweet typeclass instances, tactics, and abort for free.
+    Probably requires adding [atomic_update] as an atom to the syntax,
+    or implementing fixpoints in the syntax level, which is not ideal.
   *)
   (* Definition atomic_update n Eo Ei α β POST : iProp :=
-    (@atomic_update
-    iProp
-      (@iProp_bi_fupd_FUpd _ _ _ _ _ _ (S n) True)
-      _ _
-      Eo Ei α β POST). *)
+    @atomic_update
+      iProp (iProp_bi_fupd_FUpd (S n) True) TA TB
+      Eo Ei α β POST. *)
   (** atomic_update without abort, so no need for fixpoint *)
   Definition atomic_update n Eo Ei α β POST : iProp :=
     =|S n|={Eo, Ei}=> ∃ x, α x ∗
@@ -2019,7 +2019,7 @@ Section TRIPLES.
             (code : itree tgtE RV)
     : iProp
     :=
-    (∀ R_term ps pt
+    ∀ R_term ps pt
        (itr_src : itree srcE R_term)
        (ktr_tgt : RV -> itree tgtE R_term),
       atomic_update n (⊤∖E) ∅ α β
@@ -2027,7 +2027,7 @@ Section TRIPLES.
           wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps true (trigger Yield;;; itr_src) (ktr_tgt (f x y z))
         )
        -∗
-       wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%I.
+       wpsim (S n) tid ⊤ ibot7 ibot7 (@term_cond n tid R_term) ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt).
 
 End TRIPLES.
 
