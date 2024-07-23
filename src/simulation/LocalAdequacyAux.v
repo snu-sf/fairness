@@ -5,9 +5,10 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 Require Import Permutation.
+From iris.algebra Require Import cmra.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
+From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM.
 From Fairness Require Export Mod ModSimStutter Concurrency.
 From Fairness Require Import KnotSim.
@@ -16,7 +17,7 @@ Set Implicit Arguments.
 
 Section AUX.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -40,12 +41,12 @@ Section AUX.
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> (cmra_car M) -> Prop.
 
   Definition local_sim_pick {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid o r_own :=
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
-      (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0)),
+      (VALID: ✓ (r_shared0 ⋅ r_own ⋅ r_ctx0)),
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths0))),
     exists im_src1, (fair_update im_src0 im_src1 (prism_fmap inlp (tids_fmap tid ths0))) /\
                  (forall fs ft,
@@ -56,7 +57,7 @@ Section AUX.
   Definition local_sim_sync {R0 R1} (RR: R0 -> R1 -> Prop) src tgt tid o r_own :=
     forall ths0 im_src0 im_tgt0 st_src0 st_tgt0 r_shared0 r_ctx0
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
-      (VALID: URA.wf (r_shared0 ⋅ r_own ⋅ r_ctx0))
+      (VALID: ✓ (r_shared0 ⋅ r_own ⋅ r_ctx0))
       fs ft,
     forall im_tgt1 (FAIR: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths0))),
       (lsim wf_stt I tid (local_RR I RR tid)

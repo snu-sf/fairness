@@ -5,7 +5,7 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec ghost_var ghost_map ghost_excl LifetimeRA AuthExclsRA.
+From Fairness Require Import TemporalLogic SCMemSpec ghost_var ghost_map ghost_excl LifetimeRA.
 From Fairness.elimstack Require Import ClientCode SpecHOCAP.
 
 Section SPEC.
@@ -23,13 +23,11 @@ Section SPEC.
   Context {HasMemRA: @GRA.inG memRA Γ}.
   Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
 
-  Context {HasAuthExcls : @GRA.inG (AuthExcls.t (nat * nat)) Γ}.
-
   Context {HasGhostVar : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
   Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
   Context {HasGhostExcl : @GRA.inG (ghost_exclURA unit) Γ}.
 
-  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_lifetime; red_tl_ghost_excl.
+  Ltac red_tl_all := red_tl; red_tl_memra; red_tl_lifetime; red_tl_ghost_excl.
 
   Import ElimStackClient.
 
@@ -146,7 +144,7 @@ Section SPEC.
     iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
     iApply wpsim_ret; [eauto|].
     iModIntro.
-    iEval (unfold term_cond). iSplit; iFrame; iPureIntro; auto.
+    iEval (unfold term_cond). iSplitL; iFrame; iPureIntro; auto.
   Qed.
 
   Lemma ElimStackClient_pop_sim tid n γk k kt γs γpop:
@@ -249,7 +247,7 @@ Section SPEC.
         iIntros "Duty C". lred2r. rred2r. iApply wpsim_tauR. rred2r.
         iApply wpsim_ret; [eauto|].
         iModIntro.
-        iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
+        iEval (unfold term_cond). iSplitL; iFrame. iPureIntro; auto.
       + iDestruct "PopPost" as "(Tok & Duty & Pck)".
         iApply wpsim_tauR. rred2r.
         iEval (rewrite unfold_iter_eq; rred2r).
@@ -310,7 +308,7 @@ Section SPEC.
     iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
     iApply wpsim_ret; [eauto|].
     iModIntro.
-    iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
+    iEval (unfold term_cond). iSplitL; iFrame. iPureIntro; auto.
     Unshelve. all: apply ndot_ne_disjoint; ss.
   Qed.
 
@@ -319,17 +317,16 @@ Section SPEC.
   Variable tid_push tid_pop : thread_id.
   Let init_ord := Ord.O.
   Let init_ths :=
-        (NatStructsLarge.NatMap.add
+        (NatStructs.NatMap.add
             tid_push tt
-            (NatStructsLarge.NatMap.add
+            (NatStructs.NatMap.add
               tid_pop tt
-              (NatStructsLarge.NatMap.empty unit))).
+              (NatStructs.NatMap.empty unit))).
 
   Let idx := 1.
 
   Lemma init_sat E (H_TID : tid_push ≠ tid_pop) :
-    (OwnM (memory_init_resource ElimStackClient.gvs))
-      ∗ (OwnM (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
+    (OwnM (Σ:=Σ) (memory_init_resource ElimStackClient.gvs))
       ∗
       (WSim.initial_prop
         ElimStackClientSpec.module ElimStackClient.module
@@ -360,7 +357,7 @@ Section SPEC.
         ⟦Duty(tid_pop) [],idx⟧
   .
   Proof.
-    iIntros "(Mem & _ & Init)". rewrite red_syn_fairI.
+    iIntros "(Mem & Init)". rewrite red_syn_fairI.
     iDestruct (memory_init_iprop with "Mem") as "[Mem ↦s]".
     iDestruct "↦s" as "((s↦ & s.o↦ & _) & _)".
     Local Transparent s.
@@ -370,17 +367,17 @@ Section SPEC.
     unfold WSim.initial_prop. simpl.
     iDestruct "Init" as "(_ & _ & Ds & Ts & _ & St_tgt)".
 
-    assert (NatStructsLarge.NatMap.find tid_push init_ths = Some tt) as Htid_push.
-    { unfold init_ths. apply NatStructsLarge.nm_find_add_eq. }
+    assert (NatStructs.NatMap.find tid_push init_ths = Some tt) as Htid_push.
+    { unfold init_ths. apply NatStructs.nm_find_add_eq. }
     iDestruct (natmap_prop_remove_find _ _ _ Htid_push with "Ds") as "[Dpush Ds]".
     iDestruct (natmap_prop_remove_find _ _ _ Htid_push with "Ts") as "[Tpush Ts]".
     clear Htid_push.
 
-    assert (NatStructsLarge.NatMap.find tid_pop (NatStructsLarge.NatMap.remove tid_push init_ths) = Some tt) as Htid_pop.
+    assert (NatStructs.NatMap.find tid_pop (NatStructs.NatMap.remove tid_push init_ths) = Some tt) as Htid_pop.
     { unfold init_ths.
-      rewrite NatStructsLarge.NatMapP.F.remove_neq_o; ss.
-      rewrite NatStructsLarge.nm_find_add_neq; ss.
-      rewrite NatStructsLarge.nm_find_add_eq. ss.
+      rewrite NatStructs.NatMapP.F.remove_neq_o; ss.
+      rewrite NatStructs.nm_find_add_neq; ss.
+      rewrite NatStructs.nm_find_add_eq. ss.
     }
     iDestruct (natmap_prop_remove_find _ _ _ Htid_pop with "Ds") as "[Dpop _]".
     iDestruct (natmap_prop_remove_find _ _ _ Htid_pop with "Ts") as "[Tpop _]".

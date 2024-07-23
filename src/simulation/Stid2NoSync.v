@@ -3,9 +3,10 @@ From Paco Require Import paco.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
+From iris.algebra Require Import cmra.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
+From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World.
 From Fairness Require Import Mod ModSimStid ModSimNoSync.
 
@@ -13,7 +14,7 @@ Set Implicit Arguments.
 
 Section PROOF.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -36,11 +37,11 @@ Section PROOF.
            state_src *
            state_tgt)%type.
   Let shared_rel: Type := shared -> Prop.
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> (cmra_car M) -> Prop.
 
   Theorem stid_implies_nosync
           tid
-          R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+          R0 R1 (RR: R0 -> R1 -> (cmra_car M) -> shared_rel)
           ps pt r_ctx src tgt
           (shr: shared)
           (LSIM: ModSimStid.lsim I tid RR ps pt r_ctx src tgt shr)

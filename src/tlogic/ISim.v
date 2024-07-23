@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From iris.algebra Require Import cmra.
 From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
 From Fairness Require PCM.
 Require Import Program.
@@ -8,6 +9,7 @@ Set Implicit Arguments.
 
 Section SIM.
   Context `{Σ: GRA.t}.
+  Notation iProp := (iProp Σ).
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -26,7 +28,7 @@ Section SIM.
                                (@imap ident_src wf_src) *
                                (@imap (sum_tid ident_tgt) nat_wf) *
                                state_src *
-                               state_tgt) -> Σ -> Prop :=
+                               state_tgt) -> (cmra_car Σ) -> Prop :=
         fun '(ths, im_src, im_tgt, st_src, st_tgt) r_shared =>
           R ths im_src im_tgt st_src st_tgt r_shared.
 
@@ -38,7 +40,7 @@ Section SIM.
                               state_tgt) -> Prop :=
         fun r_src r_tgt r_ctx '(ths, im_src, im_tgt, st_src, st_tgt) =>
           exists r,
-            (<<WF: URA.wf (r ⋅ r_ctx)>>) /\
+            (<<WF: ✓ (r ⋅ r_ctx)>>) /\
               RR r_src r_tgt ths im_src im_tgt st_src st_tgt r.
 
   Variable tid: thread_id.
@@ -46,7 +48,7 @@ Section SIM.
 
   Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel).
 
-  Let gf := (fun r => pind9 ((@__lsim (Σ)) _ _ _ _ _ _ (liftI I) tid r) top9).
+  Let gf := (fun r => pind9 ((@__lsim ( Σ)) _ _ _ _ _ _ (liftI I) tid r) top9).
   Let gf_mon: monotone9 gf.
   Proof.
     eapply lsim_mon.
@@ -69,7 +71,7 @@ Section SIM.
     | unlift_intro
         R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_ctx r_own
         (REL: r R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_own)
-        (WF: URA.wf (r_own ⋅ r_ctx))
+        (WF: ✓ (r_own ⋅ r_ctx))
       :
       unlift r (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
   .
@@ -80,12 +82,12 @@ Section SIM.
       R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
       iProp_intro
         (fun r_own =>
-           forall r_ctx (WF: URA.wf (r_own ⋅ r_ctx)),
+           forall r_ctx (WF: ✓ (r_own ⋅ r_ctx)),
              gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _.
   Next Obligation.
   Proof.
     ii. ss. eapply H.
-    eapply URA.wf_extends; eauto. eapply URA.extends_add; eauto.
+    eapply cmra_valid_included; eauto. eapply RA.extends_add; eauto.
   Qed.
 
   Tactic Notation "muclo" uconstr(H) :=
@@ -136,7 +138,7 @@ Section SIM.
     instantiate (1:=a).
     eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
     econs.
-    2:{ eapply H1. r_wf WF0. }
+    2:{ eapply H1. r_wf WF0. rewrite H. rewrite (comm cmra.op a). done. }
     unfold liftRR. i. subst. des_ifs. des.
     rr in H0. autorewrite with iprop in H0. specialize (H0 r_src).
     rr in H0. autorewrite with iprop in H0. specialize (H0 r_tgt).
@@ -146,11 +148,11 @@ Section SIM.
     rr in H0. autorewrite with iprop in H0. specialize (H0 s0).
     rr in H0. autorewrite with iprop in H0. specialize (H0 s).
     rr in H0. autorewrite with iprop in H0.
-    hexploit (H0 r0); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx'). r_wf WF1. }
-    i. rr in H. autorewrite with iprop in H.
-    hexploit H.
-    { instantiate (1:=r_ctx'). r_wf WF1. }
+    hexploit (H0 r1); eauto.
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx'). r_wf WF1. rewrite (comm cmra.op r1). done. }
+    i. rr in H2. autorewrite with iprop in H2.
+    hexploit H2.
+    { simpl. instantiate (1:=r_ctx'). r_wf WF1. rewrite (comm cmra.op r1). done.  }
     i. des. esplits; eauto.
   Qed.
 
@@ -372,8 +374,8 @@ Section SIM.
     rr in H. autorewrite with iprop in H.
     hexploit H; eauto. i.
     rr in H0. autorewrite with iprop in H0.
-    hexploit (H0 URA.unit); eauto.
-    { rewrite URA.unit_id. eapply URA.wf_mon; eauto. }
+    hexploit (H0 ε); eauto.
+    { rewrite right_id. eapply cmra_valid_op_l. eauto. }
     { rr. autorewrite with iprop. eauto. }
     i. muclo lsim_resetC_spec. econs; [eapply H1|..]; eauto. r_wf WF0.
   Qed.
@@ -432,9 +434,10 @@ Section SIM.
   .
   Proof.
     rr. autorewrite with iprop. i.
-    rr in H. autorewrite with iprop in H. des. subst.
+    rr in H. autorewrite with iprop in H. des. rename H into EQ.
     ii. muclo lsim_indC_spec.
     eapply lsim_yieldR; eauto.
+    { rewrite EQ in WF0. done. }
     i. rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_src1).
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt1).
@@ -443,12 +446,14 @@ Section SIM.
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
     rr in H1. autorewrite with iprop in H1.
     hexploit (H1 r_shared1); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
-    i. rr in H. autorewrite with iprop in H. hexploit (H URA.unit); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. rewrite (comm cmra.op b). done.
+    }
+    i. rr in H. autorewrite with iprop in H. hexploit (H ε); eauto.
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. rewrite (comm cmra.op b). done.
+    }
     { rr. autorewrite with iprop. eauto. }
     i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto.
-    r_wf VALID.
+    r_wf VALID. rewrite (comm cmra.op b). done.
   Qed.
 
   Lemma isim_sync r g R_src R_tgt
@@ -461,8 +466,9 @@ Section SIM.
   .
   Proof.
     rr. autorewrite with iprop. i.
-    rr in H. autorewrite with iprop in H. des. subst.
-    ii. gstep. eapply pind9_fold. eapply lsim_sync; eauto. i.
+    rr in H. autorewrite with iprop in H. des. rename H into EQ.
+    ii. gstep. eapply pind9_fold. eapply lsim_sync; eauto.
+    { rewrite EQ in WF0. done. }
     i.
     rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_src1).
@@ -472,12 +478,14 @@ Section SIM.
     rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
     rr in H1. autorewrite with iprop in H1.
     hexploit (H1 r_shared1); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
-    i. rr in H. autorewrite with iprop in H. hexploit (H URA.unit); eauto.
-    { eapply URA.wf_mon. instantiate (1:=r_ctx1). r_wf VALID. }
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1).
+      r_wf VALID. rewrite (comm cmra.op b). done.
+    }
+    i. rr in H. autorewrite with iprop in H. hexploit (H ε); eauto.
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. rewrite (comm cmra.op b). done.
+    }
     { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto.
-    r_wf VALID.
+    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. r_wf VALID. rewrite (comm cmra.op b). done.
   Qed.
 
   Lemma isim_base r g R_src R_tgt
@@ -549,7 +557,7 @@ Section SIM.
     hexploit MON; eauto. i.
     rr in H. autorewrite with iprop in H.
     hexploit H; [|eauto|..].
-    { eapply URA.wf_mon. eauto. }
+    { eapply cmra_valid_op_l. done. }
     i. rr in H0. autorewrite with iprop in H0.
     hexploit H0; eauto. i. des. econs; eauto.
   Qed.
@@ -606,20 +614,20 @@ Section SIM.
     revert a r0 H r_ctx WF0. gcofix CIH. i.
     epose (fun R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
                ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
-             @iProp_intro _ (fun r_own => forall r_ctx (WF: URA.wf (r_own ⋅ r_ctx)),
+             @iProp_intro _ (fun r_own => forall r_ctx (WF: ✓ (r_own ⋅ r_ctx)),
                                  gpaco9 gf (cpn9 gf) r0 r0 R_src R_tgt (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _).
     hexploit (COIND i a). subst i. clear COIND. i.
     rr in H. autorewrite with iprop in H. hexploit H.
-    { instantiate (1:=r1). eapply URA.wf_mon; eauto. }
+    { instantiate (1:=r1). eapply cmra_valid_op_l; eauto. }
     { rr. autorewrite with iprop.
-      exists URA.unit, r1. splits; auto.
+      exists ε, r1. splits; auto.
       { r_solve. }
       rr. autorewrite with iprop. esplits.
       { rr. autorewrite with iprop. ss. }
       rr. autorewrite with iprop.
       rr. autorewrite with iprop.
-      exists URA.unit, URA.unit. splits.
-      { rewrite URA.unit_core. r_solve. }
+      exists ε, ε. splits.
+      { rewrite right_id. apply core_id_total. apply _. }
       { do 13 (rr; autorewrite with iprop; i).
         ss. i. gbase. eapply CIH0. econs; eauto. r_wf WF.
       }
@@ -640,7 +648,7 @@ Section SIM.
     }
     Unshelve.
     { i. ss. i. eapply H; eauto.
-      eapply URA.wf_extends; eauto. eapply URA.extends_add; eauto.
+      eapply cmra_valid_included; eauto. eapply RA.extends_add; eauto.
     }
   Qed.
 
@@ -669,12 +677,12 @@ Section EQUIVI.
         ps pt (itr_src : itree srcE R_src) (itr_tgt : itree tgtE R_tgt)
         ths (im_src : imap ident_src wf_src) (im_tgt : imap (sum_tid ident_tgt) nat_wf) st_src st_tgt
     :
-    (isim tid I1 r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+    (isim (Σ:=Σ) tid I1 r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
       ⊢
-      (isim tid I2 r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
+      (isim (Σ:=Σ) tid I2 r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    assert (EQ: forall ths ims imt sts stt (r : Σ) (WF: URA.wf r), I1 ths ims imt sts stt r <-> I2 ths ims imt sts stt r).
+    assert (EQ: forall ths ims imt sts stt (r : Σ) (WF: ✓ r), I1 ths ims imt sts stt r <-> I2 ths ims imt sts stt r).
     { clear - EQUIV. i. specialize (EQUIV ths ims imt sts stt). rr in EQUIV. inv EQUIV. eauto. }
     rr. autorewrite with iprop. i.
     ii. rr in H. eapply lsim_equivI. 2: eapply H; eauto.

@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
+From iris.algebra Require Import cmra updates local_updates auth.
 From Fairness Require Import Axioms NatStructs.
 From Fairness Require Import PCM.
 Require Import String Lia Program.
@@ -8,125 +9,157 @@ Set Implicit Arguments.
 
 Module NatMapRA.
   Section MAP.
-    Variable A: Type.
+    Context {A: Type}.
 
-    Definition car := option (NatMap.t A).
+    Inductive car :=
+    | Map : (NatMap.t A) → car
+    | Bot : car.
 
-    Definition unit: car := Some (NatMap.empty A).
+    Definition unit: car := Map (NatMap.empty A).
 
     Definition add (m0 m1: car): car :=
       match m0, m1 with
-      | Some m0, Some m1 =>
-          if (NatStructs.disjoint m0 m1) then Some (NatMapP.update m0 m1) else None
-      | _, _ => None
+      | Map m0, Map m1 =>
+          if (NatStructs.disjoint m0 m1) then Map (NatMapP.update m0 m1) else Bot
+      | _, _ => Bot
       end.
 
     Definition wf (m: car): Prop :=
       match m with
-      | None => False
+      | Bot => False
       | _ => True
       end.
 
-    Definition core (m: car): car := unit.
+    Definition core (m: car): option car := (Some unit).
 
-    Global Program Instance t: URA.t := {
-        car := car;
-        unit := unit;
-        _add := add;
-        _wf := wf;
-        core := core;
-      }
-    .
-    Next Obligation.
-      unfold add. des_ifs.
-      { f_equal. apply disjoint_union_comm. apply disjoint_true_iff; auto. }
-      { rewrite disjoint_comm in Heq. clarify. }
-      { rewrite disjoint_comm in Heq. clarify. }
-    Qed.
-    Next Obligation.
-      unfold add. des_ifs.
-      { f_equal. rewrite union_assoc. auto. }
-      { rewrite disjoint_true_iff in *.
-        apply Disjoint_union in Heq0. des.
-        hexploit (proj2 (Disjoint_union t2 t t3)).
-        { split.
-          { apply NatMapP.Disjoint_sym. auto. }
-          { apply NatMapP.Disjoint_sym. auto. }
+    Canonical Structure NatMapRAO := leibnizO car.
+
+    Global Instance NatMapEquiv : Equiv (NatMap.t A) := (=).
+    Local Instance NatMapRA_valid_instance : Valid car := wf.
+    Local Instance NatMapRA_pcore_instance : PCore car := core.
+    Local Instance NatMapRA_op_instance : Op car := add.
+    Local Instance NatMapRA_unit_instance : Unit car := unit.
+
+    Lemma valid_unfold om : ✓ om ↔ wf om.
+    Proof. done. Qed.
+    Lemma valid_some m : ✓ (Map m).
+    Proof. done. Qed.
+    Lemma op_unfold p q : p ⋅ q = add p q.
+    Proof. done. Qed.
+    Lemma pcore_unfold p : pcore p = (core p).
+    Proof. done. Qed.
+    Lemma unit_unfold : ε = unit.
+    Proof. done. Qed.
+
+    Definition mixin : RAMixin car.
+    Proof.
+      split; try apply _; try done.
+      all: fold_leibniz.
+      all: try apply _; try done.
+      - intros ??? -> ->. eauto.
+      - intros ???. fold_leibniz.
+        rewrite !op_unfold /add. des_ifs.
+        { f_equal. rewrite union_assoc. auto. }
+        { rewrite disjoint_true_iff in Heq0.
+          rewrite disjoint_true_iff in Heq1.
+          apply Disjoint_union in Heq0. des.
+          hexploit (proj2 (Disjoint_union t2 t t3)).
+          { split.
+            { apply NatMapP.Disjoint_sym. auto. }
+            { apply NatMapP.Disjoint_sym. auto. }
+          }
+          i. apply NatMapP.Disjoint_sym in H.
+          apply disjoint_true_iff in H. clarify.
         }
-        i. apply NatMapP.Disjoint_sym in H.
-        apply disjoint_true_iff in H. clarify.
-      }
-      { rewrite disjoint_true_iff in *.
-        apply Disjoint_union in Heq0. des.
-        apply disjoint_true_iff in Heq0. clarify.
-      }
-      { rewrite disjoint_true_iff in *.
-        apply NatMapP.Disjoint_sym in Heq2.
-        apply Disjoint_union in Heq2. des.
-        hexploit (proj2 (Disjoint_union t t3 t2)).
-        { split; auto. apply NatMapP.Disjoint_sym. auto. }
-        i. apply disjoint_true_iff in H. clarify.
-      }
-      { rewrite disjoint_true_iff in *.
-        apply NatMapP.Disjoint_sym in Heq1.
-        apply Disjoint_union in Heq1. des.
-        apply NatMapP.Disjoint_sym in Heq3.
-        apply disjoint_true_iff in Heq3. clarify.
-      }
+        { rewrite disjoint_true_iff in Heq0.
+          rewrite disjoint_true_iff in Heq3.
+          apply Disjoint_union in Heq0. des.
+          apply disjoint_true_iff in Heq0. clarify.
+        }
+        { rewrite disjoint_true_iff in Heq1.
+          rewrite disjoint_true_iff in Heq3.
+          rewrite disjoint_true_iff in Heq2.
+          apply NatMapP.Disjoint_sym in Heq2.
+          apply Disjoint_union in Heq2. des.
+          hexploit (proj2 (Disjoint_union t t3 t2)).
+          { split; auto. apply NatMapP.Disjoint_sym. auto. }
+          i. apply disjoint_true_iff in H. clarify.
+        }
+        { rewrite disjoint_true_iff in Heq2.
+          rewrite disjoint_true_iff in Heq1.
+          apply NatMapP.Disjoint_sym in Heq1.
+          apply Disjoint_union in Heq1. des.
+          apply NatMapP.Disjoint_sym in Heq3.
+          apply disjoint_true_iff in Heq3. clarify.
+        }
+      - intros ??. fold_leibniz.
+        rewrite !op_unfold /add. des_ifs.
+        { f_equal. apply disjoint_union_comm. apply disjoint_true_iff; auto. }
+        { rewrite disjoint_comm in Heq. clarify. }
+        { rewrite disjoint_comm in Heq. clarify. }
+      - intros x cx. rewrite pcore_unfold op_unfold /core /add.
+        injection 1 as <-. simpl. des_ifs. f_equal. ss.
+        rewrite union_empty. auto.
+      - intros x y cx [z EQ'] EQ. fold_leibniz. subst.
+        rewrite pcore_unfold /core in EQ. injection EQ as <-.
+        rewrite pcore_unfold op_unfold /core /add.
+        exists unit. split; eauto.
+        exists unit. fold_leibniz. rewrite op_unfold /add. simpl.
+        repeat rewrite union_empty. ss.
+      - intros x y. rewrite !valid_unfold /wf op_unfold /add.
+        des_ifs.
     Qed.
-    Next Obligation.
-      unseal "ra". unfold add, unit. des_ifs.
-      hexploit Disjoint_empty. i.
-      apply disjoint_true_iff in H. rewrite H in *. clarify.
-    Qed.
-    Next Obligation.
-      unseal "ra". ss.
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold add in *. des_ifs.
-    Qed.
-    Next Obligation.
-      unseal "ra". ss. des_ifs. f_equal.
-      rewrite union_empty. auto.
-    Qed.
-    Next Obligation.
-      exists unit. unseal "ra". unfold add, core, unit. des_ifs.
-    Qed.
+    Canonical Structure NatMapR := discreteR car mixin.
 
-    Definition singleton (k: nat) (a: A): car := Some (NatMap.add k a (NatMap.empty A)).
+    Global Instance discrete : CmraDiscrete NatMapR.
+    Proof. apply discrete_cmra_discrete. Qed.
+
+    Lemma ucmra_mixin : UcmraMixin car.
+    Proof.
+      split; try apply _; try done.
+      intros m.
+      fold_leibniz.
+      rewrite op_unfold /add unit_unfold /unit.
+      des_ifs. rewrite union_empty. ss.
+    Qed.
+    Canonical Structure t := Ucmra car ucmra_mixin.
+
+    Definition to_Map (map : NatMap.t A) : t := Map map.
+
+    Definition singleton (k: nat) (a: A): t := Map (NatMap.add k a (NatMap.empty A)).
 
     Lemma singleton_unique k0 a0 k1 a1
-          (WF: URA.wf (singleton k0 a0 ⋅ singleton k1 a1))
+          (WF: ✓ (singleton k0 a0 ⋅ singleton k1 a1))
       :
-      k0 <> k1.
+      k0 ≠ k1.
     Proof.
-      ii. ur in WF. des_ifs.
-      rewrite disjoint_true_iff in *.
-      eapply Heq. split.
+      ii. rewrite valid_unfold op_unfold /wf /add /singleton in WF. des_ifs.
+      rewrite disjoint_true_iff in Heq0.
+      eapply Heq0. split.
       { apply NatMapP.F.add_in_iff. eauto. }
       { apply NatMapP.F.add_in_iff. eauto. }
     Qed.
 
     Lemma extends_iff m0 m1
       :
-      URA.extends (Some m0) (Some m1)
-      <->
+      (Map m0) ≼ (Map m1)
+      ↔
         (forall k a (FIND: NatMap.find k m0 = Some a), NatMap.find k m1 = Some a).
     Proof.
       split.
-      { ii. rr in H. des. ur in H. des_ifs.
+      { ii. rr in H. des. fold_leibniz. rewrite op_unfold /add in H. des_ifs.
         apply NatMap.find_1. apply NatMapP.update_mapsto_iff.
         apply NatMap.find_2 in FIND. right. split; auto.
         apply disjoint_true_iff in Heq.
         ii. eapply Heq; eauto. split; eauto.
         apply NatMapP.F.in_find_iff. apply NatMap.find_1 in FIND. ii. clarify.
       }
-      { i. exists (Some (NatMapP.diff m1 m0)).
-        ur. des_ifs.
+      { i. exists (Map (NatMapP.diff m1 m0)). fold_leibniz.
+        rewrite op_unfold /add. des_ifs.
         { f_equal. apply nm_eq_is_equal.
           apply NatMapP.F.Equal_mapsto_iff. i.
           rewrite NatMapP.update_mapsto_iff.
-          rewrite NatMapP.diff_mapsto_iff. split; i; des; auto.
+          rewrite NatMapP.diff_mapsto_iff. split; i; des; auto; last first.
           { apply NatMap.find_2. eapply H.
             apply NatMap.find_1. auto.
           }
@@ -153,7 +186,7 @@ Module NatMapRA.
 
     Lemma extends_singleton_iff m k a
       :
-      URA.extends (singleton k a) (Some m)
+      (singleton k a) ≼ (Map m)
       <->
         (NatMap.find k m = Some a).
     Proof.
@@ -165,14 +198,17 @@ Module NatMapRA.
     Lemma add_local_update m k a
           (NONE: NatMap.find k m = None)
       :
-      Auth.local_update (Some m) unit (Some (NatMap.add k a m)) (singleton k a).
+      ((Map m),ε) ~l~> ((Map (NatMap.add k a m)),(singleton k a)).
     Proof.
-      ii. des. ur in FRAME. des_ifs. split; ss.
-      { ur. ss. }
-      rr. ur. des_ifs.
-      { apply disjoint_true_iff in Heq.
-        apply NatMapP.Disjoint_sym in Heq.
-        apply Disjoint_add in Heq. des.
+      rewrite local_update_unital_discrete.
+      intros ctx _ FRAME. fold_leibniz.
+      rewrite op_unfold /add unit_unfold /unit in FRAME.
+      des_ifs. split; ss.
+      rewrite op_unfold /add /singleton.
+      des_ifs.
+      { apply disjoint_true_iff in Heq0.
+        apply NatMapP.Disjoint_sym in Heq0.
+        apply Disjoint_add in Heq0. des.
         f_equal. eapply eq_ext_is_eq. ii.
         rewrite ! NatMapP.F.add_mapsto_iff.
         rewrite ! NatMapP.update_mapsto_iff.
@@ -182,10 +218,10 @@ Module NatMapRA.
         rewrite NatMapP.update_in_iff in NONE.
         split; i; des; subst; auto.
         right. split; auto. ii. subst.
-        eapply Heq. apply NatMapP.F.in_find_iff.
+        eapply Heq0. apply NatMapP.F.in_find_iff.
         apply NatMap.find_1 in H. ii. clarify.
       }
-      { exfalso. apply disjoint_false_iff in Heq. apply Heq.
+      { exfalso. apply disjoint_false_iff in Heq0. apply Heq0.
         apply NatMapP.Disjoint_sym.
         eapply Disjoint_add. split.
         { apply NatMapP.F.not_find_in_iff in NONE.
@@ -198,11 +234,14 @@ Module NatMapRA.
 
     Lemma remove_local_update m k a
       :
-      Auth.local_update (Some m) (singleton k a) (Some (NatMap.remove k m)) unit.
+      ((Map m), (singleton k a)) ~l~> ((Map (NatMap.remove k m)),ε).
     Proof.
-      ii. des. ur in FRAME. des_ifs. split; ss.
-      { ur. ss. }
-      rr. unfold unit. ur. f_equal.
+      rewrite local_update_unital_discrete.
+      intros ctx _ FRAME. fold_leibniz.
+      rewrite op_unfold /add /singleton in FRAME.
+
+      des_ifs. split; ss.
+      rewrite op_unfold /add unit_unfold /unit. ss. f_equal.
       apply disjoint_true_iff in Heq.
       apply NatMapP.Disjoint_sym in Heq.
       apply Disjoint_add in Heq. des.
@@ -220,12 +259,14 @@ Module NatMapRA.
     Qed.
   End MAP.
 End NatMapRA.
+Global Arguments NatMapRA.t _ : clear implicits.
 
 From Fairness Require Import IProp IPM.
 From iris.bi Require Import derived_laws. Import bi.
 
 Section SUM.
   Context `{Σ: GRA.t}.
+  Notation iProp := (iProp Σ).
 
   Fixpoint list_prop_sum A (P: A -> iProp) (l: list A): iProp :=
     match l with
@@ -331,6 +372,20 @@ Section SUM.
     { iApply (IHl with "TL"). }
   Qed.
 
+  Lemma list_prop_sum_impl_in A (P0 P1: A -> iProp) l
+        (IMPL: forall a (IN: In a l), P0 a ⊢ P1 a)
+    :
+    (list_prop_sum P0 l)
+      -∗
+      (list_prop_sum P1 l).
+  Proof.
+    induction l; ss.
+    iIntros "[HD TL]".
+    iSplitL "HD".
+    { iApply (IMPL with "HD"). auto. }
+    { iApply (IHl with "TL"). eauto. }
+  Qed.
+
   Lemma list_prop_sum_sepconj A (P0 P1: A -> iProp) l
     :
     ((list_prop_sum P0 l) ∗ (list_prop_sum P1 l))
@@ -369,7 +424,7 @@ Section SUM.
   Proof.
     induction l.
     { iIntros "_". ss. }
-    ss. iIntros "[#P Ps]". 
+    ss. iIntros "[#P Ps]".
     iApply intuitionistically_sep_2. iSplitL "P".
     - iModIntro. auto.
     - iApply IHl; iFrame.
@@ -493,6 +548,21 @@ Section SUM.
     { iApply (IHl with "TL"). }
   Qed.
 
+  Lemma list_prop_sum_map_inv
+        A (P0: A -> iProp)
+        B (P1: B -> iProp)
+        l (f: A -> B)
+        (MAP: forall a, (P1 (f a)) -∗ (P0 a))
+    :
+    (list_prop_sum P1 (List.map f l))
+      -∗
+    (list_prop_sum P0 l).
+  Proof.
+    induction l; ss.
+    iIntros "[HD TL]". iSplitL "HD".
+    { iApply (MAP with "HD"). }
+    { iApply (IHl with "TL"). }
+  Qed.
 
   Definition natmap_prop_sum A (f: NatMap.t A) (P: nat -> A -> iProp) :=
     list_prop_sum (fun '(k, v) => P k v) (NatMap.elements f).
@@ -791,7 +861,7 @@ Section SUM.
       -∗ ((P k a) ∗ ((P k a) -∗ (natmap_prop_sum m (fun k a => P k a)))).
   Proof.
     unfold natmap_prop_sum. set (P' := fun x => P (fst x) (snd x)). remember (k, a) as x.
-    cut 
+    cut
   (list_prop_sum (λ x, P' x) (NatMap.elements (elt:=A) m) -∗
                  P' x ∗ (P' x -∗ list_prop_sum (λ x, P' x) (NatMap.elements (elt:=A) m))).
     { subst. subst P'. ss. i. replace (λ '(k0, v), P k0 v) with (λ x : nat * A, P x.1 x.2). auto.
@@ -806,56 +876,59 @@ Section SUM.
 End SUM.
 
 Section UPDNATMAP.
-  Variable A: Type.
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRA.t A)) Σ}.
+  Context {A: Type}.
+  Import NatMapRA.
+  Context `{NATMAPRA: @GRA.inG (authUR (t A)) Σ}.
 
   Lemma NatMapRA_find_some m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+    (OwnM (● (Map m)))
       -∗
-      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      (OwnM (◯ (singleton k a)))
       -∗
       (⌜NatMap.find k m = Some a⌝).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
-    eapply Auth.auth_included in H. eapply NatMapRA.extends_singleton_iff in H. auto.
+    apply auth_both_dfrac_valid_discrete in H. des.
+    eapply NatMapRA.extends_singleton_iff in H0. auto.
   Qed.
 
   Lemma NatMapRA_singleton_unique k0 k1 a0 a1
     :
-    (OwnM (Auth.white (NatMapRA.singleton k0 a0: NatMapRA.t A)))
+    (OwnM (◯ singleton k0 a0))
       -∗
-      (OwnM (Auth.white (NatMapRA.singleton k1 a1: NatMapRA.t A)))
+      (OwnM (◯ (singleton k1 a1)))
       -∗
       (⌜k0 <> k1⌝).
   Proof.
     iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
-    ur in H. eapply NatMapRA.singleton_unique in H. auto.
+    rewrite auth_frag_valid in H.
+    eapply singleton_unique in H. auto.
   Qed.
 
   Lemma NatMapRA_remove m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+    (OwnM (● (Map m)))
       -∗
-      (OwnM (Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      (OwnM (◯ (singleton k a)))
       -∗
-      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRA.t A))).
+      #=>(OwnM (● (Map (NatMap.remove k m)))).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_dealloc. eapply NatMapRA.remove_local_update.
+    eapply auth_update_dealloc, remove_local_update.
   Qed.
 
   Lemma NatMapRA_add m k a
         (NONE: NatMap.find k m = None)
     :
-    (OwnM (Auth.black (Some m: NatMapRA.t A)))
+    (OwnM (● (Map m)))
       -∗
-      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRA.t A)
-                            ⋅ Auth.white (NatMapRA.singleton k a: NatMapRA.t A)))
+      #=>((OwnM (● (Map (NatMap.add k a m))
+                            ⋅ ◯ (singleton k a)))
          ).
   Proof.
     iIntros "B". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_alloc. eapply NatMapRA.add_local_update. auto.
+    eapply auth_update_alloc, add_local_update. auto.
   Qed.
 
 End UPDNATMAP.

@@ -3,16 +3,17 @@ From Paco Require Import paco.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
+From iris.algebra Require Import cmra.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
+From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World WFLibLarge.
 From Fairness Require Export Mod ModSimNoSync ModSimStutter.
 
 Set Implicit Arguments.
 
 Section GENORDER.
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -30,16 +31,16 @@ Section GENORDER.
 
   Let shared := shared state_src state_tgt _ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> (cmra_car M) -> Prop.
 
-  Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
+  Let A R0 R1 := (bool * bool * (cmra_car M) * (itree srcE R0) * (itree tgtE R1) * shared)%type.
   Let wf_stt {R0 R1} := @ord_tree_WF (A R0 R1).
 
   Variant _geno
-          (tid: thread_id) R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
-          (geno: bool -> bool -> URA.car -> ((@wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
+          (tid: thread_id) R_src R_tgt (RR: R_src -> R_tgt -> (cmra_car M) -> shared_rel)
+          (geno: bool -> bool -> (cmra_car M) -> ((@wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel)
     :
-    bool -> bool -> URA.car -> ((@wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> (cmra_car M) -> ((@wf_stt R_src R_tgt).(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
   | geno_ret
       f_src f_tgt r_ctx o o0
       ths im_src im_tgt st_src st_tgt
@@ -152,12 +153,12 @@ Section GENORDER.
       r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      (VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx0))
       o1
       (STUTTER: wf_stt.(lt) o1 o0)
       (GENO: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-               (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+               (VALID: ✓ (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           (<<GENO: geno f_src true r_ctx1 (o1, trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
@@ -184,11 +185,11 @@ Section GENORDER.
   .
 
   Definition geno (tid: thread_id)
-             R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel):
-    bool -> bool -> URA.car -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
+             R_src R_tgt (RR: R_src -> R_tgt -> (cmra_car M) -> shared_rel):
+    bool -> bool -> (cmra_car M) -> (wf_stt.(T) * itree srcE R_src) -> itree tgtE R_tgt -> shared_rel :=
     pind6 (_geno tid RR) top6.
 
-  Lemma geno_mon tid R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel): monotone6 (_geno tid RR).
+  Lemma geno_mon tid R0 R1 (RR: R0 -> R1 -> (cmra_car M) -> shared_rel): monotone6 (_geno tid RR).
   Proof.
     ii. inv IN; try (econs; eauto; fail).
     { des. econs; eauto. }
@@ -203,7 +204,7 @@ Section GENORDER.
   Local Hint Resolve geno_mon: paco.
 
   Lemma geno_ord_weak
-        tid R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
+        tid R0 R1 (LRR: R0 -> R1 -> (cmra_car M) -> shared_rel)
         ps pt r_ctx src tgt (shr: shared) o0 o1
         (LT: wf_stt.(lt) o0 o1)
         (GENO: geno tid LRR ps pt r_ctx (o0, src) tgt shr)
@@ -278,7 +279,7 @@ Section GENORDER.
   Qed.
 
   Lemma nosync_geno
-        tid R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        tid R0 R1 (RR: R0 -> R1 -> (cmra_car M) -> shared_rel)
         ps pt r_ctx src tgt shr
         (LSIM: ModSimNoSync.lsim I tid RR ps pt r_ctx src tgt shr)
     :
@@ -420,7 +421,7 @@ End GENORDER.
 
 Section PROOF.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -445,7 +446,7 @@ Section PROOF.
 
   Let shared_rel: Type := shared -> Prop.
 
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> (cmra_car M) -> Prop.
 
   Definition lift_wf (wf: WF): WF := sum_WF wf (option_WF wf).
 
@@ -460,13 +461,13 @@ Section PROOF.
          | _ => (inr None)
          end.
 
-  Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
+  Let A R0 R1 := (bool * bool * (cmra_car M) * (itree srcE R0) * (itree tgtE R1) * shared)%type.
   Let wf_ot R0 R1 := @ord_tree_WF (A R0 R1).
   Let wf_stt R0 R1 := lift_wf (@wf_ot R0 R1).
 
   Lemma nosync_implies_stutter
         tid
-        R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
+        R0 R1 (LRR: R0 -> R1 -> (cmra_car M) -> shared_rel)
         ps pt r_ctx src tgt
         (shr: shared)
         (LSIM: ModSimNoSync.lsim I tid LRR ps pt r_ctx src tgt shr)
@@ -487,79 +488,79 @@ Section PROOF.
     eapply pind6_unfold in LSIM; eauto with paco.
     inv LSIM.
 
-    { guclo lsim_indC_spec. econs 1; eauto.
+    { guclo (@lsim_indC_spec M). econs 1; eauto.
       instantiate (1:=(inl o1)). ss.
       unfold mk_o. des_ifs. all: econs 3.
     }
 
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 2; eauto.
-      guclo lsim_ord_weakC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 2; eauto.
+      guclo (@lsim_ord_weakC_spec M). econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
     { des. destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 3; eauto. exists x.
-      guclo lsim_ord_weakC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 3; eauto. exists x.
+      guclo (@lsim_ord_weakC_spec M). econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 4; eauto.
-      guclo lsim_ord_weakC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 4; eauto.
+      guclo (@lsim_ord_weakC_spec M). econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 5; eauto.
-      guclo lsim_ord_weakC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 5; eauto.
+      guclo (@lsim_ord_weakC_spec M). econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
-    { guclo lsim_indC_spec. econs 6; eauto. }
+    { guclo (@lsim_indC_spec M). econs 6; eauto. }
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 7; eauto. esplits; eauto.
-      guclo lsim_ord_weakC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 7; eauto. esplits; eauto.
+      guclo (@lsim_ord_weakC_spec M). econs; eauto.
       unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
 
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 8; eauto.
+      guclo (@lsim_indC_spec M). econs 8; eauto.
     }
-    { guclo lsim_indC_spec. econs 9; eauto. i. specialize (GENO x).
+    { guclo (@lsim_indC_spec M). econs 9; eauto. i. specialize (GENO x).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 10; eauto.
+      guclo (@lsim_indC_spec M). econs 10; eauto.
     }
     { destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 11; eauto.
+      guclo (@lsim_indC_spec M). econs 11; eauto.
     }
-    { guclo lsim_indC_spec. econs 12; eauto. i. specialize (GENO _ FAIR).
+    { guclo (@lsim_indC_spec M). econs 12; eauto. i. specialize (GENO _ FAIR).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
     }
 
-    { guclo lsim_indC_spec. econs 13; eauto. i. specialize (GENO ret).
+    { guclo (@lsim_indC_spec M). econs 13; eauto. i. specialize (GENO ret).
       destruct GENO as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_ord_weakC_spec. econs; eauto.
+      guclo (@lsim_ord_weakC_spec M). econs; eauto.
       unfold mk_o. ss. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
 
-    { guclo lsim_indC_spec. econs 14. }
+    { guclo (@lsim_indC_spec M). econs 14. }
 
-    { guclo lsim_indC_spec. econs 15; eauto.
+    { guclo (@lsim_indC_spec M). econs 15; eauto.
       2:{ i. specialize (GENO _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
           destruct GENO as [GENO IND]. eapply IH in IND; eauto.
           esplits.
-          guclo lsim_resetC_spec. econs; eauto.
+          guclo (@lsim_resetC_spec M). econs; eauto.
       }
       unfold mk_o; ss. rewrite !bind_trigger. ss.
       des_ifs.
@@ -568,11 +569,11 @@ Section PROOF.
     }
 
     { des. destruct GENO0 as [GENO IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 16; eauto.
+      guclo (@lsim_indC_spec M). econs 16; eauto.
     }
 
     { eapply nosync_geno in GENO. des.
-      guclo lsim_ord_weakC_spec. econs.
+      guclo (@lsim_ord_weakC_spec M). econs.
       instantiate (1:=mk_o (@wf_ot R0 R1) o0 false src).
       gfinal. right. pfold. eapply pind6_fold. econs 17. right. eapply CIH. auto.
       ss. des_ifs; try reflexivity. right. ss. do 2 econs.
@@ -598,7 +599,7 @@ Section MODSIM.
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
-    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
+    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * (cmra_car world) * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
     econs; eauto. instantiate (1:=wf_stt).
     i. specialize (init im_tgt). des. rename init0 into funs. exists I. esplits; eauto.
     i. specialize (funs fn args). des_ifs.
@@ -634,8 +635,8 @@ Section USERSIM.
     set (ident_src := @ident_src _ident_src).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
-    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
-    econs; eauto. instantiate (1:=wf_stt).
+    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * (cmra_car world) * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
+    econs; eauto. instantiate (2:=world). instantiate (1:=wf_stt).
     i. specialize (funs im_tgt). des. exists I. esplits; eauto.
     instantiate (1:=NatMap.map (fun _ => inr None) p_src).
     eapply nm_find_some_implies_forall4.

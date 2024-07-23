@@ -1,3 +1,4 @@
+From iris.algebra Require Import cmra updates lib.excl_auth.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 
@@ -5,7 +6,7 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
+From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World WFLibLarge ThreadsURA.
 From Fairness Require Import Mod ModSimYOrd ModSimStid.
 
@@ -13,7 +14,7 @@ Set Implicit Arguments.
 
 Section PROOF.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -38,7 +39,7 @@ Section PROOF.
            state_src *
            state_tgt)%type.
   Let shared_rel: Type := shared -> Prop.
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> (cmra_car M) -> Prop.
 
   Variable wf_stt: Type -> Type -> WF.
   Variable wf_stt0: forall R0 R1, (wf_stt R0 R1).(T).
@@ -58,7 +59,7 @@ Section PROOF.
            state_tgt)%type.
   Let shared2_rel {R0 R1}: Type := (@shared2 R0 R1) -> Prop.
 
-  Let M2 {R0 R1}: URA.t := URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) M.
+  Let M2 {R0 R1}: ucmra := prodUR (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) M.
 
   Definition shared_thsRA {R0 R1}
              (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T))
@@ -70,7 +71,7 @@ Section PROOF.
 
   Definition Is {R0 R1}:
     (TIdSet.t * (@imap thread_id (@wf_src_th R0 R1)) * (@imap ident_tgt wf_tgt))%type ->
-    (@URA.car (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T))) -> Prop :=
+    ((@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T))) -> Prop :=
     fun '(ths, im_src, im_tgt) ths_r =>
       exists (ost: NatMap.t (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)),
         (<<WFOST: nm_wf_pair ths ost>>) /\
@@ -79,7 +80,7 @@ Section PROOF.
                       os ot (FIND: NatMap.find tid ost = Some (os, ot)),
               wf_src_th.(lt) ((ot, im_tgt (inl tid)), nm_proj_v1 ost) (im_src tid)>>).
 
-  Definition I2 {R0 R1}: (@shared2 R0 R1) -> (@URA.car (@M2 R0 R1)) -> Prop :=
+  Definition I2 {R0 R1}: (@shared2 R0 R1) -> ((@M2 R0 R1)) -> Prop :=
     fun '(ths, im_src, im_tgt, st_src, st_tgt) '(ths_r, r) =>
       exists im_src_th im_src_us,
         (<<ICOMB: im_src = imap_comb im_src_th im_src_us>>) /\
@@ -92,17 +93,17 @@ Section PROOF.
         R0 R1
         ost os ot
         (ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
-        (VALS: URA.wf ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        (VALS: ✓ ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
     :
     NatMap.find tid ost = Some (os, ot).
   Proof.
-    ur in VALS. specialize (VALS tid). eapply URA.wf_mon in VALS.
+    specialize (VALS tid). rewrite !discrete_fun_lookup_op in VALS. eapply cmra_valid_op_l in VALS.
     unfold shared_thsRA in VALS. rewrite th_has_hit in VALS.
     des_ifs.
-    - ur in VALS. des. rewrite URA.unit_idl in VALS.
-      unfold URA.extends in VALS. des. ur in VALS. des_ifs.
-    - rewrite <- URA.add_assoc in VALS. rewrite URA.add_comm in VALS. eapply URA.wf_mon in VALS.
-      ur in VALS. ur in VALS. ss.
+    - apply ae_white_black_agree in VALS. subst. done.
+    - rewrite -(assoc cmra.op) in VALS.
+      apply cmra_valid_op_r in VALS.
+      by apply ae_white_op_valid in VALS.
   Qed.
 
   Lemma shared_thsRA_th_has_wf_update
@@ -110,21 +111,25 @@ Section PROOF.
         R0 R1
         ost os ot
         (ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
-        (VALS: URA.wf ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        (VALS: ✓ ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
         os1 ot1
     :
-    URA.wf ((shared_thsRA (NatMap.add tid (os1, ot1) ost)) ⋅ (th_has tid (os1, ot1)) ⋅ ctx_r).
+    ✓ ((shared_thsRA (NatMap.add tid (os1, ot1) ost)) ⋅ (th_has tid (os1, ot1)) ⋅ ctx_r).
   Proof.
     hexploit shared_thsRA_th_has_wf_find; eauto. intro FIND.
-    ur. ur in VALS. i. specialize (VALS k).
+    intros k. specialize (VALS k).
+    rewrite !discrete_fun_lookup_op in VALS.
+    rewrite !discrete_fun_lookup_op.
     destruct (tid_dec k tid); clarify.
-    - rewrite th_has_hit in *. unfold shared_thsRA in *.
+    - rewrite th_has_hit in VALS.
+      rewrite th_has_hit.
+      unfold shared_thsRA in *.
       rewrite nm_find_add_eq. rewrite FIND in VALS.
-      ur. ur in VALS. des_ifs. des. split.
-      + rewrite URA.unit_idl in VALS. unfold URA.extends in *. des.
-        r_solve. ss. exists ctx. ur in VALS. ur. des_ifs.
-      + ur. ss.
-    - rewrite th_has_miss in *; auto. rewrite URA.unit_id in VALS. r_solve.
+      clear -VALS.
+      eapply ae_black_white_extend.
+      exact VALS.
+    - rewrite th_has_miss in VALS; auto. rewrite th_has_miss; auto.
+      rewrite right_id in VALS. r_solve.
       unfold shared_thsRA in *. rewrite nm_find_add_neq; auto.
   Qed.
 
@@ -134,7 +139,7 @@ Section PROOF.
         (ths: TIdSet.t)
         ost os ot
         (ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
-        (VALS: URA.wf ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        (VALS: ✓ ((shared_thsRA ost) ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
         (WFP: nm_wf_pair ths ost)
         os1 ot1
     :
@@ -165,7 +170,7 @@ Section PROOF.
         (ths_r ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
         os ot
         (INVS: Is (ths, im_src_th, im_tgt) ths_r)
-        (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        (VALS: ✓ (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
     :
     ModSimStid.local_RR I2 RR tid r0 r1 (ctx_r, r_ctx) (ths, im_src, im_tgt, st_src, st_tgt).
   Proof.
@@ -173,18 +178,17 @@ Section PROOF.
     unfold Is in INVS. des. set (ost':=NatMap.remove tid ost).
     clarify. esplits; eauto.
     - instantiate (1:=(ε, r_own)). instantiate (1:=(shared_thsRA ost', r_shared)).
-      ur. split; auto. hexploit shared_thsRA_th_has_wf_find; eauto. intro FIND.
-      r_solve. ur. ur in VALS. i. specialize (VALS k).
+      split; auto. hexploit shared_thsRA_th_has_wf_find; eauto.
+      simpl in *. intro FIND.
+      r_solve. intros k. specialize (VALS k).
+      rewrite discrete_fun_lookup_op.
+      rewrite !discrete_fun_lookup_op in VALS.
       destruct (tid_dec k tid); clarify.
       + rewrite th_has_hit in VALS. unfold shared_thsRA in *.
         subst ost'. rewrite nm_find_rm_eq. rewrite FIND in VALS.
-        ur. ur in VALS. des_ifs. des. split.
-        * rewrite URA.unit_idl in VALS. unfold URA.extends in *. des.
-          r_solve. ss. exists ctx. ur in VALS. ur. des_ifs.
-        * ur. ss.
-      + rewrite th_has_miss in VALS; auto. rewrite URA.unit_id in VALS.
+        eapply ae_black_white_extend. exact VALS.
+      + rewrite th_has_miss in VALS; auto. rewrite right_id in VALS.
         unfold shared_thsRA in *. subst ost'. rewrite nm_find_rm_neq; auto.
-
     - unfold I2. esplits; eauto. unfold Is. exists ost'. splits; auto.
       { subst ost'. eapply nm_wf_pair_rm; auto. }
       i. specialize (IMSRC tid0). destruct (tid_dec tid0 tid); clarify.
@@ -226,7 +230,7 @@ Section PROOF.
                                (ths, im_src_us, im_tgt, st_src, st_tgt))
         (ths_r ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
         (INVS: Is (ths, im_src_th, im_tgt) ths_r)
-        (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        (VALS: ✓ (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
     :
     ModSimStid.lsim I2 tid (ModSimStid.local_RR I2 RR tid) ps pt (ctx_r, r_ctx) src tgt
                     (ths, im_src, im_tgt, st_src, st_tgt).
@@ -248,26 +252,22 @@ Section PROOF.
     { pfold. eapply pind9_fold. econs 2; eauto.
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 3; eauto.
       des. exists x.
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 4; eauto.
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 5; eauto.
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 6; eauto. }
@@ -285,33 +285,28 @@ Section PROOF.
       }
       split; [|ss]. destruct LSIM as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: ss; eauto.
     }
 
     { pfold. eapply pind9_fold. econs 8; eauto.
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 9; eauto.
       i. specialize (LSIM0 x).
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 10; eauto.
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
     { pfold. eapply pind9_fold. econs 11; eauto.
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
     }
 
@@ -319,7 +314,6 @@ Section PROOF.
       i. specialize (LSIM0 _ FAIR).
       split; [|ss]. destruct LSIM0 as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto.
       clear - FAIR INVS. unfold Is in INVS. des. esplits; eauto. i. hexploit IMSRC; eauto; i.
       replace (im_tgt1 (inl tid)) with (im_tgt (inl tid)); auto.
@@ -366,7 +360,6 @@ Section PROOF.
 
       split; [|ss]. destruct LSIM as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       6: instantiate (2:=shared_thsRA ost'). all: eauto.
       - instantiate (1:= fun t => if NatMapP.F.In_dec ths t
                                then
@@ -385,23 +378,22 @@ Section PROOF.
           subst ost'. rewrite nm_find_add_eq. ss. econs. auto.
           symmetry. eapply shared_thsRA_th_has_wf_find; eauto.
         + i. unfold nm_proj_v1. rewrite !NatMapP.F.map_o. subst ost'. rewrite nm_find_add_neq; auto.
-      - eapply shared_thsRA_th_has_wf_update; eauto.
+      - subst. eapply shared_thsRA_th_has_wf_update; eauto.
     }
 
     { pfold. eapply pind9_fold. econs 16; eauto. instantiate (1:=(ths_r, r_shared)).
       { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
-      { ur. auto. }
-      clear - LSIM0 IH; i. unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
-      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV VALID0 _ TGT). des.
+      { rewrite -!pair_op pair_valid /=. auto. }
+      revert LSIM0. clear_upto IH; i. unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
+      rewrite -!pair_op pair_valid in VALID. des.
+      specialize (LSIM0 _ _ _ _ _ _ _ INV VALID0 _ TGT). des.
       unfold Is in INVS. des. subst. set (ost':= NatMap.add tid (os1, ot1) ost). clarify.
       assert (WFOST': nm_wf_pair ths1 ost').
       { eapply shared_thsRA_th_has_wf_wf_pair; eauto. }
       split; [|ss]. destruct LSIM as [LSIM IND].
       eapply IH in IND. punfold IND.
-      { ii. eapply pind9_mon_gen; eauto. ii. eapply __lsim_mon; eauto. }
       all: eauto. instantiate (1:=shared_thsRA ost').
-
       - exists ost'. splits; auto. i. specialize (IMSRC _ IN). unfold prism_fmap in *; ss. destruct (tid_dec tid0 tid); clarify.
         + hexploit IMSRC. eapply shared_thsRA_th_has_wf_find; eauto.
           i. subst ost'. rewrite nm_find_add_eq in FIND. clarify.
@@ -416,10 +408,10 @@ Section PROOF.
     { pfold. eapply pind9_fold. econs 17; eauto. instantiate (1:=(ths_r, r_shared)).
       { unfold I2. esplits; eauto. }
       instantiate (1:=(tid |-> (os, ot) , r_own)).
-      { ur. auto. }
+      { rewrite -!pair_op pair_valid /=. auto. }
       revert LSIM0. clear_upto IH. i.
       unfold I2 in INV. destruct r_shared1 as [shared_r r_shared], r_ctx1 as [ctx_r r_ctx].
-      ur in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV VALID0 _ TGT). des.
+      rewrite -!pair_op pair_valid /= in VALID. des. specialize (LSIM0 _ _ _ _ _ _ _ INV VALID0 _ TGT). des.
       unfold Is in INVS. des. subst. set (ost':= NatMap.add tid (os1, ot1) ost).
       assert (WFOST': nm_wf_pair ths1 ost').
       { eapply shared_thsRA_th_has_wf_wf_pair; eauto. }
@@ -479,7 +471,6 @@ Section PROOF.
     }
 
     { pfold. eapply pind9_fold. econs 18; eauto. pclearbot. right. eapply CIH; eauto. }
-
   Qed.
 
   Lemma init_src_inv
@@ -493,7 +484,7 @@ Section PROOF.
         (ths_r ctx_r: (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)))
         os ot
         (INVS: Is (ths, im_src_th1, im_tgt1) ths_r)
-        (VALS: URA.wf (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
+        (VALS: ✓ (ths_r ⋅ (th_has tid (os, ot)) ⋅ ctx_r))
         (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths)))
     :
     exists im_src_th2,
@@ -553,7 +544,7 @@ Section MODSIM.
     set (wf_src_th := fun R0 R1 => clos_trans_WF (prod_WF (prod_WF (wf_stt R0 R1) wf_tgt) (nmo_wf (wf_stt R0 R1)))).
     set (wf_src2 := fun R0 R1 => sum_WF (@wf_src_th R0 R1) wf_src).
     (* set (I2 := fun R0 R1 => (I2 I wf_stt wf_stt0 (R0:=R0) (R1:=R1))). *)
-    set (M2 := fun R0 R1 => URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
+    set (M2 := fun R0 R1 => prodUR (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
     set (St := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
     assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
     { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
@@ -576,8 +567,9 @@ Section MODSIM.
       - unfold Is. exists ost. splits; auto.
         { subst ost. eapply nm_wf_pair_empty_empty_eq. }
         i. eapply NatMapP.F.empty_in_iff in IN. ss.
-      - ur. split; auto. subst ost. ur. i. ur. split; ur; ss. des_ifs. unfold URA.extends.
-        exists ε. r_solve.
+      - rewrite pair_valid /=. split; auto. subst ost. intros k.
+        unfold shared_thsRA. des_ifs.
+        apply ae_black_white_valid.
     }
 
     i. specialize (funs fn args). des_ifs.
@@ -585,7 +577,7 @@ Section MODSIM.
     ii. unfold I2 in INV. unfold YOrd2Stid.I2 in INV.
     rename r_shared into r_shared1.
     destruct r_shared0 as [shared_r r_shared], r_ctx0 as [ctx_r r_ctx].
-    ur in VALID. des.
+    rewrite -!pair_op pair_valid /= in VALID. des.
     specialize (funs _ _ _ _ _ _ _ INV tid _ THS VALID0 _ UPD).
     move funs after UPD. des. rename funs1 into LSIM. move LSIM before M2.
     unfold Is in INVS. des. clarify.
@@ -603,17 +595,19 @@ Section MODSIM.
       { subst ost'. clear - THS WFOST. inv THS. eapply nm_wf_pair_add. auto. }
       i. inv THS. subst im_src_th'. ss. rewrite FIND.
       econs 1. econs 1. econs 2; auto.
-    - ur; split; auto. subst ost'. ur. ur in VALID. i.
-      unfold shared_thsRA in *. specialize (VALID k1). destruct (tid_dec k1 tid); clarify.
+    - rewrite -!pair_op pair_valid /=. split; auto. subst ost'. intros k1.
+      unfold shared_thsRA in *. specialize (VALID k1).
+      rewrite !discrete_fun_lookup_op /=.
+      rewrite !discrete_fun_lookup_op /= in VALID.
+      destruct (tid_dec k1 tid); clarify.
       + rewrite nm_find_add_eq. assert (NatMap.find tid ost = None).
         { inv THS. eapply nm_wf_pair_find_cases in WFOST. des. eapply WFOST in NEW. auto. }
         rewrite H in VALID. clear - VALID. rewrite th_has_hit.
-        ur. ur in VALID. des_ifs. des; split. 2: ur; ss.
-        unfold URA.extends in *. des. exists ctx. rewrite URA.unit_idl in VALID.
-        ur in VALID. r_solve. des_ifs; ur; auto.
+        eapply ae_black_white_extend. exact VALID.
       + rewrite nm_find_add_neq; auto. rewrite th_has_miss. r_solve. des_ifs; auto. ii. clarify.
     - subst. i. destruct r_shared2 as [shared_r2 r_shared2], r_ctx2 as [ctx_r2 r_ctx2].
-      unfold I2, YOrd2Stid.I2 in INV1. ur in VALID2. des.
+      unfold I2, YOrd2Stid.I2 in INV1.
+      rewrite -!pair_op pair_valid /= in VALID2. des.
       move LSIM after TGT. specialize (LSIM _ _ _ _ _ _ _ INV1 VALID3 _ TGT).
       des. hexploit init_src_inv. 1,2: eauto. 2: eapply INVS. 2: eapply VALID2. 2: eapply TGT.
       instantiate (1:=im_src_us0). reflexivity. i. des.
@@ -632,9 +626,9 @@ Section AUX.
   Import NatMapP.
 
   Lemma nm_fold_prod_res
-        (world: URA.t) X pw rsost
+        (world: ucmra) X pw rsost
     :
-    NatMap.fold (fun (_ : NatMap.key) (r s : URA.prod (@thsRA (prod X X)) world) => r ⋅ s)
+    NatMap.fold (fun (_ : NatMap.key) (r s : prodUR (@thsRA (prod X X)) world) => r ⋅ s)
                 (NatMap.mapi (fun (t : NatMap.key) (rst : world * (X * X)) => (t |-> snd rst, fst rst)) rsost) pw
     =
       (NatMap.fold (fun (_ : NatMap.key) (r s : _) => r ⋅ s)
@@ -646,9 +640,7 @@ Section AUX.
     revert pw. induction l; ss.
     { i. destruct pw. ss. }
     i. des_ifs. ss. destruct p as [r [xs xt]]. ss.
-    rewrite IHl. destruct pw as [p w]. ss. f_equal.
-    - f_equal. repeat ur. des_ifs; ss.
-    - f_equal. repeat ur. des_ifs; ss.
+    rewrite IHl. destruct pw as [p w]. ss.
   Qed.
 
   Lemma list_map_elements_nm_mapi
@@ -659,13 +651,13 @@ Section AUX.
     rename this0 into l. induction l; ss. des_ifs. f_equal; auto.
   Qed.
 
-  Lemma list_fold_left_resource_aux2
-        (world : URA.t) c X l
+  (* Lemma list_fold_left_resource_aux2
+        (world : ucmra) c X l
     :
     fold_left
       (fun (a : world)
          (p : NatMap.key * (world * X)) =>
-         (let '(r, _) := snd p in fun s : world => r ⋅ s) a) l ε ⋅ c =
+         (let '(r, _) := snd p in fun s : world => r ⋅ s) a) l ε ⋅ c ≡
       fold_left
         (fun (a : world)
            (p : NatMap.key * (world * X)) =>
@@ -673,7 +665,7 @@ Section AUX.
   Proof.
     revert c. induction l; i; ss. r_solve. des_ifs. destruct a; ss. clarify; ss. rewrite <- (IHl (c0 ⋅ ε)). r_solve.
     rewrite <- (IHl (c0 ⋅ c)). r_solve.
-  Qed.
+  Qed. *)
 
   Lemma nm_map_empty
         e0 e1 (f: e0 -> e1)
@@ -687,7 +679,7 @@ Section AUX.
     : forall (elt1 : Type) (m : NatMap.t elt1) (elt2 : Type) (f: NatMap.key -> elt1 -> elt2),
       NatMap.Empty m -> NatMap.Empty (NatMap.mapi f m).
   Proof.
-    i. rewrite elements_Empty in *. ss. unfold elements, Raw.elements in *. rewrite H. ss.
+    i. rewrite elements_Empty in H. rewrite elements_Empty. ss. unfold elements, Raw.elements in *. rewrite H. ss.
   Qed.
 
   Lemma nm_mapi_empty
@@ -779,7 +771,7 @@ Section AUX.
         (NONE : SetoidList.findA (NatMapP.F.eqb k) l = None)
     :
     fold_left
-      (fun (a : @thsRA X) (p : NatMap.key * X) (k0 : nat) => (fst p |-> snd p) k0 ⋅ a k0) l e k = (e k).
+      (fun (a : @thsRA X) (p : NatMap.key * X) (k0 : nat) => (fst p |-> snd p) k0 ⋅ a k0) l e k ≡ (e k).
   Proof.
     revert_until l. induction l; i; ss. des_ifs. ss. rewrite IHl; auto. rewrite th_has_miss; auto. r_solve.
     ii. clarify. unfold F.eqb in Heq. des_ifs.
@@ -806,7 +798,7 @@ Section USERSIM.
     set (ident_src2 := sum_tid ident_src).
     set (wf_src_th := fun R0 R1 => clos_trans_WF (prod_WF (prod_WF (wf_stt R0 R1) wf_tgt) (nmo_wf (wf_stt R0 R1)))).
     set (wf_src2 := fun R0 R1 => sum_WF (@wf_src_th R0 R1) wf_src).
-    set (M2 := fun R0 R1 => URA.prod (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
+    set (M2 := fun R0 R1 => prodUR (@thsRA (prod_WF (wf_stt R0 R1) (wf_stt R0 R1)).(T)) world).
     set (St := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1)).
     assert (lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t)).
     { i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto. }
@@ -840,7 +832,10 @@ Section USERSIM.
       destruct p. ss.
       eapply nm_forall3_implies_find_some in SIM; eauto.
       unfold ModSimYOrd.local_sim_init in SIM. des_ifs. ii.
-      unfold I2 in INV. des_ifs. des. destruct p as [os ot]. ur in VALID. des_ifs. des.
+      unfold I2 in INV. des_ifs. des. destruct p as [os ot].
+      destruct r_ctx as [? ?].
+      rewrite -!pair_op pair_valid /= in VALID. des.
+      des_ifs. des.
       hexploit init_src_inv. 1,2: eauto. 2: eapply INVS. 2: eapply VALID. 2: eapply FAIR.
       instantiate (1:=im_src_us). reflexivity. i. des.
       esplits. eapply SRC.
@@ -848,7 +843,8 @@ Section USERSIM.
     }
     { subst rowns. subst ost. clear - WF. subst M2. ss.
       setoid_rewrite (@nm_fold_prod_res world (wf_stt Any.t Any.t).(T) (ε, ε) rsost).
-      try rewrite ! URA.unfold_wf; try rewrite ! URA.unfold_add. ss. split.
+      simpl in *.
+      split.
       { clear.
         assert (RW:
                  (NatMap.mapi (fun (t : NatMap.key) (rst : world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) => t |-> snd rst) rsost)
@@ -858,67 +854,73 @@ Section USERSIM.
           { rewrite nm_map_empty. rewrite ! nm_mapi_empty. auto. }
           rewrite <- nm_map_add_comm_eq. rewrite <- ! nm_mapi_add_comm_eq. f_equal. auto.
         }
-        setoid_rewrite RW. clear RW.
+        simpl in *.
+        rewrite RW. clear RW.
         remember (NatMap.map snd rsost) as ost. clear Heqost. clear.
-        replace
-       (@NatMap.fold (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
-          (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
-          (fun (_ : NatMap.key)
-             (f0 f1 : forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
-             (k : nat) => @URA.add (Auth.t (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))) (f0 k) (f1 k))
-          (@NatMap.mapi (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))
-             (@URA.car (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
-             (fun (t : NatMap.key) (st : prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))) =>
-              @th_has (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))) t st) ost)
-          (@URA.unit (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))))
-       with
-          (fun n => match NatMap.find n ost with
+        simpl in *.
+        assert
+       (NatMap.fold (λ (_ : NatMap.key) (r s : thsRA), r ⋅ s)
+       (NatMap.mapi
+          (λ (t : NatMap.key) (st : T (wf_stt Any.t Any.t) *
+                                    T (wf_stt Any.t Any.t)),
+             t |-> st) ost) ε
+        ≡
+          fun n => match NatMap.find n ost with
                  | Some st => ae_white st
                  | None => ε
                  end
-          ).
-        { unfold shared_thsRA. ur. i. des_ifs.
-          { repeat ur. des_ifs. split; r_solve. ss. }
-          { r_solve. ur. split; r_solve. ur. ss. }
+          ) as ->; last first.
+        { unfold shared_thsRA. intros k.
+          rewrite discrete_fun_lookup_op. des_ifs.
+          all: rewrite Heq in Heq0; ss.
+          - injection Heq0 as ->. apply ae_black_white_valid.
+          - apply ae_black_white_valid.
         }
-        replace
-    (@NatMap.fold (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
-       (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
-       (fun (_ : NatMap.key) (f0 f1 : forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
-          (k : nat) => @URA.add (Auth.t (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))) (f0 k) (f1 k))
-       (@NatMap.mapi (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))
-          (@URA.car (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
-          (fun (t : NatMap.key) (st : prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))) =>
-           @th_has (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))) t st) ost)
-       (@URA.unit (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))))
-          with
-          (NatMap.fold (fun t st r => (t |-> st) ⋅ r) ost ε).
-        2:{ rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_mapi. remember (NatMap.elements ost) as l. clear.
+        assert
+        (NatMap.fold (λ (_ : NatMap.key) (r s : thsRA), r ⋅ s)
+        (NatMap.mapi
+          (λ (t : NatMap.key) (st : T (wf_stt Any.t Any.t) *
+                                    T (wf_stt Any.t Any.t)),
+              t |-> st) ost) ε
+          ≡
+          NatMap.fold (fun t st r => (t |-> st) ⋅ r) ost ε) as ->.
+        { rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_mapi. remember (NatMap.elements ost) as l. clear.
             remember ε as r. clear. revert r. induction l; ss. i.
-            rewrite IHl. f_equal. extensionality x. des_ifs. ss. repeat ur. des_ifs; ss.
+            rewrite IHl. f_equiv. extensionality x. des_ifs.
         }
         induction ost using nm_ind; ss.
-        rewrite NatMapP.fold_add; try typeclasses eauto; ss.
-        2:{ ii. r_solve. }
+        erewrite (NatMapP.fold_add (eqA := equiv)).
+        2: apply _.
+        2: clear; intros ???????? EQm; rewrite EQm; subst; done.
+        2:{ ii. idtac. rewrite !discrete_fun_lookup_op.
+            rewrite !(assoc cmra.op). rewrite (comm cmra.op ((k0 |-> e) x)). done. }
         2:{ ii. apply NatMapP.F.in_find_iff in H. clarify. }
-        extensionality x. destruct (tid_dec x k) eqn:DEC.
+        intros x. destruct (tid_dec x k) eqn:DEC.
         - clarify. rewrite nm_find_add_eq. rewrite NatMap.fold_1. rewrite NatMapP.F.elements_o in NONE.
-          remember (NatMap.elements ost) as l. ur. setoid_rewrite fold_left_pointwise_none; auto.
-          rewrite th_has_hit. repeat ur; ss.
-        - rewrite nm_find_add_neq; auto. eapply equal_f in IHost. erewrite IHost. ur. rewrite th_has_miss; auto. r_solve.
+          remember (NatMap.elements ost) as l.
+          rewrite discrete_fun_lookup_op fold_left_pointwise_none; auto.
+          by rewrite th_has_hit right_id.
+        - rewrite discrete_fun_lookup_op nm_find_add_neq; auto. specialize (IHost x). rewrite IHost. rewrite th_has_miss; auto. r_solve.
       }
-      { replace
-          (NatMap.fold (fun _ : NatMap.key => URA._add)
-                       (NatMap.mapi (fun (_ : NatMap.key) (rst : world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) => fst rst) rsost) ε)
-          with (NatMap.fold (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) rsost ε); auto.
+      { simpl in *.
+        assert
+          (NatMap.fold (λ (_ : NatMap.key) (r s : world), r ⋅ s)
+          (NatMap.mapi
+             (λ (_ : NatMap.key) (rst : world *
+                                        (T (wf_stt Any.t Any.t) *
+                                         T (wf_stt Any.t Any.t))), rst.1)
+             rsost) ε
+          ≡ NatMap.fold (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) rsost ε) as ->; auto.
         rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_mapi.
-        remember (NatMap.elements rsost) as l. clear.
-        replace
-          (fold_left (fun (a : world) (p : NatMap.key * world) => URA._add (snd p) a) (map (fun '(k, e) => (k, fst e)) l) ε) with
-          (fold_left (fun (a : world) (p : NatMap.key * world) => (snd p) ⋅ a) (map (fun '(k, e) => (k, fst e)) l) ε).
-        2:{ ur. auto. }
-        induction l; ss. des_ifs. ss. clarify.
-        ss. r_solve. rewrite resources_fold_left_base. rewrite <- IHl. symmetry. eapply list_fold_left_resource_aux2.
+        remember (NatMap.elements rsost) as l.
+        rewrite -Heql. clear.
+        simpl in *.
+        assert
+          (fold_left (λ (a : world) (p : NatMap.key * world), p.2 ⋅ a)
+          (map (λ '(k, e), (k, e.1)) l) ε ≡
+          fold_left (fun (a : world) (p : NatMap.key * world) => (snd p) ⋅ a) (map (fun '(k, e) => (k, fst e)) l) ε) as ->.
+        { auto. }
+        move: ε=> x. revert x. induction l; ss. des_ifs. ss. clarify.
       }
     }
   Qed.

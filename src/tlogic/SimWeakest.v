@@ -6,7 +6,7 @@ From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import ISim.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
+From Fairness Require Export IndexedInvariants NatMapRA MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
 From Fairness Require Export SimDefaultRA LiveObligations.
 From Fairness Require Import FairBeh.
 Require Import Coq.Sorting.Mergesort.
@@ -18,6 +18,7 @@ Set Implicit Arguments.
 Section STATE.
 
   Context `{Σ: GRA.t}.
+  Notation iProp := (iProp Σ).
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -321,7 +322,8 @@ Section STATE.
                  (∀ a, P a -∗ @unlift_rel g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))%I with "[CIH]" as "CIH'".
     { iPoseProof "CIH" as "# [CIH0 CIH1]". iModIntro. iSplitL.
       { iApply (lift_unlift with "CIH0"). }
-      { iIntros. unfold unlift_rel. iIntros.
+      { iIntros. unfold unlift_rel.
+        iIntros (?????) "?".
         iSpecialize ("CIH1" $! (mk_mytype _ _ _ _ _ _)). ss.
         iApply "CIH1". iFrame.
       }
@@ -590,9 +592,14 @@ Section STATE.
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LT. iIntros "[H0 H1]".
+    Local Transparent ObligationRA.edges_sat ObligationRA.arrows_sats.
+    Local Typeclasses Transparent ObligationRA.edges_sat ObligationRA.arrows_sats.
     iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
     { iApply SubIProp_trans. iApply Regions.nsats_sat_sub. apply LT. iApply SubIProp_sep_r. }
+    assert (Regions.nsats (ObligationRA.arrow (S:=sum_tid ident_tgt)) b = (ObligationRA.arrows_sats b)) as ->; [done|].
     iMod "H0". iApply ("H1" with "H0").
+    Local Typeclasses Opaque ObligationRA.edges_sat ObligationRA.arrows_sats.
+    Local Opaque ObligationRA.edges_sat ObligationRA.arrows_sats.
   Qed.
 
   Lemma wpsim_wand E r g R_src R_tgt
@@ -879,7 +886,7 @@ Section STATE.
       -∗ (St_src (f st_src) -∗ wpsim E r g Q true pt (ktr_src tt) itr_tgt)
       -∗ wpsim E r g Q ps pt (trigger (Modify f) >>= ktr_src) itr_tgt.
   Proof.
-    rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateL with "H1"). ss.
+    rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateL with "H1"). simpl. iFrame.
   Qed.
 
   Lemma wpsim_lens_modifyL E V (l : Lens.t _ V) f r g R_src R_tgt
@@ -904,7 +911,7 @@ Section STATE.
       -∗ (St_tgt (f st_tgt) -∗ wpsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗ wpsim E r g Q ps pt itr_src (trigger (Modify f) >>= ktr_tgt).
   Proof.
-    rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateR with "H1"). ss.
+    rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateR with "H1"). simpl. iFrame.
   Qed.
 
   Lemma wpsim_lens_modifyR E V (l : Lens.t _ V) f r g R_src R_tgt
@@ -968,7 +975,7 @@ Section STATE.
     { eauto. }
     { eauto. }
     iPoseProof ("H" with "WHITES [D W]") as "H".
-    { iFrame. }
+    { iFrame "D W". }
     iApply isim_fairL. iExists _. iSplit; eauto.
   Qed.
 
@@ -1104,7 +1111,10 @@ Section STATE.
   .
   Proof.
     iIntros "DUTY K". rewrite <- (prism_fmap_id fm).
-    iApply (wpsim_fairR_prism_step with "[DUTY] [K]"). all: eauto.
+    iApply (wpsim_fairR_prism_step with "[DUTY] [K]").
+    5:{ iFrame "DUTY". }
+    5:{ iFrame "K". }
+    all: eauto.
   Qed.
 
   Lemma wpsim_fairR
@@ -1182,7 +1192,8 @@ Section STATE.
       (wpsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
   .
   Proof.
-    iIntros "A B". iApply (wpsim_fairR with "[A]"); eauto.
+    iIntros "A B". iApply (wpsim_fairR with "[A]").
+    1,3,4:eauto.
     { instantiate (1:= List.map (fun i => (i, [])) ls).
       i. specialize (SUCCESS _ IN). rewrite List.map_map. ss.
       replace (List.map (λ x : ident_tgt, x) ls) with ls; auto.
@@ -1860,6 +1871,7 @@ Section TRIPLES.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+  Notation iProp := (iProp Σ).
 
 
   (** Formats for triples-like specs. *)

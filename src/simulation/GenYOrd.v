@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From iris.algebra Require Import cmra.
 Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
@@ -12,7 +13,7 @@ Set Implicit Arguments.
 
 
 Section PRIMIVIESIM.
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -31,15 +32,15 @@ Section PRIMIVIESIM.
 
   Let shared_rel: Type := shared -> Prop.
 
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> (cmra_car M) -> Prop.
 
   Variant __lsim
           (tid: thread_id)
-          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel),bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
+          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> (cmra_car M) -> shared_rel), bool -> bool -> (cmra_car M) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> (cmra_car M) -> shared_rel),bool -> bool -> (cmra_car M) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+          R_src R_tgt (RR: R_src -> R_tgt -> (cmra_car M) -> shared_rel)
     :
-    bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> (cmra_car M) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
   | lsim_ret
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
@@ -158,10 +159,10 @@ Section PRIMIVIESIM.
       r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      (VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                     (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-                    (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+                    (VALID: ✓ (r_shared1 ⋅ r_own ⋅ r_ctx1))
                     im_tgt2
                     (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           _lsim _ _ RR f_src true r_ctx1 (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1))
@@ -173,10 +174,10 @@ Section PRIMIVIESIM.
       r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      (VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-               (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+               (VALID: ✓ (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           (<<LSIM: _lsim _ _ RR true true r_ctx1 (ktr_src tt) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1)>>))
@@ -193,8 +194,8 @@ Section PRIMIVIESIM.
   .
 
   Definition lsim (tid: thread_id)
-             R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel):
-    bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+             R_src R_tgt (RR: R_src -> R_tgt -> (cmra_car M) -> shared_rel):
+    bool -> bool -> (cmra_car M) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
     paco9 (fun r => pind9 (__lsim tid r) top9) bot9 R_src R_tgt RR.
 
   Lemma __lsim_mon tid:
@@ -226,7 +227,7 @@ Section PRIMIVIESIM.
 
   Lemma modsim_implies_gensim
         tid
-        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        R0 R1 (RR: R0 -> R1 -> (cmra_car M) -> shared_rel)
         ps pt r_ctx src tgt
         (shr: shared)
         (LSIM: ModSim.lsim I tid RR ps pt r_ctx src tgt shr)
@@ -317,7 +318,7 @@ End PRIMIVIESIM.
 #[export] Hint Resolve lsim_mon: paco.
 
 Section GENORDER.
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -334,17 +335,17 @@ Section GENORDER.
 
   Let shared := shared state_src state_tgt ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> (cmra_car M) -> Prop.
 
-  Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
+  Let A R0 R1 := (bool * bool * (cmra_car M) * (itree srcE R0) * (itree tgtE R1) * shared)%type.
   Let wf_stt R0 R1 := @ord_tree_WF (A R0 R1).
 
   Variant _genos
           (tid: thread_id)
-          (genos: forall R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel), bool -> bool -> URA.car -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel)
-          R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+          (genos: forall R0 R1 (RR: R0 -> R1 -> (cmra_car M) -> shared_rel), bool -> bool -> (cmra_car M) -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel)
+          R0 R1 (RR: R0 -> R1 -> (cmra_car M) -> shared_rel)
     :
-    bool -> bool -> URA.car -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel :=
+    bool -> bool -> (cmra_car M) -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel :=
   | genos_ret
       f_src f_tgt r_ctx os ot
       ths im_src im_tgt st_src st_tgt
@@ -464,10 +465,10 @@ Section GENORDER.
       r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      (VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx0))
       (GENOS: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-               (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+               (VALID: ✓ (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
         exists os1 ot1,
@@ -481,10 +482,10 @@ Section GENORDER.
       r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      (VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx0))
       (GENOS: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-               (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+               (VALID: ✓ (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
         exists os1 ot1,
@@ -502,8 +503,8 @@ Section GENORDER.
   .
 
   Definition genos (tid: thread_id)
-             R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel):
-    bool -> bool -> URA.car -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel :=
+             R0 R1 (RR: R0 -> R1 -> (cmra_car M) -> shared_rel):
+    bool -> bool -> (cmra_car M) -> ((wf_stt R0 R1).(T) * itree srcE R0) -> ((wf_stt R0 R1).(T) * itree tgtE R1) -> shared_rel :=
     pind9 (_genos tid) top9 R0 R1 RR.
 
   Lemma genos_mon tid: monotone9 (_genos tid).
@@ -523,7 +524,7 @@ Section GENORDER.
 
 
   Lemma genos_ord_weakL
-        tid R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
+        tid R0 R1 (LRR: R0 -> R1 -> (cmra_car M) -> shared_rel)
         ps pt r_ctx src tgt (shr: shared)
         os0 os1
         (LT: (wf_stt R0 R1).(lt) os0 os1)
@@ -604,7 +605,7 @@ Section GENORDER.
   Qed.
 
   Lemma genos_ord_weakR
-        tid R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
+        tid R0 R1 (LRR: R0 -> R1 -> (cmra_car M) -> shared_rel)
         ps pt r_ctx src tgt (shr: shared)
         ot0 ot1
         (LT: (wf_stt R0 R1).(lt) ot0 ot1)
@@ -686,7 +687,7 @@ Section GENORDER.
   Qed.
 
   Lemma gensim_genos
-        tid R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        tid R0 R1 (RR: R0 -> R1 -> (cmra_car M) -> shared_rel)
         ps pt r_ctx src tgt shr
         (LSIM: lsim I tid RR ps pt r_ctx src tgt shr)
     :

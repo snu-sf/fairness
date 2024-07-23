@@ -262,7 +262,7 @@ Module Atom.
       | syn_owne_auth Es => OwnE_auth Es
       (** Atoms to express state invariants of wpsim. *)
       | ob_ths ths =>
-          OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA)
+          OwnM (Auth.black (Some ths: (NatMapRA.t unit)): ThreadRA)
       | ob_st_src st_src =>
           OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option st_src_type)): stateSrcRA _)
       | ow_st_src st_src =>
@@ -881,7 +881,7 @@ End TEST.
 (*     Context `{Σ : GRA.t}. *)
 (*     (* Context `{SUB : *) *)
 (*     (*       forall M, In M σ -> *) *)
-(*     (*            { to_URA : SRA -> URA.t & *) *)
+(*     (*            { to_URA : SRA -> ucmra & *) *)
 (*     (*                               ((GRA.inG (to_URA M) Σ) * ((@car M) -> (to_URA M)))%type }}. *) *)
 
 (*     Context `{@GRA.inG (IInvSetRA Formula) Σ}. *)

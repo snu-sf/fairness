@@ -1,3 +1,4 @@
+From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM IPropAux.
 Require Import Coq.Classes.RelationClasses.
@@ -13,32 +14,40 @@ Require Import Program.
 Set Implicit Arguments.
 
 Module Region.
+  Definition t A : ucmra := pointwise nat (OneShot.t A).
+
   Section REGION.
-    Variable A: Type.
-    Definition t: URA.t := URA.pointwise nat (OneShot.t A).
-
+    Context {A: Type}.
+    Notation t := (t A).
     Context `{@GRA.inG t Σ}.
+    Notation iProp := (iProp Σ).
 
+    Definition to_black (l : list A) : t :=
+      (fun n =>
+      match nth_error l n with
+      | Some a => OneShot.shot a
+      | _ => OneShot.pending A 1%Qp
+      end): (nat ==> OneShot.t A)%ra.
     Definition black (l: list A): iProp :=
-      OwnM ((fun n =>
-               match nth_error l n with
-               | Some a => OneShot.shot a
-               | _ => OneShot.pending A 1%Qp
-               end): (nat ==> OneShot.t A)%ra).
+      OwnM (to_black l).
 
+    Definition to_white (k : nat) (a : A) : t :=
+      (fun n =>
+        if Nat.eq_dec n k then OneShot.shot a else ε
+      ) : (nat ==> OneShot.t A)%ra.
     Definition white (k: nat) (a: A): iProp :=
-      OwnM ((fun n =>
-               if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra).
+      OwnM (to_white k a).
 
-    Global Program Instance Persistent_white k a: Persistent (white k a).
-    Next Obligation.
+    Global Instance Persistent_white k a: Persistent (white k a).
+    Proof.
+      rewrite /Persistent.
       iIntros "H". iPoseProof (own_persistent with "H") as "# X".
-      replace (URA.core
+      assert ((core
                  ((fun n =>
-                     if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra)) with
+                     if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra)) ≡
         ((fun n =>
-            if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra).
-      2:{ ur. f_equal. extensionality n. des_ifs. }
+            if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra)) as ->.
+      { intros n. rewrite discrete_fun_lookup_core. des_ifs. }
       auto.
     Qed.
 
@@ -50,12 +59,11 @@ Module Region.
         -∗
         ⌜nth_error l k = Some a⌝.
     Proof.
-      iIntros "BLACK WHITE".
+      iIntros "BLACK #WHITE".
       iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN". iPureIntro.
-      ur in H0. specialize (H0 k). ur in H0. des_ifs; ss.
-      { des_ifs. }
-      { des_ifs. }
-      { des_ifs. }
+      specialize (H0 k). rewrite discrete_fun_lookup_op /to_black /to_white in H0.
+      des_ifs; ss. f_equal.
+      apply OneShot.shot_agree in H0. auto.
     Qed.
 
     Lemma white_agree k a0 a1
@@ -68,7 +76,8 @@ Module Region.
     Proof.
       iIntros "WHITE0 WHITE1".
       iCombine "WHITE0 WHITE1" as "OWN". iOwnWf "OWN". iPureIntro.
-      ur in H0. specialize (H0 k). des_ifs.
+      specialize (H0 k). rewrite discrete_fun_lookup_op /to_black /to_white in H0.
+      des_ifs; ss.
       apply OneShot.shot_agree in H0. auto.
     Qed.
 
@@ -81,25 +90,24 @@ Module Region.
       iIntros "H". iPoseProof (OwnM_Upd with "H") as "> [BLACK WHITE]".
       2:{ iModIntro. iSplitL "BLACK"; [iApply "BLACK"|iApply "WHITE"]. }
       eapply pointwise_updatable. i.
-      rewrite ! (@unfold_pointwise_add nat (OneShot.t A)).
+      rewrite /to_black /to_white discrete_fun_lookup_op.
       destruct (nth_error l a0) eqn:EQ.
       { rewrite nth_error_app1.
         2:{ apply nth_error_Some; auto. rewrite EQ; auto. }
         rewrite EQ. des_ifs; ss.
         { exploit nth_error_Some.
-          rewrite EQ. i. des. hexploit x0; auto. i. lia.
+          erewrite EQ. i. des. hexploit x0; auto. i. lia.
         }
-        { ur. reflexivity. }
       }
       { dup EQ. eapply nth_error_None in EQ. rewrite nth_error_app2; auto.
         destruct (Nat.eq_dec a0 (length l)).
         { subst. replace (length l - length l) with 0 by lia. ss. etrans.
           { eapply OneShot.pending_shot. }
-          { instantiate (1:=a). ur. des_ifs. }
+          { instantiate (1:=a). rewrite -OneShot.shot_dup. done. }
         }
         { hexploit nth_error_None. i. des.
           hexploit H1.
-          2:{ i. rewrite H2. rewrite URA.unit_id. reflexivity. }
+          2:{ i. erewrite H2. rewrite right_id. reflexivity. }
           { ss. lia. }
         }
       }
@@ -277,15 +285,11 @@ Module Region.
     Proof.
       iIntros "BLACK WHITES".
       iAssert (⌜forall k a (IN: List.In (k, a) ks), nth_error l k = Some a⌝)%I as "%INS".
-      { iStopProof. clear ND. induction ks; ss.
-        { iIntros. ss. }
-        { destruct a as [k a]. iIntros "[BLACK ALL] % % %".
+      { clear ND. iRevert "BLACK WHITES". iInduction ks as [|a ks] "IH".
+        { iIntros "BLACK WHITES". ss. }
+        { destruct a as [k a]. iIntros "BLACK ALL % % %".
           des; clarify.
           { iApply (black_white_in with "BLACK [ALL]"); eauto. iApply "ALL". auto. }
-          { iPoseProof (IHks with "[BLACK ALL]") as "%".
-            { iFrame. iIntros. iApply "ALL". auto. }
-            iPureIntro. eauto.
-          }
         }
       }
       iPureIntro.
@@ -423,60 +427,71 @@ Module Region.
       iModIntro. iFrame. iExists _. iFrame.
     Qed.
   End REGION.
-End Region.
 
+  Global Typeclasses Opaque white to_white black to_black.
+  Global Opaque white to_white black to_black.
+End Region.
 
 Module Regions.
 
+  Definition _t (X : Type) (As : X → Type) (x: X): ucmra := pointwise nat (OneShot.t (As x)).
+  Definition t (X : Type) (As : X → Type) : ucmra := pointwise_dep (_t As).
+
   Section REGION.
 
-    Variable X: Type.
-    Variable As: X -> Type.
+    Context `{X: Type}.
+    Context `{As: X -> Type}.
 
-    Definition _t (x: X): URA.t := URA.pointwise nat (OneShot.t (As x)).
-    Definition t: URA.t := URA.pointwise_dep _t.
+    Notation t := (t As).
 
     Context `{@GRA.inG t Σ}.
+    Notation iProp := (iProp Σ).
 
     Section SINGLE.
 
       Variable x : X.
       Local Notation A := (As x).
 
+      Definition to_black (l: list A) : t :=
+        maps_to_res_dep
+        x
+        ((fun n =>
+            match nth_error l n with
+            | Some a => OneShot.shot a
+            | _ => OneShot.pending A 1%Qp
+            end): (nat ==> OneShot.t A)%ra).
+
       Definition black (l: list A): iProp :=
-        OwnM (maps_to_res_dep
-                x
-                ((fun n =>
-                    match nth_error l n with
-                    | Some a => OneShot.shot a
-                    | _ => OneShot.pending A 1%Qp
-                    end): (nat ==> OneShot.t A)%ra): t).
+        OwnM (to_black l).
 
+      Definition to_white (k : nat) (a : A) : t :=
+        maps_to_res_dep
+        x
+        ((fun n =>
+            if Nat.eq_dec n k
+            then OneShot.shot a
+            else ε): (nat ==> OneShot.t A)%ra).
       Definition white (k: nat) (a: A): iProp :=
-        OwnM (maps_to_res_dep
-                x
-                ((fun n =>
-                    if Nat.eq_dec n k
-                    then OneShot.shot a
-                    else ε): (nat ==> OneShot.t A)%ra): t).
+        OwnM (to_white k a).
 
-      Global Program Instance Persistent_white k a: Persistent (white k a).
-      Next Obligation.
-        iIntros "H". 
+      Global Instance Persistent_white k a: Persistent (white k a).
+      Proof.
+        rewrite /Persistent.
+        iIntros "H".
         iPoseProof ((@OwnM_persistently _ _ H _) with "H") as "#X".
         assert (EQ:
-          (URA.core
+          (core
              (maps_to_res_dep
                 x
                 ((fun n =>
                     if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra)): t)
-          =
+          ≡
           (maps_to_res_dep
              x
              ((fun n =>
                  if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra): t)).
-        { unfold maps_to_res_dep. ss. extensionalities y. des_ifs.
-          unfold eq_rect_r. ss. extensionalities n. des_ifs.
+        { unfold maps_to_res_dep. intros y. rewrite discrete_fun_lookup_core. des_ifs.
+          unfold eq_rect_r. ss. intros n. rewrite discrete_fun_lookup_core. des_ifs.
         }
         ss. rewrite EQ. iApply "X".
       Qed.
@@ -491,12 +506,13 @@ Module Regions.
       Proof.
         iIntros "BLACK WHITE".
         iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN". iPureIntro.
-        unfold maps_to_res_dep in H0. ur in H0. specialize (H0 x). des_ifs.
+        unfold to_black,to_white,maps_to_res_dep in H0. specialize (H0 x).
+        rewrite discrete_fun_lookup_op in H0. des_ifs.
         unfold eq_rect_r in H0. rewrite <- ! Eqdep.EqdepTheory.eq_rect_eq in H0.
-        ur in H0. specialize (H0 k). destruct (Nat.eq_dec k k); ss.
+        specialize (H0 k). rewrite discrete_fun_lookup_op in H0.
+        destruct (Nat.eq_dec k k); ss.
         des_ifs.
-        - apply OneShot.shot_agree in H0. subst. auto.
-        - apply OneShot.pending_not_shot in H0. inv H0.
+        apply OneShot.shot_agree in H0. subst. auto.
       Qed.
 
       Lemma white_agree k a0 a1
@@ -509,9 +525,12 @@ Module Regions.
       Proof.
         iIntros "WHITE0 WHITE1".
         iCombine "WHITE0 WHITE1" as "OWN". iOwnWf "OWN". iPureIntro.
-        unfold maps_to_res_dep in H0. ur in H0. specialize (H0 x). des_ifs.
-        unfold eq_rect_r in H0. rewrite <- ! Eqdep.EqdepTheory.eq_rect_eq in H0.
-        ur in H0. specialize (H0 k). des_ifs.
+        unfold to_white,to_black,maps_to_res_dep in H0. specialize (H0 x). des_ifs.
+        unfold eq_rect_r in H0.
+        rewrite discrete_fun_lookup_op in H0. des_ifs.
+        specialize (H0 k).
+        rewrite discrete_fun_lookup_op -!Eqdep.EqdepTheory.eq_rect_eq in H0.
+        des_ifs.
         apply OneShot.shot_agree in H0. auto.
       Qed.
 
@@ -525,23 +544,22 @@ Module Regions.
         2:{ iModIntro. iSplitL "BLACK"; [iApply "BLACK"|iApply "WHITE"]. }
         setoid_rewrite maps_to_res_dep_add. apply maps_to_res_dep_updatable.
         eapply pointwise_updatable. i.
-        rewrite ! (@unfold_pointwise_add nat (OneShot.t A)).
+        rewrite discrete_fun_lookup_op.
         destruct (nth_error l a0) eqn:EQ.
         { rewrite nth_error_app1.
           2:{ apply nth_error_Some; auto. rewrite EQ; auto. }
           rewrite EQ. des_ifs; ss.
-          { exploit nth_error_Some. rewrite EQ. i. des. hexploit x1; auto. i. lia. }
-          { ur. reflexivity. }
+          { exploit nth_error_Some. erewrite EQ. i. des. hexploit x1; auto. i. lia. }
         }
         { dup EQ. eapply nth_error_None in EQ. rewrite nth_error_app2; auto.
           destruct (Nat.eq_dec a0 (length l)).
           { subst. replace (length l - length l) with 0 by lia. ss. etrans.
             { eapply OneShot.pending_shot. }
-            { instantiate (1:=a). ur. des_ifs. }
+            { instantiate (1:=a). rewrite -OneShot.shot_dup. done. }
           }
           { hexploit nth_error_None. i. des.
             hexploit H1.
-            2:{ i. rewrite H2. rewrite URA.unit_id. reflexivity. }
+            2:{ i. erewrite H2. rewrite right_id. reflexivity. }
             { ss. lia. }
           }
         }
@@ -719,15 +737,13 @@ Module Regions.
       Proof.
         iIntros "BLACK WHITES".
         iAssert (⌜forall k a (IN: List.In (k, a) ks), nth_error l k = Some a⌝)%I as "%INS".
-        { iStopProof. clear ND. induction ks; ss.
-          { iIntros. ss. }
-          { destruct a as [k a]. iIntros "[BLACK ALL] % % %".
-            des; clarify.
-            { iApply (black_white_in with "BLACK [ALL]"); eauto. iApply "ALL". auto. }
-            { iPoseProof (IHks with "[BLACK ALL]") as "%".
-              { iFrame. iIntros. iApply "ALL". auto. }
-              iPureIntro. eauto.
-            }
+        { clear ND. iInduction ks as [|[k a] ks] "IH"; ss.
+          iIntros "% % %".
+          des; clarify.
+          { iApply (black_white_in with "BLACK [WHITES]"); eauto. iApply "WHITES". auto. }
+          { iDestruct ("IH" with "BLACK [WHITES]") as %IH.
+            { iIntros. iApply "WHITES". auto. }
+            iPureIntro. eauto.
           }
         }
         iPureIntro.
@@ -874,6 +890,7 @@ Module Regions.
     Variable As : nat -> Type.
     Context `{Σ: GRA.t}.
     Context `{@GRA.inG (@t nat As) Σ}.
+    Notation iProp := (iProp Σ).
 
     Variable interps : forall i, As i -> iProp.
 
@@ -929,18 +946,18 @@ Module Regions.
     Qed.
 
     Lemma nsat_alloc i :
-      OwnM (maps_to_res_dep i ((λ _ : nat, OneShot.pending (As i) 1%Qp) : _t As i) : t As)
+      OwnM (maps_to_res_dep i ((λ _ : nat, OneShot.pending (As i) 1%Qp) : @_t nat As i) : @t nat As)
            ⊢ sat i (interps (i:=i)).
     Proof.
-      iIntros "OWN". iExists []. ss. unfold black.
+      iIntros "OWN". iExists []. ss. unfold black,to_black.
       replace ((fun n => match nth_error [] n with
                       | Some a => OneShot.shot a
                       | None => OneShot.pending (As i) 1%Qp
-                      end) : _t As i)
+                      end) : @_t nat As i)
         with
-        ((fun _ => OneShot.pending (As i) 1%Qp) : _t As i).
+        ((fun _ => OneShot.pending (As i) 1%Qp) : @_t nat As i).
       { iFrame. }
-      { extensionalities n. exploit nth_error_None. intros. des. rewrite x1; ss. lia. }
+      { extensionalities n. exploit nth_error_None. intros. des. erewrite x1; ss. lia. }
     Qed.
 
     Lemma nauth_nin i j (NIN : i < j) :
@@ -951,20 +968,14 @@ Module Regions.
         assert ((nauth_ra i) =
                   ((nauth_ra j)
                      ⋅
-                     (maps_to_res_dep i ((fun (n : nat) => OneShot.pending (As i) 1%Qp) : (_t As i))))).
+                     (maps_to_res_dep i ((fun (n : nat) => OneShot.pending (As i) 1%Qp) : (@_t nat As i))))).
         { subst. extensionalities a. unfold nauth_ra, maps_to_res_dep.
-          unfold URA.add. unseal "ra". ss.
+          rewrite discrete_fun_lookup_op.
           destruct (excluded_middle_informative (a = i)).
           - subst a. des_ifs; try lia.
-            unfold eq_rect_r. ss. rewrite URA.unit_idl. reflexivity.
           - destruct (le_dec a (S i)).
-            { des_ifs; try lia.
-              - rewrite URA.unit_idl. reflexivity.
-              - rewrite URA.unit_id. reflexivity.
-            }
-            { des_ifs; try lia.
-              rewrite URA.unit_id. reflexivity.
-            }
+            { des_ifs; try lia. }
+            { des_ifs; try lia. }
         }
         unfold nauth. rewrite H0. iDestruct "AUTH" as "[AUTH NEW]".
         iPoseProof (nsat_alloc with "NEW") as "NEW".
@@ -974,19 +985,15 @@ Module Regions.
         assert ((nauth_ra m) =
                   ((nauth_ra y)
                      ⋅
-                     (maps_to_res_dep m ((fun (n : nat) => OneShot.pending (As m) 1%Qp) : (_t As m))))).
+                     (maps_to_res_dep m ((fun (n : nat) => OneShot.pending (As m) 1%Qp) : (@_t nat As m))))).
         { subst. extensionalities a. unfold nauth_ra, maps_to_res_dep.
-          unfold URA.add. unseal "ra". ss.
+          rewrite discrete_fun_lookup_op.
           destruct (excluded_middle_informative (a = m)).
           - subst a. des_ifs; try lia.
-            unfold eq_rect_r. ss. rewrite URA.unit_idl. reflexivity.
           - destruct (le_dec a (S m)).
             { des_ifs; try lia.
-              - rewrite URA.unit_idl. reflexivity.
-              - rewrite URA.unit_id. reflexivity.
             }
             { des_ifs; try lia.
-              rewrite URA.unit_id. reflexivity.
             }
         }
         unfold nauth. rewrite H0. iDestruct "AUTH" as "[AUTH NEW]".
@@ -1035,4 +1042,8 @@ Module Regions.
 
   End NATKEY.
 
+  Global Typeclasses Opaque white to_white black to_black.
+  Global Opaque white to_white black to_black.
 End Regions.
+Global Arguments Regions.t _ _ : clear implicits.
+Global Arguments Regions.t {_} _.

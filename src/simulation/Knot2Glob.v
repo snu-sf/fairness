@@ -1,3 +1,5 @@
+From iris.algebra Require Import cmra updates.
+
 From sflib Require Import sflib.
 From Paco Require Import paco.
 
@@ -7,7 +9,7 @@ Require Import Program.
 Require Import Permutation.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
+From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
 From Fairness Require Import pind PCM World.
 From Fairness Require Export Mod Concurrency.
 From Fairness Require Import KnotSim LocalAdequacyAux.
@@ -18,7 +20,7 @@ Section PROOF.
 
   Ltac gfold := gfinal; right; pfold.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -71,12 +73,12 @@ Section PROOF.
     assert (EMPS: NatMap.is_empty (NatSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src)))) = true).
     { apply NatMap.is_empty_2 in NILS. apply NatMap.is_empty_1. rewrite key_set_pull_add_eq. unfold NatSet.remove.
       rewrite nm_find_none_rm_add_eq; auto. do 2 apply nm_map_empty1. auto.
-      unfold key_set, nm_proj_v2. rewrite 2 NatMapP.F.map_o. rewrite THSRC. ss. }
+      unfold key_set, nm_proj_v2. do 2 rewrite NatMapP.F.map_o. rewrite THSRC. ss. }
     assert (EMPT: NatMap.is_empty (NatSet.remove tid (key_set (Th.add tid (Ret r_tgt) ths_tgt))) = true).
     { apply NatMap.is_empty_2 in NILT. apply NatMap.is_empty_1. rewrite key_set_pull_add_eq. unfold NatSet.remove.
       rewrite nm_find_none_rm_add_eq; auto. do 1 apply nm_map_empty1. auto.
-      unfold key_set. rewrite 1 NatMapP.F.map_o. rewrite THTGT. ss. }
-    rewrite EMPS, EMPT. rewrite ! interp_sched_ret. rewrite ! interp_state_tau. rewrite ! interp_state_ret.
+      unfold key_set. rewrite NatMapP.F.map_o. rewrite THTGT. ss. }
+    rewrite EMPS EMPT. rewrite ! interp_sched_ret. rewrite ! interp_state_tau. rewrite ! interp_state_ret.
     guclo sim_indC_spec. eapply sim_indC_tauL. guclo sim_indC_spec. eapply sim_indC_tauR.
     guclo sim_indC_spec. eapply sim_indC_ret. auto.
   Qed.
@@ -93,7 +95,7 @@ Section PROOF.
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
               (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) rs_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
-              sim_knot (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
+              sim_knot (M:=M) (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
                        (ms, mt, st_src, st_tgt) o ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
@@ -109,7 +111,7 @@ Section PROOF.
                          (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
                          (st_tgt : state_tgt) (ps pt : bool) rs_ctx (mt : imap ident_tgt wf_tgt)
                          (ms : imap ident_src wf_src),
-                         sim_knot (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
+                         sim_knot (M:=M) (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
                                   (ms, mt, st_src, st_tgt) y ->
                          gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
                                 (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
@@ -145,7 +147,7 @@ Section PROOF.
                        fair_update mt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr0))) ->
                        exists (im_src0 : imap ident_src wf_src),
                          fair_update ms im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl0))) /\
-                           (upaco10 (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl0 thsr0 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_local))) true true
+                           (upaco10 (fun r => pind10 (__sim_knot (M:=M) (wf_stt) RR r) top10) bot10 thsl0 thsr0 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_local))) true true
                                       (b, th_src) th_tgt
                                       (im_src0, im_tgt0, st_src, st_tgt) o1))))
     :
@@ -159,7 +161,7 @@ Section PROOF.
     { clear KSIM0.
       rewrite key_set_pull_add_eq. unfold NatSet.remove.
       rewrite nm_find_none_rm_add_eq; auto.
-      2:{ unfold key_set, nm_proj_v2. rewrite 2 NatMapP.F.map_o. rewrite THSRC. ss. }
+      2:{ unfold key_set, nm_proj_v2. do 2 rewrite NatMapP.F.map_o. rewrite THSRC. ss. }
       match goal with | |- ?lhs = _ => destruct lhs eqn:CASE; ss end.
       apply NatMap.is_empty_2 in CASE. do 2 apply nm_map_empty2 in CASE.
       apply NatMap.is_empty_1 in CASE. clarify. }
@@ -167,11 +169,11 @@ Section PROOF.
     { clear KSIM0.
       rewrite key_set_pull_add_eq. unfold NatSet.remove.
       rewrite nm_find_none_rm_add_eq; auto.
-      2:{ unfold key_set. rewrite 1 NatMapP.F.map_o. rewrite THTGT. ss. }
+      2:{ unfold key_set. rewrite NatMapP.F.map_o. rewrite THTGT. ss. }
       match goal with | |- ?lhs = _ => destruct lhs eqn:CASE; ss end.
       apply NatMap.is_empty_2 in CASE. do 1 apply nm_map_empty2 in CASE.
       apply NatMap.is_empty_1 in CASE. clarify. }
-    rewrite EMPS, EMPT; clear EMPS EMPT.
+    rewrite EMPS EMPT; clear EMPS EMPT.
     match goal with
     | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src_temp _ => remember _src_temp as src_temp eqn:TEMP
     end.
@@ -193,7 +195,7 @@ Section PROOF.
       eapply nm_pop_some_map1 in KSIM1. erewrite KSIM1. ss. rewrite NatMapP.F.map_o. rewrite THTGT. ss. }
     rewrite POPT; clear POPT.
     rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger. ss.
-    guclo sim_indC_spec. eapply sim_indC_fairR. i. rewrite interp_sched_tau. rewrite 2 interp_state_tau.
+    guclo sim_indC_spec. eapply sim_indC_fairR. i. rewrite interp_sched_tau. do 2 rewrite interp_state_tau.
     do 3 (guclo sim_indC_spec; eapply sim_indC_tauR).
     destruct b.
 
@@ -211,7 +213,7 @@ Section PROOF.
         rewrite ! RA1.
         assert (RA2: NatSet.remove tid (key_set (Th.add tid (Ret r_src) (nm_proj_v2 ths_src))) = key_set (nm_proj_v2 ths_src)).
         { rewrite key_set_pull_add_eq. unfold NatSet.remove, nm_proj_v2, key_set. rewrite nm_find_none_rm_add_eq; auto.
-          rewrite 2 NatMapP.F.map_o. rewrite THSRC. ss. }
+          do 2 rewrite NatMapP.F.map_o. rewrite THSRC. ss. }
         rewrite RA2.
         assert (RA3: (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl0))))) = key_set (nm_proj_v2 ths_src)).
         { rewrite key_set_pull_add_eq. unfold NatSet.add, NatSet.remove, nm_proj_v2, key_set.
@@ -258,7 +260,7 @@ Section PROOF.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL.
       esplits; eauto.
-      rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
+      rewrite interp_sched_tau. do 2 rewrite interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
       pclearbot.
       match goal with
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid0 th_tgt thsr0) tid0)
@@ -301,7 +303,7 @@ Section PROOF.
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
               (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) r_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
-              sim_knot (wf_stt) RR ths_src ths_tgt tid r_ctx ps pt (sf, src) tgt
+              sim_knot (M:=M) (wf_stt) RR ths_src ths_tgt tid r_ctx ps pt (sf, src) tgt
                        (ms, mt, st_src, st_tgt) o ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
@@ -317,7 +319,7 @@ Section PROOF.
                          (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
                          (st_tgt : state_tgt) (ps pt : bool) r_ctx (mt : imap ident_tgt wf_tgt)
                          (ms : imap ident_src wf_src),
-                         sim_knot (wf_stt) RR ths_src ths_tgt tid r_ctx ps pt (sf, src) tgt
+                         sim_knot (M:=M) (wf_stt) RR ths_src ths_tgt tid r_ctx ps pt (sf, src) tgt
                                   (ms, mt, st_src, st_tgt) y ->
                          gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR ps ms pt mt
                                 (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
@@ -355,7 +357,7 @@ Section PROOF.
                            fair_update ms im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl1))) /\
                              lt (wf_stt R0 R1) o0 o /\
                              (upaco10
-                                (fun r => pind10 (__sim_knot (wf_stt) RR r) top10) bot10 thsl1 thsr1 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))) true true
+                                (fun r => pind10 (__sim_knot (M:=M) (wf_stt) RR r) top10) bot10 thsl1 thsr1 tid0 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))) true true
                                 (b, th_src) th_tgt
                                 (im_src0, im_tgt0, st_src, st_tgt) o0)))))
     :
@@ -389,7 +391,7 @@ Section PROOF.
     }
     rewrite POPT; clear POPT.
     rewrite ! bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger. ss.
-    guclo sim_indC_spec. eapply sim_indC_fairR. i. rewrite interp_sched_tau. rewrite 2 interp_state_tau.
+    guclo sim_indC_spec. eapply sim_indC_fairR. i. rewrite interp_sched_tau. do 2 rewrite interp_state_tau.
     do 3 (guclo sim_indC_spec; eapply sim_indC_tauR).
     destruct b.
 
@@ -407,7 +409,7 @@ Section PROOF.
         assert (RA1: (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = (NatSet.add tid0 (NatSet.remove tid0 (key_set (Th.add tid0 (Vis (((|Yield)|)|)%sum (fun _ : () => th_src)) (nm_proj_v2 thsl1)))))).
         { unfold NatSet.add, NatSet.remove. rewrite <- !key_set_pull_rm_eq. erewrite <- !key_set_pull_add_eq. f_equal.
           rewrite ! nm_add_rm_eq. rewrite ! nm_add_add_eq. unfold nm_proj_v2. apply nm_pop_res_is_add_eq in KSIM0.
-          rewrite ! nm_map_add_comm_eq. rewrite KSIM0. ss.
+          erewrite ! nm_map_add_comm_eq. erewrite KSIM0. ss.
         }
         rewrite ! RA1. auto.
       }
@@ -431,17 +433,17 @@ Section PROOF.
         eapply find_none_aux; eauto. eapply find_none_aux; eauto.
         { apply nm_pop_res_is_rm_eq in KSIM0, KSIM1. rewrite <- KSIM0, <- KSIM1. eapply nm_wf_pair_rm. eapply nm_wf_pair_add. auto. }
         replace (NatSet.add tid0 (key_set thsl1)) with (NatSet.add tid (key_set ths_src)).
-        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM0. erewrite <- !key_set_pull_add_eq. rewrite KSIM0. eauto. }
+        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM0. erewrite <- !key_set_pull_add_eq. erewrite KSIM0. eauto. }
         replace (NatSet.add tid0 (key_set thsr1)) with (NatSet.add tid (key_set ths_tgt)).
-        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM1. erewrite <- !key_set_pull_add_eq. rewrite KSIM1. eauto. }
+        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM1. erewrite <- !key_set_pull_add_eq. erewrite KSIM1. eauto. }
         eapply ksim_set_prog; eauto.
       + eapply IHo; eauto.
         eapply find_none_aux; eauto. eapply find_none_aux; eauto.
         { apply nm_pop_res_is_rm_eq in KSIM0, KSIM1. rewrite <- KSIM0, <- KSIM1. eapply nm_wf_pair_rm. eapply nm_wf_pair_add. auto. }
         replace (NatSet.add tid0 (key_set thsl1)) with (NatSet.add tid (key_set ths_src)).
-        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM0. erewrite <- !key_set_pull_add_eq. rewrite KSIM0. eauto. }
+        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM0. erewrite <- !key_set_pull_add_eq. erewrite KSIM0. eauto. }
         replace (NatSet.add tid0 (key_set thsr1)) with (NatSet.add tid (key_set ths_tgt)).
-        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM1. erewrite <- !key_set_pull_add_eq. rewrite KSIM1. eauto. }
+        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM1. erewrite <- !key_set_pull_add_eq. erewrite KSIM1. eauto. }
         eapply ksim_set_prog; eauto.
 
     - hexploit KSIM3; clear KSIM2 KSIM3; ss. eauto.
@@ -452,7 +454,7 @@ Section PROOF.
       rewrite <- bind_trigger. guclo sim_indC_spec. eapply sim_indC_chooseL. exists tid0.
       assert (POPS: nm_pop tid0 (NatSet.add tid (NatSet.remove tid (key_set (Th.add tid (Vis (((|Yield)|)|)%sum ktr_src) (nm_proj_v2 ths_src))))) = Some (tt, key_set thsl1)).
       { rewrite key_set_pull_add_eq. unfold NatSet.remove, NatSet.add. rewrite nm_find_none_rm_add_eq.
-        erewrite <- key_set_pull_add_eq. unfold key_set, nm_proj_v2. rewrite nm_map_add_comm_eq.
+        erewrite <- key_set_pull_add_eq. unfold key_set, nm_proj_v2. erewrite nm_map_add_comm_eq.
         rewrite nm_map_map_eq. erewrite nm_pop_some_map1; eauto.
         unfold key_set, nm_proj_v2. rewrite nm_map_map_eq. rewrite NatMapP.F.map_o. rewrite THSRC. ss.
       }
@@ -461,7 +463,7 @@ Section PROOF.
       guclo sim_indC_spec. eapply sim_indC_fairL.
       hexploit H0; clear H0. eauto. i. revert IHo; des; i; pclearbot.
       esplits; eauto. eauto.
-      rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
+      rewrite interp_sched_tau. do 2 rewrite interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
       match goal with
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ _ ?_tgt => replace _tgt with (interp_all st_tgt (Th.add tid0 th_tgt thsr1) tid0)
       end.
@@ -497,9 +499,9 @@ Section PROOF.
         eapply find_none_aux; eauto. eapply find_none_aux; eauto.
         { apply nm_pop_res_is_rm_eq in KSIM0, KSIM1. rewrite <- KSIM0, <- KSIM1. eapply nm_wf_pair_rm. eapply nm_wf_pair_add. auto. }
         replace (NatSet.add tid0 (key_set thsl1)) with (NatSet.add tid (key_set ths_src)).
-        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM0. erewrite <- !key_set_pull_add_eq. rewrite KSIM0. eauto. }
+        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM0. erewrite <- !key_set_pull_add_eq. erewrite KSIM0. eauto. }
         replace (NatSet.add tid0 (key_set thsr1)) with (NatSet.add tid (key_set ths_tgt)).
-        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM1. erewrite <- !key_set_pull_add_eq. rewrite KSIM1. eauto. }
+        2:{ unfold NatSet.add. apply nm_pop_res_is_add_eq in KSIM1. erewrite <- !key_set_pull_add_eq. erewrite KSIM1. eauto. }
         eapply ksim_set_prog; eauto.
       + eapply IHo; eauto.
         eapply find_none_aux; eauto. eapply find_none_aux; eauto.
@@ -518,7 +520,7 @@ Section PROOF.
               (tgt : thread _ident_tgt (sE state_tgt) R1) (st_src : state_src)
               (st_tgt : state_tgt) (ps pt : bool) (o : T (wf_stt R0 R1)) rs_ctx
               (mt : imap ident_tgt wf_tgt) (ms : imap ident_src wf_src),
-              sim_knot (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
+              sim_knot (M:=M) (wf_stt) RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
                        (ms, mt, st_src, st_tgt) o ->
               r R0 R1 RR ps ms pt mt (interp_all st_src (Th.add tid src (nm_proj_v2 ths_src)) tid)
                 (interp_all st_tgt (Th.add tid tgt ths_tgt) tid))
@@ -530,7 +532,7 @@ Section PROOF.
         (st_src : state_src) (st_tgt : state_tgt) rs_local mt ms (o : T (wf_stt R0 R1))
         (src : thread _ident_src (sE state_src) R0)
         sf
-        (KSIM : sim_knot (wf_stt) RR ths_src ths_tgt tid rs_local true pt (sf, src) tgt
+        (KSIM : sim_knot (M:=M) (wf_stt) RR ths_src ths_tgt tid rs_local true pt (sf, src) tgt
                          (ms, mt, st_src, st_tgt) o)
     :
     gpaco9 (_sim (wft:=wf_tgt)) (cpn9 (_sim (wft:=wf_tgt))) bot9 r R0 R1 RR true ms pt mt
@@ -572,7 +574,7 @@ Section PROOF.
       guclo sim_indC_spec. eapply sim_indC_fairL.
       replace (tids_fmap tid (NatSet.remove tid (key_set ths_src))) with (tids_fmap tid (key_set ths_src)).
       2:{ rewrite <- tids_fmap_rm_same_eq. auto. }
-      esplits; eauto. rewrite interp_sched_tau. rewrite 2 interp_state_tau.
+      esplits; eauto. rewrite interp_sched_tau. do 2 rewrite interp_state_tau.
       do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
       match goal with
       | |- gpaco9 _ _ _ _ _ _ _ _ _ _ _ ?_src _ => replace _src with (interp_all st_src (Th.add tid (ktr_src ()) (nm_proj_v2 ths_src)) tid)
@@ -677,7 +679,7 @@ Section PROOF.
         (st_src: state_src) (st_tgt: state_tgt)
         ps pt
         (KSIM: forall im_tgt, exists im_src (o: T (wf_stt R0 R1)) rs_ctx,
-            sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (wf_stt)
+            sim_knot (M:=M) (wf_src:=wf_src) (wf_tgt:=wf_tgt) (wf_stt)
                      RR ths_src ths_tgt tid rs_ctx ps pt (sf, src) tgt
                      (im_src, im_tgt, st_src, st_tgt) o)
     :
@@ -727,7 +729,7 @@ Section PROOF.
       rewrite bind_trigger. rewrite interp_sched_vis. rewrite interp_state_vis. rewrite <- bind_trigger.
       guclo sim_indC_spec. eapply sim_indC_fairL.
       esplits; eauto.
-      rewrite interp_sched_tau. rewrite 2 interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
+      rewrite interp_sched_tau. do 2 rewrite interp_state_tau. do 3 (guclo sim_indC_spec; eapply sim_indC_tauL).
 
       clear - ident_src ident_tgt M CIH THSRC THTGT WF KSIM.
       rename o0 into o.

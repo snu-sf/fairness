@@ -1,3 +1,4 @@
+From iris.algebra Require Import cmra.
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM IndexedInvariants.
@@ -10,11 +11,11 @@ Module SRA.
 
   Section SRA.
 
-    Class t := __SRA : GRA.t.
+    Class t := SRA__INTERNAL : GRA.t.
 
     Class subG (Γ : t) (Σ : GRA.t) : Type := {
         subG_map : nat -> nat;
-        subG_prf : forall i, Σ (subG_map i) = Γ i;
+        subG_prf : forall i, (GRA.gra_map Σ) (subG_map i) = (GRA.gra_map Γ) i;
       }.
 
     Coercion subG_map : subG >-> Funclass.
@@ -25,12 +26,12 @@ Module SRA.
 
     Context `{sub : @subG Γ Σ}.
 
-    Global Program Instance embed (i : nat) : @GRA.inG (Γ i) Σ := {
+    Global Program Instance embed (i : nat) : @GRA.inG ((GRA.gra_map Γ) i) Σ := {
         inG_id := sub i;
       }.
     Next Obligation. i. symmetry. apply SRA.subG_prf. Qed.
 
-    Global Program Instance in_subG `{M : URA.t} `{emb : @GRA.inG M Γ} : @GRA.inG M Σ := {
+    Global Program Instance in_subG `{M : ucmra} `{emb : @GRA.inG M Γ} : @GRA.inG M Σ := {
         inG_id := sub.(subG_map) emb.(GRA.inG_id);
       }.
     Next Obligation.
@@ -72,7 +73,7 @@ Module Syntax.
 
     Inductive t {form : Type} : Type :=
     | atom (a : A) : t
-    | ownm (i : nat) (r : Γ i) : t
+    | ownm (i : nat) (r : (GRA.gra_map Γ i)) : t
     | lift (p : form) : t
     | sepconj (p q : t) : t
     | pure (P : Prop) : t
@@ -137,7 +138,7 @@ Module Syntax.
       and empty p.
 
     Definition ownM `{IN: @GRA.inG M Γ} {n} (r : M) : sProp n :=
-      ownm IN.(GRA.inG_id) (eq_rect _ (@URA.car) r _ IN.(GRA.inG_prf)).
+      ownm IN.(GRA.inG_id) (eq_rect _ ucmra_car r _ IN.(GRA.inG_prf)).
 
   End SPROP.
 
@@ -151,6 +152,7 @@ Module sAtomI.
   Context `{Γ : SRA.t}.
   Context `{As : sAtom.t}.
   Context `{Σ : GRA.t}.
+  Notation iProp := (iProp Σ).
 
   Class t : Type := interp :
       forall (n : index), As (Syntax._sProp n) -> iProp.
@@ -167,6 +169,7 @@ Module SyntaxI.
     Context `{Σ : GRA.t}.
     Context `{sub: @SRA.subG Γ Σ}.
     Context `{α: sAtomI.t (Γ:=Γ) (Σ:=Σ)}.
+    Notation iProp := (iProp Σ).
 
     Import Syntax.
 

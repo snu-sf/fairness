@@ -1,309 +1,166 @@
 From sflib Require Import sflib.
+From iris.algebra Require Import cmra updates gmap auth.
 From Fairness Require Import PCM IProp IPM IPropAux.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
 Require Import Program.
 
-Set Implicit Arguments.
-
-
 Module FiniteMap.
   Section FiniteMap.
-    Context `{M: URA.t}.
+    Context `{M: cmra}.
 
-    Definition car := nat -> option M.(URA.car).
+    Definition t : ucmra := (gmapUR nat M).
 
-    Definition unit: car := fun _ => None.
+    Definition singleton (k : nat) (m : M) : t := {[ k := m ]}.
 
-    Definition add (f0 f1: car): car :=
-      fun n =>
-        match (f0 n), (f1 n) with
-        | None, _ => f1 n
-        | _, None => f0 n
-        | Some m0, Some m1 => Some (URA.add m0 m1)
-        end.
-
-    Definition wf (f: car): Prop :=
-      (<<POINTWISE: forall n m (EQ: f n = Some m), URA.wf m>>) /\ (<<FIN: exists k, forall n (LE: k < n), f n = None>>).
-
-    Definition core (f: car): car := fun n =>
-                                       match (f n) with
-                                       | Some m => Some (URA.core m)
-                                       | None => None
-                                       end.
-
-    Global Program Instance t: URA.t := {
-        car := car;
-        unit := unit;
-        _add := add;
-        _wf := wf;
-        core := core;
-      }
-    .
-    Next Obligation.
-      unfold add. apply func_ext.
-      ii. des_ifs. f_equal.
-      rewrite URA.add_comm. ss.
+    (* TODO: upstream to iris *)
+    Global Instance singleton_proper k :
+      Proper ((≡)==>(≡)) (singleton k).
+    Proof.
+      intros x y EQ. unfold singleton.
+      intros k'. destruct (decide (k' = k)) as [->|NE].
+      - rewrite !lookup_singleton. f_equiv. done.
+      - rewrite !lookup_singleton_ne; done.
     Qed.
-    Next Obligation.
-      unfold add. apply func_ext.
-      ii. des_ifs. f_equal.
-      rewrite URA.add_assoc. ss.
-    Qed.
-    Next Obligation.
-      unfold add. unseal "ra". apply func_ext.
-      ii. des_ifs.
-    Qed.
-    Next Obligation.
-      unfold unit, wf. unseal "ra". splits; auto.
-      { i. ss. }
-      { exists 0. auto. }
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold wf, add in *.
-      des. splits; auto.
-      { i. hexploit POINTWISE.
-        { rewrite EQ.
-          instantiate (1:= match b n with
-                           | Some m1 => m ⋅ m1
-                           | None => m
-                           end). des_ifs.
-        }
-        { des_ifs. i. eapply URA.wf_mon; eauto. }
-      }
-      { exists k. i. hexploit FIN; eauto. i. des_ifs. }
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold add, core. apply func_ext.
-      ii. des_ifs. f_equal.
-      rewrite URA.core_id. ss.
-    Qed.
-    Next Obligation.
-      unfold core. apply func_ext.
-      ii. des_ifs. f_equal.
-      rewrite URA.core_idem. ss.
-    Qed.
-    Next Obligation.
-      unseal "ra".
-      hexploit (choice (fun (n: nat) (m: option URA.car) =>
-                          core (add a b) n = match (core a n), m with
-                                             | None, _ => m
-                                             | _, None => core a n
-                                             | Some m0, Some m1 => Some (URA.add m0 m1)
-                                             end)).
-      { i. unfold core, add. des_ifs.
-        { hexploit URA.core_mono. i. des.
-          rewrite H. exists (Some c). auto.
-        }
-        { exists None. auto. }
-        { eauto. }
-        { eauto. }
-      }
-      i. des. exists f. apply func_ext.
-      i. rewrite H. unfold add, core. des_ifs.
-    Qed.
-
-    Definition singleton (k: nat) (m: @URA.car M):
-      @URA.car t :=
-      fun n => if Nat.eq_dec n k then Some m else None.
 
     Lemma singleton_wf k m
       :
-      URA.wf (singleton k m) <-> URA.wf m.
-    Proof.
-      split; i.
-      { rewrite URA.unfold_wf in H. rr in H.
-        des. eapply POINTWISE. unfold singleton. des_ifs.
-      }
-      { rewrite URA.unfold_wf. rr. splits.
-        { i. unfold singleton in *. des_ifs. }
-        { exists k. i. unfold singleton. des_ifs. lia. }
-      }
-    Qed.
+      ✓ (singleton k m) <-> ✓ m.
+    Proof. apply singleton_valid. Qed.
 
     Lemma singleton_add k m0 m1
       :
-      URA.add (singleton k m0) (singleton k m1)
-      =
-        singleton k (URA.add m0 m1).
-    Proof.
-      rewrite URA.unfold_add. ss.
-      unfold singleton, add. apply func_ext. i. des_ifs.
-    Qed.
+      (singleton k m0) ⋅ (singleton k m1)
+      ≡
+        singleton k (m0 ⋅ m1).
+    Proof. by rewrite singleton_op /singleton. Qed.
 
-    Lemma singleton_core k m
+    Lemma singleton_core k x cx
       :
-      URA.core (singleton k m) = singleton k (URA.core m).
-    Proof.
-      unfold URA.car. ss.
-      apply func_ext. i. unfold core, singleton. des_ifs.
-    Qed.
+      pcore x ≡ Some cx → core (singleton k x) ≡ singleton k cx.
+    Proof. by apply singleton_core'. Qed.
+
+    Lemma singleton_core_total k m `{CmraTotal M}
+      :
+      core (singleton k m) ≡ singleton k (core m).
+    Proof. by rewrite singleton_core_total. Qed.
 
     Lemma singleton_updatable k m0 m1
-          (UPD: @URA.updatable M m0 m1)
+          (UPD: m0 ~~> m1)
       :
-      URA.updatable (singleton k m0) (singleton k m1).
-    Proof.
-      ii. rewrite URA.unfold_wf in H. rr in H. des.
-      hexploit (UPD (match ctx k with
-                     | Some a => a
-                     | None => URA.unit
-                     end)).
-      { rewrite URA.unfold_add in POINTWISE. ss.
-        eapply (POINTWISE k).
-        unfold add, singleton. des_ifs. rewrite URA.unit_id. auto.
-      }
-      i.
-      assert (OTHER: forall n m (NEQ: n <> k) (EQ: ctx n = Some m), URA.wf m).
-      { i. eapply (POINTWISE n).
-        rewrite URA.unfold_add. ss. unfold add, singleton. des_ifs.
-      }
-      rewrite URA.unfold_wf. ss. rr. splits.
-      { i. rewrite URA.unfold_add in EQ. ss. unfold add, singleton in EQ.
-        des_ifs; eauto. r_wf H.
-      }
-      { exists k0. i. hexploit FIN; eauto.
-        rewrite URA.unfold_add. i. ss.
-        unfold add, singleton in *. des_ifs.
-      }
-    Qed.
+      (singleton k m0) ~~> (singleton k m1).
+    Proof. by apply singleton_update. Qed.
 
     Lemma singleton_extends k m0 m1
-          (UPD: @URA.extends M m0 m1)
+          (UPD: m0 ≼ m1)
       :
-      URA.extends (singleton k m0) (singleton k m1).
-    Proof.
-      r in UPD. des. exists (singleton k ctx).
-      rewrite singleton_add. subst. auto.
-    Qed.
+      (singleton k m0) ≼ (singleton k m1).
+    Proof. apply singleton_included. by right. Qed.
 
     Lemma singleton_updatable_set k m s
-          (UPD: @URA.updatable_set M m s)
+          (UPD: m ~~>: s)
       :
-      URA.updatable_set (singleton k m) (fun a => exists m1, s m1 /\ a = singleton k m1).
+      (singleton k m) ~~>: (fun a => exists m1, s m1 /\ a = singleton k m1).
     Proof.
-      ii. rewrite URA.unfold_wf in WF. rr in WF. des.
-      hexploit (UPD (match ctx k with
-                     | Some a => a
-                     | None => URA.unit
-                     end)).
-      { rewrite URA.unfold_add in POINTWISE. ss.
-        eapply (POINTWISE k).
-        unfold add, singleton. des_ifs. rewrite URA.unit_id. auto.
-      }
-      i. destruct H as [m1 [SAT H]]. des.
-      assert (OTHER: forall n m (NEQ: n <> k) (EQ: ctx n = Some m), URA.wf m).
-      { i. eapply (POINTWISE n).
-        rewrite URA.unfold_add. ss. unfold add, singleton. des_ifs.
-      }
-      exists (singleton k m1). splits.
-      { splits; eauto. }
-      rewrite URA.unfold_wf. ss. rr. splits.
-      { i. rewrite URA.unfold_add in EQ. ss. unfold add, singleton in EQ.
-        des_ifs; eauto. r_wf H.
-      }
-      { exists k0. i. hexploit FIN; eauto.
-        rewrite URA.unfold_add. i. ss.
-        unfold add, singleton in *. des_ifs.
-      }
+      eapply cmra_updateP_weaken.
+      { eapply singleton_updateP',UPD. }
+      ii. simpl in *. des. eauto.
     Qed.
 
-    Lemma singleton_alloc (m: @URA.car M) (f: @URA.car t)
-          (WF: URA.wf m)
+    Lemma singleton_alloc (m: M)
+          (WF: ✓ m)
       :
-      URA.updatable_set f (fun f1 => exists k, f1 = singleton k m).
+      ε ~~>: (fun f => exists k, f ≡ singleton k m).
     Proof.
-      ii. rewrite URA.unfold_wf in WF0. rr in WF0. des.
-      exists (singleton (S k) m). splits.
-      { eauto. }
-      hexploit (FIN (S k)).
-      { lia. }
-      i. rewrite URA.unfold_add in H. ss. unfold add in H. des_ifs.
-      rewrite URA.unfold_wf. ss. rr. split.
-      { ii. rewrite URA.unfold_add in EQ. ss.
-        unfold add, singleton in EQ. des_ifs.
-        hexploit (POINTWISE n (m0 ⋅ match f n with
-                                    | Some a => a
-                                    | None => URA.unit
-                                    end)).
-        { rewrite URA.unfold_add. ss. unfold add. des_ifs.
-          { rewrite URA.add_comm. auto. }
-          { rewrite URA.unit_id. auto. }
-        }
-        i. eapply URA.wf_mon; eauto.
-      }
-      { exists (S k). i. hexploit (FIN n).
-        { lia. }
-        i. rewrite URA.unfold_add. rewrite URA.unfold_add in H0.
-        ss. unfold add, singleton in *. des_ifs. lia.
-      }
+      eapply alloc_updateP.
+      { exact WF. }
+      intros k _. exists k. unfold singleton. set_solver.
     Qed.
   End FiniteMap.
+  Global Arguments t : clear implicits.
 End FiniteMap.
 
 
 Module Collection.
   Section Collection.
-    Variable A: Type.
+    Context {A: Type}.
 
-    Definition car: Type := A -> Prop.
+    Record car : Type := mk {
+      elem :> A -> Prop
+    }.
 
-    Definition unit: car := fun _ => True.
+    Definition unit: car := mk (fun _ => True).
 
     Definition add: car -> car -> car :=
-      fun s0 s1 a => s0 a /\ s1 a.
+      fun s0 s1 => mk (fun a => s0 a /\ s1 a).
 
     Definition wf: car -> Prop :=
       fun _ => True.
 
-    Definition core: car -> car :=
-      fun s => s.
+    Definition core: car -> option car :=
+      fun s => Some s.
 
-    Program Instance t: URA.t := {
-        car := car;
-        unit := unit;
-        _add := add;
-        _wf := wf;
-        core := core;
-      }
-    .
-    Next Obligation.
+    Canonical Structure CollectionO := leibnizO car.
+
+    Global Instance collection_equiv : Equiv car := (=).
+    Local Instance collection_valid_instance : Valid car := wf.
+    Local Instance collection_pcore_instance : PCore car := core.
+    Local Instance collection_op_instance : Op car := add.
+    Local Instance collection_unit_instance : Unit car := unit.
+
+    Lemma valid_unfold om : ✓ om ↔ wf om.
+    Proof. done. Qed.
+    Lemma op_unfold p q : p ⋅ q = add p q.
+    Proof. done. Qed.
+    Lemma pcore_unfold p : pcore p = (core p).
+    Proof. done. Qed.
+    Lemma unit_unfold : ε = unit.
+    Proof. done. Qed.
+
+    Definition mixin : RAMixin car.
     Proof.
-      unfold add. extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss.
+      split; try apply _; try done.
+      all: fold_leibniz.
+      all: try apply _; try done.
+      - intros ??? -> ->. eauto.
+      - intros ???. fold_leibniz.
+        rewrite !op_unfold /add. f_equal.
+        extensionality a0.
+        eapply propositional_extensionality. split; i; des; ss; des; ss.
+      - intros ??. fold_leibniz.
+        rewrite !op_unfold /add. f_equal.
+        extensionality a0.
+        eapply propositional_extensionality. split; i; des; ss; des; ss.
+      - intros ??. fold_leibniz.
+        rewrite !pcore_unfold /core op_unfold /add. injection 1. intros ->. destruct cx. f_equal.
+        extensionality a0.
+        eapply propositional_extensionality. split; i; des; ss; des; ss.
+      - intros ???.
+        rewrite !pcore_unfold /core. intros [? EQ]. injection 1. intros ->. fold_leibniz. subst. eexists. split; ss.
+        exists x0. fold_leibniz. done.
     Qed.
-    Next Obligation.
+
+    Canonical Structure CollectionR := discreteR car mixin.
+
+    Global Instance discrete : CmraDiscrete CollectionR.
+    Proof. apply discrete_cmra_discrete. Qed.
+
+    Lemma ucmra_mixin : UcmraMixin car.
     Proof.
-      unfold add. extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss.
+      split; try apply _; try done.
+      intros m.
+      fold_leibniz.
+      rewrite op_unfold /add unit_unfold /unit. destruct m. f_equal.
+      extensionality a0.
+      eapply propositional_extensionality. split; i; des; ss; des; ss.
     Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra". unfold add. extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra". ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra". ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra". unfold add, core. extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss.
-    Qed.
-    Next Obligation.
-    Proof.
-      unseal "ra".
-      unfold add, core. esplits; eauto.
-    Qed.
+    Canonical Structure t := Ucmra car ucmra_mixin.
+
+    Definition into_t (a : A -> Prop) : t := mk a.
   End Collection.
 End Collection.
-
+Global Arguments Collection.t _ : clear implicits.
 
 Variant gmon: Type :=
   | mk_gmon
@@ -334,8 +191,9 @@ Qed.
 
 
 Section Monotone.
-  Definition monoRA: URA.t := @FiniteMap.t (Auth.t (Collection.t gmon)).
+  Definition monoRA: ucmra := @FiniteMap.t (authUR (Collection.t gmon)).
   Context `{@GRA.inG monoRA Σ}.
+  Notation iProp := (iProp Σ).
 
   Section LE.
     Variable k: nat.
@@ -344,13 +202,13 @@ Section Monotone.
     Variable le: W -> W -> Prop.
     Hypothesis le_PreOrder: PreOrder le.
 
-    Let leR (w: W): Collection.t gmon := gmon_le (@mk_gmon W le le_PreOrder w).
+    Let leR (w: W): Collection.t gmon := Collection.into_t (gmon_le (@mk_gmon W le le_PreOrder w)).
 
     Definition monoBlack (w: W): iProp :=
-      OwnM (FiniteMap.singleton k (Auth.black (leR w) ⋅ Auth.white (leR w))).
+      OwnM (FiniteMap.singleton k (● (leR w) ⋅ ◯ (leR w))).
 
     Definition monoWhiteExact (w: W): iProp :=
-      OwnM (FiniteMap.singleton k (Auth.white (leR w))).
+      OwnM (FiniteMap.singleton k (◯ (leR w))).
 
     Definition monoWhite (w0: W): iProp :=
       ∃ w1, monoWhiteExact w1 ∧ ⌜le w0 w1⌝.
@@ -358,12 +216,11 @@ Section Monotone.
     Lemma white_idempotent w0 w1
           (LE: le w0 w1)
       :
-      Auth.white (leR w0) ⋅ Auth.white (leR w1) = Auth.white (leR w1).
+      ◯ (leR w0) ⋅ ◯ (leR w1) ≡ ◯ (leR w1).
     Proof.
-      unfold Auth.white.
-      unfold URA.add. unseal "ra". ss.
-      unfold URA.add. unseal "ra". ss.
-      unfold Collection.add. f_equal. extensionality a.
+      rewrite -auth_frag_op. f_equiv.
+      rewrite Collection.op_unfold /Collection.add /leR /Collection.into_t.
+      fold_leibniz. f_equal. extensionality a.
       eapply propositional_extensionality. split; i; des; ss.
       split; auto. rr. etrans; eauto. econs; eauto.
     Qed.
@@ -374,7 +231,7 @@ Section Monotone.
     Proof.
       unfold monoBlack, monoWhiteExact.
       iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Program Instance Persistent_white_exact w: Persistent (monoWhiteExact w).
@@ -424,6 +281,14 @@ Section Monotone.
       iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
     Qed.
 
+    Local Lemma prop_ext_rev
+          A B
+          (EQ: A = B)
+      :
+        A <-> B
+    .
+    Proof. clarify. Qed.
+
     Lemma black_updatable w0 w1
           (LE: le w0 w1)
       :
@@ -431,17 +296,19 @@ Section Monotone.
     Proof.
       iIntros "H". iApply (OwnM_Upd with "H").
       eapply FiniteMap.singleton_updatable.
-      eapply Auth.auth_update.
-      rr. i. des. splits; auto.
-      { rr. unseal "ra". ss. }
-      { unfold URA.add in *. unseal "ra". ss.
-        unfold Collection.add in *.
-        extensionality w. eapply equal_f with (x:=w) in FRAME.
-        eapply prop_ext_rev in FRAME. des.
-        eapply propositional_extensionality. split; i; des; ss.
-        split; eauto. eapply FRAME.
-        rr. etrans; eauto. econs; eauto.
-      }
+      apply auth_update,local_update_discrete.
+      fold_leibniz. intros w' _.
+      rewrite Collection.valid_unfold /Collection.wf /leR /Collection.into_t.
+      destruct w' as [[w']|]; ss.
+      rewrite Collection.op_unfold /Collection.add.
+      injection 1. intros FRAME.
+      rewrite Collection.op_unfold /Collection.add. split; ss.
+      f_equal.
+      extensionality w. eapply equal_f with (x:=w) in FRAME.
+      eapply prop_ext_rev in FRAME. des.
+      eapply propositional_extensionality. split; i; des; ss.
+      split; eauto. eapply FRAME.
+      rr. etrans; eauto. econs; eauto.
     Qed.
 
     Lemma black_white_exact_compare w0 w1
@@ -452,16 +319,16 @@ Section Monotone.
       rewrite <- FiniteMap.singleton_add.
       iIntros "H0 [H1 H2]".
       iCombine "H1 H0" as "H".
-      rewrite FiniteMap.singleton_add.
-      iOwnWf "H". iPureIntro.
-      rewrite FiniteMap.singleton_wf in H0.
-      eapply Auth.auth_included in H0.
-      rr in H0. des. unfold URA.add in H0. unseal "ra".
-      ss. unfold Collection.add in H0.
-      eapply equal_f in H0. eapply prop_ext_rev in H0. des.
-      hexploit H1.
+      iOwnWf "H" as WF. iPureIntro.
+      rewrite FiniteMap.singleton_wf in WF.
+      apply auth_both_valid_discrete in WF as [WF _].
+      rr in WF. destruct WF as [[z] EQ]. fold_leibniz.
+      rewrite Collection.op_unfold /Collection.add /leR /Collection.into_t in EQ.
+      injection EQ. intros LE. ss.
+      eapply equal_f in LE. eapply prop_ext_rev in LE. des.
+      hexploit LE.
       { rr. econs. reflexivity. }
-      i. des. rr in H2. dependent destruction H2. auto.
+      i. des. rr in H0. dependent destruction H0. auto.
     Qed.
 
     Lemma black_white_compare w0 w1
@@ -481,28 +348,23 @@ Section Monotone.
         (le_PreOrder: PreOrder le)
         (w: W)
     :
-    ⊢ #=> (∃ k, monoBlack k le_PreOrder w).
+    ⊢ #=> (∃ k, monoBlack k W le le_PreOrder w).
   Proof.
     iPoseProof (@OwnM_unit _ _ H) as "H".
     iPoseProof (OwnM_Upd_set with "H") as "> H0".
     { eapply FiniteMap.singleton_alloc.
-      instantiate (1:=@Auth.black (Collection.t gmon) (gmon_le (mk_gmon le_PreOrder w)) ⋅ @Auth.white (Collection.t gmon) (gmon_le (mk_gmon le_PreOrder w))).
-      rewrite URA.unfold_wf. rewrite URA.unfold_add. ss. split.
-      { exists (URA.unit). rewrite URA.unit_id.
-        rewrite URA.unfold_add. ss. extensionality a.
-        eapply propositional_extensionality. split; i; des; ss.
-        rr in H0. des; auto.
-      }
-      { rewrite URA.unfold_wf. ss. }
+      instantiate (1:= (● (Collection.into_t (gmon_le (@mk_gmon W le le_PreOrder w))) ⋅ ◯ (Collection.into_t (gmon_le (@mk_gmon W le le_PreOrder w))))).
+      apply auth_both_valid_discrete. split; [|done].
+      exists ε. rewrite right_id. fold_leibniz. done.
     }
-    iDestruct "H0" as (b) "[% H0]". des. subst.
+    iDestruct "H0" as (b) "[% H0]". des. rewrite H0.
     iModIntro. iExists k. auto.
   Qed.
 End Monotone.
 
 
 Section MAP.
-  Definition partial_map_le A B (f0 f1: A -> option B): Prop :=
+  Definition partial_map_le {A B} (f0 f1: A -> option B): Prop :=
     forall a b (SOME: f0 a = Some b), f1 a = Some b.
 
   Global Program Instance partial_map_PreOrder A B: PreOrder (@partial_map_le A B).
@@ -515,17 +377,17 @@ Section MAP.
     ii. eapply H0. eapply H. auto.
   Qed.
 
-  Definition partial_map_empty A B: A -> option B :=
+  Definition partial_map_empty {A B} : A -> option B :=
     fun _ => None.
 
-  Definition partial_map_update A B (a: A) (b: B) (f: A -> option B):
+  Definition partial_map_update {A B} (a: A) (b: B) (f: A -> option B):
     A -> option B :=
     fun a' => if (excluded_middle_informative (a' = a)) then Some b else (f a').
 
-  Definition partial_map_singleton A B (a: A) (b: B): A -> option B :=
+  Definition partial_map_singleton {A B} (a: A) (b: B): A -> option B :=
     partial_map_update a b (@partial_map_empty A B).
 
-  Definition partial_map_update_le A B (a: A) (b: B) (f: A -> option B)
+  Definition partial_map_update_le {A B} (a: A) (b: B) (f: A -> option B)
              (NONE: f a = None)
     :
     partial_map_le f (partial_map_update a b f).
@@ -572,6 +434,7 @@ Qed.
 
 Section UPDATING.
   Context `{Σ: @GRA.t}.
+  Notation iProp := (iProp Σ).
 
   Definition updating (I: iProp) (P Q R: iProp): iProp :=
     I -∗ (#=> (P ∗ (Q -∗ #=> (I ∗ R)))).
@@ -596,7 +459,7 @@ End UPDATING.
 
 Section LISTSUB.
 
-  Definition list_sub A (s0 s1: list A): Prop :=
+  Definition list_sub {A} (s0 s1: list A): Prop :=
     exists s, Permutation (s ++ s0) s1.
 
   Global Program Instance list_sub_PreOrder A: PreOrder (@list_sub A).
@@ -627,131 +490,87 @@ Require Import Program.
 Lemma Qp_add_lt_one : forall (q : Qp), (1 + q ≤ 1)%Qp -> False.
 Proof. intros. eapply Qp.not_add_le_l. eauto. Qed.
 
+From iris.algebra Require Import excl agree csum.
+
 Module OneShot.
   Section ONESHOT.
     Variable A: Type.
 
-    Definition oneshot_add (a0 a1: bool + (Qp + A)): bool + (Qp + A) :=
-      match a0, a1 with
-      | inl false, a
-      | a, inl false => a
-      | inr (inr a0), inr (inr a1) => if (excluded_middle_informative (a0 = a1)) then inr (inr a0) else inl true
-      | inr (inl q0), inr (inl q1) => inr (inl (q0 + q1)%Qp)
-      | _, _ => inl true
-      end.
+    Definition t : ucmra := optionUR (csumR fracR (agreeR (leibnizO A))).
 
-    Definition oneshot_core (a: bool + (Qp + A)): bool + (Qp + A) :=
-      match a with
-      | inr (inl _) => inl false
-      | _ => a
-      end.
+    Definition to_pending (q : Qp) : t := Some (Cinl q).
+    Definition pending (q : Qp) : t := to_pending q.
+    Definition to_shot (a : A) : t := Some (Cinr (to_agree (a : leibnizO A))).
+    Definition shot (a : A) : t := to_shot a.
 
-    Program Instance t: URA.t := {
-        car := bool + (Qp + A);
-        unit := inl false;
-        _add := oneshot_add;
-        _wf := fun a =>
-                 match a with
-                 | inl true => False
-                 | inr (inl q) => (q ≤ 1)%Qp
-                 | _ => True
-                 end;
-        core := oneshot_core;
-      }
-    .
-    Next Obligation.
-      unfold oneshot_add. des_ifs. f_equal. f_equal. eapply Qp.add_comm.
-    Qed.
-    Next Obligation.
-      unfold oneshot_add. des_ifs. f_equal. f_equal. eapply Qp.add_assoc.
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold oneshot_add. des_ifs.
-    Qed.
-    Next Obligation.
-      unseal "ra". ss.
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold oneshot_add in *. des_ifs.
-      etrans; [|eauto]. apply Qp.le_add_l.
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold oneshot_add, oneshot_core. des_ifs.
-    Qed.
-    Next Obligation.
-      unfold oneshot_add, oneshot_core. des_ifs.
-    Qed.
-    Next Obligation.
-      unseal "ra".
-      pose (c := oneshot_core b).
-      unfold oneshot_core, oneshot_add. des_ifs; subst; try by (exists c; ss).
-      { exists (inl true). ss. }
-      { exists (inl true). ss. }
-      { exists (inl true). ss. }
-      { exists (inl true). ss. }
-      { exists (inr (inr a0)). des_ifs. }
-    Qed.
+    Global Instance shot_core_id a: CoreId (shot a).
+    Proof. apply _. Qed.
 
-    Definition pending (q: Qp): t := inr (inl q).
-    Definition shot (a: A): t := inr (inr a).
+    Lemma pending_one_wf: ✓ (pending 1).
+    Proof. done. Qed.
 
-    Lemma pending_one_wf: URA.wf (pending 1).
-    Proof.
-      ur. ss.
-    Qed.
-
-    Lemma shot_wf a: URA.wf (shot a).
-    Proof.
-      ur. ss.
-    Qed.
+    Lemma shot_wf a: ✓ (shot a).
+    Proof. done. Qed.
 
     Lemma shot_agree a0 a1
-          (WF: URA.wf (shot a0 ⋅ shot a1))
+          (WF: ✓ (shot a0 ⋅ shot a1))
       :
       a0 = a1.
-    Proof.
-      ur in WF. des_ifs.
-    Qed.
+    Proof. apply (@to_agree_op_inv_L (leibnizO A)); [apply _|done]. Qed.
 
     Lemma pending_not_shot a q
-          (WF: URA.wf (pending q ⋅ shot a))
+          (WF: ✓ (pending q ⋅ shot a))
       :
       False.
-    Proof.
-      ur in WF. ss.
-    Qed.
+    Proof. done. Qed.
 
     Lemma pending_wf q
-          (WF: URA.wf (pending q))
+          (WF: ✓ (pending q))
       :
       (q ≤ 1)%Qp.
-    Proof.
-      ur in WF. ss.
-    Qed.
+    Proof. done. Qed.
 
     Lemma pending_sum q0 q1
       :
       pending (q0 + q1)%Qp = pending q0 ⋅ pending q1.
-    Proof.
-      ur. ss.
-    Qed.
+    Proof. done. Qed.
 
     Lemma pending_shot a
       :
-      URA.updatable (pending 1) (shot a).
+      (pending 1) ~~> (shot a).
     Proof.
-      ii. ur in H. ur. des_ifs.
-      apply Qp.not_add_le_l in H; auto.
+      rewrite /pending /shot /t.
+      rewrite cmra_discrete_update. intros mz WF.
+      apply exclusive_Some_l in WF; [|apply _].
+      subst. done.
     Qed.
+
+    Lemma shot_dup a
+      :
+      (shot a) ≡ (shot a) ⋅ (shot a).
+    Proof.
+      rewrite /shot -Some_op -Cinr_op.
+      rewrite <- core_id_dup; [done|apply _].
+    Qed.
+
   End ONESHOT.
+  Global Typeclasses Opaque to_shot shot to_pending pending.
+  Global Opaque to_shot shot to_pending pending.
 End OneShot.
+Global Arguments OneShot.shot {_} _.
 
 Module OneShotP.
+
+  Definition pending A `{@GRA.inG (OneShot.t A) Σ} (q : Qp) : iProp Σ :=
+    OwnM (OneShot.pending A q).
+
+  Definition shot `{@GRA.inG (OneShot.t A) Σ} a : iProp Σ := OwnM (OneShot.shot a).
+
   Global Program Instance shot_persistent (A: Type)
          `{@GRA.inG (OneShot.t A) Σ}
          (a: A)
     :
-    Persistent (OwnM (OneShot.shot a)).
+    Persistent (shot a).
   Next Obligation.
     i. iIntros "H". iPoseProof (own_persistent with "H") as "# G". ss.
   Qed.
@@ -760,7 +579,7 @@ Module OneShotP.
         `{@GRA.inG (OneShot.t A) Σ}
         (a0 a1: A)
     :
-    (OwnM (OneShot.shot a0) ∧ (OwnM (OneShot.shot a1)))
+    (shot a0 ∧ (shot a1))
       -∗
       (⌜a0 = a1⌝).
   Proof.
@@ -772,7 +591,7 @@ Module OneShotP.
         `{@GRA.inG (OneShot.t A) Σ}
         (a: A) q
     :
-    (OwnM (OneShot.pending A q) ∧ (OwnM (OneShot.shot a)))
+    (pending A q ∧ (shot a))
       -∗
       False.
   Proof.
@@ -787,7 +606,7 @@ Module OneShotP.
     Persistent (OwnM (FiniteMap.singleton k (OneShot.shot a))).
   Next Obligation.
     i. iIntros "H". iPoseProof (own_persistent with "H") as "# G".
-    rewrite FiniteMap.singleton_core. ss.
+    rewrite FiniteMap.singleton_core_total. ss.
   Qed.
 
   Lemma shot_agree_singleton (A: Type)
@@ -800,7 +619,7 @@ Module OneShotP.
   Proof.
     iIntros "[# H0 # H1]".
     iCombine "H0 H1" as "H". iOwnWf "H".
-    rewrite FiniteMap.singleton_add in H0. apply FiniteMap.singleton_wf in H0.
+    apply FiniteMap.singleton_wf in H0.
     apply OneShot.shot_agree in H0. auto.
   Qed.
 
@@ -814,145 +633,59 @@ Module OneShotP.
   Proof.
     iIntros "[H0 # H1]".
     iCombine "H0 H1" as "H". iOwnWf "H".
-    rewrite FiniteMap.singleton_add in H0. apply FiniteMap.singleton_wf in H0.
+    apply FiniteMap.singleton_wf in H0.
     apply OneShot.pending_not_shot in H0. auto.
   Qed.
+
+Global Typeclasses Opaque shot pending.
+Global Opaque shot pending.
 End OneShotP.
 
-
-
-Module Frac.
-  Program Instance t: URA.t := {
-      car := option Qp;
-      unit := None;
-      _add := fun q0 q1 =>
-                match q0, q1 with
-                | Some q0, Some q1 => Some (q0 + q1)%Qp
-                | None, _ => q1
-                | _, None => q0
-                end;
-      _wf := fun q =>
-               match q with
-               | None => True
-               | Some q => (q ≤ 1)%Qp
-               end;
-      core := fun _ => None;
-    }
-  .
-  Next Obligation.
-    des_ifs. f_equal. eapply Qp.add_comm.
-  Qed.
-  Next Obligation.
-    des_ifs. f_equal. eapply Qp.add_assoc.
-  Qed.
-  Next Obligation.
-    unseal "ra". des_ifs.
-  Qed.
-  Next Obligation.
-    unseal "ra". ss.
-  Qed.
-  Next Obligation.
-    unseal "ra". des_ifs.
-    etrans; [|eauto]. apply Qp.le_add_l.
-  Qed.
-  Next Obligation.
-    unseal "ra". auto.
-  Qed.
-  Next Obligation.
-    exists None. unseal "ra". auto.
-  Qed.
-End Frac.
-
-
+From iris.algebra Require Import lib.dfrac_agree.
 Module Consent.
   Section CONSENT.
     Variable A: Type.
-    Definition car: Type := bool + (Qp * A).
 
-    Definition consent_add (a0 a1: car): car :=
-      match a0, a1 with
-      | inl false, a
-      | a, inl false => a
-      | inr (q0, a0), inr (q1, a1) =>
-          if (excluded_middle_informative (a0 = a1)) then inr ((q0 + q1)%Qp, a0) else inl true
-      | _, _ => inl true
-      end.
+    Definition t : ucmra := optionUR (dfrac_agreeR (leibnizO A)).
 
-    Program Instance t: URA.t := {
-        car := car;
-        unit := inl false;
-        _add := consent_add;
-        _wf := fun a =>
-                 match a with
-                 | inl true => False
-                 | inr (q, a) => (q ≤ 1)%Qp
-                 | _ => True
-                 end;
-        core := fun _ => inl false;
-      }
-    .
-    Next Obligation.
-      unfold consent_add. des_ifs. f_equal. f_equal. eapply Qp.add_comm.
-    Qed.
-    Next Obligation.
-      unfold consent_add. des_ifs. f_equal. f_equal. eapply Qp.add_assoc.
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold consent_add. des_ifs.
-    Qed.
-    Next Obligation.
-      unseal "ra". ss.
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold consent_add in *. des_ifs.
-      etrans; [|eauto]. apply Qp.le_add_l.
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold consent_add. auto.
-    Qed.
-    Next Obligation.
-      unseal "ra". unfold consent_add. exists (inl false). auto.
-    Qed.
+    Definition vote (a: A) (q: Qp): t := Some (to_frac_agree q (a : leibnizO A)).
 
-    Definition vote (a: A) (q: Qp): t := inr (q, a).
-
-    Lemma vote_one_wf a: URA.wf (vote a 1%Qp).
-    Proof.
-      ur. ss.
-    Qed.
+    Lemma vote_one_wf a: ✓ (vote a 1%Qp).
+    Proof. done. Qed.
 
     Lemma vote_agree a0 q0 a1 q1
-          (WF: URA.wf (vote a0 q0 ⋅ vote a1 q1))
+          (WF: ✓ (vote a0 q0 ⋅ vote a1 q1))
       :
       a0 = a1 /\ (q0 + q1 ≤ 1)%Qp.
     Proof.
-      ur in WF. des_ifs.
+      rewrite /vote -Some_op Some_valid frac_agree_op_valid_L in WF.
+      des. done.
     Qed.
 
     Lemma vote_wf a q
-          (WF: URA.wf (vote a q))
+          (WF: ✓ (vote a q))
       :
       (q ≤ 1)%Qp.
-    Proof.
-      ur in WF. ss.
-    Qed.
+    Proof. rewrite /vote Some_valid pair_valid in WF. des. done. Qed.
 
     Lemma vote_sum a q0 q1
       :
-      vote a (q0 + q1)%Qp = vote a q0 ⋅ vote a q1.
-    Proof.
-      ur. des_ifs.
-    Qed.
+      vote a (q0 + q1)%Qp ≡ vote a q0 ⋅ vote a q1.
+    Proof. rewrite /vote -Some_op frac_agree_op //. Qed.
 
     Lemma vote_revolution a0 a1
       :
-      URA.updatable (vote a0 1%Qp) (vote a1 1%Qp).
+      (vote a0 1%Qp) ~~> (vote a1 1%Qp).
     Proof.
-      unfold vote. ii. ur in H. ur. des_ifs.
-      apply Qp.not_add_le_l in H; auto.
+      rewrite /vote cmra_discrete_update. intros mz WF.
+      apply exclusive_Some_l in WF; [|apply _].
+      subst. done.
     Qed.
   End CONSENT.
+  Global Typeclasses Opaque vote.
+  Global Opaque vote.
 End Consent.
+Global Arguments Consent.vote {_} _ _.
 
 Module ConsentP.
   Lemma vote_agree (A: Type)
@@ -967,9 +700,9 @@ Module ConsentP.
     iCombine "H0 H1" as "H". iOwnWf "H". apply Consent.vote_agree in H0. des. auto.
   Qed.
 
-  Definition voted (A: Type)
+  Definition voted
              `{@GRA.inG (Consent.t A) Σ}
-             (a: A): iProp :=
+             (a: A): iProp Σ :=
     ∃ q, OwnM (Consent.vote a q).
 
   Lemma voted_agree (A: Type)
@@ -980,7 +713,7 @@ Module ConsentP.
       -∗
       (⌜a0 = a1⌝).
   Proof.
-    iIntros "[[% H0] [% H1]]". iApply vote_agree. iFrame.
+    iIntros "[[% H0] [% H1]]". iApply vote_agree. iFrame "H0 H1".
   Qed.
 
   Lemma voted_duplicable (A: Type)
@@ -998,9 +731,9 @@ Module ConsentP.
     { iExists _. iFrame. }
   Qed.
 
-  Definition voted_singleton (A: Type)
+  Definition voted_singleton
              `{@GRA.inG (@FiniteMap.t (Consent.t A)) Σ}
-             k (a: A): iProp :=
+             k (a: A): iProp Σ :=
     ∃ q, OwnM (FiniteMap.singleton k (Consent.vote a q)).
 
   Lemma voted_agree_singleton (A: Type)
@@ -1013,7 +746,7 @@ Module ConsentP.
   Proof.
     iIntros "[[% H0] [% H1]]".
     iCombine "H0 H1" as "H". iOwnWf "H".
-    rewrite FiniteMap.singleton_add in H0. apply FiniteMap.singleton_wf in H0.
+    apply FiniteMap.singleton_wf in H0.
     apply Consent.vote_agree in H0. des. auto.
   Qed.
 
@@ -1032,4 +765,6 @@ Module ConsentP.
     { iExists _. iFrame. }
     { iExists _. iFrame. }
   Qed.
+  Global Typeclasses Opaque voted voted_singleton.
+  Global Opaque voted voted_singleton.
 End ConsentP.

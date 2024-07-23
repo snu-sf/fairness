@@ -169,7 +169,7 @@ Section SPEC.
             ∗ (⤉ dead γi1 tt)
             ∗ (⤉ live γ2 tt 1)
             ∗ (⤉ (○ γs1 (tid1, k1, γ1)))
-            ∗ (Duty (tid1) []) 
+            ∗ (Duty (tid1) [])
             ∗ (((Duty (tid2) [(k2, 0, dead γ2 tt : sProp (1+n))])
                 ∗ (◇[k2](2, 1))
                 ∗ (⤉ (○ γs2 (tid2, k2, γ2))))
@@ -212,7 +212,7 @@ Section SPEC.
     iIntros "(#INV & #MEM & WM1 & DUTY & #DEADI & #DEADI1 & #OBL2 & PC & #PRM2)". iIntros "POST".
     (* Induction point *)
     iRevert "WM1 PC DUTY POST".
-    iMod (tpromise_ind2 with "[] [-]") as "IH"; cycle 2. done. iSplit; done.
+    iMod (tpromise_ind2 with "[] [-]") as "IH"; cycle 2. iApply "IH". iFrame "#".
     iSplit.
     { (* Inductive case *)
       iModIntro. iIntros "IH". iModIntro.
@@ -295,7 +295,7 @@ Section SPEC.
             do 6 (iExists _; red_tl); red_tl_all. simpl.
             iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
             iSplitL "LIVE1"; [done|]. iSplitL "LIVE2"; [done|].
-            iRight. iSplitR; [done |]. iRight. iFrame. iSplit; done.
+            iRight. iSplitR; [done |]. iRight. iFrame "# PTX BM1 BM2 DEADI2 PO2".
           }
           iPoseProof (pc_split _ _ 1 with "PC") as "[PC' PC]".
           iApply (wpsim_yieldR with "[DUTY PC']"). auto. iFrame. iApply (pcs_cons_fold with "[PC']"). iFrame.
@@ -306,7 +306,7 @@ Section SPEC.
             { simpl. red_tl; simpl. iIntros "[? _]". done. }
           }
           iIntros (rv) "[_ %NEQ]". exploit NEQ. auto. i; subst. rred2r.
-          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM1]"). iSplitR; auto. iFrame. iSplit; auto.
+          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM1]"). iSplitR; [done|]. iFrame "#∗".
         }
       }
       { iDestruct "H" as "(PTX & BM1 & BM2 & DEADI2 & #DEAD2 & PO2 & #AO1)".
@@ -316,7 +316,7 @@ Section SPEC.
           do 6 (iExists _; red_tl); red_tl_all. simpl.
           iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
           iSplitL "LIVE1"; [done|]. iSplitL "LIVE2"; [done|].
-          iRight. iSplitR; [done |]. iRight. iFrame. iSplit; done.
+          iRight. iSplitR; [done |]. iRight. iFrame "#∗".
         }
         iPoseProof (pc_split _ _ 1 with "PC") as "[PC' PC]".
         iApply (wpsim_yieldR with "[DUTY PC']"). auto. iFrame. iApply (pcs_cons_fold with "[PC']"). iFrame.
@@ -346,7 +346,7 @@ Section SPEC.
             do 6 (iExists _; red_tl); red_tl_all. simpl.
             iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
             iSplitL "LIVE1"; [done|]. iSplitL "LIVE2"; [done|].
-            iRight. iSplitR; [done |]. iRight. iFrame.
+            iRight. iSplitR; [done |]. iRight. iFrame "#∗".
           }
           iApply (wpsim_yieldR with "[DUTY PC]"). auto. iFrame. iApply (pcs_cons_fold with "[PC]"). iFrame.
           iIntros "DUTY _". rred2r.
@@ -356,7 +356,7 @@ Section SPEC.
             { simpl. red_tl; simpl. iIntros "[? _]". done. }
           }
           iIntros (rv) "[_ %NEQ]". exploit NEQ. auto. i; subst. rred2r.
-          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM1]"). iSplitR; auto. iFrame. iSplit; auto.
+          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM1]"). iSplitR; [done|]. iFrame "#∗".
         }
       }
     }
@@ -386,7 +386,7 @@ Section SPEC.
           do 6 (iExists _; red_tl); red_tl_all. simpl.
           iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
           iSplitL "LIVE1"; [done|]. iSplitL "LIVE2"; [done|].
-          iRight. iSplitR; [done |]. iRight. iFrame. iSplit; done.
+          iRight. iSplitR; [done |]. iRight. iFrame "#∗".
         }
         iClear "DEAD2 DPRM1 DPRM2 OBL1 OBL2'". iRename "DEAD2'" into "DEAD2". clear k2'' γ1''' γ2''.
         iPoseProof (pc_split _ _ 1 with "PC") as "[PC' PC]".
@@ -426,7 +426,7 @@ Section SPEC.
             { simpl. red_tl; simpl. iIntros "[? _]". done. }
           }
           iIntros (rv) "[_ %NEQ]". exploit NEQ. auto. i; subst. rred2r.
-          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM1]"). iSplitR; auto. iFrame. iSplit; auto.
+          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM1]"). iSplitR; [done|]. iFrame. iSplit; auto.
         }
       }
     }
@@ -525,7 +525,7 @@ Section SPEC.
       iPoseProof (pc_split _ _ 2 2 with "[PC]") as "[PC' PC]". done.
       iApply (Client04_load_loop_spec1 with "[WM DUTY PC'] [-]").
       { simpl. red_tl_all; simpl. rewrite red_syn_inv; rewrite red_syn_tgt_interp_as; red_tl_all.
-        iFrame. do 4 (iSplit; [done | ]). iSplit; auto.
+        iFrame "#∗".
       }
       iIntros (rv') "(%EQ & POST)"; subst. iEval (simpl; red_tl_all; simpl) in "POST".
       iDestruct "POST" as "(DUTY & #DEAD2 & #AO1 & WM)". rred2r. iClear "OBL2".
@@ -640,7 +640,7 @@ Section SPEC.
       iPoseProof (pc_split _ _ 2 2 with "[PC]") as "[PC' PC]". done.
       iApply (Client04_load_loop_spec1 with "[WM DUTY PC'] [-]").
       { simpl. red_tl_all; simpl. rewrite red_syn_inv; rewrite red_syn_tgt_interp_as; red_tl_all.
-        iFrame. do 5 (iSplit; [done | ]). done.
+        iFrame "#∗".
       }
       iIntros (rv') "(%EQ & POST)"; subst. iEval (simpl; red_tl_all; simpl) in "POST".
       iDestruct "POST" as "(DUTY & #DEAD2 & #AO1 & WM)". rred2r. iClear "OBL2".
@@ -736,7 +736,7 @@ Section SPEC.
     iIntros "(#INV & #MEM & WM2 & DUTY & #DEADI & #DEADI2 & #OBL1 & PC & #PRM1)". iIntros "POST".
     (* Induction point *)
     iRevert "WM2 PC DUTY POST".
-    iMod (tpromise_ind2 with "[] [-]") as "IH"; cycle 2. done. iSplit; done.
+    iMod (tpromise_ind2 with "[] [-]") as "IH"; cycle 2. iApply "IH". iSplit; done.
     iSplit.
     { (* Inductive case *)
       iModIntro. iIntros "IH". iModIntro.
@@ -797,7 +797,7 @@ Section SPEC.
             { simpl. red_tl; simpl. iIntros "[? _]". done. }
           }
           iIntros (rv) "[_ %NEQ]". exploit NEQ. auto. i; subst. rred2r.
-          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM2]"). iSplitR; auto. iFrame. iSplit; auto.
+          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM2]"). iSplitR; [done|]. iFrame. iSplit; auto.
         }
         { iExFalso. iPoseProof (AuthExcls.b_w_eq with "BM2 WM2") as "%EQ"; des; clarify.
           iApply (pending_not_active with "PO AO2").
@@ -814,8 +814,8 @@ Section SPEC.
           do 6 (iExists _; red_tl); red_tl_all. simpl.
           iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
           iSplitL "LIVE1"; [done|]. iSplitL "LIVE2"; [done|].
-          iRight. iSplitR; [done |]. iRight. iFrame. iSplitR. iExists k1'; red_tl_all; auto. iSplitR; auto.
-          iSplitL. iPoseProof (pps_cons_unfold with "PO") as "[PO _]". done. done.
+          iRight. iSplitR; [done |]. iRight. iFrame "#∗". iSplitR. iExists k1'; red_tl_all; auto.
+          iPoseProof (pps_cons_unfold with "PO") as "[PO _]". done.
         }
         iModIntro. rred2r. iClear "DPRM1 DPRM2 OBL1' OBL2 DEAD2 AO1". clear k1'' γ2''' γ1'''.
         iInv "INV" as "CI" "CI_CLOSE".
@@ -852,7 +852,7 @@ Section SPEC.
             { simpl. red_tl; simpl. iIntros "[? _]". done. }
           }
           iIntros (rv) "[_ %NEQ]". exploit NEQ. auto. i; subst. rred2r.
-          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM2]"). iSplitR; auto. iFrame. iSplit; auto.
+          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM2]"). iSplitR; [done|]. iFrame "#∗".
         }
         { iApply (SCMem_load_fun_spec with "[PTX]"). auto.
           { pose proof mask_disjoint_N_Client04_state_tgt. set_solver. }
@@ -869,7 +869,7 @@ Section SPEC.
             do 6 (iExists _; red_tl); red_tl_all. simpl.
             iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
             iSplitL "LIVE1"; [done|]. iSplitL "LIVE2"; [done|].
-            iRight. iSplitR; [done |]. iRight. iFrame. repeat iSplit; auto. iExists k1'; red_tl_all; auto.
+            iRight. iSplitR; [done |]. iRight. iFrame "#∗". iExists k1'; red_tl_all; auto.
           }
           iModIntro. rred2r.
           iApply SCMem_compare_fun_spec. instantiate (1:=n). auto. set_solver.
@@ -945,7 +945,7 @@ Section SPEC.
             { simpl. red_tl; simpl. iIntros "[? _]". done. }
           }
           iIntros (rv) "[_ %NEQ]". exploit NEQ. auto. i; subst. rred2r.
-          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM2]"). iSplitR; auto. iFrame. iSplit; auto.
+          iApply wpsim_tauR. rred2r. iApply ("POST" with "[DUTY WM2]"). iSplitR; [done|]. iFrame "#∗".
         }
         { iExFalso. iPoseProof (AuthExcls.b_w_eq with "BM2 WM2") as "%EQ"; des; clarify.
           iApply (pending_not_active with "PO AO2").
@@ -1033,7 +1033,7 @@ Section SPEC.
         do 6 (iExists _; red_tl); red_tl_all. simpl.
         iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
         iSplitL "LIVE1"; [done|]. iSplitL "LIVE2'"; [done|].
-        iRight. iSplitR; [done |]. iRight. iFrame. iSplit; auto. iExists k1; red_tl_all; auto.
+        iRight. iSplitR; [done |]. iRight. iFrame "#∗". iExists k1; red_tl_all; auto.
       }
 
       iClear "DPRM1 DPRM2 OBL2 AO1". clear k2 γ2 γ2'' γ1'. rename k2' into k2. rename γ2' into γ2.
@@ -1050,7 +1050,7 @@ Section SPEC.
       iPoseProof (pc_split _ _ 2 2 with "[PC]") as "[PC' PC]". done.
       iApply (Client04_load_loop_spec2 with "[WM DUTY PC'] [-]").
       { simpl. red_tl_all; simpl. rewrite red_syn_inv; rewrite red_syn_tgt_interp_as; red_tl_all.
-        iFrame. do 4 (iSplit; [done | ]). iSplit; auto.
+        iFrame "#∗".
       }
       iIntros (rv') "(%EQ & POST)"; subst. iEval (simpl; red_tl_all; simpl) in "POST".
       iDestruct "POST" as "(DUTY & #DEAD1 & #AO2 & WM)". rred2r. iClear "OBL1".
@@ -1106,7 +1106,8 @@ Section SPEC.
           do 6 (iExists _; red_tl); red_tl_all. simpl.
           iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
           iSplitL "LIVE1"; [done|]. iSplitL "LIVE2'"; [done|].
-          iRight. iSplitR; [done |]. iRight. iFrame. iSplit; auto. iExists k1; red_tl_all; auto.
+          iRight. iSplitR; [done |]. iRight. iFrame "#∗".
+          iExists k1; red_tl_all; auto.
         }
         iApply wpsim_reset. iApply wpsim_base. auto. iApply ("CIH" $! (k2', γ2', γ1', k1'') with "[-]").
         iSplitR.
@@ -1145,7 +1146,8 @@ Section SPEC.
         do 6 (iExists _; red_tl); red_tl_all. simpl.
         iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
         iSplitL "LIVE1"; [done|]. iSplitL "LIVE2'"; [done|].
-        iRight. iSplitR; [done |]. iRight. iFrame. iSplit; auto. iExists k1; red_tl_all; auto.
+        iRight. iSplitR; [done |]. iRight. iFrame "#∗".
+        iExists k1; red_tl_all; auto.
       }
 
       iClear "DPRM2 DPRM1 OBL2 AO1". clear k2 γ2 γ2''. rename k2' into k2. rename γ2' into γ2.
@@ -1161,7 +1163,7 @@ Section SPEC.
       iPoseProof (pc_split _ _ 2 2 with "[PC]") as "[PC' PC]". done.
       iApply (Client04_load_loop_spec2 with "[WM DUTY PC'] [-]").
       { simpl. red_tl_all; simpl. rewrite red_syn_inv; rewrite red_syn_tgt_interp_as; red_tl_all.
-        iFrame. do 5 (iSplit; [done | ]). done.
+        iFrame "#∗".
       }
       iIntros (rv') "(%EQ & POST)"; subst. iEval (simpl; red_tl_all; simpl) in "POST".
       iDestruct "POST" as "(DUTY & #DEAD1 & #AO2 & WM)". rred2r. iClear "OBL1".
@@ -1217,7 +1219,8 @@ Section SPEC.
           do 6 (iExists _; red_tl); red_tl_all. simpl.
           iSplitR; [iApply "DPRM1"|]. iSplitR; [iApply "DPRM2"|]. iSplitR; [done|]. iSplitR; [done|].
           iSplitL "LIVE1"; [done|]. iSplitL "LIVE2'"; [done|].
-          iRight. iSplitR; [done |]. iRight. iFrame. iSplit; auto. iExists k1; red_tl_all; auto.
+          iRight. iSplitR; [done |]. iRight. iFrame "#∗".
+          iExists k1; red_tl_all; auto.
         }
         iApply wpsim_reset. iApply wpsim_base. auto. iApply ("CIH" $! (k2', γ2', γ1', k1'') with "[-]").
         iSplitR.
@@ -1241,17 +1244,17 @@ Section SPEC.
     Let init_ord := Ord.O.
     (* Let init_ord := layer 2 1. *)
     Let init_ths :=
-          (NatStructsLarge.NatMap.add
+          (NatStructs.NatMap.add
              tid1 tt
-             (NatStructsLarge.NatMap.add
+             (NatStructs.NatMap.add
                 tid2 tt
-                (NatStructsLarge.NatMap.empty unit))).
+                (NatStructs.NatMap.empty unit))).
 
     Let idx := 1.
 
     Lemma init_sat E (H_TID : tid1 <> tid2) :
-      (OwnM (memory_init_resource Client04.gvs))
-        ∗ (AuthExcls.rest_gt (0, 0, 0))
+      (OwnM (Σ:=Σ) (memory_init_resource Client04.gvs))
+        ∗ (AuthExcls.rest_gt (Σ:=Σ) (0, 0, 0))
         ∗
         (WSim.initial_prop
            Client04Spec.module Client04.module
@@ -1304,16 +1307,16 @@ Section SPEC.
       unfold WSim.initial_prop.
       iDestruct "INIT" as "(INIT0 & INIT1 & INIT2 & INIT3 & INIT4 & INIT5)".
       (* make thread_own, duty *)
-      assert (NatStructsLarge.NatMap.find tid1 init_ths = Some tt).
-      { unfold init_ths. apply NatStructsLarge.nm_find_add_eq. }
+      assert (NatStructs.NatMap.find tid1 init_ths = Some tt).
+      { unfold init_ths. apply NatStructs.nm_find_add_eq. }
       iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU1 INIT2]".
       iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH1 INIT3]".
       clear H.
-      assert (NatStructsLarge.NatMap.find tid2 (NatStructsLarge.NatMap.remove tid1 init_ths) = Some tt).
+      assert (NatStructs.NatMap.find tid2 (NatStructs.NatMap.remove tid1 init_ths) = Some tt).
       { unfold init_ths.
-        rewrite NatStructsLarge.NatMapP.F.remove_neq_o; ss.
-        rewrite NatStructsLarge.nm_find_add_neq; ss.
-        rewrite NatStructsLarge.nm_find_add_eq. ss.
+        rewrite NatStructs.NatMapP.F.remove_neq_o; ss.
+        rewrite NatStructs.nm_find_add_neq; ss.
+        rewrite NatStructs.nm_find_add_eq. ss.
       }
       iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU2 INIT2]".
       iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH2 INIT3]".
@@ -1354,7 +1357,7 @@ Section SPEC.
       { simpl. unfold SCMem.init_gvars, gvs. ss. des_ifs. iDestruct "PTS" as "((PT & _) & _)".
         unfold client04Inv. red_tl.
         iExists k1; red_tl. iExists k2; red_tl. iExists γi1; red_tl. iExists γi2; red_tl.
-        iExists γi1; red_tl. iExists γi2; red_tl. simpl. red_tl_all. iFrame. repeat iSplit; auto. iLeft. iFrame.
+        iExists γi1; red_tl. iExists γi2; red_tl. simpl. red_tl_all. iFrame "#∗". iLeft. iFrame.
         Local Transparent SCMem.alloc.
         unfold SCMem.alloc in Heq0. ss. des_ifs.
         Local Opaque SCMem.alloc.

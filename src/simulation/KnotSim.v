@@ -1,10 +1,11 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From iris.algebra Require Import cmra.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
-From Fairness Require Export ITreeLib FairBeh NatStructsLarge.
+From Fairness Require Export ITreeLib FairBeh NatStructs.
 From Fairness Require Export Mod ModSimStutter Concurrency.
 From Fairness Require Import pind PCM World.
 
@@ -14,7 +15,7 @@ Set Implicit Arguments.
 
 Section KSIM.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -89,7 +90,7 @@ Section KSIM.
                      (forall im_tgt0
                         (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr0)))),
                          (sim_knot thsl0 thsr0 tid0
-                                   (snd (get_resource tid0 rs_local0))
+                                   (snd (@get_resource M tid0 rs_local0))
                                    true true
                                    (b, Vis (inl1 (inl1 (inr1 Yield))) (fun _ => th_src))
                                    (th_tgt)
@@ -100,7 +101,7 @@ Section KSIM.
                        exists im_src0,
                          (fair_update im_src im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl0)))) /\
                            (sim_knot thsl0 thsr0 tid0
-                                     (snd (get_resource tid0 rs_local0))
+                                     (snd (@get_resource M tid0 rs_local0))
                                      true true
                                      (b, th_src)
                                      th_tgt
@@ -131,7 +132,7 @@ Section KSIM.
                      (forall im_tgt0 (FAIR: fair_update im_tgt im_tgt0 (prism_fmap inlp (tids_fmap tid0 (key_set thsr1)))),
                        exists o0, ((wf_stt R0 R1).(lt) o0 o) /\
                                (sim_knot thsl1 thsr1 tid0
-                                         (snd (get_resource tid0 rs_local0))
+                                         (snd (@get_resource M tid0 rs_local0))
                                          true true
                                          (b, Vis (inl1 (inl1 (inr1 Yield))) (fun _ => th_src))
                                          (th_tgt)
@@ -142,7 +143,7 @@ Section KSIM.
                          (fair_update im_src im_src0 (prism_fmap inlp (tids_fmap tid0 (key_set thsl1)))) /\
                            ((wf_stt R0 R1).(lt) o0 o) /\
                            (sim_knot thsl1 thsr1 tid0
-                                     (snd (get_resource tid0 rs_local0))
+                                     (snd (@get_resource M tid0 rs_local0))
                                      true true
                                      (b, th_src)
                                      th_tgt

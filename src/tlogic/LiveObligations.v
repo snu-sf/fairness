@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
 From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import NatMapRALarge MonotoneRA RegionRA.
+From Fairness Require Import NatMapRA MonotoneRA RegionRA.
 Require Import Coq.Classes.RelationClasses.
 From Fairness Require Import Axioms.
 Require Import Program.
@@ -195,6 +195,7 @@ Section RULES.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA: @GRA.inG ArrowRA Σ}.
+  Notation iProp := (iProp Σ).
 
   Import ObligationRA.
 
@@ -218,14 +219,17 @@ Section RULES.
   Definition active_obligation (k : nat) :=
     (shot k)%I.
 
-  Global Program Instance Persistent_liveness_obligation_fine k l a :
+  Global Instance Persistent_liveness_obligation_fine k l a :
     Persistent (liveness_obligation_fine k l a).
+  Proof. apply _. Qed.
 
-  Global Program Instance Persistent_liveness_obligation k l :
+  Global Instance Persistent_liveness_obligation k l :
     Persistent (liveness_obligation k l).
+  Proof. apply _. Qed.
 
-  Global Program Instance Persistent_active_obligation k :
+  Global Instance Persistent_active_obligation k :
     Persistent (active_obligation k).
+  Proof. apply _. Qed.
 
   Lemma pending_active k
     :
@@ -1106,6 +1110,7 @@ Section ELI.
   Context `{EDGERA : @GRA.inG EdgeRA Σ}.
   Context `{ARROWSHOTRA : @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA : @GRA.inG ArrowRA Σ}.
+  Notation iProp := (iProp Σ).
 
   Definition env_live_chain0 (x : nat) E (k : nat) {v} (A T : Vars v) : iProp :=
     □((€) -∗ (prop _ A)

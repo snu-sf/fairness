@@ -8,9 +8,7 @@ COQTHEORIES  := \
 	src/ra/*.v \
 	src/tlogic/*.v \
 	src/example/*.v \
-	src/iris_algebra/*.v \
-	src/iris_algebra/lib/*.v \
-	src/iris_base_logic/*.v \
+	src/bi/lib/*.v \
 	src/example/treiber/*.v \
 	src/example/elimstack/*.v \
 	src/example/fos_ticketlock/*.v \
@@ -34,12 +32,11 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-Q src/simulation $(COQMODULE)"; \
 	 echo "-Q src/scheduler_example $(COQMODULE)"; \
 	 echo "-Q src/ra $(COQMODULE)"; \
+	 echo "-Q src/bi $(COQMODULE)"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
-	 echo "-Q src/iris_algebra $(COQMODULE)"; \
-	 echo "-Q src/iris_base_logic $(COQMODULE)"; \
-   \
+	 \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq
 

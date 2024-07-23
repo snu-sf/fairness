@@ -1,3 +1,4 @@
+From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.
@@ -106,7 +107,7 @@ Section SIM_REFLEXIVE.
   Context {p_src : Prism.t K_src J}.
   Context {p_tgt : Prism.t K_tgt J}.
 
-  Variable I : @shared S_src S_tgt K_src K_tgt nat_wf nat_wf -> Unit -> Prop.
+  Variable I : @shared S_src S_tgt K_src K_tgt nat_wf nat_wf -> unitUR -> Prop.
 
   Hypothesis I_update_thread :
     forall ths im_src im_tgt st_src st_tgt w,
@@ -172,7 +173,7 @@ Section SIM_REFLEXIVE.
   Section LSIM.
 
     Variable R : Type.
-    Variable RR : R -> R -> Unit -> shared S_src S_tgt K_src K_tgt nat_wf nat_wf -> Prop.
+    Variable RR : R -> R -> unitUR -> shared S_src S_tgt K_src K_tgt nat_wf nat_wf -> Prop.
 
     Hypothesis I_RR_compatible :
       forall r ths im_src im_tgt st_src st_tgt w w',
@@ -199,7 +200,7 @@ Section SIM_REFLEXIVE.
         eapply pind9_fold. eapply lsim_tauR. split; ss.
         eapply pind9_fold. eapply lsim_progress.
         gbase. eapply CIH; eauto.
-      - rewrite ! map_event_vis, <- ! bind_trigger. gstep.
+      - rewrite !map_event_vis -!bind_trigger. gstep.
         destruct e as [[[e|e]|e]|e]; destruct e.
         + eapply pind9_fold. eapply lsim_chooseR. i. esplit; ss.
           eapply pind9_fold. eapply lsim_chooseL. exists x. esplit; ss.
@@ -222,8 +223,9 @@ Section SIM_REFLEXIVE.
         + eapply pind9_fold. eapply lsim_observe. i.
           gbase. eapply CIH; eauto.
         + eapply pind9_fold. eapply lsim_UB.
-        + eapply pind9_fold. eapply lsim_sync; eauto using Unit_wf. i.
-          gbase. eapply CIH.
+        + eapply pind9_fold. eapply lsim_sync; eauto.
+          { Unshelve. all: done. }
+          i. gbase. eapply CIH.
           { eapply I_update_imap_thread_id_fair; eauto. }
         + eapply pind9_fold. eapply lsim_tidR. esplit; ss.
           eapply pind9_fold. eapply lsim_tidL. esplit; ss.
@@ -236,7 +238,6 @@ Section SIM_REFLEXIVE.
           eapply pind9_fold. eapply lsim_progress.
           eapply I_update_state in INV. des. rewrite INV.
           gbase. eapply CIH; eauto.
-          Unshelve. all: ss.
     Qed.
 
   End LSIM.
@@ -244,13 +245,13 @@ Section SIM_REFLEXIVE.
   Lemma local_sim_refl R (itr : itree (threadE J A) R) :
     local_sim I eq (map_event (plmap p_src l_src) itr) (map_event (plmap p_tgt l_tgt) itr).
   Proof.
-    ii. exists tt, tt. splits; eauto using Unit_wf.
+    ii. exists tt, tt. splits; eauto.
     { eapply I_update_imap_thread_id_fair; eauto. }
     i.
     assert (INV_CIH : I (ths, im_src1, im_tgt3, st_src2, st_tgt2) tt).
     { eapply I_update_imap_thread_id_fair; eauto. }
     eapply lsim_refl; eauto.
-    i. ss. esplits; eauto using Unit_wf.
+    i. ss. esplits; eauto.
     Unshelve. all: exact tt.
   Qed.
 
@@ -260,7 +261,7 @@ Section ADD_RIGHT_MONO_SIM.
 
   Context {M1 M2_src M2_tgt : Mod.t}.
   Context {wf_src : WF}.
-  Context `{world : URA.t}.
+  Context `{world : ucmra}.
 
   Variable I : shared (state M2_src) (state M2_tgt) (ident M2_src) (ident M2_tgt) wf_src nat_wf -> world -> Prop.
 
@@ -269,7 +270,7 @@ Section ADD_RIGHT_MONO_SIM.
             (ModAdd M1 M2_src).(state) (ModAdd M1 M2_tgt).(state)
             (ModAdd M1 M2_src).(ident) (ModAdd M1 M2_tgt).(ident)
             (sum_wf wf_src nat_wf) nat_wf)
-      (r : URA.prod threadsRA world)
+      (r : prodUR threadsRA world)
     => let '(ths, IM_SRC, IM_TGT, st_src, st_tgt) := x in
       exists im_src0 ths_ctx0 ths_usr0,
         let im_ctx0 := pick_ctx IM_TGT in
@@ -280,14 +281,15 @@ Section ADD_RIGHT_MONO_SIM.
         /\ fst st_src = fst st_tgt
         /\ lifted I (ths_usr0, im_src0, im_tgt0, snd st_src, snd st_tgt) (snd r).
 
-  Opaque lifted threadsRA URA.prod.
+  Opaque lifted threadsRA prodUR.
 
   Lemma lift_ma_local_sim_ub R_src R_tgt (RR : R_src -> R_tgt -> Prop) ktr_src itr_tgt
     : local_sim lift_ma RR (Vis (inl1 (inl1 (inl1 Undefined))) ktr_src) itr_tgt.
   Proof.
     (* treat as if tid ∈ ths_ctx *)
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0 IM_TGT1 TID_TGT.
-    simpl in INV0_0. des. subst r_sha_th0. unfold_prod VALID0_0.
+    simpl in INV0_0. des. subst r_sha_th0.
+    rewrite -pair_op pair_valid in VALID0_0. des.
     assert (CTX_TGT : pick_ctx IM_TGT0 = pick_ctx IM_TGT1).
     { extensionalities i. specialize (TID_TGT (inr (inl i))). ss. }
     assert (USR_TGT : chop_ctx ths_usr0 IM_TGT0 = chop_ctx ths_usr0 IM_TGT1).
@@ -298,19 +300,19 @@ Section ADD_RIGHT_MONO_SIM.
         ss.
       - specialize (TID_TGT (inr (inr i))). ss.
     }
-    exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0), (local_th_context tid, URA.unit). splits.
+    exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0), (local_th_context tid, ε). splits.
     { exists im_src0, (TIdSet.add tid ths_ctx0), ths_usr0. splits; ss.
       - subst. rewrite CTX_TGT. ss.
       - eauto using NatMapP.Partition_sym, Partition_add.
       - rewrite USR_TGT in INV0_4. ss.
     }
-    { unfold_prod. split.
+    { rewrite -!pair_op /= pair_valid. split.
       - eapply inv_add_new in THS0. des; subst. eapply global_th_alloc_context.
         + eauto.
         + eapply inv_add_new. split; ss.
           ii. eapply THS0. eapply (Partition_In_left INV0_1). ss.
         + ii. eapply THS0. eapply (Partition_In_right INV0_1). ss.
-      - rewrite URA.unit_id. eauto.
+      - rewrite right_id. eauto.
     }
     i. pfold. eapply pind9_fold. rewrite <- bind_trigger. econs.
   Qed.
@@ -320,7 +322,8 @@ Section ADD_RIGHT_MONO_SIM.
   Proof.
     (* tid ∈ ths_ctx *)
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0 IM_TGT1 TID_TGT.
-    simpl in INV0_0. des. subst r_sha_th0. unfold_prod VALID0_0.
+    simpl in INV0_0. des. subst r_sha_th0.
+    rewrite -pair_op pair_valid in VALID0_0. des.
     assert (CTX_TGT : pick_ctx IM_TGT0 = pick_ctx IM_TGT1).
     { extensionalities i. specialize (TID_TGT (inr (inl i))). ss. }
     assert (USR_TGT : chop_ctx ths_usr0 IM_TGT0 = chop_ctx ths_usr0 IM_TGT1).
@@ -331,23 +334,24 @@ Section ADD_RIGHT_MONO_SIM.
         ss.
       - specialize (TID_TGT (inr (inr i))). ss.
     }
-    exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0), (local_th_context tid, URA.unit). splits.
+    exists (global_th (TIdSet.add tid ths_ctx0) ths_usr0, r_sha_w0), (local_th_context tid, ε). splits.
     { exists im_src0, (TIdSet.add tid ths_ctx0), ths_usr0. splits; ss.
       - subst. rewrite CTX_TGT. ss.
       - eauto using NatMapP.Partition_sym, Partition_add.
       - rewrite USR_TGT in INV0_4. ss.
     }
-    { unfold_prod. split.
+    { rewrite -!pair_op /= pair_valid. split.
       - eapply inv_add_new in THS0. des; subst. eapply global_th_alloc_context.
         + eauto.
         + eapply inv_add_new. split; ss.
           ii. eapply THS0. eapply (Partition_In_left INV0_1). ss.
         + ii. eapply THS0. eapply (Partition_In_right INV0_1). ss.
-      - rewrite URA.unit_id. eauto.
+      - rewrite right_id. eauto.
     }
     intros ths1 IM_SRC1 IM_TGT2 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0.
     intros IM_TGT2' TGT fs ft.
-    simpl in INV1_0. des. subst r_sha_th1. unfold_prod VALID1_0.
+    simpl in INV1_0. des. subst r_sha_th1.
+    rewrite -!pair_op /= pair_valid right_id in VALID1_0. des.
     unfold emb_l, emb_r.
     assert (INV : lift_ma (ths1, IM_SRC1, IM_TGT2', st_src1, st_tgt1) (global_th ths_ctx1 ths_usr1, r_sha_w1)).
     { ss. exists im_src1, ths_ctx1, ths_usr1. splits; ss.
@@ -366,9 +370,9 @@ Section ADD_RIGHT_MONO_SIM.
     destruct_itree itr; [| | destruct e as [[[]|]|] ].
     - rewrite ! map_event_ret.
       gstep. eapply pind9_fold. econs. ss.
-      exists (NatSet.remove tid ths0), (URA.unit, URA.unit), (global_th (NatSet.remove tid ths_ctx0) ths_usr0, r_sha_w0).
+      exists (NatSet.remove tid ths0), (ε, ε), (global_th (NatSet.remove tid ths_ctx0) ths_usr0, r_sha_w0).
       splits; ss.
-      { unfold_prod. split.
+      { rewrite -!pair_op /= pair_valid !right_id. split.
         - eapply global_th_dealloc_context; eauto.
         - eauto.
       }
@@ -410,9 +414,9 @@ Section ADD_RIGHT_MONO_SIM.
       gstep. destruct c.
       + eapply pind9_fold. eapply lsim_sync.
         { eapply INV0. }
-        { instantiate (1 := (local_th_context tid, ε)). unfold_prod. split; ss. }
+        { instantiate (1 := (local_th_context tid, ε)). rewrite -!pair_op right_id pair_valid. split; ss. }
         intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT1' TGT.
-        simpl in INV1_0. des. subst r_sha_th1. rename im_src0 into im_src1. unfold_prod VALID1_0.
+        simpl in INV1_0. des. subst r_sha_th1. rename im_src0 into im_src1. rewrite -!pair_op right_id pair_valid in VALID1_0. des.
         gfinal. left. eapply CIH; eauto.
         { exists im_src1, ths_ctx1, ths_usr1. ss. splits; ss.
           - eapply pick_ctx_fair_thread in TGT. rewrite <- TGT. ss.
@@ -445,7 +449,7 @@ Section ADD_RIGHT_MONO_SIM.
   Proof.
     (* tid ∈ ths_usr *)
     intros ths IM_SRC0 IM_TGT0 st_src0 st_tgt0 [r_sha_th0 r_sha_w0] [r_ctx_th0 r_ctx_w0] INV0_0 tid ths0 THS0 VALID0_0. i.
-    simpl in INV0_0. des. subst r_sha_th0. unfold_prod VALID0_0.
+    simpl in INV0_0. des. subst r_sha_th0. rewrite -!pair_op pair_valid in VALID0_0. des.
     move SIM at bottom.
     assert (THS0' : TIdSet.add_new tid ths_usr0 (TIdSet.add tid ths_usr0)).
     { eapply inv_add_new. split; ss. eapply inv_add_new in THS0. des.
@@ -471,14 +475,14 @@ Section ADD_RIGHT_MONO_SIM.
         eapply inv_add_new; eauto.
       - eapply INV_USR.
     }
-    { unfold_prod. split.
+    { rewrite -!pair_op pair_valid. split.
       - eapply global_th_alloc_user; eauto.
         eapply inv_add_new in THS0. des. ii. eapply THS0.
         eapply Partition_In_left in INV0_1. eapply INV0_1. ss.
       - eauto.
     }
     intros ths2 IM_SRC2 IM_TGT2 st_src2 st_tgt2 [r_sha_th2 r_sha_w2] [r_ctx_th2 r_ctx_w2] INV2_0 VALID2_0 IM_TGT2' TGT fs ft.
-    simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. unfold_prod VALID2_0.
+    simpl in INV2_0. destruct INV2_0 as [im_src2 [ths_ctx2 [ths_usr2 INV2_0]]]. des. subst r_sha_th2. rewrite -!pair_op pair_valid /= in VALID2_0. des.
     assert (TGT' : @fair_update _ nat_wf (chop_ctx ths_usr2 IM_TGT2) (chop_ctx ths_usr2 IM_TGT2') (prism_fmap inlp (tids_fmap tid ths_usr2))).
     { eapply chop_ctx_fair_thread2.
       - eapply Partition_In_right in INV2_1. eapply INV2_1.
@@ -506,9 +510,9 @@ Section ADD_RIGHT_MONO_SIM.
     - clear - LSIM VALID_TH0 VALID_W0 INV1 INV2.
       rewrite ! map_event_ret. econs.
       ss. des. subst.
-      exists (NatMap.remove tid ths0), (URA.unit, r_own), (global_th ths_ctx0 (NatMap.remove tid ths_usr0), r_shared).
+      exists (NatMap.remove tid ths0), (ε, r_own), (global_th ths_ctx0 (NatMap.remove tid ths_usr0), r_shared).
       splits; ss.
-      + unfold_prod. split.
+      + rewrite -!pair_op /= right_id pair_valid. split.
         * eapply global_th_dealloc_user; eauto.
         * ss.
       + esplits; ss.
@@ -572,9 +576,9 @@ Section ADD_RIGHT_MONO_SIM.
       { instantiate (1 := (global_th ths_ctx0 ths_usr0, r_shared)).
         ss. exists im_src0, ths_ctx0, ths_usr0. splits; ss.
       }
-      { instantiate (1 := (local_th_user tid, r_own)). unfold_prod. split; ss. }
+      { instantiate (1 := (local_th_user tid, r_own)). rewrite -!pair_op pair_valid. split; ss. }
       intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT2 TGT.
-      split; ss. des. unfold_prod VALID1_0.
+      split; ss. des. rewrite -!pair_op pair_valid in VALID1_0. des.
       assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (prism_fmap inlp (tids_fmap tid ths_usr1))).
       { ii. unfold prism_fmap. destruct i as [i|i]; ss.
         - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). unfold prism_fmap in *; ss.
@@ -593,9 +597,9 @@ Section ADD_RIGHT_MONO_SIM.
       { instantiate (1 := (global_th ths_ctx0 ths_usr0, r_shared)).
         ss. exists im_src0, ths_ctx0, ths_usr0. splits; ss.
       }
-      { instantiate (1 := (local_th_user tid, r_own)). unfold_prod. split; ss. }
+      { instantiate (1 := (local_th_user tid, r_own)). rewrite -!pair_op pair_valid. split; ss. }
       intros ths1 IM_SRC1 IM_TGT1 st_src1 st_tgt1 [r_sha_th1 r_sha_w1] [r_ctx_th1 r_ctx_w1] INV1_0 VALID1_0 IM_TGT2 TGT.
-      ss. des. unfold_prod VALID1_0.
+      ss. des. rewrite -!pair_op pair_valid in VALID1_0. des.
       assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (prism_fmap inlp (tids_fmap tid ths_usr1))).
       { ii. destruct i as [i|i]; ss.
         - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). unfold prism_fmap in *; ss.
@@ -605,9 +609,9 @@ Section ADD_RIGHT_MONO_SIM.
       }
       specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
       pclearbot. gfinal. left. eapply CIH; eauto.
+      + subst. ss.
       + subst. extensionalities i. destruct i as [i|i]; ss. f_equal.
         specialize (TGT (inr (inl i))). ss.
-      + subst. ss.
     - econs. pclearbot. gfinal. left. eapply CIH; eauto.
   Qed.
 
@@ -617,20 +621,19 @@ Section MODADD_THEOREM.
 
   Theorem ModAdd_comm M1 M2 : ModSim.mod_sim (ModAdd M1 M2) (ModAdd M2 M1).
   Proof.
-    Local Opaque Unit.
-    pose proof Unit_wf.
+    (* pose proof Unit_wf. *)
     pose (I := fun (x : @shared
                        (ModAdd M1 M2).(state) (ModAdd M2 M1).(state)
                        (ModAdd M1 M2).(ident) (ModAdd M2 M1).(ident)
                        nat_wf nat_wf)
-                 (w : Unit)
+                 (w : unitUR)
                => let '(ths, m_src, m_tgt, st_src, st_tgt) := x in
                  fst st_src = snd st_tgt
                  /\ snd st_src = fst st_tgt
                  /\ (forall i, m_src (inl i) = m_tgt (inr (inr i)))
                  /\ (forall i, m_src (inr i) = m_tgt (inr (inl i)))
          ).
-    constructor 1 with nat_wf nat_wf Unit.
+    constructor 1 with nat_wf nat_wf unitUR.
     - econs. exact 0.
     - i. exists (S o0). ss.
     (* - i. exists (conv im_tgt). exists tt. ss. *)
@@ -653,24 +656,24 @@ Section MODADD_THEOREM.
           -- subst; destruct st_src, st_tgt; ss.
           -- subst; destruct st_src, st_tgt; ss.
         * firstorder.
-          -- cbn. extensionalities i. specialize (H2 i). ss.
+          -- cbn. extensionalities i. specialize (H1 i). ss.
           -- subst. ss.
-          -- subst. cbn. specialize (H3 i). ss.
+          -- subst. cbn. specialize (H2 i). ss.
         * firstorder.
+          -- subst. cbn. specialize (H2 i). ss.
           -- subst. cbn. specialize (H3 i). ss.
-          -- subst. cbn. specialize (H4 i). ss.
       + eapply local_sim_refl.
         * firstorder.
         * firstorder.
           -- subst; destruct st_src, st_tgt; ss.
           -- subst; destruct st_src, st_tgt; ss.
         * firstorder.
-          -- cbn. extensionalities i. specialize (H3 i). ss.
-          -- subst. cbn. specialize (H2 i). ss.
+          -- cbn. extensionalities i. specialize (H2 i). ss.
+          -- subst. cbn. specialize (H1 i). ss.
           -- subst. ss.
         * firstorder.
+          -- subst. cbn. specialize (H2 i). ss.
           -- subst. cbn. specialize (H3 i). ss.
-          -- subst. cbn. specialize (H4 i). ss.
       + eauto.
   Qed.
 
@@ -680,7 +683,7 @@ Section MODADD_THEOREM.
   Proof.
     i. eapply modsim_nat_modsim_exist in H. inv H.
     (* econs. *)
-    econstructor 1 with (world:=URA.prod threadsRA world).
+    econstructor 1 with (world:=prodUR threadsRA world).
     (* pose (I' := @lift_ma M1 M2_src M2_tgt _ _ I). *)
     (* constructor 1 with _ _ _ I'. *)
     { instantiate (1:=nat_wf). econs. exact 0. }
@@ -693,7 +696,7 @@ Section MODADD_THEOREM.
       - exists im_src. exists NatSet.empty, NatSet.empty. splits; ss.
         + eapply Partition_empty.
         + exists (chop_ctx NatSet.empty IM_TGT). split; ss. ii. left. ss.
-      - unfold_prod. split; ss. rewrite URA.unfold_wf. econs; ss. eapply Disjoint_empty.
+      - rewrite pair_valid. split; ss. econs; ss. eapply Disjoint_empty.
     }
     rename init0 into funs0.
     i. specialize (funs0 fn args).

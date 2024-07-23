@@ -1,40 +1,34 @@
+From iris.algebra Require Import cmra agree updates.
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IProp IPM IPropAux.
 From Fairness Require Import MonotoneRA.
-From Fairness Require Import TemporalLogic.
+From Fairness Require Import TemporalLogic OwnGhost.
+
+From iris.prelude Require Import options.
 
 Module Lifetime.
 
-  Definition t : URA.t := @FiniteMap.t (URA.prod (URA.agree Any.t) (OneShot.t unit)).
+  Definition t : ucmra := OwnG.t (prodR (agreeR (leibnizO Any.t)) (OneShot.t unit)).
 
   Section RA.
 
     Context `{Σ : GRA.t}.
     Context `{@GRA.inG t Σ}.
+    Notation iProp := (iProp Σ).
 
     Definition pending (k: nat) {T : Type} (t : T) (q: Qp): iProp :=
-      OwnM (FiniteMap.singleton
-              k ((Some (Some (t↑)) : URA.agree Any.t, OneShot.pending _ q : OneShot.t unit)
-                  : URA.prod (URA.agree Any.t) (OneShot.t unit))).
+      OwnG.to_t k (to_agree (t↑ : leibnizO Any.t), OneShot.pending _ q).
 
     Definition shot (k: nat) {T : Type} (t : T) : iProp :=
-      OwnM (FiniteMap.singleton
-              k ((Some (Some (t↑)) : URA.agree Any.t, OneShot.shot tt: OneShot.t unit):
-                  URA.prod (URA.agree Any.t) (OneShot.t unit))).
+      OwnG.to_t k (to_agree (t↑ : leibnizO Any.t), OneShot.shot tt).
 
     Lemma shot_persistent k {T} (t : T)
       :
       shot k t -∗ □ shot k t.
-    Proof.
-      iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
-    Qed.
+    Proof. iIntros "#H !>". done. Qed.
 
-    Global Program Instance Persistent_shot k {T} (t: T) : Persistent (shot k t).
-    Next Obligation.
-    Proof.
-      i. iIntros "POS". iPoseProof (shot_persistent with "POS") as "POS". auto.
-    Qed.
+    Global Instance Persistent_shot k {T} (t: T) : Persistent (shot k t).
+    Proof. apply _. Qed.
 
     Lemma pending_shot k {T} (t : T)
       :
@@ -42,8 +36,9 @@ Module Lifetime.
         -∗
         #=> (shot k t).
     Proof.
-      iApply OwnM_Upd. eapply FiniteMap.singleton_updatable.
-      { apply URA.prod_updatable. reflexivity. apply OneShot.pending_shot. }
+      iApply own_update.
+      apply prod_update; simpl in *; try reflexivity.
+      apply OneShot.pending_shot.
     Qed.
 
     Lemma pending_not_shot k q {T1 T2} (t1 : T1) (t2 : T2)
@@ -55,8 +50,7 @@ Module Lifetime.
         False.
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
-      iOwnWf "H". rewrite FiniteMap.singleton_add in H0.
-      rewrite FiniteMap.singleton_wf in H0. ur in H0. des. ur in H1. exfalso. auto.
+      iDestruct (own_valid with "H") as %[]. auto.
     Qed.
 
     Lemma pending_wf k q {T} (t : T)
@@ -65,8 +59,8 @@ Module Lifetime.
         -∗
         (⌜(q ≤ 1)%Qp⌝).
     Proof.
-      iIntros "H". iOwnWf "H".
-      rewrite FiniteMap.singleton_wf in H0. ur in H0. des. ur in H1. auto.
+      iIntros "H". iDestruct (own_valid with "H") as %[].
+      auto.
     Qed.
 
     Lemma pending_merge k q0 q1 {T} (t : T)
@@ -78,7 +72,7 @@ Module Lifetime.
         (pending k t (q0 + q1)%Qp).
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
-      rewrite FiniteMap.singleton_add. ur. ur. des_ifs.
+      rewrite -OneShot.pending_sum. done.
     Qed.
 
     Lemma pending_split k q0 q1 {T} (t : T)
@@ -87,25 +81,17 @@ Module Lifetime.
         -∗
         (pending k t q0 ∗ pending k t q1).
     Proof.
-      iIntros "H".
-      iPoseProof (OwnM_extends with "H") as "[H0 H1]"; [|iSplitL "H0"; [iApply "H0"|iApply "H1"]].
-      { rewrite FiniteMap.singleton_add. rewrite OneShot.pending_sum. ur. ur. des_ifs. reflexivity. }
+      iIntros "H". rewrite -own_op -pair_op -OneShot.pending_sum.
+      rewrite <-core_id_dup; [done|apply _].
     Qed.
 
     Lemma alloc {T} (t : T)
       :
       ⊢ #=> (∃ k, pending k t 1).
     Proof.
-      iPoseProof (@OwnM_unit _ _ H) as "H".
-      iPoseProof (OwnM_Upd_set with "H") as "> H0".
-      { eapply FiniteMap.singleton_alloc. instantiate (1:=(Some (Some (t↑)), OneShot.pending unit 1)).
-        (* repeat rewrite unfold_prod_add. repeat rewrite URA.unit_idl. repeat rewrite URA.unit_id. *)
-        rewrite unfold_prod_wf. ss. split.
-        { ur. ss. }
-        { apply OneShot.pending_one_wf. }
-      }
-      iDestruct "H0" as "[% [% H0]]".
-      des. subst. iModIntro. iExists _. iFrame.
+      iApply own_alloc. apply pair_valid; split.
+      - done.
+      - apply OneShot.pending_one_wf.
     Qed.
 
   End RA.
@@ -122,25 +108,21 @@ Section SPROP.
   Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
 
   Definition s_lft_pending {n} (k: nat) {T : Type} (t : T) (q: Qp) : sProp n :=
-    (➢(FiniteMap.singleton
-         k ((Some (Some (t↑)) : URA.agree Any.t, OneShot.pending _ q : OneShot.t unit)
-             : URA.prod (URA.agree Any.t) (OneShot.t unit))))%S.
+    (➢(OwnG.ra k (to_agree (t↑ : leibnizO _), OneShot.pending _ q)))%S.
 
   Lemma red_s_lft_pending n k T (t : T) q :
     ⟦s_lft_pending k t q, n⟧ = Lifetime.pending k t q.
   Proof.
-    unfold s_lft_pending. red_tl. ss.
+    unfold s_lft_pending. red_tl. rewrite -own_to_t_eq. ss.
   Qed.
 
   Definition s_lft_shot {n} (k: nat) {T : Type} (t : T) : sProp n :=
-    (➢(FiniteMap.singleton
-         k ((Some (Some (t↑)) : URA.agree Any.t, OneShot.shot tt: OneShot.t unit):
-             URA.prod (URA.agree Any.t) (OneShot.t unit))))%S.
+    (➢(OwnG.ra k (to_agree (t↑ : leibnizO _), OneShot.shot tt)))%S.
 
   Lemma red_s_lft_shot n k T (t : T) :
     ⟦s_lft_shot k t, n⟧ = Lifetime.shot k t.
   Proof.
-    unfold s_lft_shot. red_tl. ss.
+    unfold s_lft_shot. red_tl. rewrite -own_to_t_eq. ss.
   Qed.
 
 End SPROP.

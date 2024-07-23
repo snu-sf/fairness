@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From iris.algebra Require Import cmra.
 Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
@@ -22,14 +23,14 @@ Module ModSimN.
       mk {
           wf_src : WF;
 
-          world: URA.t;
+          world: ucmra;
 
           (* I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src nat_wf) -> world -> Prop; *)
           init: forall im_tgt,
             exists (I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src nat_wf) -> world -> Prop),
           (exists im_src r_shared,
             I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared
-            /\ (URA.wf r_shared)) /\
+            /\ (✓ r_shared)) /\
           (forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                                 | Some ktr_src, Some ktr_tgt => local_sim I (@eq Any.t) (ktr_src args) (ktr_tgt args)
                                 | None, None => True
@@ -71,7 +72,7 @@ Section NAT.
     - eauto.
   Qed.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.

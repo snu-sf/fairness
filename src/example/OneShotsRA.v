@@ -1,46 +1,41 @@
+From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IProp IPM IPropAux.
 From Fairness Require Import MonotoneRA.
-From Fairness Require Import TemporalLogic.
+From Fairness Require Import TemporalLogic OwnGhost.
+
+From iris.prelude Require Import options.
 
 Module OneShots.
 
-  Definition t (A : Type) : URA.t := @FiniteMap.t (OneShot.t A).
+  Definition t (A : Type) : ucmra := OwnG.t (OneShot.t A).
 
   Section RA.
 
     Context `{Σ : GRA.t}.
     Context `{@GRA.inG (t A) Σ}.
+    Notation iProp := (iProp Σ).
 
     Definition pending (k: nat) (q: Qp): iProp :=
-      OwnM (FiniteMap.singleton k (OneShot.pending _ q)).
+      OwnG.to_t k (OneShot.pending _ q).
 
     Definition shot (k: nat) (a : A) : iProp :=
-      OwnM (FiniteMap.singleton k (OneShot.shot a)).
+      OwnG.to_t k (OneShot.shot a).
 
     Lemma shot_persistent k a
       :
       shot k a -∗ □ shot k a.
-    Proof.
-      iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
-    Qed.
+    Proof. iIntros "#H !>". done. Qed.
 
-    Global Program Instance Persistent_shot k a : Persistent (shot k a).
-    Next Obligation.
-    Proof.
-      i. iIntros "POS". iPoseProof (shot_persistent with "POS") as "POS". auto.
-    Qed.
+    Global Instance Persistent_shot k a : Persistent (shot k a).
+    Proof. apply _. Qed.
 
     Lemma pending_shot k a
       :
       (pending k 1)
         -∗
         #=> (shot k a).
-    Proof.
-      iApply OwnM_Upd. eapply FiniteMap.singleton_updatable.
-      { apply OneShot.pending_shot. }
-    Qed.
+    Proof. iApply own_update. apply OneShot.pending_shot. Qed.
 
     Lemma pending_not_shot k q a
       :
@@ -51,8 +46,7 @@ Module OneShots.
         False.
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
-      iOwnWf "H". rewrite FiniteMap.singleton_add in H0.
-      rewrite FiniteMap.singleton_wf in H0. ur in H0. exfalso. auto.
+      iDestruct (own_valid with "H") as %[].
     Qed.
 
     Lemma pending_wf k q
@@ -61,8 +55,9 @@ Module OneShots.
         -∗
         (⌜(q ≤ 1)%Qp⌝).
     Proof.
-      iIntros "H". iOwnWf "H".
-      rewrite FiniteMap.singleton_wf in H0. ur in H0. auto.
+      iIntros "H".
+      iDestruct (own_valid with "H") as %WF.
+      auto.
     Qed.
 
     Lemma pending_merge k q0 q1
@@ -74,7 +69,7 @@ Module OneShots.
         (pending k (q0 + q1)%Qp).
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
-      rewrite FiniteMap.singleton_add. ur. ss.
+      by rewrite -OneShot.pending_sum.
     Qed.
 
     Lemma pending_split k q0 q1
@@ -83,9 +78,7 @@ Module OneShots.
         -∗
         (pending k q0 ∗ pending k q1).
     Proof.
-      iIntros "H".
-      iPoseProof (OwnM_extends with "H") as "[H0 H1]"; [|iSplitL "H0"; [iApply "H0"|iApply "H1"]].
-      { rewrite FiniteMap.singleton_add. rewrite OneShot.pending_sum. ur. reflexivity. }
+      iIntros "H". by rewrite -own_op -OneShot.pending_sum.
     Qed.
 
     Lemma shot_agree k a b
@@ -96,24 +89,15 @@ Module OneShots.
         -∗
         (⌜a = b⌝).
     Proof.
-      iIntros "A B". iCombine "A B" as "AB". iOwnWf "AB". iPureIntro.
-      rewrite FiniteMap.singleton_add in H0. rewrite FiniteMap.singleton_wf in H0.
-      apply OneShot.shot_agree in H0. auto.
+      iIntros "A B". iCombine "A B" as "AB".
+      iDestruct (own_valid with "AB") as %EQ.
+      apply OneShot.shot_agree in EQ. auto.
     Qed.
 
     Lemma alloc
       :
       ⊢ #=> (∃ k, pending k 1).
-    Proof.
-      iPoseProof (@OwnM_unit _ _ H) as "H".
-      iPoseProof (OwnM_Upd_set with "H") as "> H0".
-      { eapply FiniteMap.singleton_alloc. instantiate (1:=(OneShot.pending A 1)).
-        apply OneShot.pending_one_wf.
-      }
-      iDestruct "H0" as "[% [% H0]]".
-      des. subst. iModIntro. iExists _. iFrame.
-    Qed.
-
+    Proof. iApply own_alloc. apply OneShot.pending_one_wf. Qed.
   End RA.
 
 End OneShots.
@@ -128,21 +112,21 @@ Section SPROP.
   Context `{HasOneShots : @GRA.inG (OneShots.t A) Γ}.
 
   Definition s_oneshots_pending {n} (k: nat) (q: Qp) : sProp n :=
-    (➢(FiniteMap.singleton k (OneShot.pending _ q)))%S.
+    (➢(OwnG.ra k (OneShot.pending _ q)))%S.
 
   Lemma red_s_oneshots_pending n k q :
     ⟦s_oneshots_pending k q, n⟧ = OneShots.pending k q.
   Proof.
-    unfold s_oneshots_pending. red_tl. ss.
+    unfold s_oneshots_pending. red_tl. rewrite -own_to_t_eq. ss.
   Qed.
 
   Definition s_oneshots_shot {n} (k: nat) a : sProp n :=
-    (➢(FiniteMap.singleton k (OneShot.shot a)))%S.
+    (➢(OwnG.ra k (OneShot.shot a)))%S.
 
   Lemma red_s_oneshots_shot n k a :
     ⟦s_oneshots_shot k a, n⟧ = OneShots.shot k a.
   Proof.
-    unfold s_oneshots_shot. red_tl. ss.
+    unfold s_oneshots_shot. red_tl. rewrite -own_to_t_eq. ss.
   Qed.
 
 End SPROP.
