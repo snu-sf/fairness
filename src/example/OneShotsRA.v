@@ -5,7 +5,7 @@ From Fairness Require Import TemporalLogic.
 
 Module OneShots.
 
-  Definition t (A : Type) : URA.t := @FiniteMap.t (OneShot.t A).
+  Definition t (A : Type) : ucmra := @FiniteMap.t (OneShot.t A).
 
   Section RA.
 

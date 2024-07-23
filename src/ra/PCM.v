@@ -1,7 +1,6 @@
 From sflib Require Import sflib.
 Require Export ZArith.
 (* Require Export Znumtheory. *)
-Require Import List.
 Require Import String.
 Require Import ClassicalChoice ChoiceFacts.
 Require Import Coq.Classes.RelationClasses.
@@ -9,7 +8,10 @@ Require Import Lia.
 Require Import Program.
 From stdpp Require coPset gmap.
 From Fairness Require Import Axioms.
-From Fairness Require Import cmra excl updates.
+From Fairness Require Import ucmra_list.
+From iris.algebra Require Import cmra updates functions.
+
+From iris.prelude Require Import prelude options.
 
 Set Implicit Arguments.
 
@@ -48,7 +50,7 @@ Definition cast A B (LeibEq: A = B) (a: A): B := eq_rect A _ a _ LeibEq.
 
 
 Module RA.
-  Class t: Type := mk {
+  (* Class t: Type := mk {
     car:> Type;
     add: car -> car -> car;
     wf: car -> Prop;
@@ -69,64 +71,45 @@ Module RA.
                      forall ctx (WF: wf (add a ctx)),
                          exists b, <<IN: B b>> /\ <<WF: wf (add b ctx)>>;
   }
-  .
+  . *)
 
   Lemma extends_updatable
-        `{M: t}
-        a b
-        (EXT: extends a b)
+        `{M: cmra}
+        (a b : M)
+        (EXT: a ≼ b)
     :
-      <<UPD: updatable b a>>
+      << UPD: b ~~> a >>
   .
-  Proof.
-    rr in EXT. des. clarify. split.
-    - eapply wf_mon; eauto.
-    - intros. eapply wf_mon; eauto.
-      rewrite <- add_assoc in H.
-      rewrite <- add_assoc. rewrite (add_comm ctx) in H. eauto.
-  Qed.
+  Proof. rewrite /NW. destruct EXT as [c ->]. apply cmra_update_op_l. Qed.
 
   Lemma updatable_add
-        `{M: t}
-        a0 a1
-        b0 b1
-        (UPD0: updatable a0 a1)
-        (UPD1: updatable b0 b1)
+        `{M: cmra}
+        (a0 a1 : M)
+        (b0 b1 : M)
+        (UPD0: a0 ~~> a1)
+        (UPD1: b0 ~~> b1)
     :
-      <<UPD: updatable (add a0 b0) (add a1 b1)>>
+      <<UPD: (a0 ⋅ b0) ~~> (a1 ⋅ b1)>>
   .
-  Proof.
-    r in UPD0. r in UPD1. des. split.
-    - intros. apply UPD3. rewrite add_comm. apply UPD2. rewrite add_comm. done.
-    - ii. specialize (UPD3 (add b0 ctx)). exploit UPD2; eauto. { rewrite add_assoc. rewrite (add_comm b0). apply H. }
-    intro A.
-    specialize (UPD2 (add a1 ctx)). exploit UPD2; eauto.
-    { rewrite add_assoc. rewrite (add_comm b0). rewrite <- add_assoc.
-      apply UPD3. rewrite add_assoc. ss. }
-    intro B.
-    rewrite (add_comm a1). rewrite <- add_assoc. ss.
-  Qed.
+  Proof. by apply cmra_update_op. Qed.
 
   Lemma extends_add
-        `{M: t}
-        a b delta
-        (EXT: extends a b)
+        `{M: cmra}
+        (a b delta : M)
+        (EXT: a ≼ b)
     :
-      <<EXT: extends (add a delta) (add b delta)>>
+      <<EXT: (a ⋅ delta) ≼ (b ⋅ delta)>>
   .
-  Proof.
-    rr in EXT. rr. des. exists ctx. subst. rewrite <- add_assoc. rewrite (add_comm a).
-    symmetry. rewrite <- add_assoc. rewrite add_comm. f_equal. rewrite add_comm. ss.
-  Qed.
+  Proof. by apply cmra_mono_r. Qed.
 
-  Program Instance extends_Transitive `{M: t}: Transitive extends.
+  (* Program Instance extends_Transitive `{M: t}: Transitive extends.
   Next Obligation.
     rr. ii. rr in H. rr in H0. des. rewrite <- H0. rewrite <- H. esplits; eauto. rewrite add_assoc. eauto.
-  Qed.
+  Qed. *)
 
-  Program Instance updatable_PreOrder `{M: t}: PreOrder updatable.
+  (* Program Instance updatable_PreOrder `{M: t}: PreOrder updatable.
   Next Obligation. ii. ss. Qed.
-  Next Obligation. ii. r in H. r in H0. des. split; eauto. Qed.
+  Next Obligation. ii. r in H. r in H0. des. split; eauto. Qed. *)
 
   (* Definition prod (M0 M1 : t) : t := (prodR (fosraR M0) (fosraR M1)).
 
@@ -191,42 +174,30 @@ Module RA.
     exfalso. eapply H; eauto.
   Qed. *)
 
-  Program Instance excl (A: Type): t := {
-    car := option A;
-    add := fun _ _ => None;
-    wf := fun a => a <> None;
-    pcore := fun _ => None;
-  }
-  .
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
+  (* Program Instance excl (A: Type): cmra := excl A. *)
 
-  Theorem excl_updatable
+  (* Theorem excl_updatable
           A
           a0 a1
     :
       <<UPD: @updatable (excl A) (Some a0) (Some a1)>>
   .
-  Proof. rr. ii. ss. Qed.
+  Proof. rr. ii. ss. Qed. *)
 
-  (* Let sum_add {M0 M1} := (fun (a b: car (t:=M0) + car (t:=M1) + unit) =>
+  (* Let sum_add {M0 M1} := (fun (a b: car M0 + car M1 + unit) =>
                             match a, b with
                             | inl (inl a0), inl (inl b0) => inl (inl (add a0 b0))
                             | inl (inr a1), inl (inr b1) => inl (inr (add a1 b1))
                             | _, _ => inr tt
                             end).
-  Let sum_wf {M0 M1} := (fun (a: car (t:=M0) + car (t:=M1) + unit) =>
+  Let sum_wf {M0 M1} := (fun (a: car M0 + car M1 + unit) =>
                            match a with
                            | inl (inl a0) => wf a0
                            | inl (inr a1) => wf a1
                            | _ => False
                            end).
   Program Instance sum (M0 M1: t): t := {
-    car := car (t:=M0) + car (t:=M1) + unit (* boom *);
+    car := car M0 + car M1 + unit (* boom *);
     add := sum_add;
     wf := sum_wf;
   }
@@ -236,7 +207,7 @@ Module RA.
   Next Obligation. i. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed. *)
 
   (* Program Instance pointwise K (M: t): t := {
-    car := K -> (car (t:=M));
+    car := K -> (car M);
     add := fun f0 f1 => (fun k => add (f0 k) (f1 k));
     wf := fun f => forall k, wf (f k);
   }
@@ -245,7 +216,7 @@ Module RA.
   Next Obligation. i. apply func_ext. ii. rewrite add_assoc. ss. Qed.
   Next Obligation. ss. i. eapply wf_mon; ss. Qed. *)
 
-  Local Program Instance empty: t := {
+  (* Local Program Instance empty: t := {
     car := False;
     add := fun a _ => a;
     wf := fun _ => False;
@@ -256,9 +227,8 @@ Module RA.
   Next Obligation. ss. Qed.
   Next Obligation. ss. Qed.
   Next Obligation. ss. Qed.
-  Next Obligation. ss. Qed.
+  Next Obligation. ss. Qed. *)
 End RA.
-
 
 
 
@@ -269,8 +239,8 @@ Local Obligation Tactic := i; unseal "ra"; ss; des_ifs.
 
 (*** PCM == Unital RA ***)
 (*** When URA, not RA? (1) Auth algebra (2) global RA construction ***)
-Module URA.
-  Class t: Type := mk {
+(* Module URA.
+  (* Class t: Type := mk {
     car:> Type;
     unit: car;
     _add: car -> car -> car;
@@ -294,59 +264,52 @@ Module URA.
     updatable_set := fun a B => forall ctx (WF: wf (add a ctx)),
                          exists b, <<IN: B b>> /\ <<WF: wf (add b ctx)>>;
   }
-  .
+  . *)
 
-  Lemma add_comm `{M: t}: forall a b, add a b = add b a. Proof. i. unfold add. unseal "ra". rewrite _add_comm; ss. Qed.
-  Lemma add_assoc `{M: t}: forall a b c, add a (add b c) = add (add a b) c. Proof. i. unfold add. unseal "ra". rewrite _add_assoc; ss. Qed.
+  Lemma add_comm `{M: cmra} (a b : M) : a ⋅ b ≡ b ⋅ a.
+  Proof. by rewrite (comm _). Qed.
+  Lemma add_assoc `{M: cmra} (a b c : M) : a ⋅ (b ⋅ c) ≡ (a ⋅ b) ⋅ c.
+  Proof. by rewrite (assoc _). Qed.
 
-  Lemma wf_split `{M: t}: forall a b, wf (add a b) -> <<WF: wf a /\ wf b>>.
-  Proof. i. split; eapply wf_mon; eauto. rewrite add_comm; eauto. Qed.
+  Lemma wf_split `{M: cmra} (a b : M) : ✓ (a ⋅ b) → <<WF: ✓ a ∧ ✓ b>>.
+  Proof.
+    i. split.
+    - by eapply cmra_valid_op_l.
+    - by eapply cmra_valid_op_r.
+  Qed.
 
   Lemma extends_updatable
-        `{M: t}
-        a b
-        (EXT: extends a b)
+        `{M: cmra}
+        (a b : M)
+        (EXT: a ≼ b)
     :
-      <<UPD: updatable b a>>
+      <<UPD: b ~~> a>>
   .
-  Proof.
-    ii. rr in EXT. des. clarify. eapply wf_mon; eauto.
-    rewrite <- add_assoc in H.
-    rewrite <- add_assoc. rewrite (add_comm ctx). eauto.
-  Qed.
+  Proof. by apply RA.extends_updatable. Qed.
 
-  Lemma unit_id_ `{M: t} b (EQ: b = unit): forall a, add a b = a. i. subst. apply unit_id. Qed.
+  Lemma unit_id_ `{M: ucmra} (b : M) (EQ: b ≡ ε) (a : M) : a ⋅ b ≡ a.
+  Proof. by rewrite EQ right_id. Qed.
 
-  Lemma unit_idl `{M: t}: forall a, add unit a = a. i. rewrite add_comm. rewrite unit_id; ss. Qed.
+  Lemma unit_idl `{M: ucmra} (a : M) : ε ⋅ a ≡ a.
+  Proof. by rewrite left_id. Qed.
 
-  Lemma wf_core `{M: t}: forall a (WF: wf a), wf (core a).
-  Proof. i. eapply wf_mon. rewrite core_id. auto. Qed.
+  Lemma wf_core `{M: ucmra} (a : M) (WF: ✓ a) : ✓ (core a).
+  Proof. by apply cmra_core_valid. Qed.
 
-  Lemma unit_core `{M: t}: core unit = unit.
-  Proof.
-    transitivity (add (core unit) unit).
-    { symmetry. apply unit_id. }
-    { apply core_id. }
-  Qed.
+  Lemma unit_core `{M: ucmra}: core (ε : M) ≡ ε.
+  Proof. apply core_id_core. apply _. Qed.
 
   (*** TODO: remove redundancy with "updatable_horizontal" above ***)
   Lemma updatable_add
-        `{M: t}
-        a0 a1
-        b0 b1
-        (UPD0: updatable a0 a1)
-        (UPD1: updatable b0 b1)
+        `{M: cmra}
+        (a0 a1 : M)
+        (b0 b1 : M)
+        (UPD0: a0 ~~> a1)
+        (UPD1: b0 ~~> b1)
     :
-      <<UPD: updatable (add a0 b0) (add a1 b1)>>
+      <<UPD: (a0 ⋅ b0) ~~> (a1 ⋅ b1)>>
   .
-  Proof.
-    ii. r in UPD0. r in UPD1.
-    specialize (UPD0 (add b0 ctx)). exploit UPD0; eauto. { rewrite add_assoc. ss. } intro A.
-    specialize (UPD1 (add a1 ctx)). exploit UPD1; eauto.
-    { rewrite add_assoc. rewrite (add_comm b0). rewrite <- add_assoc. ss. }
-    intro B.
-    rewrite (add_comm a1). rewrite <- add_assoc. ss.
-  Qed.
+  Proof. by apply cmra_update_op. Qed.
 
   Lemma updatable_unit
         `{M: t}
@@ -450,7 +413,7 @@ Module URA.
   End fos_ura_to_ucmra. *)
 
   Program Instance prod (M0 M1: t): t := {
-    car := car (t:=M0) * car (t:=M1);
+    car := car M0 * car M1;
     unit := (unit, unit);
     _add := fun '(a0, a1) '(b0, b1) => ((add a0 b0), (add a1 b1));
     _wf := fun '(a0, a1) => wf a0 /\ wf a1;
@@ -576,9 +539,14 @@ Module URA.
     { i. eapply core_mono. }
     intros [f EQ]. exists f. apply func_ext. i. apply EQ.
   Qed.
+  *)
 
-  Program Instance pointwise_dep K (M: K -> t): t := {
-    car := forall (k: K), car (t:=M k);
+  Definition pointwise K (M: ucmra) : ucmra := discrete_funUR (λ k : K, M).
+
+  Definition pointwise_dep K (M: K -> ucmra) : ucmra := discrete_funUR M.
+
+  (* {
+    car := forall (k: K), car M k;
     unit := fun _ => unit;
     _add := fun f0 f1 => (fun k => add (f0 k) (f1 k));
     _wf := fun f => forall k, wf (f k);
@@ -598,9 +566,10 @@ Module URA.
                 (fun k c => core (add (a k) (b k)) = add (core (a k)) c)).
     { i. eapply core_mono. }
     intros [f EQ]. exists f. apply func_ext_dep. i. apply EQ.
-  Qed.
+  Qed. *)
 
-  Let sum_add {M0 M1} := (fun (a b: car (t:=M0) + car (t:=M1) + bool) =>
+  (*
+  Let sum_add {M0 M1} := (fun (a b: car M0 + car M1 + bool) =>
                             match a, b with
                             | inl (inl a0), inl (inl b0) => inl (inl (add a0 b0))
                             | inl (inr a1), inl (inr b1) => inl (inr (add a1 b1))
@@ -608,14 +577,14 @@ Module URA.
                             | inr false, _ => b
                             | _, _ => inr true
                             end).
-  Let sum_wf {M0 M1} := (fun (a: car (t:=M0) + car (t:=M1) + bool) =>
+  Let sum_wf {M0 M1} := (fun (a: car M0 + car M1 + bool) =>
                            match a with
                            | inl (inl a0) => wf a0
                            | inl (inr a1) => wf a1
                            | inr false => True
                            | inr true => False
                            end).
-  Let sum_core {M0 M1} := (fun (a: car (t:=M0) + car (t:=M1) + bool) =>
+  Let sum_core {M0 M1} := (fun (a: car M0 + car M1 + bool) =>
                              match a with
                              | inl (inl a0) => inl (inl (core a0))
                              | inl (inr a1) => inl (inr (core a1))
@@ -624,7 +593,7 @@ Module URA.
                              end).
 
   Program Instance sum (M0 M1: t): t := {
-    car := car (t:=M0) + car (t:=M1) + bool;
+    car := car M0 + car M1 + bool;
     unit := inr false;
     _add := sum_add;
     _wf := sum_wf;
@@ -678,20 +647,20 @@ Module URA.
   Next Obligation. unfold agree_add in *. des_ifs. Qed.
   Next Obligation. unfold agree_add. des_ifs. Qed.
   Next Obligation. exists b. auto. Qed.
-End URA.
+End URA. *)
 
-(* Coercion URA.to_RA: URA.t >-> RA.t. *)
-Coercion RA.car: RA.t >-> Sortclass.
-Coercion URA.car: URA.t >-> Sortclass.
+(* Coercion URA.to_RA: ucmra >-> RA.t. *)
+(* Coercion RA.car: RA.t >-> Sortclass.
+Coercion cmra_car: ucmra >-> Sortclass. *)
 
-Tactic Notation "ur" := try rewrite ! URA.unfold_wf; try rewrite ! URA.unfold_add; cbn.
+(* Tactic Notation "ur" := try rewrite ! URA.unfold_wf; try rewrite ! URA.unfold_add; cbn.
 Tactic Notation "ur" "in" hyp(H)  := try rewrite ! URA.unfold_wf in H; try rewrite ! URA.unfold_add in H; cbn in H.
 
 Notation "'ε'" := URA.unit.
 Infix "⋅" := URA.add (at level 50, left associativity).
-Notation "(⋅)" := URA.add (only parsing).
+Notation "(⋅)" := URA.add (only parsing). *)
 
-Module of_IrisRA.
+(* Module of_IrisRA.
 
 Local Open Scope iris_algebra_scope.
 
@@ -771,10 +740,10 @@ Section RAtoIrisCMRA.
     - ii. eapply RA.wf_mon. eauto.
   Qed.
   Canonical Structure fos_RAO := discreteR RA.car fos_ra_mixin.
-End RAtoIrisCMRA.
+End RAtoIrisCMRA. *)
 
 
-Definition to_ra `{M: cmra} (a: M) : t M := just a.
+(* Definition to_ra `{M: cmra} (a: M) : t M := just a.
 
 Lemma to_ra_add `{M: cmra} (a b: M) :
   RA.add (to_ra a) (to_ra b) = to_ra (a ⋅ b)%ia.
@@ -824,9 +793,9 @@ Proof.
     + intros [ctx] V. specialize (UPD (Some ctx) V). simpl in *. des.
       exists (just y). split; ss.
   Qed.
-End of_IrisRA.
+End of_IrisRA. *)
 
-Module of_RA.
+(* Module of_RA.
 Section of_RA.
 
 Inductive car {X: Type}: Type :=
@@ -856,7 +825,7 @@ Let core `{M: RA.t}: car -> car :=
     | _ => a
     end.
 
-Program Instance t (RA: RA.t): URA.t := {
+Program Instance t (RA: RA.t): ucmra := {
   car := car;
   unit := of_RA.unit;
   _wf := wf;
@@ -891,7 +860,7 @@ Proof. rewrite URA.unfold_add. ss. Qed.
 Lemma to_ura_wf (RA : RA.t)
   (a : RA.car (t := RA))
   :
-  (URA.wf (to_ura a)) <-> (RA.wf a).
+  (✓ (to_ura a)) <-> (RA.wf a).
 Proof. rewrite URA.unfold_wf. ss. Qed.
 
 Lemma to_ura_core (RA : RA.t) (a : RA.car (t := RA)) :
@@ -905,10 +874,10 @@ Theorem to_ura_updatable (RA : RA.t)
 .
 Proof.
   unfold to_ura. split.
-  - intros UPD_URA. unfold RA.updatable. unfold URA.updatable,URA.wf,URA.add in *. unseal "ra". ss. split.
+  - intros UPD_URA. unfold RA.updatable. unfold URA.updatable,✓,URA.add in *. unseal "ra". ss. split.
     + ii. specialize (UPD_URA unit). ss. apply UPD_URA; eauto.
     + ii. specialize (UPD_URA (just ctx)). ss. apply UPD_URA; eauto.
-  - intros UPD_RA. ii. des. unfold URA.wf, URA.add in *. unseal "ra".
+  - intros UPD_RA. ii. des. unfold ✓, URA.add in *. unseal "ra".
     ss. unfold wf in *. des_ifs.
     + by apply UPD_RA.
     + rr in UPD_RA. des. by apply UPD_RA.
@@ -941,19 +910,67 @@ End of_RA.
 End of_RA.
 
 (* Coercion to_RA: t >-> RA.t. *)
-Coercion of_RA.t: RA.t >-> URA.t.
+Coercion of_RA.t: RA.t >-> ucmra. *)
 
 
 
 
 
+Section discrete_fun.
 
+  Lemma included_discrete_fun
+      A (Ms : A -> ucmra)
+      (f0 f1 : discrete_fun Ms)
+      (UPD : forall a, (f0 a) ≼ (f1 a))
+    :
+    f0 ≼ f1.
+  Proof.
+    set (R := fun (a : A) => (fun (ctx : Ms a) => f1 a ≡ (f0 a) ⋅ ctx)).
+    hexploit (dependent_functional_choice _ R).
+    { subst R. i. specialize (UPD x). r in UPD. des. eauto. }
+    subst R. intros H. des. exists f. intros ?. apply H.
+  Qed.
 
+  Lemma cmra_updateP_discrete_fun
+      A (Ms : A → ucmra)
+      (f : discrete_funUR Ms)
+      (P : ∀ (a : A), (Ms a) → Prop)
+      (UPD: ∀ a, (f a) ~~>: (P a))
+    :
+    f ~~>: (λ f', forall a, P a (f' a)).
+  Proof.
+    intros n mz WF; simpl in *.
+    set RES := λ a, (match mz with | Some mz => (Some (mz a)) | None => None end).
+    set (R := λ (a : A), (λ (m : Ms a), P a m ∧ ✓{n} (m ⋅? (RES a)))).
+    hexploit (dependent_functional_choice _ R).
+    { subst R. ss. i. eapply (UPD x n (RES x)). subst RES. simpl. des_ifs; simpl in *.
+      - rewrite /= -discrete_fun_lookup_op. apply WF.
+      - apply WF.
+    }
+    subst R RES. ss. i. des. exists f0. splits; auto.
+    { i. specialize (H a). des. auto. }
+    { intros k. specialize (H k). des. des_ifs; auto. }
+  Qed.
 
+  Lemma cmra_update_discrete_fun
+      A (Ms : A → ucmra)
+      (f0 f1 : discrete_funUR Ms)
+      (UPD: ∀ a, (f0 a) ~~> (f1 a))
+    :
+    f0 ~~> f1.
+  Proof.
+    eapply cmra_update_updateP, cmra_updateP_weaken.
+    - apply cmra_updateP_discrete_fun. intros a.
+      setoid_rewrite cmra_update_updateP in UPD.
+      eapply cmra_updateP_weaken.
+      { apply UPD. }
+      intros y EQ. apply EQ.
+    - intros y EQ. simpl in *. by apply func_ext_dep.
+  Qed.
 
+End discrete_fun.
 
-
-Module Excl.
+(* Module Excl.
 Section EXCL.
 
 Context {X: Type}.
@@ -966,8 +983,8 @@ Inductive car: Type :=
 Let _add := fun x y => match x, y with | _, unit => x | unit, _ => y | _, _ => boom end.
 Let _wf := fun a => a <> boom.
 
-Program Instance t: URA.t := {
-  URA.car := car;
+Program Instance t: ucmra := {
+  cmra_car := car;
   URA._add := _add;
   URA._wf := _wf;
   URA.unit := unit;
@@ -982,28 +999,28 @@ Next Obligation. exists unit. auto. Qed.
 
 Theorem updatable
         a0 a1
-        (WF: URA.wf a1)
+        (WF: ✓ a1)
   :
     <<UPD: URA.updatable (just a0) a1>>
 .
-Proof. rr. unfold URA.wf, URA.add in *. unseal "ra". ss. ii. des_ifs; ss. unfold _wf, _add in *. des_ifs; ss. Qed.
+Proof. rr. unfold ✓, URA.add in *. unseal "ra". ss. ii. des_ifs; ss. unfold _wf, _add in *. des_ifs; ss. Qed.
 
 Theorem extends
         a0 a1
-        (WF: URA.wf a1)
+        (WF: ✓ a1)
         (EXT: URA.extends (just a0) a1)
   :
     <<EQ: a1 = just a0>>
 .
-Proof. rr. rr in EXT. des; subst. unfold URA.wf, URA.add in *. unseal "ra". ss. des_ifs; ss. Qed.
+Proof. rr. rr in EXT. des; subst. unfold ✓, URA.add in *. unseal "ra". ss. des_ifs; ss. Qed.
 
 Theorem wf
         a0 a1
-        (WF: URA.wf (URA.add (just a0) a1))
+        (WF: ✓ (URA.add (just a0) a1))
   :
     <<EQ: a1 = unit>>
 .
-Proof. rr. unfold URA.wf, URA.add in *. unseal "ra". ss. des_ifs; ss. Qed.
+Proof. rr. unfold ✓, URA.add in *. unseal "ra". ss. des_ifs; ss. Qed.
 
 Coercion option_coercion (x: option X): car :=
   match x with
@@ -1013,44 +1030,44 @@ Coercion option_coercion (x: option X): car :=
 .
 
 End EXCL.
-End Excl.
+End Excl. *)
 
-Arguments Excl.t: clear implicits.
-Coercion Excl.option_coercion: option >-> Excl.car.
+(* Arguments Excl.t: clear implicits.
+Coercion Excl.option_coercion: option >-> Excl.car. *)
 
 
-Module Auth.
+(* Module Auth.
 Section AUTH.
 
-(* Variable (M: URA.t). *)
+(* Variable (M: ucmra). *)
 
-Inductive car `{M: URA.t}: Type :=
+Inductive car `{M: ucmra}: Type :=
 | frag (f: M)
 | excl (e: M) (f: M)
 | boom
 .
 
-Let add `{M: URA.t} := fun a0 a1 => match a0, a1 with
+Let add `{M: ucmra} := fun a0 a1 => match a0, a1 with
                                     | frag f0, frag f1 => frag (f0 ⋅ f1)
                                     | frag f0, excl e1 f1 => excl e1 (f0 ⋅ f1)
                                     | excl e0 f0, frag f1 => excl e0 (f0 ⋅ f1)
                                     | _, _ => boom
                                     end.
-Let wf `{M: URA.t} := fun a =>
+Let wf `{M: ucmra} := fun a =>
                         match a with
-                        | frag f => URA.wf f
-                        | excl e f => URA.extends f e /\ URA.wf e
+                        | frag f => ✓ f
+                        | excl e f => URA.extends f e /\ ✓ e
                         | boom => False
                         end.
 
-Let core `{M: URA.t} := fun a =>
+Let core `{M: ucmra} := fun a =>
                           match a with
                           | frag f => frag (URA.core f)
                           | excl _ f => frag (URA.core f)
                           | boom => boom
                           end.
 
-Program Instance t (M: URA.t): URA.t := {
+Program Instance t (M: ucmra): ucmra := {
   car := car;
   unit := frag ε;
   _add := add;
@@ -1061,11 +1078,11 @@ Program Instance t (M: URA.t): URA.t := {
 Next Obligation. subst add wf. ss. des_ifs; f_equal; eauto using URA.add_comm. Qed.
 Next Obligation. subst add wf. ss. des_ifs; f_equal; eauto using URA.add_assoc. Qed.
 Next Obligation. subst add wf. ss. ii; des_ifs; ss; rewrite URA.unit_id; ss. Qed.
-Next Obligation. subst add wf. eauto using URA.wf_unit. Qed.
+Next Obligation. subst add wf. eauto using ✓_unit. Qed.
 Next Obligation.
   subst add wf. ss.
-  des_ifs; des; eauto using URA.wf_mon.
-  - rr in H. des. subst. eapply URA.wf_mon. rewrite URA.add_assoc. eauto.
+  des_ifs; des; eauto using ✓_mon.
+  - rr in H. des. subst. eapply ✓_mon. rewrite URA.add_assoc. eauto.
   - esplits; eauto. etransitivity; eauto. rr. ss. esplits; eauto.
 Qed.
 Next Obligation. subst add core. ss. des_ifs; f_equal; rewrite URA.core_id; ss. Qed.
@@ -1086,16 +1103,16 @@ Next Obligation.
   - exists boom. ss.
 Qed.
 
-Definition black `{M: URA.t} (a: M): t M := excl a ε.
-Definition white `{M: URA.t} (a: M): t M := frag a.
+Definition black `{M: ucmra} (a: M): t M := excl a ε.
+Definition white `{M: ucmra} (a: M): t M := frag a.
 
-Definition local_update `{M: URA.t} a0 b0 a1 b1: Prop :=
-  forall ctx, (<<WF: URA.wf a0>> /\ <<FRAME: a0 = URA.add b0 ctx>>) ->
-              (<<WF: URA.wf a1>> /\ <<FRAME: a1 = URA.add b1 ctx>>)
+Definition local_update `{M: ucmra} a0 b0 a1 b1: Prop :=
+  forall ctx, (<<WF: ✓ a0>> /\ <<FRAME: a0 = URA.add b0 ctx>>) ->
+              (<<WF: ✓ a1>> /\ <<FRAME: a1 = URA.add b1 ctx>>)
 .
 
 Theorem auth_update
-        `{M: URA.t}
+        `{M: ucmra}
         a b a' b'
         (UPD: local_update a b a' b')
   :
@@ -1112,11 +1129,11 @@ Proof.
 Qed.
 
 Theorem auth_dup_black
-        `{M: URA.t}
+        `{M: ucmra}
         a ca
         (CORE: a = a ⋅ ca)
   :
-    <<DUP: URA.updatable (t:=t M) (black a) ((black a) ⋅ (white ca))>>
+    <<DUP: URA.updatable t M (black a) ((black a) ⋅ (white ca))>>
 .
 Proof.
   (* r. rewrite <- unit_id at 1. *)
@@ -1128,11 +1145,11 @@ Proof.
 Qed.
 
 Theorem auth_dup_white
-        `{M: URA.t}
+        `{M: ucmra}
         a ca
         (CORE: a = a ⋅ ca)
   :
-    <<DUP: URA.updatable (t:=t M) (white a) ((white a) ⋅ (white ca))>>
+    <<DUP: URA.updatable t M (white a) ((white a) ⋅ (white ca))>>
 .
 Proof.
   rr. rewrite URA.unfold_add. rewrite URA.unfold_wf. ii. unseal "ra". ss. des_ifs.
@@ -1141,22 +1158,22 @@ Proof.
 Qed.
 
 Theorem auth_alloc
-        `{M: URA.t}
+        `{M: ucmra}
         a0 a1 b1
         (UPD: local_update a0 ε a1 b1)
   :
-    <<UPD: URA.updatable (t:=t M) (black a0) ((black a1) ⋅ (white b1))>>
+    <<UPD: URA.updatable t M (black a0) ((black a1) ⋅ (white b1))>>
 .
 Proof.
   r. rewrite <-(URA.unit_id (black a0)). ss. eapply auth_update. ss.
 Qed.
 
 Theorem auth_alloc2
-        `{M: URA.t}
+        `{M: ucmra}
         a0 delta
-        (WF: URA.wf (a0 ⋅ delta))
+        (WF: ✓ (a0 ⋅ delta))
   :
-    <<UPD: URA.updatable (t:=t M) (black a0) ((black (a0 ⋅ delta)) ⋅ (white delta))>>
+    <<UPD: URA.updatable t M (black a0) ((black (a0 ⋅ delta)) ⋅ (white delta))>>
 .
 Proof.
   rr. rewrite URA.unfold_add. rewrite URA.unfold_wf.
@@ -1169,20 +1186,20 @@ Proof.
 Qed.
 
 Theorem auth_dealloc
-        `{M: URA.t}
+        `{M: ucmra}
         a0 a1 b0
         (UPD: local_update a0 b0 a1 ε)
   :
-    <<UPD: URA.updatable (t:=t M) ((black a0) ⋅ (white b0)) (black a1)>>
+    <<UPD: URA.updatable t M ((black a0) ⋅ (white b0)) (black a1)>>
 .
 Proof.
   r. rewrite <- URA.unit_id. ss. eapply auth_update. ss.
 Qed.
 
 Theorem auth_included
-        `{M: URA.t}
+        `{M: ucmra}
         a b
-        (WF: URA.wf ((black a) ⋅ (white b)))
+        (WF: ✓ ((black a) ⋅ (white b)))
   :
     <<EXT: URA.extends b a>>
 .
@@ -1192,24 +1209,24 @@ Proof.
 Qed.
 
 Theorem auth_exclusive
-        `{M: URA.t}
+        `{M: ucmra}
         a b
-        (WF: URA.wf ((black a) ⋅ (black b)))
+        (WF: ✓ ((black a) ⋅ (black b)))
   :
     False
 .
 Proof. rewrite URA.unfold_add in WF; rewrite URA.unfold_wf in WF. ss. Qed.
 
 Lemma black_wf
-      `{M: URA.t}
+      `{M: ucmra}
       a
-      (WF: URA.wf (black a))
+      (WF: ✓ (black a))
   :
-    <<WF: URA.wf a>>
+    <<WF: ✓ a>>
 .
 Proof. ur in WF. des; ss. Qed.
 End AUTH.
-End Auth.
+End Auth. *)
 
 (**********************************************************************************)
 (*** For backward compatibility, I put below definitions "outside" Auth module. ***)
@@ -1220,17 +1237,18 @@ End Auth.
 
 
 
-Lemma nth_error_nth
-      A (l: list A) n a d
-      (NTH: nth_error l n = Some a)
+(* Lemma nth_error_nth
+      A (l: list A) a d
+      (NTH: nth_error l = Some a)
   :
-    <<NTH: nth n l d = a>>
+    <<NTH: nth l d = a>>
 .
 Proof.
   ginduction n; ii; ss; des_ifs. ss. eapply IHn; eauto.
-Qed.
+Qed. *)
 
-Module Gset.
+(* This is gset_disjR for positive *)
+(* Module Gset.
   Import gmap.
 
   Definition add (x y : option (gset positive)) : option (gset positive) :=
@@ -1239,9 +1257,9 @@ Module Gset.
     | _, _ => None
     end.
 
-  Program Instance t : URA.t :=
+  Program Instance t : ucmra :=
     {|
-      URA.car := option (gset positive);
+      cmra_car := option (gset positive);
       URA.unit := Some ∅;
       URA._wf := fun x => match x with Some _ => True | None => False end;
       URA._add := add;
@@ -1280,9 +1298,10 @@ Module Gset.
     set_solver.
   Qed.
 
-End Gset.
+End Gset. *)
 
-Module CoPset.
+(* This is CoPset for positive *)
+(* Module CoPset.
   Import coPset.
 
   Definition add (x y : option coPset) : option coPset :=
@@ -1291,9 +1310,9 @@ Module CoPset.
     | _, _ => None
     end.
 
-  Program Instance t : URA.t :=
+  Program Instance t : ucmra :=
     {|
-      URA.car := option coPset;
+      cmra_car := option coPset;
       URA.unit := Some ∅;
       URA._wf := fun x => match x with Some _ => True | None => False end;
       URA._add := add;
@@ -1330,9 +1349,10 @@ Module CoPset.
     unseal "ra". i. exists (Some ∅). ss. f_equal. set_solver.
   Qed.
 
-End CoPset.
+End CoPset. *)
 
-Module GsetK.
+(* This is gset_disjR K for positive *)
+(* Module GsetK.
   Import gmap.
 
   Section KEY.
@@ -1347,9 +1367,9 @@ Module GsetK.
       | _, _ => None
       end.
 
-    Program Instance t : URA.t :=
+    Program Instance t : ucmra :=
       {|
-        URA.car := option (gset K);
+        cmra_car := option (gset K);
         URA.unit := Some (∅);
         URA._wf := fun x => match x with Some _ => True | None => False end;
         URA._add := add;
@@ -1390,11 +1410,15 @@ Module GsetK.
 
   End KEY.
 
-End GsetK.
+End GsetK. *)
+
 
 Module GRA.
-  Class t: Type := __GRA__INTERNAL__: (nat -> URA.t).
-  Class inG (RA: URA.t) (Σ: t) := InG {
+  Record t: Type := GRA__INTERNAL {
+    gra_map :> (nat → ucmra);
+    gra_discrete : ∀ (i : nat), CmraDiscrete (gra_map i);
+  }.
+  Class inG (RA: ucmra) (Σ: t) := InG {
     inG_id: nat;
     (* inG_prf: Eq (GRA inG_id) RA; *)
     inG_prf: RA = Σ inG_id;
@@ -1403,20 +1427,37 @@ Module GRA.
   Class subG (Σ0 Σ1: t) := SubG i : { j | Σ0 i = Σ1 j }.
   (* Class subG (GRA0 GRA1: t) := SubG { subG_prf: forall i, { j | GRA0 i = GRA1 j } }. *)
 
-  Definition of_list (RAs: list URA.t): t := fun n => List.nth n RAs (of_RA.t RA.empty).
+  Program Definition of_list (RAs: ucmra_list) : t := {| gra_map := λ n, (UList.nth n RAs (optionUR Empty_setR)) |}.
+  Next Obligation.
+    revert i. induction RAs as [|? ? IH].
+    { destruct i; apply _. }
+    destruct i.
+    { simpl. apply _. }
+    simpl. apply IH.
+  Qed.
 
-  Definition to_URA (Σ: t): URA.t := URA.pointwise_dep Σ.
+  Definition to_URA (Σ: t): ucmra := discrete_funUR Σ.
 
-  Coercion to_URA: t >-> URA.t.
+  Coercion to_URA: t >-> ucmra.
 
-  Let cast_ra {A B: URA.t} (LeibEq: A = B) (a: URA.car (t:=A)): URA.car (t:=B) :=
-    eq_rect A (@URA.car) a _ LeibEq.
+  Global Instance GRA_discrete `{Σ : t} : CmraDiscrete
+  Σ.
+  Proof. apply discrete_funR_cmra_discrete, gra_discrete. Qed.
 
-  (* a: URA.car =ty= RAs inG_id =ty= RAs n *)
-  Definition embed {A Σ} `{@GRA.inG A Σ} (a: URA.car (t:=A)): URA.car (t:=Σ) :=
+  Global Instance inG_discrete `{Σ : t} `{@inG A Σ} : CmraDiscrete A.
+  Proof.
+    destruct H as [id Hid].
+    specialize (gra_discrete Σ id). by subst.
+  Qed.
+
+  Local Definition cast_ra {A B: ucmra} (LeibEq: A = B) (a : A) : B :=
+    eq_rect A cmra_car a _ LeibEq.
+
+  (* a: cmra_car =ty= RAs inG_id =ty= RAs n *)
+  Definition embed {A Σ} `{@GRA.inG A Σ} (a: A): Σ :=
     fun n => match Nat.eq_dec inG_id n with
-             | left H => ((@eq_rect nat inG_id Σ ((cast_ra inG_prf a): Σ inG_id) n H): Σ n)
-             | right _ => URA.unit
+             | left H => ((@eq_rect nat inG_id (Σ : (nat → ucmra)) ((cast_ra inG_prf a): Σ inG_id) n H): Σ n)
+             | right _ => ε
              end
   .
 
@@ -1424,13 +1465,13 @@ Module GRA.
         A Σ
         `{@GRA.inG A Σ}
         (a: A)
-        (WF: URA.wf (embed a))
+        (WF: ✓ (embed a))
     :
-      <<WF: URA.wf a>>
+      <<WF: ✓ a>>
   .
   Proof.
-    rewrite URA.unfold_wf in WF.
-    r. specialize (WF inG_id). ss. unfold embed in *. des_ifs.
+    rewrite /NW. rewrite /embed in WF.
+    specialize (WF inG_id). ss. des_ifs.
     unfold cast_ra in *. unfold eq_rect, eq_sym in *. dependent destruction e. destruct inG_prf. ss.
   Qed.
 
@@ -1438,82 +1479,136 @@ Module GRA.
         A Σ
         `{@GRA.inG A Σ}
         (a: A)
-        (WF: URA.wf a)
+        (WF: ✓ a)
     :
-      <<WF: URA.wf (embed a)>>
+      <<WF: ✓ (embed a)>>
   .
   Proof.
-    destruct H. subst. rewrite URA.unfold_wf.
-    r. ii. unfold embed. des_ifs.
-    eapply URA.wf_unit.
+    destruct H. subst. rewrite /NW /embed.
+    ii. des_ifs. apply ucmra_unit_valid.
   Qed.
+
+  Lemma embed_equiv
+        A Σ
+        `{@GRA.inG A Σ}
+        (a0 a1: A)
+        (EQ : a0 ≡ a1)
+    :
+      (embed a0) ≡ embed (a1)
+  .
+  Proof.
+    rewrite /embed. intros ?. des_ifs. ss.
+    unfold cast_ra. destruct inG_prf. done.
+  Qed.
+
+  Global Instance embed_proper A Σ `{@GRA.inG A Σ} :
+    Proper ((≡) ==> (≡)) (@embed A Σ _).
+  Proof. intros a0 a1 EQ. by apply embed_equiv. Qed.
 
   Lemma embed_add
         A Σ
         `{@GRA.inG A Σ}
         (a0 a1: A)
     :
-      <<EQ: URA.add (embed a0) (embed a1) = embed (URA.add a0 a1)>>
+      (embed a0) ⋅ (embed a1) ≡ embed (a0 ⋅ a1)
   .
   Proof.
-    rewrite URA.unfold_add in *.
-    r. ss. unfold embed. apply func_ext_dep. i. des_ifs.
-    - ss. unfold cast_ra. unfold eq_rect, eq_sym. destruct inG_prf. reflexivity.
-    - rewrite URA.unit_id. ss.
+    rewrite /NW /embed. intros ?.
+    rewrite discrete_fun_lookup_op. des_ifs.
+    - ss. unfold cast_ra. destruct inG_prf. reflexivity.
+    - rewrite (right_id _). ss.
+  Qed.
+
+  (* (fun f => exists (m1: M), f ≡ maps_to_res a m1 /\ P m1). *)
+  Lemma embed_updatable_set
+        A Σ
+        `{@GRA.inG A Σ}
+        (a : A) P
+        (UPD: a ~~>: P)
+    :
+      <<UPD: (GRA.embed a) ~~>: (λ a', ∃ b, a' = GRA.embed b ∧ P b) >>
+  .
+  Proof.
+    (* TODO: why can't I cmra_updateP_discrete_fun? *)
+    rewrite /NW cmra_total_updateP.
+    unfold cmra_updateP in UPD.
+    ss. intros n z WF.
+    assert (UPD' : ∀ (n : nat) (mz : A), ✓{n} (a ⋅ mz) → ∃ y : A, P y ∧ ✓{n} (y ⋅ mz)).
+    { clear -UPD. intros n mz WF.
+      exploit (UPD n (Some mz)); auto.
+    }
+    unshelve hexploit (UPD' n).
+    { eapply (@eq_rect ucmra (Σ (@GRA.inG_id _ _ H)) cmra_car).
+      { eapply (z (@GRA.inG_id _ _ H)). }
+      { symmetry. eapply (@GRA.inG_prf _ _ H). }
+    }
+    { specialize (WF GRA.inG_id). rewrite discrete_fun_lookup_op in WF.
+      destruct H. subst. ss.
+      unfold GRA.embed in WF. ss.
+      replace (Nat.eq_dec inG_id0 inG_id0)
+        with (@left (inG_id0 = inG_id0) (inG_id0 <> inG_id0) eq_refl) in WF; ss.
+      des_ifs. repeat f_equal. eapply proof_irrelevance.
+    }
+    i. destruct H0 as [y [Hy WFy]]. exists (GRA.embed y). esplits; eauto.
+    unfold GRA.embed. intros k. rewrite discrete_fun_lookup_op. des_ifs.
+    { ss. unfold PCM.GRA.cast_ra. destruct H. subst. ss. }
+    { specialize (WF k). rewrite left_id. eapply cmra_validN_op_r.
+      rewrite discrete_fun_lookup_op in WF.
+      exact WF.
+    }
   Qed.
 
   Lemma embed_updatable
         A Σ
         `{@GRA.inG A Σ}
         (a0 a1: A)
-        (UPD: URA.updatable a0 a1)
+        (UPD: a0 ~~> a1)
     :
-      <<UPD: URA.updatable (GRA.embed a0) (GRA.embed a1)>>
+      <<UPD: (GRA.embed a0) ~~> (GRA.embed a1)>>
   .
   Proof.
-    r in UPD. ii. ss.
-    rewrite URA.unfold_add in *. rewrite URA.unfold_wf in *. ss. ii.
-    rename H0 into WF.
-    specialize (WF k).
-    unfold embed in *. des_ifs. ss.
-    unfold cast_ra in *. unfold eq_rect, eq_sym in *.
-    destruct H. ss.
-    dependent destruction inG_prf0.
-    eapply UPD. ss.
+    rewrite /NW.
+    eapply cmra_update_updateP, cmra_updateP_weaken.
+    - eapply embed_updatable_set.
+      setoid_rewrite cmra_update_updateP in UPD.
+      apply UPD.
+  - intros y EQ. simpl in *. des. subst. done.
   Qed.
 
-  Lemma embed_core M Σ `{@GRA.inG M Σ} (r : M) : GRA.embed (URA.core r) = URA.core (GRA.embed r).
+  Lemma embed_core M Σ `{@GRA.inG M Σ} (r : M) : embed (core r) ≡ core (embed r).
   Proof.
-    unfold URA.core at 2; unfold to_URA; ss.
-    extensionalities i. unfold embed. des_ifs.
-    - ss. destruct inG_prf. ss.
-    - symmetry. apply URA.unit_core.
+    rewrite /embed /to_URA /core cmra_pcore_core.
+    intros i. simpl. des_ifs.
+    - ss. destruct H. ss. dependent destruction inG_prf0. ss.
+    - symmetry. apply core_id_total. apply _.
   Qed.
 
   Lemma embed_unit M Σ `{@GRA.inG M Σ} : GRA.embed ε = ε.
   Proof.
-    unfold embed. extensionalities n. des_ifs. ss. destruct inG_prf. ss.
+    unfold embed. extensionalities n. des_ifs. ss.
+    destruct H. ss. dependent destruction inG_prf0.
+    ss.
   Qed.
 
   Section GETSET.
-    Variable ra: URA.t.
+    Variable ra: ucmra.
     Variable gra: t.
     Context `{@inG ra gra}.
 
     Section GETSET.
-    Variable get: URA.car (t:=ra).
-    Variable set: URA.car (t:=ra) -> unit.
+    Variable get: cmra_car ra.
+    Variable set: (cmra_car ra) -> unit.
 
     (* own & update can be lifted *)
     (* can we write spec in terms of own & update, not get & set? *)
     (* how about add / sub? *)
-    Program Definition get_lifted: URA.car (t:=gra) :=
-      fun n => if Nat.eq_dec n inG_id then _ else URA.unit.
+    Program Definition get_lifted: cmra_car gra :=
+      fun n => if Nat.eq_dec n inG_id then _ else ε.
     Next Obligation.
       i. subst. apply (cast_ra inG_prf get).
     Defined.
 
-    (* Program Definition set_lifted: URA.car (t:=construction gra) -> unit := *)
+    (* Program Definition set_lifted: cmra_car construction gra -> unit := *)
     (*   fun n => if Nat.eq_dec n inG_id then _ else URA.unit. *)
     (* Next Obligation. *)
     (*   apply (ra_transport inG_prf get). *)
@@ -1521,14 +1616,14 @@ Module GRA.
     End GETSET.
 
     Section HANDLER.
-    Variable handler: URA.car (t:=ra) -> URA.car (t:=ra).
+    Variable handler: cmra_car ra -> cmra_car ra.
     Local Obligation Tactic := idtac.
-    Program Definition handler_lifted: URA.car (t:=gra) -> URA.car (t:=gra) :=
+    Program Definition handler_lifted: cmra_car gra -> cmra_car gra :=
       fun st0 => fun n => if Nat.eq_dec n inG_id then _ else st0 n
     .
     Next Obligation.
       i. subst. simpl in st0. specialize (st0 inG_id).
-      rewrite <- inG_prf in st0. specialize (handler st0). rewrite <- inG_prf. apply handler.
+      rewrite /= -inG_prf in st0. specialize (handler st0). rewrite <- inG_prf. apply handler.
     Defined.
 
     End HANDLER.
@@ -1536,23 +1631,23 @@ Module GRA.
   End GETSET.
 
   Section CONSTRUCTION.
-    Variable RAs: list URA.t.
-    Let GRA: t := (fun n => List.nth n RAs RA.empty).
-    Theorem construction_adequate: forall n RA (IN: List.nth_error RAs n = Some RA),
+    Variable RAs: ucmra_list.
+    Definition GRA: t := of_list RAs.
+    (* Theorem construction_adequate: forall RA (IN: UList.nth_error RAs = Some RA),
         inG RA GRA.
     Proof.
       i. unshelve econs; eauto. unfold GRA. symmetry. eapply nth_error_nth; eauto.
-    Qed.
+    Qed. *)
 
     (* Let GRA2: RA.t := URA.pointwise_dep GRA. *)
     (* Goal @RA.car GRA2 = forall k, (@RA.car (GRA k)). ss. Qed. *)
   End CONSTRUCTION.
 
-  (* Definition extends (RA0 RA1: URA.t): Prop := *)
+  (* Definition extends (RA0 RA1: ucmra): Prop := *)
   (*   exists c, URA.prod RA0 c = RA1 *)
   (* . *)
 
-  Class inG2 (RA GRA: URA.t): Prop := {
+  Class inG2 (RA GRA: ucmra): Prop := {
     GRA_data: t;
     (* GRA_prf:  *)
     inG2_id: nat;
@@ -1560,39 +1655,37 @@ Module GRA.
   }
   .
 
-  Fixpoint point_wise_wf (Ml: list URA.t) (x: of_list Ml) (n: nat) :=
+  Fixpoint point_wise_wf (Ml: ucmra_list) (x: of_list Ml) (n: nat) :=
   match n with
   | O => True
-  | S n' => @URA.wf (of_list Ml n') (x n') /\ @point_wise_wf Ml x n'
+  | S n' => ✓ (x n') ∧ @point_wise_wf Ml x n'
   end.
 
-  Definition point_wise_wf_lift (Ml: list URA.t) (x: of_list Ml)
-             (POINT: point_wise_wf x (List.length Ml))
+  Definition point_wise_wf_lift (Ml: ucmra_list) (x: of_list Ml)
+             (POINT: point_wise_wf x (UList.length Ml))
     :
-      @URA.wf (of_list Ml) x.
+      ✓ x.
   Proof.
-    ur. ss. i. unfold of_list in *.
-    assert (WF: forall (n m: nat)
+    intro i. unfold of_list in *.
+    assert (WF: ∀ (n m: nat)
                        (POINT: point_wise_wf x n)
                        (LT: (m < n)%nat),
-               URA.wf (x m)).
+               ✓ (x m)).
     { induction n.
       { i. inv LT. }
       { i. ss. des. inv LT; auto. }
     }
-    destruct (le_lt_dec (List.length Ml) k).
-    { generalize (x k). rewrite nth_overflow; auto. i. ur. destruct c; ss. }
+    destruct (le_lt_dec (UList.length Ml) i).
+    { generalize (x i). simpl. rewrite UList.nth_overflow; auto. intros []; done. }
     { eapply WF; eauto. }
   Qed.
 
   Lemma point_add (G: t) (x0 x1: G) n
     :
       (x0 ⋅ x1) n = x0 n ⋅ x1 n.
-  Proof.
-    ur. ss. ur. auto.
-  Qed.
+  Proof. by rewrite discrete_fun_lookup_op. Qed.
 End GRA.
-Coercion GRA.to_URA: GRA.t >-> URA.t.
+Coercion GRA.to_URA: GRA.t >-> ucmra.
 
 Global Opaque GRA.to_URA.
 (* Definition ε `{Σ: GRA.t}: Σ := URA.unit. *)
@@ -1625,16 +1718,15 @@ Abort.
 
 Declare Scope ra_scope.
 Delimit Scope ra_scope with ra.
-Notation " K ==> V' " := (URA.pointwise K V') (at level 55, right associativity): ra_scope.
-From iris.bi Require Import derived_connectives updates.
-From iris.prelude Require Import options.
+Notation " K ==> V' " := (discrete_funUR (fun k : K => V')) (at level 55, right associativity): ra_scope.
 
 
-Section TEST.
-  Variable A B C: Type.
-  Let _myRA: URA.t := (A ==> B ==> (RA.excl C))%ra.
-  Let myRA: URA.t := Auth.t _myRA.
-End TEST.
+(* Section TEST.
+  Variable A B: Type.
+  Variable C: ofe.
+  Let _myRA: ucmra := (A ==> B ==> (optionUR $ exclR $ (agreeR C)))%ra.
+  (* Let myRA: ucmra := authUR _myRA. *)
+End TEST. *)
 
 Ltac r_first rs :=
   match rs with
@@ -1646,38 +1738,29 @@ Ltac r_first rs :=
 .
 
 Ltac r_solve :=
-  repeat rewrite URA.add_assoc;
-  repeat (try rewrite URA.unit_id; try rewrite URA.unit_idl);
+  repeat rewrite (assoc op);
+  repeat (try rewrite right_id; try rewrite left_id);
   match goal with
   | [|- ?lhs = (_ ⋅ _) ] =>
     let a := r_first lhs in
-    try rewrite <- (URA.add_comm a);
-    repeat rewrite <- URA.add_assoc;
+    try rewrite <- (comm op);
+    repeat rewrite <- (assoc op);
     try (eapply f_equal; r_solve)
   | _ => try reflexivity
   end
 .
 
-Lemma prop_ext_rev
-      A B
-      (EQ: A = B)
-  :
-    A <-> B
-.
-Proof. clarify. Qed.
-
-Ltac r_wf H := eapply prop_ext_rev; [eapply f_equal|]; [|eapply H]; r_solve.
+Ltac r_wf H := eapply cmra_valid_proper; [|exact H]; r_solve.
 
 Ltac g_wf_tac :=
-  cbn; repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl;
+  cbn; repeat rewrite right_id; repeat rewrite left_id;
   apply GRA.point_wise_wf_lift; ss; splits; repeat rewrite GRA.point_add; unfold GRA.embed; ss;
-  repeat rewrite URA.unit_id; repeat rewrite URA.unit_idl; try apply URA.wf_unit.
+  repeat rewrite right_id; repeat rewrite left_id; try apply ucmra_unit_valid.
 
-Global Opaque URA.unit.
 
-Section UNIT.
+(* Section UNIT.
 
-  Program Instance Unit : URA.t := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True; URA.core := fun _ => tt; |}.
+  Program Instance Unit : ucmra := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True; URA.core := fun _ => tt; |}.
   Next Obligation. destruct a. ss. Qed.
   Next Obligation. destruct a. ss. Qed.
   Next Obligation. unseal "ra". i. destruct a. ss. Qed.
@@ -1687,132 +1770,110 @@ Section UNIT.
   Next Obligation. ss. Qed.
   Next Obligation. unseal "ra". i. exists tt. ss. Qed.
 
-  Lemma Unit_wf : forall x, @URA.wf Unit x.
-  Proof. unfold URA.wf. unseal "ra". ss. Qed.
+  Lemma Unit_wf : forall x, @✓ Unit x.
+  Proof. unfold ✓. unseal "ra". ss. Qed.
 
 End UNIT.
-Global Opaque Unit.
+Global Opaque Unit. *)
 
-Section URA_PROD.
+(* Section URA_PROD.
 
-  Lemma unfold_prod_add (M0 M1 : URA.t) : @URA.add (URA.prod M0 M1) = fun '(a0, a1) '(b0, b1) => (a0 ⋅ b0, a1 ⋅ b1).
+  Lemma unfold_prod_add (M0 M1 : ucmra) : @URA.add (URA.prod M0 M1) = fun '(a0, a1) '(b0, b1) => (a0 ⋅ b0, a1 ⋅ b1).
   Proof. rewrite URA.unfold_add. extensionalities r0 r1. destruct r0, r1. ss. Qed.
 
-  Lemma unfold_prod_wf (M0 M1 : URA.t) : @URA.wf (URA.prod M0 M1) = fun r => URA.wf (fst r) /\ URA.wf (snd r).
+  Lemma unfold_prod_wf (M0 M1 : ucmra) : @✓ (URA.prod M0 M1) = fun r => ✓ (fst r) /\ ✓ (snd r).
   Proof. rewrite URA.unfold_wf. extensionalities r. destruct r. ss. Qed.
 
-End URA_PROD.
+End URA_PROD. *)
 
 Section POINTWISE.
 
-  Lemma unfold_pointwise_add X (M: URA.t) (f0 f1: (X ==> M)%ra)
+  Lemma unfold_pointwise_add X (M: ucmra) (f0 f1: (X ==> M)%ra)
     :
-    f0 ⋅ f1 = (fun x => f0 x ⋅ f1 x).
-  Proof.
-    ur. ur. auto.
-  Qed.
+    f0 ⋅ f1 ≡ (fun x => f0 x ⋅ f1 x).
+  Proof. intros i. by rewrite discrete_fun_lookup_op. Qed.
 
-  Lemma updatable_set_impl (M: URA.t)
+  Lemma updatable_set_impl (M: ucmra)
         (P0 P1: M -> Prop)
-        (IMPL: forall r, URA.wf r -> P0 r -> P1 r)
+        (IMPL: forall r, P0 r -> P1 r)
         (m: M)
-        (UPD: URA.updatable_set m P0)
+        (UPD: m ~~>: P0)
     :
-    URA.updatable_set m P1.
-  Proof.
-    ii. eapply UPD in WF; eauto. des.
-    esplits; eauto. eapply IMPL; auto.
-    eapply URA.wf_mon. eauto.
-  Qed.
+    m ~~>: P1.
+  Proof. apply (cmra_updateP_weaken P0 P1); done. Qed.
 
-  Lemma pointwise_extends A (M: URA.t)
+  Lemma pointwise_extends A (M: ucmra)
         (f0 f1: (A ==> M)%ra)
-        (UPD: forall a, URA.extends (f0 a) (f1 a))
+        (UPD: ∀ a, (f0 a) ≼ (f1 a))
     :
-    URA.extends f0 f1.
-  Proof.
-    hexploit (choice (fun a ctx => f1 a = (f0 a) ⋅ ctx)).
-    { i. specialize (UPD x). r in UPD. des. eauto. }
-    i. des. exists f.
-    rewrite (@unfold_pointwise_add A M). extensionality a. auto.
-  Qed.
+    f0 ≼ f1.
+  Proof. by apply included_discrete_fun. Qed.
 
-  Lemma pointwise_updatable A (M: URA.t)
+  Lemma pointwise_updatable A (M: ucmra)
         (f0 f1: (A ==> M)%ra)
-        (UPD: forall a, URA.updatable (f0 a) (f1 a))
+        (UPD: forall a, (f0 a) ~~> (f1 a))
     :
-    URA.updatable f0 f1.
-  Proof.
-    ii. ur. i. ur in H. specialize (H k).
-    eapply (UPD k); eauto.
-  Qed.
+    f0 ~~> f1.
+  Proof. by apply cmra_update_discrete_fun. Qed.
 
-  Lemma pointwise_updatable_set A (M: URA.t)
+  Lemma pointwise_updatable_set A (M: ucmra)
         (f: (A ==> M)%ra)
         (P: A -> M -> Prop)
-        (UPD: forall a, URA.updatable_set (f a) (P a))
+        (UPD: forall a, (f a) ~~>: (P a))
     :
-    URA.updatable_set f (fun f' => forall a, P a (f' a)).
-  Proof.
-    ii. hexploit (choice (fun a m => P a m /\ URA.wf (m ⋅ ctx a))).
-    { i. eapply (UPD x). ur in WF. auto. }
-    i. des. exists f0. splits; auto.
-    { i. specialize (H a). des. auto. }
-    { ur. i. specialize (H k). des. auto. }
-  Qed.
+    f ~~>: (fun f' => forall a, P a (f' a)).
+  Proof. by apply cmra_updateP_discrete_fun. Qed.
 
-  Definition maps_to_res {A} {M: URA.t}
-             a m: (A ==> M)%ra :=
+  Definition maps_to_res {A} {M: ucmra}
+             a (m : M) : (A ==> M)%ra :=
     fun a' => if excluded_middle_informative (a' = a)
               then m
-              else URA.unit.
+              else ε.
 
-  Lemma maps_to_res_add A (M: URA.t)
+  Lemma maps_to_res_add A (M: ucmra)
         (a: A) (m0 m1: M)
     :
     maps_to_res a m0 ⋅ maps_to_res a m1
-    =
+    ≡
       maps_to_res a (m0 ⋅ m1).
   Proof.
-    extensionality a'. unfold maps_to_res. ur. des_ifs.
-    { ur. auto. }
-    { r_solve. }
+    intros a'. rewrite /maps_to_res discrete_fun_lookup_op. des_ifs.
+    by rewrite right_id.
   Qed.
 
-  Lemma maps_to_updatable A (M: URA.t)
+  Lemma maps_to_updatable A (M: ucmra)
         (a: A) (m0 m1: M)
-        (UPD: URA.updatable m0 m1)
+        (UPD: m0 ~~> m1)
     :
-    URA.updatable (maps_to_res a m0) (maps_to_res a m1).
+    (maps_to_res a m0) ~~> (maps_to_res a m1).
   Proof.
     eapply pointwise_updatable. i.
     unfold maps_to_res. des_ifs.
   Qed.
 
-  Lemma maps_to_updatable_set A (M: URA.t)
+  Lemma maps_to_updatable_set A (M: ucmra)
         (a: A) (m: M) (P: M -> Prop)
-        (UPD: URA.updatable_set m P)
+        (UPD: m ~~>: P)
     :
-    URA.updatable_set
-      (maps_to_res a m)
-      (fun f => exists (m1: M), f = maps_to_res a m1 /\ P m1).
+      (maps_to_res a m) ~~>:
+      (fun f => exists (m1: M), f ≡ maps_to_res a m1 /\ P m1).
   Proof.
     eapply updatable_set_impl; cycle 1.
     { eapply pointwise_updatable_set.
-      instantiate (1:= fun a' m' => (a' = a -> P m') /\ (a' <> a -> m' = URA.unit)).
-      ii. unfold maps_to_res in WF. des_ifs.
-      { exploit UPD; eauto. i. des. esplits; eauto. ss. }
-      { exists URA.unit. splits; ss. }
+      instantiate (1:= fun a' m' => (a' = a -> P m') /\ (a' ≠ a -> m' ≡ ε)).
+      intros a' n mz WF. unfold maps_to_res in WF. des_ifs.
+      { specialize (UPD n mz WF). des. exists y. esplits; eauto. ss. }
+      { exists ε. splits; ss. }
     }
-    { i. ss. exists (r a). splits; auto.
-      { extensionality a'. unfold maps_to_res. des_ifs.
-        specialize (H0 a'). des. auto.
+    { intros r H. ss. exists (r a). splits; auto.
+      { intros a'. unfold maps_to_res. des_ifs.
+        specialize (H a'). des. auto.
       }
-      { specialize (H0 a). des. auto. }
+      { specialize (H a). des. auto. }
     }
   Qed.
 
-  Definition map_update {A} {M: URA.t}
+  Definition map_update {A} {M: ucmra}
              (f: (A ==> M)%ra) a m :=
     fun a' => if excluded_middle_informative (a' = a)
               then m
@@ -1822,44 +1883,40 @@ End POINTWISE.
 
 Section PWDEP.
 
-  Lemma pointwise_dep_updatable
-        A (Ms : A -> URA.t)
-        (f0 f1 : @URA.pointwise_dep A Ms)
-        (UPD : forall a, URA.updatable (f0 a) (f1 a))
+  Lemma pointwise_dep_extends
+        A (Ms : A -> ucmra)
+        (f0 f1 : @pointwise_dep A Ms)
+        (UPD : forall a, (f0 a) ≼ (f1 a))
     :
-    URA.updatable f0 f1.
-  Proof.
-    ii. ur. i. ur in H. specialize (H k).
-    eapply (UPD k); eauto.
-  Qed.
+    f0 ≼ f1.
+  Proof. by apply included_discrete_fun. Qed.
+
+  Lemma pointwise_dep_updatable A (Ms: A → ucmra)
+        (f0 f1: @pointwise_dep A Ms)
+        (UPD: ∀ a, (f0 a) ~~> (f1 a))
+    :
+    f0 ~~> f1.
+  Proof. by apply cmra_update_discrete_fun. Qed.
 
   Lemma pointwise_dep_updatable_set
-        A (Ms : A -> URA.t)
-        (f : @URA.pointwise_dep A Ms)
+        A (Ms : A -> ucmra)
+        (f : @pointwise_dep A Ms)
         (P : forall (a : A), (Ms a) -> Prop)
-        (UPD: forall a, URA.updatable_set (f a) (P a))
+        (UPD: forall a, (f a) ~~>: (P a))
     :
-    URA.updatable_set f (fun f' => forall a, P a (f' a)).
-  Proof.
-    ii.
-    set (R := fun (a : A) => (fun (m : Ms a) => P a m /\ URA.wf (m ⋅ ctx a))).
-    hexploit (dependent_functional_choice _ R).
-    { subst R. ss. i. eapply (UPD x). ur in WF. auto. }
-    subst R. ss. i. des. exists f0. splits; auto.
-    { i. specialize (H a). des. auto. }
-    { ur. i. specialize (H k). des. auto. }
-  Qed.
+    f ~~>: (fun f' => forall a, P a (f' a)).
+  Proof. by apply cmra_updateP_discrete_fun. Qed.
 
-  Program Definition maps_to_res_dep {A : Type} {Ms : A -> URA.t} (a : A) (m : Ms a)
-    : @URA.pointwise_dep A Ms.
+  Program Definition maps_to_res_dep {A : Type} {Ms : A -> ucmra} (a : A) (m : Ms a)
+    : @pointwise_dep A Ms.
   Proof.
-    ii. destruct (Axioms.excluded_middle_informative (k = a)).
+    intros k. destruct (Axioms.excluded_middle_informative (k = a)).
     - subst k. exact m.
     - exact ε.
   Defined.
 
   Lemma maps_to_res_dep_eq
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a : A)
         (m : Ms a)
     :
@@ -1870,69 +1927,68 @@ Section PWDEP.
   Qed.
 
   Lemma maps_to_res_dep_neq
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a b : A)
         (m : Ms a)
     :
-    a <> b -> (@maps_to_res_dep A Ms a m) b = ε.
+    a ≠ b -> (@maps_to_res_dep A Ms a m) b = ε.
   Proof.
     i. unfold maps_to_res_dep. des_ifs.
   Qed.
 
   Lemma maps_to_res_dep_add
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a : A)
         (m0 m1 : Ms a)
     :
-    @maps_to_res_dep _ Ms a m0 ⋅ @maps_to_res_dep _ Ms a m1 = @maps_to_res_dep _ Ms a (m0 ⋅ m1).
+    @maps_to_res_dep _ Ms a m0 ⋅ @maps_to_res_dep _ Ms a m1 ≡ @maps_to_res_dep _ Ms a (m0 ⋅ m1).
   Proof.
-    extensionalities a'. unfold URA.add at 1. unseal "ra". ss.
+    intros a'. ss. rewrite discrete_fun_lookup_op.
     destruct (Axioms.excluded_middle_informative (a' = a)).
     - subst a'. rewrite ! @maps_to_res_dep_eq. auto.
-    - rewrite ! @maps_to_res_dep_neq; auto. apply URA.unit_id.
+    - rewrite ! @maps_to_res_dep_neq; auto. by rewrite right_id.
   Qed.
 
   Lemma maps_to_res_dep_updatable
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a : A)
         (m0 m1 : Ms a)
-        (UPD: URA.updatable m0 m1)
+        (UPD: m0 ~~> m1)
     :
-    URA.updatable (@maps_to_res_dep A Ms a m0) (@maps_to_res_dep A Ms a m1).
+    (@maps_to_res_dep A Ms a m0) ~~> (@maps_to_res_dep A Ms a m1).
   Proof.
     eapply pointwise_dep_updatable. i. unfold maps_to_res_dep. des_ifs.
   Qed.
 
   Lemma maps_to_res_dep_updatable_set
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a : A)
         (m : Ms a)
-        (P : forall (a' : A), Ms a' -> Prop)
-        (UPD: URA.updatable_set m (P a))
+        (P : ∀ (a' : A), Ms a' -> Prop)
+        (UPD: m ~~>: (P a))
     :
-    URA.updatable_set
-      (@maps_to_res_dep A Ms a m)
+      (@maps_to_res_dep A Ms a m) ~~>:
       (fun f => exists (m1 : Ms a), f = @maps_to_res_dep A Ms a m1 /\ (P a m1)).
   Proof.
     eapply updatable_set_impl; cycle 1.
     { eapply pointwise_dep_updatable_set.
-      instantiate (1:= fun a' m' => (a' = a -> P a' m') /\ (a' <> a -> m' = URA.unit)).
-      ii. unfold maps_to_res_dep in WF. des_ifs.
-      { exploit UPD; eauto. i. des. esplits; eauto. ss. }
-      { exists URA.unit. splits; ss. }
+      instantiate (1:= fun a' m' => (a' = a → P a' m') /\ (a' ≠ a → m' = ε)).
+      intros a' n mz WF. unfold maps_to_res_dep in WF. des_ifs.
+      { exploit (UPD n); eauto. i. des. esplits; eauto. ss. }
+      { exists ε. splits; ss. }
     }
     { i. ss. exists (r a). splits; auto.
       { extensionalities a'. unfold maps_to_res_dep. des_ifs.
-        specialize (H0 a'). des. auto.
+        specialize (H a'). des. auto.
       }
-      { specialize (H0 a). des. auto. }
+      { specialize (H a). des. auto. }
     }
   Qed.
 
-  Program Definition maps_to_res_dep_update {A} {Ms: A -> URA.t}
-          (f: @URA.pointwise_dep A Ms) a (m : Ms a) : @URA.pointwise_dep A Ms.
+  Program Definition maps_to_res_dep_update {A} {Ms: A -> ucmra}
+          (f: @pointwise_dep A Ms) a (m : Ms a) : @pointwise_dep A Ms.
   Proof.
-    ii. destruct (excluded_middle_informative (k = a)).
+    intros k. destruct (excluded_middle_informative (k = a)).
     - subst k. exact m.
     - exact (f k).
   Qed.
@@ -1941,119 +1997,83 @@ End PWDEP.
 
 
 Tactic Notation "unfold_prod" :=
-  try rewrite ! unfold_prod_add;
-  rewrite unfold_prod_wf;
+  try rewrite -!pair_op;
+  rewrite pair_valid;
   simpl.
 
 Tactic Notation "unfold_prod" hyp(H) :=
-  try rewrite ! unfold_prod_add in H;
-  rewrite unfold_prod_wf in H;
+  try rewrite -!pair_op in H;
+  rewrite pair_valid in H;
   simpl in H;
   let H1 := fresh H in
   destruct H as [H H1].
 
-From iris.bi Require Import derived_connectives updates.
-From iris.prelude Require Import options.
-
-Section PWAUX.
-
-  Context {K: Type} `{M: URA.t}.
-  Let RA := URA.pointwise K M.
-
-  Lemma pw_extends (f0 f1: K -> M) (EXT: @URA.extends RA f0 f1): <<EXT: forall k, URA.extends (f0 k) (f1 k)>>.
-  Proof. ii. r in EXT. des. subst. ur. ss. eexists; eauto. Qed.
-
-  Lemma pw_wf: forall (f: K -> M) (WF: URA.wf (f: @URA.car RA)), <<WF: forall k, URA.wf (f k)>>.
-  Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
-
-  Lemma pw_add_disj_wf
-        (f g: K -> M)
-        (WF0: URA.wf (f: @URA.car RA))
-        (WF1: URA.wf (g: @URA.car RA))
-        (DISJ: forall k, <<DISJ: f k = ε \/ g k = ε>>)
-    :
-      <<WF: URA.wf ((f: RA) ⋅ g)>>
-  .
-  Proof.
-    ii; ss. ur. i. ur in WF0. ur in WF1. specialize (DISJ k). des; rewrite DISJ.
-    - rewrite URA.unit_idl; eauto.
-    - rewrite URA.unit_id; eauto.
-  Qed.
-
-  Lemma pw_insert_wf: forall `{EqDecision K} (f: K -> M) k v (WF: URA.wf (f: @URA.car RA)) (WFV: URA.wf v),
-      <<WF: URA.wf (<[k:=v]> f: @URA.car RA)>>.
-  Proof.
-    i. unfold insert, functions.fn_insert. ur. ii. des_ifs. ur in WF. eapply WF.
-  Qed.
-
-  Lemma pw_lookup_wf: forall (f: @URA.car RA) k (WF: URA.wf f), URA.wf (f k).
-  Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
-
-End PWAUX.
-
 Section PWDAUX.
 
-  Context {K: Type} `{M: K -> URA.t}.
-  Let RA := @URA.pointwise_dep K M.
+  Context {K: Type} `{M: K -> ucmra}.
+  Let RA := @pointwise_dep K M.
 
-  Lemma pwd_extends (f0 f1: forall (k : K), M k) (EXT: @URA.extends RA f0 f1): <<EXT: forall k, URA.extends (f0 k) (f1 k)>>.
-  Proof. ii. r in EXT. des. subst. ur. ss. eexists; eauto. Qed.
+  Lemma pwd_extends (f0 f1: forall (k : K), M k) (EXT: (f0 : (@cmra_car RA)) ≼ (f1 : (@cmra_car RA))) : <<EXT: forall k, (f0 k) ≼ (f1 k)>>.
+  Proof.
+    ii. r in EXT. des. specialize (EXT k).
+    rewrite discrete_fun_lookup_op in EXT.  eexists; eauto.
+  Qed.
 
-  Lemma pwd_wf: forall (f: forall (k : K), M k) (WF: URA.wf (f: @URA.car RA)), <<WF: forall k, URA.wf (f k)>>.
-  Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
+  Lemma pwd_wf: forall (f: forall (k : K), M k) (WF: ✓ (f: @cmra_car RA)), <<WF: forall k, ✓ (f k)>>.
+  Proof. ii; ss. eauto. Qed.
 
   Lemma pwd_add_disj_wf
         (f g: forall (k : K), M k)
-        (WF0: URA.wf (f: @URA.car RA))
-        (WF1: URA.wf (g: @URA.car RA))
-        (DISJ: forall k, <<DISJ: f k = ε \/ g k = ε>>)
+        (WF0: ✓ (f: @cmra_car RA))
+        (WF1: ✓ (g: @cmra_car RA))
+        (DISJ: forall k, <<DISJ: f k ≡ ε \/ g k ≡ ε>>)
     :
-      <<WF: URA.wf ((f: RA) ⋅ g)>>
+      <<WF: ✓ ((f: RA) ⋅ g)>>
   .
   Proof.
-    ii; ss. ur. i. ur in WF0. ur in WF1. specialize (DISJ k). des; rewrite DISJ.
-    - rewrite URA.unit_idl; eauto.
-    - rewrite URA.unit_id; eauto.
+    intros k. rewrite discrete_fun_lookup_op. specialize (DISJ k). des; rewrite DISJ.
+    - rewrite left_id; eauto.
+    - rewrite right_id; eauto.
   Qed.
 
-  Lemma pwd_lookup_wf: forall (f: @URA.car RA) k (WF: URA.wf f), URA.wf (f k).
-  Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
+  (* Lemma pw_insert_wf: forall `{EqDecision K} (f: K -> M) k v (WF: ✓ (f: @cmra_car RA)) (WFV: ✓ v),
+      <<WF: ✓ (f: @cmra_car RA)>>.
+  Proof. by apply pwd_insert_wf. Qed. *)
+
+  Lemma pwd_lookup_wf: forall (f: @cmra_car RA) k (WF: ✓ f), ✓ (f k).
+  Proof. ii; ss. Qed.
 
 End PWDAUX.
 
 
+Section PWAUX.
+
+  Context {K: Type} `{M: ucmra}.
+  Let RA := @pointwise K M.
+
+  Lemma pw_extends (f0 f1 : K -> M) (EXT: (f0 : @cmra_car RA) ≼ (f1  : @cmra_car RA)) : <<EXT: forall k, (f0 k) ≼ (f1 k)>>.
+  Proof. by apply pwd_extends. Qed.
+
+  Lemma pw_wf: forall (f: K -> M) (WF: ✓ (f : @cmra_car RA)), <<WF: forall k, ✓ (f k)>>.
+  Proof. by apply pwd_wf. Qed.
+
+  Lemma pw_add_disj_wf
+        (f g: K -> M)
+        (WF0: ✓ (f: @cmra_car RA))
+        (WF1: ✓ (g: @cmra_car RA))
+        (DISJ: forall k, <<DISJ: f k ≡ ε ∨ g k ≡ ε>>)
+    :
+      <<WF: ✓ ((f: RA) ⋅ g)>>
+  .
+  Proof. by apply pwd_add_disj_wf. Qed.
+
+  (* Lemma pw_insert_wf: forall `{EqDecision K} (f: K -> M) k v (WF: ✓ (f: @cmra_car RA)) (WFV: ✓ v),
+      <<WF: ✓ (f: @cmra_car RA)>>.
+  Proof. by apply pwd_insert_wf. Qed. *)
+
+  Lemma pw_lookup_wf: forall (f: @cmra_car RA) k (WF: ✓ f), ✓ (f k).
+  Proof. by apply pwd_lookup_wf. Qed.
+
+End PWAUX.
 
 (* TODO: make lemmas for RA and turn it into URA at the last *)
-
-From Fairness Require PCMLarge.
-
-Program Definition to_LURA (M: URA.t): PCMLarge.URA.t :=
-  @PCMLarge.URA.mk M.(URA.car) M.(URA.unit) M.(URA._add) M.(URA._wf) M.(URA._add_comm) M.(URA._add_assoc) _ _ _ M.(URA.core) _ _ _.
-Next Obligation.
-  i. PCMLarge.unseal "ra".
-  hexploit URA.unit_id. i. ur in H. eauto.
-Qed.
-Next Obligation.
-  i. PCMLarge.unseal "ra".
-  hexploit URA.wf_unit. i. ur in H. eauto.
-Qed.
-Next Obligation.
-  i. PCMLarge.unseal "ra".
-  hexploit URA.wf_mon.
-  { ur. eauto. }
-  i. ur in H0. eauto.
-Qed.
-Next Obligation.
-  i. PCMLarge.unseal "ra".
-  hexploit URA.core_id. i. ur in H. eauto.
-Qed.
-Next Obligation.
-  i. PCMLarge.unseal "ra".
-  hexploit URA.core_idem. i. ur in H. eauto.
-Qed.
-Next Obligation.
-  i. PCMLarge.unseal "ra".
-  hexploit URA.core_mono. i. ur in H. eauto.
-Qed.
-
-Coercion to_LURA: URA.t >-> PCMLarge.URA.t.

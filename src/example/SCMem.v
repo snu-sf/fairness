@@ -367,7 +367,7 @@ From Fairness Require Import PCM IProp IPM IPropAux MonotoneRA Axioms cmra dfrac
 
 Section MEMRA.
   Context `{heap_name : nat}.
-  Definition memRA: URA.t := (nat ==> nat ==> (of_RA.t (of_IrisRA.t (dfrac_agreeR SCMem.val))))%ra.
+  Definition memRA: ucmra := (nat ==> nat ==> (of_RA.t (of_IrisRA.t (dfrac_agreeR SCMem.val))))%ra.
 
   Context `{MEMRA: @GRA.inG memRA Σ}.
 

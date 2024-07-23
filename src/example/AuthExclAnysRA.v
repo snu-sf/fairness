@@ -5,7 +5,7 @@ From Fairness Require Import TemporalLogic.
 
 Section AEAPROP.
 
-  Definition AuthExclAnysRA : URA.t := (nat ==> (Auth.t (Excl.t Any.t)))%ra.
+  Definition AuthExclAnysRA : ucmra := (nat ==> (Auth.t (Excl.t Any.t)))%ra.
 
   Context `{Σ : GRA.t}.
   (* Map from nat to Auth Excl Any. *)

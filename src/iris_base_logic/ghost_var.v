@@ -14,7 +14,7 @@ From iris.prelude Require Import prelude options.
 
 Local Open Scope iris_algebra_scope.
 
-Definition ghost_varURA (A : Type) : URA.t := @FiniteMap.t (of_RA.t (of_IrisRA.t (dfrac_agreeR A))).
+Definition ghost_varURA (A : Type) : ucmra := @FiniteMap.t (of_RA.t (of_IrisRA.t (dfrac_agreeR A))).
 
 Section definitions.
   Context {A : Type}.

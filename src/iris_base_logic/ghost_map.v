@@ -14,7 +14,7 @@ From iris.prelude Require Import prelude options.
 
 Local Open Scope iris_algebra_scope.
 
-Definition ghost_mapURA (K V : Type) `{Countable K} : URA.t := @FiniteMap.t (of_RA.t (of_IrisRA.t (gmap_viewR K (agreeR V)))).
+Definition ghost_mapURA (K V : Type) `{Countable K} : ucmra := @FiniteMap.t (of_RA.t (of_IrisRA.t (gmap_viewR K (agreeR V)))).
 
 Section definitions.
   Context {K V : Type} `{Countable K}.

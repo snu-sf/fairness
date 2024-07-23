@@ -9,7 +9,7 @@ Require Import Coqlib PCM PCMAux IProp IPM.
 Module HRA.
 
   Section HRA.
-  
+
   Class t := __HRA : GRA.t.
 
   Class subG (Γ: t) (Σ: GRA.t) : Type := {
@@ -20,13 +20,13 @@ Module HRA.
   Coercion subG_map: subG >-> Funclass.
 
   Context `{sub: @subG Γ Σ}.
-  
+
   Global Program Instance embed (i:nat) : @GRA.inG (Γ i) Σ := {
       inG_id := sub i;
     }.
   Next Obligation. i. symmetry. apply HRA.subG_prf. Qed.
-  
-  Global Program Instance in_subG `{M: URA.t} `{emb: @GRA.inG M Γ} : @GRA.inG M Σ := {
+
+  Global Program Instance in_subG `{M: ucmra} `{emb: @GRA.inG M Γ} : @GRA.inG M Σ := {
       inG_id := sub.(subG_map) emb.(GRA.inG_id);
       }.
   Next Obligation.
@@ -34,13 +34,13 @@ Module HRA.
   Qed.
 
   End HRA.
-  
+
 End HRA.
 
 Coercion HRA.subG_map: HRA.subG >-> Funclass.
 
 Module PF.
-  
+
   Class t: Type := {
     shp: Type;
     deg: shp -> forall (sProp:Type), Type;
@@ -51,7 +51,7 @@ End PF.
 Coercion PF.shp: PF.t >-> Sortclass.
 
 Module GPF.
-  
+
   Class t: Type := __GATOM: nat -> PF.t.
 
   Class inG (F: PF.t) (GF: t) : Type := {
@@ -68,7 +68,7 @@ Module gTyp.
 End gTyp.
 
 Module gAtom.
-  
+
   Class t: Type := __GATM: GPF.t.
 
 End gAtom.
@@ -104,7 +104,7 @@ Module sProp.
   Fixpoint _sProp (n : level) : Type :=
     match n with
     | O => Empty_set
-    | S m => t (sProp := _sProp m) 
+    | S m => t (sProp := _sProp m)
     end.
 
   Definition sProp (n : level) : Type := _sProp (S n).
@@ -114,7 +114,7 @@ Module sProp.
     | 0 => p
     | S n' => lift (liftn n' p)
     end.
-  
+
   Definition affinely {n} (p : sProp n) : sProp n :=
     and empty p.
 
@@ -132,7 +132,7 @@ Module sProp.
     destruct IN. subst.
     exact (_ex _ ty p).
   Defined.
-  
+
   End SYNTAX.
 
 End sProp.
@@ -147,12 +147,12 @@ Module SAtom.
   Context `{α: gAtom.t}.
   Context `{A: PF.t}.
 
-  Class t : Type := 
+  Class t : Type :=
     interp: forall n (s: A) (p: PF.deg s (sProp._sProp n) -> sProp.sProp n) (P: PF.deg s (sProp._sProp n) -> iProp), iProp
   .
 
   End SATOM.
-  
+
 End SAtom.
 
 Module GAtom.
@@ -162,14 +162,14 @@ Module GAtom.
   Context `{Γ: HRA.t}.
   Context `{Σ: GRA.t}.
   Context `{τ: gTyp.t}.
-    
+
   Class t `{α: gAtom.t}: Type := __GATOM: forall i, SAtom.t (A:= α i).
 
   Class inG (A: PF.t) (α: gAtom.t) (B: @SAtom.t _ _ _ α A) (β: t) : Type := {
     inG_id: nat;
     inG_prf: existT A B = existT (α inG_id) (β inG_id);
   }.
-  
+
   End GATM.
 
 End GAtom.
@@ -212,16 +212,16 @@ Module sPropI.
     destruct a as [s p]. destruct IN. inv inG_prf.
     exact (_atom inG_id s p).
   Defined.
-  
+
   End INTERP.
-  
+
 End sPropI.
 
 Section RED.
 
   Context `{sub: @HRA.subG Γ Σ}.
   Context `{β: @GAtom.t Γ Σ τ α}.
-  
+
   Import sProp.
   Import sPropI.
 
@@ -237,7 +237,7 @@ Section RED.
     f_equal. unfold HRA.in_subG, HRA.embed. ss.
     erewrite (UIP _ _ _ _). reflexivity.
   Qed.
-  
+
   Lemma red_sem__atom n i s p :
     interp n (_atom i s p) = β i _ s p (interp n ∘ p).
   Proof. reflexivity. Qed.
@@ -281,7 +281,7 @@ Section RED.
   Proof.
     destruct H eqn: EQ. subst. ss.
   Qed.
-  
+
   Lemma red_sem__ex n i ty p :
     interp n (_ex i ty p) = (∃ x, interp n (p x))%I.
   Proof. reflexivity. Qed.
@@ -291,11 +291,11 @@ Section RED.
   Proof.
     destruct H eqn: EQ. subst. ss.
   Qed.
-  
+
   Lemma red_sem_empty n :
     interp n empty = emp%I.
   Proof. reflexivity. Qed.
-  
+
   Lemma red_sem_sepconj n p q :
     interp n (sepconj p q) = (interp n p ∗ interp n q)%I.
   Proof. reflexivity. Qed.
@@ -421,17 +421,17 @@ Notation "∃ a .. z , P" := (f_exist _ (λ a, .. (f_exist _ (λ z, P%F)) ..)) :
 Notation "'emp'" := (sProp.empty) : sProp_scope.
 
 (* Module TestLock. *)
-  
+
 (* Section TESTLOCK. *)
 
 (*   Context `{τ: sType.t}. *)
 (*   Context `{Σ : GRA.t}. *)
-  
+
 (*   Variant atm {sProp : Type} : Type := *)
 (*     | lock (p: sProp) : atm *)
 (*     | unlock (p: sProp) : atm *)
 (*   . *)
-  
+
 (*   Instance t : SAtom.t := { *)
 (*     car sProp := @atm sProp; *)
 (*     interp α n itp p := *)
@@ -440,7 +440,7 @@ Notation "'emp'" := (sProp.empty) : sProp_scope.
 (*         | unlock q => itp q ∗ itp q *)
 (*         end%I *)
 (*   }. *)
-  
+
 (* End TESTLOCK. *)
 
 (* End TestLock. *)
@@ -448,7 +448,7 @@ Notation "'emp'" := (sProp.empty) : sProp_scope.
 (* Require Import RobustIndexedInvariants. *)
 
 (* Module TestOwnI. *)
-  
+
 (* Section TestOwnI. *)
 
 (*   Context `{τ: sType.t}. *)
@@ -463,20 +463,20 @@ Notation "'emp'" := (sProp.empty) : sProp_scope.
 (*   Check (OwnI 1 0 1 ⟨OwnE 1 0 ∅⟩). *)
 
 (*   Check (∃ p: iProp, p -∗ False)%I. *)
-  
+
 (*   Lemma foo: sPropSem.interp 0 (xxx 1 0 1) = OwnI 1 0 1 ⟨OwnE 1 0 ∅⟩. *)
 (*     reflexivity. *)
 (*   Qed.   *)
-  
-  
+
+
 (*   (* Context `{α: GAtom.t}. *) *)
-   
+
 (*   (* Variant atom {sProp : Type} : Type := *) *)
 (*   (* | owni (u: positive) (i : positive) (p : sProp.t (sProp:=sProp)) *) *)
 (*   (* . *) *)
 
 (*   (* Context `{@GRA.inG (OwnIsRA sProp) Σ}. *) *)
-  
+
 (*   (* Program Instance t : SAtom.t := { *) *)
 (*   (*   car sProp := @atom sProp; *) *)
 (*   (* }. *) *)
@@ -484,7 +484,7 @@ Notation "'emp'" := (sProp.empty) : sProp_scope.
 (*   (*   intros. destruct X. *) *)
 (*   (*   Set Printing All. *) *)
 (*   (*   exact (@OwnI _ sProp.sProp _ u n i p). *) *)
-  
+
 (*   (*   interp α n itp p := *) *)
 (*   (*     match p with *) *)
 (*   (*     | owni u i p => @OwnI _ sProp.sProp _ u _ i p *) *)
@@ -492,15 +492,15 @@ Notation "'emp'" := (sProp.empty) : sProp_scope.
 (*   (* }. *) *)
 
 
-  
-  
+
+
 
 
 (* End TestOwnI. *)
 
 (* End TestOwnI. *)
 
-  
+
   (* Definition embed `{Γ: GRA.t} `{Σ: GRA.t} `{m: @subG Γ Σ} (r: Σ) : Γ := *)
   (*   fun i => eq_rect _ (@URA.car) (r (m i)) _ (m.(subG_prf) i). *)
 
@@ -523,7 +523,7 @@ Notation "'emp'" := (sProp.empty) : sProp_scope.
   (*   unfold embed, URA.add. unseal "ra". simpl. *)
   (*   rewrite <-(m.(subG_prf) k). ss. *)
   (* Qed. *)
-  
+
   (* Program Definition lift `{Γ: GRA.t} `{Σ: GRA.t} `{m: @subG Γ Σ} (P: @iProp Γ): @iProp Σ := *)
   (*   iProp_intro (fun r => P (embed r)) _. *)
   (* Next Obligation. *)
@@ -538,8 +538,8 @@ Notation "'emp'" := (sProp.empty) : sProp_scope.
   (*   destruct Q eqn: EQQ. subst. *)
   (*   ss. subst. f_equal. eapply proof_irrelevance. *)
   (* Qed. *)
-  
-  (* Lemma lift_ownM `{Γ: GRA.t} `{Σ: GRA.t} `{sub: @subG Γ Σ} {M: URA.t} {emb: @GRA.inG M Γ} (m: M): *)
+
+  (* Lemma lift_ownM `{Γ: GRA.t} `{Σ: GRA.t} `{sub: @subG Γ Σ} {M: ucmra} {emb: @GRA.inG M Γ} (m: M): *)
   (*   lift (@OwnM Γ M emb m) = @OwnM Σ M (in_subG sub emb) m. *)
   (* Proof. *)
   (*   Local Transparent GRA.to_URA. *)

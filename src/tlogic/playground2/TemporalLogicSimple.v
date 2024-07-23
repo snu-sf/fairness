@@ -881,7 +881,7 @@ End TEST.
 (*     Context `{Σ : GRA.t}. *)
 (*     (* Context `{SUB : *) *)
 (*     (*       forall M, In M σ -> *) *)
-(*     (*            { to_URA : SRA -> URA.t & *) *)
+(*     (*            { to_URA : SRA -> ucmra & *) *)
 (*     (*                               ((GRA.inG (to_URA M) Σ) * ((@car M) -> (to_URA M)))%type }}. *) *)
 
 (*     Context `{@GRA.inG (IInvSetRA Formula) Σ}. *)

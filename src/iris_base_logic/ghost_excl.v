@@ -7,7 +7,7 @@ From iris.prelude Require Import prelude options.
 
 Local Open Scope iris_algebra_scope.
 
-Definition ghost_exclURA (A : Type) : URA.t := @FiniteMap.t (of_RA.t (of_IrisRA.t (exclR A))).
+Definition ghost_exclURA (A : Type) : ucmra := @FiniteMap.t (of_RA.t (of_IrisRA.t (exclR A))).
 
 Section definitions.
   Context `{Σ : GRA.t}.

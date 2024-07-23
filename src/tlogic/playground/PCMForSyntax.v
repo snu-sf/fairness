@@ -600,9 +600,9 @@ Module URA.
   Next Obligation. exists b. auto. Qed.
 End URA.
 
-(* Coercion URA.to_RA: URA.t >-> RA.t. *)
+(* Coercion URA.to_RA: ucmra >-> RA.t. *)
 Coercion RA.car: RA.t >-> Sortclass.
-Coercion URA.car: URA.t >-> Sortclass.
+Coercion URA.car: ucmra >-> Sortclass.
 
 Tactic Notation "ur" := try rewrite ! URA.unfold_wf; try rewrite ! URA.unfold_add; cbn.
 Tactic Notation "ur" "in" hyp(H)  := try rewrite ! URA.unfold_wf in H; try rewrite ! URA.unfold_add in H; cbn in H.
@@ -644,7 +644,7 @@ Let add `{M: RA.t}: car -> car -> car :=
     | _, unit => a
     end.
 
-Program Instance t (RA: RA.t): URA.t := {
+Program Instance t (RA: RA.t): ucmra := {
   car := car;
   unit := of_RA.unit;
   _wf := wf;
@@ -661,7 +661,7 @@ End of_RA.
 End of_RA.
 
 (* Coercion to_RA: t >-> RA.t. *)
-Coercion of_RA.t: RA.t >-> URA.t.
+Coercion of_RA.t: RA.t >-> ucmra.
 
 
 
@@ -686,7 +686,7 @@ Inductive car: Type :=
 Let _add := fun x y => match x, y with | _, unit => x | unit, _ => y | _, _ => boom end.
 Let _wf := fun a => a <> boom.
 
-Program Instance t: URA.t := {
+Program Instance t: ucmra := {
   URA.car := car;
   URA._add := _add;
   URA._wf := _wf;
@@ -742,35 +742,35 @@ Coercion Excl.option_coercion: option >-> Excl.car.
 Module Auth.
 Section AUTH.
 
-(* Variable (M: URA.t). *)
+(* Variable (M: ucmra). *)
 
-Inductive car `{M: URA.t}: Type :=
+Inductive car `{M: ucmra}: Type :=
 | frag (f: M)
 | excl (e: M) (f: M)
 | boom
 .
 
-Let add `{M: URA.t} := fun a0 a1 => match a0, a1 with
+Let add `{M: ucmra} := fun a0 a1 => match a0, a1 with
                                     | frag f0, frag f1 => frag (f0 ⋅ f1)
                                     | frag f0, excl e1 f1 => excl e1 (f0 ⋅ f1)
                                     | excl e0 f0, frag f1 => excl e0 (f0 ⋅ f1)
                                     | _, _ => boom
                                     end.
-Let wf `{M: URA.t} := fun a =>
+Let wf `{M: ucmra} := fun a =>
                         match a with
                         | frag f => URA.wf f
                         | excl e f => URA.extends f e /\ URA.wf e
                         | boom => False
                         end.
 
-Let core `{M: URA.t} := fun a =>
+Let core `{M: ucmra} := fun a =>
                           match a with
                           | frag f => frag (URA.core f)
                           | excl _ f => frag (URA.core f)
                           | boom => boom
                           end.
 
-Program Instance t (M: URA.t): URA.t := {
+Program Instance t (M: ucmra): ucmra := {
   car := car;
   unit := frag ε;
   _add := add;
@@ -806,16 +806,16 @@ Next Obligation.
   - exists boom. ss.
 Qed.
 
-Definition black `{M: URA.t} (a: M): t M := excl a ε.
-Definition white `{M: URA.t} (a: M): t M := frag a.
+Definition black `{M: ucmra} (a: M): t M := excl a ε.
+Definition white `{M: ucmra} (a: M): t M := frag a.
 
-Definition local_update `{M: URA.t} a0 b0 a1 b1: Prop :=
+Definition local_update `{M: ucmra} a0 b0 a1 b1: Prop :=
   forall ctx, (<<WF: URA.wf a0>> /\ <<FRAME: a0 = URA.add b0 ctx>>) ->
               (<<WF: URA.wf a1>> /\ <<FRAME: a1 = URA.add b1 ctx>>)
 .
 
 Theorem auth_update
-        `{M: URA.t}
+        `{M: ucmra}
         a b a' b'
         (UPD: local_update a b a' b')
   :
@@ -832,7 +832,7 @@ Proof.
 Qed.
 
 Theorem auth_dup_black
-        `{M: URA.t}
+        `{M: ucmra}
         a ca
         (CORE: a = a ⋅ ca)
   :
@@ -848,7 +848,7 @@ Proof.
 Qed.
 
 Theorem auth_dup_white
-        `{M: URA.t}
+        `{M: ucmra}
         a ca
         (CORE: a = a ⋅ ca)
   :
@@ -861,7 +861,7 @@ Proof.
 Qed.
 
 Theorem auth_alloc
-        `{M: URA.t}
+        `{M: ucmra}
         a0 a1 b1
         (UPD: local_update a0 ε a1 b1)
   :
@@ -872,7 +872,7 @@ Proof.
 Qed.
 
 Theorem auth_alloc2
-        `{M: URA.t}
+        `{M: ucmra}
         a0 delta
         (WF: URA.wf (a0 ⋅ delta))
   :
@@ -889,7 +889,7 @@ Proof.
 Qed.
 
 Theorem auth_dealloc
-        `{M: URA.t}
+        `{M: ucmra}
         a0 a1 b0
         (UPD: local_update a0 b0 a1 ε)
   :
@@ -900,7 +900,7 @@ Proof.
 Qed.
 
 Theorem auth_included
-        `{M: URA.t}
+        `{M: ucmra}
         a b
         (WF: URA.wf ((black a) ⋅ (white b)))
   :
@@ -912,7 +912,7 @@ Proof.
 Qed.
 
 Theorem auth_exclusive
-        `{M: URA.t}
+        `{M: ucmra}
         a b
         (WF: URA.wf ((black a) ⋅ (black b)))
   :
@@ -921,7 +921,7 @@ Theorem auth_exclusive
 Proof. rewrite URA.unfold_add in WF; rewrite URA.unfold_wf in WF. ss. Qed.
 
 Lemma black_wf
-      `{M: URA.t}
+      `{M: ucmra}
       a
       (WF: URA.wf (black a))
   :
@@ -959,7 +959,7 @@ Module Gset.
     | _, _ => None
     end.
 
-  Program Instance t : URA.t :=
+  Program Instance t : ucmra :=
     {|
       URA.car := option (gset positive);
       URA.unit := Some ∅;
@@ -1011,7 +1011,7 @@ Module CoPset.
     | _, _ => None
     end.
 
-  Program Instance t : URA.t :=
+  Program Instance t : ucmra :=
     {|
       URA.car := option coPset;
       URA.unit := Some ∅;
@@ -1053,8 +1053,8 @@ Module CoPset.
 End CoPset.
 
 Module GRA.
-  Class t: Type := __GRA__INTERNAL__: (nat -> URA.t).
-  Class inG (RA: URA.t) (Σ: t) := InG {
+  Class t: Type := __GRA__INTERNAL__: (nat -> ucmra).
+  Class inG (RA: ucmra) (Σ: t) := InG {
     inG_id: nat;
     (* inG_prf: Eq (GRA inG_id) RA; *)
     inG_prf: RA = Σ inG_id;
@@ -1063,13 +1063,13 @@ Module GRA.
   Class subG (Σ0 Σ1: t) := SubG i : { j | Σ0 i = Σ1 j }.
   (* Class subG (GRA0 GRA1: t) := SubG { subG_prf: forall i, { j | GRA0 i = GRA1 j } }. *)
 
-  Definition of_list (RAs: list URA.t): t := fun n => List.nth n RAs (of_RA.t RA.empty).
+  Definition of_list (RAs: list ucmra): t := fun n => List.nth n RAs (of_RA.t RA.empty).
 
-  Definition to_URA (Σ: t): URA.t := URA.pointwise_dep Σ.
+  Definition to_URA (Σ: t): ucmra := URA.pointwise_dep Σ.
 
-  Coercion to_URA: t >-> URA.t.
+  Coercion to_URA: t >-> ucmra.
 
-  Let cast_ra {A B: URA.t} (LeibEq: A = B) (a: URA.car (t:=A)): URA.car (t:=B) :=
+  Let cast_ra {A B: ucmra} (LeibEq: A = B) (a: URA.car (t:=A)): URA.car (t:=B) :=
     eq_rect A (@URA.car) a _ LeibEq.
 
   (* a: URA.car =ty= RAs inG_id =ty= RAs n *)
@@ -1156,7 +1156,7 @@ Module GRA.
   Qed.
 
   Section GETSET.
-    Variable ra: URA.t.
+    Variable ra: ucmra.
     Variable gra: t.
     Context `{@inG ra gra}.
 
@@ -1196,7 +1196,7 @@ Module GRA.
   End GETSET.
 
   Section CONSTRUCTION.
-    Variable RAs: list URA.t.
+    Variable RAs: list ucmra.
     Let GRA: t := (fun n => List.nth n RAs RA.empty).
     Theorem construction_adequate: forall n RA (IN: List.nth_error RAs n = Some RA),
         inG RA GRA.
@@ -1208,11 +1208,11 @@ Module GRA.
     (* Goal @RA.car GRA2 = forall k, (@RA.car (GRA k)). ss. Qed. *)
   End CONSTRUCTION.
 
-  (* Definition extends (RA0 RA1: URA.t): Prop := *)
+  (* Definition extends (RA0 RA1: ucmra): Prop := *)
   (*   exists c, URA.prod RA0 c = RA1 *)
   (* . *)
 
-  Class inG2 (RA GRA: URA.t): Prop := {
+  Class inG2 (RA GRA: ucmra): Prop := {
     GRA_data: t;
     (* GRA_prf:  *)
     inG2_id: nat;
@@ -1220,13 +1220,13 @@ Module GRA.
   }
   .
 
-  Fixpoint point_wise_wf (Ml: list URA.t) (x: of_list Ml) (n: nat) :=
+  Fixpoint point_wise_wf (Ml: list ucmra) (x: of_list Ml) (n: nat) :=
   match n with
   | O => True
   | S n' => @URA.wf (of_list Ml n') (x n') /\ @point_wise_wf Ml x n'
   end.
 
-  Definition point_wise_wf_lift (Ml: list URA.t) (x: of_list Ml)
+  Definition point_wise_wf_lift (Ml: list ucmra) (x: of_list Ml)
              (POINT: point_wise_wf x (List.length Ml))
     :
       @URA.wf (of_list Ml) x.
@@ -1252,7 +1252,7 @@ Module GRA.
     ur. ss. ur. auto.
   Qed.
 End GRA.
-Coercion GRA.to_URA: GRA.t >-> URA.t.
+Coercion GRA.to_URA: GRA.t >-> ucmra.
 
 Global Opaque GRA.to_URA.
 (* Definition ε `{Σ: GRA.t}: Σ := URA.unit. *)
@@ -1292,8 +1292,8 @@ From iris.prelude Require Import options.
 
 Section TEST.
   Variable A B C: Type.
-  Let _myRA: URA.t := (A ==> B ==> (RA.excl C))%ra.
-  Let myRA: URA.t := Auth.t _myRA.
+  Let _myRA: ucmra := (A ==> B ==> (RA.excl C))%ra.
+  Let myRA: ucmra := Auth.t _myRA.
 End TEST.
 
 Ltac r_first rs :=
@@ -1337,7 +1337,7 @@ Global Opaque URA.unit.
 
 Section UNIT.
 
-  Program Instance Unit : URA.t := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True; URA.core := fun _ => tt; |}.
+  Program Instance Unit : ucmra := {| URA.unit := tt; URA._add := fun _ _ => tt; URA._wf := fun _ => True; URA.core := fun _ => tt; |}.
   Next Obligation. destruct a. ss. Qed.
   Next Obligation. destruct a. ss. Qed.
   Next Obligation. unseal "ra". i. destruct a. ss. Qed.
@@ -1355,24 +1355,24 @@ Global Opaque Unit.
 
 Section URA_PROD.
 
-  Lemma unfold_prod_add (M0 M1 : URA.t) : @URA.add (URA.prod M0 M1) = fun '(a0, a1) '(b0, b1) => (a0 ⋅ b0, a1 ⋅ b1).
+  Lemma unfold_prod_add (M0 M1 : ucmra) : @URA.add (URA.prod M0 M1) = fun '(a0, a1) '(b0, b1) => (a0 ⋅ b0, a1 ⋅ b1).
   Proof. rewrite URA.unfold_add. extensionalities r0 r1. destruct r0, r1. ss. Qed.
 
-  Lemma unfold_prod_wf (M0 M1 : URA.t) : @URA.wf (URA.prod M0 M1) = fun r => URA.wf (fst r) /\ URA.wf (snd r).
+  Lemma unfold_prod_wf (M0 M1 : ucmra) : @URA.wf (URA.prod M0 M1) = fun r => URA.wf (fst r) /\ URA.wf (snd r).
   Proof. rewrite URA.unfold_wf. extensionalities r. destruct r. ss. Qed.
 
 End URA_PROD.
 
 Section POINTWISE.
 
-  Lemma unfold_pointwise_add X (M: URA.t) (f0 f1: (X ==> M)%ra)
+  Lemma unfold_pointwise_add X (M: ucmra) (f0 f1: (X ==> M)%ra)
     :
     f0 ⋅ f1 = (fun x => f0 x ⋅ f1 x).
   Proof.
     ur. ur. auto.
   Qed.
 
-  Lemma updatable_set_impl (M: URA.t)
+  Lemma updatable_set_impl (M: ucmra)
         (P0 P1: M -> Prop)
         (IMPL: forall r, URA.wf r -> P0 r -> P1 r)
         (m: M)
@@ -1385,7 +1385,7 @@ Section POINTWISE.
     eapply URA.wf_mon. eauto.
   Qed.
 
-  Lemma pointwise_extends A (M: URA.t)
+  Lemma pointwise_extends A (M: ucmra)
         (f0 f1: (A ==> M)%ra)
         (UPD: forall a, URA.extends (f0 a) (f1 a))
     :
@@ -1397,7 +1397,7 @@ Section POINTWISE.
     rewrite (@unfold_pointwise_add A M). extensionality a. auto.
   Qed.
 
-  Lemma pointwise_updatable A (M: URA.t)
+  Lemma pointwise_updatable A (M: ucmra)
         (f0 f1: (A ==> M)%ra)
         (UPD: forall a, URA.updatable (f0 a) (f1 a))
     :
@@ -1407,7 +1407,7 @@ Section POINTWISE.
     eapply (UPD k); eauto.
   Qed.
 
-  Lemma pointwise_updatable_set A (M: URA.t)
+  Lemma pointwise_updatable_set A (M: ucmra)
         (f: (A ==> M)%ra)
         (P: A -> M -> Prop)
         (UPD: forall a, URA.updatable_set (f a) (P a))
@@ -1421,13 +1421,13 @@ Section POINTWISE.
     { ur. i. specialize (H k). des. auto. }
   Qed.
 
-  Definition maps_to_res {A} {M: URA.t}
+  Definition maps_to_res {A} {M: ucmra}
              a m: (A ==> M)%ra :=
     fun a' => if excluded_middle_informative (a' = a)
               then m
               else URA.unit.
 
-  Lemma maps_to_res_add A (M: URA.t)
+  Lemma maps_to_res_add A (M: ucmra)
         (a: A) (m0 m1: M)
     :
     maps_to_res a m0 ⋅ maps_to_res a m1
@@ -1439,7 +1439,7 @@ Section POINTWISE.
     { r_solve. }
   Qed.
 
-  Lemma maps_to_updatable A (M: URA.t)
+  Lemma maps_to_updatable A (M: ucmra)
         (a: A) (m0 m1: M)
         (UPD: URA.updatable m0 m1)
     :
@@ -1449,7 +1449,7 @@ Section POINTWISE.
     unfold maps_to_res. des_ifs.
   Qed.
 
-  Lemma maps_to_updatable_set A (M: URA.t)
+  Lemma maps_to_updatable_set A (M: ucmra)
         (a: A) (m: M) (P: M -> Prop)
         (UPD: URA.updatable_set m P)
     :
@@ -1472,7 +1472,7 @@ Section POINTWISE.
     }
   Qed.
 
-  Definition map_update {A} {M: URA.t}
+  Definition map_update {A} {M: ucmra}
              (f: (A ==> M)%ra) a m :=
     fun a' => if excluded_middle_informative (a' = a)
               then m
@@ -1483,7 +1483,7 @@ End POINTWISE.
 Section PWDEP.
 
   Lemma pointwise_dep_updatable
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (f0 f1 : @URA.pointwise_dep A Ms)
         (UPD : forall a, URA.updatable (f0 a) (f1 a))
     :
@@ -1494,7 +1494,7 @@ Section PWDEP.
   Qed.
 
   Lemma pointwise_dep_updatable_set
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (f : @URA.pointwise_dep A Ms)
         (P : forall (a : A), (Ms a) -> Prop)
         (UPD: forall a, URA.updatable_set (f a) (P a))
@@ -1510,7 +1510,7 @@ Section PWDEP.
     { ur. i. specialize (H k). des. auto. }
   Qed.
 
-  Program Definition maps_to_res_dep {A : Type} {Ms : A -> URA.t} (a : A) (m : Ms a)
+  Program Definition maps_to_res_dep {A : Type} {Ms : A -> ucmra} (a : A) (m : Ms a)
     : @URA.pointwise_dep A Ms.
   Proof.
     ii. destruct (Axioms.excluded_middle_informative (k = a)).
@@ -1519,7 +1519,7 @@ Section PWDEP.
   Defined.
 
   Lemma maps_to_res_dep_eq
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a : A)
         (m : Ms a)
     :
@@ -1530,7 +1530,7 @@ Section PWDEP.
   Qed.
 
   Lemma maps_to_res_dep_neq
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a b : A)
         (m : Ms a)
     :
@@ -1540,7 +1540,7 @@ Section PWDEP.
   Qed.
 
   Lemma maps_to_res_dep_add
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a : A)
         (m0 m1 : Ms a)
     :
@@ -1553,7 +1553,7 @@ Section PWDEP.
   Qed.
 
   Lemma maps_to_res_dep_updatable
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a : A)
         (m0 m1 : Ms a)
         (UPD: URA.updatable m0 m1)
@@ -1564,7 +1564,7 @@ Section PWDEP.
   Qed.
 
   Lemma maps_to_res_dep_updatable_set
-        A (Ms : A -> URA.t)
+        A (Ms : A -> ucmra)
         (a : A)
         (m : Ms a)
         (P : forall (a' : A), Ms a' -> Prop)
@@ -1589,7 +1589,7 @@ Section PWDEP.
     }
   Qed.
 
-  Program Definition maps_to_res_dep_update {A} {Ms: A -> URA.t}
+  Program Definition maps_to_res_dep_update {A} {Ms: A -> ucmra}
           (f: @URA.pointwise_dep A Ms) a (m : Ms a) : @URA.pointwise_dep A Ms.
   Proof.
     ii. destruct (excluded_middle_informative (k = a)).
@@ -1617,7 +1617,7 @@ From iris.prelude Require Import options.
 
 Section PWAUX.
 
-  Context {K: Type} `{M: URA.t}.
+  Context {K: Type} `{M: ucmra}.
   Let RA := URA.pointwise K M.
 
   Lemma pw_extends (f0 f1: K -> M) (EXT: @URA.extends RA f0 f1): <<EXT: forall k, URA.extends (f0 k) (f1 k)>>.
@@ -1653,7 +1653,7 @@ End PWAUX.
 
 Section PWDAUX.
 
-  Context {K: Type} `{M: K -> URA.t}.
+  Context {K: Type} `{M: K -> ucmra}.
   Let RA := @URA.pointwise_dep K M.
 
   Lemma pwd_extends (f0 f1: forall (k : K), M k) (EXT: @URA.extends RA f0 f1): <<EXT: forall k, URA.extends (f0 k) (f1 k)>>.

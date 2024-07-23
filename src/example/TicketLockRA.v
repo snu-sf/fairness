@@ -7,8 +7,8 @@ From stdpp Require Import gmap.
 Section Ticket.
 
   (* Resource for each ticket lock *)
-  Definition _TicketRA : URA.t := (URA.prod (Auth.t (GsetK.t (K:=nat))) AuthExclAnysRA)%ra.
-  Definition TicketRA : URA.t := (nat ==> _TicketRA)%ra.
+  Definition _TicketRA : ucmra := (URA.prod (Auth.t (GsetK.t (K:=nat))) AuthExclAnysRA)%ra.
+  Definition TicketRA : ucmra := (nat ==> _TicketRA)%ra.
 
   Context `{Σ : GRA.t}.
   Context {HasTicketRA : @GRA.inG TicketRA Σ}.

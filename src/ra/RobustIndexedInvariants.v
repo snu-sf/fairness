@@ -1,4 +1,4 @@
-From stdpp Require Import coPset gmap namespaces.
+(* From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import Axioms PCM IProp IPM.
 From iris Require Import bi.big_op.
@@ -9,7 +9,7 @@ Local Notation index := nat.
 Section INDEXED_INVARIANT_SET.
 
   Context `{Σ : GRA.t}.
-
+Notation iProp := (iProp Σ).
   Class IInvSet (Vars : index -> Type) :=
     { prop : forall (i : index), (Vars i) -> iProp }.
 
@@ -18,21 +18,21 @@ Section INDEXED_INVARIANT_SET.
   (*   ; inhabitant_eq : prop _ inhabitant = P *)
   (*   }. *)
 
-  Definition InvSetRA (Vars : index -> Type) (n : index) : URA.t :=
+  Definition InvSetRA (Vars : index -> Type) (n : index) : ucmra :=
     (Auth.t (positive ==> URA.agree (Vars n)))%ra.
 
-  Definition IInvSetRA (Vars : index -> Type) : URA.t :=
+  Definition IInvSetRA (Vars : index -> Type) : ucmra :=
     @URA.pointwise_dep index (InvSetRA Vars).
 
-  Definition OwnEsRA : URA.t := URA.pointwise index CoPset.t.
-  Definition OwnDsRA : URA.t := URA.pointwise index (Auth.t Gset.t).
+  Definition OwnEsRA : ucmra := URA.pointwise index CoPset.t.
+  Definition OwnDsRA : ucmra := URA.pointwise index (Auth.t Gset.t).
 
 End INDEXED_INVARIANT_SET.
 
 Section PCM_OWN.
 
   Context `{Σ : GRA.t}.
-
+Notation iProp := (iProp Σ).
   Definition OwnE `{@GRA.inG OwnEsRA Σ} (n : index) (E : coPset) :=
     OwnM (@maps_to_res index CoPset.t n (Some E)).
 
@@ -1088,4 +1088,4 @@ Use [FUpd_mask_frame] and [FUpd_intro_mask]")
 
 End FANCY_UPDATE.
 
-Global Opaque FUpd.
+Global Opaque FUpd. *)

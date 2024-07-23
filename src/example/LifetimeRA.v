@@ -5,7 +5,7 @@ From Fairness Require Import TemporalLogic.
 
 Module Lifetime.
 
-  Definition t : URA.t := @FiniteMap.t (URA.prod (URA.agree Any.t) (OneShot.t unit)).
+  Definition t : ucmra := @FiniteMap.t (URA.prod (URA.agree Any.t) (OneShot.t unit)).
 
   Section RA.
 

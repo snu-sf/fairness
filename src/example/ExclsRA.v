@@ -5,7 +5,7 @@ From Fairness Require Import TemporalLogic.
 
 Module Excls.
 
-  Definition t (A : Type) : URA.t := (nat ==> (Excl.t A))%ra.
+  Definition t (A : Type) : ucmra := (nat ==> (Excl.t A))%ra.
 
   Section RA.
 

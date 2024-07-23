@@ -2,6 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import Optics IProp IPM PCM.
 From stdpp Require Import coPset gmap namespaces.
+From iris.algebra Require Import cmra updates lib.excl_auth coPset gset.
 From Fairness Require Export IndexedInvariants.
 
 Set Implicit Arguments.
@@ -11,6 +12,7 @@ Require Import Program.
 Section STATE.
 
   Context `{Σ: GRA.t}.
+  Notation iProp := (iProp Σ).
 
   Class ViewInterp {S V} (l : Lens.t S V) (SI : S -> iProp) (VI : V -> iProp) := {
       view_interp : forall s, (SI s) ⊢ (VI (Lens.view l s) ∗ ∀ x, VI x -∗ SI (Lens.set l x s))
@@ -73,8 +75,8 @@ Section STATE.
   Variable state_src: Type.
   Variable state_tgt: Type.
 
-  Local Notation stateSrcRA := (Auth.t (Excl.t (option state_src)) : URA.t).
-  Local Notation stateTgtRA := (Auth.t (Excl.t (option state_tgt)) : URA.t).
+  Local Notation stateSrcRA := (excl_authUR (leibnizO (option state_src)) : ucmra).
+  Local Notation stateTgtRA := (excl_authUR (leibnizO (option state_tgt)) : ucmra).
 
   Local Notation index := nat.
   Context `{Vars : index -> Type}.
@@ -82,12 +84,12 @@ Section STATE.
 
   Context `{STATESRC: @GRA.inG (stateSrcRA) Σ}.
   Context `{STATETGT: @GRA.inG (stateTgtRA) Σ}.
-  Context `{COPSETRA : @PCM.GRA.inG (PCM.CoPset.t) Σ}.
-  Context `{GSETRA : @PCM.GRA.inG (PCM.Gset.t) Σ}.
+  Context `{COPSETRA : @PCM.GRA.inG coPset_disjUR Σ}.
+  Context `{GSETRA : @PCM.GRA.inG (gset_disjUR positive) Σ}.
   Context `{INVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
 
   Definition St_src (st_src: state_src): iProp :=
-    OwnM (Auth.white (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA).
+    OwnM (◯E (Some st_src : leibnizO (option state_src))).
 
   Definition Vw_src (st: state_src) {V} (l : Lens.t state_src V) (v : V) : iProp :=
     St_src (Lens.set l v st).
@@ -116,7 +118,7 @@ Section STATE.
     rewrite ! PIS. iDestruct "INTERP" as "[% [ST INTERP]]".
     iModIntro. iPoseProof ((view_interp (SI:=λ s : state_src, prop n (SI s))) with "INTERP") as "[INTERP SET]".
     iExists _. iSplitL "ST INTERP".
-    { iExists _. iFrame. unfold Vw_src. iEval (rewrite Lens.set_view). iFrame. }
+    { iExists _. iFrame "INTERP". unfold Vw_src. iEval (erewrite Lens.set_view). iFrame. }
     iIntros "[% [ST INTERP]]".
     iPoseProof ("SET" with "INTERP") as "INTERP".
     iApply ("K" with "[ST INTERP]"). iExists _. iFrame.
@@ -163,7 +165,7 @@ Section STATE.
 
 
   Definition St_tgt (st_tgt: state_tgt): iProp :=
-    OwnM (Auth.white (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA).
+    OwnM (◯E (Some st_tgt : leibnizO (option state_tgt))).
 
   Definition Vw_tgt (st: state_tgt) {V} (l : Lens.t state_tgt V) (v : V) : iProp :=
     St_tgt (Lens.set l v st).
@@ -192,7 +194,7 @@ Section STATE.
     rewrite ! PIS. iDestruct "INTERP" as "[% [ST INTERP]]".
     iModIntro. iPoseProof (view_interp (SI:=fun s => prop _ (SI s)) with "INTERP") as "[INTERP SET]".
     iExists _. iSplitL "ST INTERP".
-    { iExists _. iFrame. unfold Vw_tgt. iEval (rewrite Lens.set_view). iFrame. }
+    { iExists _. iFrame "INTERP". unfold Vw_tgt. iEval (erewrite Lens.set_view). iFrame. }
     iIntros "[% [ST INTERP]]".
     iPoseProof ("SET" with "INTERP") as "INTERP".
     iApply ("K" with "[ST INTERP]"). iExists _. iFrame.
