@@ -4,7 +4,7 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 
 From Fairness Require Export
-  ITreeLib FairBeh Mod pind PCMLarge ModSim ModSimAux.
+  ITreeLib FairBeh Mod pind PCM ModSim ModSimAux.
 
 From Coq Require Import Relations.Relation_Operators.
 From Coq Require Import Relations.Operators_Properties.

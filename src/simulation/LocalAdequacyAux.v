@@ -8,7 +8,7 @@ Require Import Permutation.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
-From Fairness Require Import pind PCMLarge.
+From Fairness Require Import pind PCM.
 From Fairness Require Export Mod ModSimStutter Concurrency.
 From Fairness Require Import KnotSim.
 
