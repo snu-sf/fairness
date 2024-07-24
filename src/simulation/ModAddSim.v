@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.
 From Fairness Require Import
-  ITreeLib WFLibLarge Axioms pind PCMLarge Mod Linking ModSim ModSimAux ModSimNat AddWorld.
+  ITreeLib WFLibLarge Axioms pind PCM Mod Linking ModSim ModSimAux ModSimNat AddWorld.
 
 Import Lia.
 Import Mod.

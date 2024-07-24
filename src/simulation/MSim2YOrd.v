@@ -5,7 +5,7 @@ Require Import Coq.Classes.RelationClasses.
 From Coq Require Import Program.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
-From Fairness Require Import pind PCMLarge WFLibLarge.
+From Fairness Require Import pind PCM WFLibLarge.
 From Fairness Require Import ModSim ModSimYOrd GenYOrd.
 
 Set Implicit Arguments.
@@ -290,7 +290,7 @@ Section USERSIM.
     { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_2; eauto. clear. i. des. des_ifs. des; clarify. }
     { unfold nm_wf_pair, key_set. rewrite nm_map_unit1_map_eq.
       apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_3; eauto. clear. i. des. des_ifs. des; clarify. }
-    i. dup FIND3. rewrite NatMapP.F.map_o in FIND0. unfold option_map in FIND0. des_ifs. 
+    i. dup FIND3. rewrite NatMapP.F.map_o in FIND0. unfold option_map in FIND0. des_ifs.
     eapply nm_forall3_implies_find_some in SIM; eauto.
     unfold ModSim.local_sim_init in SIM. unfold local_sim_init. ss.
     i. specialize (SIM _ _ _ _ _ _ _ INV VALID _ FAIR fs ft).

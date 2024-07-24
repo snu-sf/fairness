@@ -6,7 +6,7 @@ Require Import Program.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
-From Fairness Require Import pind PCMLarge World WFLibLarge.
+From Fairness Require Import pind PCM World WFLibLarge.
 From Fairness Require Export Mod ModSimNoSync ModSimStutter.
 
 Set Implicit Arguments.
