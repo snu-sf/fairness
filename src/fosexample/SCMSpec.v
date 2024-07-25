@@ -3,7 +3,7 @@ From Paco Require Import paco.
 From stdpp Require namespaces.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export ITreeLib
-     PCMFOS IProp IPMFOS
+     PCM IProp IPMFOS
      Mod Linking SCM Red TRed IRed2 LinkingRed Weakest FancyUpdate.
 
 
