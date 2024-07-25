@@ -1,5 +1,5 @@
 From sflib Require Import sflib.
-From Fairness Require Import PCMFOS ITreeLib IPropFOS.
+From Fairness Require Import PCM ITreeLib IPropFOS.
 
 Set Implicit Arguments.
 
@@ -495,7 +495,7 @@ Section ILEMMAS.
       i. des. exists (GRA.embed b). esplits; eauto.
       ur. Local Transparent GRA.to_URA. ss.
       i. unfold GRA.embed. des_ifs.
-      { ss. unfold PCMFOS.GRA.cast_ra. destruct  H. subst. ss. }
+      { ss. unfold PCM.GRA.cast_ra. destruct  H. subst. ss. }
       { ur in WF. specialize (WF k). rewrite URA.unit_idl.
         eapply URA.wf_mon. rewrite URA.add_comm. eauto.
       }

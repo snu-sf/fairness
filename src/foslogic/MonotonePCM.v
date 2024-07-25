@@ -1,5 +1,5 @@
 From sflib Require Import sflib.
-From Fairness Require Import PCMFOS IPropFOS IPMFOS.
+From Fairness Require Import PCM IPropFOS IPMFOS.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
@@ -2522,7 +2522,7 @@ Section SUM.
   Proof.
     induction l.
     { iIntros "_". ss. }
-    ss. iIntros "[#P Ps]". 
+    ss. iIntros "[#P Ps]".
     iApply intuitionistically_sep_2. iSplitL "P".
     - iModIntro. auto.
     - iApply IHl; iFrame.
@@ -2936,7 +2936,7 @@ Section SUM.
       -∗ ((P k a) ∗ ((P k a) -∗ (natmap_prop_sum m (fun k a => P k a)))).
   Proof.
     unfold natmap_prop_sum. set (P' := fun x => P (fst x) (snd x)). remember (k, a) as x.
-    cut 
+    cut
   (list_prop_sum (λ x, P' x) (NatMap.elements (elt:=A) m) -∗
                  P' x ∗ (P' x -∗ list_prop_sum (λ x, P' x) (NatMap.elements (elt:=A) m))).
     { subst. subst P'. ss. i. replace (λ '(k0, v), P k0 v) with (λ x : nat * A, P x.1 x.2). auto.

@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 Require Import String.
-From Fairness Require Import PCMFOS.
+From Fairness Require Import PCM.
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
