@@ -100,10 +100,10 @@ Section PROOF.
     specialize (VALS tid). rewrite !discrete_fun_lookup_op in VALS. eapply cmra_valid_op_l in VALS.
     unfold shared_thsRA in VALS. rewrite th_has_hit in VALS.
     des_ifs.
-    - apply excl_auth_agree_L in VALS. subst. done.
+    - apply ae_white_black_agree in VALS. subst. done.
     - rewrite -(assoc cmra.op) in VALS.
       apply cmra_valid_op_r in VALS.
-      by apply excl_auth_frag_op_valid in VALS.
+      by apply ae_white_op_valid in VALS.
   Qed.
 
   Lemma shared_thsRA_th_has_wf_update
@@ -125,16 +125,13 @@ Section PROOF.
       rewrite th_has_hit.
       unfold shared_thsRA in *.
       rewrite nm_find_add_eq. rewrite FIND in VALS.
-      (* TODO: might be worth having an custom excl_auth to prove this... *)
-      admit.
-      (* ur. ur in VALS. des_ifs. des. split. *)
-      (* + rewrite URA.unit_idl in VALS. unfold URA.extends in *. des. *)
-        (* r_solve. ss. exists ctx. ur in VALS. ur. des_ifs. *)
-      (* + ur. ss. *)
+      clear -VALS.
+      eapply ae_black_white_extend.
+      exact VALS.
     - rewrite th_has_miss in VALS; auto. rewrite th_has_miss; auto.
       rewrite right_id in VALS. r_solve.
       unfold shared_thsRA in *. rewrite nm_find_add_neq; auto.
-  Admitted.
+  Qed.
 
   Lemma shared_thsRA_th_has_wf_wf_pair
         tid
@@ -189,11 +186,7 @@ Section PROOF.
       destruct (tid_dec k tid); clarify.
       + rewrite th_has_hit in VALS. unfold shared_thsRA in *.
         subst ost'. rewrite nm_find_rm_eq. rewrite FIND in VALS.
-        admit.
-        (* ur. ur in VALS. des_ifs. des. split. *)
-        (* * rewrite URA.unit_idl in VALS. unfold URA.extends in *. des. *)
-          (* r_solve. ss. exists ctx. ur in VALS. ur. des_ifs. *)
-        (* * ur. ss. *)
+        eapply ae_black_white_extend. exact VALS.
       + rewrite th_has_miss in VALS; auto. rewrite right_id in VALS.
         unfold shared_thsRA in *. subst ost'. rewrite nm_find_rm_neq; auto.
     - unfold I2. esplits; eauto. unfold Is. exists ost'. splits; auto.
@@ -212,7 +205,7 @@ Section PROOF.
         rewrite NatMapP.F.map_o. rewrite FINDOST. ss. econs.
       }
       { i. unfold nm_proj_v1. rewrite <- nm_map_rm_comm_eq. rewrite nm_find_rm_neq; auto. }
-  Admitted.
+  Qed.
 
 
   Let St: wf_tgt.(T) -> wf_tgt.(T) := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
@@ -575,7 +568,7 @@ Section MODSIM.
         { subst ost. eapply nm_wf_pair_empty_empty_eq. }
         i. eapply NatMapP.F.empty_in_iff in IN. ss.
       - rewrite pair_valid /=. split; auto. subst ost. intros k.
-        unfold shared_thsRA. des_ifs. apply excl_auth_valid.
+        unfold shared_thsRA. des_ifs.
     }
 
     i. specialize (funs fn args). des_ifs.
@@ -609,10 +602,7 @@ Section MODSIM.
       + rewrite nm_find_add_eq. assert (NatMap.find tid ost = None).
         { inv THS. eapply nm_wf_pair_find_cases in WFOST. des. eapply WFOST in NEW. auto. }
         rewrite H in VALID. clear - VALID. rewrite th_has_hit.
-        admit.
-        (* ur. ur in VALID. des_ifs. des; split. 2: ur; ss. *)
-        (* unfold URA.extends in *. des. exists ctx. rewrite URA.unit_idl in VALID. *)
-        (* ur in VALID. r_solve. des_ifs; ur; auto. *)
+        eapply ae_black_white_extend. exact VALID.
       + rewrite nm_find_add_neq; auto. rewrite th_has_miss. r_solve. des_ifs; auto. ii. clarify.
     - subst. i. destruct r_shared2 as [shared_r2 r_shared2], r_ctx2 as [ctx_r2 r_ctx2].
       unfold I2, YOrd2Stid.I2 in INV1.
@@ -622,7 +612,7 @@ Section MODSIM.
       instantiate (1:=im_src_us0). reflexivity. i. des.
       subst im_src1. esplits. eapply SRC.
       i. eapply yord_implies_stid; eauto.
-  Admitted.
+  Qed.
 
 End MODSIM.
 
@@ -932,6 +922,6 @@ Section USERSIM.
         move: ε=> x. revert x. induction l; ss. des_ifs. ss. clarify.
       }
     }
-  Admitted.
+  Qed.
 
 End USERSIM.

@@ -207,7 +207,7 @@ Module RA.
   Next Obligation. i. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed. *)
 
   (* Program Instance pointwise K (M: t): t := {
-    car := K -> (car M);
+    car := K -> car;
     add := fun f0 f1 => (fun k => add (f0 k) (f1 k));
     wf := fun f => forall k, wf (f k);
   }
@@ -680,7 +680,7 @@ Let add `{M : cmra}: car M -> car M -> car M := fun a b =>
     match a,b with
     | just a, just b => just (a ⋅ b)%ia
     end.
-Let pcore `{M : cmra}: car M -> option (car M) := fun a =>
+Let pcore `{M : cmra}: car M -> option car := fun a =>
     match a with
     | just a => match cmra.pcore a with
                 | Some cx => Some (just cx)
@@ -972,261 +972,375 @@ End discrete_fun.
 
 (* Module Excl.
 Section EXCL.
-
 Context {X: Type}.
-Inductive car: Type :=
-| just (x: X)
-| unit
-| boom
+Variant car: Type :=
+  | just (x: X)
+  | unit
+  | boom
 .
 
-Let _add := fun x y => match x, y with | _, unit => x | unit, _ => y | _, _ => boom end.
-Let _wf := fun a => a <> boom.
+Global Instance excl_equiv : Equiv car := (=).
 
-Program Instance t: ucmra := {
-  cmra_car := car;
-  URA._add := _add;
-  URA._wf := _wf;
-  URA.unit := unit;
-  URA.core := fun _ => unit;
-}
-.
-Next Obligation. unfold _wf, _add in *. des_ifs. Qed.
-Next Obligation. unfold _wf, _add in *. des_ifs. Qed.
-Next Obligation. unfold _wf, _add in *. des_ifs. Qed.
-Next Obligation. unfold _wf, _add in *. des_ifs. Qed.
-Next Obligation. exists unit. auto. Qed.
+Lemma equiv_unfold :
+  (≡@{car}) = (=@{car}).
+Proof. done. Qed.
+
+Global Instance excl_equiv_equivalence : Equivalence (≡@{car}).
+Proof. apply _. Qed.
+
+Global Instance proper_just : Proper ((=) ==> (≡)) just.
+Proof. solve_proper. Qed.
+
+Definition add := fun x y => match x, y with | _, unit => x | unit, _ => y | _, _ => boom end.
+Definition wf := fun a => a ≠ boom.
+Definition core  := fun _ : car => Some unit.
+
+Local Instance excl_valid_instance : Valid car := wf.
+Local Instance excl_pcore_instance : PCore car := core.
+Local Instance excl_op_instance : Op car := add.
+Local Instance excl_unit_instance : Unit car := unit.
+
+Canonical Structure ExclO := discreteO car.
+
+Lemma valid_unfold : valid = wf.
+Proof. done. Qed.
+Lemma op_unfold : (⋅) = add.
+Proof. done. Qed.
+Lemma pcore_unfold : pcore = core.
+Proof. done. Qed.
+Lemma unit_unfold : ε = unit.
+Proof. done. Qed.
+
+Local Definition excl_unfold :=
+  (equiv_unfold, valid_unfold, op_unfold, pcore_unfold, unit_unfold).
+Local Ltac excl_unfold_all :=
+  rewrite !excl_unfold /=.
+
+Definition mixin : RAMixin car.
+Proof.
+  split; try apply _; try done.
+  all: excl_unfold_all.
+  - naive_solver.
+  - intros [][][]; done.
+  - intros [][]; done.
+  - intros [][]; done.
+  - intros [][]; done.
+  - intros [][][]; eauto; try naive_solver.
+    all: intros [[] ?]; try done.
+    all: unfold core.
+    all: intros _; esplits; try naive_solver.
+    all: exists unit; done.
+  - intros [][] WF; eauto; simpl in *; try naive_solver; done.
+Qed.
+Canonical Structure ExclR := discreteR car mixin.
+
+Global Instance discrete : CmraDiscrete ExclR.
+Proof. apply discrete_cmra_discrete. Qed.
+
+Lemma ucmra_mixin : UcmraMixin car.
+Proof.
+  split; try apply _; try done.
+  excl_unfold_all.
+  intros []; done.
+Qed.
+Canonical Structure t := Ucmra car ucmra_mixin.
 
 Theorem updatable
         a0 a1
         (WF: ✓ a1)
   :
-    <<UPD: URA.updatable (just a0) a1>>
+    <<UPD: (just a0) ~~> a1>>
 .
-Proof. rr. unfold ✓, URA.add in *. unseal "ra". ss. ii. des_ifs; ss. unfold _wf, _add in *. des_ifs; ss. Qed.
+Proof.
+  rewrite /NW cmra_discrete_update.
+  revert WF. excl_unfold_all.
+  ii. des_ifs. destruct a1; done.
+Qed.
 
 Theorem extends
         a0 a1
         (WF: ✓ a1)
-        (EXT: URA.extends (just a0) a1)
+        (EXT: (just a0) ≼ a1)
   :
     <<EQ: a1 = just a0>>
 .
-Proof. rr. rr in EXT. des; subst. unfold ✓, URA.add in *. unseal "ra". ss. des_ifs; ss. Qed.
+Proof.
+  revert EXT. unfold included. excl_unfold_all.
+  intros [? EQ]. des_ifs.
+Qed.
 
-Theorem wf
+Theorem wf_unit
         a0 a1
-        (WF: ✓ (URA.add (just a0) a1))
+        (WF: ✓ ((just a0) ⋅ a1))
   :
     <<EQ: a1 = unit>>
 .
-Proof. rr. unfold ✓, URA.add in *. unseal "ra". ss. des_ifs; ss. Qed.
+Proof. revert WF. excl_unfold_all. ii. des_ifs. Qed.
 
-Coercion option_coercion (x: option X): car :=
-  match x with
-  | Some x => just x
-  | None => boom
-  end
-.
+Definition to_excl (x: X) : t := just x.
 
 End EXCL.
-End Excl. *)
+End Excl.
 
-(* Arguments Excl.t: clear implicits.
-Coercion Excl.option_coercion: option >-> Excl.car. *)
+Arguments Excl.t: clear implicits. *)
 
-
-(* Module Auth.
+From iris.algebra Require Import local_updates.
+Module Auth.
 Section AUTH.
+Context `{M : ucmra, DISC : CmraDiscrete M}.
 
-(* Variable (M: ucmra). *)
-
-Inductive car `{M: ucmra}: Type :=
+Inductive car : Type :=
 | frag (f: M)
 | excl (e: M) (f: M)
 | boom
 .
 
-Let add `{M: ucmra} := fun a0 a1 => match a0, a1 with
-                                    | frag f0, frag f1 => frag (f0 ⋅ f1)
-                                    | frag f0, excl e1 f1 => excl e1 (f0 ⋅ f1)
-                                    | excl e0 f0, frag f1 => excl e0 (f0 ⋅ f1)
-                                    | _, _ => boom
-                                    end.
-Let wf `{M: ucmra} := fun a =>
-                        match a with
-                        | frag f => ✓ f
-                        | excl e f => URA.extends f e /\ ✓ e
-                        | boom => False
-                        end.
+Definition add a0 a1 :=
+  match a0, a1 with
+  | frag f0, frag f1 => frag (f0 ⋅ f1)
+  | frag f0, excl e1 f1 => excl e1 (f0 ⋅ f1)
+  | excl e0 f0, frag f1 => excl e0 (f0 ⋅ f1)
+  | _, _ => boom
+  end.
 
-Let core `{M: ucmra} := fun a =>
-                          match a with
-                          | frag f => frag (URA.core f)
-                          | excl _ f => frag (URA.core f)
-                          | boom => boom
-                          end.
+Definition wf a :=
+  match a with
+  | frag f => ✓ f
+  | excl e f => f ≼ e ∧ ✓ e
+  | boom => False
+  end.
 
-Program Instance t (M: ucmra): ucmra := {
-  car := car;
-  unit := frag ε;
-  _add := add;
-  _wf := wf;
-  core := core;
-}
-.
-Next Obligation. subst add wf. ss. des_ifs; f_equal; eauto using URA.add_comm. Qed.
-Next Obligation. subst add wf. ss. des_ifs; f_equal; eauto using URA.add_assoc. Qed.
-Next Obligation. subst add wf. ss. ii; des_ifs; ss; rewrite URA.unit_id; ss. Qed.
-Next Obligation. subst add wf. eauto using ✓_unit. Qed.
-Next Obligation.
-  subst add wf. ss.
-  des_ifs; des; eauto using ✓_mon.
-  - rr in H. des. subst. eapply ✓_mon. rewrite URA.add_assoc. eauto.
-  - esplits; eauto. etransitivity; eauto. rr. ss. esplits; eauto.
-Qed.
-Next Obligation. subst add core. ss. des_ifs; f_equal; rewrite URA.core_id; ss. Qed.
-Next Obligation. subst core. ss. des_ifs; f_equal; rewrite URA.core_idem; ss. Qed.
-Next Obligation.
-  destruct a.
-  - destruct b.
-    + hexploit (URA.core_mono f f0). intros [c EQ].
-      exists (frag c). ss. f_equal. auto.
-    + hexploit (URA.core_mono f f0). intros [c EQ].
-      exists (frag c). ss. f_equal. auto.
-    + exists boom. ss.
-  - destruct b.
-    + hexploit (URA.core_mono f f0). intros [c EQ].
-      exists (frag c). ss. f_equal. auto.
-    + exists boom. ss.
-    + exists boom. ss.
-  - exists boom. ss.
+Definition core a :=
+  match a with
+  | frag f => Some (frag (core f))
+  | excl _ f => Some (frag (core f))
+  | boom => Some boom
+  end.
+
+Definition unit := frag ε.
+
+Definition equiv (a b : car) :=
+  match a, b with
+  | frag f0, frag f1 => f0 ≡ f1
+  | excl e0 f0, excl e1 f1 => e0 ≡ e1 ∧ f0 ≡ f1
+  | boom, boom => True
+  | _, _ => False
+  end.
+
+Global Instance auth_equiv : Equiv car := equiv.
+
+Lemma equiv_unfold :
+  (≡) = equiv.
+Proof. done. Qed.
+
+Global Instance auth_equiv_equivalence : Equivalence (≡@{car}).
+Proof.
+  rewrite equiv_unfold /equiv. split.
+  - intros ?. des_ifs.
+  - intros ?? EQ. des_ifs. des. done.
+  - intros ??? EQ1 EQ2. des_ifs; des.
+    + by rewrite EQ1 EQ2.
+    + by rewrite EQ1 EQ2 EQ3.
 Qed.
 
-Definition black `{M: ucmra} (a: M): t M := excl a ε.
-Definition white `{M: ucmra} (a: M): t M := frag a.
+Global Instance proper_frag : Proper ((≡) ==> (≡)) frag.
+Proof. intros x y EQ. done. Qed.
 
-Definition local_update `{M: ucmra} a0 b0 a1 b1: Prop :=
-  forall ctx, (<<WF: ✓ a0>> /\ <<FRAME: a0 = URA.add b0 ctx>>) ->
-              (<<WF: ✓ a1>> /\ <<FRAME: a1 = URA.add b1 ctx>>)
-.
+Global Instance proper_excl : Proper ((≡) ==> (≡) ==> (≡)) excl.
+Proof. intros x1 x2 EQ1 y1 y2 EQ2. by subst. Qed.
+
+Local Instance auth_valid_instance : Valid car := wf.
+Local Instance auth_pcore_instance : PCore car := core.
+Local Instance auth_op_instance : Op car := add.
+Local Instance auth_unit_instance : Unit car := unit.
+
+Canonical Structure AuthO := discreteO car.
+
+Lemma valid_unfold : valid = wf.
+Proof. done. Qed.
+Lemma op_unfold : (⋅) = add.
+Proof. done. Qed.
+Lemma pcore_unfold : pcore = core.
+Proof. done. Qed.
+Lemma unit_unfold : ε = unit.
+Proof. done. Qed.
+
+Definition mixin : RAMixin car.
+Proof.
+  split; try apply _; try done.
+  all: try rewrite equiv_unfold /equiv.
+  - intros ??? EQ.
+    rewrite op_unfold /add. des_ifs; des.
+    all: by rewrite EQ ?EQ0.
+  - intros ???. rewrite pcore_unfold /core. intros EQ1 EQ2.
+    all: des_ifs; des.
+    + esplits; eauto. des_ifs. rewrite EQ1. done.
+    + esplits; eauto. des_ifs. rewrite EQ0. done.
+    + esplits; eauto.
+  - intros ???. rewrite !valid_unfold /wf. des_ifs; des.
+    all: by rewrite H ?H0.
+  - intros ???. rewrite !op_unfold /add. des_ifs; des.
+    all: by rewrite (assoc cmra.op).
+  - intros ??. rewrite !op_unfold /add. des_ifs; des.
+    all: by rewrite (comm cmra.op).
+  - intros ??. rewrite pcore_unfold /core => EQ.
+    rewrite !op_unfold /add. des_ifs; des.
+    all: by rewrite cmra_core_l.
+  - intros ??. rewrite pcore_unfold /core => EQ. des_ifs; des.
+    all: by rewrite cmra_core_idemp.
+  - intros ???. unfold included.
+    rewrite equiv_unfold /equiv op_unfold /add => EQ.
+    rewrite pcore_unfold /core => EQ1. repeat des_ifs; des.
+    all: eexists.
+    all: split; auto.
+    all: try (by exists boom).
+    all: destruct z; des_ifs; des.
+    + hexploit (cmra_core_mono f1 f); [eexists; eauto|].
+      intros [? EQ1]; eexists (frag _). done.
+    + hexploit (cmra_core_mono f1 f); [eexists; eauto|].
+      intros [? EQ1]; eexists (frag _). done.
+    + hexploit (cmra_core_mono f1 f); [eexists; eauto|].
+      intros [? EQ1]; eexists (frag _). done.
+  - intros x y. rewrite !valid_unfold /wf op_unfold /add => WF. des_ifs; des.
+    + by apply cmra_valid_op_l in WF.
+    + des. destruct WF as [? ->] in WF0.
+      do 2 eapply cmra_valid_op_l. done.
+    + des. destruct WF as [? ->] in WF0. split; auto.
+      eexists (_ ⋅ _). rewrite (assoc cmra.op). done.
+Qed.
+Canonical Structure AuthR := discreteR car mixin.
+
+Global Instance discrete : CmraDiscrete AuthR.
+Proof. apply discrete_cmra_discrete. Qed.
+
+Lemma ucmra_mixin : UcmraMixin car.
+Proof.
+  split; try apply _; try done.
+  + rewrite valid_unfold /wf unit_unfold /unit.
+    apply ucmra_unit_valid.
+  + rewrite op_unfold /add equiv_unfold /equiv unit_unfold /unit.
+    intros []; try rewrite left_id; done.
+  + rewrite pcore_unfold /core unit_unfold /unit.
+    rewrite core_id_core. done.
+Qed.
+Canonical Structure t := Ucmra car ucmra_mixin.
+
+Definition black (a: M): t := excl a ε.
+Definition white (a: M): t := frag a.
 
 Theorem auth_update
-        `{M: ucmra}
-        a b a' b'
-        (UPD: local_update a b a' b')
+        (a b a' b' : M)
+        (UPD: (a,b) ~l~> (a',b'))
   :
-    <<UPD: URA.updatable ((black a) ⋅ (white b)) ((black a') ⋅ (white b'))>>
+    <<UPD: black a ⋅ white b ~~> black a' ⋅ white b'>>
 .
-Proof.
-  (* rr. ur. ii; des_ifs. unseal "ra". des. *)
-  rr. rewrite URA.unfold_add. rewrite URA.unfold_wf. ii. unseal "ra". ss. des_ifs. des.
-  r in UPD. r in H. des; clarify. r in H. des; clarify.
-  rewrite URA.unit_idl in *. ss.
-  exploit (UPD (f ⋅ ctx)); eauto.
-  { esplits; eauto. rewrite URA.add_assoc. ss. }
-  i; des. clarify. esplits; eauto. rr. exists ctx. rewrite URA.add_assoc. ss.
+Proof using DISC.
+  apply cmra_discrete_update.
+  rewrite /black /white valid_unfold /wf op_unfold /add.
+  intros []; auto.
+  rewrite local_update_unital_discrete in UPD.
+  intros [[z' LE] WF]. rewrite left_id /included.
+  rewrite left_id -(assoc cmra.op) in LE.
+  specialize (UPD (f ⋅ z') WF LE).
+  rewrite (assoc cmra.op) in UPD. des; split; eauto.
 Qed.
 
 Theorem auth_dup_black
-        `{M: ucmra}
-        a ca
-        (CORE: a = a ⋅ ca)
+        (a ca : M)
+        (CORE: a ≡ a ⋅ ca)
   :
-    <<DUP: URA.updatable t M (black a) ((black a) ⋅ (white ca))>>
+    <<DUP: black a ~~> black a ⋅ white ca >>
 .
 Proof.
-  (* r. rewrite <- unit_id at 1. *)
-  (* eapply auth_update. rr. ii. des. rewrite unit_idl in FRAME. subst. *)
-  (* esplits; eauto. rewrite add_comm; ss. *)
-  rr. rewrite URA.unfold_add. rewrite URA.unfold_wf. ii. ss. des_ifs. unseal "ra". ss. des.
-  rr in H. des. rewrite URA.unit_idl in *. esplits; eauto.
-  rewrite CORE. eexists. rewrite <- URA.add_assoc. rewrite H. rewrite URA.add_comm. eauto.
+  rewrite /NW cmra_discrete_update.
+  rewrite /black /white valid_unfold /wf op_unfold /add.
+  intros []; auto.
+  rewrite left_id. intros [[z LE] WF].
+  rewrite left_id /included. split; auto.
+  eexists. rewrite -(assoc cmra.op). erewrite <- LE.
+  rewrite (comm cmra.op). done.
 Qed.
 
 Theorem auth_dup_white
-        `{M: ucmra}
-        a ca
-        (CORE: a = a ⋅ ca)
+        (a ca : M)
+        (CORE: a ≡ a ⋅ ca)
   :
-    <<DUP: URA.updatable t M (white a) ((white a) ⋅ (white ca))>>
+    <<DUP: white a ~~> white a ⋅ white ca >>
 .
 Proof.
-  rr. rewrite URA.unfold_add. rewrite URA.unfold_wf. ii. unseal "ra". ss. des_ifs.
-  - ss. rewrite <- CORE. ss.
-  - ss. des. esplits; eauto. rewrite <- CORE. ss.
+  rewrite /NW cmra_discrete_update.
+  rewrite /white valid_unfold /wf op_unfold /add.
+  intros []; auto.
+  - ss. rewrite -CORE. ss.
+  - ss. des. intros; des; esplits; eauto. rewrite -CORE. ss.
 Qed.
 
 Theorem auth_alloc
-        `{M: ucmra}
-        a0 a1 b1
-        (UPD: local_update a0 ε a1 b1)
+        (a0 a1 b1 : M)
+        (UPD: (a0,ε) ~l~> (a1,b1))
   :
-    <<UPD: URA.updatable t M (black a0) ((black a1) ⋅ (white b1))>>
+    <<UPD: black a0 ~~> black a1 ⋅ white b1 >>
 .
-Proof.
-  r. rewrite <-(URA.unit_id (black a0)). ss. eapply auth_update. ss.
+Proof using DISC.
+  rewrite /NW -(right_id ε cmra.op (black a0)).
+  eapply auth_update. ss.
 Qed.
 
 Theorem auth_alloc2
-        `{M: ucmra}
-        a0 delta
+        (a0 delta : M)
         (WF: ✓ (a0 ⋅ delta))
   :
-    <<UPD: URA.updatable t M (black a0) ((black (a0 ⋅ delta)) ⋅ (white delta))>>
+    <<UPD: black a0 ~~> black (a0 ⋅ delta) ⋅ white delta>>
 .
-Proof.
-  rr. rewrite URA.unfold_add. rewrite URA.unfold_wf.
-  ii. unseal "ra". ss. des_ifs. subst add wf. ss. des.
-  esplits; eauto.
-  rewrite URA.unit_idl in *.
-  rr in H. des. rr. exists ctx; eauto. ss. clarify.
-  rewrite URA.add_comm. rewrite (URA.add_comm f). rewrite <- URA.add_assoc. f_equal.
-  rewrite URA.add_comm. ss.
+Proof using DISC.
+  eapply auth_alloc.
+  rewrite local_update_unital_discrete.
+  intros z WF' EQ. split; auto.
+  rewrite EQ left_id (comm cmra.op).
+  done.
 Qed.
 
 Theorem auth_dealloc
-        `{M: ucmra}
-        a0 a1 b0
-        (UPD: local_update a0 b0 a1 ε)
+        (a0 a1 b0 : M)
+        (UPD: (a0,b0) ~l~> (a1,ε))
   :
-    <<UPD: URA.updatable t M ((black a0) ⋅ (white b0)) (black a1)>>
+    <<UPD: black a0 ⋅ white b0 ~~> black a1 >>
 .
-Proof.
-  r. rewrite <- URA.unit_id. ss. eapply auth_update. ss.
+Proof using DISC.
+  rewrite /NW -(right_id ε cmra.op (black a1)).
+  eapply auth_update. ss.
 Qed.
 
 Theorem auth_included
-        `{M: ucmra}
-        a b
-        (WF: ✓ ((black a) ⋅ (white b)))
+        (a b : M)
+        (WF: ✓ (black a ⋅ white b))
   :
-    <<EXT: URA.extends b a>>
+    <<EXT: b ≼ a>>
 .
 Proof.
-  rewrite URA.unfold_add in WF; rewrite URA.unfold_wf in WF.
-  rr in WF. des. rr in WF. rr. des. rewrite URA.unit_idl in WF. subst. esplits; eauto.
+  rewrite /NW /included.
+  rewrite /black /white valid_unfold /wf op_unfold /add in WF. rewrite left_id /included in WF. des. eauto.
 Qed.
 
 Theorem auth_exclusive
-        `{M: ucmra}
-        a b
-        (WF: ✓ ((black a) ⋅ (black b)))
+        (a b : M)
+        (WF: ✓ (black a ⋅ black b))
   :
     False
 .
-Proof. rewrite URA.unfold_add in WF; rewrite URA.unfold_wf in WF. ss. Qed.
+Proof. rewrite /black valid_unfold /wf op_unfold /add // in WF.
+Qed.
 
 Lemma black_wf
-      `{M: ucmra}
-      a
+      (a : M)
       (WF: ✓ (black a))
   :
     <<WF: ✓ a>>
 .
-Proof. ur in WF. des; ss. Qed.
+Proof. rewrite /black valid_unfold /wf // in WF. by des. Qed.
 End AUTH.
-End Auth. *)
+Global Arguments t _ : clear implicits.
+End Auth.
 
 (**********************************************************************************)
 (*** For backward compatibility, I put below definitions "outside" Auth module. ***)
@@ -1429,7 +1543,7 @@ Module GRA.
 
   Program Definition of_list (RAs: ucmra_list) : t := {| gra_map := λ n, (UList.nth n RAs (optionUR Empty_setR)) |}.
   Next Obligation.
-    revert i. induction RAs as [|? ? IH].
+    ii. revert i. induction RAs as [|? ? IH].
     { destruct i; apply _. }
     destruct i.
     { simpl. apply _. }

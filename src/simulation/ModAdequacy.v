@@ -16,7 +16,7 @@ From Fairness Require Import
      ModSim MSim2YOrd YOrd2Stid Stid2NoSync NoSync2Stutter
      Stutter2Knot Knot2Glob.
 From Fairness Require Import SchedSim Adequacy.
-
+From Fairness Require Import DisableSsreflect.
 
 
 Set Implicit Arguments.
@@ -485,7 +485,7 @@ Section ADEQ.
     remember 0 as k. clear Heqk. move p before k. revert_until p.
     induction p; i.
     { ss. unfold NatMap.Raw.empty. econs. }
-    rewrite !map_cons !_numbering_cons. destruct a as [fn args].
+    rewrite !map_cons. rewrite !_numbering_cons. destruct a as [fn args].
     rewrite !of_list_cons. eapply nm_find_some_implies_forall2.
     { apply nm_wf_pair_add. clear. move p after m_src. revert_until p. induction p; i.
       { ss. apply nm_wf_pair_empty_empty_eq. }
@@ -493,7 +493,8 @@ Section ADEQ.
       eauto.
     }
     i. destruct (tid_dec k k0); clarify.
-    { clear IHp. rewrite nm_find_add_eq in FIND1, FIND2. clarify. unfold fn2th.
+    { clear IHp. rewrite nm_find_add_eq in FIND1.
+      rewrite nm_find_add_eq in FIND2. clarify. unfold fn2th.
       rename init0 into funs.
       dup funs. specialize (funs0 fn0 ([]: list Val)↑). rewrite SOME0 in funs0.
       specialize (funs fn args). des_ifs; ss.
@@ -501,12 +502,12 @@ Section ADEQ.
       specialize (funs0 _ _ _ _ _ _ _ INV _ _ THS VALID _ UPD). des.
       esplits; eauto. i. specialize (funs0 _ _ _ _ _ _ _ INV1 VALID1 _ TGT). des.
       esplits. eapply SRC. i. instantiate (1:=o).
-      pfold. eapply pind6_fold. admit. admit.
-      (* rewrite <- bind_trigger. eapply lsim_UB. *)
+      pfold. eapply pind6_fold. rewrite <- bind_trigger. eapply lsim_UB.
     }
-    rewrite nm_find_add_neq in FIND1, FIND2; auto.
+    rewrite nm_find_add_neq in FIND1;
+    rewrite nm_find_add_neq in FIND2; auto.
     specialize (IHp (S k)). eapply nm_forall2_implies_find_some in IHp; eauto.
-  Admitted.
+  Qed.
 
 End ADEQ.
 
