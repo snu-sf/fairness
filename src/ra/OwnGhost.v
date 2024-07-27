@@ -4,7 +4,7 @@ From iris.proofmode Require Import proofmode.
 From Fairness Require Import IPM PCM IProp IPropAux.
 From Fairness Require Import TemporalLogic.
 
-(* Re-implemntation of [OwnG.to_t] of Iris *)
+(* Re-implemntation of [own] of Iris *)
 From iris.prelude Require Import prelude options.
 Require Import Program.
 
