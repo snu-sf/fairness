@@ -169,7 +169,7 @@ Section SPEC.
             ∗ (⤉ dead γi1 tt)
             ∗ (⤉ live γ2 tt 1)
             ∗ (⤉ (○ γs1 (tid1, k1, γ1)))
-            ∗ (Duty (tid1) []) 
+            ∗ (Duty (tid1) [])
             ∗ (((Duty (tid2) [(k2, 0, dead γ2 tt : sProp (1+n))])
                 ∗ (◇[k2](2, 1))
                 ∗ (⤉ (○ γs2 (tid2, k2, γ2))))
@@ -1241,11 +1241,11 @@ Section SPEC.
     Let init_ord := Ord.O.
     (* Let init_ord := layer 2 1. *)
     Let init_ths :=
-          (NatStructsLarge.NatMap.add
+          (NatStructs.NatMap.add
              tid1 tt
-             (NatStructsLarge.NatMap.add
+             (NatStructs.NatMap.add
                 tid2 tt
-                (NatStructsLarge.NatMap.empty unit))).
+                (NatStructs.NatMap.empty unit))).
 
     Let idx := 1.
 
@@ -1304,16 +1304,16 @@ Section SPEC.
       unfold WSim.initial_prop.
       iDestruct "INIT" as "(INIT0 & INIT1 & INIT2 & INIT3 & INIT4 & INIT5)".
       (* make thread_own, duty *)
-      assert (NatStructsLarge.NatMap.find tid1 init_ths = Some tt).
-      { unfold init_ths. apply NatStructsLarge.nm_find_add_eq. }
+      assert (NatStructs.NatMap.find tid1 init_ths = Some tt).
+      { unfold init_ths. apply NatStructs.nm_find_add_eq. }
       iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU1 INIT2]".
       iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH1 INIT3]".
       clear H.
-      assert (NatStructsLarge.NatMap.find tid2 (NatStructsLarge.NatMap.remove tid1 init_ths) = Some tt).
+      assert (NatStructs.NatMap.find tid2 (NatStructs.NatMap.remove tid1 init_ths) = Some tt).
       { unfold init_ths.
-        rewrite NatStructsLarge.NatMapP.F.remove_neq_o; ss.
-        rewrite NatStructsLarge.nm_find_add_neq; ss.
-        rewrite NatStructsLarge.nm_find_add_eq. ss.
+        rewrite NatStructs.NatMapP.F.remove_neq_o; ss.
+        rewrite NatStructs.nm_find_add_neq; ss.
+        rewrite NatStructs.nm_find_add_eq. ss.
       }
       iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU2 INIT2]".
       iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH2 INIT3]".

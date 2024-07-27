@@ -36,10 +36,15 @@ Module FiniteMap.
         singleton k (m0 ⋅ m1).
     Proof. by rewrite singleton_op /singleton. Qed.
 
-    Lemma singleton_core k m `{CmraTotal M}
+    Lemma singleton_core k x cx
+      :
+      pcore x ≡ Some cx → core (singleton k x) ≡ singleton k cx.
+    Proof. by apply singleton_core'. Qed.
+
+    Lemma singleton_core_total k m `{CmraTotal M}
       :
       core (singleton k m) ≡ singleton k (core m).
-    Proof. by rewrite singleton_core_total /singleton. Qed.
+    Proof. by rewrite singleton_core_total. Qed.
 
     Lemma singleton_updatable k m0 m1
           (UPD: m0 ~~> m1)
@@ -226,7 +231,7 @@ Section Monotone.
     Proof.
       unfold monoBlack, monoWhiteExact.
       iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Program Instance Persistent_white_exact w: Persistent (monoWhiteExact w).
@@ -597,7 +602,7 @@ Module OneShotP.
     Persistent (OwnM (FiniteMap.singleton k (OneShot.shot a))).
   Next Obligation.
     i. iIntros "H". iPoseProof (own_persistent with "H") as "# G".
-    rewrite FiniteMap.singleton_core. ss.
+    rewrite FiniteMap.singleton_core_total. ss.
   Qed.
 
   Lemma shot_agree_singleton (A: Type)

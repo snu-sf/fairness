@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Export
-     ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind Axioms
+     ITreeLib WFLibLarge FairBeh NatStructs Mod pind Axioms
      Linking WMM Red IRed WeakestAdequacy.
 From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import View.

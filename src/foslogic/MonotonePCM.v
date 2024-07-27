@@ -132,7 +132,7 @@ Module FiniteMap.
       unfold singleton, add. apply func_ext. i. des_ifs.
     Qed.
 
-    Lemma singleton_core k m
+    Lemma singleton_core_total k m
       :
       URA.core (singleton k m) = singleton k (URA.core m).
     Proof.
@@ -417,7 +417,7 @@ Section Monotone.
     Proof.
       unfold monoBlack, monoWhiteExact.
       iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Program Instance Persistent_white_exact w: Persistent (monoWhiteExact w).
@@ -1710,7 +1710,7 @@ Module OneShotP.
     Persistent (OwnM (FiniteMap.singleton k (OneShot.shot a))).
   Next Obligation.
     i. iIntros "H". iPoseProof (own_persistent with "H") as "# G".
-    rewrite FiniteMap.singleton_core. ss.
+    rewrite FiniteMap.singleton_core_total. ss.
   Qed.
 
   Lemma shot_agree_singleton (A: Type)
@@ -2522,7 +2522,7 @@ Section SUM.
   Proof.
     induction l.
     { iIntros "_". ss. }
-    ss. iIntros "[#P Ps]". 
+    ss. iIntros "[#P Ps]".
     iApply intuitionistically_sep_2. iSplitL "P".
     - iModIntro. auto.
     - iApply IHl; iFrame.
@@ -2936,7 +2936,7 @@ Section SUM.
       -∗ ((P k a) ∗ ((P k a) -∗ (natmap_prop_sum m (fun k a => P k a)))).
   Proof.
     unfold natmap_prop_sum. set (P' := fun x => P (fst x) (snd x)). remember (k, a) as x.
-    cut 
+    cut
   (list_prop_sum (λ x, P' x) (NatMap.elements (elt:=A) m) -∗
                  P' x ∗ (P' x -∗ list_prop_sum (λ x, P' x) (NatMap.elements (elt:=A) m))).
     { subst. subst P'. ss. i. replace (λ '(k0, v), P k0 v) with (λ x : nat * A, P x.1 x.2). auto.

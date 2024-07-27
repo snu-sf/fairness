@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind.
+From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructs Mod pind.
 
 Set Implicit Arguments.
 
@@ -511,7 +511,7 @@ Section MEMRA.
     2:{ ur in H. des. unfold URA.extends in H. des. ur in H. des_ifs. }
     remember (SCMem.free _ _) as m1 eqn:FREE. pose proof FREE as FREE'. revert FREE'.
     unfold SCMem.free, SCMem.has_permission in FREE. ss. des_ifs. remember (SCMem.mk _ _) as m1. i.
-    iExists m1. iSplit; eauto. 
+    iExists m1. iSplit; eauto.
     iAssert (#=> (OwnM (memory_resource_black m1))) with "[OWN]" as "> RB".
     { iApply (OwnM_Upd with "OWN").
       eapply memory_free_updatable; eauto. }

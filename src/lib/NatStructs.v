@@ -1,20 +1,125 @@
 From sflib Require Import sflib.
 
-From Fairness Require Import Axioms FMapList FMapFacts OrderedTypeEx WFLib.
+From Fairness Require Import Axioms FMapListLarge FMapFactsLarge OrderedTypeExLarge.
 
 From Coq Require Import
+  Logic.Eqdep_dec
   Permutation
   SetoidList
   SetoidPermutation
-  List
+  Lists.List
   Lia.
 
-Module NatMap := FMapList.Make(Nat_as_OT).
+Module NatMap := FMapListLarge.Make(Nat_as_OT).
 Module NatMapP := WProperties_fun Nat_as_OT NatMap.
 
 Set Implicit Arguments.
 
+Section NAT_IRREL.
 
+  Definition le_eq_ind
+    n
+    (P : n <= n -> Prop)
+    (H : P (le_n n))
+    (p : n <= n) : P p.
+  Proof.
+    refine (match p in _ <= n0 return forall (e : n0 = n), P (eq_ind _ _ p _ e) with
+            | le_n _ => _
+            | le_S _ _ _ => _
+            end eq_refl).
+    - i. rewrite (UIP_refl_nat n e). ss.
+    - lia.
+  Qed.
+
+  Definition le_lt_ind
+    m n (LE : m <= n)
+    (P : m <= S n -> Prop)
+    (H : forall LE, P (le_S m n LE))
+    p : P p.
+  Proof.
+    refine (match p in _ <= S n0 return forall (e : n0 = n), P (eq_ind _ (fun n => m <= S n) p _ e) with
+            | le_n _ => _
+            | le_S _ _ _ => _
+            end eq_refl).
+    - destruct m; [ss | lia].
+    - i. subst. ss.
+  Qed.
+
+  Lemma le_irrel : forall m n (p q : m <= n), p = q.
+  Proof.
+    i. assert (exists k, n = k + m) by (exists (n - m); lia). des. subst n.
+    revert p q. induction k.
+    - i. ss. induction m, p using le_eq_ind. induction m, q using le_eq_ind. ss.
+    - i. ss. assert (LE : m <= k + m) by lia.
+      induction p using (le_lt_ind LE). induction q using (le_lt_ind LE). f_equal. eapply IHk; ss.
+  Qed.
+
+  Lemma lt_irrel : forall m n (p q : m < n), p = q.
+  Proof. i. eapply le_irrel. Qed.
+
+End NAT_IRREL.
+
+Section SORTED.
+
+  Context {A : Type}.
+  Context {R : A -> A -> Prop}.
+
+  Definition Sorted_nil_ind
+    (P : Sorted R [] -> Prop)
+    (H : P (Sorted_nil R))
+    p : P p :=
+    match p with
+    | Sorted_nil _ => H
+    | Sorted_cons t h => I
+    end.
+
+  Definition Sorted_cons_ind
+    (P : forall x xs, Sorted R (x :: xs) -> Prop)
+    (H : forall x xs (HS : Sorted R xs) (HR : HdRel R x xs), P x xs (Sorted_cons HS HR))
+    x xs (p : Sorted R (x :: xs)) : P x xs p :=
+    match p with
+    | Sorted_nil _ => I
+    | Sorted_cons _ _ => H _ _ _ _
+    end.
+
+  Definition HdRel_nil_ind x
+    (P : HdRel R x [] -> Prop)
+    (H : P (HdRel_nil R x))
+    p : P p :=
+    match p with
+    | HdRel_nil _ _ => H
+    | HdRel_cons _ _ _ _ _ => I
+    end.
+
+  Definition HdRel_cons_ind x
+    (P : forall y ys, HdRel R x (y :: ys) -> Prop)
+    (H : forall y ys HR, P y ys (HdRel_cons R x y ys HR))
+    y ys (p : HdRel R x (y :: ys)) : P y ys p :=
+    match p with
+    | HdRel_nil _ _ => I
+    | HdRel_cons _ _ _ _ _ => H _ _ _
+    end.
+
+  Hypothesis (IRREL : forall x y (p q : R x y), p = q).
+
+  Lemma HdRel_irrelevant : forall x xs (p q : HdRel R x xs), p = q.
+  Proof.
+    i. destruct p.
+    - induction x, q using HdRel_nil_ind. ss.
+    - induction x, b, l, q using HdRel_cons_ind. f_equal. eapply IRREL.
+  Qed.
+
+  Lemma Sorted_irrelevant : forall xs (p q : Sorted R xs), p = q.
+  Proof.
+    intro. induction xs.
+    - i. induction p using Sorted_nil_ind. induction q using Sorted_nil_ind. ss.
+    - i. induction a, xs, p using Sorted_cons_ind. induction x, xs, q using Sorted_cons_ind.
+      f_equal.
+      + eapply IHxs.
+      + eapply HdRel_irrelevant.
+  Qed.
+
+End SORTED.
 
 Section NATMAP.
 
@@ -62,7 +167,7 @@ Section NATMAP.
 
   Definition disjoint {elt} (x y : NatMap.t elt) : bool := NatMap.is_empty (NatMapP.restrict x y).
 
-  Import FMapFacts.
+  Import FMapFactsLarge.
   Import NatMap.
 
   Lemma Disjoint_empty elt (x : NatMap.t elt) : NatMapP.Disjoint x (NatMap.empty elt).
@@ -285,7 +390,9 @@ Section NATMAP.
       eapply eqlistA_eq_key_elt_eq; eauto.
     }
     revert sorted0 sorted1 EQ. rewrite EQ1. i.
-    rewrite (proof_irrelevance sorted0 sorted1). auto.
+    assert (sorted0 = sorted1).
+    { eapply Sorted_irrelevant. i. eapply lt_irrel. }
+    rewrite H. auto.
   Qed.
 
   Lemma eq_ext_is_eq elt (x y : NatMap.t elt) (EQ : eq_ext x y) : x = y.
@@ -691,7 +798,7 @@ Section NATMAP.
         (m: t elt) k0 k1 e
         (NEQ: k0 <> k1)
     :
-    Equal (add k0 e (remove k1 m)) (remove k1 (add k0 e m)). 
+    Equal (add k0 e (remove k1 m)) (remove k1 (add k0 e m)).
   Proof.
     eapply F.Equal_mapsto_iff. i. split; i.
     - eapply F.add_mapsto_iff in H. des; clarify.
@@ -707,7 +814,7 @@ Section NATMAP.
         (m: t elt) k0 k1 e
         (NEQ: k0 <> k1)
     :
-    (add k0 e (remove k1 m)) = (remove k1 (add k0 e m)). 
+    (add k0 e (remove k1 m)) = (remove k1 (add k0 e m)).
   Proof. eapply nm_eq_is_equal, nm_add_rm_comm_equal; auto. Qed.
 
 End NATMAP.
@@ -762,15 +869,13 @@ Section NATSET.
     exfalso. eapply H. econs. ss.
   Qed.
 
-  (*
   Lemma Empty_nil_neg s : ~ NatSet.Empty s -> NatSet.elements s <> [].
   Proof.
     destruct s as [s SORTED]. ii.
     eapply map_eq_nil in H0. ss. subst.
     eapply H. ii. eapply InA_nil; eauto.
   Qed.
-   *)
-  
+
   Lemma In_NatSetIn x s : In x (NatSet.elements s) -> NatSet.In x s.
   Proof.
     i. exists tt. unfold NatSet.elements, nm_proj1 in *. destruct s as [s SORTED]; ss. clear SORTED.
@@ -1684,6 +1789,7 @@ Section AUX.
     split; auto. eapply PROP. eapply nm_elements_cons_find_some; eauto. eapply nm_elements_cons_find_some; eauto.
   Qed.
 
+
   Lemma NoDupA_NoDup
         elt l
     :
@@ -1699,6 +1805,7 @@ Section AUX.
 End AUX.
 
 
+From Fairness Require Import WFLibLarge.
 Section NMWF.
 
   Import NatMap.

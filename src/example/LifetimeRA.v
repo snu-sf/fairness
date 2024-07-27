@@ -27,7 +27,7 @@ Module Lifetime.
       shot k t -∗ □ shot k t.
     Proof.
       iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Program Instance Persistent_shot k {T} (t: T) : Persistent (shot k t).

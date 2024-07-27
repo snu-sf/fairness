@@ -325,7 +325,7 @@ Section ATOMINTERP.
     | syn_wsat_auth x => wsat_auth x
     (** Atoms for state invariants of wpsim. *)
     | ob_ths ths =>
-        OwnM (● (NatMapRALarge.to_Map ths: (NatMapRALarge.t unit)): ThreadRA)
+        OwnM (● (NatMapRA.to_Map ths: (NatMapRA.t unit)): ThreadRA)
     | ow_ths tid =>
         own_thread tid
     | ob_st_src st_src =>

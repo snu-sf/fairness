@@ -262,7 +262,7 @@ Module Atom.
       | syn_owne_auth Es => OwnE_auth Es
       (** Atoms to express state invariants of wpsim. *)
       | ob_ths ths =>
-          OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA)
+          OwnM (Auth.black (Some ths: (NatMapRA.t unit)): ThreadRA)
       | ob_st_src st_src =>
           OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option st_src_type)): stateSrcRA _)
       | ow_st_src st_src =>

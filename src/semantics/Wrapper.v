@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind.
+From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructs Mod pind.
 
 Set Implicit Arguments.
 

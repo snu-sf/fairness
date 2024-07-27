@@ -6,7 +6,7 @@ From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import ISim.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
+From Fairness Require Export IndexedInvariants NatMapRA MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
 From Fairness Require Export SimDefaultRA LiveObligations.
 From Fairness Require Import FairBeh.
 Require Import Coq.Sorting.Mergesort.

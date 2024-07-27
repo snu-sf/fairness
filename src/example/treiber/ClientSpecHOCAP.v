@@ -318,11 +318,11 @@ Section INITIAL.
   Variable tid_push tid_pop : thread_id.
   Let init_ord := Ord.O.
   Let init_ths :=
-        (NatStructsLarge.NatMap.add
+        (NatStructs.NatMap.add
             tid_push tt
-            (NatStructsLarge.NatMap.add
+            (NatStructs.NatMap.add
               tid_pop tt
-              (NatStructsLarge.NatMap.empty unit))).
+              (NatStructs.NatMap.empty unit))).
 
   Let idx := 1.
 
@@ -369,17 +369,17 @@ Section INITIAL.
     unfold WSim.initial_prop.
     iDestruct "Init" as "(_ & _ & Ds & Ts & _ & St_tgt)".
 
-    assert (NatStructsLarge.NatMap.find tid_push init_ths = Some tt) as Htid_push.
-    { unfold init_ths. apply NatStructsLarge.nm_find_add_eq. }
+    assert (NatStructs.NatMap.find tid_push init_ths = Some tt) as Htid_push.
+    { unfold init_ths. apply NatStructs.nm_find_add_eq. }
     iDestruct (natmap_prop_remove_find _ _ _ Htid_push with "Ds") as "[Dpush Ds]".
     iDestruct (natmap_prop_remove_find _ _ _ Htid_push with "Ts") as "[Tpush Ts]".
     clear Htid_push.
 
-    assert (NatStructsLarge.NatMap.find tid_pop (NatStructsLarge.NatMap.remove tid_push init_ths) = Some tt) as Htid_pop.
+    assert (NatStructs.NatMap.find tid_pop (NatStructs.NatMap.remove tid_push init_ths) = Some tt) as Htid_pop.
     { unfold init_ths.
-      rewrite NatStructsLarge.NatMapP.F.remove_neq_o; ss.
-      rewrite NatStructsLarge.nm_find_add_neq; ss.
-      rewrite NatStructsLarge.nm_find_add_eq. ss.
+      rewrite NatStructs.NatMapP.F.remove_neq_o; ss.
+      rewrite NatStructs.nm_find_add_neq; ss.
+      rewrite NatStructs.nm_find_add_eq. ss.
     }
     iDestruct (natmap_prop_remove_find _ _ _ Htid_pop with "Ds") as "[Dpop _]".
     iDestruct (natmap_prop_remove_find _ _ _ Htid_pop with "Ts") as "[Tpop _]".

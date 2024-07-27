@@ -2,7 +2,7 @@ From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
 From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import NatMapRALarge MonotoneRA RegionRA.
+From Fairness Require Import NatMapRA MonotoneRA RegionRA.
 Require Import Coq.Classes.RelationClasses.
 (* Require Import Coq.Logic.PropExtensionality. *)
 From Fairness Require Import Axioms.
@@ -332,7 +332,7 @@ Module ObligationRA.
       iIntros "H".
       unfold black.
       iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Instance Persistent_black k o: Persistent (black k o).
@@ -347,7 +347,7 @@ Module ObligationRA.
       iIntros "H".
       unfold black.
       iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Instance Persistent_shot k: Persistent (shot k).

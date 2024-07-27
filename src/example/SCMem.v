@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From stdpp Require Import decidable.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind.
+From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructs Mod pind.
 
 Set Implicit Arguments.
 
@@ -363,7 +363,8 @@ Coercion SCMem.val_ptr : SCMem.pointer >-> SCMem.val.
 
 (** RA for SCMem. *)
 
-From Fairness Require Import PCM IProp IPM IPropAux MonotoneRA Axioms cmra dfrac lib.dfrac_agree.
+From iris.algebra Require Import cmra updates.
+From Fairness Require Import PCM IProp IPM IPropAux MonotoneRA Axioms.
 
 Section MEMRA.
   Context `{heap_name : nat}.
