@@ -1085,6 +1085,9 @@ End Excl.
 Arguments Excl.t: clear implicits. *)
 
 From iris.algebra Require Import local_updates.
+(* Custom auth cmra to use in ThreadRA. This makes certain parts of ModAdequacy easier.
+ * Iris's standrad auth uses the view RA, which does not support inductive case analysis.
+ *)
 Module Auth.
 Section AUTH.
 Context `{M : ucmra, DISC : CmraDiscrete M}.

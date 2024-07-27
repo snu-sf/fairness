@@ -35,9 +35,7 @@ Section PCM_OWN.
   Definition OwnD `{@GRA.inG OwnDRA Σ} (D : gset positive) := OwnM (GSet D).
 
   Definition OwnI_white {Vars} (n : index) (i : positive) (p : Vars n) : IInvSetRA Vars :=
-    @maps_to_res_dep index (@InvSetRA Vars)
-                     n
-                     (◯ (@maps_to_res positive (optionUR (agreeR $ leibnizO (Vars n))) i (Some $ to_agree (p : leibnizO (Vars n))))).
+    maps_to_res_dep n (◯ (maps_to_res i (Some $ to_agree (p : leibnizO (Vars n))))).
 
   Definition OwnI {Vars} `{@GRA.inG (IInvSetRA Vars) Σ} (n : index) (i : positive) (p : Vars n) :=
     OwnM (OwnI_white n i p).
@@ -97,9 +95,10 @@ Section PCM_OWN.
     n i p : Persistent (OwnI n i p).
   Proof.
     unfold OwnI, OwnI_white.
-    remember (@maps_to_res_dep index (InvSetRA Vars) n (◯ (@maps_to_res positive (optionUR (agreeR $ leibnizO (Vars n))) i (Some $ to_agree (p : leibnizO (Vars n)))))) as r.
+    remember (maps_to_res_dep n (◯ (maps_to_res i (Some $ to_agree (p : leibnizO (Vars n)))))) as r.
     unfold Persistent. iIntros "H".
-    iPoseProof (@OwnM_persistently _ _ H _ with "H") as "#HP". iModIntro.
+    iDestruct (OwnM_persistently with "H") as "#HP".
+    iModIntro.
     replace r with (core r) at 2. auto.
     subst. unfold maps_to_res_dep, eq_rect_r. ss. extensionalities k. rewrite /core /=. des_ifs. simpl.
     rewrite auth_frag_core /maps_to_res. f_equal. extensionalities i'.
@@ -122,8 +121,7 @@ Section WORLD_SATISFACTION.
   Local Notation Var := (Vars n).
 
   Definition inv_auth_black (I : gmap positive Var) : IInvSetRA Vars :=
-    @maps_to_res_dep index _
-                     n (@auth_auth (positive ==> (optionUR (agreeR $ leibnizO (Vars n))))%ra
+    maps_to_res_dep n (@auth_auth (positive ==> (optionUR (agreeR $ leibnizO (Vars n))))%ra
                         (DfracOwn 1)
                         (fun (i : positive) => to_agree <$> (I !! i : option (leibnizO Var)))).
 
@@ -151,24 +149,20 @@ Section WORLD_SATISFACTION.
     : wsat ⊢ |==> (∃ i, ⌜φ i⌝ ∧ OwnI n i p) ∗ (prop n p -∗ wsat).
   Proof.
     iIntros "[% [AUTH SAT]]".
-    iMod (alloc_name (fun i => i ∉ dom I /\ φ i)) as "[% [[%iI %iφ] D]]".
+    iMod (alloc_name (fun i => i ∉ dom I /\ φ i)) as "[% [%Hi D]]".
     { i. specialize (INF (E ∪ dom I)). des. eapply not_elem_of_union in INF. des. esplits; eauto. }
+    destruct Hi as [iI iφ].
     pose (<[i:=p]> I) as I'.
 
     assert (inv_auth_black I ~~> inv_auth_black I' ⋅ OwnI_white n i p).
-    { setoid_rewrite maps_to_res_dep_add. apply maps_to_res_dep_updatable.
-      apply auth_update_alloc. clear -iI. intros s mz WF FRAME; simpl in *.
-      split.
+    { rewrite maps_to_res_dep_add. apply maps_to_res_dep_updatable.
+      apply auth_update_alloc. clear -iI. apply local_update_unital_discrete.
+      intros mz WF FRAME; simpl in *. split.
       { intros i'. subst I'. destruct (decide (i' = i)) as [->|NE].
         - rewrite lookup_insert. done.
         - rewrite lookup_insert_ne; [|done]. apply (WF i').
       }
       intros i'. subst I'. specialize (FRAME i').
-      destruct mz as [mz|]; simpl in *; last first.
-      { unfold maps_to_res. des_ifs.
-        - rewrite lookup_insert. done.
-        - rewrite lookup_insert_ne; done.
-      }
       rewrite discrete_fun_lookup_op left_id in FRAME.
       rewrite /maps_to_res discrete_fun_lookup_op. des_ifs; last first.
       - rewrite lookup_insert_ne; last done. by rewrite FRAME left_id.
@@ -203,25 +197,26 @@ Section WORLD_SATISFACTION.
     iIntros "(I & [% [AUTH SAT]] & EN)". iModIntro.
     unfold OwnI, inv_auth, inv_satall.
     iCombine "AUTH I" as "AUTH".
-    iPoseProof (OwnM_valid with "AUTH") as "%WF".
+    iDestruct (OwnM_valid with "AUTH") as %WF.
     assert (Hip : I !! i = Some p).
-    { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_dep_add in WF.
-      unfold maps_to_res_dep, maps_to_res in WF. apply (pwd_lookup_wf n) in WF. ss. des_ifs.
+    { rewrite /inv_auth_black /OwnI_white maps_to_res_dep_add
+          /maps_to_res_dep /maps_to_res in WF.
+      specialize (WF n). ss. des_ifs.
       unfold eq_rect_r in WF. rewrite <- Eqdep.EqdepTheory.eq_rect_eq in WF.
       apply auth_both_valid_discrete in WF.
       destruct WF as [EXTENDS WF]. apply pw_extends in EXTENDS.
-      specialize (EXTENDS i). specialize (WF i).
+      specialize (EXTENDS i). specialize (WF i). simpl in *.
       des_ifs. clear e e0.
       destruct (I !! i) eqn: E.
-      - f_equal. simpl in *. rewrite Some_included in EXTENDS. des.
-        + apply (inj _) in EXTENDS. unfold_leibniz. done.
-        + apply to_agree_included in EXTENDS. unfold_leibniz. done.
+      - f_equal. rewrite Some_included in EXTENDS. des.
+        + apply (inj _) in EXTENDS. fold_leibniz. done.
+        + apply to_agree_included in EXTENDS. fold_leibniz. done.
       - simpl in *. apply option_included_total in EXTENDS. des; ss.
     }
     clear WF.
     iDestruct "AUTH" as "[AUTH I]".
     iPoseProof (big_sepM_delete _ _ _ _ Hip with "SAT") as "[[[H1 H2]|H1] SAT]".
-    2: { iCombine "EN H1" as "F". iPoseProof (OwnM_valid with "F") as "%WF".
+    2: { iCombine "EN H1" as "F". iDestruct (OwnM_valid with "F") as %WF.
          exfalso. apply coPset_disj_valid_op in WF. set_solver.
     }
     iFrame. unfold wsat. iExists I. iFrame. unfold inv_satall.
@@ -234,7 +229,7 @@ Section WORLD_SATISFACTION.
     iIntros "(I & [% [AUTH SAT]] & P & DIS)". iModIntro.
     unfold OwnI, inv_auth, inv_satall.
     iCombine "AUTH I" as "AUTH".
-    iPoseProof (OwnM_valid with "AUTH") as "%WF".
+    iDestruct (OwnM_valid with "AUTH") as %WF.
     assert (Hip : I !! i = Some p).
     { unfold inv_auth_black, OwnI_white in WF. setoid_rewrite maps_to_res_dep_add in WF.
       unfold maps_to_res_dep, maps_to_res in WF. apply (pwd_lookup_wf n) in WF. ss. des_ifs.
@@ -252,7 +247,7 @@ Section WORLD_SATISFACTION.
     clear WF.
     iDestruct "AUTH" as "[AUTH I]".
     iPoseProof (big_sepM_delete _ _ _ _ Hip with "SAT") as "[[[H1 H2]|H1] SAT]".
-    { iCombine "DIS H2" as "F". iPoseProof (OwnM_valid with "F") as "%WF".
+    { iCombine "DIS H2" as "F". iDestruct (OwnM_valid with "F") as %WF.
       exfalso. apply gset_disj_valid_op in WF. set_solver.
     }
     iFrame. unfold wsat. iExists I. iFrame. unfold inv_satall.
@@ -447,7 +442,7 @@ Section WSATS.
     iIntros "(I & AUTH)".
     unfold OwnI, wsat_auth.
     iCombine "AUTH I" as "AUTH".
-    iPoseProof (OwnM_valid with "AUTH") as "%WF".
+    iDestruct (OwnM_valid with "AUTH") as %WF.
     unfold wsat_auth_black, OwnI_white, maps_to_res_dep in WF.
     apply (pwd_lookup_wf n) in WF.
     rewrite discrete_fun_lookup_op /= in WF.
@@ -624,7 +619,7 @@ Notation iProp := (iProp Σ).
     iModIntro. iFrame. iIntros "P (A & WSAT & EN1)".
     iMod (wsats_OwnI_close x n i p LT with "[HI WSAT P DIS]") as "(WSAT & EN3)".
     { iFrame. auto. }
-    iModIntro. iFrame. iSplit; auto.
+    iModIntro. iFrame. iSplitL; [|done].
     iPoseProof (OwnE_union with "[EN2 EN3]") as "EN2". iFrame.
     rewrite <- union_difference_singleton_L; ss.
     iPoseProof (OwnE_union with "[EN1 EN2]") as "ENS". iFrame.
@@ -668,7 +663,7 @@ Notation iProp := (iProp Σ).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim.
     iIntros (LE) "[P K]".
-    iPoseProof (FUpd_mono n x with "P") as "P"; [done|].
+    iDestruct (FUpd_mono n x with "P") as "P"; [done|].
     iMod "P". iApply ("K" with "P").
   Qed.
 
@@ -681,10 +676,10 @@ Notation iProp := (iProp Σ).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim. ss.
     iIntros (HE) "[M K]".
-    iPoseProof (fupd_mask_frame_r _ _ (E2 ∖ E0) with "M") as "M".
+    iDestruct (fupd_mask_frame_r _ _ (E2 ∖ E0) with "M") as "M".
     { set_solver. }
     replace (E0 ∪ E2 ∖ E0) with E2 by (eapply union_difference_L; ss).
-    iMod "M". iPoseProof ("K" with "M") as "M". ss.
+    iMod "M". iApply ("K" with "M").
   Qed.
 
   Global Instance elim_modal_FUpd_FUpd_general p x A E0 E1 E2 E3 P Q :
@@ -696,10 +691,10 @@ Notation iProp := (iProp Σ).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim. ss.
     iIntros (HE) "[M K]".
-    iPoseProof (fupd_mask_frame_r _ _ (E2 ∖ E0) with "M") as "M".
+    iDestruct (fupd_mask_frame_r _ _ (E2 ∖ E0) with "M") as "M".
     { set_solver. }
     replace (E0 ∪ E2 ∖ E0) with E2 by (eapply union_difference_L; ss).
-    iMod "M". iPoseProof ("K" with "M") as "M". ss.
+    iMod "M". iApply ("K" with "M").
   Qed.
 
 End LEMMAS.

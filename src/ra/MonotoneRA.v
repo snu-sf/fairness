@@ -8,7 +8,7 @@ Require Import Program.
 
 Module FiniteMap.
   Section FiniteMap.
-    Context `{M: ucmra}.
+    Context `{M: cmra}.
 
     Definition t : ucmra := (gmapUR nat M).
 
@@ -36,7 +36,7 @@ Module FiniteMap.
         singleton k (m0 ⋅ m1).
     Proof. by rewrite singleton_op /singleton. Qed.
 
-    Lemma singleton_core k m
+    Lemma singleton_core k m `{CmraTotal M}
       :
       core (singleton k m) ≡ singleton k (core m).
     Proof. by rewrite singleton_core_total /singleton. Qed.
@@ -73,6 +73,7 @@ Module FiniteMap.
       intros k _. exists k. unfold singleton. set_solver.
     Qed.
   End FiniteMap.
+  Global Arguments t : clear implicits.
 End FiniteMap.
 
 

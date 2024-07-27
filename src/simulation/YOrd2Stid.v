@@ -872,8 +872,7 @@ Section USERSIM.
         { unfold shared_thsRA. intros k.
           rewrite discrete_fun_lookup_op. des_ifs.
           all: rewrite Heq in Heq0; ss.
-          { injection Heq0 as ->. apply excl_auth_valid. }
-          { r_solve. apply excl_auth_valid. }
+          injection Heq0 as ->. apply ae_black_white_valid.
         }
         assert
         (NatMap.fold (λ (_ : NatMap.key) (r s : thsRA), r ⋅ s)
