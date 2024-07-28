@@ -569,6 +569,7 @@ Section MODSIM.
         i. eapply NatMapP.F.empty_in_iff in IN. ss.
       - rewrite pair_valid /=. split; auto. subst ost. intros k.
         unfold shared_thsRA. des_ifs.
+        apply ae_black_white_valid.
     }
 
     i. specialize (funs fn args). des_ifs.
@@ -872,7 +873,8 @@ Section USERSIM.
         { unfold shared_thsRA. intros k.
           rewrite discrete_fun_lookup_op. des_ifs.
           all: rewrite Heq in Heq0; ss.
-          injection Heq0 as ->. apply ae_black_white_valid.
+          - injection Heq0 as ->. apply ae_black_white_valid.
+          - apply ae_black_white_valid.
         }
         assert
         (NatMap.fold (λ (_ : NatMap.key) (r s : thsRA), r ⋅ s)

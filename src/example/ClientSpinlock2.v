@@ -218,8 +218,8 @@ Section SIM.
     iApply (Spinlock_lock_spec with "[] [PCs' DUTY PCS' PCS''] [-]").
     { pose proof md_Spinlock_state_tgt. set_solver. }
     { instantiate (1:=1). auto. }
-    { red_tl_all. rewrite red_syn_tgt_interp_as. repeat iSplit; auto. simpl.
-      iSplitL "PCs'". done. iSplitL "DUTY". done. simpl. iSplitL "PCS'". done. done.
+    { red_tl_all. rewrite red_syn_tgt_interp_as.
+      iFrame "#". iFrame "PCs' DUTY PCS' PCS''".
     }
     iIntros (_) "POST". iEval (red_tl; simpl) in "POST".
     iDestruct "POST" as (γκu') "POST". iEval (red_tl; simpl) in "POST".
@@ -242,7 +242,7 @@ Section SIM.
     iIntros (rv) "PTD". rred2r. iApply wpsim_tauR. rred2r.
 
     iPoseProof (pass_lock with "[LW DUTY PCs PO2 LIVE2]") as "PASS".
-    2:{ red_tl_all. repeat iSplit; auto. iFrame. simpl. repeat iSplit; auto. }
+    2:{ red_tl_all. iFrame "#". iFrame. }
     { instantiate (1 := ⊤ ∖ ↑N_ClientSpinlock2). pose proof md_N_ClientSpinlock2_Spinlock. set_solver. }
     iEval (rewrite red_syn_fairI) in "PASS". iMod "PASS".
     iEval (red_tl_all; simpl) in "PASS". iDestruct "PASS" as "(LW & DUTY & _)".
@@ -297,7 +297,8 @@ Section SIM.
 
     (* Induction *)
     iRevert "TID DUTY LIVE PCS".
-    iMod (lo_ind_fine with "OBLw []") as "IH". 2: done.
+    iMod (lo_ind_fine with "OBLw []") as "IH".
+    2: { iApply "IH". }
     iModIntro. iExists 0. iIntros "IH". iModIntro.
     iIntros "TID DUTY LIVE PCS".
 
@@ -309,7 +310,7 @@ Section SIM.
       "[(PTD & _ & #PRMw & LIVEw & #OBLu & #DPRMu & POu & LIVEu) | (PTD & #SHOTw & [LW | #SHOTu])]"; cycle 2.
     { iExFalso. iApply (OneShots.pending_not_shot with "LIVE SHOTu"). }
     { (* Not yet *)
-      iApply (wpsim_yieldR_gen_pending with "DUTY [POu]"). auto. rewrite app_nil_r. auto.
+      iApply (wpsim_yieldR_gen_pending with "DUTY [POu]"). auto. erewrite app_nil_r. auto.
       3:{ iApply (pps_cons_fold with "[POu]"). iFrame. iApply pps_nil. } 1,2,3 : auto.
       iIntros "DUTY CRED PPS _".
       iPoseProof (pps_cons_unfold with "PPS") as "[POu _]".
@@ -329,7 +330,7 @@ Section SIM.
         { pose proof md_N_ClientSpinlock2_state_tgt. set_solver. }
         { iSplitR; done. }
         iIntros (rv) "[%EQ PTD]"; subst. rred2r. iApply wpsim_tauR. rred2r.
-        iApply (wpsim_yieldR_gen_pending with "DUTY [POu]"). auto. rewrite app_nil_r. auto.
+        iApply (wpsim_yieldR_gen_pending with "DUTY [POu]"). auto. erewrite app_nil_r. auto.
         3:{ iApply (pps_cons_fold with "[POu]"). iFrame. iApply pps_nil. } 1,2,3 : auto.
         iIntros "DUTY CRED PPS _".
         iPoseProof (pps_cons_unfold with "PPS") as "[POu _]".
@@ -447,8 +448,8 @@ Section SIM.
   Let idx := 1.
 
   Lemma init_sat E (H_TID : tid1 <> tid2) :
-    (OwnM (memory_init_resource ClientSpinlock2.gvs))
-      ∗ (OwnM (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
+    (OwnM (Σ:=Σ) (memory_init_resource ClientSpinlock2.gvs))
+      ∗ (OwnM (Σ:=Σ) (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
       ∗
       (WSim.initial_prop
          ClientSpinlock2Spec.module ClientSpinlock2.module
@@ -537,7 +538,7 @@ Section SIM.
     iMod (AuthExcls.alloc_gt _ (0, 0) with "[REST]") as "[REST (%γl & LB & LW)]".
     { iExists 0. done. }
 
-    iMod (tgt_interp_as_id _ _ (n:=idx) with "[INIT5 MEM]") as "TGT_ST".
+    iMod (tgt_interp_as_id _ _ (n:=idx) with "[INIT5 MEM]") as "TGT_ST_PRE".
     auto.
     2:{ iExists _. iFrame. instantiate (1:=fun '(_, m) => s_memory_black m). simpl.
         red_tl_all. iFrame.
@@ -545,16 +546,17 @@ Section SIM.
     { simpl. instantiate (1:= (∃ (st : τ{st_tgt_type, idx}), ⟨Atom.ow_st_tgt st⟩ ∗ (let '(_, m) := st in s_memory_black (n:=idx) m))%S).
       red_tl_all. f_equal.
     }
-    iPoseProof (tgt_interp_as_compose (n:=idx) (la:=Lens.id) (lb:=sndl) with "TGT_ST") as "TGT_ST".
+    iDestruct (tgt_interp_as_compose (n:=idx) (la:=Lens.id) (lb:=sndl) with "TGT_ST_PRE") as "#TGT_ST".
     { ss. econs. iIntros ([x m]) "MEM". unfold Lens.view. ss. iFrame.
       iIntros (m') "MEM". iFrame.
     }
+    iClear "TGT_ST_PRE".
     iEval (rewrite Lens.left_unit) in "TGT_ST".
 
     simpl. unfold SCMem.init_gvars, gvs. ss. des_ifs.
     iDestruct "PTS" as "((PT & _) & (PT2 & _) & _)".
     iMod (FUpd_alloc _ _ _ idx N_ClientSpinlock2 (clientSpinlock2_inv idx γl κw γκw κu γκu γr)
-      with "[PT POu LIVEu LIVEw']") as "INV1".
+      with "[PT POu LIVEu LIVEw']") as "#INV1".
     lia.
     { simpl. unfold clientSpinlock2_inv. red_tl_all. iLeft; iFrame.
       ss. clarify.
@@ -563,7 +565,7 @@ Section SIM.
       Local Opaque SCMem.alloc.
       iFrame. repeat iSplit; auto.
     }
-    iMod (FUpd_alloc _ _ _ idx N_Spinlock (spinlockInv idx κs L γl emp%S) with "[PT2 LB LW]") as "SI".
+    iMod (FUpd_alloc _ _ _ idx N_Spinlock (spinlockInv idx κs L γl emp%S) with "[PT2 LB LW]") as "#SI".
     lia.
     { simpl. unfold spinlockInv. red_tl_all. iExists 0. red_tl. iExists 0. red_tl_all. iFrame. iLeft. iFrame.
       Local Transparent SCMem.alloc.
@@ -573,11 +575,8 @@ Section SIM.
     }
     iModIntro. iExists γl, κs, κw, γκw, κu, γκu, γr. red_tl_all.
     rewrite red_syn_tgt_interp_as. unfold isSpinlock.
-    red_tl_all; rewrite ! red_syn_inv; simpl. repeat iSplit; auto.
-    iSplitL "TH1 DU1 PCs PCw LIVEw".
-    { iSplitL "TH1"; [done | ]. iSplitL "DU1"; [done | ]. iSplitL "PCs"; [done | ].
-      iSplitL "PCw"; [done | ]. done. }
-    iFrame. done.
+    red_tl_all; rewrite ! red_syn_inv; simpl.
+    iFrame "# TH1 DU1 PCs PCw ∗".
   Qed.
 
 End INITIAL.

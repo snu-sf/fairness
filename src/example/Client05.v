@@ -165,7 +165,7 @@ Section SPEC.
     unfold fn2th. simpl. unfold thread1, Client05Spec.thread1. rred2r. lred2r.
 
     iRevert "TID PC DUTY".
-    iMod (tpromise_ind with "[] []") as "IH"; cycle 2. done.
+    iMod (tpromise_ind with "[] []") as "IH"; cycle 2. iApply "IH".
     { iSplit; auto. iExists 3; auto. }
     iModIntro. iIntros "IH". iModIntro. iIntros "TID PC DUTY".
 
@@ -328,8 +328,8 @@ Section SPEC.
     Let idx := 1.
 
     Lemma init_sat E (H_TID : tid1 <> tid2) :
-      (OwnM (memory_init_resource Client05.gvs))
-        ∗ (OwnM (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
+      (OwnM (Σ:=Σ) (memory_init_resource Client05.gvs))
+        ∗ (OwnM (Σ:=Σ) (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
         (* ∗ (OwnM (Excls.rest_ra (gt_dec 0) tt)) *)
         ∗
         (WSim.initial_prop
@@ -443,8 +443,8 @@ Section SPEC.
       } *)
       iModIntro. iExists γw, kw, γl. red_tl_all.
       rewrite red_syn_tgt_interp_as. unfold isSpinlock.
-      red_tl_all; rewrite ! red_syn_inv; simpl. repeat iSplit; auto.
-      iFrame. repeat iSplit; auto.
+      red_tl_all; rewrite ! red_syn_inv; simpl.
+      iFrame "#∗".
     Unshelve. auto.
     Qed.
 
