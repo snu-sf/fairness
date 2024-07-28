@@ -1,15 +1,15 @@
 From sflib Require Import sflib.
-From iris.algebra Require Import gmap proofmode_classes updates.
+From iris.algebra Require Import gmap proofmode_classes updates gmap.
 From iris.proofmode Require Import proofmode.
 From Fairness Require Import IPM PCM IProp IPropAux.
 From Fairness Require Import TemporalLogic.
-
+From iris Require Import cmra.
 (* Re-implemntation of [own] of Iris *)
 From iris.prelude Require Import prelude options.
-Require Import Program.
 
 Module OwnG.
 Section definitions.
+(* FIXME: ideally, this definition should be opqaue, but thats very hard to do *)
 Definition t (A : cmra) : ucmra := FiniteMap.t A.
 
 Definition ra `{Σ : GRA.t} `{!GRA.inG (t A) Σ} (γ : nat) (a : A) : t A :=
@@ -86,58 +86,52 @@ Proof.
 Qed.
 
 (** ** Allocation *)
-(* TODO: This also holds if we just have ✓ a at the current step-idx, as Iris
-  assertion. However, the map_updateP_alloc does not suffice to show this. *)
-(* Lemma own_alloc_strong_dep (f : nat → A) (P : nat → Prop) :
+Lemma own_alloc_strong_dep (f : nat → A) (P : nat → Prop) :
   pred_infinite P →
   (∀ γ, P γ → ✓ (f γ)) →
   ⊢ |==> ∃ γ, ⌜P γ⌝ ∗ OwnG.to_t γ (f γ).
 Proof.
   intros HPinf Hf.
   rewrite <- (bupd_mono (∃ m, ⌜∃ γ, P γ ∧ m = FiniteMap.singleton γ (f γ)⌝ ∧ OwnM m)%I).
-  - rewrite /bi_emp_valid. (ownM_unit emp).
-    apply bupd_ownM_updateP, (discrete_fun_singleton_updateP_empty _ (λ m, ∃ γ,
-      m = {[ γ := inG_unfold (cmra_transport inG_prf (f γ)) ]} ∧ P γ));
-      [|naive_solver].
-    apply (alloc_updateP_strong_dep _ P _ (λ γ,
-      inG_unfold (cmra_transport inG_prf (f γ)))); [done| |naive_solver].
-    intros γ _ ?.
-    by apply (cmra_morphism_valid inG_unfold), cmra_transport_valid, Hf.
-  - apply exist_elim=>m; apply pure_elim_l=>-[γ [Hfresh ->]].
-    by rewrite !OwnG.to_t_eq /OwnG.to_t_def -(exist_intro γ) pure_True // left_id.
-Qed. *)
-(* Lemma own_alloc_cofinite_dep (f : nat → A) (G : gset nat) :
+  - iIntros. iDestruct OwnM_unit as "U".
+    iMod (OwnM_Upd_set (B:=λ m, ∃ γ : nat, P γ ∧ m = FiniteMap.singleton γ (f γ)) with "U") as "H".
+    { eapply alloc_updateP_strong_dep.
+      - exact HPinf.
+      - intros ??. apply Hf.
+      - ii. exists i. split; done.
+    }
+    iDestruct "H" as (m) "[%Hm H]".
+    iModIntro. iExists _. iFrame. iPureIntro. done.
+  - iIntros "[%m [%Hm H]]". des. subst.
+    rewrite OwnG.to_t_eq /OwnG.to_t_def. iExists γ. iFrame.
+    iPureIntro. done.
+Qed.
+Lemma own_alloc_cofinite_dep (f : nat → A) (G : gset nat) :
   (∀ γ, γ ∉ G → ✓ (f γ)) → ⊢ |==> ∃ γ, ⌜γ ∉ G⌝ ∗ OwnG.to_t γ (f γ).
 Proof.
   intros Ha.
-  apply (own_alloc_strong_dep f (λ γ, γ ∉ G))=> //.
+  apply (own_alloc_strong_dep f (λ γ, γ ∉ G)); [|done].
   apply (pred_infinite_set (C:=gset nat)).
   intros E. set (γ := fresh (G ∪ E)).
   exists γ. apply not_elem_of_union, is_fresh.
-Qed. *)
-(* Lemma own_alloc_dep (f : nat → A) :
+Qed.
+Lemma own_alloc_dep (f : nat → A) :
   (∀ γ, ✓ (f γ)) → ⊢ |==> ∃ γ, OwnG.to_t γ (f γ).
 Proof.
-  intros Ha. rewrite /bi_emp_valid (own_alloc_cofinite_dep f ∅) //; [].
-  apply bupd_mono, exist_mono=>?. apply: sep_elim_r.
-Qed. *)
+  iIntros (Ha).
+  iMod (own_alloc_cofinite_dep f ∅) as (?) "[_ H]"; [done|].
+  iModIntro. iExists _. done.
+Qed.
 
-(* Lemma own_alloc_strong a (P : nat → Prop) :
+Lemma own_alloc_strong a (P : nat → Prop) :
   pred_infinite P →
   ✓ a → ⊢ |==> ∃ γ, ⌜P γ⌝ ∗ OwnG.to_t γ a.
-Proof. intros HP Ha. eapply (own_alloc_strong_dep (λ _, a)); eauto. Qed. *)
-(* Lemma own_alloc_cofinite a (G : gset nat) :
+Proof. intros HP Ha. eapply (own_alloc_strong_dep (λ _, a)); eauto. Qed.
+Lemma own_alloc_cofinite a (G : gset nat) :
   ✓ a → ⊢ |==> ∃ γ, ⌜γ ∉ G⌝ ∗ OwnG.to_t γ a.
-Proof. intros Ha. eapply (own_alloc_cofinite_dep (λ _, a)); eauto. Qed. *)
+Proof. intros Ha. eapply (own_alloc_cofinite_dep (λ _, a)); eauto. Qed.
 Lemma own_alloc a : ✓ a → ⊢ |==> ∃ γ, OwnG.to_t γ a.
-Proof.
-  iIntros (Ha).
-  iDestruct OwnM_unit as "U".
-  iMod (OwnM_Upd_set with "U") as "[% [%EQ H]]".
-  { apply FiniteMap.singleton_alloc. exact Ha. }
-  simpl in *. destruct EQ as [γ ->].
-  iModIntro. iExists γ. rewrite !OwnG.to_t_eq. iFrame.
-Qed.
+Proof. intros Ha. eapply (own_alloc_dep (λ _, a)); eauto. Qed.
 
 (** ** Frame preserving updates *)
 Lemma own_updateP P γ a : a ~~>: P → OwnG.to_t γ a ⊢ |==> ∃ a', ⌜P a'⌝ ∗ OwnG.to_t γ a'.
