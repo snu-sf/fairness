@@ -433,7 +433,7 @@ Section SPEC.
     { apply not_elem_of_dom. apply is_fresh. }
 
     iDestruct (LInv_fold with "GMap [LivC]") as "LInv".
-    { rewrite big_sepM_insert; last first.
+    { erewrite big_sepM_insert; last first.
       { apply not_elem_of_dom. apply is_fresh. }
       iFrame. case_decide; done.
     }
@@ -809,7 +809,7 @@ Section SPEC.
 
     (* Close Invs *)
     iDestruct (LInv_fold with "GMap [LivC]") as "LInv".
-    { rewrite big_sepM_insert; last first.
+    { erewrite big_sepM_insert; last first.
       { apply not_elem_of_dom. apply is_fresh. }
       iFrame. iClear "h↦□". case_decide; done.
     }

@@ -305,6 +305,9 @@ Module ObligationRA.
 
   Definition t: ucmra := @FiniteMap.t (prodUR (@CounterRA.t Ord.t _) (OneShot.t _unit)).
 
+  Global Instance discrete : CmraDiscrete t.
+  Proof. apply _. Qed.
+
   Section RA.
     Context `{@GRA.inG t Σ}.
     Notation iProp := (iProp Σ).

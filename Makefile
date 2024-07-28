@@ -8,6 +8,7 @@ COQTHEORIES  := \
 	src/ra/*.v \
 	src/tlogic/*.v \
 	src/example/*.v \
+	src/bi/lib/*.v \
 	src/example/treiber/*.v \
 	src/example/elimstack/*.v \
 
@@ -30,6 +31,7 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-Q src/simulation $(COQMODULE)"; \
 	 echo "-Q src/scheduler_example $(COQMODULE)"; \
 	 echo "-Q src/ra $(COQMODULE)"; \
+	 echo "-Q src/bi $(COQMODULE)"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \

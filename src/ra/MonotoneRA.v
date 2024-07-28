@@ -503,6 +503,9 @@ Module OneShot.
     Definition to_shot (a : A) : t := Some (Cinr (to_agree (a : leibnizO A))).
     Definition shot (a : A) : t := to_shot a.
 
+    Global Instance shot_core_id a: CoreId (shot a).
+    Proof. apply _. Qed.
+
     Lemma pending_one_wf: ✓ (pending 1).
     Proof. done. Qed.
 
@@ -547,8 +550,9 @@ Module OneShot.
       (shot a) ≡ (shot a) ⋅ (shot a).
     Proof.
       rewrite /shot -Some_op -Cinr_op.
-      erewrite <- core_id_dup; [done|apply _].
+      rewrite <- core_id_dup; [done|apply _].
     Qed.
+
   End ONESHOT.
   Global Typeclasses Opaque to_shot shot to_pending pending.
   Global Opaque to_shot shot to_pending pending.

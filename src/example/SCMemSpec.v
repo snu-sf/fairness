@@ -104,7 +104,7 @@ Section SPEC.
     rewrite FREE. rred2r.
     iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r. iMod "MB".
     iMod ("V" with "[STTGT MB]") as "_".
-    { ss. iExists _. red_tl. iFrame. unfold Lens.modify. rewrite Lens.set_set.
+    { ss. iExists _. red_tl. unfold Lens.modify. rewrite Lens.set_set.
       iEval (red_tl_memra). iFrame.
     }
     iApply "SIM". auto.
@@ -144,7 +144,7 @@ Section SPEC.
     iEval (simpl; red_tl_memra) in "MEM".
     iPoseProof (memory_ra_store with "MEM PT") as "STORE".
     iDestruct "STORE" as (m1) "[%STORE1 MB]". iMod ("MB") as "MB".
-    rewrite STORE1. rred2. iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2.
+    erewrite STORE1. rred2. iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2.
     iDestruct "MB" as "[MB PT]".
     iMod ("V" with "[STTGT MB]") as "_".
     { iExists _. ss. red_tl_memra. iFrame. unfold Lens.modify. rewrite Lens.set_set. iFrame. }
@@ -185,12 +185,12 @@ Section SPEC.
   Lemma SCMem_load_fun_spec_gen
         tid x y z (LT : x < S (y + z))
         E (IN : ↑N_state_tgt ⊆ E)
-        l v pers
+        l v dq
     :
     ⊢ [@ tid, y, z, E @]
-      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦{pers} v)}
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦{dq} v)}
       (map_event emb_mem (SCMem.load_fun l))
-      {rv, ⌜rv = v⌝ ∗ (l ↦{pers} v)}.
+      {rv, ⌜rv = v⌝ ∗ (l ↦{dq} v)}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM". unfold SCMem.load_fun. rred2.
@@ -206,12 +206,12 @@ Section SPEC.
   Lemma SCMem_load_fun_spec
         tid x y (LT : x < S y)
         E (IN : ↑N_state_tgt ⊆ E)
-        l v pers
+        l v dq
     :
     ⊢ [@ tid, y, E @]
-      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦{pers} v)}
+      {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗ (l ↦{dq} v)}
       (map_event emb_mem (SCMem.load_fun l))
-      {rv, ⌜rv = v⌝ ∗ (l ↦{pers} v)}.
+      {rv, ⌜rv = v⌝ ∗ (l ↦{dq} v)}.
   Proof.
     iStartTriple.
     iIntros "[#ST PT] SIM".
@@ -221,12 +221,12 @@ Section SPEC.
   Lemma SCMem_load_fun_syn_spec
         tid n
         E (IN : ↑N_state_tgt ⊆ E)
-        l v pers
+        l v dq
     :
     ⊢ ⟦([@ tid, n, E @]
-          {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m))) ∗ ⤉(l ↦{pers} v)}
+          {(syn_tgt_interp_as _ l_mem (fun m => (s_memory_black m))) ∗ ⤉(l ↦{dq} v)}
           (map_event emb_mem (SCMem.load_fun l))
-          {rv, ⌜rv = v⌝ ∗ ⤉(l ↦{pers} v)})%S, 1+n⟧.
+          {rv, ⌜rv = v⌝ ∗ ⤉(l ↦{dq} v)})%S, 1+n⟧.
   Proof.
     iIntros. iEval (setoid_rewrite red_syn_atomic_triple).
     iStartTriple. iIntros "P Q".
@@ -251,7 +251,7 @@ Section SPEC.
     iInv "ST" as (st) "ST1" "K". iDestruct "ST1" as (vw) "[VW MB]".
     iApply wpsim_getR. iSplit. iFrame. rred2. iEval (simpl; red_tl_memra) in "MB".
     iPoseProof (memory_ra_faa with "MB PT") as (m1) "[%FAA MB]".
-    rewrite Lens.view_set. rewrite FAA. rred2.
+    rewrite Lens.view_set. erewrite FAA. rred2.
     iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2.
     iMod "MB" as "[MB PT]".
     iMod ("K" with "[STTGT MB]") as "_".
@@ -297,7 +297,7 @@ Section SPEC.
     rred2r. unfold SCMem.cas. iPoseProof (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
     rewrite Lens.view_set. rewrite LOAD. destruct MC as [b MC]. rewrite MC.
     destruct b.
-    - iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". rewrite STORE. rred2r.
+    - iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". erewrite STORE. rred2r.
       iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r.
       iEval (unfold Lens.modify; rewrite Lens.set_set) in "STTGT".
       iMod ("MEM") as "[MB PT]". iMod ("K" with "[STTGT MB]") as "_".
@@ -352,17 +352,23 @@ Section SPEC.
     ss. iDestruct "ST1" as (mem) "[VW MB]". red_tl_memra.
     des_ifs.
     2,4,5: iDestruct "o↦" as (vo) "o↦".
-    2: iDestruct (SCMem.memory_ra_compare_ptr_left _ 0 with "MB o↦") as "%MC".
     3,4,5: iDestruct "v↦" as (vv) "v↦".
-    5: iDestruct (SCMem.memory_ra_compare_ptr_right _ 0 with "MB v↦") as "%MC".
-    3,4: iDestruct (SCMem.memory_ra_compare_ptr_both_gen with "MB v↦ o↦") as "%MC".
+    2: iDestruct (SCMem.memory_ra_compare_ptr_left _ 0 with "MB o↦") as %MC.
+    5: iDestruct (SCMem.memory_ra_compare_ptr_right _ 0 with "MB v↦") as %MC.
+    3: iDestruct (SCMem.memory_ra_compare_ptr_both_gen with "MB v↦ o↦") as %MC.
+    4: iDestruct (SCMem.memory_ra_compare_ptr_both_gen with "MB v↦ o↦") as %MC.
     all: rred2r; iApply wpsim_getR; iSplit; [iFrame | ].
     all: iEval (simpl; red_tl_memra) in "MB".
-    all: rred2r; unfold SCMem.cas; iPoseProof (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
+    all: rred2r; unfold SCMem.cas.
+    1: iDestruct (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
+    2: iDestruct (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
+    3: iDestruct (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
+    4: iDestruct (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
+    5: iDestruct (memory_ra_load with "MB PT") as "[%LOAD %PERM]".
     all: rewrite Lens.view_set; rewrite LOAD.
     1: simpl in *.
     all: try (unfold SCMem.compare in MC; unfold SCMem.val_null; rewrite MC).
-    - iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". rewrite STORE. rred2r.
+    - iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". erewrite STORE. rred2r.
       iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r.
       iEval (unfold Lens.modify; rewrite Lens.set_set) in "STTGT".
       iMod ("MEM") as "[MB PT]". iMod ("K" with "[STTGT MB]") as "_".
@@ -373,7 +379,7 @@ Section SPEC.
       iApply "CAS". iExists 0. iFrame. iSplit; [done|].
       iExists _. iFrame.
     - case_bool_decide; [|done].
-      subst. iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". rewrite STORE. rred2r.
+      subst. iPoseProof (memory_ra_store with "MB PT") as (m1) "[%STORE MEM]". erewrite STORE. rred2r.
       iApply (wpsim_modifyR with "VW"). iIntros "STTGT". rred2r.
       iEval (unfold Lens.modify; rewrite Lens.set_set) in "STTGT".
       iMod ("MEM") as "[MB PT]". iMod ("K" with "[STTGT MB]") as "_".
