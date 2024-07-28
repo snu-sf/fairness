@@ -5,8 +5,8 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA ghost_excl ghost_map ghost_var.
-From Fairness.elimstack Require Import SpecHOCAP ClientCode ClientSpecHOCAP ucmra_list.
+From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA ghost_excl ghost_map ghost_var ucmra_list.
+From Fairness.elimstack Require Import SpecHOCAP ClientCode ClientSpecHOCAP.
 From Fairness Require Export ModSim ModAdequacy ModCloseSim ModAddSim.
 From Fairness Require Export FIFOSched SchedSim FIFOSched FIFOSchedSim.
 
@@ -92,8 +92,6 @@ Module ElimStackClientCorrect.
     { subG_map := fun i => if (le_lt_dec i 14) then i else 15 }.
   Next Obligation.
     i. ss. unfold Σ, Γ. des_ifs.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
   Qed.
 
   Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := GRA.InG Σ 16 eq_refl.
