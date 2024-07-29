@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 
@@ -272,7 +272,7 @@ Module Syntax.
     Definition test2 (n : nat) : formula :=
       @extestf _ (S n) (@formula n) (fun (s : formula) => @sepconjf (S n) s s).
     About test2.
-    
+
 
   End FORMULA.
 
@@ -296,7 +296,7 @@ Module Syntax.
       | wand p q => Wand (to_semantics p) (to_semantics q)
       | Syntax.emp => Emp
       | persistently p => Persistently (to_semantics p)
-      | plainly p => IProp.Plainly (to_semantics p)
+      | plainly p => .Plainly (to_semantics p)
       (* | later (p : Syntax) *)
       | upd p => Upd (to_semantics p)
       (* | entails p q => Entails (to_semantics p) (to_semantics q) *)

@@ -6,7 +6,7 @@ Require Import Program.
 From iris.algebra Require Import cmra.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
+From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
 From Fairness Require Import pind PCM World.
 From Fairness Require Import Mod ModSimStid ModSimNoSync.
 

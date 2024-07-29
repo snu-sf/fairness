@@ -3,7 +3,7 @@ From sflib Require Import sflib.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 From Coq Require Import Program Arith.
-Require Import Coqlib PCM PCMAux IProp IPM sProp.
+Require Import Coqlib PCM PCMAux  IPM sProp.
 Require Import RobustIndexedInvariants.
 
 Local Notation level := nat.
@@ -444,7 +444,7 @@ Section RED.
   Proof. apply red_sem_persistently. Qed.
 
   Lemma red_tl_plainly n p :
-    ⟦(■ p)%F, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
+    ⟦(■ p)%F, n⟧ = (.Plainly ⟦p, n⟧)%I.
   Proof. apply red_sem_plainly. Qed.
 
   Lemma red_tl_upd n (p : sProp.sProp n) :

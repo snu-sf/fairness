@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic SCMemSpec Spinlock SpinlockSpec1.
 
@@ -182,8 +182,8 @@ Section SPEC.
     iIntros. iStartTriple.
     red_tl. rewrite red_syn_tgt_interp_as.
     iIntros "(#MEM & DUTY & PCS & #ISL & %LE & LIVE_k & PC_k & CNTW_r0 & %CASES)".
-    iMod (pcs_decr _ _ 1 1 with "PCS") as "[PCS PCS_SPIN]". lia.
-    iMod (pcs_drop _ _ _ _ 1 100 with "PCS") as "PCS". lia.
+    iMod (pcs_decr 1 1 with "PCS") as "[PCS PCS_SPIN]". lia.
+    iMod (pcs_drop 1 100 with "PCS") as "PCS". lia.
     iIntros "POST".
     unfold incr. rred.
     iApply (wpsim_yieldR2 with "[DUTY PCS]").
@@ -227,7 +227,7 @@ Section SPEC.
       2:{ subst rv. ss. f_equal. lia. }
       iPoseProof (auexa_b_w_eq with "CNTB_r1 CNTW_r0") as "%EQ". subst a.
       iMod (auexa_b_w_update _ _ _ _ nat (1 + x) with "CNTB_r1 CNTW_r0") as "[CNTB_r1 CNTW_r0]".
-      iMod (pcs_decr _ _ 1 1 with "PCS") as "[PCS _]". lia.
+      iMod (pcs_decr 1 1 with "PCS") as "[PCS _]". lia.
       iApply (Spinlock_unlock_spec with "[CNTB_r1 CNTB_r2 PT LOCKED LIVE_k DUTY PCS LIVE_u PC_k]").
       3:{ repeat (try rewrite @red_tl_sepconj). simpl.
           iSplitR. rewrite red_syn_tgt_interp_as. eauto. iSplitR. eauto.
@@ -242,7 +242,7 @@ Section SPEC.
       2:{ subst rv. ss. f_equal. lia. }
       iPoseProof (auexa_b_w_eq with "CNTB_r2 CNTW_r0") as "%EQ". subst a.
       iMod (auexa_b_w_update _ _ _ _ nat (1 + y) with "CNTB_r2 CNTW_r0") as "[CNTB_r2 CNTW_r0]".
-      iMod (pcs_decr _ _ 1 1 with "PCS") as "[PCS _]". lia.
+      iMod (pcs_decr 1 1 with "PCS") as "[PCS _]". lia.
       iApply (Spinlock_unlock_spec with "[CNTB_r1 CNTB_r2 PT LOCKED LIVE_k DUTY PCS LIVE_u PC_k]").
       3:{ repeat (try rewrite @red_tl_sepconj). simpl.
           iSplitR. rewrite red_syn_tgt_interp_as. eauto. iSplitR. eauto.
@@ -290,7 +290,7 @@ Section SPEC.
     auto.
     iIntros "DUTY _". iModIntro. rred2r. iApply wpsim_tauR. rred2r.
     assert (exists j, 0 = j). eauto. des.
-    replace 
+    replace
       (ITree.iter
          (λ i : nat,
              ` r0 : nat + () <- (if Nat.eq_dec i 100 then Ret (inr ()) else incr 2;;; trigger Yield;;; Ret (inl (i + 1)));; Ret r0)
@@ -450,7 +450,7 @@ Section SPEC.
       iPoseProof (auexa_b_w_eq with "CNTB_r2 RES") as "%EQ2". subst y.
       iMod ("PR_CLOSE" with "[PTD RES]") as "_".
       { unfold t2_write. simpl. red_tl. iFrame. }
-      iMod (pcs_decr _ _ 1 1 _ with "PCS") as "[PCS _]". lia.
+      iMod (pcs_decr 1 1 _ with "PCS") as "[PCS _]". lia.
       iApply (Spinlock_unlock_spec with "[CNTB_r1 CNTB_r2 PT LOCK LIVE_k DUTY LIVE_u PCS PC_k]").
       3:{ repeat (try rewrite @red_tl_sepconj). simpl.
           iSplitR. rewrite red_syn_tgt_interp_as. eauto. iSplitR. eauto.
@@ -502,7 +502,7 @@ Section SPEC.
     iMod (pcs_decr [(w, 0)] _ 30 1 with "[PC_w]") as "[PCS_w1 PCS_w2]".
     2:{ iApply pcs_cons_fold. iSplitL "PC_w". iFrame. ss. }
     auto.
-    iMod (pcs_drop _ _ _ _ 1 100 with "PCS_w2") as "PCS_w2".
+    iMod (pcs_drop 1 100 with "PCS_w2") as "PCS_w2".
     lia. Unshelve. 2: lia.
     iApply (wpsim_yieldR2 with "[DUTY PCS_w2]").
     3:{ iSplitL "DUTY". iApply "DUTY". iFrame. }
@@ -510,7 +510,7 @@ Section SPEC.
     iIntros "DUTY _ PCS_w2". iEval (simpl) in "PCS_w2". iModIntro. rred2r.
     iApply wpsim_tauR. rred2r.
     assert (exists j, 0 = j). eauto. des.
-    replace 
+    replace
       (ITree.iter
          (λ i : nat,
              ` r0 : nat + () <- (if Nat.eq_dec i 10 then Ret (inr ()) else incr 5;;; trigger Yield;;; Ret (inl (i + 1)));; Ret r0)
@@ -525,7 +525,7 @@ Section SPEC.
     remember (10 - j) as J.
     assert (10 = J). subst. ss.
     iPoseProof (pc_split_le _ _ J 1 with "PC_k") as "[PC_k PC_k2]". subst; lia.
-    iMod (pcs_decr _ _ (3*J) 0 with "PCS_w1") as "[PCS_w1 _]". subst; lia.
+    iMod (pcs_decr (3*J) 0 with "PCS_w1") as "[PCS_w1 _]". subst; lia.
     iEval (rewrite H) in "CNTW_r2".
     assert (LT : j <= 10). subst. lia.
     clear H0 H.
@@ -533,8 +533,8 @@ Section SPEC.
     revert j HeqJ LT. induction J; cycle 1.
     { i. iIntros "((#MEM & #ISL & #UNTILI) & TID & LIVE_k & CNTW_r2 & LIVE_w & DUTY & PCS_w1 & PC_k & PC_k1 & PCS_w)".
       iPoseProof (pc_split_le _ _ 1 J with "PC_k") as "[PC_k0 PC_k]". lia.
-      iMod (pcs_decr _ _ 3 (3*J) with "PCS_w") as "[PCS_w0 PCS_w]". lia.
-      iMod (pcs_decr _ _ 2 1 with "PCS_w0") as "[PCS_w0 PCS_w2]". lia.
+      iMod (pcs_decr 3 (3*J) with "PCS_w") as "[PCS_w0 PCS_w]". lia.
+      iMod (pcs_decr 2 1 with "PCS_w0") as "[PCS_w0 PCS_w2]". lia.
       iEval (rewrite unfold_iter_eq). rred2r.
       destruct (Nat.eq_dec j 10).
       { exfalso. lia. }
@@ -546,7 +546,7 @@ Section SPEC.
         iSplit; eauto.
       }
       iEval red_tl. iIntros (_) "(DUTY & LIVE_k & CNTW_r1)". rred2r.
-      iMod (pcs_drop _ _ _ _ 1 1 with "PCS_w2") as "PCS_w2". lia. Unshelve. 2: auto.
+      iMod (pcs_drop 1 1 with "PCS_w2") as "PCS_w2". lia. Unshelve. 2: auto.
       iApply (wpsim_yieldR with "[DUTY PCS_w2]").
       2:{ iSplitL "DUTY". iApply "DUTY". iFrame. }
       auto.
@@ -621,7 +621,7 @@ Section SPEC.
     iPoseProof (auexa_b_w_eq with "CB_r2 W") as "%EQ".
     iMod ("D_CLOSE" with "[W PT]") as "_".
     { simpl. red_tl. iFrame. }
-    iMod (pcs_decr _ _ 1 0 _ with "PCS") as "[PCS _]". lia.
+    iMod (pcs_decr 1 0 _ with "PCS") as "[PCS _]". lia.
     iApply (Spinlock_unlock_spec with "[CB_r1 CB_r2 PTC LOCK LIVE_k DUTY PCS LIVE_u PC_k] [-]").
     3:{ repeat (try rewrite @red_tl_sepconj). simpl.
         iSplitR. rewrite red_syn_tgt_interp_as. eauto. iSplitR. eauto.

@@ -2,11 +2,11 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib ModSim ModSimNat.
 From Fairness Require PCM.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import ISim.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export IndexedInvariants NatMapRA MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
+From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
 From Fairness Require Export SimDefaultRA LiveObligations.
 From Fairness Require Import FairBeh.
 Require Import Coq.Sorting.Mergesort.
@@ -1338,8 +1338,7 @@ Section STATE.
   .
   Proof.
     iIntros "D P T H".
-    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
-    Unshelve. 2: lia.
+    iMod (pcs_decr (a-1) 1 with "T") as "[REST T]"; [lia|].
     iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2)) Ord.omega) with "[T]" as "T".
     { unfold progress_credits.
       replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2))
@@ -1415,8 +1414,7 @@ Section STATE.
   .
   Proof.
     iIntros "[D T] H".
-    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
-    Unshelve. 2: lia.
+    iMod (pcs_decr (a-1) 1 with "T") as "[REST T]"; [lia|].
     iApply (wpsim_yieldR_gen with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
   Qed.
 
@@ -1561,8 +1559,7 @@ Section STATE.
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "D P T H".
-    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
-    Unshelve. 2: lia.
+    iMod (pcs_decr (a-1) 1 with "T") as "[REST T]"; [lia|].
     iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2)) Ord.omega) with "[T]" as "T".
     { unfold progress_credits.
       replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2))
@@ -1636,8 +1633,7 @@ Section STATE.
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "[D T] H".
-    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
-    Unshelve. 2: lia.
+    iMod (pcs_decr (a-1) 1 with "T") as "[REST T]"; [lia|].
     iApply (wpsim_sync_gen with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
   Qed.
 
@@ -2006,8 +2002,8 @@ Section TRIPLES.
 
   (* TODO: Reuse the following from [iris.bi.lib.atomic] with all the
     sweet typeclass instances, tactics, and abort for free.
-    Probably requires adding [atomic_update] as an atom to the syntax,
-    or implementing fixpoints in the syntax level, which is not ideal.
+    Requires implementing fixpoints in the syntax level, which is not ideal.
+    Adding it as an atom doesn't work because interpertations of atoms cannot use [prop n] in the interpretation.
   *)
   (* Definition atomic_update n Eo Ei α β POST : iProp :=
     @atomic_update

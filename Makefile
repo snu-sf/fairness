@@ -12,6 +12,8 @@ COQTHEORIES  := \
 	src/example/treiber/*.v \
 	src/example/elimstack/*.v \
 	src/example/fos_ticketlock/*.v \
+	src/iris_base_logic/base_logic/*.v \
+	# src/iris_base_logic/base_logic/lib/*.v \
 
 
 .PHONY: all theories clean
@@ -27,6 +29,7 @@ quick: Makefile.coq
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-arg -w -arg -deprecated-instance-without-locality"; \
 	 echo "-arg -w -arg -ambiguous-paths"; \
+	 echo "-arg -w -arg -redundant-canonical-projection"; \
 	 echo "-Q src/lib $(COQMODULE)"; \
 	 echo "-Q src/semantics $(COQMODULE)"; \
 	 echo "-Q src/simulation $(COQMODULE)"; \
@@ -35,6 +38,7 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-Q src/bi $(COQMODULE)"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
+	 echo "-Q src/iris_base_logic $(COQMODULE)"; \
 	 echo "-Q pico $(COQMODULE)"; \
 	 \
    echo $(COQTHEORIES)) > _CoqProject

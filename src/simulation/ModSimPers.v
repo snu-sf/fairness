@@ -118,21 +118,9 @@ Module ModSimPers.
         done.
       }
       i. des. esplits; eauto.
-      { instantiate (1:=r_own).
-        r_wf VALID0.
-        do 2 rewrite -(assoc cmra.op r_shared1).
-        rewrite (comm cmra.op _ (core r_shared)).
-        rewrite !(assoc cmra.op) (comm cmra.op r_shared1).
-        done.
-      }
+      { instantiate (1:=r_own). r_wf VALID0. }
       i. des. subst. hexploit x0; eauto.
-      { instantiate (1:=r_ctx2 ⋅ core r_shared). r_wf VALID1.
-        rewrite -(assoc cmra.op (core r_shared)) (comm cmra.op (core r_shared)).
-        rewrite -(assoc cmra.op r1).
-        do 2 rewrite -(assoc cmra.op _ _ r_ctx2).
-        rewrite -(assoc cmra.op r_own) (comm cmra.op (core r_shared)).
-        by rewrite !(assoc cmra.op).
-      }
+      { instantiate (1:=r_ctx2 ⋅ core r_shared). r_wf VALID1. }
       ii. specialize (H fs ft).
 
       ginit. revert H. generalize (k args), (k0 args).
@@ -145,9 +133,6 @@ Module ModSimPers.
 
       { guclo (@lsim_indC_spec world). econs 1; eauto.
         rr in LSIM. des. rr. esplits; eauto. instantiate (1:=r_own). r_wf VALID.
-        rewrite (comm cmra.op _ (core r_shared)).
-        rewrite !(assoc cmra.op).
-        done.
       }
 
       { guclo (@lsim_indC_spec world). econs 2; eauto.
@@ -208,18 +193,10 @@ Module ModSimPers.
 
       { guclo (@lsim_indC_spec world). econs 16; eauto.
         { instantiate (1:=r_own). r_wf VALID.
-          rewrite (comm cmra.op (r_shared0 ⋅ r_own)).
-          rewrite (comm cmra.op _ (core r_shared)).
-          rewrite (comm cmra.op x5).
-          by rewrite !(assoc cmra.op).
         }
         { i. des. subst. hexploit LSIM; eauto.
           { instantiate (1:= r_ctx1 ⋅ core r_shared).
-            clear -VALID0.
-            rewrite (comm cmra.op r_ctx1).
-            rewrite (assoc cmra.op) (comm cmra.op _ (core r_shared)).
-            rewrite !(assoc cmra.op).
-            done.
+            r_wf VALID0.
           }
           { i. rr in H. des.
             clear -IH H0.
@@ -229,17 +206,9 @@ Module ModSimPers.
       }
 
       { gstep. eapply pind9_fold. econs 17; eauto.
-        { instantiate (1:=r_own). r_wf VALID.
-          rewrite (comm cmra.op _ (core _)).
-          rewrite !(assoc cmra.op).
-          done.
-        }
+        { instantiate (1:=r_own). r_wf VALID. }
         { i. des. subst. hexploit LSIM; eauto.
-          { instantiate (1:=r_ctx1 ⋅ core r_shared). r_wf VALID0.
-            rewrite (comm cmra.op _ (core r_shared)).
-            rewrite !(assoc cmra.op).
-            done.
-          }
+          { instantiate (1:=r_ctx1 ⋅ core r_shared). r_wf VALID0. }
           { i. rr in H. des; ss. gbase. eapply CIH; eauto. }
         }
       }

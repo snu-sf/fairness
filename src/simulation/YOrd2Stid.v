@@ -6,7 +6,7 @@ Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
+From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
 From Fairness Require Import pind PCM World WFLibLarge ThreadsURA.
 From Fairness Require Import Mod ModSimYOrd ModSimStid.
 

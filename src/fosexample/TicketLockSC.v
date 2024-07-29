@@ -73,8 +73,8 @@ End TicketLock.
 
 
 
-From Fairness Require Import IProp IPMFOS Weakest.
-From Fairness Require Import ModSim PCM MonotonePCM StateRA FairRA.
+From Fairness Require Import  IPMFOS Weakest.
+From Fairness Require Import ModSim PCMFOS MonotonePCM StateRA FairRA.
 From Fairness Require Import FairLock.
 From Fairness Require Import NatStructs NatMapRAFOS.
 

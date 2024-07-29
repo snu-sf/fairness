@@ -2375,7 +2375,7 @@ Definition maps_to {Σ} {A: Type} {M: URA.t} `{ING: @GRA.inG (A ==> M)%ra Σ}
            (a: A) (m: M): iProp :=
   OwnM (maps_to_res a m).
 
-From Fairness Require Import NatStructsLarge.
+From Fairness Require Import NatStructs.
 
 Section SUM.
   Context `{Σ: GRA.t}.

@@ -138,7 +138,7 @@ Module WMem.
 
 End WMem.
 
-From Fairness Require Import PCM IProp IPMFOS FairRA StateRA MonotonePCM.
+From Fairness Require Import PCMFOS  IPMFOS FairRA StateRA MonotonePCM.
 From PromisingSEQ Require Import MemoryProps.
 
 Section MEMRA.

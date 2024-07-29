@@ -2,7 +2,8 @@ From iris.algebra Require Import cmra.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib ModSim ModSimPers Concurrency ModAdequacy Axioms.
-From Fairness Require Import PCM IProp IPM ISim SimDefaultRA SimWeakest.
+From Fairness.base_logic Require Import upred base_logic.
+From Fairness Require Import PCM IPM ISim SimDefaultRA SimWeakest.
 From Fairness Require Import FairBeh.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require PCM.
@@ -192,9 +193,11 @@ Module WSim.
     Lemma iProp_satisfable (r0: Σ) (P: iProp) (WF: ✓ r0)
           (IMPL: Own r0 ⊢ #=> P)
       :
-      exists r1, P r1 /\ ✓ r1.
+      exists r1, Fairness.base_logic.upred.uPred_holds (to_upred P) r1 /\ ✓ r1.
     Proof.
-      rr in IMPL. uipropall. hexploit (IMPL r0); auto.
+      revert IMPL. rewrite Own_eq. unfold IPM.Own_def. uPred.unseal. intros [IMPL].
+      rr in IMPL. hexploit (IMPL r0); auto.
+      { rr. exists ε. rewrite right_id; [done|apply _]. }
       { instantiate (1:=ε). rewrite right_id; [done|apply _]. }
       i. des. rewrite right_id in H; [|apply _]. eauto.
     Qed.
@@ -274,11 +277,11 @@ Module WSim.
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
           y
           (DUTYLEVEL: y < x)
-          (SIM: wpsim x tid ⊤ ibot7 ibot7
+          (SIM: Fairness.base_logic.upred.uPred_holds (to_upred (wpsim x tid ⊤ ibot7 ibot7
                       (fun r_src r_tgt =>
-                         ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
-          (INV: (default_I x ths im_src im_tgt0 st_src st_tgt
-                           ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I r_shared)
+                         ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1)) r)
+          (INV: Fairness.base_logic.upred.uPred_holds ((to_upred (default_I x ths im_src im_tgt0 st_src st_tgt
+                           ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I)) r_shared)
           (FUPD: fair_update im_tgt0 im_tgt1 (prism_fmap inlp (tids_fmap tid ths)))
           (WF: ✓ ((r_shared ⋅ r) ⋅ r_ctx))
       :
@@ -309,61 +312,57 @@ Module WSim.
                      (ths, im_src, im_tgt1, st_src, st_tgt).
     Proof.
       Local Opaque GRA.to_URA.
-      ii. rr in SIM. unseal "iProp". specialize (SIM ths).
-      rr in SIM. unseal "iProp". specialize (SIM im_src).
-      rr in SIM. unseal "iProp". specialize (SIM im_tgt1).
-      rr in SIM. unseal "iProp". specialize (SIM st_src).
-      rr in SIM. unseal "iProp". specialize (SIM st_tgt).
-      r in INV.
-      rr in SIM. unseal "iProp". hexploit (SIM r_shared).
+      unfold wpsim in SIM. revert SIM. uPred.unseal. intros SIM.
+      specialize (SIM ths im_src im_tgt1 st_src st_tgt).
+      simpl in *.
+      revert INV. uPred.unseal. intros INV.
+      rr in SIM. hexploit (SIM r_shared).
       { rewrite (comm cmra.op). eapply cmra_valid_op_l. done. }
-      { rr in INV. rr. unseal "iProp". des. subst. esplits.
+      { rr in INV. rr. des. setoid_rewrite INV. esplits.
         { eauto. }
-        { rr. unseal "iProp". esplits. rr. unseal "iProp". esplits.
+        { unfold default_I_past. uPred.unseal. rr. esplits. rr. esplits.
           { instantiate (2:=ε). rewrite left_id; [|apply _]. done. }
-          { rr. unseal "iProp". eauto. }
+          { rr. eauto. }
           { auto. }
         }
         { auto. }
       }
-      i. rr in H. unseal "iProp". hexploit H.
-      { instantiate (1:=r_ctx). r_wf WF.
-        rewrite (comm cmra.op r). done.
-      }
+      { instantiate (1:=r_ctx). r_wf WF. }
       i. eapply lsim_flag_any. eapply lsim_monoR.
-      { ginit. ss. refine (@eq_rect _ _ id H0 _ _).
+      { ginit. ss. refine (@eq_rect _ _ id H _ _).
         f_equal; cycle 1.
         { i. subst. f_equal. repeat (let x := fresh "x" in extensionality x).
           eapply propositional_extensionality. split; i; ss.
-          dependent destruction H1. rr in REL. unseal "iProp". des.
-          rr in REL. unseal "iProp". des. subst.
-          rr in REL. unseal "iProp". des. subst.
-          rr in REL0. unseal "iProp". ss.
+          dependent destruction H0. rr in REL. des.
+          rr in REL. des. subst.
+          rr in REL. des. subst.
+          revert REL0. unfold ibot7. uPred.unseal.
+          intros REL0. rr in REL0. ss.
         }
         { repeat (let x := fresh "x" in extensionality x).
           eapply propositional_extensionality. split; i; ss.
-          dependent destruction H1. rr in REL. unseal "iProp". des.
-          rr in REL. unseal "iProp". des. subst.
-          rr in REL. unseal "iProp". des. subst.
-          rr in REL0. unseal "iProp". ss.
+          dependent destruction H0. rr in REL. des.
+          rr in REL. des. subst.
+          rr in REL. des. subst.
+          revert REL0. unfold ibot7. uPred.unseal.
+          intros REL0. rr in REL0. ss.
         }
         { reflexivity. }
-        { i. auto. clarify. rewrite H13. rewrite H11. rewrite H10. auto. }
+        { i. auto. clarify. rewrite H12. rewrite H10. rewrite H9. auto. }
       }
       { i. ss. des_ifs. des.
-        rr in RET0. unseal "iProp". des. subst.
-        rr in RET2. unseal "iProp". des. subst.
-        rr in RET3. unseal "iProp". subst.
-        rr in RET1. unseal "iProp". des. subst.
+        rr in RET0. des. subst.
+        rr in RET2. des. subst.
+        rr in RET3. subst.
+        rr in RET1. des. subst.
         hexploit (@default_I_past_final md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident)).
         apply DUTYLEVEL.
-        intro HEMP. rr in HEMP. unseal "iProp". hexploit HEMP.
+        uPred.unseal.
+        intro HEMP. rr in HEMP. destruct HEMP as [HEMP]. hexploit HEMP.
         { instantiate (1:=ε). apply ucmra_unit_valid. }
-        { clear.
-          unfold iProp. unfold bi_emp. unfold Emp. unseal "iProp". ss.
-        }
+        { clear. uPred.unseal. rr. ss. }
         clear HEMP.
-        i. rr in H1. unseal "iProp". hexploit H1.
+        i. rr in H0. hexploit H0.
         { rewrite left_id; [|apply _].
           rewrite RET0 in WF0.
           rewrite RET1 in WF0.
@@ -371,60 +370,34 @@ Module WSim.
           apply WF0.
         }
         { eauto. }
-        i. rr in H2. unseal "iProp". hexploit H2.
         { rewrite RET0 in WF0.
           rewrite RET1 in WF0.
           rewrite RET2 in WF0.
           rewrite RET3 in WF0.
-          instantiate (1:=a1 ⋅ b1).
-          apply cmra_valid_op_l in WF0.
-          rewrite (comm cmra.op a2) in WF0.
-          rewrite <- (assoc cmra.op) in WF0.
-          apply cmra_valid_op_r in WF0.
-          rewrite ! (assoc cmra.op) in WF0.
-          apply cmra_valid_op_l in WF0.
-          rewrite <- (assoc cmra.op).
-          rewrite (left_id ε); [|apply _].
-          rewrite (assoc cmra.op).
-          apply WF0.
+          instantiate (1:=x4 ⋅ x5).
+          eapply (cmra_valid_op_l _ x3),(cmra_valid_op_l _ r_ctx0),(cmra_valid_op_l _ x7).
+          r_wf WF0.
         }
-        { rr. unseal "iProp". eauto. }
-        i. rr in H3. unseal "iProp". hexploit H3.
-        { instantiate (1:=b2 ⋅ r_ctx0).
+        { rr. eauto. }
+        { instantiate (1:=x7⋅r_ctx0).
           rewrite RET0 in WF0.
           rewrite RET1 in WF0.
           rewrite RET2 in WF0.
           rewrite RET3 in WF0.
-          rewrite <- !(assoc cmra.op).
-          rewrite (left_id ε); [|apply _].
-          rewrite !(assoc cmra.op) in WF0.
-          rewrite <- (assoc cmra.op _ b0) in WF0.
-          rewrite (comm cmra.op b0) in WF0.
-          rewrite !(assoc cmra.op) in WF0.
-          apply cmra_valid_op_l in WF0.
-          rewrite <- (assoc cmra.op a2) in WF0.
-          rewrite (comm cmra.op b2) in WF0.
-          rewrite <- (assoc cmra.op a2) in WF0.
-          rewrite <- (assoc cmra.op a1) in WF0.
-          rewrite (comm cmra.op b2) in WF0.
-          rewrite !(assoc cmra.op) in WF0.
-          rewrite !(assoc cmra.op).
-          apply WF0.
+          clear -WF0.
+          eapply (cmra_valid_op_l _ x3).
+          r_wf WF0.
         }
         i. des.
-        rr in H5. unseal "iProp". des.
-        rr in H5. unseal "iProp". des. rewrite H5 in H4.
-        rr in H6. unseal "iProp".
+        rr in H2. des.
+        rr in H2. des. rewrite H2 in H1.
+        rr in H3.
         rr. esplits.
         { eauto. }
-        2:{ rr. unseal "iProp". exists b3,b2. esplits; eauto. }
-        2:{ rr in RET4. unseal "iProp". auto. }
-        { rewrite (comm cmra.op a3) in H4.
-          rewrite <- (assoc cmra.op b3) in H4.
-          rewrite (assoc cmra.op a3) in H4.
-          rewrite (comm cmra.op a3) in H4.
-          rewrite !(assoc cmra.op) in H4.
-          done.
+        2:{ rr. exists x9,x7. esplits; eauto. }
+        2:{ rr in RET4. auto. }
+        { instantiate (1:=x8).
+          r_wf H1.
         }
       }
     Qed.
@@ -434,9 +407,10 @@ Module WSim.
           (th1: thread (Mod.ident md_tgt) (sE (Mod.state md_tgt)) Any.t)
           y
           (DUTYLEVEL: y < x)
-          (SIM: wpsim x tid ⊤ ibot7 ibot7
+          (SIM: Fairness.base_logic.upred.uPred_holds
+                    (to_upred (wpsim x tid ⊤ ibot7 ibot7
                       (fun r_src r_tgt =>
-                         ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
+                         ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1)) r)
       :
       @local_sim_init
         ( (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
@@ -459,13 +433,14 @@ Module WSim.
           y
           (DUTYLEVEL : y < x)
           (SIM: forall tid,
-              ((own_thread tid)
+              Fairness.base_logic.upred.uPred_holds
+                (to_upred ((own_thread tid)
                  -∗
                  (ObligationRA.duty y inlp tid [])
                  -∗
                  (wpsim x tid ⊤ ibot7 ibot7
                         (fun r_src r_tgt =>
-                           ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I r_arg)
+                           ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I) r_arg)
       :
       @local_sim_arg
         ( (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
@@ -497,44 +472,38 @@ Module WSim.
         { eauto. }
         iModIntro. iFrame.
         iRevert "OWN DUTY". iStopProof.
-        rr. unseal "iProp". i.
-        rr in H. unseal "iProp". eapply iProp_mono; eauto.
+        rewrite Own_eq. unfold IPM.Own_def. uPred.unseal. rr.
+        split. ii. rr in H0. des. rewrite H0 in H1. rewrite H0 in H3.
+        revert SIM. uPred.unseal. intros SIM.
+        eapply Fairness.base_logic.upred.uPred_mono.
+        { apply SIM; eauto.
+          - eapply (cmra_valid_op_l _ z). r_wf H1.
+          - eapply (cmra_valid_op_l _ z). r_wf H3.
+        }
+        rewrite H0. exists z. r_solve.
       }
-      rr in IMPL. unseal "iProp".
+      revert IMPL. rewrite Own_eq. unfold IPM.Own_def.
+      uPred.unseal. intros [IMPL].
+       (* rr in IMPL. *)
       hexploit IMPL; [|eauto|..]; cycle 1.
-      { rr. unseal "iProp". eexists _,_. esplits; eauto. rr. unseal "iProp". eexists. reflexivity. }
-      i. rr in H. unseal "iProp".
-      hexploit H; last first.
+      { rr. eexists _,_. esplits; eauto. rr. eexists. reflexivity.
+        revert INV. uPred.unseal. intros INV. done.
+      }
+      i. rr in H.  hexploit H; last first.
       i. des.
-      rr in H1. unseal "iProp". des. subst.
-      exists a, b. splits.
-      { r. auto. }
+      rr in H1. des. subst.
+      eexists _, _. splits.
+      { done. }
       { rewrite H1 in H0. exact H0. }
-      i. ss. eapply wpsim_lsim.
+      i. ss. hexploit wpsim_lsim.
       { apply DUTYLEVEL. }
+      { uPred.unseal. eauto. }
+      { uPred.unseal. eapply INV0. }
       { eauto. }
-      { eapply INV0. }
       { eauto. }
-      { auto. }
-      { instantiate (1:=ε).
-        rewrite (comm cmra.op r_arg).
-        rewrite -!(assoc cmra.op).
-        rewrite (comm cmra.op).
-        rewrite right_id; [|apply _].
-        rewrite (comm cmra.op).
-        rewrite <- (assoc cmra.op).
-        exact VALID.
-      }
-      { rewrite (comm cmra.op r_arg).
-        rewrite -!(assoc cmra.op).
-        rewrite (comm cmra.op).
-        rewrite right_id; [|apply _].
-        rewrite (comm cmra.op r_ctx0) in VALID.
-        rewrite (assoc cmra.op) in VALID.
-        apply cmra_valid_op_l in VALID.
-        rewrite (comm cmra.op).
-        exact VALID.
-      }
+      uPred.unseal. eauto.
+      { instantiate (1:=ε). r_wf VALID. }
+      { eapply (cmra_valid_op_l _ r_ctx0). r_wf VALID. }
     Qed.
 
     Section WHOLE_PROGRAM_SIM.
@@ -548,7 +517,7 @@ Module WSim.
       Proof. intros ???????? EQm. rewrite EQm. subst. done. Qed.
 
       Lemma natmap_prop_sum_resmap A (P: nat -> A -> iProp) (m: NatMap.t A) rs
-            (SAT: natmap_prop_sum m P rs)
+            (SAT: Fairness.base_logic.upred.uPred_holds (to_upred (natmap_prop_sum m P)) rs)
             (WF: ✓ rs)
         :
         exists (rm: NatMap.t Σ),
@@ -557,7 +526,8 @@ Module WSim.
             (<<FORALL: forall k a r
                               (FINDA: NatMap.find k m = Some a)
                               (FINDR: NatMap.find k rm ≡ Some r),
-                P k a r>>).
+                Fairness.base_logic.upred.uPred_holds
+                  (to_upred (P k a)) r>>).
       Proof.
         revert rs SAT WF.
         pattern m. revert m. eapply nm_ind; i.
@@ -568,33 +538,31 @@ Module WSim.
         }
         hexploit (natmap_prop_remove_find (Σ:=Σ)).
         { eapply nm_find_add_eq. }
-        i. rr in H. unseal "iProp".
+        uPred.unseal. intros [H].
         hexploit H.
         { eapply WF. }
         { eauto. }
-        i. rr in H0. unseal "iProp". des. subst.
+        i. rr in H0. des. rewrite H0 in SAT. subst.
         rewrite nm_find_none_rm_add_eq in H2; auto.
         hexploit IH; eauto.
-        { eapply cmra_valid_op_r. rewrite H0 in WF. apply WF. }
-        i. des. exists (NatMap.add k a rm). splits.
+        { eapply (cmra_valid_op_r x1). rewrite H0 in WF. apply WF. }
+        i. des. eexists (NatMap.add k _ rm). splits.
         { r in EXT. des. exists z.
           rewrite EXT in H0.
           rewrite H0.
-          erewrite (NatMapP.fold_add (eqA := equiv) _ _ _ a).
+          erewrite (NatMapP.fold_add (eqA := equiv) _ _ _ _).
           { rewrite assoc; [done|apply _]. }
           Unshelve.
           { eapply nm_wf_pair_find_cases in PAIR. des.
             apply NatMapP.F.not_find_in_iff. eapply PAIR; auto.
           }
-          { ii. rewrite !(assoc cmra.op). rewrite (comm cmra.op e). done. }
+          { ii. r_solve. }
         }
         { eapply nm_wf_pair_add; eauto. }
         { i. rewrite NatMapP.F.add_o in FINDA.
           rewrite NatMapP.F.add_o in FINDR. des_ifs.
-          - inv FINDR. eapply iProp_mono; [| |exact H1].
-            + rewrite H0 in WF. rewrite H5 in WF.
-              apply (cmra_valid_op_l) in WF. done.
-            + exists ε. rewrite right_id; [|apply _]. done.
+          - inv FINDR. unfold iProp in *. eapply Fairness.base_logic.upred.uPred_mono; [exact H1|].
+            exists ε. rewrite right_id; [|apply _]. done.
           - eapply FORALL; auto.
         }
       Qed.
@@ -631,7 +599,7 @@ Module WSim.
         assert (forall im_tgt,
                  exists (r: Σ),
                    (<<SAT:
-                     (∃ im_src,
+                     Fairness.base_logic.upred.uPred_holds (to_upred (∃ im_src,
                          ((default_I l1 (key_set (prog2ths md_src c)) im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt))
                             ∗
                             (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤))
@@ -644,7 +612,7 @@ Module WSim.
                                    tid ⊤
                                    ibot7 ibot7
                                    (fun r_src r_tgt => ((own_thread tid ∗ ObligationRA.duty l0 inlp tid [])) ∗ ⌜r_src = r_tgt⌝)
-                                   false false th_src th_tgt)))%I r>>) /\
+                                   false false th_src th_tgt)))%I) r>>) /\
                      (<<WF: ✓ r>>)).
         { i. eapply iProp_satisfable.
           { eapply reswf_gen; eauto. }
@@ -662,16 +630,17 @@ Module WSim.
         apply (@UserSim.mk
                  md_src md_tgt (prog2ths md_src c) (prog2ths md_tgt c) owf nat_wf (inhabits 0) NUNBOUND ( Σ)).
         i. specialize (H im_tgt). des.
-        rr in SAT. unseal "iProp". des. rename x into im_src.
-        rr in SAT. unseal "iProp". des. subst.
-        rr in SAT0. unseal "iProp". des. subst.
+        revert SAT. uPred.unseal.
+        intros [im_src SAT].
+        rr in SAT. des. subst.
+        rr in SAT0. des. subst.
         hexploit natmap_prop_sum_resmap.
         { eauto. }
         { eapply cmra_valid_op_r. rewrite SAT in WF. exact WF. }
         i. des.
         eexists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤))%I)), im_src, rm, _.
         splits.
-        { ss. rr. unseal "iProp". esplits; eauto. }
+        { ss. uPred.unseal. rr. esplits; eauto. }
         { apply nm_find_some_implies_forall3.
           { eapply prog2ths_nm_wf_pair. }
           { etrans; [|apply PAIR].
@@ -683,19 +652,17 @@ Module WSim.
             unfold numbering in *. revert FIND1 FIND2.
             generalize 0. revert e1 e2. induction c; ss; i.
             { unfold NatMapP.uncurry in *. destruct a. ss.
-              rewrite NatMapP.F.add_o in FIND1. rewrite NatMapP.F.add_o in FIND2.
-              rewrite NatMapP.F.add_o. des_ifs.
+              rewrite NatMapP.F.add_o in *. des_ifs.
               eapply IHl; eauto.
             }
           }
           { rewrite -FIND3. auto. }
           i. ii. eapply wpsim_local_sim_init; eauto.
+          uPred.unseal. eauto.
         }
         { rr in EXT. des.
           rewrite EXT in SAT. rewrite SAT in WF.
-          rewrite (assoc cmra.op) in WF.
-          apply cmra_valid_op_l in WF.
-          exact WF.
+          eapply (cmra_valid_op_l _ z). r_wf WF.
         }
         Local Opaque FUpd.
       Qed.
@@ -804,7 +771,8 @@ Module WSim.
         i. assert (forall im_tgt,
                     exists (r: Σ),
                       (<<SAT:
-                        ((∃ im_src,
+                        Fairness.base_logic.upred.uPred_holds
+                          (to_upred (∃ im_src,
                              ((default_I l1 NatSet.empty im_src im_tgt (Mod.st_init md_src) (Mod.st_init md_tgt) ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤)))
                              ∧
                                (□ ∀ fn args,
@@ -841,24 +809,23 @@ Module WSim.
         apply (@ModSimPers.mk
                  md_src md_tgt owf nat_wf (inhabits 0) NUNBOUND ( Σ)).
         i. specialize (H im_tgt). des.
-        rr in SAT. unseal "iProp". des. rename x into im_src.
-        rr in SAT. unseal "iProp". des.
-        rr in SAT0. unseal "iProp".
-        des. rr in SAT1. unseal "iProp".
-        rr in SAT1. unseal "iProp".
+        revert SAT. uPred.unseal. intros SAT.
+        rr in SAT. des. rename a into im_src.
+        rr in SAT. des.
+        (* rr in SAT2. des. *)
+        revert SAT0. unfold bi_intuitionistically,bi_affinely,bi_affinely. uPred.unseal.
+        intros SAT0.
+        rr in SAT0. des.
+        (* unseal "iProp". *)
         exists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤))%I)).
         esplits.
-        { ss. eauto. }
+        { ss. uPred.unseal. eauto. }
         { auto. }
-        i. rr in SAT1. unseal "iProp". specialize (SAT1 fn).
-        rr in SAT1. unseal "iProp". specialize (SAT1 args).
+        i. specialize (SAT1 fn args).
         des_ifs; ss.
         { eapply wpsim_local_sim; eauto. i.
-          rr in SAT1. unseal "iProp". specialize (SAT1 tid). auto.
+          specialize (SAT1 tid). uPred.unseal. auto.
         }
-        { rr in SAT1. unseal "iProp". ss. }
-        { rr in SAT1. unseal "iProp". ss. }
-        Local Opaque FUpd.
       Qed.
 
       Lemma context_sim_implies_contextual_refinement

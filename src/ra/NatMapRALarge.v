@@ -3,13 +3,13 @@ Require Import Coq.Classes.RelationClasses.
 From iris.algebra Require Import cmra updates local_updates auth gmap.
 From iris.proofmode Require Import tactics.
 
-From Fairness Require Import Axioms NatStructs.
+From Fairness Require Import Axioms NatStructsLarge.
 From Fairness Require Import PCM.
 Require Import String Lia Program.
 
 Set Implicit Arguments.
 
-Module NatMapRA.
+Module NatMapRALarge.
   Section MAP.
     Context {A: Type}.
 
@@ -22,7 +22,7 @@ Module NatMapRA.
     Definition add (m0 m1: car): car :=
       match m0, m1 with
       | Map m0, Map m1 =>
-          if (NatStructs.disjoint m0 m1) then Map (NatMapP.update m0 m1) else Bot
+          if (NatStructsLarge.disjoint m0 m1) then Map (NatMapP.update m0 m1) else Bot
       | _, _ => Bot
       end.
 
@@ -34,13 +34,13 @@ Module NatMapRA.
 
     Definition core (m: car): option car := (Some unit).
 
-    Canonical Structure NatMapRAO := leibnizO car.
+    Canonical Structure NatMapRALargeO := leibnizO car.
 
     Global Instance NatMapEquiv : Equiv (NatMap.t A) := (=).
-    Local Instance NatMapRA_valid_instance : Valid car := wf.
-    Local Instance NatMapRA_pcore_instance : PCore car := core.
-    Local Instance NatMapRA_op_instance : Op car := add.
-    Local Instance NatMapRA_unit_instance : Unit car := unit.
+    Local Instance NatMapRALarge_valid_instance : Valid car := wf.
+    Local Instance NatMapRALarge_pcore_instance : PCore car := core.
+    Local Instance NatMapRALarge_op_instance : Op car := add.
+    Local Instance NatMapRALarge_unit_instance : Unit car := unit.
 
     Lemma valid_unfold om : ✓ om ↔ wf om.
     Proof. done. Qed.
@@ -260,11 +260,12 @@ Module NatMapRA.
       { split; auto. right; auto. }
     Qed.
   End MAP.
-End NatMapRA.
-Global Arguments NatMapRA.t _ : clear implicits.
+End NatMapRALarge.
+Global Arguments NatMapRALarge.t _ : clear implicits.
 
-From Fairness Require Import  IPM.
-From iris.bi Require Import derived_laws. Import bi.
+From Fairness Require Import IPM.
+From iris.bi Require Import derived_laws.
+Import bi.
 
 Section SUM.
   Context `{Σ: GRA.t}.
@@ -879,10 +880,10 @@ End SUM.
 
 Section UPDNATMAP.
   Context {A: Type}.
-  Import NatMapRA.
+  Import NatMapRALarge.
   Context `{NATMAPRA: @GRA.inG (authUR (t A)) Σ}.
 
-  Lemma NatMapRA_find_some m k a
+  Lemma NatMapRALarge_find_some m k a
     :
     (OwnM (● (Map m)))
       -∗
@@ -892,10 +893,10 @@ Section UPDNATMAP.
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
     apply auth_both_dfrac_valid_discrete in H. des.
-    eapply NatMapRA.extends_singleton_iff in H0. auto.
+    eapply NatMapRALarge.extends_singleton_iff in H0. auto.
   Qed.
 
-  Lemma NatMapRA_singleton_unique k0 k1 a0 a1
+  Lemma NatMapRALarge_singleton_unique k0 k1 a0 a1
     :
     (OwnM (◯ singleton k0 a0))
       -∗
@@ -908,7 +909,7 @@ Section UPDNATMAP.
     eapply singleton_unique in H. auto.
   Qed.
 
-  Lemma NatMapRA_remove m k a
+  Lemma NatMapRALarge_remove m k a
     :
     (OwnM (● (Map m)))
       -∗
@@ -920,7 +921,7 @@ Section UPDNATMAP.
     eapply auth_update_dealloc, remove_local_update.
   Qed.
 
-  Lemma NatMapRA_add m k a
+  Lemma NatMapRALarge_add m k a
         (NONE: NatMap.find k m = None)
     :
     (OwnM (● (Map m)))

@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic SCMemSpec ghost_var ghost_map ghost_excl LifetimeRA.
 From Fairness.elimstack Require Import ClientCode SpecHOCAP.
@@ -95,7 +95,7 @@ Section SPEC.
 
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r. red_tl_all.
 
-    iApply (Elim_push_spec nESMod (⤉ (dead γk k ∗ syn_inv n nESpush (push_then_pop n γs γpop)))%S with "[Duty Pck PcSt Live] [-]").
+    iApply (Elim_push_spec nESMod ltac:(solve_ndisj) (⤉ (dead γk k ∗ syn_inv n nESpush (push_then_pop n γs γpop)))%S with "[Duty Pck PcSt Live] [-]").
     { simpl. red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|]. simpl.
       iFrame. simpl.
       iDestruct (pcs_cons_fold with "[PcSt]") as "$".
@@ -130,8 +130,6 @@ Section SPEC.
       - iEval (red_tl_all; simpl) in "Af". iDestruct "Af" as "[Dead EStackC]".
         iDestruct (Lifetime.pending_not_shot with "Live Dead") as %[].
     }
-    Unshelve.
-    2:{ apply ndot_ne_disjoint. ss. }
 
     iIntros (_). simpl. red_tl_all. iIntros "[[#Dead Pushed] Duty]".
     iEval (rewrite red_syn_inv) in "Pushed". iDestruct "Pushed" as "#Pushed".
@@ -196,7 +194,7 @@ Section SPEC.
         iLeft. red_tl_all. iFrame.
       }
 
-      iApply (Elim_pop_spec nESMod (λ ov, if ov is Some v then ⌜v = 1⌝ else GEx γpop tt)%S with "[Duty Pck Tok] [-]").
+      iApply (Elim_pop_spec nESMod ltac:(solve_ndisj) (λ ov, if ov is Some v then ⌜v = 1⌝ else GEx γpop tt)%S with "[Duty Pck Tok] [-]").
       { simpl. red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplit; [iFrame "#"|].
         iFrame. simpl.  iSplitL; [|done].
         rewrite red_syn_atomic_update.
@@ -267,7 +265,7 @@ Section SPEC.
         iApply until_tpromise_make2. simpl. iSplit; auto.
         iEval (red_tl_all; simpl). iModIntro; iSplit; auto.
       }
-      iApply (Elim_pop_spec nESMod (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Pck Tok] [-]").
+      iApply (Elim_pop_spec nESMod ltac:(solve_ndisj) (λ ov, ⌜ ov = Some (1 : SCMem.val) ⌝)%S with "[Duty Pck Tok] [-]").
       { simpl. red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|].
       iFrame. iSplitL; [|done].
       rewrite red_syn_atomic_update.
@@ -309,7 +307,6 @@ Section SPEC.
     iApply wpsim_ret; [eauto|].
     iModIntro.
     iEval (unfold term_cond). iSplitL; iFrame. iPureIntro; auto.
-    Unshelve. all: apply ndot_ne_disjoint; ss.
   Qed.
 
   Section INITIAL.
@@ -317,11 +314,11 @@ Section SPEC.
   Variable tid_push tid_pop : thread_id.
   Let init_ord := Ord.O.
   Let init_ths :=
-        (NatStructs.NatMap.add
+        (NatStructsLarge.NatMap.add
             tid_push tt
-            (NatStructs.NatMap.add
+            (NatStructsLarge.NatMap.add
               tid_pop tt
-              (NatStructs.NatMap.empty unit))).
+              (NatStructsLarge.NatMap.empty unit))).
 
   Let idx := 1.
 
@@ -367,17 +364,17 @@ Section SPEC.
     unfold WSim.initial_prop. simpl.
     iDestruct "Init" as "(_ & _ & Ds & Ts & _ & St_tgt)".
 
-    assert (NatStructs.NatMap.find tid_push init_ths = Some tt) as Htid_push.
-    { unfold init_ths. apply NatStructs.nm_find_add_eq. }
+    assert (NatStructsLarge.NatMap.find tid_push init_ths = Some tt) as Htid_push.
+    { unfold init_ths. apply NatStructsLarge.nm_find_add_eq. }
     iDestruct (natmap_prop_remove_find _ _ _ Htid_push with "Ds") as "[Dpush Ds]".
     iDestruct (natmap_prop_remove_find _ _ _ Htid_push with "Ts") as "[Tpush Ts]".
     clear Htid_push.
 
-    assert (NatStructs.NatMap.find tid_pop (NatStructs.NatMap.remove tid_push init_ths) = Some tt) as Htid_pop.
+    assert (NatStructsLarge.NatMap.find tid_pop (NatStructsLarge.NatMap.remove tid_push init_ths) = Some tt) as Htid_pop.
     { unfold init_ths.
-      rewrite NatStructs.NatMapP.F.remove_neq_o; ss.
-      rewrite NatStructs.nm_find_add_neq; ss.
-      rewrite NatStructs.nm_find_add_eq. ss.
+      rewrite NatStructsLarge.NatMapP.F.remove_neq_o; ss.
+      rewrite NatStructsLarge.nm_find_add_neq; ss.
+      rewrite NatStructsLarge.nm_find_add_eq. ss.
     }
     iDestruct (natmap_prop_remove_find _ _ _ Htid_pop with "Ds") as "[Dpop _]".
     iDestruct (natmap_prop_remove_find _ _ _ Htid_pop with "Ts") as "[Tpop _]".

@@ -1,8 +1,8 @@
 From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
-From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import NatMapRA MonotoneRA.
+From Fairness Require Import PCM IPM IPropAux.
+From Fairness Require Import NatMapRALarge MonotoneRA.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
@@ -940,14 +940,14 @@ Module Fuel.
       | boom
     .
 
-    Definition black `{OrderedCM.t A} (a: A) (q: Qp): car :=
+    Definition black' `{OrderedCM.t A} (a: A) (q: Qp): car :=
       excl (from_monoid a) (from_monoid (@OrderedCM.unit _ _)) q.
 
-    Definition white `{OrderedCM.t A} (a: A): car :=
+    Definition white' `{OrderedCM.t A} (a: A): car :=
       frag (from_monoid a).
 
     Definition unit `{OrderedCM.t A}: car :=
-      white (@OrderedCM.unit _ _).
+      white' (@OrderedCM.unit _ _).
 
     Let add `{OrderedCM.t A} :=
           fun (a0 a1: car) =>
@@ -970,19 +970,18 @@ Module Fuel.
     Let core `{OrderedCM.t A} :=
           fun (a: car) => Some unit.
 
-    Canonical Structure FuleO `{OrderedCM.t A} := leibnizO car.
+    Canonical Structure FuelO `{OrderedCM.t A} := leibnizO car.
 
-    Global Instance collection_equiv `{OrderedCM.t A} : Equiv car := (=).
-    Local Instance collection_valid_instance `{OrderedCM.t A} : Valid car := wf.
-    Local Instance collection_pcore_instance `{OrderedCM.t A} : PCore car := core.
-    Local Instance collection_op_instance `{OrderedCM.t A} : Op car := add.
-    Local Instance collection_unit_instance `{OrderedCM.t A} : Unit car := unit.
+    Local Instance fuel_valid_instance `{OrderedCM.t A} : Valid car := wf.
+    Local Instance fuel_pcore_instance `{OrderedCM.t A} : PCore car := core.
+    Local Instance fuel_op_instance `{OrderedCM.t A} : Op car := add.
+    Local Instance fuel_unit_instance `{OrderedCM.t A} : Unit car := unit.
 
-    Lemma valid_unfold `{OrderedCM.t A} om : ✓ om ↔ wf om.
+    Lemma valid_unfold `{OrderedCM.t A} : (@valid car _) = wf.
     Proof. done. Qed.
-    Lemma op_unfold `{OrderedCM.t A} p q : p ⋅ q = add p q.
+    Lemma op_unfold `{OrderedCM.t A} : (⋅) = add.
     Proof. done. Qed.
-    Lemma pcore_unfold `{OrderedCM.t A} p : pcore p = (core p).
+    Lemma pcore_unfold `{OrderedCM.t A} : pcore = core.
     Proof. done. Qed.
     Lemma unit_unfold `{OrderedCM.t A} : ε = unit.
     Proof. done. Qed.
@@ -1040,7 +1039,7 @@ Module Fuel.
         rewrite !pcore_unfold /core. injection 1. intros <-.
         exists unit. split; [done|].
         exists unit. fold_leibniz.
-        rewrite op_unfold /add /unit /white. ss.
+        rewrite op_unfold /add /unit /white'. ss.
         f_equal.
         rewrite from_monoid_add.
         eapply from_monoid_eq. symmetry.
@@ -1048,7 +1047,6 @@ Module Fuel.
       - intros a b.
         rewrite valid_unfold /wf op_unfold /add.
         intros.
-        rewrite valid_unfold /wf.
         destruct a, b; ss.
         { hexploit (from_monoid_exist s).
           hexploit (from_monoid_exist s0).
@@ -1096,11 +1094,10 @@ Module Fuel.
     Qed.
     Canonical Structure t `{OrderedCM.t A} := Ucmra car ucmra_mixin.
 
-    (* Instances as type class inference for Fuel is hard. *)
-    Lemma op_comm `{OrderedCM.t A} (p q : t) : p ⋅ q = q ⋅ p.
-    Proof. rewrite (comm cmra.op). done. Qed.
-    Lemma op_assoc `{OrderedCM.t A} (p q r : t) : p ⋅ (q ⋅ r) = p ⋅ q ⋅ r.
-    Proof. rewrite assoc. done. Qed.
+    Definition white `{OrderedCM.t A} (a: A): t :=
+      frag (from_monoid a).
+    Definition black `{OrderedCM.t A} (a: A) (q: Qp): t :=
+      excl (from_monoid a) (from_monoid (@OrderedCM.unit _ _)) q.
 
     Lemma white_sum `{OrderedCM.t A} (a0 a1: A)
       :
@@ -1146,7 +1143,7 @@ Module Fuel.
     Lemma white_mon' `{OrderedCM.t A} (a0 a1: A)
           (LE: OrderedCM.le a0 a1)
       :
-      ∀ z : FuelR, ✓ (white a1 ⋅ z) → ✓ (white a0 ⋅ z).
+      ∀ z : t, ✓ (white a1 ⋅ z) → ✓ (white a0 ⋅ z).
     Proof.
       ii.
       rewrite /white op_unfold /add valid_unfold /wf in H0.
@@ -1166,7 +1163,7 @@ Module Fuel.
     Lemma black_mon' `{OrderedCM.t A} (a0 a1: A) (q: Qp)
           (LE: OrderedCM.le a0 a1)
       :
-      ∀ z : FuelR, ✓ (black a0 q ⋅ z) → ✓ (black a1 q ⋅ z).
+      ∀ z : t, ✓ (black a0 q ⋅ z) → ✓ (black a1 q ⋅ z).
     Proof.
       ii.
       rewrite /black op_unfold /add valid_unfold /wf in H0.
@@ -1193,7 +1190,7 @@ Module Fuel.
 
     Lemma success_update' `{OrderedCM.t A} a0 a1
       :
-        ∀ z : FuelR,
+        ∀ z : t,
         ✓ (black a0 1 ⋅ z) → ✓ (black (OrderedCM.add a0 a1) 1 ⋅ white a1 ⋅ z).
     Proof.
       ii.
@@ -1229,13 +1226,11 @@ Module Fuel.
         (fun r => exists a2, r = black a2 q /\ OrderedCM.le (OrderedCM.add a1 a2) a0).
     Proof.
       apply cmra_discrete_updateP. intros f WF.
-      rewrite /black !op_unfold /add valid_unfold /wf in WF.
-      setoid_rewrite op_unfold.
-      setoid_rewrite valid_unfold.
+      rewrite /black /white !op_unfold /add !valid_unfold /wf in WF.
       unfold black,wf,add.
       des_ifs.
-      { hexploit (from_monoid_exist s). i. des. subst.
-        rewrite ! from_monoid_add in WF. rewrite le_iff in WF.
+      { hexploit (from_monoid_exist s0). i. des. subst.
+        rewrite ! from_monoid_add le_iff in WF.
         eexists. esplits.
         { reflexivity. }
         { instantiate (1:=a). etrans; eauto.
@@ -1244,10 +1239,9 @@ Module Fuel.
         split; auto. rewrite ! from_monoid_add. rewrite le_iff.
         eapply OrderedCM.add_unit_le_r.
       }
-      { hexploit (from_monoid_exist s).
-        hexploit (from_monoid_exist e). i. des. subst.
-        rewrite ! from_monoid_add in WF. rewrite ! from_monoid_meet in WF.
-        rewrite le_iff in WF.
+      { hexploit (from_monoid_exist s0).
+        hexploit (from_monoid_exist e0). i. des. subst.
+        rewrite !from_monoid_add !from_monoid_meet le_iff in WF.
         eexists. esplits.
         { reflexivity. }
         { instantiate (1:=a).
@@ -2374,20 +2368,16 @@ Module FairRA.
           { apply cmra_discrete_updateP. intros z WF.
             rewrite <- (assoc cmra.op) in WF.
             exploit Fuel.success_update'; eauto. i. esplits; eauto.
-            eapply cmra_valid_op_l. instantiate (1:=Fuel.white (f0 a)).
-            r_wf x0. instantiate (1:=OrderedCM.add (f1 a) u). instantiate (1:=(OrderedCM.add a0 (OrderedCM.add (f1 a) u))).
-            rewrite <- (Fuel.white_sum (f1 a) u).
-            rewrite !Fuel.op_assoc.
-            rewrite -(Fuel.op_assoc _ z (Fuel.white (f0 a))).
-            rewrite -(Fuel.op_assoc _ (Fuel.white (f0 a)) z).
-            f_equal.
-            2:{ r_solve. }
-            f_equal. rewrite (comm cmra.op). auto.
+            eapply cmra_valid_op_l.
+            instantiate (1:=Fuel.white (f0 a)).
+            instantiate (1:=OrderedCM.add (f1 a) u) in x0.
+            instantiate (1:=(OrderedCM.add a0 (OrderedCM.add (f1 a) u))).
+            rewrite <- (Fuel.white_sum (f1 a) u) in x0.
+            r_wf x0.
           }
           { apply cmra_discrete_updateP. ii. exploit Fuel.white_mon'; eauto. i. esplits; eauto.
+            rewrite -(Fuel.white_sum u (f1 a)) in x0.
             r_wf x0.
-            rewrite <- (Fuel.white_sum u (f1 a)).
-            f_equal. rewrite (comm cmra.op). auto.
           }
           { apply cmra_discrete_updateP. ii. rewrite UPDATE. esplits; eauto. }
         }

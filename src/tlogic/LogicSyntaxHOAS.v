@@ -1,7 +1,7 @@
 From iris.algebra Require Import cmra.
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From Fairness Require Import SimWeakest.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
@@ -182,18 +182,18 @@ Module SyntaxI.
         | atom a => α m a
         | ownm i r => OwnM r
         | lift p => _interp m p
-        | sepconj p q => Sepconj (_interp_aux p) (_interp_aux q)
-        | pure P => Pure P
-        | univ ty p => Univ (fun (x : τ.(sType.interp) ty (_sProp m)) => _interp_aux (p x))
-        | ex ty p => Ex (fun (x : τ.(sType.interp) ty (_sProp m)) => _interp_aux (p x))
-        | and p q => And (_interp_aux p) (_interp_aux q)
-        | or p q => Or (_interp_aux p) (_interp_aux q)
-        | impl p q => Impl (_interp_aux p) (_interp_aux q)
-        | wand p q => Wand (_interp_aux p) (_interp_aux q)
-        | empty => Emp
-        | persistently p => Persistently (_interp_aux p)
-        | plainly p => IProp.Plainly (_interp_aux p)
-        | upd p => Upd (_interp_aux p)
+        | sepconj p q => ((_interp_aux p) ∗ (_interp_aux q))%I
+        | pure P => ⌜P⌝%I
+        | univ ty p => (∀ (x : τ.(sType.interp) ty (_sProp m)), _interp_aux (p x))%I
+        | ex ty p => (∃ (x : τ.(sType.interp) ty (_sProp m)), _interp_aux (p x))%I
+        | and p q => ((_interp_aux p) ∧ (_interp_aux q))%I
+        | or p q => ((_interp_aux p) ∨ (_interp_aux q))%I
+        | impl p q => ((_interp_aux p) → (_interp_aux q))%I
+        | wand p q => ((_interp_aux p) -∗ (_interp_aux q))%I
+        | empty => True%I
+        | persistently p => (<pers> (_interp_aux p))%I
+        | plainly p => (■ (_interp_aux p))%I
+        | upd p => (#=> (_interp_aux p))%I
         | sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt =>
             isim_simple tid (intpF:=_interp_aux)
                         I0 I1 Q
@@ -287,7 +287,7 @@ Section RED.
   Proof. reflexivity. Qed.
 
   Lemma red_sem_plainly n p :
-    interp n (plainly p) = (IProp.Plainly (interp n p))%I.
+    interp n (plainly p) = (■ (interp n p))%I.
   Proof. reflexivity. Qed.
 
   Lemma red_sem_upd n p :

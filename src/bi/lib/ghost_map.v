@@ -3,7 +3,7 @@ From sflib Require Import sflib.
 (** A "ghost map" (or "ghost heap") with a proposition controlling authoritative
 ownership of the entire heap, and a "points-to-like" proposition for (mutable,
 fractional, or persistent read-only) ownership of individual elements. *)
-From Fairness Require Import IPM PCM IProp IPropAux TemporalLogic.
+From Fairness Require Import IPM PCM TemporalLogic.
 From iris.bi.lib Require Import fractional.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import cmra gmap_view.
@@ -15,7 +15,7 @@ Definition ghost_mapURA (K V : Type) `{Countable K} : ucmra := OwnG.t (gmap_view
 
 Section definitions.
   Context {K V : Type} `{Countable K}.
-  Context `{GHOSTMAPURA : @GRA.inG (ghost_mapURA K V) Σ}.
+  Context `{GHOSTMAPURA : GRA.inG (ghost_mapURA K V) Σ}.
   Notation iProp := (iProp Σ).
 
   Local Definition ghost_map_auth_ra_def
@@ -176,7 +176,7 @@ Section lemmas.
   Proof.
     unseal. intros.
     iMod (own_alloc_strong
-      (gmap_view_auth (V:=agreeR (leibnizO V)) (DfracOwn 1) ∅) P)
+      (gmap_view_auth (V:=leibnizO V) (DfracOwn 1) ∅) P)
       as (γ) "[% Hauth]"; first done.
     { apply gmap_view_auth_valid. }
     iExists γ. iSplitR; first done.

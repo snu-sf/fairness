@@ -1,6 +1,6 @@
 From iris.algebra Require Import cmra gset updates local_updates auth lib.excl_auth.
 From sflib Require Import sflib.
-From Fairness Require Import Any PCM IProp IPM IPropAux.
+From Fairness Require Import Any PCM IPM IPropAux.
 From Fairness Require Import TemporalLogic.
 From Fairness Require Export AuthExclAnysRA AuthExclsRA.
 From stdpp Require Import gmap.
@@ -17,22 +17,22 @@ Section Ticket.
   Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat))%ra Σ}.
 
   Definition TicketRA_Auth_base : _TicketRA :=
-    (((auth_auth (DfracOwn 1) (GSet ∅)) ⋅ (auth_frag (GSet ∅))),
-      (AuExAny_ra (fun k => gset_elem_of_dec k ∅))).
+    (● (GSet ∅) ⋅ ◯ (GSet ∅),
+      AuExAny_ra (fun k => gset_elem_of_dec k ∅)).
 
   Definition TicketRA_Auth : iProp :=
-    (∃ (U : nat),
+    ∃ (U : nat),
       OwnM ((fun k => if (lt_dec k U) then ε else TicketRA_Auth_base) : TicketRA)
-        ∗ AuthExcls.rest (fun k => lt_dec k U) (0, 0, 0)).
+        ∗ AuthExcls.rest (fun k => lt_dec k U) (0, 0, 0).
 
   Definition Ticket_black_ra (γt : nat) (D : gset nat) : TicketRA :=
-    (maps_to_res γt (((auth_auth (DfracOwn 1) (GSet D)),
-                      (AuExAny_ra (fun k => gset_elem_of_dec k D))) : _TicketRA))%ra.
+    (maps_to_res γt ((● (GSet D),
+                      AuExAny_ra (fun k => gset_elem_of_dec k D)) : _TicketRA))%ra.
   Definition Ticket_black γt D := OwnM (Ticket_black_ra γt D).
 
   (* The issuing thread holds my ticket -> (my thread id, and my obligation id). *)
   Definition Ticket_issued_ra (γt : nat) (tk : nat) (l : list nat) : TicketRA :=
-    (maps_to_res γt (((◯ (GSet {[tk]})), AuExAnyW_ra tk l) : _TicketRA)).
+    maps_to_res γt ((◯ (GSet {[tk]}), AuExAnyW_ra tk l) : _TicketRA).
   Definition Ticket_issued γt tk l := OwnM (Ticket_issued_ra γt tk l).
 
   (* The invariant holds ticket -> (thread id, obligation id) for the waiting threads. *)

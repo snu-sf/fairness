@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 
-From Fairness Require Import Axioms FMapList FMapFacts OrderedTypeEx.
+From Fairness Require Import Axioms FMapListLarge FMapFactsLarge OrderedTypeExLarge.
 
 From Coq Require Import
   Logic.Eqdep_dec
@@ -10,7 +10,7 @@ From Coq Require Import
   Lists.List
   Lia.
 
-Module NatMap := FMapList.Make(Nat_as_OT).
+Module NatMap := FMapListLarge.Make(Nat_as_OT).
 Module NatMapP := WProperties_fun Nat_as_OT NatMap.
 
 Set Implicit Arguments.
@@ -121,7 +121,7 @@ Section SORTED.
 
 End SORTED.
 
-Section NATMAP.
+Section NatMap.
 
   Definition nm_proj1 elt (m: NatMap.t elt): list NatMap.key := List.map fst (NatMap.elements m).
   Definition nm_proj2 elt (m: NatMap.t elt): list elt := List.map snd (NatMap.elements m).
@@ -167,7 +167,7 @@ Section NATMAP.
 
   Definition disjoint {elt} (x y : NatMap.t elt) : bool := NatMap.is_empty (NatMapP.restrict x y).
 
-  Import FMapFacts.
+  Import FMapFactsLarge.
   Import NatMap.
 
   Lemma Disjoint_empty elt (x : NatMap.t elt) : NatMapP.Disjoint x (NatMap.empty elt).
@@ -817,7 +817,7 @@ Section NATMAP.
     (add k0 e (remove k1 m)) = (remove k1 (add k0 e m)).
   Proof. eapply nm_eq_is_equal, nm_add_rm_comm_equal; auto. Qed.
 
-End NATMAP.
+End NatMap.
 
 Ltac solve_andb :=
   repeat match goal with
@@ -861,7 +861,7 @@ Module NatSet.
   Definition add_new k m1 m2 := @nm_add_new unit k tt m1 m2.
 End NatSet.
 
-Section NATSET.
+Section NatSet.
 
   Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = [].
   Proof.
@@ -963,7 +963,7 @@ Section NATSET.
       firstorder. intro. subst. firstorder.
   Qed.
 
-End NATSET.
+End NatSet.
 
 
 
@@ -1805,7 +1805,7 @@ Section AUX.
 End AUX.
 
 
-From Fairness Require Import WFLib.
+From Fairness Require Import WFLibLarge.
 Section NMWF.
 
   Import NatMap.

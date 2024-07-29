@@ -1,16 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 
-(* TODO: This needs to be here as importing iris.algebra breaks the proof. obviously move it somewhere else... *)
-Lemma nat_not_unit
-:
-(nat: Type) <> unit.
-Proof.
-ii. assert (exists (u0 u1: nat), u0 <> u1).
-{ exists 0, 1. ss. }
-rewrite H in H0. des. destruct u0, u1. ss.
-Qed.
-
 From iris.algebra Require Import cmra updates.
 Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
@@ -1169,6 +1159,15 @@ Section PRIMIVIESIM.
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
     { eapply f_equal with (f:=observe) in H3. ss. }
+  Qed.
+
+  Lemma nat_not_unit
+    :
+    (nat: Type) <> unit.
+  Proof.
+    ii. assert (exists (u0 u1: nat), u0 <> u1).
+    { exists 0, 1. ss. }
+    rewrite comm in H. rewrite <- H in H0. des. destruct u0, u1. ss.
   Qed.
 
   Lemma lsim_rev_fair

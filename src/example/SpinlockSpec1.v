@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import Spinlock.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic SCMemSpec SpinlockSpec.
 From Fairness Require Import AuthExclsRA ExclsRA.
@@ -36,10 +36,10 @@ Section SPEC.
   Definition spinlockUse1 (n : nat) k (γ γx : nat) (P : sProp n) (l : nat)
     : sProp n :=
     (∃ (γu u : τ{nat}),
-        (● γ (γu, u))
+        (●G γ (γu, u))
           ∗
-          (((○ γx 0) ∗ (○ γ (γu, u)) ∗ P)
-           ∨ ((○ γx 1) ∗ (△ γu 1) ∗ (-[u](0)-◇ (▿ γu tt)) ∗ (u -(0)-◇ k)))
+          (((○G γx 0) ∗ (○G γ (γu, u)) ∗ P)
+           ∨ ((○G γx 1) ∗ (△ γu 1) ∗ (-[u](0)-◇ (▿ γu tt)) ∗ (u -(0)-◇ k)))
     )%S.
 
   (* Namespace for Spinlock invariants. *)
@@ -80,7 +80,7 @@ Section SPEC.
             ⧼rv, ⟦(∃ (γu u : τ{nat, 1+n}),
                       (⤉ EX γe tt)
                         ∗ (⤉ P)
-                        ∗ (⤉ ○ γ (γu, u))
+                        ∗ (⤉ ○G γ (γu, u))
                         ∗ (⤉ Duty(tid) ((u, 0, (▿ γu tt)) :: ds))
                         ∗ ◇[u](l, 1))%S, 1+n⟧⧽
   .
@@ -95,7 +95,7 @@ Section SPEC.
     set (R0 := (Duty(tid) ds ∗ ◇[k](1+l, 1))%S : sProp n).
     set (Q0 := (∃ (γu u : τ{nat, n}),
                    (P)
-                     ∗ (○ γ (γu, u))
+                     ∗ (○G γ (γu, u))
                      ∗ (Duty(tid) ((u, 0, (▿ γu tt)) :: ds))
                      ∗ (◇[u](l, 1)))%S : sProp n).
     iSpecialize ("SPEC" $! ds P0 R0 Q0 0).
@@ -200,7 +200,7 @@ Section SPEC.
                 ∗ (⤉ isSpinlockUse1 n k γ γx P l)
                 ∗ (⤉ EX γe tt)
                 ∗ (⤉ P)
-                ∗ (⤉ ○ γ (γu, u))
+                ∗ (⤉ ○G γ (γu, u))
                 ∗ (⤉ Duty(tid) ((u, 0, (▿ γu tt)) :: ds))
                 ∗ ◇{((u, 0, (▿ γu tt)) :: ds)@1}(1, 1)
              )%S), 1+n⟧⧽
@@ -214,8 +214,8 @@ Section SPEC.
     iEval (red_tl; rewrite red_syn_tgt_interp_as; simpl) in "PRE".
     iDestruct "PRE" as "(#MEM & #ISL & #ISLU1 & EX & P & TKW & DUTY & PCS)".
 
-    set (P0 := (P ∗ (○ γ (γu, u)))%S : sProp n).
-    set (R0 := (P ∗ (○ γ (γu, u)) ∗ (Duty(tid) ((u, 0, (▿ γu tt)) :: ds)))%S : sProp n).
+    set (P0 := (P ∗ (○G γ (γu, u)))%S : sProp n).
+    set (R0 := (P ∗ (○G γ (γu, u)) ∗ (Duty(tid) ((u, 0, (▿ γu tt)) :: ds)))%S : sProp n).
     set (Q0 := (Duty(tid) ds)%S : sProp n).
     iSpecialize ("SPEC" $! ((u, 0, (▿ γu tt)%S) :: ds) P0 R0 Q0).
     iApply ("SPEC" with "[EX P TKW DUTY PCS] [POST]").

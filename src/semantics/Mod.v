@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From Coq Require Import Program.
 
-From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructs Any Event.
+From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructsLarge Any Event.
 
 Set Implicit Arguments.
 

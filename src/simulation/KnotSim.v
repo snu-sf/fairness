@@ -5,7 +5,7 @@ From iris.algebra Require Import cmra.
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
-From Fairness Require Export ITreeLib FairBeh NatStructs.
+From Fairness Require Export ITreeLib FairBeh NatStructsLarge.
 From Fairness Require Export Mod ModSimStutter Concurrency.
 From Fairness Require Import pind PCM World.
 

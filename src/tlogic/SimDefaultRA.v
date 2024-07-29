@@ -3,10 +3,10 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib pind.
 Require Import Program.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import Mod FairBeh.
 From Fairness Require Import Axioms.
-From Fairness Require Import NatMapRA MonotoneRA RegionRA FairnessRA IndexedInvariants ObligationRA OpticsInterp.
+From Fairness Require Import NatMapRALarge MonotoneRA RegionRA FairnessRA IndexedInvariants ObligationRA OpticsInterp.
 
 Set Implicit Arguments.
 
@@ -87,7 +87,7 @@ Section INVARIANT.
   Definition stateTgtRA: ucmra := excl_authUR $ leibnizO (option state_tgt).
   Definition identSrcRA: ucmra := FairRA.srct ident_src.
   Definition identTgtRA: ucmra := FairRA.tgtt ident_tgt.
-  Definition ThreadRA: ucmra := authUR (NatMapRA.t unit).
+  Definition ThreadRA: ucmra := authUR (NatMapRALarge.t unit).
   Definition EdgeRA: ucmra := Region.t (nat * nat * Ord.t).
   Definition ArrowShotRA: ucmra := @FiniteMap.t (OneShot.t ObligationRA._unit).
 
@@ -120,7 +120,7 @@ Section INVARIANT.
   Definition default_I x :
     TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
     fun ths im_src im_tgt st_src st_tgt =>
-      ((OwnM (● (NatMapRA.to_Map ths) : ThreadRA))
+      ((OwnM (● (NatMapRALarge.to_Map ths) : ThreadRA))
          ∗
          (OwnM (●E (Some st_src: leibnizO (option state_src)): stateSrcRA))
          ∗
@@ -146,7 +146,7 @@ Section INVARIANT.
             ∗ (default_I x ths im_src im_tgt0 st_src st_tgt))%I.
 
   Definition own_thread (tid: thread_id): iProp :=
-    (OwnM (◯ (NatMapRA.singleton tid tt: NatMapRA.t unit): ThreadRA)).
+    (OwnM (◯ (NatMapRALarge.singleton tid tt: NatMapRALarge.t unit): ThreadRA)).
 
   Lemma own_thread_unique tid0 tid1
     :
@@ -157,7 +157,7 @@ Section INVARIANT.
       ⌜tid0 <> tid1⌝.
   Proof.
     iIntros "OWN0 OWN1". iCombine "OWN0 OWN1" as "OWN".
-    iOwnWf "OWN". apply auth_frag_valid,NatMapRA.singleton_unique in H.
+    iOwnWf "OWN". apply auth_frag_valid,NatMapRALarge.singleton_unique in H.
     iPureIntro. auto.
   Qed.
 
@@ -226,7 +226,7 @@ Section INVARIANT.
     unfold default_I. iIntros "[A [B [C [D [E [F G]]]]]]".
     iPoseProof (OwnM_Upd with "A") as "> [A TH]".
     { apply auth_update_alloc.
-      eapply (@NatMapRA.add_local_update unit ths0 tid tt). inv THS. auto.
+      eapply (@NatMapRALarge.add_local_update unit ths0 tid tt). inv THS. auto.
     }
     iPoseProof (FairRA.target_add_thread with "E") as "> [E BLACK]"; [eauto|eauto|].
     iModIntro. inv THS. iFrame.
@@ -586,7 +586,7 @@ Section INVARIANT.
     unfold default_I. iPoseProof "D" as "[A [B [C [D [E [F G]]]]]]".
     iCombine "A OWN" as "A".
     iPoseProof (OwnM_Upd with "A") as "> X".
-    { apply auth_update_dealloc. eapply (@NatMapRA.remove_local_update unit ths0 _ _). }
+    { apply auth_update_dealloc. eapply (@NatMapRALarge.remove_local_update unit ths0 _ _). }
     iPoseProof (FairRA.target_remove_thread with "E [DUTY]") as "> E".
     { iPoseProof "DUTY" as "[% [% [A [[B %] %]]]]". destruct rs; ss. subst. iFrame. }
     iModIntro. iExists _. iSplitR; [iPureIntro;auto|].
@@ -632,7 +632,7 @@ Section INIT.
       ⋅
       (@GRA.embed _ _ IINVSETRA ((fun n => ●  ((fun _ => None) : (positive ==> optionUR (agreeR $ leibnizO (Vars n)))%ra)) : IInvSetRA Vars))
       ⋅
-      (@GRA.embed _ _ THDRA (● (NatMapRA.to_Map (NatMap.empty unit): NatMapRA.t unit)))
+      (@GRA.embed _ _ THDRA (● (NatMapRALarge.to_Map (NatMap.empty unit): NatMapRALarge.t unit)))
       ⋅
       (@GRA.embed _ _ STATESRC ((●E (None : leibnizO (option state_src))) ⋅ (◯E (None : leibnizO (option state_src))) : stateSrcRA state_src))
       ⋅
@@ -649,10 +649,10 @@ Section INIT.
 
   Lemma own_threads_init ths
     :
-    (OwnM (● (NatMapRA.to_Map (NatMap.empty unit): NatMapRA.t unit)))
+    (OwnM (● (NatMapRALarge.to_Map (NatMap.empty unit): NatMapRALarge.t unit)))
       -∗
       (#=>
-         ((OwnM (● (NatMapRA.to_Map ths: NatMapRA.t unit)))
+         ((OwnM (● (NatMapRALarge.to_Map ths: NatMapRALarge.t unit)))
             ∗
             (natmap_prop_sum ths (fun tid _ => own_thread tid)))).
   Proof.
@@ -661,7 +661,7 @@ Section INIT.
     i. iIntros "OWN".
     iPoseProof (IH with "OWN") as "> [OWN SUM]".
     iPoseProof (OwnM_Upd with "OWN") as "> [OWN0 OWN1]".
-    { eapply auth_update_alloc. eapply (@NatMapRA.add_local_update unit m k v); eauto. }
+    { eapply auth_update_alloc. eapply (@NatMapRALarge.add_local_update unit m k v); eauto. }
     iModIntro. iFrame. destruct v. iApply (natmap_prop_sum_add with "SUM OWN1").
   Qed.
 

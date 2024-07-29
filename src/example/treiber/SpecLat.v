@@ -4,7 +4,7 @@ From iris Require Import bi.big_op.
 From Fairness Require Import pind ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import treiber.Code.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Export TemporalLogic SCMemSpec ghost_var ghost_map.
 
@@ -22,7 +22,7 @@ Section SPEC.
   Context {src_ident : Type}.
   Context {Client : Mod.t}.
   Context {gvs : list nat}.
-  Context (treiberN : namespace) `{DISJ: (↑N_state_tgt :coPset) ## (↑treiberN : coPset)}.
+  Context (treiberN : namespace) `(DISJ: (↑N_state_tgt :coPset) ## (↑treiberN : coPset)).
   Notation tgt_state := (OMod.closed_state Client (SCMem.mod gvs)).
   Notation tgt_ident := (OMod.closed_ident Client (SCMem.mod gvs)).
 
@@ -141,7 +141,7 @@ Section SPEC.
     match L,l with
     | [],Null => emp
     | v::tL,Ptr p => ∃ r, (to_val l) ↦∗□ [to_val r; v] ∗ ⟦phys_list n r tL,n⟧
-    | _,_ => ⌜False⌝
+    | _,_ => False
     end.
   Proof.
     iIntros "H". des_ifs. destruct p. simpl.
@@ -181,10 +181,7 @@ Section SPEC.
     iIntros "s↦".
     iMod (alloc_obligation_fine l a) as (k) "(#Ob_kb & PCs & _)".
     iMod ghost_map_alloc_empty as (γl) "M".
-    iMod (ghost_var_alloc []) as (γs) "V".
-    iEval (rewrite -Qp.half_half) in "V".
-    iEval (rewrite ghost_var_split) in "V".
-    iDestruct "V" as "[VI VS]".
+    iMod (ghost_var_alloc []) as (γs) "[VI VS]".
     iMod (FUpd_alloc _ _ _ n (treiberN) (Inv n s k γs γl) with "[VI s↦ M]") as "#Inv"; [lia| |].
     { iApply (Inv_fold _ _ _ _ _ Null with "s↦ VI [] [M]").
       - iApply phys_list_fold. done.
@@ -222,10 +219,10 @@ Section SPEC.
 
     rred2r.
 
-    iMod (pcs_decr _ _ 1 (1+a) with "PCS") as "[Ys PCS]"; [lia|].
-    iMod (pcs_decr _ _ 1 a with "PCS") as "[PCS CCS]"; [lia|].
-    iMod (pcs_drop _ _ 1 ltac:(auto) 1 100 with "Ys") as "Ys"; [lia|].
-    iMod (pcs_decr _ _ 1 99 with "Ys") as "[Y Ys]"; [lia|].
+    iMod (pcs_decr 1 (1+a) with "PCS") as "[Ys PCS]"; [lia|].
+    iMod (pcs_decr 1 a with "PCS") as "[PCS CCS]"; [lia|].
+    iMod (pcs_drop 1 100 with "Ys") as "Ys"; [lia..|].
+    iMod (pcs_decr 1 99 with "Ys") as "[Y Ys]"; [lia|].
 
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia|].
     iIntros "Duty _". rred2r.
@@ -236,7 +233,7 @@ Section SPEC.
     iIntros (node) "(n.n↦ & n.d↦ & _)".
     rred2r. iApply wpsim_tauR. rred2r.
 
-    iMod (pcs_decr _ _ 98 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 98 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
@@ -249,7 +246,7 @@ Section SPEC.
 
     iMod (ccs_ind2 with "CCS [-]") as "Ind".
     2:{ iIntros "PCS". destruct l; last first.
-        - iMod (pcs_drop _ _ 1 ltac:(auto) 2 1 with "PCS") as "PCS"; [lia|].
+        - iMod (pcs_drop 2 1 with "PCS") as "PCS"; [lia..|].
           iApply ("Ind" with "PCS").
         - iApply ("Ind" with "PCS").
     }
@@ -260,7 +257,7 @@ Section SPEC.
     rewrite TreiberStack.push_loop_red.
     rred2r.
 
-    iMod (pcs_decr _ _ 97 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 97 1 with "Ys") as "[Ys Y]"; [lia|].
 
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
@@ -289,18 +286,18 @@ Section SPEC.
 
     iApply wpsim_tauR. rred2r.
 
-    iMod (pcs_decr _ _ 96 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 96 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
     iApply (SCMem_store_fun_spec with "[$Mem $n.n↦] [-]"); [lia|solve_ndisj|].
     iIntros (?) "n.n↦". rred2r. iApply wpsim_tauR. rred2r.
 
-    iMod (pcs_decr _ _ 95 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 95 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
     iIntros "Duty _". rred2r.
 
-    iMod (pcs_decr _ _ 94 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 94 1 with "Ys") as "[Ys Y]"; [lia|].
 
     iInv "IsT" as "Inv" "Close". simpl.
     iDestruct (Inv_unfold with "Inv") as (h' L m) "(s↦ & γs & Phys & LInv)".
@@ -399,7 +396,7 @@ Section SPEC.
     iApply wpsim_tauR. rred2r. iApply wpsim_tauR.
 
     (* Do Induction *)
-    iMod (pcs_drop _ _ 1 ltac:(auto) 1 98 with "Pcs") as "Pcs"; [lia|].
+    iMod (pcs_drop 1 98 with "Pcs") as "Pcs"; [lia..|].
     iMod ("IH" with "Ob_k n.n↦ Duty Pcs AU n.d↦ Ob_ks") as "IH".
     iApply "IH".
   Qed.
@@ -436,14 +433,14 @@ Section SPEC.
     set AtUpd := (AtUpd in (AtUpd -∗ _)%I).
     iIntros "AU".
 
-    iMod (pcs_decr _ _ 1 (1+a) with "PCS") as "[Ys PCS]"; [lia|].
-    iMod (pcs_decr _ _ 1 a with "PCS") as "[PCS CCS]"; [lia|].
-    iMod (pcs_drop _ _ 1 ltac:(auto) 1 102 with "Ys") as "Ys"; [lia|].
+    iMod (pcs_decr 1 (1+a) with "PCS") as "[Ys PCS]"; [lia|].
+    iMod (pcs_decr 1 a with "PCS") as "[PCS CCS]"; [lia|].
+    iMod (pcs_drop 1 102 with "Ys") as "Ys"; [lia..|].
     iMod (ccs_make_fine _ _ _ _ 2 with "[$Ob_kb $CCS]") as "CCS".
 
     rred2r.
 
-    iMod (pcs_decr _ _ 101 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 101 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
@@ -453,7 +450,7 @@ Section SPEC.
 
     iMod (ccs_ind2 with "CCS [-]") as "Ind".
     2:{ iIntros "PCS". destruct l; last first.
-        - iMod (pcs_drop _ _ 1 ltac:(auto) 2 with "PCS") as "PCS"; [lia|].
+        - iMod (pcs_drop 2 with "PCS") as "PCS"; [lia..|].
           iApply ("Ind" with "PCS").
         - iApply ("Ind" with "PCS").
     }
@@ -464,7 +461,7 @@ Section SPEC.
     rewrite TreiberStack.pop_loop_red.
     rred2r.
 
-    iMod (pcs_decr _ _ 100 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 100 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
@@ -474,7 +471,7 @@ Section SPEC.
     iApply (SCMem_load_fun_spec with "[$Mem $s↦] [-]"); [lia|solve_ndisj|].
     iIntros (load_v) "[%EQ s↦]".
     subst load_v. rred2r. iApply wpsim_tauR. rred2r.
-    iMod (pcs_decr _ _ 99 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 99 1 with "Ys") as "[Ys Y]"; [lia|].
 
     destruct (decide (h = Null)) as [->|NEQ].
     { (* Head is null, so stack is empty. *)
@@ -536,7 +533,7 @@ Section SPEC.
 
     iApply wpsim_tauR. rred2r.
 
-    iMod (pcs_decr _ _ 98 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 98 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
@@ -545,7 +542,7 @@ Section SPEC.
 
     iApply wpsim_tauR. rred2r.
 
-    iMod (pcs_decr _ _ 97 1 with "Ys") as "[Ys Y]"; [lia|].
+    iMod (pcs_decr 97 1 with "Ys") as "[Ys Y]"; [lia|].
     iApply (wpsim_yieldR with "[$Duty $Y]"); [lia..|].
     iIntros "Duty _". rred2r.
 
@@ -614,7 +611,7 @@ Section SPEC.
       iDestruct (Inv_fold with "s↦ γs Phys LInv") as "Inv".
       iMod ("Close" with "Inv") as "_". rred2r.
 
-      iMod (pcs_decr _ _ 96 1 with "Ys") as "[Ys Y]"; [lia|].
+      iMod (pcs_decr 96 1 with "Ys") as "[Ys Y]"; [lia|].
       iApply (wpsim_yieldR with "[$Y $Duty]"); [lia|].
       iIntros "Duty _". rred2r.
 
@@ -655,7 +652,7 @@ Section SPEC.
     iApply wpsim_tauR.
 
     (* Do Induction *)
-    iMod (pcs_drop _ _ 1 ltac:(lia) 1 101 with "PCS") as "PCS"; [lia|].
+    iMod (pcs_drop 1 101 with "PCS") as "PCS"; [lia..|].
     iMod ("IH" with "Ob_k Duty PCS AU Ob_ks") as "IH".
     iApply "IH".
 Qed.

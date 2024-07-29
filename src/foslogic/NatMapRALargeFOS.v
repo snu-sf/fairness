@@ -1,12 +1,12 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
-From Fairness Require Import Axioms NatStructsLarge.
-From Fairness Require Import PCM.
+From Fairness Require Import Axioms NatStructs.
+From Fairness Require Import PCMFOS.
 Require Import String Lia Program.
 
 Set Implicit Arguments.
 
-Module NatMapRALargeFOS.
+Module NatMapRAFOS.
   Section MAP.
     Variable A: Type.
 
@@ -17,7 +17,7 @@ Module NatMapRALargeFOS.
     Definition add (m0 m1: car): car :=
       match m0, m1 with
       | Some m0, Some m1 =>
-          if (NatStructsLarge.disjoint m0 m1) then Some (NatMapP.update m0 m1) else None
+          if (NatStructs.disjoint m0 m1) then Some (NatMapP.update m0 m1) else None
       | _, _ => None
       end.
 
@@ -219,7 +219,7 @@ Module NatMapRALargeFOS.
       { split; auto. right; auto. }
     Qed.
   End MAP.
-End NatMapRALargeFOS.
+End NatMapRAFOS.
 
 From Fairness Require Import IPropFOS IPMFOS.
 From iris.bi Require Import derived_laws. Import bi.
@@ -799,55 +799,55 @@ End SUM.
 
 Section UPDNATMAP.
   Variable A: Type.
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRALargeFOS.t A)) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRAFOS.t A)) Σ}.
 
-  Lemma NatMapRALarge_find_some m k a
+  Lemma NatMapRA_find_some m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
+    (OwnM (Auth.black (Some m: NatMapRAFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
+      (OwnM (Auth.white (NatMapRAFOS.singleton k a: NatMapRAFOS.t A)))
       -∗
       (⌜NatMap.find k m = Some a⌝).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
-    eapply Auth.auth_included in H. eapply NatMapRALargeFOS.extends_singleton_iff in H. auto.
+    eapply Auth.auth_included in H. eapply NatMapRAFOS.extends_singleton_iff in H. auto.
   Qed.
 
-  Lemma NatMapRALarge_singleton_unique k0 k1 a0 a1
+  Lemma NatMapRA_singleton_unique k0 k1 a0 a1
     :
-    (OwnM (Auth.white (NatMapRALargeFOS.singleton k0 a0: NatMapRALargeFOS.t A)))
+    (OwnM (Auth.white (NatMapRAFOS.singleton k0 a0: NatMapRAFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALargeFOS.singleton k1 a1: NatMapRALargeFOS.t A)))
+      (OwnM (Auth.white (NatMapRAFOS.singleton k1 a1: NatMapRAFOS.t A)))
       -∗
       (⌜k0 <> k1⌝).
   Proof.
     iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
-    ur in H. eapply NatMapRALargeFOS.singleton_unique in H. auto.
+    ur in H. eapply NatMapRAFOS.singleton_unique in H. auto.
   Qed.
 
-  Lemma NatMapRALarge_remove m k a
+  Lemma NatMapRA_remove m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
+    (OwnM (Auth.black (Some m: NatMapRAFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
+      (OwnM (Auth.white (NatMapRAFOS.singleton k a: NatMapRAFOS.t A)))
       -∗
-      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRALargeFOS.t A))).
+      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRAFOS.t A))).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_dealloc. eapply NatMapRALargeFOS.remove_local_update.
+    eapply Auth.auth_dealloc. eapply NatMapRAFOS.remove_local_update.
   Qed.
 
-  Lemma NatMapRALarge_add m k a
+  Lemma NatMapRA_add m k a
         (NONE: NatMap.find k m = None)
     :
-    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
+    (OwnM (Auth.black (Some m: NatMapRAFOS.t A)))
       -∗
-      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRALargeFOS.t A)
-                            ⋅ Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
+      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRAFOS.t A)
+                            ⋅ Auth.white (NatMapRAFOS.singleton k a: NatMapRAFOS.t A)))
          ).
   Proof.
     iIntros "B". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_alloc. eapply NatMapRALargeFOS.add_local_update. auto.
+    eapply Auth.auth_alloc. eapply NatMapRAFOS.add_local_update. auto.
   Qed.
 
 End UPDNATMAP.

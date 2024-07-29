@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From Fairness Require Import ISim SimDefaultRA SimWeakest.
 From Fairness Require Import LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
@@ -412,7 +412,7 @@ Section RED.
   Proof. apply red_sem_persistently. Qed.
 
   Lemma red_tl_plainly n p :
-    ⟦(■ p)%F, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
+    ⟦(■ p)%F, n⟧ = (.Plainly ⟦p, n⟧)%I.
   Proof. apply red_sem_plainly. Qed.
 
   Lemma red_tl_upd n p :

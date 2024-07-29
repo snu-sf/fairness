@@ -97,7 +97,7 @@ End ClientSpec.
 
 
 From Fairness Require Import
-     IProp IPMFOS Weakest ModSim PCM MonotonePCM StateRA FairRA NatStructs NatMapRAFOS.
+      IPMFOS Weakest ModSim PCMFOS MonotonePCM StateRA FairRA NatStructs NatMapRAFOS.
 
 Section LEMMA.
 

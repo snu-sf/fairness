@@ -3,7 +3,7 @@ From sflib Require Import sflib.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 From Coq Require Import Program Arith.
-Require Import Coqlib PCM PCMAux IProp IPM.
+Require Import Coqlib PCM PCMAux  IPM.
 (* Require Import PropExtensionality. *)
 
 Module HRA.
@@ -253,7 +253,7 @@ Module sPropI.
       | sepconj p q => Sepconj (_interp_aux p) (_interp_aux q)
       | wand p q => Wand (_interp_aux p) (_interp_aux q)
       | persistently p => Persistently (_interp_aux p)
-      | plainly p => IProp.Plainly (_interp_aux p)
+      | plainly p => .Plainly (_interp_aux p)
       | upd p => Upd (_interp_aux p)
       end
     end.
@@ -339,7 +339,7 @@ Section RED.
   Proof. reflexivity. Qed.
 
   Lemma red_sem_plainly n p :
-    interp n (plainly p) = (IProp.Plainly (interp n p))%I.
+    interp n (plainly p) = (.Plainly (interp n p))%I.
   Proof. reflexivity. Qed.
 
   Lemma red_sem_upd n p :

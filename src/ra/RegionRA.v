@@ -1,6 +1,6 @@
 From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
@@ -41,14 +41,9 @@ Module Region.
     Global Instance Persistent_white k a: Persistent (white k a).
     Proof.
       rewrite /Persistent.
-      iIntros "H". iPoseProof (own_persistent with "H") as "# X".
-      assert ((core
-                 ((fun n =>
-                     if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra)) ≡
-        ((fun n =>
-            if Nat.eq_dec n k then OneShot.shot a else ε): (nat ==> OneShot.t A)%ra)) as ->.
-      { intros n. rewrite discrete_fun_lookup_core. des_ifs. }
-      auto.
+      iIntros "H". iPoseProof (own_persistent with "H") as "#HP".
+      iApply (OwnM_proper with "HP").
+      intros n. rewrite /to_white discrete_fun_lookup_core. des_ifs.
     Qed.
 
     Lemma black_white_in k a l
@@ -121,7 +116,7 @@ Module Region.
       :
       ⊢ sat_list [].
     Proof.
-      unfold sat_list. ss. auto.
+      unfold sat_list. ss.
     Qed.
 
     Lemma sat_list_cons_fold hd tl
@@ -573,7 +568,7 @@ Module Regions.
         :
         ⊢ sat_list [].
       Proof.
-        unfold sat_list. ss. auto.
+        unfold sat_list. ss.
       Qed.
 
       Lemma sat_list_cons_fold hd tl
@@ -914,7 +909,8 @@ Module Regions.
     Proof.
       iIntros "A". unfold nsats_l. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
       2:{ rewrite seq_S. ss. }
-      iPoseProof (big_sepL_app with "A") as "[A [B C]]". ss. iFrame.
+      iDestruct (big_sepL_app with "A") as "[A B]". ss. iFrame.
+      iDestruct "B" as "[$ _]".
     Qed.
 
     Lemma fold_nsats_l x :
@@ -928,13 +924,13 @@ Module Regions.
     Lemma nsats_equiv_l x :
       nsats x ⊣⊢ nsats_l x.
     Proof.
-      iSplit; iStopProof.
-      - induction x. auto.
-        iIntros "_ W". iEval (rewrite unfold_nsats) in "W". iDestruct "W" as "[WS W]".
-        iApply fold_nsats_l. iFrame. iApply IHx; auto.
-      - induction x. auto.
-        iIntros "_ W". iEval (rewrite unfold_nsats_l) in "W". iDestruct "W" as "[WS W]".
-        rewrite unfold_nsats. iFrame. iApply IHx; auto.
+      iSplit; iIntros "W".
+      - iInduction x as [|x] "IH"; ss.
+        iEval (rewrite unfold_nsats) in "W". iDestruct "W" as "[WS W]".
+        iApply fold_nsats_l. iFrame. iApply "IH"; auto.
+      - iInduction x as [|x] "IH"; ss.
+        iEval (rewrite unfold_nsats_l) in "W". iDestruct "W" as "[WS W]".
+        rewrite unfold_nsats. iFrame. iApply "IH"; auto.
     Qed.
 
 

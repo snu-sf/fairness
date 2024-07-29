@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import Axioms PCM IProp IPM.
+From Fairness Require Import Axioms PCM IPM.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 From iris.algebra Require Import auth agree coPset gset.
@@ -19,7 +19,7 @@ Section INDEXED_INVARIANT_SET.
     (authUR (positive ==> optionUR (agreeR $ leibnizO (Vars n))))%ra.
 
   Definition IInvSetRA (Vars : index -> Type) : ucmra :=
-    @pointwise_dep index (InvSetRA Vars).
+    pointwise_dep (InvSetRA Vars).
 
   Definition OwnERA : ucmra := coPset_disjUR.
   Definition OwnDRA : ucmra := gset_disjUR positive.
@@ -30,17 +30,17 @@ Section PCM_OWN.
 
   Context `{Σ : GRA.t}.
   Notation iProp := (iProp Σ).
-  Definition OwnE `{@GRA.inG OwnERA Σ} (E : coPset) : iProp := OwnM (CoPset E).
+  Definition OwnE `{GRA.inG OwnERA Σ} (E : coPset) : iProp := OwnM (CoPset E).
 
-  Definition OwnD `{@GRA.inG OwnDRA Σ} (D : gset positive) := OwnM (GSet D).
+  Definition OwnD `{GRA.inG OwnDRA Σ} (D : gset positive) := OwnM (GSet D).
 
   Definition OwnI_white {Vars} (n : index) (i : positive) (p : Vars n) : IInvSetRA Vars :=
     maps_to_res_dep n (◯ (maps_to_res i (Some $ to_agree (p : leibnizO (Vars n))))).
 
-  Definition OwnI {Vars} `{@GRA.inG (IInvSetRA Vars) Σ} (n : index) (i : positive) (p : Vars n) :=
+  Definition OwnI {Vars} `{GRA.inG (IInvSetRA Vars) Σ} (n : index) (i : positive) (p : Vars n) :=
     OwnM (OwnI_white n i p).
 
-  Lemma OwnE_exploit `{@GRA.inG OwnERA Σ} (E1 E2 : coPset) :
+  Lemma OwnE_exploit `{GRA.inG OwnERA Σ} (E1 E2 : coPset) :
     OwnE E1 ∗ OwnE E2 ⊢ ⌜E1 ## E2⌝.
   Proof.
     iIntros "[H1 H2]". iCombine "H1 H2" as "H". iOwnWf "H" as WF.
@@ -84,7 +84,7 @@ Section PCM_OWN.
   Proof.
     iIntros (SUB) "E".
     assert (E2 = E1 ∪ E2 ∖ E1) as EQ.
-    { eapply leibniz_equiv. eapply union_difference. ss. }
+    { eapply union_difference_L. ss. }
     rewrite EQ.
     iPoseProof (OwnE_disjoint with "E") as "[E1 E2]"; [set_solver|].
     iFrame. iIntros "E1".
@@ -94,15 +94,14 @@ Section PCM_OWN.
   Global Instance OwnI_persistent {Vars} `{@GRA.inG (IInvSetRA Vars) Σ}
     n i p : Persistent (OwnI n i p).
   Proof.
-    unfold OwnI, OwnI_white.
-    remember (maps_to_res_dep n (◯ (maps_to_res i (Some $ to_agree (p : leibnizO (Vars n)))))) as r.
-    unfold Persistent. iIntros "H".
+    unfold OwnI, OwnI_white, Persistent. iIntros "H".
     iDestruct (OwnM_persistently with "H") as "#HP".
-    iModIntro.
-    replace r with (core r) at 2. auto.
-    subst. unfold maps_to_res_dep, eq_rect_r. ss. extensionalities k. rewrite /core /=. des_ifs. simpl.
-    rewrite auth_frag_core /maps_to_res. f_equal. extensionalities i'.
-    rewrite /core /=. des_ifs.
+    iApply (OwnM_proper with "HP").
+    intros k.
+    rewrite /maps_to_res_dep /eq_rect_r discrete_fun_lookup_core.
+    des_ifs. simpl.
+    rewrite auth_frag_core. f_equiv. intros i'.
+    rewrite /maps_to_res discrete_fun_lookup_core. des_ifs.
   Qed.
 
 End PCM_OWN.
@@ -140,7 +139,7 @@ Section WORLD_SATISFACTION.
     assert ((GSet (∅ : gset positive)) ~~>: (fun r => exists i, r = GSet {[i]} /\ φ i)) as UPD.
     { clear - INF. apply gset_disj_alloc_empty_updateP_strong'. done. }
     iPoseProof (@OwnM_unit _ _ H1) as "-# H".
-    iMod (OwnM_Upd_set UPD with "H") as "[% [% DIS]]".
+    iMod (OwnM_Upd_set _ _ UPD with "H") as "[% [% DIS]]".
     iModIntro. des. subst. iExists i. eauto.
   Qed.
 
@@ -171,7 +170,7 @@ Section WORLD_SATISFACTION.
         rewrite -FRAME lookup_insert //.
     }
     unfold inv_auth, inv_satall.
-    iMod (OwnM_Upd H3 with "AUTH") as "[AUTH NEW]". iModIntro.
+    iMod (OwnM_Upd _ _ H3 with "AUTH") as "[AUTH NEW]". iModIntro.
 
     iSplit.
     - iExists i. iFrame. ss.
@@ -296,7 +295,7 @@ Section WSATS.
   Proof.
     iIntros "A". unfold wsats_l. replace (seq 0 (S x)) with (seq 0 x ++ [x]).
     2:{ rewrite seq_S. ss. }
-    iPoseProof (big_sepL_app with "A") as "[A [B C]]". ss. iFrame.
+    iPoseProof (big_sepL_snoc with "A") as "[A B]". ss. iFrame.
   Qed.
 
   Lemma fold_wsats_l x :
@@ -310,13 +309,11 @@ Section WSATS.
   Lemma wsats_equiv_l x :
     wsats x ⊣⊢ wsats_l x.
   Proof.
-    iSplit; iStopProof.
-    - induction x. auto.
-      iIntros "_ W". iEval (rewrite unfold_wsats) in "W". iDestruct "W" as "[WS W]".
-      iApply fold_wsats_l. iFrame. iApply IHx; auto.
-    - induction x. auto.
-      iIntros "_ W". iEval (rewrite unfold_wsats_l) in "W". iDestruct "W" as "[WS W]".
-      rewrite unfold_wsats. iFrame. iApply IHx; auto.
+    iInduction x as [|x] "IH"; iSplit; iIntros "W"; ss.
+    - iEval (rewrite unfold_wsats) in "W". iDestruct "W" as "[WS W]".
+      iApply fold_wsats_l. iFrame. iApply "IH"; auto.
+    - iEval (rewrite unfold_wsats_l) in "W". iDestruct "W" as "[WS W]".
+      rewrite unfold_wsats. iFrame. iApply "IH"; auto.
   Qed.
 
   Lemma wsats_init_zero :
@@ -588,9 +585,8 @@ Notation iProp := (iProp Σ).
     n < x -> (inv n N p -∗ prop n p) ⊢ =|x|=(A)={E}=> (inv n N p).
   Proof.
     iIntros (LT) "P (A & WSAT & EN)".
-    iMod (wsats_inv_gen with "[A WSAT EN]") as "(A & W & EN & #INV)". eauto.
-    iSplitL "A". iApply "A". iFrame.
-    iPoseProof ("P" with "INV") as "P". iPoseProof ("W" with "P") as "W". iModIntro. iFrame. auto.
+    iMod (wsats_inv_gen _ A with "[$A $WSAT $EN]") as "($ & W & $ & #$)"; [done|].
+    iModIntro. iApply "W". iApply "P". done.
   Qed.
 
   Lemma FUpd_alloc x A E n N p :

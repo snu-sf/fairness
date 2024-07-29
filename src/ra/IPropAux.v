@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 Require Import Program.
-From Fairness Require Import PCM IProp IPM.
+From Fairness Require Import PCM IPM.
 From Fairness Require Import Axioms.
 
 From iris.algebra Require Import cmra lib.excl_auth.
@@ -31,27 +31,27 @@ Definition maps_to {Σ} {A: Type} {M: ucmra} `{ING: @GRA.inG (A ==> M)%ra Σ}
 
 Section UPD.
   Variable A: Type.
-  Context `{IN: @GRA.inG (excl_authUR $ leibnizO (option A)) Σ}.
+  Context `{IN: @GRA.inG (excl_authUR $ leibnizO A) Σ}.
 
-  Lemma black_white_update (a0 a' a1 : option A)
+  Lemma black_white_update (a0 a' a1 : A)
     :
-    (OwnM (●E (a0 : leibnizO (option A))))
+    (OwnM (●E (a0 : leibnizO A)))
       -∗
-      (OwnM (◯E (a' : leibnizO (option A))))
+      (OwnM (◯E (a' : leibnizO A)))
       -∗
-      #=> (OwnM (●E (a1 : leibnizO (option A)))) ∗ OwnM (◯E (a1 : leibnizO (option A))).
+      #=> (OwnM (●E (a1 : leibnizO A))) ∗ OwnM (◯E (a1 : leibnizO A)).
   Proof.
     iIntros "H0 H1". iCombine "H0 H1" as "H".
     iPoseProof (OwnM_Upd with "H") as "> [H0 H1]".
-    { apply (excl_auth_update _ _ (a1 : leibnizO (option A))). }
+    { apply (excl_auth_update _ _ (a1 : leibnizO A)). }
     iModIntro. iFrame.
   Qed.
 
-  Lemma black_white_equal (a a' : option A)
+  Lemma black_white_equal (a a' : A)
     :
-    (OwnM (●E (a : leibnizO (option A))))
+    (OwnM (●E (a : leibnizO A)))
       -∗
-      (OwnM (◯E (a' : leibnizO (option A))))
+      (OwnM (◯E (a' : leibnizO A)))
       -∗
       ⌜a = a'⌝.
   Proof.

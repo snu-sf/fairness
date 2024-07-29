@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic SCMemSpec OneShotsRA TicketLockRA AuthExclsRA.
 
@@ -90,12 +90,12 @@ Section SPEC.
       ∗ (s_ticket_black γt D)
       ∗ ⌜forall tk, (o <= tk < n) <-> (tk ∈ D)⌝
       ∗ ⌜pass <= b⌝
-      ∗ (● γt (κu, γs, pass))
-      ∗ ((⌜o = n⌝ ∗ (○ γt (κu, γs, pass)) ∗ P)
+      ∗ (●G γt (κu, γs, pass))
+      ∗ ((⌜o = n⌝ ∗ (○G γt (κu, γs, pass)) ∗ P)
         ∨ ◆[κu, l] ∗ (-[κu](0)-◇ ▿ γs tt) ∗ (⋈ [κu]) ∗ (△ γs 1) (* Promise to unlock *)
           ∗ (∃ (κack : τ{nat, i}),
               (s_ticket_wait γt o [κu; γs; κack; pass])
-              ∗ (s_ticket_issued γt o [κu; γs; κack; pass] ∨ (○ γt (κu, γs, pass) ∗ P))))
+              ∗ (s_ticket_issued γt o [κu; γs; κack; pass] ∨ (○G γt (κu, γs, pass) ∗ P))))
       ∗ ([∗ i set] tk ∈ D,
           ⌜tk = o⌝
           ∨ ⌜tk > o⌝
@@ -171,18 +171,18 @@ Section SPEC.
         ∗ (⤉ s_ticket_issued γt n [κu; γs; κack; b]))%S, 1+i⟧⧽
         (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock_loop (lo, SCMem.val_nat n)))
         ⧼rv, ⟦((⤉ Duty(tid)((κu, 0, ▿ γs tt) :: ds))
-            ∗ (⤉ ○ γt (κu, γs, b))
+            ∗ (⤉ ○G γt (κu, γs, b))
             ∗ (⤉ P))%S, 1+i⟧⧽
   .
   Proof.
     iIntros. iStartTriple. simpl. red_tl_all; simpl. rewrite red_syn_inv; rewrite red_syn_tgt_interp_as.
-    iIntros "(#INV & #MEM & DUTY & PCS & CCS & PC & ISSUED)". iIntros "POST".
+    iIntros "(#INV & #MEM & DUTY & PCS & CCS & PC & ISSUED) POST".
 
     iRevert "PCS DUTY PC ISSUED POST".
     iMod (ccs_ind2 with "CCS [-]") as "IND".
     2:{ iApply "IND". }
     iModIntro. iExists 0. iIntros "IH". iModIntro. iIntros "PCS DUTY PC ISSUED POST".
-    iMod (pcs_drop _ _ 1 _ _ 2 with "[PCS]") as "PCS". 2:{ iFrame. } auto.
+    iMod (pcs_drop 1 2 with "PCS") as "PCS"; [lia..|].
 
     iEval (rewrite unfold_iter_eq; rred2r).
     iInv "INV" as "TI" "TI_CLOSE". iEval (simpl; unfold tklockInv; red_tl_all; simpl) in "TI".
@@ -210,17 +210,17 @@ Section SPEC.
       iPoseProof (Ticket_issued_wait with "ISSUED WAIT") as "%EQ". clarify.
       iAssert (#=> ◇[κu2](1, 2))%I with "[PC]" as "> PC".
       { destruct (Nat.eq_dec l 1). subst. done.
-        iMod (pc_drop _ 1 l _ 2 2 with "[PC]") as "PC". auto. done. done.
+        iMod (pc_drop _ 1 l _ 2 2 with "PC") as "PC". auto. done.
       }
       iMod ("TI_CLOSE" with "[- POST DUTY PC ISSUED PCS]") as "_".
       { iEval (unfold tklockInv; simpl; red_tl_all).
         iExists o2. iEval (red_tl; simpl). iExists n2. iEval (red_tl; simpl).
         iExists κu2. iEval (red_tl; simpl). iExists γs2. iEval (red_tl; simpl).
         iExists b2. iEval (red_tl; simpl). iExists D2. iEval (red_tl_all; simpl). iFrame.
-        iSplitR; [done|]. iSplitR; [done|].
+        iSplit; [done|]. iSplit; [done|].
         iSplitR "HWAIT".
         { iRight. iFrame. repeat iSplitR; try done. iExists κack2. red_tl_all; simpl. iFrame. }
-        iEval (setoid_rewrite H; rewrite red_tl_big_sepS). rewrite big_opS_union; cycle 1. set_solver.
+        iEval (rewrite H; rewrite red_tl_big_sepS). rewrite big_opS_union; cycle 1. set_solver.
         iSplitL; auto. iApply big_sepS_singleton. red_tl; iLeft; auto.
       }
       iApply (wpsim_yieldR2 with "[DUTY PCS PC]"). auto. instantiate (1:=2); auto.
@@ -416,7 +416,7 @@ Section SPEC.
             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock loc))
             ⧼rv, ⟦(∃ (κu γs : τ{nat, 1+i}),
                     (⤉ P)
-                    ∗ (⤉ ○ γt (κu, γs, b))
+                    ∗ (⤉ ○G γt (κu, γs, b))
                     ∗ (⤉ (Duty(tid) ((κu, 0, ▿ γs tt) :: ds)))
                     ∗ ◇[κu](l, 1))%S, 1+i⟧⧽
   .
@@ -432,11 +432,11 @@ Section SPEC.
 
     (* YIELD *)
     rred2r.
-    iMod (pcs_drop _ _ 1 _ _ 2 with "[PCS]") as "PCS". 2:{ iFrame. } auto.
-    iMod (pcs_decr _ _ 1 _ with "PCS") as "[PCS' PCS]". auto.
-    iMod (pcs_drop _ _ 1 _ 2 2 with "PCS'") as "PCS'". lia.
-    iMod (pcs_decr _ _ 1 _ with "PCS'") as "[PCS'' PCS']". auto.
-    iMod (pcs_drop _ _ 1 _ 1 2 with "PCS'") as "PCS'". lia.
+    iMod (pcs_drop (4+l) 2 with "PCS") as "PCS"; [lia..|].
+    iMod (pcs_decr 1 _ with "PCS") as "[PCS' PCS]". auto.
+    iMod (pcs_drop 2 2 with "PCS'") as "PCS'"; [lia..|].
+    iMod (pcs_decr 1 _ with "PCS'") as "[PCS'' PCS']". auto.
+    iMod (pcs_drop 1 2 with "PCS'") as "PCS'"; [lia..|].
     iCombine "DUTY" "PCS'" as "DUTY".
     iApply (wpsim_yieldR2 with "DUTY"). auto. lia.
     iIntros "DUTY CRED PCS'". simpl.
@@ -578,7 +578,7 @@ Section SPEC.
           ⧼⟦((syn_tgt_interp_as i sndl (fun m => (s_memory_black m)))
               ∗ (⤉ isTicketLock i γt loc P l b)
               ∗ (⤉ P)
-              ∗ (⤉ ○ γt (κu, γs, pass))
+              ∗ (⤉ ○G γt (κu, γs, pass))
               ∗ (⤉ Duty(tid) ((κu, 0, ▿ γs tt) :: ds))
               ∗ ◇{((κu, 0, emp) :: ds)@1}(1, 3))%S, 1+i⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.unlock loc))

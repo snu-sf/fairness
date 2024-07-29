@@ -280,7 +280,7 @@ Module SCMem.
       ]).
 End SCMem.
 
-From Fairness Require Import PCM IProp IPMFOS StateRA MonotonePCM.
+From Fairness Require Import PCMFOS  IPMFOS StateRA MonotonePCM.
 
 Section MEMRA.
   Definition memRA: URA.t := (nat ==> nat ==> (Auth.t (Excl.t SCMem.val)))%ra.

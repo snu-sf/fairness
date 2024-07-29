@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
 From iris.algebra Require Import cmra.
-From Fairness Require Import Axioms NatStructs.
+From Fairness Require Import Axioms NatStructsLarge.
 From Fairness Require Import PCM World.
 From Fairness Require Import Mod.
 Require Import String Lia Program.
@@ -50,7 +50,6 @@ Section THREADS_RA_DEF.
 
   Canonical Structure ThreadsO := leibnizO threadsRA_car.
 
-  Global Instance threadsRAEquiv : Equiv threadsRA_car := (=).
   Local Instance threadsRA_unit_instance : Unit threadsRA_car := local NatSet.empty NatSet.empty.
   Local Instance threadsRA_valid_instance : Valid threadsRA_car := threadsRA_wf.
   Local Instance threadsRA_pcore_instance : PCore threadsRA_car := λ th, Some ε.

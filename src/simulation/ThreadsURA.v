@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
 From iris.algebra Require Import cmra updates functions lib.excl_auth.
 
-From Fairness Require Import Axioms NatStructs.
+From Fairness Require Import Axioms NatStructsLarge.
 From Fairness Require Import PCM.
 From Fairness Require Import Mod.
 

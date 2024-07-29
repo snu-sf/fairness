@@ -1,6 +1,6 @@
 From iris.algebra Require Import cmra updates lib.excl_auth.
 From sflib Require Import sflib.
-From Fairness Require Import Any PCM IProp IPM IPropAux.
+From Fairness Require Import Any PCM IPM IPropAux.
 From Fairness Require Import TemporalLogic.
 
 
@@ -189,7 +189,7 @@ Ltac red_tl_authexcls := (try rewrite ! @SAuthExcls.red_s_black;
                           try rewrite ! @SAuthExcls.red_s_rest
                          ).
 
-Notation "'●' γ a" := (AuthExcls.black γ a) (at level 90, γ, a at level 1) : bi_scope.
-Notation "'●' γ a" := (SAuthExcls.s_black γ a) (at level 90, γ, a at level 1) : sProp_scope.
-Notation "'○' γ a" := (AuthExcls.white γ a) (at level 90, γ, a at level 1) : bi_scope.
-Notation "'○' γ a" := (SAuthExcls.s_white γ a) (at level 90, γ, a at level 1) : sProp_scope.
+Notation "'●G' γ a" := (AuthExcls.black γ a) (at level 90, γ, a at level 1) : bi_scope.
+Notation "'●G' γ a" := (SAuthExcls.s_black γ a) (at level 90, γ, a at level 1) : sProp_scope.
+Notation "'○G' γ a" := (AuthExcls.white γ a) (at level 90, γ, a at level 1) : bi_scope.
+Notation "'○G' γ a" := (SAuthExcls.s_white γ a) (at level 90, γ, a at level 1) : sProp_scope.

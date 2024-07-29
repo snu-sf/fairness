@@ -638,7 +638,7 @@ Section SIM.
 
 End SIM.
 
-From Fairness Require Export NatMapRALargeFOS StateRA FairRA MonotonePCM FancyUpdate.
+From Fairness Require Export NatMapRAFOS StateRA FairRA MonotonePCM FancyUpdate.
 Require Import Coq.Sorting.Mergesort.
 
 Section STATE.
@@ -838,7 +838,7 @@ Section STATE.
 
   Definition default_initial_res
     : Σ :=
-    (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRALargeFOS.t unit)))
+    (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRAFOS.t unit)))
       ⋅
       (@GRA.embed _ _ STATESRC (Auth.black (Excl.just None: @Excl.t (option state_src)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_src)): stateSrcRA state_src)))
       ⋅
@@ -859,10 +859,10 @@ Section STATE.
 
   Lemma own_threads_init ths
     :
-    (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRALargeFOS.t unit)))
+    (OwnM (Auth.black (Some (NatMap.empty unit): NatMapRAFOS.t unit)))
       -∗
       (#=>
-         ((OwnM (Auth.black (Some ths: NatMapRALargeFOS.t unit)))
+         ((OwnM (Auth.black (Some ths: NatMapRAFOS.t unit)))
             **
             (natmap_prop_sum ths (fun tid _ => own_thread tid)))).
   Proof.
@@ -871,7 +871,7 @@ Section STATE.
     i. iIntros "OWN".
     iPoseProof (IH with "OWN") as "> [OWN SUM]".
     iPoseProof (OwnM_Upd with "OWN") as "> [OWN0 OWN1]".
-    { eapply Auth.auth_alloc. eapply (@NatMapRALargeFOS.add_local_update unit m k v); eauto. }
+    { eapply Auth.auth_alloc. eapply (@NatMapRAFOS.add_local_update unit m k v); eauto. }
     iModIntro. iFrame. destruct v. iApply (natmap_prop_sum_add with "SUM OWN1").
   Qed.
 

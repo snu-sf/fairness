@@ -8,7 +8,7 @@ Require Import Permutation.
 From iris.algebra Require Import cmra updates.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim WFLibLarge NatStructs.
+From Fairness Require Export ITreeLib FairBeh FairSim WFLibLarge NatStructsLarge.
 From Fairness Require Import pind PCM World.
 From Fairness Require Export Mod Concurrency.
 From Fairness Require Import ModSimStutter KnotSim LocalAdequacyAux.
@@ -132,9 +132,6 @@ Section PROOF.
         { pfold. eapply pind10_fold. econs 2; eauto.
           { instantiate (1:=r_own). instantiate (1:=r_shared). unfold resources_wf.
             rewrite sum_of_resources_add; auto. r_wf VALID.
-            clear.
-            rewrite -(assoc cmra.op) (comm cmra.op _ r_own).
-            rewrite (assoc cmra.op). done.
           }
           { instantiate (1:=Th.add tid o1 os). ss. econs. all: eauto.
             - apply nm_find_add_eq.
@@ -362,8 +359,6 @@ Section PROOF.
       pfold. eapply pind10_fold. eapply ksim_sync; eauto.
       { instantiate (1:=r_own). instantiate (1:=r_shared). unfold resources_wf.
         rewrite sum_of_resources_add; auto. r_wf VALID.
-        rewrite -(assoc cmra.op) (comm cmra.op _ r_own).
-        rewrite (assoc cmra.op). done.
       }
       i.
       assert (WF0: th_wf_pair (Th.add tid (true, ktr_src ()) ths_src) (Th.add tid (ktr_tgt ()) ths_tgt)).

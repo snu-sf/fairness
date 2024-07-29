@@ -921,19 +921,19 @@ Section discrete_fun.
   Lemma included_discrete_fun
       A (Ms : A -> ucmra)
       (f0 f1 : discrete_fun Ms)
-      (UPD : forall a, (f0 a) ≼ (f1 a))
+      (EXT : ∀ a, (f0 a) ≼ (f1 a))
     :
     f0 ≼ f1.
   Proof.
     set (R := fun (a : A) => (fun (ctx : Ms a) => f1 a ≡ (f0 a) ⋅ ctx)).
     hexploit (dependent_functional_choice _ R).
-    { subst R. i. specialize (UPD x). r in UPD. des. eauto. }
+    { subst R. i. specialize (EXT x). r in EXT. des. eauto. }
     subst R. intros H. des. exists f. intros ?. apply H.
   Qed.
 
   Lemma cmra_updateP_discrete_fun
       A (Ms : A → ucmra)
-      (f : discrete_funUR Ms)
+      (f : discrete_fun Ms)
       (P : ∀ (a : A), (Ms a) → Prop)
       (UPD: ∀ a, (f a) ~~>: (P a))
     :
@@ -943,9 +943,8 @@ Section discrete_fun.
     set RES := λ a, (match mz with | Some mz => (Some (mz a)) | None => None end).
     set (R := λ (a : A), (λ (m : Ms a), P a m ∧ ✓{n} (m ⋅? (RES a)))).
     hexploit (dependent_functional_choice _ R).
-    { subst R. ss. i. eapply (UPD x n (RES x)). subst RES. simpl. des_ifs; simpl in *.
-      - rewrite /= -discrete_fun_lookup_op. apply WF.
-      - apply WF.
+    { subst R. ss. i. eapply (UPD x n (RES x)). subst RES. simpl.
+      des_ifs; simpl in *; apply WF.
     }
     subst R RES. ss. i. des. exists f0. splits; auto.
     { i. specialize (H a). des. auto. }
@@ -954,17 +953,14 @@ Section discrete_fun.
 
   Lemma cmra_update_discrete_fun
       A (Ms : A → ucmra)
-      (f0 f1 : discrete_funUR Ms)
+      (f0 f1 : discrete_fun Ms)
       (UPD: ∀ a, (f0 a) ~~> (f1 a))
     :
     f0 ~~> f1.
   Proof.
     eapply cmra_update_updateP, cmra_updateP_weaken.
-    - apply cmra_updateP_discrete_fun. intros a.
-      setoid_rewrite cmra_update_updateP in UPD.
-      eapply cmra_updateP_weaken.
-      { apply UPD. }
-      intros y EQ. apply EQ.
+    - setoid_rewrite cmra_update_updateP in UPD.
+      apply cmra_updateP_discrete_fun,UPD.
     - intros y EQ. simpl in *. by apply func_ext_dep.
   Qed.
 
@@ -1630,10 +1626,9 @@ Module GRA.
       (embed a0) ⋅ (embed a1) ≡ embed (a0 ⋅ a1)
   .
   Proof.
-    rewrite /NW /embed. intros ?.
-    rewrite discrete_fun_lookup_op. des_ifs.
+    intros ?. rewrite /NW /embed discrete_fun_lookup_op. des_ifs.
     - ss. unfold cast_ra. destruct inG_prf. reflexivity.
-    - rewrite (right_id _). ss.
+    - rewrite right_id //.
   Qed.
 
   (* (fun f => exists (m1: M), f ≡ maps_to_res a m1 /\ P m1). *)
@@ -1646,15 +1641,10 @@ Module GRA.
       <<UPD: (GRA.embed a) ~~>: (λ a', ∃ b, a' = GRA.embed b ∧ P b) >>
   .
   Proof.
-    (* TODO: why can't I cmra_updateP_discrete_fun? *)
-    rewrite /NW cmra_total_updateP.
-    unfold cmra_updateP in UPD.
-    ss. intros n z WF.
-    assert (UPD' : ∀ (n : nat) (mz : A), ✓{n} (a ⋅ mz) → ∃ y : A, P y ∧ ✓{n} (y ⋅ mz)).
-    { clear -UPD. intros n mz WF.
-      exploit (UPD n (Some mz)); auto.
-    }
-    unshelve hexploit (UPD' n).
+    rewrite /NW cmra_discrete_updateP.
+    rewrite cmra_discrete_updateP in UPD.
+    ss. intros z WF.
+    unshelve hexploit UPD.
     { eapply (@eq_rect ucmra (Σ (@GRA.inG_id _ _ H)) cmra_car).
       { eapply (z (@GRA.inG_id _ _ H)). }
       { symmetry. eapply (@GRA.inG_prf _ _ H). }
@@ -1666,12 +1656,12 @@ Module GRA.
         with (@left (inG_id0 = inG_id0) (inG_id0 <> inG_id0) eq_refl) in WF; ss.
       des_ifs. repeat f_equal. eapply proof_irrelevance.
     }
-    i. destruct H0 as [y [Hy WFy]]. exists (GRA.embed y). esplits; eauto.
+    i. des. exists (GRA.embed y). esplits; eauto.
     unfold GRA.embed. intros k. rewrite discrete_fun_lookup_op. des_ifs.
     { ss. unfold PCM.GRA.cast_ra. destruct H. subst. ss. }
-    { specialize (WF k). rewrite left_id. eapply cmra_validN_op_r.
+    { specialize (WF k). rewrite left_id.
       rewrite discrete_fun_lookup_op in WF.
-      exact WF.
+      eapply cmra_valid_op_r,WF.
     }
   Qed.
 
@@ -1686,18 +1676,17 @@ Module GRA.
   Proof.
     rewrite /NW.
     eapply cmra_update_updateP, cmra_updateP_weaken.
-    - eapply embed_updatable_set.
-      setoid_rewrite cmra_update_updateP in UPD.
-      apply UPD.
+    - rewrite cmra_update_updateP in UPD.
+      apply embed_updatable_set,UPD.
   - intros y EQ. simpl in *. des. subst. done.
   Qed.
 
   Lemma embed_core M Σ `{@GRA.inG M Σ} (r : M) : embed (core r) ≡ core (embed r).
   Proof.
-    rewrite /embed /to_URA /core cmra_pcore_core.
-    intros i. simpl. des_ifs.
+    intros i. rewrite /embed /to_URA discrete_fun_lookup_core.
+    des_ifs.
     - ss. destruct H. ss. dependent destruction inG_prf0. ss.
-    - symmetry. apply core_id_total. apply _.
+    - symmetry. apply core_id_total,_.
   Qed.
 
   Lemma embed_unit M Σ `{@GRA.inG M Σ} : GRA.embed ε = ε.
@@ -1858,11 +1847,11 @@ Ltac r_solve :=
   repeat rewrite (assoc op);
   repeat (try rewrite right_id; try rewrite left_id);
   match goal with
-  | [|- ?lhs = (_ ⋅ _) ] =>
+  | [|- ?lhs ≡ (_ ⋅ _) ] =>
     let a := r_first lhs in
-    try rewrite <- (comm op);
+    try rewrite <- (comm op a);
     repeat rewrite <- (assoc op);
-    try (eapply f_equal; r_solve)
+    try (f_equiv; r_solve)
   | _ => try reflexivity
   end
 .

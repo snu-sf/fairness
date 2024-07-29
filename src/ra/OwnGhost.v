@@ -1,15 +1,13 @@
 From sflib Require Import sflib.
-From iris.algebra Require Import gmap proofmode_classes updates gmap.
+From iris.algebra Require Import cmra gmap proofmode_classes updates.
 From iris.proofmode Require Import proofmode.
-From Fairness Require Import IPM PCM IProp IPropAux.
+From Fairness Require Import IPM PCM IPropAux.
 From Fairness Require Import TemporalLogic.
-From iris Require Import cmra.
 (* Re-implemntation of [own] of Iris *)
 From iris.prelude Require Import prelude options.
 
 Module OwnG.
 Section definitions.
-(* FIXME: ideally, this definition should be opqaue, but thats very hard to do *)
 Definition t (A : cmra) : ucmra := FiniteMap.t A.
 
 Definition ra `{Σ : GRA.t} `{!GRA.inG (t A) Σ} (γ : nat) (a : A) : t A :=
@@ -33,7 +31,6 @@ Section lemmas.
 Context `{Σ : GRA.t}.
 Context `{GRA.inG (OwnG.t A) Σ}.
 Implicit Types a : A.
-
 
 Global Instance own_proper γ :
   Proper ((≡) ==> (⊣⊢)) (@OwnG.to_t Σ A _ γ).
@@ -94,7 +91,7 @@ Proof.
   intros HPinf Hf.
   rewrite <- (bupd_mono (∃ m, ⌜∃ γ, P γ ∧ m = FiniteMap.singleton γ (f γ)⌝ ∧ OwnM m)%I).
   - iIntros. iDestruct OwnM_unit as "U".
-    iMod (OwnM_Upd_set (B:=λ m, ∃ γ : nat, P γ ∧ m = FiniteMap.singleton γ (f γ)) with "U") as "H".
+    iMod (OwnM_Upd_set _ (λ m, ∃ γ : nat, P γ ∧ m = FiniteMap.singleton γ (f γ)) with "U") as "H".
     { eapply alloc_updateP_strong_dep.
       - exact HPinf.
       - intros ??. apply Hf.
@@ -141,9 +138,8 @@ Proof.
     ⌜ ∃ a', m = FiniteMap.singleton γ a' ∧ P a' ⌝ ∧ OwnM m)%I).
   - iIntros "H".
     iMod (OwnM_Upd_set with "H") as "H"; last first.
-    + iDestruct "H" as (m) "[%Hm H]".
+    + iDestruct "H" as (m) "[Hm H]".
       iIntros "!>". iExists (m). iFrame.
-      iPureIntro. exact Hm.
     + by apply singleton_updateP'.
   - iIntros "[%m [%Hm H]]".
     destruct Hm as [a' [-> HP]]. iExists a'. iFrame "∗%".
@@ -186,7 +182,7 @@ Lemma own_unit A `{i : !GRA.inG (OwnG.t (A:ucmra)) Σ} γ : ⊢ |==> OwnG.to_t �
 Proof.
   rewrite !OwnG.to_t_eq /OwnG.to_t_def.
   iDestruct OwnM_unit as "U".
-  iMod (OwnM_Upd_set (B:=λ b, b = OwnG.ra γ ε) with "U") as "[% [%EQ H]]".
+  iMod (OwnM_Upd_set _ (λ b, b = OwnG.ra γ ε) with "U") as "[% [%EQ H]]".
   { eapply alloc_unit_singleton_updateP.
     - apply ucmra_unit_valid.
     - apply _.

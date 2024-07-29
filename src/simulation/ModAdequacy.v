@@ -8,7 +8,7 @@ Require Import Program.
 Require Import Permutation.
 
 From Fairness Require Import Axioms.
-From Fairness Require Export ITreeLib FairBeh FairSim NatStructs.
+From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
 From Fairness Require Import pind PCM World.
 From Fairness Require Export Mod Concurrency.
 From Fairness Require Import KnotSim LocalAdequacyAux.
@@ -196,7 +196,6 @@ Section LADEQ.
     { instantiate (1:=Th.add tid1 r_own rs_local).
       unfold resources_wf. rewrite sum_of_resources_add; auto.
       r_wf VALID.
-      rewrite -(assoc cmra.op) (comm cmra.op _ r_own) (assoc cmra.op). done.
     }
     replace (Th.elements (Th.add tid1 r_own rs_local)) with ((tid1, r_own) :: (Th.elements rs_local)).
     instantiate (1:=Th.add tid1 o os).

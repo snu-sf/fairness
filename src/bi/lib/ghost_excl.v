@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 
-From Fairness Require Import IPM PCM IProp IPropAux TemporalLogic.
+From Fairness Require Import IPM PCM  IPropAux TemporalLogic.
 From iris.algebra Require Import excl proofmode_classes.
 From iris.proofmode Require Import proofmode.
 From Fairness Require Import OwnGhost.

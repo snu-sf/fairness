@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import Optics IProp IPM PCM.
+From Fairness Require Import Optics  IPM PCM.
 From stdpp Require Import coPset gmap namespaces.
 From iris.algebra Require Import cmra updates lib.excl_auth coPset gset.
 From Fairness Require Export IndexedInvariants.

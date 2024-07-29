@@ -4,7 +4,7 @@ From Fairness Require Import ucmra_list.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA ghost_excl ghost_map ghost_var.
 From Fairness.treiber Require Import SpecHOCAP ClientCode ClientSpecHOCAP.

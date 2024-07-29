@@ -3,7 +3,7 @@ From sflib Require Import sflib.
 (** A simple "ghost variable" of arbitrary type with fractional ownership.
 Can be mutated when fully owned. *)
 
-From Fairness Require Import IPM PCM IProp IPropAux TemporalLogic.
+From Fairness Require Import IPM PCM  IPropAux TemporalLogic.
 From iris.algebra Require Import dfrac_agree proofmode_classes frac.
 From iris.bi.lib Require Import fractional.
 From iris.proofmode Require Import proofmode.

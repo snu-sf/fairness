@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 From Coq Require Import Program Arith.
@@ -81,7 +81,7 @@ Module Syntax.
         | wand p q => Wand (_to_semantics_aux p) (_to_semantics_aux q)
         | empty => Emp
         | persistently p => Persistently (_to_semantics_aux p)
-        | plainly p => IProp.Plainly (_to_semantics_aux p)
+        | plainly p => .Plainly (_to_semantics_aux p)
         | upd p => Upd (_to_semantics_aux p)
         end
       end.
@@ -201,7 +201,7 @@ Section RED.
   Proof. ss. Qed.
 
   Lemma red_sem_plainly n p :
-    Sem n (Syntax.plainly p) = (IProp.Plainly (Sem n p))%I.
+    Sem n (Syntax.plainly p) = (.Plainly (Sem n p))%I.
   Proof. ss. Qed.
 
   Lemma red_sem_upd n p :
@@ -426,7 +426,7 @@ Notation "'emp'" := (Syntax.empty) : formula_scope.
 (*       | wand p q => Wand (to_semantics_0 n sem p) (to_semantics_0 n sem q) *)
 (*       | empty => Emp *)
 (*       | persistently p => Persistently (to_semantics_0 n sem p) *)
-(*       | plainly p => IProp.Plainly (to_semantics_0 n sem p) *)
+(*       | plainly p => .Plainly (to_semantics_0 n sem p) *)
 (*       | upd p => Upd (to_semantics_0 n sem p) *)
 (*       end. *)
 
@@ -455,7 +455,7 @@ Notation "'emp'" := (Syntax.empty) : formula_scope.
 (*     (*   | wand p q => Wand (to_semantics_0 p) (to_semantics_0 q) *) *)
 (*     (*   | empty => Emp *) *)
 (*     (*   | persistently p => Persistently (to_semantics_0 p) *) *)
-(*     (*   | plainly p => IProp.Plainly (to_semantics_0 p) *) *)
+(*     (*   | plainly p => .Plainly (to_semantics_0 p) *) *)
 (*     (*   | upd p => Upd (to_semantics_0 p) *) *)
 (*     (*   end. *) *)
 
@@ -478,7 +478,7 @@ Notation "'emp'" := (Syntax.empty) : formula_scope.
 (*     (*     | wand p q => Wand (to_semantics_aux p) (to_semantics_aux q) *) *)
 (*     (*     | empty => Emp *) *)
 (*     (*     | persistently p => Persistently (to_semantics_aux p) *) *)
-(*     (*     | plainly p => IProp.Plainly (to_semantics_aux p) *) *)
+(*     (*     | plainly p => .Plainly (to_semantics_aux p) *) *)
 (*     (*     | upd p => Upd (to_semantics_aux p) *) *)
 (*     (*     end *) *)
 (*     (*   end. *) *)

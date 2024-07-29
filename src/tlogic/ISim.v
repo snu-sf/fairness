@@ -1,8 +1,8 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From iris.algebra Require Import cmra.
-From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
-From Fairness Require PCM.
+From Fairness.base_logic Require Import upred base_logic.
+From Fairness Require Import ITreeLib IPM ModSim ModSimNat PCM.
 Require Import Program.
 
 Set Implicit Arguments.
@@ -24,13 +24,13 @@ Section SIM.
 
   Let shared_rel := TIdSet.t -> (@imap ident_src wf_src) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
 
-  Definition liftI (R: shared_rel): (TIdSet.t *
+  Definition liftI (R: shared_rel) : (TIdSet.t *
                                (@imap ident_src wf_src) *
                                (@imap (sum_tid ident_tgt) nat_wf) *
                                state_src *
-                               state_tgt) -> (cmra_car Σ) -> Prop :=
+                               state_tgt) -> Σ -> Prop :=
         fun '(ths, im_src, im_tgt, st_src, st_tgt) r_shared =>
-          R ths im_src im_tgt st_src st_tgt r_shared.
+          upred.uPred_holds (to_upred (R ths im_src im_tgt st_src st_tgt)) r_shared.
 
   Let liftRR R_src R_tgt (RR: R_src -> R_tgt -> shared_rel):
     R_src -> R_tgt -> Σ -> (TIdSet.t *
@@ -41,7 +41,7 @@ Section SIM.
         fun r_src r_tgt r_ctx '(ths, im_src, im_tgt, st_src, st_tgt) =>
           exists r,
             (<<WF: ✓ (r ⋅ r_ctx)>>) /\
-              RR r_src r_tgt ths im_src im_tgt st_src st_tgt r.
+              upred.uPred_holds (to_upred (RR r_src r_tgt ths im_src im_tgt st_src st_tgt)) r.
 
   Variable tid: thread_id.
   Variable I: shared_rel.
@@ -70,7 +70,7 @@ Section SIM.
          state_tgt) -> Prop :=
     | unlift_intro
         R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_ctx r_own
-        (REL: r R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_own)
+        (REL: upred.uPred_holds (to_upred (r R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)) r_own)
         (WF: ✓ (r_own ⋅ r_ctx))
       :
       unlift r (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
@@ -80,12 +80,10 @@ Section SIM.
     fun
       r g
       R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
-      iProp_intro
-        (fun r_own =>
+        from_upred ({| upred.uPred_holds r_own :=
            forall r_ctx (WF: ✓ (r_own ⋅ r_ctx)),
-             gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _.
+             gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt) |}).
   Next Obligation.
-  Proof.
     ii. ss. eapply H.
     eapply cmra_valid_included; eauto. eapply RA.extends_add; eauto.
   Qed.
@@ -102,9 +100,10 @@ Section SIM.
       (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    rr in H. autorewrite with iprop in H.
-    ii. hexploit H; eauto. i. des. eauto.
+    split. uPred.unseal. rewrite /bi_entails /upred.uPred_bupd_def.
+    intros ? WF FUPD r_ctx WFx. specialize (FUPD r_ctx).
+    hexploit FUPD; [done|].
+    i. des. by eapply H0.
   Qed.
 
   Global Instance isim_elim_upd
@@ -115,7 +114,7 @@ Section SIM.
     :
     ElimModal True p false (#=> P) P (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt) (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
-    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    rewrite /ElimModal bi.intuitionistically_if_elim.
     i. iIntros "[H0 H1]".
     iApply isim_upd. iMod "H0". iModIntro.
     iApply "H1". iFrame.
@@ -131,29 +130,24 @@ Section SIM.
       (isim r g Q1 ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    rr in H. autorewrite with iprop in H. des. subst.
+    split. uPred.unseal.
+    intros ? WF SEP r_ctx WFx. destruct SEP as (x1 & x2 & EQ & FORALL & ISIM).
+    rewrite EQ in WFx,WF.
+
     ii. eapply gpaco9_uclo; [auto with paco|apply lsim_frameC_spec|].
     econs.
-    instantiate (1:=a).
+    instantiate (1:=x1).
     eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
     econs.
-    2:{ eapply H1. r_wf WF0. rewrite H. rewrite (comm cmra.op a). done. }
+    2:{ eapply ISIM. r_wf WFx. }
     unfold liftRR. i. subst. des_ifs. des.
-    rr in H0. autorewrite with iprop in H0. specialize (H0 r_src).
-    rr in H0. autorewrite with iprop in H0. specialize (H0 r_tgt).
-    rr in H0. autorewrite with iprop in H0. specialize (H0 t).
-    rr in H0. autorewrite with iprop in H0. specialize (H0 i0).
-    rr in H0. autorewrite with iprop in H0. specialize (H0 i).
-    rr in H0. autorewrite with iprop in H0. specialize (H0 s0).
-    rr in H0. autorewrite with iprop in H0. specialize (H0 s).
-    rr in H0. autorewrite with iprop in H0.
-    hexploit (H0 r1); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx'). r_wf WF1. rewrite (comm cmra.op r1). done. }
-    i. rr in H2. autorewrite with iprop in H2.
-    hexploit H2.
-    { simpl. instantiate (1:=r_ctx'). r_wf WF1. rewrite (comm cmra.op r1). done.  }
-    i. des. esplits; eauto.
+    specialize (FORALL r_src r_tgt t i0 i s0 s).
+    simpl in *.
+    hexploit (FORALL r0); eauto.
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx'). r_wf WF0. }
+    i. specialize (H r_ctx').
+    hexploit H; eauto.
+    { r_wf WF0. }
   Qed.
 
   Lemma isim_mono r g R_src R_tgt
@@ -201,12 +195,12 @@ Section SIM.
       (isim r g Q ps pt (itr_src >>= ktr_src) (itr_tgt >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    ii. eapply gpaco9_uclo; [auto with paco|apply lsim_bindC_spec|].
+    split. intros x WF ISIM r_ctx WFx.
+    eapply gpaco9_uclo; [auto with paco|apply lsim_bindC_spec|].
     econs.
     eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
     econs.
-    2:{ eapply H; eauto. }
+    2:{ eapply ISIM; eauto. }
     unfold liftRR. i. des_ifs. des.
     eapply gpaco9_uclo; [auto with paco|apply lsim_monoC_spec|].
     econs.
@@ -224,8 +218,9 @@ Section SIM.
       (isim r g Q ps pt (Ret r_src) (Ret r_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
+    split.
+    intros x WF POST r_ctx WFx.
+    muclo lsim_indC_spec.
     eapply lsim_ret. unfold liftRR. esplits; eauto.
   Qed.
 
@@ -238,8 +233,9 @@ Section SIM.
       (isim r g Q ps pt (Tau itr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
+    split.
+    intros x WF ISIM r_ctx WFx.
+    muclo lsim_indC_spec.
     eapply lsim_tauL. muclo lsim_resetC_spec. econs; eauto.
   Qed.
 
@@ -252,8 +248,9 @@ Section SIM.
       (isim r g Q ps pt itr_src (Tau itr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
+    split.
+    intros x WF ISIM r_ctx WFx.
+    muclo lsim_indC_spec.
     eapply lsim_tauR. muclo lsim_resetC_spec. econs; eauto.
   Qed.
 
@@ -266,10 +263,11 @@ Section SIM.
       (isim r g Q ps pt (trigger (Choose X) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
+    uPred.unseal. split.
+    intros x WF ISIM r_ctx WFx.
+    muclo lsim_indC_spec.
     eapply lsim_chooseL.
-    rr in H. autorewrite with iprop in H. des.
+    rr in ISIM. des.
     esplits; eauto.
   Qed.
 
@@ -282,11 +280,11 @@ Section SIM.
       (isim r g Q ps pt itr_src (trigger (Choose X) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
+    uPred.unseal. split.
+    intros x WF ISIM r_ctx WFx.
+    muclo lsim_indC_spec.
     eapply lsim_chooseR.
-    rr in H. autorewrite with iprop in H.
-    i. econs; [eapply H|..]; eauto.
+    i. econs; [eapply ISIM|..]; eauto.
   Qed.
 
   Lemma isim_stateL X run r g R_src R_tgt
@@ -296,8 +294,9 @@ Section SIM.
         (isim r g Q true pt (ktr_src (snd (run st_src) : X)) itr_tgt ths im_src im_tgt (fst (run st_src)) st_tgt)
         (isim r g Q ps pt (trigger (State run) >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
-    rr. autorewrite with iprop. i.
-    ii. muclo lsim_indC_spec.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
+    muclo lsim_indC_spec.
     eapply lsim_stateL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
 
@@ -308,7 +307,8 @@ Section SIM.
         (isim r g Q ps true itr_src (ktr_tgt (snd (run st_tgt) : X)) ths im_src im_tgt st_src (fst (run st_tgt)))
         (isim r g Q ps pt itr_src (trigger (State run) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt).
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. muclo lsim_indC_spec.
     eapply lsim_stateR. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
@@ -322,7 +322,8 @@ Section SIM.
       (isim r g Q ps pt (trigger GetTid >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. muclo lsim_indC_spec.
     eapply lsim_tidL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
@@ -336,7 +337,8 @@ Section SIM.
       (isim r g Q ps pt itr_src (trigger GetTid >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. muclo lsim_indC_spec.
     eapply lsim_tidR. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
@@ -350,12 +352,13 @@ Section SIM.
       (isim r g Q ps pt (trigger (Fair f) >>= ktr_src) itr_tgt ths im_src0 im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. muclo lsim_indC_spec.
     eapply lsim_fairL.
-    rr in H. autorewrite with iprop in H. des.
-    rr in H. autorewrite with iprop in H. des.
-    rr in H. autorewrite with iprop in H.
+    rr in H. des.
+    rr in H. des.
+    rr in H.
     esplits; eauto.
   Qed.
 
@@ -368,16 +371,14 @@ Section SIM.
       (isim r g Q ps pt itr_src (trigger (Fair f) >>= ktr_tgt) ths im_src im_tgt0 st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. muclo lsim_indC_spec.
     eapply lsim_fairR. i.
-    rr in H. autorewrite with iprop in H.
-    hexploit H; eauto. i.
-    rr in H0. autorewrite with iprop in H0.
-    hexploit (H0 ε); eauto.
-    { rewrite right_id. eapply cmra_valid_op_l. eauto. }
-    { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H1|..]; eauto. r_wf WF0.
+    rr in H.
+    hexploit (H im_tgt1 ε); eauto.
+    { rewrite right_id. eauto. }
+    { rewrite right_id. done. }
   Qed.
 
   Lemma isim_UB r g R_src R_tgt
@@ -389,7 +390,8 @@ Section SIM.
       (isim r g Q ps pt (trigger Undefined >>= ktr_src) itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. muclo lsim_indC_spec.
     eapply lsim_UB.
   Qed.
@@ -403,10 +405,12 @@ Section SIM.
       (isim r g Q ps pt (trigger (Observe fn args) >>= ktr_src) (trigger (Observe fn args) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
+    rr. i.
     ii. gstep. rr. eapply pind9_fold.
     eapply lsim_observe; eauto.
-    i. rr in H. autorewrite with iprop in H.
+    i. rr in H.
     muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
 
@@ -419,7 +423,9 @@ Section SIM.
       (isim r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
+    rr. i.
     ii. muclo lsim_indC_spec.
     eapply lsim_yieldL. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
@@ -433,27 +439,19 @@ Section SIM.
       (isim r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    rr in H. autorewrite with iprop in H. des. rename H into EQ.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
+    rr. i.
+    rr in H. des. rename H into EQ.
+    rewrite EQ in WF,WFx.
     ii. muclo lsim_indC_spec.
     eapply lsim_yieldR; eauto.
-    { rewrite EQ in WF0. done. }
-    i. rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_src1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 st_src1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 st_tgt1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
-    rr in H1. autorewrite with iprop in H1.
+    i. specialize (H1 ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2).
     hexploit (H1 r_shared1); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. rewrite (comm cmra.op b). done.
-    }
-    i. rr in H. autorewrite with iprop in H. hexploit (H ε); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. rewrite (comm cmra.op b). done.
-    }
-    { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto.
-    r_wf VALID. rewrite (comm cmra.op b). done.
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. }
+    i. rr in H. hexploit (H ε); eauto.
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. }
+    r_wf VALID.
   Qed.
 
   Lemma isim_sync r g R_src R_tgt
@@ -465,27 +463,17 @@ Section SIM.
       (isim r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt) ths0 im_src0 im_tgt0 st_src0 st_tgt0)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    rr in H. autorewrite with iprop in H. des. rename H into EQ.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
+    rr in H. des. rename H into EQ.
+    rewrite EQ in WF,WFx.
     ii. gstep. eapply pind9_fold. eapply lsim_sync; eauto.
-    { rewrite EQ in WF0. done. }
-    i.
-    rr in H1. autorewrite with iprop in H1. specialize (H1 ths1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_src1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 st_src1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 st_tgt1).
-    rr in H1. autorewrite with iprop in H1. specialize (H1 im_tgt2).
-    rr in H1. autorewrite with iprop in H1.
+    i. specialize (H1 ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2).
     hexploit (H1 r_shared1); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1).
-      r_wf VALID. rewrite (comm cmra.op b). done.
-    }
-    i. rr in H. autorewrite with iprop in H. hexploit (H ε); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. rewrite (comm cmra.op b). done.
-    }
-    { rr. autorewrite with iprop. eauto. }
-    i. muclo lsim_resetC_spec. econs; [eapply H2|..]; eauto. r_wf VALID. rewrite (comm cmra.op b). done.
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. }
+    i. rr in H. hexploit (H ε); eauto.
+    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. }
+    r_wf VALID.
   Qed.
 
   Lemma isim_base r g R_src R_tgt
@@ -497,7 +485,8 @@ Section SIM.
       (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. gbase. econs; eauto.
   Qed.
 
@@ -510,7 +499,8 @@ Section SIM.
       (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. rr in H. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
 
@@ -526,7 +516,8 @@ Section SIM.
       (isim r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. rr in H. muclo lsim_resetC_spec. econs; [eapply H|..]; eauto.
   Qed.
 
@@ -539,7 +530,8 @@ Section SIM.
       (isim r g Q true true itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
+    try uPred.unseal. split.
+    intros x WF H r_ctx WFx.
     ii. gstep. rr. eapply pind9_fold.
     eapply lsim_progress; eauto.
   Qed.
@@ -554,12 +546,14 @@ Section SIM.
     unlift r0 <9= unlift r1.
   Proof.
     i. dependent destruction PR.
-    hexploit MON; eauto. i.
-    rr in H. autorewrite with iprop in H.
+    hexploit MON; eauto.
+    rewrite /bi_entails. try uPred.unseal.
+    intros [H].
     hexploit H; [|eauto|..].
     { eapply cmra_valid_op_l. done. }
-    i. rr in H0. autorewrite with iprop in H0.
-    hexploit H0; eauto. i. des. econs; eauto.
+    i. rr in H0.
+    hexploit H0; eauto.
+    i. des. econs; eauto.
   Qed.
 
   Lemma isim_mono_knowledge (r0 g0 r1 g1: rel) R_src R_tgt
@@ -581,8 +575,9 @@ Section SIM.
       (isim r1 g1 Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    rr. autorewrite with iprop. i.
-    ii. rr in H. hexploit H; eauto. i.
+    rewrite /bi_entails /bi_entails /bi.uPredI.
+    split.
+    ii. hexploit H0; eauto. i.
     eapply gpaco9_mon; eauto.
     { eapply unlift_mon; eauto. }
     { eapply unlift_mon; eauto. }
@@ -610,29 +605,30 @@ Section SIM.
     :
     (forall a, bi_entails (P a) (isim r g0 (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a) (ths a) (im_src a) (im_tgt a) (st_src a) (st_tgt a))).
   Proof.
-    i. rr. autorewrite with iprop. ii. clear WF.
+    rewrite /bi_entails /bi_entails /bi.uPredI. split.
+    intros r0 WF H r_ctx WF0.
+    clear WF.
     revert a r0 H r_ctx WF0. gcofix CIH. i.
     epose (fun R_src R_tgt (Q: R_src -> R_tgt -> shared_rel)
                ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
-             @iProp_intro _ (fun r_own => forall r_ctx (WF: ✓ (r_own ⋅ r_ctx)),
-                                 gpaco9 gf (cpn9 gf) r0 r0 R_src R_tgt (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)) _).
-    hexploit (COIND i a). subst i. clear COIND. i.
-    rr in H. autorewrite with iprop in H. hexploit H.
+            {| upred.uPred_holds r_own :=
+                forall r_ctx (WF: ✓ (r_own ⋅ r_ctx)),
+                  gpaco9 gf (cpn9 gf) r0 r0 R_src R_tgt (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt) |}) as i.
+    hexploit (COIND i a). subst i. clear COIND.
+    rewrite /bi_entails /bi_entails /bi.uPredI. intros [H].
+    revert H. uPred.unseal. intros H. hexploit H.
     { instantiate (1:=r1). eapply cmra_valid_op_l; eauto. }
-    { rr. autorewrite with iprop.
-      exists ε, r1. splits; auto.
-      { r_solve. }
-      rr. autorewrite with iprop. esplits.
-      { rr. autorewrite with iprop. ss. }
-      rr. autorewrite with iprop.
-      rr. autorewrite with iprop.
+    { exists ε, r1. splits; eauto.
+      { by rewrite left_id. }
+      rewrite /bi_intuitionistically /bi_affinely /bi_persistently. uPred.unseal.
+      rr. esplits.
+      { rr. ss. }
       exists ε, ε. splits.
       { rewrite right_id. apply core_id_total. apply _. }
-      { do 13 (rr; autorewrite with iprop; i).
-        ss. i. gbase. eapply CIH0. econs; eauto. r_wf WF.
+      { ss. ii. gbase. eapply CIH0. econs; eauto.
+        rewrite left_id in WF. done.
       }
-      { do 2 (rr; autorewrite with iprop; i).
-        ss. i. gbase. eapply CIH; eauto. r_wf WF.
+      { ss. ii. gbase. eapply CIH; eauto. rewrite left_id in WF. done.
       }
     }
     clear H. i. eapply gpaco9_gpaco.
@@ -682,10 +678,10 @@ Section EQUIVI.
       (isim (Σ:=Σ) tid I2 r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    assert (EQ: forall ths ims imt sts stt (r : Σ) (WF: ✓ r), I1 ths ims imt sts stt r <-> I2 ths ims imt sts stt r).
+    assert (EQ: forall ths ims imt sts stt (r : Σ) (WF: ✓ r), upred.uPred_holds (to_upred (I1 ths ims imt sts stt)) r <-> upred.uPred_holds (to_upred (I2 ths ims imt sts stt)) r).
     { clear - EQUIV. i. specialize (EQUIV ths ims imt sts stt). rr in EQUIV. inv EQUIV. eauto. }
-    rr. autorewrite with iprop. i.
-    ii. rr in H. eapply lsim_equivI. 2: eapply H; eauto.
+    split. rr. i.
+    ii. rr in H0. eapply lsim_equivI. 2: eapply H0; eauto.
     clear - EQ. i. destruct shr as [[[[ths ims] imt] sts] stt]. unfold liftI. rewrite EQ; auto.
   Qed.
 

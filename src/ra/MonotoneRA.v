@@ -1,11 +1,14 @@
 From sflib Require Import sflib.
 From iris.algebra Require Import cmra updates gmap auth.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
 Require Import Program.
 
+Set Implicit Arguments.
+
+(* TODO: https://mattermost.mpi-sws.org/iris/pl/8cftahufytftmyt4mm5q7m6tyh *)
 Module FiniteMap.
   Section FiniteMap.
     Context `{M: cmra}.
@@ -86,34 +89,30 @@ Module Collection.
   Section Collection.
     Context {A: Type}.
 
-    Record car : Type := mk {
-      elem :> A -> Prop
-    }.
+    Definition car : Type := A -> Prop.
 
-    Definition unit: car := mk (fun _ => True).
+    Definition unit: car := fun _ => True.
 
     Definition add: car -> car -> car :=
-      fun s0 s1 => mk (fun a => s0 a /\ s1 a).
+      fun s0 s1 => (fun a => s0 a /\ s1 a).
 
     Definition wf: car -> Prop :=
       fun _ => True.
 
-    Definition core: car -> option car :=
-      fun s => Some s.
+    Definition core: car -> option car := Some.
 
     Canonical Structure CollectionO := leibnizO car.
 
-    Global Instance collection_equiv : Equiv car := (=).
     Local Instance collection_valid_instance : Valid car := wf.
     Local Instance collection_pcore_instance : PCore car := core.
     Local Instance collection_op_instance : Op car := add.
     Local Instance collection_unit_instance : Unit car := unit.
 
-    Lemma valid_unfold om : ✓ om ↔ wf om.
+    Lemma valid_unfold : valid = wf.
     Proof. done. Qed.
-    Lemma op_unfold p q : p ⋅ q = add p q.
+    Lemma op_unfold : (⋅) = add.
     Proof. done. Qed.
-    Lemma pcore_unfold p : pcore p = (core p).
+    Lemma pcore_unfold : pcore = core.
     Proof. done. Qed.
     Lemma unit_unfold : ε = unit.
     Proof. done. Qed.
@@ -133,7 +132,7 @@ Module Collection.
         extensionality a0.
         eapply propositional_extensionality. split; i; des; ss; des; ss.
       - intros ??. fold_leibniz.
-        rewrite !pcore_unfold /core op_unfold /add. injection 1. intros ->. destruct cx. f_equal.
+        rewrite !pcore_unfold /core op_unfold /add. injection 1. intros ->. f_equal.
         extensionality a0.
         eapply propositional_extensionality. split; i; des; ss; des; ss.
       - intros ???.
@@ -151,13 +150,13 @@ Module Collection.
       split; try apply _; try done.
       intros m.
       fold_leibniz.
-      rewrite op_unfold /add unit_unfold /unit. destruct m. f_equal.
+      rewrite op_unfold /add unit_unfold /unit.
       extensionality a0.
       eapply propositional_extensionality. split; i; des; ss; des; ss.
     Qed.
     Canonical Structure t := Ucmra car ucmra_mixin.
 
-    Definition into_t (a : A -> Prop) : t := mk a.
+    Definition into_t (a : A -> Prop) : t := a.
   End Collection.
 End Collection.
 Global Arguments Collection.t _ : clear implicits.
@@ -191,8 +190,8 @@ Qed.
 
 
 Section Monotone.
-  Definition monoRA: ucmra := @FiniteMap.t (authUR (Collection.t gmon)).
-  Context `{@GRA.inG monoRA Σ}.
+  Definition monoRA: ucmra := FiniteMap.t (authUR (Collection.t gmon)).
+  Context `{GRA.inG monoRA Σ}.
   Notation iProp := (iProp Σ).
 
   Section LE.
@@ -296,14 +295,11 @@ Section Monotone.
     Proof.
       iIntros "H". iApply (OwnM_Upd with "H").
       eapply FiniteMap.singleton_updatable.
-      apply auth_update,local_update_discrete.
+      apply auth_update,local_update_unital_discrete.
       fold_leibniz. intros w' _.
-      rewrite Collection.valid_unfold /Collection.wf /leR /Collection.into_t.
-      destruct w' as [[w']|]; ss.
-      rewrite Collection.op_unfold /Collection.add.
-      injection 1. intros FRAME.
-      rewrite Collection.op_unfold /Collection.add. split; ss.
-      f_equal.
+      rewrite Collection.valid_unfold /Collection.wf /leR
+        /Collection.into_t Collection.op_unfold /Collection.add /=.
+      intros FRAME. split; ss. f_equal.
       extensionality w. eapply equal_f with (x:=w) in FRAME.
       eapply prop_ext_rev in FRAME. des.
       eapply propositional_extensionality. split; i; des; ss.
@@ -322,11 +318,10 @@ Section Monotone.
       iOwnWf "H" as WF. iPureIntro.
       rewrite FiniteMap.singleton_wf in WF.
       apply auth_both_valid_discrete in WF as [WF _].
-      rr in WF. destruct WF as [[z] EQ]. fold_leibniz.
+      destruct WF as [z EQ]. fold_leibniz.
       rewrite Collection.op_unfold /Collection.add /leR /Collection.into_t in EQ.
-      injection EQ. intros LE. ss.
-      eapply equal_f in LE. eapply prop_ext_rev in LE. des.
-      hexploit LE.
+      eapply equal_f in EQ. eapply prop_ext_rev in EQ. des.
+      hexploit EQ.
       { rr. econs. reflexivity. }
       i. des. rr in H0. dependent destruction H0. auto.
     Qed.
@@ -348,7 +343,7 @@ Section Monotone.
         (le_PreOrder: PreOrder le)
         (w: W)
     :
-    ⊢ #=> (∃ k, monoBlack k W le le_PreOrder w).
+    ⊢ #=> (∃ k, monoBlack k le_PreOrder w).
   Proof.
     iPoseProof (@OwnM_unit _ _ H) as "H".
     iPoseProof (OwnM_Upd_set with "H") as "> H0".
@@ -516,7 +511,7 @@ Module OneShot.
           (WF: ✓ (shot a0 ⋅ shot a1))
       :
       a0 = a1.
-    Proof. apply (@to_agree_op_inv_L (leibnizO A)); [apply _|done]. Qed.
+    Proof. by apply to_agree_op_inv_L in WF. Qed.
 
     Lemma pending_not_shot a q
           (WF: ✓ (pending q ⋅ shot a))
@@ -591,7 +586,7 @@ Module OneShotP.
         `{@GRA.inG (OneShot.t A) Σ}
         (a: A) q
     :
-    (pending A q ∧ (shot a))
+    (pending q ∧ (shot a))
       -∗
       False.
   Proof.

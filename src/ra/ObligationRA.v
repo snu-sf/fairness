@@ -1,8 +1,8 @@
 From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
-From Fairness Require Import PCM IProp IPM IPropAux.
-From Fairness Require Import NatMapRA MonotoneRA RegionRA.
+From Fairness Require Import PCM IPM IPropAux.
+From Fairness Require Import NatMapRALarge MonotoneRA RegionRA.
 Require Import Coq.Classes.RelationClasses.
 (* Require Import Coq.Logic.PropExtensionality. *)
 From Fairness Require Import Axioms.
@@ -71,7 +71,6 @@ Module CounterRA.
 
     Canonical Structure CounterO := leibnizO car.
 
-    Global Instance counter_equiv : Equiv car := (=).
     Local Instance counter_valid_instance : Valid car := wf.
     Local Instance counter_pcore_instance : PCore car := core.
     Local Instance counter_op_instance : Op car := add.
@@ -264,9 +263,9 @@ Module CounterRA.
     Qed.
     Lemma black_white_decr' a0 a1
       :
-      ∀ z : CounterR,
+      ∀ z : t,
         ✓ (black a0 ⋅ white a1 ⋅ z)
-        → ∃ y : CounterR,
+        → ∃ y : t,
             (∃ a2 : A,
                y = black a2 ∧ OrderedCM.le (OrderedCM.add a2 a1) a0)
             ∧ ✓ (y ⋅ z).
@@ -565,7 +564,7 @@ Module ObligationRA.
     Proof.
       iIntros "H0 H1".
       iCombine "H0 H1" as "H".
-      iPoseProof (OwnM_Upd_set with "H") as "> [% [% H]]".
+      iMod (OwnM_Upd_set with "H") as (?) "[Hb H]".
       { eapply FiniteMap.singleton_updatable_set.
         eapply prod_updateP.
         { eapply CounterRA.black_white_decr. }
@@ -577,7 +576,7 @@ Module ObligationRA.
           ∧ OrderedCM.le (OrderedCM.add a2 o1) o0)).
         simpl in *. des. eauto.
       }
-      { ss. des. destruct m1. simpl in *. des; subst.
+      { ss. iDestruct "Hb" as %?. des. destruct m1. simpl in *. des; subst.
         iModIntro. iExists _. simpl in *. iFrame "H". eauto. }
     Qed.
 
@@ -842,9 +841,10 @@ Module ObligationRA.
       { iPoseProof (FairRA.decr_update with "BLACK H") as "> [% [H %]]".
         iPoseProof (white_split with "WHITE") as "> [WHITE0 WHITE1]".
         { ss. apply OrdArith.le_from_nat in H3.
-          From Fairness Require DisableSsreflect.
-          rewrite Hessenberg.add_from_nat in H3. rewrite <- H3.
-          rewrite ClassicJacobsthal.mult_dist. reflexivity.
+          rewrite Hessenberg.add_from_nat in H3.
+          etransitivity; last first.
+          { apply Jacobsthal.le_mult_r,H3. }
+          { rewrite ClassicJacobsthal.mult_dist. reflexivity. }
         }
         iModIntro. iSplitR "WHITE0".
         { iSplitR. auto. iRight. iSplitR. auto. iRight. iExists _. iFrame "H WHITE1". }
@@ -1010,11 +1010,10 @@ Module ObligationRA.
     Proof.
       iIntros "H".
       iPoseProof (duty_list_white_list with "H") as "# WHITES".
-      iClear "H". iModIntro. iStopProof. induction rs.
-      { iIntros "# WHITES" (? ? ? ? ? ? ?). ss. }
-      iIntros "# WHITES" (? ? ? ? ? ? ?). ss.
+      iClear "H". iIntros "!>" (???????).
+      iInduction (rs) as [|a rs] "IHrs"; ss.
       destruct a as [? [[[[? ?] ?] ?] ?]]. iPoseProof "WHITES" as "[WHITE WHITES0]".
-      des; clarify. iApply IHrs; auto.
+      des; clarify. iApply "IHrs"; auto.
     Qed.
 
     Lemma duty_delay i l k c f
@@ -1093,9 +1092,9 @@ Module ObligationRA.
       iPoseProof (FairRA.black_ex_split with "[BLACK]") as "[BLACK0 [% BLACK1]]".
       { erewrite Qp.div_2. iFrame. }
       iPoseProof (@OwnM_ura_unit (@FiniteMap.t (OneShot.t _unit))) as "H".
-      iPoseProof (OwnM_Upd_set with "H") as "> [% [% OWN]]".
+      iMod (OwnM_Upd_set with "H") as (?) "[Hb OWN]".
       { eapply FiniteMap.singleton_alloc. eapply OneShot.pending_one_wf. }
-      ss. des. rewrite H4.
+      ss. iDestruct "Hb" as %?. des. rewrite H4.
       iPoseProof (Regions.alloc with "[SHOT PEND BLACK1]") as "> [% WHITE]".
       { instantiate (1:=(Prism.review p i, k, c, (q / 2)%Qp, k0, f)). iSplit. auto.
         iLeft. iFrame. iExists _. iFrame.
@@ -1244,12 +1243,12 @@ Module ObligationRA.
         assert (REP: (o0 == (Ord.O ⊕ o0))%ord).
         { symmetry. apply Hessenberg.add_O_l. }
         etrans. 2: eapply LT0.
-        From Fairness Require Import DisableSsreflect.
-        rewrite REP.
-        rewrite <- Hessenberg.add_S_l. reflexivity.
+        (* Just doing [rewrite REP] rewrites too many terms *)
+        assert ((Ord.S o0 == Ord.S (Ord.O ⊕ o0))%ord) as ->.
+        { rewrite -REP. reflexivity. }
+        rewrite -Hessenberg.add_S_l //.
       }
-      iMod "T". iDestruct "T" as "[T1 T2]".
-      iModIntro. iFrame.
+      by iMod "T" as "[$ $]".
     Qed.
 
     Lemma taxes_ord_merge l o0 o1
@@ -1611,10 +1610,11 @@ Module ObligationRA.
         clarify. iPoseProof ("WHITES" $! _ _ _ _ _ _ (or_intror IN)) as "# WHITE1".
         iAssert (OwnM (FiniteMap.singleton n1 (OneShot.pending _unit 1))) with "[DUTY]" as "OWN1".
         { iClear "WHITE1 WHITES". clear IHrs H3 IMPL.
-          iStopProof. generalize (q + q0)%Qp. revert IN. induction rs; ss.
-          { i. destruct a0 as [? [[[[? ?] ?] ?] ?]].
-            iIntros "H". iPoseProof (duty_list_unfold with "H") as "[_ [OWN DUTY]]".
-            des; clarify. iApply IHrs; eauto.
+          move: (q + q0)%Qp => q'.
+          iInduction (rs) as [|a0 rs] "IHrs" forall (q'); ss.
+          { destruct a0 as [? [[[[? ?] ?] ?] ?]].
+            iPoseProof (duty_list_unfold with "DUTY") as "[_ [OWN DUTY]]".
+            des; clarify. iApply "IHrs"; eauto.
           }
         }
         iCombine "PENDING OWN1" as "OWN". iOwnWf "OWN".

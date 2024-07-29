@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import Spinlock.
 From Fairness Require Import TemporalLogic SCMemSpec SpinlockSpec0.
@@ -132,7 +132,7 @@ Section SIM.
 
   (* Definition clientSpinlock2_inv n (tid2 : thread_id) (ℓL : nat) (γX γe κs : nat) (κl γκl κw γκw κu γκu : nat) (γr : nat) : sProp n :=
     (
-      ((○ γX 0) ∗ (D ↦ 0)
+      ((○G γX 0) ∗ (D ↦ 0)
                 ∗ (-[κl](0)-◇ (▿ γκl γκw))
                 ∗ (△ γκl (1/2)) ∗ (△ γκw (1/2)) ∗ (△ γκu (1/2))
                 ∗ ⧖[κu, 1/2]
@@ -141,7 +141,7 @@ Section SIM.
                 ∗ (∃ (ℓl : τ{nat}), ◆[κl, ℓl])
       )
       ∨
-        ((○ γX 1) ∗ (D ↦ 0)
+        ((○G γX 1) ∗ (D ↦ 0)
                   ∗ (-[κw](0)-◇ (▿ γκw γκu))
                   ∗ (△ γκw (1/2)) ∗ (△ γκu (1/2)) ∗ (▿ γκl γκw)
                   ∗ ⧖[κu, 1/2]
@@ -151,14 +151,14 @@ Section SIM.
                   ∗ (∃ (ℓw : τ{nat}), ◆[κw, ℓw] ∗ ⌜ℓw <= ℓL⌝)
         )
       ∨
-        ((○ γX 1) ∗ (D ↦ 1)
+        ((○G γX 1) ∗ (D ↦ 1)
                   ∗ (-[κu](0)-◇ (▿ γκu 0))
                   ∗ (△ γκu (1/2)) ∗ (▿ γκl γκw) ∗ (▿ γκw γκu)
                   ∗ ⋈[κu] ∗ (κu -(0)-◇ κs)
                   ∗ (((EX γe tt) ∨ (▿ γr 0)))
         )
       ∨
-        ((○ γX 0) ∗ (D ↦ 1)
+        ((○G γX 0) ∗ (D ↦ 1)
                   ∗ (▿ γκl γκw) ∗ (▿ γκw γκu) ∗ (▿ γr 0) ∗ (▿ γκu 0))
     )%S. *)
   Definition clientSpinlock2_inv n (γl : nat) (κw γκw κu γκu : nat) (γr : nat) : sProp n :=
@@ -169,7 +169,7 @@ Section SIM.
         ∨
         ((D ↦ 1)
           ∗ (▿ γκw tt)
-          ∗ (○ γl (γκu, κu) ∨ ▿ γr tt))
+          ∗ (○G γl (γκu, κu) ∨ ▿ γr tt))
       )%S.
 
   (* Obligation dependencies: (κl at >= (2 + ℓL) + c) → (κw at 2) → (κu at 2 (=ℓl)) → (κs at >= 3) *)
@@ -214,7 +214,7 @@ Section SIM.
     iApply (wpsim_yieldR2 with "[DUTY PCS]"). auto. 2: { iFrame. done. } auto.
     iIntros "DUTY _ PCS". simpl. rred2r. iApply wpsim_tauR. rred2r.
 
-    iMod (pcs_decr _ _ 1 3 4 with "PCS") as "[PCS'' PCS]". auto.
+    iMod (pcs_decr 1 3 with "PCS") as "[PCS'' PCS]". auto.
     iApply (Spinlock_lock_spec with "[] [PCs' DUTY PCS' PCS''] [-]").
     { pose proof md_Spinlock_state_tgt. set_solver. }
     { instantiate (1:=1). auto. }
@@ -226,7 +226,7 @@ Section SIM.
     iDestruct "POST" as (κu') "POST". iEval (red_tl_all; simpl) in "POST".
     iDestruct "POST" as "(LW & _ & DUTY & PC)". rred2r.
 
-    iMod (pcs_decr _ _ 1 2 3 with "PCS") as "[PCS' PCS]". auto.
+    iMod (pcs_decr 1 2 with "PCS") as "[PCS' PCS]". auto.
     iApply (wpsim_yieldR with "[DUTY PCS' PC]"). auto.
     { iFrame. iApply (pcs_cons_fold with "[PCS' PC]"). iFrame. }
     iIntros "DUTY _". rred2r.
@@ -372,7 +372,7 @@ Section SIM.
         iIntros "DUTY _ PCS". simpl. rred2r.
         iApply wpsim_tauR. rred2r.
 
-        iMod (pcs_decr _ _ 1 with "PCS") as "[PCS' PCS]". left.
+        iMod (pcs_decr 1 with "PCS") as "[PCS' PCS]". left.
         iApply (Spinlock_unlock_spec with "[DUTY LW PCS']").
         { pose proof md_Spinlock_state_tgt. set_solver. }
         { iEval (red_tl_all; rewrite red_syn_tgt_interp_as; simpl). iFrame. simpl. iFrame. iSplit; auto. }
@@ -422,7 +422,7 @@ Section SIM.
       iIntros "DUTY _ PCS". simpl. rred2r.
       iApply wpsim_tauR. rred2r.
 
-      iMod (pcs_decr _ _ 1 with "PCS") as "[PCS' PCS]". left.
+      iMod (pcs_decr 1 with "PCS") as "[PCS' PCS]". left.
       iApply (Spinlock_unlock_spec with "[DUTY LW PCS']").
       { pose proof md_Spinlock_state_tgt. set_solver. }
       { iEval (red_tl_all; rewrite red_syn_tgt_interp_as; simpl). iFrame. simpl. iFrame. iSplit; auto. }
@@ -439,11 +439,11 @@ Section SIM.
   Variable tid1 tid2 : thread_id.
   Let init_ord := Ord.O.
   Let init_ths :=
-        (NatStructs.NatMap.add
+        (NatStructsLarge.NatMap.add
            tid1 tt
-           (NatStructs.NatMap.add
+           (NatStructsLarge.NatMap.add
               tid2 tt
-              (NatStructs.NatMap.empty unit))).
+              (NatStructsLarge.NatMap.empty unit))).
 
   Let idx := 1.
 
@@ -484,16 +484,16 @@ Section SIM.
     unfold WSim.initial_prop.
     iDestruct "INIT" as "(INIT0 & INIT1 & INIT2 & INIT3 & INIT4 & INIT5)".
     (* make thread_own, duty *)
-    assert (NatStructs.NatMap.find tid1 init_ths = Some tt).
-    { unfold init_ths. apply NatStructs.nm_find_add_eq. }
+    assert (NatStructsLarge.NatMap.find tid1 init_ths = Some tt).
+    { unfold init_ths. apply NatStructsLarge.nm_find_add_eq. }
     iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU1 INIT2]".
     iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH1 INIT3]".
     clear H.
-    assert (NatStructs.NatMap.find tid2 (NatStructs.NatMap.remove tid1 init_ths) = Some tt).
+    assert (NatStructsLarge.NatMap.find tid2 (NatStructsLarge.NatMap.remove tid1 init_ths) = Some tt).
     { unfold init_ths.
-      rewrite NatStructs.NatMapP.F.remove_neq_o; ss.
-      rewrite NatStructs.nm_find_add_neq; ss.
-      rewrite NatStructs.nm_find_add_eq. ss.
+      rewrite NatStructsLarge.NatMapP.F.remove_neq_o; ss.
+      rewrite NatStructsLarge.nm_find_add_neq; ss.
+      rewrite NatStructsLarge.nm_find_add_eq. ss.
     }
     iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT2") as "[DU2 INIT2]".
     iPoseProof (natmap_prop_remove_find _ _ _ H with "INIT3") as "[TH2 INIT3]".

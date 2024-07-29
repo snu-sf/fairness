@@ -2,7 +2,7 @@ From iris.algebra Require Import cmra excl_auth auth.
 From stdpp Require Export coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import Axioms.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From Fairness Require Export ISim SimDefaultRA LiveObligations SimWeakest.
 From Fairness Require Export LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
@@ -93,7 +93,7 @@ Section BIGOP.
   Lemma red_syn_big_sepM n K {H1 : EqDecision K} {H2 : Countable K} A I f :
     interp n (@syn_big_sepM n K _ _ A I f) = ([∗ map] i ↦ a ∈ I, interp n (f i a))%I.
   Proof.
-    ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
+    ss. rewrite big_op.big_opM_unseal. unfold big_op.big_opM_def.
     unfold syn_big_sepM. simpl. remember (map_to_list I) as L.
     clear HeqL I. induction L.
     { ss. }
@@ -329,7 +329,7 @@ Section ATOMINTERP.
     | syn_wsat_auth x => wsat_auth x
     (** Atoms for state invariants of wpsim. *)
     | ob_ths ths =>
-        OwnM (● (NatMapRA.to_Map ths: (NatMapRA.t unit)): ThreadRA)
+        OwnM (● (NatMapRALarge.to_Map ths: (NatMapRALarge.t unit)): ThreadRA)
     | ow_ths tid =>
         own_thread tid
     | ob_st_src st_src =>
@@ -469,7 +469,7 @@ Section RED.
   Proof. apply red_sem_persistently. Qed.
 
   Lemma red_tl_plainly n p :
-    ⟦(■ p)%S, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
+    ⟦(■ p)%S, n⟧ = (■ ⟦p, n⟧)%I.
   Proof. apply red_sem_plainly. Qed.
 
   Lemma red_tl_upd n (p : sProp n) :

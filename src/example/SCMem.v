@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From stdpp Require Import decidable.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructs Mod pind.
+From Fairness Require Export ITreeLib WFLibLarge FairBeh Mod pind.
 
 Set Implicit Arguments.
 
@@ -364,7 +364,7 @@ Coercion SCMem.val_ptr : SCMem.pointer >-> SCMem.val.
 (** RA for SCMem. *)
 
 From iris.algebra Require Import cmra updates lib.gmap_view.
-From Fairness Require Import PCM IProp IPM IPropAux MonotoneRA Axioms.
+From Fairness Require Import PCM IPM IPropAux MonotoneRA Axioms.
 
 Section MEMRA.
   Context `{heap_name : nat}.
@@ -376,8 +376,9 @@ Section MEMRA.
   Definition memory_resource_black (m: SCMem.t): memRA :=
     fun blk ofs =>
       match m.(SCMem.contents) blk ofs with
-      | Some v => (gmap_view_auth (DfracOwn 1) {[ () := (v : leibnizO _)]})
-      | None => ((gmap_view_auth (DfracOwn 1) {[ () := (0 : SCMem.val) : leibnizO _]}) ⋅ (gmap_view_frag () (DfracOwn 1) ((0 : SCMem.val) : leibnizO _)))
+      | Some v => gmap_view_auth (DfracOwn 1) {[ () := (v : leibnizO _)]}
+      | None => gmap_view_auth (DfracOwn 1) {[ () := (0 : SCMem.val) : leibnizO _]} ⋅
+                gmap_view_frag () (DfracOwn 1) ((0 : SCMem.val) : leibnizO _)
       end.
 
   Definition points_to_white (blk ofs: nat) (v: SCMem.val) (dq : dfrac) : memRA :=
@@ -415,8 +416,7 @@ Section MEMRA.
   Proof.
     revert blk ofs blk' ofs'. induction vs; ss; i.
     { des_ifs; destruct (ofs' - ofs); ss. }
-    setoid_rewrite discrete_fun_lookup_op.
-    rewrite IHvs. unfold points_to_white.
+    rewrite !discrete_fun_lookup_op IHvs /points_to_white.
     destruct (PeanoNat.Nat.eq_dec blk' blk); ss.
     2:{ r_solve. }
     subst. destruct (PeanoNat.Nat.eq_dec ofs' ofs).
@@ -633,12 +633,12 @@ Section MEMRA.
       des_ifs. ss. des_ifs. eapply IHl in SOME; eauto.
     }
     unfold SCMem.init_gvars.
-    iStopProof. change 0 with (SCMem.next_block SCMem.empty).
-    generalize (SCMem.empty). induction l; i; ss.
-    { iIntros "_". iPureIntro. auto. }
-    des_ifs. ss. inv Heq. iIntros "[POINT OWN]".
+    replace 0 with (SCMem.next_block SCMem.empty); [|done].
+    move: SCMem.empty => t.
+    iInduction (l) as [|i l] "IHl" forall (t); ss.
+    des_ifs. ss. inv Heq. iDestruct "WHITE" as "[POINT OWN]".
     change (S (SCMem.next_block t)) with (SCMem.next_block (fst (SCMem.alloc t a))).
-    iPoseProof (IHl with "OWN") as "OWN". rewrite Heq0. ss. iFrame.
+    iPoseProof ("IHl" with "OWN") as "OWN". rewrite Heq0. ss. iFrame.
     iPoseProof (points_tos_to_resource with "POINT") as "POINT".
     replace (SCMem.next_block t0) with (SCMem.next_block t + length l); auto.
     eapply initialize_next_block in Heq0. lia.
@@ -894,32 +894,34 @@ Section MEMRA.
 
   Global Instance points_to_discarded_persistent l v : Persistent (points_to l v DfracDiscarded).
   Proof.
-    unfold points_to,points_to_white. des_ifs; try apply _.
-    unfold Persistent. iIntros "H".
-    iDestruct (own_persistent with "H") as "H".
-    assert ((core ((λ blk' ofs' : nat, _) : memRA)) ≡ λ blk' ofs' : nat,
-                  if PeanoNat.Nat.eq_dec blk' n
-                  then
-                  if PeanoNat.Nat.eq_dec ofs' n0
-                  then gmap_view_frag () DfracDiscarded (v : leibnizO SCMem.val)
-                  else ε
-                  else ε) as ->; [|done].
+    rewrite /points_to /points_to_white. des_ifs; try apply _.
+    rewrite /Persistent. iIntros "H".
+    iDestruct (own_persistent with "H") as "#HP".
+    iModIntro. iApply (OwnM_proper with "HP").
     intros blk' ofs'. rewrite !discrete_fun_lookup_core.
-    des_ifs.
-    all: apply core_id_core,_.
+    des_ifs; rewrite core_id_core //.
   Qed.
   Global Instance points_tos_discarded_persistent l vs : Persistent (points_tos l vs DfracDiscarded).
   Proof. revert l. induction vs; apply _. Qed.
 
-  Lemma points_to_persist l v :
-    (points_to l v (DfracOwn 1)) ==∗ (points_to l v DfracDiscarded).
+  Lemma points_to_persist l dq v :
+    points_to l v dq ==∗ points_to l v DfracDiscarded.
   Proof.
     unfold points_to,points_to_white. des_ifs.
     { by iIntros (?). }
-    apply Own_Upd,GRA.embed_updatable.
-    apply pointwise_updatable=>blk'. apply pointwise_updatabable=>ofs'.
+    apply OwnM_Upd,pointwise_updatable=>blk'. apply pointwise_updatabable=>ofs'.
     des_ifs.
     apply gmap_view_frag_persist.
+  Qed.
+  Lemma points_tos_persist l dq vs :
+    points_tos l vs dq ==∗ points_tos l vs DfracDiscarded.
+  Proof.
+    revert l. induction vs as [|v vs IH]; i; ss.
+    { by iIntros (?). }
+    iIntros "(l↦ & l↦s)".
+    iMod (points_to_persist with "l↦") as "$".
+    iMod (IH with "l↦s") as "$".
+    done.
   Qed.
 End MEMRA.
 

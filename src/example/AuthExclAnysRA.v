@@ -1,6 +1,6 @@
 From iris.algebra Require Import cmra updates lib.excl_auth.
 From sflib Require Import sflib.
-From Fairness Require Import Any PCM IProp IPM IPropAux.
+From Fairness Require Import Any PCM IPM IPropAux.
 From Fairness Require Import TemporalLogic AuthExclsRA.
 
 
@@ -18,9 +18,9 @@ Section AEAPROP.
   Definition AuExAnyW_ra (r : nat) {T : Type} (t : T) : AuthExclAnysRA :=
     AuthExcls.white_ra r (t ↑ :Any.t).
   Definition AuExAnyB (r : nat) {T : Type} (t : T) : iProp :=
-    ● r (t ↑ :Any.t).
+    ●G r (t ↑ :Any.t).
   Definition AuExAnyW (r : nat) {T : Type} (t : T) : iProp :=
-    ○ r (t ↑ :Any.t).
+    ○G r (t ↑ :Any.t).
 
   Definition AuExAny_ra {D : nat -> Prop} (DEC : forall a, Decision (D a)) : AuthExclAnysRA :=
     AuthExcls.rest_ra DEC (tt ↑ : Any.t).
@@ -133,7 +133,7 @@ Ltac red_tl_auexa_s := (try setoid_rewrite red_s_AuExAnyB;
                                  try setoid_rewrite red_s_AuExAny
                                 ).
 
-Notation "'●' γ t" := (AuExAnyB γ t) (at level 90, γ, t at level 1) : bi_scope.
-Notation "'●' γ t" := (s_AuExAnyB γ t) (at level 90, γ, t at level 1) : sProp_scope.
-Notation "'○' γ t" := (AuExAnyW γ t) (at level 90, γ, t at level 1) : bi_scope.
-Notation "'○' γ t" := (s_AuExAnyW γ t) (at level 90, γ, t at level 1) : sProp_scope.
+Notation "'●AG' γ t" := (AuExAnyB γ t) (at level 90, γ, t at level 1) : bi_scope.
+Notation "'●AG' γ t" := (s_AuExAnyB γ t) (at level 90, γ, t at level 1) : sProp_scope.
+Notation "'○AG' γ t" := (AuExAnyW γ t) (at level 90, γ, t at level 1) : bi_scope.
+Notation "'○AG' γ t" := (s_AuExAnyW γ t) (at level 90, γ, t at level 1) : sProp_scope.

@@ -1,223 +1,52 @@
 From sflib Require Import sflib.
-From Fairness Require Import PCM ITreeLib IProp.
-
-Set Implicit Arguments.
-
-From iris.bi Require Import derived_connectives derived_laws updates.
-From iris.prelude Require Import options.
+From Fairness.base_logic Require Import bi derived.
 From iris.proofmode Require Export tactics.
-From iris.algebra Require Import cmra updates proofmode_classes.
+From iris.algebra Require Import proofmode_classes.
+
+From Fairness Require Import PCM.
+
+From iris.prelude Require Import options.
+
 Arguments Z.of_nat: simpl nomatch.
 
-Require Import Program.
-
-Section IPM.
-  Context {Σ: GRA.t}.
-
-  (* Trivial Ofe Structure *)
-  Inductive uPred_equiv' (P Q : (@iProp' Σ)) : Prop :=
-    { uPred_in_equiv : ∀ x, ✓ x -> P x <-> Q x }.
-
-  Local Instance uPred_equiv : Equiv iProp' := uPred_equiv'.
-  Definition uPred_dist' (n : nat) (P Q : iProp') : Prop := uPred_equiv' P Q.
-  Local Instance uPred_dist : Dist iProp' := uPred_dist'.
-  Definition uPred_ofe_mixin : OfeMixin iProp'.
-  Proof.
-    split.
-    - intros P Q; split.
-      + ii. ss.
-      + ii. specialize (H 0). ss.
-    - i. split.
-      + ii. ss.
-      + ii. econs. i. symmetry. apply H. auto.
-      + ii. econs. i. transitivity (y x0); [apply H|apply H0]; ss.
-    - i. ss.
-  Qed.
-  Canonical Structure uPredO : ofe := Ofe iProp' uPred_ofe_mixin.
-
-  Program Definition uPred_compl : Compl uPredO := λ c, iProp_intro (fun x => forall n, c n x) _.
-  Next Obligation.
-    i. ss. i. eapply iProp_mono; eauto.
-  Qed.
-
-  Global Program Instance uPred_cofe : Cofe uPredO := {| compl := uPred_compl |}.
-  Next Obligation.
-    econs. i. split.
-    - ii. exploit H0; eauto.
-    - ii. destruct (le_ge_dec n n0).
-      + apply c in l. apply l in H0; eauto.
-      + apply c in g. apply g in H0; eauto.
-  Qed.
-
-  Lemma iProp_bi_mixin:
-    BiMixin
-      Entails Emp Pure And Or Impl
-      (@Univ _) (@Ex _) Sepconj Wand
-      Persistently.
-  Proof.
-    econs.
-    - exact PreOrder_Entails.
-    - econs.
-      { uipropall. ii. split; ii; eapply H; eauto. }
-      { uipropall. i. econs. i. des. split; i.
-        { eapply H; eauto. }
-        { eapply H1; eauto. }
-      }
-    - econs. i. split.
-      { uipropall. ii. eapply H. ss. }
-      { uipropall. ii. eapply H. ss. }
-    - econs. i. split.
-      { uipropall. ii. inv H2. split.
-        { eapply H; eauto. }
-        { eapply H0; eauto. }
-      }
-      { uipropall. ii. inv H2. split.
-        { eapply H; eauto. }
-        { eapply H0; eauto. }
-      }
-    - econs. i. split.
-      { uipropall. ii. inv H2.
-        { left. eapply H; eauto. }
-        { right. eapply H0; eauto. }
-      }
-      { uipropall. ii. inv H2.
-        { left. eapply H; eauto. }
-        { right. eapply H0; eauto. }
-      }
-    - econs. i. split.
-      { uipropall. ii. eapply H0; eauto. eapply H2; eauto. eapply H; eauto. }
-      { uipropall. ii. eapply H0; eauto. eapply H2; eauto. eapply H; eauto. }
-    - econs. i. split.
-      { uipropall. ii. exploit H; eauto. i. eapply x3; eauto. }
-      { uipropall. ii. exploit H; eauto. i. eapply x3; eauto. }
-    - econs. i. split.
-      { uipropall. ii. inv H1. exploit H; eauto. i. eexists. eapply x3; eauto. }
-      { uipropall. ii. inv H1. exploit H; eauto. i. eexists. eapply x3; eauto. }
-    - econs. i. split.
-      { uipropall. ii. inv H2. des. subst. eexists. esplits; eauto.
-        { eapply H; eauto. eapply cmra_valid_op_l. rewrite H3 in H1. eauto. }
-        { eapply H0; eauto. eapply cmra_valid_op_r. rewrite H3 in H1. eauto. }
-      }
-      { uipropall. ii. inv H2. des. subst. eexists. esplits; eauto.
-        { eapply H; eauto. eapply cmra_valid_op_l. rewrite H3 in H1. eauto. }
-        { eapply H0; eauto. eapply cmra_valid_op_r. rewrite H3 in H1. eauto. }
-      }
-    - econs. uipropall. i. split.
-      { ii. exploit H2; eauto.
-        { eapply H; eauto. eapply cmra_valid_op_r. eauto. }
-        { i. eapply H0; eauto. }
-      }
-      { ii. exploit H2; eauto.
-        { eapply H; eauto. eapply cmra_valid_op_r. eauto. }
-        { i. eapply H0; eauto. }
-      }
-    - ii. econs. uipropall. i. split.
-      { ii. eapply H; ss. apply cmra_core_valid. auto. }
-      { ii. eapply H; ss. apply cmra_core_valid. auto. }
-    - exact Pure_intro.
-    - exact Pure_elim.
-    - exact And_elim_l.
-    - exact And_elim_r.
-    - exact And_intro.
-    - exact Or_intro_l.
-    - exact Or_intro_r.
-    - exact Or_elim.
-    - exact Impl_intro_r.
-    - exact Impl_elim_l.
-    - exact Univ_intro.
-    - exact Univ_elim.
-    - exact Ex_intro.
-    - exact Ex_elim.
-    - exact Sepconj_mono.
-    - exact Emp_Sepconj_l.
-    - exact Emp_Sepconj_r.
-    - exact Sepconj_comm.
-    - exact Sepconj_assoc.
-    - exact Wand_intro_r.
-    - exact Wand_elim_l.
-    - exact Persistently_mono.
-    - exact Persistently_idem.
-    - exact Persistently_emp.
-    - exact Persistently_and.
-    - exact Persistently_ex.
-    - exact Persistently_sep.
-    - exact Persistently_sep_and.
-  Qed.
-
-  Lemma iProp_bi_later_mixin:
-    BiLaterMixin
-      Entails Pure Or Impl
-      (@Univ _) (@Ex _) Sepconj Persistently Later.
-  Proof.
-    eapply bi.interface.bi_later_mixin_id.
-    { intros []. uipropall. }
-    apply iProp_bi_mixin.
-  Qed.
-
-  Canonical Structure iProp: bi :=
-    {| bi_bi_mixin := iProp_bi_mixin;
-       bi_bi_later_mixin := iProp_bi_later_mixin |}.
-
-  Definition OwnM (M: ucmra) `{@GRA.inG M Σ} (r: M): iProp := Own (GRA.embed r).
-
+Section uPredI.
   (** extra BI instances *)
-  Lemma iProp_bupd_mixin: BiBUpdMixin iProp Upd.
-  Proof.
-    econs.
-    - ii. econs. unfold bupd. uipropall. i. split.
-      { ii. exploit H1; eauto. i. des. esplits; eauto.
-        eapply H; eauto. eapply cmra_valid_op_l. eauto. }
-      { ii. exploit H1; eauto. i. des. esplits; eauto.
-        eapply H; eauto. eapply cmra_valid_op_l. eauto. }
-    - exact Upd_intro.
-    - exact Upd_mono.
-    - exact Upd_trans.
-    - exact Upd_frame_r.
-  Qed.
-  Global Instance iProp_bi_bupd: BiBUpd iProp := {| bi_bupd_mixin := iProp_bupd_mixin |}.
 
-  Global Instance iProp_absorbing (P: iProp): Absorbing P.
+  Global Instance uPredI_absorbing {M : ucmra} (P: uPredI M): Absorbing P.
+  Proof. apply _. Qed.
+
+  Global Instance uPredI_affine {M : ucmra} (P: uPredI M): Affine P.
+  Proof. apply _. Qed.
+
+  Global Instance uPredI_except_0 {M : ucmra} (P: uPredI M): IsExcept0 P.
   Proof.
-    rr. uipropall. i. rr in H. uipropall. des. eapply iProp_mono; eauto.
-    eapply iProp_mono; [done| |exact H1].
-    exists a. rewrite H. by rewrite (comm op).
+    rewrite /IsExcept0 /bi_except_0. uPred.unseal.
+    split=> x WFn. intros [|]; done.
   Qed.
 
-  Global Instance iProp_affine (P: iProp): Affine P.
-  Proof.
-    rr. uipropall. i. rr. uipropall.
-  Qed.
+End uPredI.
+(* uPredI_affine is added so that IPM can also resolve pure predicates with evars. *)
+Global Hint Immediate uPredI_affine : core.
 
-  Global Instance iProp_timeless (P: iProp): Timeless P.
-  Proof.
-    rr. uipropall. i. rr. uipropall. rr in H. uipropall. by right.
-  Qed.
+Section iProp.
+Context `{Σ: GRA.t}.
+Definition iProp := uPredI Σ.
 
-  Global Instance iProp_is_excpet_0 (P: iProp): IsExcept0 P.
-  Proof.
-    rr. uipropall. i. rr. uipropall. rr in H. uipropall. des; [|done].
-    rr in H. uipropall. rr in H. uipropall.
-  Qed.
+Local Definition Own_def (a: Σ) : iProp := uPred_ownM a.
+Local Definition Own_aux : seal (@Own_def). Proof. by eexists. Qed.
+Definition Own := Own_aux.(unseal).
+Definition Own_eq : @Own = @Own_def := Own_aux.(seal_eq).
 
-  Global Instance iProp_pure_forall: BiPureForall iProp.
-  Proof.
-    ii. rr. uipropall. i. rr. rr in H. uipropall.
-    i. specialize (H a). rr in H. uipropall.
-  Qed.
+Definition OwnM {M : ucmra} `{!GRA.inG M Σ} (a : M) : iProp := Own (GRA.embed a).
 
-  Global Instance iProp_bi_affine : BiAffine (iProp) | 0.
-  Proof. exact iProp_affine. Qed.
+Global Instance iProp_bi_bupd : BiBUpd iProp := {| bi_bupd_mixin := uPred_bupd_mixin Σ |}.
 
-  Global Instance iProp_bi_persistently_forall : BiPersistentlyForall iProp.
-  Proof.
-    ii. rr. uipropall. i. rr. rr in H. uipropall.
-    i. rr. uipropall. i. specialize (H x). rr in H. uipropall.
-  Qed.
+Definition from_upred (P : uPred Σ) : iProp := P.
+Definition to_upred (P : iProp) : uPred Σ := P.
 
-End IPM.
+End iProp.
 Global Arguments iProp : clear implicits.
 
-Global Hint Immediate iProp_bi_affine : core.
 Arguments OwnM: simpl never.
 
 Section TEST.
@@ -226,7 +55,7 @@ Section TEST.
 
   Goal forall (P Q R: iProp) (PQ: P -∗ Q) (QR: Q -∗ R), P -∗ R.
   Proof.
-    i. iStartProof. iIntros "H".
+    iIntros (P Q R PQ QR) "H".
     iApply QR. iApply PQ. iApply "H".
   Qed.
 
@@ -237,7 +66,7 @@ Section TEST.
   Qed.
 End TEST.
 
-Notation "#=> P" := ((@bupd (bi_car (iProp _)) (@bi_bupd_bupd (iProp _) iProp_bi_bupd)) P) (at level 99).
+Notation "#=> P" := (|==> P)%I (at level 99).
 
 Section IUPD.
   Context {Σ: GRA.t}.
@@ -300,29 +129,22 @@ Section class_instances.
 
   Global Instance Own_proper :
     Proper ((≡) ==> (⊣⊢)) (@Own Σ).
-  Proof.
-    intros x y EQ. uipropall. split. ss. by setoid_rewrite EQ.
-  Qed.
+  Proof. intros x y EQ. by rewrite Own_eq EQ. Qed.
 
   Lemma Own_op (a1 a2: Σ) :
     (Own (a1 ⋅ a2)) ⊣⊢ (Own a1 ∗ Own a2).
-  Proof.
-    uipropall. split. simpl. intros x WFx. split.
-    - intros [z ?]; exists (a1), (a2 ⋅ z).
-      split; [by rewrite (assoc op)|].
-      split.
-      + by exists ε; rewrite right_id.
-      + by exists z.
-    - intros (y1&y2&Hx&[z1 Hy1]&[z2 Hy2]); exists (z1 ⋅ z2).
-      by rewrite (assoc op _ z1) -(comm op z1) (assoc op z1)
-          -(assoc op _ a2) (comm op z1) -Hy1 -Hy2.
-  Qed.
+  Proof. by rewrite Own_eq /Own_def uPred.ownM_op. Qed.
 
+  (* NOTE: We have this instance as [iDestruct (uPred.ownM_valid with "H")] doesn't work for some reason.   *)
+  Local Lemma Own_valid' (a : Σ) :
+    Own a -∗ ✓ a.
+  Proof. rewrite Own_eq /Own_def. apply uPred.ownM_valid. Qed.
   Lemma Own_valid (a : Σ) :
-    Own a -∗ ⌜✓a⌝.
+    Own a -∗ ⌜✓ a⌝.
   Proof.
-    rr. uipropall. i. red. rr. uipropall.
-    by eapply cmra_valid_included; [exact WF|].
+    iIntros "H".
+    iDestruct (Own_valid' with "H") as "V".
+    iEval (rewrite uPred.discrete_valid) in "V". iFrame "V".
   Qed.
 
   Global Instance from_sep_own (a b1 b2 : Σ) :
@@ -366,7 +188,7 @@ Section ILEMMAS.
   Context `{Σ: GRA.t}.
   Notation iProp := (iProp Σ).
 
-  Lemma from_semantic (a: Σ) (P: iProp') (SAT: P a)
+  (* Lemma from_semantic (a: Σ) (P: iProp') (SAT: P a)
     :
       Own a ⊢ #=> P.
   Proof.
@@ -377,7 +199,7 @@ Section ILEMMAS.
   Lemma to_semantic (a: Σ) (P: iProp') (SAT: Own a ⊢ P) (WF: ✓ a)
     :
       P a.
-  Proof. uipropall. eapply SAT; eauto. Qed.
+  Proof. uipropall. eapply SAT; eauto. Qed. *)
 
   Lemma OwnM_valid (M: ucmra) `{@GRA.inG M Σ} (m: M):
     OwnM m -∗ ⌜✓ m⌝.
@@ -386,16 +208,22 @@ Section ILEMMAS.
     iPureIntro. eapply GRA.embed_wf. done.
   Qed.
 
-  Lemma Upd_Pure P
+  (* Lemma Upd_Pure P
     :
       #=> (⌜P⌝ : iProp) ⊢ ⌜P⌝.
-  Proof.
+  Proof. iIntros. iModIntro.
     rr. uipropall. i. rr. uipropall.
     hexploit (H ε).
     { by rewrite right_id. }
     i. des. rr in H1. uipropall.
-  Qed.
+  Qed. *)
 
+  Local Lemma bupd_Own_updateP
+        (x: Σ) Φ
+        (UPD: x ~~>: Φ)
+    :
+     Own x -∗ #=> (∃ y : Σ, ⌜Φ y⌝ ∧ Own y).
+  Proof. rewrite Own_eq /Own_def. apply uPred.bupd_ownM_updateP; [apply _|done]. Qed.
   Lemma Own_Upd_set
         (r1: Σ) B
         (UPD: r1 ~~>: B)
@@ -403,14 +231,9 @@ Section ILEMMAS.
       (Own r1) ⊢ (#=> (∃ b, ⌜B b⌝ ∗ (Own b)))
   .
   Proof.
-    cut (Entails (Own r1) (Upd (Ex (fun b => Sepconj (Pure (B b)) (Own b))))); ss.
-    uipropall. i. red in H. des. rewrite H in H0.
-    exploit (UPD 0 (Some (z ⋅ ctx))).
-    { simpl. apply cmra_valid_validN. rewrite (assoc op). done. }
-    i. des. exists (y ⋅ z). split.
-    { apply cmra_discrete_valid in x1.  rewrite -(assoc op). eauto. }
-    { exists y. uipropall. esplits; [|auto|reflexivity].
-      eapply (comm op). }
+    iIntros "H".
+    iMod (bupd_Own_updateP _ _ UPD with "H") as (y) "[%Hy H]".
+    iModIntro. iExists y. by iFrame.
   Qed.
 
   Lemma Own_Upd
@@ -422,10 +245,8 @@ Section ILEMMAS.
   Proof.
     iStartProof. iIntros "H".
     iAssert (#=> (∃ b, ⌜((eq r2) b)⌝ ∗ (Own b)))%I with "[H]" as "H".
-    { iApply Own_Upd_set; [|iFrame].
-      red. red in UPD. i. hexploit UPD; eauto. }
-    iMod "H". iDestruct "H" as (b) "[#H0 H1]".
-    iPure "H0" as Hs. subst. iApply "H1".
+    { iApply Own_Upd_set; [|iFrame]. by apply cmra_update_updateP. }
+    iMod "H". iDestruct "H" as (b) "[%H0 H1]". subst. by iFrame.
   Qed.
 
   Lemma Own_extends
@@ -434,27 +255,21 @@ Section ILEMMAS.
     :
       Own b ⊢ Own a
   .
-  Proof.
-    red. uipropall. ii. etrans; eauto.
-  Qed.
+  Proof. rewrite Own_eq /Own_def. apply uPred.ownM_mono. done. Qed.
 
   Lemma Own_persistently (r : Σ) : Own r ⊢ <pers> Own (core r).
-  Proof.
-    uipropall. i. rr; uipropall. apply cmra_core_mono. ss.
-  Qed.
+  Proof. rewrite Own_eq /Own_def. apply uPred.persistently_ownM_core. Qed.
 
   Lemma OwnM_persistently {M : ucmra} `{@GRA.inG M Σ} (r : M) : OwnM r ⊢ <pers> OwnM (core r).
-  Proof.
-    unfold OwnM. rewrite GRA.embed_core. apply Own_persistently.
-  Qed.
+  Proof. rewrite /OwnM GRA.embed_core. apply Own_persistently. Qed.
+
+  Lemma Own_unit : ⊢ Own (Σ:=Σ) ε.
+  Proof. rewrite Own_eq /Own_def /bi_emp_valid. apply (uPred.ownM_unit emp). Qed.
 
   Lemma OwnM_unit {M : ucmra} `{@GRA.inG M Σ} : ⊢ OwnM ε.
-  Proof.
-    rr; uipropall. i. rr; uipropall. rr. exists r.
-    rewrite GRA.embed_unit. rewrite left_id. ss.
-  Qed.
+  Proof. rewrite /OwnM GRA.embed_unit. apply Own_unit. Qed.
 
-  Lemma OwnM_Upd_set (M: ucmra) `{IN: @GRA.inG M Σ}
+  Lemma OwnM_Upd_set `{M: ucmra} `{IN: @GRA.inG M Σ}
         (r1: M) B
         (UPD: r1 ~~>: B)
     :
@@ -468,7 +283,7 @@ Section ILEMMAS.
     iModIntro. iExists m. iFrame. ss.
   Qed.
 
-  Lemma OwnM_Upd (M: ucmra) `{@GRA.inG M Σ}
+  Lemma OwnM_Upd `{M: ucmra} `{@GRA.inG M Σ}
         (r1 r2: M)
         (UPD: r1 ~~> r2)
     :
@@ -483,17 +298,17 @@ Section ILEMMAS.
     iPure "H0" as Hs. subst. iApply "H1".
   Qed.
 
-  Lemma OwnM_extends (M: ucmra) `{@GRA.inG M Σ}
-        (a b: M)
+  Lemma OwnM_extends `{M: ucmra} `{@GRA.inG M Σ}
+        {a b: M}
         (EXT: a ≼ b)
     :
       OwnM b ⊢ OwnM a
   .
   Proof.
-    red. unfold OwnM. uipropall. i. unfold included in *.
-    des. setoid_rewrite H0. setoid_rewrite EXT.
-    eexists. rewrite -GRA.embed_add.
-    rewrite -(assoc op). eauto.
+    rewrite /OwnM. apply Own_extends.
+    unfold included in *.
+    des. setoid_rewrite EXT.
+    eexists. by rewrite -GRA.embed_add.
   Qed.
 
   Lemma IUpd_unfold (I P : iProp)
@@ -579,16 +394,12 @@ Global Instance iupd_elim_upd `{Σ : GRA.t} (I P Q : iProp Σ) b
   :
   ElimModal True b false (#=> P) P (#=(I)=> Q) (#=(I)=> Q).
 Proof.
-  unfold ElimModal. i. iIntros "[H0 H1]".
+  rewrite /ElimModal bi.intuitionistically_if_elim.
+  i. iIntros "[H0 H1]".
   iPoseProof (Upd_IUpd with "H0") as "H0".
   iIntros "H". iPoseProof ("H0" with "H") as "> [H0 H2]".
-  destruct b; ss.
-  { iPoseProof ("H2") as "# > H2". iPoseProof ("H1" with "H2") as "H".
-    iApply ("H" with "H0").
-  }
-  { iPoseProof ("H2") as "> H2". iPoseProof ("H1" with "H2") as "H".
-    iApply ("H" with "H0").
-  }
+  iPoseProof ("H1" with "H2") as "H".
+  iApply ("H" with "H0").
 Qed.
 
 Global Instance subiprop_elim_upd `{Σ : GRA.t} (I J P Q : iProp Σ) b
@@ -621,8 +432,8 @@ Section AUX.
 
   Fixpoint sep_conjs (Ps : nat -> iProp) (n : nat) : iProp :=
     match n with
-    | O => emp%I
-    | S m => ((sep_conjs Ps m) ∗ (Ps m))%I
+    | O => True
+    | S m => (sep_conjs Ps m) ∗ (Ps m)
     end.
 
 End AUX.
