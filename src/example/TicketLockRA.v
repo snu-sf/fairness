@@ -112,13 +112,11 @@ Section Ticket.
     }
     iMod (AuthExcls.alloc_gen (gt_dec U) (gt_dec (S U)) with "BASE2") as "(BASE2 & B)".
     { ii; des_ifs. lia. }
-    iAssert (#=> OwnM (AuthExcls.black_ra U (κu, γs, b) ⋅ AuthExcls.white_ra U (κu, γs, b)))%I with "[B]" as "> B".
-    { unfold AuthExcls.black_ra, AuthExcls.white_ra. setoid_rewrite maps_to_res_add.
-      iApply (OwnM_Upd with "B"). unfold maps_to_res. apply pointwise_updatable. i.
+    iAssert (#=> OwnM (AuthExcls.black_ra U (κu, γs, b) ⋅ AuthExcls.white_ra U (κu, γs, b)))%I with "[B]" as "> [$ $]".
+    { rewrite /AuthExcls.black_ra /AuthExcls.white_ra maps_to_res_add /maps_to_res /=.
+      iApply (OwnM_Upd with "B"). apply pointwise_updatable => ?.
       des_ifs; try lia. apply excl_auth_update. }
-    iModIntro; iFrame. iSplitR "B".
-    { iExists (S U). iFrame. }
-    iDestruct "B" as "[B B']". iSplitL "B"; done.
+    iModIntro; iFrame. iExists (S U). iFrame.
   Qed.
 
   Lemma Ticket_alloc γt D new l
@@ -157,59 +155,45 @@ Section Ticket.
   Proof.
     iIntros "TB IS WA".
     unfold Ticket_black, Ticket_issued, Ticket_wait.
-    iCombine "TB" "IS" as "TB". iCombine "TB" "WA" as "TB".
-    assert ((Ticket_black_ra γt D ⋅ Ticket_issued_ra γt old l ⋅ Ticket_wait_ra γt old l) ~~>
-      (Ticket_black_ra γt (D ∖ {[old]}))).
-    { rewrite /Ticket_black_ra /Ticket_issued_ra /Ticket_wait_ra !maps_to_res_add.
-      apply maps_to_updatable,prod_update; simpl in *.
-      { rewrite <-(assoc cmra.op).
-        rewrite -auth_frag_op right_id.
-        apply auth_update_dealloc,gset_disj_dealloc_local_update.
-      }
-      unfold AuExAny_ra, AuExAnyW_ra, AuExAnyB_ra, maps_to_res. apply pointwise_updatable. i.
-      rewrite /AuthExcls.rest_ra /AuthExcls.white_ra /AuthExcls.black_ra /maps_to_res.
-      rewrite !discrete_fun_lookup_op. des_ifs.
-      { exfalso. clear -e0. set_solver. }
-      { rewrite left_id. apply excl_auth_update. }
-      { exfalso. clear -e n n0. set_solver. }
-      { exfalso. clear -e. set_solver. }
-      { clear.
-        (* TODO: this is a very ad-hoc proof. For general [AuthExcls.t] it will fail.
-         * In general, the construction is fragile.
-         * This construction should really use coPset.
-         *)
-        apply cmra_discrete_update.
-        intros. do 2 apply cmra_valid_op_l in H.
-        rewrite (comm cmra.op (●E _)) in H.
-        rewrite <- (assoc cmra.op) in H.
-        apply cmra_valid_op_r,excl_auth_agree in H.
-        fold_leibniz. apply Any.upcast_inj in H. simpl. des.
-        assert (exists (u0 u1 : list nat), u0 ≠ u1).
-        { exists [], [0]. ss. }
-        rewrite <- EQ in H. des. destruct u0, u1. ss.
-      }
-      { exfalso. clear -n e n0. set_solver. }
+    iCombine "TB IS WA" as "TB".
+    iMod (OwnM_Upd with "TB") as "$"; [|done].
+    rewrite (assoc cmra.op) /Ticket_black_ra /Ticket_issued_ra /Ticket_wait_ra !maps_to_res_add.
+    apply maps_to_updatable,prod_update; simpl in *.
+    { rewrite <-(assoc cmra.op).
+      rewrite -auth_frag_op right_id.
+      apply auth_update_dealloc,gset_disj_dealloc_local_update.
     }
-    iMod (OwnM_Upd with "TB") as "TB". apply H. done.
+    unfold AuExAny_ra, AuExAnyW_ra, AuExAnyB_ra, maps_to_res. apply pointwise_updatable. i.
+    rewrite /AuthExcls.rest_ra /AuthExcls.white_ra /AuthExcls.black_ra /maps_to_res.
+    rewrite !discrete_fun_lookup_op. des_ifs.
+    { exfalso. clear -e0. set_solver. }
+    { rewrite left_id. apply excl_auth_update. }
+    { exfalso. clear -e n n0. set_solver. }
+    { exfalso. clear -e. set_solver. }
+    { clear. apply cmra_discrete_update => ? WF.
+      setoid_rewrite <- (assoc cmra.op (●E _)) in WF.
+      by apply cmra_valid_op_l,cmra_valid_op_l,
+        cmra_valid_op_r,excl_auth_frag_op_valid in WF.
+    }
+    { exfalso. clear -n e n0. set_solver. }
   Qed.
 
   Lemma Ticket_issued_wait γt tk l l' :
     Ticket_issued γt tk l -∗ Ticket_wait γt tk l' -∗ ⌜l = l'⌝.
   Proof.
     iIntros "I W". unfold Ticket_issued, Ticket_wait, Ticket_issued_ra, Ticket_wait_ra.
-    iCombine "I" "W" as "IW". iPoseProof (OwnM_valid with "IW") as "%IW".
+    iCombine "I W" as "IW". iOwnWf "IW" as IW.
     rewrite maps_to_res_add /maps_to_res in IW.
     specialize (IW γt). simpl in *. des_ifs.
-    rewrite pair_valid in IW. des. simpl in *.
+    rewrite pair_valid /= in IW. des.
     specialize (IW0 tk).
     rewrite discrete_fun_lookup_op
       /AuExAnyW_ra /AuExAnyB_ra /maps_to_res
       /AuthExcls.white_ra /AuthExcls.black_ra
-      /maps_to_res //
+      /maps_to_res /=
     in IW0.
-    des_ifs.
-    apply excl_auth_agree in IW0. fold_leibniz.
-    apply Any.upcast_inj in IW0. des. apply JMeq.JMeq_eq in EQ0. inv EQ0. iPureIntro; auto.
+    des_ifs. apply excl_auth_agree_L, Any.upcast_inj in IW0.
+    des. apply JMeq.JMeq_eq in EQ0. inv EQ0. iPureIntro; auto.
   Qed.
 
 End Ticket.
