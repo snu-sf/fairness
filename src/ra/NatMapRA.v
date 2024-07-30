@@ -615,6 +615,29 @@ Section SUM.
     { rewrite nm_find_none_rm_add_eq; auto. }
   Qed.
 
+  Lemma natmap_prop_sum_impl_ctx A HCTX P0 P1 (m: NatMap.t A)
+        (IMPL: forall k a (IN: NatMap.find k m = Some a), HCTX ∗ P0 k a ⊢ P1 k a)
+    :
+    □ HCTX
+    -∗
+    (natmap_prop_sum m P0)
+      -∗
+      (natmap_prop_sum m P1).
+  Proof.
+    revert IMPL. pattern m. eapply nm_ind.
+    { iIntros. iApply natmap_prop_sum_empty. }
+    i. iIntros "#CTX MAP".
+    iPoseProof (natmap_prop_remove_find with "MAP") as "[H0 H1]".
+    { eapply nm_find_add_eq. }
+    iPoseProof (IMPL with "[CTX H0]") as "H0".
+    { rewrite nm_find_add_eq. auto. } iFrame. done.
+    iApply (natmap_prop_sum_add with "[H1] H0").
+    iApply IH.
+    { i. eapply IMPL. rewrite NatMapP.F.add_o; eauto. des_ifs. }
+    { iModIntro. done. }
+    { rewrite nm_find_none_rm_add_eq; auto. }
+  Qed.
+
   Lemma natmap_prop_sum_wand (A: Type) P0 P1 (m: NatMap.t A)
     :
     (natmap_prop_sum m P0)
