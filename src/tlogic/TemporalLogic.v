@@ -222,6 +222,10 @@ Module Atom.
     | obl_pcs (ps : list (nat * nat)) (m a : nat)
     | obl_pps (ps : list (nat * Qp))
     | obl_ccs (k : nat) (ps : list (nat * nat)) (l : nat)
+    (** Atoms for fairness logic *)
+    | fair_white_src {Id : Type} (p : Prism.t id_src_type Id) (i : Id) (o : Ord.t)
+    | fair_whites_src {Id : Type} (p : Prism.t id_src_type Id) (pred : Id -> Prop) (o : Ord.t)
+    | fair_blacks_tgt {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (pred : Id -> Prop)
     .
 
   End ATOM.
@@ -366,6 +370,10 @@ Section ATOMINTERP.
     | obl_pcs ps m a => progress_credits ps m a
     | obl_pps ps => progress_pendings ps
     | obl_ccs k ps l => collection_credits k ps l
+    (** Atoms for fairness logic *)
+    | fair_white_src p i o => FairRA.white p i o
+    | fair_whites_src p pred o => FairRA.whites p pred o
+    | fair_blacks_tgt p pred => FairRA.blacks p pred
     end.
 
   Global Instance TL_atom_interp : sAtomI.t := Atom_interp.
@@ -1076,6 +1084,10 @@ Notation "P =| x |={ E }=∗ Q" := (P -∗ =|x|={E}=> Q)%S (at level 90) : sProp
 (* State. *)
 Notation "'TID' ( tid )" :=
   (⟨Atom.ow_ths tid⟩)%S (at level 50, tid at level 1, format "TID ( tid )") : sProp_scope.
+Notation "'STSRC' { s }" :=
+  (⟨Atom.ow_st_src s⟩)%S (at level 50, s at level 1, format "STSRC { s }") : sProp_scope.
+Notation "'STTGT' { s }" :=
+  (⟨Atom.ow_st_tgt s⟩)%S (at level 50, s at level 1, format "STTGT { s }") : sProp_scope.
 
 (* Liveness logic. *)
 Notation "'◆' [ k , l ]" :=
