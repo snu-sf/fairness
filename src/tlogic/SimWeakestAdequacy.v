@@ -4,7 +4,7 @@ From Fairness Require Import ITreeLib ModSim ModSimPers Concurrency ModAdequacy 
 From Fairness Require Import PCM IProp IPM ISim SimDefaultRA SimWeakest.
 From Fairness Require Import FairBeh.
 Require Import Coq.Logic.PropExtensionality.
-From Fairness Require PCMLarge.
+From Fairness Require PCM.
 Require Import Program.
 
 Set Implicit Arguments.
@@ -277,7 +277,7 @@ Module WSim.
           (WF: URA.wf ((r_shared ⋅ r) ⋅ r_ctx))
       :
       (@lsim
-         (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
+         ((GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
          (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
          (liftI
             (fun (ths : TIdSet.t)
@@ -289,7 +289,7 @@ Module WSim.
          tid
          Any.t Any.t
          (@local_RR
-            (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
+            (GRA.to_URA Σ) (Mod.state md_src) (Mod.state md_tgt)
             (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
             (liftI
                (fun (ths : TIdSet.t)
@@ -375,12 +375,11 @@ Module WSim.
         { eauto. }
         2:{ rr. unseal "iProp". esplits; eauto. }
         { instantiate (1:=URA.unit).
-          rewrite PCMLarge.URA.unfold_wf.
-          rewrite PCMLarge.URA.unfold_add. ss.
+          rewrite URA.unfold_wf.
+          rewrite URA.unfold_add. ss.
           cut (URA.wf (((b1 ⋅ b) ⋅ ε) ⋅ r_ctx0)).
           { intros WFH. rewrite URA.unfold_wf in WFH.
-            rewrite URA.unfold_add in WFH.
-            rewrite URA.unfold_add. ss.
+            rewrite URA.unfold_add in WFH. ss.
           }
           eapply URA.wf_mon. instantiate (1:=a ⋅ b0). r_wf H4.
         }
@@ -398,7 +397,7 @@ Module WSim.
                          ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1 r)
       :
       @local_sim_init
-        (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
+        ((GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
         (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
         (liftI
            (fun (ths : TIdSet.t)
@@ -409,8 +408,8 @@ Module WSim.
                          (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I)) Any.t Any.t eq r tid th0 th1.
     Proof.
       ii. assert (WF: URA.wf ((r_shared ⋅ r) ⋅ r_ctx)).
-      { rewrite PCMLarge.URA.unfold_wf in VALID.
-        rewrite PCMLarge.URA.unfold_add in VALID.
+      { rewrite URA.unfold_wf in VALID.
+        rewrite URA.unfold_add in VALID.
         rewrite URA.unfold_wf.
         rewrite URA.unfold_add. auto.
       }
@@ -433,7 +432,7 @@ Module WSim.
                            ((own_thread tid ∗ ObligationRA.duty y inlp tid []) ∗ ⌜r_src = r_tgt⌝)%I) false false th0 th1))%I r_arg)
       :
       @local_sim_arg
-        (to_LURA (GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
+        ((GRA.to_URA Σ)) (Mod.state md_src) (Mod.state md_tgt)
         (Mod.ident md_src) (Mod.ident md_tgt) owf nat_wf
         (liftI
            (fun (ths : TIdSet.t)
@@ -444,8 +443,8 @@ Module WSim.
                          (wsat_auth x ∗ wsats x ∗ OwnE ⊤))%I)) Any.t Any.t eq th0 th1 r_arg.
     Proof.
       ii. assert (WF: URA.wf (r_shared0 ⋅ (r_ctx0 ⋅ r_arg))).
-      { rewrite PCMLarge.URA.unfold_wf in VALID.
-        rewrite PCMLarge.URA.unfold_add in VALID.
+      { rewrite URA.unfold_wf in VALID.
+        rewrite URA.unfold_add in VALID.
         rewrite URA.unfold_wf.
         rewrite ! URA.unfold_add. auto.
       }
@@ -483,8 +482,8 @@ Module WSim.
       rr in H1. unseal "iProp". des. subst.
       exists a, b. splits.
       { r. auto. }
-      { rewrite PCMLarge.URA.unfold_wf.
-        rewrite PCMLarge.URA.unfold_add. ss.
+      { rewrite URA.unfold_wf.
+        rewrite URA.unfold_add. ss.
         rewrite URA.unfold_wf in H0.
         rewrite ! URA.unfold_add in H0. eauto.
       }
@@ -493,8 +492,8 @@ Module WSim.
       { eauto. }
       { eapply INV0. }
       { eauto. }
-      { rewrite PCMLarge.URA.unfold_wf in VALID0.
-        rewrite PCMLarge.URA.unfold_add in VALID0. ss.
+      { rewrite URA.unfold_wf in VALID0.
+        rewrite URA.unfold_add in VALID0. ss.
         rewrite URA.unfold_wf.
         rewrite URA.unfold_add. auto.
       }
@@ -612,7 +611,7 @@ Module WSim.
           iModIntro. iExists _. iFrame. iFrame.
         }
         apply (@UserSim.mk
-                 md_src md_tgt (prog2ths md_src c) (prog2ths md_tgt c) owf nat_wf (inhabits 0) NUNBOUND (to_LURA Σ)).
+                 md_src md_tgt (prog2ths md_src c) (prog2ths md_tgt c) owf nat_wf (inhabits 0) NUNBOUND (Σ)).
         i. specialize (H im_tgt). des.
         rr in SAT. unseal "iProp". des. rename x into im_src.
         rr in SAT. unseal "iProp". des. subst.
@@ -644,12 +643,11 @@ Module WSim.
           i. ii. eapply wpsim_local_sim_init; eauto.
         }
         { cut (URA.wf ((a0 ⋅ b0) ⋅ (NatMap.fold (fun _ r s => r ⋅ s) rm URA.unit))).
-          { i. rewrite PCMLarge.URA.unfold_wf. s.
-            rewrite PCMLarge.URA.unfold_add. s.
-            change (@PCMLarge.URA.unit (to_LURA (GRA.to_URA Σ))) with (@URA.unit Σ).
+          { i. rewrite URA.unfold_wf. s.
+            rewrite URA.unfold_add. s.
+            change (@URA.unit ((GRA.to_URA Σ))) with (@URA.unit Σ).
             rewrite URA.unfold_wf in H.
-            rewrite URA.unfold_add in H.
-            rewrite URA.unfold_add. auto.
+            rewrite URA.unfold_add in H. auto.
           }
           eapply URA.wf_extends; [|eauto].
           rr in EXT. des. subst. exists ctx. r_solve.
@@ -796,7 +794,7 @@ Module WSim.
           iModIntro. iExists _. iFrame. iFrame.
         }
         apply (@ModSimPers.mk
-                 md_src md_tgt owf nat_wf (inhabits 0) NUNBOUND (to_LURA Σ)).
+                 md_src md_tgt owf nat_wf (inhabits 0) NUNBOUND (Σ)).
         i. specialize (H im_tgt). des.
         rr in SAT. unseal "iProp". des. rename x into im_src.
         rr in SAT. unseal "iProp". des.
@@ -806,7 +804,7 @@ Module WSim.
         exists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤))%I)).
         esplits.
         { ss. eauto. }
-        { rewrite PCMLarge.URA.unfold_wf. rewrite URA.unfold_wf in WF. auto. }
+        { rewrite URA.unfold_wf. rewrite URA.unfold_wf in WF. auto. }
         i. rr in SAT1. unseal "iProp". specialize (SAT1 fn).
         rr in SAT1. unseal "iProp". specialize (SAT1 args).
         des_ifs; ss.

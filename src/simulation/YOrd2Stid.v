@@ -6,7 +6,7 @@ Require Import Program.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
-From Fairness Require Import pind PCMLarge World WFLibLarge ThreadsURA.
+From Fairness Require Import pind PCM World WFLibLarge ThreadsURA.
 From Fairness Require Import Mod ModSimYOrd ModSimStid.
 
 Set Implicit Arguments.
@@ -864,7 +864,7 @@ Section USERSIM.
        (@NatMap.fold (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
           (forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
           (fun (_ : NatMap.key)
-             (f0 f1 : forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))) 
+             (f0 f1 : forall _ : nat, @Auth.car (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
              (k : nat) => @URA.add (Auth.t (Excl.t (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t))))) (f0 k) (f1 k))
           (@NatMap.mapi (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))
              (@URA.car (@thsRA (prod (T (wf_stt Any.t Any.t)) (T (wf_stt Any.t Any.t)))))
@@ -902,12 +902,12 @@ Section USERSIM.
         2:{ ii. r_solve. }
         2:{ ii. apply NatMapP.F.in_find_iff in H. clarify. }
         extensionality x. destruct (tid_dec x k) eqn:DEC.
-        - clarify. rewrite nm_find_add_eq. rewrite NatMap.fold_1. rewrite NatMapP.F.elements_o in NONE. 
+        - clarify. rewrite nm_find_add_eq. rewrite NatMap.fold_1. rewrite NatMapP.F.elements_o in NONE.
           remember (NatMap.elements ost) as l. ur. setoid_rewrite fold_left_pointwise_none; auto.
-          rewrite th_has_hit. repeat ur; ss. 
+          rewrite th_has_hit. repeat ur; ss.
         - rewrite nm_find_add_neq; auto. eapply equal_f in IHost. erewrite IHost. ur. rewrite th_has_miss; auto. r_solve.
       }
-      { replace 
+      { replace
           (NatMap.fold (fun _ : NatMap.key => URA._add)
                        (NatMap.mapi (fun (_ : NatMap.key) (rst : world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) => fst rst) rsost) ε)
           with (NatMap.fold (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) rsost ε); auto.

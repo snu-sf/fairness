@@ -1,9 +1,9 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import PCMFOS ITreeLib pind.
+From Fairness Require Import PCM ITreeLib pind.
 Require Import Program.
 From Fairness Require Import IPropFOS IPMFOS.
-From Fairness Require Import PCMFOS MonotonePCM NatMapRALargeFOS Mod FairBeh.
+From Fairness Require Import PCM MonotonePCM NatMapRALargeFOS Mod FairBeh.
 From Fairness Require Import Axioms.
 
 Set Implicit Arguments.
