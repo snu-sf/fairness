@@ -14,8 +14,6 @@ COQTHEORIES  := \
 	src/example/treiber/*.v \
 	src/example/elimstack/*.v \
 	src/example/fos_ticketlock/*.v \
-	src/fosexample/*.v \
-	src/foslogic/*.v \
 
 
 .PHONY: all theories clean
@@ -41,8 +39,6 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-Q pico $(COQMODULE)"; \
 	 echo "-Q src/iris_algebra $(COQMODULE)"; \
 	 echo "-Q src/iris_base_logic $(COQMODULE)"; \
-	 echo "-Q src/foslogic $(COQMODULE)"; \
-	 echo "-Q src/fosexample $(COQMODULE)"; \
    \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq
