@@ -888,6 +888,15 @@ Section MEMRA.
   Qed.
 
   Section SPROP.
+  
+    Definition s_wmemory_black {n} m : sProp n :=
+      (➢ (memory_resource_black m))%S.
+      
+    Lemma red_s_wmemory_black n m :
+      ⟦s_wmemory_black m, n⟧ = wmemory_black m.
+    Proof.
+      unfold s_wmemory_black, wmemory_black. red_tl. ss.
+    Qed.
 
     Definition s_wmemory_black_strong {n} m : sProp n :=
       (➢(memory_resource_black m)
@@ -908,6 +917,21 @@ Section MEMRA.
       ⟦s_points_to loc c, n⟧ = points_to loc c.
     Proof.
       unfold s_points_to, points_to. red_tl. ss.
+    Qed.
+
+    Definition s_wpoints_to {n} (loc: Loc.t) (v: Const.t) (vw : View.t): sProp n :=
+      (∃ (c: τ{Cell.t, n}),
+        (s_points_to loc c)
+        ∗ ⌜exists from released,
+            Cell.get (Cell.max_ts c) c = Some (from, Message.concrete v released)
+            /\ v <> Const.undef
+            /\ View.le (View.singleton_ur loc (Cell.max_ts c)) vw⌝)%S.
+
+    Lemma red_s_wpoints_to n loc v vw :
+      ⟦s_wpoints_to loc v vw, n⟧ = wpoints_to loc v vw.
+    Proof.
+      unfold s_wpoints_to, wpoints_to. red_tl. f_equal. ss.
+      extensionalities. red_tl. rewrite red_s_points_to. ss. 
     Qed.
 
     Definition s_wpoints_to_faa {n} (l: Loc.t) (v: Const.t) : sProp n :=
@@ -972,6 +996,10 @@ Ltac red_tl_memra_s := (try setoid_rewrite red_s_wmemory_black_strong;
 
 Notation "l ↦ c" := (points_to l c) (at level 90, c at level 1) : bi_scope.
 Notation "l ↦ c" := (s_points_to l c) (at level 90, c at level 1) : sProp_scope.
+Notation "'{' vw '}(' l '↦' v ')'" := (wpoints_to l v vw)
+  (at level 90, vw, l, v at level 1, format "{ vw }( l  ↦  v )") : bi_scope.
+Notation "'{' vw '}(' l '↦' v ')'" := (s_wpoints_to l v vw)
+  (at level 90, vw, l, v at level 1, format "{ vw }( l  ↦  v )") : sProp_scope.
 Notation "l '↦{faa}' c" := (wpoints_to_faa l c)
   (at level 90, c at level 1, format "l  ↦{faa}  c") : bi_scope.
 Notation "l '↦{faa}' c" := (s_wpoints_to_faa l c)

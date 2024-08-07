@@ -13,7 +13,7 @@ COQTHEORIES  := \
 	src/iris_base_logic/*.v \
 	src/example/treiber/*.v \
 	src/example/elimstack/*.v \
-	src/example/ticketlock/*.v \
+	src/example/fos_ticketlock/*.v \
 
 
 .PHONY: all theories clean
