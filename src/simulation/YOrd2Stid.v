@@ -1,4 +1,4 @@
-From iris.algebra Require Import cmra updates lib.excl_auth.
+From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 
@@ -7,8 +7,34 @@ Require Import Program.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
-From Fairness Require Import pind PCM World WFLibLarge ThreadsURA.
+(* FIXME: Importing PCM here brekas proofs. *)
+From Fairness Require Import pind World WFLibLarge ThreadsURA.
 From Fairness Require Import Mod ModSimYOrd ModSimStid.
+
+(* TODO: move this to a tactics folder *)
+Ltac r_first rs :=
+  match rs with
+  | (?rs0 ⋅ ?rs1) =>
+    let tmp0 := r_first rs0 in
+    constr:(tmp0)
+  | ?r => constr:(r)
+  end
+.
+
+Ltac r_solve :=
+  repeat rewrite (assoc cmra.op);
+  repeat (try rewrite right_id; try rewrite left_id);
+  match goal with
+  | [|- ?lhs ≡ (_ ⋅ _) ] =>
+    let a := r_first lhs in
+    try rewrite <- (comm cmra.op a);
+    repeat rewrite <- (assoc cmra.op);
+    try (stdpp.tactics.f_equiv; r_solve)
+  | _ => try reflexivity
+  end
+.
+
+Ltac r_wf H := eapply cmra_valid_proper; [|exact H]; r_solve.
 
 Set Implicit Arguments.
 
@@ -209,7 +235,7 @@ Section PROOF.
 
 
   Let St: wf_tgt.(T) -> wf_tgt.(T) := fun o0 => @epsilon _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) o0 o1).
-  Let lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
+  Local Definition lt_succ_diag_r_tgt: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
   Proof.
     i. unfold St. hexploit (@epsilon_spec _ wf_tgt_inhabited (fun o1 => wf_tgt.(lt) t o1)); eauto.
   Qed.
@@ -345,7 +371,7 @@ Section PROOF.
       splits.
       { clear - LT IMSRC VALS WFOST WFOST'.
         ii. unfold prism_fmap in *; ss. destruct i; ss. destruct (tids_fmap tid ths n) eqn:FM; auto.
-        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
+        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss; destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss;
           des_ifs.
           2:{ exfalso. eapply NatMapP.F.in_find_iff; eauto.
               apply nm_wf_pair_sym in  WFOST'. eapply nm_wf_pair_find_cases in WFOST'. des.
@@ -355,7 +381,7 @@ Section PROOF.
           3:{ instantiate (1:=n). instantiate (1:=t0). i. econs 1. auto. }
           auto.
           subst ost'. rewrite nm_find_add_neq in Heq; eauto.
-        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss.
+        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss; destruct (NatMapP.F.In_dec ths n) eqn:INDEC; ss; des_ifs.
       }
 
       split; [|ss]. destruct LSIM as [LSIM IND].
@@ -433,7 +459,7 @@ Section PROOF.
 
       { clear - IMSRC VALID TGT WFOST WFOST'.
         ii. unfold prism_fmap in *; ss. destruct i; ss. destruct (tids_fmap tid ths1 n) eqn:FM; auto.
-        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss.
+        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss; destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss;
           des_ifs.
           2:{ exfalso. eapply NatMapP.F.in_find_iff; eauto.
               apply nm_wf_pair_sym in  WFOST'. eapply nm_wf_pair_find_cases in WFOST'. des.
@@ -443,7 +469,7 @@ Section PROOF.
           3:{ instantiate (1:=n). instantiate (1:=t0). i. econs 1. auto. }
           auto.
           subst ost'. rewrite nm_find_add_neq in Heq; eauto.
-        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss. destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss.
+        - unfold tids_fmap in FM. destruct (Nat.eq_dec n tid) eqn:EQ; ss; destruct (NatMapP.F.In_dec ths1 n) eqn:INDEC; ss;
           des_ifs.
       }
 
@@ -463,7 +489,7 @@ Section PROOF.
       - exists ost'; splits; auto.
         revert IMSRC VALID TGT WFOST WFOST'. clear_upto tid. i. subst.
         i. econs 1. des_ifs; ss.
-        + subst ost'. rewrite nm_find_add_eq in FIND. clarify. econs 1. econs 2; auto.
+        + subst ost'. rewrite nm_find_add_eq in FIND. clarify. econs 1. econs 2; auto. apply lt_succ_diag_r_tgt.
         + unfold prism_fmap in *; ss. rewrite FIND in Heq. clarify. econs 1. econs 2; auto.
           clear - n IN TGT. specialize (TGT (inl tid0)). ss. unfold tids_fmap in TGT. des_ifs.
         + rewrite FIND in Heq. ss.
@@ -505,6 +531,7 @@ Section PROOF.
     splits.
 
     - ii. destruct i; ss. unfold tids_fmap, prism_fmap in *; ss. destruct (Nat.eq_dec n tid) eqn:EQT; clarify.
+      des_ifs.
       destruct (NatMapP.F.In_dec ths n) eqn:INT; ss; clarify.
       2:{ des_ifs; ss. }
       clear EQT INT.
@@ -518,7 +545,7 @@ Section PROOF.
     - exists ost. splits; auto. i. unfold prism_fmap in *; ss. des_ifs.
       + ss. hexploit shared_thsRA_th_has_wf_find. eapply VALS. intro FIND2.
         ss; rewrite FIND in FIND2; clarify.
-        econs 1. econs 1. econs 2; auto.
+        econs 1. econs 1. econs 2; auto. apply lt_succ_diag_r_tgt.
       + ss. econs 1. econs 1. econs 2; auto. clear - n i TGT.
         specialize (TGT (inl tid0)). ss. unfold tids_fmap in TGT. des_ifs.
   Qed.
@@ -639,8 +666,7 @@ Section AUX.
     rewrite ! NatMap.fold_1. ss. remember (NatMap.this rsost) as l. clear Heql rsost.
     revert pw. induction l; ss.
     { i. destruct pw. ss. }
-    i. des_ifs. ss. destruct p as [r [xs xt]]. ss.
-    rewrite IHl. destruct pw as [p w]. ss.
+    i. des_ifs. ss.
   Qed.
 
   Lemma list_map_elements_nm_mapi

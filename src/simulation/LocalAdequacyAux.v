@@ -9,7 +9,7 @@ From iris.algebra Require Import cmra.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
-From Fairness Require Import pind PCM.
+From Fairness Require Import pind.
 From Fairness Require Export Mod ModSimStutter Concurrency.
 From Fairness Require Import KnotSim.
 

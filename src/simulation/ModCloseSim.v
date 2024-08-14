@@ -232,7 +232,11 @@ Section CLOSE_MONO_SIM.
     - match goal with [ |- __lsim _ _ _ _ _ _ _ _ _ (map_event ?EMB _) _ ] => set EMB as emb end.
       do 2 rewrite map_event_trigger.
       eapply lsim_yieldL. split; ss.
-      replace (trigger Yield) with (trigger (emb unit (subevent unit Yield))) by ss.
+      replace (trigger Yield) with
+              (ITree.trigger
+                (subevent _ (F:=threadE _ _)
+                  (emb unit (subevent unit Yield)))
+              ) by ss.
       rewrite <- map_event_trigger.
       destruct LSIM. eapply IH; eauto.
     - match goal with [ |- __lsim _ _ _ _ _ _ _ _ (map_event ?EMB _) _ _ ] => set EMB as emb end.
@@ -252,7 +256,11 @@ Section CLOSE_MONO_SIM.
         - specialize (TGT (inr (inr i))). ss.
       }
       specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
-      replace (trigger Yield) with (trigger (emb unit (subevent unit Yield))) by ss.
+      replace (trigger Yield) with
+              (ITree.trigger
+                (subevent _ (F:=threadE _ _)
+                  (emb unit (subevent unit Yield)))
+              ) by ss.
       rewrite <- map_event_trigger.
       destruct LSIM. eapply IH; eauto.
       + subst. extensionalities i. destruct i as [i|i]; ss. f_equal.

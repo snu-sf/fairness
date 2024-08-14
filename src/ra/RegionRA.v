@@ -122,7 +122,7 @@ Module Region.
     Lemma sat_list_cons_fold hd tl
       :
       (interp hd ∗ sat_list tl)
-        -∗
+        ⊢
         (sat_list (hd::tl)).
     Proof.
       unfold sat_list. ss.
@@ -131,7 +131,7 @@ Module Region.
     Lemma sat_list_cons_unfold hd tl
       :
       (sat_list (hd::tl))
-        -∗
+        ⊢
         (interp hd ∗ sat_list tl).
     Proof.
       unfold sat_list. ss.
@@ -417,9 +417,10 @@ Module Region.
         -∗
         (#=(sat)=> ∃ k, white k a).
     Proof.
+      rewrite IUpd_eq.
       iIntros "H0 H1".
       iPoseProof (sat_alloc with "H1 H0") as "[% > [H0 H1]]".
-      iModIntro. iFrame. iExists _. iFrame.
+      iModIntro. iFrame.
     Qed.
   End REGION.
 
@@ -574,7 +575,7 @@ Module Regions.
       Lemma sat_list_cons_fold hd tl
         :
         (interp hd ∗ sat_list tl)
-          -∗
+          ⊢
           (sat_list (hd::tl)).
       Proof.
         unfold sat_list. ss.
@@ -583,7 +584,7 @@ Module Regions.
       Lemma sat_list_cons_unfold hd tl
         :
         (sat_list (hd::tl))
-          -∗
+          ⊢
           (interp hd ∗ sat_list tl).
       Proof.
         unfold sat_list. ss.
@@ -871,9 +872,9 @@ Module Regions.
           -∗
           (#=(sat)=> ∃ k, white k a).
       Proof.
-        iIntros "H0 H1".
+        rewrite IUpd_eq. iIntros "H0 H1".
         iPoseProof (sat_alloc with "H1 H0") as "[% > [H0 H1]]".
-        iModIntro. iFrame. iExists _. iFrame.
+        iModIntro. iFrame.
       Qed.
 
     End SINGLE.

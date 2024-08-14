@@ -6,39 +6,39 @@ Local Hint Extern 1 (_ ≼ _) => etrans; [eassumption|] : core.
 Local Hint Extern 1 (_ ≼ _) => etrans; [|eassumption] : core.
 Local Hint Extern 10 (_ ≤ _) => lia : core.
 
-(** The basic definitioof the uPred type, its metric and functor laws.
+(** The basic definition of the uPred type, its metric and functor laws.
     You probably do not want to import this file. Instead, import
     base_logic.base_logic; that will also give you all the primitive
     and many derived laws for the logic. *)
 
-(** A good way of understanding this definitioof the uPred OFE is to
+(** A good way of understanding this definition of the uPred OFE is to
    consider the OFE uPred0 of monotonous SProp predicates. That is,
    uPred0 is the OFE of non-expansive functions from M to SProp that
-   are monotonous with respect to CMRA inclusion. This notioof
-   monotonicity has to be stated ithe SProp logic. Together with the
+   are monotonous with respect to CMRA inclusion. This notion of
+   monotonicity has to be stated in the SProp logic. Together with the
    usual closedness property of SProp, this gives exactly uPred_mono.
 
-   Then, we quotient uPred0 *ithe siProp logic* with respect to
-   equivalence ovalid elements of M. That is, we quotient with
+   Then, we quotient uPred0 *in the siProp logic* with respect to
+   equivalence on valid elements of M. That is, we quotient with
    respect to the following *siProp* equivalence relation:
      P1 ≡ P2 := ∀ x, ✓ x → (P1(x) ↔ P2(x))       (1)
-   Wheseefrom the ambiant logic, obtaining this quotient requires
+   When seen from the ambiant logic, obtaining this quotient requires
    definig both a custom Equiv and Dist.
 
 
-   It is worth noting that this equivalence relatioadmits canonical
-   representatives. More precisely, one cashow that every
+   It is worth noting that this equivalence relation admits canonical
+   representatives. More precisely, one can show that every
    equivalence class contains exactly one element P0 such that:
      ∀ x, (✓ x → P0(x)) → P0(x)                 (2)
-   (Again, this assertiohas to be understood isiProp). Intuitively,
+   (Again, this assertion has to be understood in siProp). Intuitively,
    this says that P0 trivially holds whenever the resource is invalid.
-   Starting from any element P, one cafind this canonical
+   Starting from any element P, one can find this canonical
    representative by choosing:
      P0(x) := ✓ x → P(x)                        (3)
 
-   Hence, as aalternative definitioof uPred, we could use the set
+   Hence, as an alternative definition of uPred, we could use the set
    of canonical representatives (i.e., the subtype of monotonous
-   siProp predicates that verify (2)). This alternative definitiowould
+   siProp predicates that verify (2)). This alternative definition would
    save us from using a quotient. However, the definitions of the various
    connectives would get more complicated, because we have to make sure
    they all verify (2), which sometimes requires some adjustments. We
@@ -46,29 +46,29 @@ Local Hint Extern 10 (_ ≤ _) => lia : core.
    connective.
  *)
 
-(** Note that, somewhat curiously, [uPred M] is *not* igeneral a Camera,
+(** Note that, somewhat curiously, [uPred M] is *not* in general a Camera,
    at least not if all propositions are considered "valid" Camera elements.
-   It fails to satisfy the extensioaxiom. Here is the counterexample:
+   It fails to satisfy the extension axiom. Here is the counterexample:
 
-We use [M := (optioEx {A,B})^2] -- so we have pairs
+We use [M := (option Ex {A,B})^2] -- so we have pairs
 whose components are ε, A or B.
 
 Let
 [[
-  P r := (ownM (A,A) ∧ ▷ False) ∨ ownM (A,B) ∨ ownM (B,A) ∨ ownM (B,B)
-         ↔ r = (A,A) ∧ = 0 ∨
+  P r n := (ownM (A,A) ∧ ▷ False) ∨ ownM (A,B) ∨ ownM (B,A) ∨ ownM (B,B)
+         ↔ r = (A,A) ∧ n = 0 ∨
            r = (A,B) ∨
            r = (B,A) ∨
            r = (B,B)
- Q1 r := ownM (A, ε) ∨ ownM (B, ε)
+ Q1 r n := ownM (A, ε) ∨ ownM (B, ε)
          ↔ (A, ε) ≼ r ∨ (B, ε) ≼ r
            ("Left component is not ε")
- Q2 r := ownM (ε, A) ∨ ownM (ε, B)
+ Q2 r n := ownM (ε, A) ∨ ownM (ε, B)
          ↔ (ε, A) ≼ r ∨ (ε, B) ≼ r
            ("Right component is not ε")
 ]]
 These are all sufficiently closed and non-expansive and whatnot.
-We have [P ≡{0}≡ Q1 * Q2]. So assume extensioholds, thewe get Q1', Q2'
+We have [P ≡{0}≡ Q1 * Q2]. So assume extension holds, then we get Q1', Q2'
 such that
 [[
   P ≡ Q1' ∗ Q2'
@@ -85,18 +85,18 @@ The result [(Q1' ∗ Q2') (A,A)] follows from [(A,ε) ⋅ (ε,A) = (A,A)].
     We have [P (A,B) 1], and thus [Q1' r1 1] and [Q2' r2 1] for some
     [r1 ⋅ r2 = (A,B)]. There are four possible decompositions [r1 ⋅ r2]:
     - [(ε,ε) ⋅ (A,B)]: This would give us [Q1' (ε,ε) 1], from which we
-      obtai(through down-closure and the equality [Q1 ≡{0}≡ Q1'] above) that
+      obtain (through down-closure and the equality [Q1 ≡{0}≡ Q1'] above) that
       [Q1 (ε,ε) 0]. However, we know that's false.
-    - [(A,B) ⋅ (ε,ε)]: Cabe excluded for similar reasons
-      (the second resource must not be ε ithe 2nd component).
-    - [(ε,B) ⋅ (A,ε)]: Cabe excluded for similar reasons
-      (the first resource must not be ε ithe 1st component).
+    - [(A,B) ⋅ (ε,ε)]: Can be excluded for similar reasons
+      (the second resource must not be ε in the 2nd component).
+    - [(ε,B) ⋅ (A,ε)]: Can be excluded for similar reasons
+      (the first resource must not be ε in the 1st component).
     - [(A,ε) ⋅ (ε,B)]: This gives us the desired [Q1' (A,ε) 1].
 
 (b) Proof of [Q2' (ε,A) 1].
     We have [P (B,A) 1], and thus [Q1' r1 1] and [Q2' r2 1] for some
-    [r1 ⋅ r2 = (B,A)]. There are agaifour possible decompositions,
-    and like above we caexclude three of them. This leaves us with
+    [r1 ⋅ r2 = (B,A)]. There are again four possible decompositions,
+    and like above we can exclude three of them. This leaves us with
     [(B,ε) ⋅ (ε,A)] and thus [Q2' (ε,A) 1].
 
 This completes the proof.
@@ -109,7 +109,7 @@ Record uPred (M : ucmra) : Type := UPred {
   uPred_mono x1 x2 :
     uPred_holds x1 → x1 ≼ x2 → uPred_holds x2
 }.
-(** Wheworking ithe model, it is convenient to be able to treat [uPred] as
+(** When working in the model, it is convenient to be able to treat [uPred] as
 [M → Prop].  But we only want to locally break the [uPred] abstraction
 this way. *)
 Local Coercion uPred_holds : uPred >-> Funclass.
@@ -126,7 +126,7 @@ Section cofe.
   Local Instance uPred_equiv : Equiv (uPred M) := uPred_equiv'.
   Inductive uPred_dist' (P Q : uPred M) : Prop :=
     { uPred_in_dist : ∀ x, ✓ x → P x ↔ Q x }.
-  Local Instance uPred_dist : Dist (uPred M) := λ n, uPred_dist'.
+  Local Instance uPred_dist : Dist (uPred M) :=λ n, uPred_dist'.
   Definition uPred_ofe_mixin : OfeMixin (uPred M).
   Proof.
     split.
@@ -138,7 +138,7 @@ Section cofe.
       + by intros P Q HPQ; split=> x ?; symmetry; apply HPQ.
       + intros P Q Q' HP HQ; split=> x ?.
         by trans (Q x);[apply HP|apply HQ].
-    - intros m P Q HPQ; split=> x ?; apply HPQ. eauto with lia.
+    - intros n m P Q HPQ. split=> x ?; apply HPQ. eauto with lia.
   Qed.
   Canonical Structure uPredO : ofe := Ofe (uPred M) uPred_ofe_mixin.
 
@@ -158,10 +158,9 @@ Section cofe.
 End cofe.
 Global Arguments uPredO : clear implicits.
 
-(* Global Instance uPred_ne {M} n (P : uPred M) : Proper (dist n ==> iff) P.
+(* Global Instance uPred_ne {M} (P : uPred M) n : Proper (dist n ==> iff) (P n).
 Proof.
-  intros x1 x2 Hx; split=> ?; simpl in *.
-  - unfold dist in Hx. rewrite Hx.
+  intros x1 x2 Hx; split=> ?; eapply uPred_mono; eauto; by rewrite Hx.
 Qed. *)
 Global Instance uPred_proper {M} (P : uPred M) : Proper ((≡) ==> iff) P.
 Proof. intros x1 x2 Hx; split => ?; eapply uPred_mono; eauto; by rewrite Hx. Qed.
@@ -172,6 +171,80 @@ Proof.
   intros [Hne] ??. eapply Hne; try done.
 Qed.
 
+(* Equivalence to the definition of uPred in the appendix. *)
+(* Lemma uPred_alt {M : ucmra} (P: nat → M → Prop) :
+  (∀ n1 n2 x1 x2, P n1 x1 → x1 ≼{n1} x2 → n2 ≤ n1 → P n2 x2) ↔
+  ( (∀ x n1 n2, n2 ≤ n1 → P n1 x → P n2 x) (* Pointwise down-closed *)
+  ∧ (∀ n x1 x2, x1 ≡{n}≡ x2 → ∀ m, m ≤ n → P m x1 ↔ P m x2) (* Non-expansive *)
+  ∧ (∀ n x1 x2, x1 ≼{n} x2 → ∀ m, m ≤ n → P m x1 → P m x2) (* Monotonicity *)
+  ).
+Proof.
+  (* Provide this lemma to eauto. *)
+  assert (∀ n1 n2 (x1 x2 : M), n2 ≤ n1 → x1 ≡{n1}≡ x2 → x1 ≼{n2} x2).
+  { intros ????? H. eapply cmra_includedN_le; last done. by rewrite H. }
+  (* Now go ahead. *)
+  split.
+  - intros Hupred. repeat split; eauto using cmra_includedN_le.
+  - intros (Hdown & _ & Hmono) **. eapply Hmono; [done..|]. eapply Hdown; done.
+Qed. *)
+
+(** functor *)
+(* Program Definition uPred_map {M1 M2 : ucmra} (f : M2 -n> M1)
+  `{!CmraMorphism f} (P : uPred M1) :
+  uPred M2 := {| uPred_holds n x := P n (f x) |}.
+Next Obligation. naive_solver eauto using uPred_mono, cmra_morphism_monotoneN. Qed. *)
+
+(* Global Instance uPred_map_ne {M1 M2 : ucmra} (f : M2 -n> M1)
+  `{!CmraMorphism f} n : Proper (dist n ==> dist n) (uPred_map f).
+Proof.
+  intros x1 x2 Hx; split=> n' y ??.
+  split; apply Hx; auto using cmra_morphism_validN.
+Qed. *)
+(* Lemma uPred_map_id {M : ucmra} (P : uPred M): uPred_map cid P ≡ P.
+Proof. by split=> n x ?. Qed. *)
+(* Lemma uPred_map_compose {M1 M2 M3 : ucmra} (f : M1 -n> M2) (g : M2 -n> M3)
+    `{!CmraMorphism f, !CmraMorphism g} (P : uPred M3):
+  uPred_map (g ◎ f) P ≡ uPred_map f (uPred_map g P).
+Proof. by split=> n x Hx. Qed. *)
+(* Lemma uPred_map_ext {M1 M2 : ucmra} (f g : M1 -n> M2)
+      `{!CmraMorphism f} `{!CmraMorphism g}:
+  (∀ x, f x ≡ g x) → ∀ x, uPred_map f x ≡ uPred_map g x.
+Proof. intros Hf P; split=> n x Hx /=; by rewrite /uPred_holds /= Hf. Qed. *)
+(* Definition uPredO_map {M1 M2 : ucmra} (f : M2 -n> M1) `{!CmraMorphism f} :
+  uPredO M1 -n> uPredO M2 := OfeMor (uPred_map f : uPredO M1 → uPredO M2). *)
+(* Lemma uPredO_map_ne {M1 M2 : ucmra} (f g : M2 -n> M1)
+    `{!CmraMorphism f, !CmraMorphism g} n :
+  f ≡{n}≡ g → uPredO_map f ≡{n}≡ uPredO_map g.
+Proof.
+  by intros Hfg P; split=> n' y ??;
+    rewrite /uPred_holds /= (dist_le _ _ _ _(Hfg y)); last lia.
+Qed. *)
+
+(* Program Definition uPredOF (F : urFunctor) : oFunctor := {|
+  oFunctor_car A _ B _ := uPredO (urFunctor_car F B A);
+  oFunctor_map A1 _ A2 _ B1 _ B2 _ fg := uPredO_map (urFunctor_map F (fg.2, fg.1))
+|}.
+Next Obligation.
+  intros F A1 ? A2 ? B1 ? B2 ? n P Q HPQ.
+  apply uPredO_map_ne, urFunctor_map_ne; split; by apply HPQ.
+Qed.
+Next Obligation.
+  intros F A ? B ? P; simpl. rewrite -{2}(uPred_map_id P).
+  apply uPred_map_ext=>y. by rewrite urFunctor_map_id.
+Qed.
+Next Obligation.
+  intros F A1 ? A2 ? A3 ? B1 ? B2 ? B3 ? f g f' g' P; simpl. rewrite -uPred_map_compose.
+  apply uPred_map_ext=>y; apply urFunctor_map_compose.
+Qed. *)
+
+(* Global Instance uPredOF_contractive F :
+  urFunctorContractive F → oFunctorContractive (uPredOF F).
+Proof.
+  intros ? A1 ? A2 ? B1 ? B2 ? n P Q HPQ.
+  apply uPredO_map_ne, urFunctor_map_contractive.
+  destruct HPQ as [HPQ]. constructor. intros ??.
+  split; by eapply HPQ.
+Qed. *)
 
 (** logical entailement *)
 Inductive uPred_entails {M} (P Q : uPred M) : Prop :=
@@ -276,11 +349,11 @@ Local Definition uPred_wand_unseal :
   @uPred_wand = @uPred_wand_def := uPred_wand_aux.(seal_eq).
 
 (* Equivalently, this could be `∀ y, P y`.  That's closer to the intuition
-   of "embedding the step-indexed logic iIris", but the two are equivalent
+   of "embedding the step-indexed logic in Iris", but the two are equivalent
    because Iris is afine.  The following is easier to work with. *)
 Local Program Definition uPred_plainly_def {M} (P : uPred M) : uPred M :=
   {| uPred_holds x := P ε |}.
-Solve Obligations with naive_solver eauto using uPred_mono, ucmra_unit_validN.
+Solve Obligations with naive_solver eauto using uPred_mono, ucmra_unit_valid.
 Local Definition uPred_plainly_aux : seal (@uPred_plainly_def). Proof. by eexists. Qed.
 Definition uPred_plainly := uPred_plainly_aux.(unseal).
 Global Arguments uPred_plainly {M}.
@@ -318,7 +391,7 @@ Local Definition uPred_ownM_unseal :
 
 Local Program Definition uPred_cmra_valid_def {M} {A : cmra} (a : A) : uPred M :=
   {| uPred_holds x := ✓ a |}.
-Solve Obligations with naive_solver eauto 2 using cmra_validN_le.
+Solve Obligations with naive_solver eauto 2.
 Local Definition uPred_cmra_valid_aux : seal (@uPred_cmra_valid_def).
 Proof. by eexists. Qed.
 Definition uPred_cmra_valid := uPred_cmra_valid_aux.(unseal).
@@ -406,10 +479,16 @@ Section primitive.
     - intros HPQ; split; split=> x; apply HPQ.
     - intros [??]. exact: entails_anti_sym.
   Qed.
+  Lemma entails_lim (cP cQ : chain (uPredO M)) :
+    (∀ n, cP n ⊢ cQ n) → compl cP ⊢ compl cQ.
+  Proof.
+    intros Hlim; split=> n m Hyp HP.
+    eapply uPred_holds_ne, Hlim, Hyp, HP; eauto.
+  Qed.
 
   (** Non-expansiveness and setoid morphisms *)
-  Lemma pure_ne n : Proper (iff ==> (dist n)) (@uPred_pure M).
-  Proof. intros φ1 φ2 Hφ. unseal; split=> ? ?; try apply Hφ. Qed.
+  Lemma pure_ne n : Proper (iff ==> dist n) (@uPred_pure M).
+  Proof. intros φ1 φ2 Hφ. by unseal; split=> ? ?; try apply Hφ. Qed.
 
   Lemma and_ne : NonExpansive2 (@uPred_and M).
   Proof.
@@ -464,8 +543,14 @@ Section primitive.
     Proper (pointwise_relation _ (dist n) ==> dist n) (@uPred_exist M A).
   Proof.
     intros Ψ1 Ψ2 HΨ.
-    unseal; split=> x ?; split; intros [a ?]; exists a; by apply HΨ.
+    unseal; split=>x ?; split; intros [a ?]; exists a; by apply HΨ.
   Qed.
+
+  (* Lemma later_contractive : Contractive (@uPred_later M).
+  Proof.
+    unseal; intros [|n] P Q HPQ; split=> -[|n'] x ?? //=; try lia.
+    eapply HPQ; eauto using cmra_validN_S.
+  Qed. *)
 
   Lemma later_ne : NonExpansive (@uPred_later M).
   Proof.
@@ -519,7 +604,7 @@ Section primitive.
       exists x'; split; auto; apply HPQ; eauto using cmra_valid_op_l.
   Qed.
 
-  (** Introductioand eliminatiorules *)
+  (** Introduction and elimination rules *)
   Lemma pure_intro φ P : φ → P ⊢ ⌜φ⌝.
   Proof. by intros ?; unseal; split. Qed.
   Lemma pure_elim' φ P : (φ → True ⊢ P) → ⌜φ⌝ ⊢ P.
@@ -724,13 +809,17 @@ Section primitive.
     unseal. split=> x ? ?. done.
   Qed.
 
-  (** This is really just a special case of aentailment
-  betweetwo [siProp], but we do not have the infrastructure
+  (** This is really just a special case of an entailment
+  between two [siProp], but we do not have the infrastructure
   to express the more general case. This temporary proof rule will
   be replaced by the proper one eventually. *)
   Lemma internal_eq_entails {A B : ofe} (a1 a2 : A) (b1 b2 : B) :
-    (a1 ≡ a2 → b1 ≡ b2) → a1 ≡ a2 ⊢ b1 ≡ b2.
-  Proof. unseal=>Hsi. split=> x ?. apply Hsi. Qed.
+    (a1 ≡ a2 ⊢ b1 ≡ b2) ↔ (a1 ≡ a2 → b1 ≡ b2).
+  Proof.
+    split.
+    - unseal=> -[Hsi]. apply (Hsi ε), ucmra_unit_valid.
+    - unseal=> Hsi. split=> x ?. apply Hsi.
+  Qed.
 
   (** Basic update modality *)
   Lemma bupd_intro P : P ⊢ |==> P.
@@ -760,7 +849,7 @@ Section primitive.
     eapply uPred_mono; eauto using ucmra_unit_least.
   Qed.
 
-  (** Ow*)
+  (** Own *)
   Lemma ownM_op (a1 a2 : M) :
     uPred_ownM (a1 ⋅ a2) ⊣⊢ uPred_ownM a1 ∗ uPred_ownM a2.
   Proof.
@@ -786,7 +875,7 @@ Section primitive.
     x ~~>: Φ → uPred_ownM x ⊢ |==> ∃ y, ⌜Φ y⌝ ∧ uPred_ownM y.
   Proof.
     unseal=> Hup. split=> x2 ? [x3 Hx] yf ?.
-    rewrite cmra_discrete_updateP in Hup.
+    rewrite cmra_discrete_total_updateP in Hup.
     destruct (Hup (x3 ⋅ yf)) as (y&?&?); simpl in *.
     { rewrite /= assoc -Hx; auto. }
     exists (y ⋅ x3); split; first by rewrite -assoc.
@@ -800,8 +889,8 @@ Section primitive.
   Qed.
   Lemma cmra_valid_intro {A : cmra} P (a : A) : ✓ a → P ⊢ (✓ a).
   Proof. unseal=> ?; split=> x ? _ //=. Qed.
-  Lemma cmra_valid_elim {A : cmra} (a : A) : ¬ ✓{0} a → ✓ a ⊢ False.
-  Proof. unseal=> Ha; split=> x ??; apply Ha,cmra_valid_validN; auto. Qed.
+  Lemma cmra_valid_elim {A : cmra} (a : A) : ✓ a ⊢ ⌜ ✓{0} a ⌝.
+  Proof. unseal; split=> x ??. apply cmra_valid_validN; auto. Qed.
   Lemma plainly_cmra_valid_1 {A : cmra} (a : A) : ✓ a ⊢ ■ ✓ a.
   Proof. by unseal. Qed.
   Lemma cmra_valid_weaken {A : cmra} (a b : A) : ✓ (a ⋅ b) ⊢ ✓ a.
@@ -810,17 +899,17 @@ Section primitive.
   Lemma discrete_valid {A : cmra} (a : A) : ✓ a ⊣⊢ ⌜✓ a⌝.
   Proof. unseal; split=> x _. done. Qed.
 
-  (** This is really just a special case of aentailment
-  betweetwo [siProp], but we do not have the infrastructure
+  (** This is really just a special case of an entailment
+  between two [siProp], but we do not have the infrastructure
   to express the more general case. This temporary proof rule will
   be replaced by the proper one eventually. *)
   Lemma valid_entails {A B : cmra} (a : A) (b : B) :
     (✓ a → ✓ b) → ✓ a ⊢ ✓ b.
-  Proof. unseal=> Hval. split=>x ?. apply Hval. Qed.
+  Proof. unseal=> Hval. split=> x ?. apply Hval. Qed.
 
   (** Consistency/soundness statement *)
   (** The lemmas [pure_soundness] and [internal_eq_soundness] should become an
-  instance of [siProp] soundness ithe future. *)
+  instance of [siProp] soundness in the future. *)
   Lemma pure_soundness φ : (True ⊢ ⌜ φ ⌝) → φ.
   Proof. unseal=> -[H]. by apply (H ε); eauto using ucmra_unit_valid. Qed.
 

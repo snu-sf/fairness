@@ -97,8 +97,7 @@ Section OWNS.
     iIntros "OWNMS".
     iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
     i. des_ifs; try by reflexivity.
-    { exfalso. eauto. }
-    { eexists _. rewrite left_id. ss. }
+    exfalso. eauto.
   Qed.
 
   Lemma OwnMs_empty s u
@@ -124,11 +123,7 @@ Section OWNS.
     iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
     i. rewrite discrete_fun_lookup_op /maps_to_res.
     des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-    { eexists. done. }
-    { hexploit IMPL; eauto. i. des; ss. }
-    { eexists. rewrite left_id. ss. }
-    { eexists. rewrite left_id. ss. }
-    { eexists. rewrite left_id. ss. }
+    hexploit IMPL; eauto. i. des; ss.
   Qed.
 
   Definition OwnMs_unfold (s0 s1: Id -> Prop) i u
@@ -151,7 +146,6 @@ Section OWNS.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
       { exfalso. eapply n0. auto. }
       { exfalso. eapply n0. auto. }
-      { eexists. rewrite left_id. ss. }
     }
     iFrame.
   Qed.
@@ -167,11 +161,7 @@ Section OWNS.
     iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
     i. rewrite discrete_fun_lookup_op.
     des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-    { eexists. eauto. }
-    { des; ss. }
-    { eexists. rewrite left_id. ss. }
-    { eexists. rewrite left_id. ss. }
-    { eexists. rewrite left_id. ss. }
+    des; ss.
   Qed.
 
   Definition OwnMs_split (s0 s1: Id -> Prop) u
@@ -191,7 +181,6 @@ Section OWNS.
       { exfalso. eapply n; eauto. }
       { exfalso. eapply n0; eauto. }
       { exfalso. eapply n0; eauto. }
-      { des; ss. }
     }
   Qed.
 

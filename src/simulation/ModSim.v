@@ -1,5 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From Paco Require pacotac_internal.
 
 From iris.algebra Require Import cmra updates.
 Require Export Coq.Strings.String.
@@ -229,7 +230,7 @@ Section PRIMIVIESIM.
   Hint Resolve lsim_mon: paco.
   Hint Resolve cpn9_wcompat: paco.
 
-  From Paco Require Import pacotac_internal.
+  Import pacotac_internal.
 
   Lemma lsim_acc_gen
         tid r
@@ -900,7 +901,7 @@ Section PRIMIVIESIM.
       lsim_bindRC' r RR ps pt r_ctx (trigger Yield >>= ktr_src) (itr_tgt >>= ktr_tgt) shr
   .
 
-  Require Import Program.
+  Import Program.
 
   Lemma trigger_yield E `{cE -< E}
     :
@@ -936,7 +937,7 @@ Section PRIMIVIESIM.
         (ktr0: X0 -> itree E R) (ktr1: X1 -> itree E R)
         (EQ: ITree.trigger e0 >>= ktr0 = ITree.trigger e1 >>= ktr1)
     :
-    X0 = X1 /\ e0 ~= e1 /\ ktr0 ~= ktr1.
+    X0 = X1 /\ JMeq e0 e1 /\ JMeq ktr0 ktr1.
   Proof.
     rewrite bind_trigger in EQ.
     rewrite bind_trigger in EQ.

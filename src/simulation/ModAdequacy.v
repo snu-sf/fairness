@@ -9,7 +9,7 @@ Require Import Permutation.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
-From Fairness Require Import pind PCM World.
+From Fairness Require Import pind World.
 From Fairness Require Export Mod Concurrency.
 From Fairness Require Import KnotSim LocalAdequacyAux.
 From Fairness Require Import
@@ -483,7 +483,7 @@ Section ADEQ.
     unfold ModSimStutter_local_sim_threads, prog2ths. unfold numbering.
     remember 0 as k. clear Heqk. move p before k. revert_until p.
     induction p; i.
-    { ss. unfold NatMap.Raw.empty. econs. }
+    { ss. }
     rewrite !map_cons. rewrite !_numbering_cons. destruct a as [fn args].
     rewrite !of_list_cons. eapply nm_find_some_implies_forall2.
     { apply nm_wf_pair_add. clear. move p after m_src. revert_until p. induction p; i.

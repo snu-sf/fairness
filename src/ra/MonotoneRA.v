@@ -1,6 +1,7 @@
 From sflib Require Import sflib.
-From iris.algebra Require Import cmra updates gmap auth.
-From Fairness Require Import PCM IPM IPropAux.
+From iris.algebra Require Import cmra updates gmap auth mra.
+From Fairness Require Import PCM IPM IPropAux OwnGhost.
+From Fairness Require Export FiniteMapRA.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
 From Fairness Require Import Axioms.
@@ -8,84 +9,8 @@ Require Import Program.
 
 Set Implicit Arguments.
 
-(* TODO: https://mattermost.mpi-sws.org/iris/pl/8cftahufytftmyt4mm5q7m6tyh *)
-Module FiniteMap.
-  Section FiniteMap.
-    Context `{M: cmra}.
-
-    Definition t : ucmra := (gmapUR nat M).
-
-    Definition singleton (k : nat) (m : M) : t := {[ k := m ]}.
-
-    (* TODO: upstream to iris *)
-    Global Instance singleton_proper k :
-      Proper ((≡)==>(≡)) (singleton k).
-    Proof.
-      intros x y EQ. unfold singleton.
-      intros k'. destruct (decide (k' = k)) as [->|NE].
-      - rewrite !lookup_singleton. f_equiv. done.
-      - rewrite !lookup_singleton_ne; done.
-    Qed.
-
-    Lemma singleton_wf k m
-      :
-      ✓ (singleton k m) <-> ✓ m.
-    Proof. apply singleton_valid. Qed.
-
-    Lemma singleton_add k m0 m1
-      :
-      (singleton k m0) ⋅ (singleton k m1)
-      ≡
-        singleton k (m0 ⋅ m1).
-    Proof. by rewrite singleton_op /singleton. Qed.
-
-    Lemma singleton_core k x cx
-      :
-      pcore x ≡ Some cx → core (singleton k x) ≡ singleton k cx.
-    Proof. by apply singleton_core'. Qed.
-
-    Lemma singleton_core_total k m `{CmraTotal M}
-      :
-      core (singleton k m) ≡ singleton k (core m).
-    Proof. by rewrite singleton_core_total. Qed.
-
-    Lemma singleton_updatable k m0 m1
-          (UPD: m0 ~~> m1)
-      :
-      (singleton k m0) ~~> (singleton k m1).
-    Proof. by apply singleton_update. Qed.
-
-    Lemma singleton_extends k m0 m1
-          (UPD: m0 ≼ m1)
-      :
-      (singleton k m0) ≼ (singleton k m1).
-    Proof. apply singleton_included. by right. Qed.
-
-    Lemma singleton_updatable_set k m s
-          (UPD: m ~~>: s)
-      :
-      (singleton k m) ~~>: (fun a => exists m1, s m1 /\ a = singleton k m1).
-    Proof.
-      eapply cmra_updateP_weaken.
-      { eapply singleton_updateP',UPD. }
-      ii. simpl in *. des. eauto.
-    Qed.
-
-    Lemma singleton_alloc (m: M)
-          (WF: ✓ m)
-      :
-      ε ~~>: (fun f => exists k, f ≡ singleton k m).
-    Proof.
-      eapply alloc_updateP.
-      { exact WF. }
-      intros k _. exists k. unfold singleton. set_solver.
-    Qed.
-  End FiniteMap.
-  Global Arguments t : clear implicits.
-End FiniteMap.
-
-
-Module Collection.
+(* TODO: not needed anymore *)
+(* Module Collection.
   Section Collection.
     Context {A: Type}.
 
@@ -119,10 +44,9 @@ Module Collection.
 
     Definition mixin : RAMixin car.
     Proof.
-      split; try apply _; try done.
+      apply ra_total_mixin; try done.
       all: fold_leibniz.
       all: try apply _; try done.
-      - intros ??? -> ->. eauto.
       - intros ???. fold_leibniz.
         rewrite !op_unfold /add. f_equal.
         extensionality a0.
@@ -131,13 +55,10 @@ Module Collection.
         rewrite !op_unfold /add. f_equal.
         extensionality a0.
         eapply propositional_extensionality. split; i; des; ss; des; ss.
-      - intros ??. fold_leibniz.
-        rewrite !pcore_unfold /core op_unfold /add. injection 1. intros ->. f_equal.
+      - intros ?. fold_leibniz.
+        rewrite /cmra.core !pcore_unfold /core op_unfold /add /=.
         extensionality a0.
         eapply propositional_extensionality. split; i; des; ss; des; ss.
-      - intros ???.
-        rewrite !pcore_unfold /core. intros [? EQ]. injection 1. intros ->. fold_leibniz. subst. eexists. split; ss.
-        exists x0. fold_leibniz. done.
     Qed.
 
     Canonical Structure CollectionR := discreteR car mixin.
@@ -159,7 +80,7 @@ Module Collection.
     Definition into_t (a : A -> Prop) : t := a.
   End Collection.
 End Collection.
-Global Arguments Collection.t _ : clear implicits.
+Global Arguments Collection.t _ : clear implicits. *)
 
 Variant gmon: Type :=
   | mk_gmon
@@ -190,7 +111,7 @@ Qed.
 
 
 Section Monotone.
-  Definition monoRA: ucmra := FiniteMap.t (authUR (Collection.t gmon)).
+  Definition monoRA: ucmra := OwnG.t (authUR $ mraUR gmon_le).
   Context `{GRA.inG monoRA Σ}.
   Notation iProp := (iProp Σ).
 
@@ -201,13 +122,13 @@ Section Monotone.
     Variable le: W -> W -> Prop.
     Hypothesis le_PreOrder: PreOrder le.
 
-    Let leR (w: W): Collection.t gmon := Collection.into_t (gmon_le (@mk_gmon W le le_PreOrder w)).
+    Let leR (w: W) : mra gmon_le := to_mra (mk_gmon le_PreOrder w).
 
     Definition monoBlack (w: W): iProp :=
-      OwnM (FiniteMap.singleton k (● (leR w) ⋅ ◯ (leR w))).
+      OwnG.to_t k (● (leR w) ⋅ ◯ (leR w)).
 
     Definition monoWhiteExact (w: W): iProp :=
-      OwnM (FiniteMap.singleton k (◯ (leR w))).
+      OwnG.to_t k (◯ (leR w)).
 
     Definition monoWhite (w0: W): iProp :=
       ∃ w1, monoWhiteExact w1 ∧ ⌜le w0 w1⌝.
@@ -216,48 +137,34 @@ Section Monotone.
           (LE: le w0 w1)
       :
       ◯ (leR w0) ⋅ ◯ (leR w1) ≡ ◯ (leR w1).
-    Proof.
-      rewrite -auth_frag_op. f_equiv.
-      rewrite Collection.op_unfold /Collection.add /leR /Collection.into_t.
-      fold_leibniz. f_equal. extensionality a.
-      eapply propositional_extensionality. split; i; des; ss.
-      split; auto. rr. etrans; eauto. econs; eauto.
-    Qed.
+    Proof. rewrite -auth_frag_op to_mra_R_op //. Qed.
 
     Lemma white_exact_persistent w
       :
       (monoWhiteExact w) -∗ (□ monoWhiteExact w).
     Proof.
       unfold monoBlack, monoWhiteExact.
-      iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core_total. auto.
+      iIntros "H". iDestruct (persistent with "H") as "#$".
     Qed.
 
-    Global Program Instance Persistent_white_exact w: Persistent (monoWhiteExact w).
-    Next Obligation.
-    Proof.
-      i. iIntros "WHITE". iPoseProof (white_exact_persistent with "WHITE") as "WHITE". auto.
-    Qed.
+    Global Instance Persistent_white_exact w: Persistent (monoWhiteExact w).
+    Proof. apply _. Qed.
 
     Lemma white_persistent w
       :
       (monoWhite w) -∗ (□ monoWhite w).
     Proof.
-      unfold monoWhite. iIntros "H".
-      iDestruct "H" as (w1) "[H %]".
-      iPoseProof (white_exact_persistent with "H") as "# H0".
-      iClear "∗". iModIntro.
-      iExists _. iSplit; eauto.
+      iIntros "H". by iDestruct "H" as (w1) "[#$ %]".
     Qed.
 
-    Global Program Instance Persistent_white w: Persistent (monoWhite w).
+    Global Instance Persistent_white w: Persistent (monoWhite w).
+    Proof. apply _. Qed.
 
     Lemma black_persistent_white_exact w
       :
       (monoBlack w) -∗ (monoWhiteExact w).
     Proof.
       unfold monoBlack, monoWhiteExact.
-      rewrite <- FiniteMap.singleton_add.
       iIntros "[_ H]". auto.
     Qed.
 
@@ -276,35 +183,17 @@ Section Monotone.
       (monoWhite w1) -∗ (monoWhite w0).
     Proof.
       unfold monoWhite. iIntros "H".
-      iDestruct "H" as (w) "[H %]".
-      iExists _. iSplit; eauto. iPureIntro. etrans; eauto.
+      iDestruct "H" as (w) "[$ %]".
+      iPureIntro. etrans; eauto.
     Qed.
-
-    Local Lemma prop_ext_rev
-          A B
-          (EQ: A = B)
-      :
-        A <-> B
-    .
-    Proof. clarify. Qed.
 
     Lemma black_updatable w0 w1
           (LE: le w0 w1)
       :
       (monoBlack w0) -∗ (#=> monoBlack w1).
     Proof.
-      iIntros "H". iApply (OwnM_Upd with "H").
-      eapply FiniteMap.singleton_updatable.
-      apply auth_update,local_update_unital_discrete.
-      fold_leibniz. intros w' _.
-      rewrite Collection.valid_unfold /Collection.wf /leR
-        /Collection.into_t Collection.op_unfold /Collection.add /=.
-      intros FRAME. split; ss. f_equal.
-      extensionality w. eapply equal_f with (x:=w) in FRAME.
-      eapply prop_ext_rev in FRAME. des.
-      eapply propositional_extensionality. split; i; des; ss.
-      split; eauto. eapply FRAME.
-      rr. etrans; eauto. econs; eauto.
+      iIntros "H". iApply (own_update with "H").
+      by apply auth_update,mra_local_update_grow.
     Qed.
 
     Lemma black_white_exact_compare w0 w1
@@ -312,18 +201,10 @@ Section Monotone.
       (monoWhiteExact w0) -∗ (monoBlack w1) -∗ ⌜le w0 w1⌝.
     Proof.
       unfold monoWhiteExact, monoBlack.
-      rewrite <- FiniteMap.singleton_add.
       iIntros "H0 [H1 H2]".
-      iCombine "H1 H0" as "H".
-      iOwnWf "H" as WF. iPureIntro.
-      rewrite FiniteMap.singleton_wf in WF.
-      apply auth_both_valid_discrete in WF as [WF _].
-      destruct WF as [z EQ]. fold_leibniz.
-      rewrite Collection.op_unfold /Collection.add /leR /Collection.into_t in EQ.
-      eapply equal_f in EQ. eapply prop_ext_rev in EQ. des.
-      hexploit EQ.
-      { rr. econs. reflexivity. }
-      i. des. rr in H0. dependent destruction H0. auto.
+      iCombine "H1 H0" gives %[WF _]%auth_both_valid_discrete.
+      rewrite to_mra_included in WF.
+      dependent destruction WF. auto.
     Qed.
 
     Lemma black_white_compare w0 w1
@@ -345,14 +226,10 @@ Section Monotone.
     :
     ⊢ #=> (∃ k, monoBlack k le_PreOrder w).
   Proof.
-    iPoseProof (@OwnM_unit _ _ H) as "H".
-    iPoseProof (OwnM_Upd_set with "H") as "> H0".
-    { eapply FiniteMap.singleton_alloc.
-      instantiate (1:= (● (Collection.into_t (gmon_le (@mk_gmon W le le_PreOrder w))) ⋅ ◯ (Collection.into_t (gmon_le (@mk_gmon W le le_PreOrder w))))).
-      apply auth_both_valid_discrete. split; [|done].
-      exists ε. rewrite right_id. fold_leibniz. done.
+    iMod own_alloc as (k) "H".
+    { eapply auth_both_valid_discrete. split; [|done].
+      reflexivity.
     }
-    iDestruct "H0" as (b) "[% H0]". des. rewrite H0.
     iModIntro. iExists k. auto.
   Qed.
 End Monotone.
@@ -535,7 +412,7 @@ Module OneShot.
       (pending 1) ~~> (shot a).
     Proof.
       rewrite /pending /shot /t.
-      rewrite cmra_discrete_update. intros mz WF.
+      rewrite cmra_discrete_total_update. intros mz WF.
       apply exclusive_Some_l in WF; [|apply _].
       subst. done.
     Qed.
@@ -672,7 +549,7 @@ Module Consent.
       :
       (vote a0 1%Qp) ~~> (vote a1 1%Qp).
     Proof.
-      rewrite /vote cmra_discrete_update. intros mz WF.
+      rewrite /vote cmra_discrete_total_update. intros mz WF.
       apply exclusive_Some_l in WF; [|apply _].
       subst. done.
     Qed.

@@ -6,7 +6,6 @@ From Fairness.base_logic Require Import upred base_logic.
 From Fairness Require Import PCM IPM ISim SimDefaultRA SimWeakest.
 From Fairness Require Import FairBeh.
 Require Import Coq.Logic.PropExtensionality.
-From Fairness Require PCM.
 Require Import Program.
 
 Set Implicit Arguments.
@@ -140,10 +139,10 @@ Ltac grawf_tac :=
   try
     match goal with
     | |- valid (cmra.op _ _) =>
-        eapply res_wf_disjoint;
+        apply res_wf_disjoint;
         [grawf_tac|grawf_tac|disj_tac]
     | |- valid (@GRA.embed _ _ _ _) =>
-        eapply GRA.wf_embed
+        apply GRA.wf_embed
     end.
 
 Ltac ndtac :=
@@ -173,9 +172,11 @@ Module WSim.
     Variable md_src: Mod.t.
     Variable md_tgt: Mod.t.
 
+    #[clearbody]
     Let NUNBOUND: forall n, exists m, n < m.
-    Proof. i. exists (S n). econs. Qed.
+    Proof. i. exists (S n). econs. Defined.
 
+    #[clearbody]
     Let THSEQ: forall c,
         (NatMapP.of_list (numbering (List.map (fun _ => tt) c))) = (key_set (prog2ths md_src c)).
     Proof.
@@ -183,7 +184,7 @@ Module WSim.
       { symmetry. apply key_set_idempotent. }
       eapply list_of_numbering_nm_wf_pair.
       repeat rewrite map_length. auto.
-    Qed.
+    Defined.
 
     Local Notation index := nat.
     Context `{Vars : index -> Type}.
@@ -249,7 +250,7 @@ Module WSim.
       unfold default_initial_res.
       grawf_tac; (try match goal with | |- _ <> _ => auto 15 end).
       all: try done.
-      { intros k. apply auth.auth_auth_valid. done. }
+      { ii. apply auth.auth_auth_valid. done. }
       { apply auth.auth_auth_valid. done. }
       { apply excl_auth.excl_auth_valid. }
       { apply excl_auth.excl_auth_valid. }
@@ -538,11 +539,15 @@ Module WSim.
         }
         hexploit (natmap_prop_remove_find (Σ:=Σ)).
         { eapply nm_find_add_eq. }
-        uPred.unseal. intros [H].
+        uPred.unseal. rewrite /bi_emp_valid. uPred.unseal.
+        intros [H]. rr in H.
         hexploit H.
-        { eapply WF. }
-        { eauto. }
-        i. rr in H0. des. rewrite H0 in SAT. subst.
+        { eapply ucmra_unit_valid. }
+        { rr. eauto. }
+        { rewrite left_id; [apply WF|apply _]. }
+        { exact SAT. }
+        i. des. rewrite left_id in H0; last first.
+        { rewrite /LeftId /flip. ii. rewrite left_id; [|apply _]. reflexivity. }
         rewrite nm_find_none_rm_add_eq in H2; auto.
         hexploit IH; eauto.
         { eapply (cmra_valid_op_r x1). rewrite H0 in WF. apply WF. }
@@ -622,9 +627,9 @@ Module WSim.
           iPoseProof ("H1" $! _ _ _ _ _) as ">[% [A [B [C [D [E [F [G [H [I J]]]]]]]]]]".
           unfold initial_prop in init_inv.
           iDestruct "A" as "(A1 & A2 & A3 & A4 & A5 & A6 & A7 & A8)".
-          iPoseProof (init_inv with "[H0 D E B C F G] [A6 A7 I J]") as ">[F [W [E init_ctx]]]".
-          { iFrame "H0 D E B C F G". }
-          { iFrame "A6 A7 I J". }
+          iPoseProof (init_inv with "[$H0 $D $E $B $C $F $G]") as "FUpd".
+          rewrite FUpd_unseal.
+          iMod ("FUpd" with "[$A6 $A7 $I $J]") as "[F [W [E init_ctx]]]".
           iModIntro. iExists _. iFrame "A1 A2 A3 A4 A5 A8 H F W E init_ctx".
         }
         apply (@UserSim.mk
@@ -664,7 +669,6 @@ Module WSim.
           rewrite EXT in SAT. rewrite SAT in WF.
           eapply (cmra_valid_op_l _ z). r_wf WF.
         }
-        Local Opaque FUpd.
       Qed.
 
       Lemma whole_sim_implies_refinement
@@ -704,17 +708,17 @@ Module WSim.
         :
         whole_sim.
       Proof.
-        Local Transparent FUpd.
         inv SIM. des. econs.
         { eauto. }
-        exists l1, l0, DL, Ord.omega. iIntros "H (A & B & C)".
+        exists l1, l0, DL, Ord.omega.
+        rewrite FUpd_unseal.
+        iIntros "H (A & B & C)".
         iPoseProof (SIM with "H") as "> [H0 H1]".
         iModIntro. iFrame.
         iApply (natmap_prop_sum_impl with "H1"). i. des_ifs.
         iApply (wpsim_mono). i.
-        iIntros "[[H0 H1] H2]". iModIntro. iFrame.
+        iIntros "[[H0 H1] H2]". iModIntro. iFrame "H0 H2".
         iApply ObligationRA.black_to_duty. auto.
-        Local Opaque FUpd.
       Qed.
 
       Theorem whole_sim_simple_implies_refinement
@@ -801,9 +805,9 @@ Module WSim.
           iPoseProof ("H1" $! _ _ _ _ _) as ">[% [A [B [C [D [E [F [G [H [I J]]]]]]]]]]".
           unfold initial_prop in init_inv.
           iDestruct "A" as "(A1 & A2 & A3 & A4 & A5 & A6 & A7 & A8)".
-          iPoseProof (init_inv with "[H0 D E B C F G] [A6 A7 I J]") as ">[F [W [E init_ctx]]]".
-          { iFrame "H0 D E B C F G". }
-          { iFrame "A6 A7 I J". }
+          iPoseProof (init_inv with "[$H0 $D $E $B $C $F $G]") as "FUpd".
+          rewrite FUpd_unseal.
+          iMod ("FUpd" with "[$A6 $A7 $I $J]") as "[F [W [E init_ctx]]]".
           iModIntro. iExists _. iFrame "A1 A2 A3 A4 A5 A8 H F W E init_ctx".
         }
         apply (@ModSimPers.mk
@@ -888,7 +892,7 @@ Module WSim.
           iIntros (?) "H B". iPoseProof (sim_funs with "[B]") as "B".
           { iApply ObligationRA.duty_to_black. auto. }
           iApply (wpsim_wand with "B [H]").
-          iIntros (? ?) "[H0 H1]". iModIntro. iFrame.
+          iIntros (? ?) "[H0 H1]". iModIntro. iFrame "H H1".
           iApply ObligationRA.black_to_duty. auto.
         }
       Qed.

@@ -14,7 +14,7 @@ Module SCMem.
     | val_ptr (p: pointer)
   .
 
-  Let ident := val.
+  Definition ident := val.
 
   Definition unwrap_ptr (v: val): option pointer :=
     match v with
@@ -366,9 +366,15 @@ Coercion SCMem.val_ptr : SCMem.pointer >-> SCMem.val.
 From iris.algebra Require Import cmra updates lib.gmap_view.
 From Fairness Require Import PCM IPM IPropAux MonotoneRA Axioms.
 
+(* TODO: Remove this *)
+Global Instance frame_exist_instantiate_disabled :
+  FrameInstantiateExistDisabled := {}.
+
 Section MEMRA.
   Context `{heap_name : nat}.
-  Definition memRA: ucmra := (nat ==> nat ==> (gmap_viewUR unit (leibnizO SCMem.val)))%ra.
+  Definition memRA: ucmra := (nat ==> nat ==> (gmap_viewUR unit (agreeR $ leibnizO SCMem.val)))%ra.
+
+  Notation val_to_mem_ra x := (to_agree (A:=leibnizO _) (x : SCMem.val)) (only parsing).
 
   Context `{MEMRA: @GRA.inG memRA Σ}.
   Notation iProp := (iProp Σ).
@@ -376,9 +382,9 @@ Section MEMRA.
   Definition memory_resource_black (m: SCMem.t): memRA :=
     fun blk ofs =>
       match m.(SCMem.contents) blk ofs with
-      | Some v => gmap_view_auth (DfracOwn 1) {[ () := (v : leibnizO _)]}
-      | None => gmap_view_auth (DfracOwn 1) {[ () := (0 : SCMem.val) : leibnizO _]} ⋅
-                gmap_view_frag () (DfracOwn 1) ((0 : SCMem.val) : leibnizO _)
+      | Some v => gmap_view_auth (DfracOwn 1) {[ () := val_to_mem_ra v]}
+      | None => gmap_view_auth (DfracOwn 1) {[ () := val_to_mem_ra 0 ]} ⋅
+                gmap_view_frag () (DfracOwn 1) (val_to_mem_ra 0)
       end.
 
   Definition points_to_white (blk ofs: nat) (v: SCMem.val) (dq : dfrac) : memRA :=
@@ -386,7 +392,7 @@ Section MEMRA.
       if (PeanoNat.Nat.eq_dec blk' blk)
       then if (PeanoNat.Nat.eq_dec ofs' ofs)
            then
-            gmap_view_frag () dq (v : leibnizO _)
+            gmap_view_frag () dq (val_to_mem_ra v)
            else ε
       else ε
   .
@@ -408,7 +414,7 @@ Section MEMRA.
         if (Compare_dec.le_gt_dec ofs ofs')
         then
           match nth_error vs (ofs' - ofs) with
-          | Some v => gmap_view_frag () dq (v : leibnizO _)
+          | Some v => gmap_view_frag () dq (val_to_mem_ra v)
           | _ => ε
           end
         else ε
@@ -418,7 +424,6 @@ Section MEMRA.
     { des_ifs; destruct (ofs' - ofs); ss. }
     rewrite !discrete_fun_lookup_op IHvs /points_to_white.
     destruct (PeanoNat.Nat.eq_dec blk' blk); ss.
-    2:{ r_solve. }
     subst. destruct (PeanoNat.Nat.eq_dec ofs' ofs).
     { subst. des_ifs; try by exfalso; lia.
       all: rewrite PeanoNat.Nat.sub_diag in Heq; ss.
@@ -517,7 +522,6 @@ Section MEMRA.
     unfold memory_resource_black. ss. des_ifs; try by exfalso; lia.
     { eapply WF in Heq. lia. }
     { eapply WF in Heq. lia. }
-    { rewrite right_id. reflexivity. }
     { eapply WF in Heq. lia. }
     { eapply WF in Heq. lia. }
     { rewrite PeanoNat.Nat.sub_0_r in Heq1.
@@ -531,8 +535,6 @@ Section MEMRA.
       { eapply nth_error_Some. rewrite Heq1. ss. }
       rewrite repeat_length in LT. lia.
     }
-    { rewrite right_id. reflexivity. }
-    { rewrite right_id. reflexivity. }
   Qed.
 
   Lemma memory_ra_alloc m0 sz m1 p
@@ -565,16 +567,11 @@ Section MEMRA.
     rewrite !discrete_fun_lookup_op.
     unfold SCMem.free, SCMem.has_permission in FREE. unfold memory_resource_black, points_to_white.
     des_ifs; ss; des_ifs.
-    { etrans.
-      { apply gmap_view_delete. }
-      rewrite delete_singleton. etrans.
-      { eapply (gmap_view_alloc _ () (DfracOwn 1)); auto. done. }
-      rewrite insert_empty. reflexivity.
-    }
-    { rewrite right_id. ss. }
-    { rewrite right_id. ss. }
-    { rewrite right_id. ss. }
-    { rewrite right_id. ss. }
+    etrans.
+    { apply gmap_view_delete. }
+    rewrite delete_singleton. etrans.
+    { eapply (gmap_view_alloc _ () (DfracOwn 1) (to_agree _)); auto; done. }
+    rewrite insert_empty. reflexivity.
   Qed.
 
   Lemma memory_ra_free m0 p v
@@ -649,7 +646,7 @@ Section MEMRA.
     ✓ (memory_init_resource l).
   Proof.
     assert (memory_empty_resource ~~> (memory_init_resource l)).
-    2:{ intros b o. rewrite cmra_discrete_update in H. exploit (H ε).
+    2:{ intros b o. rewrite cmra_discrete_total_update in H. exploit (H ε).
         - rewrite right_id; auto; eapply memory_empty_wf.
         - rewrite !discrete_fun_lookup_op. rewrite right_id. done.
       }
@@ -687,9 +684,14 @@ Section MEMRA.
     iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN".
     specialize (H n n0). rewrite !discrete_fun_lookup_op in H.
     unfold memory_resource_black, points_to_white in H. des_ifs.
-    { iPureIntro. apply gmap_view_both_valid in H.
-      rewrite lookup_singleton in H.
-      des. inv H0. rewrite <-H3.
+    { iPureIntro.
+      apply gmap_view_both_dfrac_valid_discrete_total in H.
+      des.
+      apply to_agree_uninj in H2. des. rewrite -H2 in H3.
+      apply to_agree_included_L in H3.
+      rewrite lookup_singleton in H1. subst.
+      inv H1. apply to_agree_inj in H2. fold_leibniz.
+      subst.
       splits; auto.
       unfold SCMem.has_permission. ss. rewrite Heq. ss.
     }
@@ -741,7 +743,7 @@ Section MEMRA.
       etrans.
       { apply gmap_view_delete. }
       rewrite delete_singleton. etrans.
-      { eapply (gmap_view_alloc _ () (DfracOwn 1)); auto. done. }
+      { eapply (gmap_view_alloc _ () (DfracOwn 1) (to_agree _)); auto; done. }
       rewrite insert_empty. reflexivity.
     }
     { ss. iModIntro. iFrame. iPureIntro.
@@ -867,7 +869,7 @@ Section MEMRA.
     specialize (H b o). rewrite !discrete_fun_lookup_op in H.
     unfold points_to_white in H. des_ifs; clarify.
     apply gmap_view_frag_op_valid in H. des.
-    rewrite H0. done.
+    by apply to_agree_op_valid_L in H0.
   Qed.
 
   (* Lemma memory_ra_compare_ptr_both_dq_left m l0 v0 l1 v1
@@ -909,7 +911,8 @@ Section MEMRA.
   Proof.
     unfold points_to,points_to_white. des_ifs.
     { by iIntros (?). }
-    apply OwnM_Upd,pointwise_updatable=>blk'. apply pointwise_updatabable=>ofs'.
+    iApply OwnM_Upd.
+    apply pointwise_updatable=>blk'. apply pointwise_updatabable=>ofs'.
     des_ifs.
     apply gmap_view_frag_persist.
   Qed.

@@ -187,7 +187,9 @@ Section SPEC.
     iIntros "s↦".
     iMod (alloc_obligation_fine l a) as (k) "(#Ob_kb & PCs & _)".
     iMod ghost_map_alloc_empty as (γl) "M".
-    iMod (ghost_var_alloc []) as (γs) "[VI VS]".
+    iMod (ghost_var_alloc []) as (γs) "V".
+    iEval (rewrite -Qp.half_half) in "V".
+    iDestruct (ghost_var_split with "V") as "[VI VS]".
     iMod (FUpd_alloc _ _ _ n (treiberN) (Inv n s k γs γl) with "[VI s↦ M]") as "#Inv"; [lia| |].
     { iApply (Inv_fold _ _ _ _ _ Null with "s↦ VI [] [M]").
       - iApply phys_list_fold. done.
@@ -478,7 +480,7 @@ Section SPEC.
     destruct (decide (h = Null)) as [->|NEQ].
     { (* Head is null, so stack is empty. *)
       simpl in *.
-      iEval (rewrite phys_list_unfold) in "Phys".
+      iDestruct (phys_list_unfold with "Phys") as "Phys".
       des_ifs. iClear "Phys".
       iMod "AU" as (?) "[γs' Commit]". red_tl_all.
       iDestruct (ghost_var_agree with "γs γs'") as %<-.

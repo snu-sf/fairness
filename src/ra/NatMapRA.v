@@ -55,10 +55,8 @@ Module NatMapRA.
 
     Definition mixin : RAMixin car.
     Proof.
-      split; try apply _; try done.
+      apply ra_total_mixin; try apply _; try done.
       all: fold_leibniz.
-      all: try apply _; try done.
-      - intros ??? -> ->. eauto.
       - intros ???. fold_leibniz.
         rewrite !op_unfold /add. des_ifs.
         { f_equal. rewrite union_assoc. auto. }
@@ -99,15 +97,11 @@ Module NatMapRA.
         { f_equal. apply disjoint_union_comm. apply disjoint_true_iff; auto. }
         { rewrite disjoint_comm in Heq. clarify. }
         { rewrite disjoint_comm in Heq. clarify. }
-      - intros x cx. rewrite pcore_unfold op_unfold /core /add.
-        injection 1 as <-. simpl. des_ifs. f_equal. ss.
-        rewrite union_empty. auto.
-      - intros x y cx [z EQ'] EQ. fold_leibniz. subst.
-        rewrite pcore_unfold /core in EQ. injection EQ as <-.
-        rewrite pcore_unfold op_unfold /core /add.
+      - intros x. rewrite /cmra.core pcore_unfold op_unfold /core /add.
+        simpl. des_ifs. f_equal. rewrite union_empty. auto.
+      - intros x y [z EQ]. fold_leibniz. subst.
+        rewrite /cmra.core pcore_unfold op_unfold /core /add /=.
         exists unit. split; eauto.
-        exists unit. fold_leibniz. rewrite op_unfold /add. simpl.
-        repeat rewrite union_empty. ss.
       - intros x y. rewrite !valid_unfold /wf op_unfold /add.
         des_ifs.
     Qed.
@@ -306,32 +300,26 @@ Section SUM.
   Lemma list_prop_sum_nil A (P: A -> iProp)
     :
     ⊢ list_prop_sum P [].
-  Proof.
-    ss.
-  Qed.
+  Proof. ss. Qed.
 
   Lemma list_prop_sum_cons_fold A (P: A -> iProp) hd tl
     :
     (P hd ∗ list_prop_sum P tl)
-      -∗
+      ⊢
       (list_prop_sum P (hd::tl)).
-  Proof.
-    ss.
-  Qed.
+  Proof. ss. Qed.
 
   Lemma list_prop_sum_cons_unfold A (P: A -> iProp) hd tl
     :
     (list_prop_sum P (hd::tl))
-      -∗
+      ⊢
       (P hd ∗ list_prop_sum P tl).
-  Proof.
-    ss.
-  Qed.
+  Proof. ss. Qed.
 
   Lemma list_prop_sum_split A (P: A -> iProp) l0 l1
     :
     (list_prop_sum P (l0 ++ l1))
-      -∗
+      ⊢
       (list_prop_sum P l0 ∗ list_prop_sum P l1).
   Proof.
     induction l0; ss.
@@ -342,7 +330,7 @@ Section SUM.
   Lemma list_prop_sum_combine A (P: A -> iProp) l0 l1
     :
     (list_prop_sum P l0 ∗ list_prop_sum P l1)
-      -∗
+      ⊢
       (list_prop_sum P (l0 ++ l1)).
   Proof.
     induction l0; ss.
@@ -355,7 +343,7 @@ Section SUM.
   Lemma list_prop_sum_add A (P: A -> iProp) l a
     :
     (P a ∗ list_prop_sum P l)
-      -∗
+      ⊢
       (list_prop_sum P (l++[a])).
   Proof.
     iIntros "[NEW SAT]". iApply list_prop_sum_combine. iFrame.
@@ -365,7 +353,7 @@ Section SUM.
         (IMPL: forall a, P0 a ⊢ P1 a)
     :
     (list_prop_sum P0 l)
-      -∗
+      ⊢
       (list_prop_sum P1 l).
   Proof.
     induction l; ss.
@@ -378,7 +366,7 @@ Section SUM.
         (IMPL: forall a (IN: In a l), P0 a ⊢ P1 a)
     :
     (list_prop_sum P0 l)
-      -∗
+      ⊢
       (list_prop_sum P1 l).
   Proof.
     induction l; ss.
@@ -391,7 +379,7 @@ Section SUM.
   Lemma list_prop_sum_sepconj A (P0 P1: A -> iProp) l
     :
     ((list_prop_sum P0 l) ∗ (list_prop_sum P1 l))
-      -∗
+      ⊢
       list_prop_sum (fun a => (P0 a) ∗ (P1 a)) l.
   Proof.
     induction l; ss; auto.
@@ -401,7 +389,7 @@ Section SUM.
   Lemma list_prop_sepconj_sum A (P0 P1: A -> iProp) l
     :
     (list_prop_sum (fun a => (P0 a) ∗ (P1 a)) l)
-      -∗
+      ⊢
       ((list_prop_sum P0 l) ∗ (list_prop_sum P1 l)).
   Proof.
     induction l; ss; auto.
@@ -416,7 +404,7 @@ Section SUM.
       list_prop_sum Q l.
   Proof.
     iIntros "SUMs". iApply list_prop_sum_impl. 2: iApply list_prop_sum_sepconj; iFrame.
-    i. ss.
+    i. ss. iApply IMPL.
   Qed.
 
   Lemma list_prop_sum_persistent A (P: A -> iProp) l
@@ -456,7 +444,7 @@ Section SUM.
             R a b -> P a ⊢ Q b)
     :
     (list_prop_sum P la)
-      -∗
+      ⊢
       (list_prop_sum Q lb).
   Proof.
     revert IMPL. induction FORALL; i; ss.
@@ -541,7 +529,7 @@ Section SUM.
         (MAP: forall a, (P0 a) -∗ (P1 (f a)))
     :
     (list_prop_sum P0 l)
-      -∗
+      ⊢
       (list_prop_sum P1 (List.map f l)).
   Proof.
     induction l; ss.
@@ -557,7 +545,7 @@ Section SUM.
         (MAP: forall a, (P1 (f a)) -∗ (P0 a))
     :
     (list_prop_sum P1 (List.map f l))
-      -∗
+      ⊢
     (list_prop_sum P0 l).
   Proof.
     induction l; ss.
@@ -852,7 +840,7 @@ Section SUM.
       natmap_prop_sum m Q.
   Proof.
     iIntros "SUMs". iApply natmap_prop_sum_impl. 2: iApply natmap_prop_sum_sepconj; iFrame.
-    i. ss.
+    i. ss. iApply IMPL.
   Qed.
 
   Lemma natmap_prop_sum_find_remove

@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 Require Import Coq.Classes.RelationClasses.
 From iris.algebra Require Import cmra.
 From Fairness Require Import Axioms NatStructsLarge.
-From Fairness Require Import PCM World.
+From Fairness Require Import World.
 From Fairness Require Import Mod.
 Require Import String Lia Program.
 
@@ -66,10 +66,9 @@ Section THREADS_RA_DEF.
 
   Definition mixin : RAMixin threadsRA_car.
   Proof.
-    split; try apply _; try done.
+    apply ra_total_mixin; try apply _; try done.
     all: fold_leibniz.
     all: try apply _; try done.
-    - intros ??? -> ->. eauto.
     - intros ???. fold_leibniz.
       rewrite !op_unfold /add.
       destruct x, y, z; try (ss; des_ifs; fail).
@@ -82,16 +81,13 @@ Section THREADS_RA_DEF.
       all: rewrite (union_comm ths_ctx').
       all: rewrite (union_comm ths_usr').
       all: ss.
-    - intros ??.
-      rewrite pcore_unfold unit_unfold op_unfold. intros H.
-      destruct x, cx; inv H; unfold add; des_ifs; ss.
+    - intros ?.
+      rewrite /core pcore_unfold unit_unfold op_unfold /=.
+      destruct x; des_ifs; ss.
       all: rewrite !union_empty; done.
-    - intros x y z.
-      rewrite pcore_unfold unit_unfold. intros H.
-      injection 1 as <-.
+    - intros x y H.
+      rewrite /core pcore_unfold unit_unfold /=.
       exists (local NatSet.empty NatSet.empty).
-      rewrite pcore_unfold unit_unfold /included.
-      split; [done|]. exists (local NatSet.empty NatSet.empty).
       fold_leibniz. rewrite op_unfold /add.
       des_ifs.
     - intros a b. rewrite !valid_unfold op_unfold. intros H.

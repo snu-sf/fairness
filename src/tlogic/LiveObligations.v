@@ -9,6 +9,9 @@ From Fairness Require Import FairnessRA IndexedInvariants.
 From Fairness Require Export ObligationRA SimDefaultRA.
 Require Export Nat.
 
+Local Instance frame_exist_instantiate_disabled :
+FrameInstantiateExistDisabled := {}.
+
 Notation "'ω'" := Ord.omega.
 
 Section LAYER.

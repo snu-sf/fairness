@@ -3,7 +3,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From ITree Require Import ITree.
 From Fairness Require Import
-  ITreeLib WFLibLarge Axioms pind PCM Mod Linking ModSim ModSimAux ModSimNat AddWorld.
+  ITreeLib WFLibLarge Axioms pind Mod Linking ModSim ModSimAux ModSimNat AddWorld.
 
 Import Lia.
 Import Mod.
@@ -567,7 +567,11 @@ Section ADD_RIGHT_MONO_SIM.
     - match goal with [ |- __lsim _ _ _ _ _ _ _ _ _ (map_event ?EMB _) _ ] => set EMB as emb end.
       rewrite ! map_event_trigger.
       eapply lsim_yieldL. split; ss.
-      replace (trigger Yield) with (trigger (emb unit (subevent unit Yield))) by ss.
+      replace (trigger Yield) with
+              (ITree.trigger
+                (subevent _ (F:=threadE _ _)
+                  (emb unit (subevent unit Yield)))
+              ) by ss.
       rewrite <- ! map_event_trigger.
       destruct LSIM. eapply IH; eauto.
     - match goal with [ |- __lsim _ _ _ _ _ _ _ _ (map_event ?EMB _) _ _ ] => set EMB as emb end.
@@ -582,12 +586,16 @@ Section ADD_RIGHT_MONO_SIM.
       assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (prism_fmap inlp (tids_fmap tid ths_usr1))).
       { ii. unfold prism_fmap. destruct i as [i|i]; ss.
         - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). unfold prism_fmap in *; ss.
-          unfold tids_fmap in *. destruct (Nat.eq_dec i tid); ss. des_ifs.
+          unfold tids_fmap in *. destruct (Nat.eq_dec i tid); ss; des_ifs.
           exfalso. tauto.
         - specialize (TGT (inr (inr i))). ss.
       }
       specialize (LSIM ths_usr1 im_src1 (chop_ctx ths_usr1 IM_TGT1) (snd st_src1) (snd st_tgt1) r_sha_w1 r_ctx_w1 INV1_4 VALID1_1 (chop_ctx ths_usr1 IM_TGT2) TGT').
-      replace (trigger Yield) with (trigger (emb unit (subevent unit Yield))) by ss.
+      replace (trigger Yield) with
+              (ITree.trigger
+                (subevent _ (F:=threadE _ _)
+                  (emb unit (subevent unit Yield)))
+              ) by ss.
       rewrite <- ! map_event_trigger.
       destruct LSIM. eapply IH; eauto.
       + subst. extensionalities i. destruct i as [i|i]; ss. f_equal.
@@ -603,7 +611,7 @@ Section ADD_RIGHT_MONO_SIM.
       assert (TGT' : fair_update (chop_ctx ths_usr1 IM_TGT1) (chop_ctx ths_usr1 IM_TGT2) (prism_fmap inlp (tids_fmap tid ths_usr1))).
       { ii. destruct i as [i|i]; ss.
         - eapply Partition_In_right in INV1_1. specialize (INV1_1 i). specialize (TGT (inl i)). unfold prism_fmap in *; ss.
-          unfold tids_fmap in *. destruct (Nat.eq_dec i tid); ss. des_ifs.
+          unfold tids_fmap in *. destruct (Nat.eq_dec i tid); ss; des_ifs.
           exfalso. tauto.
         - specialize (TGT (inr (inr i))). ss.
       }

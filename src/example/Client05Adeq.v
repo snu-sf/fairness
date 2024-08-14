@@ -1,5 +1,5 @@
 From sflib Require Import sflib.
-From iris Require Import cmra.
+From iris.algebra Require Import cmra.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.

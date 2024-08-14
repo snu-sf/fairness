@@ -770,7 +770,7 @@ Qed.
 Lemma to_ra_updatable `{M: cmra} (a b : M) :
   @RA.updatable (t M) (to_ra a) (to_ra b) <-> a ~~> b.
 Proof.
-  rewrite cmra_discrete_update. split; intros UPD.
+  rewrite cmra_discrete_total_update. split; intros UPD.
   - intros mz V. rr in UPD. des. simpl in *. destruct mz as [mz|].
     + specialize (UPD0 (to_ra mz)). simpl in *. apply UPD0,V.
     + apply UPD,V.
@@ -783,7 +783,7 @@ Qed.
 Lemma to_ra_updatable_set `{M: cmra} (a : M) P :
   @RA.updatable_set (t M) (to_ra a) (fun a => match a with | just a => P a end) <-> a ~~>: P.
 Proof.
-  rewrite cmra_discrete_updateP. split; intros UPD.
+  rewrite cmra_discrete_total_updateP. split; intros UPD.
   - rr in UPD. des. intros [mz|] V.
     + specialize (UPD0 (to_ra mz) V). destruct UPD0 as [[b] [??]]. exists b. split; ss.
     + specialize (UPD V). destruct UPD as [[b] [??]]. exists b. split; ss.
@@ -1048,7 +1048,7 @@ Theorem updatable
     <<UPD: (just a0) ~~> a1>>
 .
 Proof.
-  rewrite /NW cmra_discrete_update.
+  rewrite /NW cmra_discrete_total_update.
   revert WF. excl_unfold_all.
   ii. des_ifs. destruct a1; done.
 Qed.
@@ -1234,7 +1234,7 @@ Theorem auth_update
     <<UPD: black a ⋅ white b ~~> black a' ⋅ white b'>>
 .
 Proof using DISC.
-  apply cmra_discrete_update.
+  apply cmra_discrete_total_update.
   rewrite /black /white valid_unfold /wf op_unfold /add.
   intros []; auto.
   rewrite local_update_unital_discrete in UPD.
@@ -1251,7 +1251,7 @@ Theorem auth_dup_black
     <<DUP: black a ~~> black a ⋅ white ca >>
 .
 Proof.
-  rewrite /NW cmra_discrete_update.
+  rewrite /NW cmra_discrete_total_update.
   rewrite /black /white valid_unfold /wf op_unfold /add.
   intros []; auto.
   rewrite left_id. intros [[z LE] WF].
@@ -1267,7 +1267,7 @@ Theorem auth_dup_white
     <<DUP: white a ~~> white a ⋅ white ca >>
 .
 Proof.
-  rewrite /NW cmra_discrete_update.
+  rewrite /NW cmra_discrete_total_update.
   rewrite /white valid_unfold /wf op_unfold /add.
   intros []; auto.
   - ss. rewrite -CORE. ss.
@@ -1641,8 +1641,8 @@ Module GRA.
       <<UPD: (GRA.embed a) ~~>: (λ a', ∃ b, a' = GRA.embed b ∧ P b) >>
   .
   Proof.
-    rewrite /NW cmra_discrete_updateP.
-    rewrite cmra_discrete_updateP in UPD.
+    rewrite /NW cmra_discrete_total_updateP.
+    rewrite cmra_discrete_total_updateP in UPD.
     ss. intros z WF.
     unshelve hexploit UPD.
     { eapply (@eq_rect ucmra (Σ (@GRA.inG_id _ _ H)) cmra_car).
@@ -1753,13 +1753,13 @@ Module GRA.
   (*   exists c, URA.prod RA0 c = RA1 *)
   (* . *)
 
-  Class inG2 (RA GRA: ucmra): Prop := {
+  (* Class inG2 (RA GRA: ucmra): Prop := {
     GRA_data: t;
     (* GRA_prf:  *)
     inG2_id: nat;
     inG2_prf: GRA_data inG2_id = RA;
   }
-  .
+  . *)
 
   Fixpoint point_wise_wf (Ml: ucmra_list) (x: of_list Ml) (n: nat) :=
   match n with

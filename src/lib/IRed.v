@@ -27,7 +27,7 @@ Ltac get_head2 term :=
   end
 .
 
-(* Ltac iSolveTC := *)
+(* Ltac tc_solve := *)
 (*   solve [once (typeclasses eauto)]. *)
 
 (* Ltac get_tail term := *)

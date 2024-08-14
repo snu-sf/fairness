@@ -1,4 +1,7 @@
 #!/bin/bash
 opam repo add coq-released https://coq.inria.fr/opam/released
 opam remote add coq-sf -k git --rank=1 https://github.com/snu-sf/sf-opam-coq-archive
-opam install coq-paco.4.1.2 coq-sflib coq-promising-lib coq-ext-lib.dev coq-itree.4.0.0 coq-ordinal.dev coq-stdpp.1.8.0 coq-iris.4.0.0 coq-promising-lib.dev coq-promising-seq.dev
+opam pin add -n -y coq-ext-lib -k git https://github.com/Lee-Janggun/coq-ext-lib.git#poly
+opam pin add -n -y coq-itree -k git https://github.com/Lee-Janggun/InteractionTrees.git
+opam pin add -n -y coq-promising-seq -k git https://github.com/Lee-Janggun/promising-seq-coq.git
+opam install coq-paco.dev coq-sflib coq-ext-lib.dev coq-itree.dev coq-ordinal.dev coq-iris.4.2.0 coq-promising-lib.dev coq-promising-seq.dev

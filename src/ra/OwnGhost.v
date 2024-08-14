@@ -1,8 +1,7 @@
 From sflib Require Import sflib.
 From iris.algebra Require Import cmra gmap proofmode_classes updates.
 From iris.proofmode Require Import proofmode.
-From Fairness Require Import IPM PCM IPropAux.
-From Fairness Require Import TemporalLogic.
+From Fairness Require Import IPM PCM IPropAux FiniteMapRA.
 (* Re-implemntation of [own] of Iris *)
 From iris.prelude Require Import prelude options.
 
@@ -260,17 +259,17 @@ Section proofmode_instances.
   (* TODO: Improve this instance with generic OwnG.to_t simplification machinery
   once https://gitlab.mpi-sws.org/iris/iris/-/issues/460 is fixed *)
   (* Cost > 50 to give priority to [combine_sep_as_fractional]. *)
-  (* Global Instance combine_sep_as_own γ a b1 b2 :
+  Global Instance combine_sep_as_own γ a b1 b2 :
     IsOp a b1 b2 → CombineSepAs (OwnG.to_t γ b1) (OwnG.to_t γ b2) (OwnG.to_t γ a) | 60.
-  Proof. intros. by rewrite /CombineSepAs -own_op -is_op. Qed. *)
+  Proof. intros. by rewrite /CombineSepAs -own_op -is_op. Qed.
   (* TODO: Improve this instance with generic OwnG.to_t validity simplification
   machinery once https://gitlab.mpi-sws.org/iris/iris/-/issues/460 is fixed *)
-  (* Global Instance combine_sep_gives_own γ b1 b2 :
-    CombineSepGives (OwnG.to_t γ b1) (OwnG.to_t γ b2) (✓ (b1 ⋅ b2)).
+  Global Instance combine_sep_gives_own γ b1 b2 :
+    CombineSepGives (OwnG.to_t γ b1) (OwnG.to_t γ b2) (⌜✓ (b1 ⋅ b2)⌝).
   Proof.
     intros. rewrite /CombineSepGives -own_op own_valid.
     by apply: bi.persistently_intro.
-  Qed. *)
+  Qed.
   (* TODO: come back to this after sealing iProp, stdpp style. *)
   (* Global Instance from_and_own_persistent γ a b1 b2 :
     IsOp a b1 b2 → TCOr (CoreId b1) (CoreId b2) →

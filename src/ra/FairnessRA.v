@@ -988,10 +988,8 @@ Module Fuel.
 
     Definition mixin `{OrderedCM.t A} : RAMixin car.
     Proof.
-      split; try apply _; try done.
+      apply ra_total_mixin; try apply _; try done.
       all: fold_leibniz.
-      all: try apply _; try done.
-      - intros ??? -> ->. eauto.
       - intros a b c. fold_leibniz.
         rewrite !op_unfold /add.
         destruct a, b, c; ss.
@@ -1018,9 +1016,8 @@ Module Fuel.
           { eapply quotient_add_comm. }
           { rewrite Qp.add_comm. auto. }
         }
-      - intros a b.
-        rewrite !pcore_unfold /core /unit.
-        injection 1. intros <-.
+      - intros a.
+        rewrite /cmra.core !pcore_unfold /core /unit /=.
         rewrite !op_unfold /add.
         destruct a; ss.
         { f_equal.
@@ -1035,9 +1032,8 @@ Module Fuel.
           eapply from_monoid_eq.
           eapply OrderedCM.add_unit_eq_r.
         }
-      - intros a a' ca [b Ha]. fold_leibniz. subst.
-        rewrite !pcore_unfold /core. injection 1. intros <-.
-        exists unit. split; [done|].
+      - intros a a' [b Ha]. fold_leibniz. subst.
+        rewrite /cmra.core !pcore_unfold /core /=.
         exists unit. fold_leibniz.
         rewrite op_unfold /add /unit /white'. ss.
         f_equal.
@@ -1158,7 +1154,7 @@ Module Fuel.
           (LE: OrderedCM.le a0 a1)
       :
       white a1 ~~> white a0.
-    Proof. by apply cmra_discrete_update,white_mon'. Qed.
+    Proof. by apply cmra_discrete_total_update,white_mon'. Qed.
 
     Lemma black_mon' `{OrderedCM.t A} (a0 a1: A) (q: Qp)
           (LE: OrderedCM.le a0 a1)
@@ -1186,7 +1182,7 @@ Module Fuel.
           (LE: OrderedCM.le a0 a1)
       :
       black a0 q ~~> black a1 q.
-    Proof. by apply cmra_discrete_update,black_mon'. Qed.
+    Proof. by apply cmra_discrete_total_update,black_mon'. Qed.
 
     Lemma success_update' `{OrderedCM.t A} a0 a1
       :
@@ -1218,14 +1214,14 @@ Module Fuel.
       :
       black a0 1 ~~>
       black (OrderedCM.add a0 a1) 1 ⋅ white a1.
-    Proof. by apply cmra_discrete_update, success_update'. Qed.
+    Proof. by apply cmra_discrete_total_update, success_update'. Qed.
 
     Lemma decr_update `{OrderedCM.t A} a0 a1 q
       :
         black a0 q ⋅ white a1 ~~>:
         (fun r => exists a2, r = black a2 q /\ OrderedCM.le (OrderedCM.add a1 a2) a0).
     Proof.
-      apply cmra_discrete_updateP. intros f WF.
+      apply cmra_discrete_total_updateP. intros f WF.
       rewrite /black /white !op_unfold /add !valid_unfold /wf in WF.
       unfold black,wf,add.
       des_ifs.
@@ -1772,10 +1768,10 @@ Module FairRA.
       iSplit.
       { iPureIntro. i. des_ifs.
         { split; auto. i. apply H. auto. }
-        { split; i; ss. inv H0. ss. }
+        { split; i; ss. inv H0. }
       }
       iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
-      i. des_ifs; try by reflexivity. eexists _. rewrite left_id. ss.
+      i. des_ifs; try by reflexivity.
     Qed.
 
     Lemma blacks_empty s
@@ -1785,7 +1781,7 @@ Module FairRA.
     Proof.
       iIntros. iExists (fun _ => None). iSplit; ss.
       { iPureIntro. i. split; i; ss.
-        { inv H. ss. }
+        { inv H. }
         { exfalso. eapply EMPTY; eauto. }
       }
       iApply (OwnM_extends with "[]").
@@ -1812,22 +1808,13 @@ Module FairRA.
       iSplit.
       { iPureIntro. i. des_ifs.
         { split; auto. i. hexploit IMPL; eauto. i. des; clarify. rewrite H. ss. }
-        { split; i; ss. inv H1. ss. }
+        { split; i; ss. inv H1. }
       }
       iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
       i. rewrite discrete_fun_lookup_op. unfold maps_to_res.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-      { eexists. apply (comm cmra.op). }
-      { rewrite Prism.preview_review in Heq. clarify. }
       { eapply Prism.review_preview in Heq. clarify. }
       { eapply Prism.review_preview in Heq. clarify. }
-      { rewrite Prism.preview_review in Heq. clarify.
-        eexists. rewrite left_id. ss. }
-      { eapply Prism.review_preview in Heq. clarify.
-        eexists. rewrite left_id. ss. }
-      { eexists. rewrite left_id. ss. }
-      { eexists. rewrite left_id. ss. }
-      { eexists. rewrite left_id. ss. }
     Qed.
 
     Lemma blacks_unfold (s0 s1: Id -> Prop) i
@@ -1848,7 +1835,7 @@ Module FairRA.
         - iExists f1. iSplit; auto. iPureIntro. i.
           unfold f1. des_ifs.
           { rewrite H. split; i; auto. }
-          { split; ss. i. inv H0. ss. }
+          { split; ss. i. inv H0. }
         - iExists x. eauto.
       }
       { rewrite unfold_pointwise_add /maps_to_res /f1.
@@ -1858,7 +1845,6 @@ Module FairRA.
         { rewrite Prism.preview_review in Heq. clarify. }
         { rewrite Prism.preview_review in Heq. clarify. }
         { rewrite Prism.preview_review in Heq. clarify. }
-        { eexists. rewrite left_id. ss. }
         { rewrite Prism.preview_review in Heq. clarify. }
       }
     Qed.
@@ -1878,12 +1864,11 @@ Module FairRA.
       iSplit.
       { iPureIntro. i. rewrite <- H. rewrite <- H0. des_ifs.
         { split; auto. }
-        { split; auto. i. des; ss. inv H1. ss. }
+        { split; auto. i. des; ss. inv H1. }
       }
       iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
       i. rewrite unfold_pointwise_add.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-      { eexists. eauto. }
     Qed.
 
     Definition blacks_split (s0 s1: Id -> Prop)
@@ -1900,20 +1885,19 @@ Module FairRA.
           iSplit; [|iExact "BLACKS0"].
           iPureIntro. i. des_ifs.
           { rewrite H. split; auto. }
-          { split; ss. i. inv H0. ss. }
+          { split; ss. i. inv H0. }
         }
         { iExists (fun i => if (excluded_middle_informative (s1 i)) then f i else None).
           iSplit; [|iExact "BLACKS1"].
           iPureIntro. i. des_ifs.
           { rewrite H. split; auto. }
-          { split; ss. i. inv H0. ss. }
+          { split; ss. i. inv H0. }
         }
       }
       { apply pointwise_extends.
         i. rewrite unfold_pointwise_add.
         des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-        { exfalso. eapply DISJOINT; eauto. }
-        { eexists. rewrite left_id. eauto. }
+        exfalso. eapply DISJOINT; eauto.
       }
     Qed.
 
@@ -1937,8 +1921,7 @@ Module FairRA.
       iIntros "WHITES".
       iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
       i. des_ifs; try by reflexivity.
-      { exfalso. eauto. }
-      { eexists _. rewrite left_id. ss. }
+      exfalso. eauto.
     Qed.
 
     Lemma whites_empty s u
@@ -1964,13 +1947,8 @@ Module FairRA.
       iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
       i. rewrite unfold_pointwise_add. unfold maps_to_res.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-      { eexists. apply (comm cmra.op). }
-      { eapply Prism.review_preview in Heq.
-        hexploit IMPL; eauto. i. des; clarify. }
-      { eexists. rewrite left_id. ss. }
-      { eexists. rewrite left_id. ss. }
-      { eexists. rewrite left_id. ss. }
-      { eexists. rewrite left_id. ss. }
+      eapply Prism.review_preview in Heq.
+      hexploit IMPL; eauto. i. des; clarify.
     Qed.
 
     Definition whites_unfold (s0 s1: Id -> Prop) i u
@@ -1993,7 +1971,6 @@ Module FairRA.
           exfalso. eapply n0. auto. }
         { rewrite Prism.preview_review in Heq. clarify.
           exfalso. eapply n0. auto. }
-        { eexists. rewrite left_id. ss. }
         { rewrite Prism.preview_review in Heq. clarify. }
       }
     Qed.
@@ -2009,11 +1986,7 @@ Module FairRA.
       iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
       i. rewrite unfold_pointwise_add.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-      { eexists. eauto. }
-      { des; ss. }
-      { eexists. rewrite left_id. ss. }
-      { eexists. rewrite left_id. ss. }
-      { eexists. rewrite left_id. ss. }
+      des; ss.
     Qed.
 
     Definition whites_split (s0 s1: Id -> Prop) u
@@ -2033,7 +2006,6 @@ Module FairRA.
         { exfalso. eapply n; eauto. }
         { exfalso. eapply n0; eauto. }
         { exfalso. eapply n0; eauto. }
-        { des; ss. }
       }
     Qed.
 
@@ -2049,7 +2021,6 @@ Module FairRA.
       i. des_ifs; ss.
       { rewrite Prism.preview_review in Heq. clarify. }
       { rewrite Prism.preview_review in Heq. clarify. }
-      { eexists. rewrite left_id. auto. }
     Qed.
 
     Lemma blacks_black (s: Id -> Prop) i
@@ -2061,14 +2032,13 @@ Module FairRA.
     Proof.
       iIntros "[% [% H]]".
       hexploit (proj2 (H i)); auto. i. destruct (f i) eqn:EQ.
-      2:{ inv H0. ss. }
+      2:{ inv H0. }
       iExists a. iApply (OwnM_extends with "H").
       unfold maps_to_res. eapply pointwise_extends.
       i. des_ifs; ss.
       { rewrite Prism.preview_review in Heq. clarify. }
       { rewrite Prism.preview_review in Heq. clarify. }
       { rewrite Prism.preview_review in Heq. clarify. }
-      { eexists. rewrite left_id. auto. }
     Qed.
 
     Lemma black_ex_list_blacks (l: list Id) (P: Id -> Prop)
@@ -2147,7 +2117,6 @@ Module FairRA.
       i. ss. des_ifs; try by reflexivity.
       { des; clarify. rewrite Prism.preview_review in Heq. clarify. }
       { des; clarify. rewrite Prism.preview_review in Heq. clarify. }
-      { eexists _. rewrite left_id. ss. }
     Qed.
 
     Lemma whites_prism_id_rev P o
@@ -2159,11 +2128,8 @@ Module FairRA.
       iIntros "WHITES".
       iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
       i. ss. des_ifs; try by reflexivity.
-      { des; clarify. eapply Prism.review_preview in Heq. clarify.
-        exfalso. eauto.
-      }
-      { eexists _. rewrite left_id. ss. }
-      { eexists _. rewrite left_id. ss. }
+      des; clarify. eapply Prism.review_preview in Heq.
+      clarify. exfalso. eauto.
     Qed.
 
     Lemma blacks_prism_id P
@@ -2212,8 +2178,6 @@ Module FairRA.
       i. ss. des_ifs; try by reflexivity.
       { eapply Prism.review_preview in Heq. clarify. }
       { eapply Prism.review_preview in Heq. clarify. }
-      { eexists _. rewrite left_id. ss. }
-      { eexists _. rewrite left_id. ss. }
     Qed.
 
     Lemma white_prism_id i o
@@ -2265,7 +2229,7 @@ Module FairRA.
     Lemma whites_of_prism_id l o
       :
       (whites_of p l o)
-        -∗
+        ⊢
         (whites_of Prism.id (List.map (Prism.review p) l) o).
     Proof.
       eapply list_prop_sum_map. i. eapply white_prism_id.
@@ -2274,7 +2238,7 @@ Module FairRA.
     Lemma whites_of_prism_id_rev l o
       :
       (whites_of Prism.id (List.map (Prism.review p) l) o)
-        -∗
+        ⊢
         (whites_of p l o).
     Proof.
       eapply list_prop_sum_map_inv. i. eapply white_prism_id_rev.
@@ -2283,7 +2247,7 @@ Module FairRA.
     Lemma blacks_of_prism_id l
       :
       (blacks_of p l)
-        -∗
+        ⊢
         (blacks_of Prism.id (List.map (Prism.review p) l)).
     Proof.
       eapply list_prop_sum_map. i. eapply black_ex_prism_id.
@@ -2292,7 +2256,7 @@ Module FairRA.
     Lemma blacks_of_prism_id_rev l
       :
       (blacks_of Prism.id (List.map (Prism.review p) l))
-        -∗
+        ⊢
         (blacks_of p l).
     Proof.
       eapply list_prop_sum_map_inv. i. eapply black_ex_prism_id_rev.
@@ -2358,14 +2322,14 @@ Module FairRA.
             { rewrite right_id. auto. }
           }
           specialize (UPDATE a). des_ifs; cycle 5.
-          { specialize (H a). rewrite Heq0 in H. rewrite Heq in H. inv H. hexploit H1; ss. i. inv H. ss. }
+          { specialize (H a). rewrite Heq0 in H. rewrite Heq in H. inv H. hexploit H1; ss. i. inv H. }
           { exfalso. specialize (H a). rewrite Heq0 in H. rewrite Heq in H.
             inv H. hexploit H0; ss.
           }
           { exfalso. specialize (H a). rewrite Heq0 in H. rewrite Heq in H.
             inv H. hexploit H0; ss.
           }
-          { apply cmra_discrete_updateP. intros z WF.
+          { apply cmra_discrete_total_updateP. intros z WF.
             rewrite <- (assoc cmra.op) in WF.
             exploit Fuel.success_update'; eauto. i. esplits; eauto.
             eapply cmra_valid_op_l.
@@ -2375,11 +2339,11 @@ Module FairRA.
             rewrite <- (Fuel.white_sum (f1 a) u) in x0.
             r_wf x0.
           }
-          { apply cmra_discrete_updateP. ii. exploit Fuel.white_mon'; eauto. i. esplits; eauto.
+          { apply cmra_discrete_total_updateP. ii. exploit Fuel.white_mon'; eauto. i. esplits; eauto.
             rewrite -(Fuel.white_sum u (f1 a)) in x0.
             r_wf x0.
           }
-          { apply cmra_discrete_updateP. ii. rewrite UPDATE. esplits; eauto. }
+          { apply cmra_discrete_total_updateP. ii. rewrite UPDATE. esplits; eauto. }
         }
         { set R := (fun (r : discrete_funUR (λ _ : S, Fuel.t A)) (i : S) (fi : option A) =>
                                      (is_Some fi <-> fm i = Flag.success) /\
@@ -2422,12 +2386,12 @@ Module FairRA.
           eapply (choice (A := S) (B := option A) (R fn)). subst R. i. ss.
           specialize (SAT x). destruct (fm x) eqn:FM.
           { exists None. splits.
-            { split; ss. i. inv H0. ss. }
+            { split; ss. i. inv H0. }
             rewrite SAT. des_ifs.
             repeat rewrite right_id. auto.
           }
           { exists None. splits.
-            { split; ss. i. inv H0. ss. }
+            { split; ss. i. inv H0. }
             rewrite SAT. des_ifs.
             repeat rewrite right_id. auto.
           }
@@ -2461,8 +2425,7 @@ Module FairRA.
         rewrite H1. rewrite unfold_pointwise_add. auto.
       }
       subst. iPoseProof "OWN" as "[[[OWN0 OWN1] OWN2] OWN3]".
-      iModIntro. iFrame. iExists _. iSplit.
-      2:{ iFrame. }
+      iModIntro. iFrame.
       iPureIntro. i. specialize (H0 i). des. auto.
     Qed.
 
@@ -2554,8 +2517,7 @@ Module FairRA.
         rewrite H0. rewrite unfold_pointwise_add. auto.
       }
       subst. iPoseProof "OWN" as "[OWN0 OWN1]".
-      iModIntro. iFrame. iExists _. iSplit.
-      2:{ iFrame. }
+      iModIntro. iFrame.
       iPureIntro. i. specialize (H i). des.
       rewrite unfold_pointwise_add in H0. des_ifs.
     Qed.
@@ -2608,7 +2570,7 @@ Module FairRA.
         rewrite unfold_pointwise_add.
         apply pointwise_updatable. i. unfold maps_to_res. ss.
         des_ifs; des; ss; repeat rewrite right_id; repeat rewrite left_id; ss.
-        { apply cmra_discrete_update. ii. rewrite left_id. eapply cmra_valid_op_r. done. }
+        { apply cmra_discrete_total_update. ii. rewrite left_id. eapply cmra_valid_op_r. done. }
         { exfalso. eapply n0; ss. auto. }
       }
       { iExists f1. iFrame "BLACK". iSplitR.
@@ -2667,8 +2629,8 @@ Module FairRA.
                  ∗
                  (whites Prism.id (fun _ => True: Prop) o))).
     Proof.
-      transitivity (blacks_all (fun (_: S) => Ord.O)); [auto|].
       iIntros "BLACKS".
+      iAssert (blacks_all (fun (_: S) => Ord.O)) with "BLACKS" as "BLACKS".
       iPoseProof (blacks_update with "BLACKS []") as "> [% [% [BLACKS WHITES]]]".
       { iApply (OwnM_extends with "[]").
         { instantiate (1:=ε).
@@ -2766,7 +2728,7 @@ Module FairRA.
         iPureIntro.
         { unfold f0. i. des_ifs.
           { split; i; ss.
-            { des. inv H. ss. }
+            { des. inv H. }
             { des. clarify. exfalso. eapply NIN.
               eapply NatMapP.F.in_find_iff. ii. clarify.
             }
@@ -2775,7 +2737,7 @@ Module FairRA.
             ii. eapply NatMapP.F.in_find_iff in H0. ss.
           }
           { split; i; ss.
-            { des. inv H. ss. }
+            { des. inv H. }
             { des. clarify. }
           }
         }
@@ -2804,7 +2766,7 @@ Module FairRA.
         iPureIntro.
         { unfold f2. ss. i. split; i.
           { des_ifs.
-            { inv H. ss. }
+            { inv H. }
             rr in H. eauto.
           }
           { des. compute in H. subst. ss. }
@@ -2824,7 +2786,7 @@ Module FairRA.
            (sat_target f (NatMap.remove tid ths))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]] [% BLACK]". des.
-      iFrame. iCombine "BLACKS BLACK" as "BLACK".
+      iFrame "WHITES". iCombine "BLACKS BLACK" as "BLACK".
       iExists (fun i =>
                  match i with
                  | inl tid' => if (tid_dec tid' tid) then Some a else f0 i
@@ -2875,7 +2837,7 @@ Module FairRA.
       hexploit (proj2 (H (inl tid))).
       { apply inv_add_new in THS. des. esplits; eauto. }
       i. destruct (f (inl tid)) eqn:TID.
-      2:{ inv H0. ss. } clear H0.
+      2:{ inv H0. } clear H0.
       set (f2 :=
              (fun i =>
                 match i with
@@ -2903,8 +2865,8 @@ Module FairRA.
                    | _ => None
                    end). iSplit.
         { iPureIntro. i. unfold prism_fmap. destruct i; ss; des_ifs.
-          - split; i; ss. inv H0. inv H1.
-          - split; i; ss. inv H0. inv H1.
+          - split; i; ss. inv H0.
+          - split; i; ss. inv H0.
         }
         { iApply (OwnM_extends with "BLACK").
           eapply pointwise_extends. i. unfold maps_to_res. ss.
@@ -2914,11 +2876,10 @@ Module FairRA.
       iModIntro. iSplitR "BLACK".
       2:{ iApply (blacks_black with "BLACK"). unfold prism_fmap; ss. des_ifs. }
       unfold sat_target. iFrame.
-      iExists f2. iSplit; auto.
       iPureIntro. i. unfold f2. hexploit (H i). i.
       inv THS. des_ifs.
       { split; i.
-        { inv H1. ss. }
+        { inv H1. }
         { des. clarify. exfalso. eapply NIN.
           apply NatMapP.F.in_find_iff. rewrite nm_find_add_eq. ss.
         }
@@ -3008,9 +2969,6 @@ Module FairRA.
         rewrite unfold_pointwise_add.
         eapply pointwise_extends. i. unfold f2, maps_to_res. ss.
         des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; try reflexivity.
-        { eexists _. rewrite (comm cmra.op). auto. }
-        { eexists _. eauto. }
-        { eexists. rewrite left_id. ss. }
       }
       iEval (rewrite bi.sep_assoc).
       iSplitR "FAIL SUCCESS".
@@ -3038,7 +2996,7 @@ Module FairRA.
           iSplit; [|iApply "BLACKS"]. iPureIntro. i.
           unfold f4. specialize (H0 i). unfold prism_fmap in H0. destruct i; ss; des_ifs.
           { split; i; ss.
-            { inv H1. ss. }
+            { inv H1. }
             { des. clarify. }
           }
           { rewrite H0. split; i; ss. des. clarify.

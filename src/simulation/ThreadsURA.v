@@ -1,16 +1,13 @@
 From sflib Require Import sflib.
-Require Import Coq.Classes.RelationClasses.
 From iris.algebra Require Import cmra updates functions lib.excl_auth.
 
-From Fairness Require Import Axioms NatStructsLarge.
-From Fairness Require Import PCM.
 From Fairness Require Import Mod.
 
 Set Implicit Arguments.
 
 Definition excl_authUR A : ucmra := (excl_authUR $ leibnizO A).
 
-Definition thsRA {A: Type}: ucmra := (thread_id ==> (excl_authUR A))%ra.
+Definition thsRA {A: Type}: ucmra := thread_id -d> (excl_authUR A).
 
 Definition excl_auth_auth {A : Type} (a : A) : excl_authUR A :=
   (●E (a : leibnizO A)).
@@ -22,12 +19,12 @@ Global Typeclasses Opaque excl_auth_auth excl_auth_frag.
 Global Instance: Params (@excl_auth_auth) 1 := {}.
 Global Instance: Params (@excl_auth_frag) 2 := {}.
 
-Notation "●E a" := (excl_auth_auth a) (at level 10).
-Notation "◯E a" := (excl_auth_frag a) (at level 10).
+Local Notation "●E a" := (excl_auth_auth a) (at level 10).
+Local Notation "◯E a" := (excl_auth_frag a) (at level 10).
 
 Section THHAS.
 
-  Definition ae_white {A} (a: A) : excl_authUR A  := ◯E a.
+  Definition ae_white {A} (a: A) : excl_authUR A := ◯E a.
   Definition ae_black {A} (a: A) : excl_authUR A := ●E a.
 
   Lemma ae_white_black_agree {A} (a b : A) :
@@ -45,7 +42,7 @@ Section THHAS.
   Lemma ae_black_white_extend {A} (a a' : A) (b : excl_authUR A) :
     ✓ (ae_black a ⋅ ae_white a ⋅ b) →
     ✓ (ae_black a' ⋅ ae_white a' ⋅ b).
-  Proof. apply cmra_discrete_update,excl_auth_update. Qed.
+  Proof. apply cmra_discrete_total_update,excl_auth_update. Qed.
 
   Definition th_has {A: Type} (tid: thread_id) (a: A): (@thsRA A) :=
     fun _tid => if (tid_dec _tid tid) then ae_white a else ε.

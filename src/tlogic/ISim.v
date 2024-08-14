@@ -49,10 +49,11 @@ Section SIM.
   Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel).
 
   Let gf := (fun r => pind9 ((@__lsim ( Σ)) _ _ _ _ _ _ (liftI I) tid r) top9).
+  #[clearbody]
   Let gf_mon: monotone9 gf.
   Proof.
     eapply lsim_mon.
-  Qed.
+  Defined.
   Hint Resolve gf_mon: paco.
 
   Variant unlift (r: rel):

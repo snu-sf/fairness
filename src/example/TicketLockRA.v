@@ -93,9 +93,6 @@ Section Ticket.
         ⋅ (maps_to_res U TicketRA_Auth_base)) as UPD.
     { apply pointwise_updatable. i. unfold maps_to_res.
       rewrite !discrete_fun_lookup_op. des_ifs; try lia.
-      - rewrite left_id. reflexivity.
-      - rewrite left_id. reflexivity.
-      - rewrite right_id. reflexivity.
     }
     iMod (OwnM_Upd with "BASE") as "[A B]".
     { apply UPD. }
@@ -116,7 +113,7 @@ Section Ticket.
     { rewrite /AuthExcls.black_ra /AuthExcls.white_ra maps_to_res_add /maps_to_res /=.
       iApply (OwnM_Upd with "B"). apply pointwise_updatable => ?.
       des_ifs; try lia. apply excl_auth_update. }
-    iModIntro; iFrame. iExists (S U). iFrame.
+    iModIntro; iFrame.
   Qed.
 
   Lemma Ticket_alloc γt D new l
@@ -170,7 +167,7 @@ Section Ticket.
     { rewrite left_id. apply excl_auth_update. }
     { exfalso. clear -e n n0. set_solver. }
     { exfalso. clear -e. set_solver. }
-    { clear. apply cmra_discrete_update => ? WF.
+    { clear. apply cmra_discrete_total_update => ? WF.
       setoid_rewrite <- (assoc cmra.op (●E _)) in WF.
       by apply cmra_valid_op_l,cmra_valid_op_l,
         cmra_valid_op_r,excl_auth_frag_op_valid in WF.

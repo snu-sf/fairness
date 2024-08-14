@@ -1,10 +1,10 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From iris.algebra Require Import auth excl_auth cmra updates.
+From iris.algebra Require Import auth excl_auth cmra updates mra.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux OwnGhost.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic.
 
@@ -347,28 +347,28 @@ Section MONOTONE_SPROP.
   Variable le: W -> W -> Prop.
   Hypothesis le_PreOrder: PreOrder le.
 
-  Let leR (w: W): Collection.t gmon := Collection.into_t (gmon_le (@mk_gmon W le le_PreOrder w)).
+  Let leR (w: W) : mra gmon_le := to_mra (mk_gmon le_PreOrder w).
 
 
   Definition s_monoBlack {n} (w : W) : sProp n :=
-    (➢(FiniteMap.singleton k (● (leR w) ⋅ ◯ (leR w))))%S.
+    (➢(OwnG.ra k (● (leR w) ⋅ ◯ (leR w))))%S.
 
   Lemma red_s_monoBlack n (w : W) :
     ⟦s_monoBlack w, n⟧ = monoBlack k _ w.
   Proof.
-    unfold s_monoBlack. red_tl. ss.
+    unfold s_monoBlack. red_tl. rewrite -own_to_t_eq. ss.
   Qed.
 
   Definition s_monoWhite {n} (w1 : W) : sProp n :=
     (∃ w2 : τ{W, n},
-      ➢(FiniteMap.singleton k (◯ (leR w2)))
+      ➢(OwnG.ra k (◯ (leR w2)))
       ∧ ⌜le w1 w2⌝)%S.
 
   Lemma red_s_monoWhite n (w : W) :
     ⟦s_monoWhite w, n⟧ = monoWhite k _ w.
   Proof.
     unfold s_monoWhite, monoWhite. red_tl. ss. f_equal. extensionalities.
-    red_tl. unfold monoWhiteExact, leR. ss.
+    red_tl. rewrite -own_to_t_eq. unfold monoWhiteExact. ss.
   Qed.
 
 End MONOTONE_SPROP.
@@ -638,7 +638,7 @@ Section SIM.
     do 3 iDestruct "I" as "[% I]". iDestruct "I" as "[MB _]". *)
     iPoseProof (black_white_compare with "MONO MONB") as "%LE".
     hexploit (tkqueue_val_range_l I1 _ FIND). i. inv LE; auto. lia. iSplit. auto.
-    exploit tkqueue_inv_unique. eauto. eauto. inv I1. clarify. inv QUEUE. apply FIND0. i; clarify.
+    exploit tkqueue_inv_unique. eauto. eauto. inv I1. clarify. apply FIND0. i; clarify.
     iCombine "MY MY2" as "MY".
     iPoseProof (OwnM_valid with "MY") as "%EQ".
     specialize (EQ yourt). unfold maps_to_res in EQ.
@@ -898,7 +898,7 @@ Section SIM.
           { inv INV2. clarify. hexploit tkqueue_range; eauto. i; lia. }
           iAssert (#=> ◇[κa](5 + now, 1))%I with "[PC2]" as "> PC2".
           { destruct H0. auto. iMod (pc_drop _ (5 + now) _ _ 1 with "PC2") as "PC2". auto. auto. Unshelve. lia. }
-          iPoseProof (link_new with "[PC2]") as "[LINK _]". iSplit. iApply "INV5". instantiate (1:=0). done. done.
+          iPoseProof (link_new with "[PC2]") as "[LINK _]". iSplit. iApply "INV5". instantiate (1:=0). done. iFrame "LINK".
         }
         iModIntro. iRight. repeat (iSplit; auto). iRight.
         iExists yourt; red_tl; iExists κay; red_tl; iExists (waits ++ [tid]). red_tl_all. iFrame.
@@ -909,7 +909,7 @@ Section SIM.
           iPoseProof (natmap_prop_sum_add with "[INV3]") as "INV3". iFrame.
           iApply "INV3". red_tl_all; ss. iFrame.
           repeat (iExists _; red_tl). simpl. iFrame. repeat iSplit; auto. red_tl_all. auto.
-          ii; clarify. inv INV2. clarify. inv QUEUE. unfold TicketLockW.tk in *.
+          ii; clarify. inv INV2. clarify. unfold TicketLockW.tk in *.
           rewrite FINDNONE in FIND; clarify.
         }
         iExists _. red_tl_all. iFrame. simpl. done.
@@ -1033,7 +1033,7 @@ Section SIM.
       iDestruct "INV" as "(INV1 & %INV2 & %INV3 & INV4 & INV5)".
       hexploit (tkqueue_dequeue INV3). eapply INV2. i.
       assert (NOTMT: tid <> yourt).
-      { ii. clarify. inv INV3; ss. clarify. setoid_rewrite FIND in FIND0. inv FIND0. ss. }
+      { ii. clarify. inv INV3; ss. clarify. setoid_rewrite FIND in FIND0. inv FIND0. }
 
       iPoseProof (natmap_prop_sum_find_remove with "INV4") as "[INV4 CLOSE]".
       { rewrite nm_find_rm_neq. done. done. }
@@ -1324,7 +1324,7 @@ Section SIM.
           unfold key_set. rewrite <- list_map_elements_nm_map. unfold unit1. rewrite List.map_map.
           iPoseProof (list_prop_sum_map with "I2") as "I2".
           2: iFrame.
-          ss. i. destruct a; ss.
+          ss. i. destruct a; ss. iIntros "$".
         }
         instantiate (1:=Ord.omega). iIntros "[MYW _]".
         iPoseProof (FairRA.whites_fold with "[TKS2 MYW]") as "TKS2".
@@ -1498,7 +1498,7 @@ Section SIM.
           unfold key_set. rewrite <- list_map_elements_nm_map. unfold unit1. rewrite List.map_map.
           iPoseProof (list_prop_sum_map with "I2") as "I2".
           2: iFrame.
-          ss. i. destruct a; ss.
+          ss. i. destruct a; ss. iIntros "$".
         }
         instantiate (1:=Ord.omega). iIntros "[MYW _]".
         iPoseProof (FairRA.whites_fold with "[TKS2 MYW]") as "TKS2".
@@ -1584,7 +1584,7 @@ Section SIM.
 
       hexploit (tkqueue_dequeue INV3). eapply INV2. i.
       assert (NOTMT: tid <> yourt).
-      { ii. clarify. inv INV3; ss. clarify. setoid_rewrite FIND in FIND0. inv FIND0. ss. }
+      { ii. clarify. inv INV3; ss. clarify. setoid_rewrite FIND in FIND0. inv FIND0. }
 
       iPoseProof (natmap_prop_sum_find_remove with "INV4") as "[INV4 CLOSE]".
       { rewrite nm_find_rm_neq. done. done. }
@@ -1762,7 +1762,7 @@ Section SIM.
 
     exploit tkqueue_in_find; eauto. simpl; left; auto. i. des.
     iPoseProof (natmap_prop_remove_find with "I3") as "[NEXT I3]". done.
-    dup I2. inv I2. clarify. inv QUEUE. rewrite FIND in x1. inv x1. simpl.
+    dup I2. inv I2. clarify. simpl.
     iEval (red_tl_all) in "NEXT". iDestruct "NEXT" as "[NEXT1 [%n1 NEXT2]]". red_tl. iDestruct "NEXT2" as "[%n2 NEXT2]".
     red_tl_all. simpl. iDestruct "NEXT2" as "(#NEXT2 & NEXT3 & NEXT4 & NEXT5 & NEXT6 & NEXT7)".
     replace (S now - now) with 1. 2: lia.
@@ -1866,7 +1866,6 @@ Section SIM.
         { rewrite red_sprop_sum. ss. }
         { rewrite red_s_OwnMs. unfold OwnMs. iApply (OwnM_extends with "OWN2").
           eapply pointwise_extends. i. des_ifs.
-          { eexists _. rewrite left_id. reflexivity. }
         }
       }
       iSplitL "MONO2 NEXT NOW OWN1 MONO1 BLACK".
@@ -1997,7 +1996,7 @@ Module TicketLockFair.
     GRA.embed (wmem_init_res TicketLockW.now_serving TicketLockW.next_ticket)
     ⋅ GRA.embed (◯E ((0, 0, View.bot): leibnizO _ )
       ⋅ ●E ((0, 0, View.bot): leibnizO _))
-    ⋅ GRA.embed (●{#1} (NatMapRA.to_Map (NatMap.empty nat)))
+    ⋅ GRA.embed (● (NatMapRA.to_Map (NatStructs.NatMap.empty nat)))
     ⋅ GRA.embed ((fun _ => ●E ([] : leibnizO _)
       ⋅ ◯E ([] : leibnizO _)) : (thread_id ==> (excl_authUR (leibnizO (list nat))))%ra).
 

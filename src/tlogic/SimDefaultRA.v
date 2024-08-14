@@ -8,6 +8,9 @@ From Fairness Require Import Mod FairBeh.
 From Fairness Require Import Axioms.
 From Fairness Require Import NatMapRALarge MonotoneRA RegionRA FairnessRA IndexedInvariants ObligationRA OpticsInterp.
 
+Local Instance frame_exist_instantiate_disabled :
+FrameInstantiateExistDisabled := {}.
+
 Set Implicit Arguments.
 
 (* Section PAIR.
@@ -266,6 +269,7 @@ Section INVARIANT.
         ii. des_ifs.
     }
     iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
+    rewrite IUpd_eq.
     iMod ("RES" with "ARROW") as "[ARROW [E [DUTY [WHITE OPENDS]]]]".
     iPoseProof (ObligationRA.opends_to_pends2 with "OPENDS") as "PENDS".
     iFrame. iApply "K". iFrame.
@@ -319,6 +323,7 @@ Section INVARIANT.
     unfold default_I. iIntros (LT) "[A [B [C [D [E [F [G H]]]]]]] DUTY".
     iPoseProof (ObligationRA.target_update with "E DUTY") as "RES". 1,2,3,4: eauto.
     iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
+    rewrite IUpd_eq.
     iMod ("RES" with "ARROW") as "[ARROW [E [DUTY WHITE]]]". iFrame.
     iApply "K".
     Local Transparent ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.

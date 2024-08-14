@@ -31,7 +31,7 @@ Module WMem.
 
   Definition init: t := mk init_mem TimeMap.bot.
 
-  Let ident := (Loc.t * Time.t)%type.
+  Definition ident := (Loc.t * Time.t)%type.
 
   Definition view_to_local (vw: View.t): Local.t := Local.mk (TView.mk (fun _ => vw) vw vw) Memory.bot.
 
@@ -143,6 +143,10 @@ From iris.algebra Require Import cmra updates lib.excl_auth auth excl.
 From Fairness Require Import PCM IPM FairnessRA SimDefaultRA MonotoneRA.
 From PromisingSEQ Require Import MemoryProps.
 From Fairness Require Import TemporalLogic LiveObligations OneShotsRA.
+
+(* TODO: Remove this *)
+Global Instance frame_exist_instantiate_disabled :
+  FrameInstantiateExistDisabled := {}.
 
 Section MEMRA.
 
@@ -850,7 +854,7 @@ Section MEMRA.
             { ss. des; clarify. exfalso. eapply Time.lt_strorder. eapply LT. }
             { des; ss. hexploit Memory.max_ts_spec; eauto. i. des. inv MAX.
               { hexploit H3; eauto. i. des; ss. splits; auto. rr. auto. }
-              { inv H2. clarify. setoid_rewrite GET1 in GET. clarify.
+              { inv H2. clarify. setoid_rewrite GET0 in GET. clarify.
                 splits; auto. rr. auto.
               }
             }

@@ -3,7 +3,7 @@ From sflib Require Import sflib.
 (** A simple "ghost variable" of arbitrary type with fractional ownership.
 Can be mutated when fully owned. *)
 
-From Fairness Require Import IPM PCM  IPropAux TemporalLogic.
+From Fairness Require Import IPM PCM IPropAux TemporalLogic.
 From iris.algebra Require Import dfrac_agree proofmode_classes frac.
 From iris.bi.lib Require Import fractional.
 From iris.proofmode Require Import proofmode.
@@ -44,12 +44,19 @@ Section lemmas.
   Context `{GHOSTVARURA : @GRA.inG (ghost_varURA A) Σ}.
   Implicit Types (a b : A) (q : Qp).
 
+  Global Instance ghost_var_timeless γ q a : Timeless (ghost_var γ q a).
+  Proof. unseal. apply _. Qed.
+
   Global Instance ghost_var_fractional γ a : Fractional (λ q, ghost_var γ q a).
   Proof. intros q1 q2. unseal. rewrite -own_op -frac_agree_op //. Qed.
   Global Instance ghost_var_as_fractional γ a q :
     AsFractional (ghost_var γ q a) (λ q, ghost_var γ q a) q.
   Proof. split; [done|]. apply _. Qed.
 
+  Lemma ghost_var_alloc_strong a (P : nat → Prop) :
+    pred_infinite P →
+    ⊢ |==> ∃ γ, ⌜P γ⌝ ∗ ghost_var γ 1 a.
+  Proof. unseal. intros. iApply own_alloc_strong; done. Qed.
   Lemma ghost_var_alloc a :
     ⊢ |==> ∃ γ, ghost_var γ 1 a.
   Proof. unseal. iApply own_alloc. done. Qed.
@@ -58,8 +65,7 @@ Section lemmas.
     ghost_var γ q1 a1 -∗ ghost_var γ q2 a2 -∗ ⌜(q1 + q2 ≤ 1)%Qp ∧ a1 = a2⌝.
   Proof.
     unseal. iIntros "Hvar1 Hvar2".
-    iCombine "Hvar1 Hvar2" as "Hvar".
-    iDestruct (own_valid with "Hvar") as %[Hq Ha]%frac_agree_op_valid.
+    iCombine "Hvar1 Hvar2" gives %[Hq Ha]%frac_agree_op_valid.
     done.
   Qed.
   (** Almost all the time, this is all you really need. *)
@@ -70,11 +76,36 @@ Section lemmas.
     iDestruct (ghost_var_valid_2 with "Hvar1 Hvar2") as %[_ ?]. done.
   Qed.
 
+  Global Instance ghost_var_combine_gives γ a1 q1 a2 q2 :
+    CombineSepGives (ghost_var γ q1 a1) (ghost_var γ q2 a2)
+      ⌜(q1 + q2 ≤ 1)%Qp ∧ a1 = a2⌝.
+  Proof.
+    rewrite /CombineSepGives. iIntros "[H1 H2]".
+    iDestruct (ghost_var_valid_2 with "H1 H2") as %[H1 H2].
+    eauto.
+  Qed.
+
+  Global Instance ghost_var_combine_as γ a1 q1 a2 q2 q :
+    IsOp q q1 q2 →
+    CombineSepAs (ghost_var γ q1 a1) (ghost_var γ q2 a2)
+      (ghost_var γ q a1) | 60.
+  (* higher cost than the Fractional instance, which is used for a1 = a2 *)
+  Proof.
+    rewrite /CombineSepAs /IsOp => ->. iIntros "[H1 H2]".
+    (* This can't be a single [iCombine] since the instance providing that is
+    exactly what we are proving here. *)
+    iCombine "H1 H2" gives %[_ ->].
+    by iCombine "H1 H2" as "H".
+  Qed.
 
   (** This is just an instance of fractionality above, but that can be hard to find. *)
   Lemma ghost_var_split γ a q1 q2 :
     ghost_var γ (q1 + q2) a -∗ ghost_var γ q1 a ∗ ghost_var γ q2 a.
-  Proof. iIntros "[$$]". Qed.
+  Proof.
+    (* FIXME: Why is this needed? *)
+    rewrite (@fractional _ _ (ghost_var_fractional _ _)).
+    iIntros "[$$]".
+  Qed.
 
   (** Update the ghost variable to new value [b]. *)
   Lemma ghost_var_update b γ a :
@@ -96,10 +127,11 @@ Section lemmas.
   Proof. iApply ghost_var_update_2. apply Qp.half_half. Qed.
 
   (** Framing support *)
-  Global Instance frame_ghost_var p γ a q1 q2 RES :
-    FrameFractionalHyps p (ghost_var γ q1 a) (λ q, ghost_var γ q a)%I RES q1 q2 →
-    Frame p (ghost_var γ q1 a) (ghost_var γ q2 a) RES | 5.
+  Global Instance frame_ghost_var p γ a q1 q2 q :
+    FrameFractionalQp q1 q2 q →
+    Frame p (ghost_var γ q1 a) (ghost_var γ q2 a) (ghost_var γ q a) | 5.
   Proof. apply: frame_fractional. Qed.
+
 End lemmas.
 
 Section SPROP.

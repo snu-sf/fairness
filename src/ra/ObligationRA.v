@@ -12,6 +12,9 @@ From Ordinal Require Export Ordinal Arithmetic Hessenberg ClassicalHessenberg.
 
 Set Implicit Arguments.
 
+Local Instance frame_exist_instantiate_disabled :
+FrameInstantiateExistDisabled := {}.
+
 Module CounterRA.
   Section MONOID.
     Context {A: Type}.
@@ -195,7 +198,7 @@ Module CounterRA.
       :
       (white a1) ~~> (white a0).
     Proof.
-      rewrite cmra_discrete_update. intros [[]] H0.
+      rewrite cmra_discrete_total_update. intros [[]] H0.
       rewrite op_unfold /add valid_unfold /wf in H0.
       rewrite op_unfold /add valid_unfold /wf. simpl in *.
       des. des_ifs.
@@ -239,7 +242,7 @@ Module CounterRA.
       :
       (black a0 ⋅ white a1) ~~>: (fun r => exists a2, r = black a2 /\ OrderedCM.le (OrderedCM.add a2 a1) a0).
     Proof.
-      apply cmra_discrete_updateP. intros [[]] WF.
+      apply cmra_discrete_total_updateP. intros [[]] WF.
       rewrite /black /white op_unfold /add valid_unfold /wf in WF. ss.
       des. ss. des_ifs.
       hexploit (Fuel.from_monoid_exist q). i. des. subst. ss. des.
@@ -269,7 +272,7 @@ Module CounterRA.
             (∃ a2 : A,
                y = black a2 ∧ OrderedCM.le (OrderedCM.add a2 a1) a0)
             ∧ ✓ (y ⋅ z).
-    Proof. apply cmra_discrete_updateP,black_white_decr. Qed.
+    Proof. apply cmra_discrete_total_updateP,black_white_decr. Qed.
 
     Lemma black_white_compare a0 a1
           (WF: ✓ (black a0 ⋅ white a1))
@@ -696,14 +699,14 @@ Module ObligationRA.
       iMod "H" as "[% # H]". iModIntro.
       unfold amplifier. iModIntro. iIntros "% WHITE".
       iApply (Region.update with "H [WHITE]").
-      iIntros "[% [H0 H1]]".
+      rewrite IUpd_eq. iIntros "[% [H0 H1]]".
       iPoseProof (black_white_decr with "H0 WHITE") as "> [% [H0 %]]".
       iPoseProof (white_mon with "H1") as "> H1".
       { rewrite <- Jacobsthal.le_mult_r; [|eauto].
         rewrite ClassicJacobsthal.mult_dist. reflexivity.
       }
       iPoseProof (white_split_eq with "H1") as "[H1 H2]".
-      iFrame. iModIntro. iExists _. iFrame "H0 H1".
+      iFrame "H2". iModIntro. iExists _. iFrame "H0 H1".
     Qed.
 
   End EDGE.
@@ -771,7 +774,7 @@ Module ObligationRA.
     Proof.
       iIntros "(% & % & % & #WHITE) P".
       iApply (Regions.update with "WHITE [P]").
-      iIntros "[#PERS [(PEND & BL & WH) | (#SHOT & _)]]".
+      rewrite IUpd_eq. iIntros "[#PERS [(PEND & BL & WH) | (#SHOT & _)]]".
       { iMod (pending_shot with "[P PEND]") as "#SHOT".
         { iEval (rewrite <- (Qp.div_2 1)). iApply (pending_sum with "P PEND"). }
         iDestruct "BL" as "(% & BL)". iMod (white_mon _ _ (o0:=(c × (Ord.from_nat n))%ord) with "WH") as "WH".
@@ -832,7 +835,7 @@ Module ObligationRA.
     Proof.
       iIntros "(#SHOT & [% [% [% WHITE]]]) H".
       iApply (Regions.update with "WHITE [H]").
-      iIntros "[#PERS [[PEND _] | (_ & [[OWN PROP] | [% [BLACK WHITE]]])]]".
+      rewrite IUpd_eq. iIntros "[#PERS [[PEND _] | (_ & [[OWN PROP] | [% [BLACK WHITE]]])]]".
       { iPoseProof (pending_not_shot with "PEND SHOT") as "%FAL". inv FAL. }
       { iModIntro. iPoseProof ("PERS" with "PROP") as "#F". iSplitL.
         { iSplitR. auto. iRight. iSplitR. auto. iLeft. iFrame. }
@@ -1058,7 +1061,7 @@ Module ObligationRA.
       destruct rs; ss. des_ifs.
       iPoseProof (duty_list_unfold with "DUTY") as "[WHITE [OWN DUTY]]".
       iPoseProof (Regions.update with "WHITE [OWN PROP]") as "> BLACKF".
-      { iIntros "[#PERS [(PEND & _) | (_ & [[DONE _]|[% [BLACK WHITE]]])]]".
+      { rewrite IUpd_eq. iIntros "[#PERS [(PEND & _) | (_ & [[DONE _]|[% [BLACK WHITE]]])]]".
         { iPoseProof (pending_not_shot with "PEND SHOT") as "%FAL". inv FAL. }
         { iCombine "OWN DONE" as "FALSE".
           iOwnWf "FALSE" as F.
@@ -1152,7 +1155,7 @@ Module ObligationRA.
     Lemma taxes_cons_fold k c tl o
       :
       (white k (c × o)%ord ∗ (taxes tl o))
-        -∗
+        ⊢
         (taxes ((k, c)::tl) o).
     Proof.
       ss.
@@ -1161,7 +1164,7 @@ Module ObligationRA.
     Lemma taxes_cons_unfold k c tl o
       :
       (taxes ((k, c)::tl) o)
-        -∗
+        ⊢
         (white k (c × o)%ord ∗ taxes tl o).
     Proof.
       ss.
@@ -1170,7 +1173,7 @@ Module ObligationRA.
     Lemma taxes_split l0 l1 o
       :
       (taxes (l0 ++ l1) o)
-        -∗
+        ⊢
         (taxes l0 o ∗ taxes l1 o).
     Proof.
       apply list_prop_sum_split.
@@ -1179,7 +1182,7 @@ Module ObligationRA.
     Lemma taxes_combine l0 l1 o
       :
       (taxes l0 o ∗ taxes l1 o)
-        -∗
+        ⊢
         (taxes (l0 ++ l1) o).
     Proof.
       apply list_prop_sum_combine.
@@ -1293,7 +1296,7 @@ Module ObligationRA.
       :
       ((match oq with | None => white k (c × o)%ord | Some q => pending k q end)
          ∗ (ptaxes tl o))
-        -∗
+        ⊢
         (ptaxes ((k, c, oq)::tl) o).
     Proof.
       ss.
@@ -1302,7 +1305,7 @@ Module ObligationRA.
     Lemma ptaxes_cons_unfold k c oq tl o
       :
       (ptaxes ((k, c, oq)::tl) o)
-        -∗
+        ⊢
         ((match oq with | None => white k (c × o)%ord | Some z => pending k z end)
            ∗ (ptaxes tl o)).
     Proof.
@@ -1312,7 +1315,7 @@ Module ObligationRA.
     Lemma ptaxes_split l0 l1 o
       :
       (ptaxes (l0 ++ l1) o)
-        -∗
+        ⊢
         (ptaxes l0 o ∗ ptaxes l1 o).
     Proof.
       apply list_prop_sum_split.
@@ -1321,7 +1324,7 @@ Module ObligationRA.
     Lemma ptaxes_combine l0 l1 o
       :
       (ptaxes l0 o ∗ ptaxes l1 o)
-        -∗
+        ⊢
         (ptaxes (l0 ++ l1) o).
     Proof.
       apply list_prop_sum_combine.
@@ -1376,7 +1379,7 @@ Module ObligationRA.
       :
       ((match oq with | None => emp%I | Some q => pending k q end)
          ∗ (opends tl))
-        -∗
+        ⊢
         (opends ((k, c, oq)::tl)).
     Proof.
       ss.
@@ -1385,7 +1388,7 @@ Module ObligationRA.
     Lemma opends_cons_unfold k c oq tl
       :
       (opends ((k, c, oq)::tl))
-        -∗
+        ⊢
         ((match oq with | None => emp%I | Some q => pending k q end)
            ∗ (opends tl)).
     Proof.
@@ -1395,7 +1398,7 @@ Module ObligationRA.
     Lemma opends_split l0 l1
       :
       (opends (l0 ++ l1))
-        -∗
+        ⊢
         (opends l0 ∗ opends l1).
     Proof.
       apply list_prop_sum_split.
@@ -1404,7 +1407,7 @@ Module ObligationRA.
     Lemma opends_combine l0 l1
       :
       (opends l0 ∗ opends l1)
-        -∗
+        ⊢
         (opends (l0 ++ l1)).
     Proof.
       apply list_prop_sum_combine.
@@ -1431,7 +1434,7 @@ Module ObligationRA.
     Lemma pends_cons_fold k q tl
       :
       ((pending k q) ∗ (pends tl))
-        -∗
+        ⊢
         (pends ((k, q) :: tl)).
     Proof.
       ss.
@@ -1440,7 +1443,7 @@ Module ObligationRA.
     Lemma pends_cons_unfold k q tl
       :
       (pends ((k, q) :: tl))
-        -∗
+        ⊢
         ((pending k q) ∗ (pends tl)).
     Proof.
       ss.
@@ -1449,7 +1452,7 @@ Module ObligationRA.
     Lemma pends_split l0 l1
       :
       (pends (l0 ++ l1))
-        -∗
+        ⊢
         (pends l0 ∗ pends l1).
     Proof.
       apply list_prop_sum_split.
@@ -1458,7 +1461,7 @@ Module ObligationRA.
     Lemma pends_combine l0 l1
       :
       (pends l0 ∗ pends l1)
-        -∗
+        ⊢
         (pends (l0 ++ l1)).
     Proof.
       apply list_prop_sum_combine.
@@ -1473,7 +1476,7 @@ Module ObligationRA.
         (opends (map (fun '(k, q) => (k, Ord.O, Some q)) l)).
     Proof.
       iIntros "P". unfold pends, opends. iApply (list_prop_sum_map). 2: iFrame.
-      i. simpl. des_ifs.
+      i. simpl. des_ifs. iIntros "$".
     Qed.
 
     Lemma opends_to_pends l :
@@ -1482,7 +1485,7 @@ Module ObligationRA.
         (pends l).
     Proof.
       iIntros "P". unfold pends, opends. iApply (list_prop_sum_map_inv). 2: iFrame.
-      i. simpl. des_ifs.
+      i. simpl. des_ifs. iIntros "$".
     Qed.
 
     Lemma pends_taxes_to_ptaxes l1 l2 c :
@@ -1549,7 +1552,7 @@ Module ObligationRA.
       { iPoseProof (IMPL with "DUTY") as "[DUTY0 DUTY1]". iApply "DUTY0". }
       iPoseProof (duty_list_whites with "[DUTY]") as "# WHITES1".
       { iPoseProof (IMPL with "DUTY") as "[DUTY0 DUTY1]". iApply "DUTY1". }
-      iIntros "H".
+      rewrite IUpd_eq. iIntros "H".
       iAssert (⌜forall r v0 v1 (IN0: In (r, v0) rs0) (IN1: In (r, v1) rs1), v0 = v1⌝)%I as "%".
       { iIntros (? ? ? ? ?).
         destruct a0 as [[[[? ?] ?] ?] ?]. destruct a1 as [[[[? ?] ?] ?] ?].
@@ -1599,7 +1602,7 @@ Module ObligationRA.
       }
       iPoseProof (duty_list_whites with "[DUTY]") as "# WHITES".
       { iApply IMPL. auto. }
-      iIntros "H".
+      rewrite IUpd_eq. iIntros "H".
       iAssert (⌜forall r k c q x f (IN: List.In (r, (k, c, q, x, f)) rs), n <> r⌝)%I as "%".
       { iIntros (? ? ? ? ? ? IN ?). subst.
         iPoseProof (IMPL with "DUTY") as "DUTY".
@@ -1649,7 +1652,7 @@ Module ObligationRA.
       iPoseProof (duty_list_nodup with "DUTY") as "> [DUTY %]".
       { reflexivity. }
       iPoseProof (duty_list_whites with "DUTY") as "# WHITES".
-      iIntros "SAT". iModIntro.
+      rewrite IUpd_eq. iIntros "SAT". iModIntro.
       iSplitL "SAT"; [auto|]. iIntros "SAT".
       iAssert (duty_list i rs q ∗ FairRA.black_ex p i 1%Qp ∗ (foldr (fun '(_, (k, _, _, _, f)) P => ((□(prop _ f -∗ □ prop _ f)) ∗ (pending k (1/2) ∨ shot k)) ∗ P) emp rs))%I with "[DUTY BLACK SAT]" as "[DUTY [BLACK PERSS]]".
       { iClear "WHITES". iStopProof. clear H3. revert q. induction rs.
@@ -1737,7 +1740,7 @@ Module ObligationRA.
       ss. iSplitL.
       { iModIntro. iApply (duty_list_fold with "DUTY [] [OWN]"). auto. iFrame. }
       iApply (Regions.update with "WHITE").
-      iIntros "[#PERS SAT]". iModIntro. iFrame. auto.
+      rewrite IUpd_eq. iIntros "[#PERS SAT]". iModIntro. iFrame. auto.
     Qed.
 
     Lemma duties_updating os
@@ -1923,7 +1926,7 @@ Module ObligationRA.
       iPoseProof (duty_list_nodup with "DUTY") as "> [DUTY %]".
       { reflexivity. }
       iPoseProof (duty_list_whites with "DUTY") as "# WHITES".
-      iIntros "SAT". iModIntro.
+      rewrite IUpd_eq. iIntros "SAT". iModIntro.
       iSplitL "SAT"; [auto|]. iIntros "SAT".
       iAssert (duty_list i rs q ∗ FairRA.black_ex p i 1%Qp ∗ (foldr (fun '(_, (k, c, _, _, f)) P => ((□(prop _ f -∗ □ prop _ f)) ∗ ((pending k (1/2) ∗ white k (c × Ord.omega)%ord) ∨ shot k)) ∗ P) emp rs))%I with "[DUTY BLACK SAT]" as "[DUTY [BLACK PERSS]]".
       { iClear "WHITES". iStopProof. clear H3 PENDS ps. revert q. induction rs.
@@ -2402,7 +2405,7 @@ Module ObligationRA.
         -∗
         (#=> (I ∗ P)).
     Proof.
-      iIntros "H0 H1". iPoseProof ("H0" with "H1") as "H". auto.
+      iIntros "H0 H1". rewrite IUpd_eq. iPoseProof ("H0" with "H1") as "H". auto.
     Qed.
 
     Lemma target_update_thread
@@ -2422,7 +2425,7 @@ Module ObligationRA.
               ∗
               FairRA.white_thread (S := S))).
     Proof.
-      iIntros "SAT DUTY ARROWS".
+      rewrite IUpd_eq. iIntros "SAT DUTY ARROWS".
       iPoseProof (duties_updating with "[DUTY]") as "UPD".
       { instantiate (1:=[(tid, l)]). ss. iFrame. }
       iPoseProof (IUpd_open with "UPD ARROWS") as "> [ARROWS UPD]".
@@ -2456,7 +2459,7 @@ Module ObligationRA.
               opends ps
         )).
     Proof.
-      iIntros "SAT [DUTY PT] ARROWS".
+      rewrite IUpd_eq. iIntros "SAT [DUTY PT] ARROWS".
       iPoseProof (duties_updating_pending with "[DUTY] [PT]") as "UPD".
       2:{ instantiate (1:=[(tid, l)]). ss. iFrame. }
       2:{ instantiate (1:=[ps]). ss. iFrame. }
@@ -2491,7 +2494,7 @@ Module ObligationRA.
               ∗
               (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) i 1) lf))).
     Proof.
-      iIntros "SAT DUTY ARROWS".
+      rewrite IUpd_eq. iIntros "SAT DUTY ARROWS".
       iPoseProof (duties_updating with "[DUTY]") as "UPD".
       { instantiate (1:=ls).
         clear SUCCESS. iStopProof.
@@ -2557,7 +2560,7 @@ Module ObligationRA.
               (list_prop_sum (fun l => opends l) ps)
         )).
     Proof.
-      iIntros "SAT DUTY PTX ARROWS".
+      rewrite IUpd_eq. iIntros "SAT DUTY PTX ARROWS".
       iPoseProof (duties_updating_pending with "[DUTY] [PTX]") as "UPD".
       2:{ instantiate (1:=ls). clear SUCCESS. iStopProof. induction ls; ss. }
       2:{ instantiate (1:=ps). done. }

@@ -6,7 +6,6 @@ From Fairness Require Import PCM IPM IndexedInvariants.
 From Fairness Require Export ISim SimDefaultRA LiveObligations SimWeakest.
 From Fairness Require Export LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
-From iris Require base_logic.lib.invariants.
 From Fairness Require Import DisableSsreflect.
 Require Import Program.
 
@@ -721,9 +720,8 @@ Section WSATS.
   Lemma red_syn_fupd n A E1 E2 p :
     ⟦syn_fupd n A E1 E2 p, n⟧ = =|n|=(⟦A, n⟧)={E1,E2}=> ⟦p, n⟧.
   Proof.
-    Local Transparent FUpd.
-    unfold syn_fupd, FUpd. red_tl. rewrite ! red_syn_wsats. auto.
-    Local Opaque FUpd.
+    rewrite /syn_fupd IndexedInvariants.FUpd_unseal'.
+    red_tl. rewrite ! red_syn_wsats. auto.
   Qed.
 
 End WSATS.
