@@ -5,10 +5,18 @@ From Fairness Require Import SCMemSpec.
 Module TreiberStack.
 
   Section TREIBERSTACK.
+  (* Stack layout : s ↦ head_node. *)
+  (* Node layout : head_node ↦ [val;head_node]. *)
 
     Context {state : Type}.
     Context {ident : ID}.
 
+    (**
+      1. Obtain current head.
+      2. Set new node's next to current head.
+      3. CAS head to new node.
+      4. If CAS fails, retry.
+     *)
     Definition push_loop :
       ktree (threadE ident state) (SCMem.val * SCMem.val) unit
       :=
@@ -20,6 +28,7 @@ Module TreiberStack.
         if b then Ret (inr tt) else Ret (inl tt)
       ) tt.
 
+    (** Allocate a new node and push  *)
     Definition push :
       (* ktree (threadE void unit) (SCMem.val * SCMem.val) unit *)
       ktree (threadE ident state) (SCMem.val * SCMem.val) unit
@@ -30,6 +39,13 @@ Module TreiberStack.
         _ <- push_loop (s, node);;
         trigger Yield.
 
+    (**
+      1. Obtain current head.
+      2. If head is null, stack empty, so return None.
+      3. CAS head to next.
+      4. If CAS fails, retry.
+      5. Return data.
+     *)
     Definition pop_loop :
       ktree (threadE ident state) SCMem.val (option SCMem.val)
       :=
@@ -47,6 +63,7 @@ Module TreiberStack.
           Ret (inl tt)
       ) tt.
 
+    (** Do pop_loop *)
     Definition pop :
       (* ktree (threadE void unit) SCMem.val (option (SCMem.val) *)
       ktree (threadE ident state) SCMem.val (option (SCMem.val))

@@ -46,6 +46,7 @@ Section SPEC.
     end
     .
 
+  (* Physical list matches the logical list. *)
   Fixpoint phys_list n (l : maybe_null_ptr) (L : list SCMem.val) : sProp n := (
     match L,l with
     | [],Null => emp
@@ -54,10 +55,15 @@ Section SPEC.
     end
   )%S.
 
+  (* Half of abstract state *)
   Definition TStack n γs St : sProp n := (
     syn_ghost_var γs (1/2) St
   )%S.
 
+  (** Liveness invariant: collection of thread i with local head snapshot p
+    If i's p is stale, it can obtain a progress credit from here.
+    Since its CAS must fail, it uses said credit for induction.
+  *)
   Definition LInv (n k γs : nat) (h : maybe_null_ptr) (m : gmap nat maybe_null_ptr) : sProp n  := (
     syn_ghost_map_auth γs 1 m ∗
     [∗ n, maybe_null_ptr map] i ↦ p ∈ m, (
@@ -68,6 +74,7 @@ Section SPEC.
     )
   )%S.
 
+  (* Invariant of physical head, other half of abstract state, and other stuffs. *)
   Definition Inv (n : nat) (s : SCMem.val) (k γs γl : nat) : sProp n := (
     ∃ (h : τ{maybe_null_ptr}) (L : τ{list SCMem.val}) (m : τ{gmap nat maybe_null_ptr,n}),
       s ↦ (to_val h) ∗ syn_ghost_var γs (1/2) L ∗

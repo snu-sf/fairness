@@ -951,6 +951,7 @@ Section discrete_fun.
     { intros k. specialize (H k). des. des_ifs; auto. }
   Qed.
 
+  (* Note: this can be proven without axioms. Not sure about the other ones. *)
   Lemma cmra_update_discrete_fun
       A (Ms : A → ucmra)
       (f0 f1 : discrete_fun Ms)
@@ -1081,9 +1082,7 @@ End Excl.
 Arguments Excl.t: clear implicits. *)
 
 From iris.algebra Require Import local_updates.
-(* Custom auth cmra to use in ThreadRA. This makes certain parts of ModAdequacy easier.
- * Iris's standrad auth uses the view RA, which does not support inductive case analysis.
- *)
+(* Note: not used anymore *)
 Module Auth.
 Section AUTH.
 Context `{M : ucmra, DISC : CmraDiscrete M}.
