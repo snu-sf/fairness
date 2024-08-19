@@ -1,5 +1,7 @@
+(* TODO: Make this file re-export common stuff.
+
 From sflib Require Import sflib.
-From Fairness.base_logic Require Import bi derived.
+From Fairness.base_logic Require Import bi derived lib.own.
 From iris.proofmode Require Export tactics.
 From iris.algebra Require Import proofmode_classes.
 
@@ -28,7 +30,7 @@ End uPredI.
 (* uPredI_affine is added so that IPM can also resolve pure predicates with evars. *)
 Global Hint Immediate uPredI_affine : core.
 
-Section iProp.
+(* Section iProp.
 Context `{Σ: GRA.t}.
 Definition iProp := uPredI Σ.
 
@@ -66,12 +68,12 @@ Section TEST.
     i. iStartProof.
     iIntros "[Hxs Hys]". iMod "Hxs". iApply "Hys".
   Qed.
-End TEST.
+End TEST. *)
 
 Notation "#=> P" := (|==> P)%I (at level 99).
 
 Section IUPD.
-  Context {Σ: GRA.t}.
+  Context {Σ : gFunctors}.
   Notation iProp := (iProp Σ).
 
   Definition IUpd (I: iProp): iProp -> iProp :=
@@ -112,10 +114,12 @@ Section IUPD.
     - apply IUpd_trans.
     - apply IUpd_frame_r.
   Qed.
-  Global Instance iProp_bi_bupd_IUpd I: BiBUpd iProp := {| bi_bupd_mixin := iProp_bupd_mixin_IUpd I |}.
+
+  Global Instance iProp_bi_bupd_IUpd I: BiBUpd iProp :=
+  {| bi_bupd_mixin := iProp_bupd_mixin_IUpd I |}.
 End IUPD.
+
 Notation "#=( Q )=> P" := ((@bupd (bi_car (iProp _)) (@bi_bupd_bupd _ (@iProp_bi_bupd_IUpd _ Q))) P) (at level 99).
-Notation "P =( I ) =∗ Q" := (P ⊢ #=( I )=> Q) (only parsing, at level 99) : stdpp_scope.
 Notation "P =( I )=∗ Q" := (P -∗ #=( I )=> Q)%I (at level 99): bi_scope.
 
 #[export] Hint Unfold bi_entails bi_sep bi_and bi_or bi_wand bupd bi_bupd_bupd: iprop.
@@ -476,4 +480,4 @@ Section AUX.
     | S m => (sep_conjs Ps m) ∗ (Ps m)
     end.
 
-End AUX.
+End AUX. *)

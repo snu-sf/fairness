@@ -16,7 +16,9 @@ Section SPEC.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
-  Context {HasMEMRA: @GRA.inG memRA Γ}.
+  Context `{HasMEMRA: !heapGS Γ}.
+  Notation sProp := (sProp (Γ:=Γ)).
+
 
   Variable p_mem : Prism.t id_tgt_type SCMem.val.
   Variable l_mem : Lens.t st_tgt_type SCMem.t.
@@ -335,7 +337,8 @@ Section SPEC.
     :
     ⊢ [@ tid, y, z, E @]
       {(tgt_interp_as l_mem (fun m => (s_memory_black m) : sProp x)%S) ∗
-        (l ↦ v) ∗
+        (l ↦ v)
+        ∗
         (if (SCMem.val_eq_dec v SCMem.val_null) then emp else (∃ vv: τ{SCMem.val,y}, v ↦{ pv } vv)) ∗
         (if (SCMem.val_eq_dec old SCMem.val_null) then emp else (∃ vo: τ{SCMem.val,y}, old ↦{ po } vo))
       }

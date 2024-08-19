@@ -7,6 +7,7 @@ From iris.algebra Require Import proofmode_classes.
 
 From iris.prelude Require Import options.
 
+(* TODO: generalize this to ucmra, not gFunctors? *)
 Section IUPD.
   Context {Σ : gFunctors}.
   Notation iProp := (iProp Σ).
@@ -96,51 +97,58 @@ Section lemmas.
     by iApply "IP".
   Qed.
 
-  Definition SubIProp (P Q : iProp Σ) : Prop :=
-    Q ⊢ #=> (P ∗ (P -∗ #=> Q)).
+  Definition SubIProp P Q: iProp Σ :=
+    Q -∗ #=> (P ∗ (P -∗ #=> Q)).
 
-  Global Instance SubIProp_reflexive : Reflexive SubIProp.
-  Proof. intros P. iIntros "H". iFrame. auto. Qed.
-
-  Global Instance SubIProp_transitive : Transitive SubIProp.
+  Lemma SubIProp_refl P
+    :
+    ⊢ SubIProp P P.
   Proof.
-    intros P Q R HPQ HQR.
-    iIntros "R".
-    iMod (HQR with "R") as "[Q QR]".
-    iMod (HPQ with "Q") as "[$ PQ]".
-    iIntros "!> P".
-    iMod ("PQ" with "P") as "Q".
-    iMod ("QR" with "Q") as "$".
-    done.
+    iIntros "H". iFrame. auto.
+  Qed.
+
+  Lemma SubIProp_trans P Q R
+    :
+    (SubIProp P Q)
+      -∗
+      (SubIProp Q R)
+      -∗
+      (SubIProp P R).
+  Proof.
+    iIntros "H0 H1 H2".
+    iPoseProof ("H1" with "H2") as "> [H1 H2]".
+    iPoseProof ("H0" with "H1") as "> [H0 H1]".
+    iFrame. iModIntro. iIntros "H".
+    iPoseProof ("H1" with "H") as "> H".
+    iPoseProof ("H2" with "H") as "H". auto.
   Qed.
 
   Lemma SubIProp_sep_l P Q
     :
-    (SubIProp P (P ∗ Q)).
+    ⊢ (SubIProp P (P ∗ Q)).
   Proof.
     iIntros "[H0 H1]". iFrame. auto.
   Qed.
 
   Lemma SubIProp_sep_r P Q
     :
-    (SubIProp Q (P ∗ Q)).
+    ⊢ (SubIProp Q (P ∗ Q)).
   Proof.
     iIntros "[H0 H1]". iFrame. auto.
   Qed.
 
-  Lemma IUpd_sub_mon P Q {R}
+  Lemma IUpd_sub_mon P Q R
     :
     (SubIProp P Q)
-      →
+      -∗
       (#=(P)=> R)
-      ⊢
+      -∗
       (#=(Q)=> R).
   Proof.
-    rewrite !IUpd_eq. iIntros (HPQ) "PR Q".
-    iMod (HPQ with "Q") as "[P PQ]".
-    iMod ("PR" with "P") as "[P $]".
-    iMod ("PQ" with "P") as "$".
-    done.
+    rewrite !IUpd_eq. iIntros "H0 H1 H2".
+    iPoseProof ("H0" with "H2") as "> [H0 H2]".
+    iPoseProof ("H1" with "H0") as "> [H0 H1]".
+    iPoseProof ("H2" with "H0") as "H0". iFrame. auto.
   Qed.
 End lemmas.
 
@@ -173,11 +181,11 @@ Qed.
 (* TODO: might need to add some weight to this *)
 Global Instance subiprop_elim_iupd `{Σ : gFunctors} (I J P Q : iProp Σ) b
   :
-  ElimModal (SubIProp I J) b false (#=(I)=> P) P (#=(J)=> Q) (#=(J)=> Q).
+  ElimModal True b false ((SubIProp I J) ∗ #=(I)=> P) P (#=(J)=> Q) (#=(J)=> Q).
 Proof.
   rewrite /ElimModal bi.intuitionistically_if_elim.
-  iIntros (HIJ) "[IP PJQ]".
-  iMod (IUpd_sub_mon I J HIJ with "IP") as "P".
+  iIntros (_) "[[HIJ IP] PJQ]".
+  iMod (IUpd_sub_mon I J with "HIJ IP") as "P".
   by iApply "PJQ".
 Qed.
 

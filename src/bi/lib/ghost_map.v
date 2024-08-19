@@ -1,4 +1,4 @@
-From sflib Require Import sflib.
+(* From sflib Require Import sflib.
 (* Port of https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/ghost_map.v into FOS style iProp *)
 (** A "ghost map" (or "ghost heap") with a proposition controlling authoritative
 ownership of the entire heap, and a "points-to-like" proposition for (mutable,
@@ -399,4 +399,4 @@ Notation "k ↪[ γ ]{# q } v" := (k ↪[γ]{DfracOwn q} v)%S
 Notation "k ↪[ γ ] v" := (k ↪[γ]{#1} v)%S
   (at level 20, γ at level 50, format "k  ↪[ γ ]  v") : sProp_scope.
 Notation "k ↪[ γ ]□ v" := (k ↪[γ]{DfracDiscarded} v)%S
-  (at level 20, γ at level 50) : sProp_scope.
+  (at level 20, γ at level 50) : sProp_scope. *)

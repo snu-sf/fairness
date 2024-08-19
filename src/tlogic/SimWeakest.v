@@ -19,7 +19,7 @@ Set Implicit Arguments.
 
 Section STATE.
 
-  Context `{Σ: GRA.t}.
+  Context `{Σ: gFunctors}.
   Notation iProp := (iProp Σ).
 
   Variable state_src: Type.
@@ -27,6 +27,7 @@ Section STATE.
 
   Variable ident_src: ID.
   Variable ident_tgt: ID.
+  Context `{!EqDecision ident_src, !EqDecision ident_tgt}.
 
   Let srcE := threadE ident_src state_src.
   Let tgtE := threadE ident_tgt state_tgt.
@@ -34,24 +35,8 @@ Section STATE.
   Let shared_rel := TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp.
 
   Local Notation index := nat.
-  Context `{Vars : index -> Type}.
-  Context `{Invs : @IInvSet Σ Vars}.
-
-  (* Invariant related default RAs *)
-  Context `{OWNERA : @GRA.inG OwnERA Σ}.
-  Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+  Context `{Invs : !IInvSet Σ Vars}.
+  Context `{SIMGS : !sim_defaultGS Σ state_src state_tgt ident_src ident_tgt, INVGS: !invGS Σ Vars, ARRGS: !ObligationRA.arrow_thGS Σ ident_tgt Vars}.
 
   Variable x : index.
   Variable tid: thread_id.
@@ -557,7 +542,7 @@ Section STATE.
          P
     :
     ElimModal (y < x) p false
-              (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) y)=> P)
+              (#=(arrows_sat y)=> P)
               P
               (wpsim E r g Q ps pt itr_src itr_tgt)
               (wpsim E r g Q ps pt itr_src itr_tgt).
@@ -591,21 +576,27 @@ Section STATE.
          a b c P Q E1 E2 p
     :
     ElimModal (a < b) p false
-              (#=(ObligationRA.arrows_sat (S:=sum_tid ident_tgt) a)=> P)
+              (#=(arrows_sat a)=> P)
               P
               (=|c|=(fairI (ident_tgt:=ident_tgt) b)={E1,E2}=> Q)
               (=|c|=(fairI (ident_tgt:=ident_tgt) b)={E1,E2}=> Q).
   Proof.
-    unfold ElimModal. rewrite bi.intuitionistically_if_elim.
+    unfold ElimModal,arrows_sat. rewrite bi.intuitionistically_if_elim.
     intros LT. iIntros "[H0 H1]".
-    Local Transparent ObligationRA.edges_sat ObligationRA.arrows_sats.
-    Local Typeclasses Transparent ObligationRA.edges_sat ObligationRA.arrows_sats.
-    iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
-    { iApply SubIProp_trans. iApply Regions.nsats_sat_sub. apply LT. iApply SubIProp_sep_r. }
-    assert (Regions.nsats (ObligationRA.arrow (S:=sum_tid ident_tgt)) b = (ObligationRA.arrows_sats b)) as ->; [done|].
-    iMod "H0". iApply ("H1" with "H0").
-    Local Typeclasses Opaque ObligationRA.edges_sat ObligationRA.arrows_sats.
-    Local Opaque ObligationRA.edges_sat ObligationRA.arrows_sats.
+    iDestruct (IUpd_sub_mon with "[] H0") as "H0".
+    { iApply SubIProp_trans.
+      2: iApply Regions.nsats_sat_sub; apply LT.
+      instantiate (1 := (λ a, (ObligationRA.arrow a _))).
+      simpl in *.
+      iApply SubIProp_refl.
+    }
+    simpl in *.
+    assert (Regions.nsats ObligationRA.arr_name
+              (λ a0 : index, ObligationRA.arrow a0 ftgt_name) b
+            = (ObligationRA.arrows_sats ftgt_name b)) as ->; [done|].
+    iMod (IUpd_sub_mon _ (fairI b) with "[] H0") as "H0".
+    { unfold fairI. iApply SubIProp_sep_r. }
+    iApply ("H1" with "H0").
   Qed.
 
   Lemma wpsim_wand E r g R_src R_tgt
@@ -969,9 +960,9 @@ Section STATE.
         (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
         (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (list_prop_sum (fun i => FairRA.white p i Ord.one) lf)
+    (list_prop_sum (fun i => FairRA.white p fsrc_name i Ord.one) lf)
       -∗
-      ((list_prop_sum (fun i => FairRA.white p i o) ls)
+      ((list_prop_sum (fun i => FairRA.white p fsrc_name i o) ls)
          -∗ (wpsim E r g Q true pt (ktr_src tt) itr_tgt))
       -∗
       (wpsim E r g Q ps pt (trigger (Fair (prism_fmap p fm)) >>= ktr_src) itr_tgt).
@@ -992,9 +983,9 @@ Section STATE.
         (FAIL: forall i (IN: fm i = Flag.fail), List.In i lf)
         (SUCCESS: forall i (IN: List.In i ls), fm i = Flag.success)
     :
-    (list_prop_sum (fun i => FairRA.white Prism.id i Ord.one) lf)
+    (list_prop_sum (fun i => FairRA.white Prism.id fsrc_name i Ord.one) lf)
       -∗
-      ((list_prop_sum (fun i => FairRA.white Prism.id i o) ls)
+      ((list_prop_sum (fun i => FairRA.white Prism.id fsrc_name i o) ls)
          -∗ (wpsim E r g Q true pt (ktr_src tt) itr_tgt))
       -∗
       (wpsim E r g Q ps pt (trigger (Fair fm) >>= ktr_src) itr_tgt).
@@ -1016,12 +1007,12 @@ Section STATE.
     :
     (list_prop_sum
        (fun '(i, l) =>
-          ObligationRA.duty y (Prism.compose inrp p) i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
+          ObligationRA.duty y (Prism.compose inrp p) ftgt_name i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
        ls)%I
       -∗
-      ((list_prop_sum (fun '(i, l) => ObligationRA.duty y (Prism.compose inrp p) i l) ls)
+      ((list_prop_sum (fun '(i, l) => ObligationRA.duty y (Prism.compose inrp p) ftgt_name i l) ls)
          -∗
-         (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) i 1) lf)
+         (list_prop_sum (fun i => FairRA.white (Prism.compose inrp p) ftgt_name i 1) lf)
          -∗
          wpsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
@@ -1042,7 +1033,7 @@ Section STATE.
   Lemma wpsim_fairR_prism
         y (LT : y < x)
         A lf
-        (ls : list (A * list (nat * nat * Vars y)))
+        (ls : list (A * list (gname * nat * Vars y)))
         (p : Prism.t _ A)
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1064,7 +1055,7 @@ Section STATE.
   Proof.
     iIntros "DUTY K".
     iAssert
-      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y (inrp ⋅ p)%prism i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)%I)
+      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y (inrp ⋅ p)%prism ftgt_name i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)%I)
           (List.map (λ '(i, l), (i, List.map (λ '(a, b, f), (a, layer b 1, f)) l)) ls))
       with "[DUTY]" as "DUTY".
     { iApply list_prop_sum_pull_bupd_default. iApply list_prop_sum_map. 2: iFrame.
@@ -1105,11 +1096,11 @@ Section STATE.
         (NODUP: List.NoDup lf)
     :
     (list_prop_sum
-       (fun '(i, l) => ObligationRA.duty y inrp i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega) ls)
+       (fun '(i, l) => ObligationRA.duty y inrp ftgt_name i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega) ls)
       -∗
-      ((list_prop_sum (fun '(i, l) => ObligationRA.duty y inrp i l) ls)
+      ((list_prop_sum (fun '(i, l) => ObligationRA.duty y inrp ftgt_name i l) ls)
          -∗
-         (list_prop_sum (fun i => FairRA.white inrp i 1) lf)
+         (list_prop_sum (fun i => FairRA.white inrp ftgt_name i 1) lf)
          -∗
          wpsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
@@ -1126,7 +1117,7 @@ Section STATE.
   Lemma wpsim_fairR
         y (LT : y < x)
         lf
-        (ls : list (ident_tgt * list (nat * nat * Vars y)))
+        (ls : list (ident_tgt * list (gname * nat * Vars y)))
         E fm r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt itr_src ktr_tgt
@@ -1147,7 +1138,7 @@ Section STATE.
   Proof.
     iIntros "DUTY K".
     iAssert
-      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y inrp i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)%I)
+      (#=>list_prop_sum (λ '(i, l), (ObligationRA.duty y inrp ftgt_name i l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)%I)
           (List.map (λ '(i, l), (i, List.map (λ '(a, b, f), (a, layer b 1, f)) l)) ls))
       with "[DUTY]" as "DUTY".
     { iApply list_prop_sum_pull_bupd_default. iApply list_prop_sum_map. 2: iFrame.
@@ -1187,11 +1178,11 @@ Section STATE.
         (FAIL: forall i (IN: List.In i lf), fm i = Flag.fail)
         (NODUP: List.NoDup lf)
     :
-    (list_prop_sum (fun i => FairRA.black_ex inrp i 1) ls)
+    (list_prop_sum (fun i => FairRA.black_ex inrp ftgt_name i 1) ls)
       -∗
-      ((list_prop_sum (fun i => FairRA.black_ex inrp i 1) ls)
+      ((list_prop_sum (fun i => FairRA.black_ex inrp ftgt_name i 1) ls)
          -∗
-         (list_prop_sum (fun i => FairRA.white inrp i 1) lf)
+         (list_prop_sum (fun i => FairRA.white inrp ftgt_name i 1) lf)
          -∗
          wpsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗
@@ -1259,11 +1250,11 @@ Section STATE.
         (OBLIGS : l = l1 ++ l2)
         (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.pends pps ∗ ObligationRA.taxes (List.map fst l2) Ord.omega)
+    (ObligationRA.duty y inlp ftgt_name tid l ∗ ObligationRA.pends pps ∗ ObligationRA.taxes (List.map fst l2) Ord.omega)
       -∗
-      ((ObligationRA.duty y inlp tid l)
+      ((ObligationRA.duty y inlp ftgt_name tid l)
          -∗
-         (FairRA.white_thread (S:=_))
+         (FairRA.white_thread ftgt_name)
          -∗
          (ObligationRA.pends pps)
          -∗
@@ -1290,11 +1281,11 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
+    (ObligationRA.duty y inlp ftgt_name tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
-      ((ObligationRA.duty y inlp tid l)
+      ((ObligationRA.duty y inlp ftgt_name tid l)
          -∗
-         (FairRA.white_thread (S:=_))
+         (FairRA.white_thread ftgt_name)
          -∗
          (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E,⊤}=> (wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))))
       -∗
@@ -1317,7 +1308,7 @@ Section STATE.
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
         l1 l2 pps
         (OBLIGS : l = l1 ++ l2)
         (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
@@ -1366,7 +1357,7 @@ Section STATE.
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
       -∗
@@ -1400,7 +1391,7 @@ Section STATE.
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
         a (MANY : 1 <= a)
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
@@ -1427,7 +1418,7 @@ Section STATE.
         r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
       -∗
@@ -1450,7 +1441,7 @@ Section STATE.
         r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
         a (MANY : 1 <= a)
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
@@ -1480,11 +1471,11 @@ Section STATE.
         (OBLIGS : l = l1 ++ l2)
         (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.pends pps ∗ ObligationRA.taxes (List.map fst l2) Ord.omega)
+    (ObligationRA.duty y inlp ftgt_name tid l ∗ ObligationRA.pends pps ∗ ObligationRA.taxes (List.map fst l2) Ord.omega)
       -∗
-      ((ObligationRA.duty y inlp tid l)
+      ((ObligationRA.duty y inlp ftgt_name tid l)
          -∗
-         (FairRA.white_thread (S:=_))
+         (FairRA.white_thread ftgt_name)
          -∗
          (ObligationRA.pends pps)
          -∗
@@ -1511,11 +1502,11 @@ Section STATE.
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt l
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
+    (ObligationRA.duty y inlp ftgt_name tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
-      ((ObligationRA.duty y inlp tid l)
+      ((ObligationRA.duty y inlp ftgt_name tid l)
          -∗
-         (FairRA.white_thread (S:=_))
+         (FairRA.white_thread ftgt_name)
          -∗
          (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E,⊤}=> (wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))))
       -∗
@@ -1537,7 +1528,7 @@ Section STATE.
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
         l1 l2 pps
         (OBLIGS : l = l1 ++ l2)
         (PENDS : Forall2 (fun '(k1, _, _) '(k2, _) => k1 = k2) l1 pps)
@@ -1585,7 +1576,7 @@ Section STATE.
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
       -∗
@@ -1618,7 +1609,7 @@ Section STATE.
         E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
         a (MANY : 1 <= a)
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
@@ -1644,7 +1635,7 @@ Section STATE.
         r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, 1))
       -∗
@@ -1666,7 +1657,7 @@ Section STATE.
         r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ps pt ktr_src ktr_tgt
-        (l : list (nat * nat * Vars y))
+        (l : list (gname * nat * Vars y))
         a (MANY : 1 <= a)
     :
     (Duty(tid) l ∗ ◇{List.map fst l}(1, a))
@@ -1693,11 +1684,11 @@ Section STATE.
         ps pt ktr_src ktr_tgt l
         (TOP: ⊤ ⊆ E)
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
+    (ObligationRA.duty y inlp ftgt_name tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
-      ((ObligationRA.duty y inlp tid l)
+      ((ObligationRA.duty y inlp ftgt_name tid l)
          -∗
-         (FairRA.white_thread (S:=_))
+         (FairRA.white_thread ftgt_name)
          -∗
          wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt))
       -∗
@@ -1716,11 +1707,11 @@ Section STATE.
         ps pt ktr_src ktr_tgt l
         (TOP: ⊤ ⊆ E)
     :
-    (ObligationRA.duty y inlp tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
+    (ObligationRA.duty y inlp ftgt_name tid l ∗ ObligationRA.taxes (List.map fst l) Ord.omega)
       -∗
-      ((ObligationRA.duty y inlp tid l)
+      ((ObligationRA.duty y inlp ftgt_name tid l)
          -∗
-         (FairRA.white_thread (S:=_))
+         (FairRA.white_thread ftgt_name)
          -∗
          wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt))
       -∗
@@ -1738,11 +1729,11 @@ Section STATE.
         ps pt ktr_src ktr_tgt
     :
     =|x|=(fairI (ident_tgt:=ident_tgt) x)={⊤}=>
-         ((FairRA.black_ex inlp tid 1)
+         ((FairRA.black_ex inlp ftgt_name tid 1)
             ∗
-            ((FairRA.black_ex inlp tid 1)
+            ((FairRA.black_ex inlp ftgt_name tid 1)
                -∗
-               (FairRA.white_thread (S:=_))
+               (FairRA.white_thread ftgt_name)
                -∗
                wpsim ⊤ r g Q ps true (trigger (Yield) >>= ktr_src) (ktr_tgt tt)))
          -∗
@@ -1764,11 +1755,11 @@ Section STATE.
         ps pt ktr_src ktr_tgt
     :
     =|x|=(fairI (ident_tgt:=ident_tgt) x)={⊤}=>
-         ((FairRA.black_ex inlp tid 1)
+         ((FairRA.black_ex inlp ftgt_name tid 1)
             ∗
-            ((FairRA.black_ex inlp tid 1)
+            ((FairRA.black_ex inlp ftgt_name tid 1)
                -∗
-               (FairRA.white_thread (S:=_))
+               (FairRA.white_thread ftgt_name)
                -∗
                wpsim ⊤ g g Q true true (ktr_src tt) (ktr_tgt tt)))
          -∗
@@ -1832,14 +1823,30 @@ Section STATETYPES.
     { st_src_type : Type ;
       st_tgt_type : Type ;
       id_src_type : ID ;
-      id_tgt_type : ID
+      id_tgt_type : ID ;
+      #[global] id_src_type_eqdec :: EqDecision id_src_type ;
+      #[global] id_tgt_type_eqdec :: EqDecision id_tgt_type ;
     }.
+
 
 End STATETYPES.
 
+Notation sim_stateGpreS Σ STT := (sim_defaultGpreS Σ (@st_src_type STT) (@st_tgt_type STT) (@id_src_type STT) (@id_tgt_type STT)) (only parsing).
+Notation sim_stateGS Σ STT := (sim_defaultGS Σ (@st_src_type STT) (@st_tgt_type STT) (@id_src_type STT) (@id_tgt_type STT)) (only parsing).
+Notation sim_stateΣ STT :=
+  (sim_defaultΣ
+      (@st_src_type STT)
+      (@st_tgt_type STT)
+      (@id_src_type STT)
+      (@id_tgt_type STT)
+      ) (only parsing).
+Global Instance sim_state_subG {Σ} {STT : StateTypes} :
+  subG (sim_stateΣ STT) Σ → sim_stateGpreS Σ STT.
+Proof. apply _. Qed.
+
 Section TRIPLES.
 
-  Context `{Σ: GRA.t}.
+  Context `{Σ: gFunctors}.
 
   Context {STT : StateTypes}.
   Local Notation state_src := (@st_src_type STT).
@@ -1853,29 +1860,16 @@ Section TRIPLES.
   Local Notation index := nat.
   Context `{Vars : index -> Type}.
   Context `{Invs : @IInvSet Σ Vars}.
-
-  (* Invariant related default RAs *)
-  Context `{OWNERA : @GRA.inG OwnERA Σ}.
-  Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
-  (* State related default RAs *)
-  Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
-  Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
-  Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
-  (* Liveness logic related default RAs *)
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+  Context `{SIMGS: !sim_stateGS Σ STT}.
+  Context `{INVGS: !invGS Σ Vars}.
+  Context `{ARRGS : !ObligationRA.arrow_thGS Σ ident_tgt Vars}.
   Notation iProp := (iProp Σ).
 
 
   (** Formats for triples-like specs. *)
 
   Definition term_cond m tid (R_term : Type) :=
-    (fun (rs rt : R_term) => (own_thread tid ∗ ObligationRA.duty m inlp tid []) ∗ ⌜rs = rt⌝)%I.
+    (fun (rs rt : R_term) => (own_thread tid ∗ ObligationRA.duty m inlp ftgt_name tid []) ∗ ⌜rs = rt⌝)%I.
 
   Definition triple_gen
              n m

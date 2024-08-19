@@ -8,8 +8,8 @@ Require Import Program.
 Set Implicit Arguments.
 
 Section SIM.
-  Context `{Σ: GRA.t}.
-  Notation iProp := (iProp Σ).
+  Context `{Σ: ucmra}.
+  Notation iProp := (uPredI Σ).
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -30,7 +30,7 @@ Section SIM.
                                state_src *
                                state_tgt) -> Σ -> Prop :=
         fun '(ths, im_src, im_tgt, st_src, st_tgt) r_shared =>
-          upred.uPred_holds (to_upred (R ths im_src im_tgt st_src st_tgt)) r_shared.
+          upred.uPred_holds (R ths im_src im_tgt st_src st_tgt)r_shared.
 
   Let liftRR R_src R_tgt (RR: R_src -> R_tgt -> shared_rel):
     R_src -> R_tgt -> Σ -> (TIdSet.t *
@@ -41,7 +41,7 @@ Section SIM.
         fun r_src r_tgt r_ctx '(ths, im_src, im_tgt, st_src, st_tgt) =>
           exists r,
             (<<WF: ✓ (r ⋅ r_ctx)>>) /\
-              upred.uPred_holds (to_upred (RR r_src r_tgt ths im_src im_tgt st_src st_tgt)) r.
+              upred.uPred_holds (RR r_src r_tgt ths im_src im_tgt st_src st_tgt) r.
 
   Variable tid: thread_id.
   Variable I: shared_rel.
@@ -71,7 +71,7 @@ Section SIM.
          state_tgt) -> Prop :=
     | unlift_intro
         R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt r_ctx r_own
-        (REL: upred.uPred_holds (to_upred (r R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)) r_own)
+        (REL: upred.uPred_holds (r R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt) r_own)
         (WF: ✓ (r_own ⋅ r_ctx))
       :
       unlift r (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt)
@@ -81,9 +81,9 @@ Section SIM.
     fun
       r g
       R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
-        from_upred ({| upred.uPred_holds r_own :=
+        {| upred.uPred_holds r_own :=
            forall r_ctx (WF: ✓ (r_own ⋅ r_ctx)),
-             gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt) |}).
+             gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt) |}.
   Next Obligation.
     ii. ss. eapply H.
     eapply cmra_valid_included; eauto. eapply RA.extends_add; eauto.
@@ -621,7 +621,7 @@ Section SIM.
     { instantiate (1:=r1). eapply cmra_valid_op_l; eauto. }
     { exists ε, r1. splits; eauto.
       { by rewrite left_id. }
-      rewrite /bi_intuitionistically /bi_affinely /bi_persistently. uPred.unseal.
+      rewrite /bi_intuitionistically /bi_affinely. uPred.unseal.
       rr. esplits.
       { rr. ss. }
       exists ε, ε. splits.
@@ -679,7 +679,7 @@ Section EQUIVI.
       (isim (Σ:=Σ) tid I2 r g Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt)
   .
   Proof.
-    assert (EQ: forall ths ims imt sts stt (r : Σ) (WF: ✓ r), upred.uPred_holds (to_upred (I1 ths ims imt sts stt)) r <-> upred.uPred_holds (to_upred (I2 ths ims imt sts stt)) r).
+    assert (EQ: forall ths ims imt sts stt (r : Σ) (WF: ✓ r), upred.uPred_holds (I1 ths ims imt sts stt) r <-> upred.uPred_holds (I2 ths ims imt sts stt) r).
     { clear - EQUIV. i. specialize (EQUIV ths ims imt sts stt). rr in EQUIV. inv EQUIV. eauto. }
     split. rr. i.
     ii. rr in H0. eapply lsim_equivI. 2: eapply H0; eauto.

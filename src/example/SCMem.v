@@ -364,19 +364,40 @@ Coercion SCMem.val_ptr : SCMem.pointer >-> SCMem.val.
 (** RA for SCMem. *)
 
 From iris.algebra Require Import cmra updates lib.gmap_view.
-From Fairness Require Import PCM IPM IPropAux MonotoneRA Axioms.
+From Fairness Require Import PCM IPM IPropAux MonotoneRA Axioms SRA.
 
 (* TODO: Remove this *)
 Global Instance frame_exist_instantiate_disabled :
   FrameInstantiateExistDisabled := {}.
 
+Definition memRA: ucmra := (nat ==> nat ==> (gmap_viewUR unit (agreeR $ leibnizO SCMem.val)))%ra.
+
+Class heapGpreS (Γ : SRA.t) := {
+  heapGpreS_inG : inG (SRA.to_gf Γ) memRA;
+}.
+
+Class heapGS (Γ : SRA.t) := {
+  heapGS_inG : inG (SRA.to_gf Γ) memRA;
+  heap_name : gname;
+}.
+
+Definition heapΣ : gFunctors := #[GFunctor memRA].
+
+Global Instance subG_heapΣ {Γ} :
+  subG (heapΣ) (SRA.to_gf Γ) → heapGpreS Γ.
+Proof. solve_inG. Qed.
+
+Local Existing Instances heapGS_inG heapGpreS_inG.
+
 Section MEMRA.
-  Context `{heap_name : nat}.
-  Definition memRA: ucmra := (nat ==> nat ==> (gmap_viewUR unit (agreeR $ leibnizO SCMem.val)))%ra.
+
+  (* Context `{MEMRA: !heapGS Σ}. *)
 
   Notation val_to_mem_ra x := (to_agree (A:=leibnizO _) (x : SCMem.val)) (only parsing).
 
-  Context `{MEMRA: @GRA.inG memRA Σ}.
+  Context `{SUB: !SRA.subG Γ Σ}.
+  Context `{HEAP: !heapGS Γ}.
+  (* Context (heap_name : gname). *)
   Notation iProp := (iProp Σ).
 
   Definition memory_resource_black (m: SCMem.t): memRA :=
@@ -436,11 +457,11 @@ Section MEMRA.
   Qed.
 
   Definition memory_black (m: SCMem.t): iProp :=
-    OwnM (memory_resource_black m) ∧ ⌜SCMem.wf m⌝.
+    own heap_name (memory_resource_black m) ∧ ⌜SCMem.wf m⌝.
 
   Definition points_to (p: SCMem.val) (v: SCMem.val) dq: iProp :=
     match p with
-    | SCMem.val_ptr (blk, ofs) => OwnM (points_to_white blk ofs v dq)
+    | SCMem.val_ptr (blk, ofs) => own heap_name (points_to_white blk ofs v dq)
     | _ => False
     end.
 
@@ -453,7 +474,7 @@ Section MEMRA.
 
   Lemma points_tos_to_resource blk ofs vs dq
     :
-    (OwnM (points_tos_white blk ofs vs dq))
+    (own heap_name (points_tos_white blk ofs vs dq))
       -∗
       (points_tos (SCMem.val_ptr (blk, ofs)) vs dq).
   Proof.
@@ -463,17 +484,17 @@ Section MEMRA.
     iPoseProof (IHvs with "H1") as "H1". iFrame.
   Qed.
 
-  Lemma resource_to_points_to blk ofs vs dq
+  (* Lemma resource_to_points_to blk ofs vs dq
     :
     (points_tos (SCMem.val_ptr (blk, ofs)) vs dq)
       -∗
-      (OwnM (points_tos_white blk ofs vs dq)).
+      (own heap_name (points_tos_white blk ofs vs dq)).
   Proof.
     revert blk ofs. induction vs; ss; i.
     { iIntros "_". iPoseProof (@OwnM_unit _ _ MEMRA) as "H". auto. }
     iIntros "[H0 H1]". iSplitL "H0"; auto.
     iApply IHvs. auto.
-  Qed.
+  Qed. *)
 
   Definition memory_empty_resource: memRA :=
     memory_resource_black SCMem.empty.
@@ -545,8 +566,8 @@ Section MEMRA.
       (#=> (memory_black m1 ∗ points_tos p (repeat (SCMem.val_nat 0) sz) (DfracOwn 1))).
   Proof.
     unfold memory_black. iIntros "[BLACK %WF]".
-    iAssert (#=> (OwnM (memory_resource_black m1 ⋅ points_tos_white (m0.(SCMem.next_block)) 0 (repeat (SCMem.val_nat 0) sz) (DfracOwn 1)))) with "[BLACK]" as "> [BLACK WHITE]".
-    { iApply (OwnM_Upd with "BLACK").
+    iAssert (#=> (own heap_name (memory_resource_black m1 ⋅ points_tos_white (m0.(SCMem.next_block)) 0 (repeat (SCMem.val_nat 0) sz) (DfracOwn 1)))) with "[BLACK]" as "> [BLACK WHITE]".
+    { iApply (own_update with "BLACK").
       eapply memory_alloc_updatable; eauto.
     }
     unfold SCMem.alloc in ALLOC. inv ALLOC.
@@ -593,8 +614,8 @@ Section MEMRA.
     remember (SCMem.free _ _) as m1 eqn:FREE. pose proof FREE as FREE'. revert FREE'.
     unfold SCMem.free, SCMem.has_permission in FREE. ss. des_ifs. remember (SCMem.mk _ _) as m1. i.
     iExists m1. iSplit; eauto.
-    iAssert (#=> (OwnM (memory_resource_black m1))) with "[OWN]" as "> RB".
-    { iApply (OwnM_Upd with "OWN").
+    iAssert (#=> (own heap_name (memory_resource_black m1))) with "[OWN]" as "> RB".
+    { iApply (own_update with "OWN").
       eapply memory_free_updatable; eauto. }
     iModIntro. iFrame. iPureIntro. ii. unfold SCMem.free in FREE'.
     des_ifs; ss; des_ifs; eapply WF in SOME; eauto.
@@ -623,7 +644,7 @@ Section MEMRA.
 
   Lemma memory_init_iprop l
     :
-    OwnM (memory_init_resource l) -∗ (memory_black (SCMem.init_mem l) ∗ init_points_tos l (SCMem.init_gvars l)).
+    own heap_name (memory_init_resource l) -∗ (memory_black (SCMem.init_mem l) ∗ init_points_tos l (SCMem.init_gvars l)).
   Proof.
     iIntros "[BLACK WHITE]". unfold memory_black. iFrame. iSplit.
     { iPureIntro. induction l; ss. unfold SCMem.init_mem in *. ii. ss.
@@ -734,8 +755,8 @@ Section MEMRA.
       }
     unfold SCMem.store. ss. des_ifs. iExists _.
     iSplitR; [iPureIntro; eauto|].
-    iAssert (#=> OwnM (memory_resource_black (SCMem.mem_update m0 n n0 v1) ⋅  points_to_white n n0 v1 (DfracOwn 1))) with "[OWN]" as "> [BLACK WHITE]".
-    { iApply (OwnM_Upd with "OWN").
+    iAssert (#=> own heap_name (memory_resource_black (SCMem.mem_update m0 n n0 v1) ⋅  points_to_white n n0 v1 (DfracOwn 1))) with "[OWN]" as "> [BLACK WHITE]".
+    { iApply (own_update with "OWN").
       apply pointwise_updatabable. i.
       apply pointwise_updatabable. i.
       rewrite !discrete_fun_lookup_op.
@@ -897,9 +918,7 @@ Section MEMRA.
   Global Instance points_to_discarded_persistent l v : Persistent (points_to l v DfracDiscarded).
   Proof.
     rewrite /points_to /points_to_white. des_ifs; try apply _.
-    rewrite /Persistent. iIntros "H".
-    iDestruct (own_persistent with "H") as "#HP".
-    iModIntro. iApply (OwnM_proper with "HP").
+    apply own_core_persistent,core_id_total.
     intros blk' ofs'. rewrite !discrete_fun_lookup_core.
     des_ifs; rewrite core_id_core //.
   Qed.
@@ -911,7 +930,7 @@ Section MEMRA.
   Proof.
     unfold points_to,points_to_white. des_ifs.
     { by iIntros (?). }
-    iApply OwnM_Upd.
+    iApply own_update.
     apply pointwise_updatable=>blk'. apply pointwise_updatabable=>ofs'.
     des_ifs.
     apply gmap_view_frag_persist.
@@ -932,25 +951,26 @@ From Fairness Require Import TemporalLogic.
 
 Section SPROP.
 
-  Context {STT : StateTypes}.
+  (* Context {STT : StateTypes}. *)
   Context `{sub : @SRA.subG Γ Σ}.
-  Context {TLRASs : TLRAs_small STT Γ}.
-  Context {TLRAS : TLRAs STT Γ Σ}.
+  Context `{TLRASs : !TLRAs_small STT Γ}.
+  Context `{TLRAS : !TLRAs STT Γ Σ}.
 
-  Context {HasMEMRA: @GRA.inG memRA Γ}.
+  Context `{HasMEMRA: !heapGS Γ}.
+  (* Context {heap_name : gname}. *)
 
   Definition s_memory_black {n} (m : SCMem.t) : sProp n :=
-    (➢(memory_resource_black m) ∧ ⌜SCMem.wf m⌝)%S.
+    (Syntax.own_i heap_name (memory_resource_black m) ∧ ⌜SCMem.wf m⌝)%S.
 
   Lemma red_s_memory_black n m :
     ⟦s_memory_black m, n⟧ = memory_black m.
   Proof.
-    unfold s_memory_black. red_tl. ss.
+    unfold memory_black,s_memory_black. red_tl. ss.
   Qed.
 
   Definition s_points_to {n} (p: SCMem.val) (v: SCMem.val) dq : sProp n :=
     match p with
-    | SCMem.val_ptr (blk, ofs) => (➢ (points_to_white blk ofs v dq))%S
+    | SCMem.val_ptr (blk, ofs) => (Syntax.own_i heap_name(points_to_white blk ofs v dq))%S
     | _ => ⌜False⌝%S
     end.
 

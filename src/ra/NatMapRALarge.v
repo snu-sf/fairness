@@ -262,7 +262,7 @@ From iris.bi Require Import derived_laws.
 Import bi.
 
 Section SUM.
-  Context `{Σ: GRA.t}.
+  Context `{Σ: gFunctors}.
   Notation iProp := (iProp Σ).
 
   Fixpoint list_prop_sum A (P: A -> iProp) (l: list A): iProp :=
@@ -869,57 +869,48 @@ End SUM.
 Section UPDNATMAP.
   Context {A: Type}.
   Import NatMapRALarge.
-  Context `{NATMAPRA: @GRA.inG (authUR (t A)) Σ}.
+  Context `{NATMAPRA: !inG Σ (authUR (t A))}.
 
-  Lemma NatMapRALarge_find_some m k a
+  Lemma NatMapRALarge_find_some {γ} m k a
     :
-    (OwnM (● (Map m)))
+    own γ (● Map m)
       -∗
-      (OwnM (◯ (singleton k a)))
+      own γ (◯ singleton k a)
       -∗
-      (⌜NatMap.find k m = Some a⌝).
+      ⌜NatMap.find k m = Some a⌝.
   Proof.
-    iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
-    apply auth_both_dfrac_valid_discrete in H. des.
-    eapply NatMapRALarge.extends_singleton_iff in H0. auto.
+    iIntros "B W".
+    by iCombine "B W" gives
+        %(_ & ?%NatMapRALarge.extends_singleton_iff & _)
+        %auth_both_dfrac_valid_discrete.
   Qed.
 
-  Lemma NatMapRALarge_singleton_unique k0 k1 a0 a1
+  Lemma NatMapRALarge_singleton_unique {γ} k0 k1 a0 a1
     :
-    (OwnM (◯ singleton k0 a0))
+    own γ (◯ singleton k0 a0)
       -∗
-      (OwnM (◯ (singleton k1 a1)))
+      own γ (◯ singleton k1 a1)
       -∗
-      (⌜k0 <> k1⌝).
+      ⌜k0 ≠ k1⌝.
   Proof.
-    iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
-    rewrite auth_frag_valid in H.
-    eapply singleton_unique in H. auto.
+    iIntros "W0 W1". iCombine "W0 W1" gives %H.
+    rewrite -auth_frag_op auth_frag_valid in H.
+    by eapply singleton_unique in H.
   Qed.
 
-  Lemma NatMapRALarge_remove m k a
+  Lemma NatMapRALarge_remove {γ} m k a
     :
-    (OwnM (● (Map m)))
+    own γ (● Map m)
       -∗
-      (OwnM (◯ (singleton k a)))
+      own γ (◯ singleton k a)
       -∗
-      #=>(OwnM (● (Map (NatMap.remove k m)))).
-  Proof.
-    iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
-    eapply auth_update_dealloc, remove_local_update.
-  Qed.
+      #=> own γ (● Map (NatMap.remove k m)).
+  Proof. apply own_update_2, auth_update_dealloc, remove_local_update. Qed.
 
-  Lemma NatMapRALarge_add m k a
+  Lemma NatMapRALarge_add {γ} m k a
         (NONE: NatMap.find k m = None)
     :
-    (OwnM (● (Map m)))
-      -∗
-      #=>((OwnM (● (Map (NatMap.add k a m))
-                            ⋅ ◯ (singleton k a)))
-         ).
-  Proof.
-    iIntros "B". iApply OwnM_Upd. 2: iFrame.
-    eapply auth_update_alloc, add_local_update. auto.
-  Qed.
+    own γ (● (Map m)) ⊢ |==> own γ (● Map (NatMap.add k a m) ⋅ ◯ singleton k a).
+  Proof. by apply own_update, auth_update_alloc, add_local_update. Qed.
 
 End UPDNATMAP.

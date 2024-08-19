@@ -1,4 +1,4 @@
-From sflib Require Import sflib.
+(* From sflib Require Import sflib.
 From iris.algebra Require Import cmra gmap proofmode_classes updates.
 From iris.proofmode Require Import proofmode.
 From Fairness Require Import IPM PCM IPropAux FiniteMapRA.
@@ -278,4 +278,4 @@ Section proofmode_instances.
     intros ? Hb. rewrite /FromAnd (is_op a) own_op.
     destruct Hb; by rewrite persistent_and_sep.
   Qed. *)
-End proofmode_instances.
+End proofmode_instances. *)

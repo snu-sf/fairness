@@ -42,3 +42,16 @@ Tactic Notation "iOwnWf" constr(H) :=
 Tactic Notation "iOwnWf" constr(H) "as" ident(WF) :=
   let WF' := fresh WF in
   iDestruct (own_valid' with H) as %WF'.
+
+Fixpoint sep_conjs {Σ : gFunctors} (Ps : nat → iProp Σ) (n : nat) : iProp Σ :=
+  match n with
+  | O => True
+  | S m => (sep_conjs Ps m) ∗ (Ps m)
+  end.
+
+Lemma sep_conjs_eq {Σ : gFunctors} (Ps : nat → iProp Σ) (n : nat) :
+  sep_conjs Ps n ⊣⊢ ([∗ list] i ↦ _ ∈ seq 0 n, Ps i)%I.
+Proof.
+  induction n as [|n IH]; [done|].
+  rewrite seq_S big_sepL_snoc seq_length -IH //.
+Qed.

@@ -26,14 +26,15 @@ Section SPEC.
   Notation tgt_state := (OMod.closed_state Client (SCMem.mod gvs)).
   Notation tgt_ident := (OMod.closed_ident Client (SCMem.mod gvs)).
 
-  Local Instance STT : StateTypes := Build_StateTypes src_state tgt_state src_ident tgt_ident.
+  Local Program Instance STT : StateTypes := @Build_StateTypes src_state tgt_state src_ident tgt_ident _ _.
+  Admit Obligations.
 
   Context `{sub : @SRA.subG Γ Σ}.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
-  Context {HasMEMRA: @GRA.inG memRA Γ}.
-  Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
+  Context `{HasMEMRA: !heapGS Γ}.
+  Context {HasGhostMap : inG (ghost_mapURA nat maybe_null_ptr) Γ}.
   Context {HasGhostVar : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
 
   Local Ltac red_tl_all := red_tl_every; red_tl_memra; red_tl_ghost_map; red_tl_ghost_var.

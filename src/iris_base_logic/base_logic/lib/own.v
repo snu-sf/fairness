@@ -27,7 +27,7 @@ Global Arguments inG_apply {_ _} _ _ {_}. *)
 (* TODO: might be worth adding an instance: inG Σ A → CmraDiscrete A. *)
 Class inG (Σ : gFunctors) (A : cmra) := InG {
   inG_id : gid Σ;
-  inG_apply := (gFunctors_lookup Σ inG_id);
+  inG_apply := gFunctors_lookup Σ inG_id;
   inG_prf : A = inG_apply;
 }.
 Global Arguments inG_id {_ _} _.
@@ -50,6 +50,8 @@ Ltac solve_inG :=
   intros;
   (* Unfold the top-level xΣ. We need to support this to be a function. *)
   lazymatch goal with
+  | H : subG (?xΣ _ _ _ _ _ _) _ |- _ => try unfold xΣ in H
+  | H : subG (?xΣ _ _ _ _ _) _ |- _ => try unfold xΣ in H
   | H : subG (?xΣ _ _ _ _) _ |- _ => try unfold xΣ in H
   | H : subG (?xΣ _ _ _) _ |- _ => try unfold xΣ in H
   | H : subG (?xΣ _ _) _ |- _ => try unfold xΣ in H

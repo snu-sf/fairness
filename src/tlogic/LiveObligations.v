@@ -185,41 +185,30 @@ Global Opaque layer.
 
 Section RULES.
 
-  (* Variable ident_tgt : ID. *)
-  Context {ident_tgt : ID}.
-  Local Notation identTgtRA := (identTgtRA ident_tgt).
-  Context `{Vars : nat -> Type}.
-  Local Notation ArrowRA := (@ArrowRA ident_tgt Vars).
+  Context `{SIMGS : !sim_defaultGS Σ state_src state_tgt ident_src ident_tgt}.
 
-  Context `{Σ : GRA.t}.
-  Context `{Invs : @IInvSet Σ Vars}.
-  Context `{IDENTTGT: @GRA.inG identTgtRA Σ}.
-  Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-  Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA: @GRA.inG ArrowRA Σ}.
   Notation iProp := (iProp Σ).
 
   Import ObligationRA.
 
   (** Definitions and Rules for liveness obligations. *)
 
-  Definition _liveness_obligation (k : nat) (l a : nat) (o : Ord.t) :=
+  Definition _liveness_obligation (k : gname) (l a : nat) (o : Ord.t) :=
     (⌜(o <= layer l a)%ord⌝ ∗ black k o)%I.
 
-  Definition liveness_obligation_fine (k : nat) (l a : nat) :=
+  Definition liveness_obligation_fine (k : gname) (l a : nat) :=
     (∃ (o : Ord.t), _liveness_obligation k l a o)%I.
 
-  Definition liveness_obligation (k : nat) (l : nat) :=
+  Definition liveness_obligation (k : gname) (l : nat) :=
     (∃ (a : nat), liveness_obligation_fine k l a)%I.
 
-  Definition progress_credit (k : nat) (l a : nat) :=
+  Definition progress_credit (k : gname) (l a : nat) :=
     white k (layer l a).
 
-  Definition pending_obligation (k : nat) (q : Qp) :=
+  Definition pending_obligation (k : gname) (q : Qp) :=
     pending k q.
 
-  Definition active_obligation (k : nat) :=
+  Definition active_obligation (k : gname) :=
     shot k.
 
   Global Instance Persistent_liveness_obligation_fine k l a :
@@ -237,7 +226,7 @@ Section RULES.
   Lemma pending_active k
     :
     (pending_obligation k 1)
-      -∗
+      ⊢
       #=> (active_obligation k).
   Proof.
     apply pending_shot.
@@ -430,17 +419,21 @@ Section RULES.
   Qed.
 
   (** Definitions and rules for obligation duties. *)
+  Context `{!EqDecision ident_tgt}.
+  Context `{!arrow_thGS Σ ident_tgt Vars, !IInvSet Σ Vars}.
 
   Definition duty {Id} {v} (p : Prism.t _ Id) (i : Id) ds : iProp :=
-    duty v p i (map (fun '(k, l, f) => (k, layer l 1, f)) ds).
+    duty v p ftgt_name i (map (fun '(k, l, f) => (k, layer l 1, f)) ds).
 
-  Definition fairness_credit {Id} (p : Prism.t _ Id) (i : Id) : iProp := FairRA.white p i 1.
+  Definition fairness_credit {Id} (p : Prism.t _ Id) (i : Id) : iProp := FairRA.white p ftgt_name i 1.
 
   Definition delayed_promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l f : iProp :=
     delay v p i k (layer l 1) f.
 
   Definition promise {Id} {v} (p : Prism.t _ Id) (i : Id) k l f : iProp :=
     correl v p i k (layer l 1) f.
+
+  Definition arrows_sat v := arrows_sat v ftgt_name.
 
   Global Program Instance Persistent_delayed_promise {Id} {v} p (i : Id) k l f :
     Persistent (delayed_promise (v:=v) p i k l f).
@@ -473,7 +466,10 @@ Section RULES.
     (promise p i k l f ∗ fairness_credit p i)
       ⊢ #=(arrows_sat v)=> progress_credit k l 1 ∨ (□ (prop v f)).
   Proof.
-    iIntros "[#PR FC]". iPoseProof (correl_correlate with "PR FC") as "RES". iFrame.
+    iIntros "[#PR FC]".
+    iPoseProof (correl_correlate with "PR FC") as "RES".
+
+    iFrame.
   Qed.
 
   Lemma duty_add {Id} {v} (p : Prism.t _ Id) (i : Id) ds k l f :
@@ -522,7 +518,7 @@ Section RULES.
 
   (** Obligation duties specialized for thread fairness. *)
 
-  Definition thread_credit : iProp := FairRA.white_thread (S:=_).
+  Definition thread_credit : iProp := FairRA.white_thread ftgt_name (S:=_).
 
   Definition thread_delayed_promise {v} k l f : iProp := delay_thread v k (layer l 1) f.
 
@@ -580,7 +576,7 @@ Section RULES.
 
   (** Additional definitions and rules. *)
 
-  Definition progress_credits (l : list (nat * nat)) m a :=
+  Definition progress_credits (l : list (gname * nat)) m a :=
     taxes (map (fun '(k, n) => (k, layer n 1)) l) (layer m a).
 
   Lemma pcs_nil m a : ⊢ progress_credits [] m a.
@@ -657,7 +653,7 @@ Section RULES.
     apply layer_drop_eq; auto.
   Qed.
 
-  Definition progress_pendings (l : list (nat * Qp)) := pends l.
+  Definition progress_pendings (l : list (gname * Qp)) := pends l.
 
   Lemma pps_nil : ⊢ progress_pendings [].
   Proof. iApply pends_nil. Qed.
@@ -696,10 +692,10 @@ Section RULES.
 
   (** Additional definitions and rules. *)
 
-  Definition _collection_credits k o (ps : list (nat * nat)) l :=
+  Definition _collection_credits k o (ps : list (gname * nat)) l :=
     collection_taxes k o (map (fun '(k, l) => (k, layer l 1)) ps) (layer l 1).
 
-  Definition collection_credits k (ps : list (nat * nat)) l :=
+  Definition collection_credits k (ps : list (gname * nat)) l :=
     (∃ (o : Ord.t), _collection_credits k o ps l)%I.
 
   Lemma ccs_decr k o ps l :
@@ -1092,31 +1088,18 @@ Notation "P '-U-[' k '](' l ')-' '◇' f" :=
 
 Section ELI.
   (** Environment Liveness Invariants *)
-
-  Context {ident_tgt : ID}.
-  Local Notation identTgtRA := (identTgtRA ident_tgt).
-  Context `{Vars : nat -> Type}.
-  Local Notation ArrowRA := (@ArrowRA ident_tgt Vars).
-
-  Context `{Σ : GRA.t}.
-  Context `{Invs : @IInvSet Σ Vars}.
-  Context `{OWNERA : @GRA.inG OwnERA Σ}.
-  Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
-  Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
-  Context `{IDENTTGT : @GRA.inG identTgtRA Σ}.
-  Context `{OBLGRA : @GRA.inG ObligationRA.t Σ}.
-  Context `{EDGERA : @GRA.inG EdgeRA Σ}.
-  Context `{ARROWSHOTRA : @GRA.inG ArrowShotRA Σ}.
-  Context `{ARROWRA : @GRA.inG ArrowRA Σ}.
+  Context `{Invs : !IInvSet Σ Vars}.
+  Context `{SIMGS : !sim_defaultGS Σ state_src state_tgt ident_src ident_tgt, !invGS Σ Vars, ARR: !ObligationRA.arrow_thGS Σ ident_tgt Vars}.
+  Context `{!EqDecision ident_tgt}.
   Notation iProp := (iProp Σ).
 
-  Definition env_live_chain0 (x : nat) E (k : nat) {v} (A T : Vars v) : iProp :=
+  Definition env_live_chain0 (x : nat) E (k : gname) {v} (A T : Vars v) : iProp :=
     □(€ -∗ prop _ A
           =|x|=(fairI (ident_tgt:=ident_tgt) x)={E}=∗ ((prop _ A ∗ ◇[k](0, 1))
                                                        ∨ (prop _ T))
      ).
 
-  Fixpoint env_live_chain (n : nat) (x : nat) E (k l : nat) {v} (A T : Vars v) : iProp :=
+  Fixpoint env_live_chain (n : nat) (x : nat) E (k : gname) (l : nat) {v} (A T : Vars v) : iProp :=
     match n with
     | O => env_live_chain0 x E k A T
     | S m =>

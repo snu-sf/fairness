@@ -85,7 +85,7 @@ Section BIGOP.
   Definition syn_big_sepM
              (n : index) {K} {H1 : EqDecision K} {H2 : Countable K}
              {A} (I : @gmap K H1 H2 (sType.interp A (sProp n)))
-             (f : K -> (sType.interp A (sProp n)) -> sProp n)
+             (f : K -> (sType.interp A (sProp (Γ :=Γ) n)) -> sProp (Γ:=Γ) n)
     : sProp n :=
     fold_right (fun hd tl => sepconj (uncurry f hd) tl) empty (map_to_list I).
 
@@ -103,8 +103,8 @@ Section BIGOP.
   Definition syn_big_sepS
              (n : index) {K} {H1 : EqDecision K} {H2 : Countable K}
              (I : @gset K H1 H2)
-             (f : K -> sProp n)
-    : sProp n :=
+             (f : K -> sProp (Γ :=Γ) n)
+    : sProp (Γ :=Γ) n :=
     fold_right (fun hd tl => sepconj (f hd) tl) empty (elements I).
 
   Lemma red_syn_big_sepS n K {H1 : EqDecision K} {H2 : Countable K} I f :
@@ -120,8 +120,8 @@ Section BIGOP.
 
   Definition syn_big_sepL1
              (n : index) {A} (I : sType.interp (listT A) (sProp n))
-             (f : (sType.interp A (sProp n)) -> sProp n)
-    : sProp n :=
+             (f : (sType.interp A (sProp (Γ:=Γ) n)) -> sProp (Γ:=Γ) n)
+    : sProp (Γ:=Γ) n :=
     fold_right (fun hd tl => sepconj (f hd) tl) empty I.
 
   Lemma red_syn_big_sepL1 n A I f :
@@ -136,7 +136,7 @@ Section BIGOP.
   Definition syn_sat_list
              n X (Ts : X -> Type) (x : X) (intp : Ts x -> sProp n) (l : list (Ts x))
     : sProp n :=
-    foldr (fun t (p : sProp n) => (intp t ∗ p)%S) ⌜True⌝%S l.
+    foldr (fun t (p : sProp (Γ:=Γ) n) => (intp t ∗ p)%S) ⌜True⌝%S l.
 
   Lemma red_syn_sat_list n X Ts x intp l :
     interp n (syn_sat_list n X Ts x intp l) =
@@ -179,8 +179,8 @@ Module Atom.
 
     Inductive t {form : Type} : Type :=
     (** Atoms for the invariant system. *)
-    | owni (i : positive) (p : @Syntax.t _ _ (@t form) form)
-    | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ _ (@t form) form)))
+    | owni (i : positive) (p : @Syntax.t _ Γ (@t form) form)
+    | syn_inv_auth_l (ps : list (prod positive (@Syntax.t _ Γ (@t form) form)))
     | ownd (D : gset positive)
     | owne (E : coPset)
     | syn_wsat_auth (x : index)
@@ -196,33 +196,33 @@ Module Atom.
     (** Atoms for liveness logic invariants. *)
     | obl_edges_sat
     | obl_arrows_auth (x : index)
-    | obl_arrows_regions_black (l : list ((nat + id_tgt_type) * nat * Ord.t * Qp * nat * (@Syntax.t _ _ (@t form) form)))
-    | obl_arrow_delay (i : nat + id_tgt_type) (k : nat) (c : Ord.t) (q : Qp)
-    | obl_arrow_done (x : nat)
-    | obl_arrow_pend (i : nat + id_tgt_type) (k : nat) (c : Ord.t) (q : Qp)
+    | obl_arrows_regions_black (l : list ((nat + id_tgt_type) * gname * Ord.t * Qp * gname * (@Syntax.t _ Γ (@t form) form)))
+    | obl_arrow_delay (i : nat + id_tgt_type) (k : gname) (c : Ord.t) (q : Qp)
+    | obl_arrow_done (x : gname)
+    | obl_arrow_pend (i : nat + id_tgt_type) (k : gname) (c : Ord.t) (q : Qp)
     (** Atoms for liveness logic definitions. *)
-    | obl_lof (k i n : nat)
-    | obl_lo (k i : nat)
-    | obl_pc (k l a : nat)
-    | obl_pend (k : nat) (q : Qp)
-    | obl_act (k : nat)
-    | obl_link (k0 k1 l : nat)
+    | obl_lof (k : gname) (i n : nat)
+    | obl_lo (k : gname) (i : nat)
+    | obl_pc (k : gname) (l a : nat)
+    | obl_pend (k : gname) (q : Qp)
+    | obl_act (k : gname)
+    | obl_link (k0 k1 : gname) (l : nat)
     | obl_duty
-        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ _ (@t form) form)))
+        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (ds : list (gname * nat * (@Syntax.t _ Γ (@t form) form)))
     | obl_share_duty_b
-        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ _ (@t form) form)))
+        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ Γ (@t form) form)))
     | obl_share_duty_w
-        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ _ (@t form) form)))
+        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (ds : list (nat * nat * (@Syntax.t _ Γ (@t form) form)))
     | obl_fc {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id)
     | obl_dpromise
-        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (k l : nat) (f : @Syntax.t _ _ (@t form) form)
-    | obl_promise {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (k l : nat) (f : @Syntax.t _ _ (@t form) form)
+        {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (k : gname) (l : nat) (f : @Syntax.t _ Γ (@t form) form)
+    | obl_promise {Id : Type} (p : Prism.t (nat + id_tgt_type) Id) (i : Id) (k : gname) (l : nat) (f : @Syntax.t _ Γ (@t form) form)
     | obl_tc
-    | obl_tdpromise (k l : nat) (f : @Syntax.t _ _ (@t form) form)
-    | obl_tpromise (k l : nat) (f : @Syntax.t _ _ (@t form) form)
-    | obl_pcs (ps : list (nat * nat)) (m a : nat)
-    | obl_pps (ps : list (nat * Qp))
-    | obl_ccs (k : nat) (ps : list (nat * nat)) (l : nat)
+    | obl_tdpromise (k : gname) (l : nat) (f : @Syntax.t _ Γ (@t form) form)
+    | obl_tpromise (k : gname) (l : nat) (f : @Syntax.t _ Γ (@t form) form)
+    | obl_pcs (ps : list (gname * nat)) (m a : nat)
+    | obl_pps (ps : list (gname * Qp))
+    | obl_ccs (k : gname) (ps : list (gname * nat)) (l : nat)
     (** Atoms for fairness logic *)
     | fair_white_src {Id : Type} (p : Prism.t id_src_type Id) (i : Id) (o : Ord.t)
     | fair_whites_src {Id : Type} (p : Prism.t id_src_type Id) (pred : Id -> Prop) (o : Ord.t)
@@ -247,37 +247,30 @@ Section TL_PROP.
   Context {STT : StateTypes}.
   Context {Γ : SRA.t}.
 
-  Definition _sProp := (@Syntax._sProp TL_type _ TL_atom).
-  Definition sProp := (@Syntax.sProp TL_type _ TL_atom).
+  Definition _sProp := (@Syntax._sProp TL_type Γ (TL_atom (Γ := Γ))).
+  Definition sProp := (@Syntax.sProp TL_type Γ (TL_atom (Γ := Γ))).
 
 End TL_PROP.
 
 Section TLRAS.
 
+  (* Can have a similar thing for sim_defaultG and stuff...? *)
+  (* RAs_small: subG sim_defaultsmallΣ Γ *)
+  (* RAs: subG sim_defaultΣ Σ *)
+
   Class TLRAs_small (STT : StateTypes) (Γ : SRA.t) :=
     {
-      (* Invariant related default RAs *)
-      _OWNERA : @GRA.inG OwnERA Γ;
-      _OWNDRA : @GRA.inG OwnDRA Γ;
-      (* State related default RAs *)
-      _THDRA: @GRA.inG ThreadRA Γ;
-      _STATESRC: @GRA.inG (stateSrcRA st_src_type) Γ;
-      _STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Γ;
-      _IDENTSRC: @GRA.inG (identSrcRA id_src_type) Γ;
-      _IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Γ;
-      (* Liveness logic related default RAs *)
-      _OBLGRA: @GRA.inG ObligationRA.t Γ;
-      _EDGERA: @GRA.inG EdgeRA Γ;
-      _ARROWSHOTRA: @GRA.inG ArrowShotRA Γ;
+      (* simulation default RA *)
+      _SIMSTATERA : sim_stateGS (SRA.to_gf Γ) STT;
     }.
 
-  Class TLRAs (STT : StateTypes) (Γ : SRA.t) (Σ : GRA.t) :=
+  Class TLRAs (STT : StateTypes) (Γ : SRA.t) (Σ : gFunctors) :=
     {
       (* Invariant related default RAs *)
-      _IINVSETRA : @GRA.inG (IInvSetRA sProp) Σ;
+      _IINVSETRA : invGS Σ (sProp (Γ:=Γ));
       (* Liveness logic related default RAs *)
-      _ARROWRA: @GRA.inG (@ArrowRA id_tgt_type sProp) Σ;
-      _SHAREDUTY: @GRA.inG (@ShareDutyRA id_tgt_type sProp) Σ;
+      _ARROWRA : ObligationRA.arrow_thGS Σ id_tgt_type (sProp (Γ:=Γ));
+      _SHAREDUTY : share_dutyGS Σ id_tgt_type (sProp (Γ:=Γ));
     }.
 
 End TLRAS.
@@ -289,32 +282,25 @@ Section EXPORT.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
+  (* Simulation related default RAs *)
+  #[export] Instance SIMSTATERA : sim_stateGS (SRA.to_gf Γ) STT := _SIMSTATERA.
   (* Invariant related default RAs *)
-  #[export] Instance OWNERA : @GRA.inG OwnERA Γ := _OWNERA.
-  #[export] Instance OWNDRA : @GRA.inG OwnDRA Γ := _OWNDRA.
-  #[export] Instance IINVSETRA : @GRA.inG (IInvSetRA sProp) Σ := _IINVSETRA.
-  (* State related default RAs *)
-  #[export] Instance THDRA: @GRA.inG ThreadRA Γ := _THDRA.
-  #[export] Instance STATESRC: @GRA.inG (stateSrcRA st_src_type) Γ := _STATESRC.
-  #[export] Instance STATETGT: @GRA.inG (stateTgtRA st_tgt_type) Γ := _STATETGT.
-  #[export] Instance IDENTSRC: @GRA.inG (identSrcRA id_src_type) Γ := _IDENTSRC.
-  #[export] Instance IDENTTGT: @GRA.inG (identTgtRA id_tgt_type) Γ := _IDENTTGT.
+  #[export] Instance IINVSETRA : invGS Σ sProp := _IINVSETRA.
   (* Liveness logic related default RAs *)
-  #[export] Instance OBLGRA: @GRA.inG ObligationRA.t Γ := _OBLGRA.
-  #[export] Instance EDGERA: @GRA.inG EdgeRA Γ := _EDGERA.
-  #[export] Instance ARROWSHOTRA: @GRA.inG ArrowShotRA Γ := _ARROWSHOTRA.
-  #[export] Instance ARROWRA: @GRA.inG (@ArrowRA id_tgt_type sProp) Σ := _ARROWRA.
-  #[export] Instance SHAREDUTY: @GRA.inG (@ShareDutyRA id_tgt_type sProp) Σ := _SHAREDUTY.
+  #[export] Instance ARROWRA : ObligationRA.arrow_thGS Σ id_tgt_type sProp := _ARROWRA.
+  #[export] Instance SHAREDUTY : share_dutyGS Σ id_tgt_type sProp := _SHAREDUTY.
 
 End EXPORT.
 
 Section ATOMINTERP.
 
+  Context {Γ : SRA.t}.
+  Context {Σ : gFunctors}.
   Context {STT : StateTypes}.
   Context `{sub : @SRA.subG Γ Σ}.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
-  Notation iProp := (iProp _).
+  Notation iProp := (iProp Σ).
 
   Import Atom.
 
@@ -328,31 +314,31 @@ Section ATOMINTERP.
     | syn_wsat_auth x => wsat_auth x
     (** Atoms for state invariants of wpsim. *)
     | ob_ths ths =>
-        OwnM (● (NatMapRALarge.to_Map ths: (NatMapRALarge.t unit)): ThreadRA)
+        own th_name (● (NatMapRALarge.to_Map ths: (NatMapRALarge.t unit)))
     | ow_ths tid =>
         own_thread tid
     | ob_st_src st_src =>
-        OwnM (●E (Some st_src : leibnizO (option st_src_type)): stateSrcRA _)
+        St_src_inv st_src
     | ow_st_src st_src =>
         St_src st_src
     | ob_st_tgt st_tgt =>
-        OwnM (●E (Some st_tgt : leibnizO (option st_tgt_type)): stateTgtRA _)
+        St_tgt_inv st_tgt
     | ow_st_tgt st_tgt =>
         St_tgt st_tgt
     | fair_src im_src =>
-        FairRA.sat_source im_src
+        FairRA.sat_source fsrc_name im_src
     | fair_tgt im_tgt ths =>
-        FairRA.sat_target im_tgt ths
+        FairRA.sat_target ftgt_name im_tgt ths
     (** Atoms for liveness logic. *)
     | obl_edges_sat => ObligationRA.edges_sat
     | obl_arrows_auth x => ObligationRA.arrows_auth x
-    | obl_arrows_regions_black l => Regions.black n l
+    | obl_arrows_regions_black l => Regions.black n ObligationRA.arr_name l
     | obl_arrow_delay i k c q =>
-        ((∃ n, FairRA.black Prism.id i n q) ∗ (ObligationRA.white k (c × Ord.omega)%ord))%I
+        ((∃ n, FairRA.black Prism.id ftgt_name i n q) ∗ (ObligationRA.white k (c × Ord.omega)%ord))%I
     | obl_arrow_done x =>
-        OwnM (FiniteMap.singleton x (OneShot.shot ObligationRA._tt): ArrowShotRA)
+        own x (OneShot.shot ObligationRA._tt)
     | obl_arrow_pend i k c q =>
-        (∃ (n : nat), FairRA.black Prism.id i n q ∗ ObligationRA.white k (c × n)%ord)%I
+        (∃ (n : nat), FairRA.black Prism.id ftgt_name i n q ∗ ObligationRA.white k (c × n)%ord)%I
     (** Atoms for liveness logic definitions. *)
     | obl_lof k l n => liveness_obligation_fine k l n
     | obl_lo k l => liveness_obligation k l
@@ -373,12 +359,12 @@ Section ATOMINTERP.
     | obl_pps ps => progress_pendings ps
     | obl_ccs k ps l => collection_credits k ps l
     (** Atoms for fairness logic *)
-    | fair_white_src p i o => FairRA.white p i o
-    | fair_whites_src p pred o => FairRA.whites p pred o
-    | fair_blacks_tgt p pred => FairRA.blacks p pred
+    | fair_white_src p i o => FairRA.white p fsrc_name i o
+    | fair_whites_src p pred o => FairRA.whites p fsrc_name pred o
+    | fair_blacks_tgt p pred => FairRA.blacks p ftgt_name pred
     end.
 
-  Global Instance TL_atom_interp : sAtomI.t := Atom_interp.
+  Global Program Instance TL_atom_interp : @sAtomI.t _ _ TL_atom _ := Atom_interp.
 
 End ATOMINTERP.
 
@@ -411,12 +397,12 @@ Section RED.
     ⟦⟨a⟩%S, n⟧ = ⟪a, n⟫.
   Proof. apply red_sem_atom. Qed.
 
-  Lemma red_tl_ownm n i r :
-    ⟦Syntax.ownm i r, n⟧ = OwnM r.
+  Lemma red_tl_ownm n γ i r :
+    ⟦Syntax.owns i γ r, n⟧ = @own _ _ (@SRA.embed _ _ sub i) γ r.
   Proof. apply red_sem_ownm. Qed.
 
-  Lemma red_tl_ownM `{@GRA.inG M Γ} n (r: M) :
-    ⟦(➢ r)%S, n⟧ = OwnM r.
+  Lemma red_tl_ownM `{inG Γ M} n γ (r: M) :
+    ⟦Syntax.own_i γ r, n⟧ = own γ r.
   Proof. apply red_sem_ownM. Qed.
 
   Lemma red_tl_lift_0 p :
@@ -622,7 +608,7 @@ Section WSATS.
     syn_inv_auth_l (map_to_list ps).
 
   Lemma red_syn_inv_auth n ps :
-    ⟪syn_inv_auth n ps, n⟫ = inv_auth n ps.
+    ⟪syn_inv_auth n ps, n⟫ = @inv_auth _ _ IINVSETRA n ps.
   Proof.
     ss. rewrite list_to_map_to_list. ss.
   Qed.
@@ -734,7 +720,7 @@ Section OBLIG.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
-  Local Notation _dataT := ((nat + id_tgt_type) * nat * Ord.t * Qp * nat)%type.
+  Local Notation _dataT := ((nat + id_tgt_type) * gname * Ord.t * Qp * gname)%type.
   Local Notation dataT := (fun (n : index) => (_dataT * sProp n)%type).
 
   Import Atom.
@@ -753,16 +739,21 @@ Section OBLIG.
       ))%S.
 
   Lemma red_syn_obl_arrow n d :
-    ⟦syn_obl_arrow n d, n⟧ = ObligationRA.arrow n d.
+    ⟦syn_obl_arrow n d, n⟧ = ObligationRA.arrow n ftgt_name d.
   Proof.
-    unfold syn_obl_arrow. des_ifs.
+    unfold syn_obl_arrow. des_ifs. red_tl. unfold ObligationRA.arrow. red_tl. f_equal. simpl in *. unfold pending_obligation,active_obligation.
+    repeat f_equal.
+    - unfold sim_defaultGS_obligation.
+      des_ifs. inv Heq. done.
+    - unfold sim_defaultGS_obligation.
+      des_ifs. inv Heq. done.
   Qed.
 
   Definition syn_arrows_sat_list n (l : list (dataT n)) : sProp n :=
     syn_sat_list n _ dataT n (syn_obl_arrow n) l.
 
   Lemma red_syn_arrows_sat_list n l :
-    ⟦syn_arrows_sat_list n l, n⟧ = Regions.sat_list _ (ObligationRA.arrow n) l.
+    ⟦syn_arrows_sat_list n l, n⟧ = Regions.sat_list _ (ObligationRA.arrow n ftgt_name) l.
   Proof.
     unfold syn_arrows_sat_list. rewrite red_tl_sat_list. f_equal.
     extensionalities t. apply red_syn_obl_arrow.
@@ -773,18 +764,16 @@ Section OBLIG.
   (* Fail Check (⇣ (sum_tid id_tgt_type))%stype. *)
 
   Definition syn_arrows_sat n : sProp (S n) :=
-    (∃ (l : τ{ listT ((⇣(nat + id_tgt_type)) * (⇣nat) * (⇣Ord.t) * (⇣Qp) * (⇣nat) * Φ)%stype, S n }),
+    (∃ (l : τ{ listT ((⇣(nat + id_tgt_type)) * (⇣gname) * (⇣Ord.t) * (⇣Qp) * (⇣gname) * Φ)%stype, S n }),
         ⤉(⟨obl_arrows_regions_black l⟩ ∗ syn_arrows_sat_list n l))%S.
 
   Lemma red_syn_arrows_sat n :
-    ⟦syn_arrows_sat n, S n⟧ = ObligationRA.arrows_sat n.
+    ⟦syn_arrows_sat n, S n⟧ = ObligationRA.arrows_sat n ftgt_name.
   Proof.
     unfold syn_arrows_sat. red_tl.
-    Local Transparent ObligationRA.arrows_sat Regions.sat.
     unfold ObligationRA.arrows_sat, Regions.sat.
     f_equal. extensionality l. red_tl. ss.
     rewrite red_syn_arrows_sat_list. f_equal.
-    Local Opaque ObligationRA.arrows_sat Regions.sat.
   Qed.
 
   Definition syn_arrows_sats n : sProp n := lifts_seps syn_arrows_sat n.
@@ -794,10 +783,10 @@ Section OBLIG.
   Proof. apply unfold_lifts_seps. Qed.
 
   Lemma red_syn_arrows_sats n :
-    ⟦syn_arrows_sats n, n⟧ = ObligationRA.arrows_sats n.
+    ⟦syn_arrows_sats n, n⟧ = ObligationRA.arrows_sats ftgt_name n.
   Proof.
     unfold syn_arrows_sats, ObligationRA.arrows_sats. unfold Regions.nsats.
-    replace (λ i : index, Regions.sat i (ObligationRA.arrows i))
+    replace (λ i : index, Regions.sat i ObligationRA.arr_name (ObligationRA.arrows ftgt_name i))
             with (fun i => ⟦syn_arrows_sat i, S i⟧).
     apply red_lifts_seps.
     extensionalities i. apply red_syn_arrows_sat.
@@ -809,6 +798,15 @@ Section OBLIG.
     ⟦syn_fairI n, n⟧ = fairI n.
   Proof.
     unfold syn_fairI, fairI. red_tl. rewrite red_syn_arrows_sats. ss.
+    f_equal.
+    - repeat f_equal.
+      + unfold sim_defaultGS_edge. des_ifs.
+      + unfold sim_defaultGS_obligation. des_ifs.
+    - f_equal; try done.
+      + unfold sim_defaultGS_oneshot. des_ifs.
+      + unfold sim_defaultGS_id_tgt. des_ifs.
+      + unfold sim_defaultGS_obligation. des_ifs.
+      + unfold ftgt_name. des_ifs.
   Qed.
 
 End OBLIG.
@@ -820,7 +818,8 @@ Section SIMI.
   Context `{sub : @SRA.subG Γ Σ}.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
-  Notation iProp := (iProp _).
+  Notation iProp := (iProp Σ).
+  Notation sProp := (sProp (Γ :=Γ)).
 
   Let srcE := threadE id_src_type st_src_type.
   Let tgtE := threadE id_tgt_type st_tgt_type.
@@ -836,7 +835,18 @@ Section SIMI.
     ⟦syn_default_I n ths ims imt sts stt, n⟧ = default_I n ths ims imt sts stt.
   Proof.
     unfold syn_default_I, default_I. red_tl. ss.
-    rewrite red_syn_arrows_sats. auto.
+    rewrite red_syn_arrows_sats. repeat f_equal.
+    - unfold th_name. des_ifs.
+    - unfold sim_defaultGS_id_src. des_ifs.
+    - unfold fsrc_name. des_ifs.
+    - unfold sim_defaultGS_id_tgt. des_ifs.
+    - unfold ftgt_name. des_ifs.
+    - unfold sim_defaultGS_edge. des_ifs.
+    - unfold sim_defaultGS_obligation. des_ifs.
+    - unfold sim_defaultGS_oneshot. des_ifs.
+    - unfold sim_defaultGS_id_tgt. des_ifs.
+    - unfold sim_defaultGS_obligation. des_ifs.
+    - unfold ftgt_name. des_ifs.
   Qed.
 
   Definition syn_default_I_past tid n
@@ -991,12 +1001,18 @@ Section SIMI.
     f_equal. extensionalities st_src. red_tl.
     f_equal. extensionalities st_tgt. red_tl.
     rewrite -red_syn_default_I_past. rewrite red_syn_wsats.
-    f_equal. unfold isim_simple.
+    repeat (f_equal; simpl).
+    1,2: unfold sim_defaultGS_wsat; des_ifs.
+    unfold isim_simple.
     f_equal; ss.
-    - apply red_isim_eq_1.
-    - unfold ibot7. symmetry. apply red_isim_eq_2.
-    - unfold ibot7. symmetry. apply red_isim_eq_2.
-    - apply red_isim_eq_3.
+    - rewrite red_isim_eq_1.
+      unfold sim_defaultGS_wsat; des_ifs.
+    - unfold ibot7. rewrite -red_isim_eq_2.
+      unfold sim_defaultGS_wsat. des_ifs.
+    - unfold ibot7. rewrite -red_isim_eq_2.
+      unfold sim_defaultGS_wsat. des_ifs.
+    - rewrite red_isim_eq_3.
+      unfold sim_defaultGS_wsat. des_ifs.
   Qed.
 
 
@@ -1050,6 +1066,7 @@ Section DERIV.
   Context `{sub : @SRA.subG Γ Σ}.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
+  Notation sProp := (sProp (Γ := Γ)).
 
   Import Atom.
 
@@ -1155,6 +1172,7 @@ Section TRIPLE.
   Context `{sub : @SRA.subG Γ Σ}.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
+  Notation sProp := (sProp (Γ:=Γ)).
 
   Let srcE := threadE id_src_type st_src_type.
   Let tgtE := threadE id_tgt_type st_tgt_type.
@@ -1239,28 +1257,52 @@ Section TRIPLE.
       apply f_equal. extensionalities im_src. apply f_equal. extensionalities im_tgt.
       apply f_equal. extensionalities st_src. apply f_equal. extensionalities st_tgt.
       red_tl. simpl. red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats.
-      f_equal. f_equal.
-      + symmetry. apply (red_isim_eq_1 (S (δ + n))).
-      + apply (red_isim_eq_2 _ (S (δ + n))).
-      + apply (red_isim_eq_2 _ (S (δ + n))).
+      f_equal.
+      { repeat (f_equal; simpl).
+        all: unfold sim_defaultGS_wsat; des_ifs.
+        all: inv Heq; ss.
+      }
+      f_equal.
+      + symmetry. rewrite (red_isim_eq_1 (S (δ + n))).
+        unfold sim_defaultGS_wsat; des_ifs.
+      + rewrite -red_isim_eq_2.
+        unfold sim_defaultGS_wsat; des_ifs.
+        inv Heq. ss.
+      + rewrite -red_isim_eq_2.
+        unfold sim_defaultGS_wsat; des_ifs.
+        inv Heq. ss.
       + symmetry.
         extensionalities r_src r_tgt ths1 im_src1 im_tgt1.
         extensionalities st_src1 st_tgt1.
         red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_lifts. ss.
+        repeat f_equal.
+        all: unfold sim_defaultGS_wsat; des_ifs.
     - apply f_equal. extensionalities rv. apply f_equal.
       unfold wpsim.
       apply f_equal. extensionalities ths.
       apply f_equal. extensionalities im_src. apply f_equal. extensionalities im_tgt.
       apply f_equal. extensionalities st_src. apply f_equal. extensionalities st_tgt.
       red_tl. simpl. red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats.
-      f_equal. f_equal.
-      + symmetry. apply (red_isim_eq_1 (S (δ + n))).
-      + apply (red_isim_eq_2 _ (S (δ + n))).
-      + apply (red_isim_eq_2 _ (S (δ + n))).
+      f_equal.
+      { repeat (f_equal;simpl).
+        all: unfold sim_defaultGS_wsat; des_ifs.
+        all: inv Heq; ss.
+      }
+      f_equal.
+      + symmetry. rewrite (red_isim_eq_1 (S (δ + n))).
+        unfold sim_defaultGS_wsat; des_ifs.
+      + rewrite -red_isim_eq_2.
+        unfold sim_defaultGS_wsat; des_ifs.
+        inv Heq. ss.
+      + rewrite -red_isim_eq_2.
+        unfold sim_defaultGS_wsat; des_ifs.
+        inv Heq. ss.
       + symmetry.
         extensionalities r_src r_tgt ths1 im_src1 im_tgt1.
         extensionalities st_src1 st_tgt1.
         red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats. rewrite red_lifts. ss.
+        repeat (f_equal; simpl).
+        all: unfold sim_defaultGS_wsat; des_ifs.
   Qed.
 
   Definition syn_atomic_triple
@@ -1443,7 +1485,7 @@ Section TRIPLE.
   (* TODO: Seal? *)
   End syn_atomic_update_def.
 
-  Definition syn_LAT_ind {TA TB TP: Type}
+  (* Definition syn_LAT_ind {TA TB TP: Type}
              tid n (E : coPset)
              {RV : Type}
              (α: TA → sProp (S n)) (* atomic pre-condition *)
@@ -1462,7 +1504,7 @@ Section TRIPLE.
        syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps true (trigger Yield;;; itr_src) (ktr_tgt (f x y z))
        )
        -∗
-       syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%S.
+       syn_wpsim (S n) tid ⊤ (fun rs rt => ⤉ (syn_term_cond n tid R_term rs rt)) ps pt (trigger Yield;;; itr_src) (code >>= ktr_tgt))%S. *)
 
   Lemma red_syn_atomic_update TA TB
         n (Eo Ei : coPset)
@@ -1476,13 +1518,18 @@ Section TRIPLE.
   Proof.
     unfold syn_atomic_update, atomic_update. red_tl.
     rewrite red_syn_fupd. red_tl.
+    assert (sim_defaultGS_wsat = sra_subG_wsatGS sub
+             sim_defaultGS_wsat) as ->.
+    { unfold sim_defaultGS_wsat. des_ifs.
+      inv Heq. ss.
+    }
     apply f_equal. f_equal. extensionalities x. red_tl.
     apply f_equal. f_equal. extensionalities y. red_tl.
     apply f_equal. rewrite red_syn_fupd. red_tl.
     done.
   Qed.
 
-  Lemma red_syn_LAT_ind TA TB TP
+  (* Lemma red_syn_LAT_ind TA TB TP
         tid n (E : coPset)
         RV
         (α: TA → sProp (S n)) (* atomic pre-condition *)
@@ -1508,7 +1555,7 @@ Section TRIPLE.
     apply f_equal. extensionalities x y. red_tl.
     apply f_equal. extensionalities z. red_tl.
     apply f_equal. rewrite red_syn_wpsim. done.
-  Qed.
+  Qed. *)
 
 End TRIPLE.
 
@@ -1533,7 +1580,7 @@ Notation "'[@' tid , n , δ , E '@]' ⧼ P ⧽ code ⧼ v , Q ⧽" :=
     (at level 200, tid, n, δ, E, P, code, v, Q at level 1,
       format "[@  tid ,  n ,  δ ,  E  @] ⧼ P ⧽  code  ⧼ v ,  Q ⧽") : sProp_scope.
 
-Notation "'<<{' ∀∀ x , α '}>>' e @ tid , n , E '<<{' ∃∃ y , β '|' z , 'RET' v ; POST '}>>'" :=
+(* Notation "'<<{' ∀∀ x , α '}>>' e @ tid , n , E '<<{' ∃∃ y , β '|' z , 'RET' v ; POST '}>>'" :=
   (syn_LAT_ind tid n E
             (λ x, α%S)
             (λ x y, β%S)
@@ -1543,7 +1590,7 @@ Notation "'<<{' ∀∀ x , α '}>>' e @ tid , n , E '<<{' ∃∃ y , β '|' z , 
   )
   (at level 20, E, β, α, v, POST at level 200, x binder, y binder, z binder,
    format "'[hv' '<<{'  '[' ∀∀  x ,  '/' α  ']' '}>>'  '/  ' e  @  tid , n , E  '/' '<<{'  '[' ∃∃  y ,  '/' β  '|'  '/' z ,  RET  v ;  '/' POST  ']' '}>>' ']'")
-  : sProp_scope.
+  : sProp_scope. *)
 
 (** Notation: Atomic updates *)
 (** We avoid '<<'/'>>' since those can also reasonably be infix operators

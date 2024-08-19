@@ -3,46 +3,10 @@ From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IPM IndexedInvariants.
 From Fairness Require Import SimWeakest.
+From Fairness Require Export SRA.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 From Coq Require Import Program Arith.
-
-Module SRA.
-
-  Section SRA.
-
-    Class t := SRA__INTERNAL : GRA.t.
-
-    Class subG (Γ : t) (Σ : GRA.t) : Type := {
-        subG_map : nat -> nat;
-        subG_prf : forall i, (GRA.gra_map Σ) (subG_map i) = (GRA.gra_map Γ) i;
-      }.
-
-    Coercion subG_map : subG >-> Funclass.
-
-  End SRA.
-
-  Section SUB.
-
-    Context `{sub : @subG Γ Σ}.
-
-    Global Program Instance embed (i : nat) : @GRA.inG ((GRA.gra_map Γ) i) Σ := {
-        inG_id := sub i;
-      }.
-    Next Obligation. i. symmetry. apply SRA.subG_prf. Qed.
-
-    Global Program Instance in_subG `{M : ucmra} `{emb : @GRA.inG M Γ} : @GRA.inG M Σ := {
-        inG_id := sub.(subG_map) emb.(GRA.inG_id);
-      }.
-    Next Obligation.
-      destruct emb. subst. destruct sub. ss.
-    Qed.
-
-  End SUB.
-
-End SRA.
-
-Coercion SRA.subG_map: SRA.subG >-> Funclass.
 
 Module sType.
 
@@ -68,12 +32,13 @@ Module Syntax.
   Section SYNTAX.
 
     Context `{τ : sType.t}.
-    Context `{Γ : SRA.t}.
+    Context `{Γ : gFunctors}.
     Context `{A : Type}.
 
     Inductive t {form : Type} : Type :=
     | atom (a : A) : t
-    | ownm (i : nat) (r : (GRA.gra_map Γ i)) : t
+    (* own, with integer index *)
+    | owns (i : fin (gFunctors_len Γ)) (γ : gname) (r : (gFunctors_lookup Γ i)) : t
     | lift (p : form) : t
     | sepconj (p q : t) : t
     | pure (P : Prop) : t
@@ -123,7 +88,7 @@ Module Syntax.
   Section SPROP.
 
     Context `{τ : sType.t}.
-    Context `{Γ : SRA.t}.
+    Context `{Γ : gFunctors}.
     Context `{As : sAtom.t}.
 
     Fixpoint _sProp (n : index) : Type :=
@@ -137,8 +102,9 @@ Module Syntax.
     Definition affinely {n} (p : sProp n) : sProp n :=
       and empty p.
 
-    Definition ownM `{IN: @GRA.inG M Γ} {n} (r : M) : sProp n :=
-      ownm IN.(GRA.inG_id) (eq_rect _ ucmra_car r _ IN.(GRA.inG_prf)).
+    (* own of iris. *)
+    Definition own_i `{IN: inG Γ M} {n} (γ : gname) (r : M) : sProp n :=
+      owns IN.(inG_id) γ (eq_rect _ cmra_car r _ IN.(inG_prf)).
 
   End SPROP.
 
@@ -149,13 +115,13 @@ Module sAtomI.
   Section SATOM.
 
   Context `{τ : sType.t}.
-  Context `{Γ : SRA.t}.
+  Context `{Γ : gFunctors}.
   Context `{As : sAtom.t}.
-  Context `{Σ : GRA.t}.
+  Context `{Σ : gFunctors}.
   Notation iProp := (iProp Σ).
 
   Class t : Type := interp :
-      forall (n : index), As (Syntax._sProp n) -> iProp.
+      forall (n : index), As (Syntax._sProp (Γ :=Γ) n) -> iProp.
 
   End SATOM.
 
@@ -165,8 +131,9 @@ Module SyntaxI.
 
   Section INTERP.
 
-    Context `{Γ : SRA.t}.
-    Context `{Σ : GRA.t}.
+    Context `{Γ : gFunctors}.
+    Context `{Σ : gFunctors}.
+    (* TODO: Must this use SRA.subG? *)
     Context `{sub: @SRA.subG Γ Σ}.
     Context `{α: sAtomI.t (Γ:=Γ) (Σ:=Σ)}.
     Notation iProp := (iProp Σ).
@@ -180,7 +147,7 @@ Module SyntaxI.
           fix _interp_aux (syn : _sProp (S m)) : iProp :=
         match syn with
         | atom a => α m a
-        | ownm i r => OwnM r
+        | owns i γ r => @own _ _ (@SRA.embed _ _ sub i) γ r
         | lift p => _interp m p
         | sepconj p q => ((_interp_aux p) ∗ (_interp_aux q))%I
         | pure P => ⌜P⌝%I
@@ -214,6 +181,7 @@ End SyntaxI.
 
 Section RED.
 
+  Context `{Γ : gFunctors}.
   Context `{sub: @SRA.subG Γ Σ}.
   Context `{α: sAtomI.t (Γ:=Γ) (Σ:=Σ)}.
 
@@ -224,17 +192,17 @@ Section RED.
     interp n (atom a) = α n a.
   Proof. reflexivity. Qed.
 
-  Lemma red_sem_ownm n i a :
-    interp n (ownm i a) = OwnM a.
+  Lemma red_sem_ownm n i γ a :
+    interp n (owns i γ a) = @own _ _ (@SRA.embed _ _ sub i) γ a.
   Proof. reflexivity. Qed.
 
-  Lemma red_sem_ownM `{@GRA.inG M Γ} n (r: M) :
-    interp n (ownM r) = OwnM r.
+  Lemma red_sem_ownM `{IN: !inG Γ M} n γ (r: M) :
+    interp n (own_i γ r) = own γ r.
   Proof.
-    unfold ownM. rewrite red_sem_ownm.
-    destruct sub eqn: EQsub. subst. destruct H. subst. ss.
+    unfold own_i. rewrite red_sem_ownm.
+    destruct IN,sub. subst. ss.
     f_equal. unfold SRA.in_subG, SRA.embed. ss.
-    erewrite (UIP _ _ _ (SRA.embed_obligation_1 inG_id)).
+    erewrite (UIP _ _ _ (SRA.SRA.embed_obligation_1 inG_id)).
     reflexivity.
   Qed.
 
@@ -419,7 +387,7 @@ Local Open Scope sProp_scope.
 Notation "'⌜' P '⌝'" := (Syntax.pure P) : sProp_scope.
 
 Notation "'⟨' A '⟩'" := (Syntax.atom A) : sProp_scope.
-Notation "'➢' r" := (Syntax.ownM r) (at level 20) : sProp_scope.
+Notation "'➢' γ r" := (Syntax.own_i γ r) (at level 20) : sProp_scope.
 Notation "⤉ P" := (Syntax.lift P) (at level 20) : sProp_scope.
 
 Notation "'<pers>' P" := (Syntax.persistently P) : sProp_scope.

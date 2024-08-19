@@ -1,9 +1,11 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import Optics  IPM PCM.
+From Fairness Require Import Optics IPM PCM.
 From stdpp Require Import coPset gmap namespaces.
 From iris.algebra Require Import cmra updates lib.excl_auth coPset gset.
-From Fairness Require Export IndexedInvariants.
+From Fairness Require Export IndexedInvariants SRA.
+
+From iris.prelude Require Import options.
 
 Set Implicit Arguments.
 
@@ -11,7 +13,7 @@ Require Import Program.
 
 Section STATE.
 
-  Context `{Σ: GRA.t}.
+  Context `{Σ: gFunctors}.
   Notation iProp := (iProp Σ).
 
   Class ViewInterp {S V} (l : Lens.t S V) (SI : S -> iProp) (VI : V -> iProp) := {
@@ -75,21 +77,48 @@ Section STATE.
   Variable state_src: Type.
   Variable state_tgt: Type.
 
-  Local Notation stateSrcRA := (excl_authUR (leibnizO (option state_src)) : ucmra).
-  Local Notation stateTgtRA := (excl_authUR (leibnizO (option state_tgt)) : ucmra).
+  Local Notation stateSrcRA := (excl_authR (leibnizO (option state_src)) : cmra).
+  Local Notation stateTgtRA := (excl_authR (leibnizO (option state_tgt)) : cmra).
 
   Local Notation index := nat.
-  Context `{Vars : index -> Type}.
-  Context `{Invs : @IInvSet Σ Vars}.
 
-  Context `{STATESRC: @GRA.inG (stateSrcRA) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA) Σ}.
-  Context `{COPSETRA : @PCM.GRA.inG coPset_disjUR Σ}.
-  Context `{GSETRA : @PCM.GRA.inG (gset_disjUR positive) Σ}.
-  Context `{INVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
+  Class stateGpreS (Σ : gFunctors) : Set := StateGpreS {
+    stateGpreS_src : inG Σ stateSrcRA;
+    stateGpreS_tgt : inG Σ stateTgtRA;
+  }.
+
+  Class stateGS (Σ : gFunctors) : Set := StateGS {
+    state_inG : stateGpreS Σ;
+    src_name : gname;
+    tgt_name : gname;
+  }.
+
+  Definition stateΣ : gFunctors :=
+    #[GFunctor (excl_authUR (leibnizO (option state_src)));
+      GFunctor (excl_authUR (leibnizO (option state_tgt)))].
+
+  Global Instance subG_stateΣ : subG stateΣ Σ → stateGpreS Σ.
+  Proof. solve_inG. Qed.
+
+  Local Existing Instances state_inG stateGpreS_src stateGpreS_tgt.
+
+  Global Instance sra_subG_stateGS Γ:
+    @SRA.subG Γ Σ → stateGS (SRA.to_gf Γ) → stateGS Σ.
+  Proof.
+    intros ? [[] γs γt].
+    split; [split; apply _|exact γs|exact γt].
+  Defined.
+
+Section lemmas.
+
+  Context `{Vars : index -> Type}.
+  Context `{!wsatGS Σ, !invGS Σ Vars, !stateGS Σ, INV : !IInvSet Σ Vars}.
 
   Definition St_src (st_src: state_src): iProp :=
-    OwnM (◯E (Some st_src : leibnizO (option state_src))).
+    own src_name (◯E (Some st_src : leibnizO (option state_src))).
+
+  Definition St_src_inv (st_src: state_src): iProp :=
+    own src_name (●E (Some st_src : leibnizO (option state_src))).
 
   Definition Vw_src (st: state_src) {V} (l : Lens.t state_src V) (v : V) : iProp :=
     St_src (Lens.set l v st).
@@ -128,8 +157,8 @@ Section STATE.
         p (IN : prop n p = (∃ st, St_src st ∗ prop _ (SI st))%I):
     (∃ st, St_src st ∗ prop _ (SI st)) ⊢ =|x|=(A)={E}=> (src_interp_as Lens.id SI).
   Proof.
-    iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H". auto.
-    iModIntro. iExists _, p. iSplit. auto. iSplit. auto.
+    iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H"; [auto|].
+    iModIntro. iExists _, p. iFrame "H %".
     iPureIntro. typeclasses eauto.
   Qed.
 
@@ -157,7 +186,7 @@ Section STATE.
   Proof.
     iIntros (IMPL) "[% [% [% [H %]]]]". iExists SI, p. do 2 (iSplit; [auto|]).
     iPureIntro. econs. iIntros (?) "P".
-    iPoseProof (view_interp with "[P]") as "[P1 K]". iFrame.
+    iPoseProof (view_interp with "[P]") as "[P1 K]". { iFrame. }
     iPoseProof (IMPL with "P1") as "P2".
     iFrame. iIntros (?) "P2". iApply "K". iApply IMPL. iFrame.
   Qed.
@@ -165,7 +194,10 @@ Section STATE.
 
 
   Definition St_tgt (st_tgt: state_tgt): iProp :=
-    OwnM (◯E (Some st_tgt : leibnizO (option state_tgt))).
+    own tgt_name (◯E (Some st_tgt : leibnizO (option state_tgt))).
+
+  Definition St_tgt_inv (st_tgt: state_tgt): iProp :=
+    own tgt_name (●E (Some st_tgt : leibnizO (option state_tgt))).
 
   Definition Vw_tgt (st: state_tgt) {V} (l : Lens.t state_tgt V) (v : V) : iProp :=
     St_tgt (Lens.set l v st).
@@ -204,8 +236,8 @@ Section STATE.
         p (IN : prop n p = (∃ st, St_tgt st ∗ prop _ (SI st))%I):
     (∃ st, St_tgt st ∗ prop _ (SI st)) ⊢ =|x|=(A)={E}=> (tgt_interp_as Lens.id (SI)).
   Proof.
-    iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H". auto.
-    iModIntro. iExists _, p. iSplit. auto. iSplit. auto.
+    iIntros "H". rewrite <- IN. iMod (FUpd_alloc with "H") as "H"; [auto|].
+    iModIntro. iExists _, p. iFrame "H %".
     iPureIntro. typeclasses eauto.
   Qed.
 
@@ -233,9 +265,22 @@ Section STATE.
   Proof.
     iIntros (IMPL) "[% [% [% [H %]]]]". iExists SI, p. do 2 (iSplit; [auto|]).
     iPureIntro. econs. iIntros (?) "P".
-    iPoseProof (view_interp with "[P]") as "[P1 K]". iFrame.
+    iPoseProof (view_interp with "[P]") as "[P1 K]". { iFrame. }
     iPoseProof (IMPL with "P1") as "P2".
     iFrame. iIntros (?) "P2". iApply "K". iApply IMPL. iFrame.
   Qed.
 
+End lemmas.
+
+  Lemma state_alloc `{!stateGpreS Σ} st_src st_tgt :
+    ⊢ |==> ∃ _ : stateGS Σ,
+        St_src st_src ∗ St_src_inv st_src ∗ St_tgt st_tgt ∗ St_tgt_inv st_tgt.
+    Proof.
+      iIntros.
+
+      iMod (own_alloc (●E (_ : leibnizO (option state_src)) ⋅ _)) as (γs) "[S SI]"; first by apply excl_auth_valid.
+      iMod (own_alloc (●E (_ : leibnizO (option state_tgt)) ⋅ _)) as (γt) "[T TI]"; first by apply excl_auth_valid.
+
+      iModIntro. iExists (StateGS _ γs γt). iFrame.
+    Qed.
 End STATE.

@@ -1,4 +1,4 @@
-From sflib Require Import sflib.
+(* From sflib Require Import sflib.
 
 From Fairness Require Import IPM PCM  IPropAux TemporalLogic.
 From iris.algebra Require Import excl proofmode_classes.
@@ -68,4 +68,4 @@ End SPROP.
 
 Ltac red_tl_ghost_excl := (try rewrite ! red_syn_ghost_excl).
 
-Notation "'GEx' γ a " := (syn_ghost_excl γ a) (at level 90, γ,a at level 1) : sProp_scope.
+Notation "'GEx' γ a " := (syn_ghost_excl γ a) (at level 90, γ,a at level 1) : sProp_scope. *)

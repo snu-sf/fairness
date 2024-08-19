@@ -1,8 +1,8 @@
-From iris.algebra Require Import cmra.
+From iris.algebra Require Import cmra functions.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib ModSim ModSimPers Concurrency ModAdequacy Axioms.
-From Fairness.base_logic Require Import upred base_logic.
+From Fairness.base_logic Require Import upred base_logic lib.own.
 From Fairness Require Import PCM IPM ISim SimDefaultRA SimWeakest.
 From Fairness Require Import FairBeh.
 Require Import Coq.Logic.PropExtensionality.
@@ -42,9 +42,9 @@ Qed.
 
 
 Section DISJOINTWF.
-  Context `{Σ: GRA.t}.
+  Context `{Σ: gFunctors}.
 
-  Definition disjoint_GRA (r0 r1: Σ): Prop :=
+  Definition disjoint_GRA (r0 r1: iResUR Σ): Prop :=
     forall n, r0 n ≡ ε \/ r1 n ≡ ε.
 
   Definition disjoint_GRA_sym r0 r1
@@ -75,7 +75,6 @@ Section DISJOINTWF.
     :
     disjoint_GRA r0 (r1 ⋅ r2).
   Proof.
-    Local Transparent GRA.to_URA.
     ii. hexploit (DISJ0 n); auto. i.
     hexploit (DISJ1 n); auto. i. des; auto.
     right. rewrite discrete_fun_lookup_op.
@@ -92,28 +91,30 @@ Section DISJOINTWF.
   Qed.
 
   Lemma disjoint_GRA_embed M0 M1
-        `{ING0: @GRA.inG M0 Σ}
-        `{ING1: @GRA.inG M1 Σ}
-        (r0: M0) (r1: M1)
-        (DIFF: ING0.(GRA.inG_id) <> ING1.(GRA.inG_id))
+        `{ING0: inG Σ M0}
+        `{ING1: inG Σ M1}
+        (r0 : M0) (r1 : M1)
+        γ0 γ1
+        (DIFF: ING0.(inG_id) ≠ ING1.(inG_id))
     :
-    disjoint_GRA (GRA.embed r0) (GRA.embed r1).
+    disjoint_GRA (Fairness.base_logic.lib.own.iRes_singleton γ0 r0) (Fairness.base_logic.lib.own.iRes_singleton γ1 r1).
   Proof.
-    Local Transparent GRA.to_URA.
     ii. revert r0 r1. dependent destruction ING0.
     dependent destruction ING1.
-    ss. unfold GRA.embed. des_ifs; ss; auto.
-    i. dependent destruction e. ss.
+    ss. unfold Fairness.base_logic.lib.own.iRes_singleton. des_ifs; ss; auto.
+    i.
+    destruct (decide (n = inG_id)) as [->|NE].
+    - right. rewrite discrete_fun_lookup_singleton_ne; done.
+    - left. rewrite discrete_fun_lookup_singleton_ne; done.
   Qed.
 
-  Lemma res_wf_disjoint (r0 r1: Σ)
+  Lemma res_wf_disjoint (r0 r1: iResUR Σ)
         (WF0: ✓ r0)
         (WF1: ✓ r1)
         (DISJ: disjoint_GRA r0 r1)
     :
     ✓ (r0 ⋅ r1).
   Proof.
-    Local Transparent GRA.to_URA.
     intros k. rewrite discrete_fun_lookup_op.
     specialize (WF0 k). specialize (WF1 k).
     exploit DISJ. i. des.
@@ -188,15 +189,15 @@ Module WSim.
 
     Local Notation index := nat.
     Context `{Vars : index -> Type}.
-    Context `{Σ: GRA.t}.
+    Context `{Σ: gFunctors}.
     Notation iProp := (iProp Σ).
 
-    Lemma iProp_satisfable (r0: Σ) (P: iProp) (WF: ✓ r0)
-          (IMPL: Own r0 ⊢ #=> P)
+    Lemma iProp_satisfable (r0 : iResUR Σ) (P: iProp) (WF: ✓ r0)
+          (IMPL: uPred_ownM r0 ⊢ #=> P)
       :
-      exists r1, Fairness.base_logic.upred.uPred_holds (to_upred P) r1 /\ ✓ r1.
+      exists r1, Fairness.base_logic.upred.uPred_holds P r1 /\ ✓ r1.
     Proof.
-      revert IMPL. rewrite Own_eq. unfold IPM.Own_def. uPred.unseal. intros [IMPL].
+      revert IMPL. uPred.unseal. intros [IMPL].
       rr in IMPL. hexploit (IMPL r0); auto.
       { rr. exists ε. rewrite right_id; [done|apply _]. }
       { instantiate (1:=ε). rewrite right_id; [done|apply _]. }
@@ -205,25 +206,15 @@ Module WSim.
 
 
     Context `{Invs : @IInvSet Σ Vars}.
+    Context `{SIMGS: !sim_defaultGS Σ
+                md_src.(Mod.state)
+                md_tgt.(Mod.state)
+                md_src.(Mod.ident)
+                md_tgt.(Mod.ident)}.
+    Context `{INVGS: !invGS Σ Vars}.
+    Context `{ARRGS: !ObligationRA.arrow_thGS Σ md_tgt.(Mod.ident) Vars}.
 
-    (* Invariant related default RAs *)
-    Context `{OWNERA : @GRA.inG OwnERA Σ}.
-    Context `{OWNDRA : @GRA.inG OwnDRA Σ}.
-    Context `{IINVSETRA : @GRA.inG (IInvSetRA Vars) Σ}.
-    (* State related default RAs *)
-    Context `{THDRA: @GRA.inG ThreadRA Σ}.
-    Context `{STATESRC: @GRA.inG (stateSrcRA md_src.(Mod.state)) Σ}.
-    Context `{STATETGT: @GRA.inG (stateTgtRA md_tgt.(Mod.state)) Σ}.
-    Context `{IDENTSRC: @GRA.inG (identSrcRA md_src.(Mod.ident)) Σ}.
-    Context `{IDENTTGT: @GRA.inG (identTgtRA md_tgt.(Mod.ident)) Σ}.
-    (* Liveness logic related default RAs *)
-    Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
-    Context `{EDGERA: @GRA.inG EdgeRA Σ}.
-    Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
-    Context `{ARROWRA: @GRA.inG (@ArrowRA md_tgt.(Mod.ident) Vars) Σ}.
-
-
-    Definition initial_res_wf (init_res: Σ): Prop :=
+    Definition initial_res_wf (init_res: iResUR Σ): Prop :=
       (<<INITDISJ: (disjoint_GRA init_res (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _ _ _ _))>>) /\
         (<<DEFAULTDISJ:
           (NoDup [THDRA.(GRA.inG_id);

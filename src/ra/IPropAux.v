@@ -3,139 +3,127 @@ Require Import Program.
 From Fairness Require Import PCM IPM.
 From Fairness Require Import Axioms.
 
-From iris.algebra Require Import cmra lib.excl_auth.
+From iris.algebra Require Import cmra lib.excl_auth functions.
 Set Implicit Arguments.
 
-Section AUX.
+(* Section AUX.
 
   Lemma own_persistent `{@GRA.inG M Σ}
         (r: M)
     :
-    (OwnM r) -∗ (□ OwnM (core r)).
+    (own γ r) -∗ (□ own γ (core r)).
   Proof.
     iIntros "H".
-    iDestruct (OwnM_persistently with "H") as "#?".
+    iDestruct (own γ_persistently with "H") as "#?".
     iModIntro. done.
   Qed.
 
   Lemma OwnM_ura_unit `{@GRA.inG M Σ}
     :
-    ⊢ OwnM ((ε : M)).
-  Proof. apply OwnM_unit. Qed.
+    ⊢ own γ ((ε : M)).
+  Proof. apply own γ_unit. Qed.
 
-End AUX.
+End AUX. *)
 
-Definition maps_to {Σ} {A: Type} {M: ucmra} `{ING: @GRA.inG (A ==> M)%ra Σ}
+(* Definition maps_to {Σ} {A: Type} {M: ucmra} `{ING: @GRA.inG (A ==> M)%ra Σ}
            (a: A) (m: M): iProp Σ :=
-  OwnM (maps_to_res a m).
+  OwnM (maps_to_res a m). *)
 
 Section UPD.
   Variable A: Type.
-  Context `{IN: @GRA.inG (excl_authUR $ leibnizO A) Σ}.
+  Context `{IN: !inG Σ (excl_authUR $ leibnizO A)}.
+  Implicit Types (a b : A).
 
-  Lemma black_white_update (a0 a' a1 : A)
+  Lemma black_white_update {γ} a0 a' a1
     :
-    (OwnM (●E (a0 : leibnizO A)))
+    own γ (●E (a0 : leibnizO A))
       -∗
-      (OwnM (◯E (a' : leibnizO A)))
+      own γ (◯E (a' : leibnizO A))
       -∗
-      #=> (OwnM (●E (a1 : leibnizO A))) ∗ OwnM (◯E (a1 : leibnizO A)).
+      #=> own γ (●E (a1 : leibnizO A)) ∗ own γ (◯E (a1 : leibnizO A)).
   Proof.
-    iIntros "H0 H1". iCombine "H0 H1" as "H".
-    iPoseProof (OwnM_Upd with "H") as "> [H0 H1]".
-    { apply (excl_auth_update _ _ (a1 : leibnizO A)). }
-    iModIntro. iFrame.
+    iIntros "B W".
+    iMod (own_update_2 with "B W") as "[$ $]"; [|done].
+    apply excl_auth_update.
   Qed.
 
-  Lemma black_white_equal (a a' : A)
+  Lemma black_white_equal {γ} (a a' : A)
     :
-    (OwnM (●E (a : leibnizO A)))
+    own γ (●E (a : leibnizO A))
       -∗
-      (OwnM (◯E (a' : leibnizO A)))
+      own γ (◯E (a' : leibnizO A))
       -∗
       ⌜a = a'⌝.
-  Proof.
-    iIntros "H0 H1". iCombine "H0 H1" as "H".
-    iOwnWf "H". iPureIntro. by apply excl_auth_agree_L in H.
-  Qed.
+  Proof. iIntros "B W". by iCombine "B W" gives %H%excl_auth_agree_L. Qed.
 
-  Lemma white_white_excl a a'
+  Lemma white_white_excl {γ} a a'
     :
-    (OwnM (excl_auth_frag a))
+    own γ (◯E (a : leibnizO _))
       -∗
-      (OwnM (excl_auth_frag a' ))
+      own γ (◯E (a' : leibnizO _))
       -∗
       ⌜False⌝.
-  Proof.
-    iIntros "H0 H1". iCombine "H0 H1" as "H".
-    iOwnWf "H". by apply excl_auth_frag_op_valid in H.
-  Qed.
+  Proof. iIntros "W W'". by iCombine "W W'" gives %H%excl_auth_frag_op_valid. Qed.
 
 End UPD.
 
-Section OWNS.
+(* Section OWNS.
 
-  Variable (Id: Type).
+  Context (Id: Type).
   Context `{R: ucmra}.
-  Context `{IN1: @GRA.inG R Σ}.
-  Context `{IN2: @GRA.inG (Id ==> R)%ra Σ}.
+  Context `{!inG Σ R, !inG Σ (Id -d> R)}.
   Notation iProp := (iProp Σ).
 
-  Definition OwnMs (s: Id -> Prop) (u: R): iProp :=
-    (OwnM ((fun i =>
-              if (excluded_middle_informative (s i))
-              then u
-              else ε): (Id ==> R)%ra)).
+  (* This works thanks to the explicit type annotation. *)
+  Definition OwnMs γ (s: Id -> Prop) (u: R): iProp :=
+    own γ ((λ i, if excluded_middle_informative (s i) then u else ε) : Id -d> R).
 
-  Lemma OwnMs_impl (s0 s1: Id -> Prop) u
+  Lemma OwnMs_impl {γ} (s0 s1: Id -> Prop) u
         (IMPL: forall i (IN: s0 i), s1 i)
     :
-    (OwnMs s1 u)
-      -∗
-      (OwnMs s0 u).
+    OwnMs γ s1 u -∗ OwnMs γ s0 u.
   Proof.
     iIntros "OWNMS".
-    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
+    iApply (own_mono with "OWNMS"). apply included_discrete_fun.
     i. des_ifs; try by reflexivity.
     exfalso. eauto.
   Qed.
 
-  Lemma OwnMs_empty s u
-        (EMPTY: forall i, ~ s i)
+  Lemma OwnMs_empty {γ} s u
+        (EMPTY: forall i, ¬ s i)
     :
-    ⊢ OwnMs s u.
+    ⊢ #=> OwnMs γ s u.
   Proof.
-    iIntros. iApply (OwnM_extends with "[]").
-    2:{ iApply (@OwnM_ura_unit (Id ==> R)%ra). }
-    apply pointwise_extends. i. des_ifs.
-    { exfalso. eapply EMPTY; eauto. }
+    iMod own_unit. iApply (own_mono with "[$]").
+    apply included_discrete_fun. i. des_ifs.
+    exfalso. eapply EMPTY. eauto.
   Qed.
 
-  Lemma OwnMs_fold (s0 s1: Id -> Prop) i u
-        (IMPL: forall j (IN: s0 j), s1 j \/ j = i)
+  Lemma OwnMs_fold {γs} (s0 s1: Id -> Prop) i u
+        (IMPL: forall j (IN: s0 j), s1 j ∨ j = i)
     :
-    ((OwnMs s1 u) ∗ (maps_to i u))
+    (OwnMs γs s1 u ∗ own γs (discrete_fun_singleton i u))
       -∗
-      (OwnMs s0 u).
+      OwnMs γs s0 u.
   Proof.
-    iIntros "[OWNMS OWN]".
-    iCombine "OWNMS OWN" as "OWNMS".
-    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
+    iIntros "[own γS OWN]".
+    iCombine "own γS OWN" as "own γS".
+    iApply (own γ_extends with "own γS"). apply pointwise_extends.
     i. rewrite discrete_fun_lookup_op /maps_to_res.
     des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
     hexploit IMPL; eauto. i. des; ss.
   Qed.
 
-  Definition OwnMs_unfold (s0 s1: Id -> Prop) i u
+  Definition own γs_unfold (s0 s1: Id -> Prop) i u
              (IMPL: forall j (IN: s0 j \/ j = i), s1 j)
              (NIN: ~ s0 i)
     :
-    (OwnMs s1 u)
+    (own γs s1 u)
       -∗
-      (OwnMs s0 u ∗ maps_to i u).
+      (own γs s0 u ∗ maps_to i u).
   Proof.
-    iIntros "OWNMS".
-    iPoseProof (OwnM_extends with "OWNMS") as "[OWNMS0 OWNMS1]".
+    iIntros "own γS".
+    iPoseProof (own γ_extends with "own γS") as "[own γS0 own γS1]".
     { instantiate (1:=maps_to_res i (u: R): (Id ==> R)%ra).
       instantiate (1:=(fun i =>
                          if (excluded_middle_informative (s0 i))
@@ -150,30 +138,30 @@ Section OWNS.
     iFrame.
   Qed.
 
-  Definition OwnMs_combine (s0 s1: Id -> Prop) u
+  Definition own γs_combine (s0 s1: Id -> Prop) u
     :
-    (OwnMs s0 u ∗ OwnMs s1 u)
+    (own γs s0 u ∗ own γs s1 u)
       -∗
-      (OwnMs (fun i => s0 i \/ s1 i) u).
+      (own γs (fun i => s0 i \/ s1 i) u).
   Proof.
-    iIntros "[OWNMS0 OWNMS1]".
-    iCombine "OWNMS0 OWNMS1" as "OWNMS".
-    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
+    iIntros "[own γS0 own γS1]".
+    iCombine "own γS0 own γS1" as "own γS".
+    iApply (own γ_extends with "own γS"). apply pointwise_extends.
     i. rewrite discrete_fun_lookup_op.
     des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
     des; ss.
   Qed.
 
-  Definition OwnMs_split (s0 s1: Id -> Prop) u
+  Definition own γs_split (s0 s1: Id -> Prop) u
              (DISJOINT: forall i (IN0: s0 i) (IN1: s1 i), False)
     :
-    (OwnMs (fun i => s0 i \/ s1 i) u)
+    (own γs (fun i => s0 i \/ s1 i) u)
       -∗
-      (OwnMs s0 u ∗ OwnMs s1 u).
+      (own γs s0 u ∗ own γs s1 u).
   Proof.
-    iIntros "OWNMS".
-    iPoseProof (OwnM_extends with "OWNMS") as "[OWNMS0 OWNMS1]".
-    2:{ iSplitL "OWNMS0"; [iExact "OWNMS0"|iExact "OWNMS1"]. }
+    iIntros "own γS".
+    iPoseProof (own γ_extends with "own γS") as "[own γS0 own γS1]".
+    2:{ iSplitL "own γS0"; [iExact "own γS0"|iExact "own γS1"]. }
     { apply pointwise_extends.
       i. rewrite discrete_fun_lookup_op.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
@@ -184,4 +172,4 @@ Section OWNS.
     }
   Qed.
 
-End OWNS.
+End OWNS. *)

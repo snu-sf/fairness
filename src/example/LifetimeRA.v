@@ -8,11 +8,11 @@ From iris.prelude Require Import options.
 
 Module Lifetime.
 
-  Definition t : ucmra := OwnG.t (prodR (agreeR (leibnizO Any.t)) (OneShot.t unit)).
+  Definition t : cmra := prodR (agreeR (leibnizO Any.t)) (OneShot.t unit).
 
   Section RA.
 
-    Context `{Σ : GRA.t}.
+    Context `{Σ : gFunctors}.
     Context `{@GRA.inG t Σ}.
     Notation iProp := (iProp Σ).
 

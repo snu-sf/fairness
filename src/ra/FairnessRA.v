@@ -1,7 +1,7 @@
-From iris.algebra Require Import cmra updates.
+From iris.algebra Require Import cmra updates functions.
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
-From Fairness Require Import PCM IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux SRA.
 From Fairness Require Import NatMapRALarge MonotoneRA.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
@@ -12,17 +12,17 @@ Set Implicit Arguments.
 
 Module OrderedCM.
   Class t (car: Type) :=
-    mk { le: car -> car -> Prop;
-         unit: car;
-         add: car -> car -> car;
+    mk { le : car -> car -> Prop;
+         unit : car;
+         add : car -> car -> car;
 
-         le_PreOrder:> PreOrder le;
-         le_total: forall a0 a1, le a0 a1 \/ le a1 a0;
-         add_assoc_le: forall a0 a1 a2, le (add a0 (add a1 a2)) (add (add a0 a1) a2);
-         add_comm_le: forall a0 a1, le (add a0 a1) (add a1 a0);
-         add_unit_le_l: forall a, le (add a unit) a;
-         add_base_l: forall a0 a1, le a0 (add a0 a1);
-         le_add_l: forall a0 a1 a2 (LE: le a1 a2), le (add a0 a1) (add a0 a2);
+         #[global] le_PreOrder :: PreOrder le;
+         le_total : forall a0 a1, le a0 a1 \/ le a1 a0;
+         add_assoc_le : forall a0 a1 a2, le (add a0 (add a1 a2)) (add (add a0 a1) a2);
+         add_comm_le : forall a0 a1, le (add a0 a1) (add a1 a0);
+         add_unit_le_l : forall a, le (add a unit) a;
+         add_base_l : forall a0 a1, le a0 (add a0 a1);
+         le_add_l : forall a0 a1 a2 (LE: le a1 a2), le (add a0 a1) (add a0 a2);
       }.
 
   Section MONOID.
@@ -1094,6 +1094,9 @@ Module Fuel.
       frag (from_monoid a).
     Definition black `{OrderedCM.t A} (a: A) (q: Qp): t :=
       excl (from_monoid a) (from_monoid (@OrderedCM.unit _ _)) q.
+  End MONOID.
+
+  Section lemmas.
 
     Lemma white_sum `{OrderedCM.t A} (a0 a1: A)
       :
@@ -1256,7 +1259,7 @@ Module Fuel.
         }
       }
     Qed.
-  End MONOID.
+  End lemmas.
 End Fuel.
 
 Global Arguments Fuel.t _ : clear implicits.
@@ -1555,198 +1558,210 @@ Global Arguments Fuel.t _ : clear implicits.
 Arguments Fuel.t A {_}.
 From Fairness Require Import FairBeh.
 
+Class fairG (Σ : gFunctors) (S A : Type) `{!OrderedCM.t A} : Set := FairG {
+  fairG_inG : inG Σ (S -d> Fuel.t A);
+}.
+Global Arguments fairG _ _ _ {_}.
+
+Definition fairΣ (S A : Type) `{OrderedCM.t A} : gFunctors :=
+  #[GFunctor (S -d> Fuel.t A)].
+Global Arguments fairΣ _ _ {_}.
+
+Global Instance subG_fairΣ {Σ S A} `{OrderedCM.t A} : subG (fairΣ S A) Σ → fairG Σ S A.
+Proof. solve_inG. Qed.
+
+Local Existing Instances fairG_inG.
+
+Global Instance sra_subG_fairG {Γ Σ S A} `{OrderedCM.t A} :
+  SRA.subG Γ Σ → fairG (SRA.to_gf Γ) S A → fairG Σ S A.
+Proof.
+  intros ? [].
+  split; apply _.
+Defined.
+
 Module FairRA.
   Section FAIR.
     Variable (S: Type).
     Variable (A: Type).
     Context `{L: OrderedCM.t A}.
+    Context `{!EqDecision S}.
 
-    Definition t: ucmra :=
-      (S ==> @Fuel.t A _)%ra.
+    Definition t: ucmra := S -d> Fuel.t A.
 
-    Context `{ING: @GRA.inG t Σ}.
+    Context `{!fairG Σ S A}.
     Notation iProp := (iProp Σ).
 
     Section PRISM.
     Variable (Id: Type).
     Variable (p: Prism.t S Id).
 
-    Definition black (i: Id) (a: A) (q: Qp): iProp :=
-      maps_to (Prism.review p i) (Fuel.black a q: Fuel.t A).
+    Definition black γ (i: Id) (a: A) (q: Qp): iProp :=
+      own γ (discrete_fun_singleton (Prism.review p i) (Fuel.black a q: Fuel.t A)).
 
-    Definition black_ex (i: Id) (q: Qp): iProp :=
-      ∃ a, black i a q.
+    Definition black_ex γ (i: Id) (q: Qp): iProp :=
+      ∃ a, black γ i a q.
 
-    Definition white (i: Id) (a: A): iProp :=
-      maps_to (Prism.review p i) (Fuel.white a: Fuel.t A).
+    Definition white γ (i: Id) (a: A): iProp :=
+      own γ (discrete_fun_singleton (Prism.review p i) (Fuel.white a: Fuel.t A)).
 
-    Lemma white_sum i a0 a1
+    Lemma white_sum γ i a0 a1
       :
-      (white i a0)
+      (white γ i a0)
         -∗
-        (white i a1)
+        (white γ i a1)
         -∗
-        (white i (OrderedCM.add a0 a1)).
+        (white γ i (OrderedCM.add a0 a1)).
     Proof.
-      unfold white, maps_to. iIntros "H0 H1".
-      iCombine "H0 H1" as "H".
-      rewrite maps_to_res_add. rewrite (@Fuel.white_sum A L). auto.
+      iIntros "H0 H1". iCombine "H0 H1" as "H".
+      rewrite discrete_fun_singleton_op Fuel.white_sum //.
     Qed.
 
-    Lemma white_split i a0 a1
+    Lemma white_split γ i a0 a1
       :
-      (white i (OrderedCM.add a0 a1))
+      (white γ i (OrderedCM.add a0 a1))
         -∗
-        (white i a0 ∗ white i a1).
+        (white γ i a0 ∗ white γ i a1).
     Proof.
-      unfold white, maps_to. iIntros "H".
-      rewrite <- (@Fuel.white_sum A L).
-      rewrite <- maps_to_res_add.
+      iIntros "H".
+      rewrite /white -Fuel.white_sum
+        -discrete_fun_singleton_op.
       iDestruct "H" as "[H0 H1]". iFrame.
     Qed.
 
-    Lemma white_eq a1 i a0
+    Lemma white_eq γ a1 i a0
           (EQ: OrderedCM.eq a0 a1)
       :
-      white i a0 = white i a1.
+      white γ i a0 = white γ i a1.
     Proof.
       unfold white. erewrite Fuel.white_eq; eauto.
     Qed.
 
-    Lemma black_eq a1 i a0 q
+    Lemma black_eq γ a1 i a0 q
           (EQ: OrderedCM.eq a0 a1)
       :
-      black i a0 q = black i a1 q.
+      black γ i a0 q = black γ i a1 q.
     Proof.
       unfold black. erewrite Fuel.black_eq; eauto.
     Qed.
 
-    Lemma white_mon a0 i a1
+    Lemma white_mon γ a0 i a1
           (LE: OrderedCM.le a0 a1)
       :
-      (white i a1)
+      (white γ i a1)
         -∗
-        (#=> white i a0).
+        (#=> white γ i a0).
     Proof.
-      iIntros "H". iApply (OwnM_Upd with "H"). eapply maps_to_updatable.
-      eapply Fuel.white_mon. auto.
+      iIntros "H". iApply (own_update with "H").
+      eapply discrete_fun_singleton_update, Fuel.white_mon,LE.
     Qed.
 
-    Lemma black_mon a1 i a0 q
+    Lemma black_mon γ a1 i a0 q
           (LE: OrderedCM.le a0 a1)
       :
-      (black i a0 q)
+      (black γ i a0 q)
         -∗
-        (#=> black i a1 q).
+        (#=> black γ i a1 q).
     Proof.
-      iIntros "H". iApply (OwnM_Upd with "H"). eapply maps_to_updatable.
-      eapply Fuel.black_mon. auto.
+      iIntros "H". iApply (own_update with "H").
+      eapply discrete_fun_singleton_update, Fuel.black_mon,LE.
     Qed.
 
-    Lemma success_update_strong a1 i a0
+    Lemma success_update_strong γ a1 i a0
       :
-      (black i a0 1%Qp)
+      (black γ i a0 1%Qp)
         -∗
-        (#=> ((black i (OrderedCM.add a0 a1) 1%Qp) ∗ (white i a1))).
+        (#=> ((black γ i (OrderedCM.add a0 a1) 1%Qp) ∗ (white γ i a1))).
     Proof.
       iIntros "H".
-      iPoseProof (OwnM_Upd with "H") as "> H".
-      { eapply maps_to_updatable.
-        eapply Fuel.success_update. }
-      rewrite <- maps_to_res_add. iDestruct "H" as "[H0 H1]".
-      iModIntro. iFrame "H0 H1".
+      iMod (own_update with "H") as "[$ $]"; [|done].
+      rewrite discrete_fun_singleton_op.
+      apply discrete_fun_singleton_update,
+        Fuel.success_update.
     Qed.
 
-    Lemma success_update a1 i a0
+    Lemma success_update γ a1 i a0
       :
-      (black i a0 1%Qp)
+      (black γ i a0 1%Qp)
         -∗
-        (#=> ((∃ a, black i a 1%Qp) ∗ (white i a1))).
+        (#=> ((∃ a, black γ i a 1%Qp) ∗ (white γ i a1))).
     Proof.
-      iIntros "H". iPoseProof (success_update_strong with "H") as "> [H1 H2]".
-      iModIntro. iSplitL "H1".
-      - iExists _. iFrame.
-      - iFrame.
+      iIntros "H".
+      by iMod (success_update_strong with "H") as "[$ $]".
     Qed.
 
-    Lemma success_ex_update a1 i
+    Lemma success_ex_update γ a1 i
       :
-      (black_ex i 1%Qp)
+      (black_ex γ i 1%Qp)
         -∗
-        (#=> (black_ex i 1%Qp ∗ (white i a1))).
+        (#=> (black_ex γ i 1%Qp ∗ (white γ i a1))).
     Proof.
-      iIntros "[% H]". iPoseProof (success_update with "H") as "> [[% H0] H1]".
-      iModIntro. iSplitL "H0".
-      - iExists _. iFrame.
-      - iFrame.
+      iIntros "[% H]".
+      by iMod (success_update with "H") as "[[% $] $]".
     Qed.
 
-    Lemma decr_update i a0 a1 q
+    Lemma decr_update γ i a0 a1 q
       :
-      (black i a0 q)
+      (black γ i a0 q)
         -∗
-        (white i a1)
+        (white γ i a1)
         -∗
-        (#=> (∃ a2, black i a2 q ∗ ⌜OrderedCM.le (OrderedCM.add a1 a2) a0⌝)).
+        (#=> (∃ a2, black γ i a2 q ∗ ⌜OrderedCM.le (OrderedCM.add a1 a2) a0⌝)).
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
-      rewrite maps_to_res_add.
-      iPoseProof (OwnM_Upd_set with "H") as "> H".
-      { eapply maps_to_updatable_set. eapply Fuel.decr_update. }
+      rewrite discrete_fun_singleton_op.
+      iMod (own_updateP with "H") as "H".
+      { eapply discrete_fun_singleton_updateP',
+          Fuel.decr_update. }
       iModIntro. ss. iDestruct "H" as "[% [% H]]".
-      des. rewrite H. subst. iExists _. iFrame. auto.
+      des. subst. iFrame. done.
     Qed.
 
-    Lemma black_ex_sum i q0 q1
+    Lemma black_ex_sum γ i q0 q1
       :
-      (black_ex i q0)
+      (black_ex γ i q0)
         -∗
-        (black_ex i q1)
+        (black_ex γ i q1)
         -∗
-        (black_ex i (q0 + q1)%Qp).
+        (black_ex γ i (q0 + q1)%Qp).
     Proof.
-      unfold white, maps_to. iIntros "[% H0] [% H1]".
+      iIntros "[% H0] [% H1]".
       iCombine "H0 H1" as "H".
-      rewrite maps_to_res_add. rewrite (@Fuel.black_sum A L).
-      iExists _. eauto.
+      rewrite discrete_fun_singleton_op Fuel.black_sum.
+      iFrame.
     Qed.
 
-    Lemma black_split i a q0 q1
+    Lemma black_split γ i a q0 q1
       :
-      (black i a (q0 + q1)%Qp)
+      (black γ i a (q0 + q1)%Qp)
         -∗
-        (black i a q0 ∗ black i a q1).
+        (black γ i a q0 ∗ black γ i a q1).
     Proof.
-      unfold black, maps_to. iIntros "H".
-      erewrite Fuel.black_eq.
-      { instantiate (1:=OrderedCM.meet a a).
-        rewrite <- (@Fuel.black_sum A L).
-        rewrite <- maps_to_res_add.
-        iDestruct "H" as "[H0 H1]". iFrame.
-      }
-      { split.
-        { apply OrderedCM.meet_infimum; reflexivity. }
-        { apply OrderedCM.meet_l. }
-      }
+      iIntros "H".
+      rewrite /black -own_op discrete_fun_singleton_op
+        Fuel.black_sum.
+      iApply (own_proper with "H").
+
+      f_equiv.
+
+      apply Fuel.black_eq. split.
+      { apply OrderedCM.meet_l. }
+      { apply OrderedCM.meet_infimum; reflexivity. }
     Qed.
 
-    Lemma black_ex_split i q0 q1
+    Lemma black_ex_split γ i q0 q1
       :
-      (black_ex i (q0 + q1)%Qp)
+      (black_ex γ i (q0 + q1)%Qp)
         -∗
-        (black_ex i q0 ∗ black_ex i q1).
+        (black_ex γ i q0 ∗ black_ex γ i q1).
     Proof.
-      iIntros "[% H]". iPoseProof (black_split with "H") as "[H0 H1]".
-      iSplitL "H0".
-      { iExists _. iFrame. }
-      { iExists _. iFrame. }
+      iIntros "[% H]". iPoseProof (black_split with "H") as "[$ $]".
     Qed.
 
-    Definition blacks (s: Id -> Prop): iProp :=
+    Definition blacks γ (s: Id -> Prop): iProp :=
       ∃ (f: Id -> option A),
         (⌜forall i, is_Some (f i) <-> s i⌝)
           ∗
-          (OwnM ((fun i =>
+          (own γ ((fun i =>
                     match @Prism.preview _ _ p i with
                     | Some i =>
                         match (f i) with
@@ -1756,12 +1771,12 @@ Module FairRA.
                     | None => ε
                     end): (S ==> Fuel.t A)%ra)).
 
-    Lemma blacks_impl (s0 s1: Id -> Prop)
+    Lemma blacks_impl γ (s0 s1: Id -> Prop)
                (IMPL: forall i (IN: s0 i), s1 i)
       :
-      (blacks s1)
+      (blacks γ s1)
         -∗
-        (blacks s0).
+        (blacks γ s0).
     Proof.
       iIntros "[% [% BLACKS]]".
       iExists (fun i => if (excluded_middle_informative (s0 i)) then f i else None).
@@ -1770,34 +1785,35 @@ Module FairRA.
         { split; auto. i. apply H. auto. }
         { split; i; ss. inv H0. }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
-      i. des_ifs; try by reflexivity.
+      iApply (own_mono with "BLACKS").
+      apply included_discrete_fun.
+      i. des_ifs.
     Qed.
 
-    Lemma blacks_empty s
+    Lemma blacks_empty γ s
                (EMPTY: forall i, ~ s i)
       :
-      ⊢ blacks s.
+      ⊢ #=> blacks γ s.
     Proof.
-      iIntros. iExists (fun _ => None). iSplit; ss.
+      iIntros. iMod own_unit as "H". iModIntro.
+      iExists (fun _ => None). iSplit; ss.
       { iPureIntro. i. split; i; ss.
         { inv H. }
         { exfalso. eapply EMPTY; eauto. }
       }
-      iApply (OwnM_extends with "[]").
-      2:{ iApply (@OwnM_ura_unit (S ==> Fuel.t A)%ra). }
-      apply pointwise_extends.
+      iApply (own_mono with "H").
+      apply included_discrete_fun.
       i. eexists. des_ifs.
       { rewrite left_id. eauto. }
       { rewrite left_id. eauto. }
     Qed.
 
-    Lemma blacks_fold (s0 s1: Id -> Prop) i
+    Lemma blacks_fold γ (s0 s1: Id -> Prop) i
                (IMPL: forall j (IN: s0 j), s1 j \/ j = i)
       :
-      (blacks s1 ∗ black_ex i 1)
+      (blacks γ s1 ∗ black_ex γ i 1)
         -∗
-        (blacks s0).
+        (blacks γ s0).
     Proof.
       iIntros "[[% [% BLACKS]] [% BLACK]]".
       iCombine "BLACKS BLACK" as "BLACKS".
@@ -1810,27 +1826,29 @@ Module FairRA.
         { split; auto. i. hexploit IMPL; eauto. i. des; clarify. rewrite H. ss. }
         { split; i; ss. inv H1. }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
-      i. rewrite discrete_fun_lookup_op. unfold maps_to_res.
+      iApply (own_mono with "BLACKS"). apply included_discrete_fun.
+      i. rewrite discrete_fun_lookup_op.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-      { eapply Prism.review_preview in Heq. clarify. }
-      { eapply Prism.review_preview in Heq. clarify. }
+      { eapply Prism.review_preview in Heq. clarify.
+        rewrite discrete_fun_lookup_singleton //. }
+      { eapply Prism.review_preview in Heq. clarify.
+        rewrite discrete_fun_lookup_singleton //. }
     Qed.
 
-    Lemma blacks_unfold (s0 s1: Id -> Prop) i
+    Lemma blacks_unfold γ (s0 s1: Id -> Prop) i
           (IMPL: forall j (IN: s0 j \/ j = i), s1 j)
           (NIN: ~ s0 i)
       :
-      (blacks s1)
+      (blacks γ s1)
         -∗
-        (blacks s0 ∗ black_ex i 1).
+        (blacks γ s0 ∗ black_ex γ i 1).
     Proof.
       iIntros "[% [% BLACKS]]".
       hexploit (proj2 (H i)).
       { apply IMPL. auto. }
       i. inv H0.
       set (f1 :=fun i => if (excluded_middle_informative (s0 i)) then f i else None).
-      iPoseProof (OwnM_extends with "BLACKS") as "[BLACKS0 BLACKS1]"; last first.
+      iPoseProof (own_mono with "BLACKS") as "[BLACKS0 BLACKS1]"; last first.
       { iSplitL "BLACKS0".
         - iExists f1. iSplit; auto. iPureIntro. i.
           unfold f1. des_ifs.
@@ -1840,6 +1858,10 @@ Module FairRA.
       }
       { rewrite unfold_pointwise_add /maps_to_res /f1.
         apply pointwise_extends. i.
+        destruct (excluded_middle_informative
+                  (Prism.review p i = a)) as [<-|NE];
+        rewrite ?discrete_fun_lookup_singleton
+          ?discrete_fun_lookup_singleton_ne //;
         des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
         { rewrite Prism.preview_review in Heq. clarify. }
         { rewrite Prism.preview_review in Heq. clarify. }
@@ -1849,11 +1871,11 @@ Module FairRA.
       }
     Qed.
 
-    Definition blacks_combine (s0 s1: Id -> Prop)
+    Definition blacks_combine γ (s0 s1: Id -> Prop)
       :
-      (blacks s0 ∗ blacks s1)
+      (blacks γ s0 ∗ blacks γ s1)
         -∗
-        (blacks (fun i => s0 i \/ s1 i)).
+        (blacks γ (fun i => s0 i \/ s1 i)).
     Proof.
       iIntros "[[% [% BLACKS0]] [% [% BLACKS1]]]".
       iCombine "BLACKS0 BLACKS1" as "BLACKS".
@@ -1866,20 +1888,20 @@ Module FairRA.
         { split; auto. }
         { split; auto. i. des; ss. inv H1. }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
+      iApply (own_mono with "BLACKS"). apply included_discrete_fun.
       i. rewrite unfold_pointwise_add.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
     Qed.
 
-    Definition blacks_split (s0 s1: Id -> Prop)
+    Definition blacks_split γ (s0 s1: Id -> Prop)
                (DISJOINT: forall i (IN0: s0 i) (IN1: s1 i), False)
       :
-      (blacks (fun i => s0 i \/ s1 i))
+      (blacks γ (fun i => s0 i \/ s1 i))
         -∗
-        (blacks s0 ∗ blacks s1).
+        (blacks γ s0 ∗ blacks γ s1).
     Proof.
       iIntros "[% [% BLACKS]]".
-      iPoseProof (OwnM_extends with "BLACKS") as "[BLACKS0 BLACKS1]"; cycle 1.
+      iPoseProof (own_mono with "BLACKS") as "[BLACKS0 BLACKS1]"; cycle 1.
       { iSplitL "BLACKS0".
         { iExists (fun i => if (excluded_middle_informative (s0 i)) then f i else None).
           iSplit; [|iExact "BLACKS0"].
@@ -1894,15 +1916,15 @@ Module FairRA.
           { split; ss. i. inv H0. }
         }
       }
-      { apply pointwise_extends.
+      { apply included_discrete_fun.
         i. rewrite unfold_pointwise_add.
         des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
         exfalso. eapply DISJOINT; eauto.
       }
     Qed.
 
-    Definition whites (s: Id -> Prop) (u: A): iProp :=
-      (OwnM ((fun i =>
+    Definition whites γ (s: Id -> Prop) (u: A): iProp :=
+      (own γ ((fun i =>
                 match @Prism.preview _ _ p i with
                 | Some i =>
                     if (excluded_middle_informative (s i))
@@ -1911,95 +1933,100 @@ Module FairRA.
                 | None => ε
                 end): (S ==> Fuel.t A)%ra)).
 
-    Lemma whites_impl (s0 s1: Id -> Prop) u
+    Lemma whites_impl γ (s0 s1: Id -> Prop) u
                (IMPL: forall i (IN: s0 i), s1 i)
       :
-      (whites s1 u)
+      (whites γ s1 u)
         -∗
-        (whites s0 u).
+        (whites γ s0 u).
     Proof.
       iIntros "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      iApply (own_mono with "WHITES"). apply included_discrete_fun.
       i. des_ifs; try by reflexivity.
       exfalso. eauto.
     Qed.
 
-    Lemma whites_empty s u
+    Lemma whites_empty γ s u
                (EMPTY: forall i, ~ s i)
       :
-      ⊢ whites s u.
+      ⊢ #=> whites γ s u.
     Proof.
-      iIntros. iApply (OwnM_extends with "[]").
-      2:{ iApply (@OwnM_ura_unit (S ==> Fuel.t A)%ra). }
-      apply pointwise_extends. i. des_ifs.
-      { exfalso. eapply EMPTY; eauto. }
+      iIntros.
+      iMod own_unit as "H". iModIntro.
+      iApply (own_mono with "H").
+      apply included_discrete_fun. i. des_ifs.
+      exfalso. eapply EMPTY; eauto.
     Qed.
 
-    Lemma whites_fold (s0 s1: Id -> Prop) i u
+    Lemma whites_fold γ (s0 s1: Id -> Prop) i u
                (IMPL: forall j (IN: s0 j), s1 j \/ j = i)
       :
-      (whites s1 u ∗ white i u)
+      (whites γ s1 u ∗ white γ i u)
         -∗
-        (whites s0 u).
+        (whites γ s0 u).
     Proof.
       iIntros "[WHITES WHITE]".
       iCombine "WHITES WHITE" as "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      iApply (own_mono with "WHITES"). apply included_discrete_fun.
       i. rewrite unfold_pointwise_add. unfold maps_to_res.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
       eapply Prism.review_preview in Heq.
       hexploit IMPL; eauto. i. des; clarify.
+      by rewrite discrete_fun_lookup_singleton.
     Qed.
 
-    Definition whites_unfold (s0 s1: Id -> Prop) i u
+    Definition whites_unfold γ (s0 s1: Id -> Prop) i u
                (IMPL: forall j (IN: s0 j \/ j = i), s1 j)
                (NIN: ~ s0 i)
       :
-      (whites s1 u)
+      (whites γ s1 u)
         -∗
-        (whites s0 u ∗ white i u).
+        (whites γ s0 u ∗ white γ i u).
     Proof.
       iIntros "WHITES".
-      iPoseProof (OwnM_extends with "WHITES") as "[WHITES0 WHITES1]"; last first.
+      iPoseProof (own_mono with "WHITES") as "[WHITES0 WHITES1]"; last first.
       { iFrame "WHITES0 WHITES1". }
       { rewrite unfold_pointwise_add. unfold maps_to_res.
-        apply pointwise_extends. i.
+        apply included_discrete_fun. i.
+        destruct (excluded_middle_informative (Prism.review p i = a)) as [<-|NE];
+        rewrite ?discrete_fun_lookup_singleton
+          ?discrete_fun_lookup_singleton_ne //;
         des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
         { rewrite Prism.preview_review in Heq. clarify. }
         { rewrite Prism.preview_review in Heq. clarify. }
-        { eapply Prism.review_preview in Heq.
-          exfalso. eapply n0. auto. }
         { rewrite Prism.preview_review in Heq. clarify.
           exfalso. eapply n0. auto. }
         { rewrite Prism.preview_review in Heq. clarify. }
+        { eapply Prism.review_preview in Heq. clarify.
+          exfalso. eapply n. apply IMPL. by left. }
       }
     Qed.
 
-    Definition whites_combine (s0 s1: Id -> Prop) u
+    Definition whites_combine γ (s0 s1: Id -> Prop) u
       :
-      (whites s0 u ∗ whites s1 u)
+      (whites γ s0 u ∗ whites γ s1 u)
         -∗
-        (whites (fun i => s0 i \/ s1 i) u).
+        (whites γ (fun i => s0 i \/ s1 i) u).
     Proof.
       iIntros "[WHITES0 WHITES1]".
       iCombine "WHITES0 WHITES1" as "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      iApply (own_mono with "WHITES"). apply included_discrete_fun.
       i. rewrite unfold_pointwise_add.
       des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
       des; ss.
     Qed.
 
-    Definition whites_split (s0 s1: Id -> Prop) u
+    Definition whites_split γ (s0 s1: Id -> Prop) u
                (DISJOINT: forall i (IN0: s0 i) (IN1: s1 i), False)
       :
-      (whites (fun i => s0 i \/ s1 i) u)
+      (whites γ (fun i => s0 i \/ s1 i) u)
         -∗
-        (whites s0 u ∗ whites s1 u).
+        (whites γ s0 u ∗ whites γ s1 u).
     Proof.
       iIntros "WHITES".
-      iPoseProof (OwnM_extends with "WHITES") as "[WHITES0 WHITES1]".
+      iPoseProof (own_mono with "WHITES") as "[WHITES0 WHITES1]".
       2:{ iSplitL "WHITES0"; [iExact "WHITES0"|iExact "WHITES1"]. }
-      { apply pointwise_extends.
+      { apply included_discrete_fun.
         i. rewrite unfold_pointwise_add.
         des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
         { exfalso. eapply DISJOINT; eauto. }
@@ -2009,78 +2036,85 @@ Module FairRA.
       }
     Qed.
 
-    Lemma whites_white (s: Id -> Prop) u i
+    Lemma whites_white γ (s: Id -> Prop) u i
           (IN: s i)
       :
-      (whites s u)
+      (whites γ s u)
         -∗
-        (white i u).
+        (white γ i u).
     Proof.
-      iIntros "H". iApply (OwnM_extends with "H").
-      unfold maps_to_res. eapply pointwise_extends.
-      i. des_ifs; ss.
+      iIntros "H". iApply (own_mono with "H").
+      eapply included_discrete_fun.
+      i.
+      destruct (excluded_middle_informative (Prism.review p i = a)) as [<-|NE];
+      rewrite ?discrete_fun_lookup_singleton
+        ?discrete_fun_lookup_singleton_ne //;
+      des_ifs; ss.
       { rewrite Prism.preview_review in Heq. clarify. }
       { rewrite Prism.preview_review in Heq. clarify. }
     Qed.
 
-    Lemma blacks_black (s: Id -> Prop) i
+    Lemma blacks_black γ (s: Id -> Prop) i
           (IN: s i)
       :
-      (blacks s)
+      (blacks γ s)
         -∗
-        (black_ex i 1).
+        (black_ex γ i 1).
     Proof.
       iIntros "[% [% H]]".
       hexploit (proj2 (H i)); auto. i. destruct (f i) eqn:EQ.
       2:{ inv H0. }
-      iExists a. iApply (OwnM_extends with "H").
-      unfold maps_to_res. eapply pointwise_extends.
-      i. des_ifs; ss.
+      iExists a. iApply (own_mono with "H").
+      apply included_discrete_fun => a0.
+      destruct (excluded_middle_informative (Prism.review p i = a0)) as [<-|NE];
+      rewrite ?discrete_fun_lookup_singleton
+        ?discrete_fun_lookup_singleton_ne //;
+      des_ifs; ss.
       { rewrite Prism.preview_review in Heq. clarify. }
       { rewrite Prism.preview_review in Heq. clarify. }
       { rewrite Prism.preview_review in Heq. clarify. }
     Qed.
 
-    Lemma black_ex_list_blacks (l: list Id) (P: Id -> Prop)
+    Lemma black_ex_list_blacks γ (l: list Id) (P: Id -> Prop)
           (ALL: forall i (IN: P i), List.In i l)
       :
-      (list_prop_sum (fun i => black_ex i 1) l)
-        -∗
-        ((blacks P) ∗ ((blacks P) -∗ (list_prop_sum (fun i => black_ex i 1) l))).
+      (list_prop_sum (fun i => black_ex γ i 1) l)
+        ==∗
+        ((blacks γ P) ∗ ((blacks γ P) -∗ (list_prop_sum (fun i => black_ex γ i 1) l))).
     Proof.
       revert P ALL. induction l.
       { i. ss. iIntros. iSplitL.
         { iApply blacks_empty; eauto. }
-        { iIntros "_". iPureIntro. done. }
+        { iIntros "!> _". iPureIntro. done. }
       }
       i. ss. iIntros "[HD TL]".
       destruct (classic (P a)).
-      { iPoseProof ((@IHl (fun i => a <> i /\ P i)) with "TL") as "[BLACKS K]".
+      { iMod ((@IHl (fun i => a <> i /\ P i)) with "TL") as "[BLACKS K]".
         { i. des. hexploit ALL; eauto. i. des; ss. }
         iSplitL "HD BLACKS".
         { iApply blacks_fold.
-          2:{ iFrame. }
+          2:{ iFrame. done. }
           i. ss. destruct (classic (a = j)); auto.
         }
-        iIntros "BLACKS".
+        iIntros "!> BLACKS".
         iPoseProof (blacks_unfold with "BLACKS") as "[BLACKS BLACK]"; cycle 2.
         { iFrame. iApply ("K" with "BLACKS"). }
         { i. ss. des; clarify. }
         { ii. des; ss. }
       }
-      { iPoseProof ((@IHl P) with "TL") as "[BLACKS K]".
+      { iMod ((@IHl P) with "TL") as "[BLACKS K]".
         { i. hexploit ALL; eauto. i. des; clarify. }
-        iFrame. iFrame.
+        iFrame. iFrame. done.
       }
     Qed.
 
-    Lemma whites_white_list (l: list Id) (P: Id -> Prop) u
+    Lemma whites_white_list γ (l: list Id) (P: Id -> Prop) u
           (ALL: forall i (IN: List.In i l), P i)
           (NODUP: List.NoDup l)
       :
-      (whites P u)
+      (whites γ P u)
         -∗
-        (list_prop_sum (fun i => white i u) l).
+        (list_prop_sum (fun i => white γ i u) l).
     Proof.
       revert P ALL NODUP. induction l.
       { i. ss. iIntros "_". done. }
@@ -2094,11 +2128,11 @@ Module FairRA.
       { ii. des; ss. }
     Qed.
 
-    Definition blacks_of (l: list Id): iProp :=
-      list_prop_sum (fun i => black_ex i 1) l.
+    Definition blacks_of γ (l: list Id): iProp :=
+      list_prop_sum (fun i => black_ex γ i 1) l.
 
-    Definition whites_of (l: list Id) (u: A): iProp :=
-      list_prop_sum (fun i => white i u) l.
+    Definition whites_of γ (l: list Id) (u: A): iProp :=
+      list_prop_sum (fun i => white γ i u) l.
 
     End PRISM.
 
@@ -2106,37 +2140,37 @@ Module FairRA.
     Variable (Id: Type).
     Variable (p: Prism.t S Id).
 
-    Lemma whites_prism_id P o
+    Lemma whites_prism_id γ P o
       :
-      (whites p P o)
+      (whites p γ P o)
         -∗
-        (whites Prism.id (fun s => exists i, Prism.review p i = s /\ P i) o).
+        (whites Prism.id γ (fun s => exists i, Prism.review p i = s /\ P i) o).
     Proof.
       iIntros "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      iApply (own_mono with "WHITES"). apply included_discrete_fun.
       i. ss. des_ifs; try by reflexivity.
       { des; clarify. rewrite Prism.preview_review in Heq. clarify. }
       { des; clarify. rewrite Prism.preview_review in Heq. clarify. }
     Qed.
 
-    Lemma whites_prism_id_rev P o
+    Lemma whites_prism_id_rev γ P o
       :
-      (whites Prism.id (fun s => exists i, Prism.review p i = s /\ P i) o)
+      (whites Prism.id γ (fun s => exists i, Prism.review p i = s /\ P i) o)
         -∗
-      (whites p P o).
+      (whites p γ P o).
     Proof.
       iIntros "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      iApply (own_mono with "WHITES"). apply included_discrete_fun.
       i. ss. des_ifs; try by reflexivity.
       des; clarify. eapply Prism.review_preview in Heq.
       clarify. exfalso. eauto.
     Qed.
 
-    Lemma blacks_prism_id P
+    Lemma blacks_prism_id γ P
       :
-      (blacks p P)
+      (blacks p γ P)
         -∗
-        (blacks Prism.id (fun s => exists i, Prism.review p i = s /\ P i)).
+        (blacks Prism.id γ (fun s => exists i, Prism.review p i = s /\ P i)).
     Proof.
       iIntros "[% [% BLACKS]]".
       unfold blacks.
@@ -2154,15 +2188,15 @@ Module FairRA.
           { rewrite Prism.preview_review in Heq. clarify. }
         }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
+      iApply (own_mono with "BLACKS"). apply included_discrete_fun.
       i. ss. des_ifs; try by reflexivity.
     Qed.
 
-    Lemma blacks_prism_id_rev P
+    Lemma blacks_prism_id_rev γ P
       :
-      (blacks Prism.id (fun s => exists i, Prism.review p i = s /\ P i))
+      (blacks Prism.id γ (fun s => exists i, Prism.review p i = s /\ P i))
         -∗
-        (blacks p P).
+        (blacks p γ P).
     Proof.
       iIntros "[% [% BLACKS]]".
       unfold blacks.
@@ -2174,90 +2208,90 @@ Module FairRA.
         }
         { i. eapply H. esplits; eauto. }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
+      iApply (own_mono with "BLACKS"). apply included_discrete_fun.
       i. ss. des_ifs; try by reflexivity.
       { eapply Prism.review_preview in Heq. clarify. }
       { eapply Prism.review_preview in Heq. clarify. }
     Qed.
 
-    Lemma white_prism_id i o
+    Lemma white_prism_id γ i o
       :
-      (white p i o)
+      (white p γ i o)
         -∗
-        (white Prism.id (Prism.review p i) o).
+        (white Prism.id γ (Prism.review p i) o).
     Proof. iIntros "H". iFrame. Qed.
 
-    Lemma white_prism_id_rev i o
+    Lemma white_prism_id_rev γ i o
       :
-      (white Prism.id (Prism.review p i) o)
+      (white Prism.id γ (Prism.review p i) o)
         -∗
-        (white p i o).
+        (white p γ i o).
     Proof. iIntros "H". iFrame. Qed.
 
-    Lemma black_prism_id i o q
+    Lemma black_prism_id γ i o q
       :
-      (black p i o q)
+      (black p γ i o q)
         -∗
-        (black Prism.id (Prism.review p i) o q).
+        (black Prism.id γ (Prism.review p i) o q).
     Proof. iIntros "H". iFrame. Qed.
 
-    Lemma black_prism_id_rev i o q
+    Lemma black_prism_id_rev γ i o q
       :
-      (black Prism.id (Prism.review p i) o q)
+      (black Prism.id γ (Prism.review p i) o q)
         -∗
-        (black p i o q).
+        (black p γ i o q).
     Proof. iIntros "H". iFrame. Qed.
 
-    Lemma black_ex_prism_id i q
+    Lemma black_ex_prism_id γ i q
       :
-      (black_ex p i q)
+      (black_ex p γ i q)
         -∗
-        (black_ex Prism.id (Prism.review p i) q).
+        (black_ex Prism.id γ (Prism.review p i) q).
     Proof.
       iIntros "[% BLACK]". iExists _. auto.
     Qed.
 
-    Lemma black_ex_prism_id_rev i q
+    Lemma black_ex_prism_id_rev γ i q
       :
-      (black_ex Prism.id (Prism.review p i) q)
+      (black_ex Prism.id γ (Prism.review p i) q)
         -∗
-        (black_ex p i q).
+        (black_ex p γ i q).
     Proof.
       iIntros "[% BLACK]". iExists _. auto.
     Qed.
 
-    Lemma whites_of_prism_id l o
+    Lemma whites_of_prism_id γ l o
       :
-      (whites_of p l o)
+      (whites_of p γ l o)
         ⊢
-        (whites_of Prism.id (List.map (Prism.review p) l) o).
+        (whites_of Prism.id γ (List.map (Prism.review p) l) o).
     Proof.
       eapply list_prop_sum_map. i. eapply white_prism_id.
     Qed.
 
-    Lemma whites_of_prism_id_rev l o
+    Lemma whites_of_prism_id_rev γ l o
       :
-      (whites_of Prism.id (List.map (Prism.review p) l) o)
+      (whites_of Prism.id γ (List.map (Prism.review p) l) o)
         ⊢
-        (whites_of p l o).
+        (whites_of p γ l o).
     Proof.
       eapply list_prop_sum_map_inv. i. eapply white_prism_id_rev.
     Qed.
 
-    Lemma blacks_of_prism_id l
+    Lemma blacks_of_prism_id γ l
       :
-      (blacks_of p l)
+      (blacks_of p γ l)
         ⊢
-        (blacks_of Prism.id (List.map (Prism.review p) l)).
+        (blacks_of Prism.id γ (List.map (Prism.review p) l)).
     Proof.
       eapply list_prop_sum_map. i. eapply black_ex_prism_id.
     Qed.
 
-    Lemma blacks_of_prism_id_rev l
+    Lemma blacks_of_prism_id_rev γ l
       :
-      (blacks_of Prism.id (List.map (Prism.review p) l))
+      (blacks_of Prism.id γ (List.map (Prism.review p) l))
         ⊢
-        (blacks_of p l).
+        (blacks_of p γ l).
     Proof.
       eapply list_prop_sum_map_inv. i. eapply black_ex_prism_id_rev.
     Qed.
@@ -2265,14 +2299,14 @@ Module FairRA.
 
 
     (* Target *)
-    Definition whites_all (f: S -> A): iProp :=
-      OwnM ((fun i => Fuel.white (f i)): (S ==> Fuel.t A)%ra).
+    Definition whites_all γ (f: S -> A): iProp :=
+      own γ ((fun i => Fuel.white (f i)): (S ==> Fuel.t A)%ra).
 
     (* Source *)
-    Definition blacks_all (f: S -> A): iProp :=
-      OwnM ((fun i => Fuel.black (f i) 1%Qp): (S ==> Fuel.t A)%ra).
+    Definition blacks_all γ (f: S -> A): iProp :=
+      own γ ((fun i => Fuel.black (f i) 1%Qp): (S ==> Fuel.t A)%ra).
 
-    Definition whites_update
+    Definition whites_update γ
                (f0 f1: S -> A)
                (u: A)
                (fm: fmap S)
@@ -2283,22 +2317,22 @@ Module FairRA.
                    | Flag.success => True
                    end)
       :
-      (whites_all f0)
+      (whites_all γ f0)
         -∗
-        (blacks Prism.id (fun i => fm i = Flag.success))
+        (blacks Prism.id γ (fun i => fm i = Flag.success))
         -∗
         (#=>
-           ((whites_all f1)
+           ((whites_all γ f1)
               ∗
-              (blacks Prism.id (fun i => fm i = Flag.success))
+              (blacks Prism.id γ (fun i => fm i = Flag.success))
               ∗
-              (whites Prism.id (fun i => fm i = Flag.fail) u)
+              (whites Prism.id γ (fun i => fm i = Flag.fail) u)
               ∗
-              (whites Prism.id (fun i => fm i = Flag.success) u))).
+              (whites Prism.id γ (fun i => fm i = Flag.success) u))).
     Proof.
       iIntros "WHITE [% [% BLACK]]".
       iCombine "WHITE BLACK" as "OWN".
-      iPoseProof (OwnM_Upd_set with "OWN") as "> [% [% OWN]]".
+      iMod (own_updateP with "OWN") as (?) "[% OWN]".
       { eapply updatable_set_impl; cycle 1.
         { eapply pointwise_updatable_set. i.
           instantiate (1:=fun (i: S) (a: Fuel.t A) =>
@@ -2403,7 +2437,7 @@ Module FairRA.
         }
       }
       ss. des.
-      assert (b =
+      assert (a' ≡
                 (((fun i => Fuel.white (f1 i)): (S ==> Fuel.t A)%ra)
                    ⋅
                    ((fun i =>
@@ -2420,23 +2454,23 @@ Module FairRA.
                    ((fun i =>
                        if (excluded_middle_informative (fm i = Flag.success))
                        then Fuel.white u
-                       else ε): (S ==> Fuel.t A)%ra))).
-      { extensionality i. specialize (H0 i). des.
+                       else ε): (S ==> Fuel.t A)%ra))) as ->.
+      { intros i. specialize (H0 i). des.
         rewrite H1. rewrite unfold_pointwise_add. auto.
       }
-      subst. iPoseProof "OWN" as "[[[OWN0 OWN1] OWN2] OWN3]".
+      iPoseProof "OWN" as "[[[OWN0 OWN1] OWN2] OWN3]".
       iModIntro. iFrame.
       iPureIntro. i. specialize (H0 i). des. auto.
     Qed.
 
-    Definition blacks_update
+    Definition blacks_update γ
                (f0: S -> A)
                (u n: A)
                (fm: fmap S)
       :
-      (blacks_all f0)
+      (blacks_all γ f0)
         -∗
-        (whites Prism.id (fun i => fm i = Flag.fail) u)
+        (whites Prism.id γ (fun i => fm i = Flag.fail) u)
         -∗
         (#=>
            (∃ f1,
@@ -2447,13 +2481,13 @@ Module FairRA.
                      | Flag.success => True
                      end⌝)
                  ∗
-                 (blacks_all f1)
+                 (blacks_all γ f1)
                  ∗
-                 (whites Prism.id (fun i => fm i = Flag.success) n))).
+                 (whites Prism.id γ (fun i => fm i = Flag.success) n))).
     Proof.
       iIntros "BLACK WHITE".
       iCombine "BLACK WHITE" as "OWN".
-      iPoseProof (OwnM_Upd_set with "OWN") as "> [% [% OWN]]".
+      iMod (own_updateP with "OWN") as (?) "[% OWN]".
       { eapply updatable_set_impl; cycle 1.
         { eapply pointwise_updatable_set. i.
           instantiate (1:=fun (i: S) (a: Fuel.t A) =>
@@ -2492,7 +2526,7 @@ Module FairRA.
                                          | Flag.fail => OrderedCM.le (OrderedCM.add u fi) (f0 i)
                                          | Flag.success => True
                                          end) /\
-                                          (r i =
+                                          (r i ≡
                                              (Fuel.black fi 1: Fuel.t A)
                                                ⋅
                                                (if (excluded_middle_informative (fm i = Flag.success))
@@ -2506,30 +2540,36 @@ Module FairRA.
         }
       }
       ss. des.
-      assert (b =
+      assert (a' ≡
                 (((fun i => Fuel.black (f1 i) 1): (S ==> Fuel.t A)%ra)
                    ⋅
                    (fun i =>
                       if (excluded_middle_informative (fm i = Flag.success))
                       then Fuel.white n
-                      else ε))).
-      { extensionality i. specialize (H i). des.
+                      else ε))) as EQ.
+      { intros i. specialize (H i). des.
         rewrite H0. rewrite unfold_pointwise_add. auto.
       }
-      subst. iPoseProof "OWN" as "[OWN0 OWN1]".
+      rewrite EQ. iPoseProof "OWN" as "[OWN0 OWN1]".
       iModIntro. iFrame.
       iPureIntro. i. specialize (H i). des.
-      rewrite unfold_pointwise_add in H0. des_ifs.
+      rewrite EQ unfold_pointwise_add in H0. des_ifs.
     Qed.
   End FAIR.
+  Global Arguments t _ _ {_}.
 
+  Notation srcG Σ Src := (fairG Σ Src Ord.t) (only parsing).
+  Notation srcΣ Src := (fairΣ Src Ord.t) (only parsing).
   Section SOURCE.
     Variable (S: Type).
-    Definition srct: ucmra := @t S Ord.t _.
-    Context `{ING: @GRA.inG srct Σ}.
+    Context `{!EqDecision S}.
+
+    Definition srct: ucmra := t S Ord.t.
+    Context `{ING: !srcG Σ S}.
+    Context (fairsrc_name : gname).
 
     Definition sat_source (f: imap S owf) :=
-      blacks_all f.
+      blacks_all fairsrc_name f.
 
     Definition source_update
                (o: Ord.t)
@@ -2541,7 +2581,7 @@ Module FairRA.
       :
       (sat_source f0)
         -∗
-        (whites_of Prism.id lf Ord.one)
+        (whites_of Prism.id fairsrc_name lf Ord.one)
         -∗
         (#=>
            (∃ f1,
@@ -2549,29 +2589,34 @@ Module FairRA.
                  ∗
                  (sat_source f1)
                  ∗
-                 (whites_of Prism.id ls o))).
+                 (whites_of Prism.id fairsrc_name ls o))).
     Proof.
       iIntros "SAT WHITE".
       iPoseProof (blacks_update with "SAT [> WHITE]") as "> [% [% [BLACK WHITE]]]".
       { instantiate (1:=Ord.one). instantiate (1:=fm).
-        iStopProof. cut (forall l (P: S -> Prop) (COMPLETE: forall i (IN: P i), List.In i l), whites_of Prism.id l Ord.one ⊢ #=> whites Prism.id P Ord.one).
+        iStopProof. cut (forall l (P: S -> Prop) (COMPLETE: forall i (IN: P i), List.In i l), whites_of Prism.id fairsrc_name l Ord.one ⊢ #=> whites Prism.id fairsrc_name P Ord.one).
         { i. eapply H. auto. }
         induction l; ss; i.
-        { iIntros "H". iApply (OwnM_Upd with "[]").
-          { instantiate (1:=ε). apply pointwise_updatable.
+        { iIntros "H".
+          iMod own_unit as "U".
+          iApply (own_update with "U").
+          apply pointwise_updatable.
             i. des_ifs. exfalso. eauto.
-          }
-          { iApply (@OwnM_unit _ _ ING). }
         }
         iIntros "[WHITE WHITES]".
         iPoseProof ((@IHl (fun i => P i /\ a <> i)) with "WHITES") as "> WHITES".
         { i. des. hexploit COMPLETE; eauto. i. des; ss. }
-        iCombine "WHITE WHITES" as "WHITES". iApply (OwnM_Upd with "WHITES").
+        iCombine "WHITE WHITES" as "WHITES". iApply (own_update with "WHITES").
         rewrite unfold_pointwise_add.
         apply pointwise_updatable. i. unfold maps_to_res. ss.
+        destruct (excluded_middle_informative (Prism.review Prism.id a = a0)) as [<-|NE];
+        rewrite ?discrete_fun_lookup_singleton
+          ?discrete_fun_lookup_singleton_ne //;
         des_ifs; des; ss; repeat rewrite right_id; repeat rewrite left_id; ss.
-        { apply cmra_discrete_total_update. ii. rewrite left_id. eapply cmra_valid_op_r. done. }
-        { exfalso. eapply n0; ss. auto. }
+        { apply cmra_discrete_total_update. ii.
+          rewrite left_id. by eapply cmra_valid_op_r.
+        }
+        { exfalso. eapply n; ss. }
       }
       { iExists f1. iFrame "BLACK". iSplitR.
         { iPureIntro. ii. specialize (H i). unfold prism_fmap. ss. des_ifs.
@@ -2580,12 +2625,12 @@ Module FairRA.
           rewrite Hessenberg.add_O_l. eapply Ord.S_lt.
         }
         { instantiate (1:=Jacobsthal.mult o (Ord.from_nat (List.length ls))).
-          iStopProof. cut (forall l (P: S -> Prop) (SOUND: forall i (IN: List.In i l), P i), whites Prism.id P (o × List.length l)%ord ⊢ #=> whites_of Prism.id l o).
+          iStopProof. cut (forall l (P: S -> Prop) (SOUND: forall i (IN: List.In i l), P i), whites Prism.id fairsrc_name P (o × List.length l)%ord ⊢ #=> whites_of Prism.id fairsrc_name l o).
           { i. eapply H0. auto. }
           induction l; ss; i.
           { iIntros "H". auto. }
           iIntros "H".
-          iPoseProof (OwnM_Upd with "H") as "> H"; last first.
+          iPoseProof (own_update with "H") as "> H"; last first.
           { instantiate (1:= _ ⋅ _).
             rewrite /whites_of. iDestruct "H" as "[H0 H1]".
             iApply list_prop_sum_cons_fold. iSplitL "H0".
@@ -2594,16 +2639,22 @@ Module FairRA.
             intros. apply SOUND. by right.
           }
           { rewrite !unfold_pointwise_add.
-            apply pointwise_updatable. i. unfold maps_to_res. ss. des_ifs.
-            { rewrite (@Fuel.white_sum Ord.t _ o (o × (Ord.from_nat (List.length l)))%ord).
+            apply pointwise_updatable. i.
+            destruct (excluded_middle_informative (Prism.review Prism.id a = a0)) as [<-|?];
+            rewrite ?discrete_fun_lookup_singleton
+              ?discrete_fun_lookup_singleton_ne //;
+            des_ifs.
+            { rewrite Fuel.white_sum.
               apply Fuel.white_mon. ss.
-              rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity.
+              rewrite Ord.from_nat_S Jacobsthal.mult_S. reflexivity.
             }
+            { exfalso. eapply n. eapply SOUND.
+              rewrite Prism.preview_review in Heq. clarify.
+              eauto. }
             { rewrite left_id.
               apply Fuel.white_mon. ss.
               apply Jacobsthal.le_mult_r. apply Ord.S_le.
             }
-            { exfalso. eapply n. eapply SOUND. eauto. }
             { rewrite right_id. reflexivity. }
           }
         }
@@ -2621,43 +2672,59 @@ Module FairRA.
     Lemma source_init
           o
       :
-      (OwnM source_init_resource)
+      (own fairsrc_name source_init_resource)
         -∗
         (#=>
            (∃ f,
                (sat_source f)
                  ∗
-                 (whites Prism.id (fun _ => True: Prop) o))).
+                 (whites Prism.id fairsrc_name (fun _ => True: Prop) o))).
     Proof.
       iIntros "BLACKS".
-      iAssert (blacks_all (fun (_: S) => Ord.O)) with "BLACKS" as "BLACKS".
-      iPoseProof (blacks_update with "BLACKS []") as "> [% [% [BLACKS WHITES]]]".
-      { iApply (OwnM_extends with "[]").
-        { instantiate (1:=ε).
-          instantiate (1:=Ord.O).
-          instantiate (1:=fun _ => Flag.success).
-          eapply pointwise_extends. i. des_ifs.
-        }
-        { iApply (@OwnM_ura_unit (S ==> Fuel.t Ord.t)%ra). }
+      iAssert (blacks_all _ (fun (_: S) => Ord.O)) with "BLACKS" as "BLACKS".
+      iMod own_unit as "U".
+      iPoseProof (blacks_update with "BLACKS [U]") as "> [% [% [BLACKS WHITES]]]".
+      { iApply (own_mono with "U").
+        instantiate (1:=ε).
+        instantiate (1:=Ord.O).
+        instantiate (1:=fun _ => Flag.success).
+        eapply included_discrete_fun. i. des_ifs.
       }
       iModIntro. iExists _. iFrame "BLACKS".
-      iApply (OwnM_extends with "WHITES").
-      { eapply pointwise_extends. i. des_ifs. }
+      iApply (own_mono with "WHITES").
+      { eapply included_discrete_fun. i. des_ifs. }
     Qed.
   End SOURCE.
+  (* Global Arguments fairsrc_name {_} {_} {_}. *)
 
+  Lemma source_alloc {S : Type} `{!fairG Σ S Ord.t} o :
+    ⊢ #=> (∃ γfs f,
+    (sat_source γfs f)
+      ∗
+      (whites Prism.id γfs (fun _ => True: Prop) o)).
+  Proof.
+    iIntros.
+    iMod own_alloc as (γfs) "OWN"; [apply source_init_resource_wf|] .
+    iMod (source_init with "OWN") as (f) "[f W]".
+    iModIntro. iExists γfs,f. iFrame.
+  Qed.
 
+  Notation tgtG Σ Tgt := (fairG Σ (sum_tid Tgt) nat) (only parsing).
+  Notation tgtΣ Tgt := (fairΣ (sum_tid Tgt) nat) (only parsing).
   Section TARGET.
     Variable (S: Type).
-    Let Id := id_sum thread_id S.
-    Definition tgtt: ucmra := @t Id nat _.
-    Context `{ING: @GRA.inG tgtt Σ}.
+    Context `{!EqDecision S}.
+    Notation Id := (sum_tid S).
+
+    Definition tgtt: ucmra := t Id nat.
+    Context `{ING: !tgtG Σ S}.
     Notation iProp := (iProp Σ).
+    Context (fairtgt_name : gname).
 
     Definition sat_target (f: imap Id nat_wf) (ths: TIdSet.t): iProp :=
-      ((whites_all f)
+      ((whites_all fairtgt_name f)
          ∗
-         (blacks Prism.id (fun i => exists j, (<<NIN: ~ TIdSet.In j ths>>) /\ (<<EQ: i = inl j>>))))
+         (blacks Prism.id fairtgt_name (fun i => exists j, (<<NIN: ~ TIdSet.In j ths>>) /\ (<<EQ: i = inl j>>))))
     .
 
     Definition target_init_resource (f: imap Id nat_wf): tgtt :=
@@ -2676,13 +2743,13 @@ Module FairRA.
 
     Lemma target_init f ths
       :
-      (OwnM (target_init_resource f))
+      (own fairtgt_name (target_init_resource f))
         -∗
         ((sat_target f ths)
            ∗
-           (natmap_prop_sum ths (fun tid _ => black_ex inlp tid 1))
+           (natmap_prop_sum ths (fun tid _ => black_ex inlp fairtgt_name tid 1))
            ∗
-           (blacks inrp (fun i => True: Prop))).
+           (blacks inrp fairtgt_name (fun i => True: Prop))).
     Proof.
       iIntros "[WHITES BLACKS]". unfold sat_target. iFrame.
       set (f0 :=
@@ -2703,7 +2770,7 @@ Module FairRA.
                 | inr _ => Some (f i)
                 | inl _ => None
                 end): Id -> option nat).
-      iPoseProof (OwnM_extends with "BLACKS") as "[BLACKS0 [BLACKS1 BLACKS2]]".
+      iPoseProof (own_mono with "BLACKS") as "[BLACKS0 [BLACKS1 BLACKS2]]".
       { instantiate (1:=((fun i =>
                             match (f0 i) with
                             | Some a => Fuel.black a 1
@@ -2719,7 +2786,7 @@ Module FairRA.
                             | Some a => Fuel.black a 1
                             | None => ε
                             end): (Id ==> Fuel.t nat)%ra)).
-        ss. apply pointwise_extends. i. unfold f0, f1, f2.
+        ss. apply included_discrete_fun. i. unfold f0, f1, f2.
         rewrite !discrete_fun_lookup_op.
         des_ifs; repeat rewrite right_id; repeat rewrite left_id; try reflexivity.
       }
@@ -2747,15 +2814,18 @@ Module FairRA.
         { iIntros "H". iApply natmap_prop_sum_empty. }
         i. clear STRONG.
         iIntros "BLACKS".
-        iPoseProof (OwnM_extends with "BLACKS") as "[BLACKS0 BLACKS1]"; cycle 1.
+        iPoseProof (own_mono with "BLACKS") as "[BLACKS0 BLACKS1]"; cycle 1.
         { iApply (natmap_prop_sum_add with "[BLACKS0] [BLACKS1]").
           { iApply IH. iApply "BLACKS0". }
           ss. iExists (f (inl k)). iApply "BLACKS1".
         }
-        apply pointwise_extends. i. unfold maps_to_res. ss.
+        apply included_discrete_fun. i. unfold maps_to_res. ss.
         unfold tgtt, t.
         rewrite unfold_pointwise_add.
         unfold Prism.review in *. ss.
+        destruct (excluded_middle_informative (inl k = a)) as [<-|];
+        rewrite ?discrete_fun_lookup_singleton
+          ?discrete_fun_lookup_singleton_ne //;
         des_ifs; repeat rewrite right_id; repeat rewrite left_id; try by reflexivity.
         { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
         { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
@@ -2780,7 +2850,7 @@ Module FairRA.
       :
       (sat_target f ths)
         -∗
-        (black_ex inlp tid 1)
+        (black_ex inlp fairtgt_name tid 1)
         -∗
         (#=>
            (sat_target f (NatMap.remove tid ths))).
@@ -2810,12 +2880,14 @@ Module FairRA.
           { des; ss. }
         }
       }
-      iApply (OwnM_Upd with "BLACK").
+      iApply (own_update with "BLACK").
       apply pointwise_updatable. i.
-      rewrite unfold_pointwise_add.
-      unfold maps_to_res. ss.
+      rewrite unfold_pointwise_add. ss.
+      destruct (excluded_middle_informative ((Prism.review inlp tid) = a0)) as [<-|];
+      rewrite ?discrete_fun_lookup_singleton
+        ?discrete_fun_lookup_singleton_ne //;
       des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss.
-      { apply RA.extends_updatable. exists (Fuel.black n 1). apply (comm cmra.op). }
+      { apply RA.extends_updatable. exists (Fuel.black n 1). by rewrite (comm cmra.op). }
       { compute in Heq1. clarify. }
       { compute in Heq1. clarify. }
     Qed.
@@ -2831,7 +2903,7 @@ Module FairRA.
         (#=>
            ((sat_target f1 ths1)
               ∗
-              (black_ex inlp tid 1))).
+              (black_ex inlp fairtgt_name tid 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]]".
       hexploit (proj2 (H (inl tid))).
@@ -2844,14 +2916,14 @@ Module FairRA.
                 | inl tid' => if tid_dec tid' tid then None else f i
                 | _ => f i
                 end): Id -> option nat).
-      iAssert (OwnM (((fun i =>
+      iAssert (own fairtgt_name (((fun i =>
                          match (f2 i) with
                          | Some a => Fuel.black a 1: Fuel.t nat
                          | None => ε: Fuel.t nat
                          end): (Id ==> Fuel.t nat)%ra) ⋅ (maps_to_res (inl tid) (Fuel.black n 1: Fuel.t nat)))) with "[BLACKS]" as "[BLACKS BLACK]".
-      { iApply (OwnM_extends with "BLACKS").
+      { iApply (own_mono with "BLACKS").
         rewrite unfold_pointwise_add.
-        eapply pointwise_extends. i. unfold f2, maps_to_res. ss.
+        eapply included_discrete_fun. i. unfold f2, maps_to_res. ss.
         des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; try reflexivity.
       }
       iPoseProof (whites_update with "WHITES [BLACK]") as "> [WHITES [BLACK [FAIL SUCCESS]]]".
@@ -2868,8 +2940,8 @@ Module FairRA.
           - split; i; ss. inv H0.
           - split; i; ss. inv H0.
         }
-        { iApply (OwnM_extends with "BLACK").
-          eapply pointwise_extends. i. unfold maps_to_res. ss.
+        { iApply (own_mono with "BLACK").
+          eapply included_discrete_fun. i. unfold maps_to_res. ss.
           des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; reflexivity.
         }
       }
@@ -2899,7 +2971,7 @@ Module FairRA.
       { rewrite H0. split; i; des; ss. }
     Qed.
 
-    Definition white_thread: iProp := ∀ i, white inlp i 1.
+    Definition white_thread: iProp := ∀ i, white inlp fairtgt_name i 1.
 
     Definition target_update_thread
                tid ths
@@ -2908,12 +2980,12 @@ Module FairRA.
       :
       (sat_target f0 ths)
         -∗
-        (black_ex inlp tid 1)
+        (black_ex inlp fairtgt_name tid 1)
         -∗
         (#=>
            ((sat_target f1 ths)
               ∗
-              (black_ex inlp tid 1)
+              (black_ex inlp fairtgt_name tid 1)
               ∗
               white_thread)).
     Proof.
@@ -2922,11 +2994,16 @@ Module FairRA.
       iPoseProof "BLACKS" as "[BLACKS BLACK]".
       assert (TIN: TIdSet.In tid ths).
       { specialize (H0 (inl tid)). rewrite discrete_fun_lookup_op in H0.
-        unfold maps_to_res in H0. specialize (H (inl tid)). des_ifs.
+        unfold maps_to_res in H0. specialize (H (inl tid)).
+        destruct (excluded_middle_informative ((Prism.review (@inlp nat S) tid) = (inl tid))) as [EQ|NE];
+        [rewrite -EQ discrete_fun_lookup_singleton in H0|
+          rewrite ?discrete_fun_lookup_singleton_ne // in H0];
+        des_ifs; repeat rewrite right_id; repeat rewrite left_id; try by reflexivity.
         { destruct (classic (TIdSet.In tid ths)); ss.
           hexploit (proj2 H).
           { esplits; eauto. }
-          { i. inv H2. rewrite Fuel.black_sum in H0.
+          { i. inv H2.
+            rewrite Fuel.black_sum in H0.
             rewrite Fuel.valid_unfold /Fuel.black in H0.
             des_ifs. des. ss.
           }
@@ -2965,9 +3042,12 @@ Module FairRA.
           - esplits; ss. ii. eapply NatMapP.F.in_find_iff in H1. ss.
           - des. clarify.
         }
-        iApply (OwnM_extends with "BLACKS").
+        iApply (own_mono with "BLACKS").
         rewrite unfold_pointwise_add.
-        eapply pointwise_extends. i. unfold f2, maps_to_res. ss.
+        eapply included_discrete_fun. i. unfold f2, maps_to_res. ss.
+        destruct (excluded_middle_informative ((Prism.review (@inlp nat S) tid) = a0)) as [<-|];
+        rewrite ?discrete_fun_lookup_singleton
+          ?discrete_fun_lookup_singleton_ne //;
         des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; try reflexivity.
       }
       iEval (rewrite bi.sep_assoc).
@@ -2980,15 +3060,18 @@ Module FairRA.
                       | inl tid' => if tid_dec tid' tid then None else f3 i
                       | _ => f3 i
                       end): Id -> option nat).
-        iPoseProof (OwnM_extends with "BLACK") as "[BLACKS BLACK]".
-        { instantiate (1:=(maps_to_res (inl tid) (Fuel.black x 1: Fuel.t nat))).
+        iPoseProof (own_mono with "BLACK") as "[BLACKS BLACK]".
+        { instantiate (1:=(discrete_fun_singleton (inl tid) (Fuel.black x 1: Fuel.t nat))).
           instantiate (1:=(fun i =>
                              match f4 i with
                              | Some a => Fuel.black a 1
                              | None => ε
                              end)).
           rewrite unfold_pointwise_add.
-          eapply pointwise_extends. i. unfold f4, maps_to_res. ss.
+          eapply included_discrete_fun. i. unfold f4, maps_to_res. ss.
+          destruct (excluded_middle_informative (inl tid = a0)) as [<-|];
+          rewrite ?discrete_fun_lookup_singleton
+            ?discrete_fun_lookup_singleton_ne //;
           des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; try reflexivity.
         }
         iModIntro. iSplitR "BLACK".
@@ -3007,7 +3090,7 @@ Module FairRA.
           }
           { rewrite H0. split; i; ss. des. clarify. }
         }
-        { iExists _. iFrame. }
+        { iExists _. unfold black. iFrame. }
       }
       { iModIntro. iIntros (tid'). destruct (tid_dec tid' tid).
         { subst. iApply (whites_white with "SUCCESS"). unfold prism_fmap in *; ss. des_ifs. }
@@ -3025,14 +3108,14 @@ Module FairRA.
       :
       (sat_target f0 ths)
         -∗
-        (blacks Prism.id (fun i => (prism_fmap inrp fm) i = Flag.success))
+        (blacks Prism.id fairtgt_name (fun i => (prism_fmap inrp fm) i = Flag.success))
         -∗
         (#=>
            ((sat_target f1 ths)
               ∗
-              (blacks Prism.id (fun i => (prism_fmap inrp fm) i = Flag.success))
+              (blacks Prism.id fairtgt_name (fun i => (prism_fmap inrp fm) i = Flag.success))
               ∗
-              (whites Prism.id (fun i => (prism_fmap inrp fm) i = Flag.fail) 1))).
+              (whites Prism.id fairtgt_name (fun i => (prism_fmap inrp fm) i = Flag.fail) 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]] BLACK".
       iPoseProof (whites_update with "WHITES BLACK") as "> [WHITES [BLACK [FAIL _]]]".
@@ -3057,17 +3140,17 @@ Module FairRA.
       :
       (sat_target f0 ths)
         -∗
-        (list_prop_sum (fun i => black_ex Prism.id (inr i) 1) ls)
+        (list_prop_sum (fun i => black_ex Prism.id fairtgt_name (inr i) 1) ls)
         -∗
         (#=>
            ((sat_target f1 ths)
               ∗
-              (list_prop_sum (fun i => black_ex Prism.id (inr i) 1) ls)
+              (list_prop_sum (fun i => black_ex Prism.id fairtgt_name (inr i) 1) ls)
               ∗
-              (list_prop_sum (fun i => white Prism.id (inr i) 1) lf))).
+              (list_prop_sum (fun i => white Prism.id fairtgt_name (inr i) 1) lf))).
     Proof.
       iIntros "SAT BLACK".
-      iPoseProof (black_ex_list_blacks with "[BLACK]") as "[BLACKS K]"; cycle 2.
+      iMod (black_ex_list_blacks with "[BLACK]") as "[BLACKS K]"; cycle 2.
       { iPoseProof (target_update_aux with "SAT BLACKS") as "> [SAT [BLACKS WHITES]]".
         { eauto. }
         iPoseProof ("K" with "BLACKS") as "BLACKS".
@@ -3105,14 +3188,14 @@ Module FairRA.
       :
       (sat_target f0 ths)
         -∗
-        (list_prop_sum (fun i => black_ex (Prism.compose inrp p) i 1) ls)
+        (list_prop_sum (fun i => black_ex (Prism.compose inrp p) fairtgt_name i 1) ls)
         -∗
         (#=>
            ((sat_target f1 ths)
               ∗
-              (list_prop_sum (fun i => black_ex (Prism.compose inrp p) i 1) ls)
+              (list_prop_sum (fun i => black_ex (Prism.compose inrp p) fairtgt_name i 1) ls)
               ∗
-              (list_prop_sum (fun i => white (Prism.compose inrp p) i 1) lf))).
+              (list_prop_sum (fun i => white (Prism.compose inrp p) fairtgt_name i 1) lf))).
     Proof.
       iIntros "SAT BLACKS".
       iPoseProof (target_update with "SAT [BLACKS]") as "> [SAT [BLACKS WHITES]]".
@@ -3143,6 +3226,19 @@ Module FairRA.
     Qed.
 
   End TARGET.
+
+  Lemma target_alloc `{!EqDecision Tgt} `{!fairG Σ (sum_tid Tgt) nat} f ths :
+    ⊢ #=> ∃ γft,
+      sat_target γft f ths ∗
+      natmap_prop_sum ths (fun tid _ => black_ex inlp γft tid 1) ∗
+      blacks inrp γft (fun i => True: Prop).
+  Proof.
+    iIntros.
+    iMod own_alloc as (γft) "OWN"; [apply target_init_resource_wf|] .
+    iDestruct (target_init with "OWN") as "(f & Sum & B)".
+    iModIntro. iExists γft. iFrame.
+  Qed.
+
 End FairRA.
 Global Arguments FairRA.t _ : clear implicits.
 

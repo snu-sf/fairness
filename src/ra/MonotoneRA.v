@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From iris.algebra Require Import cmra updates gmap auth mra.
-From Fairness Require Import PCM IPM IPropAux OwnGhost.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Export FiniteMapRA.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Logic.PropExtensionality.
@@ -108,15 +108,25 @@ Next Obligation.
   eapply proof_irrelevance.
 Qed.
 
+Class monoG (Σ : gFunctors) := {
+  monoG_inG: inG Σ (authUR $ mraUR gmon_le);
+}.
 
+Local Existing Instance monoG_inG.
+
+Definition monoΣ : gFunctors :=
+  #[ GFunctor (authUR $ mraUR gmon_le) ].
+
+Global Instance subG_monoΣ Σ :
+  subG monoΣ Σ → monoG Σ.
+Proof. solve_inG. Qed.
 
 Section Monotone.
-  Definition monoRA: ucmra := OwnG.t (authUR $ mraUR gmon_le).
-  Context `{GRA.inG monoRA Σ}.
+  Context `{!monoG Σ}.
   Notation iProp := (iProp Σ).
 
   Section LE.
-    Variable k: nat.
+    Variable k: gname.
 
     Variable W: Type.
     Variable le: W -> W -> Prop.
@@ -125,10 +135,10 @@ Section Monotone.
     Let leR (w: W) : mra gmon_le := to_mra (mk_gmon le_PreOrder w).
 
     Definition monoBlack (w: W): iProp :=
-      OwnG.to_t k (● (leR w) ⋅ ◯ (leR w)).
+      own k (● (leR w) ⋅ ◯ (leR w)).
 
     Definition monoWhiteExact (w: W): iProp :=
-      OwnG.to_t k (◯ (leR w)).
+      own k (◯ (leR w)).
 
     Definition monoWhite (w0: W): iProp :=
       ∃ w1, monoWhiteExact w1 ∧ ⌜le w0 w1⌝.
@@ -225,13 +235,7 @@ Section Monotone.
         (w: W)
     :
     ⊢ #=> (∃ k, monoBlack k le_PreOrder w).
-  Proof.
-    iMod own_alloc as (k) "H".
-    { eapply auth_both_valid_discrete. split; [|done].
-      reflexivity.
-    }
-    iModIntro. iExists k. auto.
-  Qed.
+  Proof. by apply own_alloc,auth_both_valid_discrete. Qed.
 End Monotone.
 
 
@@ -305,7 +309,7 @@ Qed.
 
 
 Section UPDATING.
-  Context `{Σ: @GRA.t}.
+  Context `{Σ: gFunctors}.
   Notation iProp := (iProp Σ).
 
   Definition updating (I: iProp) (P Q R: iProp): iProp :=
@@ -431,10 +435,10 @@ Module OneShot.
 End OneShot.
 Global Arguments OneShot.shot {_} _.
 
-Module OneShotP.
+(* Module OneShotP.
 
-  Definition pending A `{@GRA.inG (OneShot.t A) Σ} (q : Qp) : iProp Σ :=
-    OwnM (OneShot.pending A q).
+  Definition pending A `{!inG Σ (OneShot.t A)} (q : Qp) : iProp Σ :=
+    own γ (OneShot.pending A q).
 
   Definition shot `{@GRA.inG (OneShot.t A) Σ} a : iProp Σ := OwnM (OneShot.shot a).
 
@@ -511,7 +515,7 @@ Module OneShotP.
 
 Global Typeclasses Opaque shot pending.
 Global Opaque shot pending.
-End OneShotP.
+End OneShotP. *)
 
 From iris.algebra Require Import lib.dfrac_agree.
 Module Consent.
@@ -559,7 +563,7 @@ Module Consent.
 End Consent.
 Global Arguments Consent.vote {_} _ _.
 
-Module ConsentP.
+(* Module ConsentP.
   Lemma vote_agree (A: Type)
         `{@GRA.inG (Consent.t A) Σ}
         (a0 a1: A) q0 q1
@@ -639,4 +643,4 @@ Module ConsentP.
   Qed.
   Global Typeclasses Opaque voted voted_singleton.
   Global Opaque voted voted_singleton.
-End ConsentP.
+End ConsentP. *)
