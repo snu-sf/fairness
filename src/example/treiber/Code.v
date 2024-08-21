@@ -21,6 +21,7 @@ Module TreiberStack.
       ktree (threadE ident state) (SCMem.val * SCMem.val) unit
       :=
       fun '(s, node) =>
+      (* Proof becomes a bit more annoying with generic CAS & re-using the result from the old head, but should still be possible? *)
       ITree.iter (fun (_ : unit) =>
         head <- (OMod.call (R:=SCMem.val) "load" s);;
         _ <- (OMod.call (R:=unit) "store" (node,head));;

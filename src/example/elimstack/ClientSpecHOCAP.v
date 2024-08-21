@@ -97,7 +97,7 @@ Section SPEC.
 
     iApply (Elim_push_spec nESMod ltac:(solve_ndisj) (⤉ (dead γk k ∗ syn_inv n nESpush (push_then_pop n γs γpop)))%S with "[Duty Pck PcSt Live] [-]").
     { simpl. red_tl_all. rewrite red_syn_tgt_interp_as. iSplit; [eauto|]. iSplitR; [iFrame "#"|]. simpl.
-      iFrame. simpl.
+      iFrame "Duty Pck". simpl.
       iDestruct (pcs_cons_fold with "[PcSt]") as "$".
       { simpl. iFrame. }
       rewrite red_syn_atomic_update.

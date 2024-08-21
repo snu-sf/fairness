@@ -2,7 +2,7 @@ From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
 From Fairness Require Import PCM IPM IPropAux.
-From Fairness Require Import NatMapRALarge MonotoneRA RegionRA.
+From Fairness Require Import RegionRA.
 Require Import Coq.Classes.RelationClasses.
 (* Require Import Coq.Logic.PropExtensionality. *)
 From Fairness Require Import Axioms.
@@ -287,9 +287,7 @@ Module CounterRA.
 End CounterRA.
 Global Arguments CounterRA.t _ : clear implicits.
 
-
-
-Lemma ord_mult_split (n: nat)
+Local Lemma ord_mult_split (n: nat)
   :
   ((Ord.omega ⊕ Ord.large × n) <= (Ord.large × (S n)))%ord.
 Proof.
@@ -300,6 +298,8 @@ Proof.
   rewrite Ord.omega_from_peano_lt_set.
   apply Ord.large_lt_from_wf_set.
 Qed.
+
+From Fairness Require Export FiniteMapRA OneShotRA IUpd ListIProp.
 
 Module ObligationRA.
 
@@ -615,8 +615,6 @@ Module ObligationRA.
     Qed.
 
   End RA.
-  Global Typeclasses Opaque black white pending shot.
-  Global Opaque black white pending shot.
 
   Section EDGE.
 
@@ -710,8 +708,6 @@ Module ObligationRA.
     Qed.
 
   End EDGE.
-  Global Typeclasses Opaque edge edges_sat amplifier.
-  Global Opaque edge edges_sat amplifier.
 
   Section ARROW.
     Variable (S: Type).
@@ -2213,8 +2209,6 @@ Module ObligationRA.
       Definition arrows_auth j : iProp :=
         OwnM (@Regions.nauth_ra (fun i => (S * nat * Ord.t * Qp * nat * Vars i)%type) j).
     End SATS.
-    Global Typeclasses Opaque arrow arrows arrows_sat delay.
-    Global Opaque arrow arrows arrows_sat delay.
 
     Section COLLECT.
 
@@ -2376,8 +2370,6 @@ Module ObligationRA.
       iPoseProof (duty_correl with "DUTY SHOT") as "# CORR"; [eauto|].
       iExists _. eauto.
     Qed.
-    Local Typeclasses Opaque delay.
-    Local Opaque delay.
   End ARROWTHREAD.
 
 

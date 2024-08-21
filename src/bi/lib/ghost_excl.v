@@ -6,7 +6,7 @@ From iris.proofmode Require Import proofmode.
 From Fairness Require Import OwnGhost.
 From iris.prelude Require Import options.
 
-Definition ghost_exclURA (A : Type) : ucmra := OwnG.t (exclR (leibnizO A)).
+Definition ghost_exclURA (A : Type) : ucmra := ownRA (exclR (leibnizO A)).
 
 Section definitions.
   Context `{Σ : GRA.t}.
@@ -15,10 +15,10 @@ Section definitions.
   Context `{GEXCLRA : @GRA.inG (ghost_exclURA A) Σ}.
 
   Definition ghost_excl_ra (γ : nat) a : ghost_exclURA A :=
-    OwnG.ra γ (Excl (a : leibnizO A)).
+    to_own γ (Excl (a : leibnizO A)).
 
   Definition ghost_excl (γ : nat) a : iProp Σ :=
-    OwnG.to_t γ (Excl (a : leibnizO A)).
+    own γ (Excl (a : leibnizO A)).
 End definitions.
 
 Notation "'GEx' γ a " := (ghost_excl γ a) (at level 90, γ,a at level 1) : bi_scope.
@@ -61,7 +61,7 @@ Context `{GEXCLRA : @GRA.inG (ghost_exclURA A) Γ}.
   Lemma red_syn_ghost_excl n γ a :
     ⟦syn_ghost_excl γ a, n⟧ = ghost_excl γ a.
   Proof.
-    unfold syn_ghost_excl. red_tl. unseal. rewrite own_to_t_eq. ss.
+    unfold syn_ghost_excl. red_tl. unseal. rewrite own_to_own_eq. ss.
   Qed.
 
 End SPROP.

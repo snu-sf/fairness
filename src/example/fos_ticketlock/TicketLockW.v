@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From iris.algebra Require Import auth excl_auth cmra updates mra.
+From iris.algebra Require Import auth excl_auth cmra updates functions.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
 From Fairness Require Import PCM IPM IPropAux OwnGhost.
@@ -331,52 +331,7 @@ Section AUX.
 
 End AUX.
 
-(* TODO: move this *)
-Section MONOTONE_SPROP.
-
-  Context {STT : StateTypes}.
-  Context `{sub : @SRA.subG Γ Σ}.
-  Context {TLRASs : TLRAs_small STT Γ}.
-  Context {TLRAS : TLRAs STT Γ Σ}.
-
-  Context `{HasMono : @GRA.inG monoRA Γ}.
-
-  Variable k: nat.
-
-  Variable W: Type.
-  Variable le: W -> W -> Prop.
-  Hypothesis le_PreOrder: PreOrder le.
-
-  Let leR (w: W) : mra gmon_le := to_mra (mk_gmon le_PreOrder w).
-
-
-  Definition s_monoBlack {n} (w : W) : sProp n :=
-    (➢(OwnG.ra k (● (leR w) ⋅ ◯ (leR w))))%S.
-
-  Lemma red_s_monoBlack n (w : W) :
-    ⟦s_monoBlack w, n⟧ = monoBlack k _ w.
-  Proof.
-    unfold s_monoBlack. red_tl. rewrite -own_to_t_eq. ss.
-  Qed.
-
-  Definition s_monoWhite {n} (w1 : W) : sProp n :=
-    (∃ w2 : τ{W, n},
-      ➢(OwnG.ra k (◯ (leR w2)))
-      ∧ ⌜le w1 w2⌝)%S.
-
-  Lemma red_s_monoWhite n (w : W) :
-    ⟦s_monoWhite w, n⟧ = monoWhite k _ w.
-  Proof.
-    unfold s_monoWhite, monoWhite. red_tl. ss. f_equal. extensionalities.
-    red_tl. rewrite -own_to_t_eq. unfold monoWhiteExact. ss.
-  Qed.
-
-End MONOTONE_SPROP.
-
-Ltac red_tl_monoRA :=
-  (try rewrite ! red_s_monoBlack;
-  try rewrite ! red_s_monoWhite).
-
+(* TODO: Move *)
 Section OWNMS_SPROP.
 
   Context {STT : StateTypes}.
@@ -384,13 +339,13 @@ Section OWNMS_SPROP.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
   Context `{IN1: @GRA.inG R Γ}.
-  Context `{IN2: @GRA.inG (Id ==> R)%ra Γ}.
+  Context `{IN2: @GRA.inG (Id -d> R) Γ}.
 
   Definition s_OwnMs {n} (s: Id -> Prop) (u: R) : sProp n :=
     (➢((fun i =>
       if (excluded_middle_informative (s i))
       then u
-      else ε): (Id ==> R)%ra))%S.
+      else ε): discrete_fun _ ))%S.
 
   Lemma red_s_OwnMs n (s: Id -> Prop) (u: R) :
     ⟦s_OwnMs s u, n⟧ = OwnMs s u.
@@ -417,7 +372,7 @@ Section SIM.
   Context `{MONORA: @GRA.inG monoRA Γ}.
   Context `{NATMAPRA: @GRA.inG (authUR (NatMapRA.t TicketLockW.tk)) Γ}. (* waiters natmap ra *)
   Context `{AUTHRA2: @GRA.inG (excl_authUR (leibnizO (((nat * nat) * View.t)))) Γ}. (* token *)
-  Context `{IN2: @GRA.inG (thread_id ==> (excl_authUR (leibnizO (list nat))))%ra Γ}. (* ticket token ra *)
+  Context `{IN2: @GRA.inG (thread_id -d> (excl_authUR (leibnizO (list nat)))) Γ}. (* ticket token ra *)
   Context {HasOneShots : @GRA.inG (OneShots.t unit) Γ}.
 
 
@@ -473,6 +428,17 @@ Section SIM.
               ∗ ◇[κa](4 + tk, tk - now)
               ∗ ➢(maps_to_res th (●E ([κa; γs]: leibnizO _)))%I)))
     ∗ s_monoBlack monok mypreord (now, Tkst.c κm))%S.
+
+  Lemma ticket_lock_inv_unlocking_eq n l tks now next myt κm :
+    ⟦ ticket_lock_inv_unlocking n l tks now next myt κm, n ⟧ ⊣⊢
+    own_thread myt ∗ ⌜tkqueue l tks (S now) next⌝ ∗
+      natmap_prop_sum tks
+        (λ t a : nat,
+           ⟦ ⟨ Atom.fair_white_src Prism.id t (a - S now) ⟩%S ∗
+           (∃ κa γs : τ{nat,n}, ◆[κa, (S (S (S (S a))))] ∗ -[κa](0)-⧖ (▿ γs ()) ∗ ⧖[κa,
+              (1 / 2)] ∗ (△ γs 1) ∗ ◇[κa]((S (S (S (S a)))), (a - now)) ∗
+              ➢ maps_to_res t (●E ([κa; γs]: leibnizO _)))%S, n ⟧) ∗ monoBlack monok mypreord (now, Tkst.c κm).
+  Proof. unfold ticket_lock_inv_unlocking. red_tl_all. simpl in *. f_equiv. Qed.
 
   Definition ticket_lock_inv_unlocked0
              n (l: list thread_id) (tks: NatMap.t nat) (now next : nat)
@@ -546,23 +512,55 @@ Section SIM.
     ∗ ◆[κm, 1])%S.
 
   Definition ticket_lock_inv_state
-             n (own: bool) (svw: View.t) (ing: bool) (tks: NatMap.t nat) : sProp n :=
-    (STSRC {(own, svw, ing, (key_set tks))})%S
+             n (own': bool) (svw: View.t) (ing: bool) (tks: NatMap.t nat) : sProp n :=
+    (STSRC {(own', svw, ing, (key_set tks))})%S
   .
 
   Definition ticket_lock_inv n : sProp n :=
-    (∃ (own ing: τ{bool, n}) (V: τ{View.t, n}) (κm: τ{nat, n})
+    (∃ (own' ing: τ{bool, n}) (V: τ{View.t, n}) (κm: τ{nat, n})
       (l: τ{list thread_id, n}) (tks: τ{NatMap.t nat, n}) (now next: τ{nat, n}) (myt: τ{thread_id, n}),
       (ticket_lock_inv_tks n tks)
       ∗ (ticket_lock_inv_mem n V κm now next myt)
-      ∗ (ticket_lock_inv_state n own V ing tks)
-      ∗ ((⌜own = true⌝
+      ∗ (ticket_lock_inv_state n own' V ing tks)
+      ∗ ((⌜own' = true⌝
           ∗ ((⌜ing = false⌝ ∗ (ticket_lock_inv_locked n l tks now next myt V κm))
             ∨ (⌜ing = true⌝ ∗ (ticket_lock_inv_unlocking n l tks now next myt κm))))
-        ∨ (⌜own = false⌝
+        ∨ (⌜own' = false⌝
           ∗ ⌜ing = false⌝
           ∗ ((ticket_lock_inv_unlocked0 n l tks now next myt V κm)
             ∨ (ticket_lock_inv_unlocked1 n l tks now next myt V κm)))))%S.
+
+  Lemma ticket_lock_inv_eq n :
+    ⟦ticket_lock_inv n, n⟧ ⊣⊢
+    ∃ (own' ing: bool) (V: View.t) (κm: nat)
+      (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
+      ⟦ticket_lock_inv_tks n tks, n⟧
+      ∗ ⟦ticket_lock_inv_mem n V κm now next myt,n⟧
+      ∗ ⟦ticket_lock_inv_state n own' V ing tks,n⟧
+      ∗ ((⌜own' = true⌝
+          ∗ ((⌜ing = false⌝ ∗ ⟦ticket_lock_inv_locked n l tks now next myt V κm,n⟧)
+            ∨ (⌜ing = true⌝ ∗ ⟦ticket_lock_inv_unlocking n l tks now next myt κm,n⟧)))
+        ∨ (⌜own' = false⌝
+          ∗ ⌜ing = false⌝
+          ∗ (⟦ticket_lock_inv_unlocked0 n l tks now next myt V κm,n⟧
+            ∨ ⟦ticket_lock_inv_unlocked1 n l tks now next myt V κm,n⟧))).
+  Proof. f_equiv. Qed.
+
+  Lemma ticket_lock_inv_unfold n :
+    ⟦ticket_lock_inv n, n⟧ ⊢
+    ∃ (own' ing: bool) (V: View.t) (κm: nat)
+      (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
+      ⟦ticket_lock_inv_tks n tks, n⟧
+      ∗ ⟦ticket_lock_inv_mem n V κm now next myt,n⟧
+      ∗ ⟦ticket_lock_inv_state n own' V ing tks,n⟧
+      ∗ ((⌜own' = true⌝
+          ∗ ((⌜ing = false⌝ ∗ ⟦ticket_lock_inv_locked n l tks now next myt V κm,n⟧)
+            ∨ (⌜ing = true⌝ ∗ ⟦ticket_lock_inv_unlocking n l tks now next myt κm,n⟧)))
+        ∨ (⌜own' = false⌝
+          ∗ ⌜ing = false⌝
+          ∗ (⟦ticket_lock_inv_unlocked0 n l tks now next myt V κm,n⟧
+            ∨ ⟦ticket_lock_inv_unlocked1 n l tks now next myt V κm,n⟧))).
+  Proof. f_equiv. Qed.
 
   Ltac desas H name := iEval (red_tl; simpl) in H; iDestruct H as (name) H.
 
@@ -588,7 +586,7 @@ Section SIM.
       ⟦ticket_lock_inv_unlocking n l tks now next myt κm, n⟧
       -∗ ⌜False⌝.
   Proof.
-    iIntros "MYT I". unfold ticket_lock_inv_unlocking. red_tl_all; simpl.
+    iIntros "MYT I". rewrite ticket_lock_inv_unlocking_eq.
     iDestruct "I" as "(_ & %I2 & _ & I3)".
     iPoseProof (black_white_compare with "MYT I3") as "%LE". exfalso.
     hexploit (tkqueue_val_range_l I2 _ FIND). i. inv LE; try lia.
@@ -623,7 +621,7 @@ Section SIM.
         κa γs
         (FIND: NatMap.find tid tks = Some mytk)
     :
-    (maps_to tid (◯E ([κa; γs] : leibnizO _)))
+    (OwnM (maps_to_res tid (◯E ([κa; γs] : leibnizO _))))
     -∗ (monoWhite monok mypreord (mytk, o))
     -∗ ⟦ticket_lock_inv_unlocked1 n l tks now next myt V κm, n⟧
     -∗ (⌜now = mytk⌝ ∗ κm -(2)-◇ κa).
@@ -639,12 +637,9 @@ Section SIM.
     iPoseProof (black_white_compare with "MONO MONB") as "%LE".
     hexploit (tkqueue_val_range_l I1 _ FIND). i. inv LE; auto. lia. iSplit. auto.
     exploit tkqueue_inv_unique. eauto. eauto. inv I1. clarify. apply FIND0. i; clarify.
-    iCombine "MY MY2" as "MY".
-    iPoseProof (OwnM_valid with "MY") as "%EQ".
-    specialize (EQ yourt). unfold maps_to_res in EQ.
-    rewrite /maps_to_res discrete_fun_lookup_op in EQ.
-    des_ifs. apply excl_auth_agree_L in EQ.
-    injection EQ. ii. subst. done.
+    iCombine "MY MY2" gives %EQ.
+    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid in EQ.
+    by apply excl_auth_agree_L in EQ as [= -> ->].
   Qed.
 
   Lemma locked_contra
@@ -685,14 +680,14 @@ Section SIM.
   Qed.
 
   Lemma yourturn_range i
-        tid tks mytk now next own ing l myt V κm
+        tid tks mytk now next own' ing l myt V κm
         (FIND : NatMap.find tid tks = Some mytk)
         (NEQ : mytk ≠ now)
   :
-    ⟦(⌜own = true⌝
+    ⟦(⌜own' = true⌝
         ∗ (⌜ing = false⌝ ∗ (⤉ ticket_lock_inv_locked i l tks now next myt V κm)
           ∨ ⌜ing = true⌝ ∗ (⤉ ticket_lock_inv_unlocking i l tks now next myt κm))
-      ∨ ⌜own = false⌝ ∗ ⌜ing = false⌝
+      ∨ ⌜own' = false⌝ ∗ ⌜ing = false⌝
         ∗ ((⤉ ticket_lock_inv_unlocked0 i l tks now next myt V κm)
           ∨ (⤉ ticket_lock_inv_unlocked1 i l tks now next myt V κm)))%S, 1+i⟧
     ⊢
@@ -702,7 +697,7 @@ Section SIM.
     iIntros "[[%CT [[%IF I] | [%IT I]]] | [%CF [%IF [I | I]]]]".
     { unfold ticket_lock_inv_locked. red_tl_all. iDestruct "I" as "[_ [%I1 _]]".
       hexploit (tkqueue_val_range_l I1 _ FIND). i. iPureIntro. lia. }
-    { unfold ticket_lock_inv_unlocking. red_tl_all. iDestruct "I" as "[_ [%I1 _]]".
+    { rewrite ticket_lock_inv_unlocking_eq. iDestruct "I" as "[_ [%I1 _]]".
       hexploit (tkqueue_val_range_l I1 _ FIND). i. iPureIntro. lia. }
     { iPoseProof (unlocked0_contra with "I") as "%FF". eauto. inv FF. }
     { iPoseProof (unlocked1_mono with "I") as "[%I1 _]".
@@ -763,10 +758,8 @@ Section SIM.
 
     iApply wpsim_tidL. lred. rred2r.
 
-    iInv "TINV" as "TI" "TI_CLOSE". iEval (simpl; unfold ticket_lock_inv) in "TI".
-    desas "TI" own; desas "TI" ing; desas "TI" V; desas "TI" κm;
-      desas "TI" l; desas "TI" tks; desas "TI" now; desas "TI" next; desas "TI" myt; red_tl_all.
-    iDestruct "TI" as "[TKS [MEM [ST CASES]]]".
+    iInv "TINV" as "TI" "TI_CLOSE".
+    iDestruct (ticket_lock_inv_unfold with "TI") as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
     iEval (unfold ticket_lock_inv_state; red_tl_all; ss) in "ST". lred2r. rred2r.
     iApply wpsim_getL. iSplit. auto. lred.
     iApply (wpsim_modifyL with "ST"). iIntros "ST".
@@ -774,7 +767,7 @@ Section SIM.
     iEval (unfold ticket_lock_inv_mem; red_tl_all; ss) in "MEM".
     iDestruct "MEM" as "(MEM1 & MEM2 & MEM3 & MEM4 & MEM5 & #MEM6)".
     iApply (WMem_faa_fun_spec with "[WMEM MEM2] [-]"). auto.
-    { pose proof mask_disjoint_ticketlock_state_tgt. set_solver. } ss. iFrame. auto.
+    { solve_ndisj. } ss. iFrame. auto.
     iIntros (rv) "[%Vfaa [% [MEM2 VLE]]]". clarify. rred2r. iApply wpsim_tauR. rred2r.
 
     iEval (unfold ticket_lock_inv_tks; red_tl_all; simpl) in "TKS".
@@ -788,7 +781,7 @@ Section SIM.
     }
 
     iPoseProof (NatMapRA_add with "TKS0") as ">[TKS0 MYTK]". eauto. instantiate (1:=next).
-    iAssert (St_src (own, V, ing, (key_set tks')))%I with "[ST]" as "ST".
+    iAssert (St_src (own', V, ing, (key_set tks')))%I with "[ST]" as "ST".
     { subst tks'. rewrite key_set_pull_add_eq. iFrame. }
     iPoseProof ((FairRA.whites_unfold _ (fun id => ~ NatMap.In id tks') _ (i:=tid)) with "TKS1") as "[TKS1 MYTRI]".
     { subst tks'. i. ss. des; clarify.
@@ -824,16 +817,16 @@ Section SIM.
     iPoseProof (duty_delayed_tpromise with "DUTY") as "#DPRM". simpl; left; auto.
 
     iPoseProof (OwnM_Upd with "MYNUM") as "> MYNUM".
-    { eapply maps_to_updatable.
+    { eapply discrete_fun_singleton_update.
       (* excl_auth_update. *)
       instantiate (1:=(●E ([κa; γs] : leibnizO _) ⋅ _)).
       eapply excl_auth_update.
     }
-    rewrite <- maps_to_res_add. iDestruct "MYNUM" as "[MYNB MYNW]".
+    rewrite <- discrete_fun_singleton_op. iDestruct "MYNUM" as "[MYNB MYNW]".
 
     iAssert (=|S i|=(fairI (S i))={⊤ ∖ ↑N_Ticketlock_w}=> (prop i (ticket_lock_inv i)))
       with "[- DUTY TI_CLOSE MYTK PC3 MYNW VLE SIM]" as "> TI".
-    { unfold ticket_lock_inv; simpl; red_tl. repeat (iExists _; simpl; red_tl).
+    { rewrite /= ticket_lock_inv_eq. repeat iExists _.
       unfold ticket_lock_inv_tks, ticket_lock_inv_mem, ticket_lock_inv_state; red_tl_all; simpl.
       iSplitL "TKS0 TKS1 TKS2 TKS3". iFrame. iModIntro; auto.
       iSplitL "MEM1 MEM2 MEM3 MEM4 MEM5 MEM6".
@@ -865,7 +858,7 @@ Section SIM.
         { iPureIntro. apply tkqueue_enqueue; eauto. }
         iPoseProof (natmap_prop_sum_add with "[INV2]") as "INV2". iFrame.
         iApply "INV2". red_tl_all; ss. iFrame.
-        repeat (iExists _; red_tl). simpl. iFrame. repeat iSplit; auto. red_tl_all. auto.
+        repeat (iExists _; red_tl). red_tl_all. simpl. iFrame "∗#".
       }
       { iPoseProof (FairRA.white_mon with "MYTRI") as ">MYTRI".
         { instantiate (1:=Ord.from_nat (next - now)). ss. apply Ord.lt_le. apply Ord.omega_upperbound. }
@@ -929,7 +922,7 @@ Section SIM.
         (src: itree (threadE _  (Mod.state AbsLockW.mod)) View.t)
         (tgt: itree (threadE _  (OMod.closed_state TicketLockW.omod (WMem.mod))) View.t)
         (tid mytk now: nat)
-        tks next l myt own V ing
+        tks next l myt own' V ing
         (NEQ: mytk <> now)
         κa γs κm
     :
@@ -937,12 +930,12 @@ Section SIM.
     ∗ ⤉ (➢ (maps_to_res tid (◯E ([κa; γs] : leibnizO _))))
     ∗ ⤉ (ticket_lock_inv_tks i tks)
     ∗ ⤉ (ticket_lock_inv_mem i V κm now next myt)
-    ∗ ⤉ (ticket_lock_inv_state i own V ing tks)
+    ∗ ⤉ (ticket_lock_inv_state i own' V ing tks)
     ∗ (⤉ Duty(tid) [(κa, 0, (▿ γs ())%S)])
-    ∗ (⌜own = true⌝
+    ∗ (⌜own' = true⌝
       ∗ (⌜ing = false⌝ ∗ (⤉ ticket_lock_inv_locked i l tks now next myt V κm)
         ∨ ⌜ing = true⌝ ∗ (⤉ ticket_lock_inv_unlocking i l tks now next myt κm))
-      ∨ ⌜own = false⌝ ∗ ⌜ing = false⌝
+      ∨ ⌜own' = false⌝ ∗ ⌜ing = false⌝
       ∗ ((⤉ ticket_lock_inv_unlocked0 i l tks now next myt V κm)
         ∨ (⤉ ticket_lock_inv_unlocked1 i l tks now next myt V κm)))
     ∗ ((⤉ ticket_lock_inv i) =| S i |={ ⊤ ∖ ↑N_Ticketlock_w, ⊤ }=∗ emp))%S, 1+i⟧
@@ -950,10 +943,10 @@ Section SIM.
     ∗ ⤉ (➢ (◯ (NatMapRA.singleton tid (mytk : nat) : NatMapRA.t nat)))
     ∗ ⤉ (➢ (maps_to_res tid (◯E ([κa; γs] : leibnizO _))))
     ∗ €)%S, 1+i⟧
-    -∗ wpsim (STATESRC:=@SRA.in_subG Γ Σ sub _ _STATESRC)
+    -∗ wpsim (STATESRC:=@SRA.in_subG Γ Σ sub _ _STATESRC) (STATETGT:=@SRA.in_subG Γ Σ sub _ _STATETGT)
       (S i) tid ⊤ g0 g1 (fun rs rt => (⟦⤉ syn_term_cond i tid View.t rs rt, 1+i⟧)%S) ps true
         (trigger Yield;;; src) (tgt))
-  ⊢ wpsim (STATESRC:=@SRA.in_subG Γ Σ sub _ _STATESRC)
+  ⊢ wpsim (STATESRC:=@SRA.in_subG Γ Σ sub _ _STATESRC) (STATETGT:=@SRA.in_subG Γ Σ sub _ _STATETGT)
     (S i) tid (⊤ ∖ ↑N_Ticketlock_w) g0 g1 (fun rs rt => (⟦⤉ syn_term_cond i tid View.t rs rt, 1+i⟧)%S) ps pt
     (trigger Yield;;; src)
     (trigger Yield;;; tgt).
@@ -968,14 +961,9 @@ Section SIM.
       iEval (red_tl_all; simpl) in "INV3". iDestruct "INV3" as "[INV3 [%κam INV5]]".
       iEval (red_tl) in "INV5". iDestruct "INV5" as "[%γsm INV5]". iEval (red_tl_all) in "INV5". simpl.
       iDestruct "INV5" as "(INV6 & INV7 & INV8 & INV9 & INV10 & INV11)".
-      iCombine "INV11 MY2" as "MY". rewrite maps_to_res_add.
-      iPoseProof (OwnM_valid with "MY") as "%MY".
-      specialize (MY tid).
-      rewrite /maps_to_res in MY. des_ifH MY; cycle 1.
-      { des_ifs. }
-      des.
-      apply excl_auth_agree_L in MY. injection MY. ii. subst. clear e MY.
-      rewrite <- maps_to_res_add. iDestruct "MY" as "[INV11 MY2]".
+      iCombine "INV11 MY2" gives %MY.
+      rewrite discrete_fun_singleton_op in MY.
+      apply discrete_fun_singleton_valid, excl_auth_agree_L in MY as [= -> ->].
 
       iApply (wpsim_yieldR_gen_pending with "[DUTY] [INV8]"). auto.
       4: iFrame. 4:{ iApply (pps_cons_fold with "[INV8]"). iSplitL; iFrame. iApply pps_nil. }
@@ -986,8 +974,7 @@ Section SIM.
       iPoseProof ("CLOSE" with "[INV3 INV6 INV7 PEND INV9 INV10 INV11]") as "CLOSE".
       { red_tl_all. simpl. iFrame. iExists _. red_tl. iExists _. red_tl_all. iFrame. }
       iPoseProof ("TI_CLOSE" with "[TKS MEM STATE INV1 INV2 INV4 CLOSE]") as "CLOSE".
-      { unfold ticket_lock_inv. do 9 (red_tl; iExists _). red_tl_all.
-        iSplitL "TKS". iFrame. iSplitL "MEM". auto. iSplitL "STATE". auto.
+      { rewrite ticket_lock_inv_eq. do 9 iExists _. iFrame.
         iLeft. iSplit; auto. iLeft. iSplit; auto.
         unfold ticket_lock_inv_locked. red_tl_all. iFrame.
       }
@@ -1001,26 +988,20 @@ Section SIM.
       iEval (red_tl_all; simpl) in "INV3". iDestruct "INV3" as "[INV3 [%κam INV5]]".
       iEval (red_tl) in "INV5". iDestruct "INV5" as "[%γsm INV5]". iEval (red_tl_all) in "INV5". simpl.
       iDestruct "INV5" as "(INV6 & INV7 & INV8 & INV9 & INV10 & INV11)".
-      iCombine "INV11 MY2" as "MY". rewrite maps_to_res_add.
-      iPoseProof (OwnM_valid with "MY") as "%MY".
-      specialize (MY tid).
-      rewrite /maps_to_res in MY. des_ifH MY; cycle 1.
-      { des_ifs. }
-      des.
-      apply excl_auth_agree_L in MY. injection MY. ii. subst. clear e MY.
-      rewrite <- maps_to_res_add. iDestruct "MY" as "[INV11 MY2]".
+      iCombine "INV11 MY2" gives %MY.
+      rewrite discrete_fun_singleton_op in MY.
+      apply discrete_fun_singleton_valid, excl_auth_agree_L in MY as [= -> ->].
 
-      iApply (wpsim_yieldR_gen_pending with "[DUTY] [INV8]"). auto.
-      4: iFrame. 4:{ iApply (pps_cons_fold with "[INV8]"). iSplitL; iFrame. iApply pps_nil. }
-      { instantiate (1:=[]). rewrite app_nil_r. done. }
+      iApply (wpsim_yieldR_gen_pending with "DUTY [INV8]"). auto.
+      4:{ iApply (pps_cons_fold with "[$INV8]"). iApply pps_nil. }
+      { erewrite app_nil_r. done. }
       { eauto using Forall2. }
       auto. auto.
       iIntros "DUTY CRED [PEND _] _".
       iPoseProof ("CLOSE" with "[INV3 INV6 INV7 PEND INV9 INV10 INV11]") as "CLOSE".
       { red_tl_all. simpl. iFrame. iExists _. red_tl. iExists _. red_tl_all. iFrame. }
       iPoseProof ("TI_CLOSE" with "[TKS MEM STATE INV1 INV2 INV4 CLOSE]") as "CLOSE".
-      { unfold ticket_lock_inv. do 9 (red_tl; iExists _). red_tl_all.
-        iSplitL "TKS". iFrame. iSplitL "MEM". auto. iSplitL "STATE". auto.
+      { rewrite ticket_lock_inv_eq. do 9 iExists _. iFrame.
         iLeft. iSplit; auto. iRight. iSplit; auto.
         unfold ticket_lock_inv_unlocking. red_tl_all. iFrame.
       }
@@ -1040,29 +1021,23 @@ Section SIM.
       iEval (red_tl_all; simpl) in "INV4". iDestruct "INV4" as "[INV4 [%κam INV3]]".
       iEval (red_tl) in "INV3". iDestruct "INV3" as "[%γsm INV3]". iEval (red_tl_all) in "INV3". simpl.
       iDestruct "INV3" as "(INV6 & INV7 & INV8 & INV9 & INV10 & INV11 & INV12)".
-      iCombine "INV11 MY2" as "MY". rewrite maps_to_res_add.
-      iPoseProof (OwnM_valid with "MY") as "%MY".
-      specialize (MY tid).
-      rewrite /maps_to_res in MY. des_ifH MY; cycle 1.
-      { des_ifs. }
-      des.
-      apply excl_auth_agree_L in MY. injection MY. ii. subst. clear e MY.
-      rewrite <- maps_to_res_add. iDestruct "MY" as "[INV11 MY2]".
+      iCombine "INV11 MY2" gives %MY.
+      rewrite discrete_fun_singleton_op in MY.
+      apply discrete_fun_singleton_valid, excl_auth_agree_L in MY as [= -> ->].
 
-      iApply (wpsim_yieldR_gen_pending with "[DUTY] [INV8]"). auto.
-      4: iFrame. 4:{ iApply (pps_cons_fold with "[INV8]"). iSplitL; iFrame. iApply pps_nil. }
-      { instantiate (1:=[]). rewrite app_nil_r. done. }
+      iApply (wpsim_yieldR_gen_pending with "DUTY [INV8]"). auto.
+      4:{ iApply (pps_cons_fold with "[$INV8]"). iApply pps_nil. }
+      { erewrite app_nil_r. done. }
       { eauto using Forall2. }
       auto. auto.
       iIntros "DUTY CRED [PEND _] _".
       iPoseProof ("CLOSE" with "[INV4 INV6 INV7 PEND INV9 INV10 INV11 INV12]") as "CLOSE".
       { red_tl_all. simpl. iFrame. iExists _. red_tl. iExists _. red_tl_all. iFrame. }
       iPoseProof ("TI_CLOSE" with "[TKS MEM STATE INV1 INV5 CLOSE]") as "CLOSE".
-      { unfold ticket_lock_inv. do 9 (red_tl; iExists _). red_tl_all.
-        iSplitL "TKS". iFrame. iSplitL "MEM". auto. iSplitL "STATE". auto.
+      { rewrite ticket_lock_inv_eq. do 9 iExists _. iFrame.
         iRight. iSplit; auto. iSplit; auto. iRight.
         unfold ticket_lock_inv_unlocked1. red_tl_all. do 3 (iExists _; red_tl). red_tl_all. iFrame.
-        instantiate (1:=yourt :: waits). iSplit; auto.
+        instantiate (1:=l). iSplit; auto.
       }
       rewrite red_syn_fupd. iMod "CLOSE". iModIntro.
       iApply ("SIM" with "[DUTY MY1 MY2 CRED]"). iFrame.
@@ -1156,10 +1131,8 @@ Section SIM.
     2:{ iApply "IND". }
     iModIntro. iExists 0. iIntros "IH". iModIntro. iIntros (V') "DUTY MY1 MY2 PC VLE".
 
-    iInv "TINV" as "TI" "TI_CLOSE". iEval (simpl; unfold ticket_lock_inv) in "TI".
-    desas "TI" own; desas "TI" ing; desas "TI" V; desas "TI" κm;
-      desas "TI" l; desas "TI" tks; desas "TI" now; desas "TI" next2; desas "TI" myt; red_tl_all.
-    iDestruct "TI" as "[TKS [MEM [ST CASES]]]".
+    iInv "TINV" as "TI" "TI_CLOSE".
+    iDestruct (ticket_lock_inv_unfold with "TI") as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
 
     destruct (Nat.eq_dec mytk now).
     { subst. iClear "HG1 CIH".
@@ -1172,9 +1145,8 @@ Section SIM.
       subst. iPoseProof (unlocked1_mono with "I") as "[% #MONW]".
 
       iMod ("TI_CLOSE" with "[- DUTY MY1 MY2 VLE PC IH]") as "_".
-      { iEval (unfold ticket_lock_inv). simpl. repeat (red_tl; iExists _). red_tl_all.
-        iSplitL "TKS". auto. iSplitL "MEM". auto. iSplitL "ST". auto. iRight.
-        iSplit. auto. iSplit. auto. iRight. auto.
+      { rewrite /= ticket_lock_inv_eq. repeat iExists _.
+        iFrame. iRight. iSplit. auto. iSplit. auto. iRight. auto.
       }
 
       iApply (wpsim_yieldR2 with "[DUTY PC]"). auto.
@@ -1183,12 +1155,8 @@ Section SIM.
       iPoseProof (pcs_cons_unfold with "PCS") as "[PCS _]". simpl.
       rred2r.
 
-      iInv "TINV" as "TI" "TI_CLOSE". iEval (simpl; unfold ticket_lock_inv) in "TI".
-      clear V.
-      desas "TI" own; desas "TI" ing; desas "TI" V; desas "TI" κm2;
-        desas "TI" l2; desas "TI" tks2; desas "TI" now2; desas "TI" next3; desas "TI" myt2; red_tl_all.
-      iDestruct "TI" as "[TKS [MEM [ST CASES]]]".
-
+      iInv "TINV" as "TI" "TI_CLOSE". simpl.
+      iDestruct (ticket_lock_inv_unfold with "TI") as (own' ing V'' κm2 l2 tks2 now2 next3 myt2) "(TKS & MEM & ST & CASES)".
       clear FIND.
       iPoseProof (mytk_find_some with "[MY2 TKS]") as "%FIND". iFrame.
       iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [% [I | I]]]]".
@@ -1199,10 +1167,10 @@ Section SIM.
       iEval (unfold ticket_lock_inv_mem; red_tl_all; ss) in "MEM".
       iDestruct "MEM" as "(MEM1 & MEM2 & MEM3 & MEM4 & MEM5 & MEM6)".
       iApply (WMem_load_fun_spec with "[WMEM MEM1] [-]"). auto.
-      { pose proof mask_disjoint_ticketlock_state_tgt. set_solver. } iFrame. auto.
+      { solve_ndisj. } iFrame. auto.
       iIntros (rv) "(%Vload & %v & [% [MEM1 [[%FAIL PCM] | SUCC]]])".
       { iPoseProof (unlocked1_myturn with "MY1 MONW I") as "[%EQ #LINK]". auto. subst.
-        iMod (link_amplify with "[PCM LINK]") as "PC". iFrame. done. simpl.
+        iMod (link_amplify with "[$PCM]") as "PC". done. simpl.
         iMod (pc_drop _ 1 _ _ 2 with "PC") as "PC". auto. Unshelve. all: try lia.
         iPoseProof (pc_split _ _ 1 with "PC") as "[PC1 PC2]".
         iMod (pc_drop _ 0 _ _ 1 with "PC2") as "PC2". auto. Unshelve. all: try lia.
@@ -1214,10 +1182,9 @@ Section SIM.
         subst. rred2r. iApply wpsim_tauR.
 
         iMod ("TI_CLOSE" with "[- DUTY MY1 MY2 VLE PCS PC1 IH]") as "_".
-        { iEval (unfold ticket_lock_inv). simpl. repeat (red_tl; iExists _). red_tl_all.
-          iSplitL "TKS". auto. iSplitR "ST I".
+        { rewrite ticket_lock_inv_eq. repeat iExists _.
           unfold ticket_lock_inv_mem; red_tl_all. iFrame.
-          iSplitL "ST". auto. iRight. iSplit. auto. iSplit. auto. iRight; auto.
+          iRight. iSplit. auto. iSplit. auto. iRight; auto.
         }
 
         iApply wpsim_reset. rewrite unfold_iter_eq. rred2r.
@@ -1237,15 +1204,15 @@ Section SIM.
         iApply wpsim_getL. iSplit; auto. lred2r.
         iApply wpsim_getL. iSplit; auto. lred2r.
         iPure "VLE" as SVLE.
-        assert (SIG: View.le (View.join tvw V) Vload).
+        assert (SIG: View.le (View.join tvw V'') Vload).
         { apply View.join_spec. etrans. eapply SVLE. auto. auto. }
         iApply wpsim_chooseL. iExists (@exist View.t _ Vload SIG). lred2r.
         iApply (wpsim_modifyL with "ST"). iIntros "ST".
 
         remember (NatMap.remove tid tks2) as tks2'.
         rewrite <- key_set_pull_rm_eq. rewrite <- Heqtks2'.
-        iAssert (⟦ticket_lock_inv_state n true V false tks2', n⟧)%I with "[ST]" as "ST". iFrame.
-        iAssert (⟦ticket_lock_inv_mem n V κm2 now next3 myt2, n⟧)%I
+        iAssert (⟦ticket_lock_inv_state n true V'' false tks2', n⟧)%I with "[ST]" as "ST". iFrame.
+        iAssert (⟦ticket_lock_inv_mem n V'' κm2 now next3 myt2, n⟧)%I
           with "[MEM1 MEM2 MEM3 MEM4 MEM5 MEM6]" as "MEM".
         {  unfold ticket_lock_inv_mem. red_tl_all. simpl. iFrame. }
 
@@ -1260,17 +1227,10 @@ Section SIM.
         iPoseProof (NatMapRA_remove with "TKS1 MY2") as "> TKS1". rewrite <- Heqtks2'. simpl.
         iDestruct "TKS2" as "(TKS2 & TKS3 & TKS4)".
         iPoseProof (natmap_prop_remove_find with "TKS3") as "[TID TKS3]". eauto. rewrite <- Heqtks2'.
-        iCombine "I11 MY1" as "MY". rewrite maps_to_res_add.
-        iPoseProof (OwnM_valid with "MY") as "%MY".
-        specialize (MY tid).
-        rewrite /maps_to_res in MY. des_ifH MY; cycle 1.
-        { des_ifs. }
-        apply excl_auth_agree_L in MY. injection MY. ii. subst x3 x1. clear e MY.
+        iCombine "I11 MY1" as "MY". rewrite discrete_fun_singleton_op.
+        iDestruct (OwnM_valid with "MY") as %[= -> ->]%discrete_fun_singleton_valid%excl_auth_agree_L.
         iPoseProof (OwnM_Upd with "MY") as "> MY".
-        { eapply maps_to_updatable.
-          instantiate (1:=(●E ([] : leibnizO _) ⋅ _)).
-          apply excl_auth_update.
-        }
+        { eapply discrete_fun_singleton_update, excl_auth_update. }
         iPoseProof (OwnMs_fold with "[TKS4 MY]") as "TKS4".
         2:{ iSplitL "TKS4". iFrame. iFrame. }
         { instantiate (1:= fun id => ~ NatMap.In id tks2'). i. ss. subst tks2'.
@@ -1286,7 +1246,7 @@ Section SIM.
         { reflexivity. }
         i. rename I3 into I3Old, H1 into I3. unfold TicketLockW.tk in I3. rewrite <- Heqtks2' in I3.
 
-        iAssert (⟦ticket_lock_inv_locked n tl tks2' now next3 myt2 V κm2, n⟧
+        iAssert (⟦ticket_lock_inv_locked n tl tks2' now next3 myt2 V'' κm2, n⟧
           ∗ (natmap_prop_sum tks2' (fun th tk => FairRA.white Prism.id th (Ord.one))))%I
           with "[I1 I4 I5]" as "I1".
         { unfold ticket_lock_inv_locked. red_tl_all. iFrame.
@@ -1335,14 +1295,13 @@ Section SIM.
 
         lred2r.
         iMod ("TI_CLOSE" with "[- DUTY TID]") as "_".
-        { iEval (unfold ticket_lock_inv). do 9 (red_tl; iExists _). red_tl_all.
+        { rewrite ticket_lock_inv_eq. repeat iExists _.
           iSplitL "TKS1 TKS3 TKS2 TKS4".
           { unfold ticket_lock_inv_tks. red_tl_all; simpl. iFrame. }
-          iSplitL "MEM". iFrame.
-          iSplitL "ST". iFrame.
+          iFrame.
           iLeft. iSplit. auto. iLeft. iSplit. auto. auto.
         }
-        iApply (wpsim_sync with "[DUTY]"). auto. iFrame. iIntros "DUTY _".
+        iApply (wpsim_sync with "[$DUTY]"). auto. iIntros "DUTY _".
         lred2r. rred2r.
         iApply wpsim_tauR. rred2r. iApply wpsim_ret. auto. iModIntro. iFrame. auto.
       }
@@ -1355,12 +1314,10 @@ Section SIM.
       ss.
     }
     iEval (red_tl_all). iIntros "(DUTY & MY1 & MY2 & CRED)". simpl. rred2r.
-    clear own ing next2 myt now n0 κm l tks.
+    clear own' ing next myt now n0 κm l tks.
 
-    iInv "TINV" as "TI" "TI_CLOSE". iEval (simpl; unfold ticket_lock_inv) in "TI".
-    desas "TI" own2; desas "TI" ing2; desas "TI" V2; desas "TI" κm2;
-      desas "TI" l2; desas "TI" tks2; desas "TI" now2; desas "TI" next2; desas "TI" myt2; red_tl_all.
-    iDestruct "TI" as "[TKS [MEM [ST CASES]]]".
+    iInv "TINV" as "TI" "TI_CLOSE".
+    iDestruct (ticket_lock_inv_unfold with "TI") as (own2 ing2 V2 κm2 l2 tks2 now2 next2 myt2) "(TKS & MEM & ST & CASES)".
 
     destruct (Nat.eq_dec mytk now2).
     { subst. iClear "HG1 CIH".
@@ -1390,10 +1347,10 @@ Section SIM.
         subst. rred2r. iApply wpsim_tauR.
 
         iMod ("TI_CLOSE" with "[- DUTY MY1 MY2 VLE PC PC1 IH]") as "_".
-        { iEval (unfold ticket_lock_inv). simpl. repeat (red_tl; iExists _). red_tl_all.
-          iSplitL "TKS". auto. iSplitR "ST I".
+        { rewrite ticket_lock_inv_eq. repeat iExists _. iFrame.
+          iSplitR "I".
           unfold ticket_lock_inv_mem; red_tl_all. iFrame.
-          iSplitL "ST". auto. iRight. iSplit. auto. iSplit. auto. iRight; auto.
+          iRight. iSplit. auto. iSplit. auto. iRight; auto.
         }
 
         iApply wpsim_reset. rewrite unfold_iter_eq. rred2r.
@@ -1435,17 +1392,10 @@ Section SIM.
         iPoseProof (NatMapRA_remove with "TKS1 MY1") as "> TKS1". rewrite <- Heqtks2'. simpl.
         iDestruct "TKS2" as "(TKS2 & TKS3 & TKS4)".
         iPoseProof (natmap_prop_remove_find with "TKS3") as "[TID TKS3]". eauto. rewrite <- Heqtks2'.
-        iCombine "I11 MY2" as "MY". rewrite maps_to_res_add.
-        iPoseProof (OwnM_valid with "MY") as "%MY".
-        specialize (MY tid).
-        rewrite /maps_to_res in MY. des_ifH MY; cycle 1.
-        { des_ifs. }
-        apply excl_auth_agree_L in MY. injection MY. ii. subst x3 x1. clear e MY.
+        iCombine "I11 MY2" as "MY". rewrite discrete_fun_singleton_op.
+        iDestruct (OwnM_valid with "MY") as %[= -> ->]%discrete_fun_singleton_valid%excl_auth_agree_L.
         iPoseProof (OwnM_Upd with "MY") as "> MY".
-        { eapply maps_to_updatable.
-          instantiate (1:= ●E ([] : leibnizO _) ⋅ _).
-          apply excl_auth_update.
-        }
+        { apply discrete_fun_singleton_update, excl_auth_update. }
         iPoseProof (OwnMs_fold with "[TKS4 MY]") as "TKS4".
         2:{ iSplitL "TKS4". iFrame. iFrame. }
         { instantiate (1:= fun id => ~ NatMap.In id tks2'). i. ss. subst tks2'.
@@ -1509,11 +1459,9 @@ Section SIM.
 
         lred2r.
         iMod ("TI_CLOSE" with "[- DUTY TID]") as "_".
-        { iEval (unfold ticket_lock_inv). do 9 (red_tl; iExists _). red_tl_all.
+        { rewrite ticket_lock_inv_eq. do 9 iExists _. iFrame.
           iSplitL "TKS1 TKS3 TKS2 TKS4".
           { unfold ticket_lock_inv_tks. red_tl_all; simpl. iFrame. }
-          iSplitL "MEM". iFrame.
-          iSplitL "ST". iFrame.
           iLeft. iSplit. auto. iLeft. iSplit. auto. auto.
         }
         iApply (wpsim_sync with "[DUTY]"). auto. iFrame. iIntros "DUTY _".
@@ -1540,9 +1488,7 @@ Section SIM.
       iApply wpsim_getL. iSplit. auto. lred2r.
       iApply wpsim_tauL. lred2r. rewrite unfold_iter_eq. lred2r.
       iMod ("TI_CLOSE" with "[TKS ST INV MEM]").
-      { simpl.
-        iEval (unfold ticket_lock_inv). do 9 (iEval (red_tl); iExists _; red_tl).
-        iSplitL "TKS". auto. iSplitL "MEM". auto. iSplitL "ST". auto.
+      { rewrite /= ticket_lock_inv_eq. do 9 iExists _. iFrame.
         iLeft. iSplit. auto. iLeft. iSplit. auto. auto.
       }
       iApply wpsim_progress. iApply wpsim_base. set_solver.
@@ -1557,9 +1503,7 @@ Section SIM.
       iApply wpsim_getL. iSplit. auto. lred2r.
       iApply wpsim_tauL. lred2r. rewrite unfold_iter_eq. lred2r.
       iMod ("TI_CLOSE" with "[TKS ST INV MEM]").
-      { simpl.
-        iEval (unfold ticket_lock_inv). do 9 (iEval (red_tl); iExists _; red_tl).
-        iSplitL "TKS". auto. iSplitL "MEM". auto. iSplitL "ST". auto.
+      { rewrite /= ticket_lock_inv_eq. do 9 iExists _. iFrame.
         iLeft. iSplit. auto. iRight. iSplit. auto. auto.
       }
       iApply wpsim_progress. iApply wpsim_base. set_solver.
@@ -1594,20 +1538,15 @@ Section SIM.
       iDestruct "INV12" as "(INV12 & INV13 & INV14 & INV15 & INV16 & INV17 & #INV18)".
 
       iMod (link_amplify with "[INV18 PC2]") as "PC2". iFrame. iApply "INV18".
-      iCombine "INV17 MY2" as "MY". rewrite maps_to_res_add.
-      iPoseProof (OwnM_valid with "MY") as "%MY".
-      specialize (MY tid).
-      rewrite /maps_to_res in MY. des_ifH MY; cycle 1.
-      { des_ifs. }
-      apply excl_auth_agree_L in MY. injection MY. ii. subst x0 x1. clear e MY.
-      rewrite <- maps_to_res_add. iDestruct "MY" as "[INV17 MY2]".
+      iCombine "INV17 MY2" gives %MY.
+      rewrite discrete_fun_singleton_op in MY.
+      apply discrete_fun_singleton_valid, excl_auth_agree_L in MY as [= -> ->].
       iMod ("IH" with "PC2") as "IH".
       iPoseProof ("CLOSE" with "[INV4 INV12 INV13 INV14 INV15 INV16 INV17]") as "CLOSE".
       { red_tl. iFrame. iExists _; red_tl; iExists _; red_tl. iFrame. done. }
 
       iMod ("TI_CLOSE" with "[- PC VLE DUTY MY1 MY2 IH]").
-      { iEval (simpl; unfold ticket_lock_inv). repeat (red_tl; iExists _). red_tl.
-        iSplitL "TKS". auto. iSplitL "MEM". auto. iSplitL "ST". auto.
+      { rewrite ticket_lock_inv_eq. repeat iExists _. iFrame.
         iRight. iSplit; auto. iSplit; auto. iRight. unfold ticket_lock_inv_unlocked1.
         red_tl; iExists yourt; red_tl; iExists κay; red_tl; iExists waits. red_tl_all.
         iFrame. iSplit. auto. iSplit. auto.
@@ -1639,10 +1578,8 @@ Section SIM.
     unfold AbsLockW.unlock_fun, TicketLockW.unlock_fun. lred2r. rred2r.
     iApply (wpsim_sync with "[DUTY]"). auto. iFrame. iIntros "DUTY _". lred2r. rred2r.
 
-    iInv "INV" as "TI" "TI_CLOSE". iEval (unfold ticket_lock_inv; simpl) in "TI".
-    desas "TI" own; desas "TI" ing; desas "TI" V; desas "TI" κm;
-      desas "TI" l; desas "TI" tks; desas "TI" now; desas "TI" next; desas "TI" myt; red_tl_all.
-    iDestruct "TI" as "[TKS [MEM [ST CASES]]]".
+    iInv "INV" as "TI" "TI_CLOSE".
+    iDestruct (ticket_lock_inv_unfold with "TI") as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
 
     iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [%CF2 [I | I]]]]"; cycle 1.
     { subst. iApply wpsim_getL. iSplit. auto. rred. ss. des_ifs; lred2r; iApply wpsim_UB. }
@@ -1669,19 +1606,18 @@ Section SIM.
     instantiate (1:=(now, tid, V)).
     iDestruct "MEM3" as "[MEM3 HOLD]".
     iMod ("TI_CLOSE" with "[- DUTY HOLD]") as "_".
-    { iEval (unfold ticket_lock_inv). repeat (iEval (red_tl); iExists _). red_tl_all.
-      iSplitL "TKS". auto. iSplitL "PT MEM2 MEM3 MEM4 MEM5 MEM6". unfold ticket_lock_inv_mem. red_tl_all. simpl. iFrame "MEM4 ∗".
+    { rewrite ticket_lock_inv_eq. repeat iExists _. iFrame.
+      iSplitL "PT MEM2 MEM3 MEM4 MEM5 MEM6". unfold ticket_lock_inv_mem. red_tl_all. simpl. iFrame "MEM4 ∗".
       iSplitL "ST". auto.
       iLeft. iSplit; auto. iRight. iSplit; auto.
       unfold ticket_lock_inv_unlocking. red_tl_all. iFrame. done.
     }
 
-    iApply (wpsim_sync with "[DUTY]"). auto. iFrame. iIntros "DUTY _".
+    iApply (wpsim_sync with "[$DUTY]"). auto. iIntros "DUTY _".
 
-    iInv "INV" as "TI" "TI_CLOSE". iEval (unfold ticket_lock_inv; simpl) in "TI".
-    desas "TI" own2; desas "TI" ing2; desas "TI" V3; desas "TI" κm2;
-      desas "TI" l2; desas "TI" tks2; desas "TI" now2; desas "TI" next2; desas "TI" myt2; red_tl_all.
-    iDestruct "TI" as "[TKS [MEM [ST CASES]]]".
+    iInv "INV" as "TI" "TI_CLOSE".
+    iDestruct (ticket_lock_inv_unfold with "TI") as (own2 ing2 V3 κm2 l2 tks2 no2w next2 myt2) "(TKS & MEM & ST & CASES)".
+
     iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [%CF2 [I | I]]]]"; cycle 2.
     { subst. unfold ticket_lock_inv_unlocked0. red_tl_all. iDestruct "I" as "[C I]".
       iCombine "HOLD C" as "F". iOwnWf "F" as F.
@@ -1750,8 +1686,7 @@ Section SIM.
       iClear "MEM5".
       (* iAssert (ticket_lock_inv_state false V' false tks2)%I with "[ST]" as "ST". iFrame. *)
       iMod ("TI_CLOSE" with "[TKS MEM ST I3 I4 HOLD]") as "_".
-      { unfold ticket_lock_inv. do 9 (iEval red_tl; iExists _). red_tl_all.
-        iSplitL "TKS". auto. iSplitL "MEM". auto. iSplitL "ST". unfold ticket_lock_inv_state. red_tl_all. auto.
+      { rewrite ticket_lock_inv_eq. do 9 iExists _. iFrame "∗". iSplitL "ST". auto.
         iRight. iSplit. auto. iSplit. auto. iLeft. unfold ticket_lock_inv_unlocked0. red_tl_all. iFrame.
         iPureIntro. split; eauto. inv I2; ss.
       }
@@ -1777,7 +1712,7 @@ Section SIM.
         (λ t a : nat,
           #=(ObligationRA.edges_sat)=> FairRA.white (Id:=nat) Prism.id t (Ord.from_nat (a - S now))
           ∗ ⟦(∃ κa γs : τ{ (⇣ nat)%stype}, ◆[κa, (4 + a)] ∗ -[κa](0)-⧖ (▿ γs ()) ∗ ⧖[κa, (1 / 2)] ∗
-              (△ γs 1) ∗ ◇[κa]((4 + a), (a - S now)) ∗ ➢ maps_to_res t (●E ([κa; γs] : leibnizO _)) ∗
+              (△ γs 1) ∗ ◇[κa]((4 + a), (a - S now)) ∗ ➢ maps_to_res t _ ∗
               n1 -(0)-◇ κa)%S, i ⟧))%I with "[I3]" as "I3".
     { Unshelve. 2: apply ord_OrderedCM.
       2: { assert (id_src_type = nat). ss. rewrite <- H. apply (@SRA.in_subG Γ Σ sub _ _IDENTSRC). }
@@ -1802,8 +1737,8 @@ Section SIM.
       unfold wP, wQ in *. des; eauto.
     }
     iMod ("TI_CLOSE" with "[- DUTY I1]") as "_".
-    { unfold ticket_lock_inv. do 9 (red_tl; iExists _). red_tl_all.
-      iSplitL "TKS". auto. iSplitL "MEM". auto. iSplitL "ST". auto.
+    { rewrite ticket_lock_inv_eq. do 9 iExists _. red_tl_all. iFrame.
+      iSplitL "ST". auto.
       iRight. iSplit. auto. iSplit. auto. iRight. unfold ticket_lock_inv_unlocked1.
       red_tl; iExists hd; red_tl; iExists n1; red_tl; iExists tl. red_tl_all. iFrame. iSplit; auto. iSplit; auto.
       iPoseProof "NEXT4" as "#NEXT4".
@@ -1826,7 +1761,7 @@ Section SIM.
         ∗ OwnM (◯E ((0, 0, View.bot) : leibnizO _)
           ⋅ ●E ((0, 0, View.bot): leibnizO _))
         ∗ OwnM ((fun _ => (●E ([] : leibnizO _))
-          ⋅ (◯E ([] : leibnizO _))): (thread_id ==> (excl_authUR (leibnizO (list nat))))%ra)
+          ⋅ (◯E ([] : leibnizO _))): (thread_id -d> (excl_authUR (leibnizO (list nat)))))
         ∗ OwnM (Σ:=Σ) (●{#1} (NatMapRA.to_Map (NatMap.empty nat))))
         ∗ (WSim.initial_prop
           AbsLockW.mod TicketLockW.module
@@ -1855,17 +1790,14 @@ Section SIM.
     iPoseProof (@monoBlack_alloc _ _ _ _ wmpreord (0, _)) as "> [%wm_mono MONO2]".
     iMod (FUpd_alloc _ _ _ idx N_Ticketlock_w (ticket_lock_inv monok tk_mono wm_mono idx)
       with "[- MBLACK INIT1 INIT5]") as "ALLOC". auto.
-    { unfold ticket_lock_inv. ss.
-      red_tl; iExists false. red_tl; iExists false. red_tl; iExists View.bot.
-      red_tl; iExists _. red_tl; iExists []. red_tl; iExists (NatMap.empty nat).
-      do 3 (red_tl; iExists 0). red_tl.
+    { rewrite /= ticket_lock_inv_eq. iExists false,false,View.bot,_,[],(NatMap.empty nat),0,0,0.
       iSplitL "OWN2 OWN3 INIT0".
       { unfold ticket_lock_inv_tks. red_tl. simpl. iFrame. iSplitL "INIT0".
         { iApply (FairRA.whites_impl with "INIT0"). i. ss. }
         iSplitR.
         { rewrite red_sprop_sum. ss. }
         { rewrite red_s_OwnMs. unfold OwnMs. iApply (OwnM_extends with "OWN2").
-          eapply pointwise_extends. i. des_ifs.
+          eapply discrete_fun_included_spec_2. i. des_ifs.
         }
       }
       iSplitL "MONO2 NEXT NOW OWN1 MONO1 BLACK".
@@ -1927,7 +1859,7 @@ Module TicketLockFair.
       wmemRA;
       (authUR (NatMapRA.t TicketLockW.tk));
       (excl_authUR (leibnizO ((nat * nat) * View.t)));
-      (thread_id ==> (excl_authUR (leibnizO (list nat))))%ra].
+      (thread_id -d> (excl_authUR (leibnizO (list nat))))].
 
   Local Instance _OWNERA : GRA.inG OwnERA Γ := (@GRA.InG _ Γ 0 (@eq_refl _ _)).
   Local Instance _OWNDRA : GRA.inG OwnDRA Γ := (@GRA.InG _ Γ 1 (@eq_refl _ _)).
@@ -1945,7 +1877,7 @@ Module TicketLockFair.
   Local Instance WMEMRA: @GRA.inG wmemRA Γ := (@GRA.InG _ Γ 12 (@eq_refl _ _)).
   Local Instance NATMAPRA: @GRA.inG (authUR (NatMapRA.t TicketLockW.tk)) Γ := (@GRA.InG _ Γ 13 (@eq_refl _ _)).
   Local Instance AUTHRA2: @GRA.inG (excl_authUR (leibnizO (((nat * nat) * View.t)))) Γ := (@GRA.InG _ Γ 14 (@eq_refl _ _)).
-  Local Instance IN2: @GRA.inG (thread_id ==> (excl_authUR (leibnizO (list nat))))%ra Γ := (@GRA.InG _ Γ 15 (@eq_refl _ _)).
+  Local Instance IN2: @GRA.inG (thread_id -d> (excl_authUR (leibnizO (list nat)))) Γ := (@GRA.InG _ Γ 15 (@eq_refl _ _)).
 
   Local Instance TLRASs : TLRAs_small STT Γ :=
     @Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
@@ -1969,7 +1901,7 @@ Module TicketLockFair.
         wmemRA;
         (authUR (NatMapRA.t TicketLockW.tk));
         (excl_authUR (leibnizO (((nat * nat) * View.t))));
-        (thread_id ==> (excl_authUR (leibnizO (list nat))))%ra;
+        (thread_id -d> (excl_authUR (leibnizO (list nat))));
         (* Maps from empty RAs of Γ. *)
         (optionUR Empty_setR);
         (* Default RAs depending on sProp. *)
@@ -1998,7 +1930,7 @@ Module TicketLockFair.
       ⋅ ●E ((0, 0, View.bot): leibnizO _))
     ⋅ GRA.embed (● (NatMapRA.to_Map (NatStructs.NatMap.empty nat)))
     ⋅ GRA.embed ((fun _ => ●E ([] : leibnizO _)
-      ⋅ ◯E ([] : leibnizO _)) : (thread_id ==> (excl_authUR (leibnizO (list nat))))%ra).
+      ⋅ ◯E ([] : leibnizO _)) : (thread_id -d> (excl_authUR (leibnizO (list nat))))).
 
   Arguments wpsim_bind_top {_ _ _ _ _ _}.
   Arguments wpsim_wand {_ _ _ _ _ _}.

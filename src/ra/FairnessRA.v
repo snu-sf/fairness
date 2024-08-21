@@ -1,588 +1,21 @@
-From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
-From Fairness Require Import WFLibLarge Mod Optics.
-From Fairness Require Import PCM IPM IPropAux.
-From Fairness Require Import NatMapRALarge MonotoneRA.
+
+From iris.algebra Require Import cmra updates functions.
+
+From Fairness Require Import WFLibLarge Mod.
+
+From Fairness Require Import PCM.
+From Fairness Require Export OrderedCM.
+From Fairness Require Import IPM ListIProp NatMapRALarge IPropAux.
+
+(* Imported later to override fmap *)
+From Fairness Require Import FairBeh.
 Require Import Coq.Classes.RelationClasses.
-Require Import Coq.Logic.PropExtensionality.
+
 From Fairness Require Import Axioms.
 Require Import Program.
 
 Set Implicit Arguments.
-
-Module OrderedCM.
-  Class t (car: Type) :=
-    mk { le: car -> car -> Prop;
-         unit: car;
-         add: car -> car -> car;
-
-         le_PreOrder:> PreOrder le;
-         le_total: forall a0 a1, le a0 a1 \/ le a1 a0;
-         add_assoc_le: forall a0 a1 a2, le (add a0 (add a1 a2)) (add (add a0 a1) a2);
-         add_comm_le: forall a0 a1, le (add a0 a1) (add a1 a0);
-         add_unit_le_l: forall a, le (add a unit) a;
-         add_base_l: forall a0 a1, le a0 (add a0 a1);
-         le_add_l: forall a0 a1 a2 (LE: le a1 a2), le (add a0 a1) (add a0 a2);
-      }.
-
-  Section MONOID.
-    Variable car: Type.
-    Context `{t car}.
-
-    Definition eq (a0 a1: car): Prop := le a0 a1 /\ le a1 a0.
-
-    Global Program Instance eq_Equivalence: Equivalence eq.
-    Next Obligation.
-    Proof.
-      unfold eq. ii. split.
-      { reflexivity. }
-      { reflexivity. }
-    Qed.
-    Next Obligation.
-    Proof.
-      unfold eq. ii. des. split; auto.
-    Qed.
-    Next Obligation.
-    Proof.
-      unfold eq. ii. des. split.
-      { etrans; eauto. }
-      { etrans; eauto. }
-    Qed.
-
-    Lemma add_assoc_eq a0 a1 a2
-      :
-      eq (add a0 (add a1 a2)) (add (add a0 a1) a2).
-    Proof.
-      split.
-      { eapply add_assoc_le. }
-      { etrans.
-        { eapply add_comm_le. }
-        etrans.
-        { eapply add_assoc_le. }
-        etrans.
-        { eapply add_comm_le. }
-        etrans.
-        { eapply add_assoc_le. }
-        { eapply add_comm_le. }
-      }
-    Qed.
-
-    Lemma add_comm_eq a0 a1
-      :
-      eq (add a0 a1) (add a1 a0).
-    Proof.
-      split.
-      { eapply add_comm_le. }
-      { eapply add_comm_le. }
-    Qed.
-
-    Lemma add_unit_le_r a
-      :
-      le (add unit a) a.
-    Proof.
-      etrans.
-      { eapply add_comm_le. }
-      { eapply add_unit_le_l. }
-    Qed.
-
-    Lemma add_unit_eq_l a
-      :
-      eq (add a unit) a.
-    Proof.
-      split.
-      { apply add_unit_le_l. }
-      { apply add_base_l. }
-    Qed.
-
-    Lemma add_unit_eq_r a
-      :
-      eq (add unit a) a.
-    Proof.
-      etrans.
-      { eapply add_comm_eq. }
-      { eapply add_unit_eq_l. }
-    Qed.
-
-    Lemma add_base_r a0 a1
-      :
-      le a1 (add a0 a1).
-    Proof.
-      etrans.
-      { eapply add_base_l. }
-      { eapply add_comm_le. }
-    Qed.
-
-    Lemma le_add_r a0 a1 a2
-          (LE: le a0 a1)
-      :
-      le (add a0 a2) (add a1 a2).
-    Proof.
-      i. etrans.
-      { eapply add_comm_le. }
-      etrans.
-      { eapply le_add_l; eauto. }
-      { eapply add_comm_le. }
-    Qed.
-
-    Lemma le_unit a
-      :
-      le unit a.
-    Proof.
-      etrans.
-      { eapply add_base_r. }
-      { eapply add_unit_le_l. }
-    Qed.
-
-    Lemma eq_add_l a0 a1 a2
-          (EQ: eq a1 a2)
-      :
-      eq (add a0 a1) (add a0 a2).
-    Proof.
-      unfold eq in *. des. split.
-      { eapply le_add_l; eauto. }
-      { eapply le_add_l; eauto. }
-    Qed.
-
-    Lemma eq_add_r a0 a1 a2
-          (EQ: eq a0 a1)
-      :
-      eq (add a0 a2) (add a1 a2).
-    Proof.
-      unfold eq in *. des. split.
-      { eapply le_add_r; eauto. }
-      { eapply le_add_r; eauto. }
-    Qed.
-
-    Definition join (a0 a1: car): car :=
-      if (excluded_middle_informative (le a0 a1)) then a1 else a0.
-
-    Lemma join_l a0 a1
-      :
-      le a0 (join a0 a1).
-    Proof.
-      unfold join. des_ifs. reflexivity.
-    Qed.
-
-    Lemma join_r a0 a1
-      :
-      le a1 (join a0 a1).
-    Proof.
-      unfold join. des_ifs.
-      { reflexivity. }
-      { destruct (le_total a0 a1); ss. }
-    Qed.
-
-    Lemma join_supremum a0 a1 a
-          (LE0: le a0 a)
-          (LE1: le a1 a)
-      :
-      le (join a0 a1) a.
-    Proof.
-      unfold join. des_ifs.
-    Qed.
-
-    Lemma join_assoc_le a0 a1 a2
-      :
-      le (join a0 (join a1 a2)) (join (join a0 a1) a2).
-    Proof.
-      eapply join_supremum.
-      { etrans.
-        { eapply join_l. }
-        { eapply join_l. }
-      }
-      { eapply join_supremum.
-        { etrans.
-          { eapply join_r. }
-          { eapply join_l. }
-        }
-        { eapply join_r. }
-      }
-    Qed.
-
-    Lemma join_comm_le a0 a1
-      :
-      le (join a0 a1) (join a1 a0).
-    Proof.
-      eapply join_supremum.
-      { eapply join_r. }
-      { eapply join_l. }
-    Qed.
-
-    Lemma join_unit_le_l a
-      :
-      le (join a unit) a.
-    Proof.
-      eapply join_supremum.
-      { reflexivity. }
-      { eapply le_unit. }
-    Qed.
-
-    Lemma le_join_l a0 a1 a2
-          (LE: le a1 a2)
-      :
-      le (join a0 a1) (join a0 a2).
-    Proof.
-      eapply join_supremum.
-      { eapply join_l. }
-      { etrans; eauto. eapply join_r. }
-    Qed.
-
-    Lemma join_assoc_eq a0 a1 a2
-      :
-      eq (join a0 (join a1 a2)) (join (join a0 a1) a2).
-    Proof.
-      split.
-      { eapply join_assoc_le. }
-      { etrans.
-        { eapply join_comm_le. }
-        etrans.
-        { eapply join_assoc_le. }
-        etrans.
-        { eapply join_comm_le. }
-        etrans.
-        { eapply join_assoc_le. }
-        { eapply join_comm_le. }
-      }
-    Qed.
-
-    Lemma join_comm_eq a0 a1
-      :
-      eq (join a0 a1) (join a1 a0).
-    Proof.
-      split.
-      { eapply join_comm_le. }
-      { eapply join_comm_le. }
-    Qed.
-
-    Lemma join_unit_le_r a
-      :
-      le (join unit a) a.
-    Proof.
-      etrans.
-      { eapply join_comm_le. }
-      { eapply join_unit_le_l. }
-    Qed.
-
-    Lemma join_unit_eq_l a
-      :
-      eq (join a unit) a.
-    Proof.
-      split.
-      { apply join_unit_le_l. }
-      { apply join_l. }
-    Qed.
-
-    Lemma join_unit_eq_r a
-      :
-      eq (join unit a) a.
-    Proof.
-      etrans.
-      { eapply join_comm_eq. }
-      { eapply join_unit_eq_l. }
-    Qed.
-
-    Lemma join_base_r a0 a1
-      :
-      le a1 (join a0 a1).
-    Proof.
-      etrans.
-      { eapply join_l. }
-      { eapply join_comm_le. }
-    Qed.
-
-    Lemma le_join_r a0 a1 a2
-          (LE: le a0 a1)
-      :
-      le (join a0 a2) (join a1 a2).
-    Proof.
-      i. etrans.
-      { eapply join_comm_le. }
-      etrans.
-      { eapply le_join_l; eauto. }
-      { eapply join_comm_le. }
-    Qed.
-
-    Lemma eq_join_l a0 a1 a2
-          (EQ: eq a1 a2)
-      :
-      eq (join a0 a1) (join a0 a2).
-    Proof.
-      unfold eq in *. des. split.
-      { eapply le_join_l; eauto. }
-      { eapply le_join_l; eauto. }
-    Qed.
-
-    Lemma eq_join_r a0 a1 a2
-          (EQ: eq a0 a1)
-      :
-      eq (join a0 a2) (join a1 a2).
-    Proof.
-      unfold eq in *. des. split.
-      { eapply le_join_r; eauto. }
-      { eapply le_join_r; eauto. }
-    Qed.
-
-    Definition meet (a0 a1: car): car :=
-      if (excluded_middle_informative (le a0 a1)) then a0 else a1.
-
-    Lemma meet_l a0 a1
-      :
-      le (meet a0 a1) a0.
-    Proof.
-      unfold meet. des_ifs.
-      { reflexivity. }
-      { destruct (le_total a0 a1); ss. }
-    Qed.
-
-    Lemma meet_r a0 a1
-      :
-      le (meet a0 a1) a1.
-    Proof.
-      unfold meet. des_ifs. reflexivity.
-    Qed.
-
-    Lemma meet_infimum a0 a1 a
-          (LE0: le a a0)
-          (LE1: le a a1)
-      :
-      le a (meet a0 a1).
-    Proof.
-      unfold meet. des_ifs.
-    Qed.
-
-    Lemma meet_assoc_le a0 a1 a2
-      :
-      le (meet a0 (meet a1 a2)) (meet (meet a0 a1) a2).
-    Proof.
-      eapply meet_infimum.
-      { eapply meet_infimum.
-        { eapply meet_l. }
-        { etrans.
-          { eapply meet_r. }
-          { eapply meet_l. }
-        }
-      }
-      { etrans.
-        { eapply meet_r. }
-        { eapply meet_r. }
-      }
-    Qed.
-
-    Lemma meet_comm_le a0 a1
-      :
-      le (meet a0 a1) (meet a1 a0).
-    Proof.
-      eapply meet_infimum.
-      { eapply meet_r. }
-      { eapply meet_l. }
-    Qed.
-
-    Lemma le_meet_l a0 a1 a2
-          (LE: le a1 a2)
-      :
-      le (meet a0 a1) (meet a0 a2).
-    Proof.
-      eapply meet_infimum.
-      { eapply meet_l. }
-      { etrans; eauto. eapply meet_r. }
-    Qed.
-
-    Lemma meet_assoc_eq a0 a1 a2
-      :
-      eq (meet a0 (meet a1 a2)) (meet (meet a0 a1) a2).
-    Proof.
-      split.
-      { eapply meet_assoc_le. }
-      { etrans.
-        { eapply meet_comm_le. }
-        etrans.
-        { eapply meet_assoc_le. }
-        etrans.
-        { eapply meet_comm_le. }
-        etrans.
-        { eapply meet_assoc_le. }
-        { eapply meet_comm_le. }
-      }
-    Qed.
-
-    Lemma meet_comm_eq a0 a1
-      :
-      eq (meet a0 a1) (meet a1 a0).
-    Proof.
-      split.
-      { eapply meet_comm_le. }
-      { eapply meet_comm_le. }
-    Qed.
-
-    Lemma meet_unit_eq_l a
-      :
-      eq (meet a unit) unit.
-    Proof.
-      split.
-      { apply meet_r. }
-      { apply le_unit. }
-    Qed.
-
-    Lemma meet_unit_eq_r a
-      :
-      eq (meet unit a) unit.
-    Proof.
-      split.
-      { apply meet_l. }
-      { apply le_unit. }
-    Qed.
-
-    Lemma le_meet_r a0 a1 a2
-          (LE: le a0 a1)
-      :
-      le (meet a0 a2) (meet a1 a2).
-    Proof.
-      i. etrans.
-      { eapply meet_comm_le. }
-      etrans.
-      { eapply le_meet_l; eauto. }
-      { eapply meet_comm_le. }
-    Qed.
-
-    Lemma eq_meet_l a0 a1 a2
-          (EQ: eq a1 a2)
-      :
-      eq (meet a0 a1) (meet a0 a2).
-    Proof.
-      unfold eq in *. des. split.
-      { eapply le_meet_l; eauto. }
-      { eapply le_meet_l; eauto. }
-    Qed.
-
-    Lemma eq_meet_r a0 a1 a2
-          (EQ: eq a0 a1)
-      :
-      eq (meet a0 a2) (meet a1 a2).
-    Proof.
-      unfold eq in *. des. split.
-      { eapply le_meet_r; eauto. }
-      { eapply le_meet_r; eauto. }
-    Qed.
-  End MONOID.
-End OrderedCM.
-
-
-Global Program Instance nat_OrderedCM: OrderedCM.t nat :=
-  @OrderedCM.mk _ Nat.le 0 Nat.add _ _ _ _ _ _ _ .
-Next Obligation. Proof. lia. Qed.
-Next Obligation. Proof. lia. Qed.
-Next Obligation. Proof. lia. Qed.
-Next Obligation. Proof. lia. Qed.
-Next Obligation. Proof. lia. Qed.
-Next Obligation. Proof. lia. Qed.
-
-From Ordinal Require Import Ordinal Hessenberg ClassicalOrdinal.
-Definition owf: WF := mk_wf Ord.lt_well_founded.
-
-Global Program Instance ord_OrderedCM: OrderedCM.t Ord.t :=
-  @OrderedCM.mk _ Ord.le Ord.O Hessenberg.add _ _ _ _ _ _ _ .
-Next Obligation.
-Proof.
-  eapply ClassicOrd.total_le.
-Qed.
-Next Obligation.
-Proof.
-  eapply Hessenberg.add_assoc.
-Qed.
-Next Obligation.
-Proof.
-  eapply Hessenberg.add_comm.
-Qed.
-Next Obligation.
-Proof.
-  eapply Hessenberg.add_O_r.
-Qed.
-Next Obligation.
-Proof.
-  eapply Hessenberg.add_base_l.
-Qed.
-Next Obligation.
-Proof.
-  eapply Hessenberg.le_add_r; eauto.
-Qed.
-
-Lemma ord_OrderedCM_eq (a0 a1: Ord.t):
-  OrderedCM.eq a0 a1 <-> Ord.eq a0 a1.
-Proof.
-  auto.
-Qed.
-
-Lemma nat_OrderedCM_eq (a0 a1: nat):
-  OrderedCM.eq a0 a1 <-> a0 = a1.
-Proof.
-  split.
-  { i. red in H. des. ss. lia. }
-  { i. subst. reflexivity. }
-Qed.
-
-Module SOrderedCM.
-  Class t (car: Type) `{OrderedCM.t car} :=
-    mk { lt: car -> car -> Prop;
-         one: car;
-         lt_iff: forall a0 a1,
-           lt a0 a1 <-> OrderedCM.le (OrderedCM.add a0 one) a1;
-      }.
-End SOrderedCM.
-
-Global Program Instance ord_SOrderedCM: @SOrderedCM.t Ord.t _ :=
-  @SOrderedCM.mk _ _ Ord.lt (Ord.S Ord.O) _.
-Next Obligation.
-Proof.
-  rewrite Hessenberg.add_S_r. rewrite Hessenberg.add_O_r.
-  split; i.
-  { eapply Ord.S_supremum; auto. }
-  { eapply Ord.lt_le_lt; eauto. eapply Ord.S_lt. }
-Qed.
-
-Global Program Instance nat_SOrderedCM: @SOrderedCM.t nat _ :=
-  @SOrderedCM.mk _ _ Nat.lt 1 _.
-Next Obligation.
-Proof.
-  lia.
-Qed.
-
-Global Program Instance bool_OrderedCM
-  : OrderedCM.t bool :=
-  @OrderedCM.mk
-    _ implb
-    false
-    orb
-    _ _ _ _ _ _ _.
-Next Obligation.
-Proof.
-  econs.
-  { ii. destruct x; auto. }
-  { ii. destruct x, y; ss. }
-Qed.
-Next Obligation.
-Proof.
-  destruct a0, a1; ss; auto.
-Qed.
-Next Obligation.
-Proof.
-  destruct a0, a1, a2; ss.
-Qed.
-Next Obligation.
-Proof.
-  destruct a0, a1; ss.
-Qed.
-Next Obligation.
-Proof.
-  destruct a; ss.
-Qed.
-Next Obligation.
-Proof.
-  destruct a0, a1; ss.
-Qed.
-Next Obligation.
-Proof.
-  destruct a0, a1, a2; ss.
-Qed.
 
 Module Fuel.
   Section MONOID.
@@ -1075,7 +508,7 @@ Module Fuel.
     Proof.
       split; try apply _; try done.
       intros a. fold_leibniz.
-      rewrite (comm cmra.op) op_unfold /add unit_unfold /unit.
+      rewrite (comm (⋅)) op_unfold /add unit_unfold /unit.
       destruct a; ss.
       { f_equal.
         hexploit (from_monoid_exist s). i. des. subst.
@@ -1094,6 +527,9 @@ Module Fuel.
       frag (from_monoid a).
     Definition black `{OrderedCM.t A} (a: A) (q: Qp): t :=
       excl (from_monoid a) (from_monoid (@OrderedCM.unit _ _)) q.
+  End MONOID.
+
+  Section LEMMAS.
 
     Lemma white_sum `{OrderedCM.t A} (a0 a1: A)
       :
@@ -1101,7 +537,7 @@ Module Fuel.
       =
         white (OrderedCM.add a0 a1).
     Proof.
-      rewrite op_unfold /add /white. f_equal.
+      rewrite op_unfold /white. f_equal.
       rewrite from_monoid_add. auto.
     Qed.
 
@@ -1111,7 +547,7 @@ Module Fuel.
       =
         black (OrderedCM.meet a0 a1) (q0 + q1).
     Proof.
-      rewrite op_unfold /add /black /=. f_equal.
+      rewrite op_unfold /black /=. f_equal.
       { rewrite from_monoid_meet. auto. }
       { rewrite from_monoid_add.
         apply from_monoid_eq. apply OrderedCM.add_unit_eq_l.
@@ -1142,8 +578,8 @@ Module Fuel.
       ∀ z : t, ✓ (white a1 ⋅ z) → ✓ (white a0 ⋅ z).
     Proof.
       ii.
-      rewrite /white op_unfold /add valid_unfold /wf in H0.
-      rewrite /white op_unfold /add valid_unfold /wf.
+      rewrite /white op_unfold valid_unfold in H0.
+      rewrite /white op_unfold valid_unfold.
       des_ifs. des. split; auto.
       etrans; eauto.
       hexploit (from_monoid_exist s0). i. des. subst.
@@ -1162,8 +598,8 @@ Module Fuel.
       ∀ z : t, ✓ (black a0 q ⋅ z) → ✓ (black a1 q ⋅ z).
     Proof.
       ii.
-      rewrite /black op_unfold /add valid_unfold /wf in H0.
-      rewrite /black op_unfold /add valid_unfold /wf.
+      rewrite /black op_unfold valid_unfold in H0.
+      rewrite /black op_unfold valid_unfold.
       des_ifs.
       { hexploit (from_monoid_exist s0). i. des. subst.
         rewrite from_monoid_add. rewrite from_monoid_add in H0.
@@ -1190,8 +626,8 @@ Module Fuel.
         ✓ (black a0 1 ⋅ z) → ✓ (black (OrderedCM.add a0 a1) 1 ⋅ white a1 ⋅ z).
     Proof.
       ii.
-      rewrite /black op_unfold /add valid_unfold /wf in H0.
-      rewrite /black /white !op_unfold /add valid_unfold /wf.
+      rewrite /black op_unfold valid_unfold in H0.
+      rewrite /black /white !op_unfold valid_unfold.
       des_ifs.
       { hexploit (from_monoid_exist s0). i. des. subst. split; auto.
         rewrite ! from_monoid_add in H0.
@@ -1222,8 +658,8 @@ Module Fuel.
         (fun r => exists a2, r = black a2 q /\ OrderedCM.le (OrderedCM.add a1 a2) a0).
     Proof.
       apply cmra_discrete_total_updateP. intros f WF.
-      rewrite /black /white !op_unfold /add !valid_unfold /wf in WF.
-      unfold black,wf,add.
+      rewrite /black /white !op_unfold !valid_unfold in WF.
+      unfold black.
       des_ifs.
       { hexploit (from_monoid_exist s0). i. des. subst.
         rewrite ! from_monoid_add le_iff in WF.
@@ -1256,7 +692,7 @@ Module Fuel.
         }
       }
     Qed.
-  End MONOID.
+  End LEMMAS.
 End Fuel.
 
 Global Arguments Fuel.t _ : clear implicits.
@@ -1452,7 +888,7 @@ Global Arguments Fuel.t _ : clear implicits.
 (*       } *)
 (*     } *)
 (*     { exists r1, r0. splits. *)
-(*       { eapply (comm cmra.op). } *)
+(*       { eapply (comm (⋅)). } *)
 (*       { ss. } *)
 (*       { guclo infsum_monoC_spec. *)
 (*         econs. *)
@@ -1523,8 +959,8 @@ Global Arguments Fuel.t _ : clear implicits.
 (* Qed. *)
 
 (* Lemma pointwise_own_infsum A (M: ucmra) *)
-(*       {Σ: GRA.t} `{ING: @GRA.inG (A ==> M)%ra Σ} *)
-(*       (f: (A ==> M)%ra) *)
+(*       {Σ: GRA.t} `{ING: @GRA.inG (A -d> M) Σ} *)
+(*       (f: (A -d> M)) *)
 (*   : *)
 (*   (OwnM f) *)
 (*     -∗ *)
@@ -1533,7 +969,7 @@ Global Arguments Fuel.t _ : clear implicits.
 (*   uipropall. i. rr in H. uipropall. rr in H. des. subst. *)
 (*   ginit. guclo infsum_extendC_spec. econs; eauto. *)
 (*   clear WF ctx. revert f. gcofix CIH. i. gstep. econs. i. *)
-(*   exists (GRA.embed (maps_to_res x (f x))), (GRA.embed (map_update f x ε: (A ==> M)%ra)). *)
+(*   exists (GRA.embed (maps_to_res x (f x))), (GRA.embed (map_update f x ε: (A -d> M))). *)
 (*   splits. *)
 (*   { rewrite GRA.embed_add. f_equal. *)
 (*     extensionality a. ur. *)
@@ -1553,7 +989,6 @@ Global Arguments Fuel.t _ : clear implicits.
 (* Qed. *)
 
 Arguments Fuel.t A {_}.
-From Fairness Require Import FairBeh.
 
 Module FairRA.
   Section FAIR.
@@ -1562,7 +997,7 @@ Module FairRA.
     Context `{L: OrderedCM.t A}.
 
     Definition t: ucmra :=
-      (S ==> @Fuel.t A _)%ra.
+      (S -d> @Fuel.t A _).
 
     Context `{ING: @GRA.inG t Σ}.
     Notation iProp := (iProp Σ).
@@ -1590,7 +1025,7 @@ Module FairRA.
     Proof.
       unfold white, maps_to. iIntros "H0 H1".
       iCombine "H0 H1" as "H".
-      rewrite maps_to_res_add. rewrite (@Fuel.white_sum A L). auto.
+      rewrite discrete_fun_singleton_op Fuel.white_sum. auto.
     Qed.
 
     Lemma white_split i a0 a1
@@ -1600,9 +1035,8 @@ Module FairRA.
         (white i a0 ∗ white i a1).
     Proof.
       unfold white, maps_to. iIntros "H".
-      rewrite <- (@Fuel.white_sum A L).
-      rewrite <- maps_to_res_add.
-      iDestruct "H" as "[H0 H1]". iFrame.
+      rewrite -OwnM_op discrete_fun_singleton_op Fuel.white_sum.
+      iFrame.
     Qed.
 
     Lemma white_eq a1 i a0
@@ -1628,7 +1062,7 @@ Module FairRA.
         -∗
         (#=> white i a0).
     Proof.
-      iIntros "H". iApply (OwnM_Upd with "H"). eapply maps_to_updatable.
+      iIntros "H". iApply (OwnM_Upd with "H"). eapply discrete_fun_singleton_update.
       eapply Fuel.white_mon. auto.
     Qed.
 
@@ -1639,7 +1073,7 @@ Module FairRA.
         -∗
         (#=> black i a1 q).
     Proof.
-      iIntros "H". iApply (OwnM_Upd with "H"). eapply maps_to_updatable.
+      iIntros "H". iApply (OwnM_Upd with "H"). eapply discrete_fun_singleton_update.
       eapply Fuel.black_mon. auto.
     Qed.
 
@@ -1650,11 +1084,9 @@ Module FairRA.
         (#=> ((black i (OrderedCM.add a0 a1) 1%Qp) ∗ (white i a1))).
     Proof.
       iIntros "H".
-      iPoseProof (OwnM_Upd with "H") as "> H".
-      { eapply maps_to_updatable.
-        eapply Fuel.success_update. }
-      rewrite <- maps_to_res_add. iDestruct "H" as "[H0 H1]".
-      iModIntro. iFrame "H0 H1".
+      iMod (OwnM_Upd with "H") as "[$ $]"; [|done].
+      rewrite discrete_fun_singleton_op.
+      apply discrete_fun_singleton_update, Fuel.success_update.
     Qed.
 
     Lemma success_update a1 i a0
@@ -1690,10 +1122,10 @@ Module FairRA.
         (#=> (∃ a2, black i a2 q ∗ ⌜OrderedCM.le (OrderedCM.add a1 a2) a0⌝)).
     Proof.
       iIntros "H0 H1". iCombine "H0 H1" as "H".
-      rewrite maps_to_res_add.
-      iPoseProof (OwnM_Upd_set with "H") as "> H".
-      { eapply maps_to_updatable_set. eapply Fuel.decr_update. }
-      iModIntro. ss. iDestruct "H" as "[% [% H]]".
+      rewrite discrete_fun_singleton_op.
+      iMod (OwnM_Upd_set with "H") as (?) "[% H]".
+      { apply discrete_fun_singleton_updateP', Fuel.decr_update. }
+      iModIntro. ss.
       des. rewrite H. subst. iExists _. iFrame. auto.
     Qed.
 
@@ -1707,7 +1139,7 @@ Module FairRA.
     Proof.
       unfold white, maps_to. iIntros "[% H0] [% H1]".
       iCombine "H0 H1" as "H".
-      rewrite maps_to_res_add. rewrite (@Fuel.black_sum A L).
+      rewrite discrete_fun_singleton_op Fuel.black_sum.
       iExists _. eauto.
     Qed.
 
@@ -1718,16 +1150,11 @@ Module FairRA.
         (black i a q0 ∗ black i a q1).
     Proof.
       unfold black, maps_to. iIntros "H".
-      erewrite Fuel.black_eq.
-      { instantiate (1:=OrderedCM.meet a a).
-        rewrite <- (@Fuel.black_sum A L).
-        rewrite <- maps_to_res_add.
-        iDestruct "H" as "[H0 H1]". iFrame.
-      }
-      { split.
-        { apply OrderedCM.meet_infimum; reflexivity. }
-        { apply OrderedCM.meet_l. }
-      }
+      rewrite -OwnM_op discrete_fun_singleton_op Fuel.black_sum.
+      erewrite Fuel.black_eq; [iFrame|].
+      split.
+      - apply OrderedCM.meet_infimum; reflexivity.
+      - apply OrderedCM.meet_l.
     Qed.
 
     Lemma black_ex_split i q0 q1
@@ -1754,7 +1181,7 @@ Module FairRA.
                         | None => ε
                         end
                     | None => ε
-                    end): (S ==> Fuel.t A)%ra)).
+                    end): (S -d> Fuel.t A))).
 
     Lemma blacks_impl (s0 s1: Id -> Prop)
                (IMPL: forall i (IN: s0 i), s1 i)
@@ -1770,7 +1197,7 @@ Module FairRA.
         { split; auto. i. apply H. auto. }
         { split; i; ss. inv H0. }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
+      iApply (OwnM_extends with "BLACKS"). apply discrete_fun_included_spec_2.
       i. des_ifs; try by reflexivity.
     Qed.
 
@@ -1785,8 +1212,8 @@ Module FairRA.
         { exfalso. eapply EMPTY; eauto. }
       }
       iApply (OwnM_extends with "[]").
-      2:{ iApply (@OwnM_ura_unit (S ==> Fuel.t A)%ra). }
-      apply pointwise_extends.
+      2:{ iApply (@OwnM_ura_unit (S -d> Fuel.t A)). }
+      apply discrete_fun_included_spec_2.
       i. eexists. des_ifs.
       { rewrite left_id. eauto. }
       { rewrite left_id. eauto. }
@@ -1810,9 +1237,11 @@ Module FairRA.
         { split; auto. i. hexploit IMPL; eauto. i. des; clarify. rewrite H. ss. }
         { split; i; ss. inv H1. }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
-      i. rewrite discrete_fun_lookup_op. unfold maps_to_res.
-      des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+      iApply (OwnM_extends with "BLACKS").
+      rewrite maps_to_res_eq.
+      apply discrete_fun_included_spec_2.
+      i. rewrite discrete_fun_lookup_op.
+      des_ifs; ss; rewrite ?right_id ?left_id //=.
       { eapply Prism.review_preview in Heq. clarify. }
       { eapply Prism.review_preview in Heq. clarify. }
     Qed.
@@ -1838,9 +1267,9 @@ Module FairRA.
           { split; ss. i. inv H0. }
         - iExists x. eauto.
       }
-      { rewrite unfold_pointwise_add /maps_to_res /f1.
-        apply pointwise_extends. i.
-        des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+      { apply discrete_fun_included_spec_2 => a.
+        rewrite discrete_fun_lookup_op /f1 maps_to_res_eq.
+        des_ifs; ss; rewrite ?right_id ?left_id //=.
         { rewrite Prism.preview_review in Heq. clarify. }
         { rewrite Prism.preview_review in Heq. clarify. }
         { rewrite Prism.preview_review in Heq. clarify. }
@@ -1866,9 +1295,9 @@ Module FairRA.
         { split; auto. }
         { split; auto. i. des; ss. inv H1. }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
-      i. rewrite unfold_pointwise_add.
-      des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+      iApply (OwnM_extends with "BLACKS"). apply discrete_fun_included_spec_2.
+      i. rewrite discrete_fun_lookup_op.
+      des_ifs; ss; rewrite ?right_id ?left_id //=.
     Qed.
 
     Definition blacks_split (s0 s1: Id -> Prop)
@@ -1894,9 +1323,9 @@ Module FairRA.
           { split; ss. i. inv H0. }
         }
       }
-      { apply pointwise_extends.
-        i. rewrite unfold_pointwise_add.
-        des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+      { apply discrete_fun_included_spec_2.
+        i. rewrite discrete_fun_lookup_op.
+        des_ifs; ss; rewrite ?right_id ?left_id //=.
         exfalso. eapply DISJOINT; eauto.
       }
     Qed.
@@ -1909,7 +1338,7 @@ Module FairRA.
                     then Fuel.white u
                     else ε
                 | None => ε
-                end): (S ==> Fuel.t A)%ra)).
+                end): (S -d> Fuel.t A))).
 
     Lemma whites_impl (s0 s1: Id -> Prop) u
                (IMPL: forall i (IN: s0 i), s1 i)
@@ -1919,7 +1348,7 @@ Module FairRA.
         (whites s0 u).
     Proof.
       iIntros "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      iApply (OwnM_extends with "WHITES"). apply discrete_fun_included_spec_2.
       i. des_ifs; try by reflexivity.
       exfalso. eauto.
     Qed.
@@ -1930,8 +1359,8 @@ Module FairRA.
       ⊢ whites s u.
     Proof.
       iIntros. iApply (OwnM_extends with "[]").
-      2:{ iApply (@OwnM_ura_unit (S ==> Fuel.t A)%ra). }
-      apply pointwise_extends. i. des_ifs.
+      2:{ iApply (@OwnM_ura_unit (S -d> Fuel.t A)). }
+      apply discrete_fun_included_spec_2. i. des_ifs.
       { exfalso. eapply EMPTY; eauto. }
     Qed.
 
@@ -1944,11 +1373,12 @@ Module FairRA.
     Proof.
       iIntros "[WHITES WHITE]".
       iCombine "WHITES WHITE" as "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
-      i. rewrite unfold_pointwise_add. unfold maps_to_res.
-      des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+      iApply (OwnM_extends with "WHITES"). apply discrete_fun_included_spec_2.
+      i. rewrite discrete_fun_lookup_op.
+      des_ifs; ss; rewrite ?right_id ?left_id //=.
       eapply Prism.review_preview in Heq.
       hexploit IMPL; eauto. i. des; clarify.
+      rewrite discrete_fun_lookup_singleton //.
     Qed.
 
     Definition whites_unfold (s0 s1: Id -> Prop) i u
@@ -1962,9 +1392,9 @@ Module FairRA.
       iIntros "WHITES".
       iPoseProof (OwnM_extends with "WHITES") as "[WHITES0 WHITES1]"; last first.
       { iFrame "WHITES0 WHITES1". }
-      { rewrite unfold_pointwise_add. unfold maps_to_res.
-        apply pointwise_extends. i.
-        des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+      { apply discrete_fun_included_spec_2. i.
+        rewrite discrete_fun_lookup_op maps_to_res_eq.
+        des_ifs; ss; rewrite ?right_id ?left_id //=.
         { rewrite Prism.preview_review in Heq. clarify. }
         { rewrite Prism.preview_review in Heq. clarify. }
         { eapply Prism.review_preview in Heq.
@@ -1983,9 +1413,9 @@ Module FairRA.
     Proof.
       iIntros "[WHITES0 WHITES1]".
       iCombine "WHITES0 WHITES1" as "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
-      i. rewrite unfold_pointwise_add.
-      des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+      iApply (OwnM_extends with "WHITES"). apply discrete_fun_included_spec_2.
+      i. rewrite discrete_fun_lookup_op.
+      des_ifs; ss; rewrite ?right_id ?left_id //=.
       des; ss.
     Qed.
 
@@ -1999,9 +1429,9 @@ Module FairRA.
       iIntros "WHITES".
       iPoseProof (OwnM_extends with "WHITES") as "[WHITES0 WHITES1]".
       2:{ iSplitL "WHITES0"; [iExact "WHITES0"|iExact "WHITES1"]. }
-      { apply pointwise_extends.
-        i. rewrite unfold_pointwise_add.
-        des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+      { apply discrete_fun_included_spec_2.
+        i. rewrite discrete_fun_lookup_op.
+        des_ifs; ss; rewrite ?right_id ?left_id //=.
         { exfalso. eapply DISJOINT; eauto. }
         { exfalso. eapply n; eauto. }
         { exfalso. eapply n0; eauto. }
@@ -2017,7 +1447,8 @@ Module FairRA.
         (white i u).
     Proof.
       iIntros "H". iApply (OwnM_extends with "H").
-      unfold maps_to_res. eapply pointwise_extends.
+      rewrite maps_to_res_eq.
+      apply discrete_fun_included_spec_2.
       i. des_ifs; ss.
       { rewrite Prism.preview_review in Heq. clarify. }
       { rewrite Prism.preview_review in Heq. clarify. }
@@ -2034,7 +1465,8 @@ Module FairRA.
       hexploit (proj2 (H i)); auto. i. destruct (f i) eqn:EQ.
       2:{ inv H0. }
       iExists a. iApply (OwnM_extends with "H").
-      unfold maps_to_res. eapply pointwise_extends.
+      apply discrete_fun_included_spec_2 => a'.
+      rewrite maps_to_res_eq.
       i. des_ifs; ss.
       { rewrite Prism.preview_review in Heq. clarify. }
       { rewrite Prism.preview_review in Heq. clarify. }
@@ -2113,7 +1545,7 @@ Module FairRA.
         (whites Prism.id (fun s => exists i, Prism.review p i = s /\ P i) o).
     Proof.
       iIntros "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      iApply (OwnM_extends with "WHITES"). apply discrete_fun_included_spec_2.
       i. ss. des_ifs; try by reflexivity.
       { des; clarify. rewrite Prism.preview_review in Heq. clarify. }
       { des; clarify. rewrite Prism.preview_review in Heq. clarify. }
@@ -2126,7 +1558,7 @@ Module FairRA.
       (whites p P o).
     Proof.
       iIntros "WHITES".
-      iApply (OwnM_extends with "WHITES"). apply pointwise_extends.
+      iApply (OwnM_extends with "WHITES"). apply discrete_fun_included_spec_2.
       i. ss. des_ifs; try by reflexivity.
       des; clarify. eapply Prism.review_preview in Heq.
       clarify. exfalso. eauto.
@@ -2154,7 +1586,7 @@ Module FairRA.
           { rewrite Prism.preview_review in Heq. clarify. }
         }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
+      iApply (OwnM_extends with "BLACKS"). apply discrete_fun_included_spec_2.
       i. ss. des_ifs; try by reflexivity.
     Qed.
 
@@ -2174,7 +1606,7 @@ Module FairRA.
         }
         { i. eapply H. esplits; eauto. }
       }
-      iApply (OwnM_extends with "BLACKS"). apply pointwise_extends.
+      iApply (OwnM_extends with "BLACKS"). apply discrete_fun_included_spec_2.
       i. ss. des_ifs; try by reflexivity.
       { eapply Prism.review_preview in Heq. clarify. }
       { eapply Prism.review_preview in Heq. clarify. }
@@ -2266,11 +1698,11 @@ Module FairRA.
 
     (* Target *)
     Definition whites_all (f: S -> A): iProp :=
-      OwnM ((fun i => Fuel.white (f i)): (S ==> Fuel.t A)%ra).
+      OwnM ((fun i => Fuel.white (f i)): (S -d> Fuel.t A)).
 
     (* Source *)
     Definition blacks_all (f: S -> A): iProp :=
-      OwnM ((fun i => Fuel.black (f i) 1%Qp): (S ==> Fuel.t A)%ra).
+      OwnM ((fun i => Fuel.black (f i) 1%Qp): (S -d> Fuel.t A)).
 
     Definition whites_update
                (f0 f1: S -> A)
@@ -2299,8 +1731,8 @@ Module FairRA.
       iIntros "WHITE [% [% BLACK]]".
       iCombine "WHITE BLACK" as "OWN".
       iPoseProof (OwnM_Upd_set with "OWN") as "> [% [% OWN]]".
-      { eapply updatable_set_impl; cycle 1.
-        { eapply pointwise_updatable_set. i.
+      { eapply cmra_updateP_weaken.
+        { eapply discrete_fun_updateP. i.
           instantiate (1:=fun (i: S) (a: Fuel.t A) =>
                             match (fm i) with
                             | Flag.emp => a = Fuel.white (f1 i)
@@ -2311,14 +1743,14 @@ Module FairRA.
                             end).
           ss.
           match goal with
-          | |- cmra_updateP ?y _ => assert (y ≡
+          | |- ?y ~~>: _ => assert (y ≡
               (match (f a) with
                | Some a0 => (Fuel.black a0 1: Fuel.t A) ⋅ (Fuel.white (f0 a): Fuel.t A)
                | None => Fuel.white (f0 a)
                end)) as ->
           end.
           { rewrite discrete_fun_lookup_op. des_ifs.
-            { rewrite (comm cmra.op). auto. }
+            { rewrite (comm (⋅)). auto. }
             { rewrite right_id. auto. }
           }
           specialize (UPDATE a). des_ifs; cycle 5.
@@ -2330,10 +1762,8 @@ Module FairRA.
             inv H. hexploit H0; ss.
           }
           { apply cmra_discrete_total_updateP. intros z WF.
-            rewrite <- (assoc cmra.op) in WF.
+            rewrite <- (assoc (⋅)) in WF.
             exploit Fuel.success_update'; eauto. i. esplits; eauto.
-            eapply cmra_valid_op_l.
-            instantiate (1:=Fuel.white (f0 a)).
             instantiate (1:=OrderedCM.add (f1 a) u) in x0.
             instantiate (1:=(OrderedCM.add a0 (OrderedCM.add (f1 a) u))).
             rewrite <- (Fuel.white_sum (f1 a) u) in x0.
@@ -2388,41 +1818,41 @@ Module FairRA.
           { exists None. splits.
             { split; ss. i. inv H0. }
             rewrite SAT. des_ifs.
-            repeat rewrite right_id. auto.
+            rewrite ?right_id. auto.
           }
           { exists None. splits.
             { split; ss. i. inv H0. }
             rewrite SAT. des_ifs.
-            repeat rewrite right_id. auto.
+            rewrite ?right_id. auto.
           }
           { des. exists (Some o). splits.
             { split; ss. }
             rewrite SAT. des_ifs.
-            repeat rewrite right_id. auto.
+            rewrite ?right_id. auto.
           }
         }
       }
       ss. des.
       assert (b =
-                (((fun i => Fuel.white (f1 i)): (S ==> Fuel.t A)%ra)
+                (((fun i => Fuel.white (f1 i)): (S -d> Fuel.t A))
                    ⋅
                    ((fun i =>
                        match f2 i with
                        | Some a => Fuel.black a 1
                        | None => ε
-                       end): (S ==> Fuel.t A)%ra)
+                       end): (S -d> Fuel.t A))
                    ⋅
                    ((fun i =>
                        if (excluded_middle_informative (fm i = Flag.fail))
                        then Fuel.white u
-                       else ε): (S ==> Fuel.t A)%ra)
+                       else ε): (S -d> Fuel.t A))
                    ⋅
                    ((fun i =>
                        if (excluded_middle_informative (fm i = Flag.success))
                        then Fuel.white u
-                       else ε): (S ==> Fuel.t A)%ra))).
+                       else ε): (S -d> Fuel.t A)))).
       { extensionality i. specialize (H0 i). des.
-        rewrite H1. rewrite unfold_pointwise_add. auto.
+        rewrite H1. rewrite discrete_fun_lookup_op. auto.
       }
       subst. iPoseProof "OWN" as "[[[OWN0 OWN1] OWN2] OWN3]".
       iModIntro. iFrame.
@@ -2454,8 +1884,8 @@ Module FairRA.
       iIntros "BLACK WHITE".
       iCombine "BLACK WHITE" as "OWN".
       iPoseProof (OwnM_Upd_set with "OWN") as "> [% [% OWN]]".
-      { eapply updatable_set_impl; cycle 1.
-        { eapply pointwise_updatable_set. i.
+      { eapply cmra_updateP_weaken.
+        { eapply discrete_fun_updateP. i.
           instantiate (1:=fun (i: S) (a: Fuel.t A) =>
                             exists o,
                               (a = (Fuel.black o 1: Fuel.t A) ⋅ (if (excluded_middle_informative (fm i = Flag.success))
@@ -2466,11 +1896,13 @@ Module FairRA.
                                  | Flag.fail => OrderedCM.le (OrderedCM.add u o) (f0 i)
                                  | Flag.success => True
                                  end)).
-          rewrite unfold_pointwise_add.
+          rewrite discrete_fun_lookup_op.
           destruct (fm a) eqn:FM.
           { des_ifs; ss.
-            { ii. exploit Fuel.decr_update; eauto. i. des. subst.
-              esplits; eauto. rewrite right_id. auto.
+            { eapply cmra_updateP_weaken.
+              { apply Fuel.decr_update. }
+              ii. ss. des. subst.
+              esplits; eauto. rewrite right_id //.
             }
             { compute in Heq. clarify. }
           }
@@ -2480,8 +1912,11 @@ Module FairRA.
           }
           { des_ifs.
             { compute in Heq. clarify. rewrite FM in e. ss. }
-            rewrite right_id. ii.
-            exploit Fuel.success_update; eauto. }
+            rewrite right_id.
+            eapply cmra_updateP_weaken.
+            { apply cmra_update_updateP, Fuel.success_update. }
+            ii. eauto.
+          }
         }
         { instantiate (1 := fun r =>
                               exists (f1: S -> A),
@@ -2507,19 +1942,19 @@ Module FairRA.
       }
       ss. des.
       assert (b =
-                (((fun i => Fuel.black (f1 i) 1): (S ==> Fuel.t A)%ra)
+                (((fun i => Fuel.black (f1 i) 1): (S -d> Fuel.t A))
                    ⋅
                    (fun i =>
                       if (excluded_middle_informative (fm i = Flag.success))
                       then Fuel.white n
                       else ε))).
       { extensionality i. specialize (H i). des.
-        rewrite H0. rewrite unfold_pointwise_add. auto.
+        rewrite H0. rewrite discrete_fun_lookup_op. auto.
       }
       subst. iPoseProof "OWN" as "[OWN0 OWN1]".
       iModIntro. iFrame.
       iPureIntro. i. specialize (H i). des.
-      rewrite unfold_pointwise_add in H0. des_ifs.
+      rewrite discrete_fun_lookup_op in H0. des_ifs.
     Qed.
   End FAIR.
 
@@ -2558,7 +1993,7 @@ Module FairRA.
         { i. eapply H. auto. }
         induction l; ss; i.
         { iIntros "H". iApply (OwnM_Upd with "[]").
-          { instantiate (1:=ε). apply pointwise_updatable.
+          { instantiate (1:=ε). apply discrete_fun_update.
             i. des_ifs. exfalso. eauto.
           }
           { iApply (@OwnM_unit _ _ ING). }
@@ -2567,17 +2002,19 @@ Module FairRA.
         iPoseProof ((@IHl (fun i => P i /\ a <> i)) with "WHITES") as "> WHITES".
         { i. des. hexploit COMPLETE; eauto. i. des; ss. }
         iCombine "WHITE WHITES" as "WHITES". iApply (OwnM_Upd with "WHITES").
-        rewrite unfold_pointwise_add.
-        apply pointwise_updatable. i. unfold maps_to_res. ss.
-        des_ifs; des; ss; repeat rewrite right_id; repeat rewrite left_id; ss.
-        { apply cmra_discrete_total_update. ii. rewrite left_id. eapply cmra_valid_op_r. done. }
-        { exfalso. eapply n0; ss. auto. }
+        rewrite maps_to_res_eq.
+        apply discrete_fun_update=> a0.
+        rewrite discrete_fun_lookup_op /=.
+        des_ifs; des; ss; rewrite ?right_id ?left_id //.
+        { apply cmra_discrete_total_update. ii.
+          rewrite left_id. r_wf H. }
+        { exfalso. eapply n0; ss. }
       }
       { iExists f1. iFrame "BLACK". iSplitR.
         { iPureIntro. ii. specialize (H i). unfold prism_fmap. ss. des_ifs.
           ss. eapply Ord.lt_le_lt; [|eauto].
-          unfold Ord.one. rewrite Hessenberg.add_S_l.
-          rewrite Hessenberg.add_O_l. eapply Ord.S_lt.
+          rewrite /Ord.one Hessenberg.add_S_l Hessenberg.add_O_l.
+          eapply Ord.S_lt.
         }
         { instantiate (1:=Jacobsthal.mult o (Ord.from_nat (List.length ls))).
           iStopProof. cut (forall l (P: S -> Prop) (SOUND: forall i (IN: List.In i l), P i), whites Prism.id P (o × List.length l)%ord ⊢ #=> whites_of Prism.id l o).
@@ -2593,18 +2030,19 @@ Module FairRA.
             iApply IHl; [|eauto].
             intros. apply SOUND. by right.
           }
-          { rewrite !unfold_pointwise_add.
-            apply pointwise_updatable. i. unfold maps_to_res. ss. des_ifs.
-            { rewrite (@Fuel.white_sum Ord.t _ o (o × (Ord.from_nat (List.length l)))%ord).
+          { apply discrete_fun_update=> i.
+            rewrite discrete_fun_lookup_op maps_to_res_eq.
+            ss. des_ifs.
+            { rewrite Fuel.white_sum.
               apply Fuel.white_mon. ss.
-              rewrite Ord.from_nat_S. rewrite Jacobsthal.mult_S. reflexivity.
+              rewrite Ord.from_nat_S Jacobsthal.mult_S //=.
             }
             { rewrite left_id.
               apply Fuel.white_mon. ss.
-              apply Jacobsthal.le_mult_r. apply Ord.S_le.
+              apply Jacobsthal.le_mult_r, Ord.S_le.
             }
-            { exfalso. eapply n. eapply SOUND. eauto. }
-            { rewrite right_id. reflexivity. }
+            { exfalso. eapply n, SOUND. eauto. }
+            { rewrite right_id //. }
           }
         }
       }
@@ -2636,13 +2074,13 @@ Module FairRA.
         { instantiate (1:=ε).
           instantiate (1:=Ord.O).
           instantiate (1:=fun _ => Flag.success).
-          eapply pointwise_extends. i. des_ifs.
+          eapply discrete_fun_included_spec_2. i. des_ifs.
         }
-        { iApply (@OwnM_ura_unit (S ==> Fuel.t Ord.t)%ra). }
+        { iApply OwnM_unit. }
       }
       iModIntro. iExists _. iFrame "BLACKS".
       iApply (OwnM_extends with "WHITES").
-      { eapply pointwise_extends. i. des_ifs. }
+      { eapply discrete_fun_included_spec_2. i. des_ifs. }
     Qed.
   End SOURCE.
 
@@ -2661,15 +2099,15 @@ Module FairRA.
     .
 
     Definition target_init_resource (f: imap Id nat_wf): tgtt :=
-      ((fun i => Fuel.white (f i)): (Id ==> Fuel.t nat)%ra)
+      ((fun i => Fuel.white (f i)): (Id -d> Fuel.t nat))
         ⋅
-        ((fun i => Fuel.black (f i) 1): (Id ==> Fuel.t nat)%ra).
+        ((fun i => Fuel.black (f i) 1): (Id -d> Fuel.t nat)).
 
     Lemma target_init_resource_wf f:
       ✓ (target_init_resource f).
     Proof.
-      unfold target_init_resource.
-      rewrite !unfold_pointwise_add.
+      unfold target_init_resource => i.
+      rewrite !discrete_fun_lookup_op.
       split; auto. rewrite Fuel.from_monoid_add.
       apply Fuel.le_iff. ss. lia.
     Qed.
@@ -2708,20 +2146,20 @@ Module FairRA.
                             match (f0 i) with
                             | Some a => Fuel.black a 1
                             | None => ε
-                            end): (Id ==> Fuel.t nat)%ra)).
+                            end): (Id -d> Fuel.t nat))).
         instantiate (1:=((fun i =>
                             match (f1 i) with
                             | Some a => Fuel.black a 1
                             | None => ε
-                            end): (Id ==> Fuel.t nat)%ra)).
+                            end): (Id -d> Fuel.t nat))).
         instantiate (1:=((fun i =>
                             match (f2 i) with
                             | Some a => Fuel.black a 1
                             | None => ε
-                            end): (Id ==> Fuel.t nat)%ra)).
-        ss. apply pointwise_extends. i. unfold f0, f1, f2.
+                            end): (Id -d> Fuel.t nat))).
+        ss. apply discrete_fun_included_spec_2. i. unfold f0, f1, f2.
         rewrite !discrete_fun_lookup_op.
-        des_ifs; repeat rewrite right_id; repeat rewrite left_id; try reflexivity.
+        des_ifs; rewrite ?right_id ?left_id //=.
       }
       iSplitL "BLACKS2"; [|iSplitL "BLACKS1"].
       { iExists _. iSplit; [|iApply "BLACKS2"].
@@ -2752,12 +2190,9 @@ Module FairRA.
           { iApply IH. iApply "BLACKS0". }
           ss. iExists (f (inl k)). iApply "BLACKS1".
         }
-        apply pointwise_extends. i. unfold maps_to_res. ss.
-        unfold tgtt, t.
-        rewrite unfold_pointwise_add.
-        unfold Prism.review in *. ss.
-        des_ifs; repeat rewrite right_id; repeat rewrite left_id; try by reflexivity.
-        { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
+        apply discrete_fun_included_spec_2. i. ss.
+        rewrite discrete_fun_lookup_op maps_to_res_eq /Prism.review //=.
+        des_ifs; rewrite ?right_id ?left_id //=.
         { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
         { rewrite NatMapP.F.add_o in Heq1. des_ifs. }
       }
@@ -2811,11 +2246,11 @@ Module FairRA.
         }
       }
       iApply (OwnM_Upd with "BLACK").
-      apply pointwise_updatable. i.
-      rewrite unfold_pointwise_add.
-      unfold maps_to_res. ss.
-      des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss.
-      { apply RA.extends_updatable. exists (Fuel.black n 1). apply (comm cmra.op). }
+      apply discrete_fun_update. i.
+      rewrite discrete_fun_lookup_op maps_to_res_eq.
+      ss.
+      des_ifs; rewrite ?right_id ?left_id //.
+      { apply cmra_update_included, cmra_included_r. }
       { compute in Heq1. clarify. }
       { compute in Heq1. clarify. }
     Qed.
@@ -2848,11 +2283,11 @@ Module FairRA.
                          match (f2 i) with
                          | Some a => Fuel.black a 1: Fuel.t nat
                          | None => ε: Fuel.t nat
-                         end): (Id ==> Fuel.t nat)%ra) ⋅ (maps_to_res (inl tid) (Fuel.black n 1: Fuel.t nat)))) with "[BLACKS]" as "[BLACKS BLACK]".
+                         end): (Id -d> Fuel.t nat)) ⋅ (maps_to_res (inl tid) (Fuel.black n 1: Fuel.t nat)))) with "[BLACKS]" as "[BLACKS BLACK]".
       { iApply (OwnM_extends with "BLACKS").
-        rewrite unfold_pointwise_add.
-        eapply pointwise_extends. i. unfold f2, maps_to_res. ss.
-        des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; try reflexivity.
+        eapply discrete_fun_included_spec_2. i.
+        rewrite discrete_fun_lookup_op /f2 maps_to_res_eq /=.
+        des_ifs; rewrite ?right_id ?left_id //=.
       }
       iPoseProof (whites_update with "WHITES [BLACK]") as "> [WHITES [BLACK [FAIL SUCCESS]]]".
       { instantiate (1:=f1). instantiate (1:=1).
@@ -2869,8 +2304,9 @@ Module FairRA.
           - split; i; ss. inv H0.
         }
         { iApply (OwnM_extends with "BLACK").
-          eapply pointwise_extends. i. unfold maps_to_res. ss.
-          des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; reflexivity.
+          eapply discrete_fun_included_spec_2. i. ss.
+          rewrite maps_to_res_eq.
+          des_ifs; rewrite ?right_id ?left_id //=.
         }
       }
       iModIntro. iSplitR "BLACK".
@@ -2918,28 +2354,20 @@ Module FairRA.
               white_thread)).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]] [% BLACK]".
-      iCombine "BLACKS BLACK" as "BLACKS". iOwnWf "BLACKS".
-      iPoseProof "BLACKS" as "[BLACKS BLACK]".
+      rewrite /black /maps_to maps_to_res_eq /=.
+      iCombine "BLACKS BLACK" gives %WF.
       assert (TIN: TIdSet.In tid ths).
-      { specialize (H0 (inl tid)). rewrite discrete_fun_lookup_op in H0.
-        unfold maps_to_res in H0. specialize (H (inl tid)). des_ifs.
-        { destruct (classic (TIdSet.In tid ths)); ss.
-          hexploit (proj2 H).
-          { esplits; eauto. }
-          { i. inv H2. rewrite Fuel.black_sum in H0.
-            rewrite Fuel.valid_unfold /Fuel.black in H0.
-            des_ifs. des. ss.
-          }
-        }
-        { inv Heq.
-          destruct (classic (TIdSet.In tid ths)); ss.
-          assert (¬ (is_Some (f (inl tid)))).
-          { rewrite Heq0. apply is_Some_None. }
-          exfalso. apply H2,H. des.
-          exists tid. split; done.
+      { specialize (WF (inl tid)). rewrite discrete_fun_lookup_op in WF.
+        specialize (H (inl tid)).
+        destruct (excluded_middle_informative (Prism.review inlp tid = inl tid)); [|done].
+        destruct (classic (TIdSet.In tid ths)); ss.
+        hexploit (proj2 H).
+        { esplits; eauto. }
+        { i. inv H1. rewrite H2 -eq_rect_eq Fuel.black_sum Fuel.valid_unfold /Fuel.black in WF.
+          des. ss.
         }
       }
-      clear H0.
+      clear WF.
       set (f2 :=
              (fun i =>
                 match i with
@@ -2966,11 +2394,11 @@ Module FairRA.
           - des. clarify.
         }
         iApply (OwnM_extends with "BLACKS").
-        rewrite unfold_pointwise_add.
-        eapply pointwise_extends. i. unfold f2, maps_to_res. ss.
-        des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; try reflexivity.
+        eapply discrete_fun_included_spec_2. i.
+        rewrite discrete_fun_lookup_op /f2 /=.
+        des_ifs; rewrite ?right_id ?left_id //=.
       }
-      iEval (rewrite bi.sep_assoc).
+      rewrite (assoc (∗)%I).
       iSplitR "FAIL SUCCESS".
       { hexploit (proj2 (H0 (inl tid))).
         { unfold prism_fmap; ss. des_ifs. }
@@ -2987,9 +2415,9 @@ Module FairRA.
                              | Some a => Fuel.black a 1
                              | None => ε
                              end)).
-          rewrite unfold_pointwise_add.
-          eapply pointwise_extends. i. unfold f4, maps_to_res. ss.
-          des_ifs; repeat rewrite right_id; repeat rewrite left_id; ss; try reflexivity.
+          eapply discrete_fun_included_spec_2. i.
+          rewrite discrete_fun_lookup_op /f4 maps_to_res_eq /=.
+          des_ifs; rewrite ?right_id ?left_id //=.
         }
         iModIntro. iSplitR "BLACK".
         { iSplitL "WHITES"; auto. iExists _.
@@ -3000,7 +2428,7 @@ Module FairRA.
             { des. clarify. }
           }
           { rewrite H0. split; i; ss. des. clarify.
-            exfalso. eapply NIN. eapply NatMapP.F.in_find_iff. ii. clarify.
+            exfalso. eapply NIN, NatMapP.F.in_find_iff. ii. clarify.
           }
           { rewrite H0. split; i; ss. esplits; eauto.
             ii. eapply NatMapP.F.in_find_iff in H3. ss.
@@ -3035,15 +2463,26 @@ Module FairRA.
               (whites Prism.id (fun i => (prism_fmap inrp fm) i = Flag.fail) 1))).
     Proof.
       iIntros "[WHITES [% [% BLACKS]]] BLACK".
-      iPoseProof (whites_update with "WHITES BLACK") as "> [WHITES [BLACK [FAIL _]]]".
-      { instantiate (1:=f1). i. specialize (UPD i). des_ifs.
-        ss. instantiate (1:=1). lia.
-      }
-      { iModIntro. iEval (rewrite <- bi.sep_assoc'). iSplitR "FAIL"; [|auto].
-        iSplitR "BLACK"; [|auto].
-        iSplitL "WHITES"; [auto|]. iExists _. iSplitR; [|auto]. auto.
-      }
+      iMod (whites_update with "WHITES BLACK") as "($ & $ & $ & _)".
+      { i. specialize (UPD i). des_ifs. }
+      { iModIntro. iFrame. auto. }
     Qed.
+
+    (* TODO: move somewhere else *)
+    Local Lemma injective_map_NoDup_strong A B (f: A -> B) (l: list A)
+      (INJ: forall a0 a1 (IN0: List.In a0 l) (IN1: List.In a1 l)
+                  (EQ: f a0 = f a1), a0 = a1)
+      (ND: List.NoDup l)
+      :
+      List.NoDup (List.map f l).
+    Proof.
+      revert INJ ND. induction l.
+      { i. s. econs. }
+      i. inv ND. ss. econs; eauto.
+      ii. rewrite in_map_iff in H. des.
+      hexploit (INJ x a); eauto. i. subst. ss.
+    Qed.
+
 
     Definition target_update
                (ls lf: list S)

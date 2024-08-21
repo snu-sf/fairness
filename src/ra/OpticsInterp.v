@@ -26,29 +26,17 @@ Section STATE.
          (SA: A -> iProp) (SB: B -> iProp)
     : ViewInterp fstl (interp_prod SA SB) SA.
   Next Obligation.
-  Proof.
-    iIntros "[H0 H1]". iSplitL "H0".
-    { iExact "H0". }
-    { iIntros (?) "H0". iFrame. }
-  Qed.
+  Proof. iIntros "[$ $]" (?) "$". Qed.
 
   Global Program Instance ViewInterp_sndl {A B}
          (SA: A -> iProp) (SB: B -> iProp)
     : ViewInterp sndl (interp_prod SA SB) SB.
   Next Obligation.
-  Proof.
-    iIntros "[H0 H1]". iSplitL "H1".
-    { iExact "H1". }
-    { iIntros (?) "H1". iFrame. }
-  Qed.
+  Proof. iIntros "[$ $]" (?) "$". Qed.
 
   Global Program Instance ViewInterp_id {S} (SI: S -> iProp): ViewInterp Lens.id SI SI.
   Next Obligation.
-  Proof.
-    iIntros "H". iSplitL "H".
-    { iExact "H". }
-    { iIntros (?) "H". iExact "H". }
-  Qed.
+  Proof. iIntros "$" (?) "$". Qed.
 
   Global Program Instance ViewInterp_compose {A B C}
          {lab: Lens.t A B}
@@ -61,9 +49,9 @@ Section STATE.
   Next Obligation.
   Proof.
     iIntros "H".
-    iPoseProof (view_interp with "H") as "[H K0]".
-    iPoseProof (view_interp with "H") as "[H K1]".
-    iSplitL "H"; [auto|]. iIntros (?) "H".
+    iDestruct (view_interp with "H") as "[H K0]".
+    iDestruct (view_interp with "H") as "[$ K1]".
+    iIntros (?) "H".
     iApply "K0". iApply "K1". iApply "H".
   Qed.
 

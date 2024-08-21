@@ -1,14 +1,13 @@
 From iris.algebra Require Import cmra agree updates.
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IPM IPropAux.
-From Fairness Require Import MonotoneRA.
 From Fairness Require Import TemporalLogic OwnGhost.
 
 From iris.prelude Require Import options.
 
 Module Lifetime.
 
-  Definition t : ucmra := OwnG.t (prodR (agreeR (leibnizO Any.t)) (OneShot.t unit)).
+  Definition t : ucmra := ownRA (prodR (agreeR (leibnizO Any.t)) (OneShot.t unit)).
 
   Section RA.
 
@@ -17,10 +16,10 @@ Module Lifetime.
     Notation iProp := (iProp Σ).
 
     Definition pending (k: nat) {T : Type} (t : T) (q: Qp): iProp :=
-      OwnG.to_t k (to_agree (t↑ : leibnizO Any.t), OneShot.pending _ q).
+      own k (to_agree (t↑ : leibnizO Any.t), OneShot.pending _ q).
 
     Definition shot (k: nat) {T : Type} (t : T) : iProp :=
-      OwnG.to_t k (to_agree (t↑ : leibnizO Any.t), OneShot.shot tt).
+      own k (to_agree (t↑ : leibnizO Any.t), OneShot.shot tt).
 
     Lemma shot_persistent k {T} (t : T)
       :
@@ -49,8 +48,7 @@ Module Lifetime.
         -∗
         False.
     Proof.
-      iIntros "H0 H1". iCombine "H0 H1" as "H".
-      iDestruct (own_valid with "H") as %[]. auto.
+      iIntros "H0 H1". iCombine "H0 H1" gives %[]. auto.
     Qed.
 
     Lemma pending_wf k q {T} (t : T)
@@ -108,21 +106,21 @@ Section SPROP.
   Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
 
   Definition s_lft_pending {n} (k: nat) {T : Type} (t : T) (q: Qp) : sProp n :=
-    (➢(OwnG.ra k (to_agree (t↑ : leibnizO _), OneShot.pending _ q)))%S.
+    (➢(to_own k (to_agree (t↑ : leibnizO _), OneShot.pending _ q)))%S.
 
   Lemma red_s_lft_pending n k T (t : T) q :
     ⟦s_lft_pending k t q, n⟧ = Lifetime.pending k t q.
   Proof.
-    unfold s_lft_pending. red_tl. rewrite -own_to_t_eq. ss.
+    unfold s_lft_pending. red_tl. rewrite -own_to_own_eq. ss.
   Qed.
 
   Definition s_lft_shot {n} (k: nat) {T : Type} (t : T) : sProp n :=
-    (➢(OwnG.ra k (to_agree (t↑ : leibnizO _), OneShot.shot tt)))%S.
+    (➢(to_own k (to_agree (t↑ : leibnizO _), OneShot.shot tt)))%S.
 
   Lemma red_s_lft_shot n k T (t : T) :
     ⟦s_lft_shot k t, n⟧ = Lifetime.shot k t.
   Proof.
-    unfold s_lft_shot. red_tl. rewrite -own_to_t_eq. ss.
+    unfold s_lft_shot. red_tl. rewrite -own_to_own_eq. ss.
   Qed.
 
 End SPROP.

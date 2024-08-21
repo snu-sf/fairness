@@ -124,6 +124,8 @@
 
 ## Other refactoring plans
 
+- Look over the individual RA implementations, and see if we can simplify them.
+- Clear up duplicate "ListIProp" usages. This should really all be big_sepL or big_sepM.
 - Dependency structore of temporal logic and fairness ghost is weird. Ideally, the temporal logic should only depend on the existance of iprop (and maybe invariant), without the fairness ghosts.
 - In the long term, it will be nice if the simulation relation can be
   defined inside the logic, to simpily the adequacy proofs and have a

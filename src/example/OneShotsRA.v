@@ -1,14 +1,13 @@
 From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IPM IPropAux.
-From Fairness Require Import MonotoneRA.
 From Fairness Require Import TemporalLogic OwnGhost.
 
 From iris.prelude Require Import options.
 
 Module OneShots.
 
-  Definition t (A : Type) : ucmra := OwnG.t (OneShot.t A).
+  Definition t (A : Type) : ucmra := ownRA (OneShot.t A).
 
   Section RA.
 
@@ -17,10 +16,10 @@ Module OneShots.
     Notation iProp := (iProp Σ).
 
     Definition pending (k: nat) (q: Qp): iProp :=
-      OwnG.to_t k (OneShot.pending _ q).
+      own k (OneShot.pending _ q).
 
     Definition shot (k: nat) (a : A) : iProp :=
-      OwnG.to_t k (OneShot.shot a).
+      own k (OneShot.shot a).
 
     Lemma shot_persistent k a
       :
@@ -112,21 +111,21 @@ Section SPROP.
   Context `{HasOneShots : @GRA.inG (OneShots.t A) Γ}.
 
   Definition s_oneshots_pending {n} (k: nat) (q: Qp) : sProp n :=
-    (➢(OwnG.ra k (OneShot.pending _ q)))%S.
+    (➢(to_own k (OneShot.pending _ q)))%S.
 
   Lemma red_s_oneshots_pending n k q :
     ⟦s_oneshots_pending k q, n⟧ = OneShots.pending k q.
   Proof.
-    unfold s_oneshots_pending. red_tl. rewrite -own_to_t_eq. ss.
+    unfold s_oneshots_pending. red_tl. rewrite -own_to_own_eq. ss.
   Qed.
 
   Definition s_oneshots_shot {n} (k: nat) a : sProp n :=
-    (➢(OwnG.ra k (OneShot.shot a)))%S.
+    (➢(to_own k (OneShot.shot a)))%S.
 
   Lemma red_s_oneshots_shot n k a :
     ⟦s_oneshots_shot k a, n⟧ = OneShots.shot k a.
   Proof.
-    unfold s_oneshots_shot. red_tl. rewrite -own_to_t_eq. ss.
+    unfold s_oneshots_shot. red_tl. rewrite -own_to_own_eq. ss.
   Qed.
 
 End SPROP.

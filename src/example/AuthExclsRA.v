@@ -1,4 +1,4 @@
-From iris.algebra Require Import cmra updates lib.excl_auth.
+From iris.algebra Require Import cmra updates lib.excl_auth functions.
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IPM IPropAux.
 From Fairness Require Import TemporalLogic.
@@ -6,7 +6,7 @@ From Fairness Require Import TemporalLogic.
 
 Module AuthExcls.
 
-  Definition t (A : Type) : ucmra := (nat ==> excl_authUR (leibnizO A))%ra.
+  Definition t (A : Type) : ucmra := nat -d> excl_authUR (leibnizO A).
 
   Section RA.
 
@@ -16,15 +16,15 @@ Module AuthExcls.
     Context `{AuthExclAnys : @GRA.inG (t A) Σ}.
 
     Definition black_ra (r : nat) a : t A :=
-      maps_to_res r (●E (a : leibnizO A)).
+      discrete_fun_singleton r (●E (a : leibnizO A)).
     Definition white_ra (r : nat) a : t A :=
-      maps_to_res r (◯E (a : leibnizO A)).
+      discrete_fun_singleton r (◯E (a : leibnizO A)).
 
     Definition black (r : nat) (a : A) : iProp := OwnM (black_ra r a).
     Definition white (r : nat) (a : A) : iProp := OwnM (white_ra r a).
 
-    Definition rest_ra {D : nat -> Prop} (DEC : forall i, Decision (D i)) a :=
-      (fun k => if (DEC k)
+    Definition rest_ra {D : nat → Prop} (DEC : ∀ i, Decision (D i)) a :=
+      (λ k, if (DEC k)
               then ε
               else ●E (a : leibnizO A) ⋅ ◯E (a : leibnizO A))
         : t A.
@@ -37,33 +37,28 @@ Module AuthExcls.
     Lemma b_w_eq r (b w : A) :
       ⊢ black r b -∗ white r w -∗ ⌜b = w⌝.
     Proof.
-      iIntros "B W". iCombine "B W" as "BW".
-      iOwnWf "BW" as WF.
-      iPureIntro. unfold black_ra, white_ra in WF.
-      rewrite maps_to_res_add /maps_to_res in WF.
-      specialize (WF r). simpl in *. des_ifs.
-      by apply excl_auth_agree in WF.
+      iIntros "B W". iCombine "B W" gives %WF.
+      iPureIntro.
+      rewrite /black_ra /white_ra discrete_fun_singleton_op
+        discrete_fun_singleton_valid in WF.
+      by apply excl_auth_agree_L in WF.
     Qed.
 
     Lemma b_b_false r (t1 t2 : A) :
       ⊢ black r t1 -∗ black r t2 -∗ False.
     Proof.
-      iIntros "A B". iCombine "A B" as "C".
-      iOwnWf "C" as WF.
-      iPureIntro. unfold black_ra, white_ra in WF.
-      rewrite maps_to_res_add /maps_to_res in WF.
-      specialize (WF r). simpl in *. des_ifs.
+      iIntros "A B". iCombine "A B" gives %WF.
+      rewrite /black_ra /white_ra discrete_fun_singleton_op
+        discrete_fun_singleton_valid in WF.
       by apply excl_auth_auth_op_valid in WF.
     Qed.
 
     Lemma w_w_false r (t1 t2 : A) :
       ⊢ white r t1 -∗ white r t2 -∗ False.
     Proof.
-      iIntros "A B". iCombine "A B" as "C".
-      iOwnWf "C" as WF.
-      iPureIntro. unfold black_ra, white_ra in WF.
-      rewrite maps_to_res_add /maps_to_res in WF.
-      specialize (WF r). simpl in *. des_ifs.
+      iIntros "A B". iCombine "A B" gives %WF.
+      rewrite /black_ra /white_ra discrete_fun_singleton_op
+        discrete_fun_singleton_valid in WF.
       by apply excl_auth_frag_op_valid in WF.
     Qed.
 
@@ -71,9 +66,9 @@ Module AuthExcls.
       ⊢ black r t1 -∗ white r t2 ==∗ (black r s ∗ white r s).
     Proof.
       iIntros "B W". iCombine "B W" as "BW".
-      rewrite /black /white -OwnM_op /black_ra /white_ra !maps_to_res_add.
-      iDestruct (OwnM_Upd with "BW") as "$".
-      apply maps_to_updatable,excl_auth_update.
+      iMod (OwnM_Upd with "BW") as "[$ $]"; [|done].
+      rewrite !discrete_fun_singleton_op.
+      apply discrete_fun_singleton_update, excl_auth_update.
     Qed.
 
     Lemma alloc_gen
@@ -95,9 +90,11 @@ Module AuthExcls.
                                      else ε
                          ) : t A)).
     Proof.
-      iIntros "A". unfold rest.
+      iIntros "A".
       iMod (OwnM_Upd with "A") as "[$ $]"; [|done].
-      rewrite /rest_ra !unfold_pointwise_add. apply pointwise_updatable. i. specialize (SUB a0). des_ifs.
+      rewrite /rest_ra discrete_fun_op.
+      apply discrete_fun_update => i.
+      specialize (SUB i). des_ifs.
     Qed.
 
     Lemma alloc_one
@@ -116,8 +113,12 @@ Module AuthExcls.
       2:{ iFrame.
             eassert (((λ k : nat, _) : t A) ≡
               black_ra m a0 ⋅ white_ra m a0) as ->.
-          { rewrite /black_ra /white_ra maps_to_res_add /maps_to_res.
-            intros k. specialize (ONE k). des. des_ifs.
+          { rewrite discrete_fun_singleton_op.
+            intros k. specialize (ONE k).
+            destruct (decide (m = k)) as [->|];
+              rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //;
+            des; des_ifs.
+            exfalso. apply ONE. lia.
           }
           iDestruct "G" as "[B W]".
           iExists m. iMod (b_w_update with "B W") as "[$ $]". done.

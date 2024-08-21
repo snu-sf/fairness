@@ -1,47 +1,40 @@
-From sflib Require Import sflib.
-(* Port of https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/ghost_var.v into FOS style iProp *)
 (** A simple "ghost variable" of arbitrary type with fractional ownership.
 Can be mutated when fully owned. *)
 
-From Fairness Require Import IPM PCM IPropAux TemporalLogic.
 From iris.algebra Require Import dfrac_agree proofmode_classes frac.
 From iris.bi.lib Require Import fractional.
 From iris.proofmode Require Import proofmode.
-From Fairness Require Import OwnGhost.
+From Fairness Require Import IPM PCM OwnGhost.
 From iris.prelude Require Import options.
 
-Definition ghost_varURA (A : Type) : ucmra := OwnG.t (dfrac_agreeR (leibnizO A)).
+Definition ghost_varURA (A : Type) : ucmra := ownRA (dfrac_agreeR (leibnizO A)).
 
-Section definitions.
-  Context {A : Type}.
-  Context `{GHOSTVARURA : @GRA.inG (ghost_varURA A) Σ}.
+Local Definition ghost_var_ra_def `{!GRA.inG (ghost_varURA A) Σ}
+  (γ : nat) (q : Qp) (a : A) : ghost_varURA A :=
+  to_own γ (to_frac_agree (A:=leibnizO A) q a).
+Local Definition ghost_var_ra_aux : seal (@ghost_var_ra_def).
+Proof. by eexists. Qed.
+Definition ghost_var_ra := ghost_var_ra_aux.(unseal).
+Local Definition ghost_var_ra_unseal :
+  @ghost_var_ra = @ghost_var_ra_def := ghost_var_ra_aux.(seal_eq).
+Global Arguments ghost_var_ra {A Σ _} γ q a.
 
-  Local Definition ghost_var_ra_def
-    (γ : nat) (q : Qp) (a : A) : ghost_varURA A :=
-    OwnG.ra γ (to_frac_agree q (a : leibnizO A)).
-  Local Definition ghost_var_ra_aux : seal (@ghost_var_ra_def).
-  Proof. by eexists. Qed.
-  Definition ghost_var_ra := ghost_var_ra_aux.(unseal).
-  Local Definition ghost_var_ra_unseal :
-    @ghost_var_ra = @ghost_var_ra_def := ghost_var_ra_aux.(seal_eq).
-
-  Local Definition ghost_var_def
-      (γ : nat) (q : Qp) (a : A) : iProp Σ :=
-    OwnG.to_t γ (to_frac_agree q (a : leibnizO A)).
-  Local Definition ghost_var_aux : seal (@ghost_var_def).
-  Proof. by eexists. Qed.
-  Definition ghost_var := ghost_var_aux.(unseal).
-  Local Definition ghost_var_unseal :
-    @ghost_var = @ghost_var_def := ghost_var_aux.(seal_eq).
-End definitions.
+Local Definition ghost_var_def `{!GRA.inG (ghost_varURA A) Σ}
+    (γ : nat) (q : Qp) (a : A) : iProp Σ :=
+  own γ (to_frac_agree (A:=leibnizO A) q a).
+Local Definition ghost_var_aux : seal (@ghost_var_def).
+Proof. by eexists. Qed.
+Definition ghost_var := ghost_var_aux.(unseal).
+Local Definition ghost_var_unseal :
+  @ghost_var = @ghost_var_def := ghost_var_aux.(seal_eq).
+Global Arguments ghost_var {A Σ _} γ q a.
 
 Local Ltac unseal := rewrite
   ?ghost_var_ra_unseal /ghost_var_ra_def
   ?ghost_var_unseal /ghost_var_def.
 
 Section lemmas.
-  Context `{Σ : GRA.t}.
-  Context `{GHOSTVARURA : @GRA.inG (ghost_varURA A) Σ}.
+  Context `{!GRA.inG (ghost_varURA A) Σ}.
   Implicit Types (a b : A) (q : Qp).
 
   Global Instance ghost_var_timeless γ q a : Timeless (ghost_var γ q a).
@@ -134,22 +127,22 @@ Section lemmas.
 
 End lemmas.
 
+From Fairness Require Import TemporalLogic.
+
 Section SPROP.
 
-Context {A : Type}.
-Context {STT : StateTypes}.
-Context `{sub : @SRA.subG Γ Σ}.
-Context {TLRASs : TLRAs_small STT Γ}.
-Context {TLRAS : TLRAs STT Γ Σ}.
+Context `{!@SRA.subG Γ Σ}.
+Context `{!TLRAs_small STT Γ}.
+Context `{!TLRAs STT Γ Σ}.
 
-Context `{HasGhostVar : @GRA.inG (ghost_varURA A) Γ}.
+Context `{!GRA.inG (ghost_varURA A) Γ}.
 
   Definition syn_ghost_var {n} γ q a : sProp n := (➢(ghost_var_ra γ q a))%S.
 
   Lemma red_syn_ghost_var n γ q a :
     ⟦syn_ghost_var γ q a, n⟧ = ghost_var γ q a.
   Proof.
-    unfold syn_ghost_var. red_tl. unseal. rewrite own_to_t_eq. ss.
+    unfold syn_ghost_var. red_tl. unseal. rewrite own_to_own_eq //.
   Qed.
 
 End SPROP.

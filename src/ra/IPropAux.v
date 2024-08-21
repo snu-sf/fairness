@@ -3,10 +3,15 @@ Require Import Program.
 From Fairness Require Import PCM IPM.
 From Fairness Require Import Axioms.
 
-From iris.algebra Require Import cmra lib.excl_auth.
+From iris.algebra Require Import cmra lib.excl_auth functions.
 Set Implicit Arguments.
 
 Section AUX.
+  Fixpoint sep_conjs `{Σ: GRA.t} (Ps : nat -> iProp Σ) (n : nat) : iProp Σ :=
+    match n with
+    | O => True
+    | S m => (sep_conjs Ps m) ∗ (Ps m)
+    end.
 
   Lemma own_persistent `{@GRA.inG M Σ}
         (r: M)
@@ -25,7 +30,7 @@ Section AUX.
 
 End AUX.
 
-Definition maps_to {Σ} {A: Type} {M: ucmra} `{ING: @GRA.inG (A ==> M)%ra Σ}
+Definition maps_to {Σ} {A: Type} {M: ucmra} `{ING: @GRA.inG (A -d> M) Σ}
            (a: A) (m: M): iProp Σ :=
   OwnM (maps_to_res a m).
 
@@ -78,14 +83,14 @@ Section OWNS.
   Variable (Id: Type).
   Context `{R: ucmra}.
   Context `{IN1: @GRA.inG R Σ}.
-  Context `{IN2: @GRA.inG (Id ==> R)%ra Σ}.
+  Context `{IN2: @GRA.inG (Id -d> R) Σ}.
   Notation iProp := (iProp Σ).
 
   Definition OwnMs (s: Id -> Prop) (u: R): iProp :=
     (OwnM ((fun i =>
               if (excluded_middle_informative (s i))
               then u
-              else ε): (Id ==> R)%ra)).
+              else ε): (Id -d> R))).
 
   Lemma OwnMs_impl (s0 s1: Id -> Prop) u
         (IMPL: forall i (IN: s0 i), s1 i)
@@ -95,7 +100,7 @@ Section OWNS.
       (OwnMs s0 u).
   Proof.
     iIntros "OWNMS".
-    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
+    iApply (OwnM_extends with "OWNMS"). apply discrete_fun_included_spec_2.
     i. des_ifs; try by reflexivity.
     exfalso. eauto.
   Qed.
@@ -106,8 +111,8 @@ Section OWNS.
     ⊢ OwnMs s u.
   Proof.
     iIntros. iApply (OwnM_extends with "[]").
-    2:{ iApply (@OwnM_ura_unit (Id ==> R)%ra). }
-    apply pointwise_extends. i. des_ifs.
+    2:{ iApply (@OwnM_ura_unit (Id -d> R)). }
+    apply discrete_fun_included_spec_2. i. des_ifs.
     { exfalso. eapply EMPTY; eauto. }
   Qed.
 
@@ -120,10 +125,11 @@ Section OWNS.
   Proof.
     iIntros "[OWNMS OWN]".
     iCombine "OWNMS OWN" as "OWNMS".
-    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
-    i. rewrite discrete_fun_lookup_op /maps_to_res.
+    iApply (OwnM_extends with "OWNMS"). apply discrete_fun_included_spec_2.
+    i. rewrite discrete_fun_lookup_op.
     des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-    hexploit IMPL; eauto. i. des; ss.
+    hexploit IMPL; eauto. i. des; ss. subst.
+    by rewrite discrete_fun_lookup_singleton.
   Qed.
 
   Definition OwnMs_unfold (s0 s1: Id -> Prop) i u
@@ -135,19 +141,14 @@ Section OWNS.
       (OwnMs s0 u ∗ maps_to i u).
   Proof.
     iIntros "OWNMS".
-    iPoseProof (OwnM_extends with "OWNMS") as "[OWNMS0 OWNMS1]".
-    { instantiate (1:=maps_to_res i (u: R): (Id ==> R)%ra).
-      instantiate (1:=(fun i =>
-                         if (excluded_middle_informative (s0 i))
-                         then u
-                         else ε)).
-      erewrite ! (@unfold_pointwise_add Id R). unfold maps_to_res.
-      apply pointwise_extends. i.
-      des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-      { exfalso. eapply n0. auto. }
-      { exfalso. eapply n0. auto. }
-    }
-    iFrame.
+    iPoseProof (OwnM_extends with "OWNMS") as "[$ $]".
+    rewrite !discrete_fun_op.
+    apply discrete_fun_included_spec_2=> a.
+    destruct (excluded_middle_informative (i = a)) as [->|];
+      rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //;
+    des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+    { exfalso. eapply n0. auto. }
+    { exfalso. eapply n0. auto. }
   Qed.
 
   Definition OwnMs_combine (s0 s1: Id -> Prop) u
@@ -158,7 +159,7 @@ Section OWNS.
   Proof.
     iIntros "[OWNMS0 OWNMS1]".
     iCombine "OWNMS0 OWNMS1" as "OWNMS".
-    iApply (OwnM_extends with "OWNMS"). apply pointwise_extends.
+    iApply (OwnM_extends with "OWNMS"). apply discrete_fun_included_spec_2.
     i. rewrite discrete_fun_lookup_op.
     des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
     des; ss.
@@ -172,16 +173,14 @@ Section OWNS.
       (OwnMs s0 u ∗ OwnMs s1 u).
   Proof.
     iIntros "OWNMS".
-    iPoseProof (OwnM_extends with "OWNMS") as "[OWNMS0 OWNMS1]".
-    2:{ iSplitL "OWNMS0"; [iExact "OWNMS0"|iExact "OWNMS1"]. }
-    { apply pointwise_extends.
-      i. rewrite discrete_fun_lookup_op.
-      des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
-      { exfalso. eapply DISJOINT; eauto. }
-      { exfalso. eapply n; eauto. }
-      { exfalso. eapply n0; eauto. }
-      { exfalso. eapply n0; eauto. }
-    }
+    iPoseProof (OwnM_extends with "OWNMS") as "[$ $]".
+    apply discrete_fun_included_spec_2.
+    i. rewrite discrete_fun_lookup_op.
+    des_ifs; ss; repeat rewrite right_id; repeat rewrite left_id; ss; try by reflexivity.
+    { exfalso. eapply DISJOINT; eauto. }
+    { exfalso. eapply n; eauto. }
+    { exfalso. eapply n0; eauto. }
+    { exfalso. eapply n0; eauto. }
   Qed.
 
 End OWNS.

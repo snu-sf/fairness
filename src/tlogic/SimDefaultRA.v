@@ -6,7 +6,7 @@ Require Import Program.
 From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import Mod FairBeh.
 From Fairness Require Import Axioms.
-From Fairness Require Import NatMapRALarge MonotoneRA RegionRA FairnessRA IndexedInvariants ObligationRA OpticsInterp.
+From Fairness Require Import NatMapRALarge RegionRA FairnessRA IndexedInvariants ObligationRA OpticsInterp.
 
 Local Instance frame_exist_instantiate_disabled :
 FrameInstantiateExistDisabled := {}.
@@ -148,6 +148,7 @@ Section INVARIANT.
           (⌜fair_update im_tgt0 im_tgt (prism_fmap inlp (tids_fmap tid ths))⌝)
             ∗ (default_I x ths im_src im_tgt0 st_src st_tgt))%I.
 
+  (* This can be simulated with ghost_map. *)
   Definition own_thread (tid: thread_id): iProp :=
     (OwnM (◯ (NatMapRALarge.singleton tid tt: NatMapRALarge.t unit): ThreadRA)).
 
@@ -273,11 +274,6 @@ Section INVARIANT.
     iMod ("RES" with "ARROW") as "[ARROW [E [DUTY [WHITE OPENDS]]]]".
     iPoseProof (ObligationRA.opends_to_pends2 with "OPENDS") as "PENDS".
     iFrame. iApply "K". iFrame.
-    Local Transparent ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    Local Typeclasses Transparent ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    iFrame "ARROW".
-    Local Typeclasses Opaque ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    Local Opaque ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
   Qed.
 
   Lemma default_I_update_ident_thread x n ths im_src im_tgt0 st_src st_tgt
@@ -325,12 +321,7 @@ Section INVARIANT.
     iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
     rewrite IUpd_eq.
     iMod ("RES" with "ARROW") as "[ARROW [E [DUTY WHITE]]]". iFrame.
-    iApply "K".
-    Local Transparent ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    Local Typeclasses Transparent ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    iFrame "ARROW".
-    Local Typeclasses Opaque ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    Local Opaque ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
+    iApply "K". iFrame.
   Qed.
 
   Lemma default_I_update_ident_source x lf ls o
@@ -366,11 +357,6 @@ Section INVARIANT.
     iIntros (LT) "[A [B [C [D [E [F [G H]]]]]]]".
     iMod (Regions.nsats_sat_sub with "G") as "[ARROW K]". apply LT.
     iFrame. iModIntro. iFrame.
-    Local Transparent ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    Local Typeclasses Transparent ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    iFrame.
-    Local Typeclasses Opaque ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
-    Local Opaque ObligationRA.arrows_sat ObligationRA.arrow ObligationRA.arrows.
   Qed.
 
   Lemma edges_sat_sub x ths im_src im_tgt st_src st_tgt
@@ -635,7 +621,7 @@ Section INIT.
     : Σ :=
     (@GRA.embed _ _ OWNERA (CoPset ⊤))
       ⋅
-      (@GRA.embed _ _ IINVSETRA ((fun n => ●  ((fun _ => None) : (positive ==> optionUR (agreeR $ leibnizO (Vars n)))%ra)) : IInvSetRA Vars))
+      (@GRA.embed _ _ IINVSETRA ((fun n => ●  ((fun _ => None) : (positive -d> optionUR (agreeR $ leibnizO (Vars n))))) : IInvSetRA Vars))
       ⋅
       (@GRA.embed _ _ THDRA (● (NatMapRALarge.to_Map (NatMap.empty unit): NatMapRALarge.t unit)))
       ⋅
@@ -704,10 +690,9 @@ Section INIT.
     iPoseProof (black_white_update with "OWN3 OWN4") as "> [OWN3 OWN4]".
     iPoseProof (OwnM_Upd with "OWN6") as "> OWN6".
     { instantiate (1:=FairRA.target_init_resource im_tgt).
-      unfold FairRA.target_init_resource.
-      erewrite ! (@unfold_pointwise_add (id_sum nat ident_tgt) (Fuel.t nat)).
-      apply pointwise_updatable. i.
-      rewrite (comm cmra.op). exact (@Fuel.success_update nat _ 0 (im_tgt a)).
+      rewrite /FairRA.target_init_resource discrete_fun_op.
+      apply discrete_fun_update. i.
+      rewrite (comm (⋅)). apply: Fuel.success_update.
     }
     iPoseProof (FairRA.target_init with "OWN6") as "[H0 [H1 H2]]".
     iPoseProof (FairRA.source_init with "OWN5") as "> [% [H3 H4]]".
@@ -723,7 +708,7 @@ Section INIT.
       iSplitL "OWN7".
       { iExists []. iSplitL; [|auto].
         iApply (OwnM_extends with "OWN7").
-        apply pointwise_extends. i. destruct a; ss; reflexivity.
+        apply discrete_fun_included_spec_2. i. destruct a; ss; reflexivity.
       }
       { iAssert (ObligationRA.arrows_sats 0)%I as "INIT".
         { unfold ObligationRA.arrows_sats, Regions.nsats. ss. }
@@ -745,6 +730,8 @@ Section INIT.
 
 End INIT.
 
+From iris.algebra Require Import functions.
+
 Section SHAREDUTY.
 
   Variable ident_tgt: ID.
@@ -752,8 +739,8 @@ Section SHAREDUTY.
   Local Notation index := nat.
   Context `{Vars : index -> Type}.
 
-  Definition _ShareDutyRA n : ucmra := ((nat + ident_tgt) ==> (excl_authUR $ leibnizO (list (nat * nat * Vars n))))%ra.
-  Definition ShareDutyRA : ucmra := pointwise_dep _ShareDutyRA.
+  Definition _ShareDutyRA n : ucmra := (nat + ident_tgt) -d> (excl_authUR $ leibnizO (list (nat * nat * Vars n))).
+  Definition ShareDutyRA : ucmra := discrete_funUR _ShareDutyRA.
 
   Context `{Σ : GRA.t}.
   Context `{SHAREDUTY : @GRA.inG ShareDutyRA Σ}.
@@ -763,30 +750,30 @@ Section SHAREDUTY.
     ●E ([] : leibnizO _) ⋅ ◯E ([] : leibnizO _).
 
   Definition ShareDuty_init : iProp :=
-    OwnM ((fun n => (fun _ => _ShareDutyRA_init n)) : ShareDutyRA).
+    OwnM ((λ n _, _ShareDutyRA_init n) : ShareDutyRA).
 
   Definition ShareDuty_init_inl : iProp :=
-    OwnM ((fun n => (fun k => match k with
-                        | inl _ => _ShareDutyRA_init n
-                        | inr _ => ε
-                        end)) : ShareDutyRA).
+    OwnM ((λ n k, match k with
+                  | inl _ => _ShareDutyRA_init n
+                  | inr _ => ε
+                  end) : ShareDutyRA).
 
   Definition ShareDuty_init_inr : iProp :=
-    OwnM ((fun n => (fun k => match k with
-                        | inl _ => ε
-                        | inr _ => _ShareDutyRA_init n
-                        end)) : ShareDutyRA).
+    OwnM ((λ n k, match k with
+                  | inl _ => ε
+                  | inr _ => _ShareDutyRA_init n
+                  end) : ShareDutyRA).
 
   Definition _ShareDutyRA_black
              n {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (l : list (nat * nat * Vars n)) : ShareDutyRA :=
-    maps_to_res_dep n (maps_to_res (Prism.review p i) (●E (l : leibnizO _))) : ShareDutyRA.
+    discrete_fun_singleton n (maps_to_res (Prism.review p i) (●E (l : leibnizO _))) : ShareDutyRA.
   Definition ShareDuty_black
              n {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (l : list (nat * nat * Vars n)) : iProp :=
     OwnM (_ShareDutyRA_black p i l).
 
   Definition _ShareDutyRA_white
              n {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (l : list (nat * nat * Vars n)) : ShareDutyRA :=
-    maps_to_res_dep n (maps_to_res (Prism.review p i) (◯E (l : leibnizO _))) : ShareDutyRA.
+    discrete_fun_singleton n (maps_to_res (Prism.review p i) (◯E (l : leibnizO _))) : ShareDutyRA.
   Definition ShareDuty_white
              n {Id : Type} (p : Prism.t (nat + ident_tgt) Id) (i : Id) (l : list (nat * nat * Vars n)) : iProp :=
     OwnM (_ShareDutyRA_white p i l).
@@ -797,22 +784,15 @@ Section SHAREDUTY.
       ⊢ |==>(ShareDuty_init_inl ∗ ShareDuty_init_inr).
   Proof.
     iIntros "I". unfold ShareDuty_init.
-    assert (((fun n => (fun _ => _ShareDutyRA_init n)) : ShareDutyRA) ~~>
-              (((fun n => (fun k => match k with
-                       | inl _ => _ShareDutyRA_init n
-                       | inr _ => ε
-                       end)) : ShareDutyRA)
-                 ⋅
-                 ((fun n => (fun k => match k with
-                         | inl _ => ε
-                         | inr _ => _ShareDutyRA_init n
-                         end)) : ShareDutyRA))).
-    { apply pointwise_dep_updatable. i.
-      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
-      - rewrite right_id. reflexivity.
-      - rewrite left_id. reflexivity.
-    }
-    iMod (OwnM_Upd with "I") as "[I I0]". eauto. iModIntro. iFrame.
+    iMod (OwnM_Upd with "I") as "[$ $]"; [|done].
+
+    apply discrete_fun_update. i.
+    rewrite discrete_fun_lookup_op.
+    apply discrete_fun_update. i.
+    rewrite discrete_fun_lookup_op.
+    destruct a0.
+    - rewrite right_id. reflexivity.
+    - rewrite left_id. reflexivity.
   Qed.
 
   Lemma ShareDuty_init_div1 (ths : TIdSet.t) :
@@ -837,32 +817,15 @@ Section SHAREDUTY.
              ∗
              ShareDuty_init_inr).
   Proof.
-    iIntros "I". iMod (ShareDuty_init_div0 with "I") as "[I R]". iFrame.
-    assert (((fun n => (fun k => match k with
-                             | inl _ => _ShareDutyRA_init n
-                             | inr _ => ε
-                             end)) : ShareDutyRA)
-              ~~> (((fun n => (fun k => match k with
-                              | inl t => match NatMap.find t ths with
-                                        | Some _ => _ShareDutyRA_init n
-                                        | None => ε
-                                        end
-                              | inr _ => ε
-                              end)) : ShareDutyRA)
-                 ⋅
-                 ((fun n => (fun k => match k with
-                                | inl t => match NatMap.find t ths with
-                                          | Some _ => ε
-                                          | None => _ShareDutyRA_init n
-                                          end
-                                | inr _ => ε
-                                end)) : ShareDutyRA))).
-    { apply pointwise_dep_updatable. i.
-      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
-      - des_ifs.
-      - rewrite left_id. reflexivity.
-    }
-    iPoseProof (OwnM_Upd with "I") as "> [OWN0 OWN1]". eapply H. iModIntro. iFrame.
+    iIntros "I". iMod (ShareDuty_init_div0 with "I") as "[I $]".
+    iMod (OwnM_Upd with "I") as "[$ $]"; [|done].
+    apply discrete_fun_update. i.
+    rewrite discrete_fun_lookup_op.
+    apply discrete_fun_update. i.
+    rewrite discrete_fun_lookup_op.
+    destruct a0.
+    - des_ifs.
+    - rewrite left_id. reflexivity.
   Qed.
 
   Lemma ShareDuty_init_div n (ths : TIdSet.t) :
@@ -924,8 +887,8 @@ Section SHAREDUTY.
                                         end
                               | inr _ => ε
                               end)) : ShareDutyRA))).
-    { apply pointwise_dep_updatable. i.
-      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
+    { apply discrete_fun_update. i.
+      setoid_rewrite discrete_fun_op. apply discrete_fun_update. i. destruct a0.
       { des_ifs. }
       rewrite right_id. reflexivity.
     }
@@ -956,8 +919,8 @@ Section SHAREDUTY.
                                         end
                               | inr _ => ε
                               end)) : ShareDutyRA))).
-    { apply pointwise_dep_updatable. i.
-      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
+    { apply discrete_fun_update. i.
+      setoid_rewrite discrete_fun_op. apply discrete_fun_update. i. destruct a0.
       { des_ifs. }
       rewrite right_id. reflexivity.
     }
@@ -986,8 +949,8 @@ Section SHAREDUTY.
                            | inr _ => ε
                            end)) : ShareDutyRA)
            ).
-    { apply pointwise_dep_updatable. i.
-      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. destruct a0.
+    { apply discrete_fun_update. i.
+      setoid_rewrite discrete_fun_op. apply discrete_fun_update. i. destruct a0.
       { des_ifs. }
         rewrite left_id. reflexivity.
     }
@@ -1017,22 +980,23 @@ Section SHAREDUTY.
                ⋅
                (_ShareDutyRA_black (n:=n) inlp k [] ⋅ _ShareDutyRA_white (n:=n) inlp k []))).
     { unfold _ShareDutyRA_black, _ShareDutyRA_white.
-      rewrite maps_to_res_dep_add. unfold maps_to_res_dep.
-      apply pointwise_dep_updatable. intros n0.
+      rewrite !discrete_fun_singleton_op.
+      apply discrete_fun_update. intros n0.
       rewrite !discrete_fun_lookup_op.
-      unfold eq_rect_r. destruct (Nat.eq_dec n n0).
-      2:{ des_ifs. rewrite right_id. apply pointwise_updatable. i. des_ifs. }
-      des_ifs. rewrite <- eq_rect_eq.
-      setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i.
-      rewrite !discrete_fun_lookup_op.
-      unfold maps_to_res. destruct a.
-      2:{ des_ifs. }
-      destruct (Nat.eq_dec n k).
-      - subst n. rewrite nm_find_add_eq. rewrite left_id. des_ifs.
-      - rewrite nm_find_add_neq; auto. unfold Prism.review. ss. des_ifs. all: try (do 2 rewrite right_id; reflexivity).
+      destruct (decide (n = n0)) as [->|];
+        rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //.
+      2:{ des_ifs. rewrite right_id. apply discrete_fun_update. i. des_ifs. }
+      des_ifs.
+      setoid_rewrite discrete_fun_op. apply discrete_fun_update. i. ss.
+      destruct (excluded_middle_informative (Prism.review inlp k = a)) as [<-|];
+        rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //=.
+      - rewrite nm_find_add_eq left_id. des_ifs.
+      - rewrite right_id. destruct a; [|done].
+        rewrite nm_find_add_neq; auto. clarify.
     }
-    iPoseProof (OwnM_Upd with "OWN") as "> [OWN0 [OWN1 OWN2]]". eapply H.
-    iModIntro. iFrame. iApply (natmap_prop_sum_add with "SUM [-]"). iFrame.
+    iPoseProof (OwnM_Upd with "OWN") as "> [$ [OWN1 OWN2]]".
+    eapply H.
+    iModIntro. iApply (natmap_prop_sum_add with "SUM [$]").
   Qed.
 
   Lemma ShareDuty_init_wf: ✓ ((fun n => (fun _ => _ShareDutyRA_init n)) : ShareDutyRA).
@@ -1044,13 +1008,9 @@ Section SHAREDUTY.
     ShareDuty_black (n:=n) inlp tid l ∗ ShareDuty_white (n:=n) inlp tid l'
       ⊢ ⌜l = l'⌝.
   Proof.
-    iIntros "[B W]". unfold ShareDuty_black, ShareDuty_white. unfold _ShareDutyRA_black, _ShareDutyRA_white.
-    iCombine "B" "W" as "BW". iPoseProof (OwnM_valid with "BW") as "%BW".
-    rewrite maps_to_res_dep_add in BW.
-    specialize (BW n). rewrite maps_to_res_dep_eq in BW.
-    specialize (BW (inl tid)).
-    rewrite discrete_fun_lookup_op /maps_to_res in BW.
-    des_ifs. by apply excl_auth_agree_L in BW.
+    iIntros "[B W]". iCombine "B" "W" gives %WF.
+    rewrite !discrete_fun_singleton_op !discrete_fun_singleton_valid in WF.
+    by apply excl_auth_agree_L in WF.
   Qed.
 
 End SHAREDUTY.

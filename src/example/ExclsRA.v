@@ -1,4 +1,4 @@
-From iris.algebra Require Import cmra updates excl.
+From iris.algebra Require Import cmra updates excl functions.
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IPM IPropAux.
 From Fairness Require Import TemporalLogic.
@@ -6,7 +6,7 @@ From Fairness Require Import TemporalLogic.
 
 Module Excls.
 
-  Definition t (A : Type) : ucmra := (nat ==> (optionUR $ exclR (leibnizO A)))%ra.
+  Definition t (A : Type) : ucmra := nat -d> (optionUR $ exclR (leibnizO A)).
 
   Section RA.
 
@@ -16,7 +16,7 @@ Module Excls.
     Context `{HasExcls : @GRA.inG (t A) Σ}.
 
     Definition ex_ra (r : nat) a : t A :=
-      (maps_to_res r (Excl' (a : leibnizO A))).
+      discrete_fun_singleton r (Excl' (a : leibnizO A)).
 
     Definition ex (r : nat) a : iProp := OwnM (ex_ra r a).
 
@@ -34,11 +34,9 @@ Module Excls.
     Lemma exclusive r (t1 t2 : A) :
       ⊢ ex r t1 -∗ ex r t2 -∗ False.
     Proof.
-      iIntros "A B". iCombine "A B" as "C".
-      iOwnWf "C" as WF.
+      iIntros "A B". iCombine "A B" gives %WF.
       iPureIntro.
-      rewrite /ex_ra maps_to_res_add /maps_to_res in WF.
-      specialize (WF r). simpl in *. des_ifs.
+      rewrite discrete_fun_singleton_op discrete_fun_singleton_valid // in WF.
     Qed.
 
     Lemma alloc_gen
@@ -62,7 +60,7 @@ Module Excls.
     Proof.
       iIntros "A". unfold rest.
       iMod (OwnM_Upd with "A") as "[$ $]"; [|done].
-      rewrite /rest_ra !unfold_pointwise_add. apply pointwise_updatable. i. specialize (SUB a0). des_ifs.
+      rewrite /rest_ra !discrete_fun_op. apply discrete_fun_update. i. specialize (SUB a0). des_ifs.
     Qed.
 
     Lemma alloc_one
@@ -81,15 +79,18 @@ Module Excls.
       2:{ iFrame.
             eassert (((λ k : nat, _) : t A) ≡
               ex_ra m a0) as ->.
-          { rewrite /ex_ra /maps_to_res.
-            intros k. specialize (ONE k). des. des_ifs.
+          { rewrite /ex_ra.
+            intros k. specialize (ONE k). des.
+            destruct (decide (m = k)) as [->|];
+              rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //;
+            des_ifs. exfalso. apply ONE. lia.
           }
           iExists m. iFrame. done.
       }
       i. specialize (ONE n). des. des_ifs. apply ONE. intros EQ. subst. clarify.
     Qed.
 
-    Definition rest_gt a : iProp := (∃ U, rest (gt_dec U) a).
+    Definition rest_gt a : iProp := ∃ U, rest (gt_dec U) a.
 
     Lemma alloc_gt a0 :
       ⊢ rest_gt a0 -∗ |==> (rest_gt a0 ∗ ∃ r, ex r a0).

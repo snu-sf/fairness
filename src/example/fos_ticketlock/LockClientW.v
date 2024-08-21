@@ -98,7 +98,7 @@ End ClientSpec.
 
 From iris.algebra Require Import auth excl_auth cmra updates local_updates.
 From Fairness Require Import
-     IPM SimWeakest ModSim PCM MonotoneRA FairnessRA
+     IPM SimWeakest ModSim PCM FairnessRA
      TemporalLogic OneShotsRA AuthExclsRA ExclsRA.
 From Fairness Require Import NatStructs NatMapRA.
 
@@ -392,7 +392,7 @@ Section SIM.
       { eapply auth_update_dealloc. eapply NatMapRA.remove_local_update. }
       rewrite <- Heqwaits'.
 
-      iPoseProof (NatMapRALarge.list_prop_sum_cons_unfold with "MY3") as "[MY3 _]".
+      iPoseProof (list_prop_sum_cons_unfold with "MY3") as "[MY3 _]".
       iPoseProof (ObligationRA.duty_to_black with "MY3") as "MY3".
       iPoseProof (FairRA.blacks_fold with "[LI6 MY3]") as "LI6".
       2:{ rewrite Prism.compose_assoc. iFrame. }

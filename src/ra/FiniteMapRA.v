@@ -5,24 +5,16 @@ From iris.prelude Require Import options.
 
 Set Implicit Arguments.
 
-(* TODO: https://mattermost.mpi-sws.org/iris/pl/8cftahufytftmyt4mm5q7m6tyh *)
 Module FiniteMap.
   Section FiniteMap.
     Context `{M: cmra}.
 
-    Definition t : ucmra := (gmapUR nat M).
+    Definition t := gmapUR nat M.
 
-    Definition singleton (k : nat) (m : M) : t := {[ k := m ]}.
+    Definition singleton k m : t := {[ k := m ]}.
 
-    (* TODO: upstream to iris *)
     Global Instance singleton_proper k :
-      Proper ((≡)==>(≡)) (singleton k).
-    Proof.
-      intros x y EQ. unfold singleton.
-      intros k'. destruct (decide (k' = k)) as [->|NE].
-      - rewrite !lookup_singleton. f_equiv. done.
-      - rewrite !lookup_singleton_ne; done.
-    Qed.
+      Proper ((≡)==>(≡)) (singleton k) := ne_proper _.
 
     Lemma singleton_wf k m
       :
@@ -34,7 +26,7 @@ Module FiniteMap.
       (singleton k m0) ⋅ (singleton k m1)
       ≡
         singleton k (m0 ⋅ m1).
-    Proof. by rewrite singleton_op /singleton. Qed.
+    Proof. by rewrite /singleton singleton_op. Qed.
 
     Lemma singleton_core k x cx
       :
@@ -56,7 +48,7 @@ Module FiniteMap.
           (UPD: m0 ≼ m1)
       :
       (singleton k m0) ≼ (singleton k m1).
-    Proof. apply singleton_included,Some_included. by right. Qed.
+    Proof. by apply singleton_included_mono. Qed.
 
     Lemma singleton_updatable_set k m s
           (UPD: m ~~>: s)
@@ -75,7 +67,7 @@ Module FiniteMap.
     Proof.
       eapply alloc_updateP.
       { exact WF. }
-      intros k _. exists k. set_solver.
+      intros k _. exists k. done.
     Qed.
   End FiniteMap.
   Global Arguments t : clear implicits.

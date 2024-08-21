@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Fairness Require Import WFLibLarge Mod Optics.
 From Fairness Require Import PCM IPM IPropAux.
-From Fairness Require Import MonotoneRA RegionRA.
+From Fairness Require Import RegionRA.
 Require Import Coq.Classes.RelationClasses.
 From Fairness Require Import Axioms.
 Require Import Program.

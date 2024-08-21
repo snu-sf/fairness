@@ -2,7 +2,7 @@ From iris.algebra Require Import cmra excl_auth auth.
 From stdpp Require Export coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import Axioms.
-From Fairness Require Import PCM IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants IPropAux.
 From Fairness Require Export ISim SimDefaultRA LiveObligations SimWeakest.
 From Fairness Require Export LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
@@ -780,11 +780,9 @@ Section OBLIG.
     ⟦syn_arrows_sat n, S n⟧ = ObligationRA.arrows_sat n.
   Proof.
     unfold syn_arrows_sat. red_tl.
-    Local Transparent ObligationRA.arrows_sat Regions.sat.
     unfold ObligationRA.arrows_sat, Regions.sat.
     f_equal. extensionality l. red_tl. ss.
     rewrite red_syn_arrows_sat_list. f_equal.
-    Local Opaque ObligationRA.arrows_sat Regions.sat.
   Qed.
 
   Definition syn_arrows_sats n : sProp n := lifts_seps syn_arrows_sat n.

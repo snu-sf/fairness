@@ -477,7 +477,6 @@ Section SPEC.
 
     destruct (decide (h = Null)) as [->|NEQ].
     { (* Head is null, so stack is empty. *)
-      simpl in *.
       iDestruct (phys_list_unfold with "Phys") as "Phys".
       des_ifs.
       iMod "AU" as (?) "[γs' Commit]".
@@ -486,8 +485,7 @@ Section SPEC.
 
       iMod ("Commit" $! tt with "[γs']") as "Post".
       { iEval (unfold TStack; red_tl_all). by iFrame. }
-      iDestruct (Inv_fold with "[s↦] γs [] LInv") as "Inv".
-      { unfold to_val. iFrame. }
+      iDestruct (Inv_fold with "s↦ γs [] LInv") as "Inv".
       { by iApply phys_list_fold. }
       iMod ("Close" with "Inv") as "_". rred2r.
 
@@ -496,12 +494,10 @@ Section SPEC.
 
       iApply (SCMem_compare_fun_spec with "[Mem] [-]"); [|solve_ndisj| |].
       2:{ iApply (tgt_interp_as_equiv with "Mem"). clear.
-          iStartProof. iIntros (m). simpl. red_tl_all. iSplit.
-          - iIntros "$". iPureIntro. done.
-          - iIntros "[$ _]".
+          move=> m /=. red_tl. rewrite is_Some_alt right_id //.
         }
       1: lia.
-      iIntros (?) "%EQ". destruct EQ as [EQ _].
+      iIntros (? [EQ _]).
       specialize (EQ ltac:(auto)) as ->. rred2r.
 
       iApply wpsim_tauR. rred2r.
@@ -591,13 +587,12 @@ Section SPEC.
       (** Create a big_opM of ◇[k](0,1). *)
       iMod (pc_drop _ 0 1 ltac:(auto) (size (delete i m)) with "Ob_ks") as "Ob_ks"; [lia|].
       iAssert ([∗ map] _ ∈ delete i m, ◇[k](0,1))%I with "[Ob_ks]" as "Ob_ks".
-      { set (m' := delete i m). move: m' => m'.
+      { move: (delete i m) => m'.
         iClear "Mem IsT h.n↦□ h.d↦□ Ob_kb". clear.
         simpl in *.
         iInduction (m') as [|id op m NotIN] "IH" using map_ind.
         { done. }
-        rewrite big_sepM_insert; [|done].
-        rewrite map_size_insert_None; [|done].
+        rewrite big_sepM_insert // map_size_insert_None //.
         iDestruct (pc_split _ _ 1 (size m) with "Ob_ks") as "[$ Ob_ks]".
         iApply ("IH" with "Ob_ks").
       }

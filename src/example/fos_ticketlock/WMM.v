@@ -140,7 +140,7 @@ End WMem.
 
 (* RA related to WMM *)
 From iris.algebra Require Import cmra updates lib.excl_auth auth excl.
-From Fairness Require Import PCM IPM FairnessRA SimDefaultRA MonotoneRA.
+From Fairness Require Import PCM IPM FairnessRA SimDefaultRA.
 From PromisingSEQ Require Import MemoryProps.
 From Fairness Require Import TemporalLogic LiveObligations OneShotsRA.
 
@@ -158,7 +158,7 @@ Section MEMRA.
   Context {HasOneShots : @GRA.inG (OneShots.t unit) Γ}.
   Notation iProp := (iProp Σ).
 
-  Definition wmemRA : ucmra := (Loc.t ==> (excl_authUR (leibnizO Cell.t)))%ra.
+  Definition wmemRA : ucmra := (Loc.t -d> (excl_authUR (leibnizO Cell.t))).
   Context `{WMEMRA: @GRA.inG wmemRA Γ}.
 
   (* Local Notation index := nat.
@@ -312,7 +312,7 @@ Section MEMRA.
     apply excl_auth_agree_L in H.
     iAssert (#=> OwnM (memory_resource_black (WMem.mk m1 m0.(WMem.sc)) ⋅ points_to_white l (m1 l))) with "[OWN]" as "> [BLACK WHITE]".
     { iApply (OwnM_Upd with "OWN").
-      apply cmra_update_discrete_fun. i.
+      apply discrete_fun_update. i.
       unfold memory_resource_black, points_to_white.
       rewrite !discrete_fun_lookup_op. ss.
       inv WRITE.

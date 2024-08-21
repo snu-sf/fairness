@@ -1,86 +1,12 @@
 From sflib Require Import sflib.
-From iris.algebra Require Import cmra updates gmap auth mra.
+From iris.algebra Require Import cmra updates auth mra.
 From Fairness Require Import PCM IPM IPropAux OwnGhost.
-From Fairness Require Export FiniteMapRA.
-Require Import Coq.Classes.RelationClasses.
-Require Import Coq.Logic.PropExtensionality.
+
 From Fairness Require Import Axioms.
+
 Require Import Program.
 
 Set Implicit Arguments.
-
-(* TODO: not needed anymore *)
-(* Module Collection.
-  Section Collection.
-    Context {A: Type}.
-
-    Definition car : Type := A -> Prop.
-
-    Definition unit: car := fun _ => True.
-
-    Definition add: car -> car -> car :=
-      fun s0 s1 => (fun a => s0 a /\ s1 a).
-
-    Definition wf: car -> Prop :=
-      fun _ => True.
-
-    Definition core: car -> option car := Some.
-
-    Canonical Structure CollectionO := leibnizO car.
-
-    Local Instance collection_valid_instance : Valid car := wf.
-    Local Instance collection_pcore_instance : PCore car := core.
-    Local Instance collection_op_instance : Op car := add.
-    Local Instance collection_unit_instance : Unit car := unit.
-
-    Lemma valid_unfold : valid = wf.
-    Proof. done. Qed.
-    Lemma op_unfold : (⋅) = add.
-    Proof. done. Qed.
-    Lemma pcore_unfold : pcore = core.
-    Proof. done. Qed.
-    Lemma unit_unfold : ε = unit.
-    Proof. done. Qed.
-
-    Definition mixin : RAMixin car.
-    Proof.
-      apply ra_total_mixin; try done.
-      all: fold_leibniz.
-      all: try apply _; try done.
-      - intros ???. fold_leibniz.
-        rewrite !op_unfold /add. f_equal.
-        extensionality a0.
-        eapply propositional_extensionality. split; i; des; ss; des; ss.
-      - intros ??. fold_leibniz.
-        rewrite !op_unfold /add. f_equal.
-        extensionality a0.
-        eapply propositional_extensionality. split; i; des; ss; des; ss.
-      - intros ?. fold_leibniz.
-        rewrite /cmra.core !pcore_unfold /core op_unfold /add /=.
-        extensionality a0.
-        eapply propositional_extensionality. split; i; des; ss; des; ss.
-    Qed.
-
-    Canonical Structure CollectionR := discreteR car mixin.
-
-    Global Instance discrete : CmraDiscrete CollectionR.
-    Proof. apply discrete_cmra_discrete. Qed.
-
-    Lemma ucmra_mixin : UcmraMixin car.
-    Proof.
-      split; try apply _; try done.
-      intros m.
-      fold_leibniz.
-      rewrite op_unfold /add unit_unfold /unit.
-      extensionality a0.
-      eapply propositional_extensionality. split; i; des; ss; des; ss.
-    Qed.
-    Canonical Structure t := Ucmra car ucmra_mixin.
-
-    Definition into_t (a : A -> Prop) : t := a.
-  End Collection.
-End Collection.
-Global Arguments Collection.t _ : clear implicits. *)
 
 Variant gmon: Type :=
   | mk_gmon
@@ -111,7 +37,7 @@ Qed.
 
 
 Section Monotone.
-  Definition monoRA: ucmra := OwnG.t (authUR $ mraUR gmon_le).
+  Definition monoRA: ucmra := ownRA (authUR $ mraUR gmon_le).
   Context `{GRA.inG monoRA Σ}.
   Notation iProp := (iProp Σ).
 
@@ -125,10 +51,10 @@ Section Monotone.
     Let leR (w: W) : mra gmon_le := to_mra (mk_gmon le_PreOrder w).
 
     Definition monoBlack (w: W): iProp :=
-      OwnG.to_t k (● (leR w) ⋅ ◯ (leR w)).
+      own k (● (leR w) ⋅ ◯ (leR w)).
 
     Definition monoWhiteExact (w: W): iProp :=
-      OwnG.to_t k (◯ (leR w)).
+      own k (◯ (leR w)).
 
     Definition monoWhite (w0: W): iProp :=
       ∃ w1, monoWhiteExact w1 ∧ ⌜le w0 w1⌝.
@@ -234,6 +160,52 @@ Section Monotone.
   Qed.
 End Monotone.
 
+From Fairness Require Import TemporalLogic.
+
+Section MONOTONE_SPROP.
+
+  Context {STT : StateTypes}.
+  Context `{sub : @SRA.subG Γ Σ}.
+  Context {TLRASs : TLRAs_small STT Γ}.
+  Context {TLRAS : TLRAs STT Γ Σ}.
+
+  Context `{HasMono : @GRA.inG monoRA Γ}.
+
+  Variable k: nat.
+
+  Variable W: Type.
+  Variable le: W -> W -> Prop.
+  Hypothesis le_PreOrder: PreOrder le.
+
+  Let leR (w: W) : mra gmon_le := to_mra (mk_gmon le_PreOrder w).
+
+
+  Definition s_monoBlack {n} (w : W) : sProp n :=
+    (➢(to_own k (● (leR w) ⋅ ◯ (leR w))))%S.
+
+  Lemma red_s_monoBlack n (w : W) :
+    ⟦s_monoBlack w, n⟧ = monoBlack k _ w.
+  Proof.
+    unfold s_monoBlack. red_tl. rewrite -own_to_own_eq. ss.
+  Qed.
+
+  Definition s_monoWhite {n} (w1 : W) : sProp n :=
+    (∃ w2 : τ{W, n},
+      ➢(to_own k (◯ (leR w2)))
+      ∧ ⌜le w1 w2⌝)%S.
+
+  Lemma red_s_monoWhite n (w : W) :
+    ⟦s_monoWhite w, n⟧ = monoWhite k _ w.
+  Proof.
+    unfold s_monoWhite, monoWhite. red_tl. ss. f_equal. extensionalities.
+    red_tl. rewrite -own_to_own_eq. unfold monoWhiteExact. ss.
+  Qed.
+
+End MONOTONE_SPROP.
+
+Ltac red_tl_monoRA :=
+  (try rewrite ! red_s_monoBlack;
+  try rewrite ! red_s_monoWhite).
 
 Section MAP.
   Definition partial_map_le {A B} (f0 f1: A -> option B): Prop :=
@@ -284,359 +256,3 @@ Section MAP.
     { ii. unfold partial_map_singleton, partial_map_update in *. des_ifs. }
   Qed.
 End MAP.
-
-
-From iris.bi Require Import derived_laws. Import bi.
-Require Export Coq.Sorting.Mergesort. Import NatSort.
-
-Lemma injective_map_NoDup_strong A B (f: A -> B) (l: list A)
-      (INJ: forall a0 a1 (IN0: List.In a0 l) (IN1: List.In a1 l)
-                   (EQ: f a0 = f a1), a0 = a1)
-      (ND: List.NoDup l)
-  :
-  List.NoDup (List.map f l).
-Proof.
-  revert INJ ND. induction l.
-  { i. s. econs. }
-  i. inv ND. ss. econs; eauto.
-  ii. rewrite in_map_iff in H. des.
-  hexploit (INJ x a); eauto. i. subst. ss.
-Qed.
-
-
-Section UPDATING.
-  Context `{Σ: @GRA.t}.
-  Notation iProp := (iProp Σ).
-
-  Definition updating (I: iProp) (P Q R: iProp): iProp :=
-    I -∗ (#=> (P ∗ (Q -∗ #=> (I ∗ R)))).
-
-  Lemma updating_sub_mon (I0 I1: iProp) (P Q R: iProp)
-    :
-    (SubIProp I0 I1)
-      -∗
-      (updating I0 P Q R)
-      -∗
-      (updating I1 P Q R).
-  Proof.
-    iIntros "SUB UPD INV".
-    iPoseProof ("SUB" with "INV") as "> [INV K]".
-    iPoseProof ("UPD" with "INV") as "> [INV FIN]".
-    iFrame. iModIntro. iIntros "H".
-    iPoseProof ("FIN" with "H") as "> [INV H]".
-    iPoseProof ("K" with "INV") as "> INV".
-    iModIntro. iFrame.
-  Qed.
-End UPDATING.
-
-Section LISTSUB.
-
-  Definition list_sub {A} (s0 s1: list A): Prop :=
-    exists s, Permutation (s ++ s0) s1.
-
-  Global Program Instance list_sub_PreOrder A: PreOrder (@list_sub A).
-  Next Obligation.
-  Proof.
-    ii. exists []. ss.
-  Qed.
-  Next Obligation.
-  Proof.
-    ii. unfold list_sub in *. des.
-    rewrite <- H in H0. exists (s ++ s0).
-    rewrite <- app_assoc. auto.
-  Qed.
-
-  Global Instance permutation_list_sub_proper A:
-    Proper (Permutation ==> Permutation ==> iff) (@list_sub A).
-  Proof.
-    ii. unfold list_sub. split.
-    { i. des. exists s. rewrite <- H. rewrite H1. auto. }
-    { i. des. exists s. rewrite H0. rewrite H. auto. }
-    Qed.
-
-End LISTSUB.
-
-
-Require Import Program.
-
-Lemma Qp_add_lt_one : forall (q : Qp), (1 + q ≤ 1)%Qp -> False.
-Proof. intros. eapply Qp.not_add_le_l. eauto. Qed.
-
-From iris.algebra Require Import excl agree csum.
-
-Module OneShot.
-  Section ONESHOT.
-    Variable A: Type.
-
-    Definition t : ucmra := optionUR (csumR fracR (agreeR (leibnizO A))).
-
-    Definition to_pending (q : Qp) : t := Some (Cinl q).
-    Definition pending (q : Qp) : t := to_pending q.
-    Definition to_shot (a : A) : t := Some (Cinr (to_agree (a : leibnizO A))).
-    Definition shot (a : A) : t := to_shot a.
-
-    Global Instance shot_core_id a: CoreId (shot a).
-    Proof. apply _. Qed.
-
-    Lemma pending_one_wf: ✓ (pending 1).
-    Proof. done. Qed.
-
-    Lemma shot_wf a: ✓ (shot a).
-    Proof. done. Qed.
-
-    Lemma shot_agree a0 a1
-          (WF: ✓ (shot a0 ⋅ shot a1))
-      :
-      a0 = a1.
-    Proof. by apply to_agree_op_inv_L in WF. Qed.
-
-    Lemma pending_not_shot a q
-          (WF: ✓ (pending q ⋅ shot a))
-      :
-      False.
-    Proof. done. Qed.
-
-    Lemma pending_wf q
-          (WF: ✓ (pending q))
-      :
-      (q ≤ 1)%Qp.
-    Proof. done. Qed.
-
-    Lemma pending_sum q0 q1
-      :
-      pending (q0 + q1)%Qp = pending q0 ⋅ pending q1.
-    Proof. done. Qed.
-
-    Lemma pending_shot a
-      :
-      (pending 1) ~~> (shot a).
-    Proof.
-      rewrite /pending /shot /t.
-      rewrite cmra_discrete_total_update. intros mz WF.
-      apply exclusive_Some_l in WF; [|apply _].
-      subst. done.
-    Qed.
-
-    Lemma shot_dup a
-      :
-      (shot a) ≡ (shot a) ⋅ (shot a).
-    Proof.
-      rewrite /shot -Some_op -Cinr_op.
-      rewrite <- core_id_dup; [done|apply _].
-    Qed.
-
-  End ONESHOT.
-  Global Typeclasses Opaque to_shot shot to_pending pending.
-  Global Opaque to_shot shot to_pending pending.
-End OneShot.
-Global Arguments OneShot.shot {_} _.
-
-Module OneShotP.
-
-  Definition pending A `{@GRA.inG (OneShot.t A) Σ} (q : Qp) : iProp Σ :=
-    OwnM (OneShot.pending A q).
-
-  Definition shot `{@GRA.inG (OneShot.t A) Σ} a : iProp Σ := OwnM (OneShot.shot a).
-
-  Global Program Instance shot_persistent (A: Type)
-         `{@GRA.inG (OneShot.t A) Σ}
-         (a: A)
-    :
-    Persistent (shot a).
-  Next Obligation.
-    i. iIntros "H". iPoseProof (own_persistent with "H") as "# G". ss.
-  Qed.
-
-  Lemma shot_agree (A: Type)
-        `{@GRA.inG (OneShot.t A) Σ}
-        (a0 a1: A)
-    :
-    (shot a0 ∧ (shot a1))
-      -∗
-      (⌜a0 = a1⌝).
-  Proof.
-    iIntros "[# H0 # H1]".
-    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShot.shot_agree in H0. auto.
-  Qed.
-
-  Lemma pending_not_shot (A: Type)
-        `{@GRA.inG (OneShot.t A) Σ}
-        (a: A) q
-    :
-    (pending q ∧ (shot a))
-      -∗
-      False.
-  Proof.
-    iIntros "[H0 # H1]".
-    iCombine "H0 H1" as "H". iOwnWf "H". apply OneShot.pending_not_shot in H0. auto.
-  Qed.
-
-  Global Program Instance shot_persistent_singleton (A: Type)
-         `{@GRA.inG (@FiniteMap.t (OneShot.t A)) Σ}
-         k (a: A)
-    :
-    Persistent (OwnM (FiniteMap.singleton k (OneShot.shot a))).
-  Next Obligation.
-    i. iIntros "H". iPoseProof (own_persistent with "H") as "# G".
-    rewrite FiniteMap.singleton_core_total. ss.
-  Qed.
-
-  Lemma shot_agree_singleton (A: Type)
-        `{@GRA.inG (@FiniteMap.t (OneShot.t A)) Σ}
-        k (a0 a1: A)
-    :
-    (OwnM (FiniteMap.singleton k (OneShot.shot a0)) ∧ (OwnM (FiniteMap.singleton k (OneShot.shot a1))))
-      -∗
-      (⌜a0 = a1⌝).
-  Proof.
-    iIntros "[# H0 # H1]".
-    iCombine "H0 H1" as "H". iOwnWf "H".
-    apply FiniteMap.singleton_wf in H0.
-    apply OneShot.shot_agree in H0. auto.
-  Qed.
-
-  Lemma pending_not_shot_singleton (A: Type)
-        `{@GRA.inG (@FiniteMap.t (OneShot.t A)) Σ}
-        k (a: A) q
-    :
-    (OwnM (FiniteMap.singleton k (OneShot.pending A q)) ∧ (OwnM (FiniteMap.singleton k (OneShot.shot a))))
-      -∗
-      False.
-  Proof.
-    iIntros "[H0 # H1]".
-    iCombine "H0 H1" as "H". iOwnWf "H".
-    apply FiniteMap.singleton_wf in H0.
-    apply OneShot.pending_not_shot in H0. auto.
-  Qed.
-
-Global Typeclasses Opaque shot pending.
-Global Opaque shot pending.
-End OneShotP.
-
-From iris.algebra Require Import lib.dfrac_agree.
-Module Consent.
-  Section CONSENT.
-    Variable A: Type.
-
-    Definition t : ucmra := optionUR (dfrac_agreeR (leibnizO A)).
-
-    Definition vote (a: A) (q: Qp): t := Some (to_frac_agree q (a : leibnizO A)).
-
-    Lemma vote_one_wf a: ✓ (vote a 1%Qp).
-    Proof. done. Qed.
-
-    Lemma vote_agree a0 q0 a1 q1
-          (WF: ✓ (vote a0 q0 ⋅ vote a1 q1))
-      :
-      a0 = a1 /\ (q0 + q1 ≤ 1)%Qp.
-    Proof.
-      rewrite /vote -Some_op Some_valid frac_agree_op_valid_L in WF.
-      des. done.
-    Qed.
-
-    Lemma vote_wf a q
-          (WF: ✓ (vote a q))
-      :
-      (q ≤ 1)%Qp.
-    Proof. rewrite /vote Some_valid pair_valid in WF. des. done. Qed.
-
-    Lemma vote_sum a q0 q1
-      :
-      vote a (q0 + q1)%Qp ≡ vote a q0 ⋅ vote a q1.
-    Proof. rewrite /vote -Some_op frac_agree_op //. Qed.
-
-    Lemma vote_revolution a0 a1
-      :
-      (vote a0 1%Qp) ~~> (vote a1 1%Qp).
-    Proof.
-      rewrite /vote cmra_discrete_total_update. intros mz WF.
-      apply exclusive_Some_l in WF; [|apply _].
-      subst. done.
-    Qed.
-  End CONSENT.
-  Global Typeclasses Opaque vote.
-  Global Opaque vote.
-End Consent.
-Global Arguments Consent.vote {_} _ _.
-
-Module ConsentP.
-  Lemma vote_agree (A: Type)
-        `{@GRA.inG (Consent.t A) Σ}
-        (a0 a1: A) q0 q1
-    :
-    (OwnM (Consent.vote a0 q0) ∗ (OwnM (Consent.vote a1 q1)))
-      -∗
-      (⌜a0 = a1⌝).
-  Proof.
-    iIntros "[H0 H1]".
-    iCombine "H0 H1" as "H". iOwnWf "H". apply Consent.vote_agree in H0. des. auto.
-  Qed.
-
-  Definition voted
-             `{@GRA.inG (Consent.t A) Σ}
-             (a: A): iProp Σ :=
-    ∃ q, OwnM (Consent.vote a q).
-
-  Lemma voted_agree (A: Type)
-        `{@GRA.inG (Consent.t A) Σ}
-        (a0 a1: A)
-    :
-    (voted a0 ∗ voted a1)
-      -∗
-      (⌜a0 = a1⌝).
-  Proof.
-    iIntros "[[% H0] [% H1]]". iApply vote_agree. iFrame "H0 H1".
-  Qed.
-
-  Lemma voted_duplicable (A: Type)
-        `{@GRA.inG (Consent.t A) Σ}
-        (a: A)
-    :
-    (voted a)
-      -∗
-      (voted a ∗ voted a).
-  Proof.
-    iIntros "[% H]". erewrite <- (Qp.div_2 q).
-    rewrite Consent.vote_sum.
-    iDestruct "H" as "[H0 H1]". iSplitL "H0".
-    { iExists _. iFrame. }
-    { iExists _. iFrame. }
-  Qed.
-
-  Definition voted_singleton
-             `{@GRA.inG (@FiniteMap.t (Consent.t A)) Σ}
-             k (a: A): iProp Σ :=
-    ∃ q, OwnM (FiniteMap.singleton k (Consent.vote a q)).
-
-  Lemma voted_agree_singleton (A: Type)
-        `{@GRA.inG (@FiniteMap.t (Consent.t A)) Σ}
-        k (a0 a1: A)
-    :
-    (voted_singleton k a0 ∗ voted_singleton k a1)
-      -∗
-      (⌜a0 = a1⌝).
-  Proof.
-    iIntros "[[% H0] [% H1]]".
-    iCombine "H0 H1" as "H". iOwnWf "H".
-    apply FiniteMap.singleton_wf in H0.
-    apply Consent.vote_agree in H0. des. auto.
-  Qed.
-
-  Lemma voted_duplicable_singleton (A: Type)
-        `{@GRA.inG (@FiniteMap.t (Consent.t A)) Σ}
-        k (a: A)
-    :
-    (voted_singleton k a)
-      -∗
-      (voted_singleton k a ∗ voted_singleton k a).
-  Proof.
-    iIntros "[% H]". erewrite <- (Qp.div_2 q).
-    rewrite Consent.vote_sum.
-    rewrite <- FiniteMap.singleton_add.
-    iDestruct "H" as "[H0 H1]". iSplitL "H0".
-    { iExists _. iFrame. }
-    { iExists _. iFrame. }
-  Qed.
-  Global Typeclasses Opaque voted voted_singleton.
-  Global Opaque voted voted_singleton.
-End ConsentP.

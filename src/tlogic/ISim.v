@@ -86,7 +86,7 @@ Section SIM.
              gpaco9 gf (cpn9 gf) (@unlift r) (@unlift g) _ _ (liftRR Q) ps pt r_ctx itr_src itr_tgt (ths, im_src, im_tgt, st_src, st_tgt) |}).
   Next Obligation.
     ii. ss. eapply H.
-    eapply cmra_valid_included; eauto. eapply RA.extends_add; eauto.
+    eapply cmra_valid_included; eauto. eapply cmra_mono_r; eauto.
   Qed.
 
   Tactic Notation "muclo" uconstr(H) :=
@@ -145,7 +145,7 @@ Section SIM.
     specialize (FORALL r_src r_tgt t i0 i s0 s).
     simpl in *.
     hexploit (FORALL r0); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx'). r_wf WF0. }
+    { r_wf WF0. }
     i. specialize (H r_ctx').
     hexploit H; eauto.
     { r_wf WF0. }
@@ -449,9 +449,9 @@ Section SIM.
     eapply lsim_yieldR; eauto.
     i. specialize (H1 ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2).
     hexploit (H1 r_shared1); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. }
+    { r_wf VALID. }
     i. rr in H. hexploit (H ε); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. }
+    { r_wf VALID. }
     r_wf VALID.
   Qed.
 
@@ -471,9 +471,9 @@ Section SIM.
     ii. gstep. eapply pind9_fold. eapply lsim_sync; eauto.
     i. specialize (H1 ths1 im_src1 im_tgt1 st_src1 st_tgt1 im_tgt2).
     hexploit (H1 r_shared1); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. }
+    { r_wf VALID. }
     i. rr in H. hexploit (H ε); eauto.
-    { eapply cmra_valid_op_l. instantiate (1:=r_ctx1). r_wf VALID. }
+    { r_wf VALID. }
     r_wf VALID.
   Qed.
 
@@ -645,7 +645,7 @@ Section SIM.
     }
     Unshelve.
     { i. ss. i. eapply H; eauto.
-      eapply cmra_valid_included; eauto. eapply RA.extends_add; eauto.
+      eapply cmra_valid_included; eauto. eapply cmra_mono_r; eauto.
     }
   Qed.
 

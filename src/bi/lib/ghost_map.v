@@ -11,7 +11,7 @@ From iris.algebra Require Export dfrac.
 From Fairness Require Export OwnGhost.
 From iris.prelude Require Import options.
 
-Definition ghost_mapURA (K V : Type) `{Countable K} : ucmra := OwnG.t (gmap_viewR K (agreeR (leibnizO V))).
+Definition ghost_mapURA (K V : Type) `{Countable K} : ucmra := ownRA (gmap_viewR K (agreeR (leibnizO V))).
 
 Section definitions.
   Context {K V : Type} `{Countable K}.
@@ -20,7 +20,7 @@ Section definitions.
 
   Local Definition ghost_map_auth_ra_def
     (γ : nat) (q : Qp) (m : gmap K V) : ghost_mapURA K V :=
-    OwnG.ra γ
+    to_own γ
       (gmap_view_auth (V:=agreeR $ leibnizO V) (DfracOwn q) (to_agree <$> m)).
   Local Definition ghost_map_auth_ra_aux : seal (@ghost_map_auth_ra_def).
   Proof. by eexists. Qed.
@@ -30,7 +30,7 @@ Section definitions.
 
   Local Definition ghost_map_auth_def
     (γ : nat) (q : Qp) (m : gmap K V) : iProp :=
-    OwnG.to_t γ (gmap_view_auth (V:=agreeR $ leibnizO V) (DfracOwn q) (to_agree <$> m)).
+    own γ (gmap_view_auth (V:=agreeR $ leibnizO V) (DfracOwn q) (to_agree <$> m)).
   Local Definition ghost_map_auth_aux : seal (@ghost_map_auth_def).
   Proof. by eexists. Qed.
   Definition ghost_map_auth := ghost_map_auth_aux.(unseal).
@@ -39,7 +39,7 @@ Section definitions.
 
   Local Definition ghost_map_elem_ra_def
     (γ : nat) (k : K) (dq : dfrac) (v : V) : ghost_mapURA K V :=
-    OwnG.ra γ
+    to_own γ
       (gmap_view_frag (V:=agreeR $ leibnizO V) k dq (to_agree v)).
   Local Definition ghost_map_elem_ra_aux : seal (@ghost_map_elem_ra_def).
   Proof. by eexists. Qed.
@@ -49,7 +49,7 @@ Section definitions.
 
   Local Definition ghost_map_elem_def
     (γ : nat) (k : K) (dq : dfrac) (v : V) : iProp :=
-    OwnG.to_t γ (gmap_view_frag (V:=agreeR $ leibnizO V) k dq (to_agree v)).
+    own γ (gmap_view_frag (V:=agreeR $ leibnizO V) k dq (to_agree v)).
   Local Definition ghost_map_elem_aux : seal (@ghost_map_elem_def).
   Proof. by eexists. Qed.
   Definition ghost_map_elem := ghost_map_elem_aux.(unseal).
@@ -57,15 +57,9 @@ Section definitions.
     @ghost_map_elem = @ghost_map_elem_def := ghost_map_elem_aux.(seal_eq).
 End definitions.
 
-(* bi_scope, not iris_algebra scope cause I actually wanto to use this. *)
-Notation "k ↪[ γ ]{ dq } v" := (ghost_map_elem γ k dq v)
-  (at level 20, γ at level 50, dq at level 50, format "k  ↪[ γ ]{ dq }  v") : bi_scope.
-Notation "k ↪[ γ ]{# q } v" := (k ↪[γ]{DfracOwn q} v)%I
-  (at level 20, γ at level 50, q at level 50, format "k  ↪[ γ ]{# q }  v") : bi_scope.
-Notation "k ↪[ γ ] v" := (k ↪[γ]{#1} v)%I
-  (at level 20, γ at level 50, format "k  ↪[ γ ]  v") : bi_scope.
-Notation "k ↪[ γ ]□ v" := (k ↪[γ]{DfracDiscarded} v)%I
-  (at level 20, γ at level 50) : bi_scope.
+Notation "k ↪[ γ ] dq v" := (ghost_map_elem γ k dq v)
+  (at level 20, γ at level 50, dq custom dfrac at level 1,
+   format "k  ↪[ γ ] dq  v") : bi_scope.
 
 Local Ltac unseal := rewrite
   ?ghost_map_auth_ra_unseal /ghost_map_auth_ra_def
@@ -90,7 +84,7 @@ Section lemmas.
     AsFractional (k ↪[γ]{#q} v) (λ q, k ↪[γ]{#q} v)%I q.
   Proof. split; first done. apply _. Qed.
 
-  (* Local Lemma ghost_map_elems_unseal γ m dq :
+  Local Lemma ghost_map_elems_unseal γ m dq :
     ([∗ map] k ↦ v ∈ m, k ↪[γ]{dq} v) ==∗
     own γ ([^op map] k↦v ∈ m,
       gmap_view_frag (V:=agreeR (leibnizO V)) k dq (to_agree v)).
@@ -98,7 +92,7 @@ Section lemmas.
     unseal. destruct (decide (m = ∅)) as [->|Hne].
     - rewrite !big_opM_empty. iIntros "_". iApply own_unit.
     - rewrite big_opM_own //. iIntros "?". done.
-  Qed. *)
+  Qed.
 
   Lemma ghost_map_elem_valid k γ dq v : k ↪[γ]{dq} v -∗ ⌜✓ dq⌝.
   Proof.
@@ -174,13 +168,13 @@ Section lemmas.
   Qed.
 
   (** * Lemmas about [ghost_map_auth] *)
-  (* Lemma ghost_map_alloc_strong P m :
+  Lemma ghost_map_alloc_strong P m :
     pred_infinite P →
     ⊢ |==> ∃ γ, ⌜P γ⌝ ∗ ghost_map_auth γ 1 m ∗ [∗ map] k ↦ v ∈ m, k ↪[γ] v.
   Proof.
     unseal. intros.
     iMod (own_alloc_strong
-      (gmap_view_auth (V:=leibnizO V) (DfracOwn 1) ∅) P)
+      (gmap_view_auth (V:=agreeR $ leibnizO V) (DfracOwn 1) ∅) P)
       as (γ) "[% Hauth]"; first done.
     { apply gmap_view_auth_valid. }
     iExists γ. iSplitR; first done.
@@ -190,23 +184,25 @@ Section lemmas.
     - done.
     - by apply map_Forall_fmap.
     - rewrite right_id big_opM_fmap. done.
-  Qed. *)
-  (* Lemma ghost_map_alloc_strong_empty P :
+  Qed.
+  Lemma ghost_map_alloc_strong_empty P :
     pred_infinite P →
     ⊢ |==> ∃ γ, ⌜P γ⌝ ∗ ghost_map_auth γ 1 (∅ : gmap K V).
   Proof.
     intros. iMod (ghost_map_alloc_strong P ∅) as (γ) "(% & Hauth & _)"; eauto.
-  Qed. *)
-  (* Lemma ghost_map_alloc m :
+  Qed.
+  Lemma ghost_map_alloc m :
     ⊢ |==> ∃ γ, ghost_map_auth γ 1 m ∗ [∗ map] k ↦ v ∈ m, k ↪[γ] v.
   Proof.
     iMod (ghost_map_alloc_strong (λ _, True) m) as (γ) "[_ Hmap]".
     - by apply pred_infinite_True.
     - eauto.
-  Qed. *)
+  Qed.
   Lemma ghost_map_alloc_empty :
     ⊢ |==> ∃ γ, ghost_map_auth γ 1 (∅ : gmap K V).
-  Proof. unseal. iApply own_alloc. apply gmap_view_auth_valid. Qed.
+  Proof.
+    intros. iMod (ghost_map_alloc ∅) as (γ) "(Hauth & _)"; eauto.
+  Qed.
 
   Global Instance ghost_map_auth_timeless γ q m : Timeless (ghost_map_auth γ q m).
   Proof. unseal. apply _. Qed.
@@ -305,7 +301,7 @@ Section lemmas.
     done.
   Qed.
 
-  (* Lemma ghost_map_insert_big {γ m} m' :
+  Lemma ghost_map_insert_big {γ m} m' :
     m' ##ₘ m →
     ghost_map_auth γ 1 m ==∗
     ghost_map_auth γ 1 (m' ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ] v).
@@ -316,8 +312,8 @@ Section lemmas.
     - done.
     - by apply map_Forall_fmap.
     - rewrite map_fmap_union big_opM_fmap. done.
-  Qed. *)
-  (* Lemma ghost_map_insert_persist_big {γ m} m' :
+  Qed.
+  Lemma ghost_map_insert_persist_big {γ m} m' :
     m' ##ₘ m →
     ghost_map_auth γ 1 m ==∗
     ghost_map_auth γ 1 (m' ∪ m) ∗ ([∗ map] k ↦ v ∈ m', k ↪[γ]□ v).
@@ -326,9 +322,9 @@ Section lemmas.
     iMod (ghost_map_insert_big m' with "Hauth") as "[$ Helem]"; first done.
     iApply big_sepM_bupd. iApply (big_sepM_impl with "Helem").
     iIntros "!#" (k v) "_". iApply ghost_map_elem_persist.
-  Qed. *)
+  Qed.
 
-  (* Lemma ghost_map_delete_big {γ m} m0 :
+  Lemma ghost_map_delete_big {γ m} m0 :
     ghost_map_auth γ 1 m -∗
     ([∗ map] k↦v ∈ m0, k ↪[γ] v) ==∗
     ghost_map_auth γ 1 (m ∖ m0).
@@ -338,9 +334,9 @@ Section lemmas.
     rewrite map_fmap_difference.
     etrans; last apply: gmap_view_delete_big.
     rewrite big_opM_fmap. done.
-  Qed. *)
+  Qed.
 
-  (* Theorem ghost_map_update_big {γ m} m0 m1 :
+  Theorem ghost_map_update_big {γ m} m0 m1 :
     dom m0 = dom m1 →
     ghost_map_auth γ 1 m -∗
     ([∗ map] k↦v ∈ m0, k ↪[γ] v) ==∗
@@ -356,7 +352,7 @@ Section lemmas.
     apply gmap_view_replace_big.
     - rewrite !dom_fmap_L. done.
     - by apply map_Forall_fmap.
-  Qed. *)
+  Qed.
 
 End lemmas.
 
@@ -376,13 +372,13 @@ Context `{HasGhostMap : @GRA.inG (ghost_mapURA K V) Γ}.
   Lemma red_syn_ghost_map_auth n γ q m :
     ⟦syn_ghost_map_auth γ q m, n⟧ = ghost_map_auth γ q m.
   Proof.
-    unfold syn_ghost_map_auth. unseal. red_tl. rewrite own_to_t_eq. ss.
+    unfold syn_ghost_map_auth. unseal. red_tl. rewrite own_to_own_eq. ss.
   Qed.
 
   Lemma red_syn_ghost_map_elem n k γ dq v:
     ⟦syn_ghost_map_elem k γ dq v, n⟧ = ghost_map_elem k γ dq v.
   Proof.
-    unfold syn_ghost_map_elem. unseal. red_tl. rewrite own_to_t_eq. ss.
+    unfold syn_ghost_map_elem. unseal. red_tl. rewrite own_to_own_eq. ss.
   Qed.
 
 End SPROP.
@@ -392,11 +388,6 @@ Ltac red_tl_ghost_map := (
   try rewrite ! red_syn_ghost_map_elem
 ).
 
-Notation "k ↪[ γ ]{ dq } v" := (syn_ghost_map_elem γ k dq v)
-  (at level 20, γ at level 50, dq at level 50, format "k  ↪[ γ ]{ dq }  v") : sProp_scope.
-Notation "k ↪[ γ ]{# q } v" := (k ↪[γ]{DfracOwn q} v)%S
-  (at level 20, γ at level 50, q at level 50, format "k  ↪[ γ ]{# q }  v") : sProp_scope.
-Notation "k ↪[ γ ] v" := (k ↪[γ]{#1} v)%S
-  (at level 20, γ at level 50, format "k  ↪[ γ ]  v") : sProp_scope.
-Notation "k ↪[ γ ]□ v" := (k ↪[γ]{DfracDiscarded} v)%S
-  (at level 20, γ at level 50) : sProp_scope.
+Notation "k ↪[ γ ] dq v" := (syn_ghost_map_elem γ k dq v)
+  (at level 20, γ at level 50, dq custom dfrac at level 1,
+   format "k  ↪[ γ ] dq  v") : sProp_scope.

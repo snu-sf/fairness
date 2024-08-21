@@ -5,7 +5,7 @@ From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import ISim.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
+From Fairness Require Export IndexedInvariants NatMapRALarge RegionRA FairnessRA ObligationRA OpticsInterp.
 From Fairness Require Export SimDefaultRA LiveObligations.
 From Fairness Require Import FairBeh.
 Require Import Coq.Sorting.Mergesort.
@@ -598,14 +598,10 @@ Section STATE.
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LT. iIntros "[H0 H1]".
-    Local Transparent ObligationRA.edges_sat ObligationRA.arrows_sats.
-    Local Typeclasses Transparent ObligationRA.edges_sat ObligationRA.arrows_sats.
     iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
     { iApply SubIProp_trans. iApply Regions.nsats_sat_sub. apply LT. iApply SubIProp_sep_r. }
     assert (Regions.nsats (ObligationRA.arrow (S:=sum_tid ident_tgt)) b = (ObligationRA.arrows_sats b)) as ->; [done|].
     iMod "H0". iApply ("H1" with "H0").
-    Local Typeclasses Opaque ObligationRA.edges_sat ObligationRA.arrows_sats.
-    Local Opaque ObligationRA.edges_sat ObligationRA.arrows_sats.
   Qed.
 
   Lemma wpsim_wand E r g R_src R_tgt

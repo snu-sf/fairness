@@ -1,8 +1,8 @@
-From iris.algebra Require Import cmra.
+From iris.algebra Require Import cmra functions.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib ModSim ModSimPers Concurrency ModAdequacy Axioms.
-From Fairness.base_logic Require Import upred base_logic.
+From Fairness.base_logic Require Import base_logic.
 From Fairness Require Import PCM IPM ISim SimDefaultRA SimWeakest.
 From Fairness Require Import FairBeh.
 Require Import Coq.Logic.PropExtensionality.
@@ -102,8 +102,12 @@ Section DISJOINTWF.
     Local Transparent GRA.to_URA.
     ii. revert r0 r1. dependent destruction ING0.
     dependent destruction ING1.
-    ss. unfold GRA.embed. des_ifs; ss; auto.
-    i. dependent destruction e. ss.
+    ss. unfold GRA.embed.
+    des_ifs; ss; auto; ii.
+    destruct (decide (inG_id = n)) as [->|];
+    rewrite ?discrete_fun_lookup_singleton;
+    try rewrite discrete_fun_lookup_singleton_ne //;
+    auto.
   Qed.
 
   Lemma res_wf_disjoint (r0 r1: Σ)
@@ -194,7 +198,7 @@ Module WSim.
     Lemma iProp_satisfable (r0: Σ) (P: iProp) (WF: ✓ r0)
           (IMPL: Own r0 ⊢ #=> P)
       :
-      exists r1, Fairness.base_logic.upred.uPred_holds (to_upred P) r1 /\ ✓ r1.
+      exists r1, uPred_holds (to_upred P) r1 /\ ✓ r1.
     Proof.
       revert IMPL. rewrite Own_eq. unfold IPM.Own_def. uPred.unseal. intros [IMPL].
       rr in IMPL. hexploit (IMPL r0); auto.
@@ -376,7 +380,6 @@ Module WSim.
           rewrite RET2 in WF0.
           rewrite RET3 in WF0.
           instantiate (1:=x4 ⋅ x5).
-          eapply (cmra_valid_op_l _ x3),(cmra_valid_op_l _ r_ctx0),(cmra_valid_op_l _ x7).
           r_wf WF0.
         }
         { rr. eauto. }
@@ -386,7 +389,6 @@ Module WSim.
           rewrite RET2 in WF0.
           rewrite RET3 in WF0.
           clear -WF0.
-          eapply (cmra_valid_op_l _ x3).
           r_wf WF0.
         }
         i. des.
@@ -478,8 +480,8 @@ Module WSim.
         revert SIM. uPred.unseal. intros SIM.
         eapply Fairness.base_logic.upred.uPred_mono.
         { apply SIM; eauto.
-          - eapply (cmra_valid_op_l _ z). r_wf H1.
-          - eapply (cmra_valid_op_l _ z). r_wf H3.
+          - r_wf H1.
+          - r_wf H3.
         }
         rewrite H0. exists z. r_solve.
       }
@@ -504,7 +506,7 @@ Module WSim.
       { eauto. }
       uPred.unseal. eauto.
       { instantiate (1:=ε). r_wf VALID. }
-      { eapply (cmra_valid_op_l _ r_ctx0). r_wf VALID. }
+      { r_wf VALID. }
     Qed.
 
     Section WHOLE_PROGRAM_SIM.
@@ -667,7 +669,7 @@ Module WSim.
         }
         { rr in EXT. des.
           rewrite EXT in SAT. rewrite SAT in WF.
-          eapply (cmra_valid_op_l _ z). r_wf WF.
+          r_wf WF.
         }
       Qed.
 

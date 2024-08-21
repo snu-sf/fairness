@@ -163,7 +163,7 @@ Section SPEC.
     iDestruct "SI" as "[LB [(PTX & LW & P) | (PTX & LIVEu & #PRMu & #LINKu & LIVEs)]]"; cycle 1.
     { iPoseProof (OneShots.pending_merge with "LIVE LIVEs") as "LIVE".
       iPoseProof (OneShots.pending_wf with "LIVE") as "%F". exfalso.
-      eapply Qp_add_lt_one. eauto.
+      clear -F. by apply Qp.not_add_le_l in F.
     }
     iMod (OneShots.pending_shot _ tt with "LIVE") as "#SHOT".
     iMod ("SI_CLOSE" with "[]") as "_".

@@ -189,36 +189,36 @@ Proof.
 Qed. *)
 
 (** functor *)
-(* Program Definition uPred_map {M1 M2 : ucmra} (f : M2 -n> M1)
+Program Definition uPred_map {M1 M2 : ucmra} (f : M2 -n> M1)
   `{!CmraMorphism f} (P : uPred M1) :
-  uPred M2 := {| uPred_holds n x := P n (f x) |}.
-Next Obligation. naive_solver eauto using uPred_mono, cmra_morphism_monotoneN. Qed. *)
+  uPred M2 := {| uPred_holds x := P (f x) |}.
+Next Obligation. naive_solver eauto using uPred_mono, cmra_morphism_monotone. Qed.
 
-(* Global Instance uPred_map_ne {M1 M2 : ucmra} (f : M2 -n> M1)
+Global Instance uPred_map_ne {M1 M2 : ucmra} (f : M2 -n> M1)
   `{!CmraMorphism f} n : Proper (dist n ==> dist n) (uPred_map f).
 Proof.
-  intros x1 x2 Hx; split=> n' y ??.
-  split; apply Hx; auto using cmra_morphism_validN.
-Qed. *)
-(* Lemma uPred_map_id {M : ucmra} (P : uPred M): uPred_map cid P ≡ P.
-Proof. by split=> n x ?. Qed. *)
-(* Lemma uPred_map_compose {M1 M2 M3 : ucmra} (f : M1 -n> M2) (g : M2 -n> M3)
+  intros x1 x2 Hx; split=> y ?.
+  split; apply Hx; auto using cmra_morphism_valid.
+Qed.
+Lemma uPred_map_id {M : ucmra} (P : uPred M): uPred_map cid P ≡ P.
+Proof. by split=> x ?. Qed.
+Lemma uPred_map_compose {M1 M2 M3 : ucmra} (f : M1 -n> M2) (g : M2 -n> M3)
     `{!CmraMorphism f, !CmraMorphism g} (P : uPred M3):
   uPred_map (g ◎ f) P ≡ uPred_map f (uPred_map g P).
-Proof. by split=> n x Hx. Qed. *)
-(* Lemma uPred_map_ext {M1 M2 : ucmra} (f g : M1 -n> M2)
+Proof. by split=> x Hx. Qed.
+Lemma uPred_map_ext {M1 M2 : ucmra} (f g : M1 -n> M2)
       `{!CmraMorphism f} `{!CmraMorphism g}:
   (∀ x, f x ≡ g x) → ∀ x, uPred_map f x ≡ uPred_map g x.
-Proof. intros Hf P; split=> n x Hx /=; by rewrite /uPred_holds /= Hf. Qed. *)
-(* Definition uPredO_map {M1 M2 : ucmra} (f : M2 -n> M1) `{!CmraMorphism f} :
-  uPredO M1 -n> uPredO M2 := OfeMor (uPred_map f : uPredO M1 → uPredO M2). *)
-(* Lemma uPredO_map_ne {M1 M2 : ucmra} (f g : M2 -n> M1)
-    `{!CmraMorphism f, !CmraMorphism g} n :
-  f ≡{n}≡ g → uPredO_map f ≡{n}≡ uPredO_map g.
+Proof. intros Hf P; split=> x Hx /=; by rewrite /uPred_holds /= Hf. Qed.
+Definition uPredO_map {M1 M2 : ucmra} (f : M2 -n> M1) `{!CmraMorphism f} :
+  uPredO M1 -n> uPredO M2 := OfeMor (uPred_map f : uPredO M1 → uPredO M2).
+Lemma uPredO_map_ne {M1 M2 : ucmra} (f g : M2 -n> M1)
+    `{!CmraMorphism f, !CmraMorphism g} :
+  f ≡ g → uPredO_map f ≡ uPredO_map g.
 Proof.
-  by intros Hfg P; split=> n' y ??;
-    rewrite /uPred_holds /= (dist_le _ _ _ _(Hfg y)); last lia.
-Qed. *)
+  by intros Hfg P; split=> y ?;
+    rewrite /uPred_holds /= (Hfg y).
+Qed.
 
 (* Program Definition uPredOF (F : urFunctor) : oFunctor := {|
   oFunctor_car A _ B _ := uPredO (urFunctor_car F B A);

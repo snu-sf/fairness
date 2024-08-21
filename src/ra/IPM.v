@@ -1,7 +1,8 @@
 From sflib Require Import sflib.
-From Fairness.base_logic Require Import bi derived.
-From iris.proofmode Require Export tactics.
 From iris.algebra Require Import proofmode_classes.
+From iris.proofmode Require Export proofmode.
+
+From Fairness.base_logic Require Import bi derived.
 
 From Fairness Require Import PCM.
 
@@ -39,7 +40,7 @@ Definition Own_eq : @Own = @Own_def := Own_aux.(seal_eq).
 
 Definition OwnM {M : ucmra} `{!GRA.inG M Σ} (a : M) : iProp := Own (GRA.embed a).
 
-Global Instance iProp_bi_bupd : BiBUpd iProp := {| bi_bupd_mixin := uPred_bupd_mixin Σ |}.
+Global Instance iProp_bi_bupd : BiBUpd iProp := uPred_bi_bupd Σ.
 
 Definition from_upred (P : uPred Σ) : iProp := P.
 Definition to_upred (P : iProp) : uPred Σ := P.
@@ -70,63 +71,19 @@ End TEST.
 
 Notation "#=> P" := (|==> P)%I (at level 99).
 
-Section IUPD.
-  Context {Σ: GRA.t}.
-  Notation iProp := (iProp Σ).
-
-  Definition IUpd (I: iProp): iProp -> iProp :=
-    fun P => (I -∗ #=> (I ∗ P))%I.
-
-  Lemma IUpd_intro I: forall P, P ⊢ IUpd I P.
-  Proof.
-    ii. iIntros "H INV". iModIntro. iFrame.
-  Qed.
-
-  Lemma IUpd_mono I: forall P Q, (P ⊢ Q) -> (IUpd I P ⊢ IUpd I Q).
-  Proof.
-    ii. unfold IUpd. iIntros "H INV".
-    iPoseProof ("H" with "INV") as "> [H0 H1]". iModIntro.
-    iFrame. iApply H. auto.
-  Qed.
-
-  Lemma IUpd_trans I: forall P, (IUpd I (IUpd I P)) ⊢ (IUpd I P).
-  Proof.
-    ii. unfold IUpd. iIntros "H INV".
-    iPoseProof ("H" with "INV") as "> [H0 H1]".
-    iApply "H1". auto.
-  Qed.
-
-  Lemma IUpd_frame_r I: forall P R, ((IUpd I P) ∗ R) ⊢ (IUpd I (P ∗ R)).
-  Proof.
-    ii. unfold IUpd. iIntros "[H0 H1] INV".
-    iPoseProof ("H0" with "INV") as "> [H0 H2]".
-    iModIntro. iFrame.
-  Qed.
-
-  Lemma iProp_bupd_mixin_IUpd I: BiBUpdMixin iProp (IUpd I).
-  Proof.
-    econs.
-    - ii. unfold bupd. unfold IUpd. rewrite H. auto.
-    - apply IUpd_intro.
-    - apply IUpd_mono.
-    - apply IUpd_trans.
-    - apply IUpd_frame_r.
-  Qed.
-  Global Instance iProp_bi_bupd_IUpd I: BiBUpd iProp := {| bi_bupd_mixin := iProp_bupd_mixin_IUpd I |}.
-End IUPD.
-Notation "#=( Q )=> P" := ((@bupd (bi_car (iProp _)) (@bi_bupd_bupd _ (@iProp_bi_bupd_IUpd _ Q))) P) (at level 99).
-Notation "P =( I ) =∗ Q" := (P ⊢ #=( I )=> Q) (only parsing, at level 99) : stdpp_scope.
-Notation "P =( I )=∗ Q" := (P -∗ #=( I )=> Q)%I (at level 99): bi_scope.
-
 #[export] Hint Unfold bi_entails bi_sep bi_and bi_or bi_wand bupd bi_bupd_bupd: iprop.
 
 Section class_instances.
   Context `{Σ: GRA.t}.
   Notation iProp := (iProp Σ).
 
+  Global Instance Own_ne : NonExpansive (@Own Σ).
+  Proof. unseal. solve_proper. Qed.
   Global Instance Own_proper :
-    Proper ((≡) ==> (⊣⊢)) (@Own Σ).
-  Proof. unseal. intros x y EQ. by rewrite EQ. Qed.
+    Proper ((≡) ==> (⊣⊢)) (@Own Σ) := ne_proper _.
+
+  Global Instance Own_core_persistent a : CoreId a →  Persistent (@Own Σ a).
+  Proof. rewrite !Own_eq /Own_def; apply _. Qed.
 
   Lemma Own_op (a1 a2: Σ) :
     (Own (a1 ⋅ a2)) ⊣⊢ (Own a1 ∗ Own a2).
@@ -178,9 +135,17 @@ Section class_instances.
     (OwnM (a1 ⋅ a2)) ⊣⊢ (OwnM a1 ∗ OwnM a2).
   Proof. by rewrite /OwnM -GRA.embed_add Own_op. Qed.
 
+  Global Instance OwnM_ne `{GRA.inG M Σ} : NonExpansive (@OwnM Σ M _).
+  Proof. solve_proper. Qed.
   Global Instance OwnM_proper (M: ucmra) `{@GRA.inG M Σ} :
-    Proper ((≡) ==> (⊣⊢)) (@OwnM Σ M _).
-  Proof. intros x y EQ. by rewrite /OwnM EQ. Qed.
+    Proper ((≡) ==> (⊣⊢)) (@OwnM Σ M _) := ne_proper _.
+
+  Global Instance OwnM_core_persistent `{GRA.inG M Σ} (a : M) :
+    CoreId a → Persistent (OwnM a).
+  Proof.
+    rewrite /OwnM => CORE. apply Own_core_persistent.
+    rewrite core_id_total -GRA.embed_core core_id_core //.
+  Qed.
 
   Lemma OwnM_valid (M: ucmra) `{@GRA.inG M Σ} (m: M):
     OwnM m ⊢ ⌜✓ m⌝.
@@ -260,13 +225,9 @@ Section ILEMMAS.
         (r1: Σ) B
         (UPD: r1 ~~>: B)
     :
-      (Own r1) ⊢ (#=> (∃ b, ⌜B b⌝ ∗ (Own b)))
+      (Own r1) ⊢ (#=> (∃ b, ⌜B b⌝ ∧ (Own b)))
   .
-  Proof.
-    unseal. iIntros "H".
-    iMod (uPred.bupd_ownM_updateP _ _ UPD with "H") as (y) "[%Hy H]".
-    iModIntro. iExists y. by iFrame.
-  Qed.
+  Proof. unseal. by apply: uPred.bupd_ownM_updateP. Qed.
 
   Lemma Own_Upd
         (r1 r2: Σ)
@@ -275,10 +236,10 @@ Section ILEMMAS.
       (Own r1) ⊢ (#=> (Own r2))
   .
   Proof.
-    iStartProof. iIntros "H".
-    iAssert (#=> (∃ b, ⌜((eq r2) b)⌝ ∗ (Own b)))%I with "[H]" as "H".
-    { iApply Own_Upd_set; [|iFrame]. by apply cmra_update_updateP. }
-    iMod "H". iDestruct "H" as (b) "[%H0 H1]". subst. by iFrame.
+    intros. iIntros "?".
+    iMod (Own_Upd_set _ (r2 =.) with "[$]") as (a'') "[-> $]".
+    { by apply cmra_update_updateP. }
+    done.
   Qed.
 
   Lemma Own_extends
@@ -293,7 +254,7 @@ Section ILEMMAS.
   Proof. unseal. apply uPred.persistently_ownM_core. Qed.
 
   Lemma OwnM_persistently {M : ucmra} `{@GRA.inG M Σ} (r : M) : OwnM r ⊢ <pers> OwnM (core r).
-  Proof. rewrite /OwnM GRA.embed_core. apply Own_persistently. Qed.
+  Proof. rewrite /OwnM GRA.embed_core Own_persistently //. Qed.
 
   Lemma Own_unit : ⊢ Own (Σ:=Σ) ε.
   Proof. unseal. rewrite /bi_emp_valid. apply (uPred.ownM_unit emp). Qed.
@@ -305,13 +266,13 @@ Section ILEMMAS.
         (r1: M) B
         (UPD: r1 ~~>: B)
     :
-      (OwnM r1) ⊢ (#=> (∃ b, ⌜B b⌝ ∗ (OwnM b)))
+      (OwnM r1) ⊢ (#=> (∃ b, ⌜B b⌝ ∧ (OwnM b)))
   .
   Proof.
     iIntros "H".
-    iPoseProof (Own_Upd_set with "H") as "> H".
-    { eapply GRA.embed_updatable_set. apply UPD. }
-    iDestruct "H" as (b) "[%Hm H1]". destruct Hm as [m [? ?]]. subst.
+    iMod (Own_Upd_set with "H") as (b) "[%Hm H1]".
+    { apply GRA.embed_updatable_set, UPD. }
+    destruct Hm as [m [? ?]]. subst.
     iModIntro. iExists m. iFrame. ss.
   Qed.
 
@@ -321,14 +282,7 @@ Section ILEMMAS.
     :
       (OwnM r1) ⊢ (#=> (OwnM r2))
   .
-  Proof.
-    iStartProof. iIntros "H".
-    iAssert (#=> (∃ b, ⌜((eq r2) b)⌝ ∗ (OwnM b)))%I with "[H]" as "H".
-    { iApply OwnM_Upd_set; [|iFrame].
-      red. red in UPD. i. hexploit UPD; eauto. }
-    iMod "H". iDestruct "H" as (b) "[#H0 H1]".
-    iPure "H0" as Hs. subst. iApply "H1".
-  Qed.
+  Proof. apply Own_Upd, GRA.embed_updatable, UPD. Qed.
 
   Lemma OwnM_extends `{M: ucmra} `{@GRA.inG M Σ}
         {a b: M}
@@ -336,121 +290,8 @@ Section ILEMMAS.
     :
       OwnM b ⊢ OwnM a
   .
-  Proof.
-    rewrite /OwnM. apply Own_extends.
-    unfold included in *.
-    des. setoid_rewrite EXT.
-    eexists. by rewrite -GRA.embed_add.
-  Qed.
-
-  Lemma IUpd_eq (I P : iProp Σ)
-    :
-    (#=(I)=> P) ⊣⊢ (I -∗ #=> (I ∗ P)).
-  Proof.
-    reflexivity.
-  Qed.
-
-  Lemma IUpd_unfold (I P : iProp Σ)
-    :
-    #=(I)=> P ⊢ (I -∗ #=> (I ∗ P)).
-  Proof.
-    reflexivity.
-  Qed.
-
-  Lemma IUpd_fold (I P : iProp Σ)
-    :
-    (I -∗ #=> (I ∗ P)) ⊢ #=(I)=> P.
-  Proof.
-    reflexivity.
-  Qed.
-
-  Lemma Upd_IUpd (I : iProp Σ) : forall P, #=> P ⊢ (#=(I)=> P).
-  Proof.
-    ii. iIntros "H". iApply IUpd_fold. iIntros "INV". iFrame.
-  Qed.
-
-  Definition SubIProp P Q: iProp Σ :=
-    Q -∗ #=> (P ∗ (P -∗ #=> Q)).
-
-  Lemma SubIProp_refl P
-    :
-    ⊢ SubIProp P P.
-  Proof.
-    iIntros "H". iFrame. auto.
-  Qed.
-
-  Lemma SubIProp_trans P Q R
-    :
-    (SubIProp P Q)
-      -∗
-      (SubIProp Q R)
-      -∗
-      (SubIProp P R).
-  Proof.
-    iIntros "H0 H1 H2".
-    iPoseProof ("H1" with "H2") as "> [H1 H2]".
-    iPoseProof ("H0" with "H1") as "> [H0 H1]".
-    iFrame. iModIntro. iIntros "H".
-    iPoseProof ("H1" with "H") as "> H".
-    iPoseProof ("H2" with "H") as "H". auto.
-  Qed.
-
-  Lemma SubIProp_sep_l P Q
-    :
-    ⊢ (SubIProp P (P ∗ Q)).
-  Proof.
-    iIntros "[H0 H1]". iFrame. auto.
-  Qed.
-
-  Lemma SubIProp_sep_r P Q
-    :
-    ⊢ (SubIProp Q (P ∗ Q)).
-  Proof.
-    iIntros "[H0 H1]". iFrame. auto.
-  Qed.
-
-  Lemma IUpd_sub_mon P Q R
-    :
-    (SubIProp P Q)
-      -∗
-      (#=(P)=> R)
-      -∗
-      (#=(Q)=> R).
-  Proof.
-    rewrite !IUpd_eq. iIntros "H0 H1 H2".
-    iPoseProof ("H0" with "H2") as "> [H0 H2]".
-    iPoseProof ("H1" with "H0") as "> [H0 H1]".
-    iPoseProof ("H2" with "H0") as "H0". iFrame. auto.
-  Qed.
+  Proof. revert EXT. move=> [c ->]. by rewrite OwnM_op bi.sep_elim_l. Qed.
 End ILEMMAS.
-
-Global Instance upd_elim_iupd `{Σ : GRA.t} (I P Q : iProp Σ)
-       `{ElimModal _ True false false (#=(I)=> P) P Q R}
-  :
-  ElimModal True false false (#=> P) P Q R.
-Proof.
-  unfold ElimModal. i. iIntros "[H0 H1]".
-  iPoseProof (Upd_IUpd with "H0") as ">H0". iApply "H1". auto.
-Qed.
-
-Global Instance iupd_elim_upd `{Σ : GRA.t} (I P Q : iProp Σ) b
-  :
-  ElimModal True b false (#=> P) P (#=(I)=> Q) (#=(I)=> Q).
-Proof.
-  rewrite /ElimModal bi.intuitionistically_if_elim IUpd_eq.
-  i. iIntros "[H0 H1] H". iMod "H0".
-  iApply ("H1" with "H0 H").
-Qed.
-
-Global Instance subiprop_elim_upd `{Σ : GRA.t} (I J P Q : iProp Σ) b
-  :
-  ElimModal True b false ((SubIProp I J) ∗ #=(I)=> P) P (#=(J)=> Q) (#=(J)=> Q).
-Proof.
-  rewrite /ElimModal bi.intuitionistically_if_elim !IUpd_eq.
-  iIntros (_) "[[SUB P] K] J".
-  iMod ("SUB" with "J") as "[I IJ]". iMod ("P" with "I") as "[I P]".
-  iMod ("IJ" with "I") as "J". iPoseProof ("K" with "P J") as "K". iFrame.
-Qed.
 
 Ltac iOwnWf' H :=
   iPoseProof (OwnM_valid with H) as "%".
@@ -464,16 +305,3 @@ Tactic Notation "iOwnWf" constr(H) "as" ident(WF) :=
   | H0: @valid _ _ _ |- _ => rename H0 into WF
   end
 .
-
-Section AUX.
-
-  Context {Σ: GRA.t}.
-  Notation iProp := (iProp Σ).
-
-  Fixpoint sep_conjs (Ps : nat -> iProp) (n : nat) : iProp :=
-    match n with
-    | O => True
-    | S m => (sep_conjs Ps m) ∗ (Ps m)
-    end.
-
-End AUX.

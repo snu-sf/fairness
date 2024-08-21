@@ -65,7 +65,7 @@ Section SPEC.
   Context {HasMEMRA: @GRA.inG memRA Γ}.
 
   Context {HasTicket : @GRA.inG TicketRA Γ}.
-  Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat))%ra Γ}.
+  Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat)) Γ}.
   Context {HasOneShots : @GRA.inG (OneShots.t unit) Γ}.
 
   Ltac red_tl_all := red_tl; red_tl_memra; red_tl_ticket; red_tl_authexcls; red_tl_oneshots.

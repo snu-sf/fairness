@@ -1,4 +1,6 @@
-(* list of ucmras. Exists to avoid universal inconsistency of Iris and list with relations.  *)
+(** list of discrete [ucmra]s. Exists to avoid universal inconsistency of iris and
+  list with relations. See https://gitlab.mpi-sws.org/iris/stdpp/-/merge_requests/555
+  for why this is needed. *)
 From iris.algebra Require Import cmra.
 Inductive ucmra_list : Type :=
  | nil : ucmra_list
