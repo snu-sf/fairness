@@ -123,13 +123,13 @@ Section class_instances.
     intros. rewrite /CombineSepGives -Own_op Own_valid.
     by apply: bi.persistently_intro.
   Qed.
-  (* Global Instance from_and_own_persistent (a b1 b2 : Σ) :
+  Global Instance from_and_own_persistent (a b1 b2 : Σ) :
     IsOp a b1 b2 → TCOr (CoreId b1) (CoreId b2) →
     FromAnd (Own a) (Own b1) (Own b2).
   Proof.
     intros ? Hb. rewrite /FromAnd (is_op a) Own_op.
-    destruct Hb; by rewrite persistent_and_sep.
-  Qed. *)
+    destruct Hb; by rewrite bi.persistent_and_sep.
+  Qed.
 
   Lemma OwnM_op (M: ucmra) `{@GRA.inG M Σ} (a1 a2: M) :
     (OwnM (a1 ⋅ a2)) ⊣⊢ (OwnM a1 ∗ OwnM a2).
@@ -182,13 +182,13 @@ Section class_instances.
     intros. rewrite /CombineSepGives -OwnM_op OwnM_valid.
     by apply: bi.persistently_intro.
   Qed.
-  (* Global Instance from_and_own_persistent (a b1 b2 : Σ) :
+  Global Instance from_and_ownM_persistent (M: ucmra) `{@GRA.inG M Σ} (a b1 b2 : M) :
     IsOp a b1 b2 → TCOr (CoreId b1) (CoreId b2) →
-    FromAnd (Own a) (Own b1) (Own b2).
+    FromAnd (OwnM a) (OwnM b1) (OwnM b2).
   Proof.
-    intros ? Hb. rewrite /FromAnd (is_op a) Own_op.
-    destruct Hb; by rewrite persistent_and_sep.
-  Qed. *)
+    intros ? Hb. rewrite /FromAnd (is_op a) OwnM_op.
+    destruct Hb; by rewrite bi.persistent_and_sep.
+  Qed.
 
 End class_instances.
 

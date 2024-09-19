@@ -546,22 +546,6 @@ Section SIM.
             ∨ ⟦ticket_lock_inv_unlocked1 n l tks now next myt V κm,n⟧))).
   Proof. f_equiv. Qed.
 
-  Lemma ticket_lock_inv_unfold n :
-    ⟦ticket_lock_inv n, n⟧ ⊢
-    ∃ (own' ing: bool) (V: View.t) (κm: nat)
-      (l: list thread_id) (tks: NatMap.t nat) (now next: nat) (myt: thread_id),
-      ⟦ticket_lock_inv_tks n tks, n⟧
-      ∗ ⟦ticket_lock_inv_mem n V κm now next myt,n⟧
-      ∗ ⟦ticket_lock_inv_state n own' V ing tks,n⟧
-      ∗ ((⌜own' = true⌝
-          ∗ ((⌜ing = false⌝ ∗ ⟦ticket_lock_inv_locked n l tks now next myt V κm,n⟧)
-            ∨ (⌜ing = true⌝ ∗ ⟦ticket_lock_inv_unlocking n l tks now next myt κm,n⟧)))
-        ∨ (⌜own' = false⌝
-          ∗ ⌜ing = false⌝
-          ∗ (⟦ticket_lock_inv_unlocked0 n l tks now next myt V κm,n⟧
-            ∨ ⟦ticket_lock_inv_unlocked1 n l tks now next myt V κm,n⟧))).
-  Proof. f_equiv. Qed.
-
   Ltac desas H name := iEval (red_tl; simpl) in H; iDestruct H as (name) H.
 
   Lemma unlocking_contra
@@ -759,7 +743,7 @@ Section SIM.
     iApply wpsim_tidL. lred. rred2r.
 
     iInv "TINV" as "TI" "TI_CLOSE".
-    iDestruct (ticket_lock_inv_unfold with "TI") as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
+    iEval (rewrite /= ticket_lock_inv_eq) in "TI". iDestruct "TI" as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
     iEval (unfold ticket_lock_inv_state; red_tl_all; ss) in "ST". lred2r. rred2r.
     iApply wpsim_getL. iSplit. auto. lred.
     iApply (wpsim_modifyL with "ST"). iIntros "ST".
@@ -1132,7 +1116,7 @@ Section SIM.
     iModIntro. iExists 0. iIntros "IH". iModIntro. iIntros (V') "DUTY MY1 MY2 PC VLE".
 
     iInv "TINV" as "TI" "TI_CLOSE".
-    iDestruct (ticket_lock_inv_unfold with "TI") as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
+    iEval (rewrite /= ticket_lock_inv_eq) in "TI". iDestruct "TI" as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
 
     destruct (Nat.eq_dec mytk now).
     { subst. iClear "HG1 CIH".
@@ -1156,7 +1140,7 @@ Section SIM.
       rred2r.
 
       iInv "TINV" as "TI" "TI_CLOSE". simpl.
-      iDestruct (ticket_lock_inv_unfold with "TI") as (own' ing V'' κm2 l2 tks2 now2 next3 myt2) "(TKS & MEM & ST & CASES)".
+      iEval (rewrite /= ticket_lock_inv_eq) in "TI". iDestruct "TI" as (own' ing V'' κm2 l2 tks2 now2 next3 myt2) "(TKS & MEM & ST & CASES)".
       clear FIND.
       iPoseProof (mytk_find_some with "[MY2 TKS]") as "%FIND". iFrame.
       iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [% [I | I]]]]".
@@ -1317,7 +1301,7 @@ Section SIM.
     clear own' ing next myt now n0 κm l tks.
 
     iInv "TINV" as "TI" "TI_CLOSE".
-    iDestruct (ticket_lock_inv_unfold with "TI") as (own2 ing2 V2 κm2 l2 tks2 now2 next2 myt2) "(TKS & MEM & ST & CASES)".
+    iEval (rewrite /= ticket_lock_inv_eq) in "TI". iDestruct "TI" as (own2 ing2 V2 κm2 l2 tks2 now2 next2 myt2) "(TKS & MEM & ST & CASES)".
 
     destruct (Nat.eq_dec mytk now2).
     { subst. iClear "HG1 CIH".
@@ -1579,7 +1563,7 @@ Section SIM.
     iApply (wpsim_sync with "[DUTY]"). auto. iFrame. iIntros "DUTY _". lred2r. rred2r.
 
     iInv "INV" as "TI" "TI_CLOSE".
-    iDestruct (ticket_lock_inv_unfold with "TI") as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
+    iEval (rewrite /= ticket_lock_inv_eq) in "TI". iDestruct "TI" as (own' ing V κm l tks now next myt) "(TKS & MEM & ST & CASES)".
 
     iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [%CF2 [I | I]]]]"; cycle 1.
     { subst. iApply wpsim_getL. iSplit. auto. rred. ss. des_ifs; lred2r; iApply wpsim_UB. }
@@ -1616,7 +1600,7 @@ Section SIM.
     iApply (wpsim_sync with "[$DUTY]"). auto. iIntros "DUTY _".
 
     iInv "INV" as "TI" "TI_CLOSE".
-    iDestruct (ticket_lock_inv_unfold with "TI") as (own2 ing2 V3 κm2 l2 tks2 no2w next2 myt2) "(TKS & MEM & ST & CASES)".
+    iEval (rewrite /= ticket_lock_inv_eq) in "TI". iDestruct "TI" as (own2 ing2 V3 κm2 l2 tks2 no2w next2 myt2) "(TKS & MEM & ST & CASES)".
 
     iDestruct "CASES" as "[[%CT [[% I] | [% I]]] | [%CF [%CF2 [I | I]]]]"; cycle 2.
     { subst. unfold ticket_lock_inv_unlocked0. red_tl_all. iDestruct "I" as "[C I]".
