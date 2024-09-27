@@ -551,8 +551,6 @@ Notation iProp := (iProp Σ).
     iIntros "[% (%iN & #HI)] ($ & WSAT & EN)".
     iAssert (OwnE (E ∖ ↑N) ∗ OwnE {[i]} ∗ OwnE (↑N ∖ {[i]}))%I with "[EN]" as "($ & EN3 & EN2)".
     { rewrite -!OwnE_disjoint; [|set_solver..].
-      iApply (OwnM_proper with "EN").
-      f_equal.
       rewrite -union_difference_singleton_L //
         union_comm_L -union_difference_L //.
     }
@@ -586,11 +584,11 @@ Notation iProp := (iProp Σ).
             (λ _, prop n p) (λ _, prop n p) (λ _, None).
   Proof.
     rewrite /IntoAcc /accessor bi.exist_unit.
-    iIntros ((?&?)) "#INV _". by iApply FUpd_open.
+    iIntros ([? ?]) "#INV _". by iApply FUpd_open.
   Qed.
 
   Global Instance elim_modal_FUpd_FUpd p n x A E1 E2 E3 P Q :
-    ElimModal (n <= x) p false (=|n|=(A)={E1,E2}=> P) P (=|x|=(A)={E1,E3}=> Q) (=|x|=(A)={E2,E3}=> Q).
+    ElimModal (n ≤ x) p false (=|n|=(A)={E1,E2}=> P) P (=|x|=(A)={E1,E3}=> Q) (=|x|=(A)={E2,E3}=> Q).
   Proof. intros ?. rewrite (FUpd_mono n x) //. by apply: elim_modal. Qed.
 
   Global Instance elim_modal_FUpd_FUpd_simple_general p x A E0 E1 E2 E3 P Q :
@@ -600,7 +598,7 @@ Notation iProp := (iProp Σ).
               (=|x|=(A)={E2,E3}=> Q)
               (=|x|=(A)={(E1 ∪ (E2 ∖ E0)),E3}=> Q) | 10.
   Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim. ss.
+    rewrite /ElimModal bi.intuitionistically_if_elim /=.
     iIntros (HE) "[M K]".
     iApply fupd_mask_frame; [exact HE|].
     iMod "M". iApply ("K" with "M").
@@ -613,7 +611,7 @@ Notation iProp := (iProp Σ).
               (=|x|=(A)={E2,E3}=> Q)
               (=|x|=(A)={(E1 ∪ (E2 ∖ E0)),E3}=> Q) | 10.
   Proof.
-    rewrite /ElimModal bi.intuitionistically_if_elim. ss.
+    rewrite /ElimModal bi.intuitionistically_if_elim /=.
     iIntros (HE) "[M K]".
     iApply fupd_mask_frame; [exact HE|].
     iMod "M". iApply ("K" with "M").

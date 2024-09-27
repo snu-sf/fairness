@@ -155,7 +155,8 @@ Module GRA.
   }
   .
 
-  Program Definition of_list (RAs: ucmra_list) : t := {| gra_map := λ n, (UList.nth n RAs (optionUR Empty_setR)) |}.
+  Program Definition of_list (RAs: ucmra_list) : t :=
+    {| gra_map := λ n, (UList.nth n RAs (optionUR Empty_setR)) |}.
   Next Obligation. induction RAs; destruct i; apply _. Qed.
 
   Definition to_URA (Σ: t) : ucmra := discrete_funUR Σ.
@@ -202,7 +203,7 @@ Section lemmas.
     :
       <<EQ: embed a0 ⋅ embed a1 ≡ embed (a0 ⋅ a1) >>
     .
-  Proof. by rewrite /embed discrete_fun_singleton_op cmra_transport_op. Qed.
+  Proof. by rewrite /NW /embed discrete_fun_singleton_op cmra_transport_op. Qed.
 
   Lemma embed_updatable_set
         a P

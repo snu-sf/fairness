@@ -168,6 +168,7 @@ Section SIM.
     iIntros. iApply MONO. eauto.
   Qed.
 
+  (* TODO: there should be a proofmode frame instance for this or something. *)
   Lemma isim_frame r g R_src R_tgt
         P (Q: R_src -> R_tgt -> shared_rel)
         ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt
