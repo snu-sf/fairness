@@ -201,9 +201,9 @@ Section lemmas.
   Lemma embed_add
         a0 a1
     :
-      <<EQ: embed a0 ⋅ embed a1 ≡ embed (a0 ⋅ a1) >>
+      embed a0 ⋅ embed a1 ≡ embed (a0 ⋅ a1)
     .
-  Proof. by rewrite /NW /embed discrete_fun_singleton_op cmra_transport_op. Qed.
+  Proof. by rewrite /embed discrete_fun_singleton_op cmra_transport_op. Qed.
 
   Lemma embed_updatable_set
         a P
