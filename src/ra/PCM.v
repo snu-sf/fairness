@@ -121,8 +121,8 @@ End discrete_fun.
 
 (** [discrete_fun_singleton] with excluded middle built-in *)
 (*  It may be tempting to just create a [Global Instance A_eq_decision : EqDecision A] using
-    excluded middle. However that would create two instance of [EqDecision] for all types [A],
-    which will make two instances of [EqDecision] for decidable types causing all kinds of
+    excluded middle. However that would create two instance of
+    [EqDecision] for decidable types causing all kinds of
     weird inference failures.
 *)
 Local Lemma A_eq_decision {A} : EqDecision A.
