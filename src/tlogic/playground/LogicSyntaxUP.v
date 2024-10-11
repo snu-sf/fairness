@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 
@@ -137,7 +137,7 @@ Module Syntax.
       | wand p q => Wand (to_semantics p) (to_semantics q)
       | empty => Emp
       | persistently p => Persistently (to_semantics p)
-      | plainly p => IProp.Plainly (to_semantics p)
+      | plainly p => .Plainly (to_semantics p)
       (* | later (p : Syntax) *)
       | upd p => Upd (to_semantics p)
       (* | entails p q => Entails (to_semantics p) (to_semantics q) *)
@@ -279,8 +279,8 @@ Section TEST.
                  (Syntax.and
                    (Syntax.pure (@prop _ _ (@Syntax.I _ _ Atomics _) p = P))
                    (Syntax.owni n i p))).
-Syntax.I@{} = 
-λ (Σ : GRA.t) (A : Type@{Fairness.LogicSyntaxUP.597}) (Atomics : InvSet A) 
+Syntax.I@{} =
+λ (Σ : GRA.t) (A : Type@{Fairness.LogicSyntaxUP.597}) (Atomics : InvSet A)
   (H : GRA.inG (IInvSetRA Syntax.t@{Fairness.LogicSyntaxUP.598 Fairness.LogicSyntaxUP.599}) Σ),
   {| prop := Syntax.to_semantics |}
      : ∀ (Σ : GRA.t) (A : Type@{Fairness.LogicSyntaxUP.597}),
@@ -340,7 +340,7 @@ Section INDEXEDINV.
 
   Fixpoint indexed (n : nat) (BaseI : @InvSet Σ (@Syntax.t A)) : @InvSet Σ (@Syntax.t A) :=
     match n with
-      | O => @Syntax.I Σ A Atomics 
+      | O => @Syntax.I Σ A Atomics
 
 
 End INDEXEDINV.
@@ -411,9 +411,9 @@ Section TEST.
     ((OwnI_test i p) ∗ (OwnI_test2 i q))%I.
 
   Print Universes.
-OwnI_test3 = 
-λ (Σ0 : GRA.t) (H : GRA.inG (IInvSetRA Syntax.t@{OwnI_white_test.u2 OwnI_white_test.u3}) Σ0) 
-  (i : positive) (p : Syntax.t@{OwnI_white_test.u0 OwnI_white_test.u1}) 
+OwnI_test3 =
+λ (Σ0 : GRA.t) (H : GRA.inG (IInvSetRA Syntax.t@{OwnI_white_test.u2 OwnI_white_test.u3}) Σ0)
+  (i : positive) (p : Syntax.t@{OwnI_white_test.u0 OwnI_white_test.u1})
   (q : Syntax.t@{OwnI_white_test2.u0 OwnI_white_test2.u1}), OwnI_test i p ∗ OwnI_test2 i q
      : ∀ Σ0 : GRA.t,
          GRA.inG (IInvSetRA Syntax.t@{OwnI_white_test.u2 OwnI_white_test.u3}) Σ0
@@ -422,7 +422,7 @@ OwnI_test3 =
              → Syntax.t@{OwnI_white_test2.u0 OwnI_white_test2.u1} → iProp
 (* iisra.u0 < IInvSetRA.u0 *)
 (* iisra.u1 < IInvSetRA.u0 *)
-OwnI_white_test = 
+OwnI_white_test =
 λ (i : positive) (p : Syntax.t@{OwnI_white_test.u0 OwnI_white_test.u1}),
   maps_to_res 2
     (Auth.white
@@ -446,8 +446,8 @@ OwnI_white_test.u3 < IInvSetRA.u0
                    < MRet.u0
                    < URA.agree_obligation_4.u0
 
-OwnI_test = 
-λ (Σ0 : GRA.t) (H : GRA.inG (IInvSetRA Syntax.t@{OwnI_white_test.u2 OwnI_white_test.u3}) Σ0) 
+OwnI_test =
+λ (Σ0 : GRA.t) (H : GRA.inG (IInvSetRA Syntax.t@{OwnI_white_test.u2 OwnI_white_test.u3}) Σ0)
   (i : positive) (p : Syntax.t@{OwnI_white_test.u0 OwnI_white_test.u1}),
   OwnM (OwnI_white_test i p)
      : ∀ Σ0 : GRA.t,

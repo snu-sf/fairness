@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import Spinlock.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic SCMemSpec.
 From Fairness Require Import OneShotsRA AuthExclsRA.
@@ -36,17 +36,17 @@ Section SPEC.
   Definition spinlockInv (n : nat) κs (x : SCMem.val) (γl : nat) (P : sProp n)
     : sProp n :=
     (∃ (γκu κu : τ{nat}),
-        (● γl (γκu, κu))
+        (●G γl (γκu, κu))
           ∗
-          (((x ↦ 0) ∗ (○ γl (γκu, κu)) ∗ P)
+          (((x ↦ 0) ∗ (○G γl (γκu, κu)) ∗ P)
            ∨ ((x ↦ 1) ∗ (△ γκu 1) ∗ (-[κu](0)-◇ (▿ γκu tt)) ∗ (κu -(0)-◇ κs)))
     )%S.
   (* Definition spinlockInv (n : nat) κs (x : SCMem.val) (γx γl : nat) (P : sProp n) *)
   (*   : sProp n := *)
   (*   (∃ (l γκu κu : τ{nat}), *)
-  (*       ((x ↦ l) ∗ (● γx l) ∗ (● γl (γκu, κu))) *)
+  (*       ((x ↦ l) ∗ (●G γx l) ∗ (●G γl (γκu, κu))) *)
   (*         ∗ *)
-  (*         ((⌜l = 0⌝ ∗ (○ γl (γκu, κu)) ∗ P) *)
+  (*         ((⌜l = 0⌝ ∗ (○G γl (γκu, κu)) ∗ P) *)
   (*          ∨ (⌜l = 1⌝ ∗ (△ γκu 1) ∗ (-[κu](0)-◇ (▿ γκu tt)) ∗ (κu -(0)-◇ κs))) *)
   (*   )%S. *)
 
@@ -79,11 +79,11 @@ Section SPEC.
     :
     ⊢
       (⟦((isSpinlock n κs x γl P ℓL μn)
-           ∗ (○ γl (γκu, κu)) ∗ (Duty(tid) ((κu, 0, ▿ γκu tt) :: ϕ))
+           ∗ (○G γl (γκu, κu)) ∗ (Duty(tid) ((κu, 0, ▿ γκu tt) :: ϕ))
            ∗ ◇[κs](ℓl, μa)
            ∗ ◆[κu', ℓl, μa] ∗ ⧖[κu', (1/2)] ∗ (△ γκu' 1) ∗ (-[κu'](0)-⧖ (▿ γκu' tt))
         )%S, n⟧)
-      =|1+n|=(⟦syn_fairI (1+n), 1+n⟧)={E}=∗ (⟦((○ γl (γκu', κu')) ∗ (Duty(tid) ϕ) ∗ (▿ γκu tt) ∗ (⋈[κu']))%S, n⟧).
+      =|1+n|=(⟦syn_fairI (1+n), 1+n⟧)={E}=∗ (⟦((○G γl (γκu', κu')) ∗ (Duty(tid) ϕ) ∗ (▿ γκu tt) ∗ (⋈[κu']))%S, n⟧).
   Proof.
     rewrite red_syn_fairI. red_tl_all. simpl.
     iIntros "(#ISL & LK & DUTY & PCs & #LOu' & POu' & PENDu' & DPu')".
@@ -128,7 +128,7 @@ Section SPEC.
             )%S, 1+n⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (Spinlock.lock x))
             ⧼rv, ⟦(∃ (γκu κu : τ{nat, 1+n}),
-                      (⤉ ○ γl (γκu, κu))
+                      (⤉ ○G γl (γκu, κu))
                         ∗ (⤉ P)
                         ∗ (⤉ Duty(tid) ((κu, 0, ▿ γκu tt) :: ds))
                         ∗ ◇[κu](ℓu, μu)
@@ -288,7 +288,7 @@ Section SPEC.
         [@ tid, n, ⊤ @]
           ⧼⟦((syn_tgt_interp_as n sndl (fun m => (s_memory_black m)))
                ∗ (⤉ isSpinlock n κs x γl P ℓL μn)
-               ∗ (⤉ ○ γl (γκu, κu))
+               ∗ (⤉ ○G γl (γκu, κu))
                ∗ (⤉ P)
                ∗ (⤉ Duty(tid) ((κu, 0, ▿ γκu tt) :: ds))
                ∗ ◇{((κu, 0, ▿ κu tt) :: ds)@1}(1, 1)

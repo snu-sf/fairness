@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic SCMemSpec OneShotsRA TicketLockRA AuthExclsRA.
 
@@ -65,7 +65,7 @@ Section SPEC.
   Context {HasMEMRA: @GRA.inG memRA Γ}.
 
   Context {HasTicket : @GRA.inG TicketRA Γ}.
-  Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat))%ra Γ}.
+  Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat)) Γ}.
   Context {HasOneShots : @GRA.inG (OneShots.t unit) Γ}.
 
   Ltac red_tl_all := red_tl; red_tl_memra; red_tl_ticket; red_tl_authexcls; red_tl_oneshots.
@@ -90,12 +90,12 @@ Section SPEC.
       ∗ (s_ticket_black γt D)
       ∗ ⌜forall tk, (o <= tk < n) <-> (tk ∈ D)⌝
       ∗ ⌜pass <= b⌝
-      ∗ (● γt (κu, γs, pass))
-      ∗ ((⌜o = n⌝ ∗ (○ γt (κu, γs, pass)) ∗ P)
+      ∗ (●G γt (κu, γs, pass))
+      ∗ ((⌜o = n⌝ ∗ (○G γt (κu, γs, pass)) ∗ P)
         ∨ ◆[κu, l] ∗ (-[κu](0)-◇ ▿ γs tt) ∗ (⋈ [κu]) ∗ (△ γs 1) (* Promise to unlock *)
           ∗ (∃ (κack : τ{nat, i}),
               (s_ticket_wait γt o [κu; γs; κack; pass])
-              ∗ (s_ticket_issued γt o [κu; γs; κack; pass] ∨ (○ γt (κu, γs, pass) ∗ P))))
+              ∗ (s_ticket_issued γt o [κu; γs; κack; pass] ∨ (○G γt (κu, γs, pass) ∗ P))))
       ∗ ([∗ i set] tk ∈ D,
           ⌜tk = o⌝
           ∨ ⌜tk > o⌝
@@ -142,11 +142,11 @@ Section SPEC.
     { unfold tklockInv. simpl. red_tl.
       iExists 0. red_tl; simpl. iExists 0. red_tl; simpl.
       iExists 0. red_tl; simpl. iExists 0. red_tl; simpl. iExists b; red_tl. iExists ∅. red_tl_all; simpl.
-      iFrame. iSplit; auto.
+      iFrame. iSplit.
       { iPureIntro. split; i; inv H. lia. }
-      iSplit; auto.
+      iSplit; [done|].
       iSplitL; cycle 1. auto.
-      iLeft. iSplitR; auto. iFrame.
+      iLeft. iSplitR; [done|]. iFrame.
     }
     iModIntro.
     unfold isTicketLock. red_tl; simpl. iExists lo. red_tl; simpl. iExists ln. red_tl; simpl.
@@ -171,18 +171,18 @@ Section SPEC.
         ∗ (⤉ s_ticket_issued γt n [κu; γs; κack; b]))%S, 1+i⟧⧽
         (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock_loop (lo, SCMem.val_nat n)))
         ⧼rv, ⟦((⤉ Duty(tid)((κu, 0, ▿ γs tt) :: ds))
-            ∗ (⤉ ○ γt (κu, γs, b))
+            ∗ (⤉ ○G γt (κu, γs, b))
             ∗ (⤉ P))%S, 1+i⟧⧽
   .
   Proof.
     iIntros. iStartTriple. simpl. red_tl_all; simpl. rewrite red_syn_inv; rewrite red_syn_tgt_interp_as.
-    iIntros "(#INV & #MEM & DUTY & PCS & CCS & PC & ISSUED)". iIntros "POST".
+    iIntros "(#INV & #MEM & DUTY & PCS & CCS & PC & ISSUED) POST".
 
     iRevert "PCS DUTY PC ISSUED POST".
     iMod (ccs_ind2 with "CCS [-]") as "IND".
     2:{ iApply "IND". }
     iModIntro. iExists 0. iIntros "IH". iModIntro. iIntros "PCS DUTY PC ISSUED POST".
-    iMod (pcs_drop _ _ 1 _ _ 2 with "[PCS]") as "PCS". 2:{ iFrame. } auto.
+    iMod (pcs_drop 1 2 with "PCS") as "PCS"; [lia..|].
 
     iEval (rewrite unfold_iter_eq; rred2r).
     iInv "INV" as "TI" "TI_CLOSE". iEval (simpl; unfold tklockInv; red_tl_all; simpl) in "TI".
@@ -210,17 +210,17 @@ Section SPEC.
       iPoseProof (Ticket_issued_wait with "ISSUED WAIT") as "%EQ". clarify.
       iAssert (#=> ◇[κu2](1, 2))%I with "[PC]" as "> PC".
       { destruct (Nat.eq_dec l 1). subst. done.
-        iMod (pc_drop _ 1 l _ 2 2 with "[PC]") as "PC". auto. done. done.
+        iMod (pc_drop _ 1 l _ 2 2 with "PC") as "PC". auto. done.
       }
       iMod ("TI_CLOSE" with "[- POST DUTY PC ISSUED PCS]") as "_".
       { iEval (unfold tklockInv; simpl; red_tl_all).
         iExists o2. iEval (red_tl; simpl). iExists n2. iEval (red_tl; simpl).
         iExists κu2. iEval (red_tl; simpl). iExists γs2. iEval (red_tl; simpl).
         iExists b2. iEval (red_tl; simpl). iExists D2. iEval (red_tl_all; simpl). iFrame.
-        iSplitR; auto. iSplitR; auto.
+        iSplit; [done|]. iSplit; [done|].
         iSplitR "HWAIT".
         { iRight. iFrame. repeat iSplitR; try done. iExists κack2. red_tl_all; simpl. iFrame. }
-        iEval (setoid_rewrite H; rewrite red_tl_big_sepS). rewrite big_opS_union; cycle 1. set_solver.
+        iEval (rewrite H; rewrite red_tl_big_sepS). rewrite big_opS_union; cycle 1. set_solver.
         iSplitL; auto. iApply big_sepS_singleton. red_tl; iLeft; auto.
       }
       iApply (wpsim_yieldR2 with "[DUTY PCS PC]"). auto. instantiate (1:=2); auto.
@@ -264,7 +264,7 @@ Section SPEC.
         iExists o3. iEval (red_tl; simpl). iExists n3. iEval (red_tl; simpl).
         iExists κu3. iEval (red_tl; simpl). iExists γs3. iEval (red_tl; simpl).
         iExists b3. iEval (red_tl; simpl). iExists D3. iEval (red_tl_all; simpl). iFrame.
-        iSplitR; auto. iSplitR; auto. iSplitR "HWAIT".
+        iSplitR; [done|]. iSplitR; [done|]. iSplitR "HWAIT".
         { iRight. iFrame. repeat iSplitR; try done. iExists κack3. red_tl_all; simpl. iFrame. }
         iEval (setoid_rewrite H; rewrite red_tl_big_sepS). rewrite big_opS_union; cycle 1. set_solver.
         iSplitL; auto. iApply big_sepS_singleton. red_tl; iLeft; auto.
@@ -303,7 +303,7 @@ Section SPEC.
       iExists o2. iEval (red_tl; simpl). iExists n2. iEval (red_tl; simpl).
       iExists κu2. iEval (red_tl; simpl). iExists γs2. iEval (red_tl; simpl).
       iExists b2. iEval (red_tl; simpl). iExists D2. iEval (red_tl_all; simpl). iFrame.
-      iSplitR; auto. iSplitR; auto. iSplitR "HWAIT PENDING WAIT PCa PPS".
+      iSplit; [done|]. iSplit; [done|]. iSplitR "HWAIT PENDING WAIT PCa PPS".
       { iRight. iFrame. repeat iSplitR; try done. iExists κack2. red_tl_all; simpl. iFrame. }
       iEval (setoid_rewrite H; rewrite red_tl_big_sepS). rewrite big_opS_union; cycle 1. set_solver.
       iSplitL "HWAIT"; auto. iApply big_sepS_singleton. red_tl; iRight; auto. iSplit; auto.
@@ -349,7 +349,7 @@ Section SPEC.
         iExists o2. iEval (red_tl; simpl). iExists n2. iEval (red_tl; simpl).
         iExists κu2. iEval (red_tl; simpl). iExists γs2. iEval (red_tl; simpl).
         iExists b2. iEval (red_tl; simpl). iExists D2. iEval (red_tl_all; simpl). iFrame.
-        iSplitR; auto. iSplitR; auto. iSplitR "HWAIT".
+        iSplit; [done|]. iSplit; [done|]. iSplitR "HWAIT".
         { iRight. iFrame. repeat iSplitR; try done. iExists κack2. red_tl_all; simpl. iFrame. }
         iEval (setoid_rewrite H; rewrite red_tl_big_sepS). rewrite big_opS_union; cycle 1. set_solver.
         iSplitL "HWAIT"; auto. iApply big_sepS_singleton. red_tl; iLeft; auto.
@@ -382,7 +382,7 @@ Section SPEC.
         iExists o2. iEval (red_tl; simpl). iExists n2. iEval (red_tl; simpl).
         iExists κu2. iEval (red_tl; simpl). iExists γs2. iEval (red_tl; simpl).
         iExists b2. iEval (red_tl; simpl). iExists D2. iEval (red_tl_all; simpl). iFrame.
-        iSplitR; auto. iSplitR; auto. iSplitR "HWAIT PENDING WAIT PCa PO".
+        iSplit; [done|]. iSplit; [done|]. iSplitR "HWAIT PENDING WAIT PCa PO".
         { iRight. iFrame. repeat iSplitR; try done. iExists κack2. iFrame. }
         iEval (setoid_rewrite H; rewrite red_tl_big_sepS). rewrite big_opS_union; cycle 1. set_solver.
         iSplitL "HWAIT"; auto. iApply big_sepS_singleton. red_tl; iRight; auto. iSplit; auto.
@@ -416,7 +416,7 @@ Section SPEC.
             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock loc))
             ⧼rv, ⟦(∃ (κu γs : τ{nat, 1+i}),
                     (⤉ P)
-                    ∗ (⤉ ○ γt (κu, γs, b))
+                    ∗ (⤉ ○G γt (κu, γs, b))
                     ∗ (⤉ (Duty(tid) ((κu, 0, ▿ γs tt) :: ds)))
                     ∗ ◇[κu](l, 1))%S, 1+i⟧⧽
   .
@@ -432,11 +432,11 @@ Section SPEC.
 
     (* YIELD *)
     rred2r.
-    iMod (pcs_drop _ _ 1 _ _ 2 with "[PCS]") as "PCS". 2:{ iFrame. } auto.
-    iMod (pcs_decr _ _ 1 _ with "PCS") as "[PCS' PCS]". auto.
-    iMod (pcs_drop _ _ 1 _ 2 2 with "PCS'") as "PCS'". lia.
-    iMod (pcs_decr _ _ 1 _ with "PCS'") as "[PCS'' PCS']". auto.
-    iMod (pcs_drop _ _ 1 _ 1 2 with "PCS'") as "PCS'". lia.
+    iMod (pcs_drop (4+l) 2 with "PCS") as "PCS"; [lia..|].
+    iMod (pcs_decr 1 _ with "PCS") as "[PCS' PCS]". auto.
+    iMod (pcs_drop 2 2 with "PCS'") as "PCS'"; [lia..|].
+    iMod (pcs_decr 1 _ with "PCS'") as "[PCS'' PCS']". auto.
+    iMod (pcs_drop 1 2 with "PCS'") as "PCS'"; [lia..|].
     iCombine "DUTY" "PCS'" as "DUTY".
     iApply (wpsim_yieldR2 with "DUTY"). auto. lia.
     iIntros "DUTY CRED PCS'". simpl.
@@ -499,7 +499,7 @@ Section SPEC.
             { rewrite elem_of_singleton in H; clarify; lia. }
           }
         }
-        iSplit; auto.
+        iSplit; [done|].
         iSplitR "HWAIT".
         { iRight. iFrame. repeat iSplitR; try done. iExists κack2. iEval (red_tl_all). iFrame. iRight. iFrame. }
         assert (D = ∅). apply elem_of_equiv_empty_L. ii. apply HD in H; lia. subst.
@@ -542,7 +542,7 @@ Section SPEC.
             { rewrite elem_of_singleton in H; clarify; lia. }
           }
         }
-        iSplit; auto. 
+        iSplit; [done|].
         iSplitR "HWAIT PENDING2 PO2 WAIT PCa2".
         { iRight. iFrame. repeat iSplitR; try done. iExists κack. done. }
         rewrite ! red_tl_big_sepS; simpl. rewrite big_opS_union. iSplitL "HWAIT"; auto.
@@ -578,7 +578,7 @@ Section SPEC.
           ⧼⟦((syn_tgt_interp_as i sndl (fun m => (s_memory_black m)))
               ∗ (⤉ isTicketLock i γt loc P l b)
               ∗ (⤉ P)
-              ∗ (⤉ ○ γt (κu, γs, pass))
+              ∗ (⤉ ○G γt (κu, γs, pass))
               ∗ (⤉ Duty(tid) ((κu, 0, ▿ γs tt) :: ds))
               ∗ ◇{((κu, 0, emp) :: ds)@1}(1, 3))%S, 1+i⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.unlock loc))
@@ -629,7 +629,7 @@ Section SPEC.
       iExists κu. iEval (red_tl; simpl). iExists γs. iEval (red_tl; simpl).
       iExists pass. iEval (red_tl; simpl). iExists D. iEval (red_tl_all; simpl).
       iFrame. iSplit; auto. iSplit; auto. iRight. iFrame. repeat iSplit; auto.
-      iExists κack. red_tl_all. iFrame. iRight; auto. iFrame.
+      iExists κack. red_tl_all. iFrame. iRight. iFrame.
     }
     (* YIELD *)
     iApply (wpsim_yieldR2 with "[DUTY PCS]").
@@ -685,9 +685,9 @@ Section SPEC.
         iExists (o2 + 1). iEval (red_tl; simpl). iExists (o2 + 1). iEval (red_tl; simpl).
         iExists κu2. iEval (red_tl; simpl). iExists γs2. iEval (red_tl; simpl).
         iExists pass2. iEval (red_tl; simpl). iExists (D2 ∖ {[o2]}). iEval (red_tl_all; simpl).
-        iFrame. iSplit; auto.
+        iFrame. iSplit.
         { iPureIntro. split; ii. lia. set_unfold in H0. des. apply HD in H0. lia. }
-        iSplit; auto. iSplitL "LW P".
+        iSplit; [done|]. iSplitL "LW P".
         { iLeft. iFrame. auto. }
         assert (D2 ∖ {[o2]} = ∅).
         { apply elem_of_equiv_empty_L. ii. set_unfold in H0. des. apply HD in H0; lia. }
@@ -718,7 +718,7 @@ Section SPEC.
     iMod (AuthExcls.b_w_update _ _ _ (κu3, γs3, b) with "LB LW") as "[LB LW]".
     (* Make new links *)
     iAssert ([∗ set] y ∈ (list_to_set (seq (2+o2) (n2 - (2+o2)))),
-              #=( ObligationRA.edges_sat )=>  
+              #=( ObligationRA.edges_sat )=>
                 (⌜y > o2 + 1⌝
                   ∗ (∃ (κu4 κack4 γs4 : nat),
                     (◆[κu4, l]) ∗ (-[κu4](0)-⧖ (▿ γs4 tt)%S) ∗ (⧖ [κu4, (1/2)]) ∗ (△ γs4 1)
@@ -749,7 +749,7 @@ Section SPEC.
       iExists (o2 + 1). iEval (red_tl; simpl). iExists n2. iEval (red_tl; simpl).
       iExists κu3. iEval (red_tl; simpl). iExists γs3. iEval (red_tl; simpl).
       iExists b. iEval (red_tl; simpl). iExists (D2 ∖ {[o2]}). iEval (red_tl_all; simpl). iFrame.
-      iSplitR; auto.
+      iSplit.
       { iPureIntro. rewrite H0. split; ii.
         { apply elem_of_union. destruct (Nat.eq_dec tk (1 + o2)). left; set_solver.
           right. set_unfold. apply elem_of_list_In. apply in_seq. lia.
@@ -758,7 +758,7 @@ Section SPEC.
           set_unfold in H1. apply elem_of_list_In in H1. apply in_seq in H1. lia.
         }
       }
-      iSplit; auto.
+      iSplit; [done|].
       iSplitR "HWAIT".
       { iRight. repeat iSplit; auto. iFrame.
         iExists κack3. red_tl_all; simpl. do 2 replace (o2 + 1) with (S o2) by lia. iFrame. iRight. iFrame.
@@ -779,6 +779,6 @@ Section SPEC.
     iApply ("POST" with "[DUTY]"). simpl. red_tl; simpl. done.
   Unshelve. all: auto.
   Qed.
-      
+
 End SPEC.
 Global Opaque TicketLock.lock TicketLock.unlock.

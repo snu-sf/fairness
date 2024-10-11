@@ -132,7 +132,7 @@ Module FiniteMap.
       unfold singleton, add. apply func_ext. i. des_ifs.
     Qed.
 
-    Lemma singleton_core k m
+    Lemma singleton_core_total k m
       :
       URA.core (singleton k m) = singleton k (URA.core m).
     Proof.
@@ -417,7 +417,7 @@ Section Monotone.
     Proof.
       unfold monoBlack, monoWhiteExact.
       iIntros "H". iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Program Instance Persistent_white_exact w: Persistent (monoWhiteExact w).
@@ -1710,7 +1710,7 @@ Module OneShotP.
     Persistent (OwnM (FiniteMap.singleton k (OneShot.shot a))).
   Next Obligation.
     i. iIntros "H". iPoseProof (own_persistent with "H") as "# G".
-    rewrite FiniteMap.singleton_core. ss.
+    rewrite FiniteMap.singleton_core_total. ss.
   Qed.
 
   Lemma shot_agree_singleton (A: Type)
@@ -2375,7 +2375,7 @@ Definition maps_to {Σ} {A: Type} {M: URA.t} `{ING: @GRA.inG (A ==> M)%ra Σ}
            (a: A) (m: M): iProp :=
   OwnM (maps_to_res a m).
 
-From Fairness Require Import NatStructsLarge.
+From Fairness Require Import NatStructs.
 
 Section SUM.
   Context `{Σ: GRA.t}.

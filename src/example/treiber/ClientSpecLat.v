@@ -3,9 +3,9 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec ghost_excl LifetimeRA AuthExclsRA.
+From Fairness Require Import TemporalLogic SCMemSpec ghost_excl LifetimeRA.
 From Fairness.treiber Require Import SpecLat ClientCode.
 
 Section SPEC.
@@ -22,8 +22,6 @@ Section SPEC.
 
   Context {HasMemRA: @GRA.inG memRA Γ}.
   Context {HasLifetime : @GRA.inG Lifetime.t Γ}.
-
-  Context {HasAuthExcls : @GRA.inG (AuthExcls.t (nat * nat)) Γ}.
 
   Context {HasGhostMap : @GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ}.
   Context {HasGhostVar : @GRA.inG (ghost_varURA (list SCMem.val)) Γ}.
@@ -97,11 +95,10 @@ Section SPEC.
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
 
     iApply (Treiber_push_spec nTMod with "[Duty Pck PcSt] [-]").
+    { solve_ndisj. }
     { red_tl_all. rewrite red_syn_tgt_interp_as. simpl. iFrame "#".
-      iFrame. iDestruct (pcs_cons_fold with "[PcSt]") as "$". iFrame.
+      iFrame "Duty Pck". iDestruct (pcs_cons_fold with "[PcSt]") as "$". iFrame.
     }
-    Unshelve.
-    2:{ apply ndot_ne_disjoint. ss. }
 
     unfold atomic_update.
 
@@ -136,7 +133,8 @@ Section SPEC.
 
     red_tl_all.
     iMod (duty_fulfill with "[Dead $Duty k_Act]") as "Duty".
-    { simpl. unfold push_then_pop_inv. red_tl_all. rewrite red_syn_inv. auto. }
+    { simpl. unfold push_then_pop_inv. red_tl_all. rewrite red_syn_inv.
+      iFrame "Dead Pushed". auto. }
 
     rred2r.
 
@@ -145,7 +143,7 @@ Section SPEC.
     iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
     iApply wpsim_ret; [eauto|].
     iModIntro.
-    iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
+    iEval (unfold term_cond). iSplitL; [iFrame|]. iPureIntro; auto.
   Qed.
 
   Lemma TreiberClient_pop_sim tid n γk k kt γs γpop :
@@ -198,7 +196,7 @@ Section SPEC.
       iApply (wpsim_yieldR with "[$Duty]"); [lia|].
       iIntros "Duty C". rred2r. iApply wpsim_tauR. rred2r.
 
-      iApply (Treiber_pop_spec nTMod with "[Duty Pck] [-]").
+      iApply (Treiber_pop_spec nTMod with "[Duty Pck] [-]"); [solve_ndisj| |].
       { red_tl_all. rewrite red_syn_tgt_interp_as. simpl. iFrame "# ∗". }
 
       unfold atomic_update.
@@ -253,7 +251,7 @@ Section SPEC.
         iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
         iApply wpsim_ret; [eauto|].
         iModIntro.
-        iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
+        iEval (unfold term_cond). iSplitL; [iFrame|]. iPureIntro; auto.
   - unfold push_then_pop_inv. simpl. red_tl_all. rewrite red_syn_inv.
     iIntros "!> #[Dead PushedInv] Tok TID Duty CloseCInv Pck".
     iMod ("CloseCInv" with "[]") as "_".
@@ -267,7 +265,7 @@ Section SPEC.
     iApply (wpsim_yieldR with "[$Duty]"); [lia|].
     iIntros "Duty _". rred2r. iApply wpsim_tauR. rred2r.
 
-    iApply (Treiber_pop_spec nTMod with "[Duty Pck] [-]").
+    iApply (Treiber_pop_spec nTMod with "[Duty Pck] [-]"); [solve_ndisj| |].
     { red_tl_all. simpl. rewrite red_syn_tgt_interp_as. iFrame "# ∗". }
 
     unfold atomic_update.
@@ -304,9 +302,7 @@ Section SPEC.
     iIntros "Duty _". lred2r. rred2r. iApply wpsim_tauR. rred2r.
     iApply wpsim_ret; [eauto|].
     iModIntro.
-    iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto.
-    Unshelve.
-    all: apply ndot_ne_disjoint; ss.
+    iEval (unfold term_cond). iSplitL; [iFrame|]. iPureIntro; auto.
   Qed.
 
 (* Note: Proof is same for HOCAP and LAT *)
@@ -324,8 +320,7 @@ Section INITIAL.
   Let idx := 1.
 
   Lemma init_sat E (H_TID : tid_push ≠ tid_pop) :
-    (OwnM (memory_init_resource TreiberClient.gvs))
-      ∗ (OwnM (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
+    (OwnM (Σ:=Σ) (memory_init_resource TreiberClient.gvs))
       ∗
       (WSim.initial_prop
         TreiberClientSpec.module TreiberClient.module
@@ -356,7 +351,7 @@ Section INITIAL.
         ⟦Duty(tid_pop) [],idx⟧
   .
   Proof.
-    iIntros "(Mem & _ & Init)". rewrite red_syn_fairI.
+    iIntros "(Mem & Init)". rewrite red_syn_fairI.
     iDestruct (memory_init_iprop with "Mem") as "[Mem ↦s]".
     iDestruct "↦s" as "((s↦ & _) & _)".
     Local Transparent s.

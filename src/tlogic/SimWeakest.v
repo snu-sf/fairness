@@ -1,23 +1,26 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib ModSim ModSimNat.
-From Fairness Require PCM.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import ISim.
 
 From stdpp Require Import coPset gmap namespaces.
-From Fairness Require Export IndexedInvariants NatMapRALarge MonotoneRA RegionRA FairnessRA ObligationRA OpticsInterp.
+From Fairness Require Export IndexedInvariants NatMapRALarge RegionRA FairnessRA ObligationRA OpticsInterp.
 From Fairness Require Export SimDefaultRA LiveObligations.
 From Fairness Require Import FairBeh.
 Require Import Coq.Sorting.Mergesort.
 
 Require Import Program.
 
+Local Instance frame_exist_instantiate_disabled :
+  FrameInstantiateExistDisabled := {}.
+
 Set Implicit Arguments.
 
 Section STATE.
 
   Context `{Σ: GRA.t}.
+  Notation iProp := (iProp Σ).
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -72,6 +75,7 @@ Section STATE.
               rr R_src R_tgt Q ps pt itr_src itr_tgt ∗
                  (default_I_past tid x ths im_src im_tgt st_src st_tgt ∗ (wsat_auth x ∗ wsats x ∗ OwnE ⊤)))%I.
 
+  #[clearbody]
   Let unlift_rel_base r
     :
     forall R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
@@ -88,8 +92,9 @@ Section STATE.
     iIntros "H D". iExists _, _. Unshelve.
     { iFrame. }
     { auto. }
-  Qed.
+  Defined.
 
+  #[clearbody]
   Let unlift_lift r
     :
     forall R_src R_tgt Q ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
@@ -99,8 +104,9 @@ Section STATE.
     unfold lift_rel, unlift_rel. i.
     iIntros "[% [% [H D]]]". subst.
     iApply ("H" with "D").
-  Qed.
+    Defined.
 
+  #[clearbody]
   Let lift_unlift (r0: rel) (r1: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), bool -> bool -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
     :
     (∀ R_src R_tgt (Q: R_src -> R_tgt -> shared_rel) ps pt itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
@@ -115,8 +121,9 @@ Section STATE.
     iApply "IMPL". iExists _, _. Unshelve.
     { iFrame. }
     { auto. }
-  Qed.
+  Defined.
 
+  #[clearbody]
   Let lift_rel_mon (rr0 rr1: rel)
       (MON: forall R_src R_tgt Q ps pt itr_src itr_tgt,
           (* bi_entails *)
@@ -135,7 +142,7 @@ Section STATE.
     iModIntro. iExists _, _. Unshelve.
     { iFrame. }
     { auto. }
-  Qed.
+  Defined.
 
   Let I: shared_rel :=
         fun ths im_src im_tgt st_src st_tgt =>
@@ -213,7 +220,7 @@ Section STATE.
         ps pt itr_src itr_tgt
     :
     (#=> (wpsim E r g Q ps pt itr_src itr_tgt))
-      -∗
+      ⊢
       (wpsim E r g Q ps pt itr_src itr_tgt)
   .
   Proof.
@@ -227,7 +234,7 @@ Section STATE.
         (TOP: E0 ⊆ E1)
     :
     (wpsim E0 r g Q ps pt itr_src itr_tgt)
-      -∗
+      ⊢
       (wpsim E1 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
@@ -242,7 +249,7 @@ Section STATE.
         (TOP: ⊤ ⊆ E)
     :
     (@r _ _ Q ps pt itr_src itr_tgt)
-      -∗
+      ⊢
       (wpsim E r g Q ps pt itr_src itr_tgt)
   .
   Proof.
@@ -258,12 +265,12 @@ Section STATE.
         (MON0: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
                  ps pt itr_src itr_tgt,
             (@r0 _ _ Q ps pt itr_src itr_tgt)
-              -∗
+              ⊢
               (#=> (@r1 _ _ Q ps pt itr_src itr_tgt)))
         (MON1: forall R_src R_tgt (Q: R_src -> R_tgt -> iProp)
                  ps pt itr_src itr_tgt,
             (@g0 _ _ Q ps pt itr_src itr_tgt)
-              -∗
+              ⊢
               (#=> (@g1 _ _ Q ps pt itr_src itr_tgt)))
     :
     (wpsim E r0 g0 Q ps pt itr_src itr_tgt)
@@ -321,7 +328,8 @@ Section STATE.
                  (∀ a, P a -∗ @unlift_rel g1 (R_src a) (R_tgt a) (Q a) (ps a) (pt a) (itr_src a) (itr_tgt a))))%I with "[CIH]" as "CIH'".
     { iPoseProof "CIH" as "# [CIH0 CIH1]". iModIntro. iSplitL.
       { iApply (lift_unlift with "CIH0"). }
-      { iIntros. unfold unlift_rel. iIntros.
+      { iIntros. unfold unlift_rel.
+        iIntros (?????) "?".
         iSpecialize ("CIH1" $! (mk_mytype _ _ _ _ _ _)). ss.
         iApply "CIH1". iFrame.
       }
@@ -385,15 +393,13 @@ Section STATE.
       (wpsim E0 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
-    Local Transparent FUpd.
     intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
     iAssert (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
     { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
     iAssert (fairI (ident_tgt:=ident_tgt) x ∗ (wsats x ∗ OwnE E0))%I with "[D6 D7 WSAT E]" as "C".
     { iFrame. }
-    unfold FUpd. iMod ("H" with "C") as "(F & WSAT & E & H)".
+    rewrite FUpd_unseal. iMod ("H" with "C") as "(F & WSAT & E & H)".
     iApply "H". iFrame. iExists _. iFrame. auto.
-    Local Opaque FUpd.
   Qed.
 
   Lemma wpsim_FUpd_simple E0 E1 n r g R_src R_tgt
@@ -406,16 +412,14 @@ Section STATE.
       (wpsim E0 r g Q ps pt itr_src itr_tgt)
   .
   Proof.
-    Local Transparent FUpd.
     intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
     iAssert (=|x|={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
     { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
     iAssert (wsats x ∗ OwnE E0)%I with "[WSAT E]" as "C".
     { iFrame. }
-    rewrite /fupd /bi_fupd_fupd /= /FUpd.
+    rewrite FUpd_unseal.
     iMod ("H" with "[C]") as "(_ & WSAT & E & H)". iFrame.
     iApply "H". iFrame. iExists _. iFrame. auto.
-    Local Opaque FUpd.
   Qed.
 
   Lemma wpsim_FUpd_weaken y r g R_src R_tgt
@@ -538,8 +542,10 @@ Section STATE.
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros _. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] W]".
-    iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]".
+    iPoseProof (IUpd_sub_mon with "[] H0") as "IUPD".
     { iApply edges_sat_sub. }
+    rewrite IUpd_eq.
+    iMod ("IUPD" with "D") as "[D P]".
     iApply ("H1" with "P"). iFrame. iExists _. eauto.
   Qed.
 
@@ -558,8 +564,10 @@ Section STATE.
   Proof.
     unfold ElimModal. rewrite bi.intuitionistically_if_elim.
     intros LE. iIntros "[H0 H1]" (? ? ? ? ?) "[[% [% D]] W]".
-    iPoseProof (IUpd_sub_mon with "[] H0 D") as "> [D P]".
+    iPoseProof (IUpd_sub_mon with "[] H0") as "IUpd".
     { iApply arrows_sat_sub. apply LE. }
+    rewrite IUpd_eq.
+    iMod ("IUpd" with "D") as "[D P]".
     iApply ("H1" with "P"). iFrame. iExists _. eauto.
   Qed.
 
@@ -592,6 +600,7 @@ Section STATE.
     intros LT. iIntros "[H0 H1]".
     iPoseProof (IUpd_sub_mon with "[] H0") as "H0".
     { iApply SubIProp_trans. iApply Regions.nsats_sat_sub. apply LT. iApply SubIProp_sep_r. }
+    assert (Regions.nsats (ObligationRA.arrow (S:=sum_tid ident_tgt)) b = (ObligationRA.arrows_sats b)) as ->; [done|].
     iMod "H0". iApply ("H1" with "H0").
   Qed.
 
@@ -879,7 +888,7 @@ Section STATE.
       -∗ (St_src (f st_src) -∗ wpsim E r g Q true pt (ktr_src tt) itr_tgt)
       -∗ wpsim E r g Q ps pt (trigger (Modify f) >>= ktr_src) itr_tgt.
   Proof.
-    rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateL with "H1"). ss.
+    rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateL with "H1"). simpl. iFrame.
   Qed.
 
   Lemma wpsim_lens_modifyL E V (l : Lens.t _ V) f r g R_src R_tgt
@@ -904,7 +913,7 @@ Section STATE.
       -∗ (St_tgt (f st_tgt) -∗ wpsim E r g Q ps true itr_src (ktr_tgt tt))
       -∗ wpsim E r g Q ps pt itr_src (trigger (Modify f) >>= ktr_tgt).
   Proof.
-    rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateR with "H1"). ss.
+    rewrite Modify_State. iIntros "H1 H2". iApply (wpsim_stateR with "H1"). simpl. iFrame.
   Qed.
 
   Lemma wpsim_lens_modifyR E V (l : Lens.t _ V) f r g R_src R_tgt
@@ -968,7 +977,7 @@ Section STATE.
     { eauto. }
     { eauto. }
     iPoseProof ("H" with "WHITES [D W]") as "H".
-    { iFrame. }
+    { iFrame "D W". }
     iApply isim_fairL. iExists _. iSplit; eauto.
   Qed.
 
@@ -1104,7 +1113,10 @@ Section STATE.
   .
   Proof.
     iIntros "DUTY K". rewrite <- (prism_fmap_id fm).
-    iApply (wpsim_fairR_prism_step with "[DUTY] [K]"). all: eauto.
+    iApply (wpsim_fairR_prism_step with "[DUTY] [K]").
+    5:{ iFrame "DUTY". }
+    5:{ iFrame "K". }
+    all: eauto.
   Qed.
 
   Lemma wpsim_fairR
@@ -1182,7 +1194,8 @@ Section STATE.
       (wpsim E r g Q ps pt itr_src (trigger (Fair fm) >>= ktr_tgt))
   .
   Proof.
-    iIntros "A B". iApply (wpsim_fairR with "[A]"); eauto.
+    iIntros "A B". iApply (wpsim_fairR with "[A]").
+    1,3,4:eauto.
     { instantiate (1:= List.map (fun i => (i, [])) ls).
       i. specialize (SUCCESS _ IN). rewrite List.map_map. ss.
       replace (List.map (λ x : ident_tgt, x) ls) with ls; auto.
@@ -1260,12 +1273,11 @@ Section STATE.
     1,2,3: eauto.
     iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
     { iFrame. }
-    Local Transparent FUpd.
+    rewrite FUpd_unseal.
     iPoseProof ("K" with "B W PPS C") as ">[D5 [D6 [E K]]]".
     iApply isim_yieldR. unfold I, fairI. iFrame. iFrame.
     iIntros (? ? ? ? ? ?) "(D & WAS) %".
     iApply ("K" with "[D WAS]"). iFrame. iExists _. eauto.
-    Local Opaque FUpd.
   Qed.
 
   Lemma wpsim_yieldR_strong
@@ -1289,12 +1301,11 @@ Section STATE.
     iMod (default_I_past_update_ident_thread with "D H") as "[B [W [D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]]]]". auto.
     iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
     { iFrame. }
-    Local Transparent FUpd.
+    rewrite FUpd_unseal.
     iPoseProof ("K" with "B W C") as ">[D5 [D6 [E K]]]".
     iApply isim_yieldR. unfold I, fairI. iFrame. iFrame.
     iIntros (? ? ? ? ? ?) "(D & WAS) %".
     iApply ("K" with "[D WAS]"). iFrame. iExists _. eauto.
-    Local Opaque FUpd.
   Qed.
 
   Lemma wpsim_yieldR_gen_pending
@@ -1327,8 +1338,7 @@ Section STATE.
   .
   Proof.
     iIntros "D P T H".
-    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
-    Unshelve. 2: lia.
+    iMod (pcs_decr (a-1) 1 with "T") as "[REST T]"; [lia|].
     iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2)) Ord.omega) with "[T]" as "T".
     { unfold progress_credits.
       replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2))
@@ -1404,8 +1414,7 @@ Section STATE.
   .
   Proof.
     iIntros "[D T] H".
-    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
-    Unshelve. 2: lia.
+    iMod (pcs_decr (a-1) 1 with "T") as "[REST T]"; [lia|].
     iApply (wpsim_yieldR_gen with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
   Qed.
 
@@ -1485,12 +1494,11 @@ Section STATE.
     1,2,3: eauto.
     iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
     { iFrame. }
-    Local Transparent FUpd.
+    rewrite FUpd_unseal.
     iPoseProof ("K" with "B W PPS C") as ">[D5 [D6 [E K]]]".
     iApply isim_sync. unfold I, fairI. iFrame. iFrame.
     iIntros (? ? ? ? ? ?) "(D & WAS) %".
     iApply ("K" with "[D WAS]"). iFrame. iExists _. eauto.
-    Local Opaque FUpd.
   Qed.
 
   Lemma wpsim_sync_strong
@@ -1513,12 +1521,11 @@ Section STATE.
     iPoseProof (default_I_past_update_ident_thread with "D H") as "> [B [W [D0 [D1 [D2 [D3 [D4 [D5 [D6 D7]]]]]]]]]". auto.
     iAssert ((fairI (ident_tgt:=ident_tgt) x) ∗ (wsats x ∗ OwnE E))%I with "[WS D5 D6]" as "C".
     { iFrame. }
-    Local Transparent FUpd.
+    rewrite FUpd_unseal.
     iPoseProof ("K" with "B W C") as "> (D5 & C & E & K)".
     iApply isim_sync. unfold I. iFrame. iFrame.
     iIntros (? ? ? ? ? ?) "(D & C & E) %".
     iApply ("K" with "[D C E]"). iFrame. iExists _. eauto.
-    Local Opaque FUpd.
   Qed.
 
   Lemma wpsim_sync_gen_pending
@@ -1550,8 +1557,7 @@ Section STATE.
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "D P T H".
-    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
-    Unshelve. 2: lia.
+    iMod (pcs_decr (a-1) 1 with "T") as "[REST T]"; [lia|].
     iAssert (#=> ObligationRA.taxes (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2)) Ord.omega) with "[T]" as "T".
     { unfold progress_credits.
       replace (List.map fst (List.map (λ '(k, l0, f), (k, layer l0 1, f)) l2))
@@ -1625,8 +1631,7 @@ Section STATE.
       (wpsim E r g Q ps pt (trigger (Yield) >>= ktr_src) (trigger (Yield) >>= ktr_tgt)).
   Proof.
     iIntros "[D T] H".
-    iMod (pcs_decr _ _ (a-1) 1 a _ with "T") as "[REST T]".
-    Unshelve. 2: lia.
+    iMod (pcs_decr (a-1) 1 with "T") as "[REST T]"; [lia|].
     iApply (wpsim_sync_gen with "[D T] [-]"). 2: iFrame. auto. iIntros "D FC". iApply ("H" with "D FC REST").
   Qed.
 
@@ -1860,6 +1865,7 @@ Section TRIPLES.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG ArrowShotRA Σ}.
   Context `{ARROWRA: @GRA.inG (@ArrowRA ident_tgt Vars) Σ}.
+  Notation iProp := (iProp Σ).
 
 
   (** Formats for triples-like specs. *)
@@ -1994,8 +2000,8 @@ Section TRIPLES.
 
   (* TODO: Reuse the following from [iris.bi.lib.atomic] with all the
     sweet typeclass instances, tactics, and abort for free.
-    Probably requires adding [atomic_update] as an atom to the syntax,
-    or implementing fixpoints in the syntax level, which is not ideal.
+    Requires implementing fixpoints in the syntax level, which is not ideal.
+    Adding it as an atom doesn't work because interpertations of atoms cannot use [prop n] in the interpretation.
   *)
   (* Definition atomic_update n Eo Ei α β POST : iProp :=
     @atomic_update

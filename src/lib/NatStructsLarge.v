@@ -121,7 +121,7 @@ Section SORTED.
 
 End SORTED.
 
-Section NATMAP.
+Section NatMap.
 
   Definition nm_proj1 elt (m: NatMap.t elt): list NatMap.key := List.map fst (NatMap.elements m).
   Definition nm_proj2 elt (m: NatMap.t elt): list elt := List.map snd (NatMap.elements m).
@@ -798,7 +798,7 @@ Section NATMAP.
         (m: t elt) k0 k1 e
         (NEQ: k0 <> k1)
     :
-    Equal (add k0 e (remove k1 m)) (remove k1 (add k0 e m)). 
+    Equal (add k0 e (remove k1 m)) (remove k1 (add k0 e m)).
   Proof.
     eapply F.Equal_mapsto_iff. i. split; i.
     - eapply F.add_mapsto_iff in H. des; clarify.
@@ -814,10 +814,10 @@ Section NATMAP.
         (m: t elt) k0 k1 e
         (NEQ: k0 <> k1)
     :
-    (add k0 e (remove k1 m)) = (remove k1 (add k0 e m)). 
+    (add k0 e (remove k1 m)) = (remove k1 (add k0 e m)).
   Proof. eapply nm_eq_is_equal, nm_add_rm_comm_equal; auto. Qed.
 
-End NATMAP.
+End NatMap.
 
 Ltac solve_andb :=
   repeat match goal with
@@ -861,7 +861,7 @@ Module NatSet.
   Definition add_new k m1 m2 := @nm_add_new unit k tt m1 m2.
 End NatSet.
 
-Section NATSET.
+Section NatSet.
 
   Lemma Empty_nil s : NatSet.Empty s -> NatSet.elements s = [].
   Proof.
@@ -963,7 +963,7 @@ Section NATSET.
       firstorder. intro. subst. firstorder.
   Qed.
 
-End NATSET.
+End NatSet.
 
 
 

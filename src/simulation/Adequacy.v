@@ -304,25 +304,28 @@ Section ADEQ2.
     econs. i. destruct y; ss. eauto.
   Qed.
   Let wfs_embed: wfs.(T) -> wfs_lift.(T) := fun o => Some o.
+  #[clearbody]
   Let wfs_embed_lt: forall o0 o1 (LT: wfs.(lt) o0 o1), wfs_lift.(lt) (wfs_embed o0) (wfs_embed o1).
   Proof.
     i. ss. econs 1. eauto.
-  Qed.
+  Defined.
   Let wfs0: wfs_lift.(T) := None.
+  #[clearbody]
   Let WFSTR: Transitive wfs_lift.(lt).
   Proof.
     ii. destruct x, y, z; ss.
     eapply Operators_Properties.clos_tn1_trans in H.
     eapply Operators_Properties.clos_tn1_trans in H0.
     eapply Operators_Properties.clos_trans_tn1_iff. econs 2; eauto.
-  Qed.
+  Defined.
   Let wft0: wft.(T) := @epsilon _ wft_inhabited (fun _ => True).
   Let St: wft.(T) -> wft.(T) := fun o0 => @epsilon _ wft_inhabited (fun o1 => wft.(lt) o0 o1).
+  #[clearbody]
   Let lt_succ_diag_r_t: forall (t: wft.(T)), wft.(lt) t (St t).
   Proof.
     i. unfold St.
     hexploit (@epsilon_spec _ wft_inhabited (fun o1 => wft.(lt) t o1)); eauto.
-  Qed.
+  Defined.
 
   Theorem adequacy
           R

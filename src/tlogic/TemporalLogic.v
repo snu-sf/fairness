@@ -1,11 +1,12 @@
+From iris.algebra Require Import cmra excl_auth auth.
 From stdpp Require Export coPset gmap namespaces.
 From sflib Require Import sflib.
 From Fairness Require Import Axioms.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants IPropAux.
 From Fairness Require Export ISim SimDefaultRA LiveObligations SimWeakest.
 From Fairness Require Export LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
-From iris Require base_logic.lib.invariants.
+From Fairness Require Import DisableSsreflect.
 Require Import Program.
 
 Local Notation index := nat.
@@ -91,7 +92,7 @@ Section BIGOP.
   Lemma red_syn_big_sepM n K {H1 : EqDecision K} {H2 : Countable K} A I f :
     interp n (@syn_big_sepM n K _ _ A I f) = ([∗ map] i ↦ a ∈ I, interp n (f i a))%I.
   Proof.
-    ss. unfold big_opM. rewrite seal_eq. unfold big_op.big_opM_def.
+    ss. rewrite big_op.big_opM_unseal. unfold big_op.big_opM_def.
     unfold syn_big_sepM. simpl. remember (map_to_list I) as L.
     clear HeqL I. induction L.
     { ss. }
@@ -313,6 +314,7 @@ Section ATOMINTERP.
   Context `{sub : @SRA.subG Γ Σ}.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
+  Notation iProp := (iProp _).
 
   Import Atom.
 
@@ -326,15 +328,15 @@ Section ATOMINTERP.
     | syn_wsat_auth x => wsat_auth x
     (** Atoms for state invariants of wpsim. *)
     | ob_ths ths =>
-        OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA)
+        OwnM (● (NatMapRALarge.to_Map ths: (NatMapRALarge.t unit)): ThreadRA)
     | ow_ths tid =>
         own_thread tid
     | ob_st_src st_src =>
-        OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option st_src_type)): stateSrcRA _)
+        OwnM (●E (Some st_src : leibnizO (option st_src_type)): stateSrcRA _)
     | ow_st_src st_src =>
         St_src st_src
     | ob_st_tgt st_tgt =>
-        OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option st_tgt_type)): stateTgtRA _)
+        OwnM (●E (Some st_tgt : leibnizO (option st_tgt_type)): stateTgtRA _)
     | ow_st_tgt st_tgt =>
         St_tgt st_tgt
     | fair_src im_src =>
@@ -466,7 +468,7 @@ Section RED.
   Proof. apply red_sem_persistently. Qed.
 
   Lemma red_tl_plainly n p :
-    ⟦(■ p)%S, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
+    ⟦(■ p)%S, n⟧ = (■ ⟦p, n⟧)%I.
   Proof. apply red_sem_plainly. Qed.
 
   Lemma red_tl_upd n (p : sProp n) :
@@ -540,7 +542,7 @@ Section RED.
 
   Lemma red_tl_sat_list n X Ts x intp l :
     ⟦@syn_sat_list _ _ n X Ts x intp l, n⟧
-    = Regions.sat_list Ts x (fun t => ⟦intp t, n⟧) l.
+    = @Regions.sat_list _ Ts _ x (fun t => ⟦intp t, n⟧) l.
   Proof. apply red_syn_sat_list. Qed.
 
 End RED.
@@ -718,9 +720,8 @@ Section WSATS.
   Lemma red_syn_fupd n A E1 E2 p :
     ⟦syn_fupd n A E1 E2 p, n⟧ = =|n|=(⟦A, n⟧)={E1,E2}=> ⟦p, n⟧.
   Proof.
-    Local Transparent FUpd.
-    unfold syn_fupd, FUpd. red_tl. rewrite ! red_syn_wsats. auto.
-    Local Opaque FUpd.
+    rewrite /syn_fupd IndexedInvariants.FUpd_unseal'.
+    red_tl. rewrite ! red_syn_wsats. auto.
   Qed.
 
 End WSATS.
@@ -761,7 +762,7 @@ Section OBLIG.
     syn_sat_list n _ dataT n (syn_obl_arrow n) l.
 
   Lemma red_syn_arrows_sat_list n l :
-    ⟦syn_arrows_sat_list n l, n⟧ = Regions.sat_list _ _ (ObligationRA.arrow n) l.
+    ⟦syn_arrows_sat_list n l, n⟧ = Regions.sat_list _ (ObligationRA.arrow n) l.
   Proof.
     unfold syn_arrows_sat_list. rewrite red_tl_sat_list. f_equal.
     extensionalities t. apply red_syn_obl_arrow.
@@ -778,7 +779,8 @@ Section OBLIG.
   Lemma red_syn_arrows_sat n :
     ⟦syn_arrows_sat n, S n⟧ = ObligationRA.arrows_sat n.
   Proof.
-    unfold syn_arrows_sat. red_tl. unfold ObligationRA.arrows_sat, Regions.sat.
+    unfold syn_arrows_sat. red_tl.
+    unfold ObligationRA.arrows_sat, Regions.sat.
     f_equal. extensionality l. red_tl. ss.
     rewrite red_syn_arrows_sat_list. f_equal.
   Qed.
@@ -816,6 +818,7 @@ Section SIMI.
   Context `{sub : @SRA.subG Γ Σ}.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
+  Notation iProp := (iProp _).
 
   Let srcE := threadE id_src_type st_src_type.
   Let tgtE := threadE id_tgt_type st_tgt_type.
@@ -845,7 +848,9 @@ Section SIMI.
     ⟦syn_default_I_past tid n ths ims imt sts stt, n⟧ = default_I_past tid n ths ims imt sts stt.
   Proof.
     unfold syn_default_I_past, default_I_past. red_tl. ss.
-    f_equal. extensionalities im_tgt0. red_tl. rewrite red_syn_default_I. auto.
+    f_equal. extensionalities im_tgt0.
+    rewrite -red_syn_default_I.
+    red_tl. auto.
   Qed.
 
   Definition syn_wpsim n tid E
@@ -876,7 +881,7 @@ Section SIMI.
         (default_I n ths0 im_src0 im_tgt0 st_src0 st_tgt0 ∗ wsat_auth n ∗ wsats n ∗ OwnE ⊤)%I).
   Proof.
     extensionalities ths0 ims imt sts stt. red_tl.
-    rewrite red_syn_default_I. rewrite red_syn_wsats. ss.
+    rewrite -red_syn_default_I. rewrite red_syn_wsats. ss.
   Qed.
 
   Lemma red_isim_eq_2 tid n rr :
@@ -933,7 +938,7 @@ Section SIMI.
     extensionalities R_src R_tgt QQ ps0 pt0 itr_src0.
     extensionalities itr_tgt0 ths0 im_src0 im_tgt0 st_src0 st_tgt0.
     f_equal. extensionalities Q0. red_tl.
-    rewrite red_syn_default_I_past. rewrite red_syn_wsats. ss.
+    rewrite -red_syn_default_I_past. rewrite red_syn_wsats. ss.
     replace
       (λ (r_src : R_src) (r_tgt : R_tgt) (ths1 : TIdSet.t) (im_src1 :
                                                              FairBeh.imap id_src_type owf)
@@ -951,7 +956,7 @@ Section SIMI.
     auto.
     extensionalities r_src r_tgt ths1 im_src1 im_tgt1.
     extensionalities st_src1 st_tgt1.
-    red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats. ss.
+    red_tl. rewrite -red_syn_default_I_past. rewrite red_syn_wsats. ss.
   Qed.
 
   Lemma red_isim_eq_3 RS RT tid n Q :
@@ -968,7 +973,7 @@ Section SIMI.
   Proof.
     extensionalities r_src r_tgt ths1 im_src1 im_tgt1.
     extensionalities st_src1 st_tgt1.
-    red_tl. rewrite red_syn_default_I_past. rewrite red_syn_wsats. ss.
+    red_tl. rewrite -red_syn_default_I_past. rewrite red_syn_wsats. ss.
   Qed.
 
   Lemma red_syn_wpsim
@@ -983,7 +988,7 @@ Section SIMI.
     f_equal. extensionalities im_tgt. red_tl.
     f_equal. extensionalities st_src. red_tl.
     f_equal. extensionalities st_tgt. red_tl.
-    rewrite red_syn_default_I_past. rewrite red_syn_wsats.
+    rewrite -red_syn_default_I_past. rewrite red_syn_wsats.
     f_equal. unfold isim_simple.
     f_equal; ss.
     - apply red_isim_eq_1.
@@ -1056,14 +1061,14 @@ Section DERIV.
         {Id} n (p : Prism.t _ Id) (i : Id) k l (f P : sProp n) :
     ⟦syn_until_promise p i k l f P, n⟧ = until_promise p i k l f P.
   Proof.
-    unfold syn_until_promise. red_tl. f_equal.
+    unfold syn_until_promise. red_tl. unfold until_promise. f_equal.
   Qed.
 
   Lemma red_syn_until_tpromise
         n k l (f P : sProp n) :
     ⟦syn_until_tpromise k l f P, n⟧ = until_thread_promise k l f P.
   Proof.
-    unfold syn_until_tpromise. red_tl. f_equal.
+    unfold syn_until_tpromise. red_tl. unfold until_thread_promise. f_equal.
   Qed.
 
 End DERIV.
@@ -1177,7 +1182,7 @@ Section TRIPLE.
     =
       (term_cond n tid (R_term:=R_term)).
   Proof.
-    extensionalities rs rt. unfold syn_term_cond. red_tl. f_equal.
+    extensionalities rs rt. unfold syn_term_cond. red_tl. unfold term_cond. f_equal.
   Qed.
 
   (* Definition syn_triple_gen *)

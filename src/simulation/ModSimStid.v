@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
-
+From iris.algebra Require Import cmra updates.
 From Fairness Require Export ITreeLib FairBeh Mod.
 From Fairness Require Import pind.
 From Fairness Require Import PCM.
@@ -12,7 +12,7 @@ Set Implicit Arguments.
 
 
 Section PRIMIVIESIM.
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -37,15 +37,15 @@ Section PRIMIVIESIM.
 
   Let shared_rel: Type := shared -> Prop.
 
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> M.(cmra_car) -> Prop.
 
   Variant __lsim
           (tid: thread_id)
-          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel),bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
+          (lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> M.(cmra_car) -> shared_rel), bool -> bool -> M.(cmra_car) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+          (_lsim: forall R_src R_tgt (RR: R_src -> R_tgt -> M.(cmra_car) -> shared_rel),bool -> bool -> M.(cmra_car) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+          R_src R_tgt (RR: R_src -> R_tgt -> M.(cmra_car) -> shared_rel)
     :
-    bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> M.(cmra_car) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
   | lsim_ret
       f_src f_tgt r_ctx
       ths im_src im_tgt st_src st_tgt
@@ -166,10 +166,10 @@ Section PRIMIVIESIM.
       r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      (VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                     (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-                    (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+                    (VALID: ✓ (r_shared1 ⋅ r_own ⋅ r_ctx1))
                     im_tgt2
                     (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           _lsim _ _ RR f_src true r_ctx1 (trigger (Yield) >>= ktr_src) (ktr_tgt tt) (ths1, im_src1, im_tgt2, st_src1, st_tgt1))
@@ -181,10 +181,10 @@ Section PRIMIVIESIM.
       r_own r_shared
       ktr_src ktr_tgt
       (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx0))
+      (VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx0))
       (LSIM: forall ths1 im_src1 im_tgt1 st_src1 st_tgt1 r_shared1 r_ctx1
                (INV: I (ths1, im_src1, im_tgt1, st_src1, st_tgt1) r_shared1)
-               (VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx1))
+               (VALID: ✓ (r_shared1 ⋅ r_own ⋅ r_ctx1))
                im_tgt2
                (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths1))),
           (exists im_src2,
@@ -203,8 +203,8 @@ Section PRIMIVIESIM.
   .
 
   Definition lsim (tid: thread_id)
-             R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel):
-    bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+             R_src R_tgt (RR: R_src -> R_tgt -> M.(cmra_car) -> shared_rel):
+    bool -> bool -> M.(cmra_car) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
     paco9 (fun r => pind9 (__lsim tid r) top9) bot9 R_src R_tgt RR.
 
   Lemma __lsim_mon tid:
@@ -230,10 +230,10 @@ Section PRIMIVIESIM.
   Qed.
 
   Variant lsim_resetC
-          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
+          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> M.(cmra_car) -> shared_rel), bool -> bool -> M.(cmra_car) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+          R_src R_tgt (RR: R_src -> R_tgt -> M.(cmra_car) -> shared_rel)
     :
-    bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> M.(cmra_car) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
     | lsim_resetC_intro
         src tgt shr r_ctx
         ps0 pt0 ps1 pt1
@@ -254,7 +254,7 @@ Section PRIMIVIESIM.
     { ii. inv IN. econs; eauto. }
     i. inv PR. eapply GF in REL.
     eapply pind9_acc in REL.
-    instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) ps1 pt1 r_ctx src tgt shr =>
+    instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> M.(cmra_car) -> shared_rel) ps1 pt1 r_ctx src tgt shr =>
                         forall ps0 pt0,
                           (ps1 = true -> ps0 = true) ->
                           (pt1 = true -> pt0 = true) ->
@@ -333,7 +333,7 @@ Section PRIMIVIESIM.
 
   Lemma lsim_reset_prog
         tid
-        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        R0 R1 (RR: R0 -> R1 -> M.(cmra_car) -> shared_rel)
         src tgt shr
         ps0 pt0 ps1 pt1 r_ctx
         (LSIM: lsim tid RR ps1 pt1 r_ctx src tgt shr)
@@ -354,7 +354,7 @@ Section PRIMIVIESIM.
 
   Lemma lsim_set_prog
         tid
-        R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel)
+        R0 R1 (RR: R0 -> R1 -> M.(cmra_car) -> shared_rel)
         r_ctx src tgt shr
         (LSIM: lsim tid RR true true r_ctx src tgt shr)
     :
@@ -366,7 +366,7 @@ Section PRIMIVIESIM.
     2:{ eapply lsim_mon. }
     eapply pind9_acc in LSIM.
 
-    { instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> URA.car -> shared_rel) ps0 pt0 r_ctx src tgt shr =>
+    { instantiate (1:= (fun R0 R1 (RR: R0 -> R1 -> M.(cmra_car) -> shared_rel) ps0 pt0 r_ctx src tgt shr =>
                           ps0 = true ->
                           pt0 = true ->
                           forall ps pt,
@@ -450,12 +450,12 @@ Section PRIMIVIESIM.
   Qed.
 
   Variant lsim_rrC
-          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel), bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
-          R_src R_tgt (RR: R_src -> R_tgt -> URA.car -> shared_rel)
+          (r: forall R_src R_tgt (RR: R_src -> R_tgt -> M.(cmra_car) -> shared_rel), bool -> bool -> M.(cmra_car) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel)
+          R_src R_tgt (RR: R_src -> R_tgt -> M.(cmra_car) -> shared_rel)
     :
-    bool -> bool -> URA.car -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
+    bool -> bool -> M.(cmra_car) -> itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
     | lsim_rrC_intro
-        (RR0: R_src -> R_tgt -> URA.car -> shared_rel)
+        (RR0: R_src -> R_tgt -> M.(cmra_car) -> shared_rel)
         src tgt shr r_ctx ps pt
         (REL: r _ _ RR0 ps pt r_ctx src tgt shr)
         (IMPL: forall r0 r1 r_ctx shr, (RR0 r0 r1 r_ctx shr) -> (RR r0 r1 r_ctx shr))
@@ -554,11 +554,11 @@ Section PRIMIVIESIM.
   Qed.
 
   Definition local_RR {R0 R1} (RR: R0 -> R1 -> Prop) tid:
-    R0 -> R1 -> URA.car -> shared_rel :=
-    fun (r_src: R0) (r_tgt: R1) (r_ctx: URA.car) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1) =>
+    R0 -> R1 -> M.(cmra_car) -> shared_rel :=
+    fun (r_src: R0) (r_tgt: R1) (r_ctx: M.(cmra_car)) '(ths2, im_src1, im_tgt1, st_src1, st_tgt1) =>
       (exists ths3 r_own r_shared,
           (<<THS: NatMap.remove tid ths2 = ths3>>) /\
-            (<<VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx)>>) /\
+            (<<VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx)>>) /\
             (<<INV: I (ths3, im_src1, im_tgt1, st_src1, st_tgt1) r_shared>>) /\
             (<<RET: RR r_src r_tgt>>)).
 
@@ -567,15 +567,15 @@ Section PRIMIVIESIM.
            (INV: I (ths0, im_src0, im_tgt0, st_src0, st_tgt0) r_shared0)
            tid ths1
            (THS: TIdSet.add_new tid ths0 ths1)
-           (VALID: URA.wf (r_shared0 ⋅ r_ctx0)),
+           (VALID: ✓ (r_shared0 ⋅ r_ctx0)),
     forall im_tgt0'
       (UPD: fair_update im_tgt0 im_tgt0' (prism_fmap inlp (fun t => if (tid_dec t tid) then Flag.success else Flag.emp))),
     exists r_shared1 r_own im_src0',
       (<<INV: I (ths1, im_src0', im_tgt0', st_src0, st_tgt0) r_shared1>>) /\
-        (<<VALID: URA.wf (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
+        (<<VALID: ✓ (r_shared1 ⋅ r_own ⋅ r_ctx0)>>) /\
         (forall ths im_src1 im_tgt1 st_src st_tgt r_shared2 r_ctx2
                 (INV: I (ths, im_src1, im_tgt1, st_src, st_tgt) r_shared2)
-                (VALID: URA.wf (r_shared2 ⋅ r_own ⋅ r_ctx2)),
+                (VALID: ✓ (r_shared2 ⋅ r_own ⋅ r_ctx2)),
           forall im_tgt2 (TGT: fair_update im_tgt1 im_tgt2 (prism_fmap inlp (tids_fmap tid ths))),
           exists im_src2,
             (<<SRC: fair_update im_src1 im_src2 (prism_fmap inlp (tids_fmap tid ths))>>) /\
@@ -589,10 +589,10 @@ Section PRIMIVIESIM.
                     (ths, im_src2, im_tgt2, st_src, st_tgt)
                     >>)).
 
-  Definition local_sim_init {R0 R1} (RR: R0 -> R1 -> Prop) (r_own: URA.car) tid src tgt :=
+  Definition local_sim_init {R0 R1} (RR: R0 -> R1 -> Prop) (r_own: M.(cmra_car)) tid src tgt :=
     forall ths im_src im_tgt st_src st_tgt r_shared r_ctx
       (INV: I (ths, im_src, im_tgt, st_src, st_tgt) r_shared)
-      (VALID: URA.wf (r_shared ⋅ r_own ⋅ r_ctx)),
+      (VALID: ✓ (r_shared ⋅ r_own ⋅ r_ctx)),
     forall im_tgt1 (FAIR: fair_update im_tgt im_tgt1 (prism_fmap inlp (tids_fmap tid ths))),
     exists im_src1,
       (<<SRC: fair_update im_src im_src1 (prism_fmap inlp (tids_fmap tid ths))>>) /\
@@ -627,14 +627,14 @@ Module ModSim.
           wf_tgt_inhabited: inhabited wf_tgt.(T);
           wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
 
-          world: URA.t;
+          world: ucmra;
 
           (* I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop; *)
           init: forall im_tgt,
           exists (I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop),
           (exists im_src r_shared,
             (I (NatSet.empty, im_src, im_tgt, md_src.(Mod.st_init), md_tgt.(Mod.st_init)) r_shared) /\
-              (URA.wf r_shared)) /\
+              (✓ r_shared)) /\
           (forall fn args, match md_src.(Mod.funs) fn, md_tgt.(Mod.funs) fn with
                            | Some ktr_src, Some ktr_tgt => local_sim I (@eq Any.t) (ktr_src args) (ktr_tgt args)
                            | None        , None         => True
@@ -660,7 +660,7 @@ Module UserSim.
           wf_tgt_inhabited: inhabited wf_tgt.(T);
           wf_tgt_open: forall (o0: wf_tgt.(T)), exists o1, wf_tgt.(lt) o0 o1;
 
-          world: URA.t;
+          world: ucmra;
 
           (* I: (@shared md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt) -> world -> Prop; *)
           funs: forall im_tgt,
@@ -672,7 +672,7 @@ Module UserSim.
                            t1 = t2 /\ t1 = t3 /\
                            @local_sim_init _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) wf_src wf_tgt I _ _ (@eq Any.t) r t1 src tgt)
                         (Th.elements p_src) (Th.elements p_tgt) (NatMap.elements rs)>>) /\
-              (<<WF: URA.wf (r_shared ⋅ NatMap.fold (fun _ r s => r ⋅ s) rs ε)>>)
+              (<<WF: ✓ (r_shared ⋅ NatMap.fold (fun _ r s => r ⋅ s) rs ε)>>)
         }.
   End MODSIM.
 End UserSim.

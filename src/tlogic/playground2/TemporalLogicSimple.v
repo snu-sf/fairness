@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From Fairness Require Import ISim SimDefaultRA SimWeakest.
 From Fairness Require Import LogicSyntaxHOAS.
 From iris Require Import bi.big_op.
@@ -262,7 +262,7 @@ Module Atom.
       | syn_owne_auth Es => OwnE_auth Es
       (** Atoms to express state invariants of wpsim. *)
       | ob_ths ths =>
-          OwnM (Auth.black (Some ths: (NatMapRALarge.t unit)): ThreadRA)
+          OwnM (Auth.black (Some ths: (NatMapRA.t unit)): ThreadRA)
       | ob_st_src st_src =>
           OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option st_src_type)): stateSrcRA _)
       | ow_st_src st_src =>
@@ -412,7 +412,7 @@ Section RED.
   Proof. apply red_sem_persistently. Qed.
 
   Lemma red_tl_plainly n p :
-    ⟦(■ p)%F, n⟧ = (IProp.Plainly ⟦p, n⟧)%I.
+    ⟦(■ p)%F, n⟧ = (.Plainly ⟦p, n⟧)%I.
   Proof. apply red_sem_plainly. Qed.
 
   Lemma red_tl_upd n p :
@@ -881,7 +881,7 @@ End TEST.
 (*     Context `{Σ : GRA.t}. *)
 (*     (* Context `{SUB : *) *)
 (*     (*       forall M, In M σ -> *) *)
-(*     (*            { to_URA : SRA -> URA.t & *) *)
+(*     (*            { to_URA : SRA -> ucmra & *) *)
 (*     (*                               ((GRA.inG (to_URA M) Σ) * ((@car M) -> (to_URA M)))%type }}. *) *)
 
 (*     Context `{@GRA.inG (IInvSetRA Formula) Σ}. *)

@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import ITreeLib Red TRed IRed2 LinkingRed.
 From Fairness Require Import Mod Linking.
-From Fairness Require Import PCM IProp IPM.
+From Fairness Require Import PCM IPM.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic.
 From PromisingLib Require Import Loc Event.
@@ -13,14 +13,14 @@ From Fairness Require Export WMM.
 Section SPEC.
 
   Import WMem.
-  
+
   Context {STT : StateTypes}.
   Context `{sub : @SRA.subG Γ Σ}.
   Context {TLRASs : TLRAs_small STT Γ}.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasWMEMRA: @GRA.inG wmemRA Γ}.
-  
+
   Variable p_mem : Prism.t id_tgt_type WMM.WMem.ident.
   Variable l_mem : Lens.t st_tgt_type WMM.WMem.t.
   Let emb_mem := plmap p_mem l_mem.
@@ -46,8 +46,8 @@ Section SPEC.
     rred2r. iApply wpsim_getR. iSplit. iFrame.
     rred2r. iApply wpsim_chooseR. iIntros "%".
     destruct x0. destruct x0 as [[[[lc2 to] val] sc1] mem1]. des.
-    rename y0 into READ, y1 into WRITE. rred. 
-    
+    rename y0 into READ, y1 into WRITE. rred.
+
     iPoseProof (wmemory_ra_faa_strong with "MEM PT") as "[%FAA >[MEM0 MEM2]]".
     { rewrite Lens.view_set in READ. eapply READ. }
     { rewrite Lens.view_set in WRITE. eapply WRITE. }
@@ -87,8 +87,8 @@ Section SPEC.
     rred2r. iApply wpsim_chooseR. iIntros "%".
     destruct x0. destruct x0 as [[[[lc2 to] val] sc1] mem1]. des.
     rename y0 into READ. rred.
-    
-    rewrite ! Lens.view_set in *.
+
+    rewrite ! Lens.view_set in READ. rewrite ! Lens.view_set.
     iPoseProof (wmemory_ra_load_acq with "[MEM] PT") as "[% (MEM & PT & [S | F])]". eauto. eauto. auto. eauto.
     { iDestruct "S" as "[P (% & #PRM & %)]".
       iApply wpsim_fairR_prism. auto.
@@ -138,8 +138,8 @@ Section SPEC.
     rred2r. iApply wpsim_chooseR. iIntros "%".
     destruct x0. destruct x0 as [[[[lc2 to] val] sc1] mem1]. des.
     rename y0 into READ. rred.
-    
-    rewrite ! Lens.view_set in *.
+
+    rewrite ! Lens.view_set in READ.
     iPoseProof (wmemory_ra_load_rlx with "MEM PT []") as "(%LE2 & MEM & PT & POST)". eauto. eauto. auto. eauto.
     iApply wpsim_fairR_prism. auto.
     { i. instantiate (1:=[]). ss. clear - IN0. unfold prism_fmap, WMem.missed in IN0. des_ifs. }
@@ -176,8 +176,8 @@ Section SPEC.
     rred2r. iApply wpsim_chooseR. iIntros "%".
     destruct x0. destruct x0 as [[[lc2 to] sc1] mem1]. des.
     rename y0 into STORE. rred.
-    
-    rewrite ! Lens.view_set in *.
+
+    rewrite ! Lens.view_set in STORE. rewrite ! Lens.view_set.
     iPoseProof (wmemory_ra_store_rel with "MEM PT [] []")
       as "(%VLE & > (WMEM & %V' & %k' & %VLE2 & %VLE3 & > [POST LO]))"; eauto.
 

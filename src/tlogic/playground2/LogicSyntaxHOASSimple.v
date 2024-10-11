@@ -1,6 +1,6 @@
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
 From Coq Require Import Program Arith.
@@ -81,7 +81,7 @@ Module Syntax.
         | wand p q => Wand (_to_semantics_aux p) (_to_semantics_aux q)
         | empty => Emp
         | persistently p => Persistently (_to_semantics_aux p)
-        | plainly p => IProp.Plainly (_to_semantics_aux p)
+        | plainly p => .Plainly (_to_semantics_aux p)
         | upd p => Upd (_to_semantics_aux p)
         end
       end.
@@ -201,7 +201,7 @@ Section RED.
   Proof. ss. Qed.
 
   Lemma red_sem_plainly n p :
-    Sem n (Syntax.plainly p) = (IProp.Plainly (Sem n p))%I.
+    Sem n (Syntax.plainly p) = (.Plainly (Sem n p))%I.
   Proof. ss. Qed.
 
   Lemma red_sem_upd n p :
@@ -298,12 +298,12 @@ Notation "'emp'" := (Syntax.empty) : formula_scope.
 (*       "Type@{max(Set+1,Fairness.LogicSyntaxHOAS.59,Syntax.type.u0+1,Fairness.LogicSyntaxHOAS.64,Fairness.LogicSyntaxHOAS.65,RelDecision.u0,RelDecision.u1)}" *)
 (*       while it is expected to have type "Type@{IInvSetRA.u0}" (universe inconsistency: Cannot enforce *)
 (*       Fairness.LogicSyntaxHOAS.64 <= IInvSetRA.u0 because IInvSetRA.u0 <= InvSetRA.u0 *)
-(*       <= URA.agree_obligation_4.u0 <= URA.t.u0 < MRet.u0 = Fairness.LogicSyntaxHOAS.64). *)
+(*       <= URA.agree_obligation_4.u0 <= ucmra.u0 < MRet.u0 = Fairness.LogicSyntaxHOAS.64). *)
 (*       ========== *)
-(*       Seems like there is a strict order between URA.t and MRet, *)
+(*       Seems like there is a strict order between ucmra and MRet, *)
 (*       and either EqDec or Countable uses MRet. *)
 (*       ========== *)
-(*       Found out that PCM.GRA.of_list introduces URA.t.u0 = RA.t.u0 < MRet.u0. *)
+(*       Found out that PCM.GRA.of_list introduces ucmra.u0 = RA.t.u0 < MRet.u0. *)
 (*    *) *)
 
 (*   End TYPE. *)
@@ -426,7 +426,7 @@ Notation "'emp'" := (Syntax.empty) : formula_scope.
 (*       | wand p q => Wand (to_semantics_0 n sem p) (to_semantics_0 n sem q) *)
 (*       | empty => Emp *)
 (*       | persistently p => Persistently (to_semantics_0 n sem p) *)
-(*       | plainly p => IProp.Plainly (to_semantics_0 n sem p) *)
+(*       | plainly p => .Plainly (to_semantics_0 n sem p) *)
 (*       | upd p => Upd (to_semantics_0 n sem p) *)
 (*       end. *)
 
@@ -455,7 +455,7 @@ Notation "'emp'" := (Syntax.empty) : formula_scope.
 (*     (*   | wand p q => Wand (to_semantics_0 p) (to_semantics_0 q) *) *)
 (*     (*   | empty => Emp *) *)
 (*     (*   | persistently p => Persistently (to_semantics_0 p) *) *)
-(*     (*   | plainly p => IProp.Plainly (to_semantics_0 p) *) *)
+(*     (*   | plainly p => .Plainly (to_semantics_0 p) *) *)
 (*     (*   | upd p => Upd (to_semantics_0 p) *) *)
 (*     (*   end. *) *)
 
@@ -478,7 +478,7 @@ Notation "'emp'" := (Syntax.empty) : formula_scope.
 (*     (*     | wand p q => Wand (to_semantics_aux p) (to_semantics_aux q) *) *)
 (*     (*     | empty => Emp *) *)
 (*     (*     | persistently p => Persistently (to_semantics_aux p) *) *)
-(*     (*     | plainly p => IProp.Plainly (to_semantics_aux p) *) *)
+(*     (*     | plainly p => .Plainly (to_semantics_aux p) *) *)
 (*     (*     | upd p => Upd (to_semantics_aux p) *) *)
 (*     (*     end *) *)
 (*     (*   end. *) *)

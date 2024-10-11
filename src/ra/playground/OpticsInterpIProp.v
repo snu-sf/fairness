@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import Optics IProp IPM PCM.
+From Fairness Require Import Optics  IPM PCM.
 From stdpp Require Import coPset gmap namespaces.
 From Fairness Require Export IndexedInvariants.
 
@@ -73,8 +73,8 @@ Section STATE.
   Variable state_src: Type.
   Variable state_tgt: Type.
 
-  Local Notation stateSrcRA := (Auth.t (Excl.t (option state_src)) : URA.t).
-  Local Notation stateTgtRA := (Auth.t (Excl.t (option state_tgt)) : URA.t).
+  Local Notation stateSrcRA := (Auth.t (Excl.t (option state_src)) : ucmra).
+  Local Notation stateTgtRA := (Auth.t (Excl.t (option state_tgt)) : ucmra).
 
   Local Notation index := nat.
   Context `{Vars : index -> Type}.
