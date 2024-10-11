@@ -1,40 +1,16 @@
-From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 
+From iris.algebra Require Import cmra updates.
+
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim NatStructsLarge.
-(* FIXME: Importing PCM here brekas proofs. *)
 From Fairness Require Import pind World WFLibLarge ThreadsURA.
 From Fairness Require Import Mod ModSimYOrd ModSimStid.
-
-(* TODO: move this to a tactics folder *)
-Ltac r_first rs :=
-  match rs with
-  | (?rs0 ⋅ ?rs1) =>
-    let tmp0 := r_first rs0 in
-    constr:(tmp0)
-  | ?r => constr:(r)
-  end
-.
-
-Ltac r_solve :=
-  repeat rewrite (assoc cmra.op);
-  repeat (try rewrite right_id; try rewrite left_id);
-  match goal with
-  | [|- ?lhs ≡ (_ ⋅ _) ] =>
-    let a := r_first lhs in
-    try rewrite <- (comm cmra.op a);
-    repeat rewrite <- (assoc cmra.op);
-    try (stdpp.tactics.f_equiv; r_solve)
-  | _ => try reflexivity
-  end
-.
-
-Ltac r_wf H := eapply cmra_valid_proper; [|exact H]; r_solve.
+From Fairness Require Import PCM.
 
 Set Implicit Arguments.
 
@@ -127,9 +103,8 @@ Section PROOF.
     unfold shared_thsRA in VALS. rewrite th_has_hit in VALS.
     des_ifs.
     - apply ae_white_black_agree in VALS. subst. done.
-    - rewrite -(assoc cmra.op) in VALS.
-      apply cmra_valid_op_r in VALS.
-      by apply ae_white_op_valid in VALS.
+    - rewrite -(assoc (⋅)) in VALS.
+      by apply cmra_valid_op_r, ae_white_op_valid in VALS.
   Qed.
 
   Lemma shared_thsRA_th_has_wf_update
@@ -152,10 +127,8 @@ Section PROOF.
       unfold shared_thsRA in *.
       rewrite nm_find_add_eq. rewrite FIND in VALS.
       clear -VALS.
-      eapply ae_black_white_extend.
-      exact VALS.
-    - rewrite th_has_miss in VALS; auto. rewrite th_has_miss; auto.
-      rewrite right_id in VALS. r_solve.
+      eapply ae_black_white_extend, VALS.
+    - rewrite th_has_miss // right_id in VALS. rewrite th_has_miss //  right_id.
       unfold shared_thsRA in *. rewrite nm_find_add_neq; auto.
   Qed.
 
@@ -531,7 +504,6 @@ Section PROOF.
     splits.
 
     - ii. destruct i; ss. unfold tids_fmap, prism_fmap in *; ss. destruct (Nat.eq_dec n tid) eqn:EQT; clarify.
-      des_ifs.
       destruct (NatMapP.F.In_dec ths n) eqn:INT; ss; clarify.
       2:{ des_ifs; ss. }
       clear EQT INT.

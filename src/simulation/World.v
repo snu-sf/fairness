@@ -25,14 +25,9 @@ Section INVARIANT.
 
   (* TODO: place somewhere else. Bikesheed namess  *)
   Local Instance fold_left_proper `{Equiv A} B (f : A → B → A) (l : list B) :
-  Proper ((≡)==>(=)==>(≡)) f →
-  Proper ((≡)==>(≡)) (fold_left f l).
-  Proof.
-    intros Hf x y EQ. revert x y EQ.
-    induction l; i; ss.
-    apply (IHl (f x a) (f y a)).
-    apply Hf; done.
-  Qed.
+    Proper ((≡)==>(=)==>(≡)) f →
+    Proper ((≡)==>(≡)) (fold_left f l).
+  Proof. induction l; solve_proper. Qed.
 
   Lemma permutation_same_sum l0 l1 r
         (PERM: Permutation.Permutation l0 l1)
@@ -41,12 +36,10 @@ Section INVARIANT.
     ≡ List.fold_left (fun a (p : NatMap.key * M) => snd p ⋅ a) l1 r.
   Proof.
     revert r. induction PERM; i; ss.
-    { apply fold_left_proper; last first.
-      { by rewrite !(assoc cmra.op) (comm cmra.op x.2). }
-      intros a b Hab p1 p2 ->.
-      rewrite Hab. done.
+    { apply fold_left_proper; last r_solve.
+      ii. by setoid_subst.
     }
-    { rewrite IHPERM1. rewrite IHPERM2. auto. }
+    { rewrite IHPERM1 IHPERM2 //. }
   Qed.
 
   Lemma resources_fold_left_base r l
@@ -55,9 +48,8 @@ Section INVARIANT.
     ≡
     List.fold_left (fun a (p : NatMap.key * M) => snd p ⋅ a) l ε ⋅ r.
   Proof.
-    revert r. induction l; i; ss.
-    { rewrite left_id. auto. }
-    { rewrite (IHl (snd a ⋅ r)). rewrite (IHl (snd a ⋅ ε)). r_solve. }
+    revert r. induction l as [|?? IH]; i; r_solve.
+    rewrite /= !(IH (a.2 ⋅ _)). r_solve.
   Qed.
 
   Lemma setoid_list_findA_in A B (f: A -> bool) l (b: B)
@@ -131,15 +123,15 @@ Section INVARIANT.
       hexploit nm_pop_res_is_rm_eq; eauto. i.
       hexploit sum_of_resources_remove; eauto. i. subst.
       rewrite H1 in WF. split.
-      { r. rewrite (comm cmra.op _ r0) (assoc cmra.op) in WF. done. }
+      { r. r_wf WF. }
       { ii. rewrite sum_of_resources_add.
-        { rewrite (comm cmra.op _ r1) (assoc cmra.op). done. }
+        { r_wf WF0. }
         { eapply nm_find_rm_eq. }
       }
     }
     { hexploit nm_pop_find_none; eauto. i. split.
-      { r. rewrite right_id. done. }
-      { ii. rewrite sum_of_resources_add; eauto. rewrite (comm cmra.op _ r1) (assoc cmra.op). done. }
+      { r. r_wf WF. }
+      { ii. rewrite sum_of_resources_add; eauto. r_wf WF0. }
     }
   Qed.
 End INVARIANT.
@@ -357,19 +349,17 @@ Section AUX.
       assert (FIND2: NatMap.find tid0 (NatMap.add tid r_own rs_ctx) = Some c).
       { rewrite nm_find_add_neq; auto. }
       hexploit (@sum_of_resources_remove M). eapply FIND2. i.
-      rewrite (comm cmra.op) in H.
+      rewrite (comm (⋅)) in H.
       assert (g ⋅ c ⋅ sum_of_resources (NatMap.remove (elt:=M) tid0 (NatMap.add tid r_own rs_ctx)) ≡ g ⋅ sum_of_resources (NatMap.add tid r_own rs_ctx)) as EQ.
       { rewrite H. r_solve. }
       rewrite EQ.
       hexploit (@sum_of_resources_add M); eauto. instantiate (1:=r_own). i.
-      rewrite H0. clear -URAWF.
-      by rewrite (comm cmra.op _ r_own) (assoc cmra.op).
+      rewrite H0. r_wf URAWF.
     }
     { erewrite get_resource_add_neq_find_none_snd; eauto. ss.
       erewrite get_resource_find_none_fst; eauto.
       hexploit (@sum_of_resources_add M). eapply RSWF. instantiate (1:=r_own). i.
-      rewrite H. clear -URAWF.
-      by rewrite right_id (comm cmra.op _ r_own) (assoc cmra.op).
+      rewrite H. r_wf URAWF.
     }
   Qed.
 
