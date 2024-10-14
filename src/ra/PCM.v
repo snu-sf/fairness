@@ -1,6 +1,5 @@
 From sflib Require Import sflib.
 Require Export ZArith.
-(* Require Export Znumtheory. *)
 Require Import List.
 Require Import String.
 Require Import ClassicalChoice ChoiceFacts.
@@ -128,69 +127,6 @@ Module RA.
   Next Obligation. ii. ss. Qed.
   Next Obligation. ii. r in H. r in H0. des. split; eauto. Qed.
 
-  (* Definition prod (M0 M1 : t) : t := (prodR (fosraR M0) (fosraR M1)).
-
-  Theorem prod_updatable
-          M0 M1
-          (a0: @car M0) (a1: @car M1)
-          (b0: @car M0) (b1: @car M1)
-          (UPD0: updatable a0 b0)
-          (UPD1: updatable a1 b1)
-    :
-      <<UPD: @updatable (prod M0 M1) (a0, a1) (b0, b1)>>
-  .
-  Proof.
-    r in UPD0. r in UPD1. des. split.
-    { intros [? ?]. split; simpl in *.
-      - by apply UPD0.
-      - by apply UPD1.
-    }
-    ii. ss. destruct ctx as [ctx0 ctx1], H as [H0 H1]. simpl in *.
-    specialize (UPD3 ctx0 H0). specialize (UPD2 ctx1 H1).
-    split; done.
-  Qed. *)
-
-  (* Program Instance frac (denom: positive): t := {
-    car := positive;
-    add := fun a b => (a + b)%positive;
-    wf := fun a => (a <= denom)%positive;
-  }
-  .
-  Next Obligation. ss. lia. Qed.
-  Next Obligation. ss. lia. Qed.
-  Next Obligation. ss. lia. Qed. *)
-
-  (* Theorem frac_updatable
-          denom M
-          a b
-    :
-      <<UPD: @updatable (prod (frac denom) M) (denom, a) b>>
-  .
-  Proof.
-    ii. ss. des_ifs. des. lia.
-  Qed. *)
-
-  (* Program Instance agree (A: Type): t := {
-    car := option A;
-    add := fun a0 a1 => if excluded_middle_informative (a0 = a1) then a0 else None;
-    wf := fun a => a <> None;
-  }
-  .
-  Next Obligation. i. ss. des_ifs. Qed.
-  Next Obligation. i. ss. des_ifs. Qed.
-  Next Obligation. i. ss. des_ifs. Qed.
-
-  Theorem agree_unupdatable
-          A
-          a0 a1
-    :
-      <<UPD: @updatable (agree A) (Some a0) a1 -> a1 = Some a0>>
-  .
-  Proof.
-    ii. ss. rr in H. specialize (H (Some a0)). ss. des_ifs.
-    exfalso. eapply H; eauto.
-  Qed. *)
-
   Program Instance excl (A: Type): t := {
     car := option A;
     add := fun _ _ => None;
@@ -212,38 +148,6 @@ Module RA.
       <<UPD: @updatable (excl A) (Some a0) (Some a1)>>
   .
   Proof. rr. ii. ss. Qed.
-
-  (* Let sum_add {M0 M1} := (fun (a b: car (t:=M0) + car (t:=M1) + unit) =>
-                            match a, b with
-                            | inl (inl a0), inl (inl b0) => inl (inl (add a0 b0))
-                            | inl (inr a1), inl (inr b1) => inl (inr (add a1 b1))
-                            | _, _ => inr tt
-                            end).
-  Let sum_wf {M0 M1} := (fun (a: car (t:=M0) + car (t:=M1) + unit) =>
-                           match a with
-                           | inl (inl a0) => wf a0
-                           | inl (inr a1) => wf a1
-                           | _ => False
-                           end).
-  Program Instance sum (M0 M1: t): t := {
-    car := car (t:=M0) + car (t:=M1) + unit (* boom *);
-    add := sum_add;
-    wf := sum_wf;
-  }
-  .
-  Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_comm. Qed.
-  Next Obligation. unfold sum_add. esplits; ii; ss; des; des_ifs; do 2 f_equal; apply add_assoc. Qed.
-  Next Obligation. i. unfold sum_wf in *. des_ifs; ss; des_ifs; eapply wf_mon; eauto. Qed. *)
-
-  (* Program Instance pointwise K (M: t): t := {
-    car := K -> (car (t:=M));
-    add := fun f0 f1 => (fun k => add (f0 k) (f1 k));
-    wf := fun f => forall k, wf (f k);
-  }
-  .
-  Next Obligation. i. apply func_ext. ii. rewrite add_comm. ss. Qed.
-  Next Obligation. i. apply func_ext. ii. rewrite add_assoc. ss. Qed.
-  Next Obligation. ss. i. eapply wf_mon; ss. Qed. *)
 
   Local Program Instance empty: t := {
     car := False;
@@ -391,63 +295,6 @@ Module URA.
     rr in EXT. des. subst. hexploit core_mono. i. des.
     eexists. eauto.
   Qed.
-
-  (* Iris ucmra is a URA. *)
-  (* TODO:(janggun) Move this to a separate module, if needed *)
-  (* Program Instance ucmra_ura (M: ucmra) : t := {
-    car := ucmra_car M;
-    unit := ε;
-    _add := op;
-    _wf := valid;
-    core := cmra.core;
-  }.
-  Next Obligation. by rewrite (base.comm op). Qed.
-  Next Obligation. by rewrite (base.assoc op). Qed.
-  Next Obligation. by apply ucmra_unit_right_id. Qed.
-  Next Obligation. by apply ucmra_unit_valid. Qed.
-  Next Obligation. by apply (cmra_valid_op_l _ b). Qed.
-  Next Obligation. by apply cmra_core_l. Qed.
-  Next Obligation. by apply cmra_core_idemp. Qed.
-  Next Obligation. by apply cmra_core_mono. Qed. *)
-
-  (* URA is an Iris ucmra. *)
-  (* Section fos_ura_to_ucmra.
-    Context (M : t).
-    Local Instance fos_ura_valid_instance : Valid car := wf.
-    Local Instance fos_ura_pcore_instance : PCore car := fun a => Some (core a).
-    Local Instance fos_ura_op_instance : Op car := add.
-    Local Instance fos_ura_unit_instance : Unit car := unit.
-
-    Lemma fos_ura_valid a : valid a <-> wf a.
-    Proof. done. Qed.
-    Lemma fos_ura_op a0 a1 : op a0 a1 = add a0 a1.
-    Proof. done. Qed.
-
-    Definition fos_ura_ra_mixin : RAMixin car.
-    Proof.
-      split; try apply _; try done.
-      - ii. subst. eauto.
-      - ii. apply add_assoc.
-      - ii. apply add_comm.
-      - intros ???Heq. unfold pcore,fos_ura_pcore_instance in Heq. injection Heq as <-. apply core_id.
-      - intros ???Heq. unfold pcore,fos_ura_pcore_instance in *. injection Heq as <-. f_equal. apply core_idem.
-      - intros a ? ? [c ->] Heq. unfold pcore,fos_ura_pcore_instance in *. injection Heq as <-. eexists.
-        split; [done|]. destruct (core_mono a c) as [cx ?].
-        exists cx. done.
-      - ii. eapply wf_mon. eauto.
-    Qed.
-    Canonical Structure fosuraR := discreteR car fos_ura_ra_mixin.
-
-    Lemma fos_ura_ucmra_mixin : UcmraMixin car.
-    Proof.
-      split.
-      - apply wf_unit.
-      - ii. rewrite (base.comm op). apply unit_id.
-      - unfold pcore,fos_ura_pcore_instance. f_equal. apply unit_core.
-    Qed.
-    Canonical Structure fosuraUR := Ucmra car fos_ura_ucmra_mixin.
-
-  End fos_ura_to_ucmra. *)
 
   Program Instance prod (M0 M1: t): t := {
     car := car (t:=M0) * car (t:=M1);
@@ -2020,7 +1867,3 @@ Section PWDAUX.
   Proof. ii; ss. rewrite URA.unfold_wf in WF. ss. Qed.
 
 End PWDAUX.
-
-
-
-(* TODO: make lemmas for RA and turn it into URA at the last *)

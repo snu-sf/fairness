@@ -5,7 +5,8 @@ From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import PCM IProp IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
-From Fairness Require Import TemporalLogic SCMemSpec OneShotsRA TicketLockRA AuthExclsRA.
+From Fairness Require Import TemporalLogic SCMemSpec OneShotsRA AuthExclsRA.
+From Fairness Require Export TicketLockRA.
 
 Module TicketLock.
 
@@ -82,6 +83,10 @@ Section SPEC.
     grind.
   Qed.
 
+  (* Progress credits allocated for unlock obligation *)
+  Local Definition υ : nat := 5.
+  Local Opaque υ.
+
   (** Invariants. *)
   Definition tklockInv (i : nat) (γt : nat) (lo ln : SCMem.val) (P : sProp i) (l b : nat) : sProp i :=
     (∃ (o n κu γs pass : τ{nat, i}) (D : τ{gset nat, i}),
@@ -92,7 +97,7 @@ Section SPEC.
       ∗ ⌜pass <= b⌝
       ∗ (● γt (κu, γs, pass))
       ∗ ((⌜o = n⌝ ∗ (○ γt (κu, γs, pass)) ∗ P)
-        ∨ ◆[κu, l] ∗ (-[κu](0)-◇ ▿ γs tt) ∗ (⋈ [κu]) ∗ (△ γs 1) (* Promise to unlock *)
+        ∨ ◆[κu, l, υ] ∗ (-[κu](0)-◇ ▿ γs tt) ∗ (⋈ [κu]) ∗ (△ γs 1) (* Promise to unlock *)
           ∗ (∃ (κack : τ{nat, i}),
               (s_ticket_wait γt o [κu; γs; κack; pass])
               ∗ (s_ticket_issued γt o [κu; γs; κack; pass] ∨ (○ γt (κu, γs, pass) ∗ P))))
@@ -100,9 +105,9 @@ Section SPEC.
           ⌜tk = o⌝
           ∨ ⌜tk > o⌝
             ∗ (∃ (κu' κack' γs' : τ{nat}),
-              ◆[κu', l] ∗ (-[κu'](0)-⧖ ▿ γs' tt) ∗ ⧖ [κu', (1/2)] ∗ (△ γs' 1) (* Delayed promises to unlock *)
+              ◆[κu', l, υ] ∗ (-[κu'](0)-⧖ ▿ γs' tt) ∗ ⧖ [κu', (1/2)] ∗ (△ γs' 1) (* Delayed promises to unlock *)
               ∗ (s_ticket_wait γt tk [κu'; γs'; κack'; b])
-              ∗ (◇[κack'](1 + l, pass + (b + 1) * (tk - o))) ∗ (κu -(0)-◇ κack'))) (* Dependent obligations *)
+              ∗ (◇[κack'](l, υ * (pass + (b + 1) * (tk - o)))) ∗ (κu -(0)-◇ κack'))) (* Dependent obligations *)
     )%S.
 
   (* Namespace for TicketLock invariants. *)
@@ -156,18 +161,17 @@ Section SPEC.
   Qed.
 
   Lemma TicketLock_lock_loop_spec
-        tid i N l
+        tid i N
         (NIN : ↑N ⊆ (↑N_TicketLock : coPset))
-        (LT : 0 < l)
   :
-  ⊢ ∀ γt lo ln (P : sProp i) b n κu γs κack (ds : list (nat * nat * sProp i)),
+  ⊢ ∀ γt lo ln (P : sProp i) l b n κu γs κack (ds : list (nat * nat * sProp i)),
     [@ tid, i, ⊤ @]
       ⧼⟦((⤉ syn_inv i N (tklockInv i γt lo ln P l b))
         ∗ (syn_tgt_interp_as i sndl (fun m => s_memory_black m))
         ∗ (⤉ Duty(tid)((κu, 0, ▿ γs tt) :: ds))
-        ∗ (◇{(ds@1)}(2, 1))
+        ∗ (◇{(ds@1)}(2, 1)) (* for yields when acquiring the lock *)
         ∗ (⤉ ⦃◆[κack] & ◇{(ds@1)%S}(2)⦄)
-        ∗ (◇[κu](l, 2))
+        ∗ (◇[κu](1, 2)) (* for yields when acquiring the lock *)
         ∗ (⤉ s_ticket_issued γt n [κu; γs; κack; b]))%S, 1+i⟧⧽
         (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock_loop (lo, SCMem.val_nat n)))
         ⧼rv, ⟦((⤉ Duty(tid)((κu, 0, ▿ γs tt) :: ds))
@@ -208,10 +212,6 @@ Section SPEC.
       iEval (red_tl_all; simpl) in "REST". iDestruct "REST" as "(WAIT & [ISSUED' | LW])".
       { iExFalso. iApply (Ticket_issued_twice with "ISSUED ISSUED'"). }
       iPoseProof (Ticket_issued_wait with "ISSUED WAIT") as "%EQ". clarify.
-      iAssert (#=> ◇[κu2](1, 2))%I with "[PC]" as "> PC".
-      { destruct (Nat.eq_dec l 1). subst. done.
-        iMod (pc_drop _ 1 l _ 2 2 with "[PC]") as "PC". auto. done. done.
-      }
       iMod ("TI_CLOSE" with "[- POST DUTY PC ISSUED PCS]") as "_".
       { iEval (unfold tklockInv; simpl; red_tl_all).
         iExists o2. iEval (red_tl; simpl). iExists n2. iEval (red_tl; simpl).
@@ -340,10 +340,6 @@ Section SPEC.
       { iExFalso. iApply (Ticket_issued_twice with "ISSUED ISSUED'"). }
       iPoseProof (Ticket_issued_wait with "ISSUED WAIT") as "%EQ". clarify.
       iPoseProof (pc_split _ _ 1 with "PC") as "[PC _]".
-      iAssert (#=> ◇[κu2](1, 1))%I with "[PC]" as "> PC".
-      { destruct (Nat.eq_dec l 1). subst. done.
-        iMod (pc_drop _ 1 l _ 1 1 with "[PC]") as "PC". auto. done. done.
-      }
       iMod ("TI_CLOSE" with "[- POST PC DUTY PCS LW P]") as "_".
       { iEval (unfold tklockInv; simpl; red_tl_all).
         iExists o2. iEval (red_tl; simpl). iExists n2. iEval (red_tl; simpl).
@@ -412,7 +408,7 @@ Section SPEC.
           ⧼⟦((syn_tgt_interp_as i sndl (fun m => (s_memory_black m))
               ∗ (⤉ isTicketLock i γt loc P l b)
               ∗ (⤉ (Duty(tid) ds))
-              ∗ ⤉ ◇{ds@1}(5 + l, 1))%S), 1+i⟧⧽
+              ∗ ⤉ ◇{ds@1}(4 + l, 1))%S), 1+i⟧⧽
             (OMod.close_itree Client (SCMem.mod gvs) (TicketLock.lock loc))
             ⧼rv, ⟦(∃ (κu γs : τ{nat, 1+i}),
                     (⤉ P)
@@ -432,11 +428,11 @@ Section SPEC.
 
     (* YIELD *)
     rred2r.
-    iMod (pcs_drop _ _ 1 _ _ 2 with "[PCS]") as "PCS". 2:{ iFrame. } auto.
+    iMod (pcs_drop _ _ 1 _ _ 2 with "[PCS]") as "PCS". 2:{ iFrame. } auto. (* (3 + l, 2) *)
     iMod (pcs_decr _ _ 1 _ with "PCS") as "[PCS' PCS]". auto.
-    iMod (pcs_drop _ _ 1 _ 2 2 with "PCS'") as "PCS'". lia.
+    iMod (pcs_drop _ _ 1 _ 2 2 with "PCS'") as "PCS'". lia. (* (3 + l, 1) + (2, 2) *)
     iMod (pcs_decr _ _ 1 _ with "PCS'") as "[PCS'' PCS']". auto.
-    iMod (pcs_drop _ _ 1 _ 1 2 with "PCS'") as "PCS'". lia.
+    iMod (pcs_drop _ _ 1 _ 1 2 with "PCS'") as "PCS'". lia. (* (3 + l, 1) + (2, 1) + (1, 2) *)
     iCombine "DUTY" "PCS'" as "DUTY".
     iApply (wpsim_yieldR2 with "DUTY"). auto. lia.
     iIntros "DUTY CRED PCS'". simpl.
@@ -460,23 +456,28 @@ Section SPEC.
     iIntros (rv) "(%EQ & LNPT)". subst. iEval (ss) in "LNPT". rred2r. iApply wpsim_tauR. rred2r.
     (* Allocate delayed promise *)
     iMod (OneShots.alloc) as "(%γs2 & PENDING2)".
-    iMod (alloc_obligation l 5) as "(%κu2 & #OBL2 & PC2 & PO2)". iEval (rewrite <- Qp.half_half) in "PO2".
+    (* (l, 5) = (l, 1) for making a promise
+                (l, 2) for yields in acuiqre loop
+                (l, 1) for last yield
+                (l, 1) for the user *)
+    iMod (alloc_obligation_fine l 5) as "(%κu2 & #OBL2 & PC2 & PO2)". iEval (rewrite <- Qp.half_half) in "PO2".
     iPoseProof (pending_split _ (1/2) (1/2) with "PO2") as "[PO2 PO2']".
     iPoseProof (pc_split _ _ 1 _ with "[PC2]") as "[PC2' PC2]". simpl. done.
-    iAssert (#=> ◇[κu2](1, 1))%I with "[PC2']" as "> PC2'".
+    iAssert (#=> ◇[κu2](1, 4))%I with "[PC2]" as "> PC2".
     { destruct (Nat.eq_dec l 1); [subst; done | ].
-      iMod (pc_drop _ 1 l _ 1 1 with "[PC2']") as "PC2'". auto. done. done.
+      iMod (pc_drop _ 1 l _ 4 4 with "[PC2]") as "PC2". auto. done. done.
     }
-    iPoseProof (duty_add with "[DUTY PC2' PO2'] []") as "> DUTY".
-    { iSplitL "DUTY"; [done | ]. iSplitL "PC2'"; done. }
+    iPoseProof (pc_split _ _ 1 _ with "[PC2]") as "[PC2'' PC2]". simpl. done.
+    iPoseProof (duty_add with "[DUTY PC2'' PO2'] []") as "> DUTY".
+    { iSplitL "DUTY"; [done | ]. iSplitL "PC2''"; done. }
     { instantiate (1:=(▿ γs2 tt)%S). iModIntro. simpl.
       red_tl_all. simpl. iIntros. iModIntro. done.
     }
     iPoseProof (duty_delayed_tpromise with "DUTY") as "#DPRM2".
     { simpl. left; auto. }
-    iMod (alloc_obligation (1+l) (1 + pass + (b + 1) * (n - o))) as "(%κack2 & #OBLa2 & PCa2 & _)".
-    iPoseProof (pc_split _ _ 1 with "PCa2") as "[PCa2' PCa2]".
-    iMod (ccs_make κack2 (1+l) _ 2 _ with "[PCS]") as "[CCS _]".
+    iMod (alloc_obligation l (υ + υ * (pass + (b + 1) * (n - o)))) as "(%κack2 & #OBLa2 & PCa2 & _)". (* (l, ...) *)
+    iPoseProof (pc_split _ _ υ with "PCa2") as "[PCa2' PCa2]".
+    iMod (ccs_make κack2 l _ 2 _ with "[PCS]") as "[CCS _]". (* (2, 1) + (1, 1) *)
     { simpl. auto. }
     iRename "PCS'" into "PCS".
     iDestruct "HOWNER" as "[(%EQ & LW & P) | (#OBL & #PRM & #AO & PENDING & %κack & REST)]".
@@ -484,9 +485,9 @@ Section SPEC.
       iMod (Ticket_alloc _ D n [κu2; γs2; κack2; b] with "TB") as "(TB & ISSUED & WAIT)".
       { ii. apply HD in H. lia. }
       iMod (activate_tpromise with "DPRM2 PO2") as "[#PRM2 #AO2]". iClear "DPRM2".
-      iMod (link_new κu2 κack2 l 0 0 with "[PCa2']") as "[#LINK _]". auto.
+      iMod (link_new_fine κu2 κack2 l υ 0 with "[PCa2']") as "#LINK". iFrame. auto.
       iMod (AuthExcls.b_w_update _ _ _ (κu2, γs2, b) with "LB LW") as "(LB & LW)".
-      iMod ("TI_CLOSE" with "[- POST PCS PCS'' PC2 DUTY CCS ISSUED]") as "_".
+      iMod ("TI_CLOSE" with "[- POST PCS PCS'' PC2 PC2' DUTY CCS ISSUED]") as "_".
       { iEval (unfold tklockInv; simpl; red_tl_all).
         iExists n. iEval (red_tl; simpl). iExists (n+1). iEval (red_tl; simpl).
         iExists κu2. iEval (red_tl; simpl). iExists γs2. iEval (red_tl; simpl).
@@ -507,29 +508,23 @@ Section SPEC.
         { iApply big_sepS_empty. done. }
         iApply (big_sepS_singleton); red_tl_all; iLeft. auto. set_solver.
       }
-      iPoseProof (pc_split _ _ 2 with "PC2") as "[PC2' PC2]".
-      iApply (TicketLock_lock_loop_spec _ _ N with "[DUTY PCS'' PC2' CCS ISSUED]"). auto. apply GT.
+      iPoseProof (pc_split _ _ 2 with "PC2") as "[PC2'' PC2]".
+      iApply (TicketLock_lock_loop_spec _ _ N with "[DUTY PCS'' PC2'' CCS ISSUED]"). auto.
       { red_tl_all. iEval (rewrite red_syn_inv; rewrite red_syn_tgt_interp_as; simpl). iFrame. iSplit; done. }
       red_tl_all; simpl. iIntros (_) "(DUTY & WL & P)". rred2r.
-      iPoseProof (pc_split _ _ 1 with "PC2") as "[PC2' PC2]".
-      iAssert (#=> ◇[κu2](1, 1))%I with "[PC2']" as "> PC2'".
-      { destruct (Nat.eq_dec l 1); [subst; done | ].
-        iMod (pc_drop _ 1 l _ 1 1 with "[PC2']") as "PC2'". auto. done. done.
-      }
-      iApply (wpsim_yieldR with "[DUTY PCS PC2']"). auto.
-      { iSplitL "DUTY". done. iApply (pcs_cons_fold with "[PCS PC2']"). iFrame. }
+      iApply (wpsim_yieldR with "[DUTY PCS PC2]"). auto.
+      { iSplitL "DUTY". done. iApply (pcs_cons_fold with "[PCS PC2]"). iFrame. }
       iIntros "DUTY _". rred2r. iApply wpsim_tauR. rred2r.
       iApply ("POST" with "[-]"). iExists κu2. red_tl. iExists γs2. red_tl_all. iFrame.
     }
-    {
-      iMod (link_new κu κack2 l 0 0 with "[PCa2']") as "[#LINK _]". auto.
+    { iMod (link_new_fine κu κack2 l υ 0 with "[PCa2']") as "#LINK". auto.
       iAssert (⌜o < n⌝)%I with "[REST TB]" as "%HON".
       { iEval (red_tl_all) in "REST". iDestruct "REST" as "[WAIT _]".
         iPoseProof (Ticket_black_wait with "TB WAIT") as "%H". iPureIntro. apply HD. auto.
       }
       iMod (Ticket_alloc _ D n [κu2; γs2; κack2; b] with "TB") as "(TB & ISSUED & WAIT)".
       { ii. apply HD in H. lia. }
-      iMod ("TI_CLOSE" with "[- POST PCS PCS'' PC2 DUTY CCS ISSUED]") as "_".
+      iMod ("TI_CLOSE" with "[- POST PCS PCS'' PC2 PC2' DUTY CCS ISSUED]") as "_".
       { iEval (unfold tklockInv; simpl; red_tl_all).
         iExists o. iEval (red_tl; simpl). iExists (n+1). iEval (red_tl; simpl).
         iExists κu. iEval (red_tl; simpl). iExists γs. iEval (red_tl; simpl).
@@ -551,17 +546,12 @@ Section SPEC.
         repeat iSplit; auto.
         ii. apply HD in H. apply elem_of_singleton in H0; subst. lia.
       }
-      iPoseProof (pc_split _ _ 2 with "PC2") as "[PC2' PC2]".
-      iApply (TicketLock_lock_loop_spec _ _ N with "[DUTY PCS'' PC2' CCS ISSUED]"). auto. apply GT.
+      iPoseProof (pc_split _ _ 2 with "PC2") as "[PC2'' PC2]".
+      iApply (TicketLock_lock_loop_spec _ _ N with "[DUTY PCS'' PC2'' CCS ISSUED]"). auto.
       { red_tl_all. iEval (rewrite red_syn_inv; rewrite red_syn_tgt_interp_as; simpl). iFrame. iSplit; done. }
       red_tl_all; simpl. iIntros (_) "(DUTY & WL & P)". rred2r.
-      iPoseProof (pc_split _ _ 1 with "PC2") as "[PC2' PC2]".
-      iAssert (#=> ◇[κu2](1, 1))%I with "[PC2']" as "> PC2'".
-      { destruct (Nat.eq_dec l 1); [subst; done | ].
-        iMod (pc_drop _ 1 l _ 1 1 with "[PC2']") as "PC2'". auto. done. done.
-      }
-      iApply (wpsim_yieldR with "[DUTY PCS PC2']"). auto.
-      { iSplitL "DUTY". done. iApply (pcs_cons_fold with "[PCS PC2']"). iFrame. }
+      iApply (wpsim_yieldR with "[DUTY PCS PC2]"). auto.
+      { iSplitL "DUTY". done. iApply (pcs_cons_fold with "[PCS PC2]"). iFrame. }
       iIntros "DUTY _". rred2r. iApply wpsim_tauR. rred2r.
       iApply ("POST" with "[-]"). iExists κu2. red_tl. iExists γs2. red_tl_all. iFrame.
     }
@@ -721,9 +711,9 @@ Section SPEC.
               #=( ObligationRA.edges_sat )=>  
                 (⌜y > o2 + 1⌝
                   ∗ (∃ (κu4 κack4 γs4 : nat),
-                    (◆[κu4, l]) ∗ (-[κu4](0)-⧖ (▿ γs4 tt)%S) ∗ (⧖ [κu4, (1/2)]) ∗ (△ γs4 1)
+                    (◆[κu4, l, υ]) ∗ (-[κu4](0)-⧖ (▿ γs4 tt)%S) ∗ (⧖ [κu4, (1/2)]) ∗ (△ γs4 1)
                     ∗ (Ticket_wait γt y [κu4; γs4; κack4; b])
-                    ∗ (◇[κack4](S l, b + (b + 1) * (y - (o2 + 1)))) ∗ (κu3 -(0)-◇ κack4))))%I
+                    ∗ (◇[κack4](l, υ * (b + (b + 1) * (y - (o2 + 1))))) ∗ (κu3 -(0)-◇ κack4))))%I
       with "[HWAIT]" as "HWAIT".
     { iApply (big_sepS_impl with "[HWAIT]"); iFrame. iModIntro. iIntros (x) "%XIN H".
       red_tl. iDestruct "H" as "[%HEQ | [%HGT HWAIT]]".
@@ -731,16 +721,19 @@ Section SPEC.
       iDestruct "HWAIT" as (κu4) "HWAIT". red_tl. iDestruct "HWAIT" as (κack4) "HWAIT". red_tl.
       iDestruct "HWAIT" as (γs4) "HWAIT". red_tl_all. simpl.
       iDestruct "HWAIT" as "(#OBL4 & #DPRM4 & PO4 & PENDING4 & WAIT4 & PC4 & _)".
-      iPoseProof (pc_split _ _ 1 _ with "[PC4]") as "[PC4' PC4]".
-      { iPoseProof (pc_split _ _ pass2 with "PC4") as "[_ PC4]".
-        replace ((b + 1) * (x - o2)) with (1 + b + (b + 1) * (x - (o2 + 1))). done.
+      iPoseProof (pc_split _ _ υ _ with "[PC4]") as "[PC4' PC4]".
+      { iEval (rewrite Nat.mul_add_distr_l) in "PC4".
+        iPoseProof (pc_split _ _ (υ * pass2) with "PC4") as "[_ PC4]".
+        replace ((b + 1) * (x - o2)) with (1 + b + (b + 1) * (x - (o2 + 1))).
+        iEval (rewrite !Nat.mul_add_distr_l) in "PC4". done.
         replace (x - (o2 + 1)) with (x - o2 - 1) by lia.
-        assert (H': x - o2 > 0). lia. revert H'. generalize (x - o2). induction n0; ii; try lia. }
+        assert (H': x - o2 > 0). lia. revert H'. generalize (x - o2). induction n0; ii; try lia.
+      }
       iSplitR.
       { iModIntro; iPureIntro. set_unfold in XIN; apply elem_of_list_In in XIN; apply in_seq in XIN. lia. }
-      { iPoseProof (link_new with "[PC4']") as "[LINK _]".
+      { iPoseProof (link_new_fine with "[PC4']") as "LINK".
         iSplit. iApply "OBL3". instantiate (1:=0). done. iMod "LINK". iModIntro.
-        iExists κu4, κack4, γs4. fold (Nat.add b ((b + 1) * (x - o2 - 1))). iFrame. repeat iSplit; done.
+        iExists κu4, κack4, γs4. rewrite Nat.mul_add_distr_l. iFrame. repeat iSplit; done.
       }
     }
     iMod (big_sepS_bupd with "HWAIT") as "HWAIT".
