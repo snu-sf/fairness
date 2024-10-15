@@ -60,14 +60,14 @@ make build -j
 
 #### Section 5
 ##### In `src/tlogic`
-- sProp<sub>i</sub> (Sec 5.1, Fig.4): `sProp` in `LogicSyntaxHOAS.v`
-- types &#964;(τ) in sProp<sub>i</sub> (Sec 5.1, Fig.4): `type` in `TemporalLogic.v`
-- type interpretation 𝓘 of τ in sProp<sub>i</sub> (Sec 5.1, Fig.4): `type_interp` in `TemporalLogic.v`
-- type of predicates φ of sProp<sub>i</sub> (Sec 5.1, Fig.4): `sPropT` in `TemporalLogic.v`
-- atoms of sProp<sub>i</sub> (Sec 5.1, Fig.4): `Atom.t` in `TemporalLogic.v` (also includes additional constructors to facilitate the development)
-- semantic interpretation ⟦⋅⟧ of sProp<sub>i</sub> (Sec 5.1, Fig.4): `SyntaxI.interp` in `LogicSyntaxHOAS.v`
-- stratified world satisfaction W<sub>i</sub> (Sec 5.2): `syn_wsat` in `TemporalLogic.v`
-- worlds satisfaction Ws<sub>n</sub> (Sec 5.2): `syn_wsats` in `TemporalLogic.v`
+- sProp<sub>i</sub> (Sec 5, Fig.4): `sProp` in `LogicSyntaxHOAS.v`
+- types &#964;(τ) in sProp<sub>i</sub> (Sec 5, Fig.4): `type` in `TemporalLogic.v`
+- type interpretation 𝓘 of τ in sProp<sub>i</sub> (Sec 5, Fig.4): `type_interp` in `TemporalLogic.v`
+- type of predicates φ of sProp<sub>i</sub> (Sec 5, Fig.4): `sPropT` in `TemporalLogic.v`
+- atoms of sProp<sub>i</sub> (Sec 5, Fig.4): `Atom.t` in `TemporalLogic.v` (also includes additional constructors to facilitate the development)
+- semantic interpretation ⟦⋅⟧ of sProp<sub>i</sub> (Sec 5, Fig.4): `SyntaxI.interp` in `LogicSyntaxHOAS.v`
+- stratified world satisfaction W<sub>i</sub> (Sec 5): `syn_wsat` in `TemporalLogic.v`
+- worlds satisfaction Ws<sub>n</sub> (Sec 5): `syn_wsats` in `TemporalLogic.v`
 - fancy update modality (Sec 5.3, Fig.5): `FUpd` in `IndexedInvariants.v` and `syn_fupd` in `TemporalLogic.v`
 - INV-ALLOC (Sec 3.3, Fig.2): `FUpd_alloc` in `IndexedInvariants.v`
 - INV-OPEN (Sec 5.3, Fig.5): `FUpd_open` in `IndexedInvariants.v`
