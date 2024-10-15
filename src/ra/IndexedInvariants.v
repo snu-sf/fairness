@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From stdpp Require Import coPset gmap namespaces.
 From iris Require Import bi.big_op.
-From iris.algebra Require Import auth agree coPset gset functions.
+From iris.algebra Require Import coPset gset functions lib.gmap_view.
 From Fairness Require Import PCM IPM IUpd IPropAux.
 
 Local Notation index := nat.
@@ -15,7 +15,7 @@ Section INDEXED_INVARIANT_SET.
     { prop : forall (i : index), (Vars i) -> iProp }.
 
   Definition InvSetRA (Vars : index -> Type) (n : index) : ucmra :=
-    authUR (positive -d> optionUR (agreeR $ leibnizO (Vars n))).
+    gmap_viewUR positive (agreeR $ leibnizO (Vars n)).
 
   Definition IInvSetRA (Vars : index -> Type) : ucmra :=
     discrete_funUR (InvSetRA Vars).
@@ -35,8 +35,7 @@ Section PCM_OWN.
 
   Definition OwnI_white {Vars} (n : index) (i : positive) (p : Vars n) : IInvSetRA Vars :=
     discrete_fun_singleton n
-      (◯ (discrete_fun_singleton i
-            (Some $ to_agree (p : leibnizO _)))).
+      (gmap_view_frag i DfracDiscarded (to_agree (A:=leibnizO _) p)).
 
   Definition OwnI {Vars} `{GRA.inG (IInvSetRA Vars) Σ} (n : index) (i : positive) (p : Vars n) :=
     OwnM (OwnI_white n i p).
@@ -45,7 +44,7 @@ Section PCM_OWN.
     OwnE E1 ∗ OwnE E2 ⊢ ⌜E1 ## E2⌝.
   Proof.
     iIntros "[H1 H2]".
-    by iCombine "H1 H2" gives %WF%coPset_disj_valid_op.
+    by iCombine "H1 H2" gives %?%coPset_disj_valid_op.
   Qed.
 
   Lemma OwnE_union `{@GRA.inG OwnERA Σ} (E1 E2 : coPset) :
@@ -110,8 +109,7 @@ Section WORLD_SATISFACTION.
   Local Notation Var := (Vars n).
 
   Definition inv_auth_black (I : gmap positive Var) : IInvSetRA Vars :=
-    discrete_fun_singleton n
-      (● ((λ i, to_agree <$> (I !! i : option (leibnizO _))) : discrete_fun _)).
+    discrete_fun_singleton n (gmap_view_auth (DfracOwn 1) (to_agree <$> I)).
 
   Definition inv_auth (I : gmap positive Var) := OwnM (inv_auth_black I).
 
@@ -143,21 +141,9 @@ Section WORLD_SATISFACTION.
     pose (<[i:=p]> I) as I'.
 
     assert (inv_auth_black I ~~> inv_auth_black I' ⋅ OwnI_white n i p) as UPD.
-    { rewrite /I' discrete_fun_singleton_op.
-      apply discrete_fun_singleton_update, auth_update_alloc,
-        local_update_unital_discrete.
-      setoid_rewrite (left_id ε (⋅)).
-
-      intros mz WF <-. split=>i'.
-      { by destruct (decide (i' = i)) as [->|NE];
-          rewrite ?lookup_insert ?lookup_insert_ne.
-      }
-
-      rewrite discrete_fun_lookup_op.
-      destruct (decide (i = i')) as [->|]; last first.
-      - rewrite discrete_fun_lookup_singleton_ne // lookup_insert_ne
-          // left_id //.
-      - rewrite discrete_fun_lookup_singleton lookup_insert HIi //.
+    { rewrite /I' discrete_fun_singleton_op fmap_insert.
+      apply discrete_fun_singleton_update, (gmap_view_alloc (V:=agreeR (leibnizO _))); [|done..].
+      rewrite lookup_fmap HIi //.
     }
     unfold inv_auth, inv_satall.
     iMod (OwnM_Upd _ _ UPD with "AUTH") as "[AUTH NEW]". iModIntro.
@@ -182,13 +168,10 @@ Section WORLD_SATISFACTION.
   Lemma inv_auth_lookup I i p :
     ✓ (inv_auth_black I ⋅ OwnI_white n i p) → I !! i = Some p.
   Proof.
-    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid
-        auth_both_valid_discrete.
-    intros [Hip%(discrete_fun_included_spec_1 _ _ i) _].
-    rewrite discrete_fun_lookup_singleton in Hip.
-    destruct (I !! i) eqn: E; simpl in *; clarify.
-    - f_equal. rewrite Some_included_total to_agree_included_L // in Hip.
-    - by apply Some_included_is_Some, is_Some_None in Hip.
+    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid.
+    intros (?&_&_&In&_&Ag)%gmap_view_both_dfrac_valid_discrete_total.
+    rewrite lookup_fmap_Some in In. des. subst.
+    by apply (to_agree_included_L (A:=leibnizO _)) in Ag as <-.
   Qed.
 
   Lemma wsat_OwnI_open i p :
@@ -215,7 +198,7 @@ Section WORLD_SATISFACTION.
   Qed.
 
   Lemma wsat_init :
-    OwnM (discrete_fun_singleton n (● ((λ _, None) : discrete_fun _)))
+    OwnM (discrete_fun_singleton n (gmap_view_auth (DfracOwn 1) ∅))
       ⊢ wsat.
   Proof.
     iIntros "H". iExists ∅. iFrame.
@@ -238,7 +221,7 @@ Section WSATS.
   Definition wsat_auth_black (x : index) : IInvSetRA Vars :=
     λ n, if (lt_dec n x)
           then ε
-          else ● ((λ _, None) : discrete_fun _).
+          else gmap_view_auth (DfracOwn 1) ∅.
 
   Definition wsat_auth (x : index) := OwnM (wsat_auth_black x).
 
@@ -275,7 +258,7 @@ Section WSATS.
   Qed.
 
   Lemma wsats_init_zero :
-    OwnM (λ _, ● ((λ _, None) : discrete_fun _))
+    OwnM (λ _, gmap_view_auth (DfracOwn 1) ∅)
          ⊢ wsat_auth 0 ∗ wsats 0.
   Proof. iIntros "$". Qed.
 
@@ -289,7 +272,7 @@ Section WSATS.
       assert (wsat_auth_black m ≡
                 wsat_auth_black y
                    ⋅
-                   discrete_fun_singleton m (● ((λ _, None) : discrete_fun _))) as Hwsat.
+                   discrete_fun_singleton m (gmap_view_auth (DfracOwn 1) ∅)) as Hwsat.
       { subst. intros a. rewrite /wsat_auth_black discrete_fun_lookup_op.
         destruct (decide (a = m)) as [->|];
         rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //.
@@ -384,11 +367,8 @@ Section WSATS.
     des_ifs.
 
     exfalso.
-    apply auth_both_valid_discrete in WF as
-      [EXTENDS%(discrete_fun_included_spec_1 _ _ i) _].
-
-    rewrite discrete_fun_lookup_singleton in EXTENDS.
-    by apply Some_included_is_Some, is_Some_None in EXTENDS.
+    apply gmap_view_both_dfrac_valid_discrete_total in WF as (?&_&_&In&_&_).
+    by rewrite lookup_empty in In.
   Qed.
 
   Lemma wsats_OwnI_open x n i p :

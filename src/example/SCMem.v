@@ -676,7 +676,7 @@ Section MEMRA.
     { iPureIntro.
       apply gmap_view_both_dfrac_valid_discrete_total in H as [? (_&_&In&_&Ag)].
       rewrite lookup_singleton in In. inv In.
-      apply to_agree_included_L in Ag. subst.
+      apply to_agree_included_L in Ag as <-.
       splits; auto.
       unfold SCMem.has_permission. ss. rewrite Heq. ss.
     }
@@ -729,10 +729,8 @@ Section MEMRA.
       unfold memory_resource_black, points_to_white. ss. des_ifs;
       rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //.
       etrans.
-      { apply gmap_view_delete. }
-      rewrite delete_singleton. etrans.
-      { eapply (gmap_view_alloc _ () (DfracOwn 1) (to_agree _)); auto; done. }
-      rewrite insert_empty. reflexivity.
+      { by eapply (gmap_view_replace _ _ _ (to_agree _)). }
+      rewrite insert_insert insert_empty //.
     }
     { ss. iModIntro. iFrame. iPureIntro.
       unfold SCMem.mem_update. ii. ss. des_ifs; eauto.
@@ -894,8 +892,8 @@ Section MEMRA.
   Lemma points_tos_persist l dq vs :
     points_tos l vs dq ==∗ points_tos l vs DfracDiscarded.
   Proof.
-    iRevert (l). iInduction (vs) as [|v vs] "IH"; ss.
-    iIntros (l) "(l↦ & l↦s)".
+    iInduction (vs) as [|v vs] "IH" forall (l); ss.
+    iIntros "(l↦ & l↦s)".
     iMod (points_to_persist with "l↦") as "$".
     iMod ("IH" with "l↦s") as "$".
     done.
