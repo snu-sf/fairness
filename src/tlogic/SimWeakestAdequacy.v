@@ -254,12 +254,12 @@ Module WSim.
       unfold default_initial_res.
       grawf_tac; (try match goal with | |- _ <> _ => auto 15 end).
       all: try done.
-      { ii. apply auth.auth_auth_valid. done. }
+      { ii. apply gmap_view.gmap_view_auth_valid. }
       { apply auth.auth_auth_valid. done. }
       { apply excl_auth.excl_auth_valid. }
       { apply excl_auth.excl_auth_valid. }
-      { intros k. apply OneShot.pending_one_wf. }
-      { unfold Regions.nauth_ra. ss. intros ??. apply OneShot.pending_one_wf. }
+      { ii. apply OneShot.pending_one_wf. }
+      { rr. ii. apply OneShot.pending_one_wf. }
     Qed.
 
     Definition initial_prop n (ths: TIdSet.t) o: iProp :=
@@ -322,7 +322,7 @@ Module WSim.
       simpl in *.
       revert INV. uPred.unseal. intros INV.
       rr in SIM. hexploit (SIM r_shared).
-      { rewrite (comm cmra.op). eapply cmra_valid_op_l. done. }
+      { r_wf WF. }
       { rr in INV. rr. des. setoid_rewrite INV. esplits.
         { eauto. }
         { unfold default_I_past. uPred.unseal. rr. esplits. rr. esplits.
@@ -369,25 +369,17 @@ Module WSim.
         clear HEMP.
         i. rr in H0. hexploit H0.
         { rewrite left_id; [|apply _].
-          rewrite RET0 in WF0.
-          rewrite RET1 in WF0.
+          setoid_subst.
           repeat apply cmra_valid_op_l in WF0.
           apply WF0.
         }
         { eauto. }
-        { rewrite RET0 in WF0.
-          rewrite RET1 in WF0.
-          rewrite RET2 in WF0.
-          rewrite RET3 in WF0.
-          instantiate (1:=x4 ⋅ x5).
+        { setoid_subst. instantiate (1:=x4 ⋅ x5).
           r_wf WF0.
         }
         { rr. eauto. }
         { instantiate (1:=x7⋅r_ctx0).
-          rewrite RET0 in WF0.
-          rewrite RET1 in WF0.
-          rewrite RET2 in WF0.
-          rewrite RET3 in WF0.
+          setoid_subst.
           clear -WF0.
           r_wf WF0.
         }
@@ -552,11 +544,10 @@ Module WSim.
         { rewrite /LeftId /flip. ii. rewrite left_id; [|apply _]. reflexivity. }
         rewrite nm_find_none_rm_add_eq in H2; auto.
         hexploit IH; eauto.
-        { eapply (cmra_valid_op_r x1). rewrite H0 in WF. apply WF. }
+        { rewrite H0 in WF. r_wf WF. }
         i. des. eexists (NatMap.add k _ rm). splits.
         { r in EXT. des. exists z.
-          rewrite EXT in H0.
-          rewrite H0.
+          setoid_subst.
           erewrite (NatMapP.fold_add (eqA := equiv) _ _ _ _).
           { rewrite assoc; [done|apply _]. }
           Unshelve.
@@ -568,8 +559,7 @@ Module WSim.
         { eapply nm_wf_pair_add; eauto. }
         { i. rewrite NatMapP.F.add_o in FINDA.
           rewrite NatMapP.F.add_o in FINDR. des_ifs.
-          - inv FINDR. unfold iProp in *. eapply Fairness.base_logic.upred.uPred_mono; [exact H1|].
-            exists ε. rewrite right_id; [|apply _]. done.
+          - inv FINDR. setoid_subst. done.
           - eapply FORALL; auto.
         }
       Qed.
@@ -643,7 +633,7 @@ Module WSim.
         rr in SAT0. des. subst.
         hexploit natmap_prop_sum_resmap.
         { eauto. }
-        { eapply cmra_valid_op_r. rewrite SAT in WF. exact WF. }
+        { rewrite SAT in WF. r_wf WF. }
         i. des.
         eexists (liftI (fun ths im_src im_tgt st_src st_tgt => (@default_I md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ Σ _ _ _ _ _ _ _ _ _ _ l1 ths im_src im_tgt st_src st_tgt ∗ (wsat_auth l1 ∗ wsats l1 ∗ OwnE ⊤))%I)), im_src, rm, _.
         splits.
@@ -652,7 +642,7 @@ Module WSim.
           { eapply prog2ths_nm_wf_pair. }
           { etrans; [|apply PAIR].
             eapply list_of_numbering_nm_wf_pair.
-            repeat rewrite map_length. auto.
+            rewrite !map_length. auto.
           }
           i. hexploit (FORALL k (e1, e2) e3).
           { clear - FIND1 FIND2. unfold fun_pairs, prog2ths in *.
@@ -667,8 +657,7 @@ Module WSim.
           i. ii. eapply wpsim_local_sim_init; eauto.
           uPred.unseal. eauto.
         }
-        { rr in EXT. des.
-          rewrite EXT in SAT. rewrite SAT in WF.
+        { rr in EXT. des. setoid_subst.
           r_wf WF.
         }
       Qed.
