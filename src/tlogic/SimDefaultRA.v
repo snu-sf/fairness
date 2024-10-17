@@ -1,4 +1,4 @@
-From iris.algebra Require Import cmra updates lib.excl_auth coPset.
+From iris.algebra Require Import cmra updates lib.excl_auth coPset lib.gmap_view.
 From sflib Require Import sflib.
 From Paco Require Import paco.
 From Fairness Require Import ITreeLib pind.
@@ -621,7 +621,7 @@ Section INIT.
     : Σ :=
     (@GRA.embed _ _ OWNERA (CoPset ⊤))
       ⋅
-      (@GRA.embed _ _ IINVSETRA ((fun n => ●  ((fun _ => None) : (positive -d> optionUR (agreeR $ leibnizO (Vars n))))) : IInvSetRA Vars))
+      (@GRA.embed _ _ IINVSETRA ((fun n => gmap_view_auth (DfracOwn 1) ∅) : IInvSetRA Vars))
       ⋅
       (@GRA.embed _ _ THDRA (● (NatMapRALarge.to_Map (NatMap.empty unit): NatMapRALarge.t unit)))
       ⋅
