@@ -1,7 +1,8 @@
 From iris.algebra Require Import cmra gmap proofmode_classes updates.
 From iris.proofmode Require Import proofmode.
-From Fairness Require Import IPM PCM.
+From Fairness.algebra Require Import PCM.
 From Fairness.base_logic Require Import base_logic.
+From Fairness.base_logic.lib Require Import IPM.
 From iris.prelude Require Import options.
 Import uPred.
 

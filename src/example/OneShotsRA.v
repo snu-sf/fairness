@@ -1,7 +1,7 @@
 From iris.algebra Require Import cmra updates.
 From sflib Require Import sflib.
 From Fairness Require Import Any PCM IPM IPropAux.
-From Fairness Require Import TemporalLogic OwnGhost.
+From Fairness Require Import TemporalLogic own.
 
 From iris.prelude Require Import options.
 

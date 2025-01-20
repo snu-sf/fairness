@@ -1,5 +1,5 @@
 From iris.bi Require Export derived_connectives extensions updates internal_eq plainly.
-From Fairness Require Export upred.
+From Fairness.base_logic Require Export upred.
 From iris.prelude Require Import options.
 Import uPred_primitive.
 

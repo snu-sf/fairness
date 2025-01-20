@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 From iris.algebra Require Import cmra updates auth mra.
-From Fairness Require Import PCM IPM IPropAux OwnGhost.
+From Fairness Require Import PCM IPM IPropAux own.
 
 From Fairness Require Import Axioms.
 

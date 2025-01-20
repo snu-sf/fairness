@@ -763,6 +763,7 @@ Section MODADD_THEOREM.
                   eapply pind9_fold. eapply lsim_tauR. split; ss.
                   eapply pind9_fold. eapply lsim_progress.
                   gfinal. left. eapply CIH; ss.
+                  des. ss.
                 * gstep. eapply pind9_fold. eapply lsim_observe. i.
                   rewrite map_event_tau.
                   gstep.
@@ -783,7 +784,7 @@ Section MODADD_THEOREM.
                   eapply pind9_fold. eapply lsim_tauR. split; ss.
                   eapply pind9_fold. eapply lsim_progress.
                   gfinal. left. des. eapply CIH; ss.
-                  { rewrite INV2. extensionalities i. destruct i as [|[|]].
+                  { rewrite INV2. split_and!; ss. extensionalities i. destruct i as [|[|]].
                     - specialize (TGT (inr (inl (inl i)))). ss.
                     - specialize (TGT (inr (inl (inr i)))). ss.
                     - specialize (TGT (inr (inr i))). ss.

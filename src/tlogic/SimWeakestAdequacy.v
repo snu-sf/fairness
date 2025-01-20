@@ -154,22 +154,6 @@ Ltac ndtac :=
       | |- NoDup _ => econs; ii; ss; des; ss; ndtac
       end.
 
-Ltac seal_with key x :=
-  replace x with (Seal.sealing key x); [|eapply Seal.sealing_eq].
-Ltac seal x :=
-  let key := fresh "key" in
-  assert (key:= "_deafult_");
-  seal_with key x.
-Ltac unseal x :=
-  match (type of x) with
-  | string => repeat rewrite (@Seal.sealing_eq x) in *; try clear x
-  | _ => repeat rewrite (@Seal.sealing_eq _ _ x) in *;
-         repeat match goal with
-                | [ H: string |- _ ] => try clear H
-                end
-  end
-.
-
 
 Module WSim.
   Section WSIM.

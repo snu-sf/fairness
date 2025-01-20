@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From iris.algebra Require Import auth excl_auth cmra updates functions.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IPM IPropAux OwnGhost.
+From Fairness Require Import PCM IPM IPropAux own.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic.
 
@@ -332,6 +332,96 @@ Section AUX.
 End AUX.
 
 (* TODO: Move *)
+
+Section OWNS.
+
+  Variable (Id: Type).
+  Context `{R: ucmra}.
+  Context `{IN1: @GRA.inG R Σ}.
+  Context `{IN2: @GRA.inG (Id -d> R) Σ}.
+  Notation iProp := (iProp Σ) (only parsing).
+
+  Definition OwnMs (s: Id -> Prop) (u: R): iProp :=
+    OwnM ((λ i, if (excluded_middle_informative (s i))
+                then u else ε) : _ -d> _ ).
+
+  Lemma OwnMs_impl (s0 s1: Id -> Prop) u
+        (IMPL: forall i (IN: s0 i), s1 i)
+    :
+    OwnMs s1 u ⊢ OwnMs s0 u.
+  Proof.
+    apply OwnM_extends, discrete_fun_included_spec_2.
+    i. des_ifs. exfalso. eauto.
+  Qed.
+
+  Lemma OwnMs_empty s u
+        P (EMPTY: forall i, ~ s i)
+    :
+    P ⊢ OwnMs s u.
+  Proof.
+    rewrite (OwnM_unit P).
+    apply OwnM_extends, discrete_fun_included_spec_2.
+    i. des_ifs. exfalso. by eapply EMPTY.
+  Qed.
+
+  Lemma OwnMs_fold (s0 s1: Id -> Prop) i u
+        (IMPL: forall j (IN: s0 j), s1 j \/ j = i)
+    :
+    OwnMs s1 u ∗ maps_to i u
+      ⊢
+      OwnMs s0 u.
+  Proof.
+    rewrite -OwnM_op.
+    apply OwnM_extends, discrete_fun_included_spec_2.
+    i. rewrite discrete_fun_lookup_op.
+    des_ifs; ss; rewrite ?right_id ?left_id //=.
+    hexploit IMPL; eauto. i. des; ss. subst.
+    by rewrite discrete_fun_lookup_singleton.
+  Qed.
+
+  Definition OwnMs_unfold (s0 s1: Id -> Prop) i u
+             (IMPL: forall j (IN: s0 j \/ j = i), s1 j)
+             (NIN: ~ s0 i)
+    :
+    OwnMs s1 u
+      ⊢
+      OwnMs s0 u ∗ maps_to i u.
+  Proof.
+    rewrite -OwnM_op.
+    apply OwnM_extends, discrete_fun_included_spec_2=> a.
+    rewrite !discrete_fun_op maps_to_res_eq.
+    des_ifs; ss; rewrite ?right_id ?left_id //=.
+    all: naive_solver.
+  Qed.
+
+  Definition OwnMs_combine (s0 s1: Id -> Prop) u
+    :
+    OwnMs s0 u ∗ OwnMs s1 u
+      ⊢
+      OwnMs (λ i, (s0 i ∨ s1 i)%type) u.
+  Proof.
+    rewrite -OwnM_op.
+    apply OwnM_extends, discrete_fun_included_spec_2.
+    i. rewrite discrete_fun_lookup_op.
+    des_ifs; des; ss; rewrite ?right_id ?left_id //=.
+  Qed.
+
+  Definition OwnMs_split (s0 s1: Id -> Prop) u
+             (DISJOINT: forall i (IN0: s0 i) (IN1: s1 i), False)
+    :
+    OwnMs (λ i, (s0 i ∨ s1 i)%type ) u
+      ⊢
+      OwnMs s0 u ∗ OwnMs s1 u.
+  Proof.
+    rewrite -OwnM_op.
+    apply OwnM_extends, discrete_fun_included_spec_2.
+    i. rewrite discrete_fun_lookup_op.
+    des_ifs; ss; rewrite ?right_id ?left_id //=.
+    all: naive_solver.
+  Qed.
+
+End OWNS.
+
 Section OWNMS_SPROP.
 
   Context {STT : StateTypes}.
@@ -808,7 +898,7 @@ Section SIM.
     }
     rewrite <- discrete_fun_singleton_op. iDestruct "MYNUM" as "[MYNB MYNW]".
 
-    iAssert (=|S i|=(fairI (S i))={⊤ ∖ ↑N_Ticketlock_w}=> (prop i (ticket_lock_inv i)))
+    iAssert (=|S i|=(fairI (S i))={⊤ ∖ ↑N_Ticketlock_w}=> (prop i (ticket_lock_inv i)))%I
       with "[- DUTY TI_CLOSE MYTK PC3 MYNW VLE SIM]" as "> TI".
     { rewrite /= ticket_lock_inv_eq. repeat iExists _.
       unfold ticket_lock_inv_tks, ticket_lock_inv_mem, ticket_lock_inv_state; red_tl_all; simpl.

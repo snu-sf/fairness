@@ -8,7 +8,7 @@ From iris.bi.lib Require Import fractional.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import cmra gmap_view.
 From iris.algebra Require Export dfrac.
-From Fairness Require Export OwnGhost.
+From Fairness Require Export own.
 From iris.prelude Require Import options.
 
 Definition ghost_mapURA (K V : Type) `{Countable K} : ucmra := ownRA (gmap_viewR K (agreeR (leibnizO V))).

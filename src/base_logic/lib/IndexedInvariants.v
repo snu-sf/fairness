@@ -472,15 +472,15 @@ End FANCY_UPDATE.
 Notation fupd_ex x A :=
   (@fupd (bi_car (iProp _)) (@bi_fupd_fupd _ (iProp_bi_fupd_FUpd x A))) (only parsing).
 
-Notation "'=|' x '|=(' A ')={' E1 ',' E2 '}=>' P" := (fupd_ex x A E1 E2 P) (at level 90).
-Notation "'=|' x '|={' E1 ',' E2 '}=>' P" := (=|x|=( ⌜True⌝%I )={ E1, E2}=> P) (at level 90).
-Notation "P =| x |=( A )={ E1 , E2 }=∗ Q" := (P -∗ =|x|=(A)={E1,E2}=> Q)%I (at level 90).
-Notation "P =| x |={ E1 , E2 }=∗ Q" := (P -∗ =|x|={E1,E2}=> Q)%I (at level 90).
+Notation "=| x |=( A )={ E1 , E2 }=> P" := (fupd_ex x A E1 E2 P) (at level 90) : bi_scope.
+Notation "=| x |={ E1 , E2 }=> P" := (=|x|=(⌜True⌝%I)={E1,E2}=> P)%I (at level 90) : bi_scope.
+Notation "P =| x |=( A )={ E1 , E2 }=∗ Q" := (P -∗ =|x|=(A)={E1,E2}=> Q)%I (at level 90) : bi_scope.
+Notation "P =| x |={ E1 , E2 }=∗ Q" := (P -∗ =|x|={E1,E2}=> Q)%I (at level 90) : bi_scope.
 
-Notation "'=|' x '|=(' A ')={' E '}=>' P" := (=|x|=( A )={E, E}=> P) (at level 90).
-Notation "'=|' x '|={' E '}=>' P" := (=|x|=( ⌜True⌝%I )={ E }=> P) (at level 90).
-Notation "P =| x |=( A )={ E }=∗ Q" := (P -∗ =|x|=(A)={E}=> Q)%I (at level 90).
-Notation "P =| x |={ E }=∗ Q" := (P -∗ =|x|={E}=> Q)%I (at level 90).
+Notation "=| x |=( A )={ E }=> P" := (fupd_ex x A E E P) (at level 90) : bi_scope.
+Notation "=| x |={ E }=> P" := (=|x|=(⌜True⌝%I)={E}=> P)%I (at level 90) : bi_scope.
+Notation "P =| x |=( A )={ E }=∗ Q" := (P -∗ =|x|=(A)={E}=> Q)%I (at level 90) : bi_scope.
+Notation "P =| x |={ E }=∗ Q" := (P -∗ =|x|={E}=> Q)%I (at level 90) : bi_scope.
 
 Section LEMMAS.
 

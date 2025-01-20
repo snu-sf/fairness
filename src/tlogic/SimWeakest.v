@@ -394,7 +394,7 @@ Section STATE.
   .
   Proof.
     intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
-    iAssert (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
+    iAssert (=|x|=(fairI (ident_tgt:=ident_tgt) x)={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt))%I with "[H]" as "H".
     { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
     iAssert (fairI (ident_tgt:=ident_tgt) x ∗ (wsats x ∗ OwnE E0))%I with "[D6 D7 WSAT E]" as "C".
     { iFrame. }
@@ -413,7 +413,7 @@ Section STATE.
   .
   Proof.
     intros LE. iIntros "H" (? ? ? ? ?) "[[% [% (D1 & D2 & D3 & D4 & D5 & D6 & D7 & D8)]] (WAUTH & WSAT & E)]".
-    iAssert (=|x|={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt)) with "[H]" as "H".
+    iAssert (=|x|={E0,E1}=> (wpsim E1 r g Q ps pt itr_src itr_tgt))%I with "[H]" as "H".
     { inv LE. iFrame. iApply FUpd_mono. 2: iFrame. lia. }
     iAssert (wsats x ∗ OwnE E0)%I with "[WSAT E]" as "C".
     { iFrame. }

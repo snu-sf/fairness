@@ -3,7 +3,7 @@ From sflib Require Import sflib.
 From Fairness Require Import IPM PCM  IPropAux TemporalLogic.
 From iris.algebra Require Import excl proofmode_classes.
 From iris.proofmode Require Import proofmode.
-From Fairness Require Import OwnGhost.
+From Fairness Require Import own.
 From iris.prelude Require Import options.
 
 Definition ghost_exclURA (A : Type) : ucmra := ownRA (exclR (leibnizO A)).

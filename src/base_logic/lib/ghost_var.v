@@ -4,7 +4,7 @@ Can be mutated when fully owned. *)
 From iris.algebra Require Import dfrac_agree proofmode_classes frac.
 From iris.bi.lib Require Import fractional.
 From iris.proofmode Require Import proofmode.
-From Fairness Require Import IPM PCM OwnGhost.
+From Fairness Require Import IPM PCM own.
 From iris.prelude Require Import options.
 
 Definition ghost_varURA (A : Type) : ucmra := ownRA (dfrac_agreeR (leibnizO A)).

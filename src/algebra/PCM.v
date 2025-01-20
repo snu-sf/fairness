@@ -1,59 +1,20 @@
 From sflib Require Import sflib.
 Require Export ZArith.
-(* Require Export Znumtheory. *)
-Require Import String.
-Require Import ClassicalChoice ChoiceFacts.
-Require Import Coq.Classes.RelationClasses.
-Require Import Lia.
-Require Import Program.
-From stdpp Require coPset gmap.
 From Fairness Require Import Axioms.
 From Fairness Require Import ucmra_list.
 From iris.algebra Require Import cmra updates functions.
 
-From iris.prelude Require Import prelude options.
+From iris.prelude Require Import options.
 
 Set Implicit Arguments.
-
-
-
-
-Require Export String.
-Module Type SEAL.
-  Parameter sealing: string -> forall X: Type, X -> X.
-  Parameter sealing_eq: forall key X (x: X), sealing key x = x.
-End SEAL.
-Module Seal: SEAL.
-  Definition sealing (_: string) X (x: X) := x.
-  Lemma sealing_eq key X (x: X): sealing key x = x.
-  Proof. reflexivity. Qed.
-End Seal.
-
-Ltac seal_with key x :=
-  replace x with (Seal.sealing key x); [|eapply Seal.sealing_eq].
-Ltac seal x :=
-  let key := fresh "key" in
-  assert (key:= "_deafult_");
-  seal_with key x.
-Ltac unseal x :=
-  match (type of x) with
-  | string => repeat rewrite (@Seal.sealing_eq x) in *; try clear x
-  | _ => repeat rewrite (@Seal.sealing_eq _ _ x) in *;
-         repeat match goal with
-                | [ H: string |- _ ] => try clear H
-                end
-  end
-.
 
 (* TODO: Auxillary discrete_fun lemmas. Move to somewhere else. *)
 Section discrete_fun.
   (** Depends on axiom of dependent choice.  *)
 
-  Lemma discrete_fun_included_spec_2
-      A (Ms : A -> ucmra)
+  Lemma discrete_fun_included_spec_2 A (Ms : A → ucmra)
       (f0 f1 : discrete_fun Ms)
-      (EXT : ∀ a, (f0 a) ≼ (f1 a))
-    :
+      (EXT : ∀ a, (f0 a) ≼ (f1 a)) :
     f0 ≼ f1.
   Proof.
     hexploit (dependent_functional_choice _ (λ a z, f1 a ≡ (f0 a) ⋅ z)).
@@ -135,7 +96,7 @@ Lemma maps_to_res_eq {A} {B : A → ucmra} :
     λ a (m : B a) a',
       match excluded_middle_informative (a = a') with
       | left H => eq_rect a B m a' H
-      | in_right => ε
+      | _ => ε
       end.
 Proof.
   extensionalities a m a'; des_ifs;
@@ -249,71 +210,6 @@ Section lemmas.
   Proof. by rewrite /embed cmra_transport_unit discrete_fun_singleton_unit. Qed.
 
 End lemmas.
-
-  Section GETSET.
-    Variable ra: ucmra.
-    Variable gra: t.
-    Context `{!inG ra gra}.
-
-    Section GETSET.
-    Variable get: cmra_car ra.
-    Variable set: (cmra_car ra) -> unit.
-
-    (* own & update can be lifted *)
-    (* can we write spec in terms of own & update, not get & set? *)
-    (* how about add / sub? *)
-    Program Definition get_lifted: cmra_car gra :=
-      discrete_fun_singleton inG_id _.
-    Next Obligation.
-      apply (cmra_transport (f_equal _ inG_prf) get).
-    Defined.
-
-    (* Program Definition set_lifted: cmra_car construction gra -> unit := *)
-    (*   fun n => if Nat.eq_dec n inG_id then _ else URA.unit. *)
-    (* Next Obligation. *)
-    (*   apply (ra_transport inG_prf get). *)
-    (* Defined. *)
-    End GETSET.
-
-    Section HANDLER.
-    Variable handler: cmra_car ra -> cmra_car ra.
-    Local Obligation Tactic := idtac.
-    Program Definition handler_lifted: cmra_car gra -> cmra_car gra :=
-      fun st0 => fun n => if Nat.eq_dec n inG_id then _ else st0 n
-    .
-    Next Obligation.
-      i. subst. simpl in st0. specialize (st0 inG_id).
-      rewrite /= -inG_prf in st0. specialize (handler st0). rewrite <- inG_prf. apply handler.
-    Defined.
-
-    End HANDLER.
-
-  End GETSET.
-
-  Fixpoint point_wise_wf (Ml: ucmra_list) (x: of_list Ml) (n: nat) :=
-  match n with
-  | O => True
-  | S n' => ✓ (x n') ∧ point_wise_wf x n'
-  end.
-
-  Definition point_wise_wf_lift (Ml: ucmra_list) (x: of_list Ml)
-             (POINT: point_wise_wf x (UList.length Ml))
-    :
-      ✓ x.
-  Proof.
-    intro i. unfold of_list in *.
-    assert (WF: ∀ (n m: nat)
-                       (POINT: point_wise_wf x n)
-                       (LT: (m < n)%nat),
-               ✓ (x m)).
-    { induction n.
-      { i. inv LT. }
-      { i. ss. des. inv LT; auto. }
-    }
-    destruct (le_lt_dec (UList.length Ml) i).
-    { generalize (x i). simpl. rewrite UList.nth_overflow; auto. intros []; done. }
-    { eapply WF; eauto. }
-  Qed.
 End GRA.
 Coercion GRA.to_URA: GRA.t >-> ucmra.
 
@@ -328,33 +224,6 @@ Section proofmode_instance.
   Proof. rewrite /IsOp. intros ->. rewrite GRA.embed_add //. Qed.
 
 End proofmode_instance.
-(* Definition ε `{Σ: GRA.t}: Σ := URA.unit. *)
-
-(***
-Choose: non-det
-Take: angelic non-det
-(*** empty choose : NB ***)
-(*** empty take : UB ***)
-x <- Choose X ;; guarantee (P x) ;; k x   (~=) x <- Choose { X | P x } ;; k x
-x <- Take X   ;; assume (P x)    ;; k x   (~=) x <- Take { X | P x }   ;; k x
-guarantee P ;; assume P ;; k              (~=) guarantee P ;; k
-x <- Take X ;; pure ;; k x                (>=) pure ;; x <- Take X ;; k x
-pure ;; x <- Choose X ;; k x              (>=) x <- Choose X ;; pure ;; k x
-______________caller______________    _________________callee_________________   _caller_
-x0 <- Choose X ;; guarantee (P x0) ;; (x1 <- Take X ;; assume (P x1) ;; k1 x1) ;; k0 x0
-(<=)
-x0 <- Choose X ;; x1 <- Take X ;; guarantee (P x0) ;; assume (P x1) ;; k1 x1 ;; k0 x0
-(<=)
-x <- Choose X ;; guarantee (P x) ;; assume (P x) ;; k1 x ;; k0 x
-(<=)
-x <- Choose X ;; guarantee (P x) ;; k1 x ;; k0 x
-Goal forall X Y (k: X -> Y),
-    x <- trigger (EChoose X) ;; Ret (k x) =
-    y <- trigger (EChoose {y | exists x, y = k x}) ;; Ret (proj1_sig y)
-.
-Abort.
-***)
-
 
 (* Find the left-most element in a chain of [op]s. *)
 Ltac r_first rs :=

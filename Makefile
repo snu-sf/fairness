@@ -1,20 +1,18 @@
 COQMODULE    := Fairness
 COQTHEORIES  := \
 	pico/*.v \
-	src/lib/*.v \
-	src/semantics/*.v \
-	src/simulation/*.v \
-	src/scheduler_example/*.v \
-	src/ra/*.v \
-	src/tlogic/*.v \
+	src/algebra/*.v \
+	src/base_logic/*.v \
+	src/base_logic/lib/*.v \
 	src/example/*.v \
-	src/bi/lib/*.v \
 	src/example/treiber/*.v \
 	src/example/elimstack/*.v \
-	src/iris_base_logic/base_logic/*.v \
 	src/example/fos_ticketlock/*.v \
-	# src/iris_base_logic/base_logic/lib/*.v \
-
+	src/lib/*.v \
+	src/scheduler_example/*.v \
+	src/semantics/*.v \
+	src/simulation/*.v \
+	src/tlogic/*.v \
 
 .PHONY: all theories clean
 
@@ -35,11 +33,10 @@ Makefile.coq: Makefile $(COQTHEORIES)
 	 echo "-Q src/semantics $(COQMODULE)"; \
 	 echo "-Q src/simulation $(COQMODULE)"; \
 	 echo "-Q src/scheduler_example $(COQMODULE)"; \
-	 echo "-Q src/ra $(COQMODULE)"; \
-	 echo "-Q src/bi $(COQMODULE)"; \
+	 echo "-Q src/algebra $(COQMODULE).algebra"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
-	 echo "-Q src/iris_base_logic $(COQMODULE)"; \
+	 echo "-Q src/base_logic $(COQMODULE).base_logic"; \
 	 echo "-Q pico $(COQMODULE)"; \
 	 \
    echo $(COQTHEORIES)) > _CoqProject
