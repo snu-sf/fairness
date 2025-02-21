@@ -18,9 +18,65 @@ make -j
 ```
 
 ## Code Structure
+
+### Notable Gaps Between the Paper and the Code
+We first describe the most relevant differences between the paper and 
+the code to help the reader understand the mapping between the paper and the code.
+Please see the "Definitions and Rules" section of this document for a mapping of definitions and rules between the paper and the code.
+
+#### Auxiliary definitions for state interpretation
+In the paper, the state interpretation predicate (that is needed to relate the memory state to points-to predicates in the logic) is assumed to be hidden inside the simulation weakest precondition.
+However, the state interpretation predicate is made explicit in the code, and it is called `tgt_interp_as`, defined in `src/ra/OpticsInterp.v`.
+This predicate is persistent (so never consumed), and when combined with a points-to predicate `X ↦ v`, tells us that the current value at the memory location `X` is `v`.
+
+#### Notations related to stratified propositions (`sProp`s)
+The code relies heavily on `sProp`s, and it is helpful to get familiar with the notations before getting to the rules and examples.
+There are two files that are most directly related.
+
+`src/tlogic/LogicSyntaxHOAS.v` defines `sProp` in a general form, parametrizing types and atoms.
+This file also defines a set of notations and a scope `sProp_scope` for them (`%S` denotes that a predicate is a `sProp`).
+Notations follow the ones in Iris, with some additional ones to notate atoms (`Syntax.atom`), first-order ghost states (`Syntax.ownM`), and the lift (`Syntax.lift`).
+
+`src/tlogic/TemporalLogic.v` instantiates `sProp` by defining concrete types (`type`) and atoms (`Atom.t`).
+We remark that `Atom.t` includes some predicates for first-order ghost states: they can be optimized away by encoding them using `Syntax.ownM`, but we choose this design to make the development easier.
+Among many notations, the most important ones are those for the interpretations:
+`τ{t, n}` is the type interpretation (`sType.interp`), converting a `sProp` type `t` into the corresponding Coq Type at stratification index `n`.
+`⟦F, n⟧` is the predicate interpretation (`SyntaxI.interp`), converting a `sProp` into a `iProp`.
+Lemmas in `Section RED.` can be helpful to see how `sProp`s are interpreted to `iProp`s.
+
+In addition, `src/tlogic/TemporalLogic.v` develops `sProp` encodings of core logical predicates of Lilo, such as the invariants and the liveness-related predicates.
+Note that the original definition, namely `iProp`s, of these logical predicates are defined in different files (such as `src/ra/IndexedInvariants.v`, `src/tlogic/LiveObligations.v`).
+The original definitions and their `sProp` encodings share the same notations for most cases, except for higher-order predicates such as fancy updates, which includes the stratification index in their notations.
+
+#### Hoare triples
+Many rules and examples in the code heavily utilize Hoare triples, which is defined in `Section TRIPLES.`, in particular `triple_gen`, in `src/tlogic/SimWeakest.v`, along with the simulation weakest precondition `wpsim`.
+The file also contains notations for the triples, and `src/tlogic/TemporalLogic.v` defines the `sProp` encodings of the triples, with the `sProp` version of the notations.
+
+As an example to show how the triples are used, we describe how the MEM-READ rule in the paper (Sec 3.3, Fig.3) appears in the code.
+The MEM-READ rule corresponds to `SCMem_load_fun_spec` in `src/example/SCMemSpec.v` (`SCMem_load_fun_syn_spec` is the `sProp` version of the rule, but this is not used in practice because when we are writing proofs, we usually convert `sProp`s into `iProp`s to utilize the Iris Proof Mode).
+
+This lemma includes some details omitted in the paper.
+First, the lemma is stated in the form of a triple, utilizing the notation, and includes the details related to `sProp`, such as the stratification index.
+One can unfold the triple to check that it is equivalent to MEM-READ.
+Next, the rule requires the state interpretation `tgt_interp_as` in the precondition.
+`tgt_interp_as` is persistent, so the lemma does not consume it.
+Additionally, the program code is decorated with `map_event`, which is a boilerplate code inherited from the development of Fair Operational Semantics, and it is not relevant to Lilo.
+
+Finally, the `SCMem_load_fun_spec_gen` lemma is a generalized version of the rule that is required when one needs to work with nontrivial stratification indices.
+For example, we use this lemma for the elimination stack example (`src/example/elimstack/SpecHOCAP.v`), which involves nontrivial details related to stratification indices, as discussed in the paper.
+
+#### Additional features of the logic
+Some of the logical predicates for liveness reasoning are presented in a general form in the code: `src/tlogic/LiveObligations.v` contains the definitions for liveness predicates such as obligations, promises, and progress credits (please see the "Definitions and Rules" section for a mapping between the definitions).
+We tried to keep the notations similar between the paper and the code, and we believe it is mostly successful.
+
+However, a few notations are slightly different from the ones in the paper:
+- Paper: Obls<sub>th</sub>(Φ) (obligation lists), Code: `Duty (th) Φ`.
+- A promise is written `-[𝜅](a)-◇ f` and a link is written `s -(a)-◇ t` in the code, with an additional parameter `a`. This parameter `a` allows the user to obtain more progress credits when using the rules PROM-PROGRESS and LINK-AMP: for a larger `a`, the user can get more progress credits. However, the user needs to give up more progress credits when creating a promise or a link with a larger `a`.
+- The activation token ⧖<sub>𝜅</sub> has an additional parameter `q` in the code: `⧖[k , q]`. `q` denotes fractional ownership, and the paper assumes `q` = 1/2 and omits it.
+
 ### Definitions and Rules
-Note that definitions and rules in the development are more general compared to the corresponding ones presented in the paper.
-Also, the development includes the full detail related to the stratified propositions.
+Definitions and rules in the code are more general compared to the corresponding ones presented in the paper.
+Also, the code includes the full detail related to the stratified propositions.
 
 #### Section 3
 - progress credits (◇<sub>𝜅</sub>(ℓ, n)) (Sec 3.1) : `progress_credit` in `src/tlogic/LiveObligations.v`
