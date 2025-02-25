@@ -113,18 +113,18 @@ Also, the code includes the full detail related to the stratified propositions.
 - LINK-TRANS (Sec 4.2, Fig.4) : `link_trans` in `src/tlogic/LiveObligations.v`
 
 #### Section 5
-- sProp<sub>i</sub> (Sec 5, Fig.5): Definition `sProp` in `src/tlogic/LogicSyntaxHOAS.v`
-- types &#964;(τ) in sProp<sub>i</sub> (Sec 5, Fig.5): `type` in `src/tlogic/TemporalLogic.v`
-- type interpretation I of τ in sProp<sub>i</sub> (Sec 5, Fig.5): `type_interp` in `src/tlogic/TemporalLogic.v`
-- type of predicates φ of sProp<sub>i</sub> (Sec 5, Fig.5): `sPropT` in `src/tlogic/TemporalLogic.v`
-- atoms of sProp<sub>i</sub> (Sec 5, Fig.5): `Atom.t` (type t in Module Atom) in `src/tlogic/TemporalLogic.v` (also includes additional constructors to facilitate the development)
-- semantic interpretation ⟦⋅⟧ of sProp<sub>i</sub> (Sec 5, Fig.5): `SyntaxI.interp` in `src/tlogic/LogicSyntaxHOAS.v`
-- stratified world satisfaction W<sub>i</sub> (Sec 5): `syn_wsat` in `src/tlogic/TemporalLogic.v`
-- worlds satisfaction Ws<sub>n</sub> (Sec 5): `syn_wsats` in `src/tlogic/TemporalLogic.v`
-- FUPD-DEF (Sec 5.3, Fig 6): `FUpd` in `src/ra/IndexedInvariants.v` and `syn_fupd` in `src/tlogic/TemporalLogic.v`
-- INV-ALLOC (Sec 5.3, Fig.6): `FUpd_alloc` in `src/ra/IndexedInvariants.v`
-- INV-OPEN (Sec 5.3, Fig.6): `FUpd_open` in `src/ra/IndexedInvariants.v`
-- INV-CLOSE (Sec 5.3, Fig.6): `FUpd_open` in `src/ra/IndexedInvariants.v`
+- sProp<sub>i</sub> (Sec 5.1, Fig.5): Definition `sProp` in `src/tlogic/LogicSyntaxHOAS.v`
+- types &#964;(τ) in sProp<sub>i</sub> (Sec 5.1, Fig.5): `type` in `src/tlogic/TemporalLogic.v`
+- type interpretation I of τ in sProp<sub>i</sub> (Sec 5.1, Fig.5): `type_interp` in `src/tlogic/TemporalLogic.v`
+- type of predicates φ of sProp<sub>i</sub> (Sec 5.1, Fig.5): `sPropT` in `src/tlogic/TemporalLogic.v`
+- atoms of sProp<sub>i</sub> (Sec 5.1, Fig.5): `Atom.t` (type t in Module Atom) in `src/tlogic/TemporalLogic.v` (also includes additional constructors to facilitate the development)
+- semantic interpretation ⟦⋅⟧ of sProp<sub>i</sub> (Sec 5.1, Fig.5): `SyntaxI.interp` in `src/tlogic/LogicSyntaxHOAS.v`
+- stratified world satisfaction W<sub>i</sub> (Sec 5.2): `syn_wsat` in `src/tlogic/TemporalLogic.v`
+- world satisfactions Ws<sub>n</sub> (Sec 5.2): `syn_wsats` in `src/tlogic/TemporalLogic.v`
+- FUPD-DEF (Sec 5.2, Fig 6): `FUpd` in `src/ra/IndexedInvariants.v` and `syn_fupd` in `src/tlogic/TemporalLogic.v`
+- INV-ALLOC (Sec 5.2, Fig.6): `FUpd_alloc` in `src/ra/IndexedInvariants.v`
+- INV-OPEN (Sec 5.2, Fig.6): `FUpd_open` in `src/ra/IndexedInvariants.v`
+- INV-CLOSE (Sec 5.2, Fig.6): `FUpd_open` in `src/ra/IndexedInvariants.v`
 
 #### Section 6
 - delayed promise (Sec 6, Fig.7): `thread_delayed_promise` in `src/tlogic/LiveObligations.v`
@@ -133,7 +133,7 @@ Also, the code includes the full detail related to the stratified propositions.
 - ACTIVATE (Sec 6, Fig.7): `pending_active` in `src/tlogic/LiveObligations.v`
 - NOT-ACT (Sec 6, Fig.7): `pending_not_active` in `src/tlogic/LiveObligations.v`
 - CRED-NEW2 (Sec 6, Fig.7): `alloc_obligation_fine` in `src/tlogic/LiveObligations.v`
-- OMAP-ADD2 (Sec 6.2, Fig.3): `duty_add` in `src/tlogic/LiveObligations.v`
+- OBLS-ADD2 (Sec 6, Fig.7): `duty_add` in `src/tlogic/LiveObligations.v`
 - OBLS-FULFILL2 (Sec 6, Fig.7): `duty_fulfill` in `src/tlogic/LiveObligations.v`
 - DP-PERS (Sec 6, Fig.7): `Persistent_thread_delayed_promise` in `src/tlogic/LiveObligations.v`
 - DP-GET (Sec 6, Fig.7): `duty_delayed_promise` in `src/tlogic/LiveObligations.v`
