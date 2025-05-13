@@ -1,20 +1,18 @@
 COQMODULE    := Fairness
 COQTHEORIES  := \
 	pico/*.v \
-	src/lib/*.v \
-	src/semantics/*.v \
-	src/simulation/*.v \
-	src/scheduler_example/*.v \
-	src/ra/*.v \
-	src/tlogic/*.v \
+	src/algebra/*.v \
+	src/base_logic/*.v \
+	src/base_logic/lib/*.v \
 	src/example/*.v \
-	src/iris_algebra/*.v \
-	src/iris_algebra/lib/*.v \
-	src/iris_base_logic/*.v \
 	src/example/treiber/*.v \
 	src/example/elimstack/*.v \
 	src/example/fos_ticketlock/*.v \
-
+	src/lib/*.v \
+	src/scheduler_example/*.v \
+	src/semantics/*.v \
+	src/simulation/*.v \
+	src/tlogic/*.v \
 
 .PHONY: all theories clean
 
@@ -29,17 +27,18 @@ quick: Makefile.coq
 Makefile.coq: Makefile $(COQTHEORIES)
 	(echo "-arg -w -arg -deprecated-instance-without-locality"; \
 	 echo "-arg -w -arg -ambiguous-paths"; \
+	 echo "-arg -w -arg -redundant-canonical-projection"; \
+	 echo "-arg -w -arg -cannot-define-projection"; \
 	 echo "-Q src/lib $(COQMODULE)"; \
 	 echo "-Q src/semantics $(COQMODULE)"; \
 	 echo "-Q src/simulation $(COQMODULE)"; \
 	 echo "-Q src/scheduler_example $(COQMODULE)"; \
-	 echo "-Q src/ra $(COQMODULE)"; \
+	 echo "-Q src/algebra $(COQMODULE).algebra"; \
 	 echo "-Q src/tlogic $(COQMODULE)"; \
 	 echo "-Q src/example $(COQMODULE)"; \
+	 echo "-Q src/base_logic $(COQMODULE).base_logic"; \
 	 echo "-Q pico $(COQMODULE)"; \
-	 echo "-Q src/iris_algebra $(COQMODULE)"; \
-	 echo "-Q src/iris_base_logic $(COQMODULE)"; \
-   \
+	 \
    echo $(COQTHEORIES)) > _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq
 

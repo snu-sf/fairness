@@ -16,7 +16,7 @@ Global Opaque itree_option.
   mk_red_db _ _ (@bind_ext E X Y) itr (inr itree_unfold).
 
 #[export] Instance focus_option ID E `{H: @eventE ID -< E} R (r: option R)
-  : red_db itree_unfold (unwrap r) :=
+  : red_db itree_unfold (@unwrap ID E H R r) :=
   mk_red_db _ _ (@f_equal _ _ (@unwrap ID E H R)) r (inr itree_option).
 
 #[export] Instance red_upcast_downcast A (a: A)
@@ -46,8 +46,8 @@ Global Opaque itree_option.
   : red_db itree_unfold (Ret r >>= k) :=
   mk_red_db _ _ (@bind_ret_l E R S r k) tt (inl _continue).
 
-#[export] Instance commute_bind_ret_r_rev {E F} `{E -< F} R (e: E R)
-  : red_db itree_class (trigger e) :=
+#[export] Instance commute_bind_ret_r_rev {E F} `{H: E -< F} R (e: E R)
+  : red_db itree_class (ITree.trigger (@subevent E F H _ e)) :=
   mk_red_db _ _ (@bind_ret_r_rev F R (trigger e)) tt (inl _break).
 
 Module _TEST.

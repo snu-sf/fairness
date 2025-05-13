@@ -2,6 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
+From iris.algebra Require Import cmra updates.
 
 From Fairness Require Export
   ITreeLib
@@ -19,7 +20,7 @@ Set Implicit Arguments.
 
 Section SHARED_REL_WF.
 
-  Context `{world : URA.t}.
+  Context `{world : ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -77,7 +78,7 @@ End SHARED_REL_WF.
 
 Section TRANS_CLOS.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -112,10 +113,10 @@ Section TRANS_CLOS.
     assert (forall i, fm i = Flag.fail -> exists x, P i x).
     { i. specialize (LE i). specialize (FAIR i). rewrite H in FAIR.
       destruct LE as [EQ | LT].
-      - rewrite EQ in *. eapply clos_trans_step in FAIR; ss.
+      - rewrite EQ in FAIR. eapply clos_trans_step in FAIR; ss.
       - eapply clos_trans_step in LT. destruct LT as [x [LT LE]].
         exists x. subst P; ss. split; eauto. right. des.
-        + rewrite LE in *. eauto.
+        + rewrite LE in FAIR. eauto.
         + eapply clos_trans_n1_trans; eauto.
     }
     split.
@@ -193,7 +194,7 @@ End TRANS_CLOS.
 
 Section WFT_MONO.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.

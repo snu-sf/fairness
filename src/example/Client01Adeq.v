@@ -1,11 +1,12 @@
 From sflib Require Import sflib.
+From iris.algebra Require Import cmra.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA.
+From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA ucmra_list.
 From Fairness Require Import Client01.
 From Fairness Require Export ModSim ModAdequacy ModCloseSim ModAddSim.
 From Fairness Require Export FIFOSched SchedSim FIFOSched FIFOSchedSim.
@@ -56,7 +57,7 @@ Module Client01Correct.
   Local Instance TLRASs : TLRAs_small STT Γ :=
     @Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
 
-  Local Instance Σ : GRA.t:=
+  Local Definition Σ : GRA.t:=
     GRA.of_list [
         (* Default RAs. *)
         OwnERA;
@@ -73,7 +74,7 @@ Module Client01Correct.
         memRA;
         Lifetime.t;
         (* Maps from empty RAs of Γ. *)
-        (of_RA.t RA.empty);
+        (optionUR Empty_setR);
         (* Default RAs depending on sProp. *)
         (IInvSetRA sProp);
         (ArrowRA id_tgt_type (Vars:=sProp));
@@ -84,8 +85,6 @@ Module Client01Correct.
     { subG_map := fun i => if (le_lt_dec i 11) then i else 12 }.
   Next Obligation.
     i. ss. unfold Σ, Γ. des_ifs.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
   Qed.
 
   Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := (@GRA.InG _ Σ 13 (@eq_refl _ _)).
@@ -96,7 +95,7 @@ Module Client01Correct.
     @Build_TLRAs STT Γ Σ _ _ _.
 
   (* Additional initial resources. *)
-  Local Definition init_res :=
+  Local Definition init_res : Σ :=
     (GRA.embed (memory_init_resource Client01.gvs)).
           (* ⋅ (GRA.embed  *)
 
@@ -121,9 +120,8 @@ Module Client01Correct.
     unfold init_res. repeat rewrite <- GRA.embed_add.
     exists 2, 1. exists. lia.
     eexists _. iIntros "(A & INIT)".
-    iPoseProof (init_sat with "[A INIT]") as "RES".
-    { instantiate (1:=1). instantiate (1:=0). ss. }
-    { iFrame. }
+    rewrite -OwnM_uPred_ownM_eq.
+    iDestruct (init_sat 0 1 with "[$A $INIT]") as "RES"; [ss|].
     iEval (rewrite red_syn_fairI) in "RES". iMod "RES".
     iDestruct "RES" as "(% & % & #INV1 & TGTST & T1 & T2)".
     iEval (rewrite red_syn_tgt_interp_as) in "TGTST". iPoseProof "TGTST" as "#TGTST".

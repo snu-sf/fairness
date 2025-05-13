@@ -1,11 +1,12 @@
 From sflib Require Import sflib.
+From iris.algebra Require Import cmra.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec.
+From Fairness Require Import TemporalLogic SCMemSpec ucmra_list.
 From Fairness Require Import Client05 AuthExclsRA OneShotsRA.
 From Fairness Require Export ModSim ModAdequacy ModCloseSim ModAddSim.
 From Fairness Require Export FIFOSched SchedSim FIFOSched FIFOSchedSim.
@@ -58,7 +59,7 @@ Module Client05Correct.
   Local Instance TLRASs : TLRAs_small STT Γ :=
     @Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
 
-  Local Instance Σ : GRA.t:=
+  Definition Σ : GRA.t:=
     GRA.of_list [
         (* Default RAs. *)
         OwnERA;
@@ -76,7 +77,7 @@ Module Client05Correct.
         (OneShots.t unit);
         (AuthExcls.t (nat * nat));
         (* Maps from empty RAs of Γ. *)
-        (of_RA.t RA.empty);
+        (optionUR Empty_setR);
         (* Default RAs depending on sProp. *)
         (IInvSetRA sProp);
         (ArrowRA id_tgt_type (Vars:=sProp));
@@ -87,8 +88,6 @@ Module Client05Correct.
     { subG_map := fun i => if (le_lt_dec i 12) then i else 13 }.
   Next Obligation.
     i. ss. unfold Σ, Γ. des_ifs.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
   Qed.
 
   Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := (@GRA.InG _ Σ 14 (@eq_refl _ _)).
@@ -99,7 +98,7 @@ Module Client05Correct.
     @Build_TLRAs STT Γ Σ _ _ _.
 
   (* Additional initial resources. *)
-  Local Definition init_res :=
+  Local Definition init_res : Σ :=
     (GRA.embed (memory_init_resource Client05.gvs))
       ⋅ (GRA.embed (AuthExcls.rest_ra (gt_dec 0) (0, 0))).
 
@@ -119,9 +118,9 @@ Module Client05Correct.
       { ndtac. }
       { unfold init_res. grawf_tac.
         { apply memory_init_resource_wf. }
-        { ur. i. ur. split.
-          { rewrite URA.unit_idl. exists ε. rewrite URA.unit_id. auto. }
-          { ur. clarify. }
+        { rewrite /AuthExcls.rest_ra. intros k. des_ifs.
+          { apply ucmra_unit_valid. }
+          { apply excl_auth.excl_auth_valid. }
         }
       }
     }
@@ -130,7 +129,7 @@ Module Client05Correct.
     eexists _. iIntros "(A & INIT)".
     iPoseProof (init_sat with "[A INIT]") as "RES".
     { instantiate (1:=1). instantiate (1:=0). ss. }
-    { simpl. iFrame. iDestruct "A" as "[A B]". iSplitL "A"; iFrame. }
+    { simpl. iDestruct "A" as "[? ?]". rewrite -!OwnM_uPred_ownM_eq. iFrame. }
     iEval (rewrite red_syn_fairI) in "RES". simpl. iMod "RES".
     iDestruct "RES" as "(% & % & % & #INV1 & TGTST & #SPIN & TID1 & TID2)".
     iEval (rewrite red_syn_tgt_interp_as) in "TGTST". iPoseProof "TGTST" as "#TGTST".
@@ -143,8 +142,8 @@ Module Client05Correct.
       iEval (red_tl) in "RES". iSpecialize ("RES" $! κw).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! γL). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl. repeat (iSplit; [done | ]).
-      iDestruct "TID1" as "(TID1 & DUTY & PC)"; iFrame. done.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl.
+      iFrame "#". iDestruct "TID1" as "($ & $ & $)".
     }
     iSplitL. 2: done.
     { iPoseProof (Client05_thread2_spec) as "RES". instantiate (1:=N_Client05).
@@ -153,8 +152,8 @@ Module Client05Correct.
       iEval (red_tl) in "RES". iSpecialize ("RES" $! κw).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! γL). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl. repeat (iSplit; [done | ]).
-      iDestruct "TID2" as "(? & ? & ? & ? & ?)"; iFrame.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. simpl.
+      iFrame "#". iDestruct "TID2" as "($ & $ & $ & $ & $)".
     }
   Qed.
 

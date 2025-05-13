@@ -1,11 +1,12 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From iris.algebra Require Import cmra.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec OneShotsRA AuthExclsRA.
+From Fairness Require Import TemporalLogic SCMemSpec OneShotsRA AuthExclsRA ucmra_list.
 From Fairness Require Import Client04.
 From Fairness Require Export ModSim ModAdequacy ModCloseSim ModAddSim.
 From Fairness Require Export FIFOSched SchedSim FIFOSched FIFOSchedSim.
@@ -58,7 +59,7 @@ Module Client04Correct.
   Local Instance TLRASs : TLRAs_small STT Γ :=
     @Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
 
-  Local Instance Σ : GRA.t:=
+  Definition Σ : GRA.t:=
     GRA.of_list [
         (* Default RAs. *)
         OwnERA;
@@ -76,7 +77,7 @@ Module Client04Correct.
         (OneShots.t nat);
         (AuthExcls.t (nat * nat * nat));
         (* Maps from empty RAs of Γ. *)
-        (of_RA.t RA.empty);
+        (optionUR Empty_setR);
         (* Default RAs depending on sProp. *)
         (IInvSetRA sProp);
         (ArrowRA id_tgt_type (Vars:=sProp));
@@ -87,8 +88,6 @@ Module Client04Correct.
     { subG_map := fun i => if (le_lt_dec i 12) then i else 13 }.
   Next Obligation.
     i. ss. unfold Σ, Γ. des_ifs.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
   Qed.
 
   Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := (@GRA.InG _ Σ 14 (@eq_refl _ _)).
@@ -99,7 +98,7 @@ Module Client04Correct.
     @Build_TLRAs STT Γ Σ _ _ _.
 
   (* Additional initial resources. *)
-  Local Definition init_res :=
+  Local Definition init_res : Σ :=
     (GRA.embed (memory_init_resource Client04.gvs))
       ⋅ (GRA.embed (AuthExcls.rest_ra (gt_dec 0) (0, 0, 0))).
 
@@ -119,19 +118,19 @@ Module Client04Correct.
       { ndtac. }
       { unfold init_res. grawf_tac.
         { apply memory_init_resource_wf. }
-        { ur. i. ur. split.
-          { rewrite URA.unit_idl. exists ε. rewrite URA.unit_id. auto. }
-          { ur. clarify. }
+        { rewrite /AuthExcls.rest_ra. intros k. des_ifs.
+          { apply ucmra_unit_valid. }
+          { apply excl_auth.excl_auth_valid. }
         }
       }
     }
-    unfold init_res. repeat rewrite <- GRA.embed_add.
+    unfold init_res.
     exists 2, 1. exists. lia.
     eexists _. iIntros "(A & INIT)".
-    iPoseProof (init_sat with "[A INIT]") as "RES".
-    { instantiate (1:=1). instantiate (1:=0). ss. }
-    { simpl. iFrame. iDestruct "A" as "[A B]". iSplitL "A"; iFrame. unfold AuthExcls.rest_gt. iExists 0.
-      unfold AuthExcls.rest. done.
+    iPoseProof (init_sat 0 1 with "[A $INIT]") as "RES".
+    { ss. }
+    { rewrite OwnM_uPred_ownM_eq. iDestruct "A" as "[$ B]". iExists 0.
+      rewrite /AuthExcls.rest OwnM_uPred_ownM_eq. iFrame.
     }
     iEval (rewrite red_syn_fairI) in "RES". simpl. iMod "RES".
     iDestruct "RES" as "(% & % & % & % & % & % & % & #INV1 & TGTST & T1 & T2)".
@@ -149,7 +148,7 @@ Module Client04Correct.
       iEval (red_tl) in "RES". iSpecialize ("RES" $! _). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
       red_tl_all. iDestruct "T1" as "(A1 & A2 & A3 & A4 & A5)". iFrame.
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iFrame. iSplit; done.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iFrame "#".
     }
     iSplitL. 2: done.
     { iPoseProof (Client04_thread2_spec) as "RES".
@@ -162,7 +161,7 @@ Module Client04Correct.
       iEval (red_tl) in "RES". iSpecialize ("RES" $! _). simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
       red_tl_all. iDestruct "T2" as "(A1 & A2 & A3 & A4 & A5)". iFrame.
-      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iFrame. iSplit; done.
+      rewrite red_syn_inv. rewrite red_syn_tgt_interp_as. iFrame "#".
     }
   Unshelve. all: auto.
   Qed.

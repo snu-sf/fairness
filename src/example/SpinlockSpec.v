@@ -4,7 +4,7 @@ Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Linking.
 From Fairness Require Import Spinlock.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest.
 From Fairness Require Import TemporalLogic SCMemSpec.
 From Fairness Require Import AuthExclsRA ExclsRA.
@@ -32,7 +32,7 @@ Section SPEC.
   (** Invariants. *)
   Definition spinlockInv (n : nat) (x : SCMem.val) (γx γe : nat)
     : sProp n :=
-    (((x ↦ 0) ∗ (● γx 0) ∗ (EX γe tt)) ∨ ((x ↦ 1) ∗ (● γx 1)))%S.
+    (((x ↦ 0) ∗ (●G γx 0) ∗ (EX γe tt)) ∨ ((x ↦ 1) ∗ (●G γx 1)))%S.
 
   (* Namespace for Spinlock invariants. *)
   Definition N_Spinlock : namespace := (nroot .@ "Spinlock").
@@ -71,9 +71,9 @@ Section SPEC.
                   ~{v, 1+n, (⊤ ∖ E_Spinlock), k, L}~◇
                   (((⤉ syn_inv n N_Spinlock (spinlockInv n x γx γe))
                       ∗ ((⤉ spinlockInv n x γx γe) =|1+n|={⊤ ∖ E_Spinlock, ⊤}=∗ emp)
-                      ∗ (⤉ ((x ↦ 0) ∗ (● γx 0) ∗ (EX γe tt))))%S : sProp (1+n))
+                      ∗ (⤉ ((x ↦ 0) ∗ (●G γx 0) ∗ (EX γe tt))))%S : sProp (1+n))
                )
-             ∗ (⟦((● γx 0) ∗ R)%S, n⟧ =|1+n|=(fairI (1+n))={⊤ ∖ E_Spinlock}=∗ ⟦((● γx 1) ∗ Q)%S, n⟧)
+             ∗ (⟦((●G γx 0) ∗ R)%S, n⟧ =|1+n|=(fairI (1+n))={⊤ ∖ E_Spinlock}=∗ ⟦((●G γx 1) ∗ Q)%S, n⟧)
              ∗ (□((⟦P, n⟧ ∗ ⟦Duty(tid) ds, n⟧) =|1+n|={E, ⊤}=∗ ⟦R, n⟧))
              ∗ (□(⟦R, n⟧ =|1+n|={⊤, E}=∗ (⟦P, n⟧ ∗ ⟦Duty(tid) ds, n⟧)))
           ⧽
@@ -86,13 +86,13 @@ Section SPEC.
     (* Preprocess for induction: right after the cas call's yield. *)
     iEval (rewrite unfold_iter_eq). rred2r.
     iDestruct "PRE" as "(#MEM & #ISL & P & [DUTY PCS] & #ELI & AU & #PUT_D & #GET_D)".
-    iMod (pcs_decr _ _ 1 ((1+v)^2) with "PCS") as "[PCS PCS_ELI]".
+    iMod (pcs_decr 1 ((1+v)^2) with "PCS") as "[PCS PCS_ELI]".
     { lia. }
-    iMod (pcs_drop _ _ _ _ 1 (100 + (1+v)^2) with "PCS") as "PCS".
+    iMod (pcs_drop 1 (100 + (1+v)^2) with "PCS") as "PCS".
     { lia. }
-    iMod (pcs_decr _ _ 2 ((1+v)^2) with "PCS") as "[PCS PCS_ELI2]".
     { lia. }
-    Unshelve. 2: lia.
+    iMod (pcs_decr 2 ((1+v)^2) with "PCS") as "[PCS PCS_ELI2]".
+    { lia. }
     iApply (wpsim_yieldR_gen2 with "[DUTY PCS]").
     3:{ iFrame. }
     1,2: lia.
@@ -210,7 +210,7 @@ Section SPEC.
              ∗ (⟦P, n⟧)
              ∗ (⟦(EX γe tt)%S, n⟧)
              ∗ (⟦Duty(tid) ds, n⟧ ∗ ◇{List.map fst ds}(1, 1))
-             ∗ (⟦((● γx 1) ∗ R)%S, n⟧ =|1+n|=(fairI (1+n))={⊤ ∖ E_Spinlock}=∗ ⟦((● γx 0) ∗ Q)%S, n⟧)
+             ∗ (⟦((●G γx 1) ∗ R)%S, n⟧ =|1+n|=(fairI (1+n))={⊤ ∖ E_Spinlock}=∗ ⟦((●G γx 0) ∗ Q)%S, n⟧)
              ∗ (□((⟦P, n⟧ ∗ ⟦Duty(tid) ds, n⟧) =|1+n|={E, ⊤}=∗ ⟦R, n⟧))
              ∗ (□(⟦R, n⟧ =|1+n|={⊤, E}=∗ (⟦P, n⟧ ∗ ⟦Duty(tid) ds, n⟧)))
           ⧽

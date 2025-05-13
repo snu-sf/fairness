@@ -3,7 +3,7 @@ From Paco Require Import paco.
 From Fairness Require Import PCM ITreeLib pind.
 Require Import Program.
 From Fairness Require Import IPropFOS IPMFOS.
-From Fairness Require Import PCM MonotonePCM NatMapRALargeFOS Mod FairBeh.
+From Fairness Require Import PCMFOS MonotonePCM NatMapRAFOS Mod FairBeh.
 From Fairness Require Import Axioms.
 
 Set Implicit Arguments.
@@ -214,55 +214,55 @@ End OWNS.
 
 Section UPDNATMAP.
   Variable A: Type.
-  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRALargeFOS.t A)) Σ}.
+  Context `{NATMAPRA: @GRA.inG (Auth.t (NatMapRAFOS.t A)) Σ}.
 
-  Lemma NatMapRALarge_find_some m k a
+  Lemma NatMapRA_find_some m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
+    (OwnM (Auth.black (Some m: NatMapRAFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
+      (OwnM (Auth.white (NatMapRAFOS.singleton k a: NatMapRAFOS.t A)))
       -∗
       (⌜NatMap.find k m = Some a⌝).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iOwnWf "BW".
-    eapply Auth.auth_included in H. eapply NatMapRALargeFOS.extends_singleton_iff in H. auto.
+    eapply Auth.auth_included in H. eapply NatMapRAFOS.extends_singleton_iff in H. auto.
   Qed.
 
-  Lemma NatMapRALarge_singleton_unique k0 k1 a0 a1
+  Lemma NatMapRA_singleton_unique k0 k1 a0 a1
     :
-    (OwnM (Auth.white (NatMapRALargeFOS.singleton k0 a0: NatMapRALargeFOS.t A)))
+    (OwnM (Auth.white (NatMapRAFOS.singleton k0 a0: NatMapRAFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALargeFOS.singleton k1 a1: NatMapRALargeFOS.t A)))
+      (OwnM (Auth.white (NatMapRAFOS.singleton k1 a1: NatMapRAFOS.t A)))
       -∗
       (⌜k0 <> k1⌝).
   Proof.
     iIntros "W0 W1". iCombine "W0 W1" as "W". iOwnWf "W".
-    ur in H. eapply NatMapRALargeFOS.singleton_unique in H. auto.
+    ur in H. eapply NatMapRAFOS.singleton_unique in H. auto.
   Qed.
 
-  Lemma NatMapRALarge_remove m k a
+  Lemma NatMapRA_remove m k a
     :
-    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
+    (OwnM (Auth.black (Some m: NatMapRAFOS.t A)))
       -∗
-      (OwnM (Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
+      (OwnM (Auth.white (NatMapRAFOS.singleton k a: NatMapRAFOS.t A)))
       -∗
-      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRALargeFOS.t A))).
+      #=>(OwnM (Auth.black (Some (NatMap.remove k m): NatMapRAFOS.t A))).
   Proof.
     iIntros "B W". iCombine "B W" as "BW". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_dealloc. eapply NatMapRALargeFOS.remove_local_update.
+    eapply Auth.auth_dealloc. eapply NatMapRAFOS.remove_local_update.
   Qed.
 
-  Lemma NatMapRALarge_add m k a
+  Lemma NatMapRA_add m k a
         (NONE: NatMap.find k m = None)
     :
-    (OwnM (Auth.black (Some m: NatMapRALargeFOS.t A)))
+    (OwnM (Auth.black (Some m: NatMapRAFOS.t A)))
       -∗
-      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRALargeFOS.t A)
-                            ⋅ Auth.white (NatMapRALargeFOS.singleton k a: NatMapRALargeFOS.t A)))
+      #=>((OwnM (Auth.black (Some (NatMap.add k a m): NatMapRAFOS.t A)
+                            ⋅ Auth.white (NatMapRAFOS.singleton k a: NatMapRAFOS.t A)))
          ).
   Proof.
     iIntros "B". iApply OwnM_Upd. 2: iFrame.
-    eapply Auth.auth_alloc. eapply NatMapRALargeFOS.add_local_update. auto.
+    eapply Auth.auth_alloc. eapply NatMapRAFOS.add_local_update. auto.
   Qed.
 
 End UPDNATMAP.
@@ -340,7 +340,7 @@ Section INVARIANT.
   Definition stateTgtRA: URA.t := Auth.t (Excl.t (option state_tgt)).
   Definition identSrcRA: URA.t := FairRA.srct ident_src.
   Definition identTgtRA: URA.t := FairRA.tgtt ident_tgt.
-  Definition ThreadRA: URA.t := Auth.t (NatMapRALargeFOS.t unit).
+  Definition ThreadRA: URA.t := Auth.t (NatMapRAFOS.t unit).
   Definition ArrowRA: URA.t :=
     Region.t ((sum_tid ident_tgt) * nat * Ord.t * Qp * nat).
   Definition EdgeRA: URA.t :=
@@ -364,7 +364,7 @@ Section INVARIANT.
 
   Definition default_I: TIdSet.t -> (@imap ident_src owf) -> (@imap (sum_tid ident_tgt) nat_wf) -> state_src -> state_tgt -> iProp :=
     fun ths im_src im_tgt st_src st_tgt =>
-      (OwnM (Auth.black (Some ths: (NatMapRALargeFOS.t unit)): ThreadRA))
+      (OwnM (Auth.black (Some ths: (NatMapRAFOS.t unit)): ThreadRA))
         **
         (OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA))
         **
@@ -386,7 +386,7 @@ Section INVARIANT.
             ** (default_I ths im_src im_tgt0 st_src st_tgt))%I.
 
   Definition own_thread (tid: thread_id): iProp :=
-    (OwnM (Auth.white (NatMapRALargeFOS.singleton tid tt: NatMapRALargeFOS.t unit): ThreadRA)).
+    (OwnM (Auth.white (NatMapRAFOS.singleton tid tt: NatMapRAFOS.t unit): ThreadRA)).
 
   Lemma own_thread_unique tid0 tid1
     :
@@ -397,7 +397,7 @@ Section INVARIANT.
       ⌜tid0 <> tid1⌝.
   Proof.
     iIntros "OWN0 OWN1". iCombine "OWN0 OWN1" as "OWN".
-    iOwnWf "OWN". ur in H. apply NatMapRALargeFOS.singleton_unique in H.
+    iOwnWf "OWN". ur in H. apply NatMapRAFOS.singleton_unique in H.
     iPureIntro. auto.
   Qed.
 
@@ -463,7 +463,7 @@ Section INVARIANT.
     unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G]".
     iPoseProof (OwnM_Upd with "A") as "> [A TH]".
     { apply Auth.auth_alloc.
-      eapply (@NatMapRALargeFOS.add_local_update unit ths0 tid tt). inv THS. auto.
+      eapply (@NatMapRAFOS.add_local_update unit ths0 tid tt). inv THS. auto.
     }
     iPoseProof (FairRA.target_add_thread with "E") as "> [E BLACK]"; [eauto|eauto|].
     iModIntro. inv THS. iFrame.
@@ -733,7 +733,7 @@ Section INVARIANT.
     iCombine "A OWN" as "A".
     iPoseProof (OwnM_Upd with "A") as "> X".
     { apply Auth.auth_dealloc.
-      eapply (@NatMapRALargeFOS.remove_local_update unit ths0 _ _).
+      eapply (@NatMapRAFOS.remove_local_update unit ths0 _ _).
     }
     iPoseProof (FairRA.target_remove_thread with "E [DUTY]") as "> E".
     { iPoseProof "DUTY" as "[% [% [[A [B %]] %]]]". destruct rs; ss.

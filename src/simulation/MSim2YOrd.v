@@ -3,6 +3,7 @@ From Paco Require Import paco.
 Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 From Coq Require Import Program.
+From iris.algebra Require Import cmra.
 
 From Fairness Require Export ITreeLib FairBeh Mod.
 From Fairness Require Import pind PCM WFLibLarge.
@@ -11,7 +12,7 @@ From Fairness Require Import ModSim ModSimYOrd GenYOrd.
 Set Implicit Arguments.
 
 Section PROOF.
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -28,7 +29,7 @@ Section PROOF.
 
   Let shared := shared state_src state_tgt ident_src _ident_tgt wf_src wf_tgt.
   Let shared_rel: Type := shared -> Prop.
-  Variable I: shared -> URA.car -> Prop.
+  Variable I: shared -> (cmra_car M) -> Prop.
 
   Definition lift_wf (wf: WF): WF := sum_WF wf (option_WF wf).
 
@@ -43,13 +44,13 @@ Section PROOF.
          | _ => (inr None)
          end.
 
-  Let A R0 R1 := (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type.
+  Let A R0 R1 := (bool * bool * (cmra_car M) * (itree srcE R0) * (itree tgtE R1) * shared)%type.
   Let wf_ot R0 R1 := @ord_tree_WF (A R0 R1).
   Let wf_stt R0 R1 := lift_wf (@wf_ot R0 R1).
 
   Lemma modsim_implies_yord
         tid
-        R0 R1 (LRR: R0 -> R1 -> URA.car -> shared_rel)
+        R0 R1 (LRR: R0 -> R1 -> (cmra_car M) -> shared_rel)
         ps pt r_ctx src tgt
         (shr: shared)
         (LSIM: ModSim.lsim I tid LRR ps pt r_ctx src tgt shr)
@@ -70,85 +71,85 @@ Section PROOF.
     eapply pind9_unfold in LSIM; eauto with paco.
     inv LSIM.
 
-    { guclo lsim_indC_spec. econs 1; eauto. }
+    { guclo (@lsim_indC_spec M). econs 1; eauto. }
 
     { destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 2; eauto.
-      guclo lsim_ord_weakRC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 2; eauto.
+      guclo (@lsim_ord_weakRC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
     { des. destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 3; eauto. exists x.
-      guclo lsim_ord_weakRC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 3; eauto. exists x.
+      guclo (@lsim_ord_weakRC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
     { destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 4; eauto.
-      guclo lsim_ord_weakRC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 4; eauto.
+      guclo (@lsim_ord_weakRC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
     { destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 5; eauto.
-      guclo lsim_ord_weakRC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 5; eauto.
+      guclo (@lsim_ord_weakRC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
-    { guclo lsim_indC_spec. econs 6; eauto. }
+    { guclo (@lsim_indC_spec M). econs 6; eauto. }
     { des. destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 7; eauto. esplits; eauto.
-      guclo lsim_ord_weakRC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 7; eauto. esplits; eauto.
+      guclo (@lsim_ord_weakRC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
 
     { destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 8; eauto.
-      guclo lsim_ord_weakLC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 8; eauto.
+      guclo (@lsim_ord_weakLC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
-    { guclo lsim_indC_spec. econs 9; eauto. i. specialize (GENOS x).
+    { guclo (@lsim_indC_spec M). econs 9; eauto. i. specialize (GENOS x).
       destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_ord_weakLC_spec. econs; eauto.
+      guclo (@lsim_ord_weakLC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
     { destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 10; eauto.
-      guclo lsim_ord_weakLC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 10; eauto.
+      guclo (@lsim_ord_weakLC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
     { destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 11; eauto.
-      guclo lsim_ord_weakLC_spec. econs; eauto.
+      guclo (@lsim_indC_spec M). econs 11; eauto.
+      guclo (@lsim_ord_weakLC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
-    { guclo lsim_indC_spec. econs 12; eauto. i. specialize (GENOS _ FAIR).
+    { guclo (@lsim_indC_spec M). econs 12; eauto. i. specialize (GENOS _ FAIR).
       destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_ord_weakLC_spec. econs; eauto.
+      guclo (@lsim_ord_weakLC_spec M). econs; eauto.
       clear. unfold mk_o. des_ifs; try reflexivity.
       - right. ss. do 2 econs.
       - right. ss. do 2 econs.
     }
 
-    { guclo lsim_indC_spec. econs 13; eauto. i. specialize (GENOS ret).
+    { guclo (@lsim_indC_spec M). econs 13; eauto. i. specialize (GENOS ret).
       destruct GENOS as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_ord_weakLC_spec. econs; eauto.
-      guclo lsim_ord_weakRC_spec. econs; eauto.
+      guclo (@lsim_ord_weakLC_spec M). econs; eauto.
+      guclo (@lsim_ord_weakRC_spec M). econs; eauto.
       - clear. unfold mk_o. ss. des_ifs; try reflexivity.
         + right. ss. do 2 econs.
         + right. ss. do 2 econs.
@@ -157,17 +158,17 @@ Section PROOF.
         + right. ss. do 2 econs.
     }
 
-    { guclo lsim_indC_spec. econs 14. }
+    { guclo (@lsim_indC_spec M). econs 14. }
 
     { des. destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
-      guclo lsim_indC_spec. econs 15; eauto.
+      guclo (@lsim_indC_spec M). econs 15; eauto.
       esplits; eauto.
       clear - LT. unfold mk_o. des_ifs; try reflexivity.
       - ss. do 2 econs. auto.
       - ss. do 1 econs. auto.
     }
 
-    { guclo lsim_indC_spec. econs 16; eauto. i.
+    { guclo (@lsim_indC_spec M). econs 16; eauto. i.
       specialize (GENOS _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
       destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
       esplits; eauto.
@@ -176,14 +177,14 @@ Section PROOF.
       - ss. do 1 econs. auto.
     }
 
-    { guclo lsim_indC_spec. econs 17; eauto. i.
+    { guclo (@lsim_indC_spec M). econs 17; eauto. i.
       specialize (GENOS _ _ _ _ _ _ _ INV0 VALID0 _ TGT). des.
       destruct GENOS0 as [GENOS IND]. eapply IH in IND; eauto.
     }
 
     { eapply gensim_genos in GENOS. des.
-      guclo lsim_ord_weakLC_spec. econs.
-      guclo lsim_ord_weakRC_spec. econs.
+      guclo (@lsim_ord_weakLC_spec M). econs.
+      guclo (@lsim_ord_weakRC_spec M). econs.
       instantiate (1:=mk_o (@wf_ot R0 R1) ot0 false src).
       instantiate (1:=mk_o (@wf_ot R0 R1) os0 false tgt).
       gfinal. right. pfold. eapply pind9_fold. econs 18. right. eapply CIH. auto.
@@ -210,7 +211,7 @@ Section MODSIM.
     set (tgtE := threadE _ident_tgt state_tgt).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
-    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
+    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * (cmra_car world) * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
     econs; eauto. instantiate (1:=wf_stt).
     { i. exact (inr None). }
     i. specialize (init im_tgt). des. exists I. esplits; eauto.
@@ -220,7 +221,7 @@ Section MODSIM.
     des. do 2 eexists. exists (inr None), (inr None). splits. 1,2: eauto.
     i. specialize (funs1 _ _ _ _ _ _ _ INV1 VALID1 _ TGT fs ft).
     eapply modsim_implies_yord in funs1. des.
-    ginit. guclo lsim_ord_weakRC_spec. econs. guclo lsim_ord_weakLC_spec. econs.
+    ginit. guclo (@lsim_ord_weakRC_spec world). econs. guclo (@lsim_ord_weakLC_spec world). econs.
     gfinal. right. eapply funs1.
     - clear. destruct os.
       { right. econs. }
@@ -239,26 +240,6 @@ End MODSIM.
 From Fairness Require Import Concurrency World.
 Require Import List.
 
-Section AUX.
-
-  Lemma list_fold_left_resource_aux
-        (world : URA.t) c X x l
-    :
-    fold_left
-      (fun (a : world)
-         (p : NatMap.key * (world * X)) =>
-         (let '(r, _) := snd p in fun s : world => r ⋅ s) a) (map (fun '(k0, e) => (k0, (e, x))) l) ε ⋅ c =
-      fold_left
-        (fun (a : world)
-           (p : NatMap.key * (world * X)) =>
-           (let '(r, _) := snd p in fun s : world => r ⋅ s) a) (map (fun '(k0, e) => (k0, (e, x))) l) c.
-  Proof.
-    revert c. induction l; i; ss. r_solve. des_ifs. ss; clarify. rewrite <- (IHl (c0 ⋅ ε)). r_solve.
-    rewrite <- (IHl (c0 ⋅ c)). r_solve.
-  Qed.
-
-End AUX.
-
 Section USERSIM.
 
   Lemma modsim_implies_yord_user
@@ -275,16 +256,17 @@ Section USERSIM.
     set (tgtE := threadE _ident_tgt state_tgt).
     set (ident_tgt := @ident_tgt _ident_tgt).
     set (shared := (TIdSet.t * (@imap ident_src wf_src) * (@imap ident_tgt wf_tgt) * state_src * state_tgt)%type).
-    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * URA.car * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
+    set (wf_stt:=fun R0 R1 => lift_wf (@ord_tree_WF (bool * bool * (cmra_car world) * (itree srcE R0) * (itree tgtE R1) * shared)%type)).
     econs; eauto. instantiate (1:=wf_stt).
     { i. exact (inr None). }
     i. specialize (funs im_tgt).
     des. esplits; eauto.
     instantiate (1:=NatMap.map (fun r => (r, (inr None, inr None))) rs).
-    2:{ replace (@NatMap.fold (world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) _ (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) (NatMap.map (fun r : world => (r, (inr None, inr None))) rs) ε) with (NatMap.fold (fun (_ : NatMap.key) (r s : world) => r ⋅ s) rs ε); auto.
+    2:{ assert ((@NatMap.fold (world * (T (wf_stt Any.t Any.t) * T (wf_stt Any.t Any.t))) _ (fun (_ : NatMap.key) '(r, _) (s : world) => r ⋅ s) (NatMap.map (fun r : world => (r, (inr None, inr None))) rs) ε) ≡ (NatMap.fold (fun (_ : NatMap.key) (r s : world) => r ⋅ s) rs ε)) as ->; auto.
         rewrite ! NatMap.fold_1. rewrite <- list_map_elements_nm_map.
-        remember (NatMap.elements (elt:=world) rs) as l. clear. induction l; ss. des_ifs. ss. clarify.
-        r_solve. rewrite resources_fold_left_base. rewrite IHl. eapply list_fold_left_resource_aux.
+        remember (NatMap.elements (elt:=world) rs) as l. clear.
+        move: ε=> w. revert w.
+        induction l; ss. intros w. des_ifs. ss. clarify.
     }
     eapply nm_find_some_implies_forall3.
     { apply nm_forall2_wf_pair. eapply list_forall3_implies_forall2_2; eauto. clear. i. des. des_ifs. des; clarify. }
@@ -295,7 +277,7 @@ Section USERSIM.
     unfold ModSim.local_sim_init in SIM. unfold local_sim_init. ss.
     i. specialize (SIM _ _ _ _ _ _ _ INV VALID _ FAIR fs ft).
     eapply modsim_implies_yord in SIM. des.
-    ginit. guclo lsim_ord_weakRC_spec. econs. guclo lsim_ord_weakLC_spec. econs.
+    ginit. guclo (@lsim_ord_weakRC_spec world). econs. guclo (@lsim_ord_weakLC_spec world). econs.
     gfinal. right. eapply SIM.
     - clear. destruct os.
       { right. econs. }

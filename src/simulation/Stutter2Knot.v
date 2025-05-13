@@ -5,6 +5,7 @@ Require Export Coq.Strings.String.
 Require Import Coq.Classes.RelationClasses.
 Require Import Program.
 Require Import Permutation.
+From iris.algebra Require Import cmra updates.
 
 From Fairness Require Import Axioms.
 From Fairness Require Export ITreeLib FairBeh FairSim WFLibLarge NatStructsLarge.
@@ -18,7 +19,7 @@ Section PROOF.
 
   Ltac gfold := gfinal; right; pfold.
 
-  Context `{M: URA.t}.
+  Context `{M: ucmra}.
 
   Variable state_src: Type.
   Variable state_tgt: Type.
@@ -45,7 +46,7 @@ Section PROOF.
   Notation threads_src2 R0 := (threads2 _ident_src (sE state_src) R0).
   Notation threads_tgt R1 := (threads _ident_tgt (sE state_tgt) R1).
 
-  (* Variable I: shared -> URA.car -> Prop. *)
+  (* Variable I: shared -> (cmra_car M) -> Prop. *)
 
   Variable St: wf_tgt.(T) -> wf_tgt.(T).
   Hypothesis lt_succ_diag_r_t: forall (t: wf_tgt.(T)), wf_tgt.(lt) t (St t).
@@ -62,7 +63,7 @@ Section PROOF.
         (st_src: state_src) (st_tgt: state_tgt)
         gps gpt
         (LSIM: forall im_tgt,
-          exists (I: shared -> URA.car -> Prop),
+          exists (I: shared -> (cmra_car M) -> Prop),
           exists im_src (os: (nm_wf_stt R0 R1).(T)) rs_ctx o,
             (<<RSWF: Th.find tid rs_ctx = None>>) /\
               (<<OSWF: (forall tid', Th.In tid' ths_src -> Th.In tid' os) /\ (Th.find tid os = None)>>) /\
@@ -84,7 +85,7 @@ Section PROOF.
                     ((sf = false) -> (local_sim_pick wf_stt I RR src tgt tid o r_own))>>))
     :
     forall im_tgt, exists im_src os rs_ctx,
-      (sim_knot (wf_src:=wf_src) (wf_tgt:=wf_tgt) (nm_wf_stt)
+      (sim_knot (M:=M) (wf_src:=wf_src) (wf_tgt:=wf_tgt) (nm_wf_stt)
                 RR ths_src ths_tgt tid rs_ctx gps gpt (sf, src) tgt
                 (im_src, im_tgt, st_src, st_tgt) os).
   Proof.
@@ -130,7 +131,8 @@ Section PROOF.
         { exfalso. erewrite nm_wf_pair_is_empty in EMPS. 2:eapply WF. rewrite EMPT in EMPS. ss. }
         { pfold. eapply pind10_fold. econs 2; eauto.
           { instantiate (1:=r_own). instantiate (1:=r_shared). unfold resources_wf.
-            rewrite sum_of_resources_add; auto. r_wf VALID. }
+            rewrite sum_of_resources_add; auto. r_wf VALID.
+          }
           { instantiate (1:=Th.add tid o1 os). ss. econs. all: eauto.
             - apply nm_find_add_eq.
             - apply nm_find_add_eq.
@@ -176,8 +178,8 @@ Section PROOF.
               }
               i; des. split.
               - intro SYNC. eapply H3 in SYNC. ii. unfold local_sim_sync in SYNC.
-                assert (URAWF: URA.wf (r_shared0 ⋅ fst (get_resource tid1 rs_ctx) ⋅ r_ctx0)).
-                { replace (fst (get_resource tid1 rs_ctx)) with r_own0; auto. rewrite OWN.
+                assert (URAWF: ✓ (r_shared0 ⋅ fst (get_resource tid1 rs_ctx) ⋅ r_ctx0)).
+                { assert ((fst (get_resource tid1 rs_ctx)) ≡ r_own0) as ->; auto. rewrite OWN.
                   rewrite get_resource_rs_neq. rewrite get_resource_add_neq_fst. all: auto.
                   destruct (tid_dec tid0 tid1); auto. clarify.
                   exfalso. revert H0 FINDT LTGT. clear; i.
@@ -186,8 +188,8 @@ Section PROOF.
                 }
                 specialize (SYNC _ _ _ _ _ _ _ INV0 URAWF fs ft _ FAIR0). auto.
               - intro PICK. eapply H4 in PICK. ii. unfold local_sim_pick in PICK.
-                assert (URAWF: URA.wf (r_shared0 ⋅ fst (get_resource tid1 rs_ctx) ⋅ r_ctx0)).
-                { replace (fst (get_resource tid1 rs_ctx)) with r_own0; auto. rewrite OWN.
+                assert (URAWF: ✓ (r_shared0 ⋅ fst (get_resource tid1 rs_ctx) ⋅ r_ctx0)).
+                { assert ((fst (get_resource tid1 rs_ctx)) ≡ r_own0) as ->; auto. rewrite OWN.
                   rewrite get_resource_rs_neq. rewrite get_resource_add_neq_fst. all: auto.
                   destruct (tid_dec tid0 tid1); auto. clarify.
                   exfalso. revert H0 FINDT LTGT. clear; i.
@@ -254,7 +256,7 @@ Section PROOF.
               i; des. split.
               - intro SYNC. eapply H4 in SYNC. clear H4 H5. ii. unfold local_sim_sync in SYNC.
                 eapply SYNC; eauto. rewrite OWN in VALID0.
-                replace (fst (get_resource tid1 rs_ctx)) with (fst (get_resource tid1 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))))). auto.
+                assert ((fst (get_resource tid1 rs_ctx)) ≡ (fst (get_resource tid1 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx)))))) as ->. auto.
                 rewrite get_resource_rs_neq. rewrite get_resource_add_neq_fst. all: auto.
                 destruct (tid_dec tid0 tid1); auto. clarify.
                 exfalso. revert H0 FINDT LTGT. clear; i.
@@ -263,7 +265,7 @@ Section PROOF.
 
               - intro PICK. eapply H5 in PICK. clear H4 H5. ii. unfold local_sim_pick in PICK.
                 eapply PICK; eauto. rewrite OWN in VALID0.
-                replace (fst (get_resource tid1 rs_ctx)) with (fst (get_resource tid1 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx))))). auto.
+                assert ((fst (get_resource tid1 rs_ctx)) ≡ (fst (get_resource tid1 (snd (get_resource tid0 (NatMap.add tid r_own rs_ctx)))))) as ->. auto.
                 rewrite get_resource_rs_neq. rewrite get_resource_add_neq_fst. all: auto.
                 destruct (tid_dec tid0 tid1); auto. clarify.
                 exfalso. revert H0 FINDT LTGT. clear; i.
@@ -356,7 +358,8 @@ Section PROOF.
     { clear IH rr. clarify. rewrite ! bind_trigger.
       pfold. eapply pind10_fold. eapply ksim_sync; eauto.
       { instantiate (1:=r_own). instantiate (1:=r_shared). unfold resources_wf.
-        rewrite sum_of_resources_add; auto. r_wf VALID. }
+        rewrite sum_of_resources_add; auto. r_wf VALID.
+      }
       i.
       assert (WF0: th_wf_pair (Th.add tid (true, ktr_src ()) ths_src) (Th.add tid (ktr_tgt ()) ths_tgt)).
       { unfold th_wf_pair, nm_wf_pair in *. rewrite ! key_set_pull_add_eq. rewrite WF. reflexivity. }
@@ -390,17 +393,18 @@ Section PROOF.
             - intro SYNC. eapply H2 in SYNC. clear H2 H3. ii. unfold local_sim_sync in SYNC.
               eapply SYNC; eauto.
               rewrite OWN in VALID0.
-              replace (fst (get_resource tid0 rs_ctx)) with (fst (get_resource tid0 (snd (get_resource tid (NatMap.add tid r_own rs_ctx))))). auto.
+              assert ((fst (get_resource tid0 rs_ctx)) ≡ (fst (get_resource tid0 (snd (get_resource tid (NatMap.add tid r_own rs_ctx)))))) as ->. auto.
               destruct (tid_dec tid tid0); clarify.
               rewrite get_resource_rs_neq; auto. rewrite get_resource_add_neq_fst; auto.
+              done.
             - intro PICK. eapply H3 in PICK. clear H2 H3. ii. unfold local_sim_pick in PICK.
               eapply PICK; eauto.
               rewrite OWN in VALID0.
-              replace (fst (get_resource tid0 rs_ctx)) with (fst (get_resource tid0 (snd (get_resource tid (NatMap.add tid r_own rs_ctx))))). auto.
+              assert ((fst (get_resource tid0 rs_ctx)) ≡ (fst (get_resource tid0 (snd (get_resource tid (NatMap.add tid r_own rs_ctx)))))) as ->. auto.
               destruct (tid_dec tid tid0); clarify.
-              rewrite get_resource_rs_neq; auto. rewrite get_resource_add_neq_fst; auto.
+              rewrite get_resource_rs_neq; auto. rewrite get_resource_add_neq_fst; auto. done.
           }
-          { rewrite get_resource_add_eq. ss. apply nm_find_rm_eq. }
+          { rewrite get_resource_add_eq nm_find_rm_eq. done. }
 
           match goal with
           | |- lsim _ _ tid _ _ _ _ (_, ?_itr) _ _ => assert (_itr = (x <- trigger Yield;; ktr_src x))
@@ -409,7 +413,7 @@ Section PROOF.
           rewrite H2; clear H2.
           replace (sum_of_resources (snd (get_resource tid (NatMap.add tid r_own rs_ctx)))) with
             (sum_of_resources rs_ctx). auto.
-          rewrite get_resource_add_eq. ss. rewrite nm_find_none_rm_eq; auto.
+          by rewrite get_resource_add_eq nm_find_none_rm_eq.
         }
 
         exists (Th.add tid o1 os). split.
@@ -436,7 +440,7 @@ Section PROOF.
             inv H2. split; i; ss. clear H2.
             ii. hexploit LSIM0. eapply INV0.
             { rewrite get_resource_rs_neq in VALID0; auto.
-              rewrite get_resource_add_eq in VALID0. ss. eauto.
+              rewrite get_resource_add_eq in VALID0. eauto.
             }
             eauto.
             i. pclearbot.
@@ -537,7 +541,8 @@ Section PROOF.
             pose nm_pop_neq_find_some_eq. dup H. eapply e in H4; eauto. dup H0. eapply e in H5; eauto.
             inv H4. split; i; ss. clear H4.
             ii. hexploit LSIM0. eapply INV0.
-            { instantiate (1:=r_ctx0). rewrite get_resource_rs_neq in VALID0; auto.
+            { instantiate (1:=r_ctx0).
+              rewrite get_resource_rs_neq in VALID0; auto.
               rewrite get_resource_add_eq in VALID0. ss.
             }
             eauto. i. pclearbot.

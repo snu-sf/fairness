@@ -3392,7 +3392,7 @@ Module ObligationRA.
       iIntros "H".
       unfold black.
       iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Program Instance Persistent_black k o: Persistent (black k o).
@@ -3408,7 +3408,7 @@ Module ObligationRA.
       iIntros "H".
       unfold black.
       iPoseProof (own_persistent with "H") as "H".
-      rewrite FiniteMap.singleton_core. auto.
+      rewrite FiniteMap.singleton_core_total. auto.
     Qed.
 
     Global Program Instance Persistent_shot k: Persistent (shot k).

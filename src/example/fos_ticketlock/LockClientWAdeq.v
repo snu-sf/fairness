@@ -1,9 +1,10 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From iris.algebra Require Import cmra auth excl_auth.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux ucmra_list.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic WMMSpec.
 From PromisingLib Require Import Loc Event.
@@ -39,7 +40,7 @@ Module ClientCorrect.
         (* Additional RAs. *)
         wmemRA;
         (OneShots.t unit);
-        (Auth.t (NatMapRA.NatMapRA.t nat));
+        (authUR (NatMapRA.NatMapRA.t nat));
         (AuthExcls.t (nat * nat * View.t));
         (AuthExcls.t View.t);
         (Excls.t unit)
@@ -58,7 +59,7 @@ Module ClientCorrect.
   Local Instance _ARROWSHOTRA : GRA.inG ArrowShotRA Γ := (@GRA.InG _ Γ 9 (@eq_refl _ _)).
   Local Instance HasMemRA : GRA.inG wmemRA Γ := (@GRA.InG _ Γ 10 (@eq_refl _ _)).
   Local Instance HasOneShots : GRA.inG (OneShots.t unit) Γ := (@GRA.InG _ Γ 11 (@eq_refl _ _)).
-  Local Instance HasNatMap : GRA.inG (Auth.t (NatMapRA.NatMapRA.t nat)) Γ := (@GRA.InG _ Γ 12 (@eq_refl _ _)).
+  Local Instance HasNatMap : GRA.inG (authUR (NatMapRA.NatMapRA.t nat)) Γ := (@GRA.InG _ Γ 12 (@eq_refl _ _)).
   Local Instance HasAuthExcls : GRA.inG (AuthExcls.t (nat * nat * View.t)) Γ := (@GRA.InG _ Γ 13 (@eq_refl _ _)).
   Local Instance HasAuthExcls2 : GRA.inG (AuthExcls.t (View.t)) Γ := (@GRA.InG _ Γ 14 (@eq_refl _ _)).
   Local Instance HasExcls : GRA.inG (Excls.t unit) Γ := (@GRA.InG _ Γ 15 (@eq_refl _ _)).
@@ -66,7 +67,7 @@ Module ClientCorrect.
   Local Instance TLRASs : TLRAs_small STT Γ :=
     @Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
 
-  Local Instance Σ : GRA.t:=
+  Definition Σ : GRA.t:=
     GRA.of_list [
         (* Default RAs. *)
         OwnERA;
@@ -82,12 +83,12 @@ Module ClientCorrect.
         (* Additional RAs. *)
         wmemRA;
         (OneShots.t unit);
-        (Auth.t (NatMapRA.NatMapRA.t nat));
+        (authUR (NatMapRA.NatMapRA.t nat));
         (AuthExcls.t (nat * nat * View.t));
         (AuthExcls.t View.t);
         (Excls.t unit);
         (* Maps from empty RAs of Γ. *)
-        (of_RA.t RA.empty);
+        (optionUR Empty_setR);
         (* Default RAs depending on sProp. *)
         (IInvSetRA sProp);
         (ArrowRA id_tgt_type (Vars:=sProp));
@@ -98,8 +99,6 @@ Module ClientCorrect.
     { subG_map := fun i => if (le_lt_dec i 15) then i else 16 }.
   Next Obligation.
     i. ss. unfold Σ, Γ. des_ifs.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
   Qed.
 
   Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := (@GRA.InG _ Σ 17 (@eq_refl _ _)).
@@ -110,9 +109,9 @@ Module ClientCorrect.
     @Build_TLRAs STT Γ Σ _ _ _.
 
   (* Additional initial resources. *)
-  Local Definition init_res :=
+  Local Definition init_res : Σ :=
     (GRA.embed (wmem_init_res loc_X (Loc.of_nat 210)))
-      ⋅ (GRA.embed (Auth.black (Some (NatStructs.NatMap.empty nat): NatMapRA.NatMapRA.t nat)))
+      ⋅ (GRA.embed (●{#1} (NatMapRA.NatMapRA.to_Map (NatStructs.NatMap.empty nat))))
       ⋅ (GRA.embed (AuthExcls.rest_ra (gt_dec 0) (0, 0, View.bot)))
       ⋅ (GRA.embed (AuthExcls.rest_ra (gt_dec 0) View.bot)
       ⋅ (GRA.embed (Excls.rest_ra (gt_dec 0) tt))).
@@ -133,27 +132,25 @@ Module ClientCorrect.
       { ndtac. }
       { unfold init_res. grawf_tac.
         { apply wmem_init_res_wf. ss. }
-        { ur. split.
-          { eexists _. apply URA.unit_idl. }
-          { ur. ss. }
+        { apply auth_auth_valid. done. }
+        { unfold AuthExcls.rest_ra. intros i. des_ifs.
+          - apply ucmra_unit_valid.
+          - apply excl_auth_valid.
         }
-        { ur. i. ur. split; auto.
-          { rewrite URA.unit_idl. exists ε. rewrite URA.unit_id. auto. }
-          { ur. clarify. }
+        { unfold AuthExcls.rest_ra. intros i. des_ifs.
+          - apply ucmra_unit_valid.
+          - apply excl_auth_valid.
         }
-        { ur. i. ur. split; auto.
-          { rewrite URA.unit_idl. exists ε. rewrite URA.unit_id. auto. }
-          { ur. clarify. }
-        }
-        { ur. i. ur. clarify. }
+        { unfold Excls.rest_ra. intros i. des_ifs. }
       }
     }
     unfold init_res. repeat rewrite <- GRA.embed_add.
     exists 2, 1. exists. lia.
     eexists _. iIntros "(A & INIT)".
-    iPoseProof (init_sat with "[A INIT]") as "RES".
-    { instantiate (1:=1). instantiate (1:=0). ss. }
-    { simpl. iFrame. iDestruct "A" as "[[[A E] D] [B C]]". iFrame. }
+    iPoseProof (init_sat (tid1:=0) (tid2:=1) with "[A $INIT]") as "RES"; ss.
+    { iDestruct "A" as "[[[A E] D] [B C]]".
+      rewrite -!OwnM_uPred_ownM_eq. iFrame.
+    }
     iEval (rewrite red_syn_fairI) in "RES". simpl. iMod "RES".
     iDestruct "RES" as "(% & % & % & % & % & % & #INV1 & #INV2 & TID1 & TID2)". red_tl; simpl.
 
@@ -178,7 +175,7 @@ Module ClientCorrect.
       iEval (red_tl) in "RES". iSpecialize ("RES" $! κw).
       iEval (red_tl) in "RES". iSpecialize ("RES" $! γw). red_tl_all. simpl.
       iEval (rewrite red_syn_wpsim) in "RES". iApply ("RES" with "[-]").
-      rewrite ! red_syn_inv. repeat (iSplit; [done | ]). iFrame.
+      rewrite ! red_syn_inv. iFrame "#∗".
     }
   Qed.
 

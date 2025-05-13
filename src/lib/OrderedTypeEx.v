@@ -51,7 +51,7 @@ Module Nat_as_OT <: UsualOrderedTypeLarge.
   Definition lt := lt.
 
   Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-  Proof. unfold lt; intros; apply lt_trans with y; auto. Qed.
+  Proof. unfold lt; intros; apply PeanoNat.Nat.lt_trans with y; auto. Qed.
 
   Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
   Proof. unfold lt, eq; intros ? ? LT ->; revert LT; apply Nat.lt_irrefl. Qed.
@@ -182,7 +182,7 @@ Module PairOrderedTypeLarge(O1 O2:OrderedTypeLarge) <: OrderedTypeLarge.
 
  Lemma eq_sym : forall x y : t, eq x y -> eq y x.
  Proof.
- intros (x1,x2) (y1,y2); unfold eq; simpl; intuition.
+ intros (x1,x2) (y1,y2); unfold eq; simpl; intuition auto with *.
  Qed.
 
  Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
@@ -192,7 +192,7 @@ Module PairOrderedTypeLarge(O1 O2:OrderedTypeLarge) <: OrderedTypeLarge.
 
  Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
  Proof.
- intros (x1,x2) (y1,y2) (z1,z2); unfold eq, lt; simpl; intuition.
+ intros (x1,x2) (y1,y2) (z1,z2); unfold eq, lt; simpl; intuition auto with *.
  left; eauto with ordered_type.
  left; eapply MO1.lt_eq; eauto.
  left; eapply MO1.eq_lt; eauto.
@@ -201,7 +201,7 @@ Module PairOrderedTypeLarge(O1 O2:OrderedTypeLarge) <: OrderedTypeLarge.
 
  Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
  Proof.
- intros (x1,x2) (y1,y2); unfold eq, lt; simpl; intuition.
+ intros (x1,x2) (y1,y2); unfold eq, lt; simpl; intuition auto with *.
  apply (O1.lt_not_eq H0 H1).
  apply (O2.lt_not_eq H3 H2).
  Qed.
@@ -255,9 +255,9 @@ Module PositiveOrderedTypeLargeBits <: UsualOrderedTypeLarge.
     forall x y z : positive, bits_lt x y -> bits_lt y z -> bits_lt x z.
   Proof.
   induction x.
-  induction y; destruct z; simpl; eauto; intuition.
-  induction y; destruct z; simpl; eauto; intuition.
-  induction y; destruct z; simpl; eauto; intuition.
+  induction y; destruct z; simpl; eauto; intuition auto with *.
+  induction y; destruct z; simpl; eauto; intuition auto with *.
+  induction y; destruct z; simpl; eauto; intuition auto with *.
   Qed.
 
   Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
@@ -425,7 +425,7 @@ Module String_as_OT <: UsualOrderedTypeLarge.
   Proof.
     intro H; inversion H; subst; auto.
     remember (nat_of_ascii a) as x.
-    apply lt_irrefl in H1; inversion H1.
+    apply PeanoNat.Nat.lt_irrefl in H1; inversion H1.
   Qed.
 
   Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
@@ -438,7 +438,7 @@ Module String_as_OT <: UsualOrderedTypeLarge.
       + constructor. eapply IHx; eauto.
       + constructor; assumption.
       + constructor; assumption.
-      + constructor. eapply lt_trans; eassumption.
+      + constructor. eapply PeanoNat.Nat.lt_trans; eassumption.
   Qed.
 
   Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.

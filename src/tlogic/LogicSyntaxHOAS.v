@@ -1,6 +1,7 @@
+From iris.algebra Require Import cmra.
 From stdpp Require Import coPset gmap namespaces.
 From sflib Require Import sflib.
-From Fairness Require Import PCM IProp IPM IndexedInvariants.
+From Fairness Require Import PCM IPM IndexedInvariants.
 From Fairness Require Import SimWeakest.
 From iris Require Import bi.big_op.
 From iris Require base_logic.lib.invariants.
@@ -10,11 +11,11 @@ Module SRA.
 
   Section SRA.
 
-    Class t := __SRA : GRA.t.
+    Class t := SRA__INTERNAL : GRA.t.
 
     Class subG (Γ : t) (Σ : GRA.t) : Type := {
         subG_map : nat -> nat;
-        subG_prf : forall i, Σ (subG_map i) = Γ i;
+        subG_prf : forall i, (GRA.gra_map Σ) (subG_map i) = (GRA.gra_map Γ) i;
       }.
 
     Coercion subG_map : subG >-> Funclass.
@@ -25,12 +26,12 @@ Module SRA.
 
     Context `{sub : @subG Γ Σ}.
 
-    Global Program Instance embed (i : nat) : @GRA.inG (Γ i) Σ := {
+    Global Program Instance embed (i : nat) : @GRA.inG ((GRA.gra_map Γ) i) Σ := {
         inG_id := sub i;
       }.
     Next Obligation. i. symmetry. apply SRA.subG_prf. Qed.
 
-    Global Program Instance in_subG `{M : URA.t} `{emb : @GRA.inG M Γ} : @GRA.inG M Σ := {
+    Global Program Instance in_subG `{M : ucmra} `{emb : @GRA.inG M Γ} : @GRA.inG M Σ := {
         inG_id := sub.(subG_map) emb.(GRA.inG_id);
       }.
     Next Obligation.
@@ -72,7 +73,7 @@ Module Syntax.
 
     Inductive t {form : Type} : Type :=
     | atom (a : A) : t
-    | ownm (i : nat) (r : Γ i) : t
+    | ownm (i : nat) (r : (GRA.gra_map Γ i)) : t
     | lift (p : form) : t
     | sepconj (p q : t) : t
     | pure (P : Prop) : t
@@ -137,7 +138,7 @@ Module Syntax.
       and empty p.
 
     Definition ownM `{IN: @GRA.inG M Γ} {n} (r : M) : sProp n :=
-      ownm IN.(GRA.inG_id) (eq_rect _ (@URA.car) r _ IN.(GRA.inG_prf)).
+      ownm IN.(GRA.inG_id) (eq_rect _ ucmra_car r _ IN.(GRA.inG_prf)).
 
   End SPROP.
 
@@ -151,6 +152,7 @@ Module sAtomI.
   Context `{Γ : SRA.t}.
   Context `{As : sAtom.t}.
   Context `{Σ : GRA.t}.
+  Notation iProp := (iProp Σ) (only parsing).
 
   Class t : Type := interp :
       forall (n : index), As (Syntax._sProp n) -> iProp.
@@ -167,6 +169,7 @@ Module SyntaxI.
     Context `{Σ : GRA.t}.
     Context `{sub: @SRA.subG Γ Σ}.
     Context `{α: sAtomI.t (Γ:=Γ) (Σ:=Σ)}.
+    Notation iProp := (iProp Σ) (only parsing).
 
     Import Syntax.
 
@@ -179,18 +182,18 @@ Module SyntaxI.
         | atom a => α m a
         | ownm i r => OwnM r
         | lift p => _interp m p
-        | sepconj p q => Sepconj (_interp_aux p) (_interp_aux q)
-        | pure P => Pure P
-        | univ ty p => Univ (fun (x : τ.(sType.interp) ty (_sProp m)) => _interp_aux (p x))
-        | ex ty p => Ex (fun (x : τ.(sType.interp) ty (_sProp m)) => _interp_aux (p x))
-        | and p q => And (_interp_aux p) (_interp_aux q)
-        | or p q => Or (_interp_aux p) (_interp_aux q)
-        | impl p q => Impl (_interp_aux p) (_interp_aux q)
-        | wand p q => Wand (_interp_aux p) (_interp_aux q)
-        | empty => Emp
-        | persistently p => Persistently (_interp_aux p)
-        | plainly p => IProp.Plainly (_interp_aux p)
-        | upd p => Upd (_interp_aux p)
+        | sepconj p q => ((_interp_aux p) ∗ (_interp_aux q))%I
+        | pure P => ⌜P⌝%I
+        | univ ty p => (∀ (x : τ.(sType.interp) ty (_sProp m)), _interp_aux (p x))%I
+        | ex ty p => (∃ (x : τ.(sType.interp) ty (_sProp m)), _interp_aux (p x))%I
+        | and p q => ((_interp_aux p) ∧ (_interp_aux q))%I
+        | or p q => ((_interp_aux p) ∨ (_interp_aux q))%I
+        | impl p q => ((_interp_aux p) → (_interp_aux q))%I
+        | wand p q => ((_interp_aux p) -∗ (_interp_aux q))%I
+        | empty => True%I
+        | persistently p => (<pers> (_interp_aux p))%I
+        | plainly p => (■ (_interp_aux p))%I
+        | upd p => (#=> (_interp_aux p))%I
         | sisim tid I0 I1 Q ps pt itr_src itr_tgt ths ims imt sts stt =>
             isim_simple tid (intpF:=_interp_aux)
                         I0 I1 Q
@@ -284,7 +287,7 @@ Section RED.
   Proof. reflexivity. Qed.
 
   Lemma red_sem_plainly n p :
-    interp n (plainly p) = (IProp.Plainly (interp n p))%I.
+    interp n (plainly p) = (■ (interp n p))%I.
   Proof. reflexivity. Qed.
 
   Lemma red_sem_upd n p :

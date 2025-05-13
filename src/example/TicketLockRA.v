@@ -1,5 +1,6 @@
+From iris.algebra Require Import cmra gset updates local_updates auth lib.excl_auth functions.
 From sflib Require Import sflib.
-From Fairness Require Import Any PCM IProp IPM IPropAux.
+From Fairness Require Import Any PCM IPM IPropAux.
 From Fairness Require Import TemporalLogic.
 From Fairness Require Export AuthExclAnysRA AuthExclsRA.
 From stdpp Require Import gmap.
@@ -7,105 +8,129 @@ From stdpp Require Import gmap.
 Section Ticket.
 
   (* Resource for each ticket lock *)
-  Definition _TicketRA : URA.t := (URA.prod (Auth.t (GsetK.t (K:=nat))) AuthExclAnysRA)%ra.
-  Definition TicketRA : URA.t := (nat ==> _TicketRA)%ra.
+  Definition _TicketRA : ucmra := prodUR (authUR (gset_disjUR nat)) AuthExclAnysRA.
+  Definition TicketRA : ucmra := nat -d> _TicketRA.
 
   Context `{Σ : GRA.t}.
+  Notation iProp := (iProp Σ) (only parsing).
   Context {HasTicketRA : @GRA.inG TicketRA Σ}.
-  Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat))%ra Σ}.
+  Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat)) Σ}.
 
   Definition TicketRA_Auth_base : _TicketRA :=
-    (((Auth.black (Some ∅ : GsetK.t)) ⋅ (Auth.white (Some ∅ : GsetK.t))),
-      (AuExAny_ra (fun k => gset_elem_of_dec k ∅))).
+    (● (GSet ∅) ⋅ ◯ (GSet ∅),
+      AuExAny_ra (λ k, gset_elem_of_dec k ∅)).
 
   Definition TicketRA_Auth : iProp :=
-    (∃ (U : nat),
+    ∃ (U : nat),
       OwnM ((fun k => if (lt_dec k U) then ε else TicketRA_Auth_base) : TicketRA)
-        ∗ AuthExcls.rest (fun k => lt_dec k U) (0, 0, 0)).
+        ∗ AuthExcls.rest (fun k => lt_dec k U) (0, 0, 0).
 
   Definition Ticket_black_ra (γt : nat) (D : gset nat) : TicketRA :=
-    (maps_to_res γt (((Auth.black (Some D : GsetK.t)),
-                      (AuExAny_ra (fun k => gset_elem_of_dec k D))) : _TicketRA))%ra.
+    discrete_fun_singleton γt ((● (GSet D),
+                      AuExAny_ra (fun k => gset_elem_of_dec k D)) : _TicketRA).
   Definition Ticket_black γt D := OwnM (Ticket_black_ra γt D).
 
   (* The issuing thread holds my ticket -> (my thread id, and my obligation id). *)
   Definition Ticket_issued_ra (γt : nat) (tk : nat) (l : list nat) : TicketRA :=
-    (maps_to_res γt (((Auth.white (Some {[tk]} : GsetK.t)), AuExAnyW_ra tk l) : _TicketRA)).
+    discrete_fun_singleton γt ((◯ (GSet {[tk]}), AuExAnyW_ra tk l) : _TicketRA).
   Definition Ticket_issued γt tk l := OwnM (Ticket_issued_ra γt tk l).
 
   (* The invariant holds ticket -> (thread id, obligation id) for the waiting threads. *)
   Definition Ticket_wait_ra (γt : nat) (tk : nat) (l : list nat) : TicketRA :=
-    (maps_to_res γt ((Auth.white (Some ∅ : GsetK.t), AuExAnyB_ra tk l) : _TicketRA)).
+    discrete_fun_singleton γt ((◯ (GSet ∅), AuExAnyB_ra tk l) : _TicketRA).
   Definition Ticket_wait γt tk l := OwnM (Ticket_wait_ra γt tk l).
 
   (** Properties. *)
   Lemma Ticket_issued_twice (γt tk : nat) (l l' : list nat) :
     Ticket_issued γt tk l -∗ Ticket_issued γt tk l' -∗ False.
   Proof.
-    iStartProof. iIntros "T1 T2". unfold Ticket_issued, Ticket_issued_ra.
-    iCombine "T1" "T2" as "T3".  iPoseProof (OwnM_valid with "T3") as "%T".
-    setoid_rewrite maps_to_res_add in T. ur in T.
-    specialize (T γt). ur in T. unfold maps_to_res in T. des_ifs. des.
-    repeat ur in T. des_ifs. set_solver.
+    iStartProof. iIntros "T1 T2".
+    iCombine "T1" "T2" gives %T.
+    iPureIntro.
+
+    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid
+      pair_valid /= in T.
+    des.
+
+    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid in T0.
+    by apply excl_auth_frag_op_valid in T0.
   Qed.
 
   Lemma Ticket_black_issued (γt tk : nat) l D :
     Ticket_black γt D -∗ Ticket_issued γt tk l -∗ ⌜tk ∈ D⌝.
   Proof.
-    iStartProof. iIntros "BLACK ISSUED". unfold Ticket_black, Ticket_issued.
-    iCombine "BLACK" "ISSUED" as "H". unfold Ticket_black_ra, Ticket_issued_ra.
-    iPoseProof (OwnM_valid with "H") as "%H". setoid_rewrite maps_to_res_add in H.
-    ur in H. specialize (H γt). unfold maps_to_res in H. des_ifs.
-    ur in H. des. rewrite URA.unit_idl in H. ur in H. des. destruct H.
-    ur in H. des_ifs. iPureIntro; set_solver.
+    iStartProof. iIntros "BLACK ISSUED".
+    iCombine "BLACK" "ISSUED" gives %H.
+    iPureIntro.
+
+    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid
+      pair_valid /= in H.
+    des.
+
+    apply auth_both_dfrac_valid_discrete in H as [_ [?%gset_disj_included _]].
+    set_solver.
   Qed.
 
   Lemma Ticket_black_wait (γt tk : nat) l D :
     Ticket_black γt D -∗ Ticket_wait γt tk l -∗ ⌜tk ∈ D⌝.
   Proof.
-    iStartProof. iIntros "BLACK WAIT". unfold Ticket_black, Ticket_wait.
-    iCombine "BLACK" "WAIT" as "H". unfold Ticket_black_ra, Ticket_wait_ra, AuExAnyB_ra, AuExAny_ra.
-    iPoseProof (OwnM_valid with "H") as "%H". setoid_rewrite maps_to_res_add in H.
-    ur in H. specialize (H γt). unfold maps_to_res in H. des_ifs.
-    ur in H. des. des_ifs. ur in H0. specialize (H0 tk). des_ifs. ur in H0. auto.
+    iStartProof. iIntros "BLACK WAIT".
+    iCombine "BLACK" "WAIT" gives %H.
+    iPureIntro.
+
+    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid
+      pair_valid /= in H.
+    des.
+
+    specialize (H0 tk).
+
+    rewrite /AuExAny_ra /AuExAnyB_ra /AuthExcls.rest_ra /AuthExcls.black_ra in H0.
+    rewrite discrete_fun_lookup_op discrete_fun_lookup_singleton in H0. des_ifs.
+
+    rewrite (comm cmra.op (●E _)) in H0.
+    rewrite <- (assoc cmra.op) in H0.
+    by apply cmra_valid_op_r,excl_auth_auth_op_valid in H0.
   Qed.
 
   Lemma TicketRA_alloc κu γs b :
-    TicketRA_Auth ⊢ ∃ γt, |==> TicketRA_Auth ∗ Ticket_black γt ∅ ∗ ● γt (κu, γs, b) ∗ ○ γt (κu, γs, b).
+    TicketRA_Auth ⊢ ∃ γt, |==> TicketRA_Auth ∗ Ticket_black γt ∅ ∗ AuthExcls.black γt (κu, γs, b) ∗ AuthExcls.white γt (κu, γs, b).
   Proof.
     iIntros "[%U [BASE BASE2]]". iExists U.
-    assert (URA.updatable
-      (((λ k, if lt_dec k U then ε else TicketRA_Auth_base) : TicketRA))
-      (((λ k, if lt_dec k (S U) then ε else TicketRA_Auth_base) : TicketRA)
-        ⋅ (maps_to_res U TicketRA_Auth_base))) as UPD.
-    { ur. apply pointwise_updatable. i. unfold maps_to_res. des_ifs; try lia.
-      - rewrite URA.unit_idl. reflexivity.
-      - rewrite URA.unit_idl. reflexivity.
-      - rewrite URA.unit_id. reflexivity.
+    assert (
+      ((λ k, if lt_dec k U then ε else TicketRA_Auth_base) : TicketRA) ~~>
+      ((λ k, if lt_dec k (S U) then ε else TicketRA_Auth_base) : TicketRA)
+        ⋅ (discrete_fun_singleton U TicketRA_Auth_base)) as UPD.
+    { apply discrete_fun_update. i.
+      rewrite !discrete_fun_lookup_op.
+      destruct (decide (U = a)) as [->|];
+        rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //;
+      des_ifs; try lia.
     }
-    iMod (OwnM_Upd with "BASE") as "[A B]". apply UPD.
-    assert (URA.updatable (maps_to_res U TicketRA_Auth_base) (Ticket_black_ra U ∅)).
-    { unfold TicketRA_Auth_base, Ticket_black_ra.
-      apply maps_to_updatable. apply URA.prod_updatable; [ | reflexivity].
-      apply Auth.auth_dealloc. ii. des. ur in FRAME. des_ifs. split; ss.
-      rewrite URA.unit_idl. f_equal. set_solver.
+    iMod (OwnM_Upd with "BASE") as "[A B]".
+    { apply UPD. }
+    clear UPD.
+    assert ((discrete_fun_singleton U TicketRA_Auth_base) ~~> (Ticket_black_ra U ∅)) as UPD.
+    { apply discrete_fun_singleton_update, prod_update.
+      - apply auth_update_dealloc. reflexivity.
+      - reflexivity.
     }
-    iMod (OwnM_Upd with "B") as "D". apply H.
-    assert (URA.updatable (maps_to_res U TicketRA_Auth_base) (Ticket_black_ra U ∅)).
-    { unfold TicketRA_Auth_base, Ticket_black_ra.
-      apply maps_to_updatable. apply URA.prod_updatable; [ | reflexivity].
-      apply Auth.auth_dealloc. ii. des. ur in FRAME. des_ifs. split; ss.
-      rewrite URA.unit_idl. f_equal. set_solver.
+    iMod (OwnM_Upd with "B") as "D".
+    { apply UPD. }
+    clear UPD.
+    assert ((discrete_fun_singleton U TicketRA_Auth_base) ~~> (Ticket_black_ra U ∅)).
+    { apply discrete_fun_singleton_update, prod_update.
+      - apply auth_update_dealloc. reflexivity.
+      - reflexivity.
     }
-    iMod (AuthExcls.alloc_gen (gt_dec U) (gt_dec (S U)) with "BASE2") as "(BASE2 & B)".
+    iMod (AuthExcls.alloc_gen (gt_dec U) (gt_dec (S U)) with "BASE2") as "($ & B)".
     { ii; des_ifs. lia. }
-    iAssert (#=> OwnM (AuthExcls.black_ra U (κu, γs, b) ⋅ AuthExcls.white_ra U (κu, γs, b)))%I with "[B]" as "> B".
-    { unfold AuthExcls.black_ra, AuthExcls.white_ra. setoid_rewrite maps_to_res_add.
-      iApply (OwnM_Upd with "B"). unfold maps_to_res. apply pointwise_updatable. i.
-      des_ifs; try lia. apply Auth.auth_update. ii. des. ur in FRAME. des_ifs. ur; split; auto. }
-    iModIntro; iFrame. iSplitR "B".
-    { iExists (S U). iFrame. }
-    iDestruct "B" as "[B B']". iSplitL "B"; done.
+    iFrame.
+    iMod (OwnM_Upd with "B") as "[$ $]"; [|done].
+    rewrite /AuthExcls.black_ra /AuthExcls.white_ra discrete_fun_singleton_op.
+    apply discrete_fun_update => U'.
+    destruct (decide (U = U')) as [->|];
+      rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //;
+    des_ifs; try lia. apply excl_auth_update.
   Qed.
 
   Lemma Ticket_alloc γt D new l
@@ -114,27 +139,29 @@ Section Ticket.
     Ticket_black γt D ⊢ |==> Ticket_black γt (D ∪ {[new]}) ∗ Ticket_issued γt new l ∗ Ticket_wait γt new l.
   Proof.
     iIntros "TB". unfold Ticket_black, Ticket_issued, Ticket_wait.
-    assert (URA.updatable (Ticket_black_ra γt D)
-      (Ticket_black_ra γt (D ∪ {[new]}) ⋅ Ticket_issued_ra γt new l ⋅ Ticket_wait_ra γt new l)).
-    { unfold Ticket_black_ra, Ticket_issued_ra, Ticket_wait_ra. do 2 setoid_rewrite maps_to_res_add.
-      apply maps_to_updatable. ur. apply URA.prod_updatable.
-      etrans.
-      { apply Auth.auth_alloc2. instantiate (1:= (Some ({[new]}))). ur.
-        ur; des_ifs. set_solver. }
-      { setoid_rewrite <- URA.add_assoc. ur.
-        rewrite ! URA.unit_idl. ur. des_ifs; cycle 1. set_solver. set_solver. set_solver.
-        enough (({[new]} ∪ ∅ : gset nat) = {[new]}). rewrite H; auto. reflexivity. set_solver.
-      }
-      unfold AuExAny_ra, AuExAnyW_ra, AuExAnyB_ra, maps_to_res. apply pointwise_updatable. i. ur.
-      des_ifs; try (rewrite ! URA.unit_id); try (rewrite ! URA.unit_idl); try apply URA.updatable_unit.
-      { exploit n. set_solver. intros c; inv c. }
-      { ii. ur in H. des_ifs. des. ur. split. rewrite URA.unit_id. destruct H. exists x.
-        ur in H. des_ifs. ur. auto. ur. auto. }
-      { exploit n0. set_solver. intros C; inv C. }
-      ii. auto.
+    assert ((Ticket_black_ra γt D) ~~>
+      (Ticket_black_ra γt ({[new]} ∪ D) ⋅ Ticket_issued_ra γt new l ⋅ Ticket_wait_ra γt new l)).
+    { rewrite !discrete_fun_singleton_op.
+      apply discrete_fun_singleton_update,prod_update; simpl.
+      - etrans.
+        { apply auth_update_alloc,gset_disj_alloc_empty_local_update,
+            disjoint_singleton_l,NOTIN.
+        }
+        { rewrite <-(assoc (⋅)). rewrite -auth_frag_op right_id. reflexivity. }
+      - rewrite /AuExAny_ra /AuExAnyW_ra /AuExAnyB_ra /AuthExcls.rest_ra /AuthExcls.white_ra /AuthExcls.black_ra -assoc discrete_fun_singleton_op.
+        apply discrete_fun_update => U.
+        rewrite !discrete_fun_lookup_op.
+        des_ifs; destruct (decide (new = U)) as [<-|];
+          rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //=.
+        { exfalso. clear -n e. rewrite not_elem_of_union in n. des. set_solver. }
+        { rewrite left_id. apply excl_auth_update. }
+        { exfalso. clear -n0 n e. set_solver. }
+        { exfalso. clear -NOTIN n0. set_solver. }
     }
     iMod (OwnM_Upd with "TB") as "[[TB TI] TW]". apply H.
     iModIntro. iFrame.
+    replace (D ∪ {[new]}) with ({[new]} ∪ D) by set_solver.
+    done.
   Qed.
 
   Lemma Ticket_return γt D old l
@@ -143,35 +170,45 @@ Section Ticket.
   Proof.
     iIntros "TB IS WA".
     unfold Ticket_black, Ticket_issued, Ticket_wait.
-    iCombine "TB" "IS" as "TB". iCombine "TB" "WA" as "TB".
-    assert (URA.updatable (Ticket_black_ra γt D ⋅ Ticket_issued_ra γt old l ⋅ Ticket_wait_ra γt old l)
-      (Ticket_black_ra γt (D ∖ {[old]}))).
-    { unfold Ticket_black_ra, Ticket_issued_ra, Ticket_wait_ra. do 2 setoid_rewrite maps_to_res_add.
-      apply maps_to_updatable. ur. apply URA.prod_updatable.
-      ur. rewrite URA.unit_idl. ur. des_ifs. 2:{ set_solver. }
-      ii. ur in H. des_ifs. des. destruct H. ur in H. des_ifs. ur in H. des_ifs.
-      ur. split. exists (Some g0). rewrite URA.unit_idl. ur. des_ifs. 2:{ set_solver. }
-      f_equal. set_solver. ur. auto.
-      unfold AuExAny_ra, AuExAnyW_ra, AuExAnyB_ra, maps_to_res. apply pointwise_updatable. i. ur.
-      des_ifs; try (rewrite ! URA.unit_id); try (rewrite ! URA.unit_idl); try apply URA.updatable_unit.
-      { ur. rewrite URA.unit_id. ii. ur in H. des_ifs. des. ur in H. des_ifs; destruct H; ur in H; des_ifs.
-        ur. split; ur; auto. exists URA.unit. ur. des_ifs. }
-      { exploit n0. set_solver. intros C; inv C. }
-      { ii. ur in H. des_ifs. }
-      { reflexivity. }
+    iCombine "TB IS WA" as "TB".
+    iMod (OwnM_Upd with "TB") as "$"; [|done].
+    rewrite !discrete_fun_singleton_op.
+    apply discrete_fun_singleton_update,prod_update; simpl in *.
+    { rewrite -auth_frag_op right_id.
+      apply auth_update_dealloc,gset_disj_dealloc_local_update.
     }
-    iMod (OwnM_Upd with "TB") as "TB". apply H. done.
+    rewrite discrete_fun_singleton_op.
+    unfold AuExAny_ra, AuExAnyW_ra, AuExAnyB_ra. apply discrete_fun_update. i.
+    rewrite /AuthExcls.rest_ra !discrete_fun_lookup_op.
+    des_ifs; destruct (decide (old = a)) as [<-|];
+          rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //=.
+    { exfalso. clear -e0. set_solver. }
+    { rewrite left_id. apply excl_auth_update. }
+    { exfalso. clear -e n n0. set_solver. }
+    { exfalso. clear -e. set_solver. }
+    { exfalso. clear -n e n0. set_solver. }
+    { clear.
+      rewrite assoc. setoid_rewrite <-(assoc (⋅) (●E _)).
+      apply cmra_discrete_total_update => ? WF.
+      by apply cmra_valid_op_l, cmra_valid_op_l,
+        cmra_valid_op_r,excl_auth_frag_op_valid in WF.
+    }
   Qed.
 
   Lemma Ticket_issued_wait γt tk l l' :
     Ticket_issued γt tk l -∗ Ticket_wait γt tk l' -∗ ⌜l = l'⌝.
   Proof.
-    iIntros "I W". unfold Ticket_issued, Ticket_wait, Ticket_issued_ra, Ticket_wait_ra.
-    iCombine "I" "W" as "IW". iPoseProof (OwnM_valid with "IW") as "%IW". setoid_rewrite maps_to_res_add in IW.
-    ur in IW. specialize (IW γt). unfold maps_to_res in IW. des_ifs. ur in IW. des.
-    ur in IW0. des. specialize (IW0 tk). unfold AuExAnyW_ra, AuExAnyB_ra, maps_to_res in IW0. des_ifs.
-    ur in Heq. inv Heq. inv Heq0. ur in IW0. des_ifs. des. destruct IW0. ur in H. des_ifs.
-    apply Any.upcast_inj in H. des. apply JMeq.JMeq_eq in EQ0. inv EQ0. iPureIntro; auto.
+    iIntros "I W".
+    iCombine "I W" gives %IW.
+    iPureIntro.
+    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid pair_valid /= in IW.
+
+    des.
+
+    rewrite discrete_fun_singleton_op discrete_fun_singleton_valid in IW0.
+
+    apply excl_auth_agree_L, Any.upcast_inj in IW0.
+    des. apply JMeq.JMeq_eq in EQ0. inv EQ0. done.
   Qed.
 
 End Ticket.
@@ -184,7 +221,7 @@ Section SPROP.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasTicket : @GRA.inG TicketRA Γ}.
-  Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat))%ra Γ}.
+  Context {AuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat)) Γ}.
 
   Definition s_ticket_auth {n} : sProp n :=
     (∃ (U : τ{nat, n}),

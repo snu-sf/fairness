@@ -286,7 +286,7 @@ Module KeyOrderedTypeLarge(O:OrderedTypeLarge).
 
    Lemma eqke_eqk : forall x x', eqke x x' -> eqk x x'.
    Proof.
-     unfold eqk, eqke; intuition.
+     unfold eqk, eqke; intuition auto with *.
    Qed.
 
   (* ltk ignore the second components *)
@@ -311,14 +311,14 @@ Module KeyOrderedTypeLarge(O:OrderedTypeLarge).
   Proof. auto with ordered_type. Qed.
 
   Lemma eqke_sym : forall e e', eqke e e' -> eqke e' e.
-  Proof. unfold eqke; intuition. Qed.
+  Proof. unfold eqke; intuition auto with *. Qed.
 
   Lemma eqk_trans : forall e e' e'', eqk e e' -> eqk e' e'' -> eqk e e''.
   Proof. eauto with ordered_type. Qed.
 
   Lemma eqke_trans : forall e e' e'', eqke e e' -> eqke e' e'' -> eqke e e''.
   Proof.
-    unfold eqke; intuition; [ eauto with ordered_type | congruence ].
+    unfold eqke; intuition auto with *; eauto with ordered_type; congruence.
   Qed.
 
   Lemma ltk_trans : forall e e' e'', ltk e e' -> ltk e' e'' -> ltk e e''.
@@ -329,7 +329,7 @@ Module KeyOrderedTypeLarge(O:OrderedTypeLarge).
 
   Lemma ltk_not_eqke : forall e e', ltk e e' -> ~eqke e e'.
   Proof.
-    unfold eqke, ltk; intuition; simpl in *; subst.
+    unfold eqke, ltk; intuition auto with *; simpl in *; subst.
     match goal with H : lt _ _, H1 : eq _ _ |- _ => exact (lt_not_eq H H1) end.
   Qed.
 
@@ -384,7 +384,7 @@ Module KeyOrderedTypeLarge(O:OrderedTypeLarge).
   Lemma InA_eqke_eqk :
      forall x m, InA eqke x m -> InA eqk x m.
   Proof.
-    unfold eqke; induction 1; intuition.
+    unfold eqke; induction 1; intuition auto with *.
   Qed.
   #[local]
   Hint Resolve InA_eqke_eqk : ordered_type.
@@ -475,19 +475,19 @@ Module KeyOrderedTypeLarge(O:OrderedTypeLarge).
   Proof.
     inversion 1 as [? H0].
     inversion_clear H0 as [? ? H1|]; eauto with ordered_type.
-    destruct H1; simpl in *; intuition.
+    destruct H1; simpl in *; intuition auto with *.
   Qed.
 
   Lemma In_inv_2 : forall k k' e e' l,
       InA eqk (k, e) ((k', e') :: l) -> ~ eq k k' -> InA eqk (k, e) l.
   Proof.
-   inversion_clear 1 as [? ? H0|? ? H0]; compute in H0; intuition.
+   inversion_clear 1 as [? ? H0|? ? H0]; compute in H0; intuition auto with *.
   Qed.
 
   Lemma In_inv_3 : forall x x' l,
       InA eqke x (x' :: l) -> ~ eqk x x' -> InA eqke x l.
   Proof.
-   inversion_clear 1 as [? ? H0|? ? H0]; compute in H0; intuition.
+   inversion_clear 1 as [? ? H0|? ? H0]; compute in H0; intuition auto with *.
   Qed.
 
  End Elt.

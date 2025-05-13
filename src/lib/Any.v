@@ -14,7 +14,7 @@ Module Type ANY.
   Parameter upcast_downcast: forall T (v: T), downcast (upcast v) = Some v.
   Parameter downcast_upcast: forall T (v: T) (a: t), downcast a = Some v -> <<CAST: upcast v = a>>.
   Parameter upcast_inj: forall A B (a: A) (b: B) (EQ: upcast a = upcast b),
-      <<EQ: A = B>> /\ <<EQ: a ~= b>>.
+      <<EQ: A = B>> /\ <<EQ: JMeq a b>>.
 
   Parameter pair: t -> t -> t.
   Parameter split: t -> option (t * t).
@@ -85,7 +85,7 @@ Module _Any: ANY.
         A B (a: A) (b: B)
         (EQ: upcast a = upcast b)
     :
-      <<EQ: A = B>> /\ <<EQ: a ~= b>>
+      <<EQ: A = B>> /\ <<EQ: JMeq a b>>
   .
   Proof. unfold upcast in *. simpl_depind. ss. Qed.
 

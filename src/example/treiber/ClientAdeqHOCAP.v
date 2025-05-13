@@ -1,11 +1,12 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
+From Fairness Require Import ucmra_list.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
-From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA AuthExclsRA ghost_excl ghost_map ghost_var.
+From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA ghost_excl ghost_map ghost_var.
 From Fairness.treiber Require Import SpecHOCAP ClientCode ClientSpecHOCAP.
 From Fairness Require Export ModSim ModAdequacy ModCloseSim ModAddSim.
 From Fairness Require Export FIFOSched SchedSim FIFOSched FIFOSchedSim.
@@ -37,7 +38,6 @@ Module TreiberClientCorrect.
         (* Additional RAs. *)
         memRA;
         Lifetime.t;
-        (AuthExcls.t (nat * nat));
         (ghost_mapURA nat maybe_null_ptr);
         (ghost_varURA (list SCMem.val));
         (ghost_exclURA unit)
@@ -56,14 +56,13 @@ Module TreiberClientCorrect.
   Local Instance _ARROWSHOTRA : GRA.inG ArrowShotRA Γ := GRA.InG Γ 9 eq_refl.
   Local Instance HasMemRA : GRA.inG memRA Γ := GRA.InG Γ 10 eq_refl.
   Local Instance HasLifetime : GRA.inG Lifetime.t Γ := GRA.InG Γ 11 eq_refl.
-  Local Instance HasAuthExcls : GRA.inG (AuthExcls.t (nat * nat)) Γ := GRA.InG Γ 12 eq_refl.
-  Local Instance HasGhostMap : GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ := GRA.InG Γ 13 eq_refl.
-  Local Instance HasGhostVar : GRA.inG (ghost_varURA (list SCMem.val)) Γ := GRA.InG Γ 14 eq_refl.
-  Local Instance HasGhostExcl : GRA.inG (ghost_exclURA unit) Γ := GRA.InG Γ 15 eq_refl.
+  Local Instance HasGhostMap : GRA.inG (ghost_mapURA nat maybe_null_ptr) Γ := GRA.InG Γ 12 eq_refl.
+  Local Instance HasGhostVar : GRA.inG (ghost_varURA (list SCMem.val)) Γ := GRA.InG Γ 13 eq_refl.
+  Local Instance HasGhostExcl : GRA.inG (ghost_exclURA unit) Γ := GRA.InG Γ 14 eq_refl.
 
   Local Instance TLRASs : TLRAs_small STT Γ := Build_TLRAs_small STT Γ _ _ _ _ _ _ _ _ _ _.
 
-  Local Instance Σ : GRA.t:=
+  Definition Σ : GRA.t :=
     GRA.of_list [
         (* Default RAs. *)
         OwnERA;
@@ -79,12 +78,11 @@ Module TreiberClientCorrect.
         (* Additional RAs. *)
         memRA;
         Lifetime.t;
-        (AuthExcls.t (nat * nat));
         (ghost_mapURA nat maybe_null_ptr);
         (ghost_varURA (list SCMem.val));
         (ghost_exclURA unit);
         (* Maps from empty RAs of Γ. *)
-        (of_RA.t RA.empty);
+        (optionUR Empty_setR);
         (* Default RAs depending on sProp. *)
         (IInvSetRA sProp);
         (ArrowRA id_tgt_type (Vars:=sProp));
@@ -92,23 +90,20 @@ Module TreiberClientCorrect.
       ].
 
   Local Program Instance sub : SRA.subG Γ Σ :=
-    { subG_map := fun i => if (le_lt_dec i 15) then i else 16 }.
+    { subG_map := fun i => if (le_lt_dec i 14) then i else 15 }.
   Next Obligation.
     i. ss. unfold Σ, Γ. des_ifs.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
-    - unfold GRA.of_list. simpl. des_ifs. all: lia.
   Qed.
 
-  Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := GRA.InG Σ 17 eq_refl.
-  Local Instance _ARROWRA : GRA.inG (ArrowRA id_tgt_type) Σ := GRA.InG Σ 18 eq_refl.
-  Local Instance _SHAREDUTY : GRA.inG (ShareDutyRA id_tgt_type) Σ := GRA.InG Σ 19 eq_refl.
+  Local Instance _IINVSETRA : GRA.inG (IInvSetRA sProp) Σ := GRA.InG Σ 16 eq_refl.
+  Local Instance _ARROWRA : GRA.inG (ArrowRA id_tgt_type) Σ := GRA.InG Σ 17 eq_refl.
+  Local Instance _SHAREDUTY : GRA.inG (ShareDutyRA id_tgt_type) Σ := GRA.InG Σ 18 eq_refl.
 
   Local Instance TLRAs : TLRAs STT Γ Σ := Build_TLRAs STT Γ Σ _ _ _.
 
   (* Additional initial resources. *)
-  Local Definition init_res :=
-    (GRA.embed (memory_init_resource TreiberClient.gvs))
-      ⋅ (GRA.embed (AuthExcls.rest_ra (gt_dec 0) (0, 0))).
+  Local Definition init_res : Σ :=
+    (GRA.embed (memory_init_resource TreiberClient.gvs)).
 
   Arguments wpsim_bind_top {_ _ _ _ _ _}.
   Arguments wpsim_wand {_ _ _ _ _ _}.
@@ -125,18 +120,13 @@ Module TreiberClientCorrect.
       { unfold init_res, default_initial_res. disj_tac. }
       { ndtac. }
       { unfold init_res. grawf_tac.
-        { apply memory_init_resource_wf. }
-        { ur. i. ur. split.
-          { rewrite URA.unit_idl. exists ε. rewrite URA.unit_id. auto. }
-          { ur. clarify. }
-        }
+        apply memory_init_resource_wf.
       }
     }
-    unfold init_res. repeat rewrite <- GRA.embed_add.
+    unfold init_res.
     exists 2, 1. exists. lia.
-    eexists _. iIntros "(A & INIT)".
-    iDestruct (init_sat 0 1 with "[A INIT]") as "RES"; [ss| |].
-    { simpl. iFrame. iDestruct "A" as "[A B]". iSplitL "A"; iFrame. }
+    eexists _. iIntros "(A & INIT)". rewrite -OwnM_uPred_ownM_eq.
+    iDestruct (init_sat 0 1 with "[$A $INIT]") as "RES"; [ss|].
 
     iEval (rewrite red_syn_fairI) in "RES". simpl. iMod "RES".
     iDestruct "RES" as (?????) "(TGTST & #IsT & #CInv & Tpush & Dpush & Pc_kt_push & Pc_k_push & live_k & #Act_k & Tok & Pc_kt_pop & Tpop & Dpop)".
@@ -152,7 +142,7 @@ Module TreiberClientCorrect.
       iApply ("RES" with "[-]"). iClear "RES".
       rewrite red_syn_tgt_interp_as. simpl. iFrame "∗#".
     }
-    iSplit; [|done].
+    rewrite right_id.
     { iDestruct (TreiberClient_pop_sim _ _ γk k kt γs γpop) as "RES".
       simpl. red_tl_all.
       iEval (rewrite red_syn_wpsim) in "RES".

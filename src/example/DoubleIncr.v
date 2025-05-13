@@ -3,7 +3,7 @@ From Paco Require Import paco.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic SCMemSpec Spinlock SpinlockSpec0.
 From Fairness Require Import AuthExclsRA OneShotsRA.
@@ -58,10 +58,6 @@ Section SPEC.
   (* spinlock namespaces *)
   Definition N_Spinlock_x : namespace := nroot .@ "Spinlock_x".
   Definition N_Spinlock_y : namespace := nroot .@ "Spinlock_y".
-  Lemma md_N_Spinlock_x_state_tgt : (↑N_Spinlock_x : coPset) ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
-  Lemma md_N_Spinlock_y_state_tgt : (↑N_Spinlock_y : coPset) ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
 
   (* sprop interpretation tactics *)
   Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_oneshots.
@@ -103,27 +99,27 @@ Section SPEC.
     iApply wpsim_tauR; rred2r.
     (* Lock x *)
     (* iApply (wpsim_yieldR2 with "[DUTY PCs]"). 3:iFrame. all: try lia. iIntros "DUTY CRED"; rred2r. *)
-    iPoseProof (pcs_decr _ _ 1 with "PCs") as "> [PCs2 PCs]"; first by apply le_n.
+    iPoseProof (pcs_decr 1 with "PCs") as "> [PCs2 PCs]"; first by apply le_n.
     iApply (Spinlock_lock_spec with "[] [PCx DUTY PCs2 PCsx] [-]").
-    { pose proof md_N_Spinlock_x_state_tgt. set_solver. }
+    { instantiate (1:=N_Spinlock_x). solve_ndisj. }
     { instantiate (1:=2). auto. }
-    { red_tl_all. rewrite red_syn_tgt_interp_as. repeat iSplit; auto. simpl. iFrame. }
+    { red_tl_all. rewrite red_syn_tgt_interp_as /=. repeat iSplit; auto. simpl. iFrame. }
     iIntros "_ LPOST".
     iEval (red_tl; simpl) in "LPOST"; iDestruct "LPOST" as (γκux) "LPOST".
     iEval (red_tl; simpl) in "LPOST"; iDestruct "LPOST" as (κux) "LPOST".
     iEval (red_tl_all; ss) in "LPOST"; iDestruct "LPOST" as "(LX & _ & DUTY & PCx)". rred2r.
     (* Yield *)
     iPoseProof (pc_split _ _ 1 with "PCx") as "[PCx2 PCx]".
-    iPoseProof (pc_drop _ 1 _ _ 8 with "[PCx2]") as "> PCx2"; ss.
+    iPoseProof (pc_drop _ 1 2 ltac:(lia) 8 with "[PCx2]") as "> PCx2"; ss.
     (* iPoseProof (pcs_decr _ _ 1 with "PCs") as "> [PCax PCs]"; first by apply le_n. *)
     iPoseProof (pcs_cons_fold _ 0 _ 1 with "[PCx2 PCs]") as "PCs"; iFrame.
     iApply (wpsim_yieldR2 with "[DUTY PCs]"). 3: iFrame; simpl; iFrame. all: try lia.
     iIntros "DUTY _ PCs"; rred2r; ss. iApply wpsim_tauR; rred2r.
     (* Lock y *)
-    iPoseProof (pcs_decr _ _ 1 with "PCs") as "> [PCs2 PCs]"; first by apply le_n.
+    iPoseProof (pcs_decr 1 with "PCs") as "> [PCs2 PCs]"; first by apply le_n.
     iPoseProof (pcs_cons_fold _ 0 _ 2 with "[PCx PCsy]") as "PCsy"; iFrame.
     iApply (Spinlock_lock_spec with "[] [PCy DUTY PCs2 PCsy] [-]").
-    { pose proof md_N_Spinlock_y_state_tgt. set_solver. }
+    { instantiate (1:=N_Spinlock_y). solve_ndisj. }
     { instantiate (1:=1). auto. }
     { red_tl_all. rewrite red_syn_tgt_interp_as. repeat iSplit; auto. simpl.
       iSplitL "PCy"; [iFrame|]. iSplitL "DUTY"; [iFrame|]. iSplitL "PCsy"; iFrame.
@@ -132,7 +128,7 @@ Section SPEC.
     iEval (red_tl; simpl) in "LPOST"; iDestruct "LPOST" as (γκuy) "LPOST".
     iEval (red_tl; simpl) in "LPOST"; iDestruct "LPOST" as (κuy) "LPOST".
     iEval (red_tl_all; ss) in "LPOST"; iDestruct "LPOST" as "(LY & _ & DUTY & PCy)". rred2r.
-    iPoseProof (pcs_decr _ _ 2 with "PCs") as "> [PCay PCs]"; first by apply le_n.
+    iPoseProof (pcs_decr 2 with "PCs") as "> [PCay PCs]"; first by apply le_n.
     (* Yield *)
     iPoseProof (pcs_cons_fold _ 0 _ 1 with "[PCy PCs]") as "PCs"; iFrame.
     iApply (wpsim_yieldR2 with "[DUTY PCs]"). 3: iFrame; simpl; iFrame. all: try lia.
@@ -155,7 +151,7 @@ Section SPEC.
     iIntros "DUTY _ PCs"; rred2r; ss. iApply wpsim_tauR; rred2r.
     (* Unlock y *)
     iApply (Spinlock_unlock_spec with "[DUTY LY PCs]").
-    { pose proof md_N_Spinlock_y_state_tgt. set_solver. }
+    { instantiate (1:=N_Spinlock_y). solve_ndisj. }
     { iEval (red_tl_all; rewrite red_syn_tgt_interp_as; simpl). iFrame. simpl. iFrame. iSplit; auto. }
     iIntros (_) "DUTY". iEval (red_tl; simpl) in "DUTY". rred2r.
     (* Yield *)
@@ -163,12 +159,11 @@ Section SPEC.
     iIntros "DUTY _ PCs"; rred2r; ss. iApply wpsim_tauR; rred2r.
     (* Unlock x *)
     iApply (Spinlock_unlock_spec with "[DUTY LX PCs]").
-    { pose proof md_N_Spinlock_x_state_tgt. set_solver. }
+    { instantiate (1:=N_Spinlock_x). solve_ndisj. }
     { iEval (red_tl_all; rewrite red_syn_tgt_interp_as; simpl). iFrame. simpl. iFrame. iSplit; auto. }
     iIntros (_) "DUTY". iEval (red_tl; simpl) in "DUTY". rred2r.
     (* POST *)
     iApply ("POST" with "[-]"); iFrame.
-  Unshelve. lia.
   Qed.
 
 End SPEC.

@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 From stdpp Require Import decidable.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind.
+From Fairness Require Export ITreeLib WFLibLarge FairBeh Mod pind.
 
 Set Implicit Arguments.
 
@@ -14,7 +14,7 @@ Module SCMem.
     | val_ptr (p: pointer)
   .
 
-  Let ident := val.
+  Definition ident := val.
 
   Definition unwrap_ptr (v: val): option pointer :=
     match v with
@@ -363,59 +363,63 @@ Coercion SCMem.val_ptr : SCMem.pointer >-> SCMem.val.
 
 (** RA for SCMem. *)
 
-From Fairness Require Import PCM IProp IPM IPropAux MonotoneRA Axioms cmra dfrac lib.dfrac_agree.
+From iris.algebra Require Import cmra updates lib.gmap_view functions.
+From iris.algebra Require Export dfrac.
+From Fairness Require Import PCM IPM IPropAux Axioms.
+
+(* TODO: Remove this *)
+Global Instance frame_exist_instantiate_disabled :
+  FrameInstantiateExistDisabled := {}.
 
 Section MEMRA.
-  Context `{heap_name : nat}.
-  Definition memRA: URA.t := (nat ==> nat ==> (of_RA.t (of_IrisRA.t (dfrac_agreeR SCMem.val))))%ra.
+  Definition memRA: ucmra := nat -d> nat -d> (gmap_viewUR unit (agreeR $ leibnizO SCMem.val)).
+
+  Notation val_to_mem_ra x := (to_agree (A:=leibnizO _) (x : SCMem.val)) (only parsing).
 
   Context `{MEMRA: @GRA.inG memRA Σ}.
+  Notation iProp := (iProp Σ) (only parsing).
 
   Definition memory_resource_black (m: SCMem.t): memRA :=
-    fun blk ofs =>
+    λ blk ofs,
       match m.(SCMem.contents) blk ofs with
-      | Some v => of_RA.to_ura (of_IrisRA.to_ra (to_frac_agree (1/4) v))
-      | None => of_RA.to_ura (of_IrisRA.to_ra (to_frac_agree 1 (0 : SCMem.val)))
+      | Some v => gmap_view_auth (DfracOwn 1) {[ () := val_to_mem_ra v]}
+      | None => gmap_view_auth (DfracOwn 1) {[ () := val_to_mem_ra 0 ]} ⋅
+                gmap_view_frag () (DfracOwn 1) (val_to_mem_ra 0)
       end.
 
-  Definition points_to_white (blk ofs: nat) (v: SCMem.val) (pers : bool) : memRA :=
-    fun blk' ofs' =>
-      if (PeanoNat.Nat.eq_dec blk' blk)
-      then if (PeanoNat.Nat.eq_dec ofs' ofs)
-           then of_RA.to_ura (of_IrisRA.to_ra (to_dfrac_agree (if pers then DfracDiscarded else DfracOwn (3/4)) v))
-           else URA.unit
-      else URA.unit
-  .
+  Definition points_to_white (blk ofs: nat) (v: SCMem.val) (dq : dfrac) : memRA :=
+    discrete_fun_singleton blk (discrete_fun_singleton ofs (gmap_view_frag () dq (val_to_mem_ra v))).
 
-  Fixpoint points_tos_white (blk ofs: nat) (vs: list SCMem.val) (pers : bool) : memRA :=
+  Fixpoint points_tos_white (blk ofs: nat) (vs: list SCMem.val) (dq : dfrac) : memRA :=
     match vs with
     | vhd::vtl =>
-        points_to_white blk ofs vhd pers ⋅ points_tos_white blk (ofs + 1) vtl pers
-    | [] => URA.unit
+        points_to_white blk ofs vhd dq ⋅ points_tos_white blk (ofs + 1) vtl dq
+    | [] => ε
     end
   .
 
 
-  Lemma points_tos_white_eq blk ofs vs pers blk' ofs'
+  Lemma points_tos_white_eq blk ofs vs dq blk' ofs'
     :
-    points_tos_white blk ofs vs pers blk' ofs' =
-      if (PeanoNat.Nat.eq_dec blk' blk)
+    points_tos_white blk ofs vs dq blk' ofs' ≡
+      if decide (blk = blk')
       then
-        if (Compare_dec.le_gt_dec ofs ofs')
+        if decide (ofs ≤ ofs')
         then
           match nth_error vs (ofs' - ofs) with
-          | Some v => of_RA.to_ura (of_IrisRA.to_ra (to_dfrac_agree (if pers then DfracDiscarded else DfracOwn (3/4)) v))
-          | _ => URA.unit
+          | Some v => gmap_view_frag () dq (val_to_mem_ra v)
+          | _ => ε
           end
-        else URA.unit
-      else URA.unit.
+        else ε
+      else ε.
   Proof.
     revert blk ofs blk' ofs'. induction vs; ss; i.
     { des_ifs; destruct (ofs' - ofs); ss. }
-    ur. ur. rewrite IHvs. unfold points_to_white.
-    destruct (PeanoNat.Nat.eq_dec blk' blk); ss.
-    2:{ r_solve. }
-    subst. destruct (PeanoNat.Nat.eq_dec ofs' ofs).
+    rewrite !discrete_fun_lookup_op IHvs /points_to_white.
+    destruct (decide (blk = blk')) as [->|];
+      rewrite ?discrete_fun_lookup_singleton ?(discrete_fun_lookup_singleton_ne blk) //=.
+    destruct (decide (ofs = ofs')) as [->|];
+      rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne ?left_id //=.
     { subst. des_ifs; try by exfalso; lia.
       all: rewrite PeanoNat.Nat.sub_diag in Heq; ss.
       all: inv Heq; r_solve.
@@ -429,63 +433,62 @@ Section MEMRA.
   Definition memory_black (m: SCMem.t): iProp :=
     OwnM (memory_resource_black m) ∧ ⌜SCMem.wf m⌝.
 
-  Definition points_to (p: SCMem.val) (v: SCMem.val) pers: iProp :=
+  Definition points_to (p: SCMem.val) (v: SCMem.val) dq: iProp :=
     match p with
-    | SCMem.val_ptr (blk, ofs) => OwnM (points_to_white blk ofs v pers)
+    | SCMem.val_ptr (blk, ofs) => OwnM (points_to_white blk ofs v dq)
     | _ => False
     end.
 
-  Fixpoint points_tos (p: SCMem.val) (vs: list SCMem.val) pers: iProp :=
+  Fixpoint points_tos (p: SCMem.val) (vs: list SCMem.val) dq: iProp :=
     match vs with
     | vhd::vtl =>
-        points_to p vhd pers ∗ points_tos (SCMem.val_add p 1) vtl pers
+        points_to p vhd dq ∗ points_tos (SCMem.val_add p 1) vtl dq
     | [] => True
     end.
 
-  Lemma points_tos_to_resource blk ofs vs pers
+  Lemma points_tos_to_resource blk ofs vs dq
     :
-    (OwnM (points_tos_white blk ofs vs pers))
+    (OwnM (points_tos_white blk ofs vs dq))
       -∗
-      (points_tos (SCMem.val_ptr (blk, ofs)) vs pers).
+      (points_tos (SCMem.val_ptr (blk, ofs)) vs dq).
   Proof.
     revert blk ofs. induction vs; ss; i.
-    { auto. }
+    { iIntros "_". iPureIntro. auto. }
     iIntros "[H0 H1]".
     iPoseProof (IHvs with "H1") as "H1". iFrame.
   Qed.
 
-  Lemma resource_to_points_to blk ofs vs pers
+  Lemma resource_to_points_to blk ofs vs dq
     :
-    (points_tos (SCMem.val_ptr (blk, ofs)) vs pers)
+    (points_tos (SCMem.val_ptr (blk, ofs)) vs dq)
       -∗
-      (OwnM (points_tos_white blk ofs vs pers)).
+      (OwnM (points_tos_white blk ofs vs dq)).
   Proof.
-    revert blk ofs. induction vs; ss; i.
-    { iIntros "_". iPoseProof (@OwnM_unit _ _ MEMRA) as "H". auto. }
-    iIntros "[H0 H1]". iSplitL "H0"; auto.
-    iApply IHvs. auto.
+    apply bi.entails_wand. revert blk ofs. induction vs; ss; i.
+    { apply OwnM_unit. }
+    rewrite IHvs OwnM_op //.
   Qed.
 
   Definition memory_empty_resource: memRA :=
     memory_resource_black SCMem.empty.
 
-  Lemma memory_empty_wf: URA.wf memory_empty_resource.
+  Lemma memory_empty_wf: ✓ memory_empty_resource.
   Proof.
-    ur. i. ur. i. ur. unfold memory_empty_resource.
-    ur. split; ss. apply agree.to_agree_valid.
+    intros blk ofs. rewrite /memory_empty_resource /memory_resource_black.
+    simpl. apply gmap_view_both_valid. done.
   Qed.
 
 
   Fixpoint init_points_tos_resource (nb: nat) (l: list nat): memRA :=
     match l with
-    | [] => URA.unit
+    | [] => ε
     | sz::tl =>
-        points_tos_white (nb + length tl) 0 (repeat (SCMem.val_nat 0) sz) false ⋅ init_points_tos_resource nb tl
+        points_tos_white (nb + length tl) 0 (repeat (SCMem.val_nat 0) sz) (DfracOwn 1) ⋅ init_points_tos_resource nb tl
     end.
 
   Fixpoint init_points_tos (l: list nat) (vs: list SCMem.val): iProp :=
     match l, vs with
-    | sz::tl, vhd::vtl => points_tos vhd (repeat (SCMem.val_nat 0) sz) false ∗ init_points_tos tl vtl
+    | sz::tl, vhd::vtl => points_tos vhd (repeat (SCMem.val_nat 0) sz) (DfracOwn 1) ∗ init_points_tos tl vtl
     | [], [] => True
     | _, _ => False
     end.
@@ -493,46 +496,33 @@ Section MEMRA.
   Definition memory_init_resource (l: list nat): memRA :=
     memory_resource_black (SCMem.init_mem l) ⋅ init_points_tos_resource 0 l.
 
-  Lemma pointwise_updatabable M K (a b: URA.pointwise K M)
-        (POINTWISE: forall k, URA.updatable (a k) (b k))
-    :
-    URA.updatable a b.
-  Proof.
-    ii. ur. ur in H. i. eapply POINTWISE; eauto.
-  Qed.
-
   Lemma memory_alloc_updatable m0 sz m1 p
         (ALLOC : SCMem.alloc m0 sz = (m1, p))
         (WF : SCMem.wf m0)
     :
-    URA.updatable (memory_resource_black m0)
-                  (memory_resource_black m1 ⋅ points_tos_white (SCMem.next_block m0) 0 (repeat (SCMem.val_nat 0) sz) false).
+      (memory_resource_black m0) ~~>
+      (memory_resource_black m1 ⋅ points_tos_white (SCMem.next_block m0) 0 (repeat (SCMem.val_nat 0) sz) (DfracOwn 1)).
   Proof.
-    eapply pointwise_updatabable. i.
-    eapply pointwise_updatabable. i.
-    ur. ur. rewrite points_tos_white_eq.
+    eapply discrete_fun_update. i.
+    eapply discrete_fun_update. i.
+    rewrite !discrete_fun_lookup_op points_tos_white_eq.
     unfold SCMem.alloc in ALLOC. inv ALLOC.
     unfold memory_resource_black. ss. des_ifs; try by exfalso; lia.
     { eapply WF in Heq. lia. }
     { eapply WF in Heq. lia. }
-    { rewrite URA.unit_id. reflexivity. }
     { eapply WF in Heq. lia. }
     { eapply WF in Heq. lia. }
     { rewrite PeanoNat.Nat.sub_0_r in Heq1.
-      hexploit nth_error_repeat; eauto. rewrite Heq1. i. clarify.
-      ur. rewrite -frac_agree_op.
-      by rewrite Qp.quarter_three_quarter.
+      hexploit nth_error_repeat; eauto. erewrite Heq1. i. clarify.
     }
     { rewrite PeanoNat.Nat.sub_0_r in Heq1.
-      hexploit nth_error_repeat; eauto. rewrite Heq1. i. clarify.
+      hexploit nth_error_repeat; eauto. erewrite Heq1. i. clarify.
     }
     { rewrite PeanoNat.Nat.sub_0_r in Heq1.
-      assert (LT: k0 < length (repeat (SCMem.val_nat 0) sz)).
+      assert (LT: a0 < length (repeat (SCMem.val_nat 0) sz)).
       { eapply nth_error_Some. rewrite Heq1. ss. }
       rewrite repeat_length in LT. lia.
     }
-    { rewrite URA.unit_id. reflexivity. }
-    { rewrite URA.unit_id. reflexivity. }
   Qed.
 
   Lemma memory_ra_alloc m0 sz m1 p
@@ -540,10 +530,10 @@ Section MEMRA.
     :
     (memory_black m0)
       -∗
-      (#=> (memory_black m1 ∗ points_tos p (repeat (SCMem.val_nat 0) sz) false)).
+      (#=> (memory_black m1 ∗ points_tos p (repeat (SCMem.val_nat 0) sz) (DfracOwn 1))).
   Proof.
     unfold memory_black. iIntros "[BLACK %WF]".
-    iAssert (#=> (OwnM (memory_resource_black m1 ⋅ points_tos_white (m0.(SCMem.next_block)) 0 (repeat (SCMem.val_nat 0) sz) false))) with "[BLACK]" as "> [BLACK WHITE]".
+    iAssert (#=> (OwnM (memory_resource_black m1 ⋅ points_tos_white (m0.(SCMem.next_block)) 0 (repeat (SCMem.val_nat 0) sz) (DfracOwn 1)))) with "[BLACK]" as "> [BLACK WHITE]".
     { iApply (OwnM_Upd with "BLACK").
       eapply memory_alloc_updatable; eauto.
     }
@@ -558,39 +548,42 @@ Section MEMRA.
         (WF : SCMem.wf m0)
         (PTR : SCMem.unwrap_ptr p = Some (ofs, blk))
     :
-    URA.updatable (memory_resource_black m0 ⋅ points_to_white ofs blk v false)
-                  (memory_resource_black m1).
+    (memory_resource_black m0 ⋅ points_to_white ofs blk v (DfracOwn 1))
+    ~~> (memory_resource_black m1).
   Proof.
-    do 2 (eapply pointwise_updatabable; i). ur. ur.
+    do 2 (eapply discrete_fun_update; i).
+    rewrite !discrete_fun_lookup_op.
     unfold SCMem.free, SCMem.has_permission in FREE. unfold memory_resource_black, points_to_white.
-    des_ifs; ss; des_ifs.
-    { ur. apply of_RA.to_ura_updatable,of_IrisRA.to_ra_updatable.
-      apply frac_agree_update_combine,Qp.quarter_three_quarter.
-    }
-    { rewrite URA.unit_id. ss. }
-    { rewrite URA.unit_id. ss. }
-    { rewrite URA.unit_id. ss. }
-    { rewrite URA.unit_id. ss. }
+    des_ifs; ss; des_ifs; clarify;
+    rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //.
+    etrans.
+    { apply gmap_view_delete. }
+    rewrite delete_singleton. etrans.
+    { eapply (gmap_view_alloc _ () (DfracOwn 1) (to_agree _)); auto; done. }
+    rewrite insert_empty. reflexivity.
   Qed.
 
   Lemma memory_ra_free m0 p v
     :
-    (memory_black m0 ∗ points_to p v false)
+    (memory_black m0 ∗ points_to p v (DfracOwn 1))
       -∗
       (∃ m1, ⌜SCMem.free m0 p = Some m1⌝ ∗ #=> memory_black m1).
   Proof.
     iIntros "[[MB %WF] PTS]".
     unfold memory_black, points_to. des_ifs.
-    iCombine "MB PTS" as "OWN". iOwnWf "OWN".
-    ur in H. specialize (H n). ur in H. specialize (H n0).
-    unfold memory_resource_black, points_to_white in H. des_ifs.
-    2:{ ur in H. rr in H. des. by apply Qp.not_add_le_l in H. }
+    iCombine "MB PTS" as "OWN". iDestruct (OwnM_valid with "OWN") as %H.
+    specialize (H n n0).
+    unfold memory_resource_black, points_to_white in H.
+    rewrite !discrete_fun_lookup_op !discrete_fun_lookup_singleton in H. des_ifs.
+    2:{ exfalso. rewrite -(assoc (⋅)) in H.
+        apply cmra_valid_op_r, gmap_view_frag_op_valid in H.
+        des. done.
+    }
     remember (SCMem.free _ _) as m1 eqn:FREE. pose proof FREE as FREE'. revert FREE'.
     unfold SCMem.free, SCMem.has_permission in FREE. ss. des_ifs. remember (SCMem.mk _ _) as m1. i.
     iExists m1. iSplit; eauto.
-    iAssert (#=> (OwnM (memory_resource_black m1))) with "[OWN]" as "> RB".
-    { iApply (OwnM_Upd with "OWN").
-      eapply memory_free_updatable; eauto. }
+    iMod (OwnM_Upd with "OWN") as "RB".
+    { eapply memory_free_updatable; eauto. }
     iModIntro. iFrame. iPureIntro. ii. unfold SCMem.free in FREE'.
     des_ifs; ss; des_ifs; eapply WF in SOME; eauto.
   Qed.
@@ -625,12 +618,12 @@ Section MEMRA.
       des_ifs. ss. des_ifs. eapply IHl in SOME; eauto.
     }
     unfold SCMem.init_gvars.
-    iStopProof. change 0 with (SCMem.next_block SCMem.empty).
-    generalize (SCMem.empty). induction l; i; ss.
-    { auto. }
-    des_ifs. ss. inv Heq. iIntros "[POINT OWN]".
+    replace 0 with (SCMem.next_block SCMem.empty); [|done].
+    move: SCMem.empty => t.
+    iInduction (l) as [|i l] "IHl" forall (t); ss.
+    des_ifs. ss. inv Heq. iDestruct "WHITE" as "[POINT OWN]".
     change (S (SCMem.next_block t)) with (SCMem.next_block (fst (SCMem.alloc t a))).
-    iPoseProof (IHl with "OWN") as "OWN". rewrite Heq0. ss. iFrame.
+    iPoseProof ("IHl" with "OWN") as "OWN". rewrite Heq0. ss. iFrame.
     iPoseProof (points_tos_to_resource with "POINT") as "POINT".
     replace (SCMem.next_block t0) with (SCMem.next_block t + length l); auto.
     eapply initialize_next_block in Heq0. lia.
@@ -638,63 +631,64 @@ Section MEMRA.
 
   Lemma memory_init_resource_wf l
     :
-    URA.wf (memory_init_resource l).
+    ✓ (memory_init_resource l).
   Proof.
-    assert (URA.updatable memory_empty_resource (memory_init_resource l)).
-    2:{ exploit (H URA.unit); rewrite URA.unit_id; auto. eapply memory_empty_wf. }
-    unfold memory_init_resource.
-    unfold memory_empty_resource. unfold SCMem.init_mem.
+    assert (memory_empty_resource ~~> (memory_init_resource l)).
+    2:{ intros b o. rewrite cmra_discrete_total_update in H. exploit (H ε).
+        - rewrite right_id; auto; eapply memory_empty_wf.
+        - rewrite !discrete_fun_lookup_op. rewrite right_id. done.
+      }
+    unfold memory_init_resource, memory_empty_resource, SCMem.init_mem.
     change 0 with (SCMem.next_block SCMem.empty).
     cut (SCMem.wf SCMem.empty).
     2:{ ii. ss. }
     generalize SCMem.empty. induction l; i.
-    { ss. rewrite URA.unit_id. reflexivity. }
+    { ss. rewrite right_id. reflexivity. }
     { etransitivity; eauto. ss. des_ifs; ss.
-      rewrite URA.add_assoc. eapply URA.updatable_add; [|reflexivity].
+      rewrite (assoc (⋅)). eapply cmra_update_op; [|reflexivity].
       hexploit memory_alloc_updatable.
       { instantiate (2:=fst (SCMem.alloc _ _)).
         instantiate (1:=snd (SCMem.alloc _ _)). ss.
       }
       { eapply initialize_wf; eauto. }
-      i. etrans; eauto. eapply URA.updatable_add.
+      i. etrans; eauto. eapply cmra_update_op.
       { unfold SCMem.alloc. ss. reflexivity. }
       { eapply initialize_next_block in Heq. rewrite Heq. reflexivity. }
     }
     Unshelve. all: ss.
   Qed.
 
-  Lemma memory_ra_load m l v pers
+  Lemma memory_ra_load m l v dq
     :
     (memory_black m)
       -∗
-      (points_to l v pers)
+      (points_to l v dq)
       -∗
       (⌜SCMem.load m l = Some v /\ SCMem.has_permission m l = true⌝).
   Proof.
     iIntros "[BLACK %WF] WHITE".
     unfold memory_black, points_to. des_ifs.
-    iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN".
-    ur in H. specialize (H n). ur in H. specialize (H n0).
-    unfold memory_resource_black, points_to_white in H. des_ifs.
-    { ur in H. iPureIntro.
-      apply dfrac_agree_op_valid in H. des. subst.
+    iCombine "BLACK WHITE" gives %H.
+    specialize (H n n0). rewrite !discrete_fun_lookup_op in H.
+    rewrite /memory_resource_black /points_to_white !discrete_fun_lookup_singleton in H. des_ifs.
+    { iPureIntro.
+      apply gmap_view_both_dfrac_valid_discrete_total in H as [? (_&_&In&_&Ag)].
+      rewrite lookup_singleton in In. inv In.
+      apply to_agree_included_L in Ag as <-.
       splits; auto.
       unfold SCMem.has_permission. ss. rewrite Heq. ss.
     }
-    { ur in H. iPureIntro.
-      apply dfrac_agree_op_valid in H. des. subst.
-      splits; auto.
-      unfold SCMem.has_permission. ss. rewrite Heq. ss.
+    { exfalso. rewrite -(assoc (⋅)) in H.
+      apply cmra_valid_op_r,gmap_view_frag_op_valid in H.
+      des. apply exclusive_l in H; [done|apply _].
     }
-    { ur in H. apply dfrac_agree_op_valid in H. des. subst. des_ifs. }
-    { ur in H. apply dfrac_agree_op_valid in H. des. subst. des_ifs. }
   Qed.
 
-  Lemma memory_ra_has_permission m l v pers
+  Lemma memory_ra_has_permission m l v dq
     :
     (memory_black m)
       -∗
-      (points_to l v pers)
+      (points_to l v dq)
       -∗
       (⌜SCMem.has_permission m l = true⌝).
   Proof.
@@ -706,27 +700,35 @@ Section MEMRA.
     :
     (memory_black m0)
       -∗
-      (points_to l v0 false)
+      (points_to l v0 (DfracOwn 1))
       -∗
       ∃ m1,
         ((⌜SCMem.store m0 l v1 = Some m1⌝)
-           ∗ #=> (memory_black m1 ∗ points_to l v1 false)).
+           ∗ #=> (memory_black m1 ∗ points_to l v1 (DfracOwn 1))).
   Proof.
     iIntros "[BLACK %WF] WHITE".
     unfold memory_black, points_to. des_ifs.
-    iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN".
-    ur in H. specialize (H n). ur in H. specialize (H n0).
-    unfold memory_resource_black, points_to_white in H. des_ifs.
-    2:{ ur in H. apply dfrac_agree_op_valid in H. des. done. }
+    iCombine "BLACK WHITE" gives %H.
+    specialize (H n n0).
+    rewrite !discrete_fun_lookup_op /memory_resource_black /points_to_white !discrete_fun_lookup_singleton in H.
+    des_ifs.
+    2:{ exfalso. rewrite -(assoc (⋅)) in H.
+        apply cmra_valid_op_r,gmap_view_frag_op_valid in H.
+        des. apply exclusive_l in H; [done|apply _].
+      }
     unfold SCMem.store. ss. des_ifs. iExists _.
-    iSplit; eauto.
-    iAssert (#=> OwnM (memory_resource_black (SCMem.mem_update m0 n n0 v1) ⋅  points_to_white n n0 v1 false)) with "[OWN]" as "> [BLACK WHITE]".
-    { iApply (OwnM_Upd with "OWN").
-      apply pointwise_updatabable. i. ur.
-      apply pointwise_updatabable. i. ur.
-      unfold memory_resource_black, points_to_white. ss. des_ifs.
-      ur. apply of_RA.to_ura_updatable,of_IrisRA.to_ra_updatable.
-      apply frac_agree_update_2,Qp.quarter_three_quarter.
+    iSplitR; [iPureIntro; eauto|].
+    iAssert (#=> OwnM (memory_resource_black (SCMem.mem_update m0 n n0 v1) ⋅  points_to_white n n0 v1 (DfracOwn 1))) with "[BLACK WHITE]" as "> [BLACK WHITE]".
+    { iCombine "BLACK WHITE" as "OWN".
+      iApply (OwnM_Upd with "OWN").
+      apply discrete_fun_update. i.
+      apply discrete_fun_update. i.
+      rewrite !discrete_fun_lookup_op.
+      unfold memory_resource_black, points_to_white. ss. des_ifs;
+      rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //.
+      etrans.
+      { by eapply (gmap_view_replace _ _ _ (to_agree _)). }
+      rewrite insert_insert insert_empty //.
     }
     { ss. iModIntro. iFrame. iPureIntro.
       unfold SCMem.mem_update. ii. ss. des_ifs; eauto.
@@ -737,16 +739,16 @@ Section MEMRA.
     :
     (memory_black m0)
       -∗
-      (points_to l v false)
+      (points_to l v (DfracOwn 1))
       -∗
       ∃ m1,
         ((⌜SCMem.faa m0 l addend = Some (m1, v)⌝)
-           ∗ #=> (memory_black m1 ∗ points_to l (SCMem.val_add v addend) false)).
+           ∗ #=> (memory_black m1 ∗ points_to l (SCMem.val_add v addend) (DfracOwn 1))).
   Proof.
     iIntros "BLACK POINT". unfold SCMem.faa.
     iPoseProof (memory_ra_load with "BLACK POINT") as "%". des. rewrite H.
     iPoseProof (memory_ra_store with "BLACK POINT") as "[% [% H]]".
-    iExists m1. rewrite H1. iFrame. auto.
+    iExists m1. erewrite H1. iFrame. auto.
   Qed.
 
   Lemma memory_ra_compare_nat m n0 n1
@@ -756,11 +758,11 @@ Section MEMRA.
     ss.
   Qed.
 
-  Lemma memory_ra_compare_ptr_left m n l v pers
+  Lemma memory_ra_compare_ptr_left m n l v dq
     :
     (memory_black m)
       -∗
-      (points_to l v pers)
+      (points_to l v dq)
       -∗
       (⌜SCMem.compare m (SCMem.val_nat n) l = Some false⌝).
   Proof.
@@ -769,11 +771,11 @@ Section MEMRA.
     unfold SCMem.unwrap_ptr in H. des_ifs.
   Qed.
 
-  Lemma memory_ra_compare_ptr_right m n l v pers
+  Lemma memory_ra_compare_ptr_right m n l v dq
     :
     (memory_black m)
       -∗
-      (points_to l v pers)
+      (points_to l v dq)
       -∗
       (⌜SCMem.compare m l (SCMem.val_nat n) = Some false⌝).
   Proof.
@@ -782,11 +784,11 @@ Section MEMRA.
     unfold SCMem.compare, SCMem.val_compare. des_ifs.
   Qed.
 
-  Lemma memory_ra_compare_ptr_same m l v pers
+  Lemma memory_ra_compare_ptr_same m l v dq
     :
     (memory_black m)
       -∗
-      (points_to l v pers)
+      (points_to l v dq)
       -∗
       (⌜SCMem.compare m l l = Some true⌝).
   Proof.
@@ -795,14 +797,13 @@ Section MEMRA.
     unfold SCMem.compare, SCMem.val_compare. des_ifs.
   Qed.
 
-  (* Note: can be slightly more general, one of the points-to can be persistent. *)
-  Lemma memory_ra_compare_ptr_both m l0 v0 l1 v1
+  Lemma memory_ra_compare_ptr_both m l0 v0 l1 v1 dq
     :
     (memory_black m)
       -∗
-      (points_to l0 v0 false)
+      (points_to l0 v0 (DfracOwn 1))
       -∗
-      (points_to l1 v1 false)
+      (points_to l1 v1 dq)
       -∗
       (⌜SCMem.compare m l0 l1 = Some false⌝).
   Proof.
@@ -810,10 +811,10 @@ Section MEMRA.
     iPoseProof (memory_ra_load with "BLACK POINT0") as "%". des.
     iPoseProof (memory_ra_load with "BLACK POINT1") as "%". des.
     unfold SCMem.compare, SCMem.val_compare. des_ifs.
-    ss. des_ifs. iCombine "POINT0 POINT1" as "POINT". iOwnWf "POINT".
-    ur in H. ur in H. specialize (H n). specialize (H n0). ur in H.
-    unfold points_to_white in H. des_ifs. inv Heq1.
-    apply dfrac_agree_op_valid in H. des. done.
+    ss. des_ifs. iCombine "POINT0 POINT1" gives %H.
+    repeat rewrite discrete_fun_singleton_op discrete_fun_singleton_valid in H.
+    apply gmap_view_frag_op_valid in H. des.
+    apply exclusive_l in H; [done|apply _].
   Qed.
 
   Lemma memory_ra_compare_ptr_both_gen m l0 v0 l1 v1 p1 p2
@@ -844,14 +845,13 @@ Section MEMRA.
   Proof.
     iIntros "POINT0 POINT1". ss.
     destruct l as [n|[b o]]; ss.
-    iCombine "POINT0 POINT1" as "POINT". iOwnWf "POINT".
-    ur in H. ur in H. specialize (H b). specialize (H o). ur in H.
-    unfold points_to_white in H. des_ifs; clarify.
-    all: injection Heq0 as <-; injection Heq1 as <-.
-    all: rewrite dfrac_agree_op_valid in H; des; done.
+    iCombine "POINT0 POINT1" gives %H.
+    iPureIntro.
+    repeat rewrite discrete_fun_singleton_op discrete_fun_singleton_valid in H.
+    by apply gmap_view_frag_op_valid in H as [_ ?%to_agree_op_valid_L].
   Qed.
 
-  (* Lemma memory_ra_compare_ptr_both_pers_left m l0 v0 l1 v1
+  (* Lemma memory_ra_compare_ptr_both_dq_left m l0 v0 l1 v1
     :
     (memory_black m)
       -∗
@@ -873,39 +873,33 @@ Section MEMRA.
 
   (* Persistency lemmas *)
 
-  Global Instance points_to_pers_persistent l v : Persistent (points_to l v true).
-  Proof.
-    unfold points_to,points_to_white. des_ifs; try apply _.
-    unfold Persistent. iIntros "H".
-    iDestruct (own_persistent with "H") as "H".
-    (* simpl. *)
-    (* TODO: simpler proof? *)
-    assert ((URA.core ((λ blk' ofs' : nat, _) : memRA)) = λ blk' ofs' : nat, (
-                  if PeanoNat.Nat.eq_dec blk' n
-                  then
-                   if PeanoNat.Nat.eq_dec ofs' n0
-                   then of_RA.to_ura (of_IrisRA.to_ra (to_dfrac_agree DfracDiscarded v))
-                   else ε
-                  else ε)) as ->; [|done].
-    simpl. apply func_ext. intro blk'. apply func_ext. intro ofs'.
-    des_ifs.
-    - repeat f_equal. injection Heq as <-.
-      injection Heq1 as <-. done.
-    - injection Heq as <-. clarify.
-  Qed.
-  Global Instance points_tos_pers_persistent l vs : Persistent (points_tos l vs true).
-  Proof. revert l. induction vs; apply _. Qed.
+  (* TODO: remove after Iris bump to 4.3.0 *)
+  Local Hint Extern 100 (Persistent (match ?x with _ => _ end)) => destruct x : typeclass_instances.
 
-  Lemma points_to_persist l v :
-    (points_to l v false) ==∗ (points_to l v true).
+  Global Instance points_to_discarded_persistent l v : Persistent (points_to l v DfracDiscarded).
+  Proof. rewrite /points_to. apply _. Qed.
+  Global Instance points_tos_discarded_persistent l vs : Persistent (points_tos l vs DfracDiscarded).
+  Proof. revert l; induction vs; apply _. Qed.
+
+  Lemma points_to_persist l dq v :
+    points_to l v dq ⊢|==> points_to l v DfracDiscarded.
   Proof.
     unfold points_to,points_to_white. des_ifs.
-    { by iIntros (?). }
-    apply Own_Upd,GRA.embed_updatable.
-    apply pointwise_updatable=>blk'. apply pointwise_updatabable=>ofs'.
-    des_ifs.
-    apply of_RA.to_ura_updatable,of_IrisRA.to_ra_updatable.
-    apply dfrac_agree_persist.
+    { iIntros ([]). }
+    apply OwnM_Upd,
+      discrete_fun_singleton_update,
+      discrete_fun_singleton_update,
+      gmap_view_frag_persist.
+  Qed.
+  Lemma points_tos_persist l dq vs :
+    points_tos l vs dq ⊢|==> points_tos l vs DfracDiscarded.
+  Proof.
+    revert l. induction vs as [|v vs IH]; ss.
+    { intros. iPureIntro. ss. }
+    iIntros (l) "(l↦ & l↦s)".
+    iMod (points_to_persist with "l↦") as "$".
+    iMod (IH with "l↦s") as "$".
+    done.
   Qed.
 End MEMRA.
 
@@ -929,27 +923,27 @@ Section SPROP.
     unfold s_memory_black. red_tl. ss.
   Qed.
 
-  Definition s_points_to {n} (p: SCMem.val) (v: SCMem.val) pers : sProp n :=
+  Definition s_points_to {n} (p: SCMem.val) (v: SCMem.val) dq : sProp n :=
     match p with
-    | SCMem.val_ptr (blk, ofs) => (➢ (points_to_white blk ofs v pers))%S
+    | SCMem.val_ptr (blk, ofs) => (➢ (points_to_white blk ofs v dq))%S
     | _ => ⌜False⌝%S
     end.
 
-  Lemma red_s_points_to n p v pers :
-    ⟦s_points_to p v pers, n⟧ = points_to p v pers.
+  Lemma red_s_points_to n p v dq :
+    ⟦s_points_to p v dq, n⟧ = points_to p v dq.
   Proof.
     unfold s_points_to, points_to. des_ifs. red_tl. ss.
   Qed.
 
-  Fixpoint s_points_tos {n} (p: SCMem.val) (vs: list SCMem.val) pers : sProp n :=
+  Fixpoint s_points_tos {n} (p: SCMem.val) (vs: list SCMem.val) dq : sProp n :=
     match vs with
     | vhd::vtl =>
-        (s_points_to p vhd pers ∗ s_points_tos (SCMem.val_add p 1) vtl pers)%S
+        (s_points_to p vhd dq ∗ s_points_tos (SCMem.val_add p 1) vtl dq)%S
     | [] => ⌜True⌝%S
     end.
 
-  Lemma red_s_points_tos n p vs pers :
-    ⟦s_points_tos p vs pers, n⟧ = points_tos p vs pers.
+  Lemma red_s_points_tos n p vs dq :
+    ⟦s_points_tos p vs dq, n⟧ = points_tos p vs dq.
   Proof.
     revert p. induction vs; i; ss. red_tl. erewrite IHvs.
     f_equal. apply red_s_points_to.
@@ -968,16 +962,11 @@ Ltac red_tl_memra_s := (try setoid_rewrite red_s_memory_black;
                         try setoid_rewrite red_s_points_tos
                        ).
 
-Notation "l ↦{ pers } v" := (points_to l v pers) (at level 90, v at level 1) : bi_scope.
-Notation "l ↦{ pers } v" := (s_points_to l v pers) (at level 90, v at level 1) : sProp_scope.
-Notation "l ↦ v" := (points_to l v false) (at level 90, v at level 1) : bi_scope.
-Notation "l ↦ v" := (s_points_to l v false) (at level 90, v at level 1) : sProp_scope.
-Notation "l ↦□ v" := (points_to l v true) (at level 90, v at level 1) : bi_scope.
-Notation "l ↦□ v" := (s_points_to l v true) (at level 90, v at level 1) : sProp_scope.
-
-Notation "l ↦∗{ pers } vs" := (points_tos l vs pers) (at level 90, vs at level 1) : bi_scope.
-Notation "l ↦∗{ pers } vs" := (s_points_tos l vs pers) (at level 90, vs at level 1) : sProp_scope.
-Notation "l ↦∗ vs" := (points_tos l vs false) (at level 90, vs at level 1) : bi_scope.
-Notation "l ↦∗ vs" := (s_points_tos l vs false) (at level 90, vs at level 1) : sProp_scope.
-Notation "l ↦∗□ vs" := (points_tos l vs true) (at level 90, vs at level 1) : bi_scope.
-Notation "l ↦∗□ vs" := (s_points_tos l vs true) (at level 90, vs at level 1) : sProp_scope.
+Notation "l ↦ dq v" := (points_to l v dq)
+  (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : bi_scope.
+Notation "l ↦ dq v" := (s_points_to l v dq)
+  (at level 20, dq custom dfrac at level 1, format "l  ↦ dq  v") : sProp_scope.
+Notation "l ↦∗ dq vs" := (points_tos l vs dq)
+  (at level 20, dq custom dfrac at level 1, format "l  ↦∗ dq  vs") : bi_scope.
+Notation "l ↦∗ dq vs" := (s_points_tos l vs dq)
+  (at level 20, dq custom dfrac at level 1, format "l  ↦∗ dq  vs") : sProp_scope.

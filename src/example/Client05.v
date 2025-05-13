@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic SCMemSpec.
 From Fairness Require Import Spinlock SpinlockSpec0 AuthExclsRA ExclsRA OneShotsRA.
@@ -35,14 +35,14 @@ Module Client05.
                           _ <- Spinlock.unlock L;;
                           Ret (inl d))
                     else Ret (inr tt)) d.
-    
+
     Definition thread2 :
       ktree (threadE ident state) unit unit
       :=
       fun _ =>
         _ <- OMod.call (R:=unit) "store" (D, (SCMem.val_nat 1));;
         Ret tt.
-    
+
     Definition omod : Mod.t :=
       Mod.mk
         tt
@@ -165,7 +165,7 @@ Section SPEC.
     unfold fn2th. simpl. unfold thread1, Client05Spec.thread1. rred2r. lred2r.
 
     iRevert "TID PC DUTY".
-    iMod (tpromise_ind with "[] []") as "IH"; cycle 2. done.
+    iMod (tpromise_ind with "[] []") as "IH"; cycle 2. iApply "IH".
     { iSplit; auto. iExists 3; auto. }
     iModIntro. iIntros "IH". iModIntro. iIntros "TID PC DUTY".
 
@@ -298,7 +298,7 @@ Section SPEC.
     iInv "INV" as "TI" "TI_CLOSE". iEval (simpl; unfold client05Inv; red_tl_all; simpl) in "TI".
     iDestruct "TI" as "[[PEND' PTD] | [#SHOT _]]"; cycle 1.
     { iExFalso. iApply (OneShots.pending_not_shot with "PEND SHOT"). }
-    
+
     iPoseProof (OneShots.pending_merge _ (1/2) (1/2) with "PEND PEND'") as "PEND". rewrite Qp.half_half.
     iMod (OneShots.pending_shot with "PEND") as "#SHOT".
     iMod (duty_fulfill with "[DUTY]") as "DUTY".
@@ -309,7 +309,7 @@ Section SPEC.
     iIntros (rv) "PTD". rred2r. iApply wpsim_tauR. rred2r. lred2r.
     iMod ("TI_CLOSE" with "[PTD]") as "_".
     { unfold client05Inv; simpl; red_tl_all; simpl. iRight; auto. }
-    
+
     iApply wpsim_ret. auto. iModIntro. unfold term_cond; iFrame; iPureIntro; reflexivity.
   Qed.
 
@@ -328,8 +328,8 @@ Section SPEC.
     Let idx := 1.
 
     Lemma init_sat E (H_TID : tid1 <> tid2) :
-      (OwnM (memory_init_resource Client05.gvs))
-        ∗ (OwnM (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
+      (OwnM (Σ:=Σ) (memory_init_resource Client05.gvs))
+        ∗ (OwnM (Σ:=Σ) (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
         (* ∗ (OwnM (Excls.rest_ra (gt_dec 0) tt)) *)
         ∗
         (WSim.initial_prop
@@ -443,8 +443,8 @@ Section SPEC.
       } *)
       iModIntro. iExists γw, kw, γl. red_tl_all.
       rewrite red_syn_tgt_interp_as. unfold isSpinlock.
-      red_tl_all; rewrite ! red_syn_inv; simpl. repeat iSplit; auto.
-      iFrame. repeat iSplit; auto.
+      red_tl_all; rewrite ! red_syn_inv; simpl.
+      iFrame "#∗".
     Unshelve. auto.
     Qed.
 

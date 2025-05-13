@@ -1,27 +1,29 @@
+From iris.algebra Require Import cmra updates excl functions.
 From sflib Require Import sflib.
-From Fairness Require Import Any PCM IProp IPM IPropAux.
+From Fairness Require Import Any PCM IPM IPropAux.
 From Fairness Require Import TemporalLogic.
 
 
 Module Excls.
 
-  Definition t (A : Type) : URA.t := (nat ==> (Excl.t A))%ra.
+  Definition t (A : Type) : ucmra := nat -d> (optionUR $ exclR (leibnizO A)).
 
   Section RA.
 
     Context `{Σ : GRA.t}.
+    Notation iProp := (iProp Σ) (only parsing).
     (* Map from nat to Auth Excl A. *)
     Context `{HasExcls : @GRA.inG (t A) Σ}.
 
     Definition ex_ra (r : nat) a : t A :=
-      (maps_to_res r (Some a : Excl.t A)).
+      discrete_fun_singleton r (Excl' (a : leibnizO A)).
 
     Definition ex (r : nat) a : iProp := OwnM (ex_ra r a).
 
     Definition rest_ra {D : nat -> Prop} (DEC : forall i, Decision (D i)) a :=
       ((fun k => if (DEC k)
               then ε
-              else ((Some a : Excl.t A)))
+              else (Excl' (a : leibnizO A)))
         : t A).
 
     Definition rest {D : nat -> Prop} (DEC : forall i, Decision (D i)) a : iProp :=
@@ -32,9 +34,9 @@ Module Excls.
     Lemma exclusive r (t1 t2 : A) :
       ⊢ ex r t1 -∗ ex r t2 -∗ False.
     Proof.
-      iIntros "A B". iCombine "A B" as "C". iPoseProof (OwnM_valid with "C") as "%WF".
-      iPureIntro. unfold ex_ra in WF. setoid_rewrite maps_to_res_add in WF.
-      unfold maps_to_res in WF. ur in WF. specialize (WF r). des_ifs. ur in WF. auto.
+      iIntros "A B". iCombine "A B" gives %WF.
+      iPureIntro.
+      rewrite discrete_fun_singleton_op discrete_fun_singleton_valid // in WF.
     Qed.
 
     Lemma alloc_gen
@@ -52,31 +54,13 @@ Module Excls.
                 ∗ (OwnM ((fun k => if (DEC1 k)
                                 then ε
                                 else if (DEC2 k)
-                                     then (Some a : Excl.t A)
+                                     then (Excl' (a : leibnizO A))
                                      else ε
                          ) : t A))).
     Proof.
-      iIntros "A".
-      assert (URA.updatable
-                ((λ k : nat, if DEC1 k
-                           then ε
-                           else (Some a : Excl.t A)) : t A)
-                (((λ k : nat, if DEC2 k
-                            then ε
-                            else (Some a : Excl.t A)) : t A)
-                   ⋅
-                   ((fun k => if (DEC1 k)
-                           then ε
-                           else if (DEC2 k)
-                                then (Some a : Excl.t A)
-                                else ε) : t A))).
-      { setoid_rewrite unfold_pointwise_add. apply pointwise_updatable. i. specialize (SUB a0). des_ifs.
-        - rewrite URA.unit_id. reflexivity.
-        - rewrite URA.unit_idl. reflexivity.
-        - rewrite URA.unit_id. reflexivity.
-      }
-      iMod (OwnM_Upd with "A") as "[A B]". eauto.
-      iModIntro. iFrame.
+      iIntros "A". unfold rest.
+      iMod (OwnM_Upd with "A") as "[$ $]"; [|done].
+      rewrite /rest_ra !discrete_fun_op. apply discrete_fun_update. i. specialize (SUB a0). des_ifs.
     Qed.
 
     Lemma alloc_one
@@ -91,21 +75,22 @@ Module Excls.
       ⊢ (rest DEC1 a0) -∗ |==> ((rest DEC2 a0) ∗ ∃ r, ex r a0).
     Proof.
       iIntros "A". des.
-      iMod (alloc_gen with "A") as "[A G]".
-      2:{ iFrame. assert (
-            ((λ k : nat,
-                 if DEC1 k then ε else if DEC2 k then (Some a0 : Excl.t A) else ε) : t A)
-            =
-              (ex_ra m a0)).
-          { unfold ex_ra. unfold maps_to_res. extensionalities k.
-            specialize (ONE k). des. des_ifs.
+      iMod (alloc_gen with "A") as "[$ G]".
+      2:{ iFrame.
+            eassert (((λ k : nat, _) : t A) ≡
+              ex_ra m a0) as ->.
+          { rewrite /ex_ra.
+            intros k. specialize (ONE k). des.
+            destruct (decide (m = k)) as [->|];
+              rewrite ?discrete_fun_lookup_singleton ?discrete_fun_lookup_singleton_ne //;
+            des_ifs. exfalso. apply ONE. lia.
           }
-          rewrite H. iExists m. iModIntro. iFrame.
+          iExists m. iFrame. done.
       }
       i. specialize (ONE n). des. des_ifs. apply ONE. intros EQ. subst. clarify.
     Qed.
 
-    Definition rest_gt a : iProp := (∃ U, rest (gt_dec U) a).
+    Definition rest_gt a : iProp := ∃ U, rest (gt_dec U) a.
 
     Lemma alloc_gt a0 :
       ⊢ rest_gt a0 -∗ |==> (rest_gt a0 ∗ ∃ r, ex r a0).

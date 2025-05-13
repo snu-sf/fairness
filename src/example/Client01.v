@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic SCMemSpec LifetimeRA.
 
@@ -206,7 +206,7 @@ Section SPEC.
       { iFrame. }
       iIntros "DUTY CRD3". lred2r. rred2r. iApply wpsim_tauR. rred2r.
       iApply wpsim_ret. eauto. iModIntro.
-      iEval (unfold term_cond). iSplit; iFrame. iPureIntro; auto. }
+      iEval (unfold term_cond). iSplitL; iFrame. iPureIntro; auto. }
     (* After store *)
     { iEval (unfold t1_write; simpl; red_tl_all; simpl; rewrite red_syn_inv; simpl) in "AF".
       iDestruct "AF" as "[DEAD _]".
@@ -269,7 +269,7 @@ Section SPEC.
       { iEval (unfold client01Inv; simpl; red_tl_all; simpl; unfold until_thread_promise).
         iSplit; auto.
         iEval (rewrite red_syn_until_tpromise; simpl; unfold until_thread_promise; simpl;
-            red_tl_all; simpl). iSplit; auto. iLeft. iFrame. }
+            red_tl_all; simpl). iFrame "TPRM". iLeft. iFrame. }
       iApply (wpsim_yieldR with "[DUTY]").
       { eauto. }
       { iFrame. }
@@ -287,7 +287,7 @@ Section SPEC.
       { eauto. }
       { iFrame. }
       iIntros "DUTY CRD2". rred2r.
-      
+
       (* Appeal to the inductive hypothesis *)
       iInv "INV" as "CI" "CI_CLOSE".
       iEval (unfold client01Inv; simpl; red_tl_all; rewrite red_syn_until_tpromise; simpl) in "CI".
@@ -393,7 +393,7 @@ Section SPEC.
     (*         ). *)
 
     Lemma init_sat E (H_TID : tid1 <> tid2) :
-      (OwnM (memory_init_resource Client01.gvs))
+      (OwnM (Σ:=Σ) (memory_init_resource Client01.gvs))
         ∗
         (WSim.initial_prop
            Client01Spec.module Client01.module
@@ -423,7 +423,7 @@ Section SPEC.
       iMod (alloc_obligation 2 2) as "(%k & #LO & PC & PENDk)".
       iMod (Lifetime.alloc k) as "[%γk LIVE]".
       iPoseProof (Lifetime.pending_split with "[LIVE]") as "[LIVE1 LIVE2]".
-      { iEval (rewrite Qp.div_2). iFrame. }
+      { iEval (erewrite Qp.div_2). iFrame. }
       (* iEval (unfold gvs, SCMem.init_gvars; ss) in "PTS". *)
 
       unfold WSim.initial_prop.
@@ -453,7 +453,10 @@ Section SPEC.
       iMod (duty_add (v:=idx) with "[DU1 PC2 PENDk2] []") as "DU1".
       { iSplitL "DU1". instantiate (1:=[]). iApply "DU1". iFrame. }
       { instantiate (1:=((dead γk k : sProp idx) ∗ (t1_write idx))%S). simpl. red_tl_all.
-        unfold t1_write. rewrite red_syn_inv. iModIntro. iIntros "#P". auto.
+        unfold t1_write. rewrite red_syn_inv. iModIntro. iIntros "[P H]".
+        iDestruct "H" as "#H".
+        iDestruct "P" as "#P".
+        iModIntro. auto.
       }
       iPoseProof (duty_delayed_tpromise with "DU1") as "#DPROM".
       { ss. eauto. }

@@ -3,7 +3,7 @@ From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import Spinlock.
 From Fairness Require Import TemporalLogic SCMemSpec SpinlockSpec0.
@@ -105,7 +105,7 @@ Section SIM.
   Context {TLRAS : TLRAs STT Γ Σ}.
 
   Context {HasMEMRA: @GRA.inG memRA Γ}.
-  
+
   Context {HasOneShotsNat : @GRA.inG (OneShots.t unit) Γ}.
   Context {HasAuthExcls : @GRA.inG (AuthExcls.t (nat * nat)) Γ}.
 
@@ -132,7 +132,7 @@ Section SIM.
 
   (* Definition clientSpinlock2_inv n (tid2 : thread_id) (ℓL : nat) (γX γe κs : nat) (κl γκl κw γκw κu γκu : nat) (γr : nat) : sProp n :=
     (
-      ((○ γX 0) ∗ (D ↦ 0)
+      ((○G γX 0) ∗ (D ↦ 0)
                 ∗ (-[κl](0)-◇ (▿ γκl γκw))
                 ∗ (△ γκl (1/2)) ∗ (△ γκw (1/2)) ∗ (△ γκu (1/2))
                 ∗ ⧖[κu, 1/2]
@@ -141,7 +141,7 @@ Section SIM.
                 ∗ (∃ (ℓl : τ{nat}), ◆[κl, ℓl])
       )
       ∨
-        ((○ γX 1) ∗ (D ↦ 0)
+        ((○G γX 1) ∗ (D ↦ 0)
                   ∗ (-[κw](0)-◇ (▿ γκw γκu))
                   ∗ (△ γκw (1/2)) ∗ (△ γκu (1/2)) ∗ (▿ γκl γκw)
                   ∗ ⧖[κu, 1/2]
@@ -151,14 +151,14 @@ Section SIM.
                   ∗ (∃ (ℓw : τ{nat}), ◆[κw, ℓw] ∗ ⌜ℓw <= ℓL⌝)
         )
       ∨
-        ((○ γX 1) ∗ (D ↦ 1)
+        ((○G γX 1) ∗ (D ↦ 1)
                   ∗ (-[κu](0)-◇ (▿ γκu 0))
                   ∗ (△ γκu (1/2)) ∗ (▿ γκl γκw) ∗ (▿ γκw γκu)
                   ∗ ⋈[κu] ∗ (κu -(0)-◇ κs)
                   ∗ (((EX γe tt) ∨ (▿ γr 0)))
         )
       ∨
-        ((○ γX 0) ∗ (D ↦ 1)
+        ((○G γX 0) ∗ (D ↦ 1)
                   ∗ (▿ γκl γκw) ∗ (▿ γκw γκu) ∗ (▿ γr 0) ∗ (▿ γκu 0))
     )%S. *)
   Definition clientSpinlock2_inv n (γl : nat) (κw γκw κu γκu : nat) (γr : nat) : sProp n :=
@@ -169,7 +169,7 @@ Section SIM.
         ∨
         ((D ↦ 1)
           ∗ (▿ γκw tt)
-          ∗ (○ γl (γκu, κu) ∨ ▿ γr tt))
+          ∗ (○G γl (γκu, κu) ∨ ▿ γr tt))
       )%S.
 
   (* Obligation dependencies: (κl at >= (2 + ℓL) + c) → (κw at 2) → (κu at 2 (=ℓl)) → (κs at >= 3) *)
@@ -214,19 +214,19 @@ Section SIM.
     iApply (wpsim_yieldR2 with "[DUTY PCS]"). auto. 2: { iFrame. done. } auto.
     iIntros "DUTY _ PCS". simpl. rred2r. iApply wpsim_tauR. rred2r.
 
-    iMod (pcs_decr _ _ 1 3 4 with "PCS") as "[PCS'' PCS]". auto.
+    iMod (pcs_decr 1 3 with "PCS") as "[PCS'' PCS]". auto.
     iApply (Spinlock_lock_spec with "[] [PCs' DUTY PCS' PCS''] [-]").
     { pose proof md_Spinlock_state_tgt. set_solver. }
     { instantiate (1:=1). auto. }
-    { red_tl_all. rewrite red_syn_tgt_interp_as. repeat iSplit; auto. simpl.
-      iSplitL "PCs'". done. iSplitL "DUTY". done. simpl. iSplitL "PCS'". done. done.
+    { red_tl_all. rewrite red_syn_tgt_interp_as.
+      iFrame "#". iFrame "PCs' DUTY PCS' PCS''".
     }
     iIntros (_) "POST". iEval (red_tl; simpl) in "POST".
     iDestruct "POST" as (γκu') "POST". iEval (red_tl; simpl) in "POST".
     iDestruct "POST" as (κu') "POST". iEval (red_tl_all; simpl) in "POST".
     iDestruct "POST" as "(LW & _ & DUTY & PC)". rred2r.
-    
-    iMod (pcs_decr _ _ 1 2 3 with "PCS") as "[PCS' PCS]". auto.
+
+    iMod (pcs_decr 1 2 with "PCS") as "[PCS' PCS]". auto.
     iApply (wpsim_yieldR with "[DUTY PCS' PC]"). auto.
     { iFrame. iApply (pcs_cons_fold with "[PCS' PC]"). iFrame. }
     iIntros "DUTY _". rred2r.
@@ -235,14 +235,14 @@ Section SIM.
     iEval (unfold clientSpinlock2_inv; simpl; red_tl_all; simpl) in "CI".
     iDestruct "CI" as "[(PTD & #OBLw & #PRMw & LIVE' & #OBLu & #DPRMu & PO2 & LIVE2) | (_ & #SHOT & _)]"; cycle 1.
     { iExFalso. iApply (OneShots.pending_not_shot with "LIVE SHOT"). }
-    
+
     iApply (SCMem_store_fun_spec with "[PTD]"). auto.
     { pose proof md_N_ClientSpinlock2_state_tgt. set_solver. }
     { iFrame. auto. }
     iIntros (rv) "PTD". rred2r. iApply wpsim_tauR. rred2r.
-    
+
     iPoseProof (pass_lock with "[LW DUTY PCs PO2 LIVE2]") as "PASS".
-    2:{ red_tl_all. repeat iSplit; auto. iFrame. simpl. repeat iSplit; auto. }
+    2:{ red_tl_all. iFrame "#". iFrame. }
     { instantiate (1 := ⊤ ∖ ↑N_ClientSpinlock2). pose proof md_N_ClientSpinlock2_Spinlock. set_solver. }
     iEval (rewrite red_syn_fairI) in "PASS". iMod "PASS".
     iEval (red_tl_all; simpl) in "PASS". iDestruct "PASS" as "(LW & DUTY & _)".
@@ -255,7 +255,7 @@ Section SIM.
 
     iMod ("CI_CLOSE" with "[PTD LW]") as "_".
     { iEval (unfold clientSpinlock2_inv; simpl). red_tl_all. iRight. iFrame. done. }
-    
+
     iApply (wpsim_sync2 with "[DUTY]"). auto. auto. iFrame.
     iIntros "DUTY _ _". simpl. rred2r. iApply wpsim_tauR. rred2r. lred2r.
 
@@ -297,7 +297,8 @@ Section SIM.
 
     (* Induction *)
     iRevert "TID DUTY LIVE PCS".
-    iMod (lo_ind_fine with "OBLw []") as "IH". 2: done.
+    iMod (lo_ind_fine with "OBLw []") as "IH".
+    2: { iApply "IH". }
     iModIntro. iExists 0. iIntros "IH". iModIntro.
     iIntros "TID DUTY LIVE PCS".
 
@@ -309,7 +310,7 @@ Section SIM.
       "[(PTD & _ & #PRMw & LIVEw & #OBLu & #DPRMu & POu & LIVEu) | (PTD & #SHOTw & [LW | #SHOTu])]"; cycle 2.
     { iExFalso. iApply (OneShots.pending_not_shot with "LIVE SHOTu"). }
     { (* Not yet *)
-      iApply (wpsim_yieldR_gen_pending with "DUTY [POu]"). auto. rewrite app_nil_r. auto.
+      iApply (wpsim_yieldR_gen_pending with "DUTY [POu]"). auto. erewrite app_nil_r. auto.
       3:{ iApply (pps_cons_fold with "[POu]"). iFrame. iApply pps_nil. } 1,2,3 : auto.
       iIntros "DUTY CRED PPS _".
       iPoseProof (pps_cons_unfold with "PPS") as "[POu _]".
@@ -329,7 +330,7 @@ Section SIM.
         { pose proof md_N_ClientSpinlock2_state_tgt. set_solver. }
         { iSplitR; done. }
         iIntros (rv) "[%EQ PTD]"; subst. rred2r. iApply wpsim_tauR. rred2r.
-        iApply (wpsim_yieldR_gen_pending with "DUTY [POu]"). auto. rewrite app_nil_r. auto.
+        iApply (wpsim_yieldR_gen_pending with "DUTY [POu]"). auto. erewrite app_nil_r. auto.
         3:{ iApply (pps_cons_fold with "[POu]"). iFrame. iApply pps_nil. } 1,2,3 : auto.
         iIntros "DUTY CRED PPS _".
         iPoseProof (pps_cons_unfold with "PPS") as "[POu _]".
@@ -370,8 +371,8 @@ Section SIM.
         iApply (wpsim_yieldR2 with "[DUTY PCS]"). auto. 2: { iFrame. done. } lia.
         iIntros "DUTY _ PCS". simpl. rred2r.
         iApply wpsim_tauR. rred2r.
-        
-        iMod (pcs_decr _ _ 1 with "PCS") as "[PCS' PCS]". left.
+
+        iMod (pcs_decr 1 with "PCS") as "[PCS' PCS]". left.
         iApply (Spinlock_unlock_spec with "[DUTY LW PCS']").
         { pose proof md_Spinlock_state_tgt. set_solver. }
         { iEval (red_tl_all; rewrite red_syn_tgt_interp_as; simpl). iFrame. simpl. iFrame. iSplit; auto. }
@@ -420,8 +421,8 @@ Section SIM.
       iApply (wpsim_yieldR2 with "[DUTY PCS]"). auto. 2: { iFrame. done. } lia.
       iIntros "DUTY _ PCS". simpl. rred2r.
       iApply wpsim_tauR. rred2r.
-      
-      iMod (pcs_decr _ _ 1 with "PCS") as "[PCS' PCS]". left.
+
+      iMod (pcs_decr 1 with "PCS") as "[PCS' PCS]". left.
       iApply (Spinlock_unlock_spec with "[DUTY LW PCS']").
       { pose proof md_Spinlock_state_tgt. set_solver. }
       { iEval (red_tl_all; rewrite red_syn_tgt_interp_as; simpl). iFrame. simpl. iFrame. iSplit; auto. }
@@ -447,8 +448,8 @@ Section SIM.
   Let idx := 1.
 
   Lemma init_sat E (H_TID : tid1 <> tid2) :
-    (OwnM (memory_init_resource ClientSpinlock2.gvs))
-      ∗ (OwnM (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
+    (OwnM (Σ:=Σ) (memory_init_resource ClientSpinlock2.gvs))
+      ∗ (OwnM (Σ:=Σ) (AuthExcls.rest_ra (gt_dec 0) (0, 0)))
       ∗
       (WSim.initial_prop
          ClientSpinlock2Spec.module ClientSpinlock2.module
@@ -537,7 +538,7 @@ Section SIM.
     iMod (AuthExcls.alloc_gt _ (0, 0) with "[REST]") as "[REST (%γl & LB & LW)]".
     { iExists 0. done. }
 
-    iMod (tgt_interp_as_id _ _ (n:=idx) with "[INIT5 MEM]") as "TGT_ST".
+    iMod (tgt_interp_as_id _ _ (n:=idx) with "[INIT5 MEM]") as "TGT_ST_PRE".
     auto.
     2:{ iExists _. iFrame. instantiate (1:=fun '(_, m) => s_memory_black m). simpl.
         red_tl_all. iFrame.
@@ -545,16 +546,17 @@ Section SIM.
     { simpl. instantiate (1:= (∃ (st : τ{st_tgt_type, idx}), ⟨Atom.ow_st_tgt st⟩ ∗ (let '(_, m) := st in s_memory_black (n:=idx) m))%S).
       red_tl_all. f_equal.
     }
-    iPoseProof (tgt_interp_as_compose (n:=idx) (la:=Lens.id) (lb:=sndl) with "TGT_ST") as "TGT_ST".
+    iDestruct (tgt_interp_as_compose (n:=idx) (la:=Lens.id) (lb:=sndl) with "TGT_ST_PRE") as "#TGT_ST".
     { ss. econs. iIntros ([x m]) "MEM". unfold Lens.view. ss. iFrame.
       iIntros (m') "MEM". iFrame.
     }
+    iClear "TGT_ST_PRE".
     iEval (rewrite Lens.left_unit) in "TGT_ST".
 
     simpl. unfold SCMem.init_gvars, gvs. ss. des_ifs.
     iDestruct "PTS" as "((PT & _) & (PT2 & _) & _)".
     iMod (FUpd_alloc _ _ _ idx N_ClientSpinlock2 (clientSpinlock2_inv idx γl κw γκw κu γκu γr)
-      with "[PT POu LIVEu LIVEw']") as "INV1".
+      with "[PT POu LIVEu LIVEw']") as "#INV1".
     lia.
     { simpl. unfold clientSpinlock2_inv. red_tl_all. iLeft; iFrame.
       ss. clarify.
@@ -563,7 +565,7 @@ Section SIM.
       Local Opaque SCMem.alloc.
       iFrame. repeat iSplit; auto.
     }
-    iMod (FUpd_alloc _ _ _ idx N_Spinlock (spinlockInv idx κs L γl emp%S) with "[PT2 LB LW]") as "SI".
+    iMod (FUpd_alloc _ _ _ idx N_Spinlock (spinlockInv idx κs L γl emp%S) with "[PT2 LB LW]") as "#SI".
     lia.
     { simpl. unfold spinlockInv. red_tl_all. iExists 0. red_tl. iExists 0. red_tl_all. iFrame. iLeft. iFrame.
       Local Transparent SCMem.alloc.
@@ -573,11 +575,8 @@ Section SIM.
     }
     iModIntro. iExists γl, κs, κw, γκw, κu, γκu, γr. red_tl_all.
     rewrite red_syn_tgt_interp_as. unfold isSpinlock.
-    red_tl_all; rewrite ! red_syn_inv; simpl. repeat iSplit; auto.
-    iSplitL "TH1 DU1 PCs PCw LIVEw".
-    { iSplitL "TH1"; [done | ]. iSplitL "DU1"; [done | ]. iSplitL "PCs"; [done | ].
-      iSplitL "PCw"; [done | ]. done. }
-    iFrame. done.
+    red_tl_all; rewrite ! red_syn_inv; simpl.
+    iFrame "# TH1 DU1 PCs PCw ∗".
   Qed.
 
 End INITIAL.

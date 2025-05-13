@@ -3,7 +3,7 @@ From Paco Require Import paco.
 From Fairness Require Import pind Axioms ITreeLib Red TRed IRed2 WFLibLarge.
 Require Import Coq.Classes.RelationClasses Lia Program.
 From Fairness Require Import FairBeh Mod Concurrency Linking.
-From Fairness Require Import PCM IProp IPM IPropAux.
+From Fairness Require Import PCM IPM IPropAux.
 From Fairness Require Import IndexedInvariants OpticsInterp SimWeakest SimWeakestAdequacy.
 From Fairness Require Import TemporalLogic SCMemSpec TicketLock.
 From Fairness Require Import AuthExclsRA OneShotsRA.
@@ -57,15 +57,11 @@ Section SPEC.
   Context {HasMEMRA: @GRA.inG memRA Γ}.
   (* Ticketlock ra *)
   Context {HasTicket : @GRA.inG TicketRA Γ}.
-  Context {HasAuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat))%ra Γ}.
+  Context {HasAuthExclAnys : @GRA.inG (AuthExcls.t (nat * nat * nat)) Γ}.
   Context {HasOneShots : @GRA.inG (OneShots.t unit) Γ}.
   (* Ticketlock namespaces *)
   Definition N_Ticketlock_x : namespace := nroot .@ "Ticketlock_x".
   Definition N_Ticketlock_y : namespace := nroot .@ "Ticketlock_y".
-  Lemma md_N_Ticketlock_x_state_tgt : (↑N_Ticketlock_x : coPset) ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
-  Lemma md_N_Ticketlock_y_state_tgt : (↑N_Ticketlock_y : coPset) ## (↑N_state_tgt : coPset).
-  Proof. apply ndot_ne_disjoint. ss. Qed.
 
   (* sprop interpretation tactics *)
   Ltac red_tl_all := red_tl; red_tl_memra; red_tl_authexcls; red_tl_oneshots; red_tl_ticket.
@@ -125,7 +121,7 @@ Section SPEC.
     iEval (red_tl; simpl) in "LPOST"; iDestruct "LPOST" as (γuy) "LPOST".
     iEval (red_tl_all; ss) in "LPOST"; iDestruct "LPOST" as "(_ & LY & DUTY & PCy)". rred2r.
     iPoseProof (pc_drop _ 1 _ _ 12 with "[PCy]") as "> PCy2"; ss.
-    
+
     (* Yield *)
     iPoseProof (pcs_cons_fold _ 0 with "[PCy2 PCs]") as "PCs".
     { iSplitL "PCy2"; iFrame. }
@@ -157,7 +153,7 @@ Section SPEC.
     iIntros "DUTY _ PCs"; rred2r; ss. iApply wpsim_tauR; rred2r.
 
     (* Unlock y *)
-    iPoseProof (pcs_decr _ _ 3 4 with "PCs") as "> [PCs1 PCS2]"; auto.
+    iPoseProof (pcs_decr 3 4 with "PCs") as "> [PCs1 PCS2]"; auto.
     iApply (TicketLock_unlock_spec with "[DUTY LY PCs1] [-]"); auto.
     { iEval (red_tl_all; rewrite red_syn_tgt_interp_as; simpl). iFrame. simpl. iFrame. iSplit; auto. }
     iIntros (_) "DUTY". iEval (red_tl; simpl) in "DUTY". rred2r.

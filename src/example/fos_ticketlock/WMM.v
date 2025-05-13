@@ -1,7 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-From Fairness Require Export ITreeLib WFLibLarge FairBeh NatStructsLarge Mod pind.
+From Fairness Require Export ITreeLib WFLibLarge FairBeh Mod pind.
 From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import Time View TView Cell Memory Local.
 
@@ -31,7 +31,7 @@ Module WMem.
 
   Definition init: t := mk init_mem TimeMap.bot.
 
-  Let ident := (Loc.t * Time.t)%type.
+  Definition ident := (Loc.t * Time.t)%type.
 
   Definition view_to_local (vw: View.t): Local.t := Local.mk (TView.mk (fun _ => vw) vw vw) Memory.bot.
 
@@ -139,9 +139,14 @@ Module WMem.
 End WMem.
 
 (* RA related to WMM *)
-From Fairness Require Import PCM IProp IPM FairnessRA SimDefaultRA MonotoneRA.
+From iris.algebra Require Import cmra updates lib.excl_auth auth excl.
+From Fairness Require Import PCM IPM FairnessRA SimDefaultRA.
 From PromisingSEQ Require Import MemoryProps.
 From Fairness Require Import TemporalLogic LiveObligations OneShotsRA.
+
+(* TODO: Remove this *)
+Global Instance frame_exist_instantiate_disabled :
+  FrameInstantiateExistDisabled := {}.
 
 Section MEMRA.
 
@@ -151,22 +156,23 @@ Section MEMRA.
   Context {TLRAS : TLRAs STT Γ Σ}.
   Variable p: Prism.t id_tgt_type WMem.ident.
   Context {HasOneShots : @GRA.inG (OneShots.t unit) Γ}.
+  Notation iProp := (iProp Σ) (only parsing).
 
-  Definition wmemRA: URA.t := (Loc.t ==> (Auth.t (Excl.t Cell.t)))%ra.
+  Definition wmemRA : ucmra := (Loc.t -d> (excl_authUR (leibnizO Cell.t))).
   Context `{WMEMRA: @GRA.inG wmemRA Γ}.
-  
+
   (* Local Notation index := nat.
   Context `{Vars : index -> Type}.0 *)
 
   Definition memory_resource_black (m: WMem.t): wmemRA :=
     fun loc =>
-      Auth.black (Excl.just (m.(WMem.memory) loc): Excl.t Cell.t).
+      ●E ((m.(WMem.memory) loc) : leibnizO _).
 
   Definition points_to_white (loc: Loc.t) (c: Cell.t): wmemRA :=
     fun loc' =>
       if (Loc.eq_dec loc' loc)
-      then Auth.white (Excl.just c: Excl.t Cell.t)
-      else URA.unit
+      then ◯E (c : leibnizO _)
+      else ε
   .
 
   Definition points_to (loc: Loc.t) (c: Cell.t): iProp :=
@@ -182,23 +188,15 @@ Section MEMRA.
   Lemma wmem_init_res_wf l0 l1
         (DISJ: l0 <> l1)
     :
-    URA.wf (wmem_init_res l0 l1).
+    ✓ (wmem_init_res l0 l1).
   Proof.
-    unfold wmem_init_res, points_to_white, points_to, Auth.white.
-    Local Transparent URA.unit.
-    ur. i. ur. des_ifs.
-    { splits.
-      { eexists (URA.unit). ur. ss. }
-      { ur. ss. }
+    unfold wmem_init_res, points_to_white, points_to, memory_resource_black.
+    intros k. rewrite !discrete_fun_lookup_op.
+    des_ifs.
+    { rewrite right_id comm. apply excl_auth_valid.
     }
-    { splits.
-      { eexists (URA.unit). ur. ss. }
-      { ur. ss. }
-    }
-    { splits.
-      { eexists (Excl.just (WMem.init_mem k)). ur. ss. }
-      { ur. ss. }
-    }
+    { rewrite left_id comm. apply excl_auth_valid. }
+    { rewrite !left_id. by apply auth_auth_valid,Some_valid. }
   Qed.
 
   Lemma wmem_init_res_prop l0 l1
@@ -244,9 +242,9 @@ Section MEMRA.
       (<<MSG: msg = Message.concrete (BinIntDef.Z.of_nat 0) None>>).
   Proof.
     hexploit Cell.max_ts_spec; eauto. i. des.
-    rewrite init_cell_max_ts in *. inv MAX.
+    rewrite init_cell_max_ts in GET0,MAX. inv MAX.
     { inv H. }
-    { inv H. setoid_rewrite init_cell_get in GET. clarify. }
+    { inv H. rewrite init_cell_get in GET. clarify. }
   Qed.
 
   Lemma init_points_to_wpoints_to l v
@@ -289,18 +287,10 @@ Section MEMRA.
   Proof.
     iIntros "BLACK WHITE".
     unfold wmemory_black, points_to.
-    iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN". iPureIntro.
-    ur in H. specialize (H l).
+    iCombine "BLACK WHITE" gives %H. iPureIntro.
+    specialize (H l). rewrite discrete_fun_lookup_op in H.
     unfold memory_resource_black, points_to_white in H. des_ifs.
-    ur in H. ur in H. des_ifs. des. rr in H. des. ur in H. des_ifs.
-  Qed.
-
-  Lemma pointwise_updatabable M K (a b: URA.pointwise K M)
-        (POINTWISE: forall k, URA.updatable (a k) (b k))
-    :
-    URA.updatable a b.
-  Proof.
-    ii. ur. ur in H. i. eapply POINTWISE; eauto.
+    by apply excl_auth_agree_L in H.
   Qed.
 
   Lemma wmemory_ra_write
@@ -316,22 +306,17 @@ Section MEMRA.
   Proof.
     iIntros "BLACK WHITE".
     unfold wmemory_black, points_to.
-    iCombine "BLACK WHITE" as "OWN". iOwnWf "OWN".
-    ur in H. specialize (H l).
+    iCombine "BLACK WHITE" as "OWN". iDestruct (OwnM_valid with "OWN") as %H.
+    specialize (H l). rewrite discrete_fun_lookup_op in H.
     unfold memory_resource_black, points_to_white in H. des_ifs.
-    ur in H. ur in H. des_ifs. des. rr in H. des. ur in H. des_ifs.
-    iAssert (#=> OwnM (memory_resource_black (WMem.mk m1 m0.(WMem.sc)) ⋅ points_to_white l (m1 l))) with "[OWN]" as "> [BLACK WHITE]".
-    { iApply (OwnM_Upd with "OWN").
-      ur. apply pointwise_updatabable. i.
-      unfold memory_resource_black, points_to_white. ss.
-      inv WRITE. setoid_rewrite LocFun.add_spec. des_ifs.
-      eapply Auth.auth_update. ii. des. split; ss.
-      { ur. ss. }
-      { ur in FRAME. ur. des_ifs. rr.
-        f_equal. symmetry. apply LocFun.add_spec_eq.
-      }
-    }
-    { iModIntro. iFrame. }
+    apply excl_auth_agree_L in H.
+    iMod (OwnM_Upd with "OWN") as "[$ $]"; last done.
+    apply discrete_fun_update. i.
+    unfold memory_resource_black, points_to_white.
+    rewrite !discrete_fun_lookup_op. ss.
+    inv WRITE.
+    do 2 (setoid_rewrite LocFun.add_spec; des_ifs).
+    apply excl_auth_update.
   Qed.
 
   Lemma memory_write_max_ts m0 loc from to msg m1
@@ -562,7 +547,7 @@ Section MEMRA.
     iPureIntro. etrans. eapply B. auto.
   Qed.
 
-  
+
 
   Definition wmemory_black_strong m: iProp :=
     wmemory_black m
@@ -866,7 +851,7 @@ Section MEMRA.
             { ss. des; clarify. exfalso. eapply Time.lt_strorder. eapply LT. }
             { des; ss. hexploit Memory.max_ts_spec; eauto. i. des. inv MAX.
               { hexploit H3; eauto. i. des; ss. splits; auto. rr. auto. }
-              { inv H2. clarify. setoid_rewrite GET1 in GET. clarify.
+              { inv H2. clarify. setoid_rewrite GET0 in GET. clarify.
                 splits; auto. rr. auto.
               }
             }
@@ -888,10 +873,10 @@ Section MEMRA.
   Qed.
 
   Section SPROP.
-  
+
     Definition s_wmemory_black {n} m : sProp n :=
       (➢ (memory_resource_black m))%S.
-      
+
     Lemma red_s_wmemory_black n m :
       ⟦s_wmemory_black m, n⟧ = wmemory_black m.
     Proof.
@@ -931,7 +916,7 @@ Section MEMRA.
       ⟦s_wpoints_to loc v vw, n⟧ = wpoints_to loc v vw.
     Proof.
       unfold s_wpoints_to, wpoints_to. red_tl. f_equal. ss.
-      extensionalities. red_tl. rewrite red_s_points_to. ss. 
+      extensionalities. red_tl. rewrite red_s_points_to. ss.
     Qed.
 
     Definition s_wpoints_to_faa {n} (l: Loc.t) (v: Const.t) : sProp n :=
